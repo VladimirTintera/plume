@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.tag_24dp
 import eu.tintera.plume.core.ui.accentOn
@@ -157,8 +160,10 @@ internal fun DraftsSheet(
                 .navigationBarsPadding()
                 .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
         ) {
+            // Koncepty jsou blok zaoblených řádků jako seznam chatů, ze kterého se do nich chodí.
+            val rowColor = MaterialTheme.colorScheme.surfaceContainerLowest
             LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
-                items(rows, key = { it.key }) { item ->
+                itemsIndexed(rows, key = { _, item -> item.key }) { index, item ->
                     val isPresent = item.key in present
                     // Koncepty, se kterými se přehled otevřel, jsou vidět hned; vrácený („Vrátit")
                     // se rozbalí.
@@ -180,6 +185,8 @@ internal fun DraftsSheet(
                         DraftRow(
                             item = item,
                             enabled = isPresent,
+                            containerColor = rowColor,
+                            modifier = Modifier.groupedItem(index, rows.size, rowColor),
                             onClick = {
                                 // Napřed sheet dolů, pak teprve chat — jinak by konverzace naskočila pod
                                 // odjíždějícím sheetem a jeho zavření by vypadalo jako zásek.
@@ -228,14 +235,21 @@ private class LeavingDrafts(initial: List<DraftItem>) {
 }
 
 @Composable
-private fun DraftRow(item: DraftItem, enabled: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun DraftRow(
+    item: DraftItem,
+    enabled: Boolean,
+    containerColor: Color,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val chat = item.chat
     val draft = item.draft
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -264,9 +278,9 @@ private fun DraftRow(item: DraftItem, enabled: Boolean, onClick: () -> Unit, onD
                 )
             }
             // Koncept v tématu: pod názvem skupiny téma, akcentem jako v seznamu témat. Akcent
-            // se ověřuje proti ploše sheetu (`accentOn`), v paletě se zvýšeným kontrastem ustoupí.
+            // se ověřuje proti ploše řádku (`accentOn`), v paletě se zvýšeným kontrastem ustoupí.
             item.topic?.let { topic ->
-                val surface = BottomSheetDefaults.ContainerColor
+                val surface = containerColor
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     val color = accentOn(surface, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface)
                     Icon(painterResource(Res.drawable.tag_24dp), contentDescription = null, tint = color, modifier = Modifier.size(16.dp))

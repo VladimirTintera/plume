@@ -1,6 +1,13 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
+import androidx.compose.foundation.layout.fillMaxWidth
+import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
@@ -52,46 +59,52 @@ fun ArchiveSettingsSheet(
     val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = {
-                    SheetTitle(stringResource(Res.string.chats_archive_settings))
-                },
+            SheetTitle(
+                stringResource(Res.string.chats_archive_settings),
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp),
             )
+            // Přepínače jsou blok zaoblených řádků jako skupiny v Nastavení.
+            GroupedColumn(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                /*
+                 * Automatická archivace od neznámých je za volbou serveru: zapnout ji smí jen účet,
+                 * kterému to server dovolí, a jinde by ťuknutí skončilo chybou. Nenabízí se tedy
+                 * vůbec: přepínač, který skončí chybou, je horší než žádný.
+                 */
+                if (settings.canArchiveUnknownSenders) {
+                    SwitchRow(
+                        title = Res.string.chats_archive_unknown,
+                        summary = Res.string.chats_archive_unknown_summary,
+                        checked = settings.archiveUnknownSenders,
+                        onChange = onArchiveUnknownSenders,
+                    )
+                }
 
-            /*
-             * Automatická archivace od neznámých je za volbou serveru: zapnout ji smí jen účet,
-             * kterému to server dovolí, a jinde by ťuknutí skončilo chybou. Nenabízí se tedy
-             * vůbec: přepínač, který skončí chybou, je horší než žádný.
-             */
-            if (settings.canArchiveUnknownSenders) {
                 SwitchRow(
-                    title = Res.string.chats_archive_unknown,
-                    summary = Res.string.chats_archive_unknown_summary,
-                    checked = settings.archiveUnknownSenders,
-                    onChange = onArchiveUnknownSenders,
+                    title = Res.string.chats_archive_keep,
+                    summary = Res.string.chats_archive_keep_summary,
+                    checked = settings.keepUnmutedArchived,
+                    onChange = onKeepUnmutedArchived,
                 )
-            }
 
-            SwitchRow(
-                title = Res.string.chats_archive_keep,
-                summary = Res.string.chats_archive_keep_summary,
-                checked = settings.keepUnmutedArchived,
-                onChange = onKeepUnmutedArchived,
-            )
-
-            /*
-             * Chaty ze složek: jen s nějakou složkou a jen dokud neplatí volba nad ní — ta drží
-             * v archivu všechny neztlumené chaty a TDLib tuhle pak ignoruje. Přepínač bez
-             * následku by sliboval něco, co se nestane.
-             */
-            AnimatedVisibility(visible = hasFolders && !settings.keepUnmutedArchived) {
-                SwitchRow(
-                    title = Res.string.chats_archive_keep_folders,
-                    summary = Res.string.chats_archive_keep_folders_summary,
-                    checked = settings.keepFromFoldersArchived,
-                    onChange = onKeepFromFoldersArchived,
-                )
+                /*
+                 * Chaty ze složek: jen s nějakou složkou a jen dokud neplatí volba nad ní — ta drží
+                 * v archivu všechny neztlumené chaty a TDLib tuhle pak ignoruje. Přepínač bez
+                 * následku by sliboval něco, co se nestane.
+                 */
+                AnimatedVisibility(
+                    visible = hasFolders && !settings.keepUnmutedArchived,
+                    enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                        fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                        fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ) {
+                    SwitchRow(
+                        title = Res.string.chats_archive_keep_folders,
+                        summary = Res.string.chats_archive_keep_folders_summary,
+                        checked = settings.keepFromFoldersArchived,
+                        onChange = onKeepFromFoldersArchived,
+                    )
+                }
             }
         }
     }
