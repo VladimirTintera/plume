@@ -75,6 +75,8 @@ import eu.tintera.plume.resources.settings_on_device_ai_preview_same
 import eu.tintera.plume.resources.settings_reply_suggestions
 import eu.tintera.plume.resources.settings_reply_suggestions_summary
 import eu.tintera.plume.resources.settings_chat_triage
+import eu.tintera.plume.resources.settings_background_photos
+import eu.tintera.plume.resources.settings_background_photos_summary
 import eu.tintera.plume.resources.settings_chat_triage_summary
 import eu.tintera.plume.resources.settings_scam_warnings
 import eu.tintera.plume.resources.settings_scam_warnings_summary
@@ -86,7 +88,11 @@ import eu.tintera.plume.resources.settings_on_device_ai_unsupported
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.mapLatest
+import eu.tintera.plume.core.ai.backgroundPhotoDescriptionsSupported
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -182,6 +188,19 @@ class OnDeviceAiSettingsViewModel(
     fun setScamWarnings(on: Boolean) = settings.setScamWarningsEnabled(on)
 
     val chatTriage: StateFlow<Boolean> = settings.chatTriageEnabled
+
+    val backgroundPhotos: StateFlow<Boolean> = settings.backgroundPhotoDescriptions
+
+    fun setBackgroundPhotos(on: Boolean) = settings.setBackgroundPhotoDescriptions(on)
+
+    /**
+     * Umí připravený model popsat fotku (dnes Gemma)? Jen pak má smysl volba popisů na pozadí.
+     * Počítá se znovu se změnou modelu — dostažený model ji zpřístupní.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val canDescribePhotos: StateFlow<Boolean> = combine(variant, model) { variant, _ -> variant }
+        .mapLatest { variant -> runCatching { ai.canDescribeImage(variant) }.getOrDefault(false) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun setChatTriage(on: Boolean) = settings.setChatTriageEnabled(on)
 
@@ -354,6 +373,8 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val replySuggestions by viewModel.replySuggestions.collectAsStateWithLifecycle()
     val scamWarnings by viewModel.scamWarnings.collectAsStateWithLifecycle()
     val chatTriage by viewModel.chatTriage.collectAsStateWithLifecycle()
+    val backgroundPhotos by viewModel.backgroundPhotos.collectAsStateWithLifecycle()
+    val canDescribePhotos by viewModel.canDescribePhotos.collectAsStateWithLifecycle()
     val availability by viewModel.availability.collectAsStateWithLifecycle()
 
     /*
@@ -419,6 +440,19 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     viewModel.setChatTriage(on)
                 },
             )
+            // Popisy fotek předem: model běží sám na pozadí (jen na nabíječce), proto vlastní
+            // vypínač. Jen s modelem, který obraz bere, a jen kde je pozadí (Android).
+            if (canDescribePhotos && backgroundPhotoDescriptionsSupported) {
+                VariantSwitch(
+                    title = Res.string.settings_background_photos,
+                    summary = Res.string.settings_background_photos_summary,
+                    checked = backgroundPhotos,
+                    onChange = { on ->
+                        haptics.toggle(on)
+                        viewModel.setBackgroundPhotos(on)
+                    },
+                )
+            }
             /*
              * Poskytovatel se nabízí, jen když je z čeho vybírat — na telefonu bez AICore je
              * jediná možnost Gemma a volba s jednou položkou by byla jen šum. Platí pro celou

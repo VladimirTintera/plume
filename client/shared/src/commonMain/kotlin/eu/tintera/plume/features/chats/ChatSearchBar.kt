@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.SearchContent
+import org.jetbrains.compose.resources.DrawableResource
+import eu.tintera.plume.resources.image_24dp
+import eu.tintera.plume.resources.chats_search_section_photos
+import eu.tintera.plume.features.media.StoredPhotoDescription
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.ui.foldDiacritics
 import eu.tintera.plume.resources.profile_bookmarks
@@ -193,7 +198,10 @@ internal fun ChatSearchBar(
     aiSearch: (suspend (String) -> NaturalSearch?)? = null,
     /** Záložky zpráv napříč chaty; ty, jejichž text sedí na dotaz, mají vlastní blok výsledků. */
     bookmarks: List<MessageBookmark> = emptyList(),
+    /** Názvy chatů záložek i popsaných fotek. */
     bookmarkTitles: Map<Long, String> = emptyMap(),
+    /** Fotky popsané modelem v zařízení; hledání je najde podle popisu. */
+    describedPhotos: List<StoredPhotoDescription> = emptyList(),
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
@@ -383,6 +391,7 @@ internal fun ChatSearchBar(
             onFilterChange = onFilterChange,
             bookmarks = bookmarks,
             bookmarkTitles = bookmarkTitles,
+            describedPhotos = describedPhotos,
         )
     }
 
@@ -458,6 +467,7 @@ private fun SearchResults(
     onFilterChange: (MessageSearchFilter) -> Unit,
     bookmarks: List<MessageBookmark>,
     bookmarkTitles: Map<Long, String>,
+    describedPhotos: List<StoredPhotoDescription>,
 ) {
     val trimmed = query.trim()
     val onPickLatest by rememberUpdatedState(onPick)
@@ -502,13 +512,24 @@ private fun SearchResults(
             bookmarks.filter { foldDiacritics(it.text).lowercase().contains(key) }
         }
     }
+    // Fotky podle popisu od modelu v zařízení — týmž lokálním hledáním jako záložky, nejnovější
+    // popis první. Druh obsahu „Fotky" je nevypne: tam patří nejvíc.
+    val foundPhotos = remember(describedPhotos, trimmed, filter) {
+        val key = foldDiacritics(trimmed).lowercase()
+        val onlyPhotos = filter.copy(content = null).isEmpty && (filter.content == null || filter.content == SearchContent.Photos)
+        if (key.isEmpty() || !onlyPhotos || isHashtagQuery(trimmed)) {
+            emptyList()
+        } else {
+            describedPhotos.filter { foldDiacritics(it.text).lowercase().contains(key) }.sortedByDescending { it.savedAt }
+        }
+    }
 
     /*
      * Jednou ukázaný prázdný stav vydrží i během hledání dalšího znaku. Kdyby ho mezitím
      * vystřídal indikátor, úvodní animace prázdného stavu by se pouštěla při každém znaku.
      */
     var emptyShown by remember { mutableStateOf(false) }
-    val nothing = chats.isEmpty() && global.isEmpty() && messages.isEmpty() && foundBookmarks.isEmpty() && !showSaved
+    val nothing = chats.isEmpty() && global.isEmpty() && messages.isEmpty() && foundBookmarks.isEmpty() && foundPhotos.isEmpty() && !showSaved
     SideEffect { emptyShown = nothing && (settled || emptyShown) }
 
     Column(Modifier.fillMaxSize()) {
@@ -546,6 +567,7 @@ private fun SearchResults(
         var chatsExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
         var globalExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
         var bookmarksExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
+        var photosExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
         val listState = rememberLazyListState()
 
         // Další stránka zpráv, jakmile se listuje ke konci.
@@ -639,13 +661,40 @@ private fun SearchResults(
                 }
                 val shownBookmarks = if (bookmarksExpanded || messages.isEmpty()) foundBookmarks else foundBookmarks.take(COLLAPSED_ROWS)
                 itemsIndexed(shownBookmarks, key = { _, bookmark -> "bookmark-${bookmark.chatId}-${bookmark.messageId}" }) { index, bookmark ->
-                    BookmarkResultRow(
-                        bookmark = bookmark,
-                        chatTitle = bookmarkTitles[bookmark.chatId],
+                    val title = bookmarkTitles[bookmark.chatId]
+                    LocalResultRow(
+                        title = title ?: bookmark.sender.orEmpty(),
+                        // U kanálu je odesílatel tentýž jako název — dvakrát by byl šum.
+                        sender = bookmark.sender?.takeIf { it != title },
+                        timestamp = bookmark.timestamp,
+                        text = bookmark.text,
+                        icon = Res.drawable.bookmark_filled_24dp,
                         query = trimmed,
                         highlight = highlight,
                         onClick = { onMessageClickLatest(bookmark.chatId, bookmark.messageId, null) },
                         modifier = Modifier.animateItem().groupedItem(index, shownBookmarks.size, rowColor),
+                    )
+                }
+            }
+
+            if (foundPhotos.isNotEmpty()) {
+                item(key = "photos-header") {
+                    SectionHeader(stringResource(Res.string.chats_search_section_photos)) {
+                        ExpandToggle(foundPhotos.size, photosExpanded) { photosExpanded = it }
+                    }
+                }
+                val shownPhotos = if (photosExpanded || messages.isEmpty()) foundPhotos else foundPhotos.take(COLLAPSED_ROWS)
+                itemsIndexed(shownPhotos, key = { _, photo -> "photo-${photo.chatId}-${photo.messageId}" }) { index, photo ->
+                    LocalResultRow(
+                        title = bookmarkTitles[photo.chatId].orEmpty(),
+                        sender = null,
+                        timestamp = null,
+                        text = photo.text,
+                        icon = Res.drawable.image_24dp,
+                        query = trimmed,
+                        highlight = highlight,
+                        onClick = { onMessageClickLatest(photo.chatId, photo.messageId, null) },
+                        modifier = Modifier.animateItem().groupedItem(index, shownPhotos.size, rowColor),
                     )
                 }
             }
@@ -680,23 +729,25 @@ private fun SearchResults(
 }
 
 /**
- * Nalezená záložka: název chatu (u kanálu bez opakování odesílatele), kdy zpráva přišla a úryvek
- * se zvýrazněným dotazem. Ikona záložky místo avataru říká, odkud výsledek je — mezi
- * zprávami od serveru by jinak splynula.
+ * Výsledek nalezený lokálně, ne serverem — záložka nebo fotka podle popisu: název chatu, kdy
+ * zpráva přišla (je-li známo) a úryvek se zvýrazněným dotazem. Ikona místo avataru říká,
+ * odkud výsledek je; mezi zprávami od serveru by jinak splynul.
  */
 @Composable
-private fun BookmarkResultRow(
-    bookmark: MessageBookmark,
-    chatTitle: String?,
+private fun LocalResultRow(
+    title: String,
+    sender: String?,
+    timestamp: Int?,
+    text: String,
+    icon: DrawableResource,
     query: String,
     highlight: SpanStyle,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val senderColor = MaterialTheme.colorScheme.onSurface
-    val sender = bookmark.sender?.takeIf { it != chatTitle }
-    val text = remember(bookmark.text, query, highlight, sender, senderColor) {
-        val snippet = snippetAround(bookmark.text.replace('\n', ' '), query)
+    val annotated = remember(text, query, highlight, sender, senderColor) {
+        val snippet = snippetAround(text.replace('\n', ' '), query)
         buildAnnotatedString {
             sender?.let {
                 withStyle(SpanStyle(color = senderColor)) { append(it) }
@@ -710,28 +761,25 @@ private fun BookmarkResultRow(
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    chatTitle ?: bookmark.sender.orEmpty(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    bookmark.timestamp.asRelativeTime(),
-                    style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
+                Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                timestamp?.let {
+                    Text(
+                        it.asRelativeTime(),
+                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
             }
         },
-        supportingContent = { Text(text, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        supportingContent = { Text(annotated, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         leadingContent = {
             Box(
                 Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painterResource(Res.drawable.bookmark_filled_24dp),
+                    painterResource(icon),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(20.dp),

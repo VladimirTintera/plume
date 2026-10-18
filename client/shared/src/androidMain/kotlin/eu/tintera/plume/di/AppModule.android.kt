@@ -22,6 +22,7 @@ import eu.tintera.plume.core.lock.AppLock
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.snooze.AndroidSnoozeReminders
 import eu.tintera.plume.core.snooze.SnoozeReminders
+import eu.tintera.plume.core.ai.PhotoDescriptionSchedule
 import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
 import eu.tintera.plume.core.ai.MlKitOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
@@ -147,6 +148,10 @@ actual fun Module.platformModule() {
     single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
     single<HomeWidgets> { AndroidHomeWidgets(androidContext()) }
     single<SnoozeReminders> { AndroidSnoozeReminders(androidContext()) }
+    // Eagerně: sleduje volbu a podle ní úlohu zařadí nebo zruší, i když se Nastavení neotevře.
+    single(createdAtStart = true) {
+        PhotoDescriptionSchedule(androidContext(), settings = get(), scope = get(named(APP_SCOPE)))
+    }
     single<PhotoMarkupRenderer> { AndroidPhotoMarkupRenderer(androidContext()) }
     single<ProfileVideo> { AndroidProfileVideo(androidContext()) }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.

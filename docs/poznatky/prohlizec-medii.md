@@ -1388,6 +1388,35 @@ místě pruhu reakcí stejně jako text z fotky; oba naráz nejsou, nový zavře
     v bublině v `uiautomator` `content-desc` celý popis, po restartu aplikace taky, a druhé
     „Popsat fotku" ukáže popis do 2 s. **TalkBack neověřený.**
 
+### Popisy na pozadí a hledání fotek podle obsahu
+
+Nastavení → AI v zařízení → „Popisovat fotky na pozadí" (`AppSettings.backgroundPhotoDescriptions`,
+výchozí vypnuto): na nabíječce model popíše nové fotky z chatů (`BackgroundPhotoDescriber`)
+a hledání v seznamu chatů je pak najde v bloku „Fotky podle obsahu" („pes na pláži", „muž
+v kostýmu"). Popisy jdou do téhož úložiště jako „Popsat fotku" (`PhotoDescriptions`, strop
+zvednutý na 500), takže je prohlížeč ukáže hned a čtečka je přečte u fotky v bublině.
+
+- **Jen Android** (`backgroundPhotoDescriptionsSupported`): periodická úloha WorkManageru
+  (`PhotoDescriptionWorker`, šest hodin, `requiresCharging` + `batteryNotLow`). Gemma běží
+  v procesu aplikace, takže jí pozadí nevadí; Gemini Nano obraz nebere a AICore by inferenci
+  na pozadí stejně nepustil. Volba se nabízí, jen když připravený model umí obraz
+  (`canDescribeImage`).
+- **Úlohu řídí `PhotoDescriptionSchedule`** (Koin `createdAtStart`), který sleduje volbu:
+  zapnutí = `enqueueUniquePeriodicWork(KEEP)`, vypnutí = zrušení. **Rušit se smí jen po
+  skutečném vypnutí** — `StateFlow` nastavení má do načtení DataStore výchozí `false` a každý
+  start procesu by úlohu zrušil a posunul jí plán.
+- **Dávka je malá** (10 fotek ze 100 nejnovějších, `ChatRepository.recentPhotos` =
+  globální `searchMessages` s filtrem fotek; tajné chaty TDLib neprochází). Popsané se
+  přeskočí. Na emulátoru (Gemma na CPU, GPU tam nejde) trvalo 10 popisů asi dvě minuty.
+- **Hledání je lokální**, jako u záložek: bez diakritiky, i uprostřed slova; filtr druhu
+  obsahu „Fotky" blok nechá (tam patří nejvíc), ostatní filtry a hashtag ho vypnou.
+- **Ověřeno na emulátoru (Fold, Gemma, hlavní účet)**: zapnutí volby zařadilo úlohu
+  (`dumpsys jobscheduler`: čeká na `CHARGING`), po `dumpsys battery set ac 1` se spustila
+  sama a popsala 10 fotek, hledání „muz" našlo tři v bloku „Fotky podle obsahu", ťuknutí
+  otevřelo kanál na příspěvku; vypnutí volby úlohu zrušilo. Emulátor se po
+  `dumpsys battery reset` vrací ke skutečnému stavu. **Neověřené:** skutečný telefon
+  na nabíječce (kdy přesně systém úlohu pustí) a delší provoz.
+
 ## Spoilery a mizející média
 
 Dva různé mechanismy TDLib. **Spoiler** (`hasSpoiler`) je jen rozmazání, fotka v historii zůstává

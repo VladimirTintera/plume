@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.features.media.StoredPhotoDescription
+import eu.tintera.plume.features.media.PhotoDescriptions
 import kotlinx.coroutines.flow.mapLatest
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
@@ -106,6 +108,7 @@ class ChatsViewModel(
     private val triage: ChatTriage? = null,
     /** Záložky zpráv přes všechny chaty (menu účtu → Záložky); bez nich položka není. */
     private val bookmarks: MessageBookmarks? = null,
+    private val photoDescriptions: PhotoDescriptions? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -390,13 +393,18 @@ class ChatsViewModel(
     val allBookmarks: StateFlow<List<MessageBookmark>> = (bookmarks?.all ?: flowOf(emptyList()))
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Popsané fotky (popis modelem v zařízení) — hledání je najde podle obsahu. */
+    val describedPhotos: StateFlow<List<StoredPhotoDescription>> = (photoDescriptions?.all ?: flowOf(emptyList()))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     /**
-     * Názvy chatů se záložkami. Dotahují se zvlášť (`summaries`, lokální), protože chat se
-     * záložkou nemusí být v načteném seznamu — archivovaný, opuštěný.
+     * Názvy chatů se záložkami a popsanými fotkami. Dotahují se zvlášť (`summaries`, lokální),
+     * protože takový chat nemusí být v načteném seznamu — archivovaný, opuštěný.
      */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val bookmarkChatTitles: StateFlow<Map<Long, String>> = allBookmarks
-        .map { list -> list.map { it.chatId }.distinct() }
+    val foundChatTitles: StateFlow<Map<Long, String>> = combine(allBookmarks, describedPhotos) { marks, photos ->
+        (marks.map { it.chatId } + photos.map { it.chatId }).distinct()
+    }
         .distinctUntilChanged()
         .mapLatest { ids -> repository.summaries(ids).associate { it.id to it.title } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())

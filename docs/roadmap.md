@@ -760,9 +760,10 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 - **Popis obrázků** — ~~ověřit, jestli Gemma přes LiteRT-LM 0.11.0 přijímá obrázky~~ přijímá;
   ~~„Popsat fotku" v prohlížeči~~ hotovo (`docs/poznatky/prohlizec-medii.md`, „Popis fotky").
   ~~**Popis jako `contentDescription` fotky v bublině**~~ — hotovo pro fotky, které uživatel
-  popsat nechal (uložené popisy; `docs/poznatky/prohlizec-medii.md`, „Popis fotky"). Zbývá **hledání
-  fotek podle obsahu** (popisy předem v pozadí, tedy jen na nabíječce a s limitem). Gemini Nano
-  přes Prompt API zatím jen text.
+  popsat nechal (uložené popisy; `docs/poznatky/prohlizec-medii.md`, „Popis fotky"). ~~Hledání fotek podle
+  obsahu~~ — hotovo na Androidu (popisy na pozadí na nabíječce, blok v hledání;
+  `docs/poznatky/prohlizec-medii.md`, „Popisy na pozadí a hledání fotek podle obsahu"). Zbývá iOS
+  (`BGProcessingTask`) a ověření na skutečném telefonu. Gemini Nano přes Prompt API zatím jen text.
 - ~~**Offline překlad přes ML Kit Translation**~~ — hotovo na Androidu (přepínač „Překládat
   v telefonu" v sheetu překladu; `docs/poznatky/konverzace-akce.md`, „Překlad v telefonu").
   ~~Správa stažených balíčků~~ hotovo (Nastavení → Úložiště → Balíčky pro překlad).

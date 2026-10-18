@@ -1995,6 +1995,9 @@
     <string name="settings_contact_sync_denied">Without access to contacts there is nothing to sync. Allow it in the system settings.</string>
     <string name="settings_chat_triage">Awaiting reply</string>
     <string name="settings_chat_triage_summary">The model on your phone marks unread private chats where someone is waiting for your answer. Messages are not sent anywhere.</string>
+    <string name="settings_background_photos">Describe photos in the background</string>
+    <string name="settings_background_photos_summary">While charging, the model describes new photos from your chats so you can find them in search by what is in them. Photos stay on the phone.</string>
+    <string name="chats_search_section_photos">Photos by content</string>
     <string name="settings_scam_warnings_summary">Incoming messages with links or phrases typical of scams are checked by the model on your phone. They are not sent anywhere.</string>
     <string name="settings_on_device_ai_checking">Checking the model…</string>
     <string name="settings_on_device_ai_unsupported">This device does not have the selected model.</string>

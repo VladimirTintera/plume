@@ -6,6 +6,7 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
 import dev.g000sha256.tdl.dto.SearchMessagesFilterDocument
 import dev.g000sha256.tdl.dto.SearchMessagesFilterVideo
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPhoto
+import dev.g000sha256.tdl.dto.MessagePhoto
 import kotlin.time.Clock
 import dev.g000sha256.tdl.dto.InternalLinkTypeSettings
 import dev.g000sha256.tdl.dto.InternalLinkTypeMyProfilePage
@@ -1382,6 +1383,27 @@ class TdlChatRepository(
             .map { it.toPage() }
     }
 
+    override suspend fun recentPhotos(limit: Int): Result<List<RecentPhoto>> =
+        client.searchMessages(
+            chatList = null,
+            query = "",
+            offset = "",
+            limit = limit.coerceIn(1, MAX_SEARCH_LIMIT),
+            filter = SearchMessagesFilterPhoto(),
+            chatTypeFilter = null,
+            minDate = 0,
+            maxDate = 0,
+        )
+            .toResult()
+            .map { found ->
+                found.messages.filterNotNull().mapNotNull { message ->
+                    val photo = (message.content as? MessagePhoto)?.photo ?: return@mapNotNull null
+                    val media = photoMedia(sizes = photo.sizes.filterNotNull(), minithumbnail = photo.minithumbnail)
+                        ?: return@mapNotNull null
+                    RecentPhoto(chatId = message.chatId, messageId = message.id, fileId = media.fullFileId, date = message.date)
+                }
+            }
+
     override suspend fun searchPublicPosts(tag: String, offset: String): Result<FoundMessagesPage> =
         client.searchPublicMessagesByTag(tag = tag, offset = offset, limit = MESSAGE_SEARCH_PAGE)
             .toResult()
@@ -2040,3 +2062,6 @@ private fun SecretChatState.preview(): UiText = UiText(
  */
 internal fun contactOffer(isContact: Boolean, isBot: Boolean, isSelf: Boolean): Boolean =
     !isContact && !isBot && !isSelf
+
+/** `searchMessages` vrátí nejvýš 100 zpráv na dotaz. */
+private const val MAX_SEARCH_LIMIT = 100

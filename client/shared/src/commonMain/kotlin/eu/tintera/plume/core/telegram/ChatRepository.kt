@@ -247,6 +247,12 @@ interface ChatRepository {
     suspend fun recommendedChannels(): Result<List<ChatSummary>> = Result.success(emptyList())
 
     /**
+     * Nejnovější fotky ze všech chatů (hlavní seznam i archiv; tajné chaty TDLib neprochází),
+     * nejnovější první — pro popisy fotek na pozadí. [limit] nejvýš 100 (strop `searchMessages`).
+     */
+    suspend fun recentPhotos(limit: Int): Result<List<RecentPhoto>> = Result.success(emptyList())
+
+    /**
      * Kolik chatů v archivu je nepřečtených. Archiv je schovaný v menu účtu, takže bez tohohle
      * není odkud se dozvědět, že v něm něco přibylo.
      *
@@ -789,3 +795,6 @@ data class ChatAppearance(
     val avatarFileId: Int?,
 )
 
+
+/** Fotka ze zprávy pro popis na pozadí: kde je a plná velikost, kterou model dostane. */
+data class RecentPhoto(val chatId: Long, val messageId: Long, val fileId: Int, val date: Int)

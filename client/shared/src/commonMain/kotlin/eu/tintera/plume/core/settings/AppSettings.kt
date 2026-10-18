@@ -287,6 +287,15 @@ interface AppSettings {
     fun setScamWarningsEnabled(enabled: Boolean)
 
     /**
+     * Popisovat fotky z chatů modelem v zařízení předem, na pozadí — jen na nabíječce (viz
+     * `BackgroundPhotoDescriber`), aby šly najít podle toho, co na nich je. Výchozí `false`:
+     * model běží sám bez ťuknutí a stahuje fotky.
+     */
+    val backgroundPhotoDescriptions: StateFlow<Boolean>
+
+    fun setBackgroundPhotoDescriptions(enabled: Boolean)
+
+    /**
      * Odznak „čeká na odpověď" v seznamu chatů (posouzení modelem v zařízení, viz `ChatTriage`).
      * Vlastní volba ze stejného důvodu jako [scamWarningsEnabled]: model běží sám, bez ťuknutí.
      * Výchozí `false`.
@@ -882,6 +891,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val backgroundPhotoDescriptions: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[BACKGROUND_PHOTO_DESCRIPTIONS] ?: false
+    }
+
+    override fun setBackgroundPhotoDescriptions(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[BACKGROUND_PHOTO_DESCRIPTIONS] = enabled }
+        }
+    }
+
     override val scamWarningsEnabled: StateFlow<Boolean> = value(false) { preferences ->
         preferences[SCAM_WARNINGS_ENABLED] ?: false
     }
@@ -1205,6 +1224,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val SCAM_WARNINGS_ENABLED = booleanPreferencesKey("scam_warnings_enabled")
+        val BACKGROUND_PHOTO_DESCRIPTIONS = booleanPreferencesKey("background_photo_descriptions")
         val CHAT_TRIAGE_ENABLED = booleanPreferencesKey("chat_triage_enabled")
         val CONTACT_SYNC_ENABLED = booleanPreferencesKey("contact_sync_enabled")
         val MESSAGE_CONTEXT_ENABLED = booleanPreferencesKey("message_context_enabled")
