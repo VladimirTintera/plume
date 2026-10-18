@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.animation.AnimatedContent
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import eu.tintera.plume.core.ui.GroupBreak
@@ -569,6 +569,12 @@ private fun TwoStepDialogHost(dialog: TwoStepDialog, status: TwoStepStatus?, vie
     val confirm: StringResource
     var dismiss = Res.string.common_cancel
     var destructive = true
+    // Co se stane: vypnutí a reset ochranu odemknou, e-mail se zruší, zrušení resetu ji ponechá.
+    val icon = when (dialog) {
+        TwoStepDialog.SkipEmail, TwoStepDialog.CancelEmail -> Res.drawable.mail_24dp
+        TwoStepDialog.Disable, TwoStepDialog.Reset, TwoStepDialog.ResetNow -> Res.drawable.lock_open_24dp
+        TwoStepDialog.CancelReset -> Res.drawable.lock_24dp
+    }
     when (dialog) {
         TwoStepDialog.SkipEmail -> {
             title = Res.string.settings_two_step_skip_email_title
@@ -607,18 +613,14 @@ private fun TwoStepDialogHost(dialog: TwoStepDialog, status: TwoStepStatus?, vie
             dismiss = Res.string.settings_two_step_keep
         }
     }
-    AlertDialog(
-        onDismissRequest = viewModel::dismissDialog,
-        title = { Text(stringResource(title)) },
-        text = { Text(text) },
-        confirmButton = {
-            TextButton(onClick = viewModel::confirmDialog, shapes = ButtonDefaults.shapes()) {
-                Text(
-                    stringResource(confirm),
-                    color = if (destructive) MaterialTheme.colorScheme.error else Color.Unspecified,
-                )
-            }
-        },
-        dismissButton = { TextButton(onClick = viewModel::dismissDialog, shapes = ButtonDefaults.shapes()) { Text(stringResource(dismiss)) } },
+    ConfirmDialog(
+        title = stringResource(title),
+        text = text,
+        confirmLabel = stringResource(confirm),
+        onConfirm = viewModel::confirmDialog,
+        onDismiss = viewModel::dismissDialog,
+        icon = icon,
+        destructive = destructive,
+        dismissLabel = stringResource(dismiss),
     )
 }

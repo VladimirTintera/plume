@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.stop_circle_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +15,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -50,7 +52,6 @@ import eu.tintera.plume.resources.poll_stop_title
 import eu.tintera.plume.resources.poll_delete_option_title
 import eu.tintera.plume.resources.poll_delete_option_text
 import eu.tintera.plume.resources.poll_delete_option_confirm
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.poll_voters_failed
 import eu.tintera.plume.resources.poll_voters_more
 import eu.tintera.plume.resources.poll_voters_title
@@ -278,35 +279,27 @@ private val VOTERS_MAX_HEIGHT = 560.dp
  */
 @Composable
 internal fun StopPollDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.poll_stop_title)) },
-        text = { Text(stringResource(Res.string.poll_stop_text)) },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                shapes = ButtonDefaults.shapes(),
-            ) { Text(stringResource(Res.string.poll_stop_confirm)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.poll_stop_title),
+        text = stringResource(Res.string.poll_stop_text),
+        confirmLabel = stringResource(Res.string.poll_stop_confirm),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.stop_circle_24dp,
+        destructive = true,
     )
 }
 
 /** Smazat odpověď z ankety: nevratné, hlasy pro ni zmizí s ní — proto s potvrzením a barvou chyby. */
 @Composable
 internal fun DeletePollOptionDialog(text: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.poll_delete_option_title)) },
-        text = { Text(stringResource(Res.string.poll_delete_option_text, text)) },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                shapes = ButtonDefaults.shapes(),
-            ) { Text(stringResource(Res.string.poll_delete_option_confirm)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.poll_delete_option_title),
+        text = stringResource(Res.string.poll_delete_option_text, text),
+        confirmLabel = stringResource(Res.string.poll_delete_option_confirm),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.delete_24dp,
+        destructive = true,
     )
 }

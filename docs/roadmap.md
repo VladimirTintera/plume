@@ -914,10 +914,12 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Společná hlavička sheetů**~~ — hotovo (`SheetTitle`, 53 sheetů, VladimirTintera/telegram#831). Zbývá obsah: výběr
   jedné hodnoty v sheetu jsou holé řádky s kolečky (automatické mazání v profilu, `AutoDeleteSheet`,
   a podobné), vedle segmentovaných bloků jinde.
-- ~~**Společný `ConfirmDialog`**~~ — hotovo pro 25 potvrzení s ikonou podle akce (VladimirTintera/telegram#832). Zbývá 15
-  destruktivních dialogů s volbou, polem nebo jiným tvarem (smazání zprávy s „i pro ostatní",
-  vyhození člena s délkou, předání vlastnictví s heslem, ukončení ankety, smazání složky
-  s volbou opustit chaty, žádosti o vstup…) — obal by potřeboval slot na obsah.
+- ~~**Společný `ConfirmDialog`**~~ — hotovo pro 25 potvrzení (VladimirTintera/telegram#832)
+  a dalších 9 s volbou nebo polem přes slot `content` (smazání zprávy s „i pro ostatní" a moderací,
+  vyhození s délkou, předání vlastnictví s heslem, smazání složky s opuštěním chatů, ukončení ankety,
+  odmítnutí příspěvku, žádosti o vstup, dvoufázové ověření; VladimirTintera/telegram#854). `AlertDialog` zůstal
+  u podmínek služby, popupu mini aplikace, informací o proxy, dotazu na podporu, výběru osobního
+  kanálu a editoru ukládání do galerie — nejsou to potvrzení akce.
 - ~~**Výběr hodnoty v Nastavení jako nabídka u řádku**~~ — hotovo (`ChoiceRow`, šest výběrů, VladimirTintera/telegram#834;
   `docs/poznatky/nastaveni.md`). Ukládání do galerie zůstalo dialogem (víc hodnot najednou).
 - ~~**Holé `ListItem`y bez bloku**~~ — hotovo: výsledky hledání a nedávná hledání, koncepty,
