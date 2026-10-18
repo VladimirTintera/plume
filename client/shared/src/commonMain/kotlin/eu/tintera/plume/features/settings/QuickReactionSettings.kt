@@ -1,7 +1,20 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import eu.tintera.plume.core.ui.animateMorph
+import eu.tintera.plume.core.ui.ShapeMorphs
+import eu.tintera.plume.core.ui.MorphShape
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,14 +27,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,7 +55,6 @@ import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.settings_quick_reaction
 import eu.tintera.plume.resources.settings_quick_reaction_choose
 import eu.tintera.plume.resources.settings_quick_reaction_choose_body
@@ -94,7 +103,7 @@ internal fun QuickReactionSettings(viewModel: QuickReactionSettingsViewModel) {
     }
 
     if (picking) {
-        QuickReactionDialog(
+        QuickReactionSheet(
             selected = reaction,
             choices = choices,
             onSelect = { chosen ->
@@ -110,52 +119,63 @@ internal fun QuickReactionSettings(viewModel: QuickReactionSettingsViewModel) {
 /**
  * Mřížka emoji, která jdou jako reakce použít. Vlastní emoji (Premium) v nabídce nejsou —
  * seznam od serveru nese jen obyčejná —, ale nastavené z jiného klienta se ukáže v řádku.
+ *
+ * Sheet, ne dialog: mřížka v dialogu se vešla jen s posouváním v malém okně. Vybraná reakce
+ * leží na dvanáctistranné sušence ([ShapeMorphs.Highlight], „tohle je vybrané"), jako vybraný
+ * vzorek barvy; dřív na kruhu.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuickReactionDialog(
+private fun QuickReactionSheet(
     selected: String?,
     choices: List<String>,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.settings_quick_reaction_choose)) },
-        text = {
-            Column {
-                Text(
-                    stringResource(Res.string.settings_quick_reaction_choose_body),
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(48.dp),
-                    modifier = Modifier.heightIn(max = 320.dp),
-                ) {
-                    items(choices, key = { it }) { emoji ->
-                        val isSelected = emoji == selected
-                        Box(
-                            Modifier
-                                .size(48.dp)
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                                    CircleShape,
-                                )
-                                .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(emoji) })
-                                .semantics { contentDescription = emoji },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            ReactionGlyph(emoji, size = 28)
-                        }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
+        Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
+            SheetTitle(
+                stringResource(Res.string.settings_quick_reaction_choose),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            )
+            Text(
+                stringResource(Res.string.settings_quick_reaction_choose_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 4.dp, bottom = 16.dp),
+            )
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(REACTION_CELL),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                modifier = Modifier.selectableGroup().heightIn(max = 420.dp),
+            ) {
+                items(choices, key = { it }) { emoji ->
+                    val isSelected = emoji == selected
+                    val progress = animateMorph(toShape = isSelected, label = "quick-reaction")
+                    val highlight = MaterialTheme.colorScheme.secondaryContainer
+                    Box(
+                        Modifier
+                            .size(REACTION_CELL)
+                            .clip(CircleShape)
+                            .drawBehind {
+                                if (progress > 0f) {
+                                    val outline = MorphShape(ShapeMorphs.Highlight, progress).createOutline(size, layoutDirection, this)
+                                    drawOutline(outline, highlight.copy(alpha = progress.coerceIn(0f, 1f)))
+                                }
+                            }
+                            .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(emoji) })
+                            .semantics { contentDescription = emoji },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ReactionGlyph(emoji, size = 28)
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
+        }
+    }
 }
+
+private val REACTION_CELL = 52.dp
 
 /** Obyčejné emoji jako text, vlastní (klíč s id) jako obrázek. */
 @Composable

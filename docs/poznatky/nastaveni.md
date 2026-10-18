@@ -186,11 +186,15 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
     `input motionevent DOWN`). Řádek bez ťuknutí má `pressable = false`.
 - **Výběr jedné hodnoty je nabídka u řádku, ne dialog** (`ChoiceRow` / `ChoiceMenu` v `core/ui`):
   tah v seznamu chatů, automatické stahování, uchovávání médií, strop mezipaměti, časovač zámku,
-  automatické odhlášení zařízení. Dialog s kolečky otevřel okno přes celou obrazovku kvůli
+  automatické odhlášení zařízení, samosmazání účtu (vlastní řádek kvůli chybě čtení a zápisu
+  v podtitulku, nabídka tatáž). Dialog s kolečky otevřel okno přes celou obrazovku kvůli
   krátké volbě. Řádek má šipku (otočí se, když je nabídka otevřená), vybraná volba je
   zaškrtnutá a ťuknutí ji rovnou zvolí. Věta, která dřív stála v dialogu nad volbami, je
   v nabídce jako první skupina (`note`) — stejně široká jako volby (`IntrinsicSize.Max`),
   užší vypadala jako zbytek.
+  - **Dlouhý seznam je sheet, ne nabídka**: jazyk aplikace (bloky „Podle systému" a jazyky,
+    `ChoiceListItem`; komunitních jazyků přibývá) a rychlá reakce (mřížka emoji, vybraná na
+    dvanáctistranné sušence `ShapeMorphs.Highlight`). Obojí dřív `AlertDialog` (říjen 2026).
   - **Vysoká nabídka se otevře přes svůj řádek**, když se pod něj nevejde (tah doprava na
     telefonu: věta a šest voleb). Tak se rozbalovací nabídky na telefonu chovají; řádek zůstane
     pod ní a po zavření je zas vidět.

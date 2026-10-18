@@ -199,14 +199,14 @@ internal fun ConversationDialogs(
     // Přesná: živá poloha se sleduje na mapě, kilometrová přesnost by z ní udělala šum.
     val liveLocation = rememberDeviceLocation(precise = true)
     state.proximityAlert?.let { prompt ->
-        ProximityAlertDialog(
+        ProximityAlertSheet(
             currentRadius = prompt.currentRadius,
             onPick = viewModel::setProximityAlert,
             onDismiss = viewModel::dismissProximityAlert,
         )
     }
     if (sheets.livePeriod) {
-        LiveLocationPeriodDialog(
+        LiveLocationPeriodSheet(
             onPick = { period ->
                 sheets.livePeriod = false
                 haptics.confirm()
