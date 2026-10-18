@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -122,7 +123,7 @@ internal fun NotificationSoundSheet(
         Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState())) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(title), style = MaterialTheme.typography.titleLarge) },
+                headlineContent = { SheetTitle(stringResource(title)) },
             )
             if (followDefault != null) {
                 SoundOption(

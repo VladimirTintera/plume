@@ -506,6 +506,9 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `core/ui/ExpandedSheet.kt`) — hlídá to `verifyExpandedSheets`. Napůl rozbalený schovával pod
   spodní okraj výsledek, tlačítko Uložit nebo poslední položky a opravoval se po jednom v osmi
   sheetech; obsah, který přibude, rozbalený sheet zvětší sám.
+- **Nadpis modálního sheetu je `SheetTitle`** (`core/ui`, `titleLargeEmphasized`), ne `Text`
+  s vlastní rolí: dřív měla polovina sheetů `titleLarge` a polovina `titleMedium`. Odsazení
+  si dává sheet. Výjimka jsou sheety, kde velký text JE obsah (náhled pozvánky, Můj QR kód).
 - **Tlačítko ve slotu textového pole patří do `TextFieldSlot`** (`core/ui`): `leadingIcon` /
   `trailingIcon` s `IconButton`, avatarem a podobně. `BasicTextField` dává textový kurzor celému
   boxu i s dekorací a ikony ho dědí — na desktopu se nad avatarem účtu v hledání ukazoval

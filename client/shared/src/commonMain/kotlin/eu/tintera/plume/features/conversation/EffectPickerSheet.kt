@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.ExperimentalFoundationApi
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
@@ -71,11 +72,7 @@ internal fun EffectPickerSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Box(Modifier.onPlaced { sheetCoordinates = it }) {
             Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-                Text(
-                    text = stringResource(Res.string.effect_picker_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                )
+                SheetTitle(stringResource(Res.string.effect_picker_title), modifier = Modifier.padding(horizontal = 24.dp))
                 Text(
                     text = stringResource(Res.string.effect_picker_hint),
                     style = MaterialTheme.typography.bodyMedium,

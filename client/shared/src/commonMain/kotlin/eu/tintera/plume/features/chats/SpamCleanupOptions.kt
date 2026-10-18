@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -177,9 +178,8 @@ fun ChatDeleteSheet(
     val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
-            Text(
-                text = stringResource(if (isPrivate) Res.string.chats_delete_title else Res.string.chats_leave_title),
-                style = MaterialTheme.typography.titleLarge,
+            SheetTitle(
+                stringResource(if (isPrivate) Res.string.chats_delete_title else Res.string.chats_leave_title),
                 modifier = Modifier.padding(horizontal = 8.dp).padding(bottom = 16.dp),
             )
             DeleteChatOptions(isPrivate = isPrivate, title = title, spam = spam, onConfirm = onConfirm, roundTop = true)

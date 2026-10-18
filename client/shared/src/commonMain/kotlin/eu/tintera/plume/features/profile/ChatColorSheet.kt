@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -36,11 +37,7 @@ internal fun ChatColorSheet(
     val sheetState = rememberExpandedSheetState()
     val isDark = LocalIsDarkTheme.current
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = stringResource(Res.string.chat_color_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        )
+        SheetTitle(stringResource(Res.string.chat_color_title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
         Text(
             text = stringResource(Res.string.chat_color_explanation),
             style = MaterialTheme.typography.bodyMedium,

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.settings_discreet_reading_summary
 import eu.tintera.plume.resources.settings_discreet_reading
 import eu.tintera.plume.resources.visibility_off_24dp
@@ -40,7 +41,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -523,13 +523,7 @@ private fun BlockedActionsSheet(
                 size = 40.dp,
                 shape = sender.kind.avatarShape(),
             )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 16.dp),
-            )
+            SheetTitle(title, modifier = Modifier.padding(start = 16.dp), maxLines = 1)
         }
         Box(Modifier.padding(16.dp)) {
             SheetActionRow(

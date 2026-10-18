@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import org.koin.compose.viewmodel.koinViewModel
 import eu.tintera.plume.resources.notif_sound_unknown
 import eu.tintera.plume.resources.notif_sound_row
@@ -461,7 +462,7 @@ private fun ExceptionsSheet(
         Column {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(scope.title), style = MaterialTheme.typography.titleLarge) },
+                headlineContent = { SheetTitle(stringResource(scope.title)) },
                 supportingContent = { Text(stringResource(Res.string.settings_notif_exceptions_summary)) },
             )
             LazyColumn(Modifier.navigationBarsPadding()) {

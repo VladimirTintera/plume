@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,11 +52,7 @@ internal fun SecretChatKeySheet(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp).padding(bottom = 32.dp),
         ) {
-            Text(
-                text = stringResource(Res.string.secret_chat_key_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            SheetTitle(stringResource(Res.string.secret_chat_key_title), modifier = Modifier.fillMaxWidth())
             SecretChatIdenticon(key, size = KEY_IMAGE_SIZE)
             // Šestnáctkově pevnou šířkou: skupiny pod sebou lícují a dají se číst po sloupcích.
             Text(

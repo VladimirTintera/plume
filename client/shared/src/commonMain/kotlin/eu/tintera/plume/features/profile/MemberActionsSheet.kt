@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -120,7 +121,7 @@ fun MemberActionsSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-                Text(text = member.name, style = MaterialTheme.typography.titleLarge)
+                SheetTitle(member.name)
                 member.subtitle()?.let { subtitle ->
                     Text(
                         text = subtitle,

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -192,11 +193,7 @@ internal fun SlowModeSheet(current: Int, onSelect: (Int) -> Unit, onDismiss: () 
     // Celý rozbalený: napůl otevřený list schoval 15 minut a hodinu pod spodní hranu.
     val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            stringResource(Res.string.edit_chat_slow_mode),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        )
+        SheetTitle(stringResource(Res.string.edit_chat_slow_mode), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
         Text(
             stringResource(Res.string.edit_chat_slow_mode_help),
             style = MaterialTheme.typography.bodyMedium,
@@ -240,11 +237,7 @@ internal fun ChatReactionsSheet(
         // Posouvá se jen výběr; Uložit stojí pod ním vždycky vidět — emoji je přes sedmdesát
         // a tlačítko na konci seznamu se dalo najít jen dlouhým rolováním.
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
-            Text(
-                stringResource(Res.string.edit_chat_reactions),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-            )
+            SheetTitle(stringResource(Res.string.edit_chat_reactions), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 stringResource(Res.string.edit_chat_reactions_help),
                 style = MaterialTheme.typography.bodyMedium,

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.rewrite_emoji_changed_text
 import eu.tintera.plume.core.ai.onlyEmojiAdded
 import eu.tintera.plume.core.translation.OnDeviceTranslator
@@ -523,7 +524,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                 .padding(start = 24.dp, end = 24.dp, bottom = 24.dp)
                 .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
         ) {
-            Text(stringResource(Res.string.rewrite_title), style = MaterialTheme.typography.titleMedium)
+            SheetTitle(stringResource(Res.string.rewrite_title))
             Text(
                 source,
                 style = MaterialTheme.typography.bodyMedium,

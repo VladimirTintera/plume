@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -85,10 +86,7 @@ fun LinkPreviewOptionsSheet(
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
         ) {
-            Text(
-                text = stringResource(Res.string.link_preview_title),
-                style = MaterialTheme.typography.titleLarge,
-            )
+            SheetTitle(stringResource(Res.string.link_preview_title))
             Text(
                 text = preview.title ?: preview.siteName ?: preview.url,
                 style = MaterialTheme.typography.bodyMedium,

@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.layout.Box
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -75,11 +76,7 @@ fun CountryPickerSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth()) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 24.dp),
-            )
+            SheetTitle(title, modifier = Modifier.padding(horizontal = 24.dp))
             supportingText?.let {
                 Text(
                     it,

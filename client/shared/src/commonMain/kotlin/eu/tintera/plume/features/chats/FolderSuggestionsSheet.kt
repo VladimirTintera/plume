@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,11 +86,7 @@ internal fun FolderSuggestionsSheet(
                 .navigationBarsPadding()
                 .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         ) {
-            Text(
-                stringResource(Res.string.chat_folders_add_folder),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 8.dp),
-            )
+            SheetTitle(stringResource(Res.string.chat_folders_add_folder), modifier = Modifier.padding(horizontal = 8.dp))
             Text(
                 stringResource(Res.string.chat_folders_suggestions_help),
                 style = MaterialTheme.typography.bodyMedium,

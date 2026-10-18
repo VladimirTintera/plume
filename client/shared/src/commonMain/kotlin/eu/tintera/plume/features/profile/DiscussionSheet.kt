@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -66,11 +67,7 @@ internal fun DiscussionSheet(
     var confirming by remember { mutableStateOf<ChatSummary?>(null) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = stringResource(Res.string.edit_chat_discussion),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        )
+        SheetTitle(stringResource(Res.string.edit_chat_discussion), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
         Text(
             text = stringResource(Res.string.edit_chat_discussion_explanation),
             style = MaterialTheme.typography.bodyMedium,

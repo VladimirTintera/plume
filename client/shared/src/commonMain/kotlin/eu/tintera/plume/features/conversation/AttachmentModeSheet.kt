@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -130,11 +131,7 @@ fun AttachmentModeSheet(
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
         ) {
-            Text(
-                text = stringResource(Res.string.attachment_mode_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 16.dp),
-            )
+            SheetTitle(stringResource(Res.string.attachment_mode_title), modifier = Modifier.padding(bottom = 16.dp))
 
             // Sekce: Zobrazení a ochrana
             Text(

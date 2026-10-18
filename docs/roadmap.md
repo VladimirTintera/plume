@@ -891,7 +891,9 @@ poměru přínosu a práce; každý bod je samostatný PR.
   a prázdného stavu, kartu účtu, velká čísla v Úložišti a Využití sítě, počet vybraných, vybranou
   složku a otázku ankety; ruční SemiBold k rolím `title*`/`label*` převedený (`CLAUDE.md`,
   Typografie; VladimirTintera/telegram#830). Nadpisy sheetů dostanou zvýraznění se společným `SheetHeader` (bod níž).
-- **Společný `SheetHeader`.** 64 sheetů, nadpis napůl `titleMedium` a napůl `titleLarge`.
+- ~~**Společná hlavička sheetů**~~ — hotovo (`SheetTitle`, 53 sheetů, VladimirTintera/telegram#831). Zbývá obsah: výběr
+  jedné hodnoty v sheetu jsou holé řádky s kolečky (automatické mazání v profilu, `AutoDeleteSheet`,
+  a podobné), vedle segmentovaných bloků jinde.
 - **Společný `ConfirmDialog`.** 87 `AlertDialog`, ikonu mají dva. Destruktivní potvrzení (~35×)
   je `TextButton` s červeným textem; obal s ikonou, chybovou barvou a tvary tlačítek je sjednotí.
 - **Výběr hodnoty v Nastavení jako `ExpressiveMenu`** u řádku místo `AlertDialog` s kolečky

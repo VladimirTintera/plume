@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -49,11 +50,7 @@ internal fun AutoDeleteSheet(
     val options = autoDeleteOptions(current, secret)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = stringResource(Res.string.auto_delete_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        )
+        SheetTitle(stringResource(Res.string.auto_delete_title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
         Text(
             text = explanation,
             style = MaterialTheme.typography.bodyMedium,

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -193,11 +194,7 @@ internal fun MessageContextSheet(
                 Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    text = stringResource(Res.string.message_context_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                )
+                SheetTitle(stringResource(Res.string.message_context_title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
                 findings.forEach { finding ->
                     Column(
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),

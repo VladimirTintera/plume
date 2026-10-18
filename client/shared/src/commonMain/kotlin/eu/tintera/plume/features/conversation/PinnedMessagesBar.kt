@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.conversation_unpin_all_body
 import eu.tintera.plume.resources.conversation_unpin_all_title
@@ -276,9 +277,8 @@ internal fun PinnedMessagesSheet(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
         ) {
-            Text(
-                text = pluralStringResource(Res.plurals.conversation_pinned_count, messages.size, messages.size),
-                style = MaterialTheme.typography.titleMedium,
+            SheetTitle(
+                pluralStringResource(Res.plurals.conversation_pinned_count, messages.size, messages.size),
                 modifier = Modifier.weight(1f),
             )
             // U jediné zprávy stačí křížek v řádku; „vše" dává smysl až od dvou.

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.saved
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -352,7 +353,7 @@ private fun SavedTopicActionsSheet(
                 modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
             ) {
                 SavedTopicAvatar(topic.header, 32.dp)
-                Text(savedTopicTitle(topic.header), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                SheetTitle(savedTopicTitle(topic.header), maxLines = 1)
             }
             items.forEachIndexed { index, (item, onClick) ->
                 val (label, icon, destructive) = item

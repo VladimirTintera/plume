@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.conversation_contact_me
 import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.GROUP_CORNER
@@ -64,11 +65,7 @@ internal fun ContactPickerSheet(
     // Jen celý: napůl rozbalený sheet schoval seznam pod spodní okraj (viz „Výběr samolepek").
     val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = stringResource(Res.string.conversation_contact_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-        )
+        SheetTitle(stringResource(Res.string.conversation_contact_title), modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
         SearchPill(
             initialQuery = picker.query,
             onQueryChange = onQueryChange,

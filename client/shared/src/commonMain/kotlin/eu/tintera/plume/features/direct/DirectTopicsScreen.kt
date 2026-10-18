@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.direct
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -340,7 +341,7 @@ private fun DirectTopicActionsSheet(
                 modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
             ) {
                 Avatar(chatId = topic.senderId, title = title, avatarFileId = topic.avatarFileId, size = 32.dp)
-                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                SheetTitle(title, maxLines = 1)
             }
             items.forEachIndexed { index, (item, onClick) ->
                 val (label, icon, destructive) = item

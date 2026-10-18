@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -165,9 +166,8 @@ fun PollVotersSheet(
     val sheetState = rememberExpandedSheetState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = stringResource(Res.string.poll_voters_title),
-            style = MaterialTheme.typography.titleMedium,
+        SheetTitle(
+            stringResource(Res.string.poll_voters_title),
             modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp),
         )
         Text(

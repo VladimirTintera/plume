@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.GroupEmptyRow
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -562,13 +563,7 @@ private fun LinkActionsSheet(
 ) {
     ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
-            Text(
-                link.name.ifBlank { link.shortUrl() },
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.MiddleEllipsis,
-                modifier = Modifier.padding(start = 16.dp, bottom = 4.dp),
-            )
+            SheetTitle(link.name.ifBlank { link.shortUrl() }, modifier = Modifier.padding(start = 16.dp, bottom = 4.dp), maxLines = 1)
             Text(
                 linkSummary(link, inviteLinkStatus(link, now)),
                 style = MaterialTheme.typography.bodyMedium,
@@ -795,10 +790,7 @@ private fun AdminLinksSheet(
         ) {
             item(key = "title") {
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
-                    Text(
-                        stringResource(Res.string.invite_links_admin_title, view.admin.name),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+                    SheetTitle(stringResource(Res.string.invite_links_admin_title, view.admin.name))
                     Text(
                         stringResource(if (view.admin.isBot) Res.string.invite_links_admin_bot_help else Res.string.invite_links_admin_help),
                         style = MaterialTheme.typography.bodyMedium,
@@ -865,7 +857,7 @@ private fun LinkMembersSheet(view: LinkMembersView, onDismiss: () -> Unit) {
         ) {
             item(key = "title") {
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
-                    Text(stringResource(Res.string.invite_links_members_title), style = MaterialTheme.typography.titleLarge)
+                    SheetTitle(stringResource(Res.string.invite_links_members_title))
                     Text(
                         view.link.name.ifBlank { view.link.shortUrl() },
                         style = MaterialTheme.typography.bodyMedium,

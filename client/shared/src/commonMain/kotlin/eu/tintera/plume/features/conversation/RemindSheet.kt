@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,11 +62,7 @@ internal fun RemindSheet(
     val zone = remember { TimeZone.currentSystemDefault() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            Text(
-                text = stringResource(Res.string.remind_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-            )
+            SheetTitle(stringResource(Res.string.remind_title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 text = stringResource(Res.string.remind_text),
                 style = MaterialTheme.typography.bodyMedium,
