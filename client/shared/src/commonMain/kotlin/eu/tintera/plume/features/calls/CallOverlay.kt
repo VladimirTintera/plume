@@ -1,6 +1,19 @@
 package eu.tintera.plume.features.calls
 
 import androidx.compose.animation.AnimatedContent
+import eu.tintera.plume.resources.videocam_off_24dp
+import eu.tintera.plume.resources.mic_off_24dp
+import eu.tintera.plume.core.ui.ShapeMorphs
+import eu.tintera.plume.core.ui.MorphShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -357,7 +370,7 @@ private fun CallScreen(
                 }
                 if (full == null) {
                     Spacer(Modifier.weight(0.6f))
-                    Avatar(chatId = call.userId, title = name, avatarFileId = avatarFileId, size = 128.dp)
+                    CallAvatar(call, name, avatarFileId)
                     Spacer(Modifier.height(24.dp))
                     CallHeadline(call, name)
                     Spacer(Modifier.weight(1f))
@@ -436,7 +449,12 @@ private fun CallScreen(
                                         shapes = IconButtonDefaults.toggleableShapes(),
                                         modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
                                     ) {
-                                        Icon(painterResource(Res.drawable.videocam_24dp), contentDescription = stringResource(Res.string.call_camera), modifier = Modifier.size(IconButtonDefaults.mediumIconSize))
+                                        // Stav nese i ikona, ne jen barva a tvar: přeškrtnutá kamera = protějšek nás nevidí.
+                                        Icon(
+                                            painterResource(if (call.camera) Res.drawable.videocam_24dp else Res.drawable.videocam_off_24dp),
+                                            contentDescription = stringResource(Res.string.call_camera),
+                                            modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                                        )
                                     }
                                 }
                                 LabeledButton(stringResource(Res.string.call_mute), Modifier.weight(1f)) {
@@ -446,11 +464,16 @@ private fun CallScreen(
                                         shapes = IconButtonDefaults.toggleableShapes(),
                                         modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
                                     ) {
-                                        Icon(painterResource(Res.drawable.mic_24dp), contentDescription = stringResource(Res.string.call_mute), modifier = Modifier.size(IconButtonDefaults.mediumIconSize))
+                                        // Ztlumený = přeškrtnutý mikrofon, jako v systémovém vytáčení.
+                                        Icon(
+                                            painterResource(if (call.muted) Res.drawable.mic_off_24dp else Res.drawable.mic_24dp),
+                                            contentDescription = stringResource(Res.string.call_mute),
+                                            modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                                        )
                                     }
                                 }
                                 LabeledButton(stringResource(Res.string.call_hang_up), Modifier.weight(1f)) {
-                                    HangUpButton(stringResource(Res.string.call_hang_up), large = false) { scope.launch { calls.hangUp() } }
+                                    HangUpButton(stringResource(Res.string.call_hang_up), large = false, wide = true) { scope.launch { calls.hangUp() } }
                                 }
                             }
                             // Konec: ovládání zmizí, plocha pod ním taky.
@@ -643,7 +666,16 @@ internal fun LabeledButton(label: String, modifier: Modifier = Modifier, button:
 
 /** Zavěšení je sluchátko otočené dolů na chybové ploše, jako v systémovém telefonu. */
 @Composable
-internal fun HangUpButton(description: String, large: Boolean = true, onClick: () -> Unit) {
+internal fun HangUpButton(
+    description: String,
+    large: Boolean = true,
+    /**
+     * Široké jen u probíhajícího hovoru, kde stojí mezi stejně velkými přepínači. Při zvonění
+     * je vedle přijetí — širší odmítnutí by bylo výraznější než přijetí, a to je opačně.
+     */
+    wide: Boolean = false,
+    onClick: () -> Unit,
+) {
     FilledIconButton(
         onClick = onClick,
         colors = IconButtonDefaults.filledIconButtonColors(
@@ -651,7 +683,16 @@ internal fun HangUpButton(description: String, large: Boolean = true, onClick: (
             contentColor = MaterialTheme.colorScheme.onError,
         ),
         shapes = IconButtonDefaults.shapes(),
-        modifier = Modifier.size(if (large) IconButtonDefaults.largeContainerSize() else IconButtonDefaults.mediumContainerSize()),
+        // Široké (M3 Expressive `Wide`): zavěšení je jediná akce, která hovor ukončí, a mezi
+        // stejně velkými přepínači by se ztrácelo — nese ho tvar i barva, ne jen barva.
+        modifier = Modifier.size(
+            when {
+                large && wide -> IconButtonDefaults.largeContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide)
+                large -> IconButtonDefaults.largeContainerSize()
+                wide -> IconButtonDefaults.mediumContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide)
+                else -> IconButtonDefaults.mediumContainerSize()
+            },
+        ),
     ) {
         Icon(
             painterResource(Res.drawable.call_24dp),
@@ -660,6 +701,56 @@ internal fun HangUpButton(description: String, large: Boolean = true, onClick: (
         )
     }
 }
+
+/**
+ * Fotka protějšku. **Dokud hovor čeká** (zvoní, vytáčí se, spojuje), za ní dýchá tvar
+ * [ShapeMorphs.Live] — kruh ↔ SoftBurst, tentýž „živý signál" jako tlačítko při nahrávání.
+ * Fotka sama zůstává kulatá: obličej v měnícím se tvaru by se kroutil. Po spojení svatozář
+ * zmizí — hovor už nečeká, a co se hýbe pořád, přestane cokoli znamenat.
+ */
+@Composable
+private fun CallAvatar(call: ActiveCall, name: String, avatarFileId: Int?) {
+    val waiting = call.phase == CallPhase.Ringing || call.phase == CallPhase.Calling || call.phase == CallPhase.Connecting
+    val haloAlpha by animateFloatAsState(
+        targetValue = if (waiting) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
+        label = "call-halo",
+    )
+    val breathing = if (haloAlpha > 0f) {
+        rememberInfiniteTransition(label = "call-breath").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(CALL_BREATH_MS), RepeatMode.Reverse),
+            label = "call-breath-progress",
+        ).value
+    } else {
+        0f
+    }
+    val haloColor = MaterialTheme.colorScheme.tertiaryContainer
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(CALL_HALO_SIZE)) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .graphicsLayer { alpha = haloAlpha }
+                .drawBehind {
+                    val outline = MorphShape(ShapeMorphs.Live, breathing, rotation = CALL_BREATH_ROTATION)
+                        .createOutline(size, layoutDirection, this)
+                    drawOutline(outline, haloColor)
+                },
+        )
+        Avatar(chatId = call.userId, title = name, avatarFileId = avatarFileId, size = CALL_AVATAR_SIZE)
+    }
+}
+
+private val CALL_AVATAR_SIZE = 128.dp
+
+/** Svatozář přesahuje fotku, aby ji i nejužší místo SoftBurstu obkreslilo. */
+private val CALL_HALO_SIZE = 168.dp
+
+/** Půlperioda dýchání — pomalejší než nahrávání (900 ms): čekání na hovor není spěch. */
+private const val CALL_BREATH_MS = 1400
+
+private const val CALL_BREATH_ROTATION = 30f
 
 /** Zmenšený hovor: pruh nahoře, ťuknutí ho rozbalí. */
 @Composable
