@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import eu.tintera.plume.core.ui.GroupedColumn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,8 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -432,50 +431,46 @@ private fun AppLockManageContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(Modifier.padding(vertical = 8.dp)) {
-                // Změnit PIN
+        // Stejný blok zaoblených řádků jako skupiny sekcí Nastavení.
+        GroupedColumn(Modifier.fillMaxWidth()) {
+            // Změnit PIN
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = {
+                    Icon(painterResource(Res.drawable.edit_24dp), contentDescription = null)
+                },
+                headlineContent = { Text(stringResource(Res.string.settings_app_lock_change_pin)) },
+                modifier = Modifier.clickable(onClick = onChangePin),
+            )
+
+            // Automaticky zamknout
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = {
+                    Icon(painterResource(Res.drawable.schedule_24dp), contentDescription = null)
+                },
+                headlineContent = { Text(stringResource(Res.string.settings_app_lock_timeout)) },
+                supportingContent = { Text(stringResource(timeoutStringResource(settings.timeoutSeconds))) },
+                modifier = Modifier.clickable { showTimeoutDialog = true },
+            )
+
+            // Biometrie
+            if (biometricSupported) {
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = {
-                        Icon(painterResource(Res.drawable.edit_24dp), contentDescription = null)
+                        Icon(painterResource(Res.drawable.fingerprint_24dp), contentDescription = null)
                     },
-                    headlineContent = { Text(stringResource(Res.string.settings_app_lock_change_pin)) },
-                    modifier = Modifier.clickable(onClick = onChangePin),
-                )
-
-                // Automaticky zamknout
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = {
-                        Icon(painterResource(Res.drawable.schedule_24dp), contentDescription = null)
+                    headlineContent = { Text(stringResource(Res.string.settings_app_lock_biometrics)) },
+                    supportingContent = { Text(stringResource(Res.string.settings_app_lock_biometrics_summary)) },
+                    trailingContent = {
+                        IconSwitch(
+                            checked = settings.biometrics,
+                            onCheckedChange = onSetBiometrics,
+                        )
                     },
-                    headlineContent = { Text(stringResource(Res.string.settings_app_lock_timeout)) },
-                    supportingContent = { Text(stringResource(timeoutStringResource(settings.timeoutSeconds))) },
-                    modifier = Modifier.clickable { showTimeoutDialog = true },
+                    modifier = Modifier.clickable { onSetBiometrics(!settings.biometrics) },
                 )
-
-                // Biometrie
-                if (biometricSupported) {
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        leadingContent = {
-                            Icon(painterResource(Res.drawable.fingerprint_24dp), contentDescription = null)
-                        },
-                        headlineContent = { Text(stringResource(Res.string.settings_app_lock_biometrics)) },
-                        supportingContent = { Text(stringResource(Res.string.settings_app_lock_biometrics_summary)) },
-                        trailingContent = {
-                            IconSwitch(
-                                checked = settings.biometrics,
-                                onCheckedChange = onSetBiometrics,
-                            )
-                        },
-                        modifier = Modifier.clickable { onSetBiometrics(!settings.biometrics) },
-                    )
-                }
             }
         }
 

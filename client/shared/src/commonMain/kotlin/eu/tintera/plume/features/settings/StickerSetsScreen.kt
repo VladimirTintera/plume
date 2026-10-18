@@ -29,7 +29,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,9 +65,7 @@ import eu.tintera.plume.features.conversation.StickerPreview
 import eu.tintera.plume.features.conversation.StickerSetSheet
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.archive_24dp
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chats_undo
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.drag_indicator_24dp
 import eu.tintera.plume.resources.more_vert_24dp
@@ -157,17 +154,15 @@ fun StickerSetsScreen(
         snapshotFlow { dragState.draggedKey }.drop(1).filter { it == null }.collect { viewModel.commitOrder() }
     }
 
+    val scrollBehavior = settingsScrollBehavior()
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.settingsScroll(scrollBehavior),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (kind == StickerSetKind.Emoji) Res.string.emoji_sets_title else Res.string.sticker_sets_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
+            SettingsTopBar(
+                title = stringResource(if (kind == StickerSetKind.Emoji) Res.string.emoji_sets_title else Res.string.sticker_sets_title),
+                onBack = onBack,
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->

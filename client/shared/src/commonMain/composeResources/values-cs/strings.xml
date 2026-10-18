@@ -242,7 +242,7 @@
     <string name="settings_section_appearance">Vzhled</string>
     <string name="settings_section_appearance_summary">Motiv, barva, velikost písma</string>
     <string name="settings_theme">Motiv</string>
-    <string name="settings_theme_system">Podle systému</string>
+    <string name="settings_theme_system">Systém</string>
     <string name="settings_theme_light">Světlý</string>
     <string name="settings_theme_dark">Tmavý</string>
     <string name="settings_theme_dynamic">Dynamické barvy</string>

@@ -2,13 +2,11 @@ package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -19,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.navigation.SettingsSection
+import eu.tintera.plume.core.ui.GroupBreak
+import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.features.devices.DevicesSettings
 import eu.tintera.plume.resources.Res
 import org.jetbrains.compose.resources.StringResource
@@ -104,23 +104,26 @@ fun SettingsSectionScreen(
 }
 
 /**
- * Skupina uvnitř sekce: nadpis a pod ním blok položek.
+ * Skupina uvnitř sekce: nadpis a pod ním blok zaoblených řádků ([GroupedColumn]).
  *
- * Nadpis a karta jsou JEDEN kus, ne dva sousedi ve sloupci sekce — s rozestupem sekce by nadpis
- * visel stejně daleko od svojí karty jako od té předchozí a nebylo by poznat, k čemu patří.
+ * Nadpis a blok jsou JEDEN kus, ne dva sousedi ve sloupci sekce — s rozestupem sekce by nadpis
+ * visel stejně daleko od svého bloku jako od toho předchozího a nebylo by poznat, k čemu patří.
  * Skupiny jsou to, co sekci udrží čitelnou, až jich v ní bude víc.
+ *
+ * Každé dítě [content] je jeden řádek bloku; co k sobě patří (vzorky barev a poznámka pod nimi),
+ * musí být v jednom `Column`. Dělicí čáru nahrazuje [GroupBreak].
  */
 @Composable
 internal fun SettingsGroup(
     title: StringResource,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable () -> Unit,
 ) = SettingsGroup(stringResource(title), content)
 
 /** Skupina s nadpisem, který není pevný text (verze a datum vydání v „Co je nového"). */
 @Composable
 internal fun SettingsGroup(
     title: String,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -129,8 +132,6 @@ internal fun SettingsGroup(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = 16.dp),
         )
-        Card(Modifier.fillMaxWidth()) {
-            Column(content = content)
-        }
+        GroupedColumn(Modifier.fillMaxWidth(), content = content)
     }
 }
