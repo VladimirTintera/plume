@@ -392,7 +392,7 @@ Konverzační část auditu (celoaplikační body v [roadmap.md](roadmap.md), �
   dříve #829, #830, #847; `docs/poznatky/konverzace-zobrazeni.md`, „Pruhy a přepínače M3 Expressive").
 - **Zbývá:**
   - ~~Plovoucí tlačítka~~ — hotovo: tvar při stisku a stín 3 dp jako ostatní plovoucí prvky
-    (`FloatingButtonSurface`, PR_PLOVOUCI).
+    (`FloatingButtonSurface`, VladimirTintera/telegram#851).
   - Čipy kategorií pod hledáním samolepek (srdce, palec…) jsou obrysové — zvážit tónové.
   - `StickerSearchField` vypadá jako `SearchPill`, ale je řízený zvenku (text drží ViewModel);
     sloučit až s `SearchPill`, který umí řízený text.
