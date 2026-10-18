@@ -972,7 +972,7 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
   e-mailu v přihlášení (`AuthScreen`). Bez ikony, bez věty o následku v jednotném tvaru
   a nevratné akce bez chybové barvy.
 - ~~**Výběr jedné hodnoty v sheetu jako holé řádky s kolečky**~~ — hotovo (`ChoiceListItem`
-  v `core/ui`, VladimirTintera/telegram#PR): automatické mazání, zvuk upozornění (vestavěné volby, vlastní tóny
+  v `core/ui`, VladimirTintera/telegram#859): automatické mazání, zvuk upozornění (vestavěné volby, vlastní tóny
   a nahrání jako tři bloky), sada samolepek skupiny a diskuse kanálu (obálka a fotka skupiny
   vlevo, „žádná" se znakem na jejich místě). Vymazání historie bloky s kolečky mělo už dřív
   a doby u člena jsou v dialogu — zůstaly.
