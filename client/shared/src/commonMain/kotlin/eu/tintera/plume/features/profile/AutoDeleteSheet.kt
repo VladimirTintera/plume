@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
@@ -57,17 +58,14 @@ internal fun AutoDeleteSheet(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
         )
-        Column(Modifier.selectableGroup().padding(bottom = 16.dp)) {
-            options.forEach { seconds ->
-                val selected = seconds == current
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { RadioButton(selected = selected, onClick = null) },
-                    headlineContent = {
-                        Text(if (seconds == 0) stringResource(Res.string.auto_delete_off) else durationText(seconds))
-                    },
-                    // Řádek nese klikání celý, kolečko má `onClick = null` — viz „Obrazovka nastavení".
-                    modifier = Modifier.selectable(selected = selected, role = Role.RadioButton) { onSelect(seconds) },
+        Column(Modifier.selectableGroup().padding(top = 8.dp, bottom = 16.dp)) {
+            options.forEachIndexed { index, seconds ->
+                ChoiceListItem(
+                    label = if (seconds == 0) stringResource(Res.string.auto_delete_off) else durationText(seconds),
+                    selected = seconds == current,
+                    index = index,
+                    count = options.size,
+                    onClick = { onSelect(seconds) },
                 )
             }
         }

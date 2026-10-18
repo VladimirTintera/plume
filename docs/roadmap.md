@@ -911,9 +911,8 @@ poměru přínosu a práce; každý bod je samostatný PR.
   a prázdného stavu, kartu účtu, velká čísla v Úložišti a Využití sítě, počet vybraných, vybranou
   složku a otázku ankety; ruční SemiBold k rolím `title*`/`label*` převedený (`CLAUDE.md`,
   Typografie; VladimirTintera/telegram#830). Nadpisy sheetů dostanou zvýraznění se společným `SheetHeader` (bod níž).
-- ~~**Společná hlavička sheetů**~~ — hotovo (`SheetTitle`, 53 sheetů, VladimirTintera/telegram#831). Zbývá obsah: výběr
-  jedné hodnoty v sheetu jsou holé řádky s kolečky (automatické mazání v profilu, `AutoDeleteSheet`,
-  a podobné), vedle segmentovaných bloků jinde.
+- ~~**Společná hlavička sheetů**~~ — hotovo (`SheetTitle`, 53 sheetů, VladimirTintera/telegram#831). Výběr
+  jedné hodnoty v sheetu doběhl v druhém kole (`ChoiceListItem`, bod níž).
 - ~~**Společný `ConfirmDialog`**~~ — hotovo pro 25 potvrzení (VladimirTintera/telegram#832)
   a dalších 9 s volbou nebo polem přes slot `content` (smazání zprávy s „i pro ostatní" a moderací,
   vyhození s délkou, předání vlastnictví s heslem, smazání složky s opuštěním chatů, ukončení ankety,
@@ -972,10 +971,11 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
   (`DiscussionSheet`), zavření mini aplikace a souhlas se zápisem (`WebAppScreen`), obnova
   e-mailu v přihlášení (`AuthScreen`). Bez ikony, bez věty o následku v jednotném tvaru
   a nevratné akce bez chybové barvy.
-- **Výběr jedné hodnoty v sheetu jako holé řádky s kolečky** (ověřeno na Pixelu 7):
-  automatické mazání (`AutoDeleteSheet`), zvuk upozornění (`NotificationSoundSheet`), sada
-  samolepek skupiny (`GroupStickerSetSheet`), diskuse kanálu (`DiscussionSheet`). Patří do bloku
-  zaoblených řádků s vybraným řádkem (`groupedItem(selected = …)`), jako výběr země.
+- ~~**Výběr jedné hodnoty v sheetu jako holé řádky s kolečky**~~ — hotovo (`ChoiceListItem`
+  v `core/ui`, VladimirTintera/telegram#PR): automatické mazání, zvuk upozornění (vestavěné volby, vlastní tóny
+  a nahrání jako tři bloky), sada samolepek skupiny a diskuse kanálu (obálka a fotka skupiny
+  vlevo, „žádná" se znakem na jejich místě). Vymazání historie bloky s kolečky mělo už dřív
+  a doby u člena jsou v dialogu — zůstaly.
 - **Sheet upozornění chatu** (`ChatNotificationSheet`): holé řádky „Ztlumit na…", dělicí čára
   a přepínače bez bloků — jediný sheet profilu, který vypadá jako M2 seznam (ověřeno na Pixelu 7).
   Ztlumení jako blok akcí (`SheetActionRow`), přepínače jako druhý blok.

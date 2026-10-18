@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.material3.Icon
+import org.jetbrains.compose.resources.painterResource
+import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Box
@@ -75,17 +79,21 @@ internal fun GroupStickerSetSheet(
                 .selectableGroup()
                 .heightIn(max = 480.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 16.dp),
+                .padding(top = 8.dp, bottom = 16.dp),
         ) {
             StickerSetChoice(
                 selected = current == null,
                 set = null,
+                index = 0,
+                count = sets.size + 1,
                 onClick = { if (current != null) onSelect(null) },
             )
-            sets.forEach { set ->
+            sets.forEachIndexed { index, set ->
                 StickerSetChoice(
                     selected = set.id == current?.id,
                     set = set,
+                    index = index + 1,
+                    count = sets.size + 1,
                     onClick = { if (set.id != current?.id) onSelect(set) },
                 )
             }
@@ -102,26 +110,26 @@ internal fun GroupStickerSetSheet(
 }
 
 @Composable
-private fun StickerSetChoice(selected: Boolean, set: StickerSetSummary?, onClick: () -> Unit) {
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { RadioButton(selected = selected, onClick = null) },
-        headlineContent = {
-            Text(
-                set?.title ?: stringResource(Res.string.edit_chat_sticker_set_none),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+private fun StickerSetChoice(selected: Boolean, set: StickerSetSummary?, index: Int, count: Int, onClick: () -> Unit) {
+    ChoiceListItem(
+        label = set?.title ?: stringResource(Res.string.edit_chat_sticker_set_none),
+        selected = selected,
+        index = index,
+        count = count,
+        onClick = onClick,
+        supporting = set?.takeIf { it.size > 0 }?.let { pluralStringResource(Res.plurals.stickers_count, it.size, it.size) },
+        // Obálka vlevo jako fotka v řádku; nehraje — v seznamu sad by se hýbalo všechno naráz
+        // (jako záložky výběru). „Žádná sada" má na jejím místě znak, ať názvy lícují.
+        leading = {
+            Box(Modifier.size(COVER_SIZE), contentAlignment = Alignment.Center) {
+                val cover = set?.cover
+                if (cover != null) {
+                    StickerPreview(cover, playing = false, modifier = Modifier.size(COVER_SIZE))
+                } else {
+                    Icon(painterResource(Res.drawable.block_24dp), contentDescription = null)
+                }
+            }
         },
-        supportingContent = set?.takeIf { it.size > 0 }?.let {
-            { Text(pluralStringResource(Res.plurals.stickers_count, it.size, it.size)) }
-        },
-        // Obálka nehraje: v seznamu sad by se hýbalo všechno naráz (jako záložky výběru).
-        trailingContent = set?.cover?.let { cover ->
-            { StickerPreview(cover, playing = false, modifier = Modifier.size(COVER_SIZE)) }
-        },
-        // Řádek nese klikání celý, kolečko má `onClick = null` — viz „Obrazovka nastavení".
-        modifier = Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
     )
 }
 

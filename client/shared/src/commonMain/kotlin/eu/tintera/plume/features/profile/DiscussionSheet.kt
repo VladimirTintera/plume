@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import org.jetbrains.compose.resources.painterResource
+import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -84,19 +89,23 @@ internal fun DiscussionSheet(
                 .selectableGroup()
                 .heightIn(max = 480.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 16.dp),
+                .padding(top = 8.dp, bottom = 16.dp),
         ) {
             DiscussionRow(
                 selected = current == null,
                 title = stringResource(Res.string.edit_chat_discussion_none),
                 group = null,
+                index = 0,
+                count = groups.size + 1,
                 onClick = { if (current != null) onSelect(null) },
             )
-            groups.forEach { group ->
+            groups.forEachIndexed { index, group ->
                 DiscussionRow(
                     selected = group.id == current?.chatId,
                     title = group.title,
                     group = group,
+                    index = index + 1,
+                    count = groups.size + 1,
                     onClick = { if (group.id != current?.chatId) confirming = group },
                 )
             }
@@ -127,24 +136,30 @@ internal fun DiscussionSheet(
 }
 
 @Composable
-private fun DiscussionRow(selected: Boolean, title: String, group: ChatSummary?, onClick: () -> Unit) {
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { RadioButton(selected = selected, onClick = null) },
-        headlineContent = { Text(title) },
-        trailingContent = group?.let {
-            {
+private fun DiscussionRow(selected: Boolean, title: String, group: ChatSummary?, index: Int, count: Int, onClick: () -> Unit) {
+    ChoiceListItem(
+        label = title,
+        selected = selected,
+        index = index,
+        count = count,
+        onClick = onClick,
+        // Fotka skupiny vlevo jako v každém řádku s chatem; „Bez diskuse" má na jejím místě
+        // znak, ať názvy lícují.
+        leading = {
+            if (group != null) {
                 Avatar(
-                    chatId = it.id,
-                    title = it.title,
-                    avatarFileId = it.avatarFileId,
+                    chatId = group.id,
+                    title = group.title,
+                    avatarFileId = group.avatarFileId,
                     size = 40.dp,
                     shape = ChatKind.Group.avatarShape(),
                 )
+            } else {
+                Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                    Icon(painterResource(Res.drawable.block_24dp), contentDescription = null)
+                }
             }
         },
-        // Řádek nese klikání celý, kolečko má `onClick = null` — viz „Obrazovka nastavení".
-        modifier = Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
     )
 }
 
