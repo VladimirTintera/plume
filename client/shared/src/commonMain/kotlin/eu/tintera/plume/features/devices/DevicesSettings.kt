@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.devices
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import eu.tintera.plume.core.ui.ChoiceRow
 import eu.tintera.plume.resources.logout_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
@@ -17,11 +20,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -31,17 +32,14 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,7 +63,6 @@ import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.features.settings.SettingsGroup
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.computer_24dp
 import eu.tintera.plume.resources.devices_24dp
@@ -139,7 +136,6 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
     var confirmTerminateOthers by rememberSaveable { mutableStateOf(false) }
     var disconnectWebsiteId by rememberSaveable { mutableStateOf<Long?>(null) }
     var confirmDisconnectAll by rememberSaveable { mutableStateOf(false) }
-    var pickTtl by rememberSaveable { mutableStateOf(false) }
 
     val notice = state.notice
     val scope = rememberCoroutineScope()
@@ -250,11 +246,14 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
             }
 
             SettingsGroup(Res.string.devices_auto_terminate) {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.devices_auto_terminate_row)) },
-                    supportingContent = { Text(ttlLabel(devices.inactiveTtlDays)) },
-                    modifier = Modifier.clickable(enabled = !state.busy) { pickTtl = true },
+                // Hodnota z jiného klienta, která mezi volbami není, zůstane vidět a vybraná.
+                ChoiceRow(
+                    headline = stringResource(Res.string.devices_auto_terminate_row),
+                    options = (INACTIVE_TTL_OPTIONS + devices.inactiveTtlDays).distinct().sorted(),
+                    selected = devices.inactiveTtlDays,
+                    label = { ttlLabel(it) },
+                    onSelect = { days -> if (days != devices.inactiveTtlDays) viewModel.setInactiveTtl(days) },
+                    enabled = !state.busy,
                 )
             }
         }
@@ -326,16 +325,6 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
         )
     }
 
-    if (pickTtl && devices != null) {
-        TtlDialog(
-            selected = devices.inactiveTtlDays,
-            onSelect = { days ->
-                pickTtl = false
-                if (days != devices.inactiveTtlDays) viewModel.setInactiveTtl(days)
-            },
-            onDismiss = { pickTtl = false },
-        )
-    }
 }
 
 /** Co zařízení je: model, bez něj platforma. Aplikace je v podtitulu. */
@@ -546,34 +535,6 @@ private fun ttlLabel(days: Int): String = when (days) {
     180, 183 -> stringResource(Res.string.devices_ttl_6months)
     365 -> stringResource(Res.string.devices_ttl_year)
     else -> pluralStringResource(Res.plurals.devices_ttl_days, days, days)
-}
-
-@Composable
-private fun TtlDialog(selected: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
-    // Hodnota z jiného klienta, která mezi volbami není, zůstane vidět a vybraná.
-    val options = (INACTIVE_TTL_OPTIONS + selected).distinct().sorted()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.devices_auto_terminate_row)) },
-        text = {
-            Column {
-                options.forEach { days ->
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(ttlLabel(days)) },
-                        leadingContent = { RadioButton(selected = days == selected, onClick = null) },
-                        modifier = Modifier.selectable(
-                            selected = days == selected,
-                            role = Role.RadioButton,
-                            onClick = { onSelect(days) },
-                        ),
-                    )
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
-    )
 }
 
 /** Potvrzení nevratné akce; pojmenovává následek, ne „opravdu?". */

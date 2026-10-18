@@ -899,9 +899,8 @@ poměru přínosu a práce; každý bod je samostatný PR.
   destruktivních dialogů s volbou, polem nebo jiným tvarem (smazání zprávy s „i pro ostatní",
   vyhození člena s délkou, předání vlastnictví s heslem, ukončení ankety, smazání složky
   s volbou opustit chaty, žádosti o vstup…) — obal by potřeboval slot na obsah.
-- **Výběr hodnoty v Nastavení jako `ExpressiveMenu`** u řádku místo `AlertDialog` s kolečky
-  (`ChatsSettings` tah, `AutoDownloadGroup`, `StorageSettings`, `AutosaveGroup`, časovač zámku,
-  TTL zařízení) — vzor je u filtrů hledání.
+- ~~**Výběr hodnoty v Nastavení jako nabídka u řádku**~~ — hotovo (`ChoiceRow`, šest výběrů, VladimirTintera/telegram#834;
+  `docs/poznatky/nastaveni.md`). Ukládání do galerie zůstalo dialogem (víc hodnot najednou).
 - **Holé `ListItem`y bez bloku** tam, kde stejný seznam jinde blok má: výsledky globálního
   hledání (`ChatSearchBar` ~670, ~836), koncepty (`DraftsSheet`), nastavení archivu
   (`ArchiveSettingsSheet`), výběr země (`CountryPickerSheet` — navíc dělicí čára a obrysové pole;

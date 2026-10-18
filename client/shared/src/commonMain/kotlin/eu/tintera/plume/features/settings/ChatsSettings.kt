@@ -1,10 +1,9 @@
 package eu.tintera.plume.features.settings
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import eu.tintera.plume.core.ui.ChoiceRow
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.audio.skipSilenceSupported
@@ -26,13 +25,6 @@ import eu.tintera.plume.resources.headphones_24dp
 import eu.tintera.plume.resources.settings_skip_silence
 import eu.tintera.plume.resources.settings_skip_silence_summary
 import org.koin.compose.koinInject
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -45,7 +37,6 @@ import eu.tintera.plume.resources.chats_action_mark_read
 import eu.tintera.plume.resources.chats_action_mute
 import eu.tintera.plume.resources.chats_action_pin
 import eu.tintera.plume.resources.chats_action_snooze
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.settings_swipe_body
 import eu.tintera.plume.resources.settings_swipe_left
 import eu.tintera.plume.resources.settings_swipe_none
@@ -58,7 +49,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.features.proxy.ProxyStatus
@@ -101,8 +91,6 @@ internal fun ChatsSettings(
     onOpenEmojiSets: () -> Unit,
 ) {
     val actions by swipe.actions.collectAsStateWithLifecycle()
-    // Která strana má otevřený výběr; `null` = žádná.
-    var picking by rememberSaveable { mutableStateOf<SwipeSide?>(null) }
 
     SettingsGroup(Res.string.settings_chats) {
         ListItem(
@@ -113,13 +101,22 @@ internal fun ChatsSettings(
             modifier = Modifier.clickable(onClick = onOpenFolders),
         )
         SeparateUnreadRow(appearance)
+        // Akce se nabízejí slovesem, jak je zná nabídka nad chatem; že se u chatu, kde už platí,
+        // otočí, říká věta nad nimi — jinak by „Ztlumit" vypadalo, že tahem odtlumit nejde.
         SwipeSide.entries.forEach { side ->
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = { Icon(painterResource(side.icon), contentDescription = null) },
-                headlineContent = { Text(stringResource(side.title)) },
-                supportingContent = { Text(stringResource(side.of(actions).label)) },
-                modifier = Modifier.clickable { picking = side },
+            ChoiceRow(
+                headline = stringResource(side.title),
+                icon = side.icon,
+                options = ChatSwipeAction.entries,
+                selected = side.of(actions),
+                label = { stringResource(it.label) },
+                note = stringResource(Res.string.settings_swipe_body),
+                onSelect = { action ->
+                    when (side) {
+                        SwipeSide.Right -> swipe.setRight(action)
+                        SwipeSide.Left -> swipe.setLeft(action)
+                    }
+                },
             )
         }
         ChatsWidgetRow(appearance)
@@ -150,20 +147,6 @@ internal fun ChatsSettings(
         TelegramLinksRow()
     }
 
-    picking?.let { side ->
-        SwipeActionDialog(
-            title = side.title,
-            selected = side.of(actions),
-            onSelect = { action ->
-                picking = null
-                when (side) {
-                    SwipeSide.Right -> swipe.setRight(action)
-                    SwipeSide.Left -> swipe.setLeft(action)
-                }
-            },
-            onDismiss = { picking = null },
-        )
-    }
 }
 
 /**
@@ -269,45 +252,6 @@ private fun SkipSilenceRow() {
                 settings.setSkipSilence(on)
             },
         ),
-    )
-}
-
-/**
- * Výběr akce pro jednu stranu. Akce se nabízejí slovesem, jak je zná nabídka nad chatem; že se
- * u chatu, kde už platí, otočí, říká věta nad nimi — jinak by „Ztlumit" vypadalo, že tahem
- * odtlumit nejde.
- */
-@Composable
-private fun SwipeActionDialog(
-    title: StringResource,
-    selected: ChatSwipeAction,
-    onSelect: (ChatSwipeAction) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(title)) },
-        text = {
-            Column {
-                Text(stringResource(Res.string.settings_swipe_body), modifier = Modifier.padding(bottom = 8.dp))
-                ChatSwipeAction.entries.forEach { action ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .selectable(selected = action == selected, role = Role.RadioButton, onClick = { onSelect(action) })
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = action == selected, onClick = null)
-                        Text(stringResource(action.label), modifier = Modifier.padding(start = 12.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
     )
 }
 

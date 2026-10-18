@@ -1,29 +1,18 @@
 package eu.tintera.plume.features.settings
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import eu.tintera.plume.core.ui.ChoiceRow
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,7 +39,6 @@ import eu.tintera.plume.resources.auto_download_off_summary
 import eu.tintera.plume.resources.auto_download_roaming
 import eu.tintera.plume.resources.auto_download_title
 import eu.tintera.plume.resources.auto_download_wifi
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.signal_cellular_alt_24dp
 import eu.tintera.plume.resources.language_24dp
 import eu.tintera.plume.resources.wifi_24dp
@@ -94,78 +82,25 @@ enum class AutoDownloadNetwork { WiFi, Mobile, Roaming }
 @Composable
 internal fun AutoDownloadGroup(viewModel: AutoDownloadViewModel) {
     val levels by viewModel.levels.collectAsStateWithLifecycle()
-    var picking by rememberSaveable { mutableStateOf<AutoDownloadNetwork?>(null) }
 
     SettingsGroup(Res.string.auto_download_title) {
         AutoDownloadNetwork.entries
             .filter { it != AutoDownloadNetwork.Roaming || detectsRoaming }
             .forEach { network ->
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { Icon(painterResource(network.icon), contentDescription = null) },
-                    headlineContent = { Text(stringResource(network.title)) },
-                    supportingContent = { Text(stringResource(network.of(levels).title)) },
-                    modifier = Modifier.clickable { picking = network },
+                // Každá úroveň říká, CO se stáhne samo, s čísly — „Běžně" samo o sobě nic neřekne.
+                // Věta nad volbami vysvětluje, co se stane s tím, co se samo nestáhne, a spořič dat.
+                ChoiceRow(
+                    headline = stringResource(network.title),
+                    icon = network.icon,
+                    options = AutoDownloadLevel.entries,
+                    selected = network.of(levels),
+                    label = { stringResource(it.title) },
+                    optionSupporting = { it.summary() },
+                    note = stringResource(Res.string.auto_download_body),
+                    onSelect = { level -> viewModel.set(network, level) },
                 )
             }
     }
-
-    picking?.let { network ->
-        LevelDialog(
-            title = network.title,
-            selected = network.of(levels),
-            onSelect = { level ->
-                picking = null
-                viewModel.set(network, level)
-            },
-            onDismiss = { picking = null },
-        )
-    }
-}
-
-/**
- * Výběr úrovně. Každá úroveň říká, CO se stáhne samo, s čísly — „Běžně" samo o sobě nic
- * neřekne. Věta nad výběrem vysvětluje, co se stane s tím, co se samo nestáhne, a spořič dat.
- */
-@Composable
-private fun LevelDialog(
-    title: StringResource,
-    selected: AutoDownloadLevel,
-    onSelect: (AutoDownloadLevel) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(title)) },
-        text = {
-            Column {
-                Text(stringResource(Res.string.auto_download_body), modifier = Modifier.padding(bottom = 8.dp))
-                AutoDownloadLevel.entries.forEach { level ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .selectable(selected = level == selected, role = Role.RadioButton, onClick = { onSelect(level) })
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = level == selected, onClick = null)
-                        Column(Modifier.padding(start = 12.dp)) {
-                            Text(stringResource(level.title))
-                            Text(
-                                level.summary(),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
 }
 
 private fun AutoDownloadNetwork.of(levels: AutoDownloadSettings): AutoDownloadLevel = when (this) {
