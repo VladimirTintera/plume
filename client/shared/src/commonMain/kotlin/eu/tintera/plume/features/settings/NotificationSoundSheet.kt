@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import eu.tintera.plume.core.ui.GROUP_SPACING
+import eu.tintera.plume.core.ui.groupedItem
+import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
@@ -117,64 +124,66 @@ internal fun NotificationSoundSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState())) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { SheetTitle(stringResource(title)) },
-            )
-            if (followDefault != null) {
-                SoundOption(
-                    label = stringResource(Res.string.notif_sound_follow_default),
-                    summary = followDefault,
-                    selected = selected == FOLLOW_DEFAULT_SOUND_ID,
-                    onClick = { onSelect(FOLLOW_DEFAULT_SOUND_ID) },
-                )
+        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
+            SheetTitle(stringResource(title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp))
+            // Vestavěné volby jako jeden blok, vlastní tóny jako druhý pod nadpisem.
+            val base = buildList {
+                if (followDefault != null) {
+                    add(Triple(FOLLOW_DEFAULT_SOUND_ID, stringResource(Res.string.notif_sound_follow_default), followDefault))
+                }
+                add(Triple(DEFAULT_SOUND_ID, stringResource(Res.string.notif_sound_default), stringResource(Res.string.notif_sound_default_summary)))
+                add(Triple(NO_SOUND_ID, stringResource(Res.string.notif_sound_none), null))
             }
-            SoundOption(
-                label = stringResource(Res.string.notif_sound_default),
-                summary = stringResource(Res.string.notif_sound_default_summary),
-                // Tón, který účet už nemá (smazaný jinde), nevybere nic — a TDLib ho stejně
-                // zahraje jako výchozí.
-                selected = selected == DEFAULT_SOUND_ID,
-                onClick = { onSelect(DEFAULT_SOUND_ID) },
-            )
-            SoundOption(
-                label = stringResource(Res.string.notif_sound_none),
-                selected = selected == NO_SOUND_ID,
-                onClick = { onSelect(NO_SOUND_ID) },
-            )
+            Column(Modifier.selectableGroup()) {
+                base.forEachIndexed { index, (id, label, summary) ->
+                    ChoiceListItem(
+                        label = label,
+                        // Tón, který účet už nemá (smazaný jinde), nevybere nic — a TDLib ho stejně
+                        // zahraje jako výchozí.
+                        selected = selected == id,
+                        index = index,
+                        count = base.size,
+                        onClick = { onSelect(id) },
+                        supporting = summary,
+                    )
+                }
+            }
             if (tones.isNotEmpty()) {
                 Text(
                     stringResource(Res.string.notif_sound_tones),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = 32.dp, top = 20.dp, bottom = 8.dp),
                 )
+                Column(Modifier.selectableGroup()) {
+                    tones.forEachIndexed { index, tone ->
+                        ChoiceListItem(
+                            label = tone.title,
+                            selected = selected == tone.id,
+                            index = index,
+                            count = tones.size,
+                            onClick = { onSelect(tone.id) },
+                            supporting = pluralStringResource(Res.plurals.notif_sound_seconds, tone.durationSeconds, tone.durationSeconds),
+                            actions = {
+                                IconButton(
+                                    onClick = {
+                                        scope.launch {
+                                            val path = tonePath(tone.id) ?: return@launch
+                                            runCatching { engine.load(path) }.onSuccess { engine.start() }
+                                        }
+                                    },
+                                    shapes = IconButtonDefaults.shapes(),
+                                ) { Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = stringResource(Res.string.notif_sound_play)) }
+                                IconButton(onClick = { deleting = tone }, shapes = IconButtonDefaults.shapes()) {
+                                    Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.notif_sound_delete))
+                                }
+                            },
+                        )
+                    }
+                }
             }
-            tones.forEach { tone ->
-                SoundOption(
-                    label = tone.title,
-                    summary = pluralStringResource(Res.plurals.notif_sound_seconds, tone.durationSeconds, tone.durationSeconds),
-                    selected = selected == tone.id,
-                    onClick = { onSelect(tone.id) },
-                    trailing = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        val path = tonePath(tone.id) ?: return@launch
-                                        runCatching { engine.load(path) }.onSuccess { engine.start() }
-                                    }
-                                },
-                                shapes = IconButtonDefaults.shapes(),
-                            ) { Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = stringResource(Res.string.notif_sound_play)) }
-                            IconButton(onClick = { deleting = tone }, shapes = IconButtonDefaults.shapes()) {
-                                Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.notif_sound_delete))
-                            }
-                        }
-                    },
-                )
-            }
+            // Nahrání je akce, ne volba — vlastní blok pod výběrem.
+            Spacer(Modifier.height(GROUP_SPACING))
             ListItem(
                 colors = ListItemDefaults.colors(
                     containerColor = Color.Transparent,
@@ -190,7 +199,9 @@ internal fun NotificationSoundSheet(
                 },
                 headlineContent = { Text(stringResource(Res.string.notif_sound_upload)) },
                 supportingContent = limits?.let { { Text(stringResource(Res.string.notif_sound_upload_hint, (it.maxBytes / 1024).toInt(), it.maxSeconds)) } },
-                modifier = Modifier.clickable(enabled = !uploading) { picker.pickDocument() },
+                modifier = Modifier
+                    .groupedItem(index = 0, count = 1, color = MaterialTheme.colorScheme.surfaceContainerLowest)
+                    .clickable(enabled = !uploading) { picker.pickDocument() },
             )
         }
     }
@@ -202,7 +213,6 @@ internal fun NotificationSoundSheet(
  */
 internal const val FOLLOW_DEFAULT_SOUND_ID: Long = Long.MIN_VALUE
 
-/** Řádek nese klikání celý, kolečko má `onClick = null` (viz „Obrazovka nastavení"). */
 @Composable
 private fun DeleteToneDialog(tone: NotificationTone, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     ConfirmDialog(
@@ -213,23 +223,5 @@ private fun DeleteToneDialog(tone: NotificationTone, onConfirm: () -> Unit, onDi
         onDismiss = onDismiss,
         icon = Res.drawable.delete_24dp,
         destructive = true,
-    )
-}
-
-@Composable
-private fun SoundOption(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    summary: String? = null,
-    trailing: (@Composable () -> Unit)? = null,
-) {
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { RadioButton(selected = selected, onClick = null) },
-        headlineContent = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        supportingContent = summary?.let { { Text(it) } },
-        trailingContent = trailing,
-        modifier = Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
     )
 }
