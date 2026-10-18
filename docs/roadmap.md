@@ -979,10 +979,10 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
 - ~~**Sheet upozornění chatu**~~ — hotovo (VladimirTintera/telegram#860): tři bloky přes `GroupedColumn` —
   ztlumení s ikonami, volby, návrat k výchozímu; hlavička jako u ostatních sheetů
   (`docs/poznatky/notifikace.md`).
-- **Výběr hodnoty v `AlertDialog`u s kolečky**: automatické smazání účtu (`AccountPrivacyScreen`,
-  je to řádek v Nastavení → patří na `ChoiceRow` jako ostatní), jazyk aplikace
-  (`LanguageSettings`; dlouhý seznam — sheet nebo vlastní podstránka s hledáním), doba a vzdálenost
-  živé polohy (`LiveLocationDialog`), rychlá reakce (`QuickReactionSettings`, mřížka emoji v dialogu).
+- ~~**Výběr hodnoty v `AlertDialog`u s kolečky**~~ — hotovo (VladimirTintera/telegram#861): samosmazání účtu
+  nabídkou u řádku, jazyk aplikace a rychlá reakce jako sheet, doba živé polohy jako sheet s blokem
+  akcí a vzdálenost upozornění jako sheet s výběrem a vlastním blokem „Vypnout"
+  (`LiveLocationSheets.kt`). Hledání v jazycích zatím netřeba — jsou tři.
 - **Obrysová pole mimo dialog**: úprava kontaktu (`EditContactSheet`, tři pole), „Jiný důvod"
   v nahlášení fotky (`ReportPhotoSheet`); nahlášení (`ReportSheet`) má vlastní napodobeninu
   bloku přes `TextField` místo `FormTextField`.
