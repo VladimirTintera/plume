@@ -1,6 +1,34 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
+import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
+import androidx.compose.ui.node.DelegatingNode
+import androidx.compose.ui.node.DelegatableNode
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.IndicationNodeFactory
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animateDpAsState
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.ui.Alignment
@@ -52,7 +80,14 @@ fun groupItemShape(index: Int, count: Int, selected: Boolean = false): Shape {
  * tvar podle pozice, podklad a ořez — vlnka po ťuknutí nepřeteče přes zaoblení. Klikání patří
  * ZA tenhle modifikátor. V obyčejném sloupci je na to [GroupedColumn], který pozici spočítá sám;
  * lazy seznam ji zná až v `itemsIndexed`.
+ *
+ * **Stisknutý řádek se z bloku vyčlení** ([animatedGroupItemShape]). Stisk se sleduje tady, ne
+ * přes `interactionSource` klikání: to bývá schované v řádkové komponentě. Události se jen
+ * poslouchají (nespotřebovávají), stisk se ohlásí až po [PRESS_DELAY_MS] a zruší se posunem
+ * nebo scrollem — jako `clickable` v posouvaném seznamu, aby tvar při scrollu neblikal. Řádek,
+ * který ťuknout nejde, má [pressable] `false`.
  */
+@Composable
 fun Modifier.groupedItem(
     index: Int,
     count: Int,
@@ -60,11 +95,82 @@ fun Modifier.groupedItem(
     selected: Boolean = false,
     /** Okraj bloku od kraje seznamu; 0, když ho už má sloupec kolem (sheet s vlastním odsazením). */
     edge: Dp = 16.dp,
-): Modifier = this
-    .padding(horizontal = edge)
-    .padding(top = if (index > 0) GROUP_ITEM_SPACING else 0.dp)
-    .clip(groupItemShape(index, count, selected))
-    .background(color)
+    pressable: Boolean = true,
+): Modifier {
+    var pressed by remember { mutableStateOf(false) }
+    val shape = animatedGroupItemShape(first = index == 0, last = index == count - 1, selected = selected, pressed = pressed)
+    return this
+        .padding(horizontal = edge)
+        .padding(top = if (index > 0) GROUP_ITEM_SPACING else 0.dp)
+        .then(if (pressable) Modifier.pointerInput(Unit) { trackPress { pressed = it } } else Modifier)
+        .clip(shape)
+        .background(color)
+}
+
+/** Stisk řádku bez spotřebování událostí: se zpožděním, zrušený posunem nebo scrollem. */
+private suspend fun PointerInputScope.trackPress(onPressed: (Boolean) -> Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val slop = viewConfiguration.touchSlop
+        fun moved(change: PointerInputChange) = (change.position - down.position).getDistance() > slop
+        // Dokud prst drží na místě a nikdo událost nespotřeboval (scroll), gesto trvá.
+        suspend fun AwaitPointerEventScope.holding(): Boolean {
+            while (true) {
+                val change = awaitPointerEvent(PointerEventPass.Final).changes.firstOrNull { it.id == down.id }
+                    ?: return false
+                // Final průchod téhož dotyku dolů: `clickable` ho spotřebovává vždycky, gesto
+                // to neruší. Bez téhle výjimky stisk skončil dřív, než začal.
+                if (change.changedToDownIgnoreConsumed()) continue
+                return change.pressed && !change.isConsumed && !moved(change)
+            }
+        }
+        // Krátký dotyk (ťuknutí) do prodlevy stisk neohlásí — vlnka ťuknutí stačí.
+        val ended = withTimeoutOrNull(PRESS_DELAY_MS) {
+            while (holding()) Unit
+            true
+        }
+        if (ended != null) return@awaitEachGesture
+        onPressed(true)
+        try {
+            while (holding()) Unit
+        } finally {
+            onPressed(false)
+        }
+    }
+}
+
+/** Prodleva, po které se dotyk počítá jako stisk (tap timeout `clickable` v posouvaném seznamu). */
+private const val PRESS_DELAY_MS = 100L
+
+/**
+ * **Tvar řádku bloku s animací výběru a stisku.** Stisknutý řádek se z bloku vyčlení: všechna
+ * nároží [PRESSED_CORNER] (M3 Expressive `ListTokens.ItemPressedContainerExpressiveShape`,
+ * `CornerLarge`), stejně jako se stisknuté tlačítko zaoblí jinak. Vybraný má nároží skupiny
+ * ([GROUP_CORNER]) a vyhrává nad stiskem — výběr je stav, stisk jen odezva.
+ *
+ * Animuje se pružinou, protože skupiny se přeskládávají za běhu a stisk je okamžitý; pružina
+ * smí přestřelit, záporné zaoblení se ořízne (`RoundedCornerShape` ho neunese).
+ */
+@Composable
+fun animatedGroupItemShape(first: Boolean, last: Boolean, selected: Boolean, pressed: Boolean = false): RoundedCornerShape {
+    fun target(edge: Boolean): Dp = when {
+        selected -> GROUP_CORNER
+        pressed -> PRESSED_CORNER
+        edge -> GROUP_CORNER
+        else -> INNER_CORNER
+    }
+    val top by animateDpAsState(target(first), MaterialTheme.motionScheme.fastSpatialSpec(), label = "group-corner-top")
+    val bottom by animateDpAsState(target(last), MaterialTheme.motionScheme.fastSpatialSpec(), label = "group-corner-bottom")
+    return RoundedCornerShape(
+        topStart = top.coerceAtLeast(0.dp),
+        topEnd = top.coerceAtLeast(0.dp),
+        bottomStart = bottom.coerceAtLeast(0.dp),
+        bottomEnd = bottom.coerceAtLeast(0.dp),
+    )
+}
+
+/** Nároží stisknutého řádku bloku (M3 Expressive: `CornerLarge`). */
+val PRESSED_CORNER = 16.dp
 
 /** Zaoblení na krajích skupiny. */
 val GROUP_CORNER = 20.dp
@@ -102,61 +208,157 @@ fun GroupedColumn(
 ) {
     // Zapisuje se při umístění a čte při kreslení, takže změna rozvržení překreslí i podklad.
     val segments = remember { mutableStateOf(emptyList<Segment>()) }
-    Layout(
-        content = content,
-        modifier = modifier.drawBehind {
-            segments.value.forEach { segment ->
-                val outline = segment.shape.createOutline(Size(size.width, segment.height.toFloat()), layoutDirection, this)
-                translate(top = segment.top.toFloat()) { drawOutline(outline, containerColor) }
-            }
-        },
-    ) { measurables, constraints ->
-        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else constraints.minWidth
-        // Každý řádek přes celou šířku, i krátký text: blok má rovné boky.
-        val itemConstraints = Constraints.fixedWidth(width)
-        val placeables = measurables.map { if (it.layoutId == GroupBreakId) null else it.measure(itemConstraints) }
+    // Stisk: který řádek (horní hrana v px) a jak daleko je jeho vyčlenění (0 = v bloku).
+    val press = remember { GroupPress() }
+    val scope = rememberCoroutineScope()
+    val spec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    var columnCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
-        // Běhy viditelných řádků mezi zlomy; prázdný běh (zlom na kraji, dva zlomy po sobě) nic nedělá.
-        val runs = mutableListOf(mutableListOf<Int>())
-        placeables.forEachIndexed { index, placeable ->
-            when {
-                placeable == null -> if (runs.last().isNotEmpty()) runs += mutableListOf<Int>()
-                placeable.height > 0 -> runs.last() += index
+    /*
+     * Řádky jsou obyčejné `ListItem`y a o stisku ví jen jejich `clickable`. Sloupec jim proto
+     * podstrčí indikaci (vlnku), která stisk navíc ohlásí sem: zaoblí se jen řádek, který jde
+     * opravdu ťuknout, a stisk přijde se stejným zpožděním jako vlnka, takže scroll tvar nemění.
+     */
+    val base = LocalIndication.current
+    val indication = remember(base) {
+        (base as? IndicationNodeFactory)?.let { factory ->
+            PressReportingIndication(factory) { child, pressed ->
+                val column = columnCoordinates ?: return@PressReportingIndication
+                if (!child.isAttached || !column.isAttached) return@PressReportingIndication
+                val center = column.localPositionOf(child, Offset(0f, child.size.height / 2f)).y
+                val hit = segments.value.firstOrNull { center >= it.top && center < it.top + it.height }
+                    ?: return@PressReportingIndication
+                if (pressed) press.top = hit.top
+                scope.launch { press.progress.animateTo(if (pressed) 1f else 0f, spec) }
             }
-        }
+        } ?: base
+    }
 
-        val gap = GROUP_ITEM_SPACING.roundToPx()
-        val breakGap = GROUP_BREAK_SPACING.roundToPx()
-        val tops = IntArray(placeables.size)
-        val shapes = arrayOfNulls<Shape>(placeables.size)
-        var y = 0
-        runs.filter { it.isNotEmpty() }.forEachIndexed { runIndex, run ->
-            if (runIndex > 0) y += breakGap
-            run.forEachIndexed { position, index ->
-                if (position > 0) y += gap
-                tops[index] = y
-                shapes[index] = groupItemShape(position, run.size)
-                y += placeables[index]!!.height
-            }
-        }
-
-        layout(width, y.coerceIn(constraints.minHeight, constraints.maxHeight)) {
-            val placed = ArrayList<Segment>(placeables.size)
-            placeables.forEachIndexed { index, placeable ->
-                val shape = shapes[index]
-                when {
-                    placeable == null -> Unit
-                    shape == null -> placeable.placeRelative(0, 0)
-                    else -> {
-                        placeable.placeRelativeWithLayer(0, tops[index]) {
-                            this.shape = shape
-                            clip = true
-                        }
-                        placed += Segment(tops[index], placeable.height, shape)
+    CompositionLocalProvider(LocalIndication provides indication) {
+        Layout(
+            content = content,
+            modifier = modifier
+                .onPlaced { columnCoordinates = it }
+                .drawBehind {
+                    segments.value.forEach { segment ->
+                        val outline = press.shapeOf(segment).createOutline(Size(size.width, segment.height.toFloat()), layoutDirection, this)
+                        translate(top = segment.top.toFloat()) { drawOutline(outline, containerColor) }
                     }
+                },
+        ) { measurables, constraints ->
+            val width = if (constraints.hasBoundedWidth) constraints.maxWidth else constraints.minWidth
+            // Každý řádek přes celou šířku, i krátký text: blok má rovné boky.
+            val itemConstraints = Constraints.fixedWidth(width)
+            val placeables = measurables.map { if (it.layoutId == GroupBreakId) null else it.measure(itemConstraints) }
+
+            // Běhy viditelných řádků mezi zlomy; prázdný běh (zlom na kraji, dva zlomy po sobě) nic nedělá.
+            val runs = mutableListOf(mutableListOf<Int>())
+            placeables.forEachIndexed { index, placeable ->
+                when {
+                    placeable == null -> if (runs.last().isNotEmpty()) runs += mutableListOf<Int>()
+                    placeable.height > 0 -> runs.last() += index
                 }
             }
-            segments.value = placed
+
+            val gap = GROUP_ITEM_SPACING.roundToPx()
+            val breakGap = GROUP_BREAK_SPACING.roundToPx()
+            val tops = IntArray(placeables.size)
+            val first = BooleanArray(placeables.size)
+            val last = BooleanArray(placeables.size)
+            val inRun = BooleanArray(placeables.size)
+            var y = 0
+            runs.filter { it.isNotEmpty() }.forEachIndexed { runIndex, run ->
+                if (runIndex > 0) y += breakGap
+                run.forEachIndexed { position, index ->
+                    if (position > 0) y += gap
+                    tops[index] = y
+                    first[index] = position == 0
+                    last[index] = position == run.lastIndex
+                    inRun[index] = true
+                    y += placeables[index]!!.height
+                }
+            }
+
+            layout(width, y.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+                val placed = ArrayList<Segment>(placeables.size)
+                placeables.forEachIndexed { index, placeable ->
+                    when {
+                        placeable == null -> Unit
+                        !inRun[index] -> placeable.placeRelative(0, 0)
+                        else -> {
+                            val segment = Segment(tops[index], placeable.height, first[index], last[index])
+                            // Tvar čte stav stisku až ve vrstvě: stisk překreslí, nepřeměří.
+                            placeable.placeRelativeWithLayer(0, tops[index]) {
+                                this.shape = press.shapeOf(segment)
+                                clip = true
+                            }
+                            placed += segment
+                        }
+                    }
+                }
+                segments.value = placed
+            }
+        }
+    }
+}
+
+/** Stisknutý řádek [GroupedColumn]: jeho horní hrana a průběh vyčlenění z bloku. */
+private class GroupPress {
+    var top by mutableIntStateOf(-1)
+    val progress = Animatable(0f)
+
+    fun shapeOf(segment: Segment): Shape {
+        val p = if (segment.top == top) progress.value else 0f
+        val topCorner = if (segment.first) GROUP_CORNER else INNER_CORNER
+        val bottomCorner = if (segment.last) GROUP_CORNER else INNER_CORNER
+        // Pružina smí přestřelit; záporné zaoblení `RoundedCornerShape` neunese.
+        val top = lerp(topCorner, PRESSED_CORNER, p).coerceAtLeast(0.dp)
+        val bottom = lerp(bottomCorner, PRESSED_CORNER, p).coerceAtLeast(0.dp)
+        return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+    }
+}
+
+/**
+ * Vlnka, která navíc hlásí stisk ([report]: souřadnice prvku, který ji nese, a jestli je
+ * stisknutý). Kreslí ji původní indikace ([ripple]), tahle jen poslouchá tytéž interakce.
+ */
+private class PressReportingIndication(
+    private val ripple: IndicationNodeFactory,
+    private val report: (LayoutCoordinates, Boolean) -> Unit,
+) : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode =
+        PressReportingNode(ripple.create(interactionSource), interactionSource, report)
+
+    override fun equals(other: Any?): Boolean = other is PressReportingIndication && other.ripple == ripple
+    override fun hashCode(): Int = ripple.hashCode()
+}
+
+private class PressReportingNode(
+    ripple: DelegatableNode,
+    private val source: InteractionSource,
+    private val report: (LayoutCoordinates, Boolean) -> Unit,
+) : DelegatingNode(), GlobalPositionAwareModifierNode {
+    private var coordinates: LayoutCoordinates? = null
+
+    init {
+        delegate(ripple)
+    }
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        this.coordinates = coordinates
+    }
+
+    override fun onAttach() {
+        // Hned, ne až po naplánování: `clickable` indikaci zakládá líně při prvním stisku
+        // a stisk vyšle hned po připojení — odběr spuštěný později by ho minul.
+        coroutineScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            source.interactions.collect { interaction ->
+                val at = coordinates ?: return@collect
+                when (interaction) {
+                    is PressInteraction.Press -> report(at, true)
+                    is PressInteraction.Release, is PressInteraction.Cancel -> report(at, false)
+                }
+            }
         }
     }
 }
@@ -195,4 +397,4 @@ fun GroupEmptyRow(text: String, modifier: Modifier = Modifier, icon: DrawableRes
 
 private object GroupBreakId
 
-private data class Segment(val top: Int, val height: Int, val shape: Shape)
+private data class Segment(val top: Int, val height: Int, val first: Boolean, val last: Boolean)

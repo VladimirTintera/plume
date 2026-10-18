@@ -40,7 +40,9 @@ import androidx.graphics.shapes.star
  *
  * Tam, kde se stav nemění (avatary, položky seznamu, reakce), se morfy nepoužívají — kdyby se
  * hýbalo všechno, přestalo by to cokoli znamenat. Avatary mají jen STATICKÝ tvar podle druhu
- * chatu (`avatarShape`), a to z tvarů, které tady žádný stav neznamenají.
+ * chatu (`avatarShape`), a to z tvarů, které tady žádný stav neznamenají. Řádek bloku při stisku
+ * jen změní zaoblení (`animatedGroupItemShape`), stejně jako stisknuté tlačítko — to je odezva
+ * na prst, ne tvar z [MaterialShapes] s vlastním významem.
  *
  * Instance je pro jednu hodnotu [progress]: Compose si obrys drží podle instance a velikosti,
  * takže tvar, který by průběh četl sám, by se nepřekreslil. Kde se průběh čte až při kreslení,

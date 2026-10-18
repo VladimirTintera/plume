@@ -944,10 +944,10 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Výchozí animace mimo `AppMotion`**~~ — hotovo: 94 přechodů a 5 `animate*AsState` se spec
   z `motionScheme`, `verifyMotionSpecs` na `check`, VladimirTintera/telegram#847. (Audit odhadoval ~20 `animate*AsState` bez specu,
   ve skutečnosti jich bylo pět — zbytek měl spec na dalším řádku.)
-- **`SegmentedListItem`** (v alfě je, s `ListItemDefaults.segmentedShapes`) místo ručních
-  `groupItemShape` — přinese tvar při stisku a fokusu. Napřed rozhodnout, jestli stisk smí měnit
-  tvar řádku: `MorphShape.kt` dnes říká, že položky seznamu se nemorfují; a řádek chatu sdílí tvar
-  s podkladem tahu do strany.
+- ~~**Tvar řádku při stisku**~~ — hotovo bez `SegmentedListItem`: stisknutý řádek bloku se
+  zaoblí na 16 dp v seznamu chatů, kořeni i sekcích Nastavení (`GroupedColumn`) a lazy blocích
+  (`groupedItem`); `MorphShape.kt` to bere jako odezvu na prst, ne jako stav (VladimirTintera/telegram#855).
+  `SegmentedListItem` by přinesl ještě tvar při fokusu klávesnicí — zatím nic.
 - Drobnosti: barva tématu fóra (`TopicManagement` ~266) výběr obrysem místo `ShapeMorphs.Highlight`
   a `Color.Black` přes vzorek; titulek v `DirectTopicsScreen` bez ořezu vlnky; velké ikony
   v kruhu v hlavičkách (`AppLockScreen`, `LockScreen`, `TwoStepScreen`) šly by na tvar bez

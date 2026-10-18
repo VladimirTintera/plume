@@ -171,6 +171,19 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
     akce má blok vlastní (vypnutí dvoufázového ověření), stejně jako v nabídkách.
   - Stejný blok mají i ruční karty mimo `SettingsGroup`: správa zámku aplikace, dvoufázové
     ověření a údaje pod poli v úpravě profilu.
+  - **Stisknutý řádek se z bloku vyčlení zaoblením 16 dp** (M3 Expressive
+    `ListTokens.ItemPressedContainerExpressiveShape`, říjen 2026). Řádky jsou cizí `ListItem`y
+    a o stisku ví jen jejich `clickable`, takže `GroupedColumn` jim přes `LocalIndication`
+    podstrčí vlnku, která stisk navíc ohlásí sloupci (`PressReportingIndication`): zaoblí se tak
+    jen řádek, který jde ťuknout, a se stejným zpožděním jako vlnka — scroll tvar nemění. Uzel
+    indikace odebírá interakce `UNDISPATCHED`, protože `clickable` ji zakládá líně až při
+    prvním stisku a stisk vyšle hned; naplánovaný odběr ho minul.
+  - **Lazy seznamy (`groupedItem`) stisk sledují samy** (`trackPress`): klikání bývá schované
+    v řádkové komponentě, takže se jen poslouchá (Initial průchod, nic se nespotřebuje), stisk
+    se ohlásí po 100 ms a zruší posunem nebo spotřebováním (scroll). **Past: Final průchod
+    TÉHOŽ dotyku dolů už má `clickable` spotřebovaný** — kdo bere spotřebování jako konec
+    gesta, ukončí stisk dřív, než začal (tak to napoprvé nefungovalo; ověřeno snímkem během
+    `input motionevent DOWN`). Řádek bez ťuknutí má `pressable = false`.
 - **Výběr jedné hodnoty je nabídka u řádku, ne dialog** (`ChoiceRow` / `ChoiceMenu` v `core/ui`):
   tah v seznamu chatů, automatické stahování, uchovávání médií, strop mezipaměti, časovač zámku,
   automatické odhlášení zařízení. Dialog s kolečky otevřel okno přes celou obrazovku kvůli
