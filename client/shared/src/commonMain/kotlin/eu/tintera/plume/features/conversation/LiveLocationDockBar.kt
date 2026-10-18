@@ -109,7 +109,7 @@ internal fun LiveLocationDockBar(
     } else {
         liveSharingText(firstLocation, rememberLiveSharing(firstLocation))
     }
-    val chevron by animateFloatAsState(if (expanded) 180f else 0f, label = "dock-chevron")
+    val chevron by animateFloatAsState(if (expanded) 180f else 0f, MaterialTheme.motionScheme.defaultSpatialSpec(), label = "dock-chevron")
     val toggleLabel = stringResource(if (expanded) Res.string.location_dock_collapse else Res.string.location_dock_expand)
 
     Box(modifier.dockReveal(reveal)) {
@@ -158,8 +158,8 @@ internal fun LiveLocationDockBar(
                 }
                 AnimatedVisibility(
                     visible = expanded,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
+                    enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                 ) {
                     // Víc poloh (skupina) by kartu vytáhlo přes celou obrazovku; posouvá se uvnitř.
                     Column(

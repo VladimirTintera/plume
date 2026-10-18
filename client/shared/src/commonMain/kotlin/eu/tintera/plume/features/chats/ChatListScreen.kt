@@ -871,8 +871,8 @@ fun ChatListScreen(
                      */
                     AnimatedVisibility(
                         visible = shownPlayer != null,
-                        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+                        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Top) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec(), shrinkTowards = Alignment.Top) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                         modifier = Modifier.onSizeChanged { playerHeight = it.height },
                     ) {
                         lastPlayer[0]?.let { player ->
@@ -908,7 +908,7 @@ fun ChatListScreen(
  */
 @Composable
 private fun FabMenuScrim(visible: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier.fillMaxSize()) {
-    AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut(), modifier = modifier) {
+    AnimatedVisibility(visible = visible, enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()), exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()), modifier = modifier) {
         Box(
             Modifier
                 .fillMaxSize()

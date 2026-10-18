@@ -218,8 +218,8 @@ fun AttachmentModeSheet(
                     // Pokud je časovač aktivní, zobrazit výběr intervalu pomocí slideru
                     AnimatedVisibility(
                         visible = isTimerSelected,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically(),
+                        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
                     ) {
                         Column(
                             modifier = Modifier

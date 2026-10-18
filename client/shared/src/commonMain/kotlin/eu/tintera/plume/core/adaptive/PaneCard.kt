@@ -72,8 +72,11 @@ fun PaneCard(role: PaneRole, content: @Composable () -> Unit) {
     // Rohy u profilu se zarovnají postupně: profil vjíždí animací scaffoldu a skokem rovné rohy
     // by na okamžik trčely do prázdna.
     val corner = if (card) CARD_CORNER else 0.dp
+    // Bez překmitu (effects, ne spatial): roh jedoucí k nule by pružinou spadl pod ni a záporné
+    // zaoblení `RoundedCornerShape` neunese.
     val endCorner by animateDpAsState(
         if (card && !(role == PaneRole.Detail && neighbours.extraBeside)) CARD_CORNER else 0.dp,
+        MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "pane-end-corner",
     )
     val startCorner = if (role == PaneRole.Extra) 0.dp else corner

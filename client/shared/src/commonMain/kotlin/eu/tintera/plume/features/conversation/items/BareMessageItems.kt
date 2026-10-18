@@ -107,8 +107,8 @@ private fun MessageBodyScope.VideoNoteWithTranscript(note: MessageMedia.VideoNot
         below = {
             AnimatedVisibility(
                 visible = transcript.shown,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
             ) {
                 Surface(color = bubbleColor, contentColor = onBubbleColor, shape = RoundedCornerShape(BUBBLE_CORNER)) {
                     TranscriptBody(

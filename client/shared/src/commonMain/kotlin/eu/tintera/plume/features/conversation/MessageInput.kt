@@ -540,8 +540,8 @@ internal fun MessageInput(
                 } else {
                   AnimatedVisibility(
                       visible = attachmentsPreparing,
-                      enter = fadeIn() + expandVertically(),
-                      exit = fadeOut() + shrinkVertically(),
+                      enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                      exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
                   ) {
                       AttachmentsPreparing()
                   }
@@ -581,8 +581,8 @@ internal fun MessageInput(
                    */
                   AnimatedVisibility(
                       visible = linkPreview != null,
-                      enter = fadeIn() + expandVertically(),
-                      exit = fadeOut() + shrinkVertically(),
+                      enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                      exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
                   ) {
                       // Při odjezdu je náhled už `null`; dobíhá se s posledním.
                       var shown by remember { mutableStateOf(linkPreview) }
@@ -935,8 +935,8 @@ internal fun MessageInput(
                  */
                 AnimatedVisibility(
                     visible = (typing && formattingOpen) || (fieldFocused && !voiceActive && !draft.selection.collapsed),
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically(),
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
                 ) {
                     FormattingBar(
                         composer = composer,

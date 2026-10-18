@@ -136,6 +136,8 @@ internal fun PinnedMessagesBar(
 
             // Starší zpráva přijede shora — historií se jde nahoru. Skoková výměna textu by se
             // dala přehlédnout.
+            // `transitionSpec` není @Composable, motionScheme se čte tady.
+            val motion = MaterialTheme.motionScheme
             AnimatedContent(
                 targetState = current,
                 contentKey = { it.id },
@@ -143,8 +145,8 @@ internal fun PinnedMessagesBar(
                     val older = messages.indexOfFirst { it.id == targetState.id } >
                         messages.indexOfFirst { it.id == initialState.id }
                     val sign = if (older) 1 else -1
-                    (slideInVertically { -sign * it / 2 } + fadeIn())
-                        .togetherWith(slideOutVertically { sign * it / 2 } + fadeOut())
+                    (slideInVertically(motion.defaultSpatialSpec()) { -sign * it / 2 } + fadeIn(motion.defaultEffectsSpec()))
+                        .togetherWith(slideOutVertically(motion.fastSpatialSpec()) { sign * it / 2 } + fadeOut(motion.fastEffectsSpec()))
                 },
                 modifier = Modifier.weight(1f).padding(start = 12.dp),
                 label = "pinned-message",

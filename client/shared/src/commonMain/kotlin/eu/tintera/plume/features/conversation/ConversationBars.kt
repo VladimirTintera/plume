@@ -147,8 +147,8 @@ internal fun BoxScope.ConversationBars(
             if (chatBar != null) lastChatBar[0] = chatBar
             AnimatedVisibility(
                 visible = chatBar != null,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
             ) {
                 when (val bar = lastChatBar[0]) {
                     is SpamBar -> SpamBarCard(
@@ -174,8 +174,8 @@ internal fun BoxScope.ConversationBars(
             if (shownJoinRequests != null) lastJoinRequests[0] = shownJoinRequests
             AnimatedVisibility(
                 visible = shownJoinRequests != null && !chatHidden,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
             ) {
                 lastJoinRequests[0]?.let { requests ->
                     JoinRequestsBar(
@@ -198,8 +198,8 @@ internal fun BoxScope.ConversationBars(
             if (videoChat != null) lastVideoChat[0] = videoChat
             AnimatedVisibility(
                 visible = videoChat != null && !chatHidden,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
             ) {
                 lastVideoChat[0]?.let { info ->
                     VideoChatBar(
@@ -219,8 +219,8 @@ internal fun BoxScope.ConversationBars(
             AnimatedVisibility(
                 // Omezený chat: připnutá zpráva by ukázala obsah, který se ukázat nesmí.
                 visible = state.pinned.isNotEmpty() && !chatHidden,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
             ) {
                 // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
                 val last = remember { arrayOf(emptyList<ChatMessage>()) }

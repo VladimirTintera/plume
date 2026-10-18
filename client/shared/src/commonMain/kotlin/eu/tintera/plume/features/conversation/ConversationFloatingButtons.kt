@@ -84,8 +84,8 @@ internal fun ScrollToBottomButton(
     AnimatedVisibility(
         visible = visible,
         // Vjezd zespoda: tlačítko přiletí odtamtud, kam po ťuknutí odskočí.
-        enter = slideInVertically { it } + fadeIn(),
-        exit = slideOutVertically { it } + fadeOut(),
+        enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it } + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = modifier,
     ) {
         Surface(
@@ -114,8 +114,8 @@ internal fun ScrollToBottomButton(
                 // a rozestup by kruh bez počtu nafoukl do šišky.
                 AnimatedVisibility(
                     visible = count > 0,
-                    enter = expandHorizontally() + fadeIn(),
-                    exit = shrinkHorizontally() + fadeOut(),
+                    enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                 ) {
                     // Při zmizení se musí dál kreslit poslední nenulový počet, ne „0 zpráv".
                     // Obyčejné pole, ne stav: zápis do stavu v kompozici by jen vynutil další.
@@ -139,8 +139,8 @@ internal fun MarkReadChip(visible: Boolean, onClick: () -> Unit) {
     val haptics = LocalHapticFeedback.current
     AnimatedVisibility(
         visible = visible,
-        enter = slideInVertically { it } + fadeIn(),
-        exit = slideOutVertically { it } + fadeOut(),
+        enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it } + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
     ) {
         // Mezera pod čipem je v obsahu, ne ve `spacedBy` sloupce — viz `UnreadMarkButton`.
         Box(Modifier.padding(bottom = 10.dp)) {
@@ -188,8 +188,8 @@ internal fun UnreadMarkButton(
 
     AnimatedVisibility(
         visible = count > 0,
-        enter = scaleIn() + fadeIn(),
-        exit = scaleOut() + fadeOut(),
+        enter = scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = scaleOut(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
     ) {
         var menuOpen by remember { mutableStateOf(false) }
         val label = when (kind) {
