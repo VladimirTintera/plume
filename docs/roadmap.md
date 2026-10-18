@@ -979,7 +979,7 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
 - ~~**Sheet upozornění chatu**~~ — hotovo (VladimirTintera/telegram#860): tři bloky přes `GroupedColumn` —
   ztlumení s ikonami, volby, návrat k výchozímu; hlavička jako u ostatních sheetů
   (`docs/poznatky/notifikace.md`).
-- ~~**Výběr hodnoty v `AlertDialog`u s kolečky**~~ — hotovo (VladimirTintera/telegram#PR): samosmazání účtu
+- ~~**Výběr hodnoty v `AlertDialog`u s kolečky**~~ — hotovo (VladimirTintera/telegram#861): samosmazání účtu
   nabídkou u řádku, jazyk aplikace a rychlá reakce jako sheet, doba živé polohy jako sheet s blokem
   akcí a vzdálenost upozornění jako sheet s výběrem a vlastním blokem „Vypnout"
   (`LiveLocationSheets.kt`). Hledání v jazycích zatím netřeba — jsou tři.
