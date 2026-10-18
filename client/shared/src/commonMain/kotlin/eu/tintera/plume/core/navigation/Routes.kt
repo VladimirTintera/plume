@@ -170,11 +170,17 @@ data class ArchiveConversationRoute(
     val threadId: Long? = null,
     /** Téma skupiny s tématy (viz [ForumTopicsRoute]); `null` = celý chat. */
     val topicId: Int? = null,
+    /** Vlákno přímých zpráv kanálu (viz [ArchiveDirectTopicsRoute]); `null` = celý chat. */
+    val directTopicId: Long? = null,
 ) : Route
 
 /** Témata skupiny otevřené z archivu — obdoba [ForumTopicsRoute] v archivní větvi. */
 @Serializable
 data class ArchiveForumTopicsRoute(val chatId: Long) : Route
+
+/** Vlákna přímých zpráv kanálu otevřené z archivu — obdoba [DirectTopicsRoute] v archivní větvi. */
+@Serializable
+data class ArchiveDirectTopicsRoute(val chatId: Long) : Route
 
 /**
  * Profil chatu otevřený z archivní konverzace.
@@ -541,6 +547,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
+            subclass(ArchiveDirectTopicsRoute::class, ArchiveDirectTopicsRoute.serializer())
             subclass(ForumTopicsRoute::class, ForumTopicsRoute.serializer())
             subclass(SavedTopicsRoute::class, SavedTopicsRoute.serializer())
             subclass(DirectTopicsRoute::class, DirectTopicsRoute.serializer())

@@ -783,6 +783,12 @@ class ChatProfileViewModel(
         _state.update { it.copy(openChat = linked.chatId) }
     }
 
+    /** Přímé zprávy kanálu: odběratel v nich píše, správce je čte po vláknech. */
+    fun openDirectMessages() {
+        val chatId = _state.value.profile?.directMessagesChatId ?: return
+        _state.update { it.copy(openChat = chatId) }
+    }
+
     fun openPersonalChannel() {
         val channel = _state.value.profile?.personalChannel ?: return
         _state.update { it.copy(openChat = channel.chatId) }

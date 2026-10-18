@@ -18,6 +18,13 @@ vlákno je `DirectMessagesChatTopic` a zprávy v něm mají `MessageTopicDirectM
   `DirectTopicsRepository`), vlákno je `ConversationRoute(directTopicId = …)` a konverzace nad
   `inDirectTopic` — historie, nové zprávy, odeslání, koncept i přečtení patří vláknu. Podržením
   vlákna jde označit (ne)přečtené a smazat celé vlákno.
+- **Z profilu kanálu**: první dlaždice „Napsat" (odběratel), nebo „Přímé zprávy" (správce;
+  `Profile.directMessagesChatId` a `directMessagesAdmin`). Otevře chat přímých zpráv jako
+  „Napsat" v liště, takže správce dál vede přesměrování na vlákna — nad profilem, zpět vede
+  do profilu.
+- **V archivu taky**: `ArchiveDirectTopicsRoute` a `ArchiveConversationRoute.directTopicId`,
+  obdoba témat skupiny v archivní větvi. Archivní konverzace dostává šestý parametr ViewModelu
+  (`directTopicId`) a pátý (téma Uložených) je `null` — Uložené zprávy archivovat nejdou.
 
 ## Proč je to udělané takhle
 
@@ -45,6 +52,9 @@ vlákno je `DirectMessagesChatTopic` a zprávy v něm mají `MessageTopicDirectM
 - **Chat přímých zpráv nese NÁZEV KANÁLU**, takže by v seznamu i v hlavičce vypadal jako kanál
   podruhé. Seznam ho odliší obálkou před názvem (`DirectMessagesMark`, `ChatSummary.isDirectMessages`),
   hlavička podtitulem „Přímé zprávy".
+- **Jestli je uživatel správce přímých zpráv, pozná profil z chatu přímých zpráv**
+  (`getChat` + `getSupergroup`, obojí lokální). Když ho TDLib ještě nezná, dlaždice řekne
+  „Napsat" i správci — vede ale na totéž místo a přesměrování na vlákna ji opraví.
 - **Nepřečtené značky (zmínky, reakce) ve vlákně počítá chat, ne vlákno** — vlákno nese jen
   `unreadReactionCount`, zmínky nemá. „Přečíst všechny reakce" ve vlákně volá
   `readAllDirectMessagesChatTopicReactions`.
@@ -55,11 +65,16 @@ Na dvou emulátorech (2026-10-18): …029 jako vlastník „Plume test kanal" p�
 …527 jako odběratel ťukl na „Napsat" a poslal zprávu, …029 otevřel chat (nahradil se seznamem
 vláken „Pixel 5" s nepřečtenou zprávou), vlákno a odpověděl; odpověď u …527 dorazila. Seznam
 vláken po studeném startu čekal na spojení ~15 s, za běhu se načte do 50 ms.
+Dlaždice v profilu: „Napsat" u …527 otevřela přímé zprávy, „Direct messages" u …029 seznam
+vláken a zpět vedlo do profilu. Archiv: …029 přímé zprávy archivoval, z archivu se otevřel
+seznam vláken i vlákno, pak se chat vrátil mezi chaty.
 
 ## Co chybí
 
 - Placené zprávy (`paidMessageStarCount`) — ani poslat, ani nastavit cenu.
 - Navrhované příspěvky (`approveSuggestedPost` a spol.).
-- Archivní větev: archivované přímé zprávy se otevřou jako konverzace (bez vláken).
-- Tlačítko „Napsat" v profilu kanálu (dnes jen ve spodní liště konverzace).
+- Nabídka nad chatem přímých zpráv v seznamu nabízí „Odejít" jako u skupiny; co to správci
+  udělá, ověřené není.
+- Bublina konverzace (Android bubbles) přesměrování na vlákna nemá — správce v ní dostane celý
+  chat.
 - iOS a desktop jen přeložené.

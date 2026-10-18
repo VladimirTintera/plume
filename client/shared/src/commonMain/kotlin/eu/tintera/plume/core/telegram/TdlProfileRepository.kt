@@ -145,6 +145,11 @@ class TdlProfileRepository(
                         client.getChat(chatId = linkedId).toResult().getOrNull()
                             ?.let { LinkedChat(chatId = it.id, title = it.title, photoFileId = it.photo?.small?.id) }
                     },
+                    directMessagesChatId = full?.directMessagesChatId?.takeIf { type.isChannel && it != 0L },
+                    directMessagesAdmin = full?.directMessagesChatId?.takeIf { type.isChannel && it != 0L }
+                        ?.let { client.getChat(chatId = it).toResult().getOrNull()?.type as? ChatTypeSupergroup }
+                        ?.let { client.getSupergroup(supergroupId = it.supergroupId).toResult().getOrNull() }
+                        ?.isAdministeredDirectMessagesGroup == true,
                     memberCount = (full?.memberCount ?: group?.memberCount)?.takeIf { it > 0 },
                     // Kanál členy vydá jen správcům a skupina se skrytými členy vůbec.
                     canListMembers = !type.isChannel && full?.canGetMembers == true,

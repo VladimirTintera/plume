@@ -148,6 +148,7 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.features.saved.SavedTopicsScreen
 import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
+import eu.tintera.plume.core.navigation.ArchiveDirectTopicsRoute
 import eu.tintera.plume.features.forum.ForumTopicsScreen
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.navigation.ForwardRoute
@@ -725,8 +726,11 @@ private fun shellEntryProvider(
                 key = "chats-archive",
                 parameters = { parametersOf(ChatFolder.Archive) },
             ),
-            selectedChatId = chatsStack.lastOrNull { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
-                ?.let { (it as? ArchiveConversationRoute)?.chatId ?: (it as ArchiveForumTopicsRoute).chatId }
+            selectedChatId = chatsStack.lastOrNull { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute || it is ArchiveDirectTopicsRoute }
+                ?.let {
+                    (it as? ArchiveConversationRoute)?.chatId ?: (it as? ArchiveForumTopicsRoute)?.chatId
+                        ?: (it as ArchiveDirectTopicsRoute).chatId
+                }
                 ?.takeIf { twoPane },
             onChatClick = { chatId -> chatsStack.openArchiveConversation(chatId) },
             onForumClick = { chatId -> chatsStack.openArchiveForum(chatId) },
@@ -927,6 +931,21 @@ private fun shellEntryProvider(
                 // Volba se pamatuje (na serveru) a konverzace seznam témat nahradí, jako u Uložených zpráv.
                 onViewAsMessages = { chatsStack.openConversation(route.chatId) },
                 onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
+            )
+        }
+    }
+
+    entry<ArchiveDirectTopicsRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+            DirectTopicsScreen(
+                viewModel = koinViewModel(key = "direct-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+                onBack = { chatsStack.pop(route) },
+                onOpenTopic = { topicId ->
+                    if ((chatsStack.lastOrNull() as? ArchiveConversationRoute)?.directTopicId != topicId) {
+                        chatsStack.add(ArchiveConversationRoute(route.chatId, directTopicId = topicId))
+                    }
+                },
+                onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
             )
         }
     }
@@ -1133,8 +1152,11 @@ private fun shellEntryProvider(
             val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
                 viewModel = koinViewModel(
-                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
-                    parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId) },
+                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.directTopicId}",
+                    // Pátý parametr (téma Uložených zpráv) v archivu není — Uložené archivovat nejdou.
+                    parameters = {
+                        parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, null, route.directTopicId)
+                    },
                 ),
                 navigation = ConversationNavigation(
                     onBack = { chatsStack.closeConversation(route, list = ArchiveRoute, sideBySide = sideBySide) },
@@ -1172,6 +1194,7 @@ private fun shellEntryProvider(
                     onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
                     onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
                     onViewAsTopics = { chatsStack.openArchiveForum(route.chatId) },
+                    onViewAsDirectTopics = { chatsStack.replaceRoute(route, ArchiveDirectTopicsRoute(route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
                 ),
             )
@@ -1712,13 +1735,13 @@ private fun List<NavKey>.isOpenArchiveConversation(chatId: Long): Boolean =
  * takže chat otevřený z hlavního seznamu zůstane, kde byl.
  */
 private fun MutableList<NavKey>.openArchiveConversation(chatId: Long, messageId: Long? = null) {
-    removeAll { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
+    removeAll { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute || it is ArchiveDirectTopicsRoute }
     add(ArchiveConversationRoute(chatId, messageId))
 }
 
 /** Totéž co [openForum], ale pro větev archivu. */
 private fun MutableList<NavKey>.openArchiveForum(chatId: Long) {
-    removeAll { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
+    removeAll { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute || it is ArchiveDirectTopicsRoute }
     add(ArchiveForumTopicsRoute(chatId))
 }
 
