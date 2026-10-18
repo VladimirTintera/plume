@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.devices
 
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.foundation.background
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import androidx.compose.foundation.layout.Arrangement
@@ -90,31 +92,29 @@ fun UnconfirmedLoginCard(
                     )
                 }
             }
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            ) {
-                // Tlačítka v terciární roli karty; výchozí `primary` by v ní působilo jako cizí prvek.
-                TextButton(
-                    onClick = onTerminate,
-                    enabled = enabled,
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(stringResource(Res.string.devices_unconfirmed_no))
-                }
-                Button(
-                    onClick = onConfirm,
-                    enabled = enabled,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.tertiary,
-                        contentColor = MaterialTheme.colorScheme.onTertiary,
-                    ),
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(stringResource(Res.string.devices_unconfirmed_yes))
-                }
-            }
+            // Tlačítka v terciární roli karty; výchozí `primary` by v ní působilo jako cizí prvek.
+            val no = stringResource(Res.string.devices_unconfirmed_no)
+            val yes = stringResource(Res.string.devices_unconfirmed_yes)
+            val noColors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onTertiaryContainer)
+            val yesColors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+            )
+            ActionButtonGroup(
+                listOf(
+                    GroupAction(no, onTerminate, enabled) { modifier, source ->
+                        TextButton(onClick = onTerminate, modifier = modifier, enabled = enabled, colors = noColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                            Text(no)
+                        }
+                    },
+                    GroupAction(yes, onConfirm, enabled) { modifier, source ->
+                        Button(onClick = onConfirm, modifier = modifier, enabled = enabled, colors = yesColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                            Text(yes)
+                        }
+                    },
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

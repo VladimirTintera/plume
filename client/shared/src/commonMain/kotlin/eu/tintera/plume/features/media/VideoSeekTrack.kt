@@ -89,7 +89,7 @@ internal fun bufferedSpan(file: FileState): ClosedFloatingPointRange<Float>? = w
 }
 
 /** Nestažená část dráhy. */
-private val TRACK_COLOR = Color.White.copy(alpha = 0.25f)
+internal val TRACK_COLOR = Color.White.copy(alpha = 0.25f)
 
 /** Stažený úsek; přes [TRACK_COLOR] dá zhruba polovinu bílé. */
 private val BUFFERED_COLOR = Color.White.copy(alpha = 0.35f)

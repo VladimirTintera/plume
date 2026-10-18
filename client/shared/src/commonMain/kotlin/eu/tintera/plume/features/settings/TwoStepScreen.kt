@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.SecurityBadge
 import androidx.compose.animation.AnimatedContent
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
@@ -351,11 +352,7 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
 @Composable
 private fun Header(icon: org.jetbrains.compose.resources.DrawableResource, title: StringResource, text: String) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(56.dp)) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-            }
-        }
+        SecurityBadge(icon, size = 56.dp)
         Text(stringResource(title), style = MaterialTheme.typography.headlineSmall)
         Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }

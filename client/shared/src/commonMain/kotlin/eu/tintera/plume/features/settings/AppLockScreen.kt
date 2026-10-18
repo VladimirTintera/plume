@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.SecurityBadge
 import eu.tintera.plume.resources.app_lock_biometrics_revoked
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
@@ -179,20 +180,7 @@ private fun AppLockIntroContent(onEnable: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(Res.drawable.lock_24dp),
-                contentDescription = null,
-                modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
+        SecurityBadge(Res.drawable.lock_24dp)
 
         Spacer(Modifier.height(24.dp))
 

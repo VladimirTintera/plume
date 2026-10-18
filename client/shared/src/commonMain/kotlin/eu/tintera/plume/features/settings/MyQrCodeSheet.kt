@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.ButtonEmphasis
@@ -166,20 +168,27 @@ fun MyQrCodeSheet(onDismiss: () -> Unit, viewModel: MyQrCodeViewModel = koinView
             }
 
             val ready = state.link != null && !state.failed
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            val share = stringResource(Res.string.my_qr_share)
+            // Zkopírováno nese tlačítko samo (fajfka), ne hláška — je to stav ovládacího prvku.
+            val copy = stringResource(if (state.copied) Res.string.my_qr_copied else Res.string.my_qr_copy)
+            ActionButtonGroup(
+                listOf(
+                    GroupAction(share, viewModel::share, ready, weight = 1f) { modifier, source ->
+                        OutlinedButton(onClick = viewModel::share, modifier = modifier, enabled = ready, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                            ButtonIcon(Res.drawable.share_24dp)
+                            Text(share)
+                        }
+                    },
+                    GroupAction(copy, viewModel::copy, ready, weight = 1f) { modifier, source ->
+                        OutlinedButton(onClick = viewModel::copy, modifier = modifier, enabled = ready, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                            ButtonIcon(if (state.copied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp)
+                            Text(copy)
+                        }
+                    },
+                ),
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            ) {
-                OutlinedButton(onClick = viewModel::share, enabled = ready, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
-                    ButtonIcon(Res.drawable.share_24dp)
-                    Text(stringResource(Res.string.my_qr_share))
-                }
-                // Zkopírováno nese tlačítko samo (fajfka), ne hláška — je to stav ovládacího prvku.
-                OutlinedButton(onClick = viewModel::copy, enabled = ready, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
-                    ButtonIcon(if (state.copied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp)
-                    Text(stringResource(if (state.copied) Res.string.my_qr_copied else Res.string.my_qr_copy))
-                }
-            }
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            )
             if (qrScannerSupported) {
                 MediumButton(onClick = startScan, modifier = Modifier.fillMaxWidth(), emphasis = ButtonEmphasis.Tonal) {
                     MediumButtonIcon(Res.drawable.qr_code_scanner_24dp)
