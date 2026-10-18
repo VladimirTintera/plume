@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.features.media.LocalPhotoDescriptions
 import eu.tintera.plume.core.ui.bubbleTextSelectable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -97,6 +98,7 @@ internal fun BoxScope.ConversationContent(
 ) {
     val scope = rememberCoroutineScope()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
+    val photoDescriptions by viewModel.photoDescriptions.collectAsStateWithLifecycle()
     val revealMax = with(LocalDensity.current) { TIME_COLUMN_WIDTH.toPx() }
     val revealSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     when {
@@ -190,7 +192,8 @@ internal fun BoxScope.ConversationContent(
                     }
                 },
         ) {
-          CompositionLocalProvider(LocalSharedElementClip provides listClip) {
+          // Popisy fotek z „Popsat fotku" dostane čtečka obrazovky místo slova „Fotka".
+          CompositionLocalProvider(LocalSharedElementClip provides listClip, LocalPhotoDescriptions provides photoDescriptions) {
           // Na široké ploše zprávy ve sloupci uprostřed; scroll zůstává přes celou plochu.
           ConversationColumn { inset ->
           LazyColumn(

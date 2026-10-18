@@ -1376,6 +1376,17 @@ místě pruhu reakcí stejně jako text z fotky; oba naráz nejsou, nový zavře
 - **Ověřeno na emulátoru Fold** (Gemma 4 E2B, CPU): tapeta s krajinou popsaná za ~13 s i
   s přenačtením enginu s obrazem, snímek obrazovky s už načteným enginem rychleji; kopírování,
   zavření a zavření při přelistování. Čtečka obrazovky neověřená.
+- **Hotový popis se ukládá** (`PhotoDescriptions`, `AppSettings.storedPhotoDescriptions`, nejvýš
+  300, po účtech jako přepisy hlasovek) a má dvě použití:
+  - **fotka v bublině ho dá čtečce obrazovky místo slova „Fotka"** (`LocalPhotoDescriptions`,
+    poskytuje `ConversationContent`, čte jednotlivá fotka i dlaždice alba). Popis se dělá jen na
+    vyžádání — model na každou fotku v seznamu by pálil baterii a AICore ho stejně pustí jen
+    v popředí;
+  - **prohlížeč ho příště ukáže hned**, bez modelu (u Gemmy na CPU desítky vteřin).
+  - Jen u fotky ZPRÁVY — profilovky, příběhy a média ankety či článku id zprávy nemají.
+  - **Ověřeno na Foldu**: popis snímku obrazovky v Uložených, po zavření prohlížeče má fotka
+    v bublině v `uiautomator` `content-desc` celý popis, po restartu aplikace taky, a druhé
+    „Popsat fotku" ukáže popis do 2 s. **TalkBack neověřený.**
 
 ## Spoilery a mizející média
 

@@ -115,6 +115,8 @@ class MediaViewerViewModel(
     /** Popis fotky modelem v telefonu; bez něj (nebo bez [settings]) se nenabízí. */
     private val onDeviceAi: OnDeviceAi? = null,
     private val settings: AppSettings? = null,
+    /** Hotové popisy fotek: uložit, aby je měla bublina pro čtečku, a příště ukázat bez modelu. */
+    private val photoDescriptions: PhotoDescriptions? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("MediaViewer")
@@ -794,6 +796,14 @@ class MediaViewerViewModel(
             return
         }
         describeJob?.cancel()
+        // Fotka zprávy, ne profilovka, příběh ani médium ankety či článku — jen ta má id zprávy.
+        val ofMessage = !profilePhotos && storyId == NO_STORY && pollMedia == NO_POLL_MEDIA && articleMedia == NO_ARTICLE_MEDIA
+        // Jednou popsaná fotka se ukáže hned: model by psal tentýž popis znovu a pálil baterii.
+        photoDescriptions?.takeIf { ofMessage }?.get(chatId, messageId)?.let { stored ->
+            closeRecognizedText()
+            _state.update { it.copy(photoDescription = PhotoDescription(messageId, text = stored, done = true)) }
+            return
+        }
         describeJob = viewModelScope.launch {
             val file = prepare(messageId, MediaTask.Describe, failure = Res.string.media_describe_failed) ?: return@launch
             finish(messageId, null)
@@ -808,6 +818,7 @@ class MediaViewerViewModel(
                 updateDescription(messageId) {
                     if (text.isBlank()) it.copy(error = emptyOutputMessage) else it.copy(text = text.trim(), done = true)
                 }
+                if (text.isNotBlank() && ofMessage) photoDescriptions?.set(chatId, messageId, text.trim())
             } catch (e: OnDeviceAiException) {
                 if (e.isReportable) logger.e(e) { "Popis fotky se nepovedl" } else logger.w(e) { "Popis fotky se nepovedl" }
                 updateDescription(messageId) { it.copy(error = e.userMessage()) }

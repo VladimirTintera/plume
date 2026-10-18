@@ -81,6 +81,10 @@ open class UnimplementedAppSettings : AppSettings {
     override val storedTriageVerdicts: StateFlow<List<StoredTriageVerdict>> get() = error("storedTriageVerdicts")
     override fun setStoredTriageVerdicts(verdicts: List<StoredTriageVerdict>): Unit = error("setStoredTriageVerdicts")
     override fun setStoredTranscripts(transcripts: List<StoredTranscript>): Unit = error("setStoredTranscripts")
+    override val storedPhotoDescriptions: StateFlow<List<eu.tintera.plume.features.media.StoredPhotoDescription>>
+        get() = error("storedPhotoDescriptions")
+    override fun setStoredPhotoDescriptions(descriptions: List<eu.tintera.plume.features.media.StoredPhotoDescription>): Unit =
+        error("setStoredPhotoDescriptions")
     override val quietHours: StateFlow<QuietHours> get() = error("quietHours")
     override fun setQuietHours(quietHours: QuietHours): Unit = error("setQuietHours")
     override val onDeviceAiEnabled: StateFlow<Boolean> get() = error("onDeviceAiEnabled")

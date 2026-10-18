@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import kotlinx.coroutines.flow.flowOf
+import eu.tintera.plume.features.media.PhotoDescriptions
 import eu.tintera.plume.features.conversation.items.EmojiBurst
 import kotlinx.coroutines.flow.filterNotNull
 import eu.tintera.plume.core.speech.SpeechToText
@@ -238,6 +240,8 @@ class ConversationViewModel(
     /** Přepis řeči v telefonu, když ho server nedá (bez Premium). */
     private val onDeviceAi: OnDeviceAi? = null,
     private val localTranscripts: LocalTranscripts? = null,
+    /** Uložené popisy fotek (z prohlížeče) — bubliny je dají čtečce obrazovky. */
+    photoDescriptions: PhotoDescriptions? = null,
     /** Přepis systémem telefonu, když Gemma není (Android 13+, nainstalovaný jazyk). */
     private val speechToText: SpeechToText? = null,
     /** Varování u zpráv, které vypadají jako podvod (model v zařízení). */
@@ -290,6 +294,10 @@ class ConversationViewModel(
             directTopicId = directTopicId,
         ))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
+
+    /** Popisy fotek v tomhle chatu podle id zprávy (viz [PhotoDescriptions]). */
+    val photoDescriptions: StateFlow<Map<Long, String>> = (photoDescriptions?.forChat(chatId) ?: flowOf(emptyMap()))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
     val reportFlow = ReportFlow(viewModelScope, chatRepository::report)

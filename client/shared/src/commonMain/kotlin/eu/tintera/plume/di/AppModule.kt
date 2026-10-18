@@ -11,6 +11,7 @@ import eu.tintera.plume.features.settings.DeleteAccountViewModel
 import eu.tintera.plume.features.settings.LoginEmailViewModel
 import eu.tintera.plume.features.chats.NaturalSearchModel
 import eu.tintera.plume.features.conversation.LocalTranscripts
+import eu.tintera.plume.features.media.PhotoDescriptions
 import eu.tintera.plume.features.conversation.ScamWarnings
 import eu.tintera.plume.features.chats.ChatTriage
 import eu.tintera.plume.features.conversation.MessageContexts
@@ -410,6 +411,7 @@ fun appModule() = module {
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
     single { LocalTranscripts(settings = get(), chats = get()) }
+    single { PhotoDescriptions(settings = get(), chats = get()) }
     factory { ReminderTimeModel(ai = get(), settings = get()) }
     factory { NaturalSearchModel(ai = get(), settings = get()) }
     single { ScamWarnings(ai = get(), settings = get(), appScope = get(named(APP_SCOPE))) }
@@ -647,6 +649,7 @@ fun appModule() = module {
             reminderTimeModel = get(),
             onDeviceAi = getOrNull(),
             localTranscripts = get(),
+            photoDescriptions = get(),
             scamWarnings = get(),
             messageContexts = get(),
             calendarEvents = getOrNull(),
@@ -830,6 +833,7 @@ fun appModule() = module {
             clipboard = get(),
             onDeviceAi = getOrNull(),
             settings = get(),
+            photoDescriptions = get(),
         )
     }
 

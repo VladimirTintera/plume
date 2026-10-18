@@ -740,8 +740,8 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   jednou větou) — to by ale chtělo model nad každým chatem, ne jen ano/ne.
 - **Popis obrázků** — ~~ověřit, jestli Gemma přes LiteRT-LM 0.11.0 přijímá obrázky~~ přijímá;
   ~~„Popsat fotku" v prohlížeči~~ hotovo (`docs/poznatky/prohlizec-medii.md`, „Popis fotky").
-  Zbývá **popis jako `contentDescription` fotky v bublině** (čtečka by ho přečetla bez otevření
-  prohlížeče — chce keš popisů, model se nedá pouštět na každou fotku v seznamu) a **hledání
+  ~~**Popis jako `contentDescription` fotky v bublině**~~ — hotovo pro fotky, které uživatel
+  popsat nechal (uložené popisy; `docs/poznatky/prohlizec-medii.md`, „Popis fotky"). Zbývá **hledání
   fotek podle obsahu** (popisy předem v pozadí, tedy jen na nabíječce a s limitem). Gemini Nano
   přes Prompt API zatím jen text.
 - ~~**Offline překlad přes ML Kit Translation**~~ — hotovo na Androidu (přepínač „Překládat
