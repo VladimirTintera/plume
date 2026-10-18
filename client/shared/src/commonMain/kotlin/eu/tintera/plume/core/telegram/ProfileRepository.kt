@@ -111,6 +111,13 @@ interface ProfileRepository {
     suspend fun setPersonalPhoto(userId: Long, photo: ProfilePhotoFile?): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
+    /** Jdou fotky chatu nahlásit moderátorům (`Chat.canBeReported`)? */
+    suspend fun canReportPhotos(chatId: Long): Boolean = false
+
+    /** Nahlásí profilovou fotku chatu moderátorům Telegramu (`reportChatPhoto`); [text] nepovinný. */
+    suspend fun reportPhoto(chatId: Long, fileId: Int, reason: PhotoReportReason, text: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     /** Navrhne uživateli [userId] profilovou fotku (`suggestUserProfilePhoto`), oříznutou jako vlastní. */
     suspend fun suggestPhoto(userId: Long, photo: ProfilePhotoFile): Result<Unit> =
         Result.failure(UnsupportedOperationException())
@@ -574,7 +581,19 @@ data class BotVerificationNote(val description: String?, val botName: String)
  * Jedna profilová fotka. [media] je fotka, nebo video u animované profilovky (s fotkou jako
  * náhledem); [addedDate] je, kdy si ji chat nastavil.
  */
-data class ProfilePhoto(val id: Long, val addedDate: Int, val media: MessageMedia)
+data class ProfilePhoto(
+    val id: Long,
+    val addedDate: Int,
+    val media: MessageMedia,
+    /** Plná velikost fotky — nahlásit jde jen ji (`reportChatPhoto`), ne náhled ani video. */
+    val reportFileId: Int? = null,
+)
+
+/**
+ * Proč se profilová fotka hlásí (`ReportReason`). Pevný výčet z TDLib — na rozdíl od nahlášení
+ * chatu se server na důvod neptá. [Other] chce popis.
+ */
+enum class PhotoReportReason { Spam, Violence, Pornography, ChildAbuse, Copyright, Fake, IllegalDrugs, PersonalDetails, Other }
 
 /** Kolik skladeb hudby v profilu se načte; víc jich TDLib naráz nevydá. */
 const val PROFILE_AUDIO_LIMIT = 100
