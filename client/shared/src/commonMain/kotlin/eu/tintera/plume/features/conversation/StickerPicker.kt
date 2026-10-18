@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.animation.core.animateFloatAsState
 import eu.tintera.plume.resources.check_24dp
 import androidx.compose.ui.semantics.role
@@ -55,7 +56,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -1506,7 +1506,7 @@ private fun LazyGridScope.sectionHeader(title: String) {
  * Kategorie pod polem hledání (láska, pozdrav, smích…): ťuknutí hledá bez psaní, druhé ťuknutí
  * hledání zruší.
  *
- * Čip nese JEN ikonu, jako v Telegramu. Název od Telegramu je jen pro čtečku obrazovky: server
+ * Tlačítko nese JEN ikonu, jako v Telegramu. Název od Telegramu je jen pro čtečku obrazovky: server
  * ho lokalizuje podle jazykového balíčku Telegramu (`language_pack_id`, nastavuje ho
  * `syncLanguagePack`), jenže zrovna tyhle názvy česky nemá — v české aplikaci přijde „Love",
  * „Approval" i s českým balíčkem (německy už „Liebe"; ověřeno sondou). Ikony (srdce, palec,
@@ -1537,12 +1537,20 @@ private fun StickerCategoryRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items(categories, key = { it.name }) { category ->
-                FilterChip(
-                    selected = category.name == selectedName,
-                    onClick = { onSelect(category) },
-                    label = { StickerCategoryIcon(category, selected = category.name == selectedName) },
-                    modifier = Modifier.semantics { contentDescription = category.name },
-                )
+                // Tónové přepínací tlačítko, ne obrysový čip: výběr jedné ikony z řady je v M3
+                // Expressive přepínač s tvarem (vybraný se vyplní a zaoblí), jako formátování
+                // nebo ztlumení v hovoru. Široké, aby cíl pro prst zůstal jako u čipu.
+                val selected = category.name == selectedName
+                FilledTonalIconToggleButton(
+                    checked = selected,
+                    onCheckedChange = { onSelect(category) },
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                    modifier = Modifier
+                        .size(IconButtonDefaults.smallContainerSize(IconButtonDefaults.IconButtonWidthOption.Wide))
+                        .semantics { contentDescription = category.name },
+                ) {
+                    StickerCategoryIcon(category, selected = selected)
+                }
             }
         }
     }
@@ -1555,7 +1563,7 @@ private fun StickerCategoryRow(
  * z prázdna, takže první snímek je prázdný, a statický náhled od Telegramu taky (viz
  * `TdlStickerRepository.categories`). Smyčka u deseti ikon vedle sebe by byla neklid.
  *
- * Barví se barvou obsahu čipu, takže se s výběrem přebarví spolu s plochou.
+ * Barví se barvou obsahu tlačítka, takže se s výběrem přebarví spolu s plochou.
  */
 @Composable
 private fun StickerCategoryIcon(category: StickerCategory, selected: Boolean) {
@@ -1582,10 +1590,10 @@ private fun StickerCategoryIcon(category: StickerCategory, selected: Boolean) {
 /** Kolik sad je ve výsledcích vidět, než je uživatel rozbalí. */
 private const val SETS_COLLAPSED = 2
 
-/** Ikona v čipu kategorie. O kus větší než ikona vedle popisku (18 dp) — popisek tu chybí. */
+/** Ikona v tlačítku kategorie. O kus větší než ikona vedle popisku (18 dp) — popisek tu chybí. */
 private val CATEGORY_ICON_SIZE = 20.dp
 
-/** Řádek kategorií: čip (32 dp) a kousek vzduchu nad záložkami. */
+/** Řádek kategorií: malé tlačítko (40 dp) a kousek vzduchu nad záložkami. */
 private val CATEGORY_ROW_HEIGHT = 44.dp
 
 @Composable

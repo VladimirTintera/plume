@@ -393,7 +393,7 @@ Konverzační část auditu (celoaplikační body v [roadmap.md](roadmap.md), �
 - **Zbývá:**
   - ~~Plovoucí tlačítka~~ — hotovo: tvar při stisku a stín 3 dp jako ostatní plovoucí prvky
     (`FloatingButtonSurface`, VladimirTintera/telegram#851).
-  - Čipy kategorií pod hledáním samolepek (srdce, palec…) jsou obrysové — zvážit tónové.
+  - ~~Čipy kategorií pod hledáním samolepek~~ — hotovo: tónová přepínací tlačítka s tvarem (VladimirTintera/telegram#852).
   - `StickerSearchField` vypadá jako `SearchPill`, ale je řízený zvenku (text drží ViewModel);
     sloučit až s `SearchPill`, který umí řízený text.
 - **Záměrně ponecháno:** neurčitý kruh v docku přehrávače (čeká na stažení a plynule přejde
