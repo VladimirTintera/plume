@@ -862,6 +862,28 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Při odesílání se entity dohledávají** (`getTextEntities`), jinak odkaz odejde jako mrtvý text —
   server si ho sám neoznačí. Když dohledání selže, zpráva stejně odejde.
 
+## Pruhy a přepínače M3 Expressive
+
+- **Pruh proti spamu a oznámení o chatu jsou sklo** (`ChatBarSurface` v `SpamBarCard.kt`):
+  mléčné sklo se stínem 3 dp a okrajem 12/6 dp jako pruh připnutých a žádostí. Neprůhledná karta
+  se stínem mezi skleněnými pruhy vypadala jako cizí prvek. Zaoblení `LargeIncreased`, ne
+  pilulka — pruh má víc řádků. Akce jsou malá tónová tlačítka (`ChatBarButton`), akce PROTI
+  protějšku (Zablokovat, Nahlásit) v `errorContainer`.
+- **Emoji / Samolepky / GIFy jsou spojená skupina přepínacích tlačítek**, ne segmentová tlačítka
+  (M3 Expressive je nahrazuje právě touhle skupinou). Vybraný režim má fajfku a rozšíří se
+  (váha 1,4) — se stejnou šířkou česky uřízlo „Samolepky". Pod záložkami emoji a sad samolepek
+  není dělicí čára (`divider = {}`).
+- **Odeslat ankety a seznamu úkolů je split button** (`SendSplitButton`): nabídka (bez zvuku,
+  naplánovat) za šipkou, ne za dlouhým stiskem, o kterém nic nenapovídalo. U uložení upraveného
+  seznamu nabídka není, je to obyčejné tlačítko.
+- **Ztlumení kanálu je `TonalToggleButton`** ve velikosti medium: ztlumený kanál ho má vyplněné
+  a zakulacené, ikona ukazuje stav (přeškrtnutý zvonek = ztlumeno). Ověřeno na Pixelu 5.
+- **Předěl „Nepřečtené zprávy" je tónová pilulka** (`secondaryContainer`, `labelMediumEmphasized`),
+  ne šedý text jako předěl dne — je to jediná značka „odsud čti".
+- **Sheety v konverzaci jsou bloky zaoblených řádků** (informace o zprávě, Poslat jako, jazyk
+  překladu, výběr člena při hledání). Volba režimu přílohy a náhledu odkazu berou
+  `groupItemShape(index, count, selected)` přímo — ruční kopie neuměly vyčlenit vybraný řádek.
+
 ## Barva konverzace
 
 Profil chatu → Barva konverzace: „Podle aplikace" a tytéž vzorky jako barva aplikace

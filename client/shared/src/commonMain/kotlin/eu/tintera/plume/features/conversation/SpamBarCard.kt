@@ -1,6 +1,11 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +14,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -92,20 +95,16 @@ internal fun SpamBarCard(
     onAddContact: () -> Unit,
     onUnarchive: () -> Unit,
     onDismiss: () -> Unit,
+    /** Mléčné sklo nad seznamem, jako u ostatních pruhů ([ChatBarSurface]). */
+    glass: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = ShapeDefaults.LargeIncreased,
-        shadowElevation = 2.dp,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-    ) {
+    ChatBarSurface(glass = glass, modifier = modifier) {
         /*
          * Tlačítka jsou pod textem, ne pod řádkem s křížkem: `IconButton` má 48 dp a řádek s ním
-         * by mezi textem a tlačítky nechal mezeru, ve které pruh vypadal rozpadle. Tlačítka se
-         * posouvají o vnitřní odsazení `TextButton`, aby první popisek lícoval s textem.
+         * by mezi textem a tlačítky nechal mezeru, ve které pruh vypadal rozpadle.
          */
-        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
+        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 12.dp)) {
             Column(Modifier.weight(1f).padding(top = 10.dp)) {
                 Text(
                     text = stringResource(Res.string.spam_bar_text),
@@ -130,21 +129,27 @@ internal fun SpamBarCard(
                         }
                     }
                 }
+                // Akce jako malá tónová tlačítka, ne červený text: akce PROTI protějšku mají
+                // `errorContainer` (M3 Expressive dává akci plochu), ostatní běžnou tónovou.
                 FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.offset(x = (-12).dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(top = 12.dp),
                 ) {
-                    val destructive = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    val destructive = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    )
                     if (bar.canBlock) {
-                        TextButton(onClick = onBlock, colors = destructive, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.profile_block)) }
+                        ChatBarButton(stringResource(Res.string.profile_block), onBlock, destructive)
                     }
                     if (bar.canUnarchive) {
-                        TextButton(onClick = onUnarchive, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.chats_action_unarchive)) }
+                        ChatBarButton(stringResource(Res.string.chats_action_unarchive), onUnarchive)
                     } else if (bar.canReportSpam) {
-                        TextButton(onClick = onReport, colors = destructive, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.chats_delete_report)) }
+                        ChatBarButton(stringResource(Res.string.chats_delete_report), onReport, destructive)
                     }
                     if (bar.canAddContact) {
-                        TextButton(onClick = onAddContact, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.spam_bar_add_contact)) }
+                        ChatBarButton(stringResource(Res.string.spam_bar_add_contact), onAddContact)
                     }
                 }
             }
@@ -154,6 +159,31 @@ internal fun SpamBarCard(
             }
         }
     }
+}
+
+/**
+ * Plocha pruhu nad konverzací (spam, nasdílení čísla, žádost o vstup): **mléčné sklo se stínem
+ * 3 dp, jako pruh připnutých a žádostí** — plave nad posouvaným seznamem, takže stín je na místě.
+ * Dřív to byla neprůhledná karta `surfaceContainerHigh` se stínem 2 dp a mezi skleněnými pruhy
+ * pod ní vypadala jako cizí prvek. Zaoblení `LargeIncreased` (ne pilulka): pruh má víc řádků.
+ */
+@Composable
+internal fun ChatBarSurface(glass: Modifier, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Surface(
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = ShapeDefaults.LargeIncreased,
+        shadowElevation = 3.dp,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Box(Modifier.clip(ShapeDefaults.LargeIncreased).then(glass)) { content() }
+    }
+}
+
+/** Malé tónové tlačítko akce pruhu; tvar se při stisku mění jako u ostatních tlačítek. */
+@Composable
+internal fun ChatBarButton(label: String, onClick: () -> Unit, colors: ButtonColors = ButtonDefaults.filledTonalButtonColors()) {
+    FilledTonalButton(onClick = onClick, colors = colors, shapes = ButtonDefaults.shapes()) { Text(label) }
 }
 
 /** Jeden řádek údajů o protějšku. Země a měsíc jdou přes jazyk aplikace, jako jinde. */

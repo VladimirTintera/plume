@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -376,20 +375,19 @@ fun ChecklistComposerScreen(
                         LoadingIndicator(Modifier.padding(end = 16.dp).size(32.dp))
                     } else {
                         Box {
-                            Button(
-                                onClick = {
+                            // Uložená úprava se neplánuje ani neposílá bez zvuku — nabídka jen u nového.
+                            SendSplitButton(
+                                label = stringResource(if (viewModel.isEditing) Res.string.checklist_compose_save else Res.string.poll_compose_send),
+                                enabled = canSend,
+                                menuAvailable = !viewModel.isEditing,
+                                menuOpen = sendMenuOpen,
+                                onMenuOpenChange = { sendMenuOpen = it },
+                                onSend = {
                                     haptics.confirm()
                                     viewModel.send()
                                 },
-                                enabled = canSend,
-                                // Uložená úprava se neplánuje ani neposílá bez zvuku — nabídka jen u nového.
-                                modifier = Modifier
-                                    .padding(end = 12.dp)
-                                    .longPressInstead(enabled = canSend && !viewModel.isEditing) { sendMenuOpen = true },
-                                shapes = ButtonDefaults.shapes(),
-                            ) {
-                                Text(stringResource(if (viewModel.isEditing) Res.string.checklist_compose_save else Res.string.poll_compose_send))
-                            }
+                                modifier = Modifier.padding(end = 12.dp),
+                            )
                             ExpressiveMenu(
                                 expanded = sendMenuOpen,
                                 onDismiss = { sendMenuOpen = false },

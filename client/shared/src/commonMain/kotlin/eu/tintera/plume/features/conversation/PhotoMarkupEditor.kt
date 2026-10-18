@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.material3.Button
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -176,8 +177,9 @@ internal fun PhotoMarkupEditor(
                     tint = if (strokes.isNotEmpty()) Color.White else Color.White.copy(alpha = DISABLED_ALPHA),
                 )
             }
-            TextButton(onClick = { onDone(markup) }, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.attachment_done), color = Color.White, style = MaterialTheme.typography.labelLarge)
+            // Hlavní akce editoru jako plné tlačítko (M3 Expressive), ne bílý text vedle ikon.
+            Button(onClick = { onDone(markup) }, shapes = ButtonDefaults.shapes(), modifier = Modifier.padding(end = 8.dp)) {
+                Text(stringResource(Res.string.attachment_done))
             }
         }
 

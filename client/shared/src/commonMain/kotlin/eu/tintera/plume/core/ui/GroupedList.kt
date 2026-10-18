@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -52,8 +53,15 @@ fun groupItemShape(index: Int, count: Int, selected: Boolean = false): Shape {
  * ZA tenhle modifikátor. V obyčejném sloupci je na to [GroupedColumn], který pozici spočítá sám;
  * lazy seznam ji zná až v `itemsIndexed`.
  */
-fun Modifier.groupedItem(index: Int, count: Int, color: Color, selected: Boolean = false): Modifier = this
-    .padding(horizontal = 16.dp)
+fun Modifier.groupedItem(
+    index: Int,
+    count: Int,
+    color: Color,
+    selected: Boolean = false,
+    /** Okraj bloku od kraje seznamu; 0, když ho už má sloupec kolem (sheet s vlastním odsazením). */
+    edge: Dp = 16.dp,
+): Modifier = this
+    .padding(horizontal = edge)
     .padding(top = if (index > 0) GROUP_ITEM_SPACING else 0.dp)
     .clip(groupItemShape(index, count, selected))
     .background(color)

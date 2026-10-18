@@ -158,12 +158,28 @@ internal fun BoxScope.ConversationBars(
                         onAddContact = viewModel::addSpamBarContact,
                         onUnarchive = viewModel::unarchiveFromSpamBar,
                         onDismiss = viewModel::dismissChatBar,
+                        glass = Modifier.hazeBlur(
+                            input = HazeInput.Sources(listHaze),
+                            style = glassStyle(
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                alpha = GLASS_TEXT_TINT_ALPHA,
+                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                            ),
+                        ),
                     )
                     SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
                         bar = bar,
                         onSharePhone = { confirmSharePhone = true },
                         onInviteMembers = navigation.onAddMembers,
                         onDismiss = viewModel::dismissChatBar,
+                        glass = Modifier.hazeBlur(
+                            input = HazeInput.Sources(listHaze),
+                            style = glassStyle(
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                alpha = GLASS_TEXT_TINT_ALPHA,
+                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                            ),
+                        ),
                     )
                     null -> Unit
                 }

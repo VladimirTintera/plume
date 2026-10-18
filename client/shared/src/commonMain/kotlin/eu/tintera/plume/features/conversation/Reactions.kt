@@ -389,9 +389,9 @@ private fun ReactionChip(
             color = container,
             contentColor = MaterialTheme.colorScheme.onSurface,
             /*
-             * Lem v barvě pozadí konverzace, ne stín: čip vypadá, jako by byl z bubliny
-             * vykrojený, a od ní i od pozadí se odliší v obou režimech. Tak to dělají Google
-             * Zprávy; stín navíc v posouvatelném řádku ořezával.
+             * Lem v barvě pozadí konverzace: čip vypadá, jako by byl z bubliny vykrojený, a od ní
+             * se odliší v obou režimech (tak to dělají Google Zprávy). Mimo bublinu by ale lem na
+             * stejném pozadí zmizel, proto k němu ještě drobný stín ([REACTION_ELEVATION]).
              */
             border = BorderStroke(REACTION_RING, MaterialTheme.colorScheme.surface),
             shadowElevation = REACTION_ELEVATION,

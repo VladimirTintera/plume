@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.Button
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -327,12 +328,9 @@ internal fun StagedAttachmentPreview(
 
                 Spacer(Modifier.weight(1f))
 
-                TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
-                    Text(
-                        text = stringResource(Res.string.attachment_done),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
+                // Hlavní akce náhledu jako plné tlačítko, ne bílý text nad médiem.
+                Button(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(Res.string.attachment_done))
                 }
             }
         }
