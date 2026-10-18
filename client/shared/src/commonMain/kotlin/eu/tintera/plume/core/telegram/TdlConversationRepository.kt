@@ -528,6 +528,14 @@ class TdlConversationRepository(
         client.declineSuggestedPost(chatId = chatId, messageId = messageId, comment = comment.take(DECLINE_COMMENT_MAX))
             .toResult().map { }
 
+    override suspend fun clearHistory(chatId: Long, forAll: Boolean): Result<Unit> =
+        // Chat zůstane v seznamu: vyprázdnit, ne smazat (to je „Smazat chat").
+        client.deleteChatHistory(chatId = chatId, removeFromChatList = false, revoke = forAll).toResult().map { }
+
+    override suspend fun clearHistoryBetween(chatId: Long, fromDate: Int, toDate: Int, forAll: Boolean): Result<Unit> =
+        client.deleteChatMessagesByDate(chatId = chatId, minDate = fromDate, maxDate = toDate, revoke = forAll)
+            .toResult().map { }
+
     override suspend fun showOriginalContent(chatId: Long, messageId: Long): Result<Unit> =
         client.deleteMessageEphemeralContent(chatId = chatId, messageId = messageId).toResult().map { }
 
@@ -2304,6 +2312,7 @@ class TdlConversationRepository(
                     draftLinkPreview = draft?.linkPreview,
                     verification = client.verificationOf(chat),
                     isSecret = chat.type is ChatTypeSecret,
+                    clearHistory = chat.clearHistoryRights(),
                     avatarColorId = (chat.type as? ChatTypeSecret)?.userId ?: chat.id,
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
                     restriction = restriction?.reasonText,

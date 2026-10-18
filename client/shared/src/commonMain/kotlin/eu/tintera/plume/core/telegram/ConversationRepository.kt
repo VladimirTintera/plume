@@ -103,6 +103,20 @@ interface ConversationRepository {
      */
     fun editedMessages(chatId: Long): Flow<ChatMessage>
 
+    /**
+     * Vymaže historii chatu, chat v seznamu zůstane (`deleteChatHistory`). S [forAll] i protějšku
+     * — jen kde to [ClearHistoryRights.forAll] dovolí.
+     */
+    suspend fun clearHistory(chatId: Long, forAll: Boolean): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
+     * Smaže zprávy mezi [fromDate] a [toDate] včetně (sekundy epochy, `deleteChatMessagesByDate`).
+     * Zprávy z posledních 30 sekund TDLib nechá. [forAll] jen v soukromém chatu.
+     */
+    suspend fun clearHistoryBetween(chatId: Long, fromDate: Int, toDate: Int, forAll: Boolean): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     /** Schválí navrhovaný příspěvek; kanál ho zveřejní v termínu návrhu, nebo hned. */
     suspend fun approveSuggestedPost(chatId: Long, messageId: Long): Result<Unit> =
         Result.failure(UnsupportedOperationException())
@@ -1254,6 +1268,8 @@ data class ChatInfo(
     val verification: Verification? = null,
     /** Tajný chat — zámek u jména, zákaz snímků obrazovky. */
     val isSecret: Boolean = false,
+    /** Jestli a jak jde vymazat historii chatu; `null` = nejde (kanál, veřejná skupina…). */
+    val clearHistory: ClearHistoryRights? = null,
     /** Barva avataru bez fotky, viz [ChatSummary.avatarColorId]. */
     val avatarColorId: Long = id,
     /** Vlastní emoji statusu za jménem v hlavičce (viz [statusEmojiId]), nebo `null`. */
@@ -2865,3 +2881,11 @@ fun sendableTogether(attachments: List<OutgoingAttachment>): List<OutgoingAttach
     if (!mixed) return attachments
     return attachments.map { if (it is OutgoingAttachment.Audio) it.asDocument() else it }
 }
+
+/**
+ * Co jde s historií chatu udělat (`Chat.canBeDeletedOnlyForSelf` / `canBeDeletedForAllUsers`).
+ * [forAll]: smazat celou historii i ostatním. [byDate]: jen zprávy z vybraných dnů
+ * (`deleteChatMessagesByDate`) — TDLib to umí jen v soukromém chatu a základní skupině.
+ * [forAllByDate]: po dnech i ostatním — jen v soukromém chatu.
+ */
+data class ClearHistoryRights(val forAll: Boolean, val byDate: Boolean, val forAllByDate: Boolean = false)

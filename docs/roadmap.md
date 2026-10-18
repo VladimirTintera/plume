@@ -402,8 +402,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   kterou vidí jen uživatel (`setUserPersonalProfilePhoto`)~~ — hotovo (⋮ v profilu → Upravit
   kontakt; `docs/poznatky/profil-chatu.md`, „Úprava kontaktu"). Zbývá ověřit iOS a poznámku
   s formátováním od jiného klienta.
-- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: smazání zpráv
-  za období v soukromém chatu a základní skupině (`deleteChatMessagesByDate`), tiché odesílání
+- ~~Vymazání historie chatu, celé i za vybrané dny (`deleteChatHistory` bez odebrání ze
+  seznamu, `deleteChatMessagesByDate`)~~ — hotovo (⋮ v konverzaci → Vymazat historii…;
+  `docs/poznatky/konverzace-akce.md`, „Vymazání historie"). Plume dřív uměl jen smazat celý chat.
+- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: tiché odesílání
   jako výchozí pro chat (`toggleChatDefaultDisableNotification`), smazání všech konceptů
   najednou v přehledu konceptů (`clearAllDraftMessages`), doporučené kanály
   (`getRecommendedChats`), nahlášení profilové fotky (`reportChatPhoto`).

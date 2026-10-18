@@ -513,6 +513,37 @@ Hlavička konverzace to ukazuje odznakem s hodinami za názvem (`AutoDeleteBadge
   skupina, vlastník): nastavení i vypnutí s odznakem a servisními zprávami. Kanál a správce bez
   vlastnictví ověřené nejsou, **iOS jen přeložené**.
 
+## Vymazání historie
+
+⋮ v konverzaci → „Vymazat historii…" (`ClearHistorySheet`): chat se vyprázdní, ale v seznamu
+zůstane — od „Smazat chat" se liší právě tím. Plume dřív uměl jen smazat celý chat. Práva
+`ChatInfo.clearHistory` (`ClearHistoryRights`, `Chat.clearHistoryRights` v `TdlClearHistory.kt`).
+
+- **Kdy se nabízí, rozhoduje TDLib** (`Chat.canBeDeletedOnlyForSelf` / `canBeDeletedForAllUsers`).
+  Jen v celém chatu, ne ve vlákně ani tématu, a ne v Uložených zprávách.
+- **Celá historie**: `deleteChatHistory(removeFromChatList = false)`. Zaškrtávátko „Smazat i pro
+  …" (ve skupině „i ostatním členům") je jen tam, kde `canBeDeletedForAllUsers`. Vlastník
+  supergroupy ho dostal taky.
+- **Vybrané dny**: `deleteChatMessagesByDate`. TDLib ho bere **jen v soukromém chatu a základní
+  skupině** a smazat i ostatním jde jen v soukromém chatu (`forAllByDate`). Kde po dnech mazat
+  nejde, sheet místo jediné předvybrané volby ukáže jen větu o tom, co se stane.
+- **Dny jsou MÍSTNÍ, oba konce včetně**: kalendář počítá v UTC, takže se den čte přes UTC
+  a vezme se jeho místní půlnoc. Konec je poslední vteřina posledního dne (`ClearHistoryRangeDialog`,
+  stejná úvaha jako „Skok na datum"). Budoucí dny vybrat nejde. **Zprávy z posledních 30 sekund
+  TDLib nesmaže.**
+- **Výchozí hlavička rozsahového kalendáře se do dialogu nevejde**: „Datum zahájení – Datum
+  ukončení" v `headlineLarge` se zalomila po písmenech. Hlavička má proto `titleLarge` a kalendář
+  je bez přepínače na zadání textem. Výška kalendáře je `weight(1f)`, jinak by vytlačil tlačítka.
+- **Zprávy z konverzace zmizí updaty o smazání**, jako když je smaže kdokoli jiný. Konverzace
+  na to nic zvláštního nepotřebuje.
+- **Ověřeno na emulátoru (…527, chat s …029)**:
+  - Tři dnešní zprávy smazané „za dnešek i pro Pixel 7 Pro" zmizely u obou. U …029 je
+    poslední zprávou zase ta včerejší, starší zprávy zůstaly.
+  - Celá historie jen u sebe: konverzace prázdná, chat v seznamu zůstal.
+  - V supergroupě (vlastník) jen celá historie se „Smazat i ostatním členům". Mazání tam
+    neproběhlo.
+  - **Neověřené:** základní skupina, tajný chat a iOS.
+
 ## Výběr víc zpráv
 
 Položka „Vybrat" v nabídce nad zprávou přepne konverzaci do režimu výběru: hlavička ukazuje ✕
