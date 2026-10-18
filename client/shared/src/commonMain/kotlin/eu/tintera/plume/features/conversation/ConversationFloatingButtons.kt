@@ -1,6 +1,13 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.AnimatedVisibility
+import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -88,12 +95,10 @@ internal fun ScrollToBottomButton(
         exit = slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it } + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = modifier,
     ) {
-        Surface(
+        FloatingButtonSurface(
             onClick = onClick,
-            shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            shadowElevation = 4.dp,
         ) {
             Row(
                 // Bez počtu je z toho kruh: šířka i výška jsou dané touhle minimální plochou.
@@ -144,15 +149,13 @@ internal fun MarkReadChip(visible: Boolean, onClick: () -> Unit) {
     ) {
         // Mezera pod čipem je v obsahu, ne ve `spacedBy` sloupce — viz `UnreadMarkButton`.
         Box(Modifier.padding(bottom = 10.dp)) {
-            Surface(
+            FloatingButtonSurface(
                 onClick = {
                     haptics.confirm()
                     onClick()
                 },
-                shape = CircleShape,
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shadowElevation = 4.dp,
             ) {
                 Row(
                     Modifier.heightIn(min = SCROLL_DOWN_BUTTON_SIZE).padding(horizontal = 16.dp),
@@ -218,18 +221,21 @@ internal fun UnreadMarkButton(
                     }
                 },
             ) {
-                Surface(
-                    shape = CircleShape,
+                val interaction = remember { MutableInteractionSource() }
+                FloatingButtonSurface(
+                    onClick = null,
+                    interactionSource = interaction,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shadowElevation = 4.dp,
                 ) {
-                    // Klikání uvnitř `Surface`: ten ořezává obsah tvarem, takže vlnka zůstane
+                    // Klikání uvnitř plochy: ta ořezává obsah tvarem, takže vlnka zůstane
                     // v kruhu, a stín, který by `clip` zvenku uřízl, zůstane celý.
                     Box(
                         Modifier
                             .size(SCROLL_DOWN_BUTTON_SIZE)
                             .contextClickable(
+                                interactionSource = interaction,
+                                indication = ripple(),
                                 onClickLabel = label,
                                 onLongClickLabel = readAllLabel,
                                 onLongClick = { menuOpen = true },
@@ -287,6 +293,60 @@ private fun NewMessagesLabel(count: Int, modifier: Modifier = Modifier) {
 private const val NUMBER_MARK = "\uE000"
 
 /** Tlačítko „dolů" bez počtu je kruh téhle velikosti — zároveň minimální dotyková plocha. */
+/**
+ * Plocha plovoucích tlačítek nad polem (dolů, @ / ❤, „Označit jako přečtené").
+ *
+ * **Při stisku změní tvar** z kruhu (u tlačítka s popiskem z pilulky) na zaoblený čtverec, jako
+ * ikonová a textová tlačítka v celé aplikaci (`IconButtonDefaults.shapes()`). Dřív to byly ruční
+ * `Surface(CircleShape)`, které se při ťuknutí nehnuly — jediná tlačítka v aplikaci bez odezvy
+ * tvarem. Zaoblení se počítá v procentech výšky, takže kruh i pilulka mají tutéž odezvu.
+ * Stín 3 dp jako ostatní plovoucí prvky konverzace (pruhy, plovoucí lišty).
+ *
+ * [onClick] `null` = klikání nese obsah sám (podržení přes `contextClickable`); pak musí dostat
+ * tentýž [interactionSource], aby stisk tvar změnil.
+ */
+@Composable
+private fun FloatingButtonSurface(
+    onClick: (() -> Unit)?,
+    color: Color,
+    contentColor: Color,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    content: @Composable () -> Unit,
+) {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val corner by animateFloatAsState(
+        targetValue = if (pressed) PRESSED_CORNER_PERCENT else 50f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "floating-button-corner",
+    )
+    // Pružina smí přestřelit jen nahoru (k plnému kruhu); 50 % je strop zaoblení.
+    val shape = RoundedCornerShape(percent = corner.roundToInt().coerceIn(0, 50))
+    if (onClick != null) {
+        Surface(
+            onClick = onClick,
+            shape = shape,
+            color = color,
+            contentColor = contentColor,
+            shadowElevation = FLOATING_BUTTON_ELEVATION,
+            interactionSource = interactionSource,
+            content = content,
+        )
+    } else {
+        Surface(
+            shape = shape,
+            color = color,
+            contentColor = contentColor,
+            shadowElevation = FLOATING_BUTTON_ELEVATION,
+            content = content,
+        )
+    }
+}
+
+/** Zaoblení stisknutého tlačítka v procentech výšky — jako stisknuté ikonové tlačítko. */
+private const val PRESSED_CORNER_PERCENT = 28f
+
+private val FLOATING_BUTTON_ELEVATION = 3.dp
+
 private val SCROLL_DOWN_BUTTON_SIZE = 48.dp
 
 /**

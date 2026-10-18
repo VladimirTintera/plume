@@ -884,6 +884,13 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   překladu, výběr člena při hledání). Volba režimu přílohy a náhledu odkazu berou
   `groupItemShape(index, count, selected)` přímo — ruční kopie neuměly vyčlenit vybraný řádek.
 
+- **Plovoucí tlačítka nad polem mění tvar při stisku** (`FloatingButtonSurface`: dolů, @ / ❤,
+  „Označit jako přečtené"). Kruh (pilulka) → zaoblení 28 % výšky, jako ikonová tlačítka. Byla to
+  jediná tlačítka v aplikaci bez odezvy tvarem. Zaoblení v procentech, takže kruh i pilulka
+  s počtem reagují stejně; pružina přestřelí jen nahoru a strop je 50 %. U tlačítka @ / ❤ nese
+  klikání obsah (`contextClickable` kvůli podržení), takže dostává tentýž `interactionSource`.
+  Ověřeno na Pixelu 7 snímkem během `input motionevent DOWN`.
+
 ## Barva konverzace
 
 Profil chatu → Barva konverzace: „Podle aplikace" a tytéž vzorky jako barva aplikace
