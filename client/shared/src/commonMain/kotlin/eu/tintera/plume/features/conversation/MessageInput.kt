@@ -56,11 +56,14 @@ import eu.tintera.plume.resources.schedule_send_24dp
 import eu.tintera.plume.resources.online_prediction_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.conversation_scheduled_open
+import eu.tintera.plume.resources.conversation_default_silent_disable
+import eu.tintera.plume.resources.conversation_default_silent_enable
 import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.ui.occludesSharedElements
 import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.notifications_off_24dp
+import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.core.telegram.AttachmentMode
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.RowScope
@@ -122,6 +125,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.material3.IconButtonShapes
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.smart_toy_24dp
 import eu.tintera.plume.resources.conversation_bot_commands
@@ -233,6 +237,12 @@ internal fun MessageInput(
     onPickEffect: () -> Unit = {},
     /** Otevře seznam naplánovaných zpráv; `null`, když chat žádné nemá. */
     onOpenScheduled: (() -> Unit)? = null,
+    /**
+     * Zvoneček výchozího odesílání bez zvuku (`true` = ticho); `null` = zvoneček se nekreslí.
+     * Jen v kanálu, kam uživatel píše — tam ticho dává smysl jako stav, ne jednorázová volba.
+     */
+    defaultSilent: Boolean? = null,
+    onToggleDefaultSilent: () -> Unit = {},
     /**
      * Jen ruční úpravy textu a formátování — vyprázdnění po odeslání se nehlásí, o to se stará
      * `onSend`.
@@ -859,6 +869,23 @@ internal fun MessageInput(
                     )
                 }
             }
+            }
+            // Výchozí ticho v kanálu: přepínač, ne akce — stav nese tvar i ikona (přeškrtnutý zvon).
+            if (editing == null && defaultSilent != null) {
+                IconToggleButton(
+                    checked = defaultSilent,
+                    onCheckedChange = { onToggleDefaultSilent() },
+                    colors = IconButtonDefaults.iconToggleButtonColors(contentColor = inputIconColor()),
+                    modifier = Modifier.padding(bottom = 4.dp),
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                ) {
+                    Icon(
+                        painterResource(if (defaultSilent) Res.drawable.notifications_off_24dp else Res.drawable.notifications_24dp),
+                        contentDescription = stringResource(
+                            if (defaultSilent) Res.string.conversation_default_silent_disable else Res.string.conversation_default_silent_enable,
+                        ),
+                    )
+                }
             }
             // Naplánované zprávy: hodiny u pole, dokud nějaké čekají — do historie nepatří,
             // takže jinak by o nich nebylo vidět nic.

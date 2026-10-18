@@ -493,6 +493,8 @@ internal fun ConversationBottomBar(
             sheets.effectPicker = true
         },
         onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
+        defaultSilent = state.info?.takeIf { it.isChannel && !state.narrowed }?.defaultSilent,
+        onToggleDefaultSilent = viewModel::toggleDefaultSilent,
         onDraftChanged = viewModel::onDraftChanged,
         editing = state.editing,
         onCancelEdit = viewModel::cancelEdit,

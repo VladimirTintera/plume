@@ -104,6 +104,16 @@ interface ConversationRepository {
     fun editedMessages(chatId: Long): Flow<ChatMessage>
 
     /**
+     * Výchozí tichost odesílání v chatu (`toggleChatDefaultDisableNotification`). Použije ji TDLib
+     * SÁM u každé zprávy do chatu (`create_message_to_send`), i když volby odeslání tichost
+     * nežádají — „odeslat se zvukem" proto nejde, jen zvoneček vypnout. Globální volbou
+     * `ignore_default_disable_notification` by to šlo obrátit, jenže pak by výchozí tichost
+     * musela doplňovat každá cesta odeslání (sdílení, odpověď z notifikace, přeposlání) sama.
+     */
+    suspend fun setDefaultSilent(chatId: Long, silent: Boolean): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Vymaže historii chatu, chat v seznamu zůstane (`deleteChatHistory`). S [forAll] i protějšku
      * — jen kde to [ClearHistoryRights.forAll] dovolí.
      */
@@ -1268,6 +1278,8 @@ data class ChatInfo(
     val verification: Verification? = null,
     /** Tajný chat — zámek u jména, zákaz snímků obrazovky. */
     val isSecret: Boolean = false,
+    /** Zprávy do chatu odcházejí bez zvuku, pokud se při odeslání nezvolí jinak. */
+    val defaultSilent: Boolean = false,
     /** Jestli a jak jde vymazat historii chatu; `null` = nejde (kanál, veřejná skupina…). */
     val clearHistory: ClearHistoryRights? = null,
     /** Barva avataru bez fotky, viz [ChatSummary.avatarColorId]. */
@@ -1609,6 +1621,10 @@ sealed interface MessageSchedule {
  * přehraje (0 = žádný; jen v soukromém chatu, viz [MessageEffect]).
  */
 data class SendOptions(
+    /**
+     * Bez zvuku u příjemce. `false` neznamená „se zvukem": výchozí tichost chatu
+     * ([ChatInfo.defaultSilent]) přidá TDLib sám a přebít ji nejde (viz [setDefaultSilent]).
+     */
     val silent: Boolean = false,
     val schedule: MessageSchedule? = null,
     val effectId: Long = 0,

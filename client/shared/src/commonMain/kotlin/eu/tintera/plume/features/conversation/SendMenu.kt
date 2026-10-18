@@ -42,7 +42,9 @@ internal fun sendMenuOffer(state: ConversationState): SendMenuOffer {
     val schedule = state.threadRootId == null && state.forumTopicId == null
     val privateChat = info != null && !info.isGroup && !info.isChannel && !saved
     return SendMenuOffer(
-        silent = !saved,
+        // V chatu s výchozím tichem (zvoneček v kanálu) „bez zvuku" nic nezmění: ticho přidá
+        // TDLib sám a „se zvukem" ho přebít neumí (`ConversationRepository.setDefaultSilent`).
+        silent = !saved && info?.defaultSilent != true,
         schedule = schedule,
         whenOnline = schedule && privateChat && state.presence is Presence.Offline,
         effects = schedule && privateChat,

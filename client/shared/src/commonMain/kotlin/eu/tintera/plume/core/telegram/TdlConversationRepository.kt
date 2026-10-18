@@ -528,6 +528,9 @@ class TdlConversationRepository(
         client.declineSuggestedPost(chatId = chatId, messageId = messageId, comment = comment.take(DECLINE_COMMENT_MAX))
             .toResult().map { }
 
+    override suspend fun setDefaultSilent(chatId: Long, silent: Boolean): Result<Unit> =
+        client.toggleChatDefaultDisableNotification(chatId = chatId, defaultDisableNotification = silent).toResult().map { }
+
     override suspend fun clearHistory(chatId: Long, forAll: Boolean): Result<Unit> =
         // Chat zůstane v seznamu: vyprázdnit, ne smazat (to je „Smazat chat").
         client.deleteChatHistory(chatId = chatId, removeFromChatList = false, revoke = forAll).toResult().map { }
@@ -2313,6 +2316,7 @@ class TdlConversationRepository(
                     verification = client.verificationOf(chat),
                     isSecret = chat.type is ChatTypeSecret,
                     clearHistory = chat.clearHistoryRights(),
+                    defaultSilent = chat.defaultDisableNotification,
                     avatarColorId = (chat.type as? ChatTypeSecret)?.userId ?: chat.id,
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
                     restriction = restriction?.reasonText,

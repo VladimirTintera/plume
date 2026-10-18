@@ -517,6 +517,11 @@
     <string name="conversation_bot_start_failed">Couldn't start the bot.</string>
     <string name="conversation_send_options">Send options</string>
     <string name="conversation_send_silent">Send without sound</string>
+    <string name="conversation_default_silent_on">Messages will be sent without sound</string>
+    <string name="conversation_default_silent_off">Messages will be sent with sound</string>
+    <string name="conversation_default_silent_enable">Send without sound by default</string>
+    <string name="conversation_default_silent_disable">Send with sound by default</string>
+    <string name="conversation_default_silent_failed">Couldn't change the sound setting.</string>
     <string name="conversation_send_schedule">Schedule message…</string>
     <string name="conversation_send_when_online">Send when online</string>
     <string name="conversation_send_effect">Send with effect…</string>
