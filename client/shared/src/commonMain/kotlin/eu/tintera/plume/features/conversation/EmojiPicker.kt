@@ -212,6 +212,9 @@ internal fun EmojiPanel(
         scrollState = tabScroll,
         edgePadding = 8.dp,
         containerColor = Color.Transparent,
+        // Bez dělicí čáry pod záložkami, jako řada sad samolepek: čára přes celou šířku je
+        // předěl M2 a nad mřížkou nic neodděluje — výběr nese indikátor záložky.
+        divider = {},
         modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT).wheelScrollsHorizontally(tabScroll),
     ) {
         Tab(

@@ -1,6 +1,12 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.animation.core.animateFloatAsState
+import eu.tintera.plume.resources.check_24dp
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -57,11 +63,8 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -700,24 +703,48 @@ internal fun StickerPickerSheet(
     ) {
         /*
          * Emoji a samolepky jsou dvě části JEDNOHO sheetu, ne dva sheety: obojí se otevírá týmž
-         * tlačítkem a patří k témuž psaní. Přepínač jsou segmentová tlačítka — dvě rovnocenné
-         * volby, ne záložky obsahu (ty má každá část vlastní).
+         * tlačítkem a patří k témuž psaní. Přepínač je spojená skupina přepínacích tlačítek
+         * (M3 Expressive connected button group) — rovnocenné volby, ne záložky obsahu (ty má
+         * každá část vlastní). Segmentová tlačítka, která tu byla, M3 Expressive nahrazuje právě
+         * touhle skupinou; vybrané se zakulatí celé a dostane fajfku.
          */
-        if (stickersAvailable && modes.size > 1) SingleChoiceSegmentedButtonRow(
+        if (stickersAvailable && modes.size > 1) Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         ) {
             modes.forEachIndexed { index, entry ->
-                SegmentedButton(
-                    selected = mode == entry,
-                    onClick = { onModeChange(entry) },
-                    shape = SegmentedButtonDefaults.itemShape(index, modes.size),
+                val checked = mode == entry
+                // Vybrané se o fajfku rozšíří, jako záložky profilu: se stejnou šířkou všech tří
+                // by fajfka česky ukrojila „Samolepky".
+                val weight by animateFloatAsState(
+                    targetValue = if (checked) SELECTED_MODE_WEIGHT else 1f,
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    label = "expression-mode-weight",
+                )
+                ToggleButton(
+                    checked = checked,
+                    onCheckedChange = { if (!checked) onModeChange(entry) },
+                    shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        modes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    },
+                    modifier = Modifier.weight(weight).semantics { role = Role.Tab },
                 ) {
+                    if (checked) {
+                        Icon(
+                            painterResource(Res.drawable.check_24dp),
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+                        )
+                    }
                     Text(
                         when (entry) {
                             ExpressionMode.Emoji -> stringResource(Res.string.stickers_tab_emoji)
                             ExpressionMode.Stickers -> stringResource(Res.string.stickers_tab_stickers)
                             ExpressionMode.Gifs -> stringResource(Res.string.stickers_tab_gifs)
                         },
+                        maxLines = 1,
                     )
                 }
             }
@@ -1718,3 +1745,6 @@ private val TRENDING_COVER_SIZE = 56.dp
 
 /** Buňka mřížky. Na telefonu pět sloupců, jako v Telegramu. */
 internal val STICKER_CELL = 76.dp
+
+/** Kolikrát je vybraný režim (Emoji / Samolepky / GIFy) širší než ostatní — místo na fajfku. */
+private const val SELECTED_MODE_WEIGHT = 1.4f
