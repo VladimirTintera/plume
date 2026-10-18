@@ -1446,6 +1446,18 @@ class TdlChatRepository(
     override suspend fun removeTopChat(chatId: Long): Result<Unit> =
         client.removeTopChat(category = TopChatCategoryUsers(), chatId = chatId).toResult().map { }
 
+    override suspend fun recommendedChannels(): Result<List<ChatSummary>> =
+        client.getRecommendedChats().toResult().map { chats ->
+            // Odebírané kanály mezi doporučeními nemají co dělat. Server je vynechává sám (ověřeno:
+            // ze 100 doporučení nebyl odebíraný žádný), tohle je pojistka; dotazy jsou lokální.
+            val notJoined = chats.chatIds.filter { id ->
+                val chat = client.getChat(chatId = id).toResult().getOrNull()
+                chat == null || !client.ownMemberStatus(chat).isMember()
+            }
+            logger.d { "Doporučené kanály: ${chats.chatIds.size}, z toho odebírané ${chats.chatIds.size - notJoined.size}" }
+            summariesFor(notJoined.toLongArray())
+        }
+
     override suspend fun topChats(): Result<List<ChatSummary>> =
         when (val result = client.getTopChats(category = TopChatCategoryUsers(), limit = TOP_CHATS_LIMIT)) {
             is TdlResult.Success -> Result.success(summariesFor(result.result.chatIds))

@@ -74,6 +74,7 @@ import eu.tintera.plume.resources.chats_search_archived
 import eu.tintera.plume.resources.chats_search_clear_recent
 import eu.tintera.plume.resources.chats_search_people
 import eu.tintera.plume.resources.chats_search_recent
+import eu.tintera.plume.resources.chats_search_recommended
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -724,6 +725,7 @@ private fun Suggestions(
     onPick: (Long) -> Unit,
     actions: SuggestionActions,
 ) {
+    var recommendedExpanded by rememberSaveable { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = resultsPadding()) {
         if (search.top.isNotEmpty()) {
             item(key = "top-header") { SectionHeader(stringResource(Res.string.chats_search_people)) }
@@ -756,6 +758,27 @@ private fun Suggestions(
                     modifier = Modifier.animateItem().groupedItem(index, search.recent.size, MaterialTheme.colorScheme.surfaceContainerLowest),
                     avatarShape = chat.kind.avatarShape(),
                     onRemove = { actions.onRemoveRecent(chat.id) },
+                )
+            }
+        }
+
+        if (search.recommended.isNotEmpty()) {
+            item(key = "recommended-header") {
+                SectionHeader(stringResource(Res.string.chats_search_recommended)) {
+                    ExpandToggle(search.recommended.size, recommendedExpanded) { recommendedExpanded = it }
+                }
+            }
+            val shown = if (recommendedExpanded) search.recommended else search.recommended.take(COLLAPSED_ROWS)
+            itemsIndexed(shown, key = { _, chat -> "recommended-${chat.id}" }) { index, chat ->
+                ChatResultRow(
+                    chatId = chat.id,
+                    title = chat.title,
+                    avatarFileId = chat.avatarFileId,
+                    archived = false,
+                    onClick = { onPick(chat.id) },
+                    modifier = Modifier.animateItem().groupedItem(index, shown.size, MaterialTheme.colorScheme.surfaceContainerLowest),
+                    avatarShape = chat.kind.avatarShape(),
+                    avatarColorId = chat.avatarColorId,
                 )
             }
         }

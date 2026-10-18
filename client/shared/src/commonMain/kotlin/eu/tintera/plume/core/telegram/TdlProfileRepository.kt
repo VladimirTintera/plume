@@ -607,13 +607,6 @@ class TdlProfileRepository(
         Unit
     }
 
-    private fun OwnMemberStatus?.isMember(): Boolean = when (this) {
-        is OwnMemberStatus.Creator -> isMember
-        is OwnMemberStatus.Admin, OwnMemberStatus.Member -> true
-        is OwnMemberStatus.Restricted -> isMember
-        OwnMemberStatus.Left, OwnMemberStatus.Banned, null -> false
-    }
-
     private fun ChatProfile.withAbout(body: MessageBody) = copy(about = body.text, aboutEntities = body.entities)
 
     /**

@@ -3894,6 +3894,14 @@ internal suspend fun TdlClient.ownMemberStatus(chat: Chat): OwnMemberStatus? = w
     else -> null
 }
 
+/** Je uživatel členem (i omezený nebo vlastník, který ze skupiny neodešel)? */
+internal fun OwnMemberStatus?.isMember(): Boolean = when (this) {
+    is OwnMemberStatus.Creator -> isMember
+    is OwnMemberStatus.Admin, OwnMemberStatus.Member -> true
+    is OwnMemberStatus.Restricted -> isMember
+    OwnMemberStatus.Left, OwnMemberStatus.Banned, null -> false
+}
+
 /** Postavení uživatele ve skupině; `when` bez `else`, takže nový stav v TDLib rozbije překlad. */
 private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
     is ChatMemberStatusCreator -> OwnMemberStatus.Creator(isMember = isMember)
