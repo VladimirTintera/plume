@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.shield_person_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -23,7 +25,6 @@ import eu.tintera.plume.resources.add_members_search
 import eu.tintera.plume.resources.add_members_title
 import eu.tintera.plume.resources.add_subscribers_title
 import eu.tintera.plume.resources.chats_search_section_chats
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.new_chat_contacts
 import eu.tintera.plume.resources.new_chat_empty
@@ -74,20 +75,15 @@ fun AddMembersScreen(
     // Boti do kanálu jen jako správci — zeptat se dřív, než se ukáže, koho přidat nešlo.
     if (state.pendingBots.isNotEmpty()) {
         val names = state.pendingBots.joinToString(", ") { it.title }
-        AlertDialog(
-            onDismissRequest = { if (!state.adding) viewModel.skipBots(onDone) },
-            title = { Text(stringResource(Res.string.add_members_bot_admin_title)) },
-            text = { Text(stringResource(Res.string.add_members_bot_admin_text, names)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.addBotsAsAdmins(onDone) }, enabled = !state.adding, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.add_members_bot_admin_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.skipBots(onDone) }, enabled = !state.adding, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.common_cancel))
-                }
-            },
+        ConfirmDialog(
+            title = stringResource(Res.string.add_members_bot_admin_title),
+            text = stringResource(Res.string.add_members_bot_admin_text, names),
+            confirmLabel = stringResource(Res.string.add_members_bot_admin_confirm),
+            onConfirm = { viewModel.addBotsAsAdmins(onDone) },
+            onDismiss = { if (!state.adding) viewModel.skipBots(onDone) },
+            icon = Res.drawable.shield_person_24dp,
+            confirmEnabled = !state.adding,
+            dismissEnabled = !state.adding,
         )
     } else if (state.refused.isNotEmpty()) {
         val names = state.refused.joinToString(", ") { it.title }

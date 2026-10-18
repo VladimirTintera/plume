@@ -1,9 +1,7 @@
 package eu.tintera.plume.features.chats
 
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import eu.tintera.plume.resources.smart_toy_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -29,7 +27,6 @@ import eu.tintera.plume.resources.bot_add_group_empty_title
 import eu.tintera.plume.resources.bot_add_group_failed
 import eu.tintera.plume.resources.bot_add_group_search
 import eu.tintera.plume.resources.bot_add_group_title
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.group_24dp
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -158,22 +155,15 @@ fun AddBotToGroupScreen(
     )
 
     state.confirming?.let { group ->
-        AlertDialog(
-            onDismissRequest = viewModel::dismissConfirm,
-            title = { Text(stringResource(Res.string.bot_add_group_confirm_title, state.botName.orEmpty(), group.title)) },
-            text = {
-                Text(
-                    stringResource(
-                        if (viewModel.asAdmin) Res.string.bot_add_group_confirm_text_admin else Res.string.bot_add_group_confirm_text,
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { viewModel.add(onAdded) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_add_group_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+        ConfirmDialog(
+            title = stringResource(Res.string.bot_add_group_confirm_title, state.botName.orEmpty(), group.title),
+            text = stringResource(
+                if (viewModel.asAdmin) Res.string.bot_add_group_confirm_text_admin else Res.string.bot_add_group_confirm_text,
+            ),
+            confirmLabel = stringResource(Res.string.bot_add_group_confirm),
+            onConfirm = { viewModel.add(onAdded) },
+            onDismiss = viewModel::dismissConfirm,
+            icon = Res.drawable.smart_toy_24dp,
         )
     }
 }

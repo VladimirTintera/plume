@@ -531,7 +531,8 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   a potvrzení. Nevratná akce `destructive = true` — ikona i potvrzení v chybové barvě přes barvy
   tlačítka. Ikona říká, CO se stane (koš, odchod, blokování), ne „pozor". Volba nebo pole, bez
   kterých akci nejde potvrdit („smazat i pro ostatní", délka vyhození, heslo), jde do slotu
-  `content` pod větou. `AlertDialog` zůstává jen tam, kde nejde o potvrzení (podmínky služby,
+  `content` pod větou; zaškrtávací volba je `DialogCheckRow`, obrázek místo ikony (fotka
+  kontaktu) `iconContent`. `AlertDialog` zůstává jen tam, kde nejde o potvrzení (podmínky služby,
   popup mini aplikace s tlačítky od bota, výběr).
 - **Vstupní pole formuláře je `FormTextField`** (`core/ui/BlockField.kt`): tónový blok
   s velkým zaoblením, fokus a chybu nese rámeček kolem bloku, pomocný text pod ním — tentýž

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.conversation_contact_me
@@ -15,8 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -24,7 +23,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,7 +35,6 @@ import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.SearchPill
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.conversation_contact_confirm_body
 import eu.tintera.plume.resources.conversation_contact_confirm_title
 import eu.tintera.plume.resources.conversation_contact_none
@@ -143,13 +140,13 @@ internal fun ContactPickerSheet(
  */
 @Composable
 internal fun ContactConfirmDialog(contact: MessageMedia.Contact, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Avatar(chatId = contact.userId ?: 0L, title = contact.name, avatarFileId = contact.photoFileId, size = 48.dp) },
-        title = { Text(stringResource(Res.string.conversation_contact_confirm_title)) },
-        text = { Text(stringResource(Res.string.conversation_contact_confirm_body, contact.name, contact.phone)) },
-        confirmButton = { TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.conversation_contact_send)) } },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.conversation_contact_confirm_title),
+        text = stringResource(Res.string.conversation_contact_confirm_body, contact.name, contact.phone),
+        confirmLabel = stringResource(Res.string.conversation_contact_send),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        iconContent = { Avatar(chatId = contact.userId ?: 0L, title = contact.name, avatarFileId = contact.photoFileId, size = 48.dp) },
     )
 }
 

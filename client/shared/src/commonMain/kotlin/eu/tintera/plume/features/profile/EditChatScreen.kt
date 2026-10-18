@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.group_24dp
 import eu.tintera.plume.resources.history_24dp
 import eu.tintera.plume.core.ui.SaveActionButton
 import eu.tintera.plume.core.ui.GroupedColumn
@@ -37,7 +38,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -108,7 +108,6 @@ import eu.tintera.plume.resources.edit_chat_upgrade_confirm
 import eu.tintera.plume.resources.edit_chat_upgrade_topics
 import eu.tintera.plume.resources.edit_chat_upgrade_link
 import eu.tintera.plume.resources.edit_chat_upgrade_title
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.edit_chat_delete_photo
 import eu.tintera.plume.resources.edit_chat_delete_photo_body
 import eu.tintera.plume.resources.edit_chat_description
@@ -199,25 +198,18 @@ fun EditChatScreen(
     }
 
     viewModel.upgradeAsked?.let { reason ->
-        AlertDialog(
-            onDismissRequest = viewModel::cancelUpgrade,
-            title = { Text(stringResource(Res.string.edit_chat_upgrade_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        when (reason) {
-                            GroupUpgradeReason.PublicLink -> Res.string.edit_chat_upgrade_link
-                            GroupUpgradeReason.Topics -> Res.string.edit_chat_upgrade_topics
-                        },
-                    ),
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = viewModel::confirmUpgrade, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.edit_chat_upgrade_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::cancelUpgrade, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+        ConfirmDialog(
+            title = stringResource(Res.string.edit_chat_upgrade_title),
+            text = stringResource(
+                when (reason) {
+                    GroupUpgradeReason.PublicLink -> Res.string.edit_chat_upgrade_link
+                    GroupUpgradeReason.Topics -> Res.string.edit_chat_upgrade_topics
+                },
+            ),
+            confirmLabel = stringResource(Res.string.edit_chat_upgrade_confirm),
+            onConfirm = viewModel::confirmUpgrade,
+            onDismiss = viewModel::cancelUpgrade,
+            icon = Res.drawable.group_24dp,
         )
     }
 

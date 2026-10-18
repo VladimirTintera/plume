@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.resources.cake_24dp
+import eu.tintera.plume.resources.add_photo_alternate_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.resolve
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
@@ -10,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,8 +37,6 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.telegram.SuggestedPhoto
 import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.core.ui.label
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -44,7 +44,6 @@ import androidx.compose.runtime.setValue
 import eu.tintera.plume.resources.birthdate_suggestion_set
 import eu.tintera.plume.resources.birthdate_suggestion_confirm_title
 import eu.tintera.plume.resources.birthdate_privacy_hint
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -243,17 +242,16 @@ private fun SuggestedPhotoNote(
         }
     }
     if (confirm) {
-        AlertDialog(
-            onDismissRequest = { confirm = false },
-            title = { Text(stringResource(Res.string.photo_suggestion_confirm_title)) },
-            text = { Text(stringResource(Res.string.photo_suggestion_confirm_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirm = false
-                    onAccept()
-                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.birthdate_suggestion_set)) }
+        ConfirmDialog(
+            title = stringResource(Res.string.photo_suggestion_confirm_title),
+            text = stringResource(Res.string.photo_suggestion_confirm_body),
+            confirmLabel = stringResource(Res.string.birthdate_suggestion_set),
+            onConfirm = {
+                confirm = false
+                onAccept()
             },
-            dismissButton = { TextButton(onClick = { confirm = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+            onDismiss = { confirm = false },
+            icon = Res.drawable.add_photo_alternate_24dp,
         )
     }
 }
@@ -286,17 +284,16 @@ private fun SuggestedBirthdateNote(text: String, birthdate: Birthdate, modifier:
         )
     }
     if (confirm) {
-        AlertDialog(
-            onDismissRequest = { confirm = false },
-            title = { Text(stringResource(Res.string.birthdate_suggestion_confirm_title, birthdate.label())) },
-            text = { Text(stringResource(Res.string.birthdate_privacy_hint)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirm = false
-                    onAccept()
-                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.birthdate_suggestion_set)) }
+        ConfirmDialog(
+            title = stringResource(Res.string.birthdate_suggestion_confirm_title, birthdate.label()),
+            text = stringResource(Res.string.birthdate_privacy_hint),
+            confirmLabel = stringResource(Res.string.birthdate_suggestion_set),
+            onConfirm = {
+                confirm = false
+                onAccept()
             },
-            dismissButton = { TextButton(onClick = { confirm = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+            onDismiss = { confirm = false },
+            icon = Res.drawable.cake_24dp,
         )
     }
 }

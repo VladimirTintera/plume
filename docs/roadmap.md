@@ -919,8 +919,8 @@ poměru přínosu a práce; každý bod je samostatný PR.
   vyhození s délkou, předání vlastnictví s heslem, smazání složky s opuštěním chatů, ukončení ankety,
   odmítnutí příspěvku, žádosti o vstup, dvoufázové ověření; VladimirTintera/telegram#854). `AlertDialog` zůstal
   u podmínek služby, popupu mini aplikace, informací o proxy, dotazu na podporu, výběru osobního
-  kanálu a editoru ukládání do galerie — nejsou to potvrzení akce. **Neplatí úplně:** druhé kolo
-  auditu našlo dalších ~17 potvrzení jako holý `AlertDialog` (bod níž).
+  kanálu a editoru ukládání do galerie — nejsou to potvrzení akce. Druhé kolo auditu našlo
+  dalších 20 potvrzení (bod níž, hotovo).
 - ~~**Výběr hodnoty v Nastavení jako nabídka u řádku**~~ — hotovo (`ChoiceRow`, šest výběrů, VladimirTintera/telegram#834;
   `docs/poznatky/nastaveni.md`). Ukládání do galerie zůstalo dialogem (víc hodnot najednou).
 - ~~**Holé `ListItem`y bez bloku**~~ — hotovo: výsledky hledání a nedávná hledání, koncepty,
@@ -960,7 +960,10 @@ poměru přínosu a práce; každý bod je samostatný PR.
 Po #825–#856 znovu kódem (výskyty komponent) a na Pixelu 7. Hlavní plochy jsou čisté; zbytky
 jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Seřazené podle přínosu.
 
-- **Potvrzení jako holý `AlertDialog` místo `ConfirmDialog`** (~17): smazání jazykového balíčku
+- ~~**Potvrzení jako holý `AlertDialog` místo `ConfirmDialog`**~~ — hotovo (VladimirTintera/telegram#858,
+  20 dialogů včetně připnutí zprávy; zaškrtávací volby přes `DialogCheckRow`, fotka kontaktu
+  přes `iconContent`). Holý `AlertDialog` zůstal u čistě informačních (jen „OK": upozornění bota,
+  odmítnuté pozvánky, nedostupná obnova) a u žádostí o oprávnění. Byly to: smazání jazykového balíčku
   a modelu a vymazání mezipaměti s výběrem kategorií (`StorageSettings`), přidání bota do skupiny
   (`AddBotToGroup`) a bot jako správce (`AddMembersScreen`), sdílení přes bota (`BotShareScreen`),
   poslání kontaktu (`ContactPicker`), sdílení čísla (`ChatNoticeBar`, `BotDialogs`) a polohy,

@@ -1,14 +1,13 @@
 package eu.tintera.plume.features.forward
 
+import eu.tintera.plume.resources.share_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -33,7 +32,6 @@ import eu.tintera.plume.resources.bot_share_pick_channel
 import eu.tintera.plume.resources.bot_share_pick_group
 import eu.tintera.plume.resources.bot_share_pick_users
 import eu.tintera.plume.resources.bot_share_users_info
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.forward_search
 import eu.tintera.plume.resources.send_24dp
 import org.jetbrains.compose.resources.stringResource
@@ -83,12 +81,13 @@ fun BotShareScreen(
 
     val pending = state.pendingChat
     if (pending != null && chat != null) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissChat,
-            title = { Text(stringResource(Res.string.bot_share_confirm_title, pending.title)) },
-            text = { Text(chatConsequences(chat)) },
-            confirmButton = { TextButton(onClick = { viewModel.share(onShared) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_share_confirm)) } },
-            dismissButton = { TextButton(onClick = viewModel::dismissChat, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+        ConfirmDialog(
+            title = stringResource(Res.string.bot_share_confirm_title, pending.title),
+            text = chatConsequences(chat),
+            confirmLabel = stringResource(Res.string.bot_share_confirm),
+            onConfirm = { viewModel.share(onShared) },
+            onDismiss = viewModel::dismissChat,
+            icon = Res.drawable.share_24dp,
         )
     }
 }

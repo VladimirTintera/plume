@@ -1,27 +1,23 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.DialogCheckRow
+import eu.tintera.plume.resources.how_to_reg_24dp
+import eu.tintera.plume.resources.location_on_24dp
+import eu.tintera.plume.resources.smartphone_24dp
+import eu.tintera.plume.resources.open_in_new_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.telegram.LoginLinkKind
 import eu.tintera.plume.resources.login_link_code_text
 import eu.tintera.plume.resources.login_link_code_title
 import eu.tintera.plume.resources.login_link_qr_text
 import eu.tintera.plume.resources.login_link_qr_title
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.LoginUrlPrompt
 import eu.tintera.plume.resources.bot_login_confirm
 import eu.tintera.plume.resources.bot_login_text
@@ -40,7 +36,6 @@ import eu.tintera.plume.resources.bot_share_phone_title
 import eu.tintera.plume.resources.bot_share_location_confirm
 import eu.tintera.plume.resources.bot_share_location_text
 import eu.tintera.plume.resources.bot_share_location_title
-import eu.tintera.plume.resources.common_cancel
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -48,12 +43,13 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun OpenLinkDialog(url: String, onOpen: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.bot_link_title)) },
-        text = { Text(url) },
-        confirmButton = { TextButton(onClick = onOpen, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_link_open)) } },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.bot_link_title),
+        text = url,
+        confirmLabel = stringResource(Res.string.bot_link_open),
+        onConfirm = onOpen,
+        onDismiss = onDismiss,
+        icon = Res.drawable.open_in_new_24dp,
     )
 }
 
@@ -73,12 +69,13 @@ internal fun BotAlertDialog(text: String, onDismiss: () -> Unit) {
  */
 @Composable
 internal fun SharePhoneDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.bot_share_phone_title)) },
-        text = { Text(stringResource(Res.string.bot_share_phone_text)) },
-        confirmButton = { TextButton(onClick = onShare, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_share_phone_confirm)) } },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.bot_share_phone_title),
+        text = stringResource(Res.string.bot_share_phone_text),
+        confirmLabel = stringResource(Res.string.bot_share_phone_confirm),
+        onConfirm = onShare,
+        onDismiss = onDismiss,
+        icon = Res.drawable.smartphone_24dp,
     )
 }
 
@@ -88,12 +85,13 @@ internal fun SharePhoneDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
  */
 @Composable
 internal fun ShareLocationDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.bot_share_location_title)) },
-        text = { Text(stringResource(Res.string.bot_share_location_text)) },
-        confirmButton = { TextButton(onClick = onShare, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_share_location_confirm)) } },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.bot_share_location_title),
+        text = stringResource(Res.string.bot_share_location_text),
+        confirmLabel = stringResource(Res.string.bot_share_location_confirm),
+        onConfirm = onShare,
+        onDismiss = onDismiss,
+        icon = Res.drawable.location_on_24dp,
     )
 }
 
@@ -105,34 +103,24 @@ internal fun ShareLocationDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
 @Composable
 internal fun LoginUrlDialog(prompt: LoginUrlPrompt.Confirm, onConfirm: (allowWriteAccess: Boolean) -> Unit, onDismiss: () -> Unit) {
     var allowWrite by rememberSaveable { mutableStateOf(true) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.bot_login_title, prompt.domain)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(Res.string.bot_login_text, prompt.domain))
-                if (prompt.requestWriteAccess) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .toggleable(value = allowWrite, role = Role.Checkbox, onValueChange = { allowWrite = it }),
-                    ) {
-                        Checkbox(checked = allowWrite, onCheckedChange = null)
-                        Text(
-                            stringResource(Res.string.bot_login_write_access, prompt.botName),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
+    ConfirmDialog(
+        title = stringResource(Res.string.bot_login_title, prompt.domain),
+        text = stringResource(Res.string.bot_login_text, prompt.domain),
+        confirmLabel = stringResource(Res.string.bot_login_confirm),
+        onConfirm = { onConfirm(prompt.requestWriteAccess && allowWrite) },
+        onDismiss = onDismiss,
+        icon = Res.drawable.how_to_reg_24dp,
+        content = if (prompt.requestWriteAccess) {
+            {
+                DialogCheckRow(
+                    label = stringResource(Res.string.bot_login_write_access, prompt.botName),
+                    checked = allowWrite,
+                    onChange = { allowWrite = it },
+                )
             }
+        } else {
+            null
         },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(prompt.requestWriteAccess && allowWrite) }, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.bot_login_confirm))
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
