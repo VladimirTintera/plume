@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -30,7 +31,6 @@ import eu.tintera.plume.core.ui.BlockTextField
 import eu.tintera.plume.core.ui.PasswordField
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.delete_account_away
 import eu.tintera.plume.resources.delete_account_button
 import eu.tintera.plume.resources.delete_account_confirm
@@ -147,18 +147,14 @@ fun DeleteAccountScreen(viewModel: DeleteAccountViewModel, onBack: () -> Unit, m
     }
 
     if (state.confirming) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissConfirm,
-            title = { Text(stringResource(Res.string.delete_account_confirm_title)) },
-            text = { Text(stringResource(Res.string.delete_account_confirm_text)) },
-            confirmButton = {
-                TextButton(onClick = viewModel::confirmDelete, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.delete_account_confirm), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+        ConfirmDialog(
+            title = stringResource(Res.string.delete_account_confirm_title),
+            text = stringResource(Res.string.delete_account_confirm_text),
+            confirmLabel = stringResource(Res.string.delete_account_confirm),
+            onConfirm = viewModel::confirmDelete,
+            onDismiss = viewModel::dismissConfirm,
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 }

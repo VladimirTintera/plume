@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.animation.core.animateDpAsState
+import eu.tintera.plume.resources.logout_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -27,7 +28,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +48,6 @@ import eu.tintera.plume.core.ui.INNER_CORNER
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.campaign_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.devices_24dp
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.hard_drive_24dp
@@ -326,18 +325,14 @@ private fun LogOutDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.settings_sign_out_title)) },
-        text = { Text(stringResource(Res.string.settings_sign_out_body)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
-                Text(text = stringResource(Res.string.settings_sign_out_confirm), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
+    ConfirmDialog(
+        title = stringResource(Res.string.settings_sign_out_title),
+        text = stringResource(Res.string.settings_sign_out_body),
+        confirmLabel = stringResource(Res.string.settings_sign_out_confirm),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.logout_24dp,
+        destructive = true,
     )
 }
 

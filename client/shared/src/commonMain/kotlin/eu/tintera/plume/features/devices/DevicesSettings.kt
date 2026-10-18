@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.devices
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.resources.logout_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.ButtonEmphasis
@@ -277,9 +279,9 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
             text = stringResource(Res.string.devices_terminate_body),
             confirm = stringResource(Res.string.devices_terminate_confirm),
             onConfirm = {
-                terminateId = null
-                detailId = null
-                viewModel.terminate(device.id)
+            terminateId = null
+            detailId = null
+            viewModel.terminate(device.id)
             },
             onDismiss = { terminateId = null },
         )
@@ -291,8 +293,8 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
             text = stringResource(Res.string.devices_terminate_others_body),
             confirm = stringResource(Res.string.devices_terminate_confirm),
             onConfirm = {
-                confirmTerminateOthers = false
-                viewModel.terminateOthers()
+            confirmTerminateOthers = false
+            viewModel.terminateOthers()
             },
             onDismiss = { confirmTerminateOthers = false },
         )
@@ -304,8 +306,8 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
             text = stringResource(Res.string.devices_website_disconnect_body),
             confirm = stringResource(Res.string.devices_terminate_confirm),
             onConfirm = {
-                disconnectWebsiteId = null
-                viewModel.disconnectWebsite(website.id)
+            disconnectWebsiteId = null
+            viewModel.disconnectWebsite(website.id)
             },
             onDismiss = { disconnectWebsiteId = null },
         )
@@ -317,8 +319,8 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
             text = stringResource(Res.string.devices_websites_disconnect_all_body),
             confirm = stringResource(Res.string.devices_terminate_confirm),
             onConfirm = {
-                confirmDisconnectAll = false
-                viewModel.disconnectAllWebsites()
+            confirmDisconnectAll = false
+            viewModel.disconnectAllWebsites()
             },
             onDismiss = { confirmDisconnectAll = false },
         )
@@ -583,13 +585,13 @@ private fun ConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(text) },
-        confirmButton = {
-            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) { Text(confirm, color = MaterialTheme.colorScheme.error) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = title,
+        text = text,
+        confirmLabel = confirm,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.logout_24dp,
+        destructive = true,
     )
 }

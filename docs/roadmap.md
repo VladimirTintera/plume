@@ -894,8 +894,10 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Společná hlavička sheetů**~~ — hotovo (`SheetTitle`, 53 sheetů, VladimirTintera/telegram#831). Zbývá obsah: výběr
   jedné hodnoty v sheetu jsou holé řádky s kolečky (automatické mazání v profilu, `AutoDeleteSheet`,
   a podobné), vedle segmentovaných bloků jinde.
-- **Společný `ConfirmDialog`.** 87 `AlertDialog`, ikonu mají dva. Destruktivní potvrzení (~35×)
-  je `TextButton` s červeným textem; obal s ikonou, chybovou barvou a tvary tlačítek je sjednotí.
+- ~~**Společný `ConfirmDialog`**~~ — hotovo pro 25 potvrzení s ikonou podle akce (VladimirTintera/telegram#832). Zbývá 15
+  destruktivních dialogů s volbou, polem nebo jiným tvarem (smazání zprávy s „i pro ostatní",
+  vyhození člena s délkou, předání vlastnictví s heslem, ukončení ankety, smazání složky
+  s volbou opustit chaty, žádosti o vstup…) — obal by potřeboval slot na obsah.
 - **Výběr hodnoty v Nastavení jako `ExpressiveMenu`** u řádku místo `AlertDialog` s kolečky
   (`ChatsSettings` tah, `AutoDownloadGroup`, `StorageSettings`, `AutosaveGroup`, časovač zámku,
   TTL zařízení) — vzor je u filtrů hledání.

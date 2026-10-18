@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.resources.app_lock_biometrics_revoked
+import eu.tintera.plume.resources.lock_open_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
@@ -400,29 +402,17 @@ private fun AppLockManageContent(
     }
 
     if (showDisableConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDisableConfirm = false },
-            title = { Text(stringResource(Res.string.settings_app_lock_disable_confirm_title)) },
-            text = { Text(stringResource(Res.string.settings_app_lock_disable_confirm_text)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDisableConfirm = false
-                        onDisable()
-                    },
-                    shapes = ButtonDefaults.shapes(),
-                ) {
-                    Text(
-                        stringResource(Res.string.settings_app_lock_disable),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+        ConfirmDialog(
+            title = stringResource(Res.string.settings_app_lock_disable_confirm_title),
+            text = stringResource(Res.string.settings_app_lock_disable_confirm_text),
+            confirmLabel = stringResource(Res.string.settings_app_lock_disable),
+            onConfirm = {
+                showDisableConfirm = false
+                onDisable()
             },
-            dismissButton = {
-                TextButton(onClick = { showDisableConfirm = false }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.common_cancel))
-                }
-            },
+            onDismiss = { showDisableConfirm = false },
+            icon = Res.drawable.lock_open_24dp,
+            destructive = true,
         )
     }
 

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -11,8 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -25,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +45,6 @@ import eu.tintera.plume.core.telegram.ToneLimits
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.notif_sound_default
 import eu.tintera.plume.resources.notif_sound_default_summary
@@ -208,16 +205,14 @@ internal const val FOLLOW_DEFAULT_SOUND_ID: Long = Long.MIN_VALUE
 /** Řádek nese klikání celý, kolečko má `onClick = null` (viz „Obrazovka nastavení"). */
 @Composable
 private fun DeleteToneDialog(tone: NotificationTone, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.notif_sound_delete_title, tone.title)) },
-        text = { Text(stringResource(Res.string.notif_sound_delete_text)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.notif_sound_delete_confirm), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.notif_sound_delete_title, tone.title),
+        text = stringResource(Res.string.notif_sound_delete_text),
+        confirmLabel = stringResource(Res.string.notif_sound_delete_confirm),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.delete_24dp,
+        destructive = true,
     )
 }
 

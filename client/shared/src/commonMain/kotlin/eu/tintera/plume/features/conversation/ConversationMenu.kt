@@ -1,14 +1,11 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,7 +20,6 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_delete
 import eu.tintera.plume.resources.chats_action_report
 import eu.tintera.plume.resources.chats_delete_report
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.flag_24dp
@@ -162,21 +158,17 @@ internal fun ConversationMenu(
     }
 
     if (confirmCloseSecret) {
-        AlertDialog(
-            onDismissRequest = { confirmCloseSecret = false },
-            title = { Text(stringResource(Res.string.secret_chat_close_title)) },
-            text = { Text(stringResource(Res.string.secret_chat_close_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmCloseSecret = false
-                    viewModel.closeSecretChat()
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.secret_chat_close), color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDialog(
+            title = stringResource(Res.string.secret_chat_close_title),
+            text = stringResource(Res.string.secret_chat_close_text),
+            confirmLabel = stringResource(Res.string.secret_chat_close),
+            onConfirm = {
+                confirmCloseSecret = false
+                viewModel.closeSecretChat()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmCloseSecret = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirmCloseSecret = false },
+            icon = Res.drawable.close_24dp,
+            destructive = true,
         )
     }
     // Tentýž sheet s volbami proti spamu jako v seznamu chatů — dvě podoby téhož kroku by se rozešly.
