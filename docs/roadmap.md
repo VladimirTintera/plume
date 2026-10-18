@@ -459,8 +459,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 **Novinky TDLib, na které se zatím nesáhlo:** komunity (`createCommunity`), mizející
 zprávy (`sendEphemeralMessage`), živé příběhy. ~~AI úpravy textu od serveru
 (`composeTextWithAi`, `fixTextWithAi`, styly psaní)~~ — hotovo v sheetu „Zkontrolovat
-a přepsat…" (`docs/poznatky/ai-v-zarizeni.md`, „Úpravy textu od Telegramu"); zbývá překlad
-a emoji z `composeTextWithAi`, vlastní styly (`isCustom`, odkazy na styl), oprava formátované
+a přepsat…" (`docs/poznatky/ai-v-zarizeni.md`, „Úpravy textu od Telegramu"); ~~překlad
+a emoji z `composeTextWithAi`~~ (hotovo, čipy „Přeložit…" a „Přidat emoji"); zbývají vlastní styly (`isCustom`, odkazy na styl), oprava formátované
 zprávy (`fixRichMessageWithAi`) a jazykový balíček, aby názvy stylů byly česky. ~~Hudba v profilu (`getUserProfileAudios`)~~ —
 hotovo (profil, úprava profilu, „Přidat do profilu" nad zprávou, soukromí;
 `docs/poznatky/profil-chatu.md`, „Hudba v profilu"); zbývá pořadí skladeb

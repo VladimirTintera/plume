@@ -267,12 +267,13 @@ private fun OnDeviceRow(onDevice: Boolean, onChange: (Boolean) -> Unit) {
 /**
  * Výběr cílového jazyka překladu: sheet NAD sheetem překladu, jako detail sady nad výběrem
  * samolepek. Gesto zpět zavře jen výběr a překlad zůstane otevřený; obsah vyměněný uvnitř
- * jednoho sheetu by zpět zavřelo celé.
+ * jednoho sheetu by zpět zavřelo celé. Totéž pro překlad konceptu v sheetu přepisu
+ * ([DraftRewriteSheet]).
  *
  * Napřed jazyk aplikace, pak ostatní abecedně ([translationLanguageOptions]).
  */
 @Composable
-private fun TranslationLanguageSheet(
+internal fun TranslationLanguageSheet(
     selected: String,
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
