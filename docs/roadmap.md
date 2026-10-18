@@ -983,7 +983,7 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
   nabídkou u řádku, jazyk aplikace a rychlá reakce jako sheet, doba živé polohy jako sheet s blokem
   akcí a vzdálenost upozornění jako sheet s výběrem a vlastním blokem „Vypnout"
   (`LiveLocationSheets.kt`). Hledání v jazycích zatím netřeba — jsou tři.
-- ~~**Obrysová pole mimo dialog**~~ — hotovo (VladimirTintera/telegram#PR): úprava kontaktu, „Jiný důvod"
+- ~~**Obrysová pole mimo dialog**~~ — hotovo (VladimirTintera/telegram#862): úprava kontaktu, „Jiný důvod"
   v nahlášení fotky a pole v nahlášení (dřív napodobenina bloku bez rámečku při psaní) přes
   `FormTextField`. `OutlinedTextField` zůstal jen v `AlertDialog`ech, blok možností ankety
   (`BlockField` v `PollComposer`) je záměrně vlastní (skupinové tvary).
