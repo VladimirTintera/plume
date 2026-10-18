@@ -919,7 +919,8 @@ poměru přínosu a práce; každý bod je samostatný PR.
   vyhození s délkou, předání vlastnictví s heslem, smazání složky s opuštěním chatů, ukončení ankety,
   odmítnutí příspěvku, žádosti o vstup, dvoufázové ověření; VladimirTintera/telegram#854). `AlertDialog` zůstal
   u podmínek služby, popupu mini aplikace, informací o proxy, dotazu na podporu, výběru osobního
-  kanálu a editoru ukládání do galerie — nejsou to potvrzení akce.
+  kanálu a editoru ukládání do galerie — nejsou to potvrzení akce. **Neplatí úplně:** druhé kolo
+  auditu našlo dalších ~17 potvrzení jako holý `AlertDialog` (bod níž).
 - ~~**Výběr hodnoty v Nastavení jako nabídka u řádku**~~ — hotovo (`ChoiceRow`, šest výběrů, VladimirTintera/telegram#834;
   `docs/poznatky/nastaveni.md`). Ukládání do galerie zůstalo dialogem (víc hodnot najednou).
 - ~~**Holé `ListItem`y bez bloku**~~ — hotovo: výsledky hledání a nedávná hledání, koncepty,
@@ -953,6 +954,45 @@ poměru přínosu a práce; každý bod je samostatný PR.
   zabezpečení `SecurityBadge` (`Gem`) místo kruhů, `ActionButtonGroup` (M3E `ButtonGroup`)
   v Mém QR kódu, pozvánkách a kartách aktualizace, nepotvrzeného přihlášení a nových chatů
   složky, jas ve videu tímtéž (rovným) indikátorem jako posuvník.
+
+#### Druhé kolo (18. října 2026)
+
+Po #825–#856 znovu kódem (výskyty komponent) a na Pixelu 7. Hlavní plochy jsou čisté; zbytky
+jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Seřazené podle přínosu.
+
+- **Potvrzení jako holý `AlertDialog` místo `ConfirmDialog`** (~17): smazání jazykového balíčku
+  a modelu a vymazání mezipaměti s výběrem kategorií (`StorageSettings`), přidání bota do skupiny
+  (`AddBotToGroup`) a bot jako správce (`AddMembersScreen`), sdílení přes bota (`BotShareScreen`),
+  poslání kontaktu (`ContactPicker`), sdílení čísla (`ChatNoticeBar`, `BotDialogs`) a polohy,
+  otevření odkazu a přihlášení přes bota (`BotDialogs`), přijetí návrhu fotky a narozenin
+  (`items/Notes.kt`), převod na supergroup (`EditChatScreen`), propojení diskuse
+  (`DiscussionSheet`), zavření mini aplikace a souhlas se zápisem (`WebAppScreen`), obnova
+  e-mailu v přihlášení (`AuthScreen`). Bez ikony, bez věty o následku v jednotném tvaru
+  a nevratné akce bez chybové barvy.
+- **Výběr jedné hodnoty v sheetu jako holé řádky s kolečky** (ověřeno na Pixelu 7):
+  automatické mazání (`AutoDeleteSheet`), zvuk upozornění (`NotificationSoundSheet`), sada
+  samolepek skupiny (`GroupStickerSetSheet`), diskuse kanálu (`DiscussionSheet`). Patří do bloku
+  zaoblených řádků s vybraným řádkem (`groupedItem(selected = …)`), jako výběr země.
+- **Sheet upozornění chatu** (`ChatNotificationSheet`): holé řádky „Ztlumit na…", dělicí čára
+  a přepínače bez bloků — jediný sheet profilu, který vypadá jako M2 seznam (ověřeno na Pixelu 7).
+  Ztlumení jako blok akcí (`SheetActionRow`), přepínače jako druhý blok.
+- **Výběr hodnoty v `AlertDialog`u s kolečky**: automatické smazání účtu (`AccountPrivacyScreen`,
+  je to řádek v Nastavení → patří na `ChoiceRow` jako ostatní), jazyk aplikace
+  (`LanguageSettings`; dlouhý seznam — sheet nebo vlastní podstránka s hledáním), doba a vzdálenost
+  živé polohy (`LiveLocationDialog`), rychlá reakce (`QuickReactionSettings`, mřížka emoji v dialogu).
+- **Obrysová pole mimo dialog**: úprava kontaktu (`EditContactSheet`, tři pole), „Jiný důvod"
+  v nahlášení fotky (`ReportPhotoSheet`); nahlášení (`ReportSheet`) má vlastní napodobeninu
+  bloku přes `TextField` místo `FormTextField`.
+- **Zbývá z prvního kola**: chyba načtení přístupových klíčů a odepřený přístup ve sdílení
+  (bod „Prázdné a chybové stavy" výš).
+- **Ke zvážení, ne chyba:** formuláře na celou obrazovku (nový kontakt, nová skupina, tvorba
+  ankety a seznamu úkolů) mají malý `TopAppBar`, kdežto podstránky profilu `MediumFlexibleTopAppBar`.
+  M3 malý bar u formuláře na celou obrazovku připouští; sjednotit, jen pokud to bude vadit.
+- **Prověřeno a v pořádku:** stíny plovoucích prvků v konverzaci (záměrně, `FloatingButtonSurface`),
+  ikony v tónovém kruhu u kategorií úložiště a zařízení (vedoucí prvek řádku podle M3),
+  `LinearProgressIndicator` jako podíl v Úložišti a Využití sítě (poměr, ne průběh), návrhy pod
+  polem (mention, hashtag, příkazy, inline) jako prostý seznam v plovoucím panelu, karta účtu
+  v Nastavení (`Card` s barvou bloku).
 
 ## Vychytávky
 
