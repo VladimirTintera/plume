@@ -877,7 +877,7 @@ v [roadmap-konverzace.md](roadmap-konverzace.md), „Vzhled podle M3 Expressive"
 poměru přínosu a práce; každý bod je samostatný PR.
 
 - ~~**Nastavení: segmentované bloky, motiv jako skupina tlačítek, jednotné hlavičky**~~ — hotovo
-  (`GroupedColumn` v `core/ui/GroupedList.kt`; `docs/poznatky/nastaveni.md`, „Skupiny jsou
+  (`GroupedColumn` v `core/ui/GroupedList.kt`, VladimirTintera/telegram#825; `docs/poznatky/nastaveni.md`, „Skupiny jsou
   bloky zaoblených řádků").
 - **Tvary textových tlačítek při stisku.** Ikonová tlačítka je mají (171 volání), `TextButton`,
   `Button`, `FilledTonalButton` a `OutlinedButton` jen dvě z ~350. V jednom sheetu tak jedno
