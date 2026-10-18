@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -289,12 +290,12 @@ fun MemberBanDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(duration) }) {
+            TextButton(onClick = { onConfirm(duration) }, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.member_ban_confirm), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }
@@ -335,12 +336,12 @@ fun TransferOwnershipDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(password) }, enabled = password.isNotEmpty() && !busy) {
+            TextButton(onClick = { onConfirm(password) }, enabled = password.isNotEmpty() && !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.member_transfer_confirm), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }
@@ -373,12 +374,12 @@ fun MemberTagDialog(
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(tag) }, enabled = tag.trim() != member.tag.orEmpty()) {
+            TextButton(onClick = { onConfirm(tag) }, enabled = tag.trim() != member.tag.orEmpty(), shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.edit_profile_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }

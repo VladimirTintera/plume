@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -232,9 +233,9 @@ private fun SuggestedPhotoNote(
                 TextButton(onClick = {
                     confirm = false
                     onAccept()
-                }) { Text(stringResource(Res.string.birthdate_suggestion_set)) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.birthdate_suggestion_set)) }
             },
-            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = { confirm = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }
@@ -275,9 +276,9 @@ private fun SuggestedBirthdateNote(text: String, birthdate: Birthdate, modifier:
                 TextButton(onClick = {
                     confirm = false
                     onAccept()
-                }) { Text(stringResource(Res.string.birthdate_suggestion_set)) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.birthdate_suggestion_set)) }
             },
-            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = { confirm = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }

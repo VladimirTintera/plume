@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -186,10 +187,10 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                                 // Tlačítka lícují s textem, ne s avatarem (16 + 48 + 16 dp).
                                 modifier = Modifier.padding(start = 80.dp, end = 16.dp, bottom = 12.dp),
                             ) {
-                                FilledTonalButton(onClick = { viewModel.process(request, approve = true) }) {
+                                FilledTonalButton(onClick = { viewModel.process(request, approve = true) }, shapes = ButtonDefaults.shapes()) {
                                     Text(stringResource(Res.string.join_requests_approve))
                                 }
-                                TextButton(onClick = { viewModel.process(request, approve = false) }) {
+                                TextButton(onClick = { viewModel.process(request, approve = false) }, shapes = ButtonDefaults.shapes()) {
                                     Text(stringResource(Res.string.join_requests_decline))
                                 }
                             }
@@ -213,7 +214,7 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                 TextButton(onClick = {
                     confirmAll = null
                     viewModel.processAll(approve)
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(
                         stringResource(if (approve) Res.string.join_requests_approve_all else Res.string.join_requests_decline_all),
                         color = if (approve) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
@@ -221,7 +222,7 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmAll = null }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmAll = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }

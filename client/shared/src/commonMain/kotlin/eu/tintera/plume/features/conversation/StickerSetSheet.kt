@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.ButtonEmphasis
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -330,16 +333,17 @@ fun StickerSetSheet(
                             horizontalArrangement = Arrangement.Center,
                         ) {
                             when {
-                                !detail.isInstalled -> Button(
+                                !detail.isInstalled -> MediumButton(
                                     onClick = viewModel::toggleInstalled,
                                     enabled = !current.changing,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) { Text(stringResource(Res.string.stickers_add_set)) }
 
-                                !detail.isOfficial -> FilledTonalButton(
+                                !detail.isOfficial -> MediumButton(
                                     onClick = viewModel::toggleInstalled,
                                     enabled = !current.changing,
                                     modifier = Modifier.fillMaxWidth(),
+                                    emphasis = ButtonEmphasis.Tonal,
                                 ) { Text(stringResource(Res.string.stickers_remove_set)) }
                             }
                         }

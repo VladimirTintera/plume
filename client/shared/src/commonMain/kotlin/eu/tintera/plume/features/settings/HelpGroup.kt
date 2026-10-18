@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -139,14 +140,15 @@ internal fun HelpGroup(
                             busy = false
                         }
                     },
+                    shapes = ButtonDefaults.shapes(),
                 ) {
                     if (busy) LoadingIndicator(Modifier.size(24.dp)) else Text(stringResource(Res.string.ask_question_confirm))
                 }
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = { urlOpener.open(FAQ_URL) }) { Text(stringResource(Res.string.ask_question_faq)) }
-                    TextButton(onClick = { asking = false }, enabled = !busy) { Text(stringResource(Res.string.common_cancel)) }
+                    TextButton(onClick = { urlOpener.open(FAQ_URL) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.ask_question_faq)) }
+                    TextButton(onClick = { asking = false }, enabled = !busy, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
                 }
             },
         )

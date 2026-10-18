@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.webapp
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import eu.tintera.plume.core.ui.MediumButtonHeight
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.bot_login_write_access
 import androidx.compose.ui.semantics.Role
@@ -231,8 +234,8 @@ fun WebAppScreen(
             onDismissRequest = viewModel::dismissCloseDialog,
             title = { Text(stringResource(Res.string.webapp_close_confirm_title)) },
             text = { Text(stringResource(Res.string.webapp_close_confirm_text)) },
-            confirmButton = { TextButton(onClick = viewModel::confirmClose) { Text(stringResource(Res.string.common_close)) } },
-            dismissButton = { TextButton(onClick = viewModel::dismissCloseDialog) { Text(stringResource(Res.string.common_cancel)) } },
+            confirmButton = { TextButton(onClick = viewModel::confirmClose, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_close)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissCloseDialog, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }
@@ -273,9 +276,9 @@ internal fun WebAppConsentDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onOpen(writeAccess && allowWrite) }) { Text(stringResource(Res.string.webapp_consent_open)) }
+            TextButton(onClick = { onOpen(writeAccess && allowWrite) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.webapp_consent_open)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -355,7 +358,8 @@ private fun WebAppBottomButton(
 ) {
     val container = button.color?.let(::rgbColor) ?: defaultContainer
     val content = button.textColor?.let(::rgbColor) ?: if (button.color != null) contentOn(container) else defaultContent
-    Button(
+    // Hlavní akce mini aplikace, proto velikost hlavních tlačítek; pevná výška kvůli indikátoru.
+    MediumButton(
         onClick = onClick,
         enabled = button.active && !button.progress,
         colors = ButtonDefaults.buttonColors(
@@ -364,7 +368,7 @@ private fun WebAppBottomButton(
             disabledContainerColor = container.copy(alpha = 0.5f),
             disabledContentColor = content.copy(alpha = 0.7f),
         ),
-        modifier = modifier,
+        modifier = modifier.height(MediumButtonHeight),
     ) {
         if (button.progress) {
             LoadingIndicator(color = content, modifier = Modifier.size(24.dp))
@@ -389,7 +393,7 @@ private fun WebAppPopupDialog(popup: WebAppPopup, onClose: (String?) -> Unit) {
         text = { Text(popup.message) },
         confirmButton = {
             buttons.forEach { button ->
-                TextButton(onClick = { onClose(button.id) }) {
+                TextButton(onClick = { onClose(button.id) }, shapes = ButtonDefaults.shapes()) {
                     Text(
                         button.text.ifBlank {
                             when (button.type) {

@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -125,7 +126,7 @@ internal fun PhotoDescriptionPanel(
                     modifier = Modifier.weight(1f),
                 )
                 if (description.done) {
-                    FilledTonalButton(onClick = onCopy) {
+                    FilledTonalButton(onClick = onCopy, shapes = ButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.content_copy_24dp), contentDescription = null)
                         Spacer(Modifier.padding(start = 8.dp))
                         Text(stringResource(Res.string.menu_copy))

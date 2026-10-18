@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -130,7 +131,7 @@ private fun StatusContent(status: GiveawayStatus, codeCopied: Boolean, onCopyCod
             )
         }
     }
-    FilledTonalButton(onClick = { onCopyCode(code) }, modifier = Modifier.fillMaxWidth()) {
+    FilledTonalButton(onClick = { onCopyCode(code) }, modifier = Modifier.fillMaxWidth(), shapes = ButtonDefaults.shapes()) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(
                 painterResource(if (codeCopied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp),

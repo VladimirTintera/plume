@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalTextStyle
@@ -139,6 +140,7 @@ fun ChangePhoneScreen(viewModel: ChangePhoneViewModel, onBack: () -> Unit, modif
                         Button(
                             onClick = if (sent == null) viewModel::submitPhone else viewModel::submitCode,
                             enabled = !state.busy && (sent != null || viewModel.phone.isComplete),
+                            shapes = ButtonDefaults.shapes(),
                         ) {
                             if (state.busy) {
                                 LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
@@ -149,7 +151,7 @@ fun ChangePhoneScreen(viewModel: ChangePhoneViewModel, onBack: () -> Unit, modif
                         if (sent != null) {
                             sent.next?.let { next ->
                                 val label = stringResource(next.resendLabel())
-                                TextButton(onClick = viewModel::resendCode, enabled = !state.busy && state.resendIn == 0) {
+                                TextButton(onClick = viewModel::resendCode, enabled = !state.busy && state.resendIn == 0, shapes = ButtonDefaults.shapes()) {
                                     Text(
                                         if (state.resendIn > 0) {
                                             stringResource(Res.string.auth_resend_wait, label, formatDuration(state.resendIn))
@@ -160,7 +162,7 @@ fun ChangePhoneScreen(viewModel: ChangePhoneViewModel, onBack: () -> Unit, modif
                                     )
                                 }
                             }
-                            TextButton(onClick = viewModel::changeNumber, enabled = !state.busy) {
+                            TextButton(onClick = viewModel::changeNumber, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.auth_change_number))
                             }
                         }

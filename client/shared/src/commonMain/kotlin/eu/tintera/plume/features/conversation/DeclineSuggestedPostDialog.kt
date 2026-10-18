@@ -6,6 +6,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -47,11 +48,11 @@ internal fun DeclineSuggestedPostDialog(onConfirm: (comment: String) -> Unit, on
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(comment.trim()) }) {
+            TextButton(onClick = { onConfirm(comment.trim()) }, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.suggested_post_decline), color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 

@@ -1,6 +1,9 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import eu.tintera.plume.core.ui.MediumButtonHeight
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +15,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -127,13 +131,13 @@ fun FolderChatsSheet(
             }
 
             if (confirmLabel != null) {
-                Button(
+                MediumButton(
                     onClick = onConfirm,
                     enabled = !busy && confirmEnabled,
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 56.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(MediumButtonHeight),
                 ) {
                     if (busy) {
-                        LoadingIndicator(color = LocalContentColor.current)
+                        LoadingIndicator(Modifier.size(ButtonDefaults.iconSizeFor(MediumButtonHeight)), color = LocalContentColor.current)
                     } else {
                         Text(confirmLabel)
                     }

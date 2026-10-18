@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -256,6 +257,7 @@ private fun PhotoCrop(
             Button(
                 onClick = { geometry?.let { onConfirm(it.region(placement)) } },
                 enabled = geometry != null && isOpen,
+                shapes = ButtonDefaults.shapes(),
             ) {
                 Text(stringResource(Res.string.photo_crop_done))
             }

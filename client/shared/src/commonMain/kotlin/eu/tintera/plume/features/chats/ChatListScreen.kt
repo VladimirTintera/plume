@@ -12,6 +12,7 @@ import eu.tintera.plume.app.root.presentation.LocalIsDarkTheme
 import eu.tintera.plume.app.root.presentation.theme.chatColorScheme
 import eu.tintera.plume.app.root.presentation.theme.seed
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ButtonDefaults
 import org.koin.compose.koinInject
 import androidx.compose.ui.graphics.Color
 import eu.tintera.plume.core.ui.asUpcomingTime
@@ -1407,7 +1408,7 @@ internal fun ChatListContent(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(current.message.resolve(), style = MaterialTheme.typography.bodyLarge)
-                TextButton(onClick = viewModel::loadMore) { Text(stringResource(Res.string.common_try_again)) }
+                TextButton(onClick = viewModel::loadMore, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
             }
         }
 

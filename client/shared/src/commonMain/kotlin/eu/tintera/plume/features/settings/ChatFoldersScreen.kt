@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -211,7 +212,7 @@ fun ChatFoldersScreen(
                             if (state.adding == folder.draft.title) {
                                 LoadingIndicator(Modifier.size(40.dp))
                             } else {
-                                FilledTonalButton(onClick = { viewModel.addRecommended(folder) }, enabled = state.adding == null) {
+                                FilledTonalButton(onClick = { viewModel.addRecommended(folder) }, enabled = state.adding == null, shapes = ButtonDefaults.shapes()) {
                                     Text(stringResource(Res.string.chat_folders_add))
                                 }
                             }

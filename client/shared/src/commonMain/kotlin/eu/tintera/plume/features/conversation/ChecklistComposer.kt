@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -385,6 +386,7 @@ fun ChecklistComposerScreen(
                                 modifier = Modifier
                                     .padding(end = 12.dp)
                                     .longPressInstead(enabled = canSend && !viewModel.isEditing) { sendMenuOpen = true },
+                                shapes = ButtonDefaults.shapes(),
                             ) {
                                 Text(stringResource(if (viewModel.isEditing) Res.string.checklist_compose_save else Res.string.poll_compose_send))
                             }

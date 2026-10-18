@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -91,13 +92,13 @@ private fun ServiceNoticeDialog(
         },
         confirmButton = {
             if (notice.offersLogOut) {
-                TextButton(onClick = onLogOut) { Text(stringResource(Res.string.notice_service_log_out)) }
+                TextButton(onClick = onLogOut, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.notice_service_log_out)) }
             } else {
-                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.notice_service_ok)) }
+                TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.notice_service_ok)) }
             }
         },
         dismissButton = if (notice.offersLogOut) {
-            { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } }
+            { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } }
         } else {
             null
         },
@@ -139,12 +140,12 @@ private fun TermsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onAccept, enabled = !accepting) {
+            TextButton(onClick = onAccept, enabled = !accepting, shapes = ButtonDefaults.shapes()) {
                 if (accepting) LoadingIndicator() else Text(stringResource(Res.string.notice_terms_accept))
             }
         },
         dismissButton = {
-            TextButton(onClick = onLater, enabled = !accepting) { Text(stringResource(Res.string.notice_terms_later)) }
+            TextButton(onClick = onLater, enabled = !accepting, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.notice_terms_later)) }
         },
     )
 }

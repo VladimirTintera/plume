@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.cake_24dp
+import eu.tintera.plume.core.ui.MediumButtonIcon
+import eu.tintera.plume.core.ui.MediumButton
 import eu.tintera.plume.resources.birthdate_suggest_confirm
 import eu.tintera.plume.resources.birthdate_suggest
 import eu.tintera.plume.features.settings.BirthdatePickerDialog
@@ -1207,15 +1209,14 @@ private fun ProfileVerification(verification: Verification, botVerification: Bot
 @Composable
 private fun AddContactButton(onClick: () -> Unit) {
     val haptics = LocalHapticFeedback.current
-    Button(
+    MediumButton(
         onClick = {
             haptics.confirm()
             onClick()
         },
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Icon(painterResource(Res.drawable.person_add_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        MediumButtonIcon(Res.drawable.person_add_24dp)
         Text(stringResource(Res.string.contact_add))
     }
 }
@@ -1747,9 +1748,9 @@ private fun ProfileMenu(
                 TextButton(onClick = {
                     confirmBlock = false
                     onSetBlocked(true)
-                }) { Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = { confirmBlock = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
     if (pickBirthdate) {
@@ -1772,9 +1773,9 @@ private fun ProfileMenu(
                 TextButton(onClick = {
                     confirmRemoveContact = false
                     onSetContact(false)
-                }) { Text(stringResource(Res.string.profile_remove_contact), color = MaterialTheme.colorScheme.error) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.profile_remove_contact), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmRemoveContact = false }) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = { confirmRemoveContact = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }

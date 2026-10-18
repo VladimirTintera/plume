@@ -142,6 +142,7 @@ private fun MessageBodyScope.ChecklistContent(checklist: ChatChecklist) {
                 colors = ButtonDefaults.textButtonColors(contentColor = accent),
                 contentPadding = PaddingValues(horizontal = 4.dp),
                 modifier = Modifier.padding(top = 4.dp),
+                shapes = ButtonDefaults.shapes(),
             ) {
                 Icon(
                     painterResource(Res.drawable.add_24dp),

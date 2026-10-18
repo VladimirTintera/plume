@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -104,7 +105,7 @@ internal fun AutosaveGroup(viewModel: AutosaveViewModel, snackbarHostState: Snac
                 state.loadFailed -> ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     headlineContent = { Text(stringResource(Res.string.autosave_load_failed), color = MaterialTheme.colorScheme.error) },
-                    trailingContent = { TextButton(onClick = viewModel::load) { Text(stringResource(Res.string.autosave_retry)) } },
+                    trailingContent = { TextButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.autosave_retry)) } },
                 )
                 else -> Box(Modifier.padding(16.dp)) { LoadingIndicator() }
             }
@@ -275,18 +276,18 @@ internal fun AutosaveScopeDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(AutosaveScopeSettings(photos = photos, videos = videos, maxVideoBytes = maxVideo)) }) {
+            TextButton(onClick = { onConfirm(AutosaveScopeSettings(photos = photos, videos = videos, maxVideoBytes = maxVideo)) }, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.autosave_done))
             }
         },
         dismissButton = {
             Row {
                 if (canRemove) {
-                    TextButton(onClick = onRemove) {
+                    TextButton(onClick = onRemove, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.autosave_remove_exception), color = MaterialTheme.colorScheme.error)
                     }
                 }
-                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             }
         },
     )

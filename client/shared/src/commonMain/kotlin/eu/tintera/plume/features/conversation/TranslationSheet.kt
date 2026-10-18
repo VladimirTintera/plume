@@ -123,6 +123,7 @@ fun TranslationSheet(
                 onClick = { picking = true },
                 contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
                 modifier = Modifier.offset(x = -ButtonDefaults.TextButtonWithIconContentPadding.calculateLeftPadding(LayoutDirection.Ltr)),
+                shapes = ButtonDefaults.shapes(),
             ) {
                 Text(
                     stringResource(
@@ -177,7 +178,7 @@ fun TranslationSheet(
                         )
                         // V telefonu to nejde (neznámý jazyk, nepodporovaný pár) — server ano.
                         if (sheet.onDevice == true) {
-                            TextButton(onClick = onServer, modifier = Modifier.padding(top = 4.dp)) {
+                            TextButton(onClick = onServer, modifier = Modifier.padding(top = 4.dp), shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.translation_on_server))
                             }
                         }
@@ -191,8 +192,8 @@ fun TranslationSheet(
                             Modifier.fillMaxWidth().padding(top = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                         ) {
-                            TextButton(onClick = onServer) { Text(stringResource(Res.string.translation_on_server)) }
-                            FilledTonalButton(onClick = onDownload) { Text(stringResource(Res.string.translation_device_download)) }
+                            TextButton(onClick = onServer, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.translation_on_server)) }
+                            FilledTonalButton(onClick = onDownload, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.translation_device_download)) }
                         }
                     }
                     else -> Column(
@@ -224,7 +225,7 @@ fun TranslationSheet(
             }
 
             if (sheet.body != null && sheet.canCopy) {
-                FilledTonalButton(onClick = onCopy, modifier = Modifier.padding(top = 16.dp).align(Alignment.End)) {
+                FilledTonalButton(onClick = onCopy, modifier = Modifier.padding(top = 16.dp).align(Alignment.End), shapes = ButtonDefaults.shapes()) {
                     Icon(
                         painterResource(Res.drawable.content_copy_24dp),
                         contentDescription = null,

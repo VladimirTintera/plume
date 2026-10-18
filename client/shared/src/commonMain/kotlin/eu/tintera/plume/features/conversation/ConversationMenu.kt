@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -169,12 +170,12 @@ internal fun ConversationMenu(
                 TextButton(onClick = {
                     confirmCloseSecret = false
                     viewModel.closeSecretChat()
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.secret_chat_close), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmCloseSecret = false }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmCloseSecret = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -188,7 +189,7 @@ internal fun GestureHintBox(
             RichTooltip(
                 title = { Text(stringResource(current.title)) },
                 action = {
-                    TextButton(onClick = onDismiss) { Text(stringResource(Res.string.gesture_hint_got_it)) }
+                    TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.gesture_hint_got_it)) }
                 },
                 caretShape = TooltipDefaults.caretShape(),
             ) {

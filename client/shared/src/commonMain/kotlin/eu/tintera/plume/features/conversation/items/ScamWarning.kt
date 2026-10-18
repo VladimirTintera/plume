@@ -94,6 +94,7 @@ internal fun ScamWarningCard(
                 TextButton(
                     onClick = onDismiss,
                     colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                    shapes = ButtonDefaults.shapes(),
                 ) {
                     Text(stringResource(Res.string.scam_warning_dismiss))
                 }

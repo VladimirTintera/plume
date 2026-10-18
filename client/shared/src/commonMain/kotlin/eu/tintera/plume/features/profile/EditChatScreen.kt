@@ -4,6 +4,7 @@ import eu.tintera.plume.resources.history_24dp
 import eu.tintera.plume.resources.event_log_row_help
 import eu.tintera.plume.resources.event_log_row
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.resources.edit_chat_forum_help
 import eu.tintera.plume.resources.edit_chat_forum
@@ -213,10 +214,10 @@ fun EditChatScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmUpgrade) { Text(stringResource(Res.string.edit_chat_upgrade_confirm)) }
+                TextButton(onClick = viewModel::confirmUpgrade, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.edit_chat_upgrade_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::cancelUpgrade) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = viewModel::cancelUpgrade, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -232,12 +233,12 @@ fun EditChatScreen(
                 TextButton(onClick = {
                     confirmDeletePhoto = false
                     viewModel.deletePhoto()
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.edit_profile_delete_photo_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDeletePhoto = false }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmDeletePhoto = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -281,7 +282,7 @@ fun EditChatScreen(
                 TextButton(onClick = {
                     confirmDeleteChat = false
                     viewModel.deleteChatForAll()
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(
                         stringResource(if (channel) Res.string.edit_chat_delete_channel else Res.string.edit_chat_delete_group),
                         color = MaterialTheme.colorScheme.error,
@@ -289,7 +290,7 @@ fun EditChatScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDeleteChat = false }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmDeleteChat = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -346,7 +347,7 @@ fun EditChatScreen(
                     actions = {
                         // Uložit se nabízí, jen když je co ukládat — fotka a práva jdou na server hned.
                         if (chat?.rights?.canChangeInfo == true) {
-                            TextButton(onClick = viewModel::save, enabled = viewModel.canSave) {
+                            TextButton(onClick = viewModel::save, enabled = viewModel.canSave, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.edit_profile_save))
                             }
                         }
@@ -385,12 +386,12 @@ fun EditChatScreen(
                         if (viewModel.photoBusy) CircularWavyProgressIndicator(Modifier.size(AVATAR_SIZE))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy) {
+                        TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy, shapes = ButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                             Text(stringResource(Res.string.edit_profile_change_photo))
                         }
                         if (chat.photoFileId != null) {
-                            TextButton(onClick = { confirmDeletePhoto = true }, enabled = !viewModel.photoBusy) {
+                            TextButton(onClick = { confirmDeletePhoto = true }, enabled = !viewModel.photoBusy, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.edit_chat_delete_photo))
                             }
                         }

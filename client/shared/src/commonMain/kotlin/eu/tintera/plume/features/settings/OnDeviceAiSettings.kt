@@ -8,6 +8,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.core.ui.GroupBreak
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItem
@@ -550,14 +551,14 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                          * a ten zastavit nedovolí.
                          */
                         if (variant.appManaged) {
-                            OutlinedButton(onClick = viewModel::stopDownload) {
+                            OutlinedButton(onClick = viewModel::stopDownload, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.settings_on_device_ai_stop))
                             }
                         }
                     }
                     OnDeviceModelState.Downloadable, OnDeviceModelState.DownloadFailed, OnDeviceModelState.NotEnoughSpace,
                     OnDeviceModelState.Paused ->
-                        FilledTonalButton(onClick = viewModel::download) {
+                        FilledTonalButton(onClick = viewModel::download, shapes = ButtonDefaults.shapes()) {
                             // Stažený kus se nezahazuje, takže po selhání i zastavení tlačítko slibuje navázání.
                             val resumes = variant.appManaged &&
                                 (model == OnDeviceModelState.DownloadFailed || model == OnDeviceModelState.Paused)
@@ -579,7 +580,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                      * „Stáhnout model" na témže místě a vedle tónovaného tlačítka ustupuje.
                      */
                     is OnDeviceModelState.Ready -> if (variant.appManaged) {
-                        OutlinedButton(onClick = viewModel::delete) {
+                        OutlinedButton(onClick = viewModel::delete, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.settings_on_device_ai_delete))
                         }
                     }
@@ -590,7 +591,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                  * dostat jen dokončením stahování a smazáním hotového modelu.
                  */
                 if (model == OnDeviceModelState.Paused && variant.appManaged) {
-                    OutlinedButton(onClick = viewModel::delete) {
+                    OutlinedButton(onClick = viewModel::delete, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.settings_on_device_ai_discard_part))
                     }
                 }

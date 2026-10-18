@@ -1,12 +1,16 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Spacer
+import eu.tintera.plume.core.ui.ButtonEmphasis
+import eu.tintera.plume.core.ui.MediumButtonIcon
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import eu.tintera.plume.resources.mail_24dp
 import eu.tintera.plume.resources.channel_direct_message
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.profile_mute
@@ -52,10 +56,10 @@ internal fun JoinBar(
             .imePadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Button(
+        MediumButton(
             onClick = onJoin,
             enabled = !joining,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(label))
         }
@@ -84,22 +88,18 @@ internal fun MuteBar(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilledTonalButton(
+        MediumButton(
             onClick = onToggle,
             enabled = muted != null,
-            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+            emphasis = ButtonEmphasis.Tonal,
+            modifier = Modifier.weight(1f),
         ) {
-            Icon(
-                painterResource(if (muted == true) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp),
-                contentDescription = null,
-            )
-            Spacer(Modifier.width(8.dp))
+            MediumButtonIcon(if (muted == true) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp)
             Text(stringResource(if (muted == true) Res.string.profile_unmute else Res.string.profile_mute))
         }
         if (onMessage != null) {
-            FilledTonalButton(onClick = onMessage, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
-                Icon(painterResource(Res.drawable.mail_24dp), contentDescription = null)
-                Spacer(Modifier.width(8.dp))
+            MediumButton(onClick = onMessage, emphasis = ButtonEmphasis.Tonal, modifier = Modifier.weight(1f)) {
+                MediumButtonIcon(Res.drawable.mail_24dp)
                 Text(stringResource(Res.string.channel_direct_message))
             }
         }

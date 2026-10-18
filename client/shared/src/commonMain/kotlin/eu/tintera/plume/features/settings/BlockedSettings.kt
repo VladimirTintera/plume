@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -489,11 +490,11 @@ fun BlockSenderScreen(
             title = { Text(stringResource(Res.string.profile_block_title, chat.title)) },
             text = { Text(stringResource(Res.string.settings_block_body)) },
             confirmButton = {
-                TextButton(onClick = viewModel::confirm) {
+                TextButton(onClick = viewModel::confirm, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = viewModel::cancel) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = viewModel::cancel, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }

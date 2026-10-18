@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -810,6 +811,7 @@ fun PollComposerScreen(
                                 modifier = Modifier
                                     .padding(end = 12.dp)
                                     .longPressInstead(enabled = canSend) { sendMenuOpen = true },
+                                shapes = ButtonDefaults.shapes(),
                             ) { Text(stringResource(Res.string.poll_compose_send)) }
                             ExpressiveMenu(
                                 expanded = sendMenuOpen,
@@ -1509,11 +1511,11 @@ private fun PollLinkDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
             )
         },
         confirmButton = {
-            TextButton(enabled = url != null, onClick = { url?.let(onConfirm) }) {
+            TextButton(enabled = url != null, onClick = { url?.let(onConfirm) }, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.poll_link_add))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 

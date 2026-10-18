@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -70,7 +71,7 @@ internal fun ChatNoticeBarCard(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         // Posun o vnitřní odsazení `TextButton`, aby popisek lícoval s textem.
-                        TextButton(onClick = onSharePhone, modifier = Modifier.offset(x = (-12).dp)) {
+                        TextButton(onClick = onSharePhone, modifier = Modifier.offset(x = (-12).dp), shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.chat_bar_share_phone))
                         }
                     }
@@ -79,7 +80,7 @@ internal fun ChatNoticeBarCard(
                             text = stringResource(Res.string.chat_bar_invite_members_hint),
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        TextButton(onClick = onInviteMembers, modifier = Modifier.offset(x = (-12).dp)) {
+                        TextButton(onClick = onInviteMembers, modifier = Modifier.offset(x = (-12).dp), shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.chat_bar_invite_members))
                         }
                     }
@@ -121,7 +122,7 @@ internal fun ContactSharePhoneDialog(name: String, onConfirm: () -> Unit, onDism
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.chat_bar_share_phone_title)) },
         text = { Text(stringResource(Res.string.chat_bar_share_phone_text, name)) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(Res.string.chat_bar_share_phone_confirm)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        confirmButton = { TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.chat_bar_share_phone_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

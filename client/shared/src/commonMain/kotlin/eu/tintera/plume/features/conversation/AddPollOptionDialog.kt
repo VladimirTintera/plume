@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -85,12 +86,12 @@ internal fun AddPollOptionDialog(
         },
         confirmButton = {
             // Příloha bez textu neodejde: odpověď musí mít text, server by ji jinak odmítl.
-            TextButton(onClick = { onConfirm(text, media) }, enabled = text.isNotBlank()) {
+            TextButton(onClick = { onConfirm(text, media) }, enabled = text.isNotBlank(), shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.poll_add_option_confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
     choosing?.let { kind ->

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FilledIconButton
@@ -394,7 +395,7 @@ private fun CallScreen(
                 }
                 if (call.held && ongoing) {
                     // Po GSM hovoru systém hovor sám nevrátí; bez tlačítka by zůstal viset podržený.
-                    Button(onClick = { scope.launch { calls.resume() } }, modifier = Modifier.padding(bottom = 24.dp)) {
+                    Button(onClick = { scope.launch { calls.resume() } }, modifier = Modifier.padding(bottom = 24.dp), shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.call_resume))
                     }
                 }
@@ -471,14 +472,14 @@ private fun CallScreen(
                     askOverlay = false
                     PointerOverlayAsk.asked = true
                     overlay.request { startSharing() }
-                }) { Text(stringResource(Res.string.call_pointer_permission_allow)) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.call_pointer_permission_allow)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     askOverlay = false
                     PointerOverlayAsk.asked = true
                     startSharing()
-                }) { Text(stringResource(Res.string.call_pointer_permission_skip)) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.call_pointer_permission_skip)) }
             },
         )
     }
@@ -684,7 +685,7 @@ private fun CallBar(call: ActiveCall, calls: CallRepository, onExpand: () -> Uni
                 Text(callStatus(call), style = MaterialTheme.typography.bodyMedium.tabularNumbers(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (call.phase == CallPhase.Ringing) {
-                Button(onClick = onExpand) { Text(stringResource(Res.string.call_answer)) }
+                Button(onClick = onExpand, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.call_answer)) }
             } else if (!call.phase.ended) {
                 FilledIconToggleButton(
                     checked = call.muted,

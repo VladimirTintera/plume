@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -155,7 +156,7 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
                 }
                 state.loadFailed -> Column(Modifier.padding(horizontal = 16.dp)) {
                     Text(stringResource(Res.string.passkeys_load_failed), color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = viewModel::load) { Text(stringResource(Res.string.passkeys_retry)) }
+                    TextButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.passkeys_retry)) }
                 }
                 else -> Box(Modifier.padding(horizontal = 16.dp)) { LoadingIndicator() }
             }
@@ -175,12 +176,12 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
             title = { Text(stringResource(Res.string.passkey_remove_title, passkey.displayName())) },
             text = { Text(stringResource(Res.string.passkey_remove_text)) },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmRemove) {
+                TextButton(onClick = viewModel::confirmRemove, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.passkey_remove_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::dismissRemove) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = viewModel::dismissRemove, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -248,7 +249,7 @@ fun StickerSetsScreen(
                         set = set,
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
                         trailing = {
-                            FilledTonalButton(onClick = { viewModel.unarchive(set) }) {
+                            FilledTonalButton(onClick = { viewModel.unarchive(set) }, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.stickers_add))
                             }
                         },
@@ -263,7 +264,7 @@ fun StickerSetsScreen(
                             if (state.loadingMoreArchived) {
                                 LoadingIndicator(Modifier.size(40.dp))
                             } else {
-                                TextButton(onClick = viewModel::loadMoreArchived) {
+                                TextButton(onClick = viewModel::loadMoreArchived, shapes = ButtonDefaults.shapes()) {
                                     Text(stringResource(Res.string.sticker_sets_load_more))
                                 }
                             }

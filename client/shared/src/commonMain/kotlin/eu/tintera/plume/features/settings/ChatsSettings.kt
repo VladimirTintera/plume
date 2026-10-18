@@ -27,6 +27,7 @@ import eu.tintera.plume.resources.settings_skip_silence
 import eu.tintera.plume.resources.settings_skip_silence_summary
 import org.koin.compose.koinInject
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
@@ -305,7 +306,7 @@ private fun SwipeActionDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }

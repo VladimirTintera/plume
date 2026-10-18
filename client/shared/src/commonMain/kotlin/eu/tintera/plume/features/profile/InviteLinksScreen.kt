@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.invite_links_share
@@ -268,7 +269,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
             if (links.revoked.isNotEmpty()) {
                 item(key = "revoked-header") {
                     SectionHeader(Res.string.invite_links_revoked_section) {
-                        TextButton(onClick = { confirmDeleteAll = true }, enabled = !viewModel.busy) {
+                        TextButton(onClick = { confirmDeleteAll = true }, enabled = !viewModel.busy, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.invite_links_delete_all))
                         }
                     }
@@ -319,7 +320,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                 TextButton(onClick = {
                     confirmRevoke = null
                     viewModel.revoke(link)
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(
                         stringResource(if (link.isPrimary) Res.string.invite_links_replace_primary else Res.string.invite_links_revoke),
                         color = MaterialTheme.colorScheme.error,
@@ -327,7 +328,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmRevoke = null }) { Text(stringResource(Res.string.invite_links_keep)) }
+                TextButton(onClick = { confirmRevoke = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.invite_links_keep)) }
             },
         )
     }
@@ -341,12 +342,12 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                 TextButton(onClick = {
                     confirmDeleteAll = false
                     viewModel.deleteAllRevoked()
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.invite_links_delete_all), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDeleteAll = false }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmDeleteAll = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -377,12 +378,12 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                 TextButton(onClick = {
                     confirmDeleteAdminRevoked = null
                     viewModel.deleteAllRevoked(admin)
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.invite_links_delete_all), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDeleteAdminRevoked = null }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmDeleteAdminRevoked = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -453,7 +454,7 @@ private fun PrimaryLinkCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = onShare, modifier = Modifier.weight(1f)) {
+                Button(onClick = onShare, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
                     Icon(
                         painterResource(Res.drawable.share_24dp),
                         contentDescription = null,
@@ -461,7 +462,7 @@ private fun PrimaryLinkCard(
                     )
                     Text(stringResource(Res.string.invite_links_share), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                FilledTonalButton(onClick = onReplace, enabled = !busy, modifier = Modifier.weight(1f)) {
+                FilledTonalButton(onClick = onReplace, enabled = !busy, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.invite_links_replace_primary), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 FilledTonalIconButton(onClick = onCopy, shapes = IconButtonDefaults.shapes()) {
@@ -471,7 +472,7 @@ private fun PrimaryLinkCard(
             // Hlavním odkazem se přidává nejvíc lidí, a nabídku nad ním (jako u dalších odkazů)
             // karta nemá — proto vlastní tlačítko.
             if (link.memberCount > 0) {
-                TextButton(onClick = onMembers, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding) {
+                TextButton(onClick = onMembers, contentPadding = ButtonDefaults.TextButtonWithIconContentPadding, shapes = ButtonDefaults.shapes()) {
                     Icon(
                         painterResource(Res.drawable.group_24dp),
                         contentDescription = null,
@@ -700,7 +701,7 @@ private fun InviteLinkEditorSheet(
                 )
             }
 
-            Button(onClick = onSave, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+            MediumButton(onClick = onSave, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(if (editor.isNew) Res.string.invite_editor_create else Res.string.edit_profile_save))
             }
         }
@@ -837,7 +838,7 @@ private fun AdminLinksSheet(
                         item(key = "revoked-header") {
                             SectionHeader(Res.string.invite_links_revoked_section, first = links.active.isEmpty()) {
                                 if (!view.admin.isBot) {
-                                    TextButton(onClick = onDeleteAllRevoked, enabled = !busy) {
+                                    TextButton(onClick = onDeleteAllRevoked, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                                         Text(stringResource(Res.string.invite_links_delete_all))
                                     }
                                 }

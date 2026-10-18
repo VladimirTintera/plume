@@ -15,6 +15,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
@@ -131,7 +132,7 @@ internal fun FormattingBar(
                 ) {
                     // Popisek je jazyk sám („kotlin"): ikona by neřekla, co je nastavené.
                     Labelled(stringResource(Res.string.format_code_language)) { text ->
-                        TextButton(onClick = onCodeLanguage, modifier = Modifier.semantics { contentDescription = text }) {
+                        TextButton(onClick = onCodeLanguage, modifier = Modifier.semantics { contentDescription = text }, shapes = ButtonDefaults.shapes()) {
                             Text(composer.codeBlock?.language ?: text)
                         }
                     }
@@ -253,12 +254,12 @@ internal fun CodeLanguageDialog(current: String?, onConfirm: (String?) -> Unit, 
         },
         confirmButton = {
             // Prázdné = bez jazyka, to jde uložit taky; mezera uprostřed ne.
-            TextButton(enabled = text.isBlank() || language != null, onClick = { onConfirm(language) }) {
+            TextButton(enabled = text.isBlank() || language != null, onClick = { onConfirm(language) }, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.format_link_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }
@@ -286,16 +287,16 @@ internal fun LinkDialog(current: String?, onConfirm: (String?) -> Unit, onDismis
             )
         },
         confirmButton = {
-            TextButton(enabled = url != null, onClick = { url?.let(onConfirm) }) {
+            TextButton(enabled = url != null, onClick = { url?.let(onConfirm) }, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.format_link_save))
             }
         },
         dismissButton = {
             Row {
                 if (current != null) {
-                    TextButton(onClick = { onConfirm(null) }) { Text(stringResource(Res.string.format_link_remove)) }
+                    TextButton(onClick = { onConfirm(null) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.format_link_remove)) }
                 }
-                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             }
         },
     )

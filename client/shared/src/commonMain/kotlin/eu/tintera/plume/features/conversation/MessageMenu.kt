@@ -46,6 +46,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.SelectionState
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -981,12 +982,12 @@ fun MessageDeleteDialog(
                     )
                 }
                 onConfirm(revoke, picked)
-            }) {
+            }, shapes = ButtonDefaults.shapes()) {
                 Text(text = stringResource(Res.string.menu_delete), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }
@@ -1256,10 +1257,10 @@ fun PinMessageDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(option) }) { Text(stringResource(Res.string.menu_pin)) }
+            TextButton(onClick = { onConfirm(option) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.menu_pin)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }

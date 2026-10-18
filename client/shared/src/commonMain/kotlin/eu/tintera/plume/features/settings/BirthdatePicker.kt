@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -149,16 +150,17 @@ internal fun BirthdatePickerDialog(
                     onConfirm(Birthdate.of(Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.UTC).date, withYear = true))
                 },
                 enabled = state.selectedDateMillis != null,
+                shapes = ButtonDefaults.shapes(),
             ) { Text(stringResource(confirmLabel)) }
         },
         dismissButton = {
             Row {
                 if (initial != null) {
-                    TextButton(onClick = { onConfirm(null) }) {
+                    TextButton(onClick = { onConfirm(null) }, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.birthdate_remove), color = MaterialTheme.colorScheme.error)
                     }
                 }
-                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             }
         },
     ) {

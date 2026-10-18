@@ -8,6 +8,7 @@ import eu.tintera.plume.core.translation.deviceTranslationCode
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.telegram.platformLanguageCode
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.resources.translation_device_unsupported
 import eu.tintera.plume.resources.translation_device_same
 import eu.tintera.plume.resources.translation_device_download_failed
@@ -609,7 +610,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                         stringResource(Res.string.translation_device_download_text),
                         style = MaterialTheme.typography.bodyLarge,
                     )
-                    FilledTonalButton(onClick = { rewrite.viewModel.downloadModels(source) }) {
+                    FilledTonalButton(onClick = { rewrite.viewModel.downloadModels(source) }, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.translation_device_download))
                     }
                 }
@@ -643,7 +644,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                TextButton(onClick = rewrite::close) { Text(stringResource(Res.string.common_close)) }
+                TextButton(onClick = rewrite::close, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_close)) }
                 val done = state as? RewriteState.Done
                 Button(
                     onClick = {
@@ -651,6 +652,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                         rewrite.close()
                     },
                     enabled = done != null && done.text != source.trim(),
+                    shapes = ButtonDefaults.shapes(),
                 ) { Text(stringResource(Res.string.rewrite_use)) }
             }
 

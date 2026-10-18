@@ -233,9 +233,10 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
                         val end = state.selectedEndDateMillis ?: start
                         onChange(filter.copy(period = SearchPeriod.Custom(start.localDayStart(), end.localDayStart())))
                     },
+                    shapes = ButtonDefaults.shapes(),
                 ) { Text(stringResource(Res.string.search_filter_apply)) }
             },
-            dismissButton = { TextButton(onClick = { pickRange = false }) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = { pickRange = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         ) {
             DateRangePicker(state = state, modifier = Modifier.weight(1f))
         }

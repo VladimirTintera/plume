@@ -115,7 +115,7 @@ fun SuggestedActionCard(
             if (content.primary != null || content.secondary != null) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                     content.secondary?.let { label ->
-                        TextButton(onClick = onSecondary, colors = ButtonDefaults.textButtonColors(contentColor = accent)) {
+                        TextButton(onClick = onSecondary, colors = ButtonDefaults.textButtonColors(contentColor = accent), shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(label))
                         }
                     }
@@ -123,6 +123,7 @@ fun SuggestedActionCard(
                         Button(
                             onClick = onPrimary,
                             colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onAccent),
+                            shapes = ButtonDefaults.shapes(),
                         ) {
                             Text(stringResource(label))
                         }

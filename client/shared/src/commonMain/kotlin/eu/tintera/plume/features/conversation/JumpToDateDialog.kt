@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SelectableDates
@@ -56,9 +57,10 @@ internal fun JumpToDateDialog(onPick: (Int) -> Unit, onDismiss: () -> Unit) {
                     onPick(day.atStartOfDayIn(zone).epochSeconds.toInt())
                 },
                 enabled = state.selectedDateMillis != null,
+                shapes = ButtonDefaults.shapes(),
             ) { Text(stringResource(Res.string.conversation_jump_date_go)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     ) {
         DatePicker(
             state = state,

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -161,7 +162,7 @@ private fun TrendingCustomEmojiRow(set: CustomEmojiSetSample, onInstall: () -> U
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                FilledTonalButton(onClick = onInstall) { Text(stringResource(Res.string.stickers_add)) }
+                FilledTonalButton(onClick = onInstall, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.stickers_add)) }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {

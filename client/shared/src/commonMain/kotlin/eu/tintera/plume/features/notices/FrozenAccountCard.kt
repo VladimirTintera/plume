@@ -89,6 +89,7 @@ fun FrozenAccountCard(
                     Button(
                         onClick = { onAppeal(link) },
                         colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onAccent),
+                        shapes = ButtonDefaults.shapes(),
                     ) {
                         Text(stringResource(Res.string.notice_frozen_appeal))
                     }

@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
@@ -282,7 +283,7 @@ internal fun PinnedMessagesSheet(
             )
             // U jediné zprávy stačí křížek v řádku; „vše" dává smysl až od dvou.
             if (canUnpin && messages.size > 1) {
-                TextButton(onClick = { confirmUnpinAll = true }) {
+                TextButton(onClick = { confirmUnpinAll = true }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.conversation_unpin_all), color = MaterialTheme.colorScheme.error)
                 }
             }
@@ -317,12 +318,12 @@ internal fun PinnedMessagesSheet(
                 TextButton(onClick = {
                     confirmUnpinAll = false
                     hideThen(onUnpinAll)
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.conversation_unpin_all), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmUnpinAll = false }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmUnpinAll = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }

@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.MediumButtonIcon
+import eu.tintera.plume.core.ui.ButtonEmphasis
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -132,7 +135,7 @@ fun MyQrCodeSheet(onDismiss: () -> Unit, viewModel: MyQrCodeViewModel = koinView
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                         )
-                        TextButton(onClick = viewModel::retry) { Text(stringResource(Res.string.common_try_again)) }
+                        TextButton(onClick = viewModel::retry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
                     }
                     link != null -> QrCode(
                         content = link.url,
@@ -167,19 +170,19 @@ fun MyQrCodeSheet(onDismiss: () -> Unit, viewModel: MyQrCodeViewModel = koinView
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
-                OutlinedButton(onClick = viewModel::share, enabled = ready, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = viewModel::share, enabled = ready, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
                     ButtonIcon(Res.drawable.share_24dp)
                     Text(stringResource(Res.string.my_qr_share))
                 }
                 // Zkopírováno nese tlačítko samo (fajfka), ne hláška — je to stav ovládacího prvku.
-                OutlinedButton(onClick = viewModel::copy, enabled = ready, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = viewModel::copy, enabled = ready, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
                     ButtonIcon(if (state.copied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp)
                     Text(stringResource(if (state.copied) Res.string.my_qr_copied else Res.string.my_qr_copy))
                 }
             }
             if (qrScannerSupported) {
-                FilledTonalButton(onClick = startScan, modifier = Modifier.fillMaxWidth()) {
-                    ButtonIcon(Res.drawable.qr_code_scanner_24dp)
+                MediumButton(onClick = startScan, modifier = Modifier.fillMaxWidth(), emphasis = ButtonEmphasis.Tonal) {
+                    MediumButtonIcon(Res.drawable.qr_code_scanner_24dp)
                     Text(stringResource(Res.string.my_qr_scan))
                 }
             }

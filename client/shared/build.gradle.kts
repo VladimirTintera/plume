@@ -918,6 +918,63 @@ val verifyExpandedSheets = tasks.register("verifyExpandedSheets") {
 
 tasks.named("check") { dependsOn(verifyExpandedSheets) }
 
+// Textová tlačítka mění tvar při stisku jako ikonová (M3 Expressive). Ikonová to měla od #498,
+// textová ze ~350 jen dvě — v jednom dialogu tak jedno tlačítko morfovalo a druhé ne, a nové
+// tlačítko bez tvaru se nepoznalo jinak než ručně. Kontrola chce `shapes` u každého volání
+// `TextButton`/`Button`/`FilledTonalButton`/`OutlinedButton`/`ElevatedButton` z material3.
+// Hlavní akce přes celou šířku jde přes `MediumButton` (core/ui), ten tvar nese sám.
+val verifyButtonShapes = tasks.register("verifyButtonShapes") {
+    group = "verification"
+    description = "Ověří, že textová tlačítka mění tvar při stisku (shapes = ButtonDefaults.shapes())."
+
+    val sources = listOf(
+        layout.projectDirectory.dir("src/commonMain/kotlin"),
+        layout.projectDirectory.dir("src/androidMain/kotlin"),
+        layout.projectDirectory.dir("src/iosMain/kotlin"),
+        layout.projectDirectory.dir("src/jvmMain/kotlin"),
+    )
+    sources.forEach { inputs.dir(it) }
+    val roots = sources.map { it.asFile }
+    val projectDir = layout.projectDirectory.asFile
+
+    doLast {
+        val names = listOf("TextButton", "Button", "FilledTonalButton", "OutlinedButton", "ElevatedButton")
+        val call = Regex("""(?<![\w.])(${names.joinToString("|")})\(""")
+        val offenders = mutableListOf<String>()
+        roots.flatMap { it.walkTopDown().filter { f -> f.extension == "kt" } }
+            .forEach { file ->
+                val text = file.readText()
+                fun where(index: Int) = "${file.relativeTo(projectDir)}:${text.substring(0, index).count { it == '\n' } + 1}"
+                call.findAll(text).forEach { match ->
+                    val name = match.groupValues[1]
+                    // Jen tlačítka z material3 — Glance i vlastní komponenty mají jiná pravidla.
+                    if ("import androidx.compose.material3.$name\n" !in text) return@forEach
+                    val lineStart = text.lastIndexOf('\n', match.range.first) + 1
+                    val before = text.substring(lineStart, match.range.first).trimStart()
+                    if (before.startsWith("*") || before.startsWith("//") || before.startsWith("fun ") || "import " in before) return@forEach
+                    var depth = 1
+                    var end = match.range.last + 1
+                    while (depth > 0 && end < text.length) {
+                        when (text[end]) {
+                            '(' -> depth++
+                            ')' -> depth--
+                        }
+                        end++
+                    }
+                    if ("shapes" !in text.substring(match.range.last + 1, end)) {
+                        offenders += "${where(match.range.first)}: $name bez shapes"
+                    }
+                }
+            }
+        check(offenders.isEmpty()) {
+            "Tlačítko mění tvar při stisku: shapes = ButtonDefaults.shapes(), hlavní akce přes MediumButton (core/ui).\n" +
+                offenders.joinToString("\n")
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyButtonShapes) }
+
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).

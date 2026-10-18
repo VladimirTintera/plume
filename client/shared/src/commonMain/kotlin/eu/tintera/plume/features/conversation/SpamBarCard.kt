@@ -135,15 +135,15 @@ internal fun SpamBarCard(
                 ) {
                     val destructive = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                     if (bar.canBlock) {
-                        TextButton(onClick = onBlock, colors = destructive) { Text(stringResource(Res.string.profile_block)) }
+                        TextButton(onClick = onBlock, colors = destructive, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.profile_block)) }
                     }
                     if (bar.canUnarchive) {
-                        TextButton(onClick = onUnarchive) { Text(stringResource(Res.string.chats_action_unarchive)) }
+                        TextButton(onClick = onUnarchive, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.chats_action_unarchive)) }
                     } else if (bar.canReportSpam) {
-                        TextButton(onClick = onReport, colors = destructive) { Text(stringResource(Res.string.chats_delete_report)) }
+                        TextButton(onClick = onReport, colors = destructive, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.chats_delete_report)) }
                     }
                     if (bar.canAddContact) {
-                        TextButton(onClick = onAddContact) { Text(stringResource(Res.string.spam_bar_add_contact)) }
+                        TextButton(onClick = onAddContact, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.spam_bar_add_contact)) }
                     }
                 }
             }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -110,7 +111,7 @@ internal fun FolderSuggestionsSheet(
                         if (state.adding == folder.draft.title) {
                             LoadingIndicator(Modifier.size(40.dp))
                         } else {
-                            FilledTonalButton(onClick = { onAdd(folder) }, enabled = state.adding == null) {
+                            FilledTonalButton(onClick = { onAdd(folder) }, enabled = state.adding == null, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.chat_folders_add))
                             }
                         }

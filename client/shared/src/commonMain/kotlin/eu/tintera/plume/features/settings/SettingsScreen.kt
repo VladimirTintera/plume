@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.animation.core.animateDpAsState
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -175,7 +176,7 @@ fun SettingsScreen(
             )
 
             // Destruktivní akce dostane error roli a potvrzení s konkrétním následkem.
-            Button(
+            MediumButton(
                 onClick = { confirmLogOut = true },
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -330,12 +331,12 @@ private fun LogOutDialog(
         title = { Text(stringResource(Res.string.settings_sign_out_title)) },
         text = { Text(stringResource(Res.string.settings_sign_out_body)) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
                 Text(text = stringResource(Res.string.settings_sign_out_confirm), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }

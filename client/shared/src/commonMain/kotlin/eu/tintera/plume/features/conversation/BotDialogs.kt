@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
@@ -51,8 +52,8 @@ internal fun OpenLinkDialog(url: String, onOpen: () -> Unit, onDismiss: () -> Un
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.bot_link_title)) },
         text = { Text(url) },
-        confirmButton = { TextButton(onClick = onOpen) { Text(stringResource(Res.string.bot_link_open)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        confirmButton = { TextButton(onClick = onOpen, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_link_open)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -62,7 +63,7 @@ internal fun BotAlertDialog(text: String, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         text = { Text(text) },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.bot_alert_ok)) } },
+        confirmButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_alert_ok)) } },
     )
 }
 
@@ -76,8 +77,8 @@ internal fun SharePhoneDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.bot_share_phone_title)) },
         text = { Text(stringResource(Res.string.bot_share_phone_text)) },
-        confirmButton = { TextButton(onClick = onShare) { Text(stringResource(Res.string.bot_share_phone_confirm)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        confirmButton = { TextButton(onClick = onShare, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_share_phone_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -91,8 +92,8 @@ internal fun ShareLocationDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.bot_share_location_title)) },
         text = { Text(stringResource(Res.string.bot_share_location_text)) },
-        confirmButton = { TextButton(onClick = onShare) { Text(stringResource(Res.string.bot_share_location_confirm)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        confirmButton = { TextButton(onClick = onShare, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_share_location_confirm)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -127,11 +128,11 @@ internal fun LoginUrlDialog(prompt: LoginUrlPrompt.Confirm, onConfirm: (allowWri
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(prompt.requestWriteAccess && allowWrite) }) {
+            TextButton(onClick = { onConfirm(prompt.requestWriteAccess && allowWrite) }, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.bot_login_confirm))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -149,6 +150,6 @@ internal fun LoginLinkWarningDialog(kind: LoginLinkKind, onDismiss: () -> Unit) 
         onDismissRequest = onDismiss,
         title = { Text(stringResource(title)) },
         text = { Text(stringResource(text)) },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.bot_alert_ok)) } },
+        confirmButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_alert_ok)) } },
     )
 }
