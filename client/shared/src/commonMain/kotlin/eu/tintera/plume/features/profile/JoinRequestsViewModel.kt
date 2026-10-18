@@ -30,7 +30,7 @@ import org.jetbrains.compose.resources.StringResource
  *   žádost mohl vyřídit jiný správce nebo si ji uživatel stáhl.
  */
 class JoinRequestsViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     private val repository: InviteLinkRepository,
 ) : ViewModel() {
 

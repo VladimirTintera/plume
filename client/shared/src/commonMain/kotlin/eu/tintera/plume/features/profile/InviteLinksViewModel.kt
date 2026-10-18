@@ -41,7 +41,7 @@ import org.jetbrains.compose.resources.StringResource
  * nastavil pro sebe. U každého odkazu jde zjistit, kdo se jím přidal ([membersView]).
  */
 class InviteLinksViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     private val repository: InviteLinkRepository,
     private val clipboard: TextClipboard,
     private val sharer: MediaSharer,

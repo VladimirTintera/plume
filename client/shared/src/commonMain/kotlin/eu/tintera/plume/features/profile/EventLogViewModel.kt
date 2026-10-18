@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
  * tvrdil „nic", i když starší akce odpovídá.
  */
 class EventLogViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     private val repository: ProfileRepository,
 ) : ViewModel() {
 

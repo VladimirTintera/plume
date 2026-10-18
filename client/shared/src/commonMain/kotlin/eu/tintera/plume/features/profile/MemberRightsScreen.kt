@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.tintera.plume.core.ui.SaveActionButton
 import eu.tintera.plume.core.ui.GroupedColumn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +23,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,8 +41,6 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.arrow_back_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.edit_chat_perm_change_info
 import eu.tintera.plume.resources.edit_chat_perm_invite
 import eu.tintera.plume.resources.edit_chat_perm_pin
@@ -110,32 +107,21 @@ fun MemberRightsScreen(viewModel: MemberRightsViewModel, onBack: () -> Unit, mod
 
     val member = viewModel.member
 
+    val subpageScroll = profileSubpageScrollBehavior()
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(
-                            if (viewModel.admin) {
-                                Res.string.member_rights_admin_title
-                            } else {
-                                Res.string.member_rights_restrict_title
-                            },
-                        ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            painterResource(Res.drawable.arrow_back_24dp),
-                            contentDescription = stringResource(Res.string.common_back),
-                        )
-                    }
-                },
+            ProfileSubpageTopBar(
+                title = stringResource(
+                    if (viewModel.admin) Res.string.member_rights_admin_title else Res.string.member_rights_restrict_title,
+                ),
+                subtitle = rememberChatTitle(viewModel.chatId),
+                onBack = onBack,
+                scrollBehavior = subpageScroll,
                 actions = {
-                    TextButton(onClick = viewModel::save, enabled = viewModel.canSave, shapes = ButtonDefaults.shapes()) {
+                    SaveActionButton(onClick = viewModel::save, enabled = viewModel.canSave) {
                         Text(stringResource(Res.string.edit_profile_save))
                     }
                 },

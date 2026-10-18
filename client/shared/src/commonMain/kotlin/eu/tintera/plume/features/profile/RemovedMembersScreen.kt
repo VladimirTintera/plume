@@ -25,7 +25,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -45,10 +44,8 @@ import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chats_search_clear
 import eu.tintera.plume.resources.chats_search_empty_hint
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.edit_chat_removed
 import eu.tintera.plume.resources.edit_chat_restricted
 import eu.tintera.plume.resources.lock_24dp
@@ -101,17 +98,17 @@ fun RemovedMembersScreen(
     val shown = viewModel.shown
     val list = viewModel.list
 
+    val subpageScroll = profileSubpageScrollBehavior()
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (banned) Res.string.edit_chat_removed else Res.string.edit_chat_restricted)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
+            ProfileSubpageTopBar(
+                title = stringResource(if (banned) Res.string.edit_chat_removed else Res.string.edit_chat_restricted),
+                subtitle = rememberChatTitle(viewModel.chatId),
+                onBack = onBack,
+                scrollBehavior = subpageScroll,
             )
         },
     ) { padding ->

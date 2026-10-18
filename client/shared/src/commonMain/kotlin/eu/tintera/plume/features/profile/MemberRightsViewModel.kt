@@ -34,7 +34,7 @@ import org.jetbrains.compose.resources.StringResource
  * nedává smysl.
  */
 class MemberRightsViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     private val userId: Long,
     val admin: Boolean,
     private val repository: ProfileRepository,

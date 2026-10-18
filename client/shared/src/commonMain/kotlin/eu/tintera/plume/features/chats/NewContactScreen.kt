@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.tintera.plume.core.ui.SaveActionButton
 import eu.tintera.plume.core.ui.FormTextField
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,14 +13,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -90,7 +89,7 @@ fun NewContactScreen(
                     if (viewModel.adding) {
                         LoadingIndicator(Modifier.padding(end = 12.dp).size(40.dp))
                     } else {
-                        TextButton(onClick = viewModel::add, enabled = viewModel.canAdd, shapes = ButtonDefaults.shapes()) {
+                        SaveActionButton(onClick = viewModel::add, enabled = viewModel.canAdd) {
                             Text(stringResource(Res.string.new_contact_add))
                         }
                     }
