@@ -348,7 +348,8 @@ fun ChatListScreen(
     var showDrafts by rememberSaveable { mutableStateOf(false) }
     var showBookmarks by rememberSaveable { mutableStateOf(false) }
     val bookmarks by viewModel.allBookmarks.collectAsStateWithLifecycle()
-    val bookmarkTitles by viewModel.bookmarkChatTitles.collectAsStateWithLifecycle()
+    val bookmarkTitles by viewModel.foundChatTitles.collectAsStateWithLifecycle()
+    val describedPhotos by viewModel.describedPhotos.collectAsStateWithLifecycle()
     var showMyQrCode by rememberSaveable { mutableStateOf(false) }
     val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
@@ -601,6 +602,7 @@ fun ChatListScreen(
                         onLoadMoreMessages = viewModel.search::loadMoreMessages,
                         bookmarks = bookmarks,
                         bookmarkTitles = bookmarkTitles,
+                        describedPhotos = describedPhotos,
                         suggestionActions = remember(viewModel.search) {
                             SuggestionActions(
                                 onClear = viewModel.search::clearRecent,

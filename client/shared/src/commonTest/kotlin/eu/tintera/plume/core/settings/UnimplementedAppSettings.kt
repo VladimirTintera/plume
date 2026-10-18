@@ -92,6 +92,8 @@ open class UnimplementedAppSettings : AppSettings {
     override val replySuggestionsEnabled: StateFlow<Boolean> get() = error("replySuggestionsEnabled")
     override fun setReplySuggestionsEnabled(enabled: Boolean): Unit = error("setReplySuggestionsEnabled")
     override val scamWarningsEnabled: StateFlow<Boolean> get() = error("scamWarningsEnabled")
+    override val backgroundPhotoDescriptions: StateFlow<Boolean> get() = error("backgroundPhotoDescriptions")
+    override fun setBackgroundPhotoDescriptions(enabled: Boolean): Unit = error("setBackgroundPhotoDescriptions")
     override fun setScamWarningsEnabled(enabled: Boolean): Unit = error("setScamWarningsEnabled")
     override val chatTriageEnabled: StateFlow<Boolean> get() = error("chatTriageEnabled")
     override val contactSyncEnabled: StateFlow<Boolean> get() = error("contactSyncEnabled")

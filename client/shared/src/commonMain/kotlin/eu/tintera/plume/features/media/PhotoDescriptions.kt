@@ -23,14 +23,20 @@ data class StoredPhotoDescription(
  * prohlížeče: fotka v bublině je pak má jako popis pro čtečku obrazovky ([LocalPhotoDescriptions])
  * a prohlížeč je příště ukáže hned, bez modelu.
  *
- * - **Jen popisy, o které si uživatel řekl** — model se nepouští na každou fotku v seznamu
- *   (baterie, a AICore pustí inferenci jen aplikaci v popředí). Popis předem v pozadí je jiný
- *   bod roadmapy (hledání fotek podle obsahu).
+ * - **Popisy, o které si uživatel řekl**, a s volbou i popisy předem z pozadí na nabíječce
+ *   ([BackgroundPhotoDescriber]) — model se nepouští na každou fotku v seznamu za běhu
+ *   (baterie, a AICore pustí inferenci jen aplikaci v popředí).
  * - **Nejvýš [MAX_STORED] popisů**, nejstarší pryč — stejně jako přepisy hlasovek
  *   ([eu.tintera.plume.features.conversation.LocalTranscripts]): popis je obsah, ne nastavení.
  * - **Účet je id Uložených zpráv**; dokud není známý, popis se neukládá.
  */
 class PhotoDescriptions(private val settings: AppSettings, private val chats: ChatRepository) {
+
+    /** Všechny popisy účtu, nejnovější poslední — pro hledání fotek podle obsahu. */
+    val all: Flow<List<StoredPhotoDescription>> =
+        combine(settings.storedPhotoDescriptions, chats.savedMessagesChatId) { stored, account ->
+            if (account == null) emptyList() else stored.filter { it.accountId == account }
+        }
 
     /** Popisy fotek v chatu [chatId] podle id zprávy. */
     fun forChat(chatId: Long): Flow<Map<Long, String>> =
@@ -55,7 +61,8 @@ class PhotoDescriptions(private val settings: AppSettings, private val chats: Ch
     }
 
     private companion object {
-        const val MAX_STORED = 300
+        /** S popisy na pozadí jich přibývá víc než z ťuknutí; popis má pár set znaků. */
+        const val MAX_STORED = 500
     }
 }
 
