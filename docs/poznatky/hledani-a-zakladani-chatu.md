@@ -144,6 +144,13 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   zůstanou, i když server neodpoví.
 - **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět
   zavírá dialog hledání samo a obsluhu šipky obchází.
+- **Doporučené kanály** (`getRecommendedChats`, `ChatSearchState.recommended`) jsou třetí blok
+  návrhů pod Lidmi a Nedávno hledanými, sbalený na čtyři řádky jako veřejné výsledky. Jen
+  v hlavním hledání (`everywhere`), ne v archivu ani ve výběru chatu, a načítají se AŽ po
+  obou rychlých blocích: jde se pro ně na server. Server jich vrátil 100 a žádný z nich účet
+  neodebíral; repository odebírané stejně vyřazuje jako pojistku (log `Doporučené kanály: N,
+  z toho odebírané M`). Ťuknutí otevře náhled kanálu s „Přidat se" a zapíše ho do historie
+  hledání jako každý výsledek. Ověřeno na emulátoru (hlavní účet).
 - **Ověřování snímky: `sips -c` ořezává ze STŘEDU**, `--cropOffset` ignoruje. Výřez „horní
   části" byl ve skutečnosti prostředek obrazovky a vypadalo to, že bar chybí.
 

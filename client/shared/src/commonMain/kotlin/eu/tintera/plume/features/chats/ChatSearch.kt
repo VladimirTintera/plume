@@ -87,6 +87,12 @@ class ChatSearch(
             top = repository.topChats().logged("topChats").orEmpty(),
             recent = repository.recentlyFoundChats().logged("recentlyFoundChats").orEmpty(),
         )
+        // Doporučení až po lidech a historii: jde se pro ně na server, a ty dva bloky jsou to,
+        // pro co uživatel hledání otevírá. Jen v hlavním hledání, ne v archivu ani výběru chatu.
+        if (everywhere) {
+            val recommended = repository.recommendedChannels().logged("recommendedChannels").orEmpty()
+            _state.update { if (it.query.isEmpty()) it.copy(recommended = recommended) else it }
+        }
     }
 
     private suspend fun search(text: String, filter: MessageSearchFilter) {
@@ -250,6 +256,8 @@ data class ChatSearchState(
     val searching: Boolean = false,
     val top: List<ChatSummary> = emptyList(),
     val recent: List<ChatSummary> = emptyList(),
+    /** Doporučené kanály v návrzích (jen hledání v hlavním seznamu); bez těch, které už odebírá. */
+    val recommended: List<ChatSummary> = emptyList(),
     val global: List<ChatSummary> = emptyList(),
     val messages: List<FoundMessage> = emptyList(),
     val messagesNextOffset: String? = null,

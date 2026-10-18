@@ -241,6 +241,12 @@ interface ChatRepository {
     suspend fun topChats(): Result<List<ChatSummary>>
 
     /**
+     * Kanály, které Telegram uživateli doporučuje (`getRecommendedChats`) — podle toho, co
+     * odebírá. Prázdný seznam, když server nic nedoporučí.
+     */
+    suspend fun recommendedChannels(): Result<List<ChatSummary>> = Result.success(emptyList())
+
+    /**
      * Kolik chatů v archivu je nepřečtených. Archiv je schovaný v menu účtu, takže bez tohohle
      * není odkud se dozvědět, že v něm něco přibylo.
      *

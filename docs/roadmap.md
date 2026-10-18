@@ -409,8 +409,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   jako zvoneček v kanálu (`docs/poznatky/konverzace-psani.md`, „Výchozí odesílání bez zvuku").
 - ~~Smazání všech konceptů najednou (`clearAllDraftMessages`)~~ — hotovo („Smazat vše" v přehledu
   konceptů; `docs/poznatky/seznam-chatu.md`, „Přehled konceptů").
-- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: doporučené kanály
-  (`getRecommendedChats`), nahlášení profilové fotky (`reportChatPhoto`).
+- ~~Doporučené kanály (`getRecommendedChats`)~~ — hotovo (návrhy v hledání;
+  `docs/poznatky/hledani-a-zakladani-chatu.md`, „Hledání chatů").
+- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: nahlášení profilové
+  fotky (`reportChatPhoto`).
 
 - ~~Změna telefonního čísla~~ — hotovo (úprava profilu → Telefonní číslo).
 - ~~Smazání účtu a samosmazání po neaktivitě~~ — hotovo (Soukromí účtu → Smazání účtu;

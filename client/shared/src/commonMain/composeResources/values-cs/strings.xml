@@ -109,6 +109,7 @@
     <string name="chats_search_empty_hint">Zkus jiné slovo nebo jméno.</string>
     <string name="chats_search_people">Lidé</string>
     <string name="chats_search_recent">Nedávno hledané</string>
+    <string name="chats_search_recommended">Doporučené kanály</string>
     <string name="chats_search_clear_recent">Vymazat</string>
     <string name="chats_search_remove_recent">Odebrat z historie</string>
     <string name="chats_search_remove_top">Odebrat z návrhů</string>
