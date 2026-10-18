@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.rememberScrollState
+import eu.tintera.plume.resources.stickers_clear_search
+import eu.tintera.plume.core.ui.ControlledSearchPill
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -151,14 +153,15 @@ internal fun EmojiPanel(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     )
 
-    StickerSearchField(
-        text = searchText,
+    ControlledSearchPill(
+        query = searchText,
         placeholder = stringResource(Res.string.emoji_search),
-        onTextChange = {
+        clearDescription = stringResource(Res.string.stickers_clear_search),
+        onQueryChange = {
             searchText = it
             viewModel.searchEmoji(it, languageCodes)
         },
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     )
 
     if (searchText.isNotBlank()) {
