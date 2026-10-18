@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.calls
 
+import eu.tintera.plume.core.platform.desktopDataDirectory
 import co.touchlab.kermit.Logger
 import com.sun.jna.Memory
 import com.sun.jna.Platform
@@ -37,9 +38,12 @@ class DesktopCallMedia : CallMedia {
     private val logger = Logger.withTag("DesktopCallMedia")
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "ntgcalls").apply { isDaemon = true } }
 
-    /** Knihovna se nahrává až při prvním hovoru (35 MB), ne při startu aplikace. */
+    /**
+     * Knihovna se nahrává až při prvním hovoru (35 MB), ne při startu aplikace — a z dat
+     * aplikace, kam se vybalí jednou ([cachedNativeLibrary]), ne z dočasné kopie při každém startu.
+     */
     private val native: NtgNative by lazy {
-        NtgNative.load().also { lib ->
+        NtgNative.load(cachedNativeLibrary(NtgNative.LIBRARY, desktopDataDirectory, logger)).also { lib ->
             lib.ntg_set_log_callback(logCallback, null)
             logger.i { "ntgcalls ${lib.ntg_get_version()}" }
         }
@@ -179,7 +183,7 @@ class DesktopCallMedia : CallMedia {
                     data?.getByteArray(0, length.toInt())?.let(events::onSignaling)
                 }.also { lib.ntg_on_signaling_data_callback(instance, it, null) }
                 connectionCallback = NtgNative.ConnectionCallback { _, _, info, _ ->
-                    logger.i { "Spojení: ${info.state}" }
+                    logger.i { "Spojení: ${NtgNative.connectionName(info.state)}" }
                     events.onConnection(
                         when (info.state) {
                             NtgNative.CONNECTION_CONNECTED -> CallConnection.Connected

@@ -545,9 +545,9 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    - **Desktop: zabalená aplikace** — v `.app` z `createDistributable` JNA `libntgcalls`
      najde a popisy použití i entitlementy kamery a mikrofonu jsou hotové
      (`docs/poznatky/desktop.md`, „Kamera a mikrofon v podepsané aplikaci"); ověřit ještě
-     MSI a DMG. Popisy použití v Info.plist jsou jen anglicky. JNA dnes
-     35 MB knihovnu při každém spuštění vybaluje do dočasné složky; šlo by ji vybalit jednou
-     do dat aplikace. Stav spojení v logu jako jméno, ne číslo.
+     MSI a DMG. Popisy použití v Info.plist jsou jen anglicky. ~~Vybalení knihovny jednou do
+     dat aplikace~~ a ~~stav spojení v logu jménem~~ — hotovo (`docs/poznatky/hovory.md`,
+     „Desktop"); vybalení ze zabalené aplikace ověřit.
    - **Android: hodinový videohovor** (teplota a baterie; šest minut ověřených,
      `docs/poznatky/hovory.md`, „Ověřeno 14. 10. 2026"). Ostatní dřív neověřené kousky
      (Bluetooth, okénko, Android 11, hovor z oficiálního klienta) jsou ověřené.

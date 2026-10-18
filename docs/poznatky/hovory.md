@@ -547,8 +547,18 @@ desktopu" níž).
   Windows a Linux mají jen výchozí výstup systému a tlačítko výstupu se tam nekreslí.
 - **Knihovnu přibalí Gradle** (`downloadNtgcalls` v `client/shared/build.gradle.kts`): jen pro
   systém, na kterém se staví, z vydání na GitHubu, ověřenou SHA-256 (`digest` z API vydání),
-  do resources `jvmMain` pod prefix JNA (`darwin-aarch64/libntgcalls.dylib`, 35 MB), odkud ji
-  `Native.load` sám vybalí. Zip se drží v `~/.gradle/caches/plume-ntgcalls/`. **Bez sítě nebo
+  do resources `jvmMain` pod prefix JNA (`darwin-aarch64/libntgcalls.dylib`, 35 MB). Zip se
+  drží v `~/.gradle/caches/plume-ntgcalls/`.
+- **Z resources se knihovna vybalí JEDNOU do dat aplikace** (`cachedNativeLibrary`,
+  `<data>/natives/<razítko>/`), ne do dočasné složky při každém spuštění, jak to dělá
+  `Native.load(jméno)`. Razítko je velikost a CRC položky v jaru (mimo jar velikost a čas
+  změny) — nová verze knihovny dostane nový adresář a stará se smaže. Hash 35 MB při startu
+  by stál víc, než vybalení ušetří; CRC už v jaru je. Kopie jde přes `.part` a přejmenování,
+  takže přerušené vybalení nenechá půlku knihovny. Když cokoli selže, načte se postaru přes
+  JNA. Test `NativeLibraryCacheTest` vybalí skutečnou knihovnu, načte ji a zavolá
+  `ntg_get_version`; **ze zabalené aplikace (jar, `JarURLConnection`) to ověřené není.**
+- **Stav spojení jde do logu jménem** (`NtgNative.connectionName`: CONNECTED, TIMEOUT…), ne
+  číslem z knihovny. **Bez sítě nebo
   na Intel Macu build nespadne** — `CallMedia` se nezaregistruje a hovory se nenabídnou.
   Knihovna závisí jen na systémových frameworcích (žádné cesty do Homebrew jako TDLib).
 - **Při ladění pomůže log knihovny**: `ntg_set_log_callback`, zdroj 2 = ntgcalls (zprávy

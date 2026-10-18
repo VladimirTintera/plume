@@ -106,7 +106,19 @@ internal interface NtgNative : Library {
         /** Jméno knihovny pro JNA: `libntgcalls.dylib`, `ntgcalls.dll`, `libntgcalls.so`. */
         const val LIBRARY = "ntgcalls"
 
-        fun load(): NtgNative = Native.load(LIBRARY, NtgNative::class.java)
+        /** Z [file] (vybalená do dat aplikace, viz [cachedNativeLibrary]), jinak postaru přes JNA. */
+        fun load(file: java.io.File? = null): NtgNative =
+            Native.load(file?.absolutePath ?: LIBRARY, NtgNative::class.java)
+
+        /** Jméno stavu spojení do logu — číslo z knihovny („Spojení: 1") se číst nedá. */
+        fun connectionName(state: Int): String = when (state) {
+            CONNECTION_CONNECTING -> "CONNECTING"
+            CONNECTION_CONNECTED -> "CONNECTED"
+            CONNECTION_FAILED -> "FAILED"
+            CONNECTION_TIMEOUT -> "TIMEOUT"
+            CONNECTION_CLOSED -> "CLOSED"
+            else -> "?$state"
+        }
     }
 }
 
