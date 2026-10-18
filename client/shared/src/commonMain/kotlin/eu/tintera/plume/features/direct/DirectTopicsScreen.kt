@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.direct
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -327,7 +328,7 @@ private fun DirectTopicActionsSheet(
         Triple(stringResource(Res.string.direct_topic_delete), Res.drawable.delete_24dp, true) to onDelete,
     )
     val title = topicTitle(topic)
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(
             Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),

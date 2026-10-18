@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.rewrite_emoji_changed_text
 import eu.tintera.plume.core.ai.onlyEmojiAdded
 import eu.tintera.plume.core.translation.OnDeviceTranslator
@@ -51,11 +52,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
@@ -500,7 +499,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
     // sheetu položil. Jednou na text, ne při každém složení.
     LaunchedEffect(source) { rewrite.viewModel.checkTone(source) }
     val serverStyles by rewrite.viewModel.serverStyles.collectAsStateWithLifecycle()
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberExpandedSheetState()
     // Výběr jazyka překladu je sheet NAD tímhle, jako u překladu zprávy. Drží, KTERÝ překlad
     // se vybírá (v telefonu, nebo na serveru); `null` = výběr zavřený.
     var pickLanguageFor by remember { mutableStateOf<LanguagePick?>(null) }
@@ -656,8 +655,9 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
             }
 
             // Kam text šel, podle toho, čím se přepisovalo; před první volbou podle toho, co
-            // sheet nabízí (bez AI v zařízení jen server).
-            val onServer = choice?.onServer ?: !local
+            // sheet nabízí. Bez modelu v telefonu (jen překlad) je to věta o serveru — o modelu,
+            // který nic nepřepisuje, by lhala.
+            val onServer = choice?.onServer ?: !rewrite.localAvailable
             Text(
                 stringResource(
                     when {

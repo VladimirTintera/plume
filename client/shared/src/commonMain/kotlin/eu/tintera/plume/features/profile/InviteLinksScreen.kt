@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.invite_links_share
@@ -38,7 +39,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -46,7 +46,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -559,7 +558,7 @@ private fun LinkActionsSheet(
     canEdit: Boolean,
     canManage: Boolean,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
             Text(
                 link.name.ifBlank { link.shortUrl() },
@@ -625,7 +624,7 @@ private fun InviteLinkEditorSheet(
     onDismiss: () -> Unit,
 ) {
     // Celý rozbalený: napůl rozbalený by tlačítko uložení schoval pod okraj.
-    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val state = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state) {
         Column(
             Modifier
@@ -786,7 +785,7 @@ private fun AdminLinksSheet(
     onDismiss: () -> Unit,
 ) {
     // Odkazů bývá víc než na půl obrazovky; napůl rozbalený sheet by zrušené schoval pod okraj.
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         LazyColumn(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
@@ -861,7 +860,7 @@ private fun AdminLinksSheet(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun LinkMembersSheet(view: LinkMembersView, onDismiss: () -> Unit) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         LazyColumn(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),

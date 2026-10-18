@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.conversation_unpin_all_body
 import eu.tintera.plume.resources.conversation_unpin_all_title
@@ -43,10 +44,8 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -259,7 +258,7 @@ internal fun PinnedMessagesSheet(
     onUnpinAll: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
     var confirmUnpinAll by rememberSaveable { mutableStateOf(false) }
 

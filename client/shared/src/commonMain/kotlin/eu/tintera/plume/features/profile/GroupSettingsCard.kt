@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,9 +22,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -190,10 +189,7 @@ private fun reactionsLabel(reactions: ChatReactions): String = when {
 @Composable
 internal fun SlowModeSheet(current: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
     // Celý rozbalený: napůl otevřený list schoval 15 minut a hodinu pod spodní hranu.
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Text(
             stringResource(Res.string.edit_chat_slow_mode),
@@ -234,10 +230,7 @@ internal fun ChatReactionsSheet(
     onSave: (ChatReactions) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     // 0 = všechny, 1 = vybrané, 2 = žádné.
     var mode by rememberSaveable { mutableStateOf(if (current.all) 0 else if (current.none) 2 else 1) }
     // `remember`, ne `rememberSaveable`: seznam řetězců se mimo Android uložit neumí jistě.

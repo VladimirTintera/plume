@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.forum
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +25,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -155,7 +155,7 @@ internal fun TopicActionsSheet(
             add(TopicMenuItem(stringResource(Res.string.forum_topic_delete), Res.drawable.delete_24dp, destructive = true, onClick = onDelete))
         }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(
             Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
@@ -204,7 +204,7 @@ internal fun TopicEditorSheet(
     onSave: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val state = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state) {
         Column(
             Modifier

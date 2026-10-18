@@ -488,6 +488,10 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   holé `DropdownMenuPopup` / `Popup` bez vstupního pole ho dostane taky, jinak nabídka nad
   otevřenou klávesnicí klávesnici utrhne a obsah pod ní skočí. Viz „Nabídky si neberou
   klávesnici".
+- **Modální sheet se otevírá rovnou celý** (`sheetState = rememberExpandedSheetState()`,
+  `core/ui/ExpandedSheet.kt`) — hlídá to `verifyExpandedSheets`. Napůl rozbalený schovával pod
+  spodní okraj výsledek, tlačítko Uložit nebo poslední položky a opravoval se po jednom v osmi
+  sheetech; obsah, který přibude, rozbalený sheet zvětší sám.
 - **Tlačítko ve slotu textového pole patří do `TextFieldSlot`** (`core/ui`): `leadingIcon` /
   `trailingIcon` s `IconButton`, avatarem a podobně. `BasicTextField` dává textový kurzor celému
   boxu i s dekorací a ikony ho dědí — na desktopu se nad avatarem účtu v hledání ukazoval

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.saved
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -339,7 +340,7 @@ private fun SavedTopicActionsSheet(
         // Moje poznámky jsou vlastní zprávy; smazat je jedním ťuknutím by bylo moc snadné.
         Triple(stringResource(Res.string.saved_topic_delete), Res.drawable.delete_24dp, true) to onDelete,
     ).filter { (item, _) -> !item.third || topic.kind != SavedTopicKind.MyNotes }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(
             Modifier.padding(horizontal = 16.dp).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),

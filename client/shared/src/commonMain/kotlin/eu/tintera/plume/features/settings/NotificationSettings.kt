@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import org.koin.compose.viewmodel.koinViewModel
 import eu.tintera.plume.resources.notif_sound_unknown
 import eu.tintera.plume.resources.notif_sound_row
@@ -25,11 +26,9 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -456,10 +455,7 @@ private fun ExceptionsSheet(
     onDismiss: () -> Unit,
 ) {
     // Rovnou celý: seznam bývá delší než půl obrazovky (stejná úvaha jako u detailu zařízení).
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column {
             ListItem(

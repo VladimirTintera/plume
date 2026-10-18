@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.conversation_contact_me
 import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.GROUP_CORNER
@@ -20,10 +21,8 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,10 +61,7 @@ internal fun ContactPickerSheet(
     onDismiss: () -> Unit,
 ) {
     // Jen celý: napůl rozbalený sheet schoval seznam pod spodní okraj (viz „Výběr samolepek").
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Text(
             text = stringResource(Res.string.conversation_contact_title),

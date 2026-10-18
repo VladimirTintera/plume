@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration
@@ -42,9 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -175,10 +174,7 @@ fun ChatActionsSheet(
      * (tatáž past jako u správy členů). Náhrada za `rememberModalBottomSheetState`, které je od
      * Compose 1.12 zastaralé.
      */
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     val scroll = rememberScrollState()
     var deleteExpanded by rememberSaveable { mutableStateOf(false) }
 
@@ -494,7 +490,7 @@ private fun groupRowShape(index: Int, count: Int): RoundedCornerShape {
  */
 @Composable
 fun SnoozeSheet(chat: ChatSummary, onSnooze: (SnoozeOption) -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Text(
                 text = chatTitle(chat.id, chat.title),
@@ -608,7 +604,7 @@ private fun SponsoredChatSheet(
     onHide: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Text(
                 text = chatTitle(chat.id, chat.title),

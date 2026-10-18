@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,10 +19,8 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -72,7 +71,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun MyQrCodeSheet(onDismiss: () -> Unit, viewModel: MyQrCodeViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberExpandedSheetState()
 
     // Odkaz se načítá a obnovuje jen, dokud je sheet otevřený; nový pokus mění klíč.
     LaunchedEffect(state.attempt) { viewModel.keepFresh() }

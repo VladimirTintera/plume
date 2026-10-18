@@ -866,6 +866,58 @@ val verifyContextClickable = tasks.register("verifyContextClickable") {
 
 tasks.named("check") { dependsOn(verifyContextClickable) }
 
+// Modální sheet se otevírá rovnou celý (`rememberExpandedSheetState`, core/ui/ExpandedSheet.kt).
+// Napůl rozbalený schovával pod okraj výsledek, tlačítko Uložit nebo poslední položky a opravoval
+// se po jednom; pravidlo platí pro všechny. Kontrola chce, aby každý `ModalBottomSheet` dostal
+// stav (výchozí rozbaluje napůl) a aby stav nevznikal jinde než v pomocníkovi.
+val verifyExpandedSheets = tasks.register("verifyExpandedSheets") {
+    group = "verification"
+    description = "Ověří, že se modální sheety otevírají celé (rememberExpandedSheetState)."
+
+    val sources = listOf(
+        layout.projectDirectory.dir("src/commonMain/kotlin"),
+        layout.projectDirectory.dir("src/androidMain/kotlin"),
+        layout.projectDirectory.dir("src/iosMain/kotlin"),
+        layout.projectDirectory.dir("src/jvmMain/kotlin"),
+    )
+    sources.forEach { inputs.dir(it) }
+    val roots = sources.map { it.asFile }
+    val projectDir = layout.projectDirectory.asFile
+
+    doLast {
+        val rawState = Regex("""\b(rememberBottomSheetState|rememberModalBottomSheetState)\(""")
+        val sheetCall = Regex("""\bModalBottomSheet\(""")
+        val offenders = mutableListOf<String>()
+        roots.flatMap { it.walkTopDown().filter { f -> f.extension == "kt" && f.name != "ExpandedSheet.kt" } }
+            .forEach { file ->
+                val text = file.readText()
+                fun where(index: Int) = "${file.relativeTo(projectDir)}:${text.substring(0, index).count { it == '\n' } + 1}"
+                rawState.findAll(text).forEach { offenders += "${where(it.range.first)}: ${it.value} (patří do rememberExpandedSheetState)" }
+                sheetCall.findAll(text).forEach { match ->
+                    // Argumenty volání po párovou závorku; `sheetState` musí být mezi nimi.
+                    var depth = 1
+                    var end = match.range.last + 1
+                    while (depth > 0 && end < text.length) {
+                        when (text[end]) {
+                            '(' -> depth++
+                            ')' -> depth--
+                        }
+                        end++
+                    }
+                    if ("sheetState" !in text.substring(match.range.last + 1, end)) {
+                        offenders += "${where(match.range.first)}: ModalBottomSheet bez sheetState"
+                    }
+                }
+            }
+        check(offenders.isEmpty()) {
+            "Modální sheet se otevírá celý: sheetState = rememberExpandedSheetState() (core/ui/ExpandedSheet.kt).\n" +
+                offenders.joinToString("\n")
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyExpandedSheets) }
+
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).
