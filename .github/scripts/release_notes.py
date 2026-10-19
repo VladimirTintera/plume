@@ -132,10 +132,21 @@ def parse(text, name):
     return fields
 
 
+class GitError(subprocess.CalledProcessError):
+    """Chyba gitu i s tím, co git napsal na stderr. Holé CalledProcessError hlásí jen kód
+    (128 = fatální chyba) a důvod — „dubious ownership", mělký klon — zahodí."""
+
+    def __str__(self):
+        return f"{super().__str__()} {(self.stderr or '').strip()}".rstrip()
+
+
 def git(*args):
     # Explicitně UTF-8: `text=True` by dekódoval kódováním systému a české znaky v poznámkách
     # by se na stroji s jiným výchozím kódováním rozsypaly.
-    return subprocess.run(["git", *args], check=True, capture_output=True, encoding="utf-8").stdout
+    result = subprocess.run(["git", *args], capture_output=True, encoding="utf-8")
+    if result.returncode != 0:
+        raise GitError(result.returncode, result.args, result.stdout, result.stderr)
+    return result.stdout
 
 
 def notes_between(prev, tag, unit=None):
