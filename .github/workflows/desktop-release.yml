@@ -40,8 +40,6 @@ permissions:
 
 on:
   push:
-    # DOČASNĚ: ověření self-hosted runnerů před sloučením (workflow_dispatch jde až z main).
-    branches: [ci/self-hosted-runnery]
     tags:
       - 'desktop-*'
   # spouští create-release-tag.yml přes `gh workflow run --ref <tag>`
@@ -63,7 +61,6 @@ jobs:
         id: tag
         run: |
           TAG="${GITHUB_REF_NAME}"
-          [[ "$GITHUB_REF_TYPE" == "branch" ]] && GITHUB_REF_TYPE=tag && TAG="desktop-1.0.0"   # DOČASNĚ
           if [[ "$GITHUB_REF_TYPE" != "tag" || ! "$TAG" =~ ^desktop-(([0-9]+)\.([0-9]+)\.([0-9]+))$ ]] \
             || (( BASH_REMATCH[2] < 1 || BASH_REMATCH[2] > 255 || BASH_REMATCH[3] > 255 || BASH_REMATCH[4] > 65535 )); then
             echo "::error::Workflow musí běžet nad tagem desktop-X.Y.Z (X od 1 do 255 — macOS verzi s nulou na začátku nepřijme —, Y do 255, Z do 65535), např. desktop-1.0.0; běží nad '$TAG'."
@@ -209,19 +206,6 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-      # Daemony z buildu by na vývojářském stroji visely s gigabajty heapu ještě hodiny. Zabíjí
-      # se jen Java z toolcache TOHOHLE runneru — lokální daemony ani jiné instance runneru nic
-      # nepoznají (`./gradlew --stop` by zastavil všechny téže verze Gradlu, i ty z IDE).
-      # Přes PowerShell: poběží i tehdy, když spadl krok Prefer Git Bash a `bash` je WSL.
-      - name: Stop Gradle daemons
-        if: always() && runner.environment == 'self-hosted'
-        shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
-        run: |
-          $tool = Join-Path $env:RUNNER_TOOL_CACHE 'Java_'
-          Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" |
-            Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($tool, [StringComparison]::OrdinalIgnoreCase) } |
-            ForEach-Object { Write-Output "stop $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-
   # Jen Apple Silicon: `macos-latest` je arm64 a jpackage balí pro architekturu JDK, které staví.
   # TDLib z wrapperu tam chce macOS 26 (`minimumSystemVersion` v build.gradle.kts).
   macos:
@@ -316,14 +300,8 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-      # Viz job windows: daemony z buildu po jobu pryč, jen ty z toolcache tohohle runneru.
-      - name: Stop Gradle daemons
-        if: always() && runner.environment == 'self-hosted'
-        run: pkill -f "$RUNNER_TOOL_CACHE/Java_" || true
-
   release:
     needs: [version, windows, macos]
-    if: github.ref_type == 'tag'   # DOČASNĚ
     runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
     timeout-minutes: 10
 

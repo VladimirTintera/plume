@@ -110,10 +110,11 @@ kontrola poznámek na PR a Play Listing; nic z toho nestaví.
   i ostatní runnery: připisoval by se každým během a přebil by nastavení vývojáře. Mac proto
   staví s projektovým `gradle.properties` jako lokálně, HQDEV50 dostane 4g heap z příkazové
   řádky (`-Dorg.gradle.jvmargs`).
-- **Daemony se po jobu zabíjejí, ale jen ty z toolcache runneru** (`$RUNNER_TOOL_CACHE/Java_`,
-  JDK od `setup-java`). Jinak by na vývojářském stroji visel Gradle i Kotlin daemon s gigabajty
-  heapu ještě hodiny. `./gradlew --stop` nejde: zastaví všechny daemony téže verze Gradlu, i ty
-  z IDE.
+- **Daemony po jobu nevisí, uklízí je runner sám** („Cleaning up orphan processes" na konci
+  logu: Gradle i Kotlin daemon z jobu). Vlastní krok na to není potřeba a ani by nešel napsat
+  podle cesty k Javě: daemon běží na toolchainu z `gradle/gradle-daemon-jvm.properties`
+  (`~/.gradle/jdks`, sdílený s lokální prací), ne na JDK od `setup-java`. A `./gradlew --stop`
+  by zastavil všechny daemony téže verze Gradlu, i ty z IDE.
 - **Android SDK si job stáhne sám** (`setup-android` → `~/.android/sdk`; MSI i DMG ho potřebují
   kvůli Android targetu `:client:shared`). Runner nemá `ANDROID_HOME`, takže SDK ze Studia
   (`~/Library/Android/sdk`) zůstává nedotčené.
@@ -162,8 +163,11 @@ mkdir C:\actions-runner-plume; cd C:\actions-runner-plume
 ```
 
 Token platí hodinu a jen pro repo, kde vznikl. `config.cmd` se ptá: runner group výchozí,
-**run as service = Y**, účet služby = **vlastní účet** (ne `NETWORK SERVICE` — ten nevidí
-instalaci Gitu a `~/.gradle`). Bez `gh` na stroji jde token vzít z Macu stejným příkazem.
+**run as service = Y**, účet služby = **vlastní účet**. Výchozí `NETWORK SERVICE` NE: build
+pod ním doběhne až k balení a MSI pak spadne v `light.exe` (validace ICE) s „exited with 216
+code" — ověřeno prvním během. Účet jde přepnout i dodatečně (`services.msc` → Přihlášení, nebo
+`sc.exe config <služba> obj= "DOMÉNA\účet" password= "…"` a restart služby). Bez `gh` na stroji
+jde token vzít z Macu stejným příkazem.
 
 Stroj už má z ostatních instancí Git for Windows, PowerShell 7 (MSI) a dlouhé cesty. Nová
 instance potřebuje jen **`gpg` v PATH služby** (`setup-java` jím ověřuje podpis JDK a počítá

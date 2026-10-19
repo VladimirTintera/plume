@@ -220,14 +220,3 @@ jobs:
               --title "$TAG" \
               --notes-file release-notes.md
           fi
-
-      # Self-hosted Mac je vývojářův stroj: Gradle a Kotlin daemon z buildu by na něm po jobu
-      # visely s gigabajty heapu ještě hodiny. Zabíjí se jen Java z toolcache TOHOHLE runneru
-      # (setup-java), takže lokální daemony ani daemony organizačního runneru vedle nic nepozná.
-      # `./gradlew --stop` by to nešlo — zastaví všechny daemony téže verze Gradlu, i ty z IDE.
-      # Keystore z RUNNER_TEMP runner maže sám na začátku dalšího jobu; tady hned.
-      - name: Clean up self-hosted runner
-        if: always() && runner.environment == 'self-hosted'
-        run: |
-          pkill -f "$RUNNER_TOOL_CACHE/Java_" || true
-          rm -f "$RUNNER_TEMP/upload.jks"
