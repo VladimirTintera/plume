@@ -123,6 +123,21 @@ jobs:
           Write-Output "pwsh: $pwshDir"
           Add-Content -Path $env:GITHUB_PATH -Value $pwshDir -Encoding utf8
 
+      # Git odmítá repozitář, jehož složka patří jinému účtu („dubious ownership", exit 128).
+      # Na HQDEV50 to nastalo po přepnutí služby z NETWORK SERVICE na účet vývojáře: checkout
+      # z prvního běhu zůstal patřit NETWORK SERVICE. `actions/checkout` si složku označí za
+      # důvěryhodnou jen na dobu svého kroku, takže `git tag` z `generateChangelog` padal a desktop
+      # 1.0.0 vyšel bez „Co je nového". Proměnné GIT_CONFIG_* platí jen pro procesy tohohle jobu —
+      # do globálního .gitconfig vývojáře se nic nezapisuje. Cesta s lomítky (`cygpath -m`), jak ji
+      # git porovnává.
+      - name: Trust workspace for git
+        run: |
+          {
+            echo "GIT_CONFIG_COUNT=1"
+            echo "GIT_CONFIG_KEY_0=safe.directory"
+            echo "GIT_CONFIG_VALUE_0=$(cygpath -m "$GITHUB_WORKSPACE")"
+          } >> "$GITHUB_ENV"
+
       # Celá historie + tagy kvůli „Co je nového" zapečenému do aplikace (`generateChangelog`).
       # Mělký klon nad tagem stáhne jen ten jeden tag: build pak projde, ale seznam vydání v MSI
       # je prázdný a nic to nenahlásí.
