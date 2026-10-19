@@ -556,7 +556,22 @@ může poslat sám: Nastavení → Pomoc → „Odeslat diagnostiku hovorů" slo
 - **Ověřeno na Pixelu 5 a Pixelu 7 Pro** (Plume ↔ Plume, minuta hovoru, jeden telefon zhasnutý):
   deník na obou stranách, push 1,96 s po odeslání, hovor známý dřív než push (spojení bylo
   otevřené), přechody do pozadí a zpět, export přes sdílení s hlavičkou. Desktop jen přeložený.
-- **Další krok** (v `docs/roadmap.md`): podrobný výpis WebRTC z vlastního logcatu za hovoru.
+- **Podrobný výpis přenosu (Android, `CallLogCapture`)**: po dobu přenosu (`NtgCallMedia.start`
+  → `stopNow`) čte aplikace vlastní logcat (`logcat -v threadtime --pid=<pid> -T 1`) do
+  `call-journal/detail/<čas>-call<id>.log` a export ho přibalí za deník. **Vlastní logcat smí
+  aplikace číst bez oprávnění** — `logd` jí dá jen řádky vlastního uid; ověřeno na Androidu 14
+  (Pixel 5) i 17 (Pixel 7 Pro), žádný dialog. Po zavěšení proces `logcat` končí (`ps -A`).
+  - **Jen tagy hovoru**: nativní WebRTC (`*.cc`, `*.cpp`, `*.h`) a naše tagy kolem hovoru
+    (`CALL_TAGS`). Zbytek procesu by do souboru, který jde ven, zanesl názvy chatů a podobně.
+    Adresy telefonů WebRTC maskuje samo (`10.61.43.x`), celé jsou jen servery Telegramu.
+  - **Opakování prořezává `RepeatFilter`**: druh zprávy (tag + text bez čísel, hex a obsahu
+    hranatých závorek) projde poprvé a pak nejvýš jednou za minutu s „(+N similar)". Na záznamu
+    dvouapůlhodinového hovoru: 35 MB řádků WebRTC → 1,1 MB (6 040 řádků, 299 druhů); skoro vše
+    byly STUN pingy, pingy na reflectory a znovusbírání na rozhraní bez internetu. Hovor na minutu
+    má kolem 230 řádků (42 kB), většinu ze startu.
+  - **Strop 2 MB na hovor, poslední tři hovory**; nad stropem jen poznámka a dál nic.
+  - **Vnořené závorky se nesmí nahrazovat zase hranatými** (`[]`): vnější `Port[…Net[…]]` by se
+    pak nikdy neodloupal a každá adresa by byla nový druh. Náhrada je `{}`.
 
 ## Vyzvánění a výstup zvuku (Android)
 
