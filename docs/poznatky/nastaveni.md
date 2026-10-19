@@ -130,6 +130,16 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
   detail (stojí na místě sekce), změna čísla nad ní podstránka. Podstránky nesou šipku zpět
   i ve třetím panelu: vrší se nad sebou (Soukromí účtu → jedno nastavení) a zpět vede po
   nich; poslední zpět panel zavře.
+- **Podstránka otevřená ze sekce NAHRADÍ podstránky nad sekcí** (`openSubpage` v
+  `AppNavigation.kt`, testy `SettingsSubpageTest`). Od Medium je sekce vidět vedle podstránky,
+  a dokud se podstránka jen přidávala (hlídalo se jen, jestli nahoře neleží tatáž), stavěly se
+  při přeskakování Dvoufázové ověření, Zámek aplikace a Přístupové klíče přes sebe a zpět pak
+  procházelo všechny (hlášení z desktopu). Je to tentýž vzor jako výběr sekce
+  (`replaceSettingsDetail`): co je vybrané vlevo, je vpravo jednou. Vrší se jen to, co se
+  otevírá z PODSTRÁNKY (Soukromí účtu → jedno nastavení, složky → úprava) — obrazovka pod ní
+  vidět není. Totéž platí pro změnu čísla z úpravy profilu.
+  Ověřeno na emulátoru se zmenšenou hustotou (`wm density 120`, tři panely): po přeskakování
+  mezi třemi podstránkami jedno zpět zavře třetí panel celý.
 - **AI v zařízení se v seznamu ukazuje jen se dostupným modelem** — stejný tok
   (`OnDeviceAi.availability()`) jako uvnitř sekce, ať se rozhodnutí nerozejde.
 - **Co je nového je pořád `SettingsSection`** (otevírá se jako sekce vedle seznamu), jen řádek
