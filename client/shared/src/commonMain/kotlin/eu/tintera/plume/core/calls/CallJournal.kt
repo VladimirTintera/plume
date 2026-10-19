@@ -23,7 +23,8 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 /**
- * Deník hovorů pro diagnostiku: časová osa událostí (push, stavy hovoru, spojení, síť, výstup
+ * Deník hovorů pro diagnostiku (s podrobnými výpisy přenosu v [CALL_DETAIL_DIRECTORY], kde je
+ * platforma umí): časová osa událostí (push, stavy hovoru, spojení, síť, výstup
  * zvuku, popředí) a po vteřinách přenesená data ([CallStatsSampler]). Žádný obsah zpráv, jména
  * ani id účtů — jen to, z čeho jde poznat, KDE se hovor zasekl. Ven jde jen tak, že ho uživatel
  * sám pošle ([export], Nastavení → Pomoc); automaticky se nikam neodesílá.
@@ -92,6 +93,12 @@ class CallJournal(
                 for (part in listOf(previous, current)) {
                     if (fileSystem.exists(part)) fileSystem.read(part) { writeAll(this) }
                 }
+                // Podrobné výpisy přenosu k posledním hovorům (Android, `CallLogCapture`).
+                val details = dir / CALL_DETAIL_DIRECTORY
+                fileSystem.listOrNull(details).orEmpty().filter { it.name.endsWith(".log") }.sortedBy { it.name }.forEach { log ->
+                    writeUtf8("\n===== ${log.name} =====\n")
+                    fileSystem.read(log) { writeAll(this) }
+                }
             }
             target.toString()
         }.onFailure { logger.w(it) { "Deník nejde složit k odeslání." } }.getOrNull()
@@ -138,3 +145,6 @@ class CallJournal(
 
 /** Adresář deníku v datech aplikace; cestu k datům dodává platforma. */
 const val CALL_JOURNAL_DIRECTORY = "call-journal"
+
+/** Podadresář deníku s podrobnými výpisy přenosu, jeden soubor na hovor. */
+const val CALL_DETAIL_DIRECTORY = "detail"

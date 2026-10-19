@@ -60,6 +60,9 @@ class NtgCallMedia internal constructor(
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "ntgcalls") }
     private val uid = Process.myUid()
 
+    /** Podrobný výpis WebRTC k hovoru, přibalí ho export deníku ([CallLogCapture]). */
+    private val logCapture = CallLogCapture(appContext)
+
     private var ntg: NTgCalls? = null
     private var callId = 0L
     private var router: CallAudioRoutes? = null
@@ -130,6 +133,7 @@ class NtgCallMedia internal constructor(
                 ntg = null
                 ensureWebRtcContext()
                 callId = session.callId.toLong()
+                logCapture.start(callId)
                 this.events = events
                 val instance = NTgCalls()
                 ntg = instance
@@ -432,6 +436,7 @@ class NtgCallMedia internal constructor(
     }
 
     private fun stopNow() {
+        logCapture.stop()
         ntg?.let { instance ->
             runCatching { instance.stop(callId) }.onFailure { logger.w(it) { "Zastavení hovoru selhalo." } }
         }
