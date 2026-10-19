@@ -715,6 +715,16 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    - **Play Console: deklarovat typy služby v popředí `camera` a `mediaProjection`** (kamera
      videohovoru a sdílení obrazovky na pozadí) — udělá uživatel, bez toho Play vydání
      s videohovory a sdílením nepustí.
+   - **Celoobrazovková výzva příchozího hovoru v buildu z Play** — na Foldu (Android 17)
+     `USE_FULL_SCREEN_INTENT: deny`, notifikace hovoru má `FSI_REQUESTED_BUT_DENIED`, takže se
+     zhasnutý telefon nerozsvítí na obrazovku hovoru (debug přes adb oprávnění má, proto to
+     testovací telefony neukázaly). Play Console: deklarace oprávnění pro celoobrazovkové
+     notifikace (udělá uživatel); v aplikaci `canUseFullScreenIntent()` a odkaz do nastavení
+     (`ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`), když chybí.
+   - **Zátěžový test hovoru se sondou** — dlouhý hovor data ↔ Wi-Fi (Pixel 5 přes hotspot
+     Foldu, Pixel 7 Pro na Wi-Fi), každá strana posílá známý tón a sonda po vteřinách zapisuje,
+     jestli tón protistrany dorazil, a přenesené bajty (`TrafficStats`). Podnět: hovor
+     s oficiálním klientem na špatné Wi-Fi se po ~20 s sekal; pravděpodobně síť protistrany.
    - **Sdílení obrazovky dál** — v hovoru ve dvou hotové na Androidu (posílá i přijímá)
      a příjem na desktopu (`docs/poznatky/hovory.md`, „Sdílení obrazovky"). Zbývá: posílání
      z desktopu, Android pod 14, otočení telefonu za sdílení. Ukazovátko na sdílené obrazovce hotové
