@@ -523,15 +523,13 @@ zapsané nebylo; seřazené podle toho, jak moc to uživatel pozná.
 **Co dokumentace TDLib přikazuje a Plume nedělá** — malé, ale jde o kontrakt s knihovnou
 a se serverem, takže přednostně:
 
-- **Metriky zobrazení zpráv (`sendMessageViewMetrics`).** Dokumentace říká, že se volání MUSÍ
-  poslat, když zpráva zmizí z obrazovky po víc než 300 ms, obrazovka se zavře nebo zobrazení
-  přesáhne 5 minut. Plume hlásí jen `viewMessages`. Patří vedle hlášení zhlédnutí reklamy
-  (`ConversationListEffects`, `reportSponsoredSeen`).
-- **Streamované odpovědi botů** (`pendingMessageUpdates`, `stopMessageDraftUpdates`,
-  `stopPendingMessage`). AI boti posílají odpověď průběžně jako „rozepsanou" zprávu; Plume ji
-  nekreslí, takže uživatel kouká na prázdný chat, dokud bot nedopíše. Pravidla zobrazení dává
-  dokumentace: nejdéle `pending_text_message_period` sekund, zprávu se stejným `draftId`
-  nahradit s animací, smazat při příchozí zprávě. Plus tlačítko „Zastavit".
+- ~~**Metriky zobrazení zpráv (`sendMessageViewMetrics`)**~~ — hotovo
+  (`docs/poznatky/konverzace-zobrazeni.md`, „Metriky zobrazení"). Zbývá ověřit odchod do
+  pozadí a pětiminutové zobrazení na zařízení (zatím jen testy), iOS a desktop.
+- ~~**Streamované odpovědi botů** (`pendingMessageUpdates`, `stopMessageDraftUpdates`,
+  `stopPendingMessage`)~~ — hotovo i s tlačítkem Zastavit (`docs/poznatky/boti.md`,
+  „Streamované odpovědi botů"; ověřené testovacím botem). Zbývá ověřit iOS a desktop, odpověď
+  v tématu, článek (`messageRichMessage`) a zastavení z jiného zařízení.
 - **Vstup do chatu přes strážního bota.** `TdlChatRepository.joinByInvite` končí
   u `ChatJoinResultDeclined` a `ChatJoinResultGuardBotApprovalRequired` výjimkou, takže uživatel
   dostane jen obecné „nepovedlo se". Schválení botem má otevřít mini aplikaci
