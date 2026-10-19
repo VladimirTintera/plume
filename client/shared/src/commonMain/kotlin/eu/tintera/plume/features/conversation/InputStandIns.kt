@@ -43,8 +43,8 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Místo vstupního pole ve skupině nebo kanálu, kde uživatel není (otevřeno z globálního hledání),
- * a u nespuštěného bota se Start ([label]). Plné tlačítko přes šířku — je to jediná akce,
- * kterou tu jde udělat.
+ * u nespuštěného bota se Start a u zablokovaného protějšku Odblokovat ([label]). Plné tlačítko
+ * přes šířku — je to jediná akce, kterou tu jde udělat.
  */
 @Composable
 internal fun JoinBar(

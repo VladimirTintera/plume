@@ -553,8 +553,7 @@ a se serverem, takže přednostně:
   skupiny Plume nemá vůbec; update chodí jen pro otevřený chat.
 - ~~**Zablokování z jiného zařízení** (`chatBlockListUpdates`)~~ — hotovo: profil, sheet
   smazání v konverzaci a seznam blokovaných (`docs/poznatky/spam-a-blokovani.md`, „Blokování
-  a nahlášení spamu"). V soukromém chatu se zablokovaným chybí „Odblokovat" místo vstupního
-  pole, jako to má oficiální klient.
+  a nahlášení spamu"), i „Odblokovat" místo vstupního pole v chatu se zablokovaným.
 - Drobné: změna nainstalované sady samolepek (`stickerSetUpdates`), počet zpráv v tématu
   Uložených zpráv (`topicMessageCountUpdates`), nepřečtené zprávy v seznamu
   (`unreadMessageCountUpdates`, dnes se počítají chaty).
