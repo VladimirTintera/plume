@@ -166,7 +166,12 @@ Token platí hodinu a jen pro repo, kde vznikl. `config.cmd` se ptá: runner gro
 **run as service = Y**, účet služby = **vlastní účet**. Výchozí `NETWORK SERVICE` NE: build
 pod ním doběhne až k balení a MSI pak spadne v `light.exe` (validace ICE) s „exited with 216
 code" — ověřeno prvním během. Účet jde přepnout i dodatečně (`services.msc` → Přihlášení, nebo
-`sc.exe config <služba> obj= "DOMÉNA\účet" password= "…"` a restart služby). Bez `gh` na stroji
+`sc.exe config <služba> obj= "DOMÉNA\účet" password= "…"` a restart služby). Checkout z běhu pod
+NETWORK SERVICE ale té službě zůstane patřit a git pod novým účtem odmítne „dubious ownership"
+(exit 128) — `actions/checkout` si složku za důvěryhodnou označí jen na dobu svého kroku. Proto
+Windows job krokem *Trust workspace for git* nastaví `safe.directory` přes `GIT_CONFIG_*` jen pro
+své procesy (do `.gitconfig` vývojáře nic nepíše). Bez toho `generateChangelog` nenašel tagy
+a desktop 1.0.0 vyšel s prázdným „Co je nového"; dnes by takový build na CI spadl. Bez `gh` na stroji
 jde token vzít z Macu stejným příkazem.
 
 Stroj už má z ostatních instancí Git for Windows, PowerShell 7 (MSI) a dlouhé cesty. Nová

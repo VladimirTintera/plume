@@ -24,6 +24,9 @@ plugins {
  * - **Bez pythonu nebo gitu se build nesmí rozbít** (cizí stroj, mělký klon): zapíše se prázdný
  *   seznam a sekce řekne, že novinky v téhle sestavě nejsou. Důvod se loguje — tichý fallback by
  *   vypadal jako „žádná vydání".
+ * - **Na CI (`CI` v prostředí) ale build spadne.** Release se staví jen tam a prázdný seznam by
+ *   odešel uživatelům: desktop 1.0.0 vyšel bez „Co je nového", protože git na self-hosted
+ *   Windows runneru skončil chybou a jediná stopa byla řádka v logu, kterou nikdo nečetl.
  *
  * MUSÍ být deklarovaný PŘED blokem `kotlin { }`, který ho přidává do `commonMain`: top-level `val`
  * se v `.kts` inicializují v pořadí deklarace (stejná past jako `releaseKeystoreFile`).
@@ -34,6 +37,7 @@ val generateChangelog = tasks.register("generateChangelog") {
     val script = rootProject.file(".github/scripts/release_notes.py")
     val repoDir = rootProject.projectDir
     val outputDir = layout.buildDirectory.dir("generated/changelog/kotlin")
+    val requireChangelog = System.getenv("CI") != null
     outputs.dir(outputDir)
     outputs.upToDateWhen { false }
 
@@ -66,6 +70,7 @@ val generateChangelog = tasks.register("generateChangelog") {
             }.getOrElse { it.message ?: it.toString() }
         }
         if (failure != null) {
+            if (requireChangelog) throw GradleException("generateChangelog: poznámky k vydání se nezapekly ($failure)")
             logger.lifecycle("generateChangelog: poznámky k vydání se nezapekly ($failure)")
             target.writeText(
                 """
