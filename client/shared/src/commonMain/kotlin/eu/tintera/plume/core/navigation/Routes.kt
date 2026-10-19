@@ -473,6 +473,11 @@ data class WebAppRoute(
     val startParameter: String = "",
     /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`); [url] je pak prázdná. */
     val shortName: String = "",
+    /**
+     * Mini aplikace strážního bota, který schvaluje vstup do chatu (`getGuardBotWebAppUrl`);
+     * id dotazu na vstup, jinak 0. [url] je pak prázdná, [botUserId] je strážní bot.
+     */
+    val guardQueryId: Long = 0,
 ) : Route
 
 /**

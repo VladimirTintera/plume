@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.features.media.PhotoDescriptions
 import eu.tintera.plume.features.conversation.items.EmojiBurst
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.ai.ScamKind
@@ -496,6 +497,8 @@ class ConversationViewModel(
         inviteLinks = inviteLinks,
         reportFlow = reportFlow,
         logger = logger,
+        // `links` vzniká až níž; lambda na něj sáhne teprve při ťuknutí na „Přidat se".
+        awaitGuardBot = { guard, onApproved -> links.awaitGuardBot(guard, onApproved) },
     )
     val chatBar: StateFlow<ChatBar?> get() = chatActions.chatBar
     val videoChat: StateFlow<VideoChatInfo?> get() = chatActions.videoChat
@@ -1701,6 +1704,22 @@ class ConversationViewModel(
             chatRepository.spamActions(chatId)
                 .onSuccess { spam -> _state.update { it.copy(spam = spam) } }
                 .onFailure { failure -> logger.w(failure) { "Volby proti spamu u chatu $chatId se nepodařilo zjistit." } }
+        }
+
+        viewModelScope.launch {
+            // Zablokování odjinud (profil, jiné zařízení): sheet smazání jinak dál nabízel
+            // „a zablokovat" u někoho, kdo už zablokovaný je, nebo naopak ne.
+            chatRepository.blockChanges().filter { it.chatId == chatId }.collect { change ->
+                _state.update { it.copy(spam = it.spam?.copy(isBlocked = change.blocked)) }
+            }
+        }
+
+        viewModelScope.launch {
+            // Ochrana obsahu přepnutá správcem za běhu: výběr textu a akce, které obsah vynášejí
+            // ven, se řídí `protectsContent`, a ten se jinak četl jen při otevření chatu.
+            repository.protectedContentUpdates(chatId).collect { protects ->
+                _state.update { it.copy(info = it.info?.copy(protectsContent = protects)) }
+            }
         }
 
         // Chat s botem: popis do prázdného chatu a tlačítko Start. Ve vlákně komentářů bot není.

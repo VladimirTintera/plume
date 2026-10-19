@@ -6,14 +6,20 @@ import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.CommentThread
 import eu.tintera.plume.core.telegram.ForwardOrigin
+import eu.tintera.plume.core.telegram.GuardDecision
 import eu.tintera.plume.core.telegram.InternalLink
-import eu.tintera.plume.core.telegram.InviteJoinResult
+import eu.tintera.plume.core.telegram.JoinResult
 import eu.tintera.plume.core.telegram.InvitePreview
 import eu.tintera.plume.core.telegram.LinkUserNotFoundException
 import eu.tintera.plume.core.telegram.ProxyConfig
 import eu.tintera.plume.core.telegram.ProxyKind
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.invite_request_sent
+import eu.tintera.plume.resources.join_guard_declined
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -33,10 +39,18 @@ class ConversationLinksTest {
 
     private class FakeChats(
         private val links: Map<String, Result<InternalLink?>>,
-        private val join: Result<InviteJoinResult> = Result.success(InviteJoinResult.Joined(OTHER)),
+        private val join: Result<JoinResult> = Result.success(JoinResult.Joined(OTHER)),
     ) : UnimplementedChatRepository() {
+        /** Rozhodnutí strážního bota; dokud se nedoplní, čekání visí jako na skutečný update. */
+        val guardDecision = CompletableDeferred<GuardDecision>()
+        val awaitedQueries = mutableListOf<Long>()
+
         override suspend fun resolveLink(url: String): Result<InternalLink?> = links[url] ?: Result.success(null)
-        override suspend fun joinByInvite(link: String): Result<InviteJoinResult> = join
+        override suspend fun joinByInvite(link: String): Result<JoinResult> = join
+        override suspend fun awaitGuardDecision(queryId: Long): GuardDecision {
+            awaitedQueries += queryId
+            return guardDecision.await()
+        }
         override suspend fun privateChat(userId: Long): Result<Long> = Result.success(userId + 1000)
     }
 
@@ -213,7 +227,7 @@ class ConversationLinksTest {
         val state = testState()
         val chats = FakeChats(
             mapOf("t.me/+abc" to Result.success(InternalLink.Invite("t.me/+abc", invitePreview()))),
-            join = Result.success(InviteJoinResult.Requested),
+            join = Result.success(JoinResult.Requested),
         )
         val links = links(state, chats)
         links.openLink("t.me/+abc")
@@ -225,6 +239,73 @@ class ConversationLinksTest {
         assertNull(state.value.invite)
         assertNotNull(state.value.notice)
         assertNull(state.value.openChat)
+    }
+
+    private fun TestScope.guardedInvite(state: MutableStateFlow<ConversationState>): Pair<ConversationLinks, FakeChats> {
+        val chats = FakeChats(
+            mapOf("t.me/+abc" to Result.success(InternalLink.Invite("t.me/+abc", invitePreview()))),
+            join = Result.success(JoinResult.GuardBot(botUserId = BOT, queryId = QUERY)),
+        )
+        val links = links(state, chats)
+        links.openLink("t.me/+abc")
+        advanceUntilIdle()
+        links.joinInvite()
+        advanceUntilIdle()
+        return links to chats
+    }
+
+    @Test
+    fun strazniBotOtevreSvouMiniAplikaciAPoSchvaleniChat() = runTest {
+        val state = testState()
+        val (_, chats) = guardedInvite(state)
+
+        assertNull(state.value.invite)
+        assertEquals(WebAppRequest(BOT, url = "", launch = false, guardQueryId = QUERY), state.value.openWebApp)
+        assertEquals(listOf(QUERY), chats.awaitedQueries)
+        assertNull(state.value.openChat)
+
+        chats.guardDecision.complete(GuardDecision.Approved(OTHER))
+        advanceUntilIdle()
+        assertEquals(ChatTarget(OTHER), state.value.openChat)
+    }
+
+    @Test
+    fun odmitnutiStraznimBotemMaVlastniVetu() = runTest {
+        val state = testState()
+        val (_, chats) = guardedInvite(state)
+
+        chats.guardDecision.complete(GuardDecision.Declined)
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.join_guard_declined), state.value.error)
+        assertNull(state.value.openChat)
+    }
+
+    @Test
+    fun odlozeniStraznimBotemJeZadost() = runTest {
+        val state = testState()
+        val (_, chats) = guardedInvite(state)
+
+        chats.guardDecision.complete(GuardDecision.Queued)
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.invite_request_sent), state.value.notice)
+        assertNull(state.value.openChat)
+    }
+
+    @Test
+    fun okamziteOdmitnutiNeniObecnaChyba() = runTest {
+        val state = testState()
+        val chats = FakeChats(
+            mapOf("t.me/+abc" to Result.success(InternalLink.Invite("t.me/+abc", invitePreview()))),
+            join = Result.success(JoinResult.Declined),
+        )
+        val links = links(state, chats)
+        links.openLink("t.me/+abc")
+        advanceUntilIdle()
+
+        links.joinInvite()
+        advanceUntilIdle()
+        assertNull(state.value.invite)
+        assertEquals(UiText(Res.string.join_guard_declined), state.value.error)
     }
 
     @Test
@@ -334,5 +415,7 @@ class ConversationLinksTest {
 
     private companion object {
         const val OTHER = 200L
+        const val BOT = 500L
+        const val QUERY = 77L
     }
 }

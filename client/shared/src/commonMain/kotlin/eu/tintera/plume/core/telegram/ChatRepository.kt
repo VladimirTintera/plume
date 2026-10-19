@@ -1,6 +1,8 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlin.time.Duration
 import kotlinx.coroutines.flow.StateFlow
@@ -110,7 +112,21 @@ interface ChatRepository {
     suspend fun resolveLink(url: String): Result<InternalLink?>
 
     /** Přidá se do chatu přes pozvánku ([InternalLink.Invite]). */
-    suspend fun joinByInvite(link: String): Result<InviteJoinResult>
+    suspend fun joinByInvite(link: String): Result<JoinResult>
+
+    /**
+     * Počká, jak strážní bot rozhodne o vstupu [JoinResult.GuardBot] s [queryId]. Rozhodnutí,
+     * které přišlo dřív, než se začalo čekat, se neztratí (pár posledních si repository drží).
+     * Když uživatel mini aplikaci zavře bez rozhodnutí, nepřijde nikdy — čekání patří do scope,
+     * který s obrazovkou skončí.
+     */
+    suspend fun awaitGuardDecision(queryId: Long): GuardDecision = awaitCancellation()
+
+    /**
+     * Zablokování a odblokování odkudkoli, i z jiného zařízení (`updateChatBlockList`).
+     * [BlockChange.chatId] je u člověka zároveň id uživatele.
+     */
+    fun blockChanges(): Flow<BlockChange> = emptyFlow()
 
     /**
      * Přidá sdílenou složku z pozvánky ([InternalLink.FolderInvite]) a přidá se do [chatIds] —
@@ -445,6 +461,9 @@ data class BlockedSender(
 
 /** Stránka seznamu blokovaných; [totalCount] je počet v celém seznamu, ne na stránce. */
 data class BlockedSendersPage(val senders: List<BlockedSender>, val totalCount: Int)
+
+/** Chat (u člověka jeho soukromý chat, id = id uživatele) přibyl na hlavní seznam blokovaných, nebo z něj zmizel. */
+data class BlockChange(val chatId: Long, val blocked: Boolean)
 
 /**
  * Co jde s chatem udělat proti spamu. Zjišťuje se na dotaz, ne v seznamu — viz

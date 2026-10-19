@@ -499,3 +499,36 @@ zobrazí a zprostředkuje její události.
   otevření z vlastní klávesnice (ukázka tam hlásí „zavřeno" — objednávat dovolí jen s `query_id`
   z `openWebApp`, to je vlastnost ukázky). **Neověřeno**: popup, vlastní metody, `web_app_data_send`,
   odkaz na Telegram z mini aplikace a iOS (jen přeložené).
+
+## Strážní bot u vstupu do chatu
+
+Skupina nebo kanál může vstup svěřit botovi („guard bot"): `joinChatByInviteLink` i `joinChat`
+pak místo přidání vrátí `chatJoinResultGuardBotApprovalRequired` (bot a id dotazu), případně
+rovnou `chatJoinResultDeclined`. Doménově je to `JoinResult.GuardBot` / `JoinResult.Declined`,
+převod jeden pro obě volání (`ChatJoinResult.toJoinResult` v `TdlChatRepository`).
+
+- **Schvaluje mini aplikace bota** (`getGuardBotWebAppUrl` s id dotazu, `WebAppRoute.guardQueryId`,
+  `WebAppRepository.guardUrl`). Spuštění nemá, souhlas napoprvé u bota se ukáže jako u každé
+  jiné mini aplikace (stránka dostane údaje o účtu stejně). Odkaz zvenčí pod ni nevkládá chat
+  s botem (`openExternal`): strážní bot jen schvaluje vstup jinam, zpět má vést tam, odkud
+  uživatel přišel.
+- **Rozhodnutí přijde updatem** (`updateChatJoinResult`: schváleno s id chatu, odmítnuto,
+  odloženo) a TDLib přikazuje mini aplikaci zavřít, je-li ještě otevřená. Zavře se tedy sama
+  (`WebAppViewModel`, `awaitGuardDecision` → `Close`), ale **co dál, řeší ten, kdo vstup začal**:
+  konverzace otevře schválený chat nad sebou (`ConversationLinks.awaitGuardBot`), tlačítko
+  „Přidat se" vrátí vstupní pole, odkaz zvenčí otevře chat nad srovnaným zásobníkem. Odmítnutí
+  má vlastní větu („Bot, který chat hlídá, vstup nepovolil"), odložení je táž hláška jako
+  žádost u pozvánky se schválením. Mini aplikace neví, odkud ji kdo otevřel, a navigaci by
+  musela dělat dvakrát.
+- **Rozhodnutí se nesmí minout**, ani kdyby přišlo dřív, než volající začne čekat:
+  `TdlChatRepository` update odebírá od startu do `MutableSharedFlow` s posledními osmi
+  rozhodnutími a `awaitGuardDecision` hledá i mezi nimi. Zavře-li uživatel mini aplikaci bez
+  rozhodnutí, update nepřijde a čekání skončí se scope volajícího (konverzace, ViewModel odkazů).
+- **Dřív to skončilo obecným „Přidat se nepodařilo"**: `joinByInvite` z obou výsledků dělal
+  výjimku s českou větou (navíc proti pravidlu o hláškách) a `joinChat` výsledek zahazoval, takže
+  tlačítko „Přidat se" tvářilo jako úspěch, i když se nestalo nic.
+- **Ověřené jen testy** (`ConversationLinksTest`, `ConversationChatActionsTest`), na zařízení
+  NE. Testovací účet nezná skupinu se strážním botem. Vlastní by šla založit
+  (`toggleSupergroupJoinByRequest` s `guardBotUserId`), jenže bot musí mít
+  `userTypeBot.isGuard` (nastavuje se mimo TDLib, u BotFathera), práva správce se zváním
+  a vstupovat musí DRUHÝ účet — vlastník do své skupiny vstupovat nemůže.

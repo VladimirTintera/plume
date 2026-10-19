@@ -125,7 +125,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun translateMessage(chatId: Long, messageId: Long, languageCode: String) : Result<MessageBody> = error("translateMessage")
     override suspend fun sender(senderId: Long) : Result<SenderInfo> = error("sender")
     override suspend fun sponsoredMessages(chatId: Long) : Result<List<SponsoredMessage>> = error("sponsoredMessages")
-    override suspend fun joinChat(chatId: Long) : Result<Unit> = error("joinChat")
+    override suspend fun joinChat(chatId: Long) : Result<JoinResult> = error("joinChat")
     override suspend fun reportSponsoredView(chatId: Long, messageId: Long) : Result<Unit> = error("reportSponsoredView")
     override suspend fun reportSponsoredClick(chatId: Long, messageId: Long) : Result<Unit> = error("reportSponsoredClick")
     override suspend fun reportViewMetrics(chatId: Long, metrics: MessageViewMetrics) : Result<Unit> = error("reportViewMetrics")

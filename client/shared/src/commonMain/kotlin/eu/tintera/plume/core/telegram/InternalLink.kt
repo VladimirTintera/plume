@@ -188,10 +188,29 @@ data class InvitePreview(
     val createsJoinRequest: Boolean,
 )
 
-/** Výsledek přidání se přes pozvánku. */
-sealed interface InviteJoinResult {
-    data class Joined(val chatId: Long) : InviteJoinResult
+/** Výsledek přidání se do chatu, přes pozvánku i tlačítkem „Přidat se". */
+sealed interface JoinResult {
+    data class Joined(val chatId: Long) : JoinResult
 
     /** Pozvánka vyžaduje schválení; žádost odešla a čeká na správce. */
-    data object Requested : InviteJoinResult
+    data object Requested : JoinResult
+
+    /** Strážní bot chatu vstup rovnou odmítl. */
+    data object Declined : JoinResult
+
+    /**
+     * Chat hlídá strážní bot: vstup schvaluje jeho mini aplikace (`getGuardBotWebAppUrl`
+     * s [queryId]). Jak to dopadlo, řekne [ChatRepository.awaitGuardDecision].
+     */
+    data class GuardBot(val botUserId: Long, val queryId: Long) : JoinResult
+}
+
+/** Jak strážní bot rozhodl o vstupu (`updateChatJoinResult`). */
+sealed interface GuardDecision {
+    data class Approved(val chatId: Long) : GuardDecision
+
+    data object Declined : GuardDecision
+
+    /** Bot rozhodnutí odložil: žádost čeká na správce, jako u pozvánky se schválením. */
+    data object Queued : GuardDecision
 }

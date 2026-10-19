@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.location.GeoPoint
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * Přístup k obsahu jedné konverzace.
@@ -1036,8 +1037,18 @@ interface ConversationRepository {
      */
     suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>>
 
-    /** Přidá se k veřejné skupině nebo kanálu (nalezenému v globálním hledání). */
-    suspend fun joinChat(chatId: Long): Result<Unit>
+    /**
+     * Přidá se k veřejné skupině nebo kanálu (nalezenému v globálním hledání). I tady může vstup
+     * hlídat strážní bot ([JoinResult.GuardBot]) nebo schvalovat správce ([JoinResult.Requested]).
+     */
+    suspend fun joinChat(chatId: Long): Result<JoinResult>
+
+    /**
+     * Správce zapnul nebo vypnul ochranu obsahu (`updateChatHasProtectedContent`).
+     * [ChatInfo.protectsContent] se čte jednou při otevření; bez odběru by výběr textu zůstal
+     * zapnutý i v chatu, který mezitím obsah ochránil.
+     */
+    fun protectedContentUpdates(chatId: Long): Flow<Boolean> = emptyFlow()
 
     /**
      * Nahlásí, že uživatel sponzorovanou zprávu viděl.

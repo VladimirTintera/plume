@@ -2618,8 +2618,11 @@ class TdlConversationRepository(
             .collect { emit(it.status.toPresence()) }
     }
 
-    override suspend fun joinChat(chatId: Long): Result<Unit> =
-        client.joinChat(chatId = chatId).toResult().map { }
+    override suspend fun joinChat(chatId: Long): Result<JoinResult> =
+        client.joinChat(chatId = chatId).toResult().map { it.toJoinResult() }
+
+    override fun protectedContentUpdates(chatId: Long): Flow<Boolean> =
+        holder.updates { chatHasProtectedContentUpdates }.filter { it.chatId == chatId }.map { it.hasProtectedContent }
 
     override suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>> =
         if (forumTopicId != null) Result.success(emptyList()) else client.getChatSponsoredMessages(chatId = chatId)

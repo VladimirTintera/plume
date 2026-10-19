@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatBar
+import eu.tintera.plume.core.telegram.JoinResult
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.core.telegram.SpamBar
@@ -15,6 +16,8 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_blocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.conversation_join_failed
+import eu.tintera.plume.resources.invite_request_sent
+import eu.tintera.plume.resources.join_guard_declined
 import eu.tintera.plume.resources.profile_mute_failed
 import eu.tintera.plume.resources.spam_bar_contact_added
 import eu.tintera.plume.resources.spam_bar_failed
@@ -37,11 +40,11 @@ import kotlinx.coroutines.test.runTest
 class ConversationChatActionsTest {
 
     private class FakeRepository : UnimplementedConversationRepository() {
-        var joinResult: Result<Unit> = Result.success(Unit)
+        var joinResult: Result<JoinResult> = Result.success(JoinResult.Joined(TEST_CHAT))
         var join: CompletableDeferred<Unit>? = null
         var joins = 0
 
-        override suspend fun joinChat(chatId: Long): Result<Unit> {
+        override suspend fun joinChat(chatId: Long): Result<JoinResult> {
             joins++
             join?.await()
             return joinResult
@@ -90,6 +93,9 @@ class ConversationChatActionsTest {
     private var reportAnswer: ReportStep = ReportStep.Done
     private val reported = mutableListOf<Long>()
 
+    /** Strážní boti, na které se čeká, a co se má stát po jejich schválení. */
+    private val guards = mutableListOf<Pair<JoinResult.GuardBot, (Long) -> Unit>>()
+
     private fun TestScope.actions(state: MutableStateFlow<ConversationState>, threadRootId: Long? = null) =
         ConversationChatActions(
             chatId = TEST_CHAT,
@@ -104,6 +110,7 @@ class ConversationChatActionsTest {
                 Result.success(reportAnswer)
             },
             logger = testLogger,
+            awaitGuardBot = { guard, onApproved -> guards += guard to onApproved },
         )
 
     private val spamBar = SpamBar(canReportSpam = true, canBlock = true, canAddContact = true)
@@ -173,6 +180,41 @@ class ConversationChatActionsTest {
         assertEquals(UiText(Res.string.conversation_join_failed), state.value.error)
         assertEquals(true, state.value.info?.canJoin)
         assertFalse(state.value.joining)
+    }
+
+    @Test
+    fun zadostOVstupNechaTlacitkoAOhlasiSe() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo(isChannel = false, canJoin = true)))
+        repository.joinResult = Result.success(JoinResult.Requested)
+        actions(state).join()
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.invite_request_sent), state.value.notice)
+        assertEquals(true, state.value.info?.canJoin, "dokud správce nerozhodne, členem není")
+    }
+
+    @Test
+    fun strazniBotPrevezmeVstupAPoSchvaleniVratiPole() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo(isChannel = false, canJoin = true)))
+        val guard = JoinResult.GuardBot(botUserId = 500, queryId = 77)
+        repository.joinResult = Result.success(guard)
+        actions(state).join()
+        advanceUntilIdle()
+        assertEquals(guard, guards.single().first)
+        assertEquals(true, state.value.info?.canJoin)
+        assertFalse(state.value.joining)
+
+        guards.single().second(TEST_CHAT)
+        assertEquals(false, state.value.info?.canJoin)
+    }
+
+    @Test
+    fun okamziteOdmitnutiBotemMaVlastniVetu() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo(isChannel = false, canJoin = true)))
+        repository.joinResult = Result.success(JoinResult.Declined)
+        actions(state).join()
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.join_guard_declined), state.value.error)
+        assertEquals(true, state.value.info?.canJoin)
     }
 
     @Test

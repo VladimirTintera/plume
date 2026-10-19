@@ -46,6 +46,10 @@ import dev.g000sha256.tdl.dto.InternalLinkTypeBotStartInGroup
 import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterChannel
 import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterGroup
 import dev.g000sha256.tdl.dto.SearchMessagesChatTypeFilterPrivate
+import dev.g000sha256.tdl.dto.ChatJoinRequestResultApproved
+import dev.g000sha256.tdl.dto.ChatJoinRequestResultDeclined
+import dev.g000sha256.tdl.dto.ChatJoinRequestResultQueued
+import dev.g000sha256.tdl.dto.ChatJoinResult
 import dev.g000sha256.tdl.dto.ChatJoinResultGuardBotApprovalRequired
 import dev.g000sha256.tdl.dto.ChatJoinResultDeclined
 import dev.g000sha256.tdl.dto.ChatJoinResultRequestSent
@@ -140,12 +144,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.emitAll
@@ -322,6 +328,13 @@ class TdlChatRepository(
     private val premium = MutableStateFlow(false)
     override val isPremium: StateFlow<Boolean> = premium.asStateFlow()
 
+    /**
+     * Rozhodnutí strážních botů (`updateChatJoinResult`) jako dvojice id dotazu a výsledku.
+     * Odebírá se od startu a pár posledních se pamatuje: kdo začne čekat až po odpovědi na
+     * `joinChat`, nesmí rozhodnutí minout, ani kdyby bot schválil hned.
+     */
+    private val guardDecisions = MutableSharedFlow<Pair<Long, GuardDecision>>(replay = GUARD_DECISIONS_KEPT)
+
     /** Odpočty zhasnutí „píše…", jeden na chat. */
     private val activityTimers = mutableMapOf<Long, Job>()
 
@@ -491,6 +504,18 @@ class TdlChatRepository(
         scope.launch {
             holder.updates { chatViewAsTopicsUpdates }.collect { update ->
                 edit(update.chatId) { it.copy(viewAsTopics = update.viewAsTopics) }
+            }
+        }
+
+        scope.launch {
+            holder.updates { chatJoinResultUpdates }.collect { update ->
+                val decision = when (update.result) {
+                    is ChatJoinRequestResultApproved -> GuardDecision.Approved(update.chatId)
+                    is ChatJoinRequestResultDeclined -> GuardDecision.Declined
+                    is ChatJoinRequestResultQueued -> GuardDecision.Queued
+                }
+                logger.i { "Strážní bot rozhodl o vstupu ${update.queryId}: $decision" }
+                guardDecisions.emit(update.queryId to decision)
             }
         }
 
@@ -971,18 +996,14 @@ class TdlChatRepository(
                 }
         }
 
-    override suspend fun joinByInvite(link: String): Result<InviteJoinResult> =
-        client.joinChatByInviteLink(inviteLink = link).toResult().mapCatching { result ->
-            when (result) {
-                is ChatJoinResultSuccess -> InviteJoinResult.Joined(result.chatId)
-                // Pozvánka se schválením: žádost odešla a čeká na správce.
-                is ChatJoinResultRequestSent -> InviteJoinResult.Requested
-                // Odmítnutí a schvalování botem („guard bot") neumíme dokončit — hlásí se jako
-                // nepovedené přidání.
-                is ChatJoinResultDeclined -> error("Přidání do chatu bylo odmítnuto.")
-                is ChatJoinResultGuardBotApprovalRequired -> error("Přidání vyžaduje schválení botem.")
-            }
-        }
+    override suspend fun joinByInvite(link: String): Result<JoinResult> =
+        client.joinChatByInviteLink(inviteLink = link).toResult().map { it.toJoinResult() }
+
+    override suspend fun awaitGuardDecision(queryId: Long): GuardDecision =
+        guardDecisions.first { it.first == queryId }.second
+
+    override fun blockChanges(): Flow<BlockChange> =
+        holder.updates { chatBlockListUpdates }.map { BlockChange(it.chatId, blocked = it.blockList != null) }
 
     override suspend fun addFolderByInvite(link: String, chatIds: List<Long>): Result<Unit> =
         client.addChatFolderByInviteLink(inviteLink = link, chatIds = chatIds.toLongArray()).toResult().map { }
@@ -1929,6 +1950,21 @@ private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
     )
     is ChatActionBarAddContact -> SpamBar(canReportSpam = false, canBlock = false, canAddContact = true)
     else -> null
+}
+
+/** Kolik posledních rozhodnutí strážních botů se pamatuje pro pozdě příchozí čekání. */
+private const val GUARD_DECISIONS_KEPT = 8
+
+/**
+ * Výsledek `joinChat` i `joinChatByInviteLink`. Obě volání vracejí totéž a strážní bot může
+ * hlídat chat bez ohledu na to, jak se do něj vstupuje.
+ */
+internal fun ChatJoinResult.toJoinResult(): JoinResult = when (this) {
+    is ChatJoinResultSuccess -> JoinResult.Joined(chatId)
+    // Pozvánka nebo veřejná skupina se schválením: žádost odešla a čeká na správce.
+    is ChatJoinResultRequestSent -> JoinResult.Requested
+    is ChatJoinResultDeclined -> JoinResult.Declined
+    is ChatJoinResultGuardBotApprovalRequired -> JoinResult.GuardBot(botUserId = botUserId, queryId = queryId)
 }
 
 /** Kladné id je uživatel, záporné chat — konvence [BlockedSender.id] a [SenderInfo.id]. */

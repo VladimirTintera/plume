@@ -42,6 +42,12 @@ interface WebAppRepository {
     /** Mini aplikace z tlačítka vlastní klávesnice bota (`keyboardButtonTypeWebApp`); bez spuštění. */
     suspend fun keyboardUrl(botUserId: Long, url: String, theme: WebAppTheme): Result<String>
 
+    /**
+     * Mini aplikace strážního bota, který schvaluje vstup do chatu ([JoinResult.GuardBot]).
+     * Spuštění nemá; zavřít se musí, až přijde rozhodnutí ([ChatRepository.awaitGuardDecision]).
+     */
+    suspend fun guardUrl(queryId: Long, theme: WebAppTheme): Result<String>
+
     suspend fun close(launchId: Long)
 
     /** Data z mini aplikace otevřené tlačítkem vlastní klávesnice (`web_app_data_send`). */

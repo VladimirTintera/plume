@@ -16,7 +16,7 @@ import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.core.telegram.SpamBar
 import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.InternalLink
-import eu.tintera.plume.core.telegram.InviteJoinResult
+import eu.tintera.plume.core.telegram.JoinResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

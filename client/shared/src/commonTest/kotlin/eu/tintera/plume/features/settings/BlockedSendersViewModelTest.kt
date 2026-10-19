@@ -1,11 +1,13 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.telegram.BlockChange
 import eu.tintera.plume.core.telegram.BlockedSender
 import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.features.chats.FakeChatRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -32,8 +34,10 @@ class BlockedSendersViewModelTest {
     private fun sender(id: Long) = BlockedSender(id, "Odesílatel $id", null, ChatKind.Private, null, false)
 
     /** Server, který po odblokování ještě chvíli vrací starý seznam. */
-    private class StaleServer(private val senders: List<BlockedSender>) : FakeChatRepository() {
+    private class StaleServer(var senders: List<BlockedSender>) : FakeChatRepository() {
         val changes = mutableListOf<Pair<Long, Boolean>>()
+        val blockUpdates = MutableSharedFlow<BlockChange>()
+        override fun blockChanges() = blockUpdates
         override suspend fun blockedSenders(offset: Int, limit: Int) =
             Result.success(BlockedSendersPage(senders, senders.size))
         override suspend fun setSenderBlocked(senderId: Long, blocked: Boolean): Result<Unit> {
@@ -72,5 +76,46 @@ class BlockedSendersViewModelTest {
 
         assertEquals(listOf(1L, 2L), viewModel.state.value.senders?.map { it.id })
         assertEquals(listOf(1L to false, 1L to true), server.changes)
+    }
+
+    @Test
+    fun blokovaniOdjinudSeznamObnovi() = runTest {
+        val server = StaleServer(listOf(sender(1)))
+        val viewModel = BlockedSendersViewModel(server)
+        viewModel.reload()
+        advanceUntilIdle()
+
+        server.senders = listOf(sender(1), sender(3))
+        server.blockUpdates.emit(BlockChange(chatId = 3, blocked = true))
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L, 3L), viewModel.state.value.senders?.map { it.id })
+    }
+
+    @Test
+    fun znovuZablokovanyOdjinudSeVratiIPoOdblokovaniTady() = runTest {
+        val server = StaleServer(listOf(sender(1), sender(2)))
+        val viewModel = BlockedSendersViewModel(server)
+        viewModel.reload()
+        advanceUntilIdle()
+        viewModel.unblock(sender(1))
+        advanceUntilIdle()
+
+        server.blockUpdates.emit(BlockChange(chatId = 1, blocked = true))
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L, 2L), viewModel.state.value.senders?.map { it.id })
+    }
+
+    @Test
+    fun nenactenySeznamSeKvuliZmeneNecte() = runTest {
+        val server = StaleServer(listOf(sender(1)))
+        val viewModel = BlockedSendersViewModel(server)
+        advanceUntilIdle()
+
+        server.blockUpdates.emit(BlockChange(chatId = 1, blocked = true))
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.state.value.senders)
     }
 }

@@ -19,7 +19,7 @@ import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.InternalLink
-import eu.tintera.plume.core.telegram.InviteJoinResult
+import eu.tintera.plume.core.telegram.JoinResult
 import kotlinx.coroutines.flow.Flow
 import eu.tintera.plume.core.telegram.SpeechTrial
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +50,7 @@ open class FakeChatRepository(
 
     override suspend fun resolveLink(url: String): Result<InternalLink?> = Result.success(null)
 
-    override suspend fun joinByInvite(link: String): Result<InviteJoinResult> =
+    override suspend fun joinByInvite(link: String): Result<JoinResult> =
         Result.failure(UnsupportedOperationException())
 
     override suspend fun chatByUsername(username: String): Result<Long> =
