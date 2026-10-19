@@ -1,22 +1,14 @@
 package eu.tintera.plume.features.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,92 +48,81 @@ fun DeleteAccountScreen(viewModel: DeleteAccountViewModel, onBack: () -> Unit, m
     val state by viewModel.state.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
 
-    val scrollBehavior = settingsScrollBehavior()
-    Scaffold(
-        modifier = modifier.settingsScroll(scrollBehavior),
-        topBar = {
-            SettingsTopBar(title = stringResource(Res.string.delete_account_title), onBack = onBack, scrollBehavior = scrollBehavior)
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .settingsContentPadding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 16.dp)),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    SettingsPage(
+        title = stringResource(Res.string.delete_account_title),
+        onBack = onBack,
+        modifier = modifier,
+    ) {
+        SettingsPageHeader(title = null, text = stringResource(Res.string.delete_account_intro))
+        Text(
+            stringResource(Res.string.delete_account_undo),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+        )
+        Text(
+            stringResource(Res.string.delete_account_away),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        BlockTextField(
+            value = viewModel.reason,
+            onValueChange = viewModel::onReasonChange,
+            placeholder = Res.string.delete_account_reason,
+            isError = false,
+            keyboardType = KeyboardType.Text,
+            imeAction = ImeAction.Done,
+            onSubmit = { focusManager.clearFocus() },
+        )
+
+        when (state.needsPassword) {
+            true -> {
+                Text(
+                    stringResource(Res.string.delete_account_password),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                PasswordField(
+                    value = viewModel.password,
+                    isError = state.error != null,
+                    onValueChange = viewModel::onPasswordChange,
+                    onSubmit = viewModel::requestDelete,
+                )
+            }
+            false -> Unit
+            null -> if (state.statusFailed) {
+                Text(
+                    stringResource(Res.string.delete_account_status_failed),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = viewModel::loadStatus, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.delete_account_retry)) }
+            } else {
+                LoadingIndicator()
+            }
+        }
+
+        state.error?.let {
+            Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        }
+
+        // Nevratná akce: chybová role a potvrzení s následkem, jako odhlášení.
+        MediumButton(
+            onClick = {
+                focusManager.clearFocus()
+                viewModel.requestDelete()
+            },
+            enabled = viewModel.canDelete,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+            ),
         ) {
-            Text(stringResource(Res.string.delete_account_intro), style = MaterialTheme.typography.bodyLarge)
-            Text(
-                stringResource(Res.string.delete_account_undo),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.error,
-            )
-            Text(
-                stringResource(Res.string.delete_account_away),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            BlockTextField(
-                value = viewModel.reason,
-                onValueChange = viewModel::onReasonChange,
-                placeholder = Res.string.delete_account_reason,
-                isError = false,
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Done,
-                onSubmit = { focusManager.clearFocus() },
-            )
-
-            when (state.needsPassword) {
-                true -> {
-                    Text(
-                        stringResource(Res.string.delete_account_password),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    PasswordField(
-                        value = viewModel.password,
-                        isError = state.error != null,
-                        onValueChange = viewModel::onPasswordChange,
-                        onSubmit = viewModel::requestDelete,
-                    )
-                }
-                false -> Unit
-                null -> if (state.statusFailed) {
-                    Text(
-                        stringResource(Res.string.delete_account_status_failed),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    TextButton(onClick = viewModel::loadStatus, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.delete_account_retry)) }
-                } else {
-                    LoadingIndicator()
-                }
-            }
-
-            state.error?.let {
-                Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-            }
-
-            // Nevratná akce: chybová role a potvrzení s následkem, jako odhlášení.
-            MediumButton(
-                onClick = {
-                    focusManager.clearFocus()
-                    viewModel.requestDelete()
-                },
-                enabled = viewModel.canDelete,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-            ) {
-                if (state.busy) {
-                    LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onError)
-                } else {
-                    Text(stringResource(Res.string.delete_account_button))
-                }
+            if (state.busy) {
+                LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onError)
+            } else {
+                Text(stringResource(Res.string.delete_account_button))
             }
         }
     }

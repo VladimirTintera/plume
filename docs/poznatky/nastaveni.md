@@ -207,6 +207,25 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
   hlavičky a ve třetím panelu stál vedle velkého nadpisu sekce. „Uložit" v hlavičce je plné
   tlačítko s tvarem (`SaveActionButton`), ne `TextButton` — hlavní akce obrazovky se mezi ikonami
   lišty neodlišila.
+- **Stránky s obsahem mají jednu kostru** (`SettingsPage.kt`, říjen 2026): dvoufázové
+  ověření, zámek aplikace, přístupové klíče, přihlašovací e-mail, změna čísla, smazání účtu.
+  `SettingsPage` (hlavička, sloupec s okrajem a mezerami 16 dp, spodní inset ve scrollu),
+  `SettingsPageHeader` (odznak zabezpečení jen na stránce stavu, nadpis `headlineSmall`,
+  vysvětlení — vlevo), `SettingsPageActions` (tlačítka kroku), `SettingsPageLoading`
+  a `SettingsActionRow` (akce v bloku; nevratná chybovou barvou za `GroupBreak()`).
+  - **Proč:** každá stránka si sloupec skládala sama a zámek aplikace se rozešel se vším ostatním
+    — vycentrovaný úvod přes celou výšku, okraj 24 dp, bez scrollu a sbalování hlavičky, správa
+    bez nadpisu stavu a vypnutí jako červené tlačítko pod blokem. O řádek vedle stojící dvoufázové
+    ověření mělo hlavičku vlevo a vypnutí jako řádek ve vlastním bloku; vedle sebe to vypadalo
+    jako dvě aplikace (hlášení od uživatele).
+  - **Stav nahoře, pak blok, nevratné zvlášť:** vypnutá stránka = odznak, „X je vypnuté", věta
+    a `MediumButton` přes celou šířku; zapnutá = odznak, „X je zapnuté", blok voleb, za
+    `GroupBreak()` vypnutí. Kdo přidává další stránku zabezpečení, skládá ji stejně.
+  - **Krok průvodce má nadpis vždycky** (`SettingsPageHeader` bez ikony): změna čísla začínala
+    holým odstavcem a nadpis měla až u kódu.
+  - **Číselník PINu scrollovat nemá** (`scrollable = false`, krok s `weight(1f)`): puntíky
+    nahoře, číselník dole, jako obrazovka zámku. Hlavička se pak nesbaluje.
+  - Texty zámku aplikace byly jako jediné ve vykání („Zadejte PIN"); zbytek aplikace tyká.
 - **Řádek nese klikání celý, ovládací prvek má `onClick = null`.** Do přepínače ani kolečka se
   nemá trefovat a čtečka obrazovky má číst jednu položku, ne dvě; semantiku dodá
   `selectable(role = RadioButton)` / `toggleable(role = Switch)`.
