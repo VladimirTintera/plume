@@ -441,10 +441,10 @@ přihlášení" (`LaunchAtLogin`, na mobilech a zatím na macOS a Linuxu `suppor
 ## Release
 
 Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag
-`desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na `windows-latest`
-postaví MSI (`packageMsi -PdesktopVersion=…`), na `macos-latest` DMG pro Apple Silicon
-(`packageDmg`, příloha `Plume-X.Y.Z-macos-arm64.dmg`) a na Ubuntu založí GitHub Release s obojím
-v příloze. Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
+`desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na HQDEV50 postaví
+MSI (`packageMsi -PdesktopVersion=…`), na vývojářském Macu DMG pro Apple Silicon
+(`packageDmg`, příloha `Plume-X.Y.Z-macos-arm64.dmg`) a založí GitHub Release s obojím
+v příloze. Runnery jsou vlastní, viz „Self-hosted runnery" v `release.md`. Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
 
 - **Tag je `desktop-X.Y.Z`, bez čísla buildu** (Android má `android-X.Y.Z-B`). MSI pozná
   aktualizaci jen podle X.Y.Z (X a Y do 255, Z do 65535) a podle `upgradeUuid`
@@ -482,8 +482,8 @@ v příloze. Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH
 
 ### macOS (DMG)
 
-- **Jen Apple Silicon.** jpackage balí pro architekturu JDK, které staví, a `macos-latest` je
-  arm64 (job to na začátku ověří `uname -m`). TDLib z wrapperu tam chce macOS 26, proto
+- **Jen Apple Silicon.** jpackage balí pro architekturu JDK, které staví, a Mac runneru
+  (i záložní `macos-latest`) je arm64 (job to na začátku ověří `uname -m`). TDLib z wrapperu tam chce macOS 26, proto
   `minimumSystemVersion` v `build.gradle.kts` (arm64 26.0, x64 15.0) — dřív bylo v `Info.plist`
   výchozí 10.13 a aplikace by na starším systému naběhla a spadla až při nahrání TDLib.
 - **Homebrew `openssl@3` na runneru** kvůli přepisu jaru TDLib (výš, „TDLib na desktopu").

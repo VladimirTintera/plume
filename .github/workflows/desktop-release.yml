@@ -27,6 +27,12 @@
 # Potřebné secrets (stejné jako u Androidu):
 #   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
 #   TELEGRAM_API_HASH           – api_hash z my.telegram.org
+#
+# Runnery jsou vlastní (docs/poznatky/release.md, „Self-hosted runnery"): MSI staví HQDEV50
+# (label `plume-desktop`), všechno ostatní vývojářský Mac (`plume`). Jeden Mac runner joby
+# řadí za sebe — version → macos → release, MSI mezitím běží na Windows. Návrat na hostovaný
+# bez zásahu do workflow: repo proměnné DESKTOP_MAC_RUNS_ON = ["macos-latest"]
+# a DESKTOP_WINDOWS_RUNS_ON = ["windows-latest"].
 name: Desktop Release
 
 permissions:
@@ -44,7 +50,7 @@ jobs:
   # Verze z tagu pro oba buildy. Kontroluje se tady, ne až v jpackage: MSI by 0.x prošlo
   # a release by skončil napůl (Windows hotové, macOS ne).
   version:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
     timeout-minutes: 5
 
     outputs:
@@ -64,13 +70,56 @@ jobs:
 
   windows:
     needs: version
-    runs-on: windows-latest
+    # Druhá instance runneru na HQDEV50 (vedle kmpmlog a telemetry), viz hlavička.
+    runs-on: ${{ fromJSON(vars.DESKTOP_WINDOWS_RUNS_ON || '["self-hosted", "Windows", "X64", "plume-desktop"]') }}
     timeout-minutes: 60
     defaults:
       run:
         shell: bash
 
     steps:
+      # `shell: bash` runner hledá v PATH a na vývojářském Windows tam jako první bývá WSL
+      # (C:\Windows\System32\bash.exe) — skripty by běžely v Linuxu bez gitu a Javy z tohohle
+      # joba. Bin Git for Windows proto dáme na začátek PATH; runner podle něj vybírá shell
+      # i dalším krokům (převzato z kmpmlog a telemetry, na hostovaném runneru no-op).
+      # Druhá půlka dá do PATH i PowerShell 7: @actions/tool-cache (setup-android) rozbaluje
+      # přes `pwsh` a Windows PowerShell 5.1 stažený zip bez přípony odmítne. Služba runneru
+      # nový systémový PATH po instalaci pwsh nevidí (dostane ho až po restartu stroje), proto
+      # se hledá i na pevné cestě; MSIX z Microsoft Store je jen alias, který služba nespustí.
+      # Holé `shell: powershell` na vývojářském stroji spadne na execution policy, proto Bypass.
+      # Tělo skriptu musí být ČISTĚ ASCII (i komentáře): Windows PowerShell 5.1 ho čte v ANSI.
+      - name: Prefer Git Bash
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
+        run: |
+          # git.exe lives in Git\cmd or Git\mingw64\bin - walk up to the first <dir>\bin\bash.exe
+          $git = (Get-Command git -ErrorAction Stop).Source
+          $bin = $null
+          $dir = Split-Path $git
+          while ($dir -and -not $bin) {
+            if (Test-Path (Join-Path $dir 'bin\bash.exe')) { $bin = Join-Path $dir 'bin' }
+            $dir = Split-Path $dir
+          }
+          if (-not $bin) {
+            Write-Output "::error::Git Bash not found above $git - install Git for Windows."
+            exit 1
+          }
+          Write-Output "Git Bash: $bin"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin -Encoding utf8
+
+          # PowerShell 7 (classic MSI install only - MSIX alias in WindowsApps fails under a service)
+          $pwshDir = Join-Path $env:ProgramFiles 'PowerShell\7'
+          if (-not (Test-Path (Join-Path $pwshDir 'pwsh.exe'))) {
+            $pwsh = Get-Command pwsh -All -ErrorAction SilentlyContinue |
+              Where-Object { $_.Source -notmatch '\\WindowsApps\\' } | Select-Object -First 1
+            if ($pwsh) { $pwshDir = Split-Path $pwsh.Source } else { $pwshDir = $null }
+          }
+          if (-not $pwshDir) {
+            Write-Output "::error::PowerShell 7 (MSI) not found - install it: winget install --id Microsoft.PowerShell -e --source winget --installer-type wix"
+            exit 1
+          }
+          Write-Output "pwsh: $pwshDir"
+          Add-Content -Path $env:GITHUB_PATH -Value $pwshDir -Encoding utf8
+
       # Celá historie + tagy kvůli „Co je nového" zapečenému do aplikace (`generateChangelog`).
       # Mělký klon nad tagem stáhne jen ten jeden tag: build pak projde, ale seznam vydání v MSI
       # je prázdný a nic to nenahlásí.
@@ -85,11 +134,26 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # Na self-hosted bez cache: ~/.gradle přetrvává a upload by jen tlačil gigabajty do cache GitHubu.
       - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: ${{ runner.environment != 'github-hosted' }}
+
+      # Desktop nepotřebuje Android, ale `:client:shared` je KMP knihovna s Android targetem
+      # a AGP chce SDK s compileSdk už při konfiguraci. Hostovaný runner ho má předinstalovaný.
+      # POZOR: musí odpovídat android-compileSdk v gradle/libs.versions.toml.
+      - name: Install Android SDK platform
+        if: runner.environment == 'self-hosted'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-37.0'
 
       # Projektové gradle.properties počítá s vývojářským strojem; uživatelský
       # ~/.gradle/gradle.properties má přednost (stejně jako v android-release.yml).
+      # Jen na hostovaném: na HQDEV50 je ~/.gradle sdílený s kmpmlog, telemetry i lokální prací
+      # a `>>` by se připisovalo každým během — tam jde paměť z příkazové řádky (Build MSI).
       - name: Limit Gradle memory for CI
+        if: runner.environment == 'github-hosted'
         run: |
           mkdir -p ~/.gradle
           {
@@ -115,7 +179,13 @@ jobs:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
-          ./gradlew :client:desktopApp:packageMsi -PdesktopVersion=${{ needs.version.outputs.version }}
+          # Na HQDEV50 (vývojářův stroj) desktop — jen JVM, žádný K/N — vystačí se 4g, ať
+          # build neukrojí z práce na něm. Z příkazové řádky, viz krok Limit Gradle memory.
+          MEM_ARGS=()
+          if [[ "${{ runner.environment }}" == self-hosted ]]; then
+            MEM_ARGS=(-Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8 -XX:+UseParallelGC" -Pkotlin.daemon.jvmargs=-Xmx2g --max-workers=2)
+          fi
+          ./gradlew :client:desktopApp:packageMsi -PdesktopVersion=${{ needs.version.outputs.version }} "${MEM_ARGS[@]}"
           ls -la client/desktopApp/build/compose/binaries/main/msi/
 
       # Compose u selhání jpackage ukáže jen cestu k logu na runneru; hláška je v něm.
@@ -136,11 +206,24 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+      # Daemony z buildu by na vývojářském stroji visely s gigabajty heapu ještě hodiny. Zabíjí
+      # se jen Java z toolcache TOHOHLE runneru — lokální daemony ani jiné instance runneru nic
+      # nepoznají (`./gradlew --stop` by zastavil všechny téže verze Gradlu, i ty z IDE).
+      # Přes PowerShell: poběží i tehdy, když spadl krok Prefer Git Bash a `bash` je WSL.
+      - name: Stop Gradle daemons
+        if: always() && runner.environment == 'self-hosted'
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -File {0}
+        run: |
+          $tool = Join-Path $env:RUNNER_TOOL_CACHE 'Java_'
+          Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" |
+            Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($tool, [StringComparison]::OrdinalIgnoreCase) } |
+            ForEach-Object { Write-Output "stop $($_.ProcessId)"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
   # Jen Apple Silicon: `macos-latest` je arm64 a jpackage balí pro architekturu JDK, které staví.
   # TDLib z wrapperu tam chce macOS 26 (`minimumSystemVersion` v build.gradle.kts).
   macos:
     needs: version
-    runs-on: macos-latest
+    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
     timeout-minutes: 60
 
     steps:
@@ -161,9 +244,22 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # Na self-hosted bez cache: ~/.gradle přetrvává a upload by jen tlačil gigabajty do cache GitHubu.
       - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: ${{ runner.environment != 'github-hosted' }}
 
+      # Viz job windows: SDK kvůli Android targetu `:client:shared`, macos-latest ho má.
+      - name: Install Android SDK platform
+        if: runner.environment == 'self-hosted'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-37.0'
+
+      # Jen na hostovaném — self-hosted Mac staví s projektovým nastavením jako lokálně
+      # a ~/.gradle sdílí s lokální prací (viz job windows).
       - name: Limit Gradle memory for CI
+        if: runner.environment == 'github-hosted'
         run: |
           mkdir -p ~/.gradle
           {
@@ -217,9 +313,14 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+      # Viz job windows: daemony z buildu po jobu pryč, jen ty z toolcache tohohle runneru.
+      - name: Stop Gradle daemons
+        if: always() && runner.environment == 'self-hosted'
+        run: pkill -f "$RUNNER_TOOL_CACHE/Java_" || true
+
   release:
     needs: [version, windows, macos]
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
     timeout-minutes: 10
 
     steps:

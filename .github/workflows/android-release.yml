@@ -23,6 +23,10 @@
 #   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
 #   TELEGRAM_API_HASH           – api_hash z my.telegram.org
 #   PLAY_SERVICE_ACCOUNT_JSON   – JSON klíč service accountu s právem nahrávat do Play Console
+#
+# Běží na self-hosted runneru `plume-mac` na vývojářském Macu (label `plume`), ne na hostovaném —
+# nastavení stroje a pasti v docs/poznatky/release.md, „Self-hosted runnery". Návrat na hostovaný
+# bez zásahu do workflow: repo proměnná ANDROID_RUNS_ON = ["ubuntu-latest"].
 name: Android Release
 
 permissions:
@@ -41,7 +45,7 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.ANDROID_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
     timeout-minutes: 90
 
     steps:
@@ -72,7 +76,10 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # Na self-hosted bez cache: ~/.gradle přetrvává a upload by jen tlačil gigabajty do cache GitHubu.
       - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: ${{ runner.environment != 'github-hosted' }}
 
       # Runner image nemusí mít čerstvé SDK platformy a AGP si je samo nedotáhne (auto-download
       # potřebuje odsouhlasené licence). Instalujeme explicitně.
@@ -86,7 +93,10 @@ jobs:
       # Privátní repo → hostovaný runner má 2 CPU / 7 GB RAM. Projektové gradle.properties počítá
       # s vývojářským strojem (Gradle 4 GB + Kotlin daemon 8 GB), což se sem nevejde. Uživatelský
       # ~/.gradle/gradle.properties má přednost před projektovým.
+      # Jen na hostovaném: na self-hosted je ~/.gradle sdílený s lokální prací a `>>` by se
+      # připisovalo každým během. Mac s projektovým nastavením staví i lokálně.
       - name: Limit Gradle memory for CI
+        if: runner.environment == 'github-hosted'
         run: |
           mkdir -p ~/.gradle
           {
@@ -133,12 +143,15 @@ jobs:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
-          bash -c 'while true; do
-            echo "[mon] $(date +%T) mem: $(free -m | awk "/Mem:/{print \$3\"/\"\$2\" MB\"}") | disk: $(df -h / | awk "NR==2{print \$4\" free\"}")"
-            sleep 30
-          done' &
-          MONITOR_PID=$!
-          trap 'kill $MONITOR_PID 2>/dev/null || true' EXIT
+          # `free` je jen na Linuxu (hostovaný runner, kde se paměť počítá na megabajty).
+          if command -v free > /dev/null; then
+            bash -c 'while true; do
+              echo "[mon] $(date +%T) mem: $(free -m | awk "/Mem:/{print \$3\"/\"\$2\" MB\"}") | disk: $(df -h / | awk "NR==2{print \$4\" free\"}")"
+              sleep 30
+            done' &
+            MONITOR_PID=$!
+            trap 'kill $MONITOR_PID 2>/dev/null || true' EXIT
+          fi
 
           ./gradlew :client:androidApp:bundleRelease \
             -PandroidVersionName=${{ steps.tag.outputs.versionName }} \
@@ -149,7 +162,7 @@ jobs:
 
       # Doběhne jen když runner přežil; při smrti VM se sem nedostane ani `if: always()`.
       - name: Resource diagnostics
-        if: always()
+        if: always() && runner.os == 'Linux'
         run: |
           echo "=== Aktuální stav ==="
           free -h
@@ -207,3 +220,14 @@ jobs:
               --title "$TAG" \
               --notes-file release-notes.md
           fi
+
+      # Self-hosted Mac je vývojářův stroj: Gradle a Kotlin daemon z buildu by na něm po jobu
+      # visely s gigabajty heapu ještě hodiny. Zabíjí se jen Java z toolcache TOHOHLE runneru
+      # (setup-java), takže lokální daemony ani daemony organizačního runneru vedle nic nepozná.
+      # `./gradlew --stop` by to nešlo — zastaví všechny daemony téže verze Gradlu, i ty z IDE.
+      # Keystore z RUNNER_TEMP runner maže sám na začátku dalšího jobu; tady hned.
+      - name: Clean up self-hosted runner
+        if: always() && runner.environment == 'self-hosted'
+        run: |
+          pkill -f "$RUNNER_TOOL_CACHE/Java_" || true
+          rm -f "$RUNNER_TEMP/upload.jks"
