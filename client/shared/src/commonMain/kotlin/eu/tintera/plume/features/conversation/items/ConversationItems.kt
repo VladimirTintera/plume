@@ -92,8 +92,9 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
     if (state.reachedEnd) state.sponsored.mapTo(items, ::SponsoredItem)
 
     // „Píše…" stojí tam, kam zpráva naskočí: nad reklamou, pod nejnovější zprávou. V okně
-    // v historii nejnovější zpráva není, takže tam by stálo uprostřed minulosti.
-    if (state.reachedEnd) typingItem(state)?.let(items::add)
+    // v historii nejnovější zpráva není, takže tam by stálo uprostřed minulosti. Rozepsaná
+    // odpověď bota stojí na jeho místě: říká totéž a víc.
+    if (state.reachedEnd) (pendingReplyItem(state) ?: typingItem(state))?.let(items::add)
 
     rows.forEachIndexed { index, row ->
         val message = row.display
@@ -201,6 +202,17 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
 
     if (state.loading) items += LoadingOlderItem
     return items
+}
+
+/** Rozepsaná odpověď bota, nebo `null`. Prázdná je „Přemýšlí…" (Bot API: „Thinking…" placeholder). */
+private fun pendingReplyItem(state: ConversationState): PendingReplyItem? {
+    val reply = state.pendingReply ?: return null
+    return PendingReplyItem(
+        draftId = reply.message.draftId,
+        text = reply.message.text,
+        entities = reply.message.entities,
+        canStop = reply.canStop,
+    )
 }
 
 /**

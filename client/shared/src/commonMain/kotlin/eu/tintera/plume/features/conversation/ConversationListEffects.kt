@@ -43,8 +43,13 @@ import eu.tintera.plume.resources.conversation_unpinned
 import eu.tintera.plume.resources.media_video_from_start
 import eu.tintera.plume.resources.media_video_resumed
 import eu.tintera.plume.resources.spam_bar_contact_added
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlin.time.TimeSource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -233,7 +238,8 @@ internal fun rememberNewMessages(listState: LazyListState, state: ConversationSt
      * položky — tou je zpráva, takže by se indikátor vložil POD spodní hranu a nebyl by vidět.
      * Kdo je dole, tomu se seznam ukotví i s ním; kdo čte historii, toho nevytrhne.
      */
-    val typingShown = state.typing != null && state.reachedEnd
+    // Rozepsaná odpověď bota stojí na tomtéž místě a platí pro ni totéž.
+    val typingShown = (state.typing != null || state.pendingReply != null) && state.reachedEnd
     val typingAnchor = remember { booleanArrayOf(false) }
     if (typingShown != typingAnchor[0]) {
         if (typingShown && atBottom) listState.requestScrollToItem(0)
@@ -424,7 +430,64 @@ internal fun ConversationViewReporting(
             .debounce(READ_DEBOUNCE_MS)
             .collect { (keys, _) -> viewModel.markRead(keys) }
     }
+
+    ConversationViewMetrics(listState, viewModel)
 }
+
+/**
+ * Metriky zobrazení zpráv (`sendMessageViewMetrics`), které TDLib PŘIKAZUJE posílat. Kdy a co,
+ * počítá [MessageViewMetricsTracker]; tady se mu jen podávají snímky seznamu a čas.
+ *
+ * - **Viewport zaniká i odchodem aplikace do pozadí**, ne jen zavřením obrazovky: kompozice
+ *   tam žije dál, ale nikdo se nedívá. Efekt proto běží jen ve stavu STARTED a při zastavení
+ *   pošle rozpracované (`finally`).
+ * - **Akcí uživatele je posun seznamu** (`isScrollInProgress`) — čtení je hlavně posouvání.
+ *   Ťuknutí a psaní se nepočítají; zpráva čtená bez dotyku přes 15 s je tedy „neaktivní", což
+ *   odpovídá tomu, k čemu TDLib aktivní čas chce (poznat odložený telefon).
+ * - **Klíč položky není id zprávy** (u odeslaných se liší); na id ho převede ViewModel.
+ */
+@Composable
+private fun ConversationViewMetrics(listState: LazyListState, viewModel: ConversationViewModel) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val lifecycleState by lifecycle.currentStateAsState()
+    val started = lifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    LaunchedEffect(listState, started) {
+        if (!started) return@LaunchedEffect
+        val tracker = MessageViewMetricsTracker()
+        val clock = TimeSource.Monotonic.markNow()
+        val now = { clock.elapsedNow().inWholeMilliseconds }
+        try {
+            launch {
+                snapshotFlow {
+                    val info = listState.layoutInfo
+                    val messages = info.visibleItemsInfo.mapNotNull { item ->
+                        (item.key as? Long)?.let { VisibleMessage(it, item.offset, item.offset + item.size) }
+                    }
+                    // Pod lištou a vstupním polem (odsazení seznamu) zprávu nikdo nečte.
+                    ViewportFrame(
+                        messages = messages,
+                        start = info.viewportStartOffset + info.beforeContentPadding,
+                        end = info.viewportEndOffset - info.afterContentPadding,
+                        scrolling = listState.isScrollInProgress,
+                    )
+                }.collect { frame ->
+                    if (frame.scrolling) tracker.userAction(now())
+                    viewModel.reportViewMetrics(tracker.frame(now(), frame.messages, frame.start, frame.end))
+                }
+            }
+            // Seznam v klidu snímky nevydává, a zmizení ani pět minut se bez nich nepoznají.
+            while (true) {
+                delay(VIEW_METRICS_TICK_MS)
+                viewModel.reportViewMetrics(tracker.tick(now()))
+            }
+        } finally {
+            viewModel.reportViewMetrics(tracker.flush(now()))
+        }
+    }
+}
+
+/** Jeden snímek seznamu pro [MessageViewMetricsTracker]. */
+private data class ViewportFrame(val messages: List<VisibleMessage>, val start: Int, val end: Int, val scrolling: Boolean)
 
 /**
  * Naposledy zpracovaná nejnovější zpráva, pro ukotvení seznamu dole.
@@ -446,6 +509,12 @@ private class NewestItem {
 private const val LOAD_MORE_THRESHOLD = 5
 
 private const val READ_DEBOUNCE_MS = 400L
+
+/**
+ * Jak často se metrikám zobrazení připíše čas, když se seznam nehýbe. Zmizení se tak nahlásí
+ * nejpozději o tolik po 300 ms, které TDLib dává.
+ */
+private const val VIEW_METRICS_TICK_MS = 100L
 
 /** Jak dlouho musí být reklama v klidu na obrazovce, než se zhlédnutí nahlásí. */
 private const val SPONSORED_VIEW_DEBOUNCE_MS = 1000L

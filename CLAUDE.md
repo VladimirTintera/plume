@@ -45,11 +45,11 @@ Tenhle soubor nese jen to, co platí pro celý projekt. Poznatky ke konkrétním
 v `docs/poznatky/` — **než sáhneš na oblast, přečti její soubor**, a poučení z opravy zapiš tam,
 ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>' CLAUDE.md docs/poznatky`.
 
-- [Konverzace: zobrazení zpráv](docs/poznatky/konverzace-zobrazeni.md) — skladba obrazovky a ViewModelu (který soubor nese kterou část), bloky seznamu, bublina a její tvar, média bez bubliny, alba, předěly, doručení, vzhled a sklo, barva konverzace, text s entitami a odkazy, přeposlání, soubory, reklamy
+- [Konverzace: zobrazení zpráv](docs/poznatky/konverzace-zobrazeni.md) — skladba obrazovky a ViewModelu (který soubor nese kterou část), bloky seznamu, bublina a její tvar, média bez bubliny, alba, předěly, doručení, vzhled a sklo, barva konverzace, text s entitami a odkazy, přeposlání, soubory, reklamy, metriky zobrazení
 - [Konverzace: pohyb v historii](docs/poznatky/konverzace-pohyb.md) — otevřený chat, skok na nepřečtené / citaci / zmínky / datum, připnuté, hledání, okno v historii, hlášení přečtení, gesta tahem do strany, rychlý přepínač chatů
 - [Konverzace: psaní a odesílání](docs/poznatky/konverzace-psani.md) — vstupní pole, přílohy a galerie, hudba jako skladba, úprava fotky, práva psát, „píše…“, plánování, zvoneček tichého odesílání v kanálu, úprava, formátování, náhled odkazu, koncept, napovídání, odpovědi, let odeslané zprávy, výměna přílohy při úpravě
 - [Konverzace: akce nad zprávami](docs/poznatky/konverzace-akce.md) — nabídka nad zprávou, její skupiny a „Další", citace z ní, smazání cizích zpráv správcem (spam, vše od autora, vyhodit), překlad, shrnutí od serveru, automatické mazání, vymazání historie (celé i za vybrané dny), výběr víc zpráv, informace o zprávě, připomenutí, přeposílání
-- [Boti a mini aplikace](docs/poznatky/boti.md) — tlačítka pod zprávou, vlastní klávesnice, příkazy, mizející zprávy, Start, inline boti, mini aplikace (WebView most)
+- [Boti a mini aplikace](docs/poznatky/boti.md) — tlačítka pod zprávou, vlastní klávesnice, příkazy, mizející zprávy, Start, inline boti, mini aplikace (WebView most), streamované odpovědi a Zastavit
 - [Ankety a kvízy](docs/poznatky/ankety.md) — hlasování, výsledky, zakládání, média v anketě, místa a poloha, seznamy úkolů
 - [Hledání a zakládání chatů](docs/poznatky/hledani-a-zakladani-chatu.md) — hledání chatů a zpráv s filtry i přirozeným jazykem, doporučené kanály, nová konverzace, kontakty, synchronizace adresáře, Můj QR kód a odkazy zvenčí, založení skupiny a kanálu, ChatPicker
 - [Přímé zprávy kanálu](docs/poznatky/prime-zpravy-kanalu.md) — zapnutí v nastavení kanálu, „Napsat" u odběratele, vlákna po odběratelích u správce, navrhované příspěvky, proč se historie vlákna nečte od nuly

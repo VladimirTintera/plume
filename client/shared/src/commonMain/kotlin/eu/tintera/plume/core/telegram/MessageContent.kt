@@ -661,20 +661,7 @@ internal suspend fun Message.captionBody(
     is MessageLocation, is MessageLiveLocation, is MessageVenue -> MessageBody.Empty
     is MessagePaidMedia -> content.caption.toBody()
     // Článek jako text s formátováním; ze samých obrázků je prázdný, pak zůstane náš popis.
-    is MessageRichMessage -> (fullArticle ?: content.message).let { article ->
-        article.blocks.toRichBody(
-            RichMediaLabels(
-                photo = readString(Res.string.media_photo),
-                video = readString(Res.string.media_video),
-                gif = readString(Res.string.content_gif),
-                audio = readString(Res.string.content_audio),
-                voice = readString(Res.string.conversation_voice_message),
-                file = readString(Res.string.content_file),
-            ),
-            isFull = article.isFull,
-            hideSensitive = hideSensitive,
-        )
-    }
+    is MessageRichMessage -> (fullArticle ?: content.message).articleBody(hideSensitive)
         .takeIf { it.text.isNotBlank() }
         ?: MessageBody(text = "", description = previewText())
 
@@ -685,6 +672,34 @@ internal suspend fun Message.captionBody(
      * v lepším případě nesmyslně obarvené slovo, v horším pád na indexu mimo text.
      */
     else -> MessageBody(text = "", description = previewText())
+}
+
+/**
+ * Článek jako text s formátováním; média v něm jsou štítky („[Fotka]") na svém místě. Sdílí ho
+ * zpráva v konverzaci ([captionBody]) i rozepsaná odpověď bota ([pendingBody]).
+ */
+internal suspend fun RichMessage.articleBody(hideSensitive: Boolean): MessageBody =
+    blocks.toRichBody(
+        RichMediaLabels(
+            photo = readString(Res.string.media_photo),
+            video = readString(Res.string.media_video),
+            gif = readString(Res.string.content_gif),
+            audio = readString(Res.string.content_audio),
+            voice = readString(Res.string.conversation_voice_message),
+            file = readString(Res.string.content_file),
+        ),
+        isFull = isFull,
+        hideSensitive = hideSensitive,
+    )
+
+/**
+ * Text rozepsané odpovědi bota. TDLib ji posílá jen jako `messageText` nebo `messageRichMessage`;
+ * cokoli jiného je prázdné, a taková odpověď se pak nekreslí.
+ */
+internal suspend fun MessageContent.pendingBody(): MessageBody = when (this) {
+    is MessageText -> text.toBody()
+    is MessageRichMessage -> message.articleBody(hideSensitive = false)
+    else -> MessageBody.Empty
 }
 
 /**

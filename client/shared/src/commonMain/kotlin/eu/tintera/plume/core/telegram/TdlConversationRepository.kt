@@ -2662,6 +2662,55 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
+    override suspend fun reportViewMetrics(chatId: Long, metrics: MessageViewMetrics): Result<Unit> =
+        client.sendMessageViewMetrics(
+            chatId = chatId,
+            messageId = metrics.messageId,
+            timeInViewMs = metrics.timeInViewMs,
+            activeTimeInViewMs = metrics.activeTimeInViewMs,
+            heightToViewportRatioPerMille = metrics.heightToViewportRatioPerMille,
+            seenRangeRatioPerMille = metrics.seenRangeRatioPerMille,
+        )
+            .toResult()
+            .map { }
+
+    override fun pendingMessages(chatId: Long): Flow<PendingBotMessage> =
+        holder.updates { pendingMessageUpdates }
+            // V tématu jen jeho odpovědi; mimo téma všechny — chat s botem bez témat má 0.
+            .filter { it.chatId == chatId && (forumTopicId == null || it.forumTopicId == forumTopicId) }
+            .map { update ->
+                val body = update.content.pendingBody()
+                PendingBotMessage(
+                    draftId = update.draftId,
+                    forumTopicId = update.forumTopicId,
+                    text = body.text,
+                    entities = body.entities,
+                    canStop = update.canStop,
+                    keepOnStop = update.keepOnStop,
+                )
+            }
+
+    override fun stoppedPendingMessages(chatId: Long): Flow<Long> =
+        holder.updates { stopMessageDraftUpdates }
+            .filter { it.chatId == chatId && (forumTopicId == null || it.forumTopicId == forumTopicId) }
+            .map { it.draftId }
+
+    override suspend fun stopPendingMessage(chatId: Long, draftId: Long): Result<Unit> =
+        client.stopPendingMessage(
+            chatId = chatId,
+            // Rozepsaná odpověď žije ve vlákně tématu; přímé zprávy kanálu ani Uložené zprávy
+            // boti nemají.
+            topicId = forumTopicId?.let { MessageTopicForum(forumTopicId = it) },
+            draftId = draftId,
+        )
+            .toResult()
+            .map { }
+
+    override suspend fun pendingMessagePeriodSeconds(): Int =
+        (client.getOption(name = PENDING_MESSAGE_PERIOD_OPTION).toResult().getOrNull() as? OptionValueInteger)
+            ?.value?.toInt()?.takeIf { it > 0 }
+            ?: DEFAULT_PENDING_MESSAGE_PERIOD_SECONDS
+
     /**
      * Má u zpráv smysl jméno a tvář odesílatele? Jen ve skupině — kanál je pro TDLib taky
      * supergroup (`ChatInfo.isGroup`), jenže píše jediný autor, sám kanál, a jeho jméno nad
@@ -3849,6 +3898,14 @@ private fun SelfDestructType.toTdl(): MessageSelfDestructType = when (this) {
 
 /** Připnutých zpráv na jeden dotaz. Víc TDLib nedovolí. */
 private const val PINNED_PAGE_SIZE = 100
+
+/**
+ * Jak dlouho se smí ukazovat rozepsaná odpověď bota, když TDLib volbu nevydá. Hodnotu dává
+ * server; tohle je jen pojistka, ať rozepsaný text nevisí napořád.
+ */
+private const val DEFAULT_PENDING_MESSAGE_PERIOD_SECONDS = 30
+
+private const val PENDING_MESSAGE_PERIOD_OPTION = "pending_text_message_period"
 
 /** Živých poloh v chatu na jeden dotaz — jedna na člověka, takže sto stačí i velké skupině. */
 private const val RECENT_LOCATIONS_LIMIT = 100

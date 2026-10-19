@@ -410,6 +410,9 @@
     </plurals>
     <string name="conversation_unpin_all_body">They’ll disappear from the pinned bar for everyone in the chat. Pinning them back has to be done one by one.</string>
     <string name="conversation_unpin_all_failed">Couldn’t unpin the messages.</string>
+    <string name="conversation_pending_stop">Stop</string>
+    <string name="conversation_pending_thinking">Thinking…</string>
+    <string name="conversation_pending_stop_failed">Couldn’t stop the bot’s reply.</string>
     <string name="conversation_repin_failed">Couldn't pin the message back.</string>
     <string name="conversation_history_failed">Couldn't load the history.</string>
     <string name="conversation_quote_deleted">The quoted message is no longer available.</string>

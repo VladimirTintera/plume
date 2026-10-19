@@ -709,6 +709,7 @@ private fun rememberConversationItems(state: ConversationState): List<Conversati
         state.messageMenu,
         state.noticeMenu,
         state.typing,
+        state.pendingReply,
         // Jen KLÍČE výběru: práva k němu chodí po jednom a seznam bloků se jimi nemění.
         state.selection?.keys,
         expiredMedia,

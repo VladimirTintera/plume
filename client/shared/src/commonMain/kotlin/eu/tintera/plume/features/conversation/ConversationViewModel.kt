@@ -61,6 +61,8 @@ import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.MessageViewMetrics
+import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.SpeechTrial
@@ -652,6 +654,15 @@ class ConversationViewModel(
         repository = repository,
         logger = logger,
     )
+    private val pendingReplies: ConversationPendingReplies = ConversationPendingReplies(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        logger = logger,
+    )
+    fun stopPendingReply() = pendingReplies.stop()
+
     fun openScheduled() = scheduled.openScheduled()
     fun closeScheduled() = scheduled.closeScheduled()
     fun reschedule(messageId: Long, schedule: MessageSchedule?) = scheduled.reschedule(messageId, schedule)
@@ -1203,6 +1214,33 @@ class ConversationViewModel(
     }
 
     /**
+     * Nahlásí, jak dlouho a jak celé byly zprávy vidět (`sendMessageViewMetrics`). Volá
+     * obrazovka, když zpráva zmizí, obrazovka zanikne nebo zobrazení přesáhne 5 minut
+     * (`MessageViewMetricsTracker`); [metrics] nesou KLÍČE položek, ne id.
+     *
+     * Běží v [appScope]: poslední dávka odchází při zavírání obrazovky, kdy se `viewModelScope`
+     * ruší. Diskrétní čtení nehlásí nic — jako u přečtení se tím nemá prozradit, co uživatel viděl.
+     */
+    fun reportViewMetrics(metrics: List<MessageViewMetrics>) {
+        if (metrics.isEmpty() || settings.discreetReading.value) return
+        val current = _state.value
+        val reports = metrics.mapNotNull { viewed ->
+            // Rozesílaná zpráva má dočasné id, které server nezná.
+            val message = current.messages.firstOrNull { current.keyOf(it) == viewed.messageId } ?: return@mapNotNull null
+            if (message.sendState == SendState.Sending || message.sendState == SendState.Failed) return@mapNotNull null
+            viewed.copy(messageId = message.id)
+        }
+        if (reports.isEmpty()) return
+        appScope.launch {
+            reports.forEach { viewed ->
+                repository.reportViewMetrics(chatId, viewed).onFailure { failure ->
+                    logger.w(failure) { "Metriky zobrazení zprávy ${viewed.messageId} se nepodařilo nahlásit." }
+                }
+            }
+        }
+    }
+
+    /**
      * Zpracuje kliknutí na reklamu.
      *
      * Hlášení odchází **před** otevřením odkazu — jakmile se otevře prohlížeč, aplikace jde do
@@ -1509,11 +1547,16 @@ class ConversationViewModel(
                     it.withMessage(message).copy(
                         flight = it.flight.landingOn(message),
                         liveLocations = it.liveLocations.withLiveLocation(message, now()),
+                        // Dopsaná odpověď bota nahradí rozepsanou v témže snímku.
+                        pendingReply = it.pendingReply.afterNewMessage(message),
+                        pendingReplacedBy = if (it.pendingReply != null && !message.isOutgoing) message.id else it.pendingReplacedBy,
                     )
                 }
                 resolveMissingQuotes()
             }
         }
+
+        pendingReplies.observe()
 
         viewModelScope.launch {
             repository.replyMarkup(chatId).collect { markup ->
