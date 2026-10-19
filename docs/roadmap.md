@@ -331,11 +331,37 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 ## Mezery proti API TDLib
 
 Porovnání API ve wrapperu `tdl-coroutines` 15.0.0 s tím, co volá `core/telegram` (říjen 2026,
-zopakované 18. 10.): **z 1022 funkcí se volá 395, ze 190 updatů se odebírá 89** (při prvním
-průchodu 294 a 70). Většinu zbytku tvoří Bot API,
+zopakované 18. a 19. 10.): **z 1022 funkcí se volá 400, ze 190 updatů se odebírá 89** (při
+prvním průchodu 294 a 70, 18. 10. 395 a 89). Většinu zbytku tvoří Bot API,
 Telegram Business, Passport a testovací volání, které klient nepotřebuje. Sem patří jen to, co
 v jiné sekci roadmapy (nebo v [roadmap-konverzace.md](roadmap-konverzace.md)) zapsané nebylo;
-hovory, příběhy, platby, hvězdy a dárky mají své místo jinde.
+hovory mají své místo jinde.
+
+**Pokrytí po oblastech** (19. 10. 2026; funkce i updaty, volané / všechny; oblast podle jména
+funkce, takže hranice jsou hrubé):
+
+| Oblast | Pokrytí | Stav |
+| --- | --- | --- |
+| Přihlášení, relace, účet, uživatelská jména | 50 / 66 | hotové; zbývá OAuth na webu, přístupové klíče (cizí klient nesmí) |
+| Témata, Uložené zprávy, přímé zprávy kanálu | 28 / 40 | hotové; zbývají štítky Uložených zpráv a drobnosti |
+| Samolepky a emoji | 32 / 62 | prohlížení a posílání hotové; tvorba vlastních sad ne |
+| Reakce | 13 / 18 | hotové; placené reakce ne |
+| Notifikace | 16 / 23 | hotové; reakce TDLib neumí (viz níž) |
+| Mini aplikace a boti (uživatelská strana) | 15 / 50 | hotové; zbytek jsou volání jen pro boty, nabídka příloh a streamované odpovědi |
+| Soubory a stahování | 6 / 31 | stahování po jednom; správce stahování a předběžné nahrávání ne |
+| Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
+| AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
+| Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
+| **Příběhy (stories) a živé příběhy** | **1 / 59** | **jen otevření sdíleného příběhu** — největší mezera pro běžného uživatele |
+| Skupinové hovory a videochaty | 2 / 46 | jen pruh nad konverzací (sekce Hovory) |
+| Premium a boosty | 1 / 18 | ne |
+| Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
+| Hvězdy, platby, TON, affiliate | 0 / 59 | ne — rozhodnutí, ne mezera (viz níž) |
+| Dárky | 0 / 43 | jen karta dárku ve zprávě |
+| Telegram Business a rychlé odpovědi | 0 / 40 | ne (chce předplatné Business) |
+| Komunity | 0 / 3 | ne (novinka TDLib) |
+| Passport | 1 / 12 | ne |
+| Jen pro boty, podporu Telegramu, oficiální aplikace, testy, logy | 7 / 129 | nepatří do klienta |
 
 Porovnání se dá zopakovat: jména funkcí z `TdlClient.kt` ve zdrojovém jaru wrapperu
 (`grep -oE "suspend fun [a-zA-Z]+"`, updaty `val [a-zA-Z]+Updates`) proti
@@ -488,6 +514,124 @@ hotovo (profil, úprava profilu, „Přidat do profilu" nad zprávou, soukromí;
 (`setProfileAudioPosition`), přidání skladby ze souboru v telefonu~~ (hotovo, úprava profilu;
 `docs/poznatky/nastaveni.md`, „Hudba ve vlastním profilu"); zbývá ověřit iOS a navazování skladeb
 v cizím profilu.
+
+### Audit 19. 10. 2026: co ještě chybí
+
+Prošlo se všech 622 nevolaných funkcí a 101 updatů bez odběru. Níž je jen to, co v roadmapách
+zapsané nebylo; seřazené podle toho, jak moc to uživatel pozná.
+
+**Co dokumentace TDLib přikazuje a Plume nedělá** — malé, ale jde o kontrakt s knihovnou
+a se serverem, takže přednostně:
+
+- **Metriky zobrazení zpráv (`sendMessageViewMetrics`).** Dokumentace říká, že se volání MUSÍ
+  poslat, když zpráva zmizí z obrazovky po víc než 300 ms, obrazovka se zavře nebo zobrazení
+  přesáhne 5 minut. Plume hlásí jen `viewMessages`. Patří vedle hlášení zhlédnutí reklamy
+  (`ConversationListEffects`, `reportSponsoredSeen`).
+- **Streamované odpovědi botů** (`pendingMessageUpdates`, `stopMessageDraftUpdates`,
+  `stopPendingMessage`). AI boti posílají odpověď průběžně jako „rozepsanou" zprávu; Plume ji
+  nekreslí, takže uživatel kouká na prázdný chat, dokud bot nedopíše. Pravidla zobrazení dává
+  dokumentace: nejdéle `pending_text_message_period` sekund, zprávu se stejným `draftId`
+  nahradit s animací, smazat při příchozí zprávě. Plus tlačítko „Zastavit".
+- **Vstup do chatu přes strážního bota.** `TdlChatRepository.joinByInvite` končí
+  u `ChatJoinResultDeclined` a `ChatJoinResultGuardBotApprovalRequired` výjimkou, takže uživatel
+  dostane jen obecné „nepovedlo se". Schválení botem má otevřít mini aplikaci
+  z `getGuardBotWebAppUrl` a pozdější výsledek přijde v `chatJoinResultUpdates`; odmítnutí si
+  zaslouží vlastní větu.
+  Strana správce (`guardBotUserId`) je zapsaná výš u nastavení skupiny.
+- **Mini aplikace se po odeslání zprávy nezavře** (`webAppMessageSentUpdates`: „Web App needs
+  to be closed"). Ověřit s botem, který odpovídá přes `answerWebAppQuery`.
+- **Reklamy: nahlášení a další druhy.** Sponzorované zprávy se zobrazují a hlásí se zhlédnutí
+  i kliknutí, ale **nahlásit reklamu nejde** (`reportChatSponsoredMessage` s volbami jako
+  `reportChat`). Sponzorované chaty ve výsledcích hledání (`getSearchSponsoredChats`,
+  `viewSponsoredChat`, `openSponsoredChat`, `reportSponsoredChat`) a reklamy ve videu
+  (`getVideoMessageAdvertisements` a spol.) Plume nemá vůbec — zjistit, které z nich podmínky
+  API po klientech chtějí.
+
+**Živé updaty bez odběru** (stav se přečte jednou a pak stárne):
+
+- **Ochrana obsahu** (`chatHasProtectedContentUpdates`): `protectsContent` se čte při otevření
+  konverzace (`TdlConversationRepository`). Když ji správce přepne, kopírování a přeposílání
+  zůstanou ve starém stavu do znovuotevření. Novinka k tomu: žádost o vypnutí ochrany
+  v soukromém chatu (`processChatHasProtectedContentDisableRequest`).
+- **Počet členů online** (`chatOnlineMemberCountUpdates`) — „128 členů, 12 online" v hlavičce
+  skupiny Plume nemá vůbec; update chodí jen pro otevřený chat.
+- **Zablokování z jiného zařízení** (`chatBlockListUpdates`) — ověřit, jestli se profil
+  a pruh nad konverzací přepnou živě.
+- Drobné: změna nainstalované sady samolepek (`stickerSetUpdates`), počet zpráv v tématu
+  Uložených zpráv (`topicMessageCountUpdates`), nepřečtené zprávy v seznamu
+  (`unreadMessageCountUpdates`, dnes se počítají chaty).
+
+**Funkce pro běžného uživatele** (bez Premium a bez plateb):
+
+1. **Příběhy (stories).** Plume umí jen otevřít příběh sdílený do zprávy (`getStory`). Chybí
+   kroužky nad seznamem chatů (`loadActiveStories`, `chatActiveStoriesUpdates`,
+   `storyListChatCountUpdates`), prohlížeč s přechodem mezi lidmi (`openStory` / `closeStory`
+   — bez nich se zhlédnutí nepočítá), reakce a odpověď (`setStoryReaction`), skrytí do archivu
+   (`setChatActiveStoriesList`), příběhy a alba v profilu (`getChatPostedToChatPageStories`,
+   `getChatStoryAlbums`), nahlášení (`reportStory`), notifikace (`muteStories` v sekci
+   Notifikace) a nakonec vlastní příběh (`canPostStory`, `postStory`, blízcí přátelé,
+   zhlédnutí). Největší viditelná mezera proti oficiálnímu klientovi. Po krocích: prohlížení
+   → reakce a odpovědi → zveřejnění. Živé příběhy patří ke skupinovým hovorům.
+2. **Přihlášení na webu přes Telegram (OAuth)** — `newOauthRequestUpdates`, `getOauthLinkInfo`,
+   `checkOauthRequestMatchCode`, `acceptOauthRequest`, `declineOauthRequest`. Kdo má jen Plume,
+   žádost webu nepotvrdí. Tlačítko `LoginUrl` u zprávy bota už hotové je
+   (`docs/poznatky/boti.md`); automatické přihlášení po ťuknutí na odkaz
+   (`getExternalLinkInfo`, `getExternalLink`) ne.
+3. **Seznam hovorů a hodnocení** — historie hovorů napříč chaty (`searchCallMessages`,
+   `deleteAllCallMessages`) a po hovoru hodnocení a log (`sendCallRating`,
+   `sendCallDebugInformation`, `sendCallLog`). Hovory na Androidu jsou hotové, tohle je dorovná
+   oficiálnímu klientovi a Telegramu pomůže ladit spojení.
+4. **Import chatu z jiné aplikace** (`getMessageFileType`, `getMessageImportConfirmationText`,
+   `importMessages`) — export z WhatsAppu sdílený do Plume. Cíl sdílení na Androidu už je
+   (`docs/poznatky/sdileni.md`), chybí rozpoznání exportu a průběh importu.
+5. **Limit kanálů a skupin.** `CHANNELS_TOO_MUCH` dnes skončí obecnou chybou; oficiální klient
+   nabídne opustit neaktivní (`getInactiveSupergroupChats`). Totéž u veřejného odkazu:
+   `checkCreatedPublicChatsLimit` a seznam vlastních veřejných chatů (`getCreatedPublicChats`).
+6. **Předem poznat, že protějšek nepřijímá zprávy** (`canSendMessageToUser`: jen kontakty,
+   jen Premium, placené) — místo chyby po odeslání pruh nad vstupním polem. Navazuje na „kdo
+   smí psát" v sekci Nastavení.
+7. **Správce stahování** (`addFileToDownloads`, `searchFileDownloads`, `toggleDownloadIsPaused`,
+   `fileDownloadsUpdates` a spol.) — přehled stahovaných souborů s pozastavením. Dnes se stahuje
+   po jednom přes `downloadFile`.
+8. **Nahrávání hlasovky a kolečka už během nahrávání** (`preliminaryUploadFile`) — dlouhá
+   nahrávka by odešla hned po puštění.
+9. **Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha, úvodní stránka) —
+   data přicházejí, jen se nekreslí. Zakládat je chce Business, číst ne.
+10. **Dárky v profilu** (`getReceivedGifts`, `getGiftCollections`) — prohlížení nic nestojí,
+    posílání ano (viz níž).
+11. Drobnosti: hledání v tajných chatech (`searchSecretMessages` — hledání napříč chaty je
+    vynechává), historie hledaných hashtagů (`getSearchedForTags`, `removeSearchedForTag`),
+    pořadí připnutých témat Uložených zpráv (`setPinnedSavedMessagesTopics`), autor příspěvku
+    kanálu pro správce (`getMessageAuthor`), blokování z chatu Odpovědi
+    (`blockMessageSenderFromReplies`), nahlášení reakcí a smazání reakcí člena u jedné zprávy
+    (`reportMessageReactions`, `deleteMessageReactionsFromSender`), smazání nedávných reakcí
+    (`clearRecentReactions`), obrysy samolepek při načítání (`getStickerOutlineSvgPath`), sady
+    samolepek použité na fotce (`getAttachedStickerSets`), oznámení o poslechu hudby
+    (`listenToAudio`).
+
+**Správa skupin a kanálů — zbytky:** zrušit hlavní pozvánku (`replacePrimaryChatInviteLink`),
+gigaskupina (`toggleSupergroupIsBroadcastGroup`), oprava omylu antispamu
+(`reportSupergroupAntiSpamFalsePositive`, s ověřením antispamu výš), upozornění vlastníka, kdo
+chat zdědí po odchodu (`getChatOwnerAfterLeaving`), stav boostů pro správce
+(`getChatBoostStatus`, `getChatBoosts` — zdarma, na rozdíl od boostování), uvítací zprávy
+(`addChatWelcomeMessage` a spol., novinka TDLib).
+
+**Tvorba samolepek** (`createNewStickerSet`, `uploadStickerFile`, `addStickerToSet`,
+`setStickerEmojis` a dalších 12) — oficiální klient má editor samolepek z fotky. Velký kus,
+navazuje na úpravu fotky před odesláním.
+
+**Vědomě mimo, dokud se nerozhodne jinak:**
+
+- **Hvězdy, platby, dárky, TON** (přes 100 funkcí). Nejdřív rozhodnutí, jestli a jak placení
+  v aplikaci z Play jde se zásadami Play o fakturaci; dnes odkazy na platby jdou do prohlížeče
+  a placená média, hry a dárky jsou jen ke čtení (`roadmap-konverzace.md`).
+- **Premium** — koupit ho cizí klient nemůže (`canPurchaseFromStore` jen pro oficiální
+  aplikace). Funkce, které Premium jen odemyká (emoji status `setEmojiStatus`, barvy profilu,
+  štítky složek, tajný režim příběhů), mají smysl až s účtem, na kterém se dají ověřit.
+- **Telegram Business a rychlé odpovědi** (40 funkcí) — chce předplatné; pruh firemního bota
+  je zapsaný výš.
+- **Telegram Passport** — sdílení dokladů se službou; citlivé, nízká poptávka.
+- **Bot API, podpora Telegramu, testovací a logovací volání** — do klienta nepatří.
 
 ## Tajné chaty
 
