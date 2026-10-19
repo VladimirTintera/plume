@@ -513,6 +513,7 @@
     <string name="conversation_link_user_not_found">This person isn't on Telegram, or keeps their number hidden.</string>
     <string name="invite_request">Request to join</string>
     <string name="invite_request_sent">Request sent. An admin will review it.</string>
+    <string name="join_guard_declined">The bot guarding this chat didn't let you in.</string>
     <string name="folder_invite_title">Add folder</string>
     <string name="folder_invite_new">Add the folder and join the chats you pick.</string>
     <string name="folder_invite_new_all_joined">You are already in every chat of this folder. Only the folder will be added.</string>

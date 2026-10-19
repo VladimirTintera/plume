@@ -23,7 +23,7 @@ open class UnimplementedChatRepository : ChatRepository {
     override val isPremium: StateFlow<Boolean> get() = error("isPremium")
     override suspend fun openSavedMessages() : Result<Long> = error("openSavedMessages")
     override suspend fun resolveLink(url: String) : Result<InternalLink?> = error("resolveLink")
-    override suspend fun joinByInvite(link: String) : Result<InviteJoinResult> = error("joinByInvite")
+    override suspend fun joinByInvite(link: String) : Result<JoinResult> = error("joinByInvite")
     override suspend fun chatByUsername(username: String) : Result<Long> = error("chatByUsername")
     override suspend fun privateChat(userId: Long) : Result<Long> = error("privateChat")
     override suspend fun contacts() : Result<List<ChatSummary>> = error("contacts")

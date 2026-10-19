@@ -988,6 +988,8 @@ data class WebAppRequest(
     val startParameter: String = "",
     /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`). */
     val shortName: String = "",
+    /** Strážní bot schvalující vstup do chatu (`getGuardBotWebAppUrl`); jinak 0. */
+    val guardQueryId: Long = 0,
 )
 
 /** Výběr pro tlačítko bota „vyber lidi" ([users]) / „vyber chat" ([chat]) ve zprávě [messageId]. */

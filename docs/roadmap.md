@@ -530,12 +530,10 @@ a se serverem, takže přednostně:
   `stopPendingMessage`)~~ — hotovo i s tlačítkem Zastavit (`docs/poznatky/boti.md`,
   „Streamované odpovědi botů"; ověřené testovacím botem). Zbývá ověřit iOS a desktop, odpověď
   v tématu, článek (`messageRichMessage`) a zastavení z jiného zařízení.
-- **Vstup do chatu přes strážního bota.** `TdlChatRepository.joinByInvite` končí
-  u `ChatJoinResultDeclined` a `ChatJoinResultGuardBotApprovalRequired` výjimkou, takže uživatel
-  dostane jen obecné „nepovedlo se". Schválení botem má otevřít mini aplikaci
-  z `getGuardBotWebAppUrl` a pozdější výsledek přijde v `chatJoinResultUpdates`; odmítnutí si
-  zaslouží vlastní větu.
-  Strana správce (`guardBotUserId`) je zapsaná výš u nastavení skupiny.
+- ~~**Vstup do chatu přes strážního bota.**~~ — hotovo pro pozvánku i „Přidat se"
+  (`docs/poznatky/boti.md`, „Strážní bot u vstupu do chatu"). Zbývá ověřit se skutečným
+  strážním botem — testovací účet žádnou takovou skupinu nezná. Strana správce
+  (`guardBotUserId`) je zapsaná výš u nastavení skupiny.
 - **Mini aplikace se po odeslání zprávy nezavře** (`webAppMessageSentUpdates`: „Web App needs
   to be closed"). Ověřit s botem, který odpovídá přes `answerWebAppQuery`.
 - **Reklamy: nahlášení a další druhy.** Sponzorované zprávy se zobrazují a hlásí se zhlédnutí
@@ -547,14 +545,16 @@ a se serverem, takže přednostně:
 
 **Živé updaty bez odběru** (stav se přečte jednou a pak stárne):
 
-- **Ochrana obsahu** (`chatHasProtectedContentUpdates`): `protectsContent` se čte při otevření
-  konverzace (`TdlConversationRepository`). Když ji správce přepne, kopírování a přeposílání
-  zůstanou ve starém stavu do znovuotevření. Novinka k tomu: žádost o vypnutí ochrany
-  v soukromém chatu (`processChatHasProtectedContentDisableRequest`).
+- ~~**Ochrana obsahu** (`chatHasProtectedContentUpdates`)~~ — hotovo, výběr textu a akce
+  u zprávy se přepnou za běhu (`docs/poznatky/konverzace-akce.md`, „Výběr textu myší v bublině").
+  Zbývá žádost o vypnutí ochrany v soukromém chatu
+  (`processChatHasProtectedContentDisableRequest`).
 - **Počet členů online** (`chatOnlineMemberCountUpdates`) — „128 členů, 12 online" v hlavičce
   skupiny Plume nemá vůbec; update chodí jen pro otevřený chat.
-- **Zablokování z jiného zařízení** (`chatBlockListUpdates`) — ověřit, jestli se profil
-  a pruh nad konverzací přepnou živě.
+- ~~**Zablokování z jiného zařízení** (`chatBlockListUpdates`)~~ — hotovo: profil, sheet
+  smazání v konverzaci a seznam blokovaných (`docs/poznatky/spam-a-blokovani.md`, „Blokování
+  a nahlášení spamu"). V soukromém chatu se zablokovaným chybí „Odblokovat" místo vstupního
+  pole, jako to má oficiální klient.
 - Drobné: změna nainstalované sady samolepek (`stickerSetUpdates`), počet zpráv v tématu
   Uložených zpráv (`topicMessageCountUpdates`), nepřečtené zprávy v seznamu
   (`unreadMessageCountUpdates`, dnes se počítají chaty).

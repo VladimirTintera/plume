@@ -104,7 +104,10 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 - **Globální výsledek otevře chat, ve kterém uživatel není**: `ChatInfo.canJoin` (supergroup
   se stavem `ChatMemberStatusLeft`, `getSupergroup` je lokální) nahradí vstupní pole tlačítkem
   „Přidat se" (`joinChat`). Psát do cizí skupiny nejde a nabízet pole by znamenalo chybu po
-  odeslání.
+  odeslání. **`joinChat` vrací totéž co pozvánka** (`JoinResult`): žádost čekající na správce
+  tlačítko nechá a jen se ohlásí, strážní bot otevře svou mini aplikaci
+  (`docs/poznatky/boti.md`, „Strážní bot u vstupu do chatu"). Dřív se výsledek zahazoval a
+  obojí vypadalo jako přidání, po kterém se nic nestalo.
 - **Na široké ploše je hledání panel pod pilulkou, ne celá obrazovka** (`ExpandedDockedSearchBarWithGap`
   podle `LocalTwoPane`). Material doporučuje docked od střední šířky; celoobrazovkové hledání by
   na rozloženém Foldu přikrylo i otevřenou konverzaci vpravo. Panel je široký jako pilulka (tedy

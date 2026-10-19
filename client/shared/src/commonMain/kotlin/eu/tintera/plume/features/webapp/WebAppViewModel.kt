@@ -76,6 +76,9 @@ sealed interface WebAppEffect {
  *   ([keyboardButtonText]); jinde TDLib volání odmítne a Telegram ho tam taky ignoruje.
  * - **Odkazy**: web do prohlížeče (jen http/https), odkaz na Telegram se rozpozná jako v konverzaci
  *   a chat se otevře; ostatní druhy odkazů jdou do prohlížeče.
+ * - **Strážní bot** ([guardQueryId]) schvaluje vstup do chatu. Jakmile rozhodne, mini aplikace
+ *   se zavře sama (TDLib to u `updateChatJoinResult` přikazuje); co dál (otevřít chat, hláška),
+ *   řeší ten, kdo vstup začal — ví, odkud uživatel přišel.
  */
 class WebAppViewModel(
     private val chatId: Long,
@@ -88,6 +91,8 @@ class WebAppViewModel(
     private val startParameter: String,
     /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`); jinak prázdné. */
     private val shortName: String,
+    /** Strážní bot schvalující vstup do chatu (`getGuardBotWebAppUrl`): id dotazu, jinak 0. */
+    private val guardQueryId: Long,
     private val repository: WebAppRepository,
     private val settings: AppSettings,
     private val chats: ChatRepository,
@@ -108,6 +113,15 @@ class WebAppViewModel(
     private var started = false
 
     private val nameLoaded = viewModelScope.launch { _state.update { it.copy(title = repository.botName(botUserId)) } }
+
+    init {
+        if (guardQueryId != 0L) {
+            viewModelScope.launch {
+                chats.awaitGuardDecision(guardQueryId)
+                effect(WebAppEffect.Close)
+            }
+        }
+    }
 
     /** Spustí mini aplikaci s barvami aplikace. Volá obrazovka jednou; další volání nic nedělají. */
     fun start(theme: WebAppTheme) {
@@ -151,7 +165,9 @@ class WebAppViewModel(
     private fun load(allowWriteAccess: Boolean = false) {
         val theme = theme ?: return
         viewModelScope.launch {
-            val result = if (shortName.isNotEmpty()) {
+            val result = if (guardQueryId != 0L) {
+                repository.guardUrl(guardQueryId, theme)
+            } else if (shortName.isNotEmpty()) {
                 repository.linkUrl(chatId, botUserId, shortName, startParameter, allowWriteAccess, theme)
             } else if (main) {
                 repository.mainUrl(chatId, botUserId, startParameter, theme)

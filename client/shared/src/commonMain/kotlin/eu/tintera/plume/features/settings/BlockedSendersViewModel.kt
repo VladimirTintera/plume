@@ -91,6 +91,19 @@ class BlockedSendersViewModel(private val chats: ChatRepository) : ViewModel() {
     // Seznam se nečte v `init`: obě místa, která ho ukazují (řádek v Soukromí, seznam
     // blokovaných), ho čtou samy při zobrazení — a v init by se tak četl dvakrát.
 
+    init {
+        // Blokování odjinud (profil, nabídka nad chatem, jiné zařízení): načtený seznam a počet
+        // v Soukromí by jinak lhaly, dokud se obrazovka neotevře znovu. Nenačtený se nečte —
+        // přečte se sám, až se ukáže.
+        viewModelScope.launch {
+            chats.blockChanges().collect { change ->
+                // Znovu zablokovaný odjinud už mezi odblokovanými v téhle relaci není.
+                if (change.blocked) unblockedIds -= change.chatId
+                if (_state.value.senders != null) reload()
+            }
+        }
+    }
+
     /**
      * Seznam znovu od serveru. Volá se i po každém (od)blokování: co změna udělala, ví jen
      * server — stejná zásada jako u zařízení v Nastavení. Načtený seznam mezitím zůstává, aby se

@@ -696,6 +696,7 @@ fun appModule() = module {
             main = parameters.values.getOrNull(5) as? Boolean ?: false,
             startParameter = parameters.values.getOrNull(6) as? String ?: "",
             shortName = parameters.values.getOrNull(7) as? String ?: "",
+            guardQueryId = parameters.values.getOrNull(8) as? Long ?: 0,
             repository = get(),
             settings = get(),
             chats = get(),

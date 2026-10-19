@@ -24,6 +24,17 @@ samostatně (nabídka nad chatem, ⋮ v hlavičce konverzace, nabídka nad zprá
   u nabídky nad zprávou: `ChatSummary` ho nenese a `getUserFullInfo` na každý chat v seznamu by
   byl dotaz za položku. Dokud odpověď nedorazí, položka se nekreslí — objevení ruší míň než
   zmizení. **Nezjištěno = nenabízet nic** (`SpamActions()`).
+- **Co stav blokování drží déle než chvilku, odebírá `ChatRepository.blockChanges()`**
+  (`updateChatBlockList`, chodí i po blokování z jiného zařízení): profil (vedle
+  `updateUserFullInfo` — jestli ho TDLib po změně pošle taky, dokumentace neslibuje), sheet
+  smazání v otevřené konverzaci (jinak nabízel „a zablokovat" u zablokovaného) a seznam
+  blokovaných v Nastavení. Nabídka nad chatem v seznamu odběr nepotřebuje, stav čte při každém
+  otevření. Id v updatu je id CHATU; u člověka je to totéž číslo jako id uživatele, takže sedí
+  i na `BlockedSender.id`.
+  **Ověřeno na emulátoru** (na šířku, konverzace a profil vedle sebe, testovací bot): po
+  zablokování v profilu zmizelo ze sheetu smazání v konverzaci „Zablokovat taky", po
+  odblokování se vrátilo — obojí bez znovuotevření konverzace. Blokování z jiného zařízení
+  ověřené není (jde stejným updatem).
 
 ### Nahlášení je průvodce
 
@@ -160,6 +171,10 @@ i profil stojí na chatu, a ten po smazání není.
   „Vrátit" (`unblockedIds`, testy `BlockedSendersViewModelTest`). Na emulátoru zůstal odblokovaný
   bot po novém přečtení v seznamu, zatímco počet v Obecných už seděl — příčina (odpověď serveru
   těsně po změně?) zjištěná není, test proto hlídá chování, ne domněnku.
+- **Načtený seznam se po změně odjinud čte znovu** (`blockChanges`, testy
+  `BlockedSendersViewModelTest`); nenačtený ne, přečte se sám, až se ukáže. Znovu zablokovaný
+  odjinud vypadne z `unblockedIds`, jinak by ho seznam dál schovával jako odblokovaného v téhle
+  relaci.
 - **Počet v Obecných se čte znovu při každém návratu** (`LifecycleResumeEffect`) — po odblokování
   na obrazovce seznamu by jinak zůstal starý. Podtitul je počet ÚČTŮ („14 účtů"), ne
   „14 zablokovaných": pod nadpisem „Blokovaní" by to slovo stálo dvakrát.

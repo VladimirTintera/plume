@@ -27,7 +27,8 @@ internal fun AppNavigation.openExternal(destination: ExternalDestination, twoPan
         }
         is ExternalDestination.WebApp -> openOverChats {
             val bot = destination.request.botUserId
-            add(ConversationRoute(bot))
+            // Strážní bot jen schvaluje vstup do cizího chatu — jeho vlastní chat pod ním nemá co dělat.
+            if (destination.request.guardQueryId == 0L) add(ConversationRoute(bot))
             add(webAppRoute(bot, destination.request, archive = false))
         }
         is ExternalDestination.AddBotToGroup -> openOverChats {

@@ -5,6 +5,7 @@ import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.InviteLinkRepository
+import eu.tintera.plume.core.telegram.JoinResult
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.core.telegram.VideoChatInfo
@@ -25,6 +26,8 @@ import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.chats_blocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.conversation_join_failed
+import eu.tintera.plume.resources.invite_request_sent
+import eu.tintera.plume.resources.join_guard_declined
 import eu.tintera.plume.resources.profile_action_failed
 import eu.tintera.plume.resources.profile_mute_failed
 import eu.tintera.plume.resources.secret_chat_close_failed
@@ -64,6 +67,11 @@ internal class ConversationChatActions(
     /** Průvodce nahlášením; sdílí ho i nabídka nad zprávou. */
     private val reportFlow: ReportFlow,
     private val logger: Logger,
+    /**
+     * Vstup hlídaný strážním botem: mini aplikaci a čekání na rozhodnutí obstará
+     * [ConversationLinks.awaitGuardBot]; [onApproved] se zavolá po schválení.
+     */
+    private val awaitGuardBot: (guard: JoinResult.GuardBot, onApproved: (chatId: Long) -> Unit) -> Unit = { _, _ -> },
 ) {
     /**
      * Pruh nad konverzací (spam od neznámého, nasdílení čísla, žádost o vstup). Samostatný tok
@@ -119,13 +127,23 @@ internal class ConversationChatActions(
     /**
      * Přidat se ke skupině nebo kanálu z globálního hledání. Po úspěchu se místo tlačítka
      * vrátí vstupní pole (v kanálu ho server stejně nepustí, ale to platí pro každý kanál).
+     * Skupina se schvalováním vstupu tlačítko nechá (žádost čeká), strážní bot otevře svou mini
+     * aplikaci. Dřív se výsledek `joinChat` zahazoval a obojí vypadalo jako přidání, po kterém
+     * se nic nestalo.
      */
     fun join() {
         if (state.value.joining) return
         state.update { it.copy(joining = true) }
         scope.launch {
             repository.joinChat(chatId)
-                .onSuccess { state.update { it.copy(info = it.info?.copy(canJoin = false)) } }
+                .onSuccess { result ->
+                    when (result) {
+                        is JoinResult.Joined -> joined()
+                        JoinResult.Requested -> state.update { it.copy(notice = UiText(Res.string.invite_request_sent)) }
+                        JoinResult.Declined -> state.update { it.copy(error = UiText(Res.string.join_guard_declined)) }
+                        is JoinResult.GuardBot -> awaitGuardBot(result) { joined() }
+                    }
+                }
                 .onFailure { failure ->
                     val message = failure.reported(logger, Res.string.conversation_join_failed)
                     state.update { it.copy(error = message) }
@@ -133,6 +151,8 @@ internal class ConversationChatActions(
             state.update { it.copy(joining = false) }
         }
     }
+
+    private fun joined() = state.update { it.copy(info = it.info?.copy(canJoin = false)) }
 
     /** Ztlumit / zapnout zvuk kanálu z pruhu místo vstupního pole. Potvrzení přijde updatem. */
     fun toggleMute() {

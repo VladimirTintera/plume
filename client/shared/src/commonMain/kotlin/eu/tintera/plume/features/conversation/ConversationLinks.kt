@@ -10,8 +10,9 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ContactLinkExpiredException
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ForwardOrigin
+import eu.tintera.plume.core.telegram.GuardDecision
 import eu.tintera.plume.core.telegram.InternalLink
-import eu.tintera.plume.core.telegram.InviteJoinResult
+import eu.tintera.plume.core.telegram.JoinResult
 import eu.tintera.plume.core.telegram.LinkUserNotFoundException
 import eu.tintera.plume.core.telegram.UnsupportedProxyException
 import eu.tintera.plume.core.telegram.userMessage
@@ -31,6 +32,7 @@ import eu.tintera.plume.resources.folder_invite_added
 import eu.tintera.plume.resources.folder_invite_failed
 import eu.tintera.plume.resources.folder_invite_joined
 import eu.tintera.plume.resources.invite_request_sent
+import eu.tintera.plume.resources.join_guard_declined
 import eu.tintera.plume.resources.proxy_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.story_unavailable
@@ -205,12 +207,18 @@ internal class ConversationLinks(
             chatRepository.joinByInvite(invite.link)
                 .onSuccess { result ->
                     when (result) {
-                        is InviteJoinResult.Joined -> {
+                        is JoinResult.Joined -> {
                             state.update { it.copy(invite = null) }
                             openTarget(ChatTarget(result.chatId))
                         }
-                        InviteJoinResult.Requested ->
+                        JoinResult.Requested ->
                             state.update { it.copy(invite = null, notice = UiText(Res.string.invite_request_sent)) }
+                        JoinResult.Declined ->
+                            state.update { it.copy(invite = null, error = UiText(Res.string.join_guard_declined)) }
+                        is JoinResult.GuardBot -> {
+                            state.update { it.copy(invite = null) }
+                            awaitGuardBot(result)
+                        }
                     }
                 }
                 .onFailure { failure ->
@@ -222,6 +230,23 @@ internal class ConversationLinks(
 
     fun dismissInvite() {
         state.update { it.copy(invite = null) }
+    }
+
+    /**
+     * Vstup schvaluje strážní bot: otevře se jeho mini aplikace a čeká se, jak rozhodne. Mini
+     * aplikace se po rozhodnutí zavře sama; schválený chat se otevře nad konverzací, jako po
+     * přidání bez bota. Zavře-li ji uživatel bez rozhodnutí, čekání skončí s konverzací.
+     * Volá ho i tlačítko „Přidat se" ([ConversationChatActions.join]).
+     */
+    fun awaitGuardBot(guard: JoinResult.GuardBot, onApproved: (chatId: Long) -> Unit = { openTarget(ChatTarget(it)) }) {
+        requestWebApp(WebAppRequest(guard.botUserId, url = "", launch = false, guardQueryId = guard.queryId))
+        scope.launch {
+            when (val decision = chatRepository.awaitGuardDecision(guard.queryId)) {
+                is GuardDecision.Approved -> onApproved(decision.chatId)
+                GuardDecision.Declined -> state.update { it.copy(error = UiText(Res.string.join_guard_declined)) }
+                GuardDecision.Queued -> state.update { it.copy(notice = UiText(Res.string.invite_request_sent)) }
+            }
+        }
     }
 
     fun toggleFolderInviteChat(chatId: Long) {

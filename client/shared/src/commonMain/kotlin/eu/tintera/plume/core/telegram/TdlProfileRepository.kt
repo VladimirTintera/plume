@@ -987,6 +987,9 @@ class TdlProfileRepository(
             if (userId != null) {
                 add(holder.updates { userUpdates }.filter { it.user.id == userId }.map { })
                 add(holder.updates { userFullInfoUpdates }.filter { it.userId == userId }.map { })
+                // Zablokování, i z jiného zařízení. `UserFullInfo.blockList` se tím změní, ale
+                // jestli TDLib pošle i `updateUserFullInfo`, dokumentace neslibuje.
+                add(holder.updates { chatBlockListUpdates }.filter { it.chatId == userId || it.chatId == chatId }.map { })
             }
             if (type is ChatTypeSecret) {
                 add(holder.updates { secretChatUpdates }.filter { it.secretChat.id == type.secretChatId }.map { })

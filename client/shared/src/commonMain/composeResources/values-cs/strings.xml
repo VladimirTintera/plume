@@ -522,6 +522,7 @@
     <string name="conversation_link_user_not_found">Tenhle člověk na Telegramu není, nebo své číslo skrývá.</string>
     <string name="invite_request">Požádat o přijetí</string>
     <string name="invite_request_sent">Žádost odeslána, schválí ji správce.</string>
+    <string name="join_guard_declined">Bot, který chat hlídá, vstup nepovolil.</string>
     <string name="folder_invite_title">Přidat složku</string>
     <string name="folder_invite_new">Přidej si složku a připoj se k chatům, které vybereš.</string>
     <string name="folder_invite_new_all_joined">Ve všech chatech složky už jsi. Přidá se jen složka.</string>

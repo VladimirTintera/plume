@@ -311,6 +311,11 @@ dřív dělaly, má pilulka po najetí myší (viz „Akce po najetí myší"):
   stejně jako výběr v kopii v nabídce. Klik na ⋮ výběr nezruší (tlačítko si fokus nebere).
   Stejné právo jako výběr v kopii (`canCopy`); v chatu s chráněným obsahem
   (`protectsContent`) výběr v bublině vůbec není.
+  **`protectsContent` se odebírá živě** (`protectedContentUpdates`,
+  `updateChatHasProtectedContent`), ne jen při otevření chatu: když správce ochranu zapnul
+  s otevřenou konverzací, výběr v bublině zůstal a chráněný text šel zkopírovat, dokud se chat
+  neotevřel znovu. Kopírování a přeposílání z nabídky nad zprávou to netrápilo — ta se ptá na
+  `getMessageProperties` při každém otevření.
 - **Jen text zprávy**, ne náš popis (anketa) a ne kopie v nabídce (`selectableText()` vrací
   `false` pro `InertItemScope`); výběr vždy v jedné zprávě. Text článku po kusech má víc
   `SelectionContainer` a platí první neprázdný.
