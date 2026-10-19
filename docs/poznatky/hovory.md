@@ -494,6 +494,41 @@ vlastníka režimu. U hovoru přes `CallsManager` (Jetpack core-telecom) Telecom
   (`connectedAt` je vyplněné). Záznam logu Pixelu 7 přežije výpadek bezdrátového adb, když
   běží přímo v telefonu (`nohup sh -c "logcat | grep … > /data/local/tmp/…"`).
 
+## Zátěžový test (19. 10. 2026)
+
+Podnětem byl skutečný hovor s oficiálním klientem, který po ~20 s začal sekat a vypadl.
+Protistrana byla na špatné Wi-Fi; test měl ukázat, jestli to není v Plume.
+
+- **Sonda (necommitnutá, `CallProbe` v `NtgCallMedia`)**: místo mikrofonu `EXTERNAL` zdroj
+  a `sendExternalFrame` s tóny, které se po 100 ms střídají (volající 500/700/900 Hz, volaný
+  1100/1300/1500 Hz; stálý tón by potlačení šumu časem utlumilo). Příchozí zvuk jako `EXTERNAL`
+  přehrávání (`onFrames`, `PLAYBACK` + `MICROPHONE`, PCM s16le 48 kHz mono). V každém 10ms rámci
+  Goertzel na očekávané frekvence; po vteřinách podíl rámců s tónem, úroveň, nejdelší díra,
+  `TrafficStats` vlastního uid, `NTgCalls.time` a `cpuUsage`. Zápis do logu i do
+  `files/callprobe.log` (`run-as`), který přežije výpadek adb i restart sezení, které ho čte.
+- **Normál je kolem 90–100 % rámců s tónem**, ne 100 %: rámec se změnou frekvence čistý tón nemá.
+  Za výpadek se bere pokles pod 80 % nebo díra od 200 ms.
+- **Nastavení**: Pixel 5 (Android 14) přes hotspot Foldu, tedy přes mobilní data, volá Pixel 7 Pro
+  (Android 17) na domácí Wi-Fi; Plume ↔ Plume, verze 8.0.0, spojení přes reflectory Telegramu
+  (`relay:udp:reflector…`).
+- **Výsledek: 9 160 s (2 h 33 min) bez přerušení.** Tón v 96 % rámců na obou stranách, žádná
+  chyba odesílání, přehraný a zachycený čas sedí s hodinami (bez skluzu). Výpadky jen čtyřikrát:
+  nejhorší v 18:50:38–39 na Wi-Fi straně (1,6 s, nejdelší díra 1,16 s, příjem spadl na 1 kB/s),
+  o 3 s později krátce i na datové straně — tedy oba směry, společný je jen úsek přes mobilní
+  síť Foldu. Pak 3× díra 210–340 ms. Hovor se pokaždé vzpamatoval sám do 2 s. 5 kB/s každým
+  směrem, procesor 7 % (Pixel 5) a 11 % (Pixel 7 Pro), teplota na konci 27–28 °C (oba na kabelu).
+- **Sekání v původním hovoru tedy nejspíš nebylo v Plume.** Neověřené zůstává: hovor proti
+  oficiálnímu klientu takhle dlouho, verze jiné než 8.0.0, iOS a desktop protějšek.
+- **ntgcalls si sítě vyjmenovává samo, ne přes Android**, takže bere i rozhraní bez internetu
+  (IMS pro volání přes LTE, `rmnet1`, ač `dumpsys connectivity` ho hlásí jako `MOBILE[IWLAN] …
+  ims`). Pingy na reflectory přes ně nikdo nezodpoví (`REFLECTOR sending ping` po 500 ms)
+  a WebRTC je každých 16 s zahodí a sbírá znovu (`Regather candidates on failed networks`, 572×
+  za hovor na Pixelu 7 Pro). S výpadky to nesouvisí — většina cyklů proběhla bez nich —, je to
+  zbytečný provoz a probouzení rádia (úkol v `docs/roadmap.md`).
+- **Oficiální Telegram na témže telefonu zvoní dál, i když hovor přijal Plume**: dostane push,
+  zazvoní, a že hovor přijalo jiné zařízení, se dozví až po připojení, které se mu v pozadí
+  neotevřelo. Při testech ho zastavit (`am force-stop org.telegram.messenger`).
+
 ## Vyzvánění a výstup zvuku (Android)
 
 - **Příchozí hovor zvoní `CallRinger`**: vyzváněcí tón telefonu (`RingtoneManager`,
