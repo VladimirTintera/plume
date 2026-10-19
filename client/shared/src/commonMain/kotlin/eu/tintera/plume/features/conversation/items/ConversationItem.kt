@@ -196,6 +196,9 @@ internal interface ConversationItemScope {
     /** Sponzorovaná zpráva není zpráva chatu, takže nemá ani [MessageAction]. */
     fun openSponsored(sponsored: SponsoredMessage)
 
+    /** Tlačítko Zastavit u rozepsané odpovědi bota ([PendingReplyItem]); ta taky není zpráva chatu. */
+    fun stopPendingReply() {}
+
     /**
      * Co se hledá v chatu (dotaz, ke kterému patří výsledky); `null` mimo hledání. Bubliny ho
      * v textu zvýrazní. Čte se v kompozici textu, takže ho obrazovka podává přes `derivedStateOf`

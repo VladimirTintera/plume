@@ -1519,7 +1519,7 @@ internal val ChatMessage.hasOriginLabel: Boolean get() = forwardOrigin != null |
 private const val FORWARD_LABEL_ALPHA = 0.78f
 
 /** Jak silně se tónuje pás citace v textu. Stejný řád jako podklad kódu (0,15). */
-private const val QUOTE_TINT_ALPHA = 0.1f
+internal const val QUOTE_TINT_ALPHA = 0.1f
 
 /** Průhlednost podkladu výběru textu — stejná jako výchozí `TextSelectionColors` v Material 3. */
 private const val SELECTION_BACKGROUND_ALPHA = 0.4f

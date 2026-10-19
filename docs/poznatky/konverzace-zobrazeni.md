@@ -17,7 +17,7 @@ vlastní soubor v `features/conversation/`:
 | Vstupní pole | `MessageInput.kt` | karta pole, tlačítko odeslání a nahrávání, hlavičky citace a úpravy |
 | FAB slot | `ConversationFloatingButtons.kt` | odznaky zmínek a reakcí, „přečíst", tlačítko dolů |
 | Dialogy a sheety | `ConversationDialogs.kt` | výběry, plánování, sheety otevírané stavem ViewModelu; `ConversationSheets` |
-| Efekty seznamu | `ConversationListEffects.kt` | snackbary, stránkování, skoky na zprávu, nové zprávy dole, hlášení přečtení a reklam |
+| Efekty seznamu | `ConversationListEffects.kt` | snackbary, stránkování, skoky na zprávu, nové zprávy dole, hlášení přečtení, reklam a metrik zobrazení |
 | Navigace | `ConversationNavigation.kt` | `ConversationNavigation` (callbacky do shellu) a `ConversationEvents` (jednorázové události) |
 | Nahrávání | `ConversationRecording.kt` | stav hlasovky a kolečka, gesto, oprávnění, kamera |
 
@@ -66,6 +66,7 @@ z bubliny (`onAction`). Ostatní dělají části v `features/conversation/`:
 | `ConversationDocuments` | stažení, otevření, sdílení a uložení souboru |
 | `ConversationChatActions` | chat jako celek: pruhy nad konverzací, vstup, ztlumení, smazání |
 | `ConversationScheduled` | naplánované zprávy |
+| `ConversationPendingReplies` | rozepsané odpovědi botů a jejich zastavení (viz „Streamované odpovědi botů" v `boti.md`) |
 
 `ConversationState.kt` nese stav a jeho typy, `ConversationParts.kt` to, co si části volají
 navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
@@ -93,8 +94,8 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   `ConversationMessageActionsTest`, `ConversationAttachmentsTest`, `ConversationLinksTest`,
   `ConversationBotsTest`, `ConversationSuggestionsTest`, `ConversationPlaybackTest`,
   `ConversationRecorderTest`, `ConversationDocumentsTest`, `ConversationTranslationTest`,
-  `ConversationMessageContextTest`, `ConversationMessageMenuTest`, `ConversationChatActionsTest`
-  — tedy všechny; držáky obrazovky `ConversationSheets` a `ConversationRecording` testuje
+  `ConversationMessageContextTest`, `ConversationMessageMenuTest`, `ConversationChatActionsTest`,
+  `ConversationPendingRepliesTest` — tedy všechny; držáky obrazovky `ConversationSheets` a `ConversationRecording` testuje
   `ConversationScreenHoldersTest`):
   stav je obyčejný `MutableStateFlow`, repository
   `UnimplementedConversationRepository`, `UnimplementedChatRepository`,
@@ -1304,3 +1305,29 @@ do reklam nesmí zasahovat — nesmí je filtrovat, skrývat, ani měnit popisek
   pozadí a doručení už není jisté.
 - **Prázdný seznam je normální stav**, ne chyba: reklamy se servírují jen v dost velkých veřejných
   kanálech, nikdy uživatelům s Premium, a závisí na dostupné inzerci.
+
+## Metriky zobrazení
+
+TDLib PŘIKAZUJE posílat `sendMessageViewMetrics`, když zpráva zmizí z obrazovky na víc než
+300 ms, viewport zanikne, nebo zobrazení přesáhne 5 minut. Je to statistika (jak dlouho, jak
+aktivně a jak velký kus zprávy uživatel viděl), ne přečtení — to dál hlásí `viewMessages`.
+Počítá to čistá třída `MessageViewMetricsTracker` (testy `MessageViewMetricsTrackerTest`),
+snímky seznamu jí podává `ConversationViewMetrics` v `ConversationListEffects.kt` a odesílá
+`ConversationViewModel.reportViewMetrics`.
+
+- **Seznam v klidu snímky nevydává**, takže efekt tiká (100 ms): bez toho by se zmizení ani
+  pět minut nepoznaly, dokud by se seznam nepohnul.
+- **Viewport zaniká i odchodem do pozadí.** Kompozice tam žije dál, ale nikdo se nedívá;
+  efekt proto běží jen ve stavu STARTED a při zastavení pošle rozpracované (`finally`).
+- **Odchází v `appScope`**: poslední dávka jde při zavírání obrazovky, kdy se `viewModelScope`
+  ruší. Ověřeno: po odchodu z chatu TDLib dávku přijal.
+- **Viditelná část je bez odsazení seznamu** (`beforeContentPadding` / `afterContentPadding`):
+  pod průsvitnou lištou a vstupním polem zprávu nikdo nečte. Položky mimo ni se nepočítají.
+- **Aktivní čas** je do 15 s od posunu seznamu (`isScrollInProgress`). Ťuknutí a psaní se
+  nepočítají — čtení je hlavně posouvání a TDLib aktivní čas chce na poznání odloženého telefonu.
+- **Klíč položky není id zprávy** (u odeslaných se liší); převádí ho ViewModel a rozesílanou
+  nebo neodeslanou zprávu (dočasné id) vynechá. U alba se hlásí položka, tedy nejstarší zpráva.
+- **Diskrétní čtení metriky neposílá**, stejně jako přečtení.
+- **Ověřeno na emulátoru** dočasným výpisem úspěšných volání: zprávy, které při posunu zmizely,
+  se nahlásily do půl vteřiny, při odchodu z chatu odešel zbytek; TDLib všechny přijal.
+  **Neověřené:** odchod do pozadí a pětiminutové zobrazení (jen testy), iOS a desktop.

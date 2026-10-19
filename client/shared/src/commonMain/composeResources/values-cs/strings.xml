@@ -417,6 +417,9 @@
     </plurals>
     <string name="conversation_unpin_all_body">Zmizí z pruhu připnutých všem v chatu. Zpátky se dají připnout jen po jedné.</string>
     <string name="conversation_unpin_all_failed">Zprávy se nepodařilo odepnout.</string>
+    <string name="conversation_pending_stop">Zastavit</string>
+    <string name="conversation_pending_thinking">Přemýšlí…</string>
+    <string name="conversation_pending_stop_failed">Odpověď bota se nepodařilo zastavit.</string>
     <string name="conversation_repin_failed">Zprávu se nepodařilo znovu připnout.</string>
     <string name="conversation_history_failed">Historii se nepodařilo načíst.</string>
     <string name="conversation_quote_deleted">Citovaná zpráva už není k dispozici.</string>

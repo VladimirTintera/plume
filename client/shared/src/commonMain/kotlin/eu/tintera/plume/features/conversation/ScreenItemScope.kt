@@ -170,7 +170,7 @@ internal class ScreenItemScope(
     private val arrived = HashSet<Long>()
 
     override fun claimArrival(key: Long, timestamp: Int): Boolean =
-        timestamp >= openedAt - ARRIVAL_TOLERANCE_SECONDS && arrived.add(key)
+        timestamp >= openedAt - ARRIVAL_TOLERANCE_SECONDS && arrived.add(key) && key != state.value.pendingReplacedBy
 
     private val diceThrown = HashSet<Long>()
 
@@ -225,4 +225,6 @@ internal class ScreenItemScope(
     }
 
     override fun openSponsored(sponsored: SponsoredMessage) = viewModel.onSponsoredClick(sponsored)
+
+    override fun stopPendingReply() = viewModel.stopPendingReply()
 }

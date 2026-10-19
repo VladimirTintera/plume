@@ -1050,6 +1050,34 @@ interface ConversationRepository {
 
     /** Nahlásí kliknutí. Musí odejít dřív, než se otevře odkaz. */
     suspend fun reportSponsoredClick(chatId: Long, messageId: Long): Result<Unit>
+
+    /**
+     * Jak dlouho a jak celou uživatel zprávu viděl (TDLib `sendMessageViewMetrics`).
+     *
+     * TDLib to PŘIKAZUJE: volá se, když zpráva zmizí z obrazovky na víc než 300 ms, obrazovka
+     * zanikne, nebo zobrazení přesáhne 5 minut. Kdy přesně, počítá `MessageViewMetricsTracker`.
+     */
+    suspend fun reportViewMetrics(chatId: Long, metrics: MessageViewMetrics): Result<Unit>
+
+    /**
+     * Rozepsané odpovědi bota v chatu (TDLib `updatePendingMessage`) — AI boti tak posílají
+     * odpověď průběžně, ještě než ji dopíšou. V tématu jen ty z tématu.
+     *
+     * Kdy ji ukázat a kdy smazat, předepisuje TDLib a hlídá to `ConversationPendingReplies`.
+     */
+    fun pendingMessages(chatId: Long): Flow<PendingBotMessage>
+
+    /** Rozepsaná odpověď, kterou uživatel zastavil jinde (`updateStopMessageDraft`): `draftId`. */
+    fun stoppedPendingMessages(chatId: Long): Flow<Long>
+
+    /** Tlačítko Zastavit u rozepsané odpovědi: bot přestane generovat (`stopPendingMessage`). */
+    suspend fun stopPendingMessage(chatId: Long, draftId: Long): Result<Unit>
+
+    /**
+     * Nejdelší doba, po kterou se rozepsaná odpověď smí ukazovat (`pending_text_message_period`),
+     * v sekundách. Když ji TDLib nevydá, výchozí hodnota.
+     */
+    suspend fun pendingMessagePeriodSeconds(): Int
 }
 
 /** Připnuté zprávy chatu. */

@@ -230,6 +230,42 @@ zprávu (`sendEphemeralMessage`). Ostatní členové ji nevidí vůbec. Doména 
   - **Neověřené:** iOS a desktop (jen přeložené), mizející zpráva s médii, odpověď v tématu
     skupiny.
 
+## Streamované odpovědi botů
+
+AI bot posílá odpověď průběžně jako rozepsanou zprávu (Bot API `sendMessageDraft`, TDLib
+`updatePendingMessage`) a skutečnou zprávu pošle až na konci. Doména `PendingBotMessage`,
+stav `ConversationState.pendingReply`, část `ConversationPendingReplies`, blok
+`PendingReplyItem`, testy `ConversationPendingRepliesTest`.
+
+- **Pravidla zobrazení předepisuje TDLib a drží se doslova**: nejdéle
+  `pending_text_message_period` sekund od POSLEDNÍHO updatu (naměřeno ~30 s, Bot API to
+  popisuje jako „30-second preview"), update se stejným `draftId` nahradí předchozí s animací,
+  příchozí zpráva nebo odpověď s jiným `draftId` ji smaže. Ve vlákně je tedy nejvýš jedna.
+- **Příchozí zpráva ji smaže VE STEJNÉ změně stavu, ve které se vkládá** (`afterNewMessage`
+  v `newMessages`), ne v samostatném odběru: jinak by byla na snímek vidět rozepsaná i dopsaná
+  odpověď pod sebou. Dopsaná zpráva pak nenaskakuje pružně jako nová (`pendingReplacedBy`
+  v `claimArrival`) — na jejím místě už text stál.
+- **Každý update nese CELÝ text**, ne přírůstek. Bublina dorůstá `animateContentSize`.
+- **Prázdný text je „Přemýšlí…"**: Bot API to dovoluje výslovně („pass an empty text to show
+  a Thinking… placeholder"). Napoprvé jsme prázdnou odpověď skrývali a nechali „píše…" — bot
+  tím přišel o tlačítko Zastavit právě ve chvíli, kdy přemýšlí nejdéle.
+- **Není to zpráva chatu, a proto vlastní blok, ne `MessageFrame`.** Rám nese nabídku, tah na
+  odpověď, reakce a doručení a ty by mířily na id, které server nezná. Barvu, tvar a písmo má
+  bublina stejné jako příchozí zpráva. Stojí na místě „píše…" (obojí říká totéž).
+- **Zastavit** (`canStop`) volá `stopPendingMessage`; bez `keepOnStop` text hned zmizí, s ním
+  zůstane bez tlačítka až do vypršení. Pozdní update zastavené odpovědi ji bez `keepOnStop`
+  nevrátí (`stopped` v části). `updateStopMessageDraft` (zastaveno na jiném zařízení) dělá
+  totéž bez volání serveru. Když zastavení selže, ukáže se chyba a další update odpověď vrátí.
+- **Bot dostane `stopped_message_generation` jen s `allowed_updates`.** Výchozí `getUpdates`
+  ho nevydá; s `allowed_updates=["message","stopped_message_generation"]` přišel s `draft_id`.
+- **Ověřeno na emulátoru testovacím botem** (`@NoTiBoBoBot`, `sendMessageDraft` z curl —
+  veřejného AI bota, který streamuje, jsme nehledali, Bot API je táž cesta, kterou používá
+  každý): „Přemýšlí…" s tlačítkem, text po slovech dorůstá, dopsaná zpráva rozepsanou nahradí,
+  Zastavit bez `keep_on_stop` text smaže a bot dostane `stopped_message_generation`, s ním text
+  zůstane bez tlačítka, vypršení po ~30 s. **Neověřené:** iOS a desktop (jen přeložené),
+  odpověď v tématu (bot s tématy v soukromém chatu), článek (`messageRichMessage`)
+  a zastavení z jiného zařízení.
+
 ## Spuštění bota
 
 Prázdný chat s botem je jeho **profil** (`BotIntroPage`): velká tvář nahoře uprostřed, jméno,

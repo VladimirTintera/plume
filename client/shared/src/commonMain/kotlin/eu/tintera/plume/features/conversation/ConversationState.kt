@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.PendingBotMessage
 import eu.tintera.plume.core.telegram.TELEGRAM_SERVICE_NOTIFICATIONS_ID
 import eu.tintera.plume.core.telegram.MessageSenderChoice
 import eu.tintera.plume.core.telegram.MediaReplacement
@@ -461,6 +462,15 @@ enum class PinScope {
 data class Typing(val activity: ChatActivity, val sender: SenderInfo?)
 
 /**
+ * Rozepsaná odpověď bota na obrazovce (viz `ConversationPendingReplies`). [stopped] = uživatel ji
+ * zastavil a text zůstal, protože o to bot požádal (`keepOnStop`).
+ */
+data class PendingReply(val message: PendingBotMessage, val stopped: Boolean = false) {
+    /** Svítí tlačítko Zastavit? */
+    val canStop: Boolean get() = message.canStop && !stopped
+}
+
+/**
  * Které zprávy z viditelných položek ([visibleKeys] jsou KLÍČE, ne id) se hlásí jako zhlédnuté.
  *
  * Cizí zprávy vždycky; album celé, protože je v seznamu jednou položkou s klíčem nejstarší
@@ -525,6 +535,16 @@ data class ConversationState(
      * naskočí (`TypingItem`), ne v hlavičce.
      */
     val typing: Typing? = null,
+    /**
+     * Rozepsaná odpověď bota (`updatePendingMessage`); ve vlákně je nejvýš jedna. Kreslí se tam,
+     * kam dopsaná zpráva naskočí, místo „píše…".
+     */
+    val pendingReply: PendingReply? = null,
+    /**
+     * Zpráva, která rozepsanou odpověď nahradila. Nenaskakuje jako nová (`claimArrival`): na jejím
+     * místě už text stál, a pružný příchod by vypadal, že přišlo něco dalšího.
+     */
+    val pendingReplacedBy: Long? = null,
     /** Otevřená nabídka nad zprávou (rychlé reakce + akce). */
     val messageMenu: MessageMenu? = null,
     /** Otevřená nabídka nad systémovým oznámením (jen smazání). */
