@@ -499,6 +499,8 @@ class ConversationViewModel(
         logger = logger,
         // `links` vzniká až níž; lambda na něj sáhne teprve při ťuknutí na „Přidat se".
         awaitGuardBot = { guard, onApproved -> links.awaitGuardBot(guard, onApproved) },
+        // `bots` vzniká až níž; sáhne se na ně teprve po odblokování bota.
+        restartBot = { bots.startBot() },
     )
     val chatBar: StateFlow<ChatBar?> get() = chatActions.chatBar
     val videoChat: StateFlow<VideoChatInfo?> get() = chatActions.videoChat
@@ -507,6 +509,7 @@ class ConversationViewModel(
     val chatGone: StateFlow<Boolean> get() = chatActions.chatGone
     val unarchived: StateFlow<Boolean> get() = chatActions.unarchived
     fun join() = chatActions.join()
+    fun unblock() = chatActions.unblock()
     fun toggleMute() = chatActions.toggleMute()
     fun toggleDefaultSilent() = chatActions.toggleDefaultSilent()
     fun addSpamBarContact() = chatActions.addSpamBarContact()

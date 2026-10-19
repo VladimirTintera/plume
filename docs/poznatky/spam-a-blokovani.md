@@ -35,6 +35,28 @@ samostatně (nabídka nad chatem, ⋮ v hlavičce konverzace, nabídka nad zprá
   zablokování v profilu zmizelo ze sheetu smazání v konverzaci „Zablokovat taky", po
   odblokování se vrátilo — obojí bez znovuotevření konverzace. Blokování z jiného zařízení
   ověřené není (jde stejným updatem).
+- **Konverzace se zablokovaným nemá vstupní pole, ale „Odblokovat"** (`ConversationState.showsUnblock`,
+  lišta v `ConversationBottomBar`, akce `ConversationChatActions.unblock`, testy
+  `ConversationChatActionsTest`). Pole by tu bylo past: zpráva zablokovanému odejde, jen ji
+  nedostane, a uživatel neví proč. Stav je tentýž `spam.isBlocked`, takže lištu živě ukáže
+  i schová `blockChanges()`; `canWrite` ho bere taky, jinak by šlo odpovědět swipem do pole,
+  které není.
+  - **Bota tlačítko i spustí** („Odblokovat a spustit", jako „Restartovat" v oficiálním
+    klientu): po odblokování pošle `/start` tou cestou co Start (`ConversationBots.startBot`,
+    i s parametrem z odkazu). Zablokovaný bot o chatu neví; bez `/start` by první zpráva
+    padla do prázdna. Lišta stojí PŘED Startem — zablokovanému botovi by `/start` neodešel.
+  - **Bez potvrzovacího dialogu**, stejně jako odblokování v profilu: nic se neztratí a zpátky
+    to jde jedním ťuknutím. (Oficiální klient se u člověka ptá.)
+  - **Tajný chat, kam se psát nedá sám** (čeká na přijetí, zavřený), si nechá svou větu —
+    odblokování by na tom nic nezměnilo.
+  - **Dokud stav blokování nedorazí, je pole** (`spam == null` = nezablokovaný), jako všude, kde
+    se psaní neví. Lišta se tak u zablokovaného ukáže až po `getUserFullInfo`, chvilku po otevření.
+  **Ověřeno na emulátoru** (na šířku, konverzace a profil vedle sebe, testovací bot): zablokování
+  v profilu ukázalo místo pole „Odblokovat a spustit", odblokování v profilu ho schovalo,
+  tlačítko bota odblokovalo, poslalo `/start` a profil vedle znovu nabízí „Zablokovat".
+  **U člověka („Odblokovat" bez spuštění) ověřené na zařízení není** — testovací účet je skutečný
+  a blokovat skutečného člověka se kvůli tomu nemá; liší se jen popiskem a vynechaným `/start`,
+  což pokrývají testy.
 
 ### Nahlášení je průvodce
 

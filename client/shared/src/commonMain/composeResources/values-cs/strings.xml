@@ -554,6 +554,8 @@
     <string name="conversation_send_failed">Zprávu se nepodařilo odeslat.</string>
     <string name="conversation_bot_start">Spustit</string>
     <string name="conversation_bot_start_failed">Bota se nepodařilo spustit.</string>
+    <string name="conversation_unblock_bot">Odblokovat a spustit</string>
+    <string name="conversation_unblock_failed">Odblokovat se nepodařilo.</string>
     <string name="conversation_send_options">Možnosti odeslání</string>
     <string name="conversation_send_silent">Odeslat bez zvuku</string>
     <string name="conversation_default_silent_on">Zprávy budou odcházet bez zvuku</string>

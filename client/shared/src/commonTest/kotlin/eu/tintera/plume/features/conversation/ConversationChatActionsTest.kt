@@ -1,14 +1,17 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.BotIntro
 import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.JoinResult
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.ReportStep
+import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.SpamBar
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import eu.tintera.plume.core.telegram.UnimplementedInviteLinkRepository
 import eu.tintera.plume.core.telegram.VideoChatInfo
+import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.chats.SpamCleanup
 import eu.tintera.plume.features.report.ReportFlow
@@ -16,6 +19,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_blocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.conversation_join_failed
+import eu.tintera.plume.resources.conversation_unblock_failed
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.join_guard_declined
 import eu.tintera.plume.resources.profile_mute_failed
@@ -57,6 +61,9 @@ class ConversationChatActionsTest {
         val bar = MutableStateFlow<ChatBar?>(null)
         val videoChat = MutableStateFlow<VideoChatInfo?>(null)
         var blockResult: Result<Unit> = Result.success(Unit)
+        /** Hodnoty `blocked` v pořadí volání. */
+        val blockedValues = mutableListOf<Boolean>()
+        var block: CompletableDeferred<Unit>? = null
         var failure: Throwable? = null
 
         private fun call(name: String): Result<Unit> {
@@ -76,6 +83,8 @@ class ConversationChatActionsTest {
 
         override suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit> {
             calls += "block"
+            blockedValues += blocked
+            block?.await()
             return blockResult
         }
     }
@@ -96,6 +105,9 @@ class ConversationChatActionsTest {
     /** Strážní boti, na které se čeká, a co se má stát po jejich schválení. */
     private val guards = mutableListOf<Pair<JoinResult.GuardBot, (Long) -> Unit>>()
 
+    /** Kolikrát se po odblokování spustil bot. */
+    private var botRestarts = 0
+
     private fun TestScope.actions(state: MutableStateFlow<ConversationState>, threadRootId: Long? = null) =
         ConversationChatActions(
             chatId = TEST_CHAT,
@@ -111,6 +123,7 @@ class ConversationChatActionsTest {
             },
             logger = testLogger,
             awaitGuardBot = { guard, onApproved -> guards += guard to onApproved },
+            restartBot = { botRestarts++ },
         )
 
     private val spamBar = SpamBar(canReportSpam = true, canBlock = true, canAddContact = true)
@@ -169,6 +182,78 @@ class ConversationChatActionsTest {
         advanceUntilIdle()
         assertFalse(state.value.joining)
         assertEquals(false, state.value.info?.canJoin)
+    }
+
+    private fun blockedState(writeAccess: WriteAccess = WriteAccess.Allowed, bot: Boolean = false) = MutableStateFlow(
+        ConversationState(
+            info = testChatInfo().copy(writeAccess = writeAccess),
+            spam = SpamActions(canBlock = true, isBlocked = true),
+            botIntro = if (bot) BotIntro(description = "") else null,
+        ),
+    )
+
+    @Test
+    fun zablokovanemuMistoPoleOdblokovat() {
+        val blocked = blockedState().value
+        assertTrue(blocked.showsUnblock)
+        assertFalse(blocked.canWrite, "ani odpověď swipem, pole není")
+
+        // Dokud stav blokování nedorazí, je pole — jako všude, kde se psaní neví.
+        val unknown = blocked.copy(spam = null)
+        assertFalse(unknown.showsUnblock)
+        assertTrue(unknown.canWrite)
+
+        // Zablokování odjinud (`blockChanges` přepíše `spam`) lištu ukáže a odblokování schová.
+        assertFalse(blocked.copy(spam = SpamActions(canBlock = true)).showsUnblock)
+    }
+
+    @Test
+    fun tajnyChatKamPsatNejdeSiNechaSvouVetu() {
+        assertFalse(blockedState(WriteAccess.SecretClosed).value.showsUnblock)
+        assertFalse(blockedState(WriteAccess.SecretPending).value.showsUnblock)
+    }
+
+    @Test
+    fun odblokovaniVratiPoleADruheTuknutiNeposilaZnovu() = runTest {
+        val state = blockedState()
+        val waiting = CompletableDeferred<Unit>()
+        chats.block = waiting
+        val actions = actions(state)
+
+        actions.unblock()
+        actions.unblock()
+        runCurrent()
+        assertTrue(state.value.unblocking)
+        assertEquals(listOf(false), chats.blockedValues)
+
+        waiting.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(state.value.unblocking)
+        assertFalse(state.value.showsUnblock)
+        assertTrue(state.value.canWrite)
+        assertEquals(0, botRestarts, "člověku se nic neposílá")
+    }
+
+    @Test
+    fun odblokovanyBotSeRovnouSpusti() = runTest {
+        val state = blockedState(bot = true)
+        actions(state).unblock()
+        advanceUntilIdle()
+        assertEquals(listOf(false), chats.blockedValues)
+        assertEquals(1, botRestarts)
+        assertFalse(state.value.peerBlocked)
+    }
+
+    @Test
+    fun nepovedeneOdblokovaniNechaListuANespustiBota() = runTest {
+        val state = blockedState(bot = true)
+        chats.blockResult = Result.failure(IllegalStateException("USER_ID_INVALID"))
+        actions(state).unblock()
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.conversation_unblock_failed), state.value.error)
+        assertTrue(state.value.showsUnblock)
+        assertFalse(state.value.unblocking)
+        assertEquals(0, botRestarts)
     }
 
     @Test

@@ -543,6 +543,8 @@
     <string name="conversation_send_failed">Couldn't send the message.</string>
     <string name="conversation_bot_start">Start</string>
     <string name="conversation_bot_start_failed">Couldn't start the bot.</string>
+    <string name="conversation_unblock_bot">Unblock and start</string>
+    <string name="conversation_unblock_failed">Couldn't unblock.</string>
     <string name="conversation_send_options">Send options</string>
     <string name="conversation_send_silent">Send without sound</string>
     <string name="conversation_default_silent_on">Messages will be sent without sound</string>

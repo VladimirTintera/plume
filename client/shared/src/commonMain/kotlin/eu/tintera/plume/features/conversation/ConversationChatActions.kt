@@ -26,6 +26,7 @@ import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.chats_blocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.conversation_join_failed
+import eu.tintera.plume.resources.conversation_unblock_failed
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.join_guard_declined
 import eu.tintera.plume.resources.profile_action_failed
@@ -72,6 +73,8 @@ internal class ConversationChatActions(
      * [ConversationLinks.awaitGuardBot]; [onApproved] se zavolá po schválení.
      */
     private val awaitGuardBot: (guard: JoinResult.GuardBot, onApproved: (chatId: Long) -> Unit) -> Unit = { _, _ -> },
+    /** Odblokovaný bot dostane „/start" (Start z [ConversationBots], i s parametrem z odkazu). */
+    private val restartBot: () -> Unit = {},
 ) {
     /**
      * Pruh nad konverzací (spam od neznámého, nasdílení čísla, žádost o vstup). Samostatný tok
@@ -153,6 +156,33 @@ internal class ConversationChatActions(
     }
 
     private fun joined() = state.update { it.copy(info = it.info?.copy(canJoin = false)) }
+
+    /**
+     * „Odblokovat" z lišty místo vstupního pole. Jde tou jedinou cestou k blokování
+     * ([ChatRepository.setBlocked]). Stav se přepíše hned po úspěchu, ať se pole vrátí bez
+     * čekání na `updateChatBlockList` — ten pak přijde se stejnou hodnotou.
+     *
+     * Bota rovnou i spustí, jako „Restartovat" v oficiálním klientu: zablokovaný bot o chatu
+     * neví a psát mu bez „/start" nemá smysl (stejný důvod jako u tlačítka Start).
+     */
+    fun unblock() {
+        val current = state.value
+        if (current.unblocking || !current.peerBlocked) return
+        val bot = current.botIntro != null
+        state.update { it.copy(unblocking = true) }
+        scope.launch {
+            chatRepository.setBlocked(chatId, blocked = false)
+                .onSuccess {
+                    state.update { it.copy(spam = it.spam?.copy(isBlocked = false), unblocking = false) }
+                    if (bot) restartBot()
+                }
+                .onFailure { failure ->
+                    state.update {
+                        it.copy(unblocking = false, error = failure.reported(logger, Res.string.conversation_unblock_failed))
+                    }
+                }
+        }
+    }
 
     /** Ztlumit / zapnout zvuk kanálu z pruhu místo vstupního pole. Potvrzení přijde updatem. */
     fun toggleMute() {

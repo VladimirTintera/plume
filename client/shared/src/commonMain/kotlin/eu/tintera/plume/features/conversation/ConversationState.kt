@@ -760,6 +760,8 @@ data class ConversationState(
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
     val joining: Boolean = false,
+    /** Běží odblokování protějšku z lišty místo pole ([ConversationViewModel.unblock]). */
+    val unblocking: Boolean = false,
     /** Ztlumení chatu; `null`, dokud se nepřečte. V nabídce ⋮ a v kanálu bez práva publikovat. */
     val muted: Boolean? = null,
     /** Co jde s chatem udělat proti spamu (nahlásit, zablokovat); `null`, dokud to nedorazí. */
@@ -801,9 +803,26 @@ data class ConversationState(
      * Jestli se u připravené přílohy smí nabídnout mizení — pro [attachmentCount] příloh.
      * Pravidlo je [selfDestructAllowed]; dokud hlavička chatu nedorazí, nesmí se nic.
      */
-    /** Do chatu se smí psát: vstupní pole, odpověď swipem. Dokud hlavička nedorazí, bere se, že ano. */
+    /**
+     * Do chatu se smí psát: vstupní pole, odpověď swipem. Dokud hlavička nedorazí, bere se, že ano.
+     * Zablokovanému protějšku ne — místo pole je „Odblokovat" ([showsUnblock]).
+     */
     val canWrite: Boolean
-        get() = info == null || (!info.canJoin && info.writeAccess == WriteAccess.Allowed)
+        get() = !peerBlocked && (info == null || (!info.canJoin && info.writeAccess == WriteAccess.Allowed))
+
+    /**
+     * Protějšek soukromého (i tajného) chatu je zablokovaný. Stav nese [spam] — čte se při
+     * otevření a drží živě `blockChanges()`; dokud nedorazí, zablokovaný není.
+     */
+    val peerBlocked: Boolean
+        get() = spam?.isBlocked == true
+
+    /**
+     * Místo pole „Odblokovat" — jen kde by jinak pole bylo. Tajný chat, který psát nedovolí sám
+     * (čeká na přijetí, je zavřený), si nechá svou větu: odblokování by na tom nic nezměnilo.
+     */
+    val showsUnblock: Boolean
+        get() = peerBlocked && (info?.writeAccess ?: WriteAccess.Allowed) == WriteAccess.Allowed
 
     /**
      * Které druhy obsahu chat přijme. Dokud hlavička nedorazí, neomezuje se nic — ikona, která

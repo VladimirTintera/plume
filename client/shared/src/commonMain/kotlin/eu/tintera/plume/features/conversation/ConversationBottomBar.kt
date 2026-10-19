@@ -69,6 +69,8 @@ import eu.tintera.plume.resources.conversation_write_restricted
 import eu.tintera.plume.resources.saved_topic_open_chat
 import eu.tintera.plume.resources.saved_topic_read_only
 import eu.tintera.plume.resources.service_upgraded_open_new
+import eu.tintera.plume.resources.conversation_unblock_bot
+import eu.tintera.plume.resources.profile_unblock
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -193,6 +195,20 @@ internal fun ConversationBottomBar(
             joining = false,
             onJoin = { navigation.onOpenChat(ChatTarget(upgraded)) },
             label = Res.string.service_upgraded_open_new,
+            modifier = barGlass,
+        )
+        return@Box
+    }
+    // Zablokovaný protějšek: psát mu nejde, dokud se neodblokuje (bota to rovnou i spustí).
+    // Před Startem — zablokovanému botovi by „/start" neodešel.
+    if (state.showsUnblock) {
+        JoinBar(
+            joining = state.unblocking,
+            onJoin = {
+                haptics.confirm()
+                viewModel.unblock()
+            },
+            label = if (state.botIntro != null) Res.string.conversation_unblock_bot else Res.string.profile_unblock,
             modifier = barGlass,
         )
         return@Box
