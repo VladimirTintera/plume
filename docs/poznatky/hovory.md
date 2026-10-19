@@ -563,6 +563,13 @@ může poslat sám: Nastavení → Pomoc → „Odeslat diagnostiku hovorů" slo
   (`ntg_set_log_callback` — úroveň, zdroj WebRTC / ntgcalls, soubor, řádek), dřív šly jen chyby
   do logu; teď po dobu přenosu do výpisu všechno, tag je jméno souboru (`ntgcalls/…` u vlastních
   zpráv knihovny). Callback chodí z vláken knihovny, takže zápis jde pod zámkem.
+- **Adresy maskuje zápis výpisu** (`CallDetailLog.maskAddresses`: IPv4 bez poslední části, IPv6
+  jen první tři skupiny). Na Androidu je WebRTC maskuje samo, log callback na desktopu ale dává
+  celé — první výpis z desktopu měl místní adresy počítače i adresu telefonu v mobilní síti.
+- **Ověřeno na desktopu (macOS)**: hovor s Pixelem 5 přes minutu — deník se souhrny `played +5 s,
+  captured +5 s`, výpis 328 řádků (WebRTC i `ntgcalls/…`), po maskování žádná celá adresa.
+  Hovor přijatý jinde (oficiální klient, druhá instance Plume) se v deníku pozná podle
+  `Discarded: CallDiscardReasonEmpty` hned po `Incoming call`. Export „Uložit jako…" neověřený.
 - **Export na desktopu ukládá**, nesdílí: `MediaSharer.share` tam soubor neumí, takže položka
   otevře „Uložit jako…" (`rememberSaveAs`).
 - **Podrobný výpis přenosu (Android, `CallLogCapture`)**: po dobu přenosu (`NtgCallMedia.start`

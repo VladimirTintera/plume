@@ -44,6 +44,18 @@ class CallDetailLogTest {
     }
 
     @Test
+    fun addressesAreMaskedButTimesAndIdsAreNot() {
+        assertEquals(
+            "10-19 22:01:20.250 I connection.cc:268: Conn[f6ffcd20::0:0:relay:Net[wlan0:192.168.0.x/24]] -> 91.108.9.x:598 [2001:1aee:5a:x:x:x:x:x]:47133",
+            CallDetailLog.maskAddresses(
+                "10-19 22:01:20.250 I connection.cc:268: Conn[f6ffcd20::0:0:relay:Net[wlan0:192.168.0.103/24]] -> 91.108.9.17:598 [2001:1aee:5a:12:34:56:78:9a]:47133",
+            ),
+        )
+        assertEquals("[2001:67c:4e8:x:x:x:x:x]:598", CallDetailLog.maskAddresses("[2001:67c:4e8:f102:5::285:106]:598"))
+        assertEquals("already 10.61.43.x and 2001:1aee:5a:x:x:x:x:x", CallDetailLog.maskAddresses("already 10.61.43.x and 2001:1aee:5a:x:x:x:x:x"))
+    }
+
+    @Test
     fun writeAfterCloseIsIgnored() {
         val log = CallDetailLog.open(dir, callId = 1)!!
         log.close()
