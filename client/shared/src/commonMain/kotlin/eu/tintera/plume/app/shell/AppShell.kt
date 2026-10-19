@@ -1507,22 +1507,24 @@ private fun shellEntryProvider(
     ) { route ->
         // V dvoupanelu je seznam sekcí pořád vidět vedle, takže šipka zpět nemá
         // kam vést; na telefonu je sekce samostatná obrazovka a zpět se z ní chodí.
+        // Podstránky ze sekce se navzájem NAHRAZUJÍ (`openSubpage`): od Medium je sekce vidět
+        // vedle podstránky a ťuknutí na další řádek je dřív vršilo přes sebe.
         val popSection: () -> Unit = { settingsStack.pop(route) }
 
         SettingsSectionScreen(
             section = route.section,
             onBack = popSection.takeUnless { LocalPanesSideBySide.current },
-            onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
-            onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
-            onOpenStickerSets = { if (settingsStack.lastOrNull() != StickerSetsRoute) settingsStack.add(StickerSetsRoute) },
-            onOpenEmojiSets = { if (settingsStack.lastOrNull() != EmojiSetsRoute) settingsStack.add(EmojiSetsRoute) },
-            onOpenProxy = { if (settingsStack.lastOrNull() != ProxySettingsRoute) settingsStack.add(ProxySettingsRoute) },
-            onOpenAccountPrivacy = { if (settingsStack.lastOrNull() != AccountPrivacyRoute) settingsStack.add(AccountPrivacyRoute) },
-            onOpenTwoStep = { if (settingsStack.lastOrNull() != TwoStepRoute) settingsStack.add(TwoStepRoute) },
-            onOpenLoginEmail = { if (settingsStack.lastOrNull() != LoginEmailRoute) settingsStack.add(LoginEmailRoute) },
-            onOpenPasskeys = { if (settingsStack.lastOrNull() != PasskeysRoute) settingsStack.add(PasskeysRoute) },
-            onOpenNetworkUsage = { if (settingsStack.lastOrNull() != NetworkUsageRoute) settingsStack.add(NetworkUsageRoute) },
-            onOpenAppLock = { if (settingsStack.lastOrNull() != AppLockRoute) settingsStack.add(AppLockRoute) },
+            onOpenBlocked = { settingsStack.openSubpage(route, BlockedSendersRoute) },
+            onOpenFolders = { settingsStack.openSubpage(route, ChatFoldersRoute) },
+            onOpenStickerSets = { settingsStack.openSubpage(route, StickerSetsRoute) },
+            onOpenEmojiSets = { settingsStack.openSubpage(route, EmojiSetsRoute) },
+            onOpenProxy = { settingsStack.openSubpage(route, ProxySettingsRoute) },
+            onOpenAccountPrivacy = { settingsStack.openSubpage(route, AccountPrivacyRoute) },
+            onOpenTwoStep = { settingsStack.openSubpage(route, TwoStepRoute) },
+            onOpenLoginEmail = { settingsStack.openSubpage(route, LoginEmailRoute) },
+            onOpenPasskeys = { settingsStack.openSubpage(route, PasskeysRoute) },
+            onOpenNetworkUsage = { settingsStack.openSubpage(route, NetworkUsageRoute) },
+            onOpenAppLock = { settingsStack.openSubpage(route, AppLockRoute) },
         )
     }
 
@@ -1667,7 +1669,7 @@ private fun shellEntryProvider(
             onBack = close.takeUnless { LocalPanesSideBySide.current },
             // Prohlížeč se vrší nad Nastavení; zavírá se z toho zásobníku, ve kterém leží.
             onOpenPhotos = { userId -> settingsStack.add(MediaRoute(userId, messageId = 0L, profilePhotos = true)) },
-            onChangePhone = { if (settingsStack.lastOrNull() != ChangePhoneRoute) settingsStack.add(ChangePhoneRoute) },
+            onChangePhone = { settingsStack.openSubpage(route, ChangePhoneRoute) },
         )
     }
 

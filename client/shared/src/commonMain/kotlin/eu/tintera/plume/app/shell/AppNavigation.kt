@@ -312,3 +312,27 @@ internal fun MutableList<NavKey>.pop(route: NavKey): Boolean {
     removeAt(index)
     return true
 }
+
+/**
+ * Podstránka [subpage] otevřená z obrazovky [opener] (sekce Nastavení, úprava profilu):
+ * NAHRADÍ všechno, co nad [opener] leží, nevrší se nad to.
+ *
+ * Od šířky Medium je sekce vidět vedle své podstránky a dá se v ní ťuknout na jiný řádek.
+ * Dokud se podstránka jen přidávala (hlídalo se jen, jestli nahoře neleží tatáž), stavěly se
+ * Dvoufázové ověření, Zámek aplikace a další přes sebe a zpět pak procházelo všechny, na které
+ * se kdy ťuklo. Je to tentýž vzor jako výběr sekce v seznamu (`replaceSettingsDetail`)
+ * a konverzace v seznamu chatů: co je vybrané vlevo, to je vpravo, jednou.
+ *
+ * Vrší se dál jen to, co se otevírá z PODSTRÁNKY (Soukromí účtu → jedno nastavení, složky →
+ * úprava složky) — tam obrazovka pod ní vidět není.
+ *
+ * Ťuknutí na řádek otevřené podstránky ji nechá (i s jejím stavem) a zavře jen, co leží nad
+ * ní. [opener], který už v zásobníku není (dobíhá odchodovou animací), neotevře nic.
+ */
+internal fun MutableList<NavKey>.openSubpage(opener: NavKey, subpage: NavKey) {
+    val index = lastIndexOf(opener)
+    if (index < 0) return
+    val keep = if (getOrNull(index + 1) == subpage) index + 2 else index + 1
+    while (size > keep) removeAt(lastIndex)
+    if (size == index + 1) add(subpage)
+}
