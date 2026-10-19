@@ -721,10 +721,11 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      testovací telefony neukázaly). Play Console: deklarace oprávnění pro celoobrazovkové
      notifikace (udělá uživatel); v aplikaci `canUseFullScreenIntent()` a odkaz do nastavení
      (`ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`), když chybí.
-   - **Zátěžový test hovoru se sondou** — dlouhý hovor data ↔ Wi-Fi (Pixel 5 přes hotspot
-     Foldu, Pixel 7 Pro na Wi-Fi), každá strana posílá známý tón a sonda po vteřinách zapisuje,
-     jestli tón protistrany dorazil, a přenesené bajty (`TrafficStats`). Podnět: hovor
-     s oficiálním klientem na špatné Wi-Fi se po ~20 s sekal; pravděpodobně síť protistrany.
+   - **ntgcalls bere i rozhraní bez internetu** (IMS pro volání přes LTE, `rmnet`): pingy na
+     reflectory přes ně nikdo nezodpoví a WebRTC je každých 16 s zahodí a sbírá znovu (572× za
+     2,5 h hovoru). Výpadky to nezpůsobuje, jen zbytečné probouzení rádia u každého uživatele
+     s SIM. Zjistit, jestli jde ntgcalls předat seznam sítí z Androidu (`NET_CAPABILITY_INTERNET`),
+     nebo síť vyloučit (`docs/poznatky/hovory.md`, „Zátěžový test").
    - **Sdílení obrazovky dál** — v hovoru ve dvou hotové na Androidu (posílá i přijímá)
      a příjem na desktopu (`docs/poznatky/hovory.md`, „Sdílení obrazovky"). Zbývá: posílání
      z desktopu, Android pod 14, otočení telefonu za sdílení. Ukazovátko na sdílené obrazovce hotové
