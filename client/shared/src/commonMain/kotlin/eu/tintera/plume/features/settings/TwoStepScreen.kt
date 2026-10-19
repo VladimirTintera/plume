@@ -1,23 +1,19 @@
 package eu.tintera.plume.features.settings
 
-import eu.tintera.plume.core.ui.SecurityBadge
+import androidx.compose.runtime.getValue
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.animation.AnimatedContent
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import eu.tintera.plume.core.ui.GroupBreak
@@ -28,8 +24,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -37,10 +31,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusRequester
@@ -209,40 +201,23 @@ fun TwoStepScreen(viewModel: TwoStepViewModel, onBack: () -> Unit, modifier: Mod
         onBackCompleted = viewModel::back,
     )
 
-    val scrollBehavior = settingsScrollBehavior()
-    Scaffold(
-        modifier = modifier.settingsScroll(scrollBehavior),
+    SettingsPage(
+        title = stringResource(Res.string.settings_two_step),
+        onBack = { if (inFlow) viewModel.back() else onBack() },
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            SettingsTopBar(
-                title = stringResource(Res.string.settings_two_step),
-                onBack = { if (inFlow) viewModel.back() else onBack() },
-                scrollBehavior = scrollBehavior,
-            )
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .settingsContentPadding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 16.dp)),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            val status = state.status
-            val flow = state.flow
-            when {
-                status == null && state.loadFailed -> LoadFailed(viewModel::reload)
-                status == null -> Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    LoadingIndicator()
+    ) {
+        val status = state.status
+        val flow = state.flow
+        when {
+            status == null && state.loadFailed -> LoadFailed(viewModel::reload)
+            status == null -> SettingsPageLoading()
+            flow != null -> AnimatedContent(targetState = flow.action to flow.step, label = "two-step-step") { (action, step) ->
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    FlowStep(viewModel, state, flow.copy(action = action, step = step), status)
                 }
-                flow != null -> AnimatedContent(targetState = flow.action to flow.step, label = "two-step-step") { (action, step) ->
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        FlowStep(viewModel, state, flow.copy(action = action, step = step), status)
-                    }
-                }
-                else -> StatusContent(viewModel, state, status)
             }
+            else -> StatusContent(viewModel, state, status)
         }
     }
 
@@ -252,15 +227,15 @@ fun TwoStepScreen(viewModel: TwoStepViewModel, onBack: () -> Unit, modifier: Mod
 @Composable
 private fun LoadFailed(onRetry: () -> Unit) {
     Text(stringResource(Res.string.settings_two_step_load_failed), style = MaterialTheme.typography.bodyLarge)
-    OutlinedButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
+    FilledTonalButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
 }
 
 /** Stav ověření a co s ním jde dělat. */
 @Composable
 private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoStepState, status: TwoStepStatus) {
-    Header(
+    SettingsPageHeader(
         icon = if (status.hasPassword) Res.drawable.lock_24dp else Res.drawable.lock_open_24dp,
-        title = if (status.hasPassword) Res.string.settings_two_step_on_title else Res.string.settings_two_step_off_title,
+        title = stringResource(if (status.hasPassword) Res.string.settings_two_step_on_title else Res.string.settings_two_step_off_title),
         text = stringResource(if (status.hasPassword) Res.string.settings_two_step_on_text else Res.string.settings_two_step_off_text),
     )
 
@@ -328,33 +303,32 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
         )
     }
     GroupedColumn(Modifier.fillMaxWidth()) {
-        ActionRow(Res.drawable.edit_24dp, Res.string.settings_two_step_change_password, !state.busy) {
-            viewModel.start(TwoStepAction.ChangePassword)
-        }
-        ActionRow(
-            Res.drawable.mail_24dp,
-            if (status.hasRecoveryEmail) Res.string.settings_two_step_change_email else Res.string.settings_two_step_set_email,
-            !state.busy,
-        ) { viewModel.start(TwoStepAction.ChangeEmail) }
+        SettingsActionRow(
+            icon = Res.drawable.edit_24dp,
+            title = stringResource(Res.string.settings_two_step_change_password),
+            enabled = !state.busy,
+            onClick = { viewModel.start(TwoStepAction.ChangePassword) },
+        )
+        SettingsActionRow(
+            icon = Res.drawable.mail_24dp,
+            title = stringResource(if (status.hasRecoveryEmail) Res.string.settings_two_step_change_email else Res.string.settings_two_step_set_email),
+            enabled = !state.busy,
+            onClick = { viewModel.start(TwoStepAction.ChangeEmail) },
+        )
         GroupBreak()
-        ActionRow(Res.drawable.lock_open_24dp, Res.string.settings_two_step_disable, !state.busy, destructive = true) {
-            viewModel.start(TwoStepAction.Disable)
-        }
+        SettingsActionRow(
+            icon = Res.drawable.lock_open_24dp,
+            title = stringResource(Res.string.settings_two_step_disable),
+            enabled = !state.busy,
+            destructive = true,
+            onClick = { viewModel.start(TwoStepAction.Disable) },
+        )
     }
     // Reset už běží — druhý „Zapomenuté heslo" by nic nového nenabídl.
     if (status.resetDate <= 0) {
         TextButton(onClick = { viewModel.start(TwoStepAction.Recover) }, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
             Text(stringResource(Res.string.settings_two_step_forgot))
         }
-    }
-}
-
-@Composable
-private fun Header(icon: org.jetbrains.compose.resources.DrawableResource, title: StringResource, text: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        SecurityBadge(icon, size = 56.dp)
-        Text(stringResource(title), style = MaterialTheme.typography.headlineSmall)
-        Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -391,27 +365,6 @@ private fun InfoRow(text: String) {
     )
 }
 
-@Composable
-private fun ActionRow(
-    icon: org.jetbrains.compose.resources.DrawableResource,
-    title: StringResource,
-    enabled: Boolean,
-    destructive: Boolean = false,
-    onClick: () -> Unit,
-) {
-    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-    ListItem(
-        colors = ListItemDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = color,
-            leadingContentColor = if (destructive) color else MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-        leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-        headlineContent = { Text(stringResource(title)) },
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-    )
-}
-
 /** Jeden krok průvodce: nadpis, vysvětlení, pole a tlačítka. */
 @Composable
 private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepState, flow: TwoStepFlowState, status: TwoStepStatus) {
@@ -424,7 +377,7 @@ private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepStat
 
     when (flow.step) {
         TwoStepStep.CurrentPassword -> {
-            StepText(Res.string.settings_two_step_step_current, stringResource(Res.string.settings_two_step_step_current_text))
+            SettingsPageHeader(title = stringResource(Res.string.settings_two_step_step_current), text = stringResource(Res.string.settings_two_step_step_current_text))
             if (status.hint.isNotBlank()) {
                 Text(
                     stringResource(Res.string.settings_two_step_hint_row, status.hint),
@@ -442,11 +395,11 @@ private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepStat
             )
         }
         TwoStepStep.RecoveryCode -> {
-            StepText(Res.string.auth_headline_recovery, stringResource(Res.string.auth_support_recovery_sent, flow.codePattern))
+            SettingsPageHeader(title = stringResource(Res.string.auth_headline_recovery), text = stringResource(Res.string.auth_support_recovery_sent, flow.codePattern))
             CodeInput(viewModel.code, isError, viewModel::onCodeChange, submit, first)
         }
         TwoStepStep.NewPassword -> {
-            StepText(Res.string.settings_two_step_step_new, stringResource(Res.string.settings_two_step_step_new_text))
+            SettingsPageHeader(title = stringResource(Res.string.settings_two_step_step_new), text = stringResource(Res.string.settings_two_step_step_new_text))
             PasswordField(
                 value = viewModel.newPassword,
                 isError = isError,
@@ -470,7 +423,7 @@ private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepStat
             )
         }
         TwoStepStep.Hint -> {
-            StepText(Res.string.settings_two_step_step_hint, stringResource(Res.string.settings_two_step_step_hint_text))
+            SettingsPageHeader(title = stringResource(Res.string.settings_two_step_step_hint), text = stringResource(Res.string.settings_two_step_step_hint_text))
             BlockTextField(
                 value = viewModel.hint,
                 onValueChange = viewModel::onHintChange,
@@ -482,7 +435,7 @@ private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepStat
             )
         }
         TwoStepStep.Email -> {
-            StepText(Res.string.settings_two_step_step_email, stringResource(Res.string.settings_two_step_step_email_text))
+            SettingsPageHeader(title = stringResource(Res.string.settings_two_step_step_email), text = stringResource(Res.string.settings_two_step_step_email_text))
             if (flow.currentEmail.isNotBlank()) {
                 Text(
                     stringResource(Res.string.settings_two_step_email_current, flow.currentEmail),
@@ -502,14 +455,14 @@ private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepStat
             )
         }
         TwoStepStep.EmailCode -> {
-            StepText(Res.string.settings_two_step_step_email_code, stringResource(Res.string.auth_support_recovery_sent, flow.codePattern))
+            SettingsPageHeader(title = stringResource(Res.string.settings_two_step_step_email_code), text = stringResource(Res.string.auth_support_recovery_sent, flow.codePattern))
             CodeInput(viewModel.code, isError, viewModel::onCodeChange, submit, first)
         }
     }
 
     state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    SettingsPageActions {
         Button(onClick = submit, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
             if (state.busy) {
                 LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
@@ -533,12 +486,6 @@ private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepStat
             else -> Unit
         }
     }
-}
-
-@Composable
-private fun StepText(title: StringResource, text: String) {
-    Text(stringResource(title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 8.dp))
-    Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 /**

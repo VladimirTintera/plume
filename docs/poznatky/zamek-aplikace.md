@@ -183,6 +183,10 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
   - Volbu doby neaktivity (1 min, 5 min, 1 h, 5 h).
   - Zapnutí / vypnutí odemykání biometrií (pokud je na zařízení dostupná).
   - Vypnutí zámku s potvrzovacím dialogem.
+- **Skladba je tatáž jako u dvoufázového ověření** (`SettingsPage`, viz „Stránky s obsahem
+  mají jednu kostru" v `nastaveni.md`): vypnutý zámek = stav a „Nastavit PIN kód", zapnutý =
+  stav, blok voleb a „Vypnout zámek" jako řádek ve vlastním bloku. Kroky s číselníkem
+  (ověření, nový PIN) sdílí `PinStep` a nescrollují.
 
 ## Poučení z testování
 

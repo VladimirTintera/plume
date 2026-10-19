@@ -4,14 +4,9 @@ import eu.tintera.plume.resources.error_24dp
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.core.ui.ConfirmDialog
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -21,7 +16,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -113,75 +107,59 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
         snackbarScope.launch { snackbarHostState.showSnackbar(error.resolveNow()) }
     }
 
-    val scrollBehavior = settingsScrollBehavior()
-    Scaffold(
-        modifier = modifier.settingsScroll(scrollBehavior),
+    SettingsPage(
+        title = stringResource(Res.string.settings_passkeys),
+        onBack = onBack,
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            SettingsTopBar(title = stringResource(Res.string.settings_passkeys), onBack = onBack, scrollBehavior = scrollBehavior)
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .settingsContentPadding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 16.dp)),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                stringResource(Res.string.passkeys_intro),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
+    ) {
+        SettingsPageHeader(icon = Res.drawable.passkey_24dp, title = null, text = stringResource(Res.string.passkeys_intro))
 
-            val passkeys = state.passkeys
-            when {
-                passkeys != null -> SettingsGroup(Res.string.passkeys_section) {
-                    if (passkeys.isEmpty()) {
-                        ListItem(
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            headlineContent = { Text(stringResource(Res.string.passkeys_empty)) },
-                        )
-                    }
-                    for (passkey in passkeys) {
-                        PasskeyRow(
-                            passkey = passkey,
-                            removing = state.removing == passkey.id,
-                            enabled = state.removing == null,
-                            onRemove = { viewModel.requestRemove(passkey) },
-                        )
-                    }
-                }
-                // Chyba na místě seznamu, ve stejné sekci: řádek s ikonou a tónovým „Zkusit znovu"
-                // (pravidlo chybových stavů v CLAUDE.md). Dřív červený text a `TextButton` pod
-                // nadpisem stránky, bez bloku — vypadalo to jako rozbitá obrazovka.
-                state.loadFailed -> SettingsGroup(Res.string.passkeys_section) {
+        val passkeys = state.passkeys
+        when {
+            passkeys != null -> SettingsGroup(Res.string.passkeys_section) {
+                if (passkeys.isEmpty()) {
                     ListItem(
-                        colors = ListItemDefaults.colors(
-                            containerColor = Color.Transparent,
-                            leadingIconColor = MaterialTheme.colorScheme.error,
-                        ),
-                        leadingContent = { Icon(painterResource(Res.drawable.error_24dp), contentDescription = null) },
-                        headlineContent = { Text(stringResource(Res.string.passkeys_load_failed)) },
-                        trailingContent = {
-                            FilledTonalButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) {
-                                Text(stringResource(Res.string.passkeys_retry))
-                            }
-                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        headlineContent = { Text(stringResource(Res.string.passkeys_empty)) },
                     )
                 }
-                else -> Box(Modifier.padding(horizontal = 16.dp)) { LoadingIndicator() }
+                for (passkey in passkeys) {
+                    PasskeyRow(
+                        passkey = passkey,
+                        removing = state.removing == passkey.id,
+                        enabled = state.removing == null,
+                        onRemove = { viewModel.requestRemove(passkey) },
+                    )
+                }
             }
-
-            Text(
-                stringResource(Res.string.passkeys_limitation),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
+            // Chyba na místě seznamu, ve stejné sekci: řádek s ikonou a tónovým „Zkusit znovu"
+            // (pravidlo chybových stavů v CLAUDE.md). Dřív červený text a `TextButton` pod
+            // nadpisem stránky, bez bloku — vypadalo to jako rozbitá obrazovka.
+            state.loadFailed -> SettingsGroup(Res.string.passkeys_section) {
+                ListItem(
+                    colors = ListItemDefaults.colors(
+                        containerColor = Color.Transparent,
+                        leadingIconColor = MaterialTheme.colorScheme.error,
+                    ),
+                    leadingContent = { Icon(painterResource(Res.drawable.error_24dp), contentDescription = null) },
+                    headlineContent = { Text(stringResource(Res.string.passkeys_load_failed)) },
+                    trailingContent = {
+                        FilledTonalButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) {
+                            Text(stringResource(Res.string.passkeys_retry))
+                        }
+                    },
+                )
+            }
+            else -> SettingsPageLoading()
         }
+
+        Text(
+            stringResource(Res.string.passkeys_limitation),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
     }
 
     state.confirming?.let { passkey ->

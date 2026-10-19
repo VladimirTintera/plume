@@ -3060,6 +3060,9 @@
     <string name="settings_app_lock_on">On</string>
     <string name="settings_app_lock_off">Off</string>
     <string name="settings_app_lock_description">Protect the app with a 4-digit PIN and biometrics when inactive.</string>
+    <string name="settings_app_lock_off_title">App Lock is off</string>
+    <string name="settings_app_lock_on_title">App Lock is on</string>
+    <string name="settings_app_lock_on_text">The app asks for your PIN on launch and after inactivity.</string>
     <string name="settings_app_lock_enable">Set up PIN</string>
     <string name="settings_app_lock_disable">Turn off App Lock</string>
     <string name="settings_app_lock_disable_confirm_title">Turn off App Lock?</string>
@@ -3304,6 +3307,7 @@
     <string name="error_fresh_change_phone">You can change the number only 24 hours after signing in on this device.</string>
     <string name="change_phone_row">Phone number</string>
     <string name="change_phone_title">Change number</string>
+    <string name="change_phone_new_title">New number</string>
     <string name="change_phone_intro">Your account and all messages, media and contacts stay; only the number you sign in with changes. A code will be sent to the new number.</string>
     <string name="change_phone_send">Send code</string>
     <string name="change_phone_confirm">Change number</string>
