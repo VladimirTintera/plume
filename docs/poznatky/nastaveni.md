@@ -475,6 +475,9 @@ v prohlížeči (`UrlOpener`).
   nepoužívá a že ho Compose Resources rozbalí, ověřené není.
 - Odkazy `tg://settings/ask_question` a `…/faq` dál otevírají Nastavení na kořeni — blok Pomoc je
   tam vidět.
+- **„Odeslat diagnostiku hovorů"** je v bloku jen tam, kde hovory jsou (`CallJournal` v Koinu:
+  Android, desktop). Bez záznamu říká „Zatím tu není žádný hovor" a nic nedělá. Co deník
+  obsahuje: `docs/poznatky/hovory.md`, „Deník hovorů".
 
 ## Dvoufázové ověření
 

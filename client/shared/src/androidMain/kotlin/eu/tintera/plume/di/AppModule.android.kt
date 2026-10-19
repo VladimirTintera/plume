@@ -57,6 +57,8 @@ import eu.tintera.plume.core.secrets.AppLockStore
 import eu.tintera.plume.core.secrets.KeystoreSecretStore
 import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
+import eu.tintera.plume.core.calls.CALL_JOURNAL_DIRECTORY
+import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
@@ -91,6 +93,8 @@ actual fun Module.platformModule() {
     // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.
     // Zvuk hovoru vede systémový Telecom (most níž), náhradně Plume sám.
     single<CallMedia> { NtgCallMedia(androidContext(), routes = { get<TelecomCallBridge>().routes() }) }
+    // Deník hovorů pro diagnostiku (Nastavení → Pomoc, `docs/poznatky/hovory.md`, „Deník hovorů").
+    single { CallJournal(androidContext().filesDir.resolve(CALL_JOURNAL_DIRECTORY).absolutePath, scope = get(named(APP_SCOPE))) }
     // Hovory přihlášené do systémového telefonu: souběh s GSM, auto, hodinky, výstup zvuku.
     single(createdAtStart = true) {
         TelecomCallBridge(context = androidContext(), calls = get(), chats = get(), scope = get(named(APP_SCOPE))).also { it.start() }

@@ -34,6 +34,8 @@ import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.secrets.desktopSecretStore
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
+import eu.tintera.plume.core.calls.CALL_JOURNAL_DIRECTORY
+import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.snooze.SnoozeReminders
@@ -68,6 +70,8 @@ actual fun Module.platformModule() {
     if (DesktopCallMedia.available()) {
         single { DesktopCallMedia() }
         single<CallMedia> { get<DesktopCallMedia>() }
+        // Deník hovorů pro diagnostiku (Nastavení → Pomoc); přenos tu čísla zatím nehlásí, jen události.
+        single { CallJournal(File(desktopDataDirectory, CALL_JOURNAL_DIRECTORY).path, scope = get(named(APP_SCOPE))) }
         // Ukončení aplikace uprostřed hovoru: zavěsit a zastavit knihovnu dřív, než JVM skončí.
         single(createdAtStart = true) { DesktopCallShutdown(calls = get(), media = get()).also { it.install() } }
         // Vyzvánění příchozího hovoru a tón protistrany u odchozího.

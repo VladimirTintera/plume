@@ -92,6 +92,7 @@ import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
+import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.TdlConnectionRepository
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
@@ -292,6 +293,8 @@ fun appModule() = module {
             scope = get(named(APP_SCOPE)),
             network = getOrNull<NetworkMonitor>()?.status,
             pointerDisplay = getOrNull<CallPointerDisplay>(),
+            journal = getOrNull<CallJournal>(),
+            foreground = getOrNull<AppForeground>()?.isForeground,
         )
     }
     if (autosavesToGallery) {

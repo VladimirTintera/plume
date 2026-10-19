@@ -3596,6 +3596,10 @@
     <string name="settings_ask_question_summary">Chat s podporou Telegramu</string>
     <string name="settings_faq">Časté dotazy k Telegramu</string>
     <string name="settings_faq_summary">Odpovědi na běžné otázky o Telegramu</string>
+    <string name="settings_call_diagnostics">Odeslat diagnostiku hovorů</string>
+    <string name="settings_call_diagnostics_summary">Záznam posledních hovorů bez obsahu zpráv, pro vývojáře aplikace</string>
+    <string name="settings_call_diagnostics_empty">Zatím tu není žádný hovor</string>
+    <string name="settings_call_diagnostics_failed">Záznam se nepodařilo připravit</string>
     <string name="ask_question_title">Zeptat se podpory Telegramu?</string>
     <string name="ask_question_text">Podporu Telegramu dělají dobrovolníci. Odpoví, jakmile můžou, ale na většinu otázek už je odpověď v častých dotazech.</string>
     <string name="ask_question_plume">Plume je neoficiální aplikace — s Plume samotným ti podpora Telegramu neporadí.</string>

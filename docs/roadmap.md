@@ -721,6 +721,10 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      testovací telefony neukázaly). Play Console: deklarace oprávnění pro celoobrazovkové
      notifikace (udělá uživatel); v aplikaci `canUseFullScreenIntent()` a odkaz do nastavení
      (`ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`), když chybí.
+   - **Diagnostika hovorů, krok 2: podrobný výpis WebRTC** — za hovoru ukládat vlastní logcat
+     (`logcat --pid`, aplikace smí číst svůj bez oprávnění; ověřit na Androidu 17) s filtrem na
+     ICE, reflectory a ntgcalls, strop ~2 MB, poslední tři hovory, a přibalit k exportu deníku
+     (`docs/poznatky/hovory.md`, „Deník hovorů"). Desktop: čísla přenosu do deníku (`CallMedia.stats`).
    - **ntgcalls bere i rozhraní bez internetu** (IMS pro volání přes LTE, `rmnet`): pingy na
      reflectory přes ně nikdo nezodpoví a WebRTC je každých 16 s zahodí a sbírá znovu (572× za
      2,5 h hovoru). Výpadky to nezpůsobuje, jen zbytečné probouzení rádia u každého uživatele

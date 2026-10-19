@@ -2,6 +2,8 @@ package eu.tintera.plume.core.calls
 
 import android.content.Context
 import android.media.AudioManager
+import android.net.TrafficStats
+import android.os.Process
 import co.touchlab.kermit.Logger
 import io.github.pytgcalls.ConnectionState
 import io.github.pytgcalls.NTgCalls
@@ -27,6 +29,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -55,6 +58,7 @@ class NtgCallMedia internal constructor(
     private val appContext = context.applicationContext
     private val audio = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "ntgcalls") }
+    private val uid = Process.myUid()
 
     private var ntg: NTgCalls? = null
     private var callId = 0L
@@ -409,6 +413,24 @@ class NtgCallMedia internal constructor(
         worker.execute { stopNow() }
     }
 
+    override fun stats(): CallMediaStats? {
+        // Na vlákně knihovny jako všechno ostatní; zaneprázdněné (sdílení obrazovky čeká na
+        // službu) vzorek vynechá, ať deník nebrzdí.
+        val (played, captured) = runCatching {
+            worker.submit<Pair<Long?, Long?>?> {
+                val instance = ntg ?: return@submit null
+                runCatching { instance.time(callId, StreamMode.PLAYBACK) }.getOrNull() to
+                    runCatching { instance.time(callId, StreamMode.CAPTURE) }.getOrNull()
+            }.get(STATS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        }.getOrNull() ?: return null
+        return CallMediaStats(
+            rxBytes = TrafficStats.getUidRxBytes(uid).takeIf { it != TrafficStats.UNSUPPORTED.toLong() },
+            txBytes = TrafficStats.getUidTxBytes(uid).takeIf { it != TrafficStats.UNSUPPORTED.toLong() },
+            playedSeconds = played,
+            capturedSeconds = captured,
+        )
+    }
+
     private fun stopNow() {
         ntg?.let { instance ->
             runCatching { instance.stop(callId) }.onFailure { logger.w(it) { "Zastavení hovoru selhalo." } }
@@ -458,6 +480,9 @@ class NtgCallMedia internal constructor(
 
         /** Obraz protistrany: EXTERNAL = snímky jdou nám (`onFrames`); 0 = rozměr podle snímku. */
         val REMOTE_CAMERA = VideoDescription(MediaSource.EXTERNAL, 0, 0, 0, "", false)
+
+        /** Jak dlouho čekat na vlákno knihovny kvůli vzorku do deníku. */
+        const val STATS_TIMEOUT_MS = 300L
 
         /** Renderer drží nejvýš snímek, dva; víc bufferů je rezerva. */
         const val FRAME_POOL_DEPTH = 4

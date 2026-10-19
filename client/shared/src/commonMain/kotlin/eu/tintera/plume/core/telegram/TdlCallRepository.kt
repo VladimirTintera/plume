@@ -13,6 +13,8 @@ import dev.g000sha256.tdl.dto.CallStatePending
 import dev.g000sha256.tdl.dto.CallStateReady
 import dev.g000sha256.tdl.toResult
 import eu.tintera.plume.core.calls.CallAudioOutput
+import eu.tintera.plume.core.calls.CallJournal
+import eu.tintera.plume.core.calls.CallStatsSampler
 import eu.tintera.plume.core.calls.CallConnection
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.CallMediaEvents
@@ -26,6 +28,8 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_bar_failed
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
@@ -44,6 +48,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
+import kotlin.time.TimeSource
 
 /**
  * Hovory nad TDLib s přenosem přes [media]. Odebírá `updateCall` a signalizaci od protějšku;
@@ -61,6 +66,10 @@ internal class TdlCallRepository(
     network: Flow<NetworkStatus>? = null,
     /** Kde ukázat ukazovátko protistrany, když sdílíme obrazovku (Android); `null` = nikde. */
     private val pointerDisplay: CallPointerDisplay? = null,
+    /** Deník hovorů pro diagnostiku (Nastavení → Pomoc); `null` = nezapisuje se. */
+    private val journal: CallJournal? = null,
+    /** Popředí aplikace — do deníku, jestli se hovor zadrhl se zhasnutou obrazovkou. */
+    foreground: Flow<Boolean>? = null,
 ) : CallRepository {
 
     /** Telefon je bez sítě; nový hovor si stav převezme. */
@@ -95,6 +104,13 @@ internal class TdlCallRepository(
             networkLost = lost
             if (lost) logger.i { "Síť za hovoru chybí." }
             _active.update { it?.copy(networkLost = lost) }
+        }?.launchIn(scope)
+        // Do deníku jen za hovoru — mimo něj by změny sítě a popředí jen zabíraly místo.
+        network?.distinctUntilChanged()?.onEach { status ->
+            if (inCall()) note("Network: ${status.kind} (#${status.generation})")
+        }?.launchIn(scope)
+        foreground?.distinctUntilChanged()?.onEach { visible ->
+            if (inCall()) note(if (visible) "App in foreground" else "App in background")
         }?.launchIn(scope)
         holder.updates { callUpdates }
             .onEach { onCall(it.call) }
@@ -185,9 +201,11 @@ internal class TdlCallRepository(
             // Videohovor se drží v ruce před sebou, ne u ucha.
             media?.setOutput(CallAudioOutput.Speaker)
         }
+        note("Dialing${if (withVideo) " (video)" else ""}", callId = null)
         return holder.client.createCall(userId = userId, protocol = protocol, isVideo = withVideo).toResult().map { }
             .onFailure { failure ->
                 logger.w(failure) { "Hovor se nepodařilo zahájit." }
+                note("createCall failed: ${failure.message}", callId = null)
                 outgoingCamera = false
                 media?.stop()
                 showFailed(userId, withVideo, failure.userMessage(Res.string.call_bar_failed))
@@ -203,6 +221,8 @@ internal class TdlCallRepository(
     private fun startAudio() {
         lastOutputs = null
         media?.startAudio { available, current ->
+            // Jen za hovoru: po zavěšení se zvuk vrací a řádek za koncem hovoru by byl šum.
+            if (lastOutputs?.second?.kind != current.kind && inCall()) note("Audio output: ${current.kind}")
             lastOutputs = available to current
             _active.update { it?.copy(outputs = available, output = current) }
         }
@@ -220,9 +240,11 @@ internal class TdlCallRepository(
             // Přijato bez kamery (oprávnění odepřené): náhled ze zvonění pryč.
             media?.setCamera(on = false, front = call.frontCamera)
         }
+        note("Accepted${if (camera && supportsVideo) " with camera" else ""}", call.id)
         return holder.client.acceptCall(callId = call.id, protocol = protocol).toResult().map { }
             .onFailure { failure ->
                 logger.w(failure) { "Hovor se nepodařilo přijmout." }
+                note("acceptCall failed: ${failure.message}", call.id)
                 media?.stop()
                 _active.update { active ->
                     active?.takeIf { it.id == call.id }?.copy(phase = CallPhase.Failed, failure = failure.userMessage(Res.string.call_bar_failed)) ?: active
@@ -241,6 +263,7 @@ internal class TdlCallRepository(
         val call = _active.value ?: return
         val connectedAt = call.connectedAt
         val duration = connectedAt?.let { ((Clock.System.now().toEpochMilliseconds() - it) / 1000).toInt() } ?: 0
+        note(if (disconnected) "Ending: transport failed (duration $duration s)" else "Hung up (duration $duration s)", call.id)
         media?.stop()
         holder.client.discardCall(
             callId = call.id,
@@ -269,6 +292,7 @@ internal class TdlCallRepository(
     }
 
     override fun setHeld(held: Boolean) {
+        note(if (held) "Held by the system" else "Resumed")
         media?.setHeld(held)
         _active.update { it?.copy(held = held) }
     }
@@ -279,6 +303,7 @@ internal class TdlCallRepository(
         // Kamera a obrazovka se v hovoru ve dvou nemíchají: kamera sdílení ukončí.
         if (on && call.screenSharing) setScreenSharing(false)
         media?.setCamera(on = on, front = call.frontCamera)
+        if (on != call.camera) note(if (on) "Camera on" else "Camera off")
         _active.update { it?.copy(camera = on) }
         // Kdo zapne kameru, drží telefon před sebou — ze sluchátka u ucha by nic neslyšel.
         if (on && call.output.kind == CallAudioOutput.Kind.Earpiece) setOutput(CallAudioOutput.Speaker)
@@ -354,6 +379,7 @@ internal class TdlCallRepository(
     }
 
     override fun setMuted(muted: Boolean) {
+        note(if (muted) "Muted" else "Unmuted")
         media?.setMuted(muted)
         _active.update { it?.copy(muted = muted) }
     }
@@ -362,6 +388,7 @@ internal class TdlCallRepository(
         val current = _active.value
         // Druhý hovor během hovoru neřešíme — server ho druhé straně ohlásí jako obsazeno.
         if (current != null && current.id != call.id && current.phase !in ENDED) return
+        noteState(call, current)
         when (val state = call.state) {
             // `Pending` chodí víckrát (vytvořen, doručen) — stav téhož hovoru se nezakládá znovu,
             // jen se z něj převezme, jestli už hovor došel protějšku (`isReceived` = tam zvoní).
@@ -418,6 +445,13 @@ internal class TdlCallRepository(
     private fun startMedia(call: Call, state: CallStateReady) {
         val media = media ?: return
         logger.i { "Přenos: verze ${state.protocol.libraryVersions.joinToString()}, serverů ${state.servers.size}" }
+        note(
+            "Ready: version ${state.protocol.libraryVersions.joinToString()}, " +
+                "${state.servers.count { it.type is CallServerTypeTelegramReflector }} reflector + " +
+                "${state.servers.count { it.type is CallServerTypeWebrtc }} WebRTC servers, p2p ${state.allowP2p}",
+            call.id,
+        )
+        startSampling(call.id)
         sideKey = sideChannelKey(state.encryptionKey)
         sideCallId = call.id
         media.start(
@@ -455,6 +489,7 @@ internal class TdlCallRepository(
                 }
 
                 override fun onConnection(state: CallConnection) {
+                    note("Transport: $state", call.id)
                     when (state) {
                         CallConnection.Connected -> {
                             _active.update { active ->
@@ -500,6 +535,12 @@ internal class TdlCallRepository(
     }
 
     private fun finish(callId: Int, phase: CallPhase) {
+        if (sampledCallId == callId) {
+            sampling?.cancel()
+            sampling = null
+            sampledCallId = null
+        }
+        note("Over: ${if (_active.value?.takeIf { it.id == callId }?.phase == CallPhase.Failed) CallPhase.Failed else phase}", callId)
         if (sideCallId == callId) {
             sideKey = null
             sideCallId = null
@@ -519,8 +560,53 @@ internal class TdlCallRepository(
         }
     }
 
+    private fun note(text: String, callId: Int? = _active.value?.id) {
+        journal?.record(text, callId)
+    }
+
+    private fun inCall(): Boolean = _active.value?.let { it.phase !in ENDED } == true
+
+    /** Přechod stavu z `UpdateCall` do deníku — jen změny, `Pending` a `Ready` chodí opakovaně. */
+    private fun noteState(call: Call, current: ActiveCall?) {
+        val known = current?.takeIf { it.id == call.id }
+        val text = when (val state = call.state) {
+            is CallStatePending -> when {
+                known == null -> "${if (call.isOutgoing) "Outgoing" else "Incoming"} call${if (call.isVideo) " (video)" else ""}"
+                state.isReceived && !known.received -> "Ringing on the other side"
+                else -> null
+            }
+            is CallStateExchangingKeys -> "Exchanging keys"
+            is CallStateHangingUp -> "Hanging up"
+            is CallStateDiscarded -> "Discarded: ${state.reason::class.simpleName}"
+            is CallStateError -> "Error ${state.error.code}: ${state.error.message}"
+            else -> null
+        } ?: return
+        note(text, call.id)
+    }
+
+    /** Vzorkování přenosu do deníku, jednou za vteřinu, dokud hovor neskončí ([finish]). */
+    private var sampling: Job? = null
+    private var sampledCallId: Int? = null
+
+    private fun startSampling(callId: Int) {
+        val media = media ?: return
+        val journal = journal ?: return
+        sampling?.cancel()
+        sampledCallId = callId
+        sampling = scope.launch(Dispatchers.Default) {
+            val sampler = CallStatsSampler { journal.record(it, callId) }
+            val started = TimeSource.Monotonic.markNow()
+            while (isActive) {
+                media.stats()?.let { sampler.sample(it, started.elapsedNow().inWholeMilliseconds) }
+                delay(SAMPLE_INTERVAL_MS)
+            }
+        }
+    }
+
     private companion object {
         val ENDED = setOf(CallPhase.Ended, CallPhase.Failed)
+
+        const val SAMPLE_INTERVAL_MS = 1_000L
         const val ENDED_VISIBLE_MS = 2_000L
         const val FAILURE_VISIBLE_MS = 5_000L
 
