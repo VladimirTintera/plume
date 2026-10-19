@@ -58,7 +58,8 @@ Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dos
   rozhodnout, jestli zůstanou.
 - **Po přechodu**: secrets do nového repa (Telegram API, Play, `google-services.json`),
   `core.hooksPath` a remote na všech strojích, workflow nesmí používat `pull_request_target`
-  (secrets pro cizí PR). Actions jsou ve veřejném repu zdarma, i macOS runnery.
+  (secrets pro cizí PR). Actions jsou ve veřejném repu zdarma, i macOS runnery — release
+  workflowy se tam vrátí z self-hosted runnerů repo proměnnými (`release.md`, „Self-hosted runnery").
 
 ## Komunitní překlad
 

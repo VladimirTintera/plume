@@ -83,6 +83,100 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   Ověření bez podpisového klíče: `./gradlew :client:androidApp:bundleRelease -x
   :client:androidApp:verifyReleaseConfiguration`.
 
+## Self-hosted runnery
+
+Release buildy neběží na hostovaných runnerech GitHubu, ale na vlastních strojích. Oba runnery
+jsou registrované **k repu** `VladimirTintera/telegram`, ne k organizaci:
+
+| Runner | Stroj | Labely | Joby |
+|--------|-------|--------|------|
+| `plume-mac` | vývojářský MacBook Pro M3 Pro, 18 GB (`~/Develop/actions-runner-plume`) | `self-hosted, macOS, ARM64, plume` | Android release, desktop `version` / `macos` (DMG) / `release` |
+| `HQDEV50-plume` | HQDEV50, vývojářský Windows (`C:\actions-runner-plume`) | `self-hosted, Windows, X64, plume-desktop` | desktop `windows` (MSI) |
+
+Na hostovaném zůstal tagger (`create-release-tag.yml` — release jde spustit i s vypnutým Macem),
+kontrola poznámek na PR a Play Listing; nic z toho nestaví.
+
+- **Návrat na hostovaný bez zásahu do workflow:** repo proměnné (Settings → Secrets and
+  variables → Actions → Variables) `ANDROID_RUNS_ON = ["ubuntu-latest"]`,
+  `DESKTOP_MAC_RUNS_ON = ["macos-latest"]`, `DESKTOP_WINDOWS_RUNS_ON = ["windows-latest"]`.
+  Workflowy kroky, které patří jen na jednu stranu, podmiňují `runner.environment`, takže
+  fungují na obou.
+- **Vlastní label (`plume`, `plume-desktop`) je povinný.** Na obou strojích běží i runnery
+  jiných projektů se stejnými vestavěnými labely (organizační `magicware` na Macu, kmpmlog
+  a telemetry na HQDEV50). Cizí joby k nám nepřijdou díky registraci k repu, naše k nim díky
+  labelu.
+- **Do `~/.gradle/gradle.properties` se na self-hosted NEZAPISUJE.** Hostovaný runner si tam
+  paměť omezuje `>>`, jenže na vlastním stroji ten soubor přetrvává a sdílí ho lokální práce
+  i ostatní runnery: připisoval by se každým během a přebil by nastavení vývojáře. Mac proto
+  staví s projektovým `gradle.properties` jako lokálně, HQDEV50 dostane 4g heap z příkazové
+  řádky (`-Dorg.gradle.jvmargs`).
+- **Daemony po jobu nevisí, uklízí je runner sám** („Cleaning up orphan processes" na konci
+  logu: Gradle i Kotlin daemon z jobu). Vlastní krok na to není potřeba a ani by nešel napsat
+  podle cesty k Javě: daemon běží na toolchainu z `gradle/gradle-daemon-jvm.properties`
+  (`~/.gradle/jdks`, sdílený s lokální prací), ne na JDK od `setup-java`. A `./gradlew --stop`
+  by zastavil všechny daemony téže verze Gradlu, i ty z IDE.
+- **Android SDK si job stáhne sám** (`setup-android` → `~/.android/sdk`; MSI i DMG ho potřebují
+  kvůli Android targetu `:client:shared`). Runner nemá `ANDROID_HOME`, takže SDK ze Studia
+  (`~/Library/Android/sdk`) zůstává nedotčené.
+- **Cache `setup-gradle` je na self-hosted vypnutá** — `~/.gradle` přetrvává a upload by jen
+  tlačil gigabajty do cache GitHubu.
+- **Mac je pracovní stroj, ne build server.** Android release s projektovou pamětí (Gradle 4g
+  + Kotlin daemon 8g) a souběžná lokální práce nebo job organizačního runneru se o 18 GB
+  dělí; když se to začne prát, jde se k omezení paměti z příkazové řádky jako na HQDEV50.
+  Runner je LaunchAgent, takže běží jen v přihlášené session (zamčená obrazovka nevadí); po
+  restartu s FileVaultem je offline, dokud se někdo nepřihlásí, a joby mezitím čekají
+  (GitHub je po 24 h zruší).
+- **Repo je soukromé. Kdyby se zveřejnilo, nesmí na self-hosted runner nic z `pull_request`**
+  — cizí PR by spustil kód na vývojářském stroji. Veřejné repo má hostované runnery zdarma,
+  takže se tam vrací proměnnými výš.
+
+### Nastavení Macu
+
+```bash
+mkdir ~/Develop/actions-runner-plume && cd ~/Develop/actions-runner-plume
+tar xzf ../actions-runner/actions-runner-osx-arm64-*.tar.gz   # nebo stáhnout z GitHubu
+eval "$(/opt/homebrew/bin/brew shellenv)"   # config.sh zapíše aktuální PATH do .path
+./config.sh --unattended --url https://github.com/VladimirTintera/telegram \
+  --token "$(gh api -X POST repos/VladimirTintera/telegram/actions/runners/registration-token --jq .token)" \
+  --name plume-mac --labels plume --work _work
+printf 'LANG=en_US.UTF-8\nLC_ALL=en_US.UTF-8\n' >> .env
+./svc.sh install && ./svc.sh start
+```
+
+Předpoklady jsou na vývojářském Macu tak jako tak: Homebrew s `gh`, `gnupg` (ověření podpisu
+JDK v `setup-java`) a `openssl@3` (DMG). `PATH` služby je zamrzlý v `.path` z okamžiku
+`config.sh`; nový nástroj mimo `/opt/homebrew/bin` → doplnit tam a `./svc.sh stop && ./svc.sh start`.
+Logy: `~/Library/Logs/actions.runner.VladimirTintera-telegram.plume-mac/`.
+
+### Nastavení HQDEV50
+
+Třetí instance vedle kmpmlog a telemetry (runner registrovaný k repu jiné repo použít nemůže).
+PowerShell **jako správce**; zip s kontrolním součtem ukáže Settings repa → Actions → Runners →
+New self-hosted runner → Windows x64:
+
+```powershell
+mkdir C:\actions-runner-plume; cd C:\actions-runner-plume
+# … stažení a rozbalení actions-runner-win-x64-*.zip …
+.\config.cmd --url https://github.com/VladimirTintera/telegram `
+  --name HQDEV50-plume --labels plume-desktop --work _work `
+  --token (gh api -X POST repos/VladimirTintera/telegram/actions/runners/registration-token --jq .token)
+```
+
+Token platí hodinu a jen pro repo, kde vznikl. `config.cmd` se ptá: runner group výchozí,
+**run as service = Y**, účet služby = **vlastní účet**. Výchozí `NETWORK SERVICE` NE: build
+pod ním doběhne až k balení a MSI pak spadne v `light.exe` (validace ICE) s „exited with 216
+code" — ověřeno prvním během. Účet jde přepnout i dodatečně (`services.msc` → Přihlášení, nebo
+`sc.exe config <služba> obj= "DOMÉNA\účet" password= "…"` a restart služby). Bez `gh` na stroji
+jde token vzít z Macu stejným příkazem.
+
+Stroj už má z ostatních instancí Git for Windows, PowerShell 7 (MSI) a dlouhé cesty. Nová
+instance potřebuje jen **`gpg` v PATH služby** (`setup-java` jím ověřuje podpis JDK a počítá
+s gpg z Gitu): na konec řádku `PATH=` v `C:\actions-runner-plume\.env` připsat
+`;C:\Program Files\Git\usr\bin` a restartovat službu
+(`Restart-Service actions.runner.VladimirTintera-telegram.HQDEV50-plume`). Na začátku PATH
+by unixové `find` / `sort` přebily systémové. Workflow si krokem *Prefer Git Bash* dá Git Bash
+a PowerShell 7 do PATH sám (WSL `bash` by jinak vyhrál), JDK, Android SDK i WiX si stáhne.
+
 ## R8
 
 Release build je minifikovaný. Dex spadl ze **43,8 MB na 7,2 MB** — TDLib generuje tisíce tříd
