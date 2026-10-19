@@ -3486,6 +3486,10 @@
     <string name="settings_ask_question_summary">Chat with Telegram support</string>
     <string name="settings_faq">Telegram FAQ</string>
     <string name="settings_faq_summary">Answers to common questions about Telegram</string>
+    <string name="settings_call_diagnostics">Send call diagnostics</string>
+    <string name="settings_call_diagnostics_summary">A log of recent calls without message content, for the app developer</string>
+    <string name="settings_call_diagnostics_empty">No call recorded yet</string>
+    <string name="settings_call_diagnostics_failed">The log could not be prepared</string>
     <string name="ask_question_title">Ask Telegram support?</string>
     <string name="ask_question_text">Telegram support is run by volunteers. They answer as soon as they can, but most questions are already answered in the FAQ.</string>
     <string name="ask_question_plume">Plume is an unofficial app — Telegram support can't help with Plume itself.</string>

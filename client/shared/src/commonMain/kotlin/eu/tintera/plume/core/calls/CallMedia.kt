@@ -67,6 +67,12 @@ interface CallMedia {
 
     /** Zastaví přenos a vrátí zvuk telefonu, jak byl. Bezpečné volat opakovaně. */
     fun stop()
+
+    /**
+     * Čísla běžícího přenosu pro deník hovorů ([CallJournal]); `null`, když přenos neběží, nebo
+     * je platforma nezná. Volá se jednou za vteřinu mimo hlavní vlákno a smí krátce blokovat.
+     */
+    fun stats(): CallMediaStats? = null
 }
 
 /**

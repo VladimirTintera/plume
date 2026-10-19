@@ -3,6 +3,7 @@ package eu.tintera.plume
 import co.touchlab.kermit.Logger
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.PushKind
@@ -49,6 +50,9 @@ class PlumeMessagingService : FirebaseMessagingService() {
     private val repository: NotificationRepository?
         get() = GlobalContext.getOrNull()?.get()
 
+    private val journal: CallJournal?
+        get() = GlobalContext.getOrNull()?.getOrNull()
+
     override fun onNewToken(token: String) {
         logger.d { "Nový FCM token." }
         registerToken(token)
@@ -80,10 +84,22 @@ class PlumeMessagingService : FirebaseMessagingService() {
             val processed = withTimeoutOrNull(DELIVERY_TIMEOUT) { repository.processPush(payload) }
             if (processed?.isFailure == true) return@runBlocking
             val call = processed?.getOrNull() == PushKind.Call
+            // Push hovoru do deníku i s tím, jak dlouho cestoval: zmeškaný hovor se pak pozná
+            // od pushe, který přišel pozdě, nebo vůbec (`docs/poznatky/notifikace.md`).
+            if (call) journal?.record("Call push, sent ${System.currentTimeMillis() - message.sentTime} ms ago, priority ${message.priority}/${message.originalPriority}")
             // Hovor zvoní jen do zvednutí (desítky vteřin) a dozvědět se o něm jde jen od serveru:
             // spojení se otevře hned, ne až na timeout mrtvých soketů z doby před zmrazením.
-            if (call && !repository.awaitIncomingCall(Duration.ZERO)) reconnect()
+            if (call && !repository.awaitIncomingCall(Duration.ZERO)) {
+                journal?.record("Call not known yet, reconnecting")
+                reconnect()
+            }
             val callKnown = !call || repository.awaitIncomingCall(DELIVERY_TIMEOUT - started.elapsedNow())
+            if (call) {
+                journal?.record(
+                    if (callKnown) "Call known ${started.elapsedNow().inWholeMilliseconds} ms after the push"
+                    else "No call within $DELIVERY_TIMEOUT, waiting in a background job",
+                )
+            }
             val delivered = processed != null && callKnown && repository.awaitDelivered(DELIVERY_TIMEOUT - started.elapsedNow())
             if (delivered) {
                 logger.d { "Push${if (call) " hovoru" else ""} vyřízen za ${started.elapsedNow().inWholeMilliseconds} ms." }

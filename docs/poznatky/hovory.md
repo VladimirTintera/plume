@@ -529,6 +529,35 @@ Protistrana byla na špatné Wi-Fi; test měl ukázat, jestli to není v Plume.
   zazvoní, a že hovor přijalo jiné zařízení, se dozví až po připojení, které se mu v pozadí
   neotevřelo. Při testech ho zastavit (`am force-stop org.telegram.messenger`).
 
+## Deník hovorů (diagnostika)
+
+Logcat ze skutečného telefonu dostane jen ten, kdo má adb; když hovor sekal nebo propadl
+u někoho jiného, nezbylo nic. Plume proto vede **deník hovorů** (`CallJournal`) a uživatel ho
+může poslat sám: Nastavení → Pomoc → „Odeslat diagnostiku hovorů" složí textový soubor
+(hlavička s verzí aplikace, telefonem a systémem + deník) a otevře systémové sdílení
+(`MediaSharer`). Automaticky se nikam neposílá — server na to nemáme a nechceme.
+
+- **Co se zapisuje**: push hovoru (jak dlouho cestoval — `RemoteMessage.sentTime`, priorita,
+  za kolik ms byl hovor známý, znovuotevření spojení, úloha na pozadí), stavy `UpdateCall`
+  (jen přechody), přijetí, verze a servery z `Ready`, stav přenosu z ntgcalls, výstup zvuku,
+  ztlumení, podržení, kamera, změny sítě a popředí aplikace (jen za hovoru), zavěšení s délkou
+  a důvod konce. Žádný obsah zpráv, jména, čísla ani id účtů; id hovoru je místní číslo TDLib.
+- **Po vteřinách čísla přenosu** (`CallMedia.stats`, na Androidu `TrafficStats` vlastního uid
+  a `NTgCalls.time` pro přehrávání i zachytávání), do deníku souhrn za 5 s (`CallStatsSampler`):
+  `5 s: rx 5175 B/s (min 5057), tx 5418 B/s, played +5 s, captured +5 s`. Hned zvlášť
+  **zaseknutí** (příjem aspoň 2 s pod 1 kB/s, s poznámkou, jestli stojí i přehrávání) a jeho
+  konec, a **mezera ve vzorkování** přes 2,5 s — proces stál (zmrazený, přetížený).
+  `NTgCalls.time` běží i s obyčejným reproduktorem (`DEVICE`), ne jen se sondou; ověřeno.
+  `TrafficStats` počítá celou aplikaci, takže stahování v TDLib zaseknutí nanejvýš zakryje,
+  nevyrobí. Desktop zatím čísla nehlásí, jen události.
+- **Anglicky**: soubor je pro vývojáře a `verifyNoHardcodedText` pouští český text jen v lozích.
+- **Velikost**: dva díly po 256 kB (`calls.log`, `calls.1.log` v `files/call-journal`), řádek
+  souhrnu po 5 s — zhruba deset běžných hovorů, nebo 3–4 h jednoho dlouhého.
+- **Ověřeno na Pixelu 5 a Pixelu 7 Pro** (Plume ↔ Plume, minuta hovoru, jeden telefon zhasnutý):
+  deník na obou stranách, push 1,96 s po odeslání, hovor známý dřív než push (spojení bylo
+  otevřené), přechody do pozadí a zpět, export přes sdílení s hlavičkou. Desktop jen přeložený.
+- **Další krok** (v `docs/roadmap.md`): podrobný výpis WebRTC z vlastního logcatu za hovoru.
+
 ## Vyzvánění a výstup zvuku (Android)
 
 - **Příchozí hovor zvoní `CallRinger`**: vyzváněcí tón telefonu (`RingtoneManager`,

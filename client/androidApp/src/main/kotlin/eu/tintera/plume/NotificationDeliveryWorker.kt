@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.telegram.NotificationRepository
 import org.koin.core.context.GlobalContext
 import kotlin.time.Duration.Companion.seconds
@@ -41,9 +42,14 @@ class NotificationDeliveryWorker(
 
         val started = TimeSource.Monotonic.markNow()
         // Hovor napřed musí přijít od serveru; notifikaci k němu vydá TDLib až potom.
-        if (inputData.getBoolean(KEY_CALL, false) && !repository.awaitIncomingCall(TIMEOUT)) {
-            logger.w { "Hovor z pushe nepřišel do $TIMEOUT." }
-            return Result.success()
+        if (inputData.getBoolean(KEY_CALL, false)) {
+            val journal = GlobalContext.getOrNull()?.getOrNull<CallJournal>()
+            if (!repository.awaitIncomingCall(TIMEOUT)) {
+                logger.w { "Hovor z pushe nepřišel do $TIMEOUT." }
+                journal?.record("Background job: no call within $TIMEOUT")
+                return Result.success()
+            }
+            journal?.record("Background job: call known after ${started.elapsedNow().inWholeMilliseconds} ms")
         }
         if (repository.awaitDelivered(TIMEOUT - started.elapsedNow())) {
             logger.d { "Odložená notifikace vyřízena za ${started.elapsedNow().inWholeMilliseconds} ms." }
