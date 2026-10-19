@@ -39,6 +39,17 @@ expect class NotificationPermission {
     /** Umí aplikace tiché hodiny ([eu.tintera.plume.core.settings.QuietHours])? */
     val supportsQuietHours: Boolean
 
+    /**
+     * Smí notifikace příchozího hovoru rozsvítit zhasnutý nebo zamčený telefon na obrazovku
+     * hovoru (celoobrazovková výzva)? `null` = platforma to neřeší, nebo je to zaručené (iOS,
+     * desktop, Android do 13). Od Androidu 14 to Play povolí jen aplikacím deklarovaným jako
+     * hovory a uživatel to může vypnout; bez toho zamčený telefon jen zvoní a nic neukáže.
+     */
+    fun fullScreenCallsAllowed(): Boolean?
+
+    /** Otevře systémové nastavení celoobrazovkových notifikací aplikace ([fullScreenCallsAllowed]). */
+    fun openFullScreenCallSettings()
+
     /** Otevře systémové nastavení kanálu — zvuk, vibrace, důležitost. */
     fun openChannelSettings(channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID)
 

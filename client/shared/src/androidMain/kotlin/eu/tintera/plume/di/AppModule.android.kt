@@ -198,6 +198,7 @@ actual fun Module.platformModule() {
             settings = get(),
             snoozes = get(),
             callsSupported = get<CallRepository>().supported,
+            journal = getOrNull<CallJournal>(),
         )
     }
     // Služba v popředí po dobu hovoru — spouští se z popředí, jakmile hovor vytáčí nebo běží.

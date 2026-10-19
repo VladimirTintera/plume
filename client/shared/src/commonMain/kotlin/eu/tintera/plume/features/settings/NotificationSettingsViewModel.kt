@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.DEFAULT_SOUND_ID
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,6 +29,11 @@ import kotlinx.coroutines.launch
 
 data class NotificationSettingsState(
     val permissionGranted: Boolean = true,
+    /**
+     * Smí příchozí hovor rozsvítit zamčený telefon na obrazovku hovoru? `null` = řádek se
+     * neukazuje (hovory tu nejsou, nebo to platforma nerozlišuje).
+     */
+    val fullScreenCalls: Boolean? = null,
     /** Spouštění po přihlášení (desktop); `null` = platforma ho neumí, řádek se neukazuje. */
     val launchAtLogin: Boolean? = null,
     /** `null` u rozsahu = ještě se načítá. */
@@ -46,10 +52,11 @@ class NotificationSettingsViewModel(
     private val permission: NotificationPermission,
     private val settings: AppSettings,
     private val launchAtLogin: LaunchAtLogin,
+    private val calls: CallRepository,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(
-        NotificationSettingsState(permissionGranted = permission.isGranted(), launchAtLogin = readLaunchAtLogin()),
+        NotificationSettingsState(permissionGranted = permission.isGranted(), fullScreenCalls = readFullScreenCalls(), launchAtLogin = readLaunchAtLogin()),
     )
 
     /** Řádek „Povolení v systému": na Linuxu není co ukázat ani otevřít. */
@@ -99,7 +106,7 @@ class NotificationSettingsViewModel(
      * (ztlumení z nabídky chatu) nebo na jiném zařízení.
      */
     fun refresh() {
-        local.update { it.copy(permissionGranted = permission.isGranted(), launchAtLogin = readLaunchAtLogin()) }
+        local.update { it.copy(permissionGranted = permission.isGranted(), fullScreenCalls = readFullScreenCalls(), launchAtLogin = readLaunchAtLogin()) }
         loadExceptions()
     }
 
@@ -171,6 +178,10 @@ class NotificationSettingsViewModel(
     }
 
     fun openSystemSettings() = permission.openSystemSettings()
+
+    fun openFullScreenCallSettings() = permission.openFullScreenCallSettings()
+
+    private fun readFullScreenCalls(): Boolean? = if (calls.supported) permission.fullScreenCallsAllowed() else null
 
     fun openChannelSettings(channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID) = permission.openChannelSettings(channel, soundId)
 

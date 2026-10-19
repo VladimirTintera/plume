@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.calls.CallJournal
 import android.app.NotificationManager
 import android.app.Notification
 import android.os.Build
@@ -78,6 +79,8 @@ actual class NotificationPresenter(
     /** Umí Plume hovor přijmout (mediální vrstva, `CallRepository.supported`)? */
     private val callsSupported: Boolean = false,
     private val now: () -> Instant = { Clock.System.now() },
+    /** Deník hovorů: zvonění bez celoobrazovkové výzvy je stopa k „zamčený telefon jen zvonil". */
+    private val journal: CallJournal? = null,
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -531,6 +534,8 @@ actual class NotificationPresenter(
             .setContentIntent(NotificationIntents.showCall(context))
             .build()
         logger.d { "Zobrazuji příchozí hovor ${call.callId}, přijmout jde v Plume." }
+        val fullScreen = manager.canUseFullScreenIntent()
+        journal?.record("Ringing notification${if (fullScreen) "" else " WITHOUT full-screen intent (not allowed)"}", call.callId)
         manager.notify(call.groupId, built)
     }
 

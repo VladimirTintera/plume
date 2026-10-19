@@ -715,12 +715,10 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    - **Play Console: deklarovat typy služby v popředí `camera` a `mediaProjection`** (kamera
      videohovoru a sdílení obrazovky na pozadí) — udělá uživatel, bez toho Play vydání
      s videohovory a sdílením nepustí.
-   - **Celoobrazovková výzva příchozího hovoru v buildu z Play** — na Foldu (Android 17)
-     `USE_FULL_SCREEN_INTENT: deny`, notifikace hovoru má `FSI_REQUESTED_BUT_DENIED`, takže se
-     zhasnutý telefon nerozsvítí na obrazovku hovoru (debug přes adb oprávnění má, proto to
-     testovací telefony neukázaly). Play Console: deklarace oprávnění pro celoobrazovkové
-     notifikace (udělá uživatel); v aplikaci `canUseFullScreenIntent()` a odkaz do nastavení
-     (`ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT`), když chybí.
+   - **Play Console: deklarace celoobrazovkových notifikací** (`USE_FULL_SCREEN_INTENT`) —
+     udělá uživatel; bez ní Plume z Play na Androidu 14+ zamčený telefon při hovoru nerozsvítí.
+     Aplikace stav ukazuje a jednou se zeptá (`docs/poznatky/notifikace.md`, „Celoobrazovková
+     výzva hovoru").
    - **Diagnostika hovorů, krok 2: podrobný výpis WebRTC** — za hovoru ukládat vlastní logcat
      (`logcat --pid`, aplikace smí číst svůj bez oprávnění; ověřit na Androidu 17) s filtrem na
      ICE, reflectory a ntgcalls, strop ~2 MB, poslední tři hovory, a přibalit k exportu deníku

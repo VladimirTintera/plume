@@ -246,6 +246,12 @@
     <string name="settings_title">Settings</string>
     <string name="settings_notifications_on">On</string>
     <string name="settings_notifications_off">Off — you'll only find out about new messages in the app</string>
+    <string name="settings_full_screen_calls">Incoming calls on full screen</string>
+    <string name="settings_full_screen_calls_on">Allowed — a locked phone lights up and shows who is calling</string>
+    <string name="settings_full_screen_calls_off">Not allowed — a locked phone only rings, the screen stays off</string>
+    <string name="full_screen_calls_prompt_title">Show calls on full screen?</string>
+    <string name="full_screen_calls_prompt_text">So that an incoming call lights up a locked phone and shows who is calling, Plume needs the system permission for full-screen notifications.</string>
+    <string name="full_screen_calls_prompt_open">Open settings</string>
     <string name="settings_sign_out">Sign out</string>
     <string name="settings_sign_out_title">Sign out?</string>
     <string name="settings_sign_out_body">Messages and downloaded files will be deleted from this device. Your account and your chats on other devices stay as they are.</string>

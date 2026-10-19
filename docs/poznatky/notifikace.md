@@ -283,6 +283,34 @@ bez stopy a kdo měl jen Plume, dozvěděl se o něm až ze zmeškaného hovoru.
   a přijde zpráva „Zmeškaný hovor". Oficiální Telegram na témže účtu zvoní vedle — to je
   v pořádku, hovor přijmout umí jen on.
 
+#### Celoobrazovková výzva hovoru (Android 14+)
+
+**Plume z Play na Foldu (Android 17) zamčený telefon při hovoru nerozsvítil, jen zvonil.**
+Notifikace hovoru měla `FSI_REQUESTED_BUT_DENIED`, `appops get eu.tintera.plume
+USE_FULL_SCREEN_INTENT` hlásilo `deny`. Od Androidu 14 dává Play `USE_FULL_SCREEN_INTENT` jen
+aplikacím deklarovaným v Play Console jako hovory nebo budíky (Obsah aplikace → deklarace
+celoobrazovkových notifikací — dělá uživatel); bez ní, nebo když to uživatel vypne, systém
+místo výzvy ukáže jen plovoucí notifikaci a se zhasnutou obrazovkou nic.
+
+- **Stav vidí aplikace** (`NotificationPermission.fullScreenCallsAllowed`:
+  `NotificationManager.canUseFullScreenIntent`, `null` pod Androidem 14 a mimo Android)
+  a **vede do nastavení** (`openFullScreenCallSettings`:
+  `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` s `package:` URI, když chybí, nastavení
+  notifikací aplikace).
+- **Nastavení → Notifikace** má pod povolením řádek „Příchozí hovory přes celou obrazovku"
+  (jen kde jsou hovory), nepovolený stav v chybové barvě; obnovuje se po návratu ze systému
+  (`refresh` na resume).
+- **Jednou se zeptá sama** (`NotificationPermissionPrompt`, `ConfirmDialog`): až jsou notifikace
+  povolené, hovory jdou a výzva ne. Kdo do Nastavení nezajde — typicky uživatel z Play —, by
+  se to jinak nedozvěděl. Odpověď se pamatuje (`asked_full_screen`), dál jen Nastavení.
+- **Deník hovorů zapíše zvonění bez výzvy** („Ringing notification WITHOUT full-screen intent").
+- **Simulace na debug buildu**: `adb shell appops set eu.tintera.plume USE_FULL_SCREEN_INTENT
+  deny`; vrátit `… default` a `appops set --uid … default` (přepínač v systému mění režim uid,
+  `appops set` bez `--uid` režim balíčku). Ověřeno na Pixelu 5 (Android 14, anglicky): dotaz po
+  startu, „Otevřít nastavení" otevře systémovou obrazovku „Full screen notifications" pro Plume,
+  řádek ukáže nepovoleno, po zapnutí v systému a návratu povoleno; dotaz se znovu neukáže.
+  Česky a na Androidu 17 neověřené, build z Play taky ne.
+
 #### Push hovoru: TDLib ho odmítne a hovor přijde až od serveru
 
 **Na spící aplikaci hovor nezazvonil vůbec.** `processPushNotification` push hovoru vždycky

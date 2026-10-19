@@ -69,6 +69,11 @@ actual class NotificationPermission {
     actual fun openChannelSettings(channel: NotificationChannelKind, soundId: Long) = Unit
 
     actual fun forgetTone(soundId: Long) = Unit
+
+    /** Výzvu hovoru tu systém nepovoluje zvlášť. */
+    actual fun fullScreenCallsAllowed(): Boolean? = null
+
+    actual fun openFullScreenCallSettings() = Unit
     actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) = Unit
 
     private fun refresh() {

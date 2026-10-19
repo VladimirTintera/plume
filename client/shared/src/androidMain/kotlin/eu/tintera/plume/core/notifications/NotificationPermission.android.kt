@@ -2,8 +2,10 @@ package eu.tintera.plume.core.notifications
 
 import android.Manifest
 import android.content.Context
+import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
@@ -31,6 +33,24 @@ actual class NotificationPermission(private val context: Context) {
     }
 
     actual val hasSystemPermission: Boolean = true
+
+    /**
+     * Od Androidu 14 `USE_FULL_SCREEN_INTENT` u aplikace z Play jen s deklarací v Play Console
+     * (hovory, budíky). Build přes adb ho má vždycky — proto chybu testovací telefony neukázaly
+     * a ukázal ji až Fold s Plume z Play (`docs/poznatky/notifikace.md`).
+     */
+    actual fun fullScreenCallsAllowed(): Boolean? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
+        return context.getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+    }
+
+    actual fun openFullScreenCallSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return openSystemSettings()
+        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${context.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Výrobce, který obrazovku nemá, dostane aspoň nastavení notifikací aplikace.
+        runCatching { context.startActivity(intent) }.onFailure { openSystemSettings() }
+    }
 
     actual val supportsChannelSettings: Boolean = true
 
@@ -73,6 +93,13 @@ actual class NotificationPermission(private val context: Context) {
         prefs().edit().putBoolean(KEY_ASKED, true).apply()
     }
 
+    /** Ptali jsme se už na celoobrazovkové hovory? Jednou stačí, dál vede cesta přes Nastavení. */
+    internal fun wasAskedFullScreen(): Boolean = prefs().getBoolean(KEY_ASKED_FULL_SCREEN, false)
+
+    internal fun markAskedFullScreen() {
+        prefs().edit().putBoolean(KEY_ASKED_FULL_SCREEN, true).apply()
+    }
+
     /**
      * SharedPreferences schválně, ne DataStore: jde o jediný boolean, který má smysl jen na
      * Androidu. Zavádět kvůli tomu perzistentní vrstvu přes všechny platformy by bylo nepoměrné.
@@ -82,5 +109,6 @@ actual class NotificationPermission(private val context: Context) {
     private companion object {
         const val PREFS = "notification_permission"
         const val KEY_ASKED = "asked"
+        const val KEY_ASKED_FULL_SCREEN = "asked_full_screen"
     }
 }
