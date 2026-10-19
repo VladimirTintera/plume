@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.files.rememberSaveAs
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.telegram.platformDeviceModel
@@ -92,6 +93,7 @@ internal fun HelpGroup(
     val koin = getKoin()
     val journal = remember(koin) { koin.getOrNull<CallJournal>() }
     val sharer = koinInject<MediaSharer>()
+    val saveAs = rememberSaveAs()
     val paths = koinInject<TelegramPaths>()
     var exporting by remember { mutableStateOf(false) }
     var exportFailed by remember { mutableStateOf(false) }
@@ -142,7 +144,14 @@ internal fun HelpGroup(
                     scope.launch {
                         val header = "Plume ${paths.applicationVersion}, $platformDeviceModel, $platformSystemVersion"
                         val path = journal.export(header)
-                        exportFailed = path == null || !sharer.share(path, journal.exportFileName())
+                        val name = journal.exportFileName()
+                        when {
+                            path == null -> exportFailed = true
+                            sharer.share(path, name) -> exportFailed = false
+                            // Desktop soubor sdílet neumí — uloží se, kam si uživatel řekne.
+                            saveAs != null -> saveAs.launch(path, name) { saved -> exportFailed = saved == false }
+                            else -> exportFailed = true
+                        }
                         exporting = false
                     }
                 },

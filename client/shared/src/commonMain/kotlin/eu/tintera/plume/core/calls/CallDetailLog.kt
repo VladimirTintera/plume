@@ -1,0 +1,87 @@
+package eu.tintera.plume.core.calls
+
+import co.touchlab.kermit.Logger
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
+import kotlinx.datetime.toLocalDateTime
+import okio.BufferedSink
+import okio.FileSystem
+import okio.Path.Companion.toPath
+import okio.buffer
+import kotlin.time.Clock
+import kotlin.time.TimeSource
+
+/**
+ * Podrobný výpis přenosu k JEDNOMU hovoru: soubor `call-journal/detail/<čas>-call<id>.log`,
+ * který export deníku ([CallJournal.export]) přibalí. Řádky dodává platforma — Android z vlastního
+ * logcatu (`CallLogCapture`), desktop z log callbacku ntgcalls (`DesktopCallMedia`).
+ *
+ * - **Opakování prořezává [RepeatFilter]** (dvouapůlhodinový hovor: 35 MB → 1,1 MB).
+ * - **Strop [MAX_BYTES]** na hovor; nad ním jedna poznámka a dál nic.
+ * - **Posledních [KEEP_FILES] hovorů**; starší se smažou při založení nového.
+ *
+ * **Není vláknově bezpečný**: píše jedno vlákno (Android: čtení logcatu), nebo volající zamyká
+ * (desktop: callback chodí z vláken knihovny).
+ */
+class CallDetailLog private constructor(private val sink: BufferedSink) {
+
+    private val logger = Logger.withTag("CallJournal")
+    private val filter = RepeatFilter()
+    private val started = TimeSource.Monotonic.markNow()
+    private var written = 0L
+    private var capped = false
+    private var closed = false
+
+    /** [line] je celý řádek k zápisu, [tag] a [message] slouží jen k rozpoznání opakování. */
+    fun write(tag: String, message: String, line: String) {
+        if (closed) return
+        val kept = filter.accept(tag, message, line, started.elapsedNow().inWholeMilliseconds) ?: return
+        runCatching {
+            if (written + kept.length > MAX_BYTES) {
+                if (!capped) {
+                    sink.writeUtf8("… log reached the $MAX_BYTES B cap, nothing more is written\n").flush()
+                    capped = true
+                }
+                return
+            }
+            // Po řádcích: proces může skončit kdykoli (zabití uprostřed hovoru) a co je zapsané, zůstane.
+            sink.writeUtf8(kept).writeUtf8("\n").flush()
+            written += kept.length + 1
+        }.onFailure {
+            logger.w(it) { "Do výpisu hovoru nejde zapsat." }
+            close()
+        }
+    }
+
+    fun close() {
+        if (closed) return
+        closed = true
+        runCatching { sink.close() }
+    }
+
+    companion object {
+        const val MAX_BYTES = 2L * 1024 * 1024
+        const val KEEP_FILES = 3
+
+        /**
+         * Založí výpis hovoru [callId] v adresáři deníku [journalDirectory]; `null`, když to nejde
+         * (výpis je doplněk, hovor kvůli němu nesmí nic ztratit).
+         */
+        fun open(journalDirectory: String, callId: Long, fileSystem: FileSystem = FileSystem.SYSTEM): CallDetailLog? =
+            runCatching {
+                val dir = journalDirectory.toPath() / CALL_DETAIL_DIRECTORY
+                fileSystem.createDirectories(dir)
+                // Místo i pro ten, který právě začíná.
+                fileSystem.list(dir).filter { it.name.endsWith(".log") }.sortedByDescending { it.name }
+                    .drop(KEEP_FILES - 1).forEach { fileSystem.delete(it) }
+                CallDetailLog(fileSystem.sink(dir / "${fileStamp()}-call$callId.log").buffer())
+            }.onFailure { Logger.withTag("CallJournal").w(it) { "Výpis hovoru nejde založit." } }.getOrNull()
+
+        /** `20261019-213700` — řadí se podle jména od nejstaršího. */
+        private fun fileStamp(): String {
+            val time = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            fun Int.pad() = toString().padStart(2, '0')
+            return "${time.year}${time.month.number.pad()}${time.day.pad()}-${time.hour.pad()}${time.minute.pad()}${time.second.pad()}"
+        }
+    }
+}

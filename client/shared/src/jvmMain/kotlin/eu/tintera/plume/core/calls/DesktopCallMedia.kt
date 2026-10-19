@@ -7,6 +7,7 @@ import com.sun.jna.Platform
 import com.sun.jna.Pointer
 import java.io.File
 import com.sun.jna.ptr.ByteByReference
+import com.sun.jna.ptr.LongByReference
 import java.util.concurrent.Executors
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -64,8 +65,27 @@ class DesktopCallMedia : CallMedia {
     private var framesCallback: NtgNative.FramesCallback? = null
 
     private val logCallback = NtgNative.LogCallback { message, _ ->
-        // Jen chyby: WebRTC na úrovni informací píše desítky řádků za vteřinu.
+        // Do logu jen chyby: WebRTC na úrovni informací píše desítky řádků za vteřinu.
         if (message.level >= LOG_ERROR) logger.w { "ntgcalls: ${message.message}" }
+        // Do výpisu k hovoru všechno — opakování prořeže `CallDetailLog`.
+        synchronized(detailLock) { detailLog?.let { log -> writeDetail(log, message) } }
+    }
+
+    /** Podrobný výpis běžícího hovoru (Nastavení → Pomoc, `docs/poznatky/hovory.md`, „Deník hovorů"). */
+    private var detailLog: CallDetailLog? = null
+    private val detailLock = Any()
+
+    private fun writeDetail(log: CallDetailLog, message: NtgLogMessage) {
+        val text = message.message?.trimEnd() ?: return
+        val file = message.file?.substringAfterLast('/')?.substringAfterLast('\\').orEmpty()
+        val tag = if (message.source == LOG_SOURCE_SELF) "ntgcalls/$file" else file
+        val level = when {
+            message.level >= LOG_ERROR -> 'E'
+            message.level >= LOG_WARNING -> 'W'
+            message.level >= LOG_INFO -> 'I'
+            else -> 'D'
+        }
+        log.write(tag, text, "${DETAIL_STAMP.format(java.util.Date())} $level $tag:${message.line}: $text")
     }
 
     /** Přijímat obraz jde vždycky; když kamera chybí, zapnutí kamery jen nic neukáže. */
@@ -177,6 +197,10 @@ class DesktopCallMedia : CallMedia {
                 stopNow()
                 val lib = native
                 callId = session.callId.toLong()
+                synchronized(detailLock) {
+                    detailLog?.close()
+                    detailLog = CallDetailLog.open(File(desktopDataDirectory, CALL_JOURNAL_DIRECTORY).path, callId)
+                }
                 val instance = lib.ntg_instance_create()
                 handle = instance
                 signalingCallback = NtgNative.SignalingCallback { _, _, data, length, _ ->
@@ -338,6 +362,26 @@ class DesktopCallMedia : CallMedia {
         }
     }
 
+    /**
+     * Čas přehrávání a zachytávání pro deník hovorů. Počítadlo přenesených bajtů za proces desktop
+     * nemá (na Androidu `TrafficStats`) — zaseknutí pozná deník podle stojícího přehrávání.
+     */
+    override fun stats(): CallMediaStats? = runCatching {
+        worker.submit<CallMediaStats?> {
+            val instance = handle ?: return@submit null
+            fun time(mode: Int): Long? {
+                val out = LongByReference()
+                return if (native.ntg_time(instance, callId, mode, out) == NtgNative.OK) out.value else null
+            }
+            CallMediaStats(
+                rxBytes = null,
+                txBytes = null,
+                playedSeconds = time(NtgNative.STREAM_MODE_PLAYBACK),
+                capturedSeconds = time(NtgNative.STREAM_MODE_CAPTURE),
+            )
+        }.get(STATS_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    }.getOrNull()
+
     override fun stop() {
         worker.execute {
             MacAudio.unwatch()
@@ -384,6 +428,10 @@ class DesktopCallMedia : CallMedia {
     }
 
     private fun stopNow() {
+        synchronized(detailLock) {
+            detailLog?.close()
+            detailLog = null
+        }
         val instance = handle ?: return
         runCatching {
             native.ntg_stop(instance, callId)
@@ -556,6 +604,14 @@ class DesktopCallMedia : CallMedia {
         private const val SAMPLE_RATE = 48_000
         private const val CHANNELS: Byte = 2
         private const val LOG_ERROR = 8
+        private const val LOG_WARNING = 4
+        private const val LOG_INFO = 2
+        private const val LOG_SOURCE_SELF = 2
+
+        /** Jak dlouho čekat na vlákno knihovny kvůli vzorku do deníku. */
+        private const val STATS_TIMEOUT_MS = 300L
+
+        private val DETAIL_STAMP = java.text.SimpleDateFormat("MM-dd HH:mm:ss.SSS", java.util.Locale.ROOT)
 
         // Metadata zařízení jsou u ntgcalls JSON; čte se směr a identifikace zařízení.
         private const val MAC_MICROPHONE = """{"is_microphone":true,"uid":""}"""

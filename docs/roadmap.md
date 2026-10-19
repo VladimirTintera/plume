@@ -719,8 +719,6 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      udělá uživatel; bez ní Plume z Play na Androidu 14+ zamčený telefon při hovoru nerozsvítí.
      Aplikace stav ukazuje a jednou se zeptá (`docs/poznatky/notifikace.md`, „Celoobrazovková
      výzva hovoru").
-   - **Diagnostika hovorů na desktopu**: čísla přenosu do deníku (`CallMedia.stats`)
-     a podrobný výpis ntgcalls (desktop má jen události; `docs/poznatky/hovory.md`, „Deník hovorů").
    - **ntgcalls bere i rozhraní bez internetu** (IMS pro volání přes LTE, `rmnet`): pingy na
      reflectory přes ně nikdo nezodpoví a WebRTC je každých 16 s zahodí a sbírá znovu (572× za
      2,5 h hovoru). Výpadky to nezpůsobuje, jen zbytečné probouzení rádia u každého uživatele

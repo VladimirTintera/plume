@@ -549,13 +549,22 @@ může poslat sám: Nastavení → Pomoc → „Odeslat diagnostiku hovorů" slo
   konec, a **mezera ve vzorkování** přes 2,5 s — proces stál (zmrazený, přetížený).
   `NTgCalls.time` běží i s obyčejným reproduktorem (`DEVICE`), ne jen se sondou; ověřeno.
   `TrafficStats` počítá celou aplikaci, takže stahování v TDLib zaseknutí nanejvýš zakryje,
-  nevyrobí. Desktop zatím čísla nehlásí, jen události.
+  nevyrobí. **Desktop počítadlo bajtů za proces nemá** — hlásí jen čas proudu (`ntg_time` přes
+  JNA) a zaseknutí tam nese stojící přehrávání: dvě nulové vteřiny po sobě (čas je po celých
+  vteřinách, jedna nula je zaokrouhlení).
 - **Anglicky**: soubor je pro vývojáře a `verifyNoHardcodedText` pouští český text jen v lozích.
 - **Velikost**: dva díly po 256 kB (`calls.log`, `calls.1.log` v `files/call-journal`), řádek
   souhrnu po 5 s — zhruba deset běžných hovorů, nebo 3–4 h jednoho dlouhého.
 - **Ověřeno na Pixelu 5 a Pixelu 7 Pro** (Plume ↔ Plume, minuta hovoru, jeden telefon zhasnutý):
   deník na obou stranách, push 1,96 s po odeslání, hovor známý dřív než push (spojení bylo
   otevřené), přechody do pozadí a zpět, export přes sdílení s hlavičkou. Desktop jen přeložený.
+- **Zápis výpisu je společný** (`CallDetailLog`: soubor na hovor, `RepeatFilter`, strop, poslední
+  tři hovory); řádky dodává platforma. **Desktop** je bere z log callbacku ntgcalls
+  (`ntg_set_log_callback` — úroveň, zdroj WebRTC / ntgcalls, soubor, řádek), dřív šly jen chyby
+  do logu; teď po dobu přenosu do výpisu všechno, tag je jméno souboru (`ntgcalls/…` u vlastních
+  zpráv knihovny). Callback chodí z vláken knihovny, takže zápis jde pod zámkem.
+- **Export na desktopu ukládá**, nesdílí: `MediaSharer.share` tam soubor neumí, takže položka
+  otevře „Uložit jako…" (`rememberSaveAs`).
 - **Podrobný výpis přenosu (Android, `CallLogCapture`)**: po dobu přenosu (`NtgCallMedia.start`
   → `stopNow`) čte aplikace vlastní logcat (`logcat -v threadtime --pid=<pid> -T 1`) do
   `call-journal/detail/<čas>-call<id>.log` a export ho přibalí za deník. **Vlastní logcat smí
