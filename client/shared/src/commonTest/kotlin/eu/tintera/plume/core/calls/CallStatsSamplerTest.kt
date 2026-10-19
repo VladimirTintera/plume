@@ -52,6 +52,26 @@ class CallStatsSamplerTest {
     }
 
     @Test
+    fun withoutByteCountersStoppedPlaybackIsTheStall() {
+        var playedNow = 0L
+        var t = 0L
+        fun tick(playing: Boolean) {
+            if (playing) playedNow++
+            t += 1_000
+            sampler.sample(CallMediaStats(rxBytes = null, txBytes = null, playedSeconds = playedNow, capturedSeconds = playedNow), t)
+        }
+        tick(true)
+        tick(true)
+        tick(false)
+        tick(true)
+        assertTrue(lines.none { it.startsWith("STALL") }, "jedna nulová vteřina je zaokrouhlení: $lines")
+        tick(false)
+        tick(false)
+        tick(true)
+        assertEquals(listOf("STALL: playback stopped", "Stall over after 2 s"), lines.filter { it.startsWith("STALL") || it.startsWith("Stall") })
+    }
+
+    @Test
     fun unknownNumbersAreLeftOut() {
         sampler.sample(CallMediaStats(null, null, null, null), 0)
         repeat(5) { i -> sampler.sample(CallMediaStats(null, null, null, null), (i + 1) * 1_000L) }

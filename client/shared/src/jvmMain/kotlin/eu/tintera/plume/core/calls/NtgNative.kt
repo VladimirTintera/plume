@@ -8,6 +8,7 @@ import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.Structure
 import com.sun.jna.ptr.ByteByReference
+import com.sun.jna.ptr.LongByReference
 
 /**
  * Vazba na C API ntgcalls (`ntgcalls.h` z vydání 3.0.3) přes JNA. Desktop jede na JDK 17,
@@ -56,6 +57,9 @@ internal interface NtgNative : Library {
     fun ntg_pause(handle: Pointer, chatId: Long, out: ByteByReference): Int
     fun ntg_resume(handle: Pointer, chatId: Long, out: ByteByReference): Int
     fun ntg_stop(handle: Pointer, chatId: Long): Int
+
+    /** Čas proudu ([STREAM_MODE_CAPTURE] / [STREAM_MODE_PLAYBACK]) — deník hovorů. */
+    fun ntg_time(handle: Pointer, chatId: Long, mode: Int, out: LongByReference): Int
 
     fun ntg_on_signaling_data_callback(handle: Pointer, callback: SignalingCallback?, userData: Pointer?): Int
     fun ntg_on_connection_change_callback(handle: Pointer, callback: ConnectionCallback?, userData: Pointer?): Int

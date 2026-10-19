@@ -549,13 +549,29 @@ může poslat sám: Nastavení → Pomoc → „Odeslat diagnostiku hovorů" slo
   konec, a **mezera ve vzorkování** přes 2,5 s — proces stál (zmrazený, přetížený).
   `NTgCalls.time` běží i s obyčejným reproduktorem (`DEVICE`), ne jen se sondou; ověřeno.
   `TrafficStats` počítá celou aplikaci, takže stahování v TDLib zaseknutí nanejvýš zakryje,
-  nevyrobí. Desktop zatím čísla nehlásí, jen události.
+  nevyrobí. **Desktop počítadlo bajtů za proces nemá** — hlásí jen čas proudu (`ntg_time` přes
+  JNA) a zaseknutí tam nese stojící přehrávání: dvě nulové vteřiny po sobě (čas je po celých
+  vteřinách, jedna nula je zaokrouhlení).
 - **Anglicky**: soubor je pro vývojáře a `verifyNoHardcodedText` pouští český text jen v lozích.
 - **Velikost**: dva díly po 256 kB (`calls.log`, `calls.1.log` v `files/call-journal`), řádek
   souhrnu po 5 s — zhruba deset běžných hovorů, nebo 3–4 h jednoho dlouhého.
 - **Ověřeno na Pixelu 5 a Pixelu 7 Pro** (Plume ↔ Plume, minuta hovoru, jeden telefon zhasnutý):
   deník na obou stranách, push 1,96 s po odeslání, hovor známý dřív než push (spojení bylo
   otevřené), přechody do pozadí a zpět, export přes sdílení s hlavičkou. Desktop jen přeložený.
+- **Zápis výpisu je společný** (`CallDetailLog`: soubor na hovor, `RepeatFilter`, strop, poslední
+  tři hovory); řádky dodává platforma. **Desktop** je bere z log callbacku ntgcalls
+  (`ntg_set_log_callback` — úroveň, zdroj WebRTC / ntgcalls, soubor, řádek), dřív šly jen chyby
+  do logu; teď po dobu přenosu do výpisu všechno, tag je jméno souboru (`ntgcalls/…` u vlastních
+  zpráv knihovny). Callback chodí z vláken knihovny, takže zápis jde pod zámkem.
+- **Adresy maskuje zápis výpisu** (`CallDetailLog.maskAddresses`: IPv4 bez poslední části, IPv6
+  jen první tři skupiny). Na Androidu je WebRTC maskuje samo, log callback na desktopu ale dává
+  celé — první výpis z desktopu měl místní adresy počítače i adresu telefonu v mobilní síti.
+- **Ověřeno na desktopu (macOS)**: hovor s Pixelem 5 přes minutu — deník se souhrny `played +5 s,
+  captured +5 s`, výpis 328 řádků (WebRTC i `ntgcalls/…`), po maskování žádná celá adresa.
+  Hovor přijatý jinde (oficiální klient, druhá instance Plume) se v deníku pozná podle
+  `Discarded: CallDiscardReasonEmpty` hned po `Incoming call`. Export „Uložit jako…" neověřený.
+- **Export na desktopu ukládá**, nesdílí: `MediaSharer.share` tam soubor neumí, takže položka
+  otevře „Uložit jako…" (`rememberSaveAs`).
 - **Podrobný výpis přenosu (Android, `CallLogCapture`)**: po dobu přenosu (`NtgCallMedia.start`
   → `stopNow`) čte aplikace vlastní logcat (`logcat -v threadtime --pid=<pid> -T 1`) do
   `call-journal/detail/<čas>-call<id>.log` a export ho přibalí za deník. **Vlastní logcat smí

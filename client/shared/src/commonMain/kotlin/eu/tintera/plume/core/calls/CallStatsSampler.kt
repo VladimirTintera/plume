@@ -56,15 +56,20 @@ internal class CallStatsSampler(private val write: (String) -> Unit) {
         val playedNow = delta(previous.playedSeconds, stats.playedSeconds)
         val capturedNow = delta(previous.capturedSeconds, stats.capturedSeconds)
 
-        val stalled = rx != null && rx < STALL_BYTES_PER_SECOND
+        // Bez počítadla bajtů (desktop) nese zaseknutí jen stojící přehrávání. Čas ntgcalls je
+        // po celých vteřinách, takže jedna nulová vteřina je zaokrouhlení — proto až dvě po sobě.
+        val stalled = if (rx != null) rx < STALL_BYTES_PER_SECOND else playedNow == 0L
         if (stalled) {
             stalledFor++
             if (stalledFor >= STALL_SECONDS && !stallReported) {
                 stallReported = true
-                write("STALL: receiving $rx B/s${if (playedNow == 0L) ", playback stopped" else ""}")
+                write(
+                    if (rx != null) "STALL: receiving $rx B/s${if (playedNow == 0L) ", playback stopped" else ""}"
+                    else "STALL: playback stopped",
+                )
             }
         } else {
-            if (stallReported) write("Stall over after $stalledFor s, receiving $rx B/s")
+            if (stallReported) write("Stall over after $stalledFor s${if (rx != null) ", receiving $rx B/s" else ""}")
             stalledFor = 0
             stallReported = false
         }
