@@ -18,6 +18,7 @@ import dev.g000sha256.tdl.dto.NotificationGroupTypeCalls
 import dev.g000sha256.tdl.dto.Call
 import dev.g000sha256.tdl.dto.CallStateError
 import dev.g000sha256.tdl.dto.CallStateDiscarded
+import dev.g000sha256.tdl.dto.CallStatePending
 import dev.g000sha256.tdl.dto.DeviceToken
 import dev.g000sha256.tdl.dto.DeviceTokenApplePush
 import dev.g000sha256.tdl.dto.DeviceTokenFirebaseCloudMessaging
@@ -88,9 +89,19 @@ class TdlNotificationRepository(
      */
     private val calls = MutableStateFlow<Map<Int, Call>>(emptyMap())
 
+    /**
+     * Kolik `UpdateCall` přišlo od vzniku. Push hovoru si zapamatuje stav před sebou
+     * ([callPushMark]) a [awaitIncomingCall] čeká na první další — i na zrušený hovor, ten
+     * znamená, že TDLib je se serverem srovnaný a zmeškaný hovor oznámí sám.
+     */
+    private val callUpdateCount = MutableStateFlow(0L)
+
+    private var callPushMark = 0L
+
     init {
         holder.updates { callUpdates }
             .onEach { update ->
+                callUpdateCount.update { it + 1 }
                 val call = update.call
                 // Skončený hovor už notifikaci nedostane — mapa by jinak rostla s každým hovorem.
                 val ended = call.state is CallStateDiscarded || call.state is CallStateError
@@ -369,10 +380,18 @@ class TdlNotificationRepository(
             .onFailure { logger.e(it) { "registerDevice selhalo." } }
     }
 
-    override suspend fun processPush(payload: String): Result<Unit> =
-        client.processPushNotification(payload = payload)
+    override suspend fun processPush(payload: String): Result<PushKind> {
+        val mark = callUpdateCount.value
+        return client.processPushNotification(payload = payload)
             .toResult()
-            .map { }
+            .map { PushKind.Notification }
+            .recoverCatching { failure ->
+                // Push hovoru TDLib odmítne vždycky (hlášku má přímo v knihovně): hovor se dá
+                // zjistit jen od serveru. Chyba to není — jen se na hovor musí počkat.
+                if (failure.message != CALL_PUSH_UNSUPPORTED) throw failure
+                callPushMark = mark
+                PushKind.Call
+            }
             .onFailure { failure ->
                 // Push o novém tajném chatu TDLib zpracovat neumí (hlášku má přímo v knihovně);
                 // chat dorazí updatem, až se připojí, a oznámí ho `NotificationTypeNewSecretChat`.
@@ -383,6 +402,18 @@ class TdlNotificationRepository(
                     logger.e(failure) { "processPushNotification selhalo." }
                 }
             }
+    }
+
+    override suspend fun awaitIncomingCall(timeout: Duration): Boolean {
+        val mark = callPushMark
+        // Běžící aplikace dostane hovor spojením dřív než push — pak už zvoní a čekat není na co.
+        val arrived = combine(callUpdateCount, calls) { count, known ->
+            count > mark || known.values.any { !it.isOutgoing && it.state is CallStatePending }
+        }
+        // Napřed bez čekání: `withTimeoutOrNull` s nulovým limitem blok vůbec nespustí.
+        if (arrived.first()) return true
+        return withTimeoutOrNull(timeout) { arrived.first { it } } ?: false
+    }
 
     /**
      * Odesílatel zprávy.
@@ -467,6 +498,9 @@ class TdlNotificationRepository(
     private companion object {
         /** Hláška TDLib (ověřeno `strings` nad knihovnou) u pushe o novém tajném chatu. */
         const val SECRET_CHAT_PUSH_UNSUPPORTED = "New secret chat notification is not supported"
+
+        /** Hláška TDLib (ověřeno `strings` nad knihovnou) u pushe o příchozím hovoru. */
+        const val CALL_PUSH_UNSUPPORTED = "Phone call notification is not supported"
 
         /** Nejvyšší priorita: notifikace čeká, takže má smysl ji vyřídit dřív než zbytek fronty. */
         const val AVATAR_PRIORITY = 32

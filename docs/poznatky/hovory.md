@@ -137,7 +137,9 @@ Odmítnout na ploše, přijetí z ní, hovor na ploše, reproduktor tam a zpět,
 zavěšení ze systémové notifikace (služba skončí na obou stranách, zvuk zpět v normálu),
 zhasnutý a zamčený telefon (rozsvítí se obrazovka hovoru nad zámkem, přijetí bez odemčení),
 zmenšení, rozbalení a Zpět, a **Plume zabitý na pozadí** (`am kill`): push ho probudil,
-notifikace i obrazovka hovoru přišly a přijetí spojilo.
+notifikace i obrazovka hovoru přišly a přijetí spojilo. Ze ZMRAZENÉHO procesu (ne zabitého) hovor dřív
+propadal — viz `docs/poznatky/notifikace.md`, „Push hovoru: TDLib ho odmítne a hovor přijde
+až od serveru".
 
 **Co dál chybí**: iOS (desktop viz „Desktop", video „Videohovory").
 

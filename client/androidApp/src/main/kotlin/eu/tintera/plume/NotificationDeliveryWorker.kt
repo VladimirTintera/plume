@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.NotificationRepository
 import org.koin.core.context.GlobalContext
@@ -39,7 +40,12 @@ class NotificationDeliveryWorker(
             ?: return Result.success()
 
         val started = TimeSource.Monotonic.markNow()
-        if (repository.awaitDelivered(TIMEOUT)) {
+        // Hovor napřed musí přijít od serveru; notifikaci k němu vydá TDLib až potom.
+        if (inputData.getBoolean(KEY_CALL, false) && !repository.awaitIncomingCall(TIMEOUT)) {
+            logger.w { "Hovor z pushe nepřišel do $TIMEOUT." }
+            return Result.success()
+        }
+        if (repository.awaitDelivered(TIMEOUT - started.elapsedNow())) {
             logger.d { "Odložená notifikace vyřízena za ${started.elapsedNow().inWholeMilliseconds} ms." }
         } else {
             logger.w { "Odložená notifikace se nevyřídila do $TIMEOUT." }
@@ -54,19 +60,27 @@ class NotificationDeliveryWorker(
 
         private const val WORK_NAME = "notification-delivery"
 
+        private const val CALL_WORK_NAME = "notification-delivery-call"
+
+        private const val KEY_CALL = "call"
+
         /**
          * `REPLACE`: nový push znamená novou odloženou notifikaci, takže se čeká znovu od začátku.
-         * Stav, na který se čeká, je společný, takže zrušená úloha nic neztratí.
+         * Stav, na který se čeká, je společný, takže zrušená úloha nic neztratí. [call] = čekat
+         * napřed na hovor z pushe ([NotificationRepository.awaitIncomingCall]).
          */
-        fun enqueue(context: Context) {
+        fun enqueue(context: Context, call: Boolean = false) {
             val request = OneTimeWorkRequestBuilder<NotificationDeliveryWorker>()
+                .setInputData(workDataOf(KEY_CALL to call))
                 .apply {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     }
                 }
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            // Hovor má vlastní jméno, ať čekání na něj nezruší push obyčejné zprávy, který přijde hned po něm.
+            val name = if (call) CALL_WORK_NAME else WORK_NAME
+            WorkManager.getInstance(context).enqueueUniqueWork(name, ExistingWorkPolicy.REPLACE, request)
         }
     }
 }

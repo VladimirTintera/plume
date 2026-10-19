@@ -62,4 +62,14 @@ class ConnectionController(
             }
         }
     }
+
+    /**
+     * Totéž co návrat do popředí, jen bez něj: push o hovoru probudí zmrazený proces a TDLib
+     * by na mrtvých soketech z doby před zmrazením čekal na vlastní timeout — déle, než hovor
+     * zvoní. Hovor se přitom dá zjistit jen od serveru.
+     */
+    suspend fun reconnect(reason: String) {
+        logger.i { "$reason, obnovuji spojení." }
+        connection.networkChanged(lastNetwork.value)
+    }
 }

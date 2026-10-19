@@ -25,8 +25,23 @@ interface NotificationRepository {
      */
     suspend fun registerDevice(token: PushToken): Result<Unit>
 
-    /** Předá TDLib zašifrovaný obsah pushe; ten ho rozšifruje a vydá [NotificationUpdate]. */
-    suspend fun processPush(payload: String): Result<Unit>
+    /**
+     * Předá TDLib zašifrovaný obsah pushe; ten ho rozšifruje a vydá [NotificationUpdate].
+     *
+     * Push o příchozím hovoru TDLib rozšifrovat neumí ([PushKind.Call]) — hovor se dozví až od
+     * serveru, takže na něj musí příjem pushe počkat ([awaitIncomingCall]).
+     */
+    suspend fun processPush(payload: String): Result<PushKind>
+
+    /**
+     * Počká na `UpdateCall` po posledním pushi hovoru ([PushKind.Call]), nebo vrátí `true` hned,
+     * když příchozí hovor už zvoní. `false`, když do [timeout] nepřišel.
+     *
+     * Bez toho se hovor na spící aplikaci ztratil: služba pushe skončila hned, systém proces
+     * za pár vteřin zmrazil a připojit se k serveru, od kterého jediného se hovor dá zjistit,
+     * nestihl. Volající se pak dozvěděl jen „Zmeškaný hovor".
+     */
+    suspend fun awaitIncomingCall(timeout: Duration): Boolean
 
     /**
      * Počká, až TDLib nemá žádné nevydané notifikace a všechny vydané jsou zpracované odběratelem
@@ -43,6 +58,15 @@ interface NotificationRepository {
      * zvuku —, ale odmítnout ano: volající to pozná hned a nečeká na vyzvánění do ztracena.
      */
     suspend fun declineCall(callId: Int, isVideo: Boolean): Result<Unit>
+}
+
+/** Co push nesl, podle toho, jak s ním TDLib naložil. */
+enum class PushKind {
+    /** Rozšifrovaný; notifikaci vydá TDLib sám ([NotificationRepository.awaitDelivered]). */
+    Notification,
+
+    /** Příchozí hovor; ten přijde až spojením se serverem ([NotificationRepository.awaitIncomingCall]). */
+    Call,
 }
 
 /** Platformní push token. */

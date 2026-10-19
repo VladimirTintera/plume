@@ -3,7 +3,9 @@ package eu.tintera.plume
 import co.touchlab.kermit.Logger
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.NotificationRepository
+import eu.tintera.plume.core.telegram.PushKind
 import eu.tintera.plume.core.telegram.PushToken
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.koin.core.context.GlobalContext
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
@@ -30,6 +33,11 @@ import kotlin.time.TimeSource
  * zpracování jen spustilo v korutině a metoda se hned vrátila, proces zamrzl uprostřed skládání
  * notifikace a ta se ukázala až při příštím probuzení, pokud vůbec. Metoda běží na vlákně
  * Firebase, ne na hlavním, takže `runBlocking` tu nic nezasekne.
+ *
+ * **Push hovoru je zvláštní případ**: TDLib ho rozšifrovat neumí a hovor se dozví až od serveru.
+ * Služba proto otevře spojení znovu a čeká na hovor; jakmile zvoní, drží proces naživu Telecom
+ * (delegovaná služba v popředí). Dřív služba při odmítnutém pushi rovnou skončila a hovor na
+ * spící aplikaci nezazvonil vůbec.
  */
 class PlumeMessagingService : FirebaseMessagingService() {
 
@@ -71,17 +79,26 @@ class PlumeMessagingService : FirebaseMessagingService() {
             // než TDLib dostane parametry a otevře databázi.
             val processed = withTimeoutOrNull(DELIVERY_TIMEOUT) { repository.processPush(payload) }
             if (processed?.isFailure == true) return@runBlocking
-            val remaining = DELIVERY_TIMEOUT - started.elapsedNow()
-            val delivered = processed != null && repository.awaitDelivered(remaining)
+            val call = processed?.getOrNull() == PushKind.Call
+            // Hovor zvoní jen do zvednutí (desítky vteřin) a dozvědět se o něm jde jen od serveru:
+            // spojení se otevře hned, ne až na timeout mrtvých soketů z doby před zmrazením.
+            if (call && !repository.awaitIncomingCall(Duration.ZERO)) reconnect()
+            val callKnown = !call || repository.awaitIncomingCall(DELIVERY_TIMEOUT - started.elapsedNow())
+            val delivered = processed != null && callKnown && repository.awaitDelivered(DELIVERY_TIMEOUT - started.elapsedNow())
             if (delivered) {
-                logger.d { "Push vyřízen za ${started.elapsedNow().inWholeMilliseconds} ms." }
+                logger.d { "Push${if (call) " hovoru" else ""} vyřízen za ${started.elapsedNow().inWholeMilliseconds} ms." }
             } else {
-                // Typicky odložená notifikace (až 30 s, když byl účet nedávno online jinde) —
-                // na tu se čeká v úloze, ve které systém proces nezmrazí.
-                logger.i { "Push se nestihl vyřídit do $DELIVERY_TIMEOUT, dočkám se v úloze." }
-                NotificationDeliveryWorker.enqueue(applicationContext)
+                // Typicky odložená notifikace (až 30 s, když byl účet nedávno online jinde), nebo
+                // hovor, ke kterému se spojení ještě neotevřelo — na obojí se čeká v úloze, ve
+                // které systém proces nezmrazí.
+                logger.i { "Push${if (call) " hovoru" else ""} se nestihl vyřídit do $DELIVERY_TIMEOUT, dočkám se v úloze." }
+                NotificationDeliveryWorker.enqueue(applicationContext, call = call && !callKnown)
             }
         }
+    }
+
+    private suspend fun reconnect() {
+        GlobalContext.getOrNull()?.getOrNull<ConnectionController>()?.reconnect("Push hovoru")
     }
 
     /**

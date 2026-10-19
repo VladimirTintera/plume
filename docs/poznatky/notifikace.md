@@ -283,6 +283,40 @@ bez stopy a kdo měl jen Plume, dozvěděl se o něm až ze zmeškaného hovoru.
   a přijde zpráva „Zmeškaný hovor". Oficiální Telegram na témže účtu zvoní vedle — to je
   v pořádku, hovor přijmout umí jen on.
 
+#### Push hovoru: TDLib ho odmítne a hovor přijde až od serveru
+
+**Na spící aplikaci hovor nezazvonil vůbec.** `processPushNotification` push hovoru vždycky
+odmítne s „Phone call notification is not supported" (hláška přímo v knihovně, `strings`;
+dokumentace: chyba 406 = push vyžaduje spojení se serverem). Služba pushe to brala jako chybu
+a hned skončila — na nic nečekala a nespustila ani úlohu na odložené notifikace. Systém pak
+proces za pár vteřin zase zmrazil (`freezing <pid> eu.tintera.plume` v logu ActivityManageru)
+a TDLib se ke hovoru nedostal. Zachyceno na Foldu (Android 17, mobilní data): push v 17:40:18,
+hovor v Plume až v 17:40:42, když uživatel aplikaci otevřel; dva hovory od kamaráda propadly
+úplně (systém o jednom vůbec nevěděl, druhý dostal až 0,2 s po jeho konci). Ověření „ze
+zabitého procesu" výš to nezachytilo: studený start na Wi-Fi se k serveru stihl připojit dřív,
+než systém proces zmrazil.
+
+- **Push hovoru je `PushKind.Call`, ne chyba** (`TdlNotificationRepository.processPush`).
+  Služba po něm znovu otevře spojení (`ConnectionController.reconnect` — totéž
+  `setNetworkType` jako návrat do popředí; po rozmrazení by TDLib čekal na timeout mrtvých
+  soketů déle, než hovor zvoní) a čeká na `UpdateCall` (`awaitIncomingCall`). Jakmile hovor
+  zvoní, drží proces naživu Telecom (`GAINED_FGS_DELEGATION`, služba `VOIP` v popředí).
+  Nestihne-li se to do 8 s, čeká se v `NotificationDeliveryWorker` s vlastním jménem úlohy —
+  push obyčejné zprávy hned po něm by čekání na hovor jinak zrušil.
+- **Běžící aplikace má hovor dřív než push** (spojením) — pak se spojení neotevírá znovu
+  a nečeká se.
+- **Push chodí i po skončeném hovoru** (nejspíš ohlášení zmeškaného, rozlišit to bez
+  rozšifrování nejde): spojení se otevře zbytečně a úloha minutu čeká na hovor, který nepřijde.
+  Stojí to jen trochu baterie; odlišit by to šlo jen podle času od posledního hovoru, a to by
+  zahodilo rychlé zavolání zpátky.
+- **Push sám chodí se zpožděním 2–10 s** od vytočení (Pixel 5 na Wi-Fi, zhasnutý) — mimo
+  Plume. Krátké prozvonění tak propadne vždycky.
+- **Ověřeno na Pixelu 5** (debug, Plume zmrazený: `dumpsys activity processes` →
+  `isFrozen=true`, napřed Domů a pak zhasnout — se zhasnutou obrazovkou nad Plume zůstane
+  proces `top-sleeping` a zmrazit se nedá): hovor z Foldu, push rozmrazil proces, „Push
+  hovoru, obnovuji spojení", hovor v Telecomu (`RINGING`) za 0,3–0,4 s po pushi. Build z Play
+  na Foldu ověřený není (debug se přes něj nenainstaluje).
+
 ### Pruh videochatu
 
 Probíhající nebo naplánovaný videochat skupiny (v kanálu živé vysílání) má nad konverzací pruh
