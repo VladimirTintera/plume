@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.settings_full_screen_calls_on
+import eu.tintera.plume.resources.settings_full_screen_calls_off
+import eu.tintera.plume.resources.settings_full_screen_calls
+import eu.tintera.plume.resources.call_24dp
 import eu.tintera.plume.resources.undo_24dp
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconButton
@@ -169,6 +173,23 @@ fun NotificationSettings(
             trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
             modifier = Modifier.clickable(onClick = viewModel::openSystemSettings),
         )
+        // Bez celoobrazovkové výzvy zamčený telefon při hovoru jen zvoní a nic neukáže —
+        // Plume z Play ji od Androidu 14 nemusí mít (`docs/poznatky/notifikace.md`).
+        state.fullScreenCalls?.let { allowed ->
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = { Icon(painterResource(Res.drawable.call_24dp), contentDescription = null) },
+                headlineContent = { Text(stringResource(Res.string.settings_full_screen_calls)) },
+                supportingContent = {
+                    Text(
+                        stringResource(if (allowed) Res.string.settings_full_screen_calls_on else Res.string.settings_full_screen_calls_off),
+                        color = if (allowed) Color.Unspecified else MaterialTheme.colorScheme.error,
+                    )
+                },
+                trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
+                modifier = Modifier.clickable(onClick = viewModel::openFullScreenCallSettings),
+            )
+        }
     }
 
     // Desktop: oznámení chodí, jen když aplikace běží (push tam není) — hned pod povolením,

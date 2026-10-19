@@ -59,6 +59,11 @@ actual class NotificationPermission internal constructor(private val notifier: D
 
     actual fun forgetTone(soundId: Long) = Unit
 
+    /** Výzvu hovoru tu systém nepovoluje zvlášť. */
+    actual fun fullScreenCallsAllowed(): Boolean? = null
+
+    actual fun openFullScreenCallSettings() = Unit
+
     actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) = Unit
 
     internal fun undecided(): Boolean = notifier.available && notifier.isGranted() == null

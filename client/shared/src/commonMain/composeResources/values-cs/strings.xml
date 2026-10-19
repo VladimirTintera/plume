@@ -252,6 +252,12 @@
     <string name="settings_title">Nastavení</string>
     <string name="settings_notifications_on">Zapnuté</string>
     <string name="settings_notifications_off">Vypnuté — o nových zprávách se dozvíš až v aplikaci</string>
+    <string name="settings_full_screen_calls">Příchozí hovory přes celou obrazovku</string>
+    <string name="settings_full_screen_calls_on">Povoleno — zamčený telefon se rozsvítí a ukáže, kdo volá</string>
+    <string name="settings_full_screen_calls_off">Nepovoleno — zamčený telefon jen zvoní, obrazovka zůstane zhasnutá</string>
+    <string name="full_screen_calls_prompt_title">Ukazovat hovory přes celou obrazovku?</string>
+    <string name="full_screen_calls_prompt_text">Aby příchozí hovor rozsvítil zamčený telefon a ukázal, kdo volá, potřebuje Plume systémové povolení pro notifikace přes celou obrazovku.</string>
+    <string name="full_screen_calls_prompt_open">Otevřít nastavení</string>
     <string name="settings_sign_out">Odhlásit se</string>
     <string name="settings_sign_out_title">Odhlásit se?</string>
     <string name="settings_sign_out_body">Zprávy a stažené soubory se z tohohle zařízení smažou. Účet i chaty na ostatních zařízeních zůstanou beze změny.</string>
