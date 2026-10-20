@@ -61,6 +61,12 @@ interface SavedTopicsRepository {
 
     suspend fun setPinned(topicId: Long, pinned: Boolean): Result<Unit>
 
+    /**
+     * Nové pořadí připnutých témat jedním voláním (`setPinnedSavedMessagesTopics`). Seznam je
+     * NOVÝ STAV připnutých — co v něm chybí, TDLib odepne. Přeskládání potvrdí updaty pořadí.
+     */
+    suspend fun setPinnedOrder(topicIds: List<Long>): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Smaže všechny zprávy tématu z Uložených zpráv — nevratně. */
     suspend fun deleteHistory(topicId: Long): Result<Unit>
 }
@@ -71,3 +77,24 @@ interface SavedTopicsRepository {
  */
 fun Collection<SavedTopic>.shownSavedTopics(): List<SavedTopic> =
     filter { it.order != 0L }.sortedWith(compareByDescending<SavedTopic> { it.order }.thenByDescending { it.id })
+
+/** Připnutá témata v pořadí seznamu. Přeskládat má smysl až od dvou. */
+fun List<SavedTopic>.pinnedSavedTopics(): List<SavedTopic> = filter { it.isPinned }
+
+/** Seznam s tématem [fromId] na místě tématu [toId]; neznámé id nechá seznam, jak je. */
+fun List<SavedTopic>.movedSavedTopic(fromId: Long, toId: Long): List<SavedTopic> {
+    val from = indexOfFirst { it.id == fromId }
+    val to = indexOfFirst { it.id == toId }
+    if (from < 0 || to < 0 || from == to) return this
+    return toMutableList().apply { add(to, removeAt(from)) }
+}
+
+/**
+ * Pořadí k odeslání: skládané pořadí srovnané s tím, co je připnuté TEĎ ([current]). Mezitím
+ * mohl jiné zařízení něco odepnout (vypadne) nebo připnout (zůstane připnuté a jde nahoru),
+ * jako u připnutých chatů — TDLib by jinak téma chybějící v seznamu odepnul.
+ */
+fun savedPinnedOrderToSave(reordered: List<Long>, current: List<Long>): List<Long> {
+    val kept = reordered.filter { it in current }
+    return current.filterNot { it in kept } + kept
+}

@@ -2974,6 +2974,8 @@
     <string name="saved_topic_read_only">Saved from another chat. You can only write to My Notes.</string>
     <string name="saved_view_as_chats">View as chats</string>
     <string name="saved_view_as_messages">View as messages</string>
+    <string name="saved_topics_reorder_title">Pinned in Saved Messages</string>
+    <string name="saved_topics_reorder_hint">Drag a row by its handle to change the order.</string>
     <string name="saved_topics_subtitle">By chat</string>
     <string name="saved_topics_empty_title">Nothing saved yet</string>
     <string name="saved_topics_empty">Messages you forward here are sorted by the chat they came from.</string>

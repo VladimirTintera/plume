@@ -21,6 +21,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import eu.tintera.plume.core.telegram.pinnedSavedTopics
+import eu.tintera.plume.core.ui.ReorderRow
+import eu.tintera.plume.core.ui.ReorderTopBar
+import eu.tintera.plume.core.ui.draggedItem
+import eu.tintera.plume.core.ui.rememberDragReorderState
+import eu.tintera.plume.resources.drag_indicator_24dp
+import eu.tintera.plume.resources.forum_topic_reorder
+import eu.tintera.plume.resources.saved_topics_reorder_hint
+import eu.tintera.plume.resources.saved_topics_reorder_title
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -125,10 +138,32 @@ fun SavedTopicsScreen(
     var actionsFor by remember { mutableStateOf<SavedTopic?>(null) }
     var deleteTarget by remember { mutableStateOf<SavedTopic?>(null) }
 
+    // Režim uspořádání připnutých: zpět ho zruší bez uložení, teprve další zpět odejde.
+    val reorder = state.reorder
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = reorder != null,
+        onBackCompleted = viewModel::cancelReorder,
+    )
+    val listState = rememberLazyListState()
+    val reorderIds = reorder?.map { it.id }.orEmpty()
+    val dragState = rememberDragReorderState(
+        listState = listState,
+        canMove = { key -> key in reorderIds },
+        onMove = { from, to -> viewModel.moveInReorder(from as Long, to as Long) },
+    )
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            if (reorder != null) {
+                ReorderTopBar(
+                    title = stringResource(Res.string.saved_topics_reorder_title),
+                    busy = state.busy,
+                    onCancel = viewModel::cancelReorder,
+                    onDone = viewModel::saveReorder,
+                )
+            } else TopAppBar(
                 title = {
                     val title = stringResource(Res.string.saved_messages)
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -205,6 +240,7 @@ fun SavedTopicsScreen(
                 modifier = Modifier.padding(padding),
             )
             else -> LazyColumn(
+                state = listState,
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
@@ -214,6 +250,35 @@ fun SavedTopicsScreen(
                 verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                 modifier = Modifier.fillMaxSize(),
             ) {
+                // Uspořádání ukazuje jen připnutá — ostatní se přeskládat nedají. Jako u témat skupiny.
+                if (reorder != null) {
+                    item(key = "reorder-hint") {
+                        Text(
+                            stringResource(Res.string.saved_topics_reorder_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                        )
+                    }
+                    itemsIndexed(reorder, key = { _, topic -> topic.id }) { index, topic ->
+                        val dragged = dragState.draggedKey == topic.id
+                        ReorderRow(
+                            key = topic.id,
+                            title = savedTopicTitle(topic.header),
+                            shape = groupItemShape(index, reorder.size),
+                            dragState = dragState,
+                            onMoveUp = reorder.getOrNull(index - 1)?.let { above -> { viewModel.moveInReorder(topic.id, above.id) } },
+                            onMoveDown = reorder.getOrNull(index + 1)?.let { below -> { viewModel.moveInReorder(topic.id, below.id) } },
+                            // Tažená položka jede pod prstem; animace umístění by se s tím prala.
+                            modifier = Modifier
+                                .then(if (dragged) Modifier else Modifier.animateItem())
+                                .draggedItem(dragState, topic.id),
+                        ) {
+                            SavedTopicAvatar(topic.header, REORDER_AVATAR_SIZE)
+                        }
+                    }
+                    return@LazyColumn
+                }
                 itemsIndexed(topics, key = { _, topic -> topic.id }) { index, topic ->
                     SavedTopicRow(
                         topic = topic,
@@ -231,6 +296,7 @@ fun SavedTopicsScreen(
             topic = topic,
             onDismiss = { actionsFor = null },
             onPin = { viewModel.setPinned(topic, it) },
+            onReorder = viewModel::startReorder.takeIf { topic.isPinned && state.topics.orEmpty().pinnedSavedTopics().size >= 2 },
             onDelete = { deleteTarget = topic },
         )
     }
@@ -326,14 +392,19 @@ private fun SavedTopicActionsSheet(
     topic: SavedTopic,
     onDismiss: () -> Unit,
     onPin: (Boolean) -> Unit,
+    /** Uspořádat připnutá — jen u připnutého tématu a když je co přeskládat; jinak `null`. */
+    onReorder: (() -> Unit)?,
     onDelete: () -> Unit,
 ) {
-    val items = listOf(
+    val items = listOfNotNull(
         Triple(
             stringResource(if (topic.isPinned) Res.string.forum_topic_unpin else Res.string.forum_topic_pin),
             Res.drawable.push_pin_24dp,
             false,
         ) to { onPin(!topic.isPinned) },
+        onReorder?.let { reorder ->
+            Triple(stringResource(Res.string.forum_topic_reorder), Res.drawable.drag_indicator_24dp, false) to reorder
+        },
         // Moje poznámky jsou vlastní zprávy; smazat je jedním ťuknutím by bylo moc snadné.
         Triple(stringResource(Res.string.saved_topic_delete), Res.drawable.delete_24dp, true) to onDelete,
     ).filter { (item, _) -> !item.third || topic.kind != SavedTopicKind.MyNotes }
@@ -377,3 +448,6 @@ private fun SavedTopicActionsSheet(
 private val HEADER_AVATAR = 36.dp
 
 private val AVATAR_SIZE = 44.dp
+
+/** Ikona v řádku uspořádání — menší, řádek nese úchyt a šipky. */
+private val REORDER_AVATAR_SIZE = 32.dp

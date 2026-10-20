@@ -568,6 +568,17 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   a výběry otevírají dál celou konverzaci — míří na konkrétní zprávu.
 - **Smazání tématu je `deleteSavedMessagesTopicHistory`**: zmizí uložené zprávy, zdrojový chat ne.
   U Mých poznámek se nenabízí — smazalo by všechny vlastní poznámky jedním ťuknutím.
+- **Pořadí připnutých témat mění režim uspořádání** („Změnit pořadí připnutých" v nabídce
+  připnutého tématu, jen když jsou připnutá aspoň dvě; `setPinnedSavedMessagesTopics`). Tentýž
+  `ReorderRow` a `ReorderTopBar` jako u chatů a témat skupiny.
+  - **Na rozdíl od témat skupiny se seznam přeskládá SÁM**: TDLib po uložení pošle updaty
+    s novým `order`, kdežto u témat skupiny `order` pořadí připnutých nenese a ViewModel si ho
+    drží zvlášť. Ověřeno na emulátoru, nic se lokálně nepřepisuje.
+  - **Seznam k uložení je NOVÝ STAV připnutých** jako u `setPinnedChats`: co v něm chybí, TDLib
+    odepne. Skládané pořadí se proto srovná s tím, co je připnuté teď (`savedPinnedOrderToSave`):
+    téma odepnuté jinde vypadne, nově připnuté zůstane nahoře.
+  - **Ověřeno na emulátoru**: připnutí dvou témat, přetažení za úchyt, Hotovo, nové pořadí
+    v seznamu; s jedním připnutým se volba nenabízí. Pak vráceno do původního stavu.
 - **Ověřeno na emulátoru** (česky): seznam čtyř témat, Moje poznámky s polem (zpráva odešla
   a objevila se v tématu i v jeho náhledu), téma Notifikator jen pro čtení a „Otevřít chat",
   připnutí a odepnutí (seznam se přeskládá sám updatem), dialog smazání (zrušený), volba přežije

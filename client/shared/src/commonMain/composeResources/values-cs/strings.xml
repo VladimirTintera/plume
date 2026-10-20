@@ -3073,6 +3073,8 @@
     <string name="saved_topic_read_only">Uloženo z jiného chatu. Psát se dá jen do Mých poznámek.</string>
     <string name="saved_view_as_chats">Zobrazit jako chaty</string>
     <string name="saved_view_as_messages">Zobrazit jako zprávy</string>
+    <string name="saved_topics_reorder_title">Připnuté v Uložených</string>
+    <string name="saved_topics_reorder_hint">Pořadí změníš přetažením řádku za úchyt.</string>
     <string name="saved_topics_subtitle">Podle chatů</string>
     <string name="saved_topics_empty_title">Zatím nic uloženého</string>
     <string name="saved_topics_empty">Zprávy, které sem přepošleš, se tu řadí podle chatu, ze kterého jsou.</string>
