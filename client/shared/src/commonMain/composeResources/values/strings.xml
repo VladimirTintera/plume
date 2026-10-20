@@ -514,6 +514,9 @@
     <string name="secret_chat_close_failed">Couldn't end the secret chat.</string>
     <string name="conversation_secret_pending">Waiting for the other person to come online. Then the secret chat starts and you can write.</string>
     <string name="conversation_secret_closed">This secret chat has ended. Messages can no longer be sent here.</string>
+    <string name="conversation_premium_only">Only their contacts and Telegram Premium users can message them.</string>
+    <string name="conversation_deleted_account">This account was deleted. Messages can’t be sent to it.</string>
+    <string name="conversation_paid_messages">Messages to this user cost Telegram Stars, which Plume doesn’t support yet.</string>
     <string name="conversation_join_failed">Couldn't join.</string>
     <string name="conversation_link_failed">Couldn't open this link.</string>
     <string name="conversation_link_user_not_found">This person isn't on Telegram, or keeps their number hidden.</string>

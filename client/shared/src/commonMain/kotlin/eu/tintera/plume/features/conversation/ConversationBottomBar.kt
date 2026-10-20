@@ -63,6 +63,9 @@ import eu.tintera.plume.resources.conversation_camera_permission
 import eu.tintera.plume.resources.conversation_microphone_permission
 import eu.tintera.plume.resources.conversation_not_member
 import eu.tintera.plume.resources.conversation_secret_closed
+import eu.tintera.plume.resources.conversation_premium_only
+import eu.tintera.plume.resources.conversation_deleted_account
+import eu.tintera.plume.resources.conversation_paid_messages
 import eu.tintera.plume.resources.conversation_secret_pending
 import eu.tintera.plume.resources.conversation_topic_closed
 import eu.tintera.plume.resources.conversation_write_restricted
@@ -256,6 +259,19 @@ internal fun ConversationBottomBar(
         }
         WriteAccess.SecretClosed -> {
             ReadOnlyNote(Res.string.conversation_secret_closed, barGlass)
+            return@Box
+        }
+        // Protějšek zprávy nepřijímá (`canSendMessageToUser`): věta místo chyby po odeslání.
+        WriteAccess.PremiumOnly -> {
+            ReadOnlyNote(Res.string.conversation_premium_only, barGlass)
+            return@Box
+        }
+        WriteAccess.DeletedAccount -> {
+            ReadOnlyNote(Res.string.conversation_deleted_account, barGlass)
+            return@Box
+        }
+        WriteAccess.PaidMessages -> {
+            ReadOnlyNote(Res.string.conversation_paid_messages, barGlass)
             return@Box
         }
         // Téma Uložených zpráv uložené odjinud: odeslat do něj TDLib nedovolí. Zdrojový

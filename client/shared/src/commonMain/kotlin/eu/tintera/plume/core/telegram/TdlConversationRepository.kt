@@ -118,6 +118,10 @@ import dev.g000sha256.tdl.dto.StickerFormatTgs
 import dev.g000sha256.tdl.dto.BotCommands
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
+import dev.g000sha256.tdl.dto.CanSendMessageToUserResultOk
+import dev.g000sha256.tdl.dto.CanSendMessageToUserResultUserHasPaidMessages
+import dev.g000sha256.tdl.dto.CanSendMessageToUserResultUserIsDeleted
+import dev.g000sha256.tdl.dto.CanSendMessageToUserResultUserRestrictsNewChats
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.Chat
 import dev.g000sha256.tdl.dto.ChatMemberStatus
@@ -2527,7 +2531,27 @@ class TdlConversationRepository(
      * postavení zjistit nejde, psaní se NEBLOKUJE: pole navíc skončí nanejvýš chybou po odeslání,
      * chybějící pole by uživatele od chatu odřízlo.
      */
-    private suspend fun chatAccess(chat: Chat, forumTopic: TdlForumTopic? = null): ChatAccess {
+    /**
+     * Smí se protějšku soukromého chatu psát (`canSendMessageToUser`)? `null` = smí, nebo se to
+     * nepodařilo zjistit — pak se psaní NEBLOKUJE, stejně jako u neznámého postavení ve skupině.
+     * [onlyLocal]: jen z toho, co TDLib ví, bez dotazu na server (otevření chatu na síť nečeká,
+     * serverovou odpověď donese [accessUpdates]).
+     */
+    private suspend fun messagingAccess(chat: Chat, onlyLocal: Boolean): WriteAccess? {
+        val userId = (chat.type as? ChatTypePrivate)?.userId ?: return null
+        val result = client.canSendMessageToUser(userId = userId, onlyLocal = onlyLocal).toResult()
+            .onFailure { logger.w(it) { "Jestli jde psát uživateli $userId, se nepodařilo zjistit." } }
+            .getOrNull()
+        // Bez `else`: nový důvod v novější TDLib musí rozbít překlad, ne tiše skončit.
+        return when (result) {
+            null, is CanSendMessageToUserResultOk -> null
+            is CanSendMessageToUserResultUserRestrictsNewChats -> WriteAccess.PremiumOnly
+            is CanSendMessageToUserResultUserIsDeleted -> WriteAccess.DeletedAccount
+            is CanSendMessageToUserResultUserHasPaidMessages -> WriteAccess.PaidMessages
+        }
+    }
+
+    private suspend fun chatAccess(chat: Chat, forumTopic: TdlForumTopic? = null, onlyLocal: Boolean = true): ChatAccess {
         val status = client.ownMemberStatus(chat)
         val supergroup = chat.type as? ChatTypeSupergroup
         // Diskusní skupina kanálu smí dovolit psaní i bez vstupu (`joinToSendMessages`). Dotaz je
@@ -2553,7 +2577,8 @@ class TdlConversationRepository(
         return ChatAccess(
             // Kdo smí psát bez vstupu, dostane pole, ne „Přidat se" — jako u oficiálních klientů.
             canJoin = supergroup != null && status == OwnMemberStatus.Left && !nonMembersCanSend,
-            writeAccess = secret ?: topicWriteAccess(chatWrite, status, topicClosed = forumTopic?.info?.isClosed == true),
+            writeAccess = secret ?: messagingAccess(chat, onlyLocal)
+                ?: topicWriteAccess(chatWrite, status, topicClosed = forumTopic?.info?.isClosed == true),
             content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()).let {
                 // Právo skupiny nestačí: do soukromého chatu s člověkem anketa nejde vůbec,
                 // seznam úkolů zase ne do kanálu. V tématu ani jedno: zakládá je obrazovka,
@@ -2588,6 +2613,25 @@ class TdlConversationRepository(
 
     override fun accessUpdates(chatId: Long): Flow<ChatAccess> = flow {
         val type = client.getChat(chatId).toResult().getOrNull()?.type ?: return@flow
+        // Soukromý chat: jestli protějšek zprávy přijímá, ví napoprvé jen server (otevření
+        // chatu se ptalo jen lokálně). Pak se čte znovu, když se změní uživatel — jeho soukromí
+        // nese `User.restrictsNewChats` a placené zprávy `UserFullInfo`.
+        (type as? ChatTypePrivate)?.let { private ->
+            emitAll(
+                merge(
+                    holder.updates { userUpdates }.filter { it.user.id == private.userId }.map { },
+                    holder.updates { userFullInfoUpdates }.filter { it.userId == private.userId }.map { },
+                )
+                    // Napoprvé se server zeptá, další čtení stačí lokální — update už stav donesl.
+                    .map { false }
+                    .onStart { emit(true) }
+                    .mapNotNull { remote ->
+                        client.getChat(chatId).toResult().getOrNull()?.let { chatAccess(it, onlyLocal = !remote) }
+                    }
+                    .distinctUntilChanged(),
+            )
+            return@flow
+        }
         val supergroupId = (type as? ChatTypeSupergroup)?.supergroupId
         val basicGroupId = (type as? ChatTypeBasicGroup)?.basicGroupId
         val secretChatId = (type as? ChatTypeSecret)?.secretChatId

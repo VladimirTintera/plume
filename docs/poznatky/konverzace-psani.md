@@ -308,6 +308,22 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   a dál jde jen změna (`distinctUntilChanged`). Tudy se vrátí i pole po „Přidat se".
 - **Převedená skupina** (`BasicGroup.isActive == false`) žije dál jako supergroup; do staré se
   nepíše, takže se bere jako „nejste v chatu".
+- **Soukromý chat se ptá, jestli protějšek zprávy přijímá** (`canSendMessageToUser`,
+  `messagingAccess`): nové chaty jen od kontaktů a Premium (`WriteAccess.PremiumOnly`),
+  smazaný účet (`DeletedAccount`) a placené zprávy (`PaidMessages` — placení Plume nemá).
+  Místo pole je věta; dřív se to uživatel dozvěděl až chybou po odeslání.
+  - **Otevření chatu na síť nečeká**: `chatInfo` se ptá jen lokálně (`onlyLocal = true`),
+    odpověď serveru donese `accessUpdates` hned po otevření. Pak se čte znovu po `updateUser`
+    (`User.restrictsNewChats`) a `updateUserFullInfo` (placené zprávy) — lokálně, update stav
+    už donesl.
+  - **Nezjištěno = psát jde**, jako u neznámého postavení ve skupině: chybějící pole odřízne
+    víc než chyba po odeslání.
+  - **Zablokovaný protějšek má přednost jen u povoleného psaní** (`showsUnblock`): kdo zprávy
+    stejně nepřijímá, tomu odblokování pole nevrátí.
+  - **Ověřeno na emulátoru jen to, že běžný chat pole NEZTRATÍ** (chat s testovacím botem po
+    dotazu na server, bez chyby v logu). Protějšek, který nové chaty omezuje, zprávy
+    zpoplatnil nebo smazal účet, na účtu není — věty pokrývá jen test stavu
+    (`ConversationChatActionsTest`).
 - **Swipe na odpověď se v chatu jen pro čtení nekoná** (`ConversationState.canWrite`); nabídka
   nad zprávou se řídí `canBeReplied` od serveru jako dřív.
 - **Video kolečka mají vlastní právo** (`ContentAccess.videoNotes` z `canSendVideoNotes`), bez

@@ -523,6 +523,9 @@
     <string name="secret_chat_close_failed">Tajný chat se nepodařilo ukončit.</string>
     <string name="conversation_secret_pending">Čeká se, až se protějšek připojí. Pak se tajný chat spustí a půjde psát.</string>
     <string name="conversation_secret_closed">Tajný chat je ukončený. Psát do něj už nejde.</string>
+    <string name="conversation_premium_only">Psát mu můžou jen jeho kontakty a uživatelé s Telegram Premium.</string>
+    <string name="conversation_deleted_account">Účet je smazaný. Psát do něj už nejde.</string>
+    <string name="conversation_paid_messages">Zprávy tomuhle uživateli se platí hvězdami Telegramu. To Plume zatím neumí.</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
     <string name="conversation_link_failed">Odkaz se nepodařilo otevřít.</string>
     <string name="conversation_link_user_not_found">Tenhle člověk na Telegramu není, nebo své číslo skrývá.</string>
