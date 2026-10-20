@@ -21,6 +21,9 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.Key
 import eu.tintera.plume.core.ui.threshold
@@ -255,6 +258,8 @@ internal fun MessageInput(
     /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
     editing: ChatMessage?,
     onCancelEdit: () -> Unit,
+    /** Šipka nahoru v prázdném poli: úprava poslední vlastní zprávy; `null` = nic. */
+    onEditLast: (() -> Unit)? = null,
     /** Výměna přílohy při úpravě; `null` = nenabízí se (viz `replaceableMedia`). */
     editMedia: EditMediaControls? = null,
     /** Nápověda do prázdného pole, kterou si přeje bot; `null` = výchozí. */
@@ -783,6 +788,29 @@ internal fun MessageInput(
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = TextFieldDefaults.MinHeight)
                         .focusRequester(fieldFocus)
+                        /*
+                         * Esc zruší úpravu, pak odpověď, a teprve další Esc odejde z chatu (Zpět);
+                         * šipka nahoru v prázdném poli upraví poslední vlastní zprávu. Jako
+                         * Telegram Desktop, Slack nebo Discord. Jen stisk: Zpět z Esc spouští
+                         * Compose na desktopu taky při stisku (`BackNavigationEventInput`).
+                         * Na Androidu Esc pole nedostane, bere ho dřív `MainActivity` jako Zpět.
+                         */
+                        .onPreviewKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown || !event.isFromHardwareKeyboard) {
+                                return@onPreviewKeyEvent false
+                            }
+                            if (event.isShiftPressed || event.isCtrlPressed || event.isAltPressed || event.isMetaPressed) {
+                                return@onPreviewKeyEvent false
+                            }
+                            when {
+                                event.key == Key.Escape && editing != null -> onCancelEdit()
+                                event.key == Key.Escape && replyingTo != null -> onCancelReply()
+                                event.key == Key.DirectionUp && onEditLast != null && editing == null &&
+                                    replyingTo == null && draft.text.isEmpty() && !withAttachments -> onEditLast()
+                                else -> return@onPreviewKeyEvent false
+                            }
+                            true
+                        }
                         /*
                          * Enter z fyzické klávesnice (Fold, tablet) odešle, Shift+Enter udělá nový
                          * řádek — jako na počítači. Enter ze softwarové klávesnice dál zalomí řádek,

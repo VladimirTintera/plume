@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.MediaReplacement
+import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -105,6 +106,15 @@ class ConversationComposerTest {
         ): Result<Unit> {
             mediaEdits += Triple(messageId, replacement, caption)
             return Result.success(Unit)
+        }
+
+        /** Zprávy, které server dovolí upravit; na ostatní odpoví, že úprava nejde. */
+        var editable: Set<Long> = emptySet()
+        val actionQueries = mutableListOf<Long>()
+
+        override suspend fun messageActions(chatId: Long, messageId: Long): Result<MessageActions> {
+            actionQueries += messageId
+            return Result.success(MessageActions.Fallback.copy(canEdit = messageId in editable))
         }
 
         /** Náhled odkazu v textech testů není — server by žádný nenašel. */
@@ -325,6 +335,50 @@ class ConversationComposerTest {
         assertNull(state.value.editing)
         assertEquals("rozepsaná", state.value.inputFill?.text)
         assertEquals("rozepsaná", composer.draft.text)
+    }
+
+    @Test
+    fun sipkaNahoruUpraviPosledniVlastniZpravuKterouJdeUpravit() = runTest {
+        // Od nejnovější: cizí, vlastní po lhůtě, vlastní upravitelná.
+        val state = testState(testMessage(8, "cizí"), testMessage(7, "pozdě", outgoing = true), testMessage(6, "moje", outgoing = true))
+        repository.editable = setOf(6L)
+        val composer = composer(state)
+
+        composer.editLastMessage()
+        advanceUntilIdle()
+
+        assertEquals(listOf(7L, 6L), repository.actionQueries)
+        assertEquals(6L, state.value.editing?.id)
+        assertEquals("moje", state.value.inputFill?.text)
+        assertEquals(1, state.value.inputFocusRequest)
+    }
+
+    @Test
+    fun sipkaNahoruBezUpravitelneZpravyNicNezacne() = runTest {
+        val own = (1L..7L).map { testMessage(it, outgoing = true) }.reversed()
+        val state = testState(*own.toTypedArray())
+        val composer = composer(state)
+
+        composer.editLastMessage()
+        advanceUntilIdle()
+
+        assertNull(state.value.editing)
+        // Starší vlastní zprávy už se nezkoušejí — šipka upravuje to, co se právě poslalo.
+        assertEquals(listOf(7L, 6L, 5L, 4L, 3L), repository.actionQueries)
+    }
+
+    @Test
+    fun sipkaNahoruPriUpraveNicNemeni() = runTest {
+        val state = testState(testMessage(6, "nová", outgoing = true), testMessage(5, "stará", outgoing = true))
+        repository.editable = setOf(5L, 6L)
+        val composer = composer(state)
+        composer.startEdit(5)
+
+        composer.editLastMessage()
+        advanceUntilIdle()
+
+        assertEquals(5L, state.value.editing?.id)
+        assertTrue(repository.actionQueries.isEmpty())
     }
 
     @Test

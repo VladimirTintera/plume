@@ -710,6 +710,7 @@ class ConversationViewModel(
     fun setLinkPreviewOptions(options: LinkPreviewOptions) = composer.setLinkPreviewOptions(options)
     fun consumeInputFill(fill: InputFill) = composer.consumeInputFill(fill)
     fun cancelEdit() = composer.cancelEdit()
+    fun editLastMessage() = composer.editLastMessage()
     fun replaceEditMedia(picked: List<OutgoingAttachment>) = composer.replaceEditMedia(picked)
     fun keepEditMedia() = composer.keepEditMedia()
     fun replaceEditGif(gif: GifItem) = composer.replaceEditGif(gif)

@@ -531,6 +531,7 @@ internal fun ConversationBottomBar(
         onDraftChanged = viewModel::onDraftChanged,
         editing = state.editing,
         onCancelEdit = viewModel::cancelEdit,
+        onEditLast = viewModel::editLastMessage,
         editMedia = state.editReplace?.let { replace ->
             EditMediaControls(
                 replacement = state.editReplacement,

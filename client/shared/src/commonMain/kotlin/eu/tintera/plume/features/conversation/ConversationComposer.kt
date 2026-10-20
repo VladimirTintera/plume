@@ -455,6 +455,32 @@ internal class ConversationComposer(
     }
 
     /**
+     * Šipka nahoru v prázdném poli (fyzická klávesnice): úprava poslední vlastní zprávy, kterou
+     * jde upravit — jako v Telegram Desktop, Slacku nebo Discordu.
+     *
+     * Jestli zprávu upravit jde, ví jen server (lhůta od odeslání, druh zprávy), takže se ptá
+     * od nejnovější vlastní zprávy dál, nejvýš u [EDIT_LAST_CANDIDATES] z nich. Šipka má
+     * upravit to, co uživatel právě poslal; o pár zpráv výš už by to bylo překvapení.
+     */
+    fun editLastMessage() {
+        val current = state.value
+        if (current.editing != null) return
+        val candidates = current.messages.asSequence()
+            .filter { it.isOutgoing && it.composerEdit(current.customEmojiAllowed) != null }
+            .take(EDIT_LAST_CANDIDATES)
+            .toList()
+        scope.launch {
+            for (message in candidates) {
+                val actions = repository.messageActions(chatId, message.id).getOrNull() ?: continue
+                if (!actions.canEdit) continue
+                // Mezitím mohl uživatel začít upravovat sám (nabídkou); ta úprava má přednost.
+                if (state.value.editing == null) startEdit(message.id, canEditMedia = actions.canEditMedia)
+                return@launch
+            }
+        }
+    }
+
+    /**
      * Nová příloha z výběru při úpravě. Bere se první; co k vyměňované příloze nesedí (soubor
      * místo fotky), nebo co chat nepřijme, se neuloží a ohlásí — server by to odmítl až při
      * uložení a úprava by se vracela s chybou.
@@ -703,6 +729,9 @@ private val TYPING_REPEAT = 5.seconds
  * z chatu se čekání přeskočí (`onCleared`), takže delší odstup nic neriskuje.
  */
 private const val DRAFT_SAVE_DELAY_MS = 1500L
+
+/** Kolik posledních vlastních zpráv zkusí šipka nahoru ([ConversationComposer.editLastMessage]). */
+private const val EDIT_LAST_CANDIDATES = 5
 
 /**
  * Pauza v psaní, po které se zjišťuje náhled odkazu. Kratší než ukládání konceptu: náhled má

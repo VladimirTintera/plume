@@ -461,7 +461,8 @@ Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na koře
 
 Desktop, Fold, tablet nebo Chromebook s fyzickou klávesnicí: **Ctrl+K** hledání chatů, **Ctrl+F** hledání
 v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** další a předchozí chat,
-**Esc** zpět (zavře hledání, konverzaci). Pravidla jsou čisté funkce (`keyboardShortcut`,
+**Esc** zpět (zavře hledání, konverzaci; rozepsanou úpravu nebo odpověď napřed zruší, viz
+`konverzace-psani.md`, „Esc, šipka nahoru a fokus pole"). Pravidla jsou čisté funkce (`keyboardShortcut`,
 `neighbourChat`, testy `KeyboardShortcutsTest`). Enter ve vstupním poli viz
 `konverzace-psani.md`, „Enter z fyzické klávesnice".
 
