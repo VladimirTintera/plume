@@ -3302,6 +3302,12 @@
     <string name="story_delete_confirm">Smazat</string>
     <string name="story_deleted">Příběh je smazaný</string>
     <string name="story_delete_failed">Příběh se nepodařilo smazat.</string>
+    <string name="story_viewers_title">Diváci</string>
+    <string name="story_viewers_none">Zatím ho nikdo neviděl.</string>
+    <string name="story_viewers_expired">Seznam diváků už není k dispozici.</string>
+    <string name="story_viewers_failed">Nepodařilo se načíst, kdo příběh viděl.</string>
+    <string name="story_viewer_forwarded">Přeposláno · %1$s</string>
+    <string name="story_viewer_reposted">Sdíleno v příběhu · %1$s</string>
     <string name="location_live_share">Sdílet živou polohu</string>
     <string name="location_live_share_hint">Posouvá se, dokud sdílení nezastavíš</string>
     <string name="location_live_period_title">Sdílet živou polohu na…</string>

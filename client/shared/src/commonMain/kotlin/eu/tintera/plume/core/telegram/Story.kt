@@ -39,6 +39,7 @@ internal suspend fun MessageStory.toMedia(
         // (nebo kanál, který spravujeme), a na ten se nereaguje.
         isOwn = story?.canBeDeleted == true,
         viewCount = story?.interactionInfo?.viewCount,
+        viewersExpired = story?.hasExpiredViewers == true,
     )
 }
 

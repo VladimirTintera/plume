@@ -56,7 +56,35 @@ interface StoryRepository {
 
     /** Smaže vlastní příběh. */
     suspend fun delete(posterChatId: Long, storyId: Int): Result<Unit>
+
+    /**
+     * Kdo vlastní příběh [storyId] viděl, po stránkách; [offset] je `nextOffset` předchozí
+     * stránky (prázdný = první). Nejdřív ti s reakcí, pak podle času.
+     */
+    suspend fun viewers(storyId: Int, offset: String = ""): Result<StoryViewersPage>
 }
+
+data class StoryViewersPage(
+    val viewers: List<StoryViewer>,
+    /** Přibližný počet všech (server ho zaokrouhluje). */
+    val totalCount: Int,
+    /** Posun další stránky; `null` = víc jich není. */
+    val nextOffset: String?,
+)
+
+data class StoryViewer(
+    val chatId: Long,
+    val title: String,
+    val avatarFileId: Int?,
+    val kind: ChatKind,
+    /** Kdy příběh viděl (nebo přeposlal), unix čas. */
+    val date: Int,
+    /** Reakce, kterou dal (klíč, viz [customEmojiReaction]); `null` = žádná. */
+    val reaction: String? = null,
+    val action: StoryViewerAction = StoryViewerAction.Viewed,
+)
+
+enum class StoryViewerAction { Viewed, Forwarded, Reposted }
 
 /** Vlastní příběh připravený ke zveřejnění. */
 data class StoryDraft(

@@ -14,6 +14,12 @@ import dev.g000sha256.tdl.dto.ChatActiveStories
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputStoryContentPhoto
 import dev.g000sha256.tdl.dto.InputStoryContentVideo
+import dev.g000sha256.tdl.dto.MessageSenderChat
+import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.StoryInteraction
+import dev.g000sha256.tdl.dto.StoryInteractionTypeForward
+import dev.g000sha256.tdl.dto.StoryInteractionTypeRepost
+import dev.g000sha256.tdl.dto.StoryInteractionTypeView
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsContacts
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsEveryone
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsSelectedUsers
@@ -245,6 +251,62 @@ class TdlStoryRepository(
             .onFailure { logger.w(it) { "deleteStory $posterChatId/$storyId" } }
             .map { }
 
+    override suspend fun viewers(storyId: Int, offset: String): Result<StoryViewersPage> =
+        client.getStoryInteractions(
+            storyId = storyId,
+            query = "",
+            onlyContacts = false,
+            preferForwards = false,
+            // Reakce jsou to, co autora zajímá nejvíc — nahoru.
+            preferWithReaction = true,
+            offset = offset,
+            limit = VIEWERS_PAGE,
+        ).toResult()
+            .onFailure { logger.w(it) { "getStoryInteractions $storyId" } }
+            .map { page ->
+                StoryViewersPage(
+                    viewers = page.interactions.mapNotNull { it.toViewer() },
+                    totalCount = page.totalCount,
+                    nextOffset = page.nextOffset.takeIf { it.isNotEmpty() },
+                )
+            }
+
+    /** Divák jako člověk nebo chat se jménem a fotkou; kdo nejde dočíst, vypadne. */
+    private suspend fun StoryInteraction.toViewer(): StoryViewer? {
+        val (reaction, action) = when (val kind = type) {
+            is StoryInteractionTypeView -> kind.chosenReactionType?.toReactionKey() to StoryViewerAction.Viewed
+            is StoryInteractionTypeForward -> null to StoryViewerAction.Forwarded
+            is StoryInteractionTypeRepost -> null to StoryViewerAction.Reposted
+        }
+        return when (val actor = actorId) {
+            is MessageSenderUser -> {
+                val user = client.getUser(userId = actor.userId).toResult().getOrNull() ?: return null
+                StoryViewer(
+                    chatId = actor.userId,
+                    title = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "),
+                    avatarFileId = user.profilePhoto?.small?.id,
+                    kind = ChatKind.Private,
+                    date = interactionDate,
+                    reaction = reaction,
+                    action = action,
+                )
+            }
+
+            is MessageSenderChat -> {
+                val chat = client.getChat(chatId = actor.chatId).toResult().getOrNull() ?: return null
+                StoryViewer(
+                    chatId = actor.chatId,
+                    title = chat.title,
+                    avatarFileId = chat.photo?.small?.id,
+                    kind = chat.type.chatKind(),
+                    date = interactionDate,
+                    reaction = reaction,
+                    action = action,
+                )
+            }
+        }
+    }
+
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()
             .onFailure { logger.w(it) { "closeStory $posterChatId/$storyId" } }
@@ -274,6 +336,9 @@ private fun retryIn(seconds: Int): UiText {
 private const val STORY_ACTIVE_PERIOD = 86_400
 
 private const val MAX_LOAD_ROUNDS = 50
+
+/** Stránka diváků; víc se do sheetu najednou nevejde a další se dočte při posunu. */
+private const val VIEWERS_PAGE = 50
 private const val NOT_FOUND = 404
 
 /** Prohlížeč na příběh čeká, ale ne donekonečna: bez spojení TDLib na síť čeká mlčky. */

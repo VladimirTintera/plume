@@ -9,6 +9,8 @@ import eu.tintera.plume.core.telegram.StoryDraft
 import eu.tintera.plume.core.telegram.StoryPostCheck
 import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.core.telegram.StoryViewer
+import eu.tintera.plume.core.telegram.StoryViewersPage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.Dispatchers
@@ -90,6 +92,22 @@ class StoriesViewModelTest {
             deleted += storyId
             return Result.success(Unit)
         }
+
+        val offsets = mutableListOf<String>()
+
+        /** Dvě stránky; druhá opakuje diváka z první (server to nevylučuje). */
+        override suspend fun viewers(storyId: Int, offset: String): Result<StoryViewersPage> {
+            offsets += offset
+            fun viewer(id: Long, reaction: String? = null) =
+                StoryViewer(chatId = id, title = "Divák $id", avatarFileId = null, kind = ChatKind.Private, date = 1, reaction = reaction)
+            return Result.success(
+                if (offset.isEmpty()) {
+                    StoryViewersPage(listOf(viewer(1, "❤"), viewer(2)), totalCount = 3, nextOffset = "dalsi")
+                } else {
+                    StoryViewersPage(listOf(viewer(2), viewer(3)), totalCount = 3, nextOffset = null)
+                },
+            )
+        }
     }
 
     private val key = StoryKey(7, 1)
@@ -146,6 +164,25 @@ class StoriesViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(1), repository.deleted)
         assertEquals(true, viewModel.state.value.closed)
+    }
+
+    @Test
+    fun viewersArePagedWithoutDuplicates() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.openViewers(key)
+        advanceUntilIdle()
+        assertEquals(listOf(1L, 2L), viewModel.viewers.value?.viewers?.map { it.chatId })
+        viewModel.loadMoreViewers()
+        advanceUntilIdle()
+        val state = viewModel.viewers.value
+        assertEquals(listOf(1L, 2L, 3L), state?.viewers?.map { it.chatId }, "divák 2 jen jednou")
+        assertNull(state?.nextOffset)
+        viewModel.loadMoreViewers()
+        advanceUntilIdle()
+        assertEquals(listOf("", "dalsi"), repository.offsets, "po poslední stránce se už neptá")
+        viewModel.closeViewers()
+        assertNull(viewModel.viewers.value)
     }
 
     @Test

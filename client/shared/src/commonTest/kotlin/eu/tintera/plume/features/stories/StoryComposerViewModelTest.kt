@@ -8,6 +8,7 @@ import eu.tintera.plume.core.telegram.StoryMedia
 import eu.tintera.plume.core.telegram.StoryPostCheck
 import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.core.telegram.StoryViewersPage
 import eu.tintera.plume.core.ui.RenderedStoryVideo
 import eu.tintera.plume.core.ui.StoryPhoto
 import eu.tintera.plume.core.ui.StoryVideo
@@ -47,6 +48,7 @@ class StoryComposerViewModelTest {
         }
         override val postResults: Flow<StoryPostResult> = emptyFlow()
         override suspend fun delete(posterChatId: Long, storyId: Int) = Result.success(Unit)
+        override suspend fun viewers(storyId: Int, offset: String) = Result.success(StoryViewersPage(emptyList(), 0, null))
     }
 
     private class Renderer(val fail: Boolean = false) : StoryPhoto {

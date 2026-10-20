@@ -102,6 +102,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val reactionChoices by viewModel.reactionChoices.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
+    val viewers by viewModel.viewers.collectAsStateWithLifecycle()
     val currentOnBack by rememberUpdatedState(onBack)
     LaunchedEffect(state.closed) { if (state.closed) currentOnBack() }
     if (state.posters.isEmpty()) {
@@ -171,7 +172,8 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     index = index,
                     story = key?.let { state.pages[it] },
                     active = active,
-                    paused = dragging,
+                    // Seznam diváků přes příběh — příběh pod ním stojí.
+                    paused = dragging || viewers != null,
                     restart = state.restart,
                     reactionChoices = reactionChoices,
                     onNext = viewModel::next,
@@ -180,8 +182,18 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     onReact = { reaction -> key?.let { viewModel.react(it, reaction) } },
                     onReply = { text, onResult -> key?.let { viewModel.reply(it, text, onResult) } },
                     onDelete = { key?.let(viewModel::delete) },
+                    onViewers = { key?.let(viewModel::openViewers) },
                 )
             }
+        }
+
+        viewers?.let { opened ->
+            StoryViewersSheet(
+                state = opened,
+                viewCount = state.pages[state.current]?.viewCount,
+                onLoadMore = viewModel::loadMoreViewers,
+                onDismiss = viewModel::closeViewers,
+            )
         }
 
         StoryNotice(
@@ -207,6 +219,7 @@ private fun StoryPage(
     onReact: (String) -> Unit,
     onReply: (String, (Boolean) -> Unit) -> Unit,
     onDelete: () -> Unit,
+    onViewers: () -> Unit,
 ) {
     var held by remember { mutableStateOf(false) }
     // Psaní odpovědi a výběr reakce příběh zastaví — jinak by uživateli odjel pod rukama.
@@ -239,6 +252,7 @@ private fun StoryPage(
         if (ownBar && story != null) {
             OwnStoryBar(
                 viewCount = story.viewCount,
+                onViewers = onViewers,
                 onDelete = { confirmDelete = true },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )

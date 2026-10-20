@@ -17,11 +17,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -234,11 +237,10 @@ internal fun StoryReplyBar(
 }
 
 /**
- * Lišta pod vlastním příběhem: kolik lidí ho vidělo a smazat. Seznam diváků zatím není
- * (`getStoryInteractions`); počet stačí na otázku „viděl to někdo?".
+ * Lišta pod vlastním příběhem: kolik lidí ho vidělo (ťuknutí otevře seznam diváků) a smazat.
  */
 @Composable
-internal fun OwnStoryBar(viewCount: Int?, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+internal fun OwnStoryBar(viewCount: Int?, onViewers: () -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier
             .fillMaxWidth()
@@ -247,13 +249,19 @@ internal fun OwnStoryBar(viewCount: Int?, onDelete: () -> Unit, modifier: Modifi
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(painterResource(Res.drawable.visibility_24dp), contentDescription = null, tint = ON_SCRIM)
-        Text(
-            pluralStringResource(Res.plurals.story_views, viewCount ?: 0, viewCount ?: 0),
-            color = ON_SCRIM,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
+        TextButton(
+            onClick = onViewers,
+            shapes = ButtonDefaults.shapes(),
+            colors = ButtonDefaults.textButtonColors(contentColor = ON_SCRIM),
+        ) {
+            Icon(painterResource(Res.drawable.visibility_24dp), contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                pluralStringResource(Res.plurals.story_views, viewCount ?: 0, viewCount ?: 0),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+        Spacer(Modifier.weight(1f))
         IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.delete_24dp), stringResource(Res.string.story_delete), tint = ON_SCRIM)
         }
@@ -323,7 +331,7 @@ internal fun StoryNotice(notice: UiText?, onShown: () -> Unit, modifier: Modifie
 
 /** Obyčejné emoji jako text, vlastní (klíč s id) jako obrázek. */
 @Composable
-private fun ReactionGlyph(reaction: String, size: Int, description: String?) {
+internal fun ReactionGlyph(reaction: String, size: Int, description: String?) {
     val customId = customEmojiIdOf(reaction)
     val semantics = if (description != null) Modifier.semantics { contentDescription = description } else Modifier
     if (customId != null) {

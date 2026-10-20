@@ -2852,6 +2852,8 @@ sealed interface MessageMedia {
         val isOwn: Boolean = false,
         /** Kolik lidí vlastní příběh vidělo; u cizího `null` (TDLib to neříká). */
         val viewCount: Int? = null,
+        /** Seznam diváků už server nedá (příběh vypršel před víc než `story_viewers_expiration_delay`). */
+        val viewersExpired: Boolean = false,
     ) : MessageMedia
 }
 
