@@ -340,6 +340,15 @@ interface ChatRepository {
      * Historie hovorů napříč chaty (`searchCallMessages`), od nejnovějšího; [offset] z předchozí
      * stránky, napoprvé prázdný. [onlyMissed] = jen zmeškané a odmítnuté.
      */
+    /**
+     * Naposledy hledané hashtagy (`getSearchedForTags`), od nejnovějšího. Zapisuje je TDLib sám
+     * při hledání podle tagu; aplikace je jen čte a odebírá ([removeSearchedTag]).
+     */
+    suspend fun searchedTags(): Result<List<String>> = Result.success(emptyList())
+
+    /** Jeden hashtag z historie hledání pryč (`removeSearchedForTag`). */
+    suspend fun removeSearchedTag(tag: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     suspend fun callHistory(offset: String, onlyMissed: Boolean): Result<CallHistoryPage> =
         Result.failure(UnsupportedOperationException())
 

@@ -601,7 +601,8 @@ a se serverem, takže přednostně:
 10. **Dárky v profilu** (`getReceivedGifts`, `getGiftCollections`) — prohlížení nic nestojí,
     posílání ano (viz níž).
 11. Drobnosti: hledání v tajných chatech (`searchSecretMessages` — hledání napříč chaty je
-    vynechává), historie hledaných hashtagů (`getSearchedForTags`, `removeSearchedForTag`),
+    vynechává), ~~historie hledaných hashtagů (`getSearchedForTags`, `removeSearchedForTag`)~~ (hotovo,
+    `docs/poznatky/hledani-a-zakladani-chatu.md`, „Hledání chatů"),
     pořadí připnutých témat Uložených zpráv (`setPinnedSavedMessagesTopics`), autor příspěvku
     kanálu pro správce (`getMessageAuthor`), blokování z chatu Odpovědi
     (`blockMessageSenderFromReplies`), nahlášení reakcí a smazání reakcí člena u jedné zprávy

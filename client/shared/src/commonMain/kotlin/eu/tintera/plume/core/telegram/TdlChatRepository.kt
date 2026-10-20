@@ -1589,6 +1589,18 @@ class TdlChatRepository(
                 }
             }
 
+    /**
+     * Jen hashtagy (prefix „#"), cashtagy („$") Plume nehledá. TDLib je vrací BEZ mřížky
+     * („telegram"), aplikace s nimi ale pracuje jako s dotazem „#telegram" — jinak by ťuknutí
+     * hledalo obyčejné slovo, ne tag. Zapisuje je jen hledání veřejných příspěvků podle tagu.
+     */
+    override suspend fun searchedTags(): Result<List<String>> =
+        client.getSearchedForTags(tagPrefix = "#", limit = SEARCHED_TAGS_LIMIT).toResult()
+            .map { found -> found.hashtags.map { if (it.startsWith("#")) it else "#$it" } }
+
+    override suspend fun removeSearchedTag(tag: String): Result<Unit> =
+        client.removeSearchedForTag(tag = tag).toResult().map { }
+
     override suspend fun searchPublicPosts(tag: String, offset: String): Result<FoundMessagesPage> =
         client.searchPublicMessagesByTag(tag = tag, offset = offset, limit = MESSAGE_SEARCH_PAGE)
             .toResult()
@@ -2118,6 +2130,9 @@ private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
 
 /** `getChatOwnerAfterLeaving`: vlastnictví nemá kdo převzít. */
 private const val FUTURE_CREATOR_NONE = "FUTURE_CREATOR_NONE"
+
+/** Kolik naposledy hledaných hashtagů se nabídne pod prázdným hledáním. */
+private const val SEARCHED_TAGS_LIMIT = 10
 
 /** Kolik hovorů se čte naráz; TDLib jich vrátí, kolik uzná za vhodné (do stovky). */
 private const val CALL_HISTORY_PAGE = 50

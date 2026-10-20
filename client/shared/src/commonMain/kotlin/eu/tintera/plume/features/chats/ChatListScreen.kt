@@ -614,6 +614,7 @@ fun ChatListScreen(
                                 onClear = viewModel.search::clearRecent,
                                 onRemoveRecent = viewModel.search::removeRecent,
                                 onRemoveTop = viewModel.search::removeTop,
+                                onRemoveTag = viewModel.search::removeTag,
                             )
                         },
                         onFilterChange = viewModel.search::setFilter,

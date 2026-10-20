@@ -29,6 +29,19 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   objektem (`SuggestionActions`), ne třemi parametry.
   - Ověřeno na emulátoru (14. 10. 2026, účet …527): „Pixel" z Lidí pryč (i po novém otevření
     hledání), „Plume test kanal" z historie křížkem pryč i se sekcí.
+- **Pod návrhy jsou i naposledy hledané hashtagy** (`getSearchedForTags`, jen hlavní hledání,
+  testy `ChatSearchSuggestionsTest`). Ťuknutí tag vloží do pole a hledá znovu, křížek ho odebere
+  (`removeSearchedForTag`).
+  - **Zapisuje je TDLib sám, a jen při hledání veřejných příspěvků** (`searchPublicMessagesByTag`,
+    přepínač „Veřejné příspěvky"). Hledání tagu ve vlastních chatech (`searchMessages`) do
+    historie nic nepřidá — ověřeno na emulátoru.
+  - **TDLib vrací tag BEZ mřížky** („telegram"), i když se ptáme s prefixem „#". Repository ji
+    doplní: dotaz bez mřížky by hledal obyčejné slovo, ne tag. Odebrání tvar s mřížkou bere.
+  - Ověřeno na emulátoru: „#telegram" ve veřejných příspěvcích → v návrzích, ťuknutí hledá tag
+    (s přepínačem Vaše chaty / Veřejné příspěvky), křížek ho odebere i po novém čtení.
+- **Hledání zpráv napříč chaty tajné chaty vynechává** (`searchMessages` je neprochází; mají
+  vlastní `searchSecretMessages` s jiným stránkováním). Slévat dvě stránkování podle data se
+  zatím nedělalo — na účtu žádný tajný chat není, nešlo by to ověřit.
 - **`getTopChats` vrací chybu, když si to uživatel v Telegramu vypnul** — to je prázdný řádek,
   ne selhání.
 - **Uložené zprávy TDLib najde pod jménem účtu**, takže se z výsledků vyřazují a hledají podle
