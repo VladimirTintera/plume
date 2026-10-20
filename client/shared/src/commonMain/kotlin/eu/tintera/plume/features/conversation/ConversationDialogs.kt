@@ -390,6 +390,7 @@ internal fun ConversationDialogs(
             sheet = sheet,
             onCopyLink = viewModel::copyMessageLink,
             onDismiss = viewModel::dismissMessageInfo,
+            onOpenAuthor = viewModel::openMessageAuthor,
         )
     }
 

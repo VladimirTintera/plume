@@ -760,6 +760,7 @@
     <string name="message_info_read_hidden_by_other">Protějšek má časy čtení skryté</string>
     <string name="message_info_read_hidden_by_me">Skryté, protože skrýváš vlastní časy čtení</string>
     <string name="message_info_viewers">Zhlédli</string>
+    <string name="message_info_author">Odeslal(a)</string>
     <string name="message_info_link">Odkaz na zprávu</string>
     <string name="message_info_link_copied">Odkaz zkopírován</string>
     <string name="menu_sent_at_delivery">%1$s, %2$s · %3$s</string>

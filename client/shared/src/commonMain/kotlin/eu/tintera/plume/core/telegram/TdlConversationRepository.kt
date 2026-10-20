@@ -3672,6 +3672,14 @@ class TdlConversationRepository(
                     .orEmpty()
             }
         }
+        val authorAsync = async {
+            if (properties?.canGetAuthor != true) {
+                null
+            } else {
+                client.getMessageAuthor(chatId = chatId, messageId = messageId).toResult().getOrNull()
+                    ?.let { user -> resolveSender(user.id) }
+            }
+        }
         val readAsync = async {
             if (properties?.canGetReadDate != true) {
                 MessageReadState.Unavailable
@@ -3699,6 +3707,7 @@ class TdlConversationRepository(
                 readState = readAsync.await(),
                 viewers = viewersAsync.await(),
                 link = linkAsync.await(),
+                author = authorAsync.await(),
             ),
         )
     }
