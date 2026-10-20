@@ -921,6 +921,20 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   zůstává starý seznam, dokud nedorazí nový — indikátor by sheet smrštil a zase natáhl.
 - **Detail je jedna stránka** (`REACTION_DETAIL_LIMIT`, 50 řádků). U příspěvku s tisíci reakcemi
   ho nikdo neprojde a stránkování by znamenalo držet offset ve stavu sheetu.
+- **Správce smí v detailu smazat nebo nahlásit reakce člena** (`deleteMessageReactionsFromSender`,
+  `reportMessageReactions`). Ťuknout jde jen CIZÍ řádek a jen když `getMessageProperties` vrátí
+  `canDeleteReactions` / `canReportReactions` — vlastnosti se čtou jednou při otevření detailu
+  (`ReactionModeration`), řádek bez práva se při stisku nezaobluje. Nabídka u řádku má „Nahlásit
+  reakce" a ve vlastní chybové skupině „Smazat jeho reakce". Nahlášení nemá průvodce: server
+  k němu důvod nechce. Smaže se VŠECHNO, co člen u zprávy dal (jedna reakce v detailu je jen
+  řádek, server maže podle odesílatele).
+  - **Po smazání posledního reagujícího se detail zavře**, prázdný sheet s nadpisem „Reakce"
+    vypadal rozbitě. Pod filtrem se místo toho filtr zruší — jiné reakce zbýt můžou. Čipy pod
+    zprávou srovná update reakcí, ne detail.
+  - **Ověřeno na emulátoru jen napůl**: smazání pokusným buildem, který pustil nabídku i na
+    vlastní řádek (v testovací skupině vlastníka — `canDeleteReactions` přišlo `true`, nahlásit
+    `false`), hláška „Reakce smazány" a zmizelý čip. Cizí reakci na zařízení nebylo kde vzít;
+    nahlášení se neodeslalo vůbec. Rozhodování o zavření detailu hlídá `ConversationReactionsTest`.
 - **Nepřečtená reakce na vlastní zprávu se zvýrazní, jakmile je zpráva vidět** (`NewReaction`,
   `ChatMessage.newReactions` z `Message.unreadReactions`, živě přes `unreadMarkChanges`): čip
   dvakrát povyskočí (`NEW_REACTION_PULSE_SCALE`) a ve skupině vedle čipů na pár vteřin vyjede

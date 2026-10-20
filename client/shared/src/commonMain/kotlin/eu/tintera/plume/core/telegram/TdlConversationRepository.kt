@@ -3728,6 +3728,19 @@ class TdlConversationRepository(
         return Result.success(details)
     }
 
+    override suspend fun reactionModeration(chatId: Long, messageId: Long): ReactionModeration =
+        client.getMessageProperties(chatId = chatId, messageId = messageId).toResult().getOrNull()
+            ?.let { ReactionModeration(canDelete = it.canDeleteReactions, canReport = it.canReportReactions) }
+            ?: ReactionModeration()
+
+    override suspend fun deleteReactionsFrom(chatId: Long, messageId: Long, senderId: Long): Result<Unit> =
+        client.deleteMessageReactionsFromSender(chatId = chatId, messageId = messageId, senderId = senderId.toMessageSender())
+            .toResult().map { }
+
+    override suspend fun reportReactionsFrom(chatId: Long, messageId: Long, senderId: Long): Result<Unit> =
+        client.reportMessageReactions(chatId = chatId, messageId = messageId, senderId = senderId.toMessageSender())
+            .toResult().map { }
+
     override suspend fun sender(senderId: Long): Result<SenderInfo> =
         resolveSender(senderId)?.let { Result.success(it) }
             ?: Result.failure(IllegalStateException("Odesílatel $senderId není známý"))

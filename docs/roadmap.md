@@ -605,8 +605,9 @@ a se serverem, takže přednostně:
     `docs/poznatky/hledani-a-zakladani-chatu.md`, „Hledání chatů"),
     pořadí připnutých témat Uložených zpráv (`setPinnedSavedMessagesTopics`), autor příspěvku
     kanálu pro správce (`getMessageAuthor`), blokování z chatu Odpovědi
-    (`blockMessageSenderFromReplies`), nahlášení reakcí a smazání reakcí člena u jedné zprávy
-    (`reportMessageReactions`, `deleteMessageReactionsFromSender`), smazání nedávných reakcí
+    (`blockMessageSenderFromReplies`), ~~nahlášení reakcí a smazání reakcí člena u jedné zprávy
+    (`reportMessageReactions`, `deleteMessageReactionsFromSender`)~~ (hotovo, detail reakcí;
+    `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá ověřit na cizí reakci), smazání nedávných reakcí
     (`clearRecentReactions`), obrysy samolepek při načítání (`getStickerOutlineSvgPath`), sady
     samolepek použité na fotce (`getAttachedStickerSets`), oznámení o poslechu hudby
     (`listenToAudio`).

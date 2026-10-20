@@ -1495,6 +1495,10 @@
     <string name="reactions_title">Reakce</string>
     <string name="reactions_filter_all">Vše %1$s</string>
     <string name="reactions_you">Vy</string>
+    <string name="reactions_report">Nahlásit reakce</string>
+    <string name="reactions_delete_from">Smazat jeho reakce</string>
+    <string name="reactions_deleted">Reakce smazány</string>
+    <string name="reactions_delete_failed">Reakce se nepodařilo smazat.</string>
     <string name="attachment_remove_file">Odebrat soubor</string>
     <string name="attachment_remove_photo">Odebrat fotku</string>
     <string name="emoji_search">Hledat emoji</string>

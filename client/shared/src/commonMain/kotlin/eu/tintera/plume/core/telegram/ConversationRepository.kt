@@ -352,6 +352,20 @@ interface ConversationRepository {
     suspend fun reactionDetails(chatId: Long, messageId: Long, reaction: String? = null): Result<List<ReactionDetail>>
 
     /**
+     * Co smí správce s cizími reakcemi u zprávy (`messageProperties.canDeleteReactions`,
+     * `canReportReactions`). Nezjištěno = nic.
+     */
+    suspend fun reactionModeration(chatId: Long, messageId: Long): ReactionModeration = ReactionModeration()
+
+    /** Smaže všechny reakce odesílatele [senderId] u zprávy (`deleteMessageReactionsFromSender`). */
+    suspend fun deleteReactionsFrom(chatId: Long, messageId: Long, senderId: Long): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Nahlásí reakce odesílatele [senderId] u zprávy moderátorům (`reportMessageReactions`). */
+    suspend fun reportReactionsFrom(chatId: Long, messageId: Long, senderId: Long): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Podrobnosti o zprávě pro sheet „Informace" — viz [MessageInfo].
      *
      * Dílčí dotazy (odkaz, zhlédnutí, čas přečtení) se ptají **současně** a selhání kteréhokoli
@@ -2125,6 +2139,11 @@ data class MessageActions(
  * reagoval. Načítá se až při otevření sheetu — u příspěvku se stovkou reakcí by to jinak byla
  * hromada dotazů na data, která nikdo neuvidí.
  */
+/** Práva nad cizími reakcemi u jedné zprávy (detail reakcí); výchozí = nic. */
+data class ReactionModeration(val canDelete: Boolean = false, val canReport: Boolean = false) {
+    val any: Boolean get() = canDelete || canReport
+}
+
 data class ReactionDetail(
     val sender: SenderInfo,
     val emoji: String,

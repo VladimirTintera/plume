@@ -1456,6 +1456,10 @@
     <string name="reactions_title">Reactions</string>
     <string name="reactions_filter_all">All %1$s</string>
     <string name="reactions_you">You</string>
+    <string name="reactions_report">Report reactions</string>
+    <string name="reactions_delete_from">Delete their reactions</string>
+    <string name="reactions_deleted">Reactions deleted</string>
+    <string name="reactions_delete_failed">Couldn’t delete the reactions.</string>
     <string name="attachment_remove_file">Remove the file</string>
     <string name="attachment_remove_photo">Remove the photo</string>
     <string name="emoji_search">Search emoji</string>

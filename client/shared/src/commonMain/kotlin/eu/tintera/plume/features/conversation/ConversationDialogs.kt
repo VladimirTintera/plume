@@ -414,6 +414,8 @@ internal fun ConversationDialogs(
             details = details,
             onFilter = viewModel::filterReactionDetails,
             onDismiss = viewModel::dismissReactionDetails,
+            onDeleteFrom = viewModel::deleteReactionsFrom,
+            onReportFrom = viewModel::reportReactionsFrom,
         )
     }
 

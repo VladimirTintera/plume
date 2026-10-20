@@ -80,6 +80,12 @@ import eu.tintera.plume.core.ui.FaceStack
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.reactions_delete_from
+import eu.tintera.plume.resources.reactions_report
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.resources.reactions_filter_all
 import eu.tintera.plume.resources.reactions_new_others
 import eu.tintera.plume.resources.reactions_title
@@ -551,6 +557,10 @@ fun ReactionDetailsSheet(
     details: ReactionDetails,
     onDismiss: () -> Unit,
     onFilter: (String?) -> Unit = {},
+    /** Správce: smazat reakce člena u zprávy (`canDeleteReactions`). */
+    onDeleteFrom: (senderId: Long) -> Unit = {},
+    /** Správce: nahlásit reakce člena (`canReportReactions`). */
+    onReportFrom: (senderId: Long) -> Unit = {},
 ) {
     // Modální sheet začíná skrytý a rozjede se sám. Náhrada za `rememberModalBottomSheetState`,
     // které je od Compose 1.12 zastaralé.
@@ -581,12 +591,16 @@ fun ReactionDetailsSheet(
             // Strop výšky: u příspěvku s padesáti reakcemi by sheet jinak zabral celou obrazovku.
             Modifier.heightIn(max = REACTION_DETAILS_MAX_HEIGHT).padding(vertical = 8.dp),
         ) {
-            // Blok zaoblených řádků jako „Kdo zprávu viděl" v informacích o zprávě; řádek nejde
-            // ťuknout, takže se při stisku nezaobluje.
+            // Blok zaoblených řádků jako „Kdo zprávu viděl" v informacích o zprávě. Ťuknout jde jen
+            // cizí reakci a jen správci, který s ní smí něco udělat (nabídka smazat / nahlásit).
             itemsIndexed(details.items, key = { _, it -> "${it.sender.id}-${it.emoji}" }) { index, detail ->
+                val moderated = details.moderation.any && !detail.isOwn
+                var menu by remember(detail.sender.id) { mutableStateOf(false) }
+                Box {
                 Row(
                     Modifier
-                        .groupedItem(index, details.items.size, MaterialTheme.colorScheme.surfaceContainerLowest, pressable = false)
+                        .groupedItem(index, details.items.size, MaterialTheme.colorScheme.surfaceContainerLowest, pressable = moderated)
+                        .then(if (moderated) Modifier.clickable { menu = true } else Modifier)
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -616,6 +630,26 @@ fun ReactionDetailsSheet(
                     } else {
                         Text(text = detail.emoji, fontSize = 20.sp)
                     }
+                }
+                ExpressiveMenu(
+                    expanded = menu,
+                    onDismiss = { menu = false },
+                    groups = listOf(
+                        listOfNotNull(
+                            MenuAction(stringResource(Res.string.reactions_report), Res.drawable.flag_24dp) {
+                                menu = false
+                                onReportFrom(detail.sender.id)
+                            }.takeIf { details.moderation.canReport },
+                        ),
+                        // Nevratné, proto vlastní skupina v chybové barvě.
+                        listOfNotNull(
+                            MenuAction(stringResource(Res.string.reactions_delete_from), Res.drawable.delete_24dp, destructive = true) {
+                                menu = false
+                                onDeleteFrom(detail.sender.id)
+                            }.takeIf { details.moderation.canDelete },
+                        ),
+                    ),
+                )
                 }
             }
         }
