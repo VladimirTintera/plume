@@ -52,6 +52,7 @@ class StoryComposerViewModelTest {
         override suspend fun setInAlbum(chatId: Long, albumId: Int, storyId: Int, inAlbum: Boolean) = Result.success(Unit)
         override suspend fun renameAlbum(chatId: Long, albumId: Int, name: String) = Result.success(eu.tintera.plume.core.telegram.StoryAlbum(albumId, name))
         override suspend fun deleteAlbum(chatId: Long, albumId: Int) = Result.success(Unit)
+        override suspend fun reorderAlbums(chatId: Long, albumIds: List<Int>) = Result.success(Unit)
         override suspend fun report(posterChatId: Long, storyId: Int, request: ReportRequest) = Result.success<ReportStep>(ReportStep.Done)
         override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> {
             savedFriends += userIds

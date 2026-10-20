@@ -139,6 +139,11 @@ class StoriesViewModelTest {
 
         override suspend fun renameAlbum(chatId: Long, albumId: Int, name: String) = Result.success(StoryAlbum(albumId, name))
 
+        override suspend fun reorderAlbums(chatId: Long, albumIds: List<Int>): Result<Unit> {
+            albumCalls += "reorder $albumIds"
+            return if (failAlbums) Result.failure(IllegalStateException("ALBUM_ID_INVALID")) else Result.success(Unit)
+        }
+
         override suspend fun deleteAlbum(chatId: Long, albumId: Int): Result<Unit> {
             albumCalls += "delete $albumId"
             return Result.success(Unit)
@@ -311,6 +316,27 @@ class StoriesViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(2, 3), viewModel.albums.value?.albums?.map { it.id })
         assertEquals(setOf(3), viewModel.albums.value?.inAlbums)
+    }
+
+    @Test
+    fun albumsReorderAndRevertOnFailure() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.openAlbums(key)
+        advanceUntilIdle()
+        viewModel.reorderAlbums(listOf(2, 1))
+        assertEquals(listOf(2, 1), viewModel.albums.value?.albums?.map { it.id }, "přeskládá se hned")
+        advanceUntilIdle()
+        assertEquals(listOf("reorder [2, 1]"), repository.albumCalls)
+        viewModel.reorderAlbums(listOf(2, 1))
+        advanceUntilIdle()
+        assertEquals(1, repository.albumCalls.size, "beze změny se neposílá")
+
+        repository.failAlbums = true
+        viewModel.reorderAlbums(listOf(1, 2))
+        advanceUntilIdle()
+        assertEquals(listOf(2, 1), viewModel.albums.value?.albums?.map { it.id }, "při chybě zpátky")
+        assertNotNull(viewModel.albums.value?.error)
     }
 
     @Test

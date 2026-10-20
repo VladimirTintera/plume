@@ -212,6 +212,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                 onCreate = viewModel::createAlbum,
                 onRename = viewModel::renameAlbum,
                 onDelete = viewModel::deleteAlbum,
+                onReorder = viewModel::reorderAlbums,
                 onDismiss = viewModel::closeAlbums,
             )
         }

@@ -280,6 +280,23 @@ class StoriesViewModel(
         }
     }
 
+    /** Nové pořadí alb. Přeskládá se hned, při chybě se vrátí. */
+    fun reorderAlbums(albumIds: List<Int>) {
+        val current = _albums.value ?: return
+        val before = current.albums ?: return
+        val byId = before.associateBy { it.id }
+        val reordered = albumIds.mapNotNull { byId[it] }
+        if (reordered.map { it.id } == before.map { it.id }) return
+        _albums.update { it?.copy(albums = reordered) }
+        viewModelScope.launch {
+            repository.reorderAlbums(current.key.posterChatId, reordered.map { it.id })
+                .onFailure { failure ->
+                    _albums.update { it?.copy(albums = before) }
+                    albumError(failure)
+                }
+        }
+    }
+
     /**
      * Chyba patří DO panelu, ne do pilulky prohlížeče: panel je samostatné okno a pilulku pod
      * sebou zakryje (ověřeno — hláška nebyla vidět).
