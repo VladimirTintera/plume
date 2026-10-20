@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import eu.tintera.plume.core.calls.CallAudioOutput
 import eu.tintera.plume.core.ui.UiText
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -87,6 +88,23 @@ interface CallRepository {
      * dostane [reason] místo stavu, jinak se krátce ukáže neúspěšný hovor s [reason].
      */
     fun reportFailure(userId: Long, video: Boolean, reason: UiText)
+
+    /**
+     * Hodnocení, o které server po skončeném hovoru požádal ([CallRatingRequest]); `null` =
+     * žádné. Vyřídí ho [rate] nebo [dismissRating].
+     */
+    val ratingRequest: StateFlow<CallRatingRequest?> get() = NoRatingRequest
+
+    /**
+     * Pošle hodnocení hovoru (`sendCallRating`): [stars] 1–5, u méně než pěti volitelně
+     * [comment] a [problems]. Žádost se tím vyřídí, i když odeslání selže — podruhé se
+     * uživatele ptát nebudeme.
+     */
+    suspend fun rate(request: CallRatingRequest, stars: Int, comment: String, problems: Set<CallProblem>): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Hodnocení odmítnuté („Teď ne"): nic se neposílá. */
+    fun dismissRating() = Unit
 }
 
 data class ActiveCall(
@@ -153,3 +171,6 @@ enum class CallPhase {
     /** Přenos se nespojil, nebo hovor skončil chybou. */
     Failed,
 }
+
+/** Výchozí [CallRepository.ratingRequest] pro implementace, které hodnocení neznají. */
+private val NoRatingRequest: StateFlow<CallRatingRequest?> = MutableStateFlow(null)

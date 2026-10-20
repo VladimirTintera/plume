@@ -73,6 +73,8 @@ import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.TdlResult
 import dev.g000sha256.tdl.dto.Chat
+import dev.g000sha256.tdl.dto.MessageGroupCall
+import dev.g000sha256.tdl.dto.MessageCall
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ArchiveChatListSettings
 import dev.g000sha256.tdl.dto.ChatList
@@ -793,6 +795,50 @@ class TdlChatRepository(
         client.getInactiveSupergroupChats().toResult()
             .onFailure { logger.w(it) { "Neaktivní skupiny se nepodařilo načíst." } }
             .map { summariesFor(it.chatIds) }
+
+    /**
+     * Zprávy o hovorech napříč chaty. Jména a fotky chatů se dočtou lokálně ([summariesFor]); hovor
+     * z chatu, který TDLib nezná, ze stránky vypadne. Zpátky jde volat jen protějšku soukromého
+     * chatu — jeho id je id uživatele.
+     */
+    override suspend fun callHistory(offset: String, onlyMissed: Boolean): Result<CallHistoryPage> =
+        client.searchCallMessages(offset = offset, limit = CALL_HISTORY_PAGE, onlyMissed = onlyMissed).toResult()
+            .onFailure { logger.w(it) { "Historii hovorů se nepodařilo načíst." } }
+            .map { found ->
+                val messages = found.messages.filterNotNull()
+                val chats = summariesFor(messages.map { it.chatId }.distinct().toLongArray()).associateBy { it.id }
+                val entries = messages.mapNotNull { message ->
+                    val chat = chats[message.chatId] ?: return@mapNotNull null
+                    when (val content = message.content) {
+                        is MessageCall -> CallHistoryEntry(
+                            chat = chat,
+                            messageId = message.id,
+                            outcome = content.outcome(message.isOutgoing),
+                            isVideo = content.isVideo,
+                            durationSeconds = content.duration,
+                            isGroup = false,
+                            date = message.date,
+                            callUserId = chat.id.takeIf { chat.kind == ChatKind.Private },
+                        )
+                        is MessageGroupCall -> CallHistoryEntry(
+                            chat = chat,
+                            messageId = message.id,
+                            outcome = content.outcome(message.isOutgoing),
+                            isVideo = content.isVideo,
+                            durationSeconds = content.duration,
+                            isGroup = true,
+                            date = message.date,
+                            callUserId = null,
+                        )
+                        else -> null
+                    }
+                }
+                CallHistoryPage(entries, found.nextOffset)
+            }
+
+    override suspend fun deleteCallHistory(revoke: Boolean): Result<Unit> =
+        client.deleteAllCallMessages(revoke = revoke).toResult().map { }
+            .onFailure { logger.w(it) { "Historii hovorů se nepodařilo smazat." } }
 
     override fun unreadCount(chatId: Long): Flow<Int> =
         all.map { it[chatId]?.unreadCount ?: 0 }.distinctUntilChanged()
@@ -2001,6 +2047,9 @@ private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
     is ChatActionBarAddContact -> SpamBar(canReportSpam = false, canBlock = false, canAddContact = true)
     else -> null
 }
+
+/** Kolik hovorů se čte naráz; TDLib jich vrátí, kolik uzná za vhodné (do stovky). */
+private const val CALL_HISTORY_PAGE = 50
 
 /** Kolik posledních rozhodnutí strážních botů se pamatuje pro pozdě příchozí čekání. */
 private const val GUARD_DECISIONS_KEPT = 8

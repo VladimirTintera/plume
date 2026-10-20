@@ -159,6 +159,10 @@ data class ChatFolderEditRoute(val folderId: Int) : Route
 @Serializable
 data object ArchiveRoute : Route
 
+/** Historie hovorů napříč chaty (menu účtu → Hovory); konverzace z ní jde vedle, jako ze seznamu. */
+@Serializable
+data object CallsRoute : Route
+
 /**
  * Konverzace v archivu. V list-detail rozvržení je to detail panel scény archivu.
  */
@@ -550,6 +554,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
+            subclass(CallsRoute::class, CallsRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
             subclass(ArchiveDirectTopicsRoute::class, ArchiveDirectTopicsRoute.serializer())

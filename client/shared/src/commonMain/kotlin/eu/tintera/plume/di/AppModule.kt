@@ -159,6 +159,7 @@ import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.links.ExternalLinkViewModel
+import eu.tintera.plume.features.calls.CallsViewModel
 import eu.tintera.plume.features.settings.MyQrCodeViewModel
 import eu.tintera.plume.features.chats.NewContactViewModel
 import eu.tintera.plume.features.chats.CreateChatViewModel
@@ -854,6 +855,7 @@ fun appModule() = module {
     viewModelOf(::NewContactViewModel)
     viewModelOf(::MyQrCodeViewModel)
     viewModelOf(::ExternalLinkViewModel)
+    viewModelOf(::CallsViewModel)
 
     // Druh a členové jdou z routy; indexem, `get()` by bral podle typu.
     viewModel { parameters ->
