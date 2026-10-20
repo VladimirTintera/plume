@@ -12,6 +12,8 @@ import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.IosProfileVideo
 import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.IosSquarePhoto
+import eu.tintera.plume.core.ui.IosStoryPhoto
+import eu.tintera.plume.core.ui.StoryPhoto
 import eu.tintera.plume.core.ui.IosPhotoMarkupRenderer
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
 import eu.tintera.plume.core.ui.SquarePhoto
@@ -97,6 +99,7 @@ actual fun Module.platformModule() {
     single { HomeRegion() }
     single<LanguageDetector> { IosLanguageDetector() }
     single<SquarePhoto> { IosSquarePhoto() }
+    single<StoryPhoto> { IosStoryPhoto() }
     single<SnoozeReminders> { IosSnoozeReminders() }
     single<PhotoMarkupRenderer> { IosPhotoMarkupRenderer() }
     single<ProfileVideo> { IosProfileVideo() }

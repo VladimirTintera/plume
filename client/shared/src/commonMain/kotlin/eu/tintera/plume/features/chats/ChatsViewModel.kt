@@ -63,7 +63,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.StoryListKind
+import eu.tintera.plume.core.telegram.StoryPostCheck
+import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.resources.story_photo_only
+import eu.tintera.plume.resources.story_posted
 import eu.tintera.plume.features.stories.storyListOrder
 import kotlinx.coroutines.launch
 import eu.tintera.plume.core.ui.UiText
@@ -113,8 +117,8 @@ class ChatsViewModel(
     /** Záložky zpráv přes všechny chaty (menu účtu → Záložky); bez nich položka není. */
     private val bookmarks: MessageBookmarks? = null,
     private val photoDescriptions: PhotoDescriptions? = null,
-    /** Příběhy: kroužky kolem avatarů a hromádka v pilulce; bez nich obojí chybí. */
-    stories: StoryRepository? = null,
+    /** Příběhy: kroužky kolem avatarů, hromádka v pilulce a nový příběh; bez nich nic z toho. */
+    private val stories: StoryRepository? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -388,6 +392,41 @@ class ChatsViewModel(
                 .stateIn(viewModelScope, SharingStarted.Eagerly, storyListOrder(stories.active.value.values, StoryListKind.Main))
         }
 
+    private val _storyNotice = MutableStateFlow<UiText?>(null)
+
+    /** Hláška k vlastnímu příběhu pro snackbar (limit, zveřejněno, chyba); UI ji sundá [storyNoticeShown]. */
+    val storyNotice: StateFlow<UiText?> = _storyNotice.asStateFlow()
+
+    /** Jde se zveřejnit příběh? Jen pro hlavní seznam — jinde nabídka „+" není. */
+    val canComposeStory: Boolean get() = stories != null && folder == ChatFolder.Main
+
+    /**
+     * Nový příběh: napřed se zeptá, jestli limit pustí (free účet jeden za den), a teprve pak
+     * otevře výběr fotky ([openPicker]). Jinak by si uživatel příběh připravil zbytečně.
+     */
+    fun startStory(openPicker: () -> Unit) {
+        val repository = stories ?: return
+        viewModelScope.launch {
+            when (val check = repository.canPost()) {
+                StoryPostCheck.Allowed -> openPicker()
+                is StoryPostCheck.Denied -> _storyNotice.value = check.reason
+            }
+        }
+    }
+
+    /** Z výběru přišlo video; příběh jde zatím složit jen z fotky (video chce H.265 720 × 1280). */
+    fun storyNeedsPhoto() {
+        _storyNotice.value = UiText(Res.string.story_photo_only)
+    }
+
+    fun storyError(error: UiText) {
+        _storyNotice.value = error
+    }
+
+    fun storyNoticeShown() {
+        _storyNotice.value = null
+    }
+
     private val _account = MutableStateFlow<AccountInfo?>(null)
 
     /** Přihlášený účet — jeho fotka je v hledání vstupem do menu a Nastavení. */
@@ -560,6 +599,17 @@ class ChatsViewModel(
             // Živě: po změně fotky v úpravě profilu nesmí pilulka ukazovat tu starou.
             viewModelScope.launch {
                 accounts.account.collect { account -> if (account != null) _account.value = account }
+            }
+            // Jak dopadlo nahrávání vlastního příběhu: obrazovka příběhu je už zavřená.
+            stories?.let { storyRepository ->
+                viewModelScope.launch {
+                    storyRepository.postResults.collect { result ->
+                        _storyNotice.value = when (result) {
+                            StoryPostResult.Posted -> UiText(Res.string.story_posted)
+                            is StoryPostResult.Failed -> result.reason
+                        }
+                    }
+                }
             }
         }
     }

@@ -38,6 +38,7 @@ internal suspend fun MessageStory.toMedia(
         // TDLib „vlastní" přímo neříká; smazat jde jen příběh, který jsme zveřejnili my
         // (nebo kanál, který spravujeme), a na ten se nereaguje.
         isOwn = story?.canBeDeleted == true,
+        viewCount = story?.interactionInfo?.viewCount,
     )
 }
 

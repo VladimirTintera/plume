@@ -2850,6 +2850,8 @@ sealed interface MessageMedia {
         val chosenReaction: String? = null,
         /** Vlastní příběh (nebo kanálu, který spravujeme): reagovat ani odpovídat na něj nejde. */
         val isOwn: Boolean = false,
+        /** Kolik lidí vlastní příběh vidělo; u cizího `null` (TDLib to neříká). */
+        val viewCount: Int? = null,
     ) : MessageMedia
 }
 

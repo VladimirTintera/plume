@@ -1,8 +1,9 @@
 # Příběhy (stories)
 
 Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání,
-prohlížeč přes celou obrazovku a v něm reakce a odpověď. Skrytí do archivu, příběhy v profilu
-a zveřejnění vlastního příběhu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
+prohlížeč přes celou obrazovku a v něm reakce a odpověď; zveřejnění vlastního příběhu z fotky,
+počet zhlédnutí a smazání. Video příběh, seznam diváků, blízcí přátelé, skrytí do archivu
+a příběhy v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
 zprávě a odpověď na příběh jsou v `typy-zprav.md`.
 
 Skladba:
@@ -16,7 +17,9 @@ Skladba:
 | ViewModel prohlížeče | `features/stories/StoriesViewModel.kt` |
 | Prohlížeč | `features/stories/StoriesScreen.kt`, routa `StoriesRoute` |
 | Hromádka v pilulce | `features/stories/StoryStack.kt` |
-| Lišta s odpovědí a reakcemi, velké emoji, hlášení | `features/stories/StoryReplyBar.kt` |
+| Lišta s odpovědí a reakcemi, lišta vlastního příběhu, velké emoji, hlášení | `features/stories/StoryReplyBar.kt` |
+| Nový příběh (obrazovka, výběr lidí) | `features/stories/StoryComposerScreen.kt`, `StoryComposerViewModel.kt`, routa `StoryComposerRoute` |
+| Plátno 1080 × 1920 | `core/ui/StoryPhoto.kt` + `AndroidStoryPhoto`, `IosStoryPhoto`, `DesktopStoryPhoto` |
 
 ## Odkud se ví, kdo má příběh
 
@@ -112,6 +115,38 @@ Lišta pod cizím příběhem (`StoryReplyBar`): pole „Odpovědět…", „+" 
 - **Výsledek hlásí pilulka nad lištou** („Odpověď odeslána", chyba přes `userMessage`), ne
   snackbar — prohlížeč žádný `Scaffold` nemá.
 
+## Vlastní příběh
+
+„+" v seznamu chatů → Nový příběh (nahoře, nejdál od palce; ve sbaleném sloupci vlastní
+skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový příběh" → Zveřejnit.
+
+- **Limit se kontroluje PŘED výběrem fotky** (`canPostStory`), ne až po něm. Free účet smí
+  mít jeden aktivní příběh; jinak by si uživatel příběh připravil a pak se dozvěděl, že nejde.
+  Odmítnutí jde větou do snackbaru — **nákup Premium se nenabízí**. Oficiální aplikace má
+  u limitu „Increase Limit", které vede rovnou do platby přes Google Play; Plume platby nedělá
+  (roadmapa, „Hvězdy, platby") a takové tlačítko by byla past.
+- **TDLib chce fotku PŘESNĚ 1080 × 1920** (`InputStoryContentPhoto`), ne „nejvýš". Vybraná
+  fotka se proto kreslí na plátno 9 : 16 (`StoryPhoto`): „Vyplnit" ořízne přečnívající kraje,
+  „Celá fotka" ji vloží celou na černou. Geometrie je společná (`storyPhotoPlacement`, testy
+  `StoryPhotoTest`), kreslí platforma: Android `Canvas`, iOS `UIGraphicsImageRenderer`,
+  desktop `BufferedImage`. Převádí se až při zveřejnění — náhled jen kreslí `AsyncImage`
+  s `Crop` / `Fit`, takže vypadá stejně.
+- **Video příběh není.** TDLib chce 720 × 1280, H.265 a klíčový snímek každou sekundu —
+  to je překódování, které aplikace nemá. Video z výběru skončí větou „jen z fotky".
+- **Zveřejňuje se „za" Uložené zprávy** (`chatId` = id účtu, dokumentace `postStory`).
+- **Výchozí viditelnost jsou kontakty**, ne všichni: příběh je osobní a zveřejnit ho celému
+  světu má být rozhodnutí. Vybraní lidé jdou přes `ChatPicker` jako členové nové skupiny
+  (`groupMemberCandidates`, id soukromého chatu = id uživatele); volba „Vybraní" bez výběru
+  rovnou otevře výběr. **Blízcí přátelé chybí vědomě** — seznam (`setCloseFriends`) Plume
+  upravovat neumí a příběh pro prázdný seznam by nikdo neviděl.
+- **Délka je vždycky 24 h** (`activePeriod = 86400`); 6, 12 a 48 h jsou jen pro Premium.
+- **Obrazovka se zavře, jakmile TDLib `postStory` přijme**; nahrávání běží dál a výsledek
+  (`updateStoryPostSucceeded` / `updateStoryPostFailed`) hlásí snackbar seznamu chatů —
+  odebírá ho `ChatsViewModel` hlavního seznamu.
+- **Vlastní příběh v prohlížeči** má místo odpovědi lištu s počtem zhlédnutí
+  (`interactionInfo.viewCount`) a košem (`deleteStory` po `ConfirmDialog`). Smazaný příběh
+  z prohlížeče zmizí a jde se na další (`withoutStory`); seznam diváků zatím není.
+
 ## Ověření
 
 - **Free účet smí zveřejnit JEDEN příběh za 24 hodin.** Další pokus v oficiální aplikaci
@@ -130,5 +165,14 @@ Lišta pod cizím příběhem (`StoryReplyBar`): pole „Odpovědět…", „+" 
   „Reply sent", zpráva v chatu s citací příběhu. **Fotka stojí 6 s a v testu to bylo málo** —
   ťuknutí po snímku obrazovky už mířilo na zavřený prohlížeč; uživateli to nevadí, při psaní
   příběh stojí.
-- **Neověřené:** lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
+- **Zveřejnění ověřené tamtéž** (20. 10. 2026, účet …029): „+" → Nový příběh, obrazovka
+  s náhledem, popiskem a výběrem „Vybraní lidé" (Pixel 5) → Zveřejnit → snackbar „Story
+  posted", vlastní avatar v hromádce, u Pixelu 5 v oficiální aplikaci zelený kroužek. Vlastní
+  příběh v prohlížeči: plátno 9 : 16 s popiskem, „0 views", koš → dialog → smazání a přechod
+  na dalšího autora, avatar z hromádky zmizel. Druhý pokus o příběh ukázal hlášku o limitu.
+  **Výběr fotky na emulátoru s Androidem 11 nešel** — systémový výběr souborů ťuknutí na
+  soubor nebral (ani v hledání); obrazovka se proto otevřela dočasnou sondou s fotkou v cache
+  (necommituje se). Výběr je tentýž jako u příloh.
+- **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
+  převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).

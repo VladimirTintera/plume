@@ -61,6 +61,10 @@ import eu.tintera.plume.features.conversation.ReactionPickerSheet
 import eu.tintera.plume.features.media.ON_SCRIM
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.story_delete
+import eu.tintera.plume.resources.story_views
+import eu.tintera.plume.resources.visibility_24dp
 import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.favorite_24dp
 import eu.tintera.plume.resources.menu_more_reactions
@@ -70,6 +74,7 @@ import eu.tintera.plume.resources.story_reaction_remove
 import eu.tintera.plume.resources.story_reply_hint
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Výška lišty pod příběhem; příběh nad ní nechává místo, aby ho lišta nepřekryla. */
@@ -225,6 +230,33 @@ internal fun StoryReplyBar(
             },
             onDismiss = { pickerOpen = false },
         )
+    }
+}
+
+/**
+ * Lišta pod vlastním příběhem: kolik lidí ho vidělo a smazat. Seznam diváků zatím není
+ * (`getStoryInteractions`); počet stačí na otázku „viděl to někdo?".
+ */
+@Composable
+internal fun OwnStoryBar(viewCount: Int?, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(STORY_BAR_HEIGHT)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(painterResource(Res.drawable.visibility_24dp), contentDescription = null, tint = ON_SCRIM)
+        Text(
+            pluralStringResource(Res.plurals.story_views, viewCount ?: 0, viewCount ?: 0),
+            color = ON_SCRIM,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+            Icon(painterResource(Res.drawable.delete_24dp), stringResource(Res.string.story_delete), tint = ON_SCRIM)
+        }
     }
 }
 

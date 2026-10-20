@@ -43,6 +43,8 @@ import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.DesktopSquarePhoto
+import eu.tintera.plume.core.ui.DesktopStoryPhoto
+import eu.tintera.plume.core.ui.StoryPhoto
 import eu.tintera.plume.core.ui.MarkedPhoto
 import eu.tintera.plume.core.ui.PhotoMarkup
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
@@ -130,6 +132,7 @@ actual fun Module.platformModule() {
     single { HomeRegion() }
     single<LanguageDetector> { LanguageDetector { null } }
     single<SquarePhoto> { DesktopSquarePhoto() }
+    single<StoryPhoto> { DesktopStoryPhoto() }
     single<SnoozeReminders> {
         object : SnoozeReminders {
             override fun schedule(chatId: Long, title: String, at: Instant) = Unit

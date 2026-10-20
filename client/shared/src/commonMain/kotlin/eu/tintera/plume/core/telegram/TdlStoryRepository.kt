@@ -2,7 +2,32 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlThrowable
+import dev.g000sha256.tdl.dto.CanPostStoryResult
+import dev.g000sha256.tdl.dto.CanPostStoryResultActiveStoryLimitExceeded
+import dev.g000sha256.tdl.dto.CanPostStoryResultBoostNeeded
+import dev.g000sha256.tdl.dto.CanPostStoryResultLiveStoryIsActive
+import dev.g000sha256.tdl.dto.CanPostStoryResultMonthlyLimitExceeded
+import dev.g000sha256.tdl.dto.CanPostStoryResultOk
+import dev.g000sha256.tdl.dto.CanPostStoryResultPremiumNeeded
+import dev.g000sha256.tdl.dto.CanPostStoryResultWeeklyLimitExceeded
 import dev.g000sha256.tdl.dto.ChatActiveStories
+import dev.g000sha256.tdl.dto.InputFileLocal
+import dev.g000sha256.tdl.dto.InputStoryContentPhoto
+import dev.g000sha256.tdl.dto.StoryPrivacySettingsContacts
+import dev.g000sha256.tdl.dto.StoryPrivacySettingsEveryone
+import dev.g000sha256.tdl.dto.StoryPrivacySettingsSelectedUsers
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.story_limit_active
+import eu.tintera.plume.resources.story_limit_hours
+import eu.tintera.plume.resources.story_limit_premium
+import eu.tintera.plume.resources.story_post_check_failed
+import eu.tintera.plume.resources.story_post_failed
+import eu.tintera.plume.resources.story_post_live_active
+import eu.tintera.plume.resources.story_post_not_allowed
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageReplyToStory
 import dev.g000sha256.tdl.dto.InputMessageText
@@ -27,7 +52,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class TdlStoryRepository(
     private val holder: TelegramClientHolder,
-    session: TelegramSession,
+    private val session: TelegramSession,
     private val scope: CoroutineScope,
 ) : StoryRepository {
 
@@ -160,11 +185,82 @@ class TdlStoryRepository(
             .onFailure { logger.w(it) { "Odpověď na příběh $posterChatId/$storyId" } }
             .map { }
 
+    /** Vlastní příběh se zveřejňuje „za" Uložené zprávy, jejichž id je id účtu. */
+    private suspend fun myChatId(): Long? = session.me().getOrNull()?.id
+
+    override suspend fun canPost(): StoryPostCheck {
+        val me = myChatId() ?: return StoryPostCheck.Denied(UiText(Res.string.story_post_check_failed))
+        return client.canPostStory(chatId = me).toResult().fold(
+            onSuccess = { it.toCheck() },
+            onFailure = { failure ->
+                logger.w(failure) { "canPostStory" }
+                StoryPostCheck.Denied(failure.userMessage(Res.string.story_post_check_failed))
+            },
+        )
+    }
+
+    override suspend fun post(draft: StoryDraft): Result<Unit> {
+        val me = myChatId() ?: return Result.failure(IllegalStateException("Účet není známý"))
+        return client.postStory(
+            chatId = me,
+            content = InputStoryContentPhoto(photo = InputFileLocal(path = draft.photoPath), addedStickerFileIds = intArrayOf()),
+            caption = draft.caption.trim().takeIf { it.isNotEmpty() }?.let { FormattedText(text = it, entities = emptyArray()) },
+            privacySettings = when (val audience = draft.audience) {
+                StoryAudience.Everyone -> StoryPrivacySettingsEveryone(exceptUserIds = longArrayOf())
+                StoryAudience.Contacts -> StoryPrivacySettingsContacts(exceptUserIds = longArrayOf())
+                is StoryAudience.Selected -> StoryPrivacySettingsSelectedUsers(userIds = audience.userIds.toLongArray())
+            },
+            albumIds = intArrayOf(),
+            // Delší i kratší doba je jen pro Premium; 24 h je jediná, kterou smí každý.
+            activePeriod = STORY_ACTIVE_PERIOD,
+            isPostedToChatPage = draft.keepOnProfile,
+            protectContent = draft.protectContent,
+        ).toResult()
+            .onFailure { logger.w(it) { "postStory" } }
+            .map { }
+    }
+
+    override val postResults: Flow<StoryPostResult> = merge(
+        holder.updates { storyPostSucceededUpdates }.map { StoryPostResult.Posted },
+        holder.updates { storyPostFailedUpdates }.map { update ->
+            logger.w { "Příběh se nezveřejnil: ${update.error.code} ${update.error.message}" }
+            val denied = update.errorType?.toCheck() as? StoryPostCheck.Denied
+            StoryPostResult.Failed(denied?.reason ?: errorText(update.error.message, Res.string.story_post_failed))
+        },
+    )
+
+    override suspend fun delete(posterChatId: Long, storyId: Int): Result<Unit> =
+        client.deleteStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()
+            .onFailure { logger.w(it) { "deleteStory $posterChatId/$storyId" } }
+            .map { }
+
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()
             .onFailure { logger.w(it) { "closeStory $posterChatId/$storyId" } }
     }
 }
+
+/**
+ * Proč příběh zveřejnit nejde. Nákup Premium se nenabízí, ani když by limit zvedl — Plume
+ * platby nedělá (viz roadmapa) a tlačítko, které vede do obchodu, by tu bylo past.
+ */
+private fun CanPostStoryResult.toCheck(): StoryPostCheck = when (this) {
+    is CanPostStoryResultOk -> StoryPostCheck.Allowed
+    is CanPostStoryResultActiveStoryLimitExceeded -> StoryPostCheck.Denied(UiText(Res.string.story_limit_active))
+    is CanPostStoryResultWeeklyLimitExceeded -> StoryPostCheck.Denied(retryIn(retryAfter))
+    is CanPostStoryResultMonthlyLimitExceeded -> StoryPostCheck.Denied(retryIn(retryAfter))
+    is CanPostStoryResultPremiumNeeded -> StoryPostCheck.Denied(UiText(Res.string.story_limit_premium))
+    is CanPostStoryResultBoostNeeded -> StoryPostCheck.Denied(UiText(Res.string.story_post_not_allowed))
+    is CanPostStoryResultLiveStoryIsActive -> StoryPostCheck.Denied(UiText(Res.string.story_post_live_active))
+}
+
+/** „Další příběh půjde zveřejnit za N hodin" — zaokrouhleno nahoru, ať to nevyjde dřív. */
+private fun retryIn(seconds: Int): UiText {
+    val hours = ((seconds + 3599) / 3600).coerceAtLeast(1)
+    return UiText(Res.plurals.story_limit_hours, hours, hours)
+}
+
+private const val STORY_ACTIVE_PERIOD = 86_400
 
 private const val MAX_LOAD_ROUNDS = 50
 private const val NOT_FOUND = 404

@@ -5,7 +5,12 @@ import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StoryListKind
 import eu.tintera.plume.core.telegram.StoryRef
+import eu.tintera.plume.core.telegram.StoryDraft
+import eu.tintera.plume.core.telegram.StoryPostCheck
+import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.StoryRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +77,19 @@ class StoriesViewModelTest {
             replies += text
             return Result.success(Unit)
         }
+
+        val deleted = mutableListOf<Int>()
+
+        override suspend fun canPost(): StoryPostCheck = StoryPostCheck.Allowed
+
+        override suspend fun post(draft: StoryDraft): Result<Unit> = Result.success(Unit)
+
+        override val postResults: Flow<StoryPostResult> = emptyFlow()
+
+        override suspend fun delete(posterChatId: Long, storyId: Int): Result<Unit> {
+            deleted += storyId
+            return Result.success(Unit)
+        }
     }
 
     private val key = StoryKey(7, 1)
@@ -118,6 +136,16 @@ class StoriesViewModelTest {
         advanceUntilIdle()
         assertNull(viewModel.state.value.pages[key]?.chosenReaction)
         assertNotNull(viewModel.notice.value)
+    }
+
+    @Test
+    fun deletingTheOnlyStoryClosesTheViewer() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.delete(key)
+        advanceUntilIdle()
+        assertEquals(listOf(1), repository.deleted)
+        assertEquals(true, viewModel.state.value.closed)
     }
 
     @Test

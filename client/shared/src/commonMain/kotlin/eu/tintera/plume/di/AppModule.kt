@@ -187,6 +187,7 @@ import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.stories.StoriesViewModel
+import eu.tintera.plume.features.stories.StoryComposerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.AutoDownloadViewModel
@@ -871,6 +872,9 @@ fun appModule() = module {
         )
     }
 
+    viewModel { parameters ->
+        StoryComposerViewModel(photoPath = parameters.get(), repository = get(), storyPhoto = get())
+    }
     viewModel { parameters ->
         StoriesViewModel(startChatId = parameters.get(), repository = get(), appScope = get(named(APP_SCOPE)), quickReaction = get())
     }

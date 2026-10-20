@@ -30,6 +30,8 @@ import eu.tintera.plume.core.ai.RoutingOnDeviceAi
 import eu.tintera.plume.core.ui.AndroidProfileVideo
 import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.AndroidSquarePhoto
+import eu.tintera.plume.core.ui.AndroidStoryPhoto
+import eu.tintera.plume.core.ui.StoryPhoto
 import eu.tintera.plume.core.ui.AndroidPhotoMarkupRenderer
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
 import eu.tintera.plume.core.ui.SquarePhoto
@@ -150,6 +152,7 @@ actual fun Module.platformModule() {
     single { HomeRegion(androidContext()) }
     single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
     single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
+    single<StoryPhoto> { AndroidStoryPhoto(androidContext()) }
     single<HomeWidgets> { AndroidHomeWidgets(androidContext()) }
     single<SnoozeReminders> { AndroidSnoozeReminders(androidContext()) }
     // Eagerně: sleduje volbu a podle ní úlohu zařadí nebo zruší, i když se Nastavení neotevře.

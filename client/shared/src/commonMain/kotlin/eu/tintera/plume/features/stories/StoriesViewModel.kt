@@ -7,6 +7,8 @@ import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.story_delete_failed
+import eu.tintera.plume.resources.story_deleted
 import eu.tintera.plume.resources.story_reaction_failed
 import eu.tintera.plume.resources.story_reply_failed
 import eu.tintera.plume.resources.story_reply_sent
@@ -101,6 +103,18 @@ class StoriesViewModel(
     private fun setReaction(key: StoryKey, reaction: String?) = _state.update { state ->
         val story = state.pages[key] ?: return@update state
         state.copy(pages = state.pages + (key to story.copy(chosenReaction = reaction)))
+    }
+
+    /** Smaže vlastní příběh a prohlížeč přejde na další. */
+    fun delete(key: StoryKey) {
+        viewModelScope.launch {
+            repository.delete(key.posterChatId, key.storyId)
+                .onSuccess {
+                    _state.update { it.withoutStory(key) }
+                    _notice.value = UiText(Res.string.story_deleted)
+                }
+                .onFailure { failure -> _notice.value = failure.userMessage(Res.string.story_delete_failed) }
+        }
     }
 
     /** Odešle odpověď; [onResult] dostane `true`, když odešla (pole se pak vyprázdní). */
