@@ -604,7 +604,8 @@ a se serverem, takže přednostně:
     vynechává)~~ (hotovo v konverzaci i napříč chaty, `docs/poznatky/tajne-chaty.md`, „Hledání";
     zbývá ověřit na zařízení s tajným chatem), ~~historie hledaných hashtagů (`getSearchedForTags`, `removeSearchedForTag`)~~ (hotovo,
     `docs/poznatky/hledani-a-zakladani-chatu.md`, „Hledání chatů"),
-    pořadí připnutých témat Uložených zpráv (`setPinnedSavedMessagesTopics`), ~~autor příspěvku
+    ~~pořadí připnutých témat Uložených zpráv (`setPinnedSavedMessagesTopics`)~~ (hotovo,
+    `docs/poznatky/seznam-chatu.md`, „Témata Uložených zpráv"), ~~autor příspěvku
     kanálu pro správce (`getMessageAuthor`)~~ (hotovo — TDLib ho vydá jen v přímých zprávách
     kanálu: kdo ze správců odpověděl; `docs/poznatky/prime-zpravy-kanalu.md`; zbývá ověřit
     na zařízení), blokování z chatu Odpovědi

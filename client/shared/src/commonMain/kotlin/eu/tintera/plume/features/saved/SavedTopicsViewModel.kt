@@ -6,6 +6,9 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.SavedTopic
 import eu.tintera.plume.core.telegram.SavedTopicsRepository
+import eu.tintera.plume.core.telegram.movedSavedTopic
+import eu.tintera.plume.core.telegram.pinnedSavedTopics
+import eu.tintera.plume.core.telegram.savedPinnedOrderToSave
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -26,6 +29,10 @@ data class SavedTopicsState(
     val error: UiText? = null,
     /** Jednorázová hláška pro snackbar. */
     val notice: UiText? = null,
+    /** Režim uspořádání připnutých: témata v pořadí, které uživatel skládá; `null` = seznam. */
+    val reorder: List<SavedTopic>? = null,
+    /** Pořadí se ukládá — „Hotovo" čeká. */
+    val busy: Boolean = false,
 )
 
 /**
@@ -62,6 +69,43 @@ class SavedTopicsViewModel(
     fun setPinned(topic: SavedTopic, pinned: Boolean) = act { repository.setPinned(topic.id, pinned) }
 
     fun delete(topic: SavedTopic) = act { repository.deleteHistory(topic.id) }
+
+    /** „Změnit pořadí připnutých" z nabídky nad připnutým tématem; začíná pořadím seznamu. */
+    fun startReorder() {
+        val pinned = state.value.topics.orEmpty().pinnedSavedTopics()
+        if (pinned.size < 2) return
+        local.update { it.copy(reorder = pinned) }
+    }
+
+    fun moveInReorder(fromId: Long, toId: Long) =
+        local.update { it.copy(reorder = it.reorder?.movedSavedTopic(fromId, toId)) }
+
+    fun cancelReorder() = local.update { it.copy(reorder = null, busy = false) }
+
+    /**
+     * Odešle nové pořadí (`setPinnedSavedMessagesTopics`). Beze změny se nic neposílá. Seznam
+     * se pak přeskládá sám — nové `order` přijde updaty. Když uložení selže, režim zůstane
+     * otevřený, ať se dá zkusit znovu.
+     */
+    fun saveReorder() {
+        val current = state.value
+        val reorder = current.reorder?.takeUnless { current.busy } ?: return
+        val pinnedNow = current.topics.orEmpty().pinnedSavedTopics().map { it.id }
+        val ids = savedPinnedOrderToSave(reorder.map { it.id }, pinnedNow)
+        if (ids == pinnedNow) {
+            cancelReorder()
+            return
+        }
+        local.update { it.copy(busy = true) }
+        viewModelScope.launch {
+            repository.setPinnedOrder(ids)
+                .onSuccess { cancelReorder() }
+                .onFailure { failure ->
+                    logger.w(failure) { "Pořadí připnutých témat Uložených zpráv se nepodařilo uložit." }
+                    local.update { it.copy(busy = false, notice = failure.userMessage(Res.string.saved_topic_action_failed)) }
+                }
+        }
+    }
 
     fun noticeShown() = local.update { it.copy(notice = null) }
 

@@ -86,6 +86,9 @@ class TdlSavedTopicsRepository(
     override suspend fun setPinned(topicId: Long, pinned: Boolean): Result<Unit> =
         client.toggleSavedMessagesTopicIsPinned(savedMessagesTopicId = topicId, isPinned = pinned).toResult().map { }
 
+    override suspend fun setPinnedOrder(topicIds: List<Long>): Result<Unit> =
+        client.setPinnedSavedMessagesTopics(savedMessagesTopicIds = topicIds.toLongArray()).toResult().map { }
+
     override suspend fun deleteHistory(topicId: Long): Result<Unit> =
         client.deleteSavedMessagesTopicHistory(savedMessagesTopicId = topicId).toResult().map { }
 
