@@ -7,6 +7,8 @@ import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MusicNeighbors
 import kotlinx.coroutines.CoroutineScope
+import kotlin.time.Duration
+import kotlin.time.TimeSource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -79,11 +81,16 @@ interface MusicQueueControl {
  * Tahle třída jen přidává to, co je navíc u hudby: popis skladby, sousedy a navázání další
  * skladby po dohrání.
  */
+/** Počátek hodin pro [ListeningTracker]; na absolutním čase nezáleží, jen na rozdílech. */
+private val monotonicStart = TimeSource.Monotonic.markNow()
+
 class MusicQueue(
     private val scope: CoroutineScope,
     private val player: VoicePlayer,
     private val conversations: ConversationRepository,
     private val files: FileRepository,
+    /** Hodiny pro počítání poslechu; v testech virtuální. */
+    now: () -> Duration = { monotonicStart.elapsedNow() },
 ) : MusicQueueControl {
 
     /**
@@ -104,6 +111,8 @@ class MusicQueue(
         val rememberPosition: Boolean = true,
         /** Vlastní seznam skladeb (hudba v profilu); `null` = sousedi se hledají v chatu. */
         val playlist: List<QueueTrack>? = null,
+        /** Soubor skladby — kvůli hlášení poslechu ([ListeningTracker]). */
+        val fileId: Int? = null,
     )
 
     private val current = MutableStateFlow<Current?>(null)
@@ -133,7 +142,24 @@ class MusicQueue(
     /** Pozice v hrající skladbě; systémové ovládání si ji čte, kdy potřebuje. */
     val positionMs: Long get() = player.state.value?.positionMs ?: 0L
 
+    /**
+     * Hlášení poslechu (`listenToAudio`): kolik skladba opravdu hrála, nahlášené po jejím konci,
+     * přepnutí nebo zastavení. Selhání se jen zaloguje — nic z toho uživatel nevidí.
+     */
+    private val listening = ListeningTracker(now) { fileId, seconds ->
+        logger.d { "Poslech skladby $fileId: $seconds s" }
+        scope.launch {
+            conversations.listenToAudio(fileId, seconds)
+                .onFailure { logger.w(it) { "listenToAudio($fileId, $seconds s) selhalo." } }
+        }
+    }
+
     init {
+        scope.launch {
+            nowPlaying.collect { playing ->
+                listening.update(fileId = playing?.let { current.value?.fileId }, playing = playing?.playing == true)
+            }
+        }
         // Skladba, kterou přehrávač přestal hrát bez navázání (zastavila ji hlasovka, video,
         // nahrávání), z fronty odchází — jinak by ovládání čekalo na něco, co nepřijde.
         scope.launch {
@@ -270,6 +296,7 @@ class MusicQueue(
             advancing = true,
             rememberPosition = rememberPosition,
             playlist = playlist,
+            fileId = audio.fileId,
         )
         player.play(
             key,

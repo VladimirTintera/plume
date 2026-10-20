@@ -113,6 +113,16 @@ interface StickerRepository {
     /** Obsah jedné sady. Načítá se až při otevření její záložky — sad bývá desítky. */
     suspend fun stickerSet(setId: Long): Result<List<StickerItem>>
 
+    /** Sady samolepek nalepených na fotku nebo video [fileId] (`getAttachedStickerSets`). */
+    suspend fun attachedStickerSets(fileId: Int): Result<List<StickerSetSummary>> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
+     * Obrys samolepky jako SVG path (`getStickerOutlineSvgPath`, offline), v souřadnicích
+     * samolepky; prázdný, když ho TDLib nezná. Kreslí se místo samolepky, dokud se nenačte.
+     */
+    suspend fun outline(stickerFileId: Int): String = ""
+
     /**
      * Najde samolepky ve vlastních sadách i ve veřejných, a u slova navíc sady podle názvu.
      *

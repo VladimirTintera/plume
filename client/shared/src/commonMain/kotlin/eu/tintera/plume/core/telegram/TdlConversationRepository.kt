@@ -1742,6 +1742,9 @@ class TdlConversationRepository(
             reportSpam = reportSpam,
         ).toResult().map { }
 
+    override suspend fun listenToAudio(audioFileId: Int, durationSeconds: Int): Result<Unit> =
+        client.listenToAudio(audioFileId = audioFileId, duration = durationSeconds).toResult().map { }
+
     override suspend fun answerProtectionDisableRequest(chatId: Long, messageId: Long, approve: Boolean): Result<Unit> =
         client.processChatHasProtectedContentDisableRequest(chatId = chatId, requestMessageId = messageId, approve = approve)
             .toResult().map { }

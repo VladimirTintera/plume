@@ -257,6 +257,16 @@ jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rych
   nezapnou (ověřeno `dumpsys sensorservice`), jinak by telefon v ruce při poslechu zhasínal displej.
 - **Po dohrání hraje další novější skladba v chatu** — playlist, bez ohledu na „poslechnuto",
   které u hudby není. Hlasovky a skladby se mezi sebou neřetězí.
+- **Poslech se hlásí TDLib** (`listenToAudio`, kontrakt jako metriky zobrazení): `MusicQueue`
+  podává stav fronty `ListeningTracker`u, ten sčítá jen čas, kdy skladba opravdu zněla (pauza,
+  stahování a hledání se nepočítají), a nahlásí ho, když skladba skončí, uživatel pustí jinou,
+  nebo hudbu zastaví. Pod vteřinu se nehlásí (omylem ťuknutá skladba). Uživatel z toho nic
+  nevidí; selhání se jen zaloguje. Hlasovky ne — ty mají „poslechnuto" přes otevření obsahu.
+  - **Hodiny jsou monotónní** (`TimeSource.Monotonic`) a do třídy se podávají zvenku, testy
+    (`ListeningTrackerTest`) jedou na virtuálních.
+  - **Ověřeno na emulátoru** (log `Poslech skladby N: s`): skladba dohraná do 0:09, deset vteřin
+    v pauze a zavřený dock → nahlášeno 9 s, TDLib bez chyby. Při ověřování přes adb se časy
+    s odhadem rozcházely o pár vteřin — zdržení mezi příkazy `input`, ne chyba počítání.
 
 ### Hudba na pozadí
 
