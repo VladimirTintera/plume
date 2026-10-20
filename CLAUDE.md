@@ -146,6 +146,10 @@ na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
   která `.github/scripts/` mít nemusí; hook naopak leží v hlavním stromu, kam absolutní cesta
   míří. Když není ani jeden, kontrola formátu se přeskočí a zbyde na CI — hook nemá blokovat
   push kvůli tomu, že si na něco nedosáhl.
+- **Na Windows jde skriptu cesta přes `cygpath -m`.** Git Bash dává hooku cestu `/c/…`
+  a Python pro Windows jí rozumí jen díky převodu argumentů v MSYS. S `MSYS_NO_PATHCONV=1`
+  v prostředí (nastavuje se kvůli adb) převod neběží a Python hledal `C:\c\Develop\…` —
+  hook spadl na „can't open file" a push zastavil, aniž by poznámku zkontroloval.
 - **PR jen s komunitními překlady poznámku nepotřebuje** (`release_notes.py exempt`, volá ho
   workflow i hook): `values-<kód>/strings.xml` a iOS `<kód>.lproj/Localizable.strings` jazyků,
   které nepíšeme sami (`OWN_LOCALES` ve skriptu zrcadlí `completeLocales` v Gradle). Tak chodí

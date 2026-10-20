@@ -44,6 +44,13 @@ while read -r local_ref local_sha remote_ref remote_sha; do
                      "$(git rev-parse --show-toplevel)/.github/scripts/release_notes.py"; do
         [ -f "$candidate" ] && { script=$candidate; break; }
     done
+    # Na Windows (Git Bash) je cesta `/c/…`, a Python pro Windows jí rozumí jen díky převodu
+    # argumentů v MSYS. S `MSYS_NO_PATHCONV=1` (potřebuje ho adb) převod neběží, Python
+    # dostal `/c/Develop/…`, četl to jako `C:\c\Develop\…` a hook spadl na chybějícím
+    # souboru. `cygpath -m` udělá cestu `C:/…`, které rozumí obě strany.
+    if [ -n "$script" ] && command -v cygpath >/dev/null 2>&1; then
+        script=$(cygpath -m "$script")
+    fi
 
     added=$(git diff --diff-filter=A --name-only "$base" "$local_sha" -- 'release-notes/*.md')
     # Jen komunitní překlady (Weblate) poznámku nepotřebují — stejné pravidlo jako v CI.
