@@ -133,4 +133,38 @@ class NotificationPrefsTest {
         assertEquals(9L, prefs.soundId)
         assertEquals(9L, prefs.defaultSoundId)
     }
+
+    @Test
+    fun pribehyBezVlastniVolbyJedouPodleRozsahu() {
+        // Nejčastější kontakty: nevíme, jestli chat mezi ně patří — bere se jako zapnuté.
+        assertTrue(notificationPrefs(inheriting, null, groups, NotificationScope.Private, now).stories)
+        val off = groups.copyStories(useDefault = false, mute = true)
+        assertFalse(notificationPrefs(inheriting, null, off, NotificationScope.Private, now).stories)
+        val all = groups.copyStories(useDefault = false, mute = false)
+        assertTrue(notificationPrefs(inheriting, null, all, NotificationScope.Private, now).stories)
+    }
+
+    @Test
+    fun vlastniVolbaPribehuMaPrednostAPocitaSeDoObnoveni() {
+        val off = groups.copyStories(useDefault = false, mute = false)
+        val own = inheriting.withOption(ChatNotificationOption.Stories, false)
+        val prefs = notificationPrefs(own, null, off, NotificationScope.Private, now)
+        assertFalse(prefs.stories)
+        assertFalse(prefs.isDefault, "vlastní volba příběhů = je co obnovit")
+        // Ostatní volby se změnou příběhů nepohnou.
+        assertEquals(inheriting.useDefaultShowPreview, own.useDefaultShowPreview)
+        assertEquals(inheriting.useDefaultSound, own.useDefaultSound)
+    }
+
+    private fun ScopeNotificationSettings.copyStories(useDefault: Boolean, mute: Boolean) = ScopeNotificationSettings(
+        muteFor = muteFor,
+        soundId = soundId,
+        showPreview = showPreview,
+        useDefaultMuteStories = useDefault,
+        muteStories = mute,
+        storySoundId = storySoundId,
+        showStoryPoster = showStoryPoster,
+        disablePinnedMessageNotifications = disablePinnedMessageNotifications,
+        disableMentionNotifications = disableMentionNotifications,
+    )
 }

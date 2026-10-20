@@ -1877,6 +1877,14 @@
     <string name="settings_notif_pinned_summary">Notify when a message is pinned</string>
     <string name="settings_notif_mentions">Mentions and replies</string>
     <string name="settings_notif_mentions_summary">Notify even in muted groups</string>
+    <string name="settings_notif_stories">New stories</string>
+    <string name="settings_notif_stories_top">From top contacts</string>
+    <string name="settings_notif_stories_all">From everyone</string>
+    <string name="settings_notif_stories_none">Off</string>
+    <string name="settings_notif_story_poster">Show who posted</string>
+    <string name="settings_notif_story_poster_summary">The author’s name in story notifications</string>
+    <string name="settings_notif_stories_chat">New stories</string>
+    <string name="settings_notif_stories_chat_summary">Notify when a new story is posted here</string>
     <string name="settings_notif_sound">Sound and vibration</string>
     <string name="settings_notif_sound_summary">In system settings</string>
     <string name="settings_notif_exceptions">Exceptions</string>

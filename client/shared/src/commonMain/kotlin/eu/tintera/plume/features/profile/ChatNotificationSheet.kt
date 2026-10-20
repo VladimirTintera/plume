@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.settings_notif_stories_chat_summary
+import eu.tintera.plume.resources.settings_notif_stories_chat
 import eu.tintera.plume.resources.undo_24dp
 import eu.tintera.plume.resources.snooze_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
@@ -163,6 +165,17 @@ internal fun ChatNotificationSheet(
                         summary = Res.string.settings_notif_mentions_summary,
                         checked = prefs.mentions,
                         onChange = { onOption(ChatNotificationOption.Mentions, it) },
+                    )
+                }
+                // Příběhy zveřejňují lidé a kanály; téma ve skupině je nemá.
+                if (prefs.defaults == NotificationDefaults.Scope &&
+                    (prefs.scope == NotificationScope.Private || prefs.scope == NotificationScope.Channels)
+                ) {
+                    SwitchRow(
+                        title = Res.string.settings_notif_stories_chat,
+                        summary = Res.string.settings_notif_stories_chat_summary,
+                        checked = prefs.stories,
+                        onChange = { onOption(ChatNotificationOption.Stories, it) },
                     )
                 }
                 // Zvuk z Telegramu — nastavení účtu, platí i v oficiálních aplikacích (jako u rozsahu

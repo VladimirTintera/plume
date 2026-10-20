@@ -41,11 +41,14 @@ internal fun notificationPrefs(
             { it.disableMentionNotifications },
             scopeDefaults.disableMentionNotifications,
         ),
-        // Stories se nepočítají: nastavit je tu nejde, takže by „Obnovit" slibovalo změnu, kterou
-        // uživatel nevidí. Zvuk ano — vybírá se u chatu (profil) i u tématu (seznam témat).
+        // Zvuk i příběhy se počítají — oboje jde u chatu nastavit, takže „Obnovit" je vrátí.
+        // Zvuk a jméno autora u příběhu ne: nastavit je tu nejde a „Obnovit" by slibovalo změnu,
+        // kterou uživatel nevidí.
         isDefault = own.useDefaultMuteFor && own.useDefaultShowPreview &&
             own.useDefaultDisablePinnedMessageNotifications && own.useDefaultDisableMentionNotifications &&
-            own.useDefaultSound,
+            own.useDefaultSound && own.useDefaultMuteStories,
+        stories = layers.firstOrNull { !it.useDefaultMuteStories }?.let { !it.muteStories }
+            ?: (scopeDefaults.useDefaultMuteStories || !scopeDefaults.muteStories),
         scope = scope,
         defaults = if (inherited == null) NotificationDefaults.Scope else NotificationDefaults.Chat,
         soundId = pick({ it.useDefaultSound }, { it.soundId }, scopeDefaults.soundId),
@@ -62,6 +65,7 @@ internal fun ChatNotificationSettings.withOption(option: ChatNotificationOption,
     val preview = option == ChatNotificationOption.ShowPreview
     val pinned = option == ChatNotificationOption.PinnedMessages
     val mentions = option == ChatNotificationOption.Mentions
+    val stories = option == ChatNotificationOption.Stories
     return ChatNotificationSettings(
         useDefaultMuteFor = useDefaultMuteFor,
         muteFor = muteFor,
@@ -69,8 +73,8 @@ internal fun ChatNotificationSettings.withOption(option: ChatNotificationOption,
         soundId = soundId,
         useDefaultShowPreview = if (preview) false else useDefaultShowPreview,
         showPreview = if (preview) value else showPreview,
-        useDefaultMuteStories = useDefaultMuteStories,
-        muteStories = muteStories,
+        useDefaultMuteStories = if (stories) false else useDefaultMuteStories,
+        muteStories = if (stories) !value else muteStories,
         useDefaultStorySound = useDefaultStorySound,
         storySoundId = storySoundId,
         useDefaultShowStoryPoster = useDefaultShowStoryPoster,

@@ -352,7 +352,7 @@ funkce, takže hranice jsou hrubé):
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
 | Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
-| **Příběhy (stories) a živé příběhy** | **19 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil a nahlášení hotové**; alba ne |
+| **Příběhy (stories) a živé příběhy** | **19 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil, nahlášení a upozornění hotové**; alba ne |
 | Skupinové hovory a videochaty | 2 / 46 | jen pruh nad konverzací (sekce Hovory) |
 | Premium a boosty | 1 / 18 | ne |
 | Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
@@ -570,8 +570,7 @@ a se serverem, takže přednostně:
    počet zhlédnutí, smazání). ~~Video příběh~~ — hotovo (převod na H.265 720 × 1280, prvních
    60 s; výběr úseku a obálky zatím ne). ~~Seznam diváků~~ — hotovo (s reakcemi, po stránkách). ~~Blízcí přátelé~~ — hotovo (seznam z obrazovky nového příběhu, lem v `tertiary`).
    ~~Skrytí do archivu~~ — hotovo (⋮ v prohlížeči, hromádka v archivu). ~~Příběhy v profilu~~ — hotovo (lem kolem avataru,
-   záložka „Příběhy"). ~~Nahlášení~~ — hotovo (průvodce jako u chatu). Chybí alba příběhů (`getChatStoryAlbums`) a notifikace (`muteStories` v sekci
-   Notifikace). Živé příběhy patří ke skupinovým hovorům.
+   záložka „Příběhy"). ~~Nahlášení~~ — hotovo (průvodce jako u chatu). ~~Notifikace~~ — hotovo (rozsah i chat; obcházka chyby TDLib u rozsahu). Chybí alba příběhů (`getChatStoryAlbums`). Živé příběhy patří ke skupinovým hovorům.
 2. **Přihlášení na webu přes Telegram (OAuth)** — `newOauthRequestUpdates`, `getOauthLinkInfo`,
    `checkOauthRequestMatchCode`, `acceptOauthRequest`, `declineOauthRequest`. Kdo má jen Plume,
    žádost webu nepotvrdí. Tlačítko `LoginUrl` u zprávy bota už hotové je
@@ -1382,7 +1381,9 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
     v testovací skupině a kanálu (při tom opravené přidání bota do kanálu jako správce).
   - ~~**Upozornění jednoho chatu v profilu**~~ — hotovo (doba ztlumení, náhled, připnuté,
     zmínky, obnovení, zvuk přes kanál konverzace) a doby ztlumení i v nabídce chatu v seznamu.
-  - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.
+  - ~~**Stories** (`muteStories`, `showStoryPoster`)~~ — hotovo (rozsah Soukromé chaty i chat;
+    `docs/poznatky/notifikace.md`, „Upozornění na příběhy"). Zbývá ověřit, že upozornění na nový
+    příběh opravdu chodí, a nahlásit TDLib, že `setScopeNotificationSettings` změnu jen příběhů zahodí.
   - ~~**Zvuk z Telegramu**~~ — hotovo: kanál podle zvuku (výchozí kanál zůstává), výběr pro
     rozsahy a tóny účtu, ~~výběr pro jeden chat v profilu~~ (sheet Upozornění → Zvuk), ~~výběr pro téma ve skupině~~
     (sheet upozornění tématu). Zbývá ověřit notifikaci z tématu skutečnou zprávou.

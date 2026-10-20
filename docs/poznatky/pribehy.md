@@ -99,6 +99,11 @@ prázdný požadavek se zeptá na důvod, pak případně na text; otázky i dů
   ViewModel přeposílá `ReportFlow.outcome` do `notice`.
 - Pod průvodcem příběh stojí.
 
+## Upozornění na příběhy
+
+V `notifikace.md`, „Upozornění na příběhy" — včetně chyby TDLib, kvůli které se rozsah
+zapisuje dvakrát.
+
 ## Příběhy v profilu
 
 - **Avatar v hlavičce profilu má lem**, když má chat aktivní příběhy (`ChatProfileViewModel`

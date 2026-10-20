@@ -1,5 +1,13 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.settings_notif_story_poster_summary
+import eu.tintera.plume.resources.settings_notif_story_poster
+import eu.tintera.plume.resources.settings_notif_stories_none
+import eu.tintera.plume.resources.settings_notif_stories_all
+import eu.tintera.plume.resources.settings_notif_stories_top
+import eu.tintera.plume.resources.settings_notif_stories
+import eu.tintera.plume.core.ui.ChoiceRow
+import eu.tintera.plume.core.telegram.StoryAlerts
 import eu.tintera.plume.resources.settings_background_data_blocked_summary
 import eu.tintera.plume.resources.settings_background_data_blocked
 import eu.tintera.plume.resources.data_usage_24dp
@@ -340,6 +348,24 @@ private fun ScopeGroup(
                 onChange = { value -> onUpdate { it.copy(mentions = value) } },
             )
         }
+        // Příběhy zveřejňují hlavně lidé, nastavení je proto u soukromých chatů (jako
+        // v oficiálních aplikacích). Platí pro celý účet.
+        if (scope == NotificationScope.Private) {
+            ChoiceRow(
+                headline = stringResource(Res.string.settings_notif_stories),
+                options = StoryAlerts.entries,
+                selected = settings.storyAlerts,
+                label = { stringResource(it.label()) },
+                onSelect = { value -> onUpdate { it.copy(storyAlerts = value) } },
+            )
+            SwitchRow(
+                title = Res.string.settings_notif_story_poster,
+                summary = Res.string.settings_notif_story_poster_summary,
+                checked = settings.showStoryPoster,
+                enabled = settings.storyAlerts != StoryAlerts.None,
+                onChange = { value -> onUpdate { it.copy(showStoryPoster = value) } },
+            )
+        }
         if (exceptions.isNotEmpty()) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -563,4 +589,10 @@ internal fun soundLabel(soundId: Long?, tones: List<NotificationTone>): String =
     soundId == null || soundId == DEFAULT_SOUND_ID -> stringResource(Res.string.notif_sound_default)
     soundId == NO_SOUND_ID -> stringResource(Res.string.notif_sound_none)
     else -> tones.firstOrNull { it.id == soundId }?.title ?: stringResource(Res.string.notif_sound_unknown)
+}
+
+private fun StoryAlerts.label(): StringResource = when (this) {
+    StoryAlerts.TopContacts -> Res.string.settings_notif_stories_top
+    StoryAlerts.All -> Res.string.settings_notif_stories_all
+    StoryAlerts.None -> Res.string.settings_notif_stories_none
 }

@@ -1927,6 +1927,14 @@
     <string name="settings_notif_pinned_summary">Upozornit na nově připnutou zprávu</string>
     <string name="settings_notif_mentions">Zmínky a odpovědi</string>
     <string name="settings_notif_mentions_summary">Upozornit i ve ztlumené skupině</string>
+    <string name="settings_notif_stories">Nové příběhy</string>
+    <string name="settings_notif_stories_top">Od nejčastějších kontaktů</string>
+    <string name="settings_notif_stories_all">Od všech</string>
+    <string name="settings_notif_stories_none">Vypnuto</string>
+    <string name="settings_notif_story_poster">Ukazovat autora</string>
+    <string name="settings_notif_story_poster_summary">Jméno autora v upozornění na příběh</string>
+    <string name="settings_notif_stories_chat">Nové příběhy</string>
+    <string name="settings_notif_stories_chat_summary">Upozornit, když tu přibude příběh</string>
     <string name="settings_notif_sound">Zvuk a vibrace</string>
     <string name="settings_notif_sound_summary">V nastavení systému</string>
     <string name="settings_notif_exceptions">Výjimky</string>
