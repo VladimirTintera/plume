@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ui.IosStoryVideo
+import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.ocr.VisionTextRecognizer
@@ -102,6 +104,7 @@ actual fun Module.platformModule() {
     single<StoryPhoto> { IosStoryPhoto() }
     single<SnoozeReminders> { IosSnoozeReminders() }
     single<PhotoMarkupRenderer> { IosPhotoMarkupRenderer() }
+    single<StoryVideo> { IosStoryVideo(get()) }
     single<ProfileVideo> { IosProfileVideo() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder() }

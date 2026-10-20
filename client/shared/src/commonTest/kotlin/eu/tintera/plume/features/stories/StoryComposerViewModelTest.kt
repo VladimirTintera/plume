@@ -4,10 +4,13 @@ import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StoryAudience
 import eu.tintera.plume.core.telegram.StoryDraft
+import eu.tintera.plume.core.telegram.StoryMedia
 import eu.tintera.plume.core.telegram.StoryPostCheck
 import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.core.ui.RenderedStoryVideo
 import eu.tintera.plume.core.ui.StoryPhoto
+import eu.tintera.plume.core.ui.StoryVideo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -55,6 +58,17 @@ class StoryComposerViewModelTest {
         }
     }
 
+    private class Videos(val durationMs: Long = 30_000, val audio: Boolean = true) : StoryVideo {
+        val fills = mutableListOf<Boolean>()
+        override val supported = true
+        override suspend fun durationMs(path: String) = durationMs
+        override suspend fun preview(path: String) = "$path.frame.jpg"
+        override suspend fun render(path: String, fill: Boolean): RenderedStoryVideo {
+            fills += fill
+            return RenderedStoryVideo("$path.story.mp4", durationSeconds = minOf(durationMs, 60_000) / 1000.0, hasAudio = audio)
+        }
+    }
+
     @BeforeTest
     fun setUp() {
         Dispatchers.setMain(StandardTestDispatcher())
@@ -69,7 +83,7 @@ class StoryComposerViewModelTest {
     fun postsRenderedPhotoWithChosenSettings() = runTest {
         val repository = Posting()
         val renderer = Renderer()
-        val viewModel = StoryComposerViewModel("foto.jpg", repository, renderer)
+        val viewModel = StoryComposerViewModel("foto.jpg", isVideo = false, repository = repository, storyPhoto = renderer, storyVideo = Videos())
         viewModel.setFill(false)
         viewModel.setCaption("Ahoj")
         viewModel.setAudience(AudienceChoice.Everyone)
@@ -80,7 +94,7 @@ class StoryComposerViewModelTest {
 
         assertEquals(listOf(false), renderer.calls)
         val draft = repository.drafts.single()
-        assertEquals("foto.jpg.story.jpg", draft.photoPath)
+        assertEquals(StoryMedia.Photo("foto.jpg.story.jpg"), draft.media)
         assertEquals(StoryAudience.Everyone, draft.audience)
         assertEquals("Ahoj", draft.caption)
         assertTrue(draft.keepOnProfile)
@@ -91,7 +105,7 @@ class StoryComposerViewModelTest {
     @Test
     fun selectedWithoutPeopleIsRefused() = runTest {
         val repository = Posting()
-        val viewModel = StoryComposerViewModel("foto.jpg", repository, Renderer())
+        val viewModel = StoryComposerViewModel("foto.jpg", isVideo = false, repository = repository, storyPhoto = Renderer(), storyVideo = Videos())
         viewModel.setAudience(AudienceChoice.Selected)
         viewModel.post()
         advanceUntilIdle()
@@ -102,7 +116,7 @@ class StoryComposerViewModelTest {
     @Test
     fun pickedPeopleSwitchAudienceToSelected() = runTest {
         val repository = Posting()
-        val viewModel = StoryComposerViewModel("foto.jpg", repository, Renderer())
+        val viewModel = StoryComposerViewModel("foto.jpg", isVideo = false, repository = repository, storyPhoto = Renderer(), storyVideo = Videos())
         viewModel.setSelected(setOf(5L, 6L))
         viewModel.post()
         advanceUntilIdle()
@@ -112,11 +126,26 @@ class StoryComposerViewModelTest {
     @Test
     fun renderFailureKeepsTheScreenOpen() = runTest {
         val repository = Posting()
-        val viewModel = StoryComposerViewModel("foto.jpg", repository, Renderer(fail = true))
+        val viewModel = StoryComposerViewModel("foto.jpg", isVideo = false, repository = repository, storyPhoto = Renderer(fail = true), storyVideo = Videos())
         viewModel.post()
         advanceUntilIdle()
         assertTrue(repository.drafts.isEmpty())
         assertNotNull(viewModel.state.value.error)
         assertEquals(false, viewModel.state.value.posting)
+    }
+
+    @Test
+    fun longSilentVideoIsTrimmedAndPostedAsAnimation() = runTest {
+        val repository = Posting()
+        val videos = Videos(durationMs = 95_000, audio = false)
+        val viewModel = StoryComposerViewModel("klip.mp4", isVideo = true, repository = repository, storyPhoto = Renderer(), storyVideo = videos)
+        advanceUntilIdle()
+        assertEquals("klip.mp4.frame.jpg", viewModel.state.value.previewPath, "náhled je první snímek")
+        assertTrue(viewModel.state.value.trimmed, "delší než minuta → hláška o zkrácení")
+
+        viewModel.post()
+        advanceUntilIdle()
+        assertEquals(listOf(true), videos.fills)
+        assertEquals(StoryMedia.Video("klip.mp4.story.mp4", durationSeconds = 60.0, hasAudio = false), repository.drafts.single().media)
     }
 }

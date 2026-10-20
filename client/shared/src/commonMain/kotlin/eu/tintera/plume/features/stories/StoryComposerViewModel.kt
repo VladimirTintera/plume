@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.StoryAudience
 import eu.tintera.plume.core.telegram.StoryDraft
+import eu.tintera.plume.core.telegram.StoryMedia
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.STORY_VIDEO_MAX_SECONDS
 import eu.tintera.plume.core.ui.StoryPhoto
+import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.story_audience_pick_someone
@@ -31,25 +34,46 @@ data class StoryComposerState(
     val keepOnProfile: Boolean = false,
     val allowScreenshots: Boolean = true,
     val posting: Boolean = false,
+    /** Náhled: u fotky ona sama, u videa jeho první snímek (`null`, dokud není). */
+    val previewPath: String? = null,
+    /** Video je delší než [STORY_VIDEO_MAX_SECONDS] — vezme se jen začátek a obrazovka to řekne. */
+    val trimmed: Boolean = false,
     val error: UiText? = null,
     /** Zveřejnění přijato — obrazovka se zavře, výsledek nahrávání ohlásí seznam chatů. */
     val posted: Boolean = false,
 )
 
 /**
- * Nový vlastní příběh z fotky [photoPath] (už otočené podle EXIF, z výběru příloh). Fotka se
- * převede na plátno 1080 × 1920, které TDLib vyžaduje, až při zveřejnění — náhled ji jen kreslí.
+ * Nový vlastní příběh z fotky nebo videa [path] (z výběru příloh; fotka už otočená podle EXIF).
+ * Převádí se až při zveřejnění — fotka na plátno 1080 × 1920, video na 720 × 1280 H.265, jak
+ * TDLib vyžaduje. Náhled jen kreslí (u videa první snímek) a vypadá stejně.
  */
 class StoryComposerViewModel(
-    val photoPath: String,
+    private val path: String,
+    val isVideo: Boolean,
     private val repository: StoryRepository,
     private val storyPhoto: StoryPhoto,
+    private val storyVideo: StoryVideo,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Stories")
 
-    private val _state = MutableStateFlow(StoryComposerState())
+    private val _state = MutableStateFlow(StoryComposerState(previewPath = path.takeUnless { isVideo }))
     val state: StateFlow<StoryComposerState> = _state.asStateFlow()
+
+    init {
+        if (isVideo) {
+            viewModelScope.launch {
+                runCatching { storyVideo.preview(path) to storyVideo.durationMs(path) }
+                    .onSuccess { (preview, durationMs) ->
+                        _state.update {
+                            it.copy(previewPath = preview, trimmed = durationMs > STORY_VIDEO_MAX_SECONDS * 1000L)
+                        }
+                    }
+                    .onFailure { logger.w(it) { "Náhled videa pro příběh nejde" } }
+            }
+        }
+    }
 
     fun setFill(fill: Boolean) = _state.update { it.copy(fill = fill) }
 
@@ -84,8 +108,14 @@ class StoryComposerViewModel(
         }
         _state.update { it.copy(posting = true) }
         viewModelScope.launch {
-            val rendered = runCatching { storyPhoto.render(photoPath, current.fill) }
-                .onFailure { logger.w(it) { "Fotku pro příběh se nepodařilo připravit" } }
+            val rendered = runCatching {
+                if (isVideo) {
+                    storyVideo.render(path, current.fill).let { StoryMedia.Video(it.path, it.durationSeconds, it.hasAudio) }
+                } else {
+                    StoryMedia.Photo(storyPhoto.render(path, current.fill))
+                }
+            }
+                .onFailure { logger.w(it) { "Příběh se nepodařilo připravit (video: $isVideo)" } }
                 .getOrNull()
             if (rendered == null) {
                 _state.update { it.copy(posting = false, error = UiText(Res.string.story_post_failed)) }
@@ -93,7 +123,7 @@ class StoryComposerViewModel(
             }
             repository.post(
                 StoryDraft(
-                    photoPath = rendered,
+                    media = rendered,
                     caption = current.caption,
                     audience = audience,
                     keepOnProfile = current.keepOnProfile,

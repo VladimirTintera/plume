@@ -3162,7 +3162,7 @@
     <string name="story_compose_title">New story</string>
     <string name="story_post">Post</string>
     <string name="story_fill">Fill</string>
-    <string name="story_fit">Whole photo</string>
+    <string name="story_fit">Whole frame</string>
     <string name="story_caption">Caption</string>
     <string name="story_audience_title">Who can see it</string>
     <string name="story_audience_everyone">Everyone</string>
@@ -3178,7 +3178,9 @@
     <string name="story_keep_on_profile">Keep on my profile</string>
     <string name="story_keep_on_profile_summary">Stays visible on your profile after 24 hours</string>
     <string name="story_allow_screenshots">Allow screenshots and forwarding</string>
-    <string name="story_photo_only">Stories can only be made from a photo for now.</string>
+    <string name="story_photo_only">Here a story can only be made from a photo.</string>
+    <string name="story_video_trimmed">Only the first minute of the video will be used.</string>
+    <string name="story_video_preparing">Preparing the video, this can take a moment…</string>
     <string name="story_posted">Story posted</string>
     <string name="chats_new_story">New story</string>
     <plurals name="story_views">

@@ -230,6 +230,7 @@ import eu.tintera.plume.core.ui.storyRing
 import eu.tintera.plume.features.stories.StoryStack
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
+import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.resources.chats_new_story
 import eu.tintera.plume.resources.photo_camera_24dp
 import eu.tintera.plume.resources.stories_open
@@ -346,17 +347,24 @@ fun ChatListScreen(
     modifier: Modifier = Modifier,
     /** Příběhy autora (kroužek u avataru, hromádka v pilulce). */
     onOpenStories: (Long) -> Unit = {},
-    /** Nový příběh z vybrané fotky (cesta k připravenému JPEG); `null` = položka v „+" není. */
-    onComposeStory: ((String) -> Unit)? = null,
+    /** Nový příběh z vybrané fotky nebo videa (cesta, je to video?); `null` = položka v „+" není. */
+    onComposeStory: ((String, Boolean) -> Unit)? = null,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
     val storyNotice by viewModel.storyNotice.collectAsStateWithLifecycle()
-    // Výběr fotky pro nový příběh; otevírá se až po kontrole limitu (`startStory`).
+    val storyVideoSupported = koinInject<StoryVideo>().supported
+    // Výběr fotky nebo videa pro nový příběh; otevírá se až po kontrole limitu (`startStory`).
     val storyPicker = rememberAttachmentPicker(
         onPicked = { picked ->
-            val photo = picked.firstOrNull() as? OutgoingAttachment.Photo
-            if (photo != null) onComposeStory?.invoke(photo.path) else if (picked.isNotEmpty()) viewModel.storyNeedsPhoto()
+            when (val first = picked.firstOrNull()) {
+                is OutgoingAttachment.Photo -> onComposeStory?.invoke(first.path, false)
+                // Video převede jen platforma s kodérem (desktop ho nemá).
+                is OutgoingAttachment.Video ->
+                    if (storyVideoSupported) onComposeStory?.invoke(first.path, true) else viewModel.storyNeedsPhoto()
+                null -> Unit
+                else -> viewModel.storyNeedsPhoto()
+            }
         },
         onError = viewModel::storyError,
     )

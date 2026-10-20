@@ -414,7 +414,7 @@ class ChatsViewModel(
         }
     }
 
-    /** Z výběru přišlo video; příběh jde zatím složit jen z fotky (video chce H.265 720 × 1280). */
+    /** Z výběru přišlo něco, z čeho příběh nejde (video tam, kde ho platforma nepřevede — desktop). */
     fun storyNeedsPhoto() {
         _storyNotice.value = UiText(Res.string.story_photo_only)
     }
