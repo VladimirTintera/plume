@@ -952,6 +952,28 @@ Nejvýš tři řádky, pak „Zobrazit všech N skladeb".
   v notifikaci; odebrání křížkem v úpravě profilu ukáže prázdnou sekci s radou. **Neověřené:**
   víc skladeb (navazování, „předchozí"), obal alba, iOS.
 
+### Profil firmy
+
+Firemní účet (Telegram Business) má v údajích profilu **Otevírací dobu** a **Adresu**
+(`ChatProfile.business`, doména `core/telegram/Business.kt`, testy `BusinessTest`, UI
+`BusinessInfo.kt`). Řádek doby říká stav jednou větou („Otevřeno · do 17:00", „Zavřeno ·
+otevírá zítra v 9:00") a ťuknutí otevře sheet s dny v týdnu, dnešek tučně. Adresa otevře mapy
+platformy — podle souřadnic, a když je firma nezadala, hledáním adresy (`mapsUrl` /
+`mapsSearchUrl`).
+
+- **Bere se `localOpeningHours`, ne `openingHours`.** Ta druhá je v časovém pásmu firmy;
+  „otevřeno do 17:00" musí sedět s hodinami v telefonu. Sheet to říká větou pod tabulkou.
+  `localOpeningHours` se mění bez `updateUserFullInfo`, takže platí pro chvíli načtení profilu.
+- **Stav se počítá z otevírací doby, ne z `nextOpenIn` / `nextCloseIn`** — ty jsou snímek
+  z doby načtení a TDLib je neobnovuje. Výpočet (`stateAt`) je čistá funkce nad minutami týdne:
+  úseky přes půlnoc (So 20–24 a Ne 0–2) spojí do jednoho, v neděli večer najde pondělní ráno.
+- **Úvodní stránka firmy (`startPage`) v profilu není** — patří do prázdné konverzace jako
+  popis bota; zbývá. Uvítací a nepřítomnou zprávu TDLib cizím nevydá.
+- **Ověřeno na emulátoru pokusným buildem** (vymyšlená doba a adresa u testovacího bota,
+  necommituje se): v úterý ve 12:14 v polední pauze „Zavřeno · otevírá v 13:00", sheet
+  s dvěma úseky po–pá, sobotou a zavřenou nedělí, adresa otevřela Google Mapy. Skutečný firemní
+  účet ověřený NENÍ — v kontaktech žádný není.
+
 ### Dárky v profilu
 
 Profil člověka a kanálu má záložku **Dárky** (`ProfileTab.Gifts`, `ProfileGifts.kt`): mřížka

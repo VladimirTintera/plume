@@ -3566,6 +3566,17 @@
     <string name="passkey_remove_text">Tímhle klíčem se pak do Telegramu nepřihlásíš. Ve správci hesel zůstane, smaž ho tam zvlášť.</string>
     <string name="passkey_remove_confirm">Odebrat</string>
     <string name="passkey_remove_failed">Klíč se nepodařilo odebrat.</string>
+    <string name="business_hours">Otevírací doba</string>
+    <string name="business_address">Adresa</string>
+    <string name="business_always_open">Otevřeno nonstop</string>
+    <string name="business_open_until">Otevřeno · do %1$s</string>
+    <string name="business_closed">Zavřeno</string>
+    <string name="business_closed_day">Zavřeno</string>
+    <string name="business_opens_at">Zavřeno · otevírá v %1$s</string>
+    <string name="business_opens_tomorrow">Zavřeno · otevírá zítra v %1$s</string>
+    <string name="business_opens_day">Zavřeno · otevírá %1$s v %2$s</string>
+    <string name="business_interval">%1$s–%2$s</string>
+    <string name="business_hours_local">Časy jsou v tvém časovém pásmu.</string>
     <string name="birthdate_row">Datum narození</string>
     <string name="birthdate_none">Neuvedeno</string>
     <string name="birthdate_show_year">Ukazovat rok</string>

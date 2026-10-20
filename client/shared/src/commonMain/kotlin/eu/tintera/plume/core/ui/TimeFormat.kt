@@ -149,7 +149,7 @@ fun Int.asLastSeen(): String {
 }
 
 /** Den s předložkou („v neděli", „on Sunday") — do věty, ne do sloupce. */
-private fun DayOfWeek.onName(): StringResource = when (this) {
+internal fun DayOfWeek.onName(): StringResource = when (this) {
     DayOfWeek.MONDAY -> Res.string.day_on_1
     DayOfWeek.TUESDAY -> Res.string.day_on_2
     DayOfWeek.WEDNESDAY -> Res.string.day_on_3
@@ -292,7 +292,7 @@ internal fun Int.localDate(): LocalDate = Instant.fromEpochSeconds(toLong())
     .date
 
 /** Dlouhý název dne. V předělu je na zkratku dost místa a celé slovo se čte líp. */
-private fun DayOfWeek.longName(): StringResource = when (this) {
+internal fun DayOfWeek.longName(): StringResource = when (this) {
     DayOfWeek.MONDAY -> Res.string.day_long_1
     DayOfWeek.TUESDAY -> Res.string.day_long_2
     DayOfWeek.WEDNESDAY -> Res.string.day_long_3
