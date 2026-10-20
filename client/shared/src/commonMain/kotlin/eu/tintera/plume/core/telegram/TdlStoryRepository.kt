@@ -399,6 +399,30 @@ class TdlStoryRepository(
                 )
             }
 
+    override suspend fun createAlbum(posterChatId: Long, name: String, storyIds: List<Int>): Result<StoryAlbum> =
+        client.createStoryAlbum(storyPosterChatId = posterChatId, name = name, storyIds = storyIds.toIntArray()).toResult()
+            .onFailure { logger.w(it) { "createStoryAlbum $posterChatId" } }
+            .map { StoryAlbum(id = it.id, name = it.name) }
+
+    override suspend fun setInAlbum(chatId: Long, albumId: Int, storyId: Int, inAlbum: Boolean): Result<Unit> =
+        if (inAlbum) {
+            client.addStoryAlbumStories(chatId = chatId, storyAlbumId = albumId, storyIds = intArrayOf(storyId))
+        } else {
+            client.removeStoryAlbumStories(chatId = chatId, storyAlbumId = albumId, storyIds = intArrayOf(storyId))
+        }.toResult()
+            .onFailure { logger.w(it) { "Album $chatId/$albumId, příběh $storyId, v albu=$inAlbum" } }
+            .map { }
+
+    override suspend fun renameAlbum(chatId: Long, albumId: Int, name: String): Result<StoryAlbum> =
+        client.setStoryAlbumName(chatId = chatId, storyAlbumId = albumId, name = name).toResult()
+            .onFailure { logger.w(it) { "setStoryAlbumName $chatId/$albumId" } }
+            .map { StoryAlbum(id = it.id, name = it.name) }
+
+    override suspend fun deleteAlbum(chatId: Long, albumId: Int): Result<Unit> =
+        client.deleteStoryAlbum(chatId = chatId, storyAlbumId = albumId).toResult()
+            .onFailure { logger.w(it) { "deleteStoryAlbum $chatId/$albumId" } }
+            .map { }
+
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()
             .onFailure { logger.w(it) { "closeStory $posterChatId/$storyId" } }

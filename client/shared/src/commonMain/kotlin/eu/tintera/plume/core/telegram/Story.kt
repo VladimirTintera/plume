@@ -40,6 +40,8 @@ internal suspend fun MessageStory.toMedia(
         isOwn = story?.canBeDeleted == true,
         viewCount = story?.interactionInfo?.viewCount,
         viewersExpired = story?.hasExpiredViewers == true,
+        albumIds = story?.albumIds?.toList().orEmpty(),
+        canBeAddedToAlbum = story?.canBeAddedToAlbum == true,
     )
 }
 

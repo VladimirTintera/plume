@@ -13,6 +13,7 @@ import eu.tintera.plume.core.telegram.ReportOption
 import eu.tintera.plume.core.telegram.ReportOptionId
 import eu.tintera.plume.core.telegram.ReportRequest
 import eu.tintera.plume.core.telegram.ReportStep
+import eu.tintera.plume.core.telegram.StoryAlbum
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.StoryViewer
 import eu.tintera.plume.core.telegram.StoryViewersPage
@@ -121,7 +122,27 @@ class StoriesViewModelTest {
             )
         }
 
-        override suspend fun albums(chatId: Long) = Result.success(emptyList<eu.tintera.plume.core.telegram.StoryAlbum>())
+        var failAlbums = false
+        val albumCalls = mutableListOf<String>()
+
+        override suspend fun albums(chatId: Long) = Result.success(listOf(StoryAlbum(1, "Léto"), StoryAlbum(2, "Hory")))
+
+        override suspend fun createAlbum(posterChatId: Long, name: String, storyIds: List<Int>): Result<StoryAlbum> {
+            albumCalls += "create $name $storyIds"
+            return Result.success(StoryAlbum(3, name))
+        }
+
+        override suspend fun setInAlbum(chatId: Long, albumId: Int, storyId: Int, inAlbum: Boolean): Result<Unit> {
+            albumCalls += "set $albumId $storyId $inAlbum"
+            return if (failAlbums) Result.failure(IllegalStateException("STORY_ID_INVALID")) else Result.success(Unit)
+        }
+
+        override suspend fun renameAlbum(chatId: Long, albumId: Int, name: String) = Result.success(StoryAlbum(albumId, name))
+
+        override suspend fun deleteAlbum(chatId: Long, albumId: Int): Result<Unit> {
+            albumCalls += "delete $albumId"
+            return Result.success(Unit)
+        }
 
         override suspend fun albumStories(chatId: Long, albumId: Int, offset: Int) =
             Result.success(ProfileStoriesPage(emptyList(), 0, emptySet()))
@@ -269,6 +290,39 @@ class StoriesViewModelTest {
         assertNull(viewModel.report.wizard.value, "po nahlášení se průvodce zavře")
         assertNotNull(viewModel.notice.value, "výsledek jde do pilulky")
         assertEquals(listOf(1, 1), repository.reports.map { it.first }, "hlásí se příběh, ne chat")
+    }
+
+    @Test
+    fun albumsToggleCreateAndDelete() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.openAlbums(key)
+        advanceUntilIdle()
+        assertEquals(listOf(1, 2), viewModel.albums.value?.albums?.map { it.id })
+        viewModel.toggleAlbum(1)
+        assertEquals(setOf(1), viewModel.albums.value?.inAlbums, "přepne se hned")
+        advanceUntilIdle()
+        assertEquals(listOf(1), viewModel.state.value.pages[key]?.albumIds, "a zapíše se i k příběhu")
+        viewModel.createAlbum("  Výlety s dlouhým názvem  ")
+        advanceUntilIdle()
+        assertEquals("create Výlety s dlo [1]", repository.albumCalls[1], "název oříznutý na 12 znaků, rovnou s příběhem")
+        assertEquals(setOf(1, 3), viewModel.albums.value?.inAlbums)
+        viewModel.deleteAlbum(1)
+        advanceUntilIdle()
+        assertEquals(listOf(2, 3), viewModel.albums.value?.albums?.map { it.id })
+        assertEquals(setOf(3), viewModel.albums.value?.inAlbums)
+    }
+
+    @Test
+    fun failedAlbumToggleIsReverted() = runTest {
+        val repository = FakeStories().apply { failAlbums = true }
+        val viewModel = viewModel(repository)
+        viewModel.openAlbums(key)
+        advanceUntilIdle()
+        viewModel.toggleAlbum(2)
+        advanceUntilIdle()
+        assertEquals(emptySet(), viewModel.albums.value?.inAlbums)
+        assertNotNull(viewModel.albums.value?.error, "chyba v panelu — pilulku by panel zakryl")
     }
 
     @Test

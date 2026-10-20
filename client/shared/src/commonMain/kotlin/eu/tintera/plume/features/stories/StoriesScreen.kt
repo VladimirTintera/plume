@@ -80,6 +80,8 @@ import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.archive_24dp
 import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.folder_24dp
+import eu.tintera.plume.resources.story_albums_menu
 import eu.tintera.plume.resources.story_report
 import eu.tintera.plume.resources.profile_more
 import eu.tintera.plume.resources.more_vert_24dp
@@ -115,6 +117,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val viewers by viewModel.viewers.collectAsStateWithLifecycle()
     val reportWizard by viewModel.report.wizard.collectAsStateWithLifecycle()
+    val albumsSheet by viewModel.albums.collectAsStateWithLifecycle()
     val currentOnBack by rememberUpdatedState(onBack)
     LaunchedEffect(state.closed) { if (state.closed) currentOnBack() }
     if (state.posters.isEmpty()) {
@@ -185,7 +188,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     story = key?.let { state.pages[it] },
                     active = active,
                     // Seznam diváků přes příběh — příběh pod ním stojí.
-                    paused = dragging || viewers != null || reportWizard != null,
+                    paused = dragging || viewers != null || reportWizard != null || albumsSheet != null,
                     restart = state.restart,
                     reactionChoices = reactionChoices,
                     onNext = viewModel::next,
@@ -197,8 +200,20 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     onViewers = { key?.let(viewModel::openViewers) },
                     onToggleHidden = { viewModel.toggleHidden(author.chatId) },
                     onReport = { key?.let(viewModel::reportStory) },
+                    onAlbums = { key?.let(viewModel::openAlbums) },
                 )
             }
+        }
+
+        albumsSheet?.let { albums ->
+            StoryAlbumsSheet(
+                state = albums,
+                onToggle = viewModel::toggleAlbum,
+                onCreate = viewModel::createAlbum,
+                onRename = viewModel::renameAlbum,
+                onDelete = viewModel::deleteAlbum,
+                onDismiss = viewModel::closeAlbums,
+            )
         }
 
         reportWizard?.let { wizard ->
@@ -245,6 +260,7 @@ private fun StoryPage(
     onViewers: () -> Unit,
     onToggleHidden: () -> Unit,
     onReport: () -> Unit,
+    onAlbums: () -> Unit,
 ) {
     var held by remember { mutableStateOf(false) }
     // Psaní odpovědi a výběr reakce příběh zastaví — jinak by uživateli odjel pod rukama.
@@ -271,6 +287,7 @@ private fun StoryPage(
                     onClose = onClose,
                     onToggleHidden = onToggleHidden,
                     onReport = onReport,
+                    onAlbums = onAlbums,
                 )
                 ReactionBurst(burst, Modifier.align(Alignment.Center))
             }
@@ -329,6 +346,7 @@ private fun StoryCard(
     onClose: () -> Unit,
     onToggleHidden: () -> Unit,
     onReport: () -> Unit,
+    onAlbums: () -> Unit,
 ) {
     var progress by remember(author.chatId, index) { mutableFloatStateOf(0f) }
     // Otevřená nabídka autora příběh zastaví, jako podržení.
@@ -379,6 +397,7 @@ private fun StoryCard(
             onMenuOpenChange = { menuOpen = it },
             onToggleHidden = onToggleHidden,
             onReport = onReport.takeIf { story != null && story.isAvailable && !story.isOwn },
+            onAlbums = onAlbums.takeIf { story != null && story.isOwn && story.canBeAddedToAlbum },
         )
 
         val caption = story?.caption.orEmpty()
@@ -516,6 +535,8 @@ private fun BoxScope.StoryHeader(
     onToggleHidden: () -> Unit,
     /** Nahlásit tenhle příběh; `null` = nejde (vlastní, nenačtený). */
     onReport: (() -> Unit)?,
+    /** Alba vlastního příběhu; `null` = nejde (cizí, nesmí do alba). */
+    onAlbums: (() -> Unit)?,
 ) {
     Column(
         Modifier
@@ -592,6 +613,13 @@ private fun BoxScope.StoryHeader(
             } else {
                 null
             }
+            // Alba jen u vlastního příběhu, který do nich jít smí (`canBeAddedToAlbum`).
+            val albums = onAlbums?.let { open ->
+                MenuAction(stringResource(Res.string.story_albums_menu), Res.drawable.folder_24dp) {
+                    onMenuOpenChange(false)
+                    open()
+                }
+            }
             // Nahlásit jde cizí příběh, který je vidět; vlastní ne. Vlastní skupina a chybová
             // barva, jako u každé nevratné akce v nabídce.
             val report = onReport?.let { report ->
@@ -600,7 +628,7 @@ private fun BoxScope.StoryHeader(
                     report()
                 }
             }
-            if (archive != null || report != null) {
+            if (archive != null || report != null || albums != null) {
                 Box {
                     IconButton(onClick = { onMenuOpenChange(true) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.more_vert_24dp), stringResource(Res.string.profile_more), tint = ON_SCRIM)
@@ -608,7 +636,7 @@ private fun BoxScope.StoryHeader(
                     ExpressiveMenu(
                         expanded = menuOpen,
                         onDismiss = { onMenuOpenChange(false) },
-                        groups = listOfNotNull(listOfNotNull(archive), listOfNotNull(report)),
+                        groups = listOfNotNull(listOfNotNull(archive, albums), listOfNotNull(report)),
                     )
                 }
             }
