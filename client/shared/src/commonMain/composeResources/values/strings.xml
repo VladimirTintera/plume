@@ -3235,6 +3235,7 @@
     <string name="story_album_delete">Delete album</string>
     <string name="story_album_delete_title">Delete album %1$s?</string>
     <string name="story_album_delete_text">The stories in it stay, only the album goes.</string>
+    <string name="story_albums_reorder">Reorder albums</string>
     <string name="profile_tab_stories">Stories</string>
     <string name="profile_stories_open">Show stories</string>
     <string name="profile_story_open">Open story</string>

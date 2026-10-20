@@ -423,6 +423,11 @@ class TdlStoryRepository(
             .onFailure { logger.w(it) { "deleteStoryAlbum $chatId/$albumId" } }
             .map { }
 
+    override suspend fun reorderAlbums(chatId: Long, albumIds: List<Int>): Result<Unit> =
+        client.reorderStoryAlbums(chatId = chatId, storyAlbumIds = albumIds.toIntArray()).toResult()
+            .onFailure { logger.w(it) { "reorderStoryAlbums $chatId" } }
+            .map { }
+
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()
             .onFailure { logger.w(it) { "closeStory $posterChatId/$storyId" } }

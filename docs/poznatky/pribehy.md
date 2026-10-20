@@ -92,8 +92,11 @@ autora se zaškrtávátky (příběh v albu ano/ne, `addStoryAlbumStories` / `re
 nahoře „Nové album" (`createStoryAlbum` rovnou s tímhle příběhem), u alba ⋮ přejmenovat
 (`setStoryAlbumName`) a smazat (`deleteStoryAlbum` po `ConfirmDialog`; příběhy zůstanou).
 
-- **Vlastní profil s příběhy Plume nemá**, proto je správa u příběhu samotného. Pořadí alb
-  a příběhů v nich (`reorderStoryAlbums`, `reorderStoryAlbumStories`) zatím není.
+- **Vlastní profil s příběhy Plume nemá**, proto je správa u příběhu samotného.
+- **Pořadí alb** (`reorderStoryAlbums`): od dvou alb řádek „Seřadit alba", který panel přepne
+  do řazení — tytéž řádky s úchytem jako u hudby v profilu (`ReorderRow`, `DragReorder`;
+  čtečka má „Posunout nahoru / dolů"). Pošle se až „Hotovo", ne po každém přesunu; přeskládá
+  se hned a při chybě vrátí. Pořadí příběhů uvnitř alba (`reorderStoryAlbumStories`) není.
 - **Název má 1–12 znaků** (`STORY_ALBUM_NAME_MAX`): pole víc nepustí a ukazuje počítadlo,
   ViewModel ořízne mezery a zkrátí pro jistotu taky.
 - **Zaškrtnutí se přepne hned a při chybě vrátí**; zapisuje se i do `MessageMedia.Story.albumIds`
@@ -344,6 +347,8 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   …029 vlastní příběh neměl a limit byl vyčerpaný): ⋮ → „Albums…" → panel s „New album" →
   dialog s počítadlem (víc než 12 znaků pole nepustí) → server založení cizího alba odmítl
   a chyba se ukázala v panelu. **Skutečné album ani přepínání příběhu v něm ověřené NENÍ.**
+  Řazení tamtéž se třemi podstrčenými alby: tah úchytem přesunul „Město" nahoru, „Done" poslal
+  `reorderStoryAlbums`, server cizí alba odmítl, pořadí se vrátilo a chyba se ukázala v panelu.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).

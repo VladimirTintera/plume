@@ -1,5 +1,22 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.resources.story_albums_reorder
+import eu.tintera.plume.resources.reorder_done
+import eu.tintera.plume.resources.folder_24dp
+import eu.tintera.plume.resources.drag_indicator_24dp
+import eu.tintera.plume.core.ui.rememberDragReorderState
+import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.draggedItem
+import eu.tintera.plume.core.ui.ReorderRow
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import androidx.compose.runtime.toMutableStateList
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Arrangement
 import eu.tintera.plume.core.ui.resolve
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -78,13 +95,27 @@ internal fun StoryAlbumsSheet(
     onCreate: (name: String) -> Unit,
     onRename: (albumId: Int, name: String) -> Unit,
     onDelete: (albumId: Int) -> Unit,
+    onReorder: (albumIds: List<Int>) -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Dialog nad sheetem: nové album (`null` id), nebo přejmenování.
     var naming by remember { mutableStateOf<Pair<Int?, String>?>(null) }
     var deleting by remember { mutableStateOf<StoryAlbum?>(null) }
+    // Režim řazení: tentýž sheet, místo zaškrtávátek řádky s úchytem (jako hudba v profilu).
+    var reordering by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
+        val loaded = state.albums
+        if (reordering && loaded != null) {
+            AlbumReorder(
+                albums = loaded,
+                onDone = { ids ->
+                    reordering = false
+                    onReorder(ids)
+                },
+            )
+            return@ModalBottomSheet
+        }
         Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 16.dp)) {
             SheetTitle(stringResource(Res.string.story_albums_title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
@@ -113,6 +144,15 @@ internal fun StoryAlbumsSheet(
                     headlineContent = { Text(stringResource(Res.string.story_album_new)) },
                     modifier = Modifier.clickable(enabled = !state.busy) { naming = null to "" },
                 )
+                // Řadit má smysl až od dvou alb; pořadí je vidět v profilu.
+                if (albums.size >= 2) {
+                    ListItem(
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        leadingContent = { Icon(painterResource(Res.drawable.drag_indicator_24dp), contentDescription = null) },
+                        headlineContent = { Text(stringResource(Res.string.story_albums_reorder)) },
+                        modifier = Modifier.clickable { reordering = true },
+                    )
+                }
                 albums.forEach { album ->
                     AlbumRow(
                         album = album,
@@ -189,6 +229,59 @@ private fun AlbumRow(album: StoryAlbum, checked: Boolean, onToggle: () -> Unit, 
         modifier = Modifier.toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() }),
     )
 }
+
+/**
+ * Řazení alb tahem za úchyt; čtečka obrazovky má u řádku „Posunout nahoru / dolů". Pořadí se
+ * pošle až „Hotovo" — po každém přesunu by šel na server dotaz.
+ */
+@Composable
+private fun AlbumReorder(albums: List<StoryAlbum>, onDone: (List<Int>) -> Unit) {
+    val order = remember(albums) { albums.toMutableStateList() }
+    val listState = rememberLazyListState()
+    fun move(from: Int, to: Int) {
+        if (from !in order.indices || to !in order.indices) return
+        order.add(to, order.removeAt(from))
+    }
+    val dragState = rememberDragReorderState(
+        listState = listState,
+        canMove = { true },
+        onMove = { from, to -> move(order.indexOfFirst { it.id == from }, order.indexOfFirst { it.id == to }) },
+    )
+    Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp),
+        ) {
+            SheetTitle(stringResource(Res.string.story_albums_reorder), modifier = Modifier.weight(1f))
+            TextButton(onClick = { onDone(order.map { it.id }) }, shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(Res.string.reorder_done))
+            }
+        }
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+            modifier = Modifier.fillMaxWidth().heightIn(max = REORDER_LIST_HEIGHT),
+        ) {
+            itemsIndexed(order, key = { _, album -> album.id }) { index, album ->
+                ReorderRow(
+                    key = album.id,
+                    title = album.name,
+                    shape = groupItemShape(index, order.size),
+                    dragState = dragState,
+                    onMoveUp = if (index > 0) { { move(index, index - 1) } } else null,
+                    onMoveDown = if (index < order.lastIndex) { { move(index, index + 1) } } else null,
+                    modifier = Modifier.draggedItem(dragState, album.id),
+                ) {
+                    Icon(painterResource(Res.drawable.folder_24dp), contentDescription = null)
+                }
+            }
+        }
+    }
+}
+
+/** Strop výšky seznamu v řazení; delší se roluje a „Hotovo" zůstane nahoře vidět. */
+private val REORDER_LIST_HEIGHT = 480.dp
 
 /** Název alba: 1–12 znaků (víc Telegram nevezme), potvrdit jde jen neprázdný. */
 @Composable

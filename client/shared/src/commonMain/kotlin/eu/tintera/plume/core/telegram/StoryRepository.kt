@@ -106,6 +106,9 @@ interface StoryRepository {
 
     /** Smaže album; příběhy v něm zůstanou. */
     suspend fun deleteAlbum(chatId: Long, albumId: Int): Result<Unit>
+
+    /** Nové pořadí alb autora (tak se ukazují v profilu). */
+    suspend fun reorderAlbums(chatId: Long, albumIds: List<Int>): Result<Unit>
 }
 
 /** Telegram bere název alba o 1–12 znacích (`createStoryAlbum`, `setStoryAlbumName`). */
