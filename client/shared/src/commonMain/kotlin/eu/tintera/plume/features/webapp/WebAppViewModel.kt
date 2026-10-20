@@ -76,6 +76,8 @@ sealed interface WebAppEffect {
  *   ([keyboardButtonText]); jinde TDLib volání odmítne a Telegram ho tam taky ignoruje.
  * - **Odkazy**: web do prohlížeče (jen http/https), odkaz na Telegram se rozpozná jako v konverzaci
  *   a chat se otevře; ostatní druhy odkazů jdou do prohlížeče.
+ * - **Po odeslání zprávy se zavře** (`updateWebAppMessageSent` s naším `launchId`) — bot
+ *   odpověděl na dotaz mini aplikace a ta je hotová; TDLib zavření přikazuje.
  * - **Strážní bot** ([guardQueryId]) schvaluje vstup do chatu. Jakmile rozhodne, mini aplikace
  *   se zavře sama (TDLib to u `updateChatJoinResult` přikazuje); co dál (otevřít chat, hláška),
  *   řeší ten, kdo vstup začal — ví, odkud uživatel přišel.
@@ -115,6 +117,11 @@ class WebAppViewModel(
     private val nameLoaded = viewModelScope.launch { _state.update { it.copy(title = repository.botName(botUserId)) } }
 
     init {
+        // Zprávu z mini aplikace odeslal bot (`answerWebAppQuery`): TDLib přikazuje zavřít.
+        // Týká se jen spuštění přes `openWebApp` — jen to má `launchId`.
+        viewModelScope.launch {
+            repository.messagesSent.collect { sent -> if (sent == launchId) effect(WebAppEffect.Close) }
+        }
         if (guardQueryId != 0L) {
             viewModelScope.launch {
                 chats.awaitGuardDecision(guardQueryId)

@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.telegram
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+
 /**
  * Mini aplikace botů (Telegram Web Apps). Adresu i podpis dat uživatele skládá TDLib; aplikace
  * stránku jen zobrazí ve WebView a zprostředkuje události (viz `features/webapp`).
@@ -49,6 +52,13 @@ interface WebAppRepository {
     suspend fun guardUrl(queryId: Long, theme: WebAppTheme): Result<String>
 
     suspend fun close(launchId: Long)
+
+    /**
+     * Spuštění ([WebAppLaunch.launchId]), ze kterých mini aplikace odeslala zprávu
+     * (`updateWebAppMessageSent`, bot odpověděl přes `answerWebAppQuery`). TDLib pak přikazuje
+     * mini aplikaci zavřít.
+     */
+    val messagesSent: Flow<Long> get() = emptyFlow()
 
     /** Data z mini aplikace otevřené tlačítkem vlastní klávesnice (`web_app_data_send`). */
     suspend fun sendData(botUserId: Long, buttonText: String, data: String): Result<Unit>

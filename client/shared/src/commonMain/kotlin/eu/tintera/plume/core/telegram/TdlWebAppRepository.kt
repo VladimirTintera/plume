@@ -6,6 +6,8 @@ import dev.g000sha256.tdl.dto.ThemeParameters
 import dev.g000sha256.tdl.dto.WebAppOpenModeFullSize
 import dev.g000sha256.tdl.dto.WebAppOpenParameters
 import dev.g000sha256.tdl.toResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * Mini aplikace nad TDLib.
@@ -76,6 +78,9 @@ class TdlWebAppRepository(private val holder: TelegramClientHolder) : WebAppRepo
             .toResult()
             .map { it.url }
             .onFailure { logger.w(it) { "Mini aplikaci strážního bota pro vstup $queryId nejde otevřít." } }
+
+    override val messagesSent: Flow<Long>
+        get() = holder.updates { webAppMessageSentUpdates }.map { it.webAppLaunchId }
 
     override suspend fun close(launchId: Long) {
         client.closeWebApp(webAppLaunchId = launchId).toResult()

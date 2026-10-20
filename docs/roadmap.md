@@ -534,8 +534,8 @@ a se serverem, takže přednostně:
   (`docs/poznatky/boti.md`, „Strážní bot u vstupu do chatu"). Zbývá ověřit se skutečným
   strážním botem — testovací účet žádnou takovou skupinu nezná. Strana správce
   (`guardBotUserId`) je zapsaná výš u nastavení skupiny.
-- **Mini aplikace se po odeslání zprávy nezavře** (`webAppMessageSentUpdates`: „Web App needs
-  to be closed"). Ověřit s botem, který odpovídá přes `answerWebAppQuery`.
+- ~~**Mini aplikace se po odeslání zprávy nezavře** (`webAppMessageSentUpdates`)~~ — hotovo
+  a ověřené testovacím botem (`docs/poznatky/boti.md`, „Mini aplikace botů").
 - **Reklamy: další druhy.** ~~Nahlášení sponzorované zprávy (`reportChatSponsoredMessage`)~~ —
   hotovo, ⋮ na kartě reklamy (`docs/poznatky/konverzace-zobrazeni.md`, „Sponzorované zprávy").
   Sponzorované chaty ve výsledcích hledání (`getSearchSponsoredChats`,
