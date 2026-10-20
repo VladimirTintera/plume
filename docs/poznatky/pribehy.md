@@ -3,7 +3,7 @@
 Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání,
 prohlížeč přes celou obrazovku a v něm reakce a odpověď; zveřejnění vlastního příběhu z fotky
 i videa (i jen pro blízké přátele), diváci (počet i seznam s reakcemi) a smazání; skrytí autora
-do archivu. Příběhy v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
+do archivu; příběhy v profilu (lem kolem avataru a záložka „Příběhy"). Alba příběhů zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
 zprávě a odpověď na příběh jsou v `typy-zprav.md`.
 
 Skladba:
@@ -20,6 +20,7 @@ Skladba:
 | Lišta s odpovědí a reakcemi, lišta vlastního příběhu, velké emoji, hlášení | `features/stories/StoryReplyBar.kt` |
 | Nový příběh (obrazovka, výběr lidí) | `features/stories/StoryComposerScreen.kt`, `StoryComposerViewModel.kt`, routa `StoryComposerRoute` |
 | Plátno 1080 × 1920 | `core/ui/StoryPhoto.kt` + `AndroidStoryPhoto`, `IosStoryPhoto`, `DesktopStoryPhoto` |
+| Příběhy v profilu (mřížka) | `features/profile/ProfileStories.kt`, záložka `ProfileTab.Stories`, stav `ProfileStories` v `ChatProfileViewModel` |
 | Seznam diváků | `features/stories/StoryViewersSheet.kt`, stav `StoryViewersState` ve `StoriesViewModel` |
 | Video 720 × 1280 H.265 | `core/ui/StoryVideo.kt` + `AndroidStoryVideo` (Media3 Transformer), `IosStoryVideo` (AVFoundation), desktop `UnsupportedStoryVideo` |
 
@@ -84,6 +85,25 @@ Skladba:
   normálně. Prohlížeč otevřený z řádku skrytého autora prochází skryté autory (jeho seznam).
 - Prohlížeč po přesunu zůstane, kde je, a ohlásí to pilulkou („Příběhy od … jsou skryté
   v archivu"); hromádky a lemy se přeskládají updatem `chatActiveStories`.
+
+## Příběhy v profilu
+
+- **Avatar v hlavičce profilu má lem**, když má chat aktivní příběhy (`ChatProfileViewModel`
+  sleduje `StoryRepository.active`), a **ťuknutí pak pustí příběhy, ne historii fotek** —
+  lem slibuje totéž co v seznamu chatů. Bez příběhů ťuknutí dál otevírá fotky. Lem je o kus
+  silnější (velký avatar) a kreslí se PŘED ořezem avataru, jinak by ho ořez uřízl.
+- **Záložka „Příběhy"** (`getChatPostedToChatPageStories`): příběhy, které autor nechal
+  v profilu, i vypršelé. Mřížka dlaždic 9 : 16, připnuté první se špendlíkem (vrací je jen
+  první stránka, `fromStoryId = 0`), video s trojúhelníkem. Další stránka od id posledního
+  příběhu; konec, když stránka nepřinese nic nového nebo je načteno `totalCount`. Záložka je
+  na konci řady (dorazí samostatným dotazem, jako dárky) a jen když něco je. Ikona je
+  přerušovaný kruh (`history_toggle_off`) — tvar, kterým Telegram příběhy značí.
+- **Prohlížeč umí konkrétní seznam jednoho autora** (`StoriesRoute.storyIds`,
+  `profileStoriesState`): projde přesně mřížku od ťuknuté dlaždice a za poslední se zavře —
+  žádní další autoři. Nic z toho není „nezhlédnuté" a ⋮ se skrytím do archivu tu není
+  (autor není v žádném seznamu). Jméno a fotku autora dočte `StoryRepository.author`, protože
+  autor teď nemusí mít aktivní příběh; do té doby je prohlížeč prázdný, ne zavřený.
+- Vlastní profil (Uložené zprávy) záložku nemá; vlastní příběhy jsou v prohlížeči.
 
 ## Prohlížeč
 
@@ -244,6 +264,10 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   prohlížeč → ⋮ „Show stories again" → pilulka, nabídka zase nabízí skrytí, Pixel 5 zpátky
   v hromádce. Obě chyby s `canBeArchived` výš se našly tady. Neověřené: lem skrytého autora
   s NEzhlédnutým příběhem (příběh byl zhlédnutý), iOS.
+- **Profil ověřený** (20. 10. 2026): Pixel 5 dal v oficiální aplikaci svůj příběh do
+  profilu (⋮ → Post to Profile); v Plume (…029) profil Pixelu 5 → avatar s lemem → záložka
+  „Stories" s dlaždicí → prohlížeč bez ⋮, po dohrání zpátky v profilu; ťuknutí na avatar
+  pustí aktivní příběhy. Neověřené: stránkování, připnuté, video dlaždice, iOS.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).

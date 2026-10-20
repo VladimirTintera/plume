@@ -36,6 +36,9 @@ import kotlinx.coroutines.launch
  */
 class StoriesViewModel(
     startChatId: Long,
+    /** Příběhy z profilu autora ([startChatId]); prázdné = jeho aktivní příběhy a další autoři. */
+    storyIds: List<Int> = emptyList(),
+    startStoryId: Int = 0,
     private val repository: StoryRepository,
     private val appScope: CoroutineScope,
     /** Emoji, která jdou dát jako reakce (výběr přes „+"); bez něj jen srdce. */
@@ -51,12 +54,17 @@ class StoriesViewModel(
     val notice: StateFlow<UiText?> = _notice.asStateFlow()
 
     private val _state = MutableStateFlow(
-        viewerPosters(repository.active.value, startChatId).let { posters ->
-            StoriesState(
-                posters = posters,
-                poster = posters.indexOfFirst { it.chatId == startChatId }.coerceAtLeast(0),
-                closed = posters.isEmpty(),
-            )
+        if (storyIds.isNotEmpty()) {
+            // Autora z profilu je potřeba dočíst (nemusí mít aktivní příběh); do té doby prázdno.
+            StoriesState()
+        } else {
+            viewerPosters(repository.active.value, startChatId).let { posters ->
+                StoriesState(
+                    posters = posters,
+                    poster = posters.indexOfFirst { it.chatId == startChatId }.coerceAtLeast(0),
+                    closed = posters.isEmpty(),
+                )
+            }
         },
     )
     val state: StateFlow<StoriesState> = _state.asStateFlow()
@@ -67,6 +75,12 @@ class StoriesViewModel(
     private val loading = mutableSetOf<StoryKey>()
 
     init {
+        if (storyIds.isNotEmpty()) {
+            viewModelScope.launch {
+                val author = repository.author(startChatId)
+                _state.value = if (author == null) StoriesState(closed = true) else profileStoriesState(author, storyIds, startStoryId)
+            }
+        }
         viewModelScope.launch {
             state.map { it.current }.distinctUntilChanged().collect { key ->
                 opened?.let { repository.close(it.posterChatId, it.storyId) }

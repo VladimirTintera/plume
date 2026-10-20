@@ -74,7 +74,24 @@ interface StoryRepository {
      * autora s [ActiveStories.canBeArchived], vrátit skrytého (vlastní příběhy ani jedno).
      */
     suspend fun setHidden(chatId: Long, hidden: Boolean): Result<Unit>
+
+    /**
+     * Příběhy, které autor nechal v profilu (i vypršelé), po stránkách: první ([fromStoryId] 0)
+     * začíná připnutými, pak od nejnovějšího. Další stránka od id posledního příběhu.
+     */
+    suspend fun profileStories(chatId: Long, fromStoryId: Int = 0): Result<ProfileStoriesPage>
+
+    /** Jméno, fotka a druh autora pro hlavičku prohlížeče — i když teď žádný aktivní příběh nemá. */
+    suspend fun author(chatId: Long): ActiveStories?
 }
+
+data class ProfileStoriesPage(
+    /** Obsah příběhů (fotka nebo video) v pořadí od serveru. */
+    val stories: List<MessageMedia.Story>,
+    val totalCount: Int,
+    /** Připnuté příběhy; jen na první stránce. */
+    val pinnedIds: Set<Int>,
+)
 
 data class StoryViewersPage(
     val viewers: List<StoryViewer>,

@@ -8,6 +8,7 @@ import eu.tintera.plume.core.telegram.StoryRef
 import eu.tintera.plume.core.telegram.StoryDraft
 import eu.tintera.plume.core.telegram.StoryPostCheck
 import eu.tintera.plume.core.telegram.StoryPostResult
+import eu.tintera.plume.core.telegram.ProfileStoriesPage
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.StoryViewer
 import eu.tintera.plume.core.telegram.StoryViewersPage
@@ -96,6 +97,11 @@ class StoriesViewModelTest {
         override suspend fun closeFriends(): Result<List<Long>> = Result.success(emptyList())
 
         override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> = Result.success(Unit)
+
+        override suspend fun profileStories(chatId: Long, fromStoryId: Int) =
+            Result.success(ProfileStoriesPage(emptyList(), 0, emptySet()))
+
+        override suspend fun author(chatId: Long): ActiveStories? = active.value[chatId]?.copy(stories = emptyList())
 
         val hidden = mutableListOf<Pair<Long, Boolean>>()
 
@@ -209,6 +215,22 @@ class StoriesViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(7L to true, 7L to false), repository.hidden)
         assertEquals(false, viewModel.state.value.posters.single().isHidden)
+    }
+
+    @Test
+    fun profileStoriesOpenAtTheTappedOneWithoutArchiveMenu() = runTest {
+        val repository = FakeStories()
+        val viewModel = StoriesViewModel(startChatId = 7, storyIds = listOf(30, 20, 10), startStoryId = 20, repository = repository, appScope = this)
+        advanceUntilIdle()
+        val state = viewModel.state.value
+        assertEquals(StoryKey(7, 20), state.current)
+        assertEquals(listOf(20), repository.opened, "počítá se zhlédnutí jen otevřeného")
+        val author = state.posters.single()
+        assertEquals(false, author.canBeArchived || author.isHidden, "z profilu se do archivu neskrývá")
+        assertEquals(0, author.unreadCount)
+        viewModel.next()
+        viewModel.next()
+        assertEquals(true, viewModel.state.value.closed, "za posledním z mřížky konec, žádný další autor")
     }
 
     @Test
