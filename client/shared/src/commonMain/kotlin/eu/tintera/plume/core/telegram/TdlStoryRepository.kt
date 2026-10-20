@@ -16,6 +16,9 @@ import dev.g000sha256.tdl.dto.InputStoryContentPhoto
 import dev.g000sha256.tdl.dto.InputStoryContentVideo
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.ReportStoryResultOk
+import dev.g000sha256.tdl.dto.ReportStoryResultOptionRequired
+import dev.g000sha256.tdl.dto.ReportStoryResultTextRequired
 import dev.g000sha256.tdl.dto.StoryInteraction
 import dev.g000sha256.tdl.dto.StoryInteractionTypeForward
 import dev.g000sha256.tdl.dto.StoryInteractionTypeRepost
@@ -356,6 +359,26 @@ class TdlStoryRepository(
             stories = emptyList(),
         )
     }
+
+    override suspend fun report(posterChatId: Long, storyId: Int, request: ReportRequest): Result<ReportStep> =
+        client.reportStory(
+            storyPosterChatId = posterChatId,
+            storyId = storyId,
+            optionId = request.optionId?.bytes ?: ByteArray(0),
+            text = request.text,
+        ).toResult()
+            .onFailure { logger.w(it) { "reportStory $posterChatId/$storyId" } }
+            .map { result ->
+                // Bez `else`: nový krok v novější TDLib musí rozbít překlad, ne tiše skončit.
+                when (result) {
+                    is ReportStoryResultOk -> ReportStep.Done
+                    is ReportStoryResultOptionRequired -> ReportStep.ChooseOption(
+                        title = result.title,
+                        options = result.options.map { ReportOption(ReportOptionId(it.id), it.text) },
+                    )
+                    is ReportStoryResultTextRequired -> ReportStep.EnterText(ReportOptionId(result.optionId), result.isOptional)
+                }
+            }
 
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()

@@ -8,6 +8,8 @@ import eu.tintera.plume.core.telegram.StoryMedia
 import eu.tintera.plume.core.telegram.StoryPostCheck
 import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.ProfileStoriesPage
+import eu.tintera.plume.core.telegram.ReportRequest
+import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.StoryViewersPage
 import eu.tintera.plume.core.ui.RenderedStoryVideo
@@ -44,6 +46,7 @@ class StoryComposerViewModelTest {
         override suspend fun setHidden(chatId: Long, hidden: Boolean) = Result.success(Unit)
         override suspend fun profileStories(chatId: Long, fromStoryId: Int) = Result.success(ProfileStoriesPage(emptyList(), 0, emptySet()))
         override suspend fun author(chatId: Long): ActiveStories? = null
+        override suspend fun report(posterChatId: Long, storyId: Int, request: ReportRequest) = Result.success<ReportStep>(ReportStep.Done)
         override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> {
             savedFriends += userIds
             return if (failSaving) Result.failure(IllegalStateException("USER_NOT_MUTUAL_CONTACT")) else Result.success(Unit)

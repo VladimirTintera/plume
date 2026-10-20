@@ -66,6 +66,7 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.features.report.ReportSheet
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asRelativeTime
@@ -78,6 +79,8 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.archive_24dp
+import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.story_report
 import eu.tintera.plume.resources.profile_more
 import eu.tintera.plume.resources.more_vert_24dp
 import eu.tintera.plume.resources.story_hide
@@ -111,6 +114,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
     val reactionChoices by viewModel.reactionChoices.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val viewers by viewModel.viewers.collectAsStateWithLifecycle()
+    val reportWizard by viewModel.report.wizard.collectAsStateWithLifecycle()
     val currentOnBack by rememberUpdatedState(onBack)
     LaunchedEffect(state.closed) { if (state.closed) currentOnBack() }
     if (state.posters.isEmpty()) {
@@ -181,7 +185,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     story = key?.let { state.pages[it] },
                     active = active,
                     // Seznam diváků přes příběh — příběh pod ním stojí.
-                    paused = dragging || viewers != null,
+                    paused = dragging || viewers != null || reportWizard != null,
                     restart = state.restart,
                     reactionChoices = reactionChoices,
                     onNext = viewModel::next,
@@ -192,8 +196,18 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     onDelete = { key?.let(viewModel::delete) },
                     onViewers = { key?.let(viewModel::openViewers) },
                     onToggleHidden = { viewModel.toggleHidden(author.chatId) },
+                    onReport = { key?.let(viewModel::reportStory) },
                 )
             }
+        }
+
+        reportWizard?.let { wizard ->
+            ReportSheet(
+                wizard = wizard,
+                onChoose = viewModel.report::choose,
+                onSubmitText = viewModel.report::submitText,
+                onDismiss = viewModel.report::cancel,
+            )
         }
 
         viewers?.let { opened ->
@@ -230,6 +244,7 @@ private fun StoryPage(
     onDelete: () -> Unit,
     onViewers: () -> Unit,
     onToggleHidden: () -> Unit,
+    onReport: () -> Unit,
 ) {
     var held by remember { mutableStateOf(false) }
     // Psaní odpovědi a výběr reakce příběh zastaví — jinak by uživateli odjel pod rukama.
@@ -255,6 +270,7 @@ private fun StoryPage(
                     onPrevious = onPrevious,
                     onClose = onClose,
                     onToggleHidden = onToggleHidden,
+                    onReport = onReport,
                 )
                 ReactionBurst(burst, Modifier.align(Alignment.Center))
             }
@@ -312,6 +328,7 @@ private fun StoryCard(
     onPrevious: () -> Unit,
     onClose: () -> Unit,
     onToggleHidden: () -> Unit,
+    onReport: () -> Unit,
 ) {
     var progress by remember(author.chatId, index) { mutableFloatStateOf(0f) }
     // Otevřená nabídka autora příběh zastaví, jako podržení.
@@ -361,6 +378,7 @@ private fun StoryCard(
             menuOpen = menuOpen,
             onMenuOpenChange = { menuOpen = it },
             onToggleHidden = onToggleHidden,
+            onReport = onReport.takeIf { story != null && story.isAvailable && !story.isOwn },
         )
 
         val caption = story?.caption.orEmpty()
@@ -496,6 +514,8 @@ private fun BoxScope.StoryHeader(
     menuOpen: Boolean,
     onMenuOpenChange: (Boolean) -> Unit,
     onToggleHidden: () -> Unit,
+    /** Nahlásit tenhle příběh; `null` = nejde (vlastní, nenačtený). */
+    onReport: (() -> Unit)?,
 ) {
     Column(
         Modifier
@@ -557,7 +577,30 @@ private fun BoxScope.StoryHeader(
             }
             // Skrýt do archivu / vrátit z něj. `canBeArchived` platí jen v hlavním seznamu —
             // u skrytého autora je `false`, a vrátit ho jít musí. Vlastní příběhy nejdou ani jedno.
-            if (author.canBeArchived || author.isHidden) {
+            val archive = if (author.canBeArchived || author.isHidden) {
+                if (author.isHidden) {
+                    MenuAction(stringResource(Res.string.story_unhide), Res.drawable.unarchive_24dp) {
+                        onMenuOpenChange(false)
+                        onToggleHidden()
+                    }
+                } else {
+                    MenuAction(stringResource(Res.string.story_hide), Res.drawable.archive_24dp) {
+                        onMenuOpenChange(false)
+                        onToggleHidden()
+                    }
+                }
+            } else {
+                null
+            }
+            // Nahlásit jde cizí příběh, který je vidět; vlastní ne. Vlastní skupina a chybová
+            // barva, jako u každé nevratné akce v nabídce.
+            val report = onReport?.let { report ->
+                MenuAction(stringResource(Res.string.story_report), Res.drawable.flag_24dp, destructive = true) {
+                    onMenuOpenChange(false)
+                    report()
+                }
+            }
+            if (archive != null || report != null) {
                 Box {
                     IconButton(onClick = { onMenuOpenChange(true) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.more_vert_24dp), stringResource(Res.string.profile_more), tint = ON_SCRIM)
@@ -565,21 +608,7 @@ private fun BoxScope.StoryHeader(
                     ExpressiveMenu(
                         expanded = menuOpen,
                         onDismiss = { onMenuOpenChange(false) },
-                        groups = listOf(
-                            listOf(
-                                if (author.isHidden) {
-                                    MenuAction(stringResource(Res.string.story_unhide), Res.drawable.unarchive_24dp) {
-                                        onMenuOpenChange(false)
-                                        onToggleHidden()
-                                    }
-                                } else {
-                                    MenuAction(stringResource(Res.string.story_hide), Res.drawable.archive_24dp) {
-                                        onMenuOpenChange(false)
-                                        onToggleHidden()
-                                    }
-                                },
-                            ),
-                        ),
+                        groups = listOfNotNull(listOfNotNull(archive), listOfNotNull(report)),
                     )
                 }
             }

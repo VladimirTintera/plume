@@ -352,7 +352,7 @@ funkce, takže hranice jsou hrubé):
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
 | Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
-| **Příběhy (stories) a živé příběhy** | **18 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu a profil hotové**; alba ne |
+| **Příběhy (stories) a živé příběhy** | **19 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil a nahlášení hotové**; alba ne |
 | Skupinové hovory a videochaty | 2 / 46 | jen pruh nad konverzací (sekce Hovory) |
 | Premium a boosty | 1 / 18 | ne |
 | Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
@@ -570,7 +570,7 @@ a se serverem, takže přednostně:
    počet zhlédnutí, smazání). ~~Video příběh~~ — hotovo (převod na H.265 720 × 1280, prvních
    60 s; výběr úseku a obálky zatím ne). ~~Seznam diváků~~ — hotovo (s reakcemi, po stránkách). ~~Blízcí přátelé~~ — hotovo (seznam z obrazovky nového příběhu, lem v `tertiary`).
    ~~Skrytí do archivu~~ — hotovo (⋮ v prohlížeči, hromádka v archivu). ~~Příběhy v profilu~~ — hotovo (lem kolem avataru,
-   záložka „Příběhy"). Chybí alba příběhů (`getChatStoryAlbums`), nahlášení (`reportStory`) a notifikace (`muteStories` v sekci
+   záložka „Příběhy"). ~~Nahlášení~~ — hotovo (průvodce jako u chatu). Chybí alba příběhů (`getChatStoryAlbums`) a notifikace (`muteStories` v sekci
    Notifikace). Živé příběhy patří ke skupinovým hovorům.
 2. **Přihlášení na webu přes Telegram (OAuth)** — `newOauthRequestUpdates`, `getOauthLinkInfo`,
    `checkOauthRequestMatchCode`, `acceptOauthRequest`, `declineOauthRequest`. Kdo má jen Plume,

@@ -3319,6 +3319,7 @@
     <string name="story_hidden">Příběhy od %1$s jsou skryté v archivu</string>
     <string name="story_unhidden">Příběhy od %1$s jsou zase mezi ostatními</string>
     <string name="story_hide_failed">Příběhy se nepodařilo přesunout.</string>
+    <string name="story_report">Nahlásit příběh</string>
     <string name="profile_tab_stories">Příběhy</string>
     <string name="profile_stories_open">Zobrazit příběhy</string>
     <string name="profile_story_open">Otevřít příběh</string>
