@@ -611,7 +611,8 @@ class ConversationViewModel(
         botStartRequests = botStartRequests,
         links = links,
         suggestions = suggestions,
-        replyTo = { composer.replyTo(it) },
+        // Vynucená odpověď přichází od bota, ne z ruky uživatele: klávesnici nevysouvá.
+        replyTo = { composer.replyTo(it, focusInput = false) },
         logger = logger,
     )
     fun startBot() = bots.startBot()
