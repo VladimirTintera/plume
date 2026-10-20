@@ -54,6 +54,8 @@ fun ArchiveScreen(
     onBack: () -> Unit,
     onChatArchived: ((ArchiveChange) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    /** Ťuknutí na avatar s kroužkem příběhů. */
+    onOpenStories: ((Long) -> Unit)? = null,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val archiveSettings by viewModel.archiveSettings.collectAsStateWithLifecycle()
@@ -152,6 +154,7 @@ fun ArchiveScreen(
             selectedChatId = selectedChatId,
             onChatClick = onChatClick,
             onForumClick = onForumClick,
+            onOpenStories = onOpenStories,
             padding = padding,
             // Stejný prázdný stav jako placeholder detailu vedle — na široké ploše stojí oba
             // vedle sebe a dva různé vzhledy pro „tady nic není" by se přely.

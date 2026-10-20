@@ -61,6 +61,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import eu.tintera.plume.core.telegram.ActiveStories
+import eu.tintera.plume.core.telegram.StoryListKind
+import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.features.stories.storyListOrder
 import kotlinx.coroutines.launch
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -109,6 +113,8 @@ class ChatsViewModel(
     /** Záložky zpráv přes všechny chaty (menu účtu → Záložky); bez nich položka není. */
     private val bookmarks: MessageBookmarks? = null,
     private val photoDescriptions: PhotoDescriptions? = null,
+    /** Příběhy: kroužky kolem avatarů a hromádka v pilulce; bez nich obojí chybí. */
+    stories: StoryRepository? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -364,6 +370,23 @@ class ChatsViewModel(
                 }
         }
     }
+
+    /** Aktivní příběhy po autorech — kroužek kolem avataru v řádku chatu. */
+    val storyRings: StateFlow<Map<Long, ActiveStories>> = stories?.active ?: MutableStateFlow(emptyMap())
+
+    /**
+     * Autoři z hlavního seznamu příběhů v pořadí od TDLib — hromádka v pilulce hledání. Jen
+     * v hlavním seznamu chatů: patří sem i kontakty, se kterými chat nemáme, a ty jinde vidět nejsou.
+     */
+    val storyStack: StateFlow<List<ActiveStories>> =
+        if (stories == null || folder != ChatFolder.Main) {
+            MutableStateFlow(emptyList())
+        } else {
+            stories.active
+                .map { all -> storyListOrder(all.values, StoryListKind.Main) }
+                // Hned s hodnotou: hromádka by jinak naskočila snímek po složení pilulky.
+                .stateIn(viewModelScope, SharingStarted.Eagerly, storyListOrder(stories.active.value.values, StoryListKind.Main))
+        }
 
     private val _account = MutableStateFlow<AccountInfo?>(null)
 

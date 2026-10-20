@@ -9,7 +9,7 @@ nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí
 
 Hotové: téma, přihlašovací automat, Navigation3 + adaptivní shell (bez railu i navigační lišty, Nastavení z menu účtu), živý seznam chatů a archiv,
 konverzace (historie, živé zprávy, odesílání, přílohy a alba, hlasovky a video kolečka, samolepky a emoji, úprava,
-přeposílání, připnuté zprávy, ankety a kvízy, témata ve skupinách), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
+přeposílání, připnuté zprávy, ankety a kvízy, témata ve skupinách), prohlížení příběhů (lem u avataru, hromádka v pilulce), prohlížeč médií s fotkami i videem, reakce, odpovědi, notifikace
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
@@ -59,6 +59,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, společné skupiny a podobné kanály, omezení a vyhození, poslední akce správců, nastavení skupiny a kanálu (pomalý režim, reakce, přepínače, smazání pro všechny), úprava skupiny, pozvánky, témata, sdílená média, historie fotek a jejich nahlášení, návrh profilové fotky, úprava kontaktu (jméno, poznámka, vlastní fotka), hudba a dárky v profilu, profil firmy
 - [Prohlížeč médií a média](docs/poznatky/prohlizec-medii.md) — prohlížeč, video a PiP, kvalita videa, GIFy, kolečka a jejich nahrávání, automatické ukládání do galerie, seznam stahování, poloha a mapy, spoilery, mizející a citlivý obsah, text z fotky, popis fotky a hledání fotek podle obsahu, FileRepository
 - [Hlasovky a hudba](docs/poznatky/zvuk.md) — přehrávání, u ucha, nahrávání a náhled hlasovky, hudba na pozadí a dock přehrávače
+- [Příběhy](docs/poznatky/pribehy.md) — odkud se ví, kdo má příběh, lem po tvaru avataru s dílky, hromádka v pilulce hledání, prohlížeč (zmražení autorů, openStory/closeStory, pauza podržením), limit jednoho příběhu za den u free účtu
 - [Typy zpráv](docs/poznatky/typy-zprav.md) — popisy a servisní zprávy, články a Instant View, počty a komentáře, témata ve skupinách, placená média, dárky, příběhy, kontakt, hovor
 - [Emoji, samolepky a reakce](docs/poznatky/emoji-samolepky-reakce.md) — velká emoji, kostky, efekty, vlastní emoji, výběry samolepek / GIFů / emoji, reakce a jejich čipy
 - [Notifikace](docs/poznatky/notifikace.md) — TDLib a push, kanály a nastavení, zvuky z Telegramu, akce z notifikace, iOS (APNs), ohlášení hovoru, pruh videochatu

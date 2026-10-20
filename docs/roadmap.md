@@ -352,7 +352,7 @@ funkce, takže hranice jsou hrubé):
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
 | Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
-| **Příběhy (stories) a živé příběhy** | **1 / 59** | **jen otevření sdíleného příběhu** — největší mezera pro běžného uživatele |
+| **Příběhy (stories) a živé příběhy** | **6 / 59** | **prohlížení hotové** (lem u avataru, hromádka v pilulce, prohlížeč); reakce, odpovědi a zveřejnění ne |
 | Skupinové hovory a videochaty | 2 / 46 | jen pruh nad konverzací (sekce Hovory) |
 | Premium a boosty | 1 / 18 | ne |
 | Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
@@ -563,10 +563,9 @@ a se serverem, takže přednostně:
 
 **Funkce pro běžného uživatele** (bez Premium a bez plateb):
 
-1. **Příběhy (stories).** Plume umí jen otevřít příběh sdílený do zprávy (`getStory`). Chybí
-   kroužky nad seznamem chatů (`loadActiveStories`, `chatActiveStoriesUpdates`,
-   `storyListChatCountUpdates`), prohlížeč s přechodem mezi lidmi (`openStory` / `closeStory`
-   — bez nich se zhlédnutí nepočítá), reakce a odpověď (`setStoryReaction`), skrytí do archivu
+1. **Příběhy (stories).** ~~Prohlížení~~ — hotovo: lem po tvaru avataru v řádku chatu, hromádka
+   v pilulce hledání a prohlížeč s přechodem mezi lidmi (`docs/poznatky/pribehy.md`). Chybí
+   reakce a odpověď (`setStoryReaction`), skrytí do archivu
    (`setChatActiveStoriesList`), příběhy a alba v profilu (`getChatPostedToChatPageStories`,
    `getChatStoryAlbums`), nahlášení (`reportStory`), notifikace (`muteStories` v sekci
    Notifikace) a nakonec vlastní příběh (`canPostStory`, `postStory`, blízcí přátelé,

@@ -225,6 +225,10 @@ import eu.tintera.plume.core.telegram.ChatSponsor
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.StoryRingState
+import eu.tintera.plume.core.ui.storyRing
+import eu.tintera.plume.features.stories.StoryStack
+import eu.tintera.plume.resources.stories_open
 import eu.tintera.plume.core.ui.ReorderRow
 import eu.tintera.plume.core.ui.ReorderTopBar
 import eu.tintera.plume.resources.chats_reorder_title
@@ -336,8 +340,11 @@ fun ChatListScreen(
     onOpenSearch: () -> Unit = {},
     nowPlayingViewModel: NowPlayingViewModel = koinViewModel(),
     modifier: Modifier = Modifier,
+    /** Příběhy autora (kroužek u avataru, hromádka v pilulce). */
+    onOpenStories: (Long) -> Unit = {},
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
+    val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
     val naturalSearchAvailable by viewModel.naturalSearchAvailable.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val shownConnection = rememberShownConnection(connection)
@@ -626,7 +633,16 @@ fun ChatListScreen(
                         aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
                         request = searchRequest,
                         onRequestHandled = onSearchRequestHandled,
-                        trailing = accountMenu,
+                        trailing = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                StoryStack(
+                                    posters = storyStack,
+                                    rim = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    onOpen = onOpenStories,
+                                )
+                                accountMenu()
+                            }
+                        },
                     )
                     FabMenuScrim(
                         visible = fabMenuExpanded,
@@ -650,6 +666,7 @@ fun ChatListScreen(
                         selectedChatId = selectedChatId,
                         onChatClick = onChatClick,
                         onForumClick = onForumClick,
+                        onOpenStories = onOpenStories,
                         padding = padding,
                         scrollToChat = scrollToChat,
                         onScrolledToChat = { scrollToChat = null },
@@ -1371,9 +1388,12 @@ internal fun ChatListContent(
     onScrolledToChat: () -> Unit = {},
     headerItemCount: Int = 0,
     listState: LazyListState = rememberLazyListState(),
+    /** Ťuknutí na avatar s kroužkem příběhů; `null` = avatar se ťuká jako zbytek řádku. */
+    onOpenStories: ((Long) -> Unit)? = null,
     header: LazyListScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val storyRings by viewModel.storyRings.collectAsStateWithLifecycle()
     // Start je hotový, až seznam ukazuje chaty (nebo že žádné nejsou), ne s prvním snímkem.
     ReportDrawnWhen { state !is ChatListState.Loading }
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
@@ -1618,6 +1638,11 @@ internal fun ChatListContent(
                                 onLongClick = {
                                     if (selecting) viewModel.toggleSelected(chat) else viewModel.showActions(chat)
                                 },
+                                stories = storyRings[chat.id]?.let { StoryRingState(total = it.stories.size, unread = it.unreadCount) },
+                                // Ve výběru avatar přepíná výběr jako zbytek řádku.
+                                onAvatarClick = onOpenStories
+                                    ?.takeIf { !selecting && chat.id in storyRings }
+                                    ?.let { open -> { open(chat.id) } },
                             )
                         }
                     }
@@ -1892,6 +1917,10 @@ private fun ChatRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Kroužek příběhů kolem avataru; `null` = autor žádné nemá. */
+    stories: StoryRingState? = null,
+    /** Ťuknutí na avatar otevře příběhy; zbytek řádku dál otevírá chat. */
+    onAvatarClick: (() -> Unit)? = null,
 ) {
     /*
      * Spící odložený chat se tváří jako přečtený: jméno bez tučnosti, čas bez akcentu, odznaky
@@ -1955,7 +1984,30 @@ private fun ChatRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Box {
+            val avatarShape = chat.kind.avatarShape()
+            val openStories = stringResource(Res.string.stories_open, chat.title)
+            Box(
+                Modifier
+                    .storyRing(
+                        ring = stories,
+                        shape = avatarShape,
+                        unreadColor = MaterialTheme.colorScheme.primary,
+                        readColor = MaterialTheme.colorScheme.outlineVariant,
+                    )
+                    .then(
+                        if (onAvatarClick == null) {
+                            Modifier
+                        } else {
+                            Modifier.contextClickable(
+                                interactionSource = null,
+                                indication = ripple(bounded = false, radius = AVATAR_SIZE / 2 + STORY_RING_OUTSET),
+                                onClickLabel = openStories,
+                                onLongClick = onLongClick,
+                                onClick = onAvatarClick,
+                            )
+                        },
+                    ),
+            ) {
                 Avatar(
                     chatId = chat.avatarColorId,
                     title = chat.title,
@@ -1963,7 +2015,7 @@ private fun ChatRow(
                     size = AVATAR_SIZE,
                     isSavedMessages = isSavedMessages(chat.id),
                     // Druh chatu tvarem: člověk kruh, skupina sušenka, kanál čtverec.
-                    shape = chat.kind.avatarShape(),
+                    shape = avatarShape,
                     modifier = Modifier.sharedNavElement(chatAvatarKey(chat.id)),
                 )
 
@@ -2255,6 +2307,9 @@ private val TOP_ANCHOR_HEIGHT = 1.dp
 
 /** Avatar. Větší než výchozích 48 dp — v odlehčeném řádku nese hlavní váhu on, ne písmo. */
 private val AVATAR_SIZE = 52.dp
+
+/** Jak daleko za okraj avataru sahá kroužek příběhů (mezera a čára, `storyRing`). */
+private val STORY_RING_OUTSET = 5.dp
 
 /** Fotka účtu v pilulce — o kus menší než ikona, ať pilulku nevyboulí. */
 private val ACCOUNT_AVATAR_SIZE = 30.dp

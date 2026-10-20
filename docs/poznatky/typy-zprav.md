@@ -666,8 +666,8 @@ a komu, vzkaz a stav. Dřív z nich zbylo jen „Byl poslán dárek".
 Příběh poslaný do chatu (`MessageStory`) je snímek se značkou „Příběh" v rohu a pod ním karta
 „Příběh od …", případně „V příběhu tě zmínili" a popisek příběhu (`MessageMedia.Story`,
 `StoryPreview` a `StoryDetails` v `items/StoryCard.kt`, převod `core/telegram/Story.kt`, testy
-`StoryTest`). Ťuknutí otevře fotku nebo video v prohlížeči médií. Příběhy jako takové (kroužky,
-přehrávání po sobě, odpovědi) aplikace nemá.
+`StoryTest`). Ťuknutí otevře fotku nebo video v prohlížeči médií. Kroužky a přehrávání
+příběhů po sobě jsou v `pribehy.md`; tenhle prohlížeč ukazuje jen jeden příběh.
 
 - **Zpráva nese jen odkaz** (autor a id), obsah se dočítá `getStory` při převodu zprávy:
   napřed lokálně, pak ze serveru (`TdlConversationRepository.sharedStory`). Pamatuje se pro

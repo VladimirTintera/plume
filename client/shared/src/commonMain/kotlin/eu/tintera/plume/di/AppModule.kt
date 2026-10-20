@@ -157,6 +157,8 @@ import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.notices.AccountNoticesViewModel
 import eu.tintera.plume.core.telegram.AccountNotices
 import eu.tintera.plume.core.telegram.TdlAccountNotices
+import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.core.telegram.TdlStoryRepository
 import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
@@ -184,6 +186,7 @@ import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
+import eu.tintera.plume.features.stories.StoriesViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.AutoDownloadViewModel
@@ -280,6 +283,10 @@ fun appModule() = module {
             session = get(),
             scope = get(named(APP_SCOPE)),
         )
+    }
+    // Eagerně: kdo má příběh, TDLib pošle spolu s chaty hned po přihlášení (viz `TdlStoryRepository`).
+    single<StoryRepository>(createdAtStart = true) {
+        TdlStoryRepository(holder = get(), session = get(), scope = get(named(APP_SCOPE)))
     }
     // Eager ze stejného důvodu: zmrazení účtu a podmínky služby TDLib pošle hned po startu
     // a oznámení od služby jen jednou — odběr, který vznikne až s obrazovkou, by je minul.
@@ -510,6 +517,7 @@ fun appModule() = module {
             triage = get(),
             bookmarks = get(),
             photoDescriptions = get(),
+            stories = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
@@ -861,6 +869,10 @@ fun appModule() = module {
             photoDescriptions = get(),
             stickers = get(),
         )
+    }
+
+    viewModel { parameters ->
+        StoriesViewModel(startChatId = parameters.get(), repository = get(), appScope = get(named(APP_SCOPE)))
     }
 
     viewModelOf(::NewChatViewModel)
