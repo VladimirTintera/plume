@@ -19,8 +19,9 @@ import kotlin.time.TimeSource
  * - **Opakování prořezává [RepeatFilter]** (dvouapůlhodinový hovor: 35 MB → 1,1 MB).
  * - **Strop [MAX_BYTES]** na hovor; nad ním jedna poznámka a dál nic.
  * - **Posledních [KEEP_FILES] hovorů**; starší se smažou při založení nového.
- * - **Adresy maskované** ([maskAddresses]): WebRTC na Androidu je maskuje samo (`10.61.43.x`),
- *   log callback ntgcalls na desktopu dává celé — a soubor jde ven.
+ * - **Adresy a hesla maskované** ([maskAddresses]): WebRTC na Androidu adresy maskuje samo
+ *   (`10.61.43.x`), log callback ntgcalls na desktopu dává celé — a soubor jde ven. ICE heslo
+ *   hovoru (`pwd: …`, i uvnitř `Cand[…]`) píše WebRTC všude celé.
  *
  * **Není vláknově bezpečný**: píše jedno vlákno (Android: čtení logcatu), nebo volající zamyká
  * (desktop: callback chodí z vláken knihovny).
@@ -79,6 +80,7 @@ class CallDetailLog private constructor(private val sink: BufferedSink) {
                 CallDetailLog(fileSystem.sink(dir / "${fileStamp()}-call$callId.log").buffer())
             }.onFailure { Logger.withTag("CallJournal").w(it) { "Výpis hovoru nejde založit." } }.getOrNull()
 
+        private val secret = Regex("""(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{20,}(?![A-Za-z0-9+/])""")
         private val ipv4 = Regex("""\b(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}\b""")
         private val ipv6 = Regex(
             """\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b|\b(?:[0-9a-fA-F]{1,4}:){1,6}:(?:[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4}){0,5})?(?![0-9a-zA-Z:])""",
@@ -93,7 +95,10 @@ class CallDetailLog private constructor(private val sink: BufferedSink) {
                 val groups = match.value.split(':').filter { it.isNotEmpty() }
                 if (groups.size < 3) match.value else groups.take(3).joinToString(":") + ":x:x:x:x:x"
             }
-            return ipv4.replace(v6) { "${it.groupValues[1]}.x" }
+            val v4 = ipv4.replace(v6) { "${it.groupValues[1]}.x" }
+            // ICE heslo (24 znaků base64) a jiné dlouhé náhodné řetězce: písmena I číslice, ať
+            // zůstanou jména tříd a funkcí (`WebRtcVoiceMediaChannel`).
+            return secret.replace(v4) { if (it.value.any(Char::isDigit) && it.value.any(Char::isLetter)) "***" else it.value }
         }
 
         /** `20261019-213700` — řadí se podle jména od nejstaršího. */

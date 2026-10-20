@@ -555,6 +555,10 @@ požádá (viz „Hodnocení hovoru").
   JNA) a zaseknutí tam nese stojící přehrávání: dvě nulové vteřiny po sobě (čas je po celých
   vteřinách, jedna nula je zaokrouhlení).
 - **Anglicky**: soubor je pro vývojáře a `verifyNoHardcodedText` pouští český text jen v lozích.
+- **Důvod konce je překlad, ne jméno třídy**: `state.reason::class.simpleName` dávalo v buildu
+  z Play nesmysly (`Discarded: ue1`, `ye1`, `af1`) — R8 přejmenuje i třídy DTO wrapperu.
+- **Skončený hovor TDLib pošle znovu** (o 6 minut později, s `needDebugInformation`): konec se
+  vyřídí a zapíše jednou (`endedCalls`), o diagnostiku se server smí přihlásit i v opakovaném.
 - **Velikost**: dva díly po 256 kB (`calls.log`, `calls.1.log` v `files/call-journal`), řádek
   souhrnu po 5 s — zhruba deset běžných hovorů, nebo 3–4 h jednoho dlouhého.
 - **Ověřeno na Pixelu 5 a Pixelu 7 Pro** (Plume ↔ Plume, minuta hovoru, jeden telefon zhasnutý):
@@ -565,6 +569,9 @@ požádá (viz „Hodnocení hovoru").
   (`ntg_set_log_callback` — úroveň, zdroj WebRTC / ntgcalls, soubor, řádek), dřív šly jen chyby
   do logu; teď po dobu přenosu do výpisu všechno, tag je jméno souboru (`ntgcalls/…` u vlastních
   zpráv knihovny). Callback chodí z vláken knihovny, takže zápis jde pod zámkem.
+- **ICE heslo maskuje taky** (`pwd: …` i v `Cand[…:ufrag:pwd:…]` píše WebRTC na Androidu celé):
+  řetězce od 20 znaků z písmen I číslic → `***`; jména tříd (`WebRtcVoiceMediaChannel`) bez číslic
+  zůstanou.
 - **Adresy maskuje zápis výpisu** (`CallDetailLog.maskAddresses`: IPv4 bez poslední části, IPv6
   jen první tři skupiny). Na Androidu je WebRTC maskuje samo, log callback na desktopu ale dává
   celé — první výpis z desktopu měl místní adresy počítače i adresu telefonu v mobilní síti.
