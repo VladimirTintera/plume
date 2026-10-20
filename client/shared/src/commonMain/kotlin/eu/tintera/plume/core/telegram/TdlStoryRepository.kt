@@ -221,8 +221,7 @@ class TdlStoryRepository(
                     video = InputFileLocal(path = media.path),
                     addedStickerFileIds = intArrayOf(),
                     duration = media.durationSeconds,
-                    // Náhled z prvního snímku; vlastní volbu obálky Plume zatím nemá.
-                    coverFrameTimestamp = 0.0,
+                    coverFrameTimestamp = media.coverSeconds,
                     isAnimation = !media.hasAudio,
                 )
             },

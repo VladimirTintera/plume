@@ -80,12 +80,14 @@ class StoryComposerViewModelTest {
 
     private class Videos(val durationMs: Long = 30_000, val audio: Boolean = true) : StoryVideo {
         val fills = mutableListOf<Boolean>()
+        val starts = mutableListOf<Long>()
         override val supported = true
         override suspend fun durationMs(path: String) = durationMs
-        override suspend fun preview(path: String) = "$path.frame.jpg"
-        override suspend fun render(path: String, fill: Boolean): RenderedStoryVideo {
+        override suspend fun frame(path: String, atMs: Long, edge: Int) = if (atMs == 0L) "$path.frame.jpg" else "$path.frame-$atMs.jpg"
+        override suspend fun render(path: String, fill: Boolean, startMs: Long): RenderedStoryVideo {
             fills += fill
-            return RenderedStoryVideo("$path.story.mp4", durationSeconds = minOf(durationMs, 60_000) / 1000.0, hasAudio = audio)
+            starts += startMs
+            return RenderedStoryVideo("$path.story.mp4", durationSeconds = minOf(durationMs - startMs, 60_000) / 1000.0, hasAudio = audio)
         }
     }
 
@@ -167,6 +169,26 @@ class StoryComposerViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(true), videos.fills)
         assertEquals(StoryMedia.Video("klip.mp4.story.mp4", durationSeconds = 60.0, hasAudio = false), repository.drafts.single().media)
+    }
+
+    @Test
+    fun chosenClipAndCoverGoToTheStory() = runTest {
+        val repository = Posting()
+        val videos = Videos(durationMs = 95_000)
+        val viewModel = StoryComposerViewModel("klip.mp4", isVideo = true, repository = repository, storyPhoto = Renderer(), storyVideo = videos)
+        advanceUntilIdle()
+        val control = assertNotNull(viewModel.video, "u videa je pás úseku")
+        assertEquals(60_000, control.trim.segmentMs, "příběh smí minutu, ne 10 s jako profilovka")
+        control.moveTo(30_000)
+        assertEquals(30_000, control.trim.startMs, "úsek posunutý na 30 s")
+        control.chooseCover(45_000)
+        advanceUntilIdle()
+        assertEquals("klip.mp4.frame-45000.jpg", viewModel.state.value.previewPath, "náhled ukazuje obálku")
+        viewModel.post()
+        advanceUntilIdle()
+        assertEquals(listOf(30_000L), videos.starts)
+        val media = repository.drafts.single().media as StoryMedia.Video
+        assertEquals(15.0, media.coverSeconds, "obálka od začátku převedeného videa")
     }
 
     @Test

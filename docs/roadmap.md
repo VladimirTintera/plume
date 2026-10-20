@@ -568,11 +568,12 @@ a se serverem, takže přednostně:
    ~~Reakce a odpověď~~ — hotovo (srdce, výběr reakcí, odpověď do chatu s autorem).
    ~~Vlastní příběh z fotky~~ — hotovo (limit předem, plátno 1080 × 1920, viditelnost,
    počet zhlédnutí, smazání). ~~Video příběh~~ — hotovo (převod na H.265 720 × 1280, prvních
-   60 s; výběr úseku a obálky zatím ne). ~~Seznam diváků~~ — hotovo (s reakcemi, po stránkách). ~~Blízcí přátelé~~ — hotovo (seznam z obrazovky nového příběhu, lem v `tertiary`).
+   60 s). ~~Seznam diváků~~ — hotovo (s reakcemi, po stránkách). ~~Blízcí přátelé~~ — hotovo (seznam z obrazovky nového příběhu, lem v `tertiary`).
    ~~Skrytí do archivu~~ — hotovo (⋮ v prohlížeči, hromádka v archivu). ~~Příběhy v profilu~~ — hotovo (lem kolem avataru,
    záložka „Příběhy"). ~~Nahlášení~~ — hotovo (průvodce jako u chatu). ~~Notifikace~~ — hotovo (rozsah i chat; obcházka chyby TDLib u rozsahu). ~~Alba příběhů~~ — hotovo prohlížení (čipy v záložce
    „Příběhy" v profilu); správa alb (`createStoryAlbum`, `addStoryAlbumStories`) ne, a skutečné album
-   na zařízení ověřené není. Chybí výběr úseku a obálky videa příběhu. Živé příběhy patří ke skupinovým hovorům.
+   na zařízení ověřené není. ~~Výběr úseku a obálky videa~~ — hotovo (pás jako u profilového videa; zveřejnění
+   s úsekem ověřené není). Živé příběhy patří ke skupinovým hovorům.
 2. **Přihlášení na webu přes Telegram (OAuth)** — `newOauthRequestUpdates`, `getOauthLinkInfo`,
    `checkOauthRequestMatchCode`, `acceptOauthRequest`, `declineOauthRequest`. Kdo má jen Plume,
    žádost webu nepotvrdí. Tlačítko `LoginUrl` u zprávy bota už hotové je

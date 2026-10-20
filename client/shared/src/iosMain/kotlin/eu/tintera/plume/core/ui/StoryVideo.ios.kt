@@ -36,6 +36,7 @@ import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMinimum
 import platform.CoreMedia.CMTimeRangeMake
+import platform.CoreMedia.CMTimeSubtract
 import platform.Foundation.NSURL
 
 /**
@@ -52,9 +53,9 @@ class IosStoryVideo(private val profileVideo: ProfileVideo) : StoryVideo {
 
     override suspend fun durationMs(path: String): Long = profileVideo.durationMs(path)
 
-    override suspend fun preview(path: String): String = profileVideo.frame(path, atMs = 0)
+    override suspend fun frame(path: String, atMs: Long, edge: Int): String = profileVideo.frame(path, atMs, edge)
 
-    override suspend fun render(path: String, fill: Boolean): RenderedStoryVideo {
+    override suspend fun render(path: String, fill: Boolean, startMs: Long): RenderedStoryVideo {
         val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null)
         val track = asset.tracksWithMediaType(AVMediaTypeVideo).firstOrNull() as? AVAssetTrack
             ?: error("Video nemá obraz.")
@@ -62,8 +63,13 @@ class IosStoryVideo(private val profileVideo: ProfileVideo) : StoryVideo {
 
         val composition = AVMutableComposition()
         val start = CMTimeMake(value = 0, timescale = 1)
-        val length = CMTimeMinimum(asset.duration, CMTimeMake(value = STORY_VIDEO_MAX_SECONDS.toLong(), timescale = 1))
-        val range = CMTimeRangeMake(start, length)
+        val from = CMTimeMake(value = startMs, timescale = 1000)
+        val length = CMTimeMinimum(
+            CMTimeSubtract(asset.duration, from),
+            CMTimeMake(value = STORY_VIDEO_MAX_SECONDS.toLong(), timescale = 1),
+        )
+        // Úsek ze zdroje od [startMs], v kompozici od nuly.
+        val range = CMTimeRangeMake(from, length)
         val video = composition.addMutableTrackWithMediaType(AVMediaTypeVideo, preferredTrackID = 0)
             ?: error("Kompozice nejde založit.")
         check(video.insertTimeRange(range, ofTrack = track, atTime = start, error = null)) { "Video nejde zkrátit." }

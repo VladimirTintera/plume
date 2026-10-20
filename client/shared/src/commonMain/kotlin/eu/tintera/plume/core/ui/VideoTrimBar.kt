@@ -1,5 +1,9 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.resources.video_trim_story_cover_earlier
+import eu.tintera.plume.resources.video_trim_story_cover_later
+import eu.tintera.plume.resources.video_trim_summary_cover
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -56,11 +60,11 @@ import kotlin.math.abs
  * telefonu trefovaly špatně.
  */
 @Composable
-internal fun VideoTrimBar(control: VideoCropControl, modifier: Modifier = Modifier) {
+internal fun VideoTrimBar(control: VideoCropControl, modifier: Modifier = Modifier, labels: VideoTrimLabels = VideoTrimLabels.ProfilePhoto) {
     val trim = control.trim
     val haptics = LocalHapticFeedback.current
     val summary = stringResource(
-        Res.string.video_trim_summary,
+        labels.summary,
         clock(trim.startMs),
         clock(trim.endMs),
         clock(trim.coverMs),
@@ -68,8 +72,8 @@ internal fun VideoTrimBar(control: VideoCropControl, modifier: Modifier = Modifi
     val stripLabel = stringResource(Res.string.video_trim_strip)
     val moveLater = stringResource(Res.string.video_trim_move_later)
     val moveEarlier = stringResource(Res.string.video_trim_move_earlier)
-    val coverLater = stringResource(Res.string.video_trim_cover_later)
-    val coverEarlier = stringResource(Res.string.video_trim_cover_earlier)
+    val coverLater = stringResource(labels.coverLater)
+    val coverEarlier = stringResource(labels.coverEarlier)
 
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         BoxWithConstraints(
@@ -196,6 +200,15 @@ private fun StripFrame(control: VideoCropControl, atMs: Long, modifier: Modifier
             )
         }
     }
+}
+
+/**
+ * Jak se jmenuje vybraný snímek: u profilovky je to statická FOTKA, u příběhu OBÁLKA. Pás je
+ * jinak tentýž.
+ */
+enum class VideoTrimLabels(val summary: StringResource, val coverLater: StringResource, val coverEarlier: StringResource) {
+    ProfilePhoto(Res.string.video_trim_summary, Res.string.video_trim_cover_later, Res.string.video_trim_cover_earlier),
+    StoryCover(Res.string.video_trim_summary_cover, Res.string.video_trim_story_cover_later, Res.string.video_trim_story_cover_earlier),
 }
 
 /** „0:12" — úsek má nejvýš pár minut a víc než sekundy z pásu nikdo netrefí. */
