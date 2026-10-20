@@ -596,8 +596,9 @@ a se serverem, takže přednostně:
    po jednom přes `downloadFile`.
 8. **Nahrávání hlasovky a kolečka už během nahrávání** (`preliminaryUploadFile`) — dlouhá
    nahrávka by odešla hned po puštění.
-9. **Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha, úvodní stránka) —
-   data přicházejí, jen se nekreslí. Zakládat je chce Business, číst ne.
+9. ~~**Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha)~~ — hotovo
+   (`docs/poznatky/profil-chatu.md`, „Profil firmy"). Zbývá úvodní stránka (`startPage`)
+   v prázdné konverzaci a ověření na skutečném firemním účtu.
 10. ~~**Dárky v profilu** (`getReceivedGifts`)~~ — hotovo, záložka Dárky
     (`docs/poznatky/profil-chatu.md`, „Dárky v profilu"). Sbírky (`getGiftCollections`) a správa
     vlastních dárků zbývají; posílání stojí hvězdy (viz níž).

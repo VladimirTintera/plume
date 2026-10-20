@@ -3,6 +3,8 @@ package eu.tintera.plume.features.profile
 import eu.tintera.plume.resources.birthdate_suggest_failed
 import eu.tintera.plume.resources.birthdate_suggest_sent
 import eu.tintera.plume.core.telegram.Birthdate
+import eu.tintera.plume.core.location.mapsSearchUrl
+import eu.tintera.plume.core.location.mapsUrl
 import eu.tintera.plume.core.telegram.ProfileGift
 import eu.tintera.plume.resources.edit_profile_not_photo
 import eu.tintera.plume.resources.photo_suggest_failed
@@ -928,6 +930,18 @@ class ChatProfileViewModel(
                     _state.update { it.copy(gifts = it.gifts?.copy(loading = false, nextOffset = null)) }
                 }
         }
+    }
+
+    /** Adresa firmy v mapách: podle souřadnic, a když je firma nezadala, hledáním adresy. */
+    fun openBusinessAddress() {
+        val business = _state.value.profile?.business ?: return
+        val latitude = business.latitude
+        val longitude = business.longitude
+        val url = when {
+            latitude != null && longitude != null -> mapsUrl(latitude, longitude)
+            else -> mapsSearchUrl(business.address ?: return)
+        }
+        openLink(url)
     }
 
     fun openGift(gift: ProfileGift) = _state.update { it.copy(openGift = gift) }

@@ -210,6 +210,8 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.business_address
+import eu.tintera.plume.resources.business_hours
 import eu.tintera.plume.resources.profile_tab_gifts
 import eu.tintera.plume.resources.redeem_24dp
 import eu.tintera.plume.resources.secret_chat_key_title
@@ -312,6 +314,7 @@ fun ChatProfileScreen(
     var showBookmarks by rememberSaveable { mutableStateOf(false) }
     val chatColor by viewModel.chatColor.collectAsStateWithLifecycle()
     var showChatColor by rememberSaveable { mutableStateOf(false) }
+    var showBusinessHours by rememberSaveable { mutableStateOf(false) }
     var showSecretKey by rememberSaveable { mutableStateOf(false) }
     // Zvuk z Telegramu pro tenhle chat: tóny účtu a zápis má ViewModel zvuků z Nastavení.
     val sounds = rememberChatSounds(viewModel.chatId)
@@ -503,7 +506,7 @@ fun ChatProfileScreen(
                     val chatAutosave = autosaveChatType(profile.kind, profile.isSecretChat)
                         ?.let { type -> autosaveState?.settings?.chatAutosave(profile.chatId, type) }
                     if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
-                        profile.personalChannel != null || profile.contact?.note?.isNotBlank() == true ||
+                        profile.personalChannel != null || profile.contact?.note?.isNotBlank() == true || profile.business != null ||
                         notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
                         chatAutosave != null ||
                         profile.secretChatKey != null ||
@@ -524,6 +527,8 @@ fun ChatProfileScreen(
                             onOpenSecretKey = { showSecretKey = true },
                             chatColor = chatColor,
                             onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
+                            onOpenBusinessHours = { showBusinessHours = true },
+                            onOpenBusinessAddress = viewModel::openBusinessAddress,
                         )
                     }
                     // Hudba patří k člověku jako bio, ale je to seznam, ne údaj — vlastní blok
@@ -566,6 +571,11 @@ fun ChatProfileScreen(
                     onSelect = viewModel::setAutoDelete,
                     onDismiss = viewModel::closeAutoDeleteSheet,
                 )
+            }
+
+            val businessHours = profile.business?.openingHours.orEmpty()
+            if (showBusinessHours && businessHours.isNotEmpty()) {
+                BusinessHoursSheet(hours = businessHours, onDismiss = { showBusinessHours = false })
             }
 
             state.openGift?.let { gift ->
@@ -1414,6 +1424,8 @@ private fun ProfileInfo(
     chatColor: ThemeColor?,
     /** `null` = barvu nastavit nejde a řádek se neukazuje. */
     onOpenChatColor: (() -> Unit)?,
+    onOpenBusinessHours: () -> Unit,
+    onOpenBusinessAddress: () -> Unit,
 ) {
     val rows = buildList<@Composable (Shape) -> Unit> {
         profile.usernames.firstOrNull()?.let { username ->
@@ -1465,6 +1477,23 @@ private fun ProfileInfo(
                         // `surfaceContainerLowest`, takže blok musí být o stupeň výš.
                         quoteBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
                     )
+                }
+            }
+        }
+        // Firma: otevírací doba a adresa hned za popisem — kvůli nim se do profilu firmy chodí.
+        profile.business?.let { business ->
+            if (business.openingHours.isNotEmpty()) {
+                add { shape ->
+                    InfoRow(label = stringResource(Res.string.business_hours), shape = shape, onClick = onOpenBusinessHours) {
+                        Text(openingStateText(business.openingHours), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+            business.address?.let { address ->
+                add { shape ->
+                    InfoRow(label = stringResource(Res.string.business_address), shape = shape, onClick = onOpenBusinessAddress) {
+                        Text(address, style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
             }
         }

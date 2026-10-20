@@ -55,6 +55,7 @@ import dev.g000sha256.tdl.dto.SupergroupMembersFilterRestricted
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterSearch
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.toResult
+import dev.g000sha256.tdl.dto.BusinessInfo
 import dev.g000sha256.tdl.dto.BotVerification
 import eu.tintera.plume.resources.content_audio
 import eu.tintera.plume.resources.Res
@@ -225,9 +226,29 @@ class TdlProfileRepository(
             botVerification = botVerificationNote(full?.botVerification),
             hasMainWebApp = (user.type as? UserTypeBot)?.hasMainWebApp == true,
             firstProfileAudio = full?.firstProfileAudio?.toMedia(fallbackName = readString(Res.string.content_audio)),
+            business = full?.businessInfo?.toDetails(),
             // Vlastní dárky (Uložené zprávy) se tu neukazují — spravují se v oficiální aplikaci.
             giftCount = full?.giftCount?.takeIf { userId != me } ?: 0,
             contact = if (user.isContact && userId != me) contactDetails(user.firstName, user.lastName, full) else null,
+        )
+    }
+
+    /**
+     * Profil firmy: adresa a otevírací doba. Bere se doba v MÍSTNÍM čase uživatele
+     * (`localOpeningHours`) — „otevřeno do 17:00" musí sedět s hodinami v telefonu, ne s časovým
+     * pásmem firmy. Firma bez adresy i bez otevírací doby profil firmy nemá.
+     */
+    private fun BusinessInfo.toDetails(): BusinessDetails? {
+        val hours = (localOpeningHours ?: openingHours)?.openingHours?.filterNotNull()
+            ?.map { OpeningInterval(startMinute = it.startMinute, endMinute = it.endMinute) }
+            .orEmpty()
+        val address = location?.address?.takeIf { it.isNotBlank() }
+        if (address == null && hours.isEmpty()) return null
+        return BusinessDetails(
+            address = address,
+            latitude = location?.location?.latitude,
+            longitude = location?.location?.longitude,
+            openingHours = hours,
         )
     }
 

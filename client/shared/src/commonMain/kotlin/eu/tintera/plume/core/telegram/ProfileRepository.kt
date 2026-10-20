@@ -508,6 +508,8 @@ data class ChatProfile(
      * skladby se pozná, že se seznam změnil.
      */
     val firstProfileAudio: MessageMedia.Audio? = null,
+    /** Adresa a otevírací doba firmy (Telegram Business); `null` = nejde o firmu. */
+    val business: BusinessDetails? = null,
     /** Dárky vystavené v profilu (`giftCount`); 0 = záložka se nekreslí. */
     val giftCount: Int = 0,
     /** Kontakt, jak ho má uživatel uložený — jméno, poznámka a vlastní fotka; `null` = není kontakt. */
