@@ -34,6 +34,8 @@ data class NotificationSettingsState(
      * neukazuje (hovory tu nejsou, nebo to platforma nerozlišuje).
      */
     val fullScreenCalls: Boolean? = null,
+    /** Push zjistil, že aplikace na mobilních datech v pozadí nemá síť (jen Android). */
+    val backgroundDataBlocked: Boolean = false,
     /** Spouštění po přihlášení (desktop); `null` = platforma ho neumí, řádek se neukazuje. */
     val launchAtLogin: Boolean? = null,
     /** `null` u rozsahu = ještě se načítá. */
@@ -56,7 +58,12 @@ class NotificationSettingsViewModel(
 ) : ViewModel() {
 
     private val local = MutableStateFlow(
-        NotificationSettingsState(permissionGranted = permission.isGranted(), fullScreenCalls = readFullScreenCalls(), launchAtLogin = readLaunchAtLogin()),
+        NotificationSettingsState(
+            permissionGranted = permission.isGranted(),
+            fullScreenCalls = readFullScreenCalls(),
+            backgroundDataBlocked = permission.backgroundDataBlocked(),
+            launchAtLogin = readLaunchAtLogin(),
+        ),
     )
 
     /** Řádek „Povolení v systému": na Linuxu není co ukázat ani otevřít. */
@@ -106,7 +113,14 @@ class NotificationSettingsViewModel(
      * (ztlumení z nabídky chatu) nebo na jiném zařízení.
      */
     fun refresh() {
-        local.update { it.copy(permissionGranted = permission.isGranted(), fullScreenCalls = readFullScreenCalls(), launchAtLogin = readLaunchAtLogin()) }
+        local.update {
+            it.copy(
+                permissionGranted = permission.isGranted(),
+                fullScreenCalls = readFullScreenCalls(),
+                backgroundDataBlocked = permission.backgroundDataBlocked(),
+                launchAtLogin = readLaunchAtLogin(),
+            )
+        }
         loadExceptions()
     }
 
@@ -180,6 +194,11 @@ class NotificationSettingsViewModel(
     fun openSystemSettings() = permission.openSystemSettings()
 
     fun openFullScreenCallSettings() = permission.openFullScreenCallSettings()
+
+    fun openBackgroundDataSettings() {
+        permission.openBackgroundDataSettings()
+        local.update { it.copy(backgroundDataBlocked = false) }
+    }
 
     private fun readFullScreenCalls(): Boolean? = if (calls.supported) permission.fullScreenCallsAllowed() else null
 

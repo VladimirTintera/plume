@@ -267,6 +267,10 @@
     <string name="settings_full_screen_calls">Příchozí hovory přes celou obrazovku</string>
     <string name="settings_full_screen_calls_on">Povoleno — zamčený telefon se rozsvítí a ukáže, kdo volá</string>
     <string name="settings_full_screen_calls_off">Nepovoleno — zamčený telefon jen zvoní, obrazovka zůstane zhasnutá</string>
+    <string name="settings_background_data_blocked">Data na pozadí jsou zablokovaná</string>
+    <string name="settings_background_data_blocked_summary">Na mobilních datech Plume v pozadí nedostane hovory ani zprávy. Povolte data na pozadí.</string>
+    <string name="background_data_notification_title">Hovory na mobilních datech nezazvoní</string>
+    <string name="background_data_notification_text">Plume nemá povolená data na pozadí. Ťukněte a povolte je.</string>
     <string name="full_screen_calls_prompt_title">Ukazovat hovory přes celou obrazovku?</string>
     <string name="full_screen_calls_prompt_text">Aby příchozí hovor rozsvítil zamčený telefon a ukázal, kdo volá, potřebuje Plume systémové povolení pro notifikace přes celou obrazovku.</string>
     <string name="full_screen_calls_prompt_open">Otevřít nastavení</string>

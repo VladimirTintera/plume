@@ -7,6 +7,8 @@ import co.touchlab.kermit.Logger
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import eu.tintera.plume.core.calls.CallJournal
+import eu.tintera.plume.core.notifications.BackgroundDataWarning
+import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
@@ -83,6 +85,9 @@ class PlumeMessagingService : FirebaseMessagingService() {
 
         val started = TimeSource.Monotonic.markNow()
         runBlocking {
+            // Každý push v pozadí prozradí, jestli aplikace na mobilních datech má síť. Bez ní
+            // hovor nezazvoní — a o tom se uživatel musí dozvědět dřív, než nějaký propadne.
+            checkBackgroundData()
             // Strop platí pro CELÉ zpracování: při studeném startu čeká už `processPush`,
             // než TDLib dostane parametry a otevře databázi.
             val processed = withTimeoutOrNull(DELIVERY_TIMEOUT) { repository.processPush(payload) }
@@ -153,6 +158,13 @@ class PlumeMessagingService : FirebaseMessagingService() {
                 connection.state.collect { journal.record("TDLib connection: $it") }
             }
         }
+    }
+
+    private suspend fun checkBackgroundData() {
+        val blocked = BackgroundDataWarning.check(applicationContext) ?: return
+        val permission = GlobalContext.getOrNull()?.getOrNull<NotificationPermission>() ?: return
+        if (blocked) journal?.record("Background data blocked on a metered network: calls on mobile data cannot ring")
+        if (BackgroundDataWarning.report(applicationContext, permission, blocked)) logger.i { "Upozornění na zablokovaná data na pozadí ukázané." }
     }
 
     private suspend fun reconnect() {
