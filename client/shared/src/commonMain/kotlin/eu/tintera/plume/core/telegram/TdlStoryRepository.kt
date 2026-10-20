@@ -20,6 +20,7 @@ import dev.g000sha256.tdl.dto.StoryInteraction
 import dev.g000sha256.tdl.dto.StoryInteractionTypeForward
 import dev.g000sha256.tdl.dto.StoryInteractionTypeRepost
 import dev.g000sha256.tdl.dto.StoryInteractionTypeView
+import dev.g000sha256.tdl.dto.StoryPrivacySettingsCloseFriends
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsContacts
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsEveryone
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsSelectedUsers
@@ -225,6 +226,7 @@ class TdlStoryRepository(
             privacySettings = when (val audience = draft.audience) {
                 StoryAudience.Everyone -> StoryPrivacySettingsEveryone(exceptUserIds = longArrayOf())
                 StoryAudience.Contacts -> StoryPrivacySettingsContacts(exceptUserIds = longArrayOf())
+                StoryAudience.CloseFriends -> StoryPrivacySettingsCloseFriends()
                 is StoryAudience.Selected -> StoryPrivacySettingsSelectedUsers(userIds = audience.userIds.toLongArray())
             },
             albumIds = intArrayOf(),
@@ -306,6 +308,16 @@ class TdlStoryRepository(
             }
         }
     }
+
+    override suspend fun closeFriends(): Result<List<Long>> =
+        client.getCloseFriends().toResult()
+            .onFailure { logger.w(it) { "getCloseFriends" } }
+            .map { it.userIds.toList() }
+
+    override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> =
+        client.setCloseFriends(userIds = userIds.toLongArray()).toResult()
+            .onFailure { logger.w(it) { "setCloseFriends" } }
+            .map { }
 
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()

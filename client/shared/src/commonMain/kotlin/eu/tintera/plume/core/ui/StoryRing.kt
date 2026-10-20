@@ -17,9 +17,13 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.min
 
-/** Kroužek příběhů: kolik jich autor má a kolik z nich je nezhlédnutých (ty nejnovější). */
+/**
+ * Kroužek příběhů: kolik jich autor má a kolik z nich je nezhlédnutých (ty nejnovější).
+ * [closeFriends] = mezi nezhlédnutými je příběh jen pro blízké přátele — volající pak dá
+ * nezhlédnutým dílkům jinou barvu (`tertiary`), jako zelený kroužek v oficiální aplikaci.
+ */
 @Immutable
-data class StoryRingState(val total: Int, val unread: Int)
+data class StoryRingState(val total: Int, val unread: Int, val closeFriends: Boolean = false)
 
 /**
  * Lem kolem avataru, který autor má příběhy. **Jde po tvaru avataru** (kruh, sušenka, čtverec),

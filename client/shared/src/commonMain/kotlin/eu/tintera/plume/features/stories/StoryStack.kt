@@ -77,9 +77,9 @@ internal fun StoryStack(
                         // První autor navrchu: hromádka se čte zleva jako seznam.
                         .zIndex((shown.size - index).toFloat())
                         .storyRing(
-                            ring = StoryRingState(total = 1, unread = if (poster.hasUnread) 1 else 0),
+                            ring = StoryRingState(total = 1, unread = if (poster.hasUnread) 1 else 0, closeFriends = poster.hasUnreadForCloseFriends),
                             shape = shape,
-                            unreadColor = MaterialTheme.colorScheme.primary,
+                            unreadColor = if (poster.hasUnreadForCloseFriends) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                             readColor = MaterialTheme.colorScheme.outlineVariant,
                             gap = 1.dp,
                             width = 1.5.dp,

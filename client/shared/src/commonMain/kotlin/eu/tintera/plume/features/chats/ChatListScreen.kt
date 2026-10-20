@@ -1675,7 +1675,9 @@ internal fun ChatListContent(
                                 onLongClick = {
                                     if (selecting) viewModel.toggleSelected(chat) else viewModel.showActions(chat)
                                 },
-                                stories = storyRings[chat.id]?.let { StoryRingState(total = it.stories.size, unread = it.unreadCount) },
+                                stories = storyRings[chat.id]?.let {
+                                    StoryRingState(total = it.stories.size, unread = it.unreadCount, closeFriends = it.hasUnreadForCloseFriends)
+                                },
                                 // Ve výběru avatar přepíná výběr jako zbytek řádku.
                                 onAvatarClick = onOpenStories
                                     ?.takeIf { !selecting && chat.id in storyRings }
@@ -2028,7 +2030,7 @@ private fun ChatRow(
                     .storyRing(
                         ring = stories,
                         shape = avatarShape,
-                        unreadColor = MaterialTheme.colorScheme.primary,
+                        unreadColor = if (stories?.closeFriends == true) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                         readColor = MaterialTheme.colorScheme.outlineVariant,
                     )
                     .then(

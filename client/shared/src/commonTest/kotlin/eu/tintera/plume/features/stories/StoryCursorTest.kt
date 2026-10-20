@@ -35,6 +35,15 @@ class StoryCursorTest {
     }
 
     @Test
+    fun closeFriendsRingOnlyForUnreadCloseFriendsStory() {
+        val base = author(1, listOf(10, 11), maxRead = 10)
+        val friendsOld = base.copy(stories = listOf(StoryRef(10, 10, isForCloseFriends = true), StoryRef(11, 11)))
+        val friendsNew = base.copy(stories = listOf(StoryRef(10, 10), StoryRef(11, 11, isForCloseFriends = true)))
+        assertEquals(false, friendsOld.hasUnreadForCloseFriends, "zhlédnutý příběh pro blízké barvu nemění")
+        assertEquals(true, friendsNew.hasUnreadForCloseFriends)
+    }
+
+    @Test
     fun postersFollowListOrderAndStayInTheirList() {
         val all = listOf(
             author(1, listOf(1), order = 5),

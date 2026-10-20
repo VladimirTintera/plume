@@ -14,6 +14,9 @@ import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.story_audience_pick_someone
+import eu.tintera.plume.resources.story_close_friends_empty
+import eu.tintera.plume.resources.story_close_friends_failed
+import eu.tintera.plume.resources.story_close_friends_saving
 import eu.tintera.plume.resources.story_post_failed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** Kdo příběh uvidí, jak se vybírá na obrazovce (vybraní lidé jsou zvlášť v [StoryComposerState.selected]). */
-enum class AudienceChoice { Everyone, Contacts, Selected }
+enum class AudienceChoice { Everyone, Contacts, CloseFriends, Selected }
 
 data class StoryComposerState(
     /** Fotka vyplní plátno 9 : 16 (kraje se oříznou); jinak se vejde celá na černé. */
@@ -31,6 +34,10 @@ data class StoryComposerState(
     /** Výchozí jsou kontakty: příběh je osobní a „všichni" je krok, který má udělat uživatel. */
     val audience: AudienceChoice = AudienceChoice.Contacts,
     val selected: Set<Long> = emptySet(),
+    /** Seznam blízkých přátel účtu; `null`, dokud není načtený. */
+    val closeFriends: Set<Long>? = null,
+    /** Ukládá se změněný seznam blízkých přátel. */
+    val savingCloseFriends: Boolean = false,
     val keepOnProfile: Boolean = false,
     val allowScreenshots: Boolean = true,
     val posting: Boolean = false,
@@ -62,6 +69,9 @@ class StoryComposerViewModel(
     val state: StateFlow<StoryComposerState> = _state.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            repository.closeFriends().onSuccess { ids -> _state.update { it.copy(closeFriends = ids.toSet()) } }
+        }
         if (isVideo) {
             viewModelScope.launch {
                 runCatching { storyVideo.preview(path) to storyVideo.durationMs(path) }
@@ -85,6 +95,34 @@ class StoryComposerViewModel(
         it.copy(selected = userIds, audience = if (userIds.isEmpty()) it.audience else AudienceChoice.Selected)
     }
 
+    /**
+     * Uloží nový seznam blízkých přátel (je to nastavení účtu, ne jen tohohle příběhu) a vybere
+     * je jako publikum. Seznam se v obrazovce přepne hned a při chybě vrátí.
+     */
+    fun saveCloseFriends(userIds: Set<Long>) {
+        val previous = _state.value.closeFriends
+        _state.update {
+            it.copy(
+                closeFriends = userIds,
+                savingCloseFriends = true,
+                audience = if (userIds.isEmpty()) it.audience else AudienceChoice.CloseFriends,
+            )
+        }
+        viewModelScope.launch {
+            repository.setCloseFriends(userIds.toList())
+                .onSuccess { _state.update { it.copy(savingCloseFriends = false) } }
+                .onFailure { failure ->
+                    _state.update {
+                        it.copy(
+                            closeFriends = previous,
+                            savingCloseFriends = false,
+                            error = failure.userMessage(Res.string.story_close_friends_failed),
+                        )
+                    }
+                }
+        }
+    }
+
     fun setKeepOnProfile(keep: Boolean) = _state.update { it.copy(keepOnProfile = keep) }
 
     fun setAllowScreenshots(allow: Boolean) = _state.update { it.copy(allowScreenshots = allow) }
@@ -97,6 +135,16 @@ class StoryComposerViewModel(
         val audience = when (current.audience) {
             AudienceChoice.Everyone -> StoryAudience.Everyone
             AudienceChoice.Contacts -> StoryAudience.Contacts
+            AudienceChoice.CloseFriends -> {
+                // Prázdný seznam = příběh, který nikdo neuvidí.
+                if (current.closeFriends.isNullOrEmpty() || current.savingCloseFriends) {
+                    _state.update {
+                        it.copy(error = UiText(if (current.savingCloseFriends) Res.string.story_close_friends_saving else Res.string.story_close_friends_empty))
+                    }
+                    return
+                }
+                StoryAudience.CloseFriends
+            }
             AudienceChoice.Selected -> {
                 // Prázdný výběr by zveřejnil příběh, který nikdo neuvidí.
                 if (current.selected.isEmpty()) {

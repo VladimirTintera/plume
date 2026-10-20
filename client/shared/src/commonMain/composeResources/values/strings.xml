@@ -3199,6 +3199,12 @@
     <string name="story_viewers_failed">Couldn’t load who saw the story.</string>
     <string name="story_viewer_forwarded">Forwarded · %1$s</string>
     <string name="story_viewer_reposted">Shared in their story · %1$s</string>
+    <string name="story_audience_close_friends">Close friends</string>
+    <string name="story_close_friends_title">Close friends</string>
+    <string name="story_close_friends_pick">Choose close friends</string>
+    <string name="story_close_friends_empty">Your close friends list is empty. Add someone to it first.</string>
+    <string name="story_close_friends_saving">Still saving your close friends, try again in a moment.</string>
+    <string name="story_close_friends_failed">Couldn’t save your close friends.</string>
     <string name="location_live_share">Share live location</string>
     <string name="location_live_share_hint">Keeps updating until you stop it</string>
     <string name="location_live_period_title">Share live location for…</string>

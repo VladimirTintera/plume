@@ -2,8 +2,8 @@
 
 Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání,
 prohlížeč přes celou obrazovku a v něm reakce a odpověď; zveřejnění vlastního příběhu z fotky
-i videa, diváci (počet i seznam s reakcemi) a smazání. Blízcí přátelé, skrytí do archivu
-a příběhy v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
+i videa (i jen pro blízké přátele), diváci (počet i seznam s reakcemi) a smazání. Skrytí do
+archivu a příběhy v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
 zprávě a odpověď na příběh jsou v `typy-zprav.md`.
 
 Skladba:
@@ -155,8 +155,17 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
 - **Výchozí viditelnost jsou kontakty**, ne všichni: příběh je osobní a zveřejnit ho celému
   světu má být rozhodnutí. Vybraní lidé jdou přes `ChatPicker` jako členové nové skupiny
   (`groupMemberCandidates`, id soukromého chatu = id uživatele); volba „Vybraní" bez výběru
-  rovnou otevře výběr. **Blízcí přátelé chybí vědomě** — seznam (`setCloseFriends`) Plume
-  upravovat neumí a příběh pro prázdný seznam by nikdo neviděl.
+  rovnou otevře výběr.
+- **Blízcí přátelé** jsou čtvrtá volba. **Seznam je nastavení ÚČTU** (`getCloseFriends` /
+  `setCloseFriends`), ne příběhu — upravuje se ve výběru přímo z volby (prázdný seznam ho otevře
+  rovnou, vybraná volba podruhé k úpravě) a platí i v oficiálních klientech. Smí na něm být
+  **jen kontakty**, výběr proto ukazuje jen kontakty (žádné globální výsledky) a potvrdit jde
+  i prázdný (vyprázdnění seznamu). Seznam se v obrazovce přepne hned a při chybě vrátí;
+  zveřejnit s prázdným seznamem (nebo dokud se ukládá) nejde — příběh by nikdo neviděl.
+- **Nezhlédnutý příběh pro blízké přátele má lem v `tertiary`** (řádek chatu i hromádka;
+  `ActiveStories.hasUnreadForCloseFriends`, `StoryRingState.closeFriends`) — oficiální aplikace
+  ho má zelený. Barva se bere z palety, ne zelená natvrdo; odlišení nese i to, že lem je jiný
+  než u ostatních. Zhlédnutý příběh pro blízké barvu nemění.
 - **Délka je vždycky 24 h** (`activePeriod = 86400`); 6, 12 a 48 h jsou jen pro Premium.
 - **Obrazovka se zavře, jakmile TDLib `postStory` přijme**; nahrávání běží dál a výsledek
   (`updateStoryPostSucceeded` / `updateStoryPostFailed`) hlásí snackbar seznamu chatů —
@@ -207,6 +216,10 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   účtu …029 (H.265 z Plume přehrál) a dal srdce; v Plume „1 view" → sheet s „Pixel 5 · 19:22"
   a ❤, příběh pod sheetem stál. Neověřené: stránkování (víc než 50 diváků — jen v testu),
   přeposlání a sdílení, vypršelý seznam.
+- **Blízcí přátelé ověření** (20. 10. 2026, …029 přes sondu s fotkou): volba „Close friends ·
+  Choose close friends" (prázdný seznam), výběr jen z kontaktů → Pixel 5 → „Close friends ·
+  1 person" → Zveřejnit → u Pixelu 5 v oficiální aplikaci **zelený** kroužek. Neověřené:
+  barva lemu v Plume u příjemce (Plume na Pixelu 5 je verze z Play), chyba uložení.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).
