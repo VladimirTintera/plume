@@ -26,8 +26,9 @@ import kotlin.time.Instant
  * Deník hovorů pro diagnostiku (s podrobnými výpisy přenosu v [CALL_DETAIL_DIRECTORY], kde je
  * platforma umí): časová osa událostí (push, stavy hovoru, spojení, síť, výstup
  * zvuku, popředí) a po vteřinách přenesená data ([CallStatsSampler]). Žádný obsah zpráv, jména
- * ani id účtů — jen to, z čeho jde poznat, KDE se hovor zasekl. Ven jde jen tak, že ho uživatel
- * sám pošle ([export], Nastavení → Pomoc); automaticky se nikam neodesílá.
+ * ani id účtů — jen to, z čeho jde poznat, KDE se hovor zasekl. Celý ven jde jen tak, že ho
+ * uživatel sám pošle ([export], Nastavení → Pomoc). Řádky jednoho hovoru a jeho výpis dostane
+ * Telegram, když o ladicí data k tomu hovoru sám požádá ([lastCallLines], [detailLog]).
  *
  * Proč vůbec: logcat se ze skutečného telefonu dostane jen přes adb, a když hovor sekal nebo
  * propadl u někoho, kdo vývojář není, nezbylo nic. Viz `docs/poznatky/hovory.md`, „Deník hovorů".
@@ -104,6 +105,37 @@ class CallJournal(
         }.onFailure { logger.w(it) { "Deník nejde složit k odeslání." } }.getOrNull()
     }
 
+    /**
+     * Řádky deníku k právě skončenému hovoru [callId] — pro ladicí data, o která požádá server
+     * (`sendCallDebugInformation`). TDLib čísluje hovory v každém spuštění od jedničky, takže
+     * v deníku může být víc hovorů s týmž číslem; bere se jen poslední úsek (od předchozího
+     * „Over" po poslední).
+     */
+    suspend fun lastCallLines(callId: Int): List<String> {
+        val barrier = CompletableDeferred<Unit>()
+        queue.send(Op.Barrier(barrier))
+        barrier.await()
+        val mine = runCatching {
+            listOf(previous, current).filter { fileSystem.exists(it) }.flatMap { part ->
+                fileSystem.read(part) { readUtf8() }.lines()
+            }.filter { " [$callId] " in it }
+        }.onFailure { logger.w(it) { "Deník nejde přečíst." } }.getOrDefault(emptyList())
+        return lastCall(mine)
+    }
+
+    /**
+     * Podrobný výpis přenosu hovoru [callId] (`CallDetailLog`) pro `sendCallLog`; `null`, když
+     * není. Jen čerstvý — starší soubor s týmž číslem je z jiného spuštění, ne z tohohle hovoru.
+     */
+    fun detailLog(callId: Int): String? = runCatching {
+        val oldest = now().toEpochMilliseconds() - DETAIL_LOG_FRESH_MS
+        fileSystem.listOrNull(dir / CALL_DETAIL_DIRECTORY).orEmpty()
+            .filter { it.name.endsWith("-call$callId.log") }
+            .filter { (fileSystem.metadataOrNull(it)?.lastModifiedAtMillis ?: 0) >= oldest }
+            .maxByOrNull { it.name }
+            ?.toString()
+    }.getOrNull()
+
     /** Jméno souboru k odeslání: `plume-calls-20261019-2051.txt`. */
     fun exportFileName(): String {
         val time = now().toLocalDateTime(timeZone())
@@ -127,6 +159,17 @@ class CallJournal(
     }
 
     companion object {
+        /** Za jak dlouho po posledním zápisu se výpis přenosu ještě bere jako ten z právě skončeného hovoru. */
+        private const val DETAIL_LOG_FRESH_MS = 10 * 60 * 1000L
+
+        /** Poslední úsek řádků jednoho čísla hovoru (viz [lastCallLines]). */
+        internal fun lastCall(lines: List<String>): List<String> {
+            val overs = lines.indices.filter { "Over:" in lines[it] }
+            val end = overs.lastOrNull() ?: lines.lastIndex
+            val start = overs.lastOrNull { it < end }?.plus(1) ?: 0
+            return if (lines.isEmpty()) emptyList() else lines.subList(start, end + 1)
+        }
+
         /** Kolik má jeden díl, než se přesune na `.1`. Dva díly ~ deset běžných hovorů. */
         const val MAX_FILE_BYTES = 256L * 1024
 

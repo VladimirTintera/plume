@@ -535,7 +535,9 @@ Logcat ze skutečného telefonu dostane jen ten, kdo má adb; když hovor sekal 
 u někoho jiného, nezbylo nic. Plume proto vede **deník hovorů** (`CallJournal`) a uživatel ho
 může poslat sám: Nastavení → Pomoc → „Odeslat diagnostiku hovorů" složí textový soubor
 (hlavička s verzí aplikace, telefonem a systémem + deník) a otevře systémové sdílení
-(`MediaSharer`). Automaticky se nikam neposílá — server na to nemáme a nechceme.
+(`MediaSharer`). Celý deník automaticky nikam nejde — vlastní server na to nemáme a nechceme;
+jen řádky jednoho hovoru a jeho výpis dostane Telegram, když o ladicí data k tomu hovoru sám
+požádá (viz „Hodnocení hovoru").
 
 - **Co se zapisuje**: push hovoru (jak dlouho cestoval — `RemoteMessage.sentTime`, priorita,
   za kolik ms byl hovor známý, znovuotevření spojení, úloha na pozadí), stavy `UpdateCall`
@@ -624,9 +626,22 @@ s `InputCallDiscarded`. Zavření sheetu je „teď ne" — nic se nepošle a zn
 - **Až zmizí obrazovka hovoru** (`active == null`): přes dobíhající hovor by se hodnotilo něco,
   co ještě nekončí.
 - **Komentář a problémy jen u horšího než plného hodnocení** — u pěti hvězd je TDLib nebere.
-- **Ladicí data a log (`needDebugInformation`, `needLog`) Plume NEPOSÍLÁ**, jen do deníku
-  zapíše, že o ně server stál. Deník hovorů jde ven jen ručně (viz „Deník hovorů"); posílat ho
-  Telegramu automaticky je rozhodnutí, které nepadlo.
+- **Ladicí data a log, když o ně server požádá** (`needDebugInformation`, `needLog`), Plume
+  posílá sám, bez ptaní (rozhodnutí uživatele 20. 10. 2026: jen technické údaje bez obsahu).
+  - **Ladicí data** (`sendCallDebugInformation`, formát je na aplikaci): JSON s klientem,
+    verzí, modelem telefonu, systémem a **řádky deníku k tomuhle hovoru** (`callDebugInformation`,
+    `CallJournal.lastCallLines`) — stavy, verze, servery, přenos po vteřinách, síť, výstup zvuku.
+    Žádná jména, čísla, id účtů ani obsah zpráv; to deník nezapisuje vůbec (viz „Deník hovorů").
+  - **Log** (`sendCallLog`) je podrobný výpis přenosu (`CallDetailLog`) — jen tagy hovoru,
+    adresy telefonů zamaskované. Kde výpis není (hovor bez přenosu), nepošle se nic a deník to
+    poznamená.
+  - **TDLib čísluje hovory v každém spuštění od jedničky**, takže v deníku i mezi výpisy může být
+    víc hovorů s týmž číslem: z deníku se bere jen poslední úsek (od předchozího „Over" po
+    poslední, testy `CallDiagnosticsTest`) a výpis jen čerstvý (posledních deset minut).
+  - **Posílá se 3 s po konci**: výpis přenosu se zavírá až se zastavením médií (`finish`).
+  - Odeslání se zapíše do deníku („Sent debug information / call log to Telegram"), takže je
+    vidět i v ručně odeslané diagnostice. **Na zařízení ověřené NENÍ** — server o ladicí data
+    žádá jen někdy; pokrývají to testy výběru úseku a podoby JSONu.
 - **Ověřen jen vzhled**, sondou (žádost podstrčená při startu, necommitnuto): hvězdy, problémy
   a komentář po třech hvězdách, zavření gestem bez odeslání. **Skutečná žádost serveru
   a odeslání hodnocení ověřené NEJSOU** — server o hodnocení žádá jen někdy.
