@@ -3139,6 +3139,10 @@
     <string name="story_unavailable">This story is no longer available</string>
     <string name="story_live">Live stream</string>
     <string name="story_live_unsupported">Live streams can only be watched in the official Telegram app for now.</string>
+    <string name="stories_next">Next story</string>
+    <string name="stories_previous">Previous story</string>
+    <string name="stories_open">Show stories of %1$s</string>
+    <string name="stories_stack">Stories</string>
     <string name="location_live_share">Share live location</string>
     <string name="location_live_share_hint">Keeps updating until you stop it</string>
     <string name="location_live_period_title">Share live location for…</string>

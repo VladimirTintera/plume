@@ -359,6 +359,13 @@ data class MediaRoute(
     val storyId: Int = NO_STORY,
 ) : Route
 
+/**
+ * Prohlížeč příběhů přes celou obrazovku, otevřený u autora [chatId] (kroužek v řádku chatu,
+ * hromádka v pilulce). Tahem do strany jde na další autory téhož seznamu příběhů.
+ */
+@Serializable
+data class StoriesRoute(val chatId: Long) : Route
+
 /** [MediaRoute.startSeconds] bez času v médiu. */
 const val NO_START = -1
 
@@ -583,6 +590,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(RemovedMembersRoute::class, RemovedMembersRoute.serializer())
             subclass(EventLogRoute::class, EventLogRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
+            subclass(StoriesRoute::class, StoriesRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())
             subclass(AddMembersRoute::class, AddMembersRoute.serializer())

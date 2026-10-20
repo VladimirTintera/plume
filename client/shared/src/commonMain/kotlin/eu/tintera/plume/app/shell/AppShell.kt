@@ -178,6 +178,7 @@ import eu.tintera.plume.core.navigation.ShareToChatRoute
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
+import eu.tintera.plume.core.navigation.StoriesRoute
 import eu.tintera.plume.core.navigation.NewChatRoute
 import eu.tintera.plume.core.navigation.NewContactRoute
 import eu.tintera.plume.core.navigation.NewGroupMembersRoute
@@ -206,6 +207,7 @@ import eu.tintera.plume.features.share.SharedContentStrip
 import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.features.share.ShareToChatScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
+import eu.tintera.plume.features.stories.StoriesScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
 import eu.tintera.plume.features.settings.SettingsSectionScreen
@@ -719,6 +721,7 @@ private fun shellEntryProvider(
             onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
             onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
             modifier = Modifier.listPaneInsets(twoPane),
+            onOpenStories = { chatId -> chatsStack.openStories(chatId) },
         )
     }
 
@@ -751,6 +754,7 @@ private fun shellEntryProvider(
             onBack = chatsStack::closeArchive,
             onChatArchived = chatsStack::closeConversationOf,
             modifier = Modifier.listPaneInsets(twoPane),
+            onOpenStories = { chatId -> chatsStack.openStories(chatId) },
         )
     }
 
@@ -1337,6 +1341,18 @@ private fun shellEntryProvider(
     }
 
     /*
+     * Prohlížeč příběhů. Stejně jako prohlížeč médií bez metadat list-detail scény, takže ho
+     * `NavDisplay` vykreslí přes celou plochu i na širokém rozvržení.
+     */
+    entry<StoriesRoute> { route ->
+        StoriesScreen(
+            // Klíč s autorem ze stejného důvodu jako u prohlížeče médií (cachovaný ViewModel).
+            viewModel = koinViewModel(key = "stories-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    /*
      * Výběr cílového chatu. Po přeposlání se výběr ze zásobníku zahodí a otevře
      * se cílový chat — uživatel tak skončí tam, kam zprávu poslal, a zpět ho
      * vrátí do původní konverzace.
@@ -1767,6 +1783,11 @@ private fun MutableList<NavKey>.openForum(chatId: Long) {
 private fun MutableList<NavKey>.openSavedTopics(chatId: Long) {
     removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
     add(SavedTopicsRoute(chatId))
+}
+
+/** Prohlížeč příběhů nad čímkoli; druhé ťuknutí (dvojité) ho nezdvojí. */
+private fun MutableList<NavKey>.openStories(chatId: Long) {
+    if (lastOrNull() !is StoriesRoute) add(StoriesRoute(chatId))
 }
 
 /** Totéž co [isOpenConversation], ale pro větev archivu. */
