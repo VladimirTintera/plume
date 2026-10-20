@@ -10,9 +10,12 @@ import eu.tintera.plume.resources.error_flood_wait_minutes
 import eu.tintera.plume.resources.error_flood_wait_seconds
 import eu.tintera.plume.resources.error_phone_code_invalid
 import eu.tintera.plume.resources.error_pin_limit
+import eu.tintera.plume.resources.error_channels_too_much
 import eu.tintera.plume.resources.error_verification_failed
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class TelegramErrorsTest {
 
@@ -60,6 +63,14 @@ class TelegramErrorsTest {
             UiText(Res.string.error_ai_compose_premium),
             IllegalStateException("AICOMPOSE_FLOOD_PREMIUM").userMessage(fallback),
         )
+    }
+
+    @Test
+    fun `limit skupin a kanalu se pozna a ma vlastni vetu`() {
+        val limit = IllegalStateException("CHANNELS_TOO_MUCH")
+        assertTrue(limit.isChannelLimit())
+        assertFalse(IllegalStateException("CHANNEL_PRIVATE").isChannelLimit())
+        assertEquals(UiText(Res.string.error_channels_too_much), limit.userMessage(fallback))
     }
 
     @Test

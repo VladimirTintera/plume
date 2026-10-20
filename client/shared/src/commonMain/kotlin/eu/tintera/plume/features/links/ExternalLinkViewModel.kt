@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.links
 
+import eu.tintera.plume.core.navigation.ChannelLimitRequests
 import eu.tintera.plume.core.navigation.ContactOffers
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,7 @@ import eu.tintera.plume.core.share.ShareTarget
 import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ContactLinkExpiredException
+import eu.tintera.plume.core.telegram.isChannelLimit
 import eu.tintera.plume.core.telegram.GuardDecision
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.JoinResult
@@ -68,6 +70,8 @@ class ExternalLinkViewModel(
     proxies: ProxyRepository,
     /** Kontaktní odkaz (QR kód): profil s „Přidat do kontaktů" jako hlavní akcí. */
     private val contactOffers: ContactOffers,
+    /** Limit skupin a kanálů při vstupu: sheet s neaktivními k opuštění ukazuje shell. */
+    private val channelLimit: ChannelLimitRequests,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ExternalLink")
@@ -182,6 +186,11 @@ class ExternalLinkViewModel(
                     }
                 }
                 .onFailure { failure ->
+                    if (failure.isChannelLimit()) {
+                        _state.update { it.copy(invite = null) }
+                        channelLimit.request()
+                        return@onFailure
+                    }
                     val message = failure.reported(Res.string.conversation_join_failed)
                     _state.update { it.copy(invite = it.invite?.copy(joining = false), message = message) }
                 }
@@ -225,6 +234,11 @@ class ExternalLinkViewModel(
                     _state.update { it.copy(folderInvite = null, message = UiText(done, invite.preview.title)) }
                 }
                 .onFailure { failure ->
+                    if (failure.isChannelLimit()) {
+                        _state.update { it.copy(folderInvite = null) }
+                        channelLimit.request()
+                        return@onFailure
+                    }
                     val message = failure.reported(Res.string.folder_invite_failed)
                     _state.update { it.copy(folderInvite = it.folderInvite?.copy(adding = false), message = message) }
                 }

@@ -203,6 +203,7 @@ import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
 import eu.tintera.plume.features.settings.SettingsSectionScreen
+import eu.tintera.plume.features.channellimit.ChannelLimitHost
 import eu.tintera.plume.features.links.ExternalLinkHost
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -631,6 +632,8 @@ private fun ShellContent(
             onNavigate = { destination -> navigation.openExternal(destination, twoPane) },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+        // Limit skupin a kanálů: přijít může ze vstupu i založení kdekoli, sheet patří nad vše.
+        ChannelLimitHost()
     }
 }
 

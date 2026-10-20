@@ -16,7 +16,9 @@ import eu.tintera.plume.core.telegram.UsernameCheck
 import eu.tintera.plume.core.telegram.usernameFormatError
 import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
 import eu.tintera.plume.core.ui.UsernameStatus
+import eu.tintera.plume.core.telegram.isChannelLimit
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.navigation.ChannelLimitRequests
 import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.PreparedProfilePhoto
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
@@ -64,6 +66,8 @@ class CreateChatViewModel(
     private val profiles: ProfileRepository,
     private val photoCrop: ProfilePhotoCrop,
     conversations: ConversationRepository,
+    /** Limit skupin a kanálů: založit další nejde, sheet s neaktivními k opuštění ukazuje shell. */
+    private val channelLimit: ChannelLimitRequests? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("CreateChat")
@@ -212,7 +216,11 @@ class CreateChatViewModel(
             ).onSuccess { chat -> finish(chat) }
                 .onFailure { failure ->
                     logger.w(failure) { "Založení ${if (channel) "kanálu" else "skupiny"} selhalo." }
-                    notice = failure.userMessage(if (channel) Res.string.create_channel_failed else Res.string.create_group_failed)
+                    if (failure.isChannelLimit() && channelLimit != null) {
+                        channelLimit.request()
+                    } else {
+                        notice = failure.userMessage(if (channel) Res.string.create_channel_failed else Res.string.create_group_failed)
+                    }
                     creating = false
                 }
         }

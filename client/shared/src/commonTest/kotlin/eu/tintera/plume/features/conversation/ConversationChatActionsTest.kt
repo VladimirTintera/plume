@@ -102,6 +102,8 @@ class ConversationChatActionsTest {
     private var reportAnswer: ReportStep = ReportStep.Done
     private val reported = mutableListOf<Long>()
 
+    private var channelLimits = 0
+
     /** Strážní boti, na které se čeká, a co se má stát po jejich schválení. */
     private val guards = mutableListOf<Pair<JoinResult.GuardBot, (Long) -> Unit>>()
 
@@ -123,6 +125,7 @@ class ConversationChatActionsTest {
             },
             logger = testLogger,
             awaitGuardBot = { guard, onApproved -> guards += guard to onApproved },
+            onChannelLimit = { channelLimits++ },
             restartBot = { botRestarts++ },
         )
 
@@ -275,6 +278,17 @@ class ConversationChatActionsTest {
         assertEquals(UiText(Res.string.conversation_join_failed), state.value.error)
         assertEquals(true, state.value.info?.canJoin)
         assertFalse(state.value.joining)
+    }
+
+    @Test
+    fun limitSkupinAKanaluNabidneOpustitMistoHlasky() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo(isChannel = true, canJoin = true)))
+        repository.joinResult = Result.failure(IllegalStateException("CHANNELS_TOO_MUCH"))
+        actions(state).join()
+        advanceUntilIdle()
+        assertEquals(1, channelLimits)
+        assertNull(state.value.error, "sheet s neaktivními místo hlášky")
+        assertEquals(true, state.value.info?.canJoin)
     }
 
     @Test

@@ -60,6 +60,7 @@ import eu.tintera.plume.core.settings.RecordMode
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.BotStartRequests
+import eu.tintera.plume.core.navigation.ChannelLimitRequests
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.MessageViewMetrics
@@ -215,6 +216,8 @@ class ConversationViewModel(
     private val botStartRequests: BotStartRequests,
     /** Kontaktní odkaz ze zprávy: profil s „Přidat do kontaktů" jako hlavní akcí. */
     private val contactOffers: ContactOffers,
+    /** Limit skupin a kanálů při vstupu: sheet s neaktivními k opuštění ukazuje shell. */
+    private val channelLimit: ChannelLimitRequests? = null,
     /** „Odpovědět" z prohlížeče médií. */
     private val replyRequests: ConversationReplyRequests,
     /** Inline dotaz z tlačítka bota v jiném chatu ([BotButtonKind.SwitchInline]). */
@@ -509,6 +512,7 @@ class ConversationViewModel(
         awaitGuardBot = { guard, onApproved -> links.awaitGuardBot(guard, onApproved) },
         // `bots` vzniká až níž; sáhne se na ně teprve po odblokování bota.
         restartBot = { bots.startBot() },
+        onChannelLimit = { channelLimit?.request() },
     )
     val chatBar: StateFlow<ChatBar?> get() = chatActions.chatBar
     val videoChat: StateFlow<VideoChatInfo?> get() = chatActions.videoChat
@@ -573,6 +577,7 @@ class ConversationViewModel(
         openProxy = proxyLinkFlow::open,
         jumper = jumper,
         logger = logger,
+        onChannelLimit = { channelLimit?.request() },
     )
     fun openConfirmedLink() = links.openConfirmedLink()
     fun dismissLink() = links.dismissLink()

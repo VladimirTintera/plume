@@ -582,9 +582,10 @@ a se serverem, takže přednostně:
 4. **Import chatu z jiné aplikace** (`getMessageFileType`, `getMessageImportConfirmationText`,
    `importMessages`) — export z WhatsAppu sdílený do Plume. Cíl sdílení na Androidu už je
    (`docs/poznatky/sdileni.md`), chybí rozpoznání exportu a průběh importu.
-5. **Limit kanálů a skupin.** `CHANNELS_TOO_MUCH` dnes skončí obecnou chybou; oficiální klient
-   nabídne opustit neaktivní (`getInactiveSupergroupChats`). Totéž u veřejného odkazu:
-   `checkCreatedPublicChatsLimit` a seznam vlastních veřejných chatů (`getCreatedPublicChats`).
+5. ~~**Limit kanálů a skupin** (`CHANNELS_TOO_MUCH`, `getInactiveSupergroupChats`)~~ — hotovo,
+   sheet s neaktivními k opuštění (`docs/poznatky/hledani-a-zakladani-chatu.md`, „Limit skupin
+   a kanálů"). Zbývá totéž u veřejného odkazu: `checkCreatedPublicChatsLimit` a seznam vlastních
+   veřejných chatů (`getCreatedPublicChats`).
 6. ~~**Předem poznat, že protějšek nepřijímá zprávy** (`canSendMessageToUser`)~~ — hotovo,
    věta místo vstupního pole (`docs/poznatky/konverzace-psani.md`, „Práva psát"). Zbývá ověřit
    na zařízení s protějškem, který nové chaty omezuje nebo zprávy zpoplatnil.

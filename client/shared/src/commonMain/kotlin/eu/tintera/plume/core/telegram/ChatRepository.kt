@@ -336,6 +336,12 @@ interface ChatRepository {
      */
     fun groupMembers(chatId: Long): Flow<GroupMembers?> = emptyFlow()
 
+    /**
+     * Skupiny a kanály, ve kterých se uživatel dlouho neozval (`getInactiveSupergroupChats`) —
+     * kandidáti na opuštění, když narazí na limit skupin a kanálů ([isChannelLimit]).
+     */
+    suspend fun inactiveGroups(): Result<List<ChatSummary>> = Result.failure(UnsupportedOperationException())
+
     /** Kolik je v chatu nepřečtených zpráv, živě (`UpdateChatReadInbox`); neznámý chat = 0. */
     fun unreadCount(chatId: Long): Flow<Int> = flowOf(0)
 
