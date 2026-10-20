@@ -2384,6 +2384,8 @@ sealed interface MessageMedia {
         val isSecret: Boolean = false,
         val selfDestructType: SelfDestructType? = null,
         val minithumbnail: Minithumbnail? = null,
+        /** Na fotce jsou samolepky (`Photo.hasStickers`); jejich sady vydá `getAttachedStickerSets`. */
+        val hasStickers: Boolean = false,
     ) : MessageMedia
 
     /**
@@ -2433,6 +2435,8 @@ sealed interface MessageMedia {
          * ještě nepřepočítal. Vybírá se v přehrávači (`pickVideoQuality` v `core/video`).
          */
         val alternatives: List<VideoQuality> = emptyList(),
+        /** Ve videu jsou samolepky (`Video.hasStickers`), jako u [Photo.hasStickers]. */
+        val hasStickers: Boolean = false,
     ) : MessageMedia {
         /** Soubor od odesílatele jako jedna z kvalit, vedle [alternatives]. */
         val original: VideoQuality

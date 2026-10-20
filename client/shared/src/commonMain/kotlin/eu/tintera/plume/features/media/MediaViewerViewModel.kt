@@ -42,6 +42,10 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.conversation.PendingDelete
 import eu.tintera.plume.features.conversation.toggled
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.media_attached_stickers_failed
+import eu.tintera.plume.resources.media_attached_stickers_none
+import eu.tintera.plume.core.telegram.StickerSetSummary
+import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.resources.media_profile_photo_report_failed
 import eu.tintera.plume.resources.media_profile_photo_reported
 import eu.tintera.plume.core.telegram.PhotoReportReason
@@ -120,6 +124,8 @@ class MediaViewerViewModel(
     private val settings: AppSettings? = null,
     /** Hotové popisy fotek: uložit, aby je měla bublina pro čtečku, a příště ukázat bez modelu. */
     private val photoDescriptions: PhotoDescriptions? = null,
+    /** Sady samolepek nalepených na fotku nebo video; bez něj se položka nenabízí. */
+    private val stickers: StickerRepository? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("MediaViewer")
@@ -1037,6 +1043,47 @@ class MediaViewerViewModel(
         _state.update { it.copy(reportingPhoto = null) }
     }
 
+    /** Nabídnout „Samolepky na fotce" u stránky [item]: jen fotka nebo video, které je mají. */
+    fun hasAttachedStickers(item: ViewerItem): Boolean = stickers != null && when (val media = item.media) {
+        is MessageMedia.Photo -> media.hasStickers
+        is MessageMedia.Video -> media.hasStickers
+        else -> false
+    }
+
+    /**
+     * Sady samolepek nalepených na médium zprávy [messageId] (`getAttachedStickerSets`). Jediná
+     * sada se otevře rovnou, víc se nabídne seznamem.
+     */
+    fun showAttachedStickers(messageId: Long) {
+        val repository = stickers ?: return
+        val media = _state.value.items.firstOrNull { it.messageId == messageId }?.media ?: return
+        val fileId = when (media) {
+            is MessageMedia.Photo -> media.fullFileId
+            is MessageMedia.Video -> media.fileId
+            else -> return
+        }
+        viewModelScope.launch {
+            repository.attachedStickerSets(fileId)
+                .onSuccess { sets ->
+                    _state.update {
+                        when (sets.size) {
+                            0 -> it.copy(notice = UiText(Res.string.media_attached_stickers_none))
+                            1 -> it.copy(openStickerSetId = sets.single().id)
+                            else -> it.copy(attachedStickerSets = sets)
+                        }
+                    }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Sady samolepek na fotce ($fileId) se nepodařilo načíst." }
+                    _state.update { it.copy(notice = failure.userMessage(Res.string.media_attached_stickers_failed)) }
+                }
+        }
+    }
+
+    fun openStickerSet(setId: Long) = _state.update { it.copy(attachedStickerSets = null, openStickerSetId = setId) }
+
+    fun dismissAttachedStickers() = _state.update { it.copy(attachedStickerSets = null, openStickerSetId = null) }
+
     fun reportProfilePhoto(reason: PhotoReportReason, text: String) {
         val photoId = _state.value.reportingPhoto ?: return
         val fileId = _state.value.reportablePhotos[photoId] ?: return
@@ -1196,6 +1243,10 @@ data class MediaViewerState(
     val reportablePhotos: Map<Long, Int> = emptyMap(),
     /** Profilovka, u které se vybírá důvod nahlášení. */
     val reportingPhoto: Long? = null,
+    /** Víc sad samolepek na fotce — vybírá se, kterou otevřít. */
+    val attachedStickerSets: List<StickerSetSummary>? = null,
+    /** Otevřená sada samolepek (z fotky). */
+    val openStickerSetId: Long? = null,
     /** Vlastní profilovka čekající na potvrzení smazání. */
     val pendingProfilePhotoDelete: Long? = null,
     /**
