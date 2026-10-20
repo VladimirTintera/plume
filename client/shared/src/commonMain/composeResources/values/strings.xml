@@ -478,6 +478,9 @@
     <string name="profile_tab_video_notes">Video messages</string>
     <string name="profile_tab_common_groups">Groups</string>
     <string name="profile_tab_similar_channels">Similar</string>
+    <string name="profile_tab_gifts">Gifts</string>
+    <string name="gift_number">#%1$s</string>
+    <string name="gift_received_on">Received %1$s</string>
     <string name="profile_shared_gif">GIF</string>
     <string name="profile_shared_video_note">Video message</string>
     <string name="profile_tab_media">Media</string>

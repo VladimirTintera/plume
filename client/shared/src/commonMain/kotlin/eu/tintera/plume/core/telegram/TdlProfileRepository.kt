@@ -160,6 +160,8 @@ class TdlProfileRepository(
                             ?.let { LinkedChat(chatId = it.id, title = it.title, photoFileId = it.photo?.small?.id) }
                     },
                     directMessagesChatId = full?.directMessagesChatId?.takeIf { type.isChannel && it != 0L },
+                    // Dárky mají jen kanály, skupiny ne.
+                    giftCount = full?.giftCount?.takeIf { type.isChannel } ?: 0,
                     directMessagesAdmin = full?.directMessagesChatId?.takeIf { type.isChannel && it != 0L }
                         ?.let { client.getChat(chatId = it).toResult().getOrNull()?.type as? ChatTypeSupergroup }
                         ?.let { client.getSupergroup(supergroupId = it.supergroupId).toResult().getOrNull() }
@@ -223,6 +225,8 @@ class TdlProfileRepository(
             botVerification = botVerificationNote(full?.botVerification),
             hasMainWebApp = (user.type as? UserTypeBot)?.hasMainWebApp == true,
             firstProfileAudio = full?.firstProfileAudio?.toMedia(fallbackName = readString(Res.string.content_audio)),
+            // Vlastní dárky (Uložené zprávy) se tu neukazují — spravují se v oficiální aplikaci.
+            giftCount = full?.giftCount?.takeIf { userId != me } ?: 0,
             contact = if (user.isContact && userId != me) contactDetails(user.firstName, user.lastName, full) else null,
         )
     }
@@ -750,6 +754,45 @@ class TdlProfileRepository(
         val found = client.getGroupsInCommon(userId = userId, offsetChatId = 0, limit = RELATED_CHATS_LIMIT)
             .toResult().getOrThrow()
         found.chatIds.toList().mapNotNull { relatedChat(it) }
+    }
+
+    override suspend fun receivedGifts(chatId: Long, offset: String): Result<ProfileGiftsPage> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val owner: MessageSender = when (val type = chat.type) {
+            is ChatTypePrivate -> MessageSenderUser(userId = type.userId)
+            is ChatTypeSecret -> MessageSenderUser(userId = type.userId)
+            else -> MessageSenderChat(chatId = chatId)
+        }
+        val found = client.getReceivedGifts(
+            businessConnectionId = "",
+            ownerId = owner,
+            collectionId = 0,
+            // Cizím TDLib vynutí jen vystavené; filtry druhů nic nevylučují.
+            excludeUnsaved = false,
+            excludeSaved = false,
+            excludeUnlimited = false,
+            excludeUpgradable = false,
+            excludeNonUpgradable = false,
+            excludeUpgraded = false,
+            excludeWithoutColors = false,
+            excludeHosted = false,
+            sortByPrice = false,
+            offset = offset,
+            limit = GIFTS_PAGE_SIZE,
+        ).toResult().getOrThrow()
+        ProfileGiftsPage(
+            gifts = found.gifts.filterNotNull().map { it.toProfileGift(::giftSenderName) },
+            total = found.totalCount,
+            nextOffset = found.nextOffset.takeIf { it.isNotEmpty() },
+        )
+    }
+
+    /** Jméno dárce: kladné id člověk, záporné chat. Lokální dotazy, TDLib je zná s dárkem. */
+    private suspend fun giftSenderName(id: Long): String? = if (id > 0) {
+        client.getUser(userId = id).toResult().getOrNull()
+            ?.let { listOf(it.firstName, it.lastName).filter { part -> part.isNotBlank() }.joinToString(" ") }
+    } else {
+        client.getChat(chatId = id).toResult().getOrNull()?.title
     }
 
     override suspend fun similarChannels(chatId: Long): Result<List<RelatedChat>> = runCatching {
@@ -1283,3 +1326,6 @@ private const val MAX_PROFILE_PHOTOS = 300
 
 /** `reportChatPhoto` bere popis nejvýš 1024 znaků. */
 private const val REPORT_TEXT_MAX = 1024
+
+/** Dárků na stránku — mřížka po třech je ukáže na pár posunutí. */
+private const val GIFTS_PAGE_SIZE = 30

@@ -3,6 +3,7 @@ package eu.tintera.plume.features.profile
 import eu.tintera.plume.resources.birthdate_suggest_failed
 import eu.tintera.plume.resources.birthdate_suggest_sent
 import eu.tintera.plume.core.telegram.Birthdate
+import eu.tintera.plume.core.telegram.ProfileGift
 import eu.tintera.plume.resources.edit_profile_not_photo
 import eu.tintera.plume.resources.photo_suggest_failed
 import eu.tintera.plume.resources.photo_suggest_sent
@@ -182,6 +183,7 @@ class ChatProfileViewModel(
                     if (profile.canListMembers) loadMembers(query = "")
                     if (profile.kind == ProfileKind.User) observePresence()
                     loadRelatedChats(profile)
+                    if (profile.giftCount > 0) loadMoreGifts()
                 }
                 .onFailure { failure ->
                     _state.update { it.copy(loading = false, error = failure.reported(Res.string.profile_failed)) }
@@ -899,6 +901,39 @@ class ChatProfileViewModel(
         }
     }
 
+    /**
+     * Další stránka dárků (první, když ještě žádná není). Selhání se nehlásí — záložka se jen
+     * neukáže nebo neprodlouží, jako u společných skupin.
+     */
+    fun loadMoreGifts() {
+        val current = _state.value.gifts
+        if (current?.loading == true || (current != null && current.nextOffset == null)) return
+        _state.update { it.copy(gifts = (it.gifts ?: ProfileGifts()).copy(loading = true)) }
+        viewModelScope.launch {
+            profiles.receivedGifts(chatId, current?.nextOffset.orEmpty())
+                .onSuccess { page ->
+                    _state.update { state ->
+                        val before = state.gifts?.items.orEmpty()
+                        state.copy(
+                            gifts = ProfileGifts(
+                                items = (before + page.gifts).distinctBy { it.key },
+                                total = page.total,
+                                nextOffset = page.nextOffset,
+                            ),
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Dárky v profilu se nepodařilo načíst." }
+                    _state.update { it.copy(gifts = it.gifts?.copy(loading = false, nextOffset = null)) }
+                }
+        }
+    }
+
+    fun openGift(gift: ProfileGift) = _state.update { it.copy(openGift = gift) }
+
+    fun closeGift() = _state.update { it.copy(openGift = null) }
+
     /** Ťuknutí na skupinu nebo kanál v záložce: otevřít ho jako konverzaci. */
     fun openRelatedChat(chatId: Long) {
         _state.update { it.copy(openChat = chatId) }
@@ -1219,6 +1254,10 @@ data class ChatProfileState(
     val commonGroups: List<RelatedChat>? = null,
     /** Podobné kanály; `null` = nenačtené nebo nejde o kanál. */
     val similarChannels: List<RelatedChat>? = null,
+    /** Dárky v profilu; `null` = žádné nebo se ještě nenačetly (záložka se nekreslí). */
+    val gifts: ProfileGifts? = null,
+    /** Dárek otevřený v sheetu. */
+    val openGift: ProfileGift? = null,
     /** Načtený obsah záložek; chybějící klíč = záložka se ještě neukázala. */
     val shared: Map<SharedMediaKind, SharedMediaTab> = emptyMap(),
     /** Text v poli hledání záložky — může předbíhat [SharedMediaTab.query], dokud server neodpoví. */
@@ -1269,6 +1308,7 @@ data class ChatProfileState(
                 // tu, na které uživatel zrovna stojí.
                 if (!commonGroups.isNullOrEmpty()) add(ProfileTab.CommonGroups)
                 if (!similarChannels.isNullOrEmpty()) add(ProfileTab.SimilarChannels)
+                if (!gifts?.items.isNullOrEmpty()) add(ProfileTab.Gifts)
             }
         }
 
@@ -1302,7 +1342,18 @@ sealed interface ProfileTab {
 
     /** Kanály podobné tomuhle. Jen profil kanálu. */
     data object SimilarChannels : ProfileTab
+
+    /** Dárky vystavené v profilu člověka nebo kanálu. */
+    data object Gifts : ProfileTab
 }
+
+/** Načtené dárky profilu; [nextOffset] `null` = všechny. */
+data class ProfileGifts(
+    val items: List<ProfileGift> = emptyList(),
+    val total: Int = 0,
+    val nextOffset: String? = null,
+    val loading: Boolean = false,
+)
 
 /** Pauza v psaní, po které se hledání členů zeptá serveru. */
 private const val MEMBER_SEARCH_DELAY = 300L

@@ -128,6 +128,13 @@ interface ProfileRepository {
      */
     suspend fun similarChannels(chatId: Long): Result<List<RelatedChat>>
 
+    /**
+     * Dárky v profilu člověka nebo kanálu (`getReceivedGifts`), stránka po stránce od [offset]
+     * (prázdný = první). Cizím TDLib vydá jen dárky vystavené v profilu.
+     */
+    suspend fun receivedGifts(chatId: Long, offset: String): Result<ProfileGiftsPage> =
+        Result.failure(UnsupportedOperationException())
+
     suspend fun members(
         chatId: Long,
         query: String = "",
@@ -501,6 +508,8 @@ data class ChatProfile(
      * skladby se pozná, že se seznam změnil.
      */
     val firstProfileAudio: MessageMedia.Audio? = null,
+    /** Dárky vystavené v profilu (`giftCount`); 0 = záložka se nekreslí. */
+    val giftCount: Int = 0,
     /** Kontakt, jak ho má uživatel uložený — jméno, poznámka a vlastní fotka; `null` = není kontakt. */
     val contact: ContactDetails? = null,
 ) {
@@ -683,3 +692,21 @@ data class BoostStatus(
     /** Kolik boostů chybí do další úrovně; 0 u nejvyšší. */
     val missingBoosts: Int get() = if (nextLevelBoosts == 0) 0 else (nextLevelBoosts - boostCount).coerceAtLeast(0)
 }
+
+/**
+ * Dárek v profilu: obsah jako karta dárku ve zprávě ([MessageMedia.Gift], kreslí ho tatáž
+ * `GiftCard`) plus kdy přišel a jestli ho majitel připnul nahoru. [key] je stálý klíč do mřížky.
+ */
+data class ProfileGift(
+    val key: String,
+    val gift: MessageMedia.Gift,
+    val date: Int,
+    val isPinned: Boolean,
+)
+
+/** Stránka dárků; [nextOffset] `null` = dál nic není. */
+data class ProfileGiftsPage(
+    val gifts: List<ProfileGift>,
+    val total: Int,
+    val nextOffset: String?,
+)
