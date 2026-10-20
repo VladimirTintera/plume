@@ -550,6 +550,9 @@ a popisem (`ProfileRepository.setUsername` → `setSupergroupUsername`, prázdn�
   ho nemusí jít, když si ho mezitím vezme někdo jiný.
 - **Dostupnost se ptá `checkChatUsername(chatId)` existujícího chatu**; současné jméno se
   nekontroluje (bylo by „obsazené" sebou).
+- **Limit vlastních veřejných chatů se zjišťuje hned po volbě Veřejný** a nabídne odebrat odkaz
+  jinému chatu — jen u chatu, který veřejný ještě není. Viz „Limit veřejných odkazů"
+  v `docs/poznatky/hledani-a-zakladani-chatu.md`.
 - **Profil chatu se po návratu z úpravy čte znovu** (`ChatProfileViewModel.refreshOnReturn`).
   Data čte jen při otevření a TDLib změnu názvu, popisu ani odkazu profilu nehlásí — po uložení
   ukazoval staré hodnoty, dokud se neotevřel znovu. Platilo to i pro název a popis, jen to dřív

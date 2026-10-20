@@ -376,6 +376,16 @@
     <string name="channel_limit_empty">Žádné neaktivní skupiny ani kanály tu nejsou. Opusť některé ze seznamu chatů.</string>
     <string name="channel_limit_failed">Neaktivní skupiny a kanály se nepodařilo načíst.</string>
     <string name="channel_limit_leave_failed">Některé chaty se nepodařilo opustit.</string>
+    <string name="public_limit_title">Příliš mnoho veřejných odkazů</string>
+    <string name="public_limit_text">Vlastníš nejvíc veřejných skupin a kanálů, kolik jde. Odeber odkaz některé z nich, nebo nech tenhle chat soukromý.</string>
+    <string name="public_limit_premium">S Telegram Premium je limit dvojnásobný.</string>
+    <string name="public_limit_chats">Tvoje veřejné skupiny a kanály</string>
+    <string name="public_limit_empty">Žádné veřejné skupiny ani kanály se nenašly.</string>
+    <string name="public_limit_failed">Veřejné skupiny a kanály se nepodařilo načíst.</string>
+    <string name="public_limit_release">Odebrat odkaz</string>
+    <string name="public_limit_release_title">Odebrat odkaz?</string>
+    <string name="public_limit_release_text">%1$s bude soukromý a odkaz t.me/%2$s si může vzít kdokoli jiný.</string>
+    <string name="public_limit_release_failed">Odkaz se nepodařilo odebrat.</string>
     <plurals name="channel_limit_leave">
         <item quantity="one">Opustit %1$d chat</item>
         <item quantity="few">Opustit %1$d chaty</item>

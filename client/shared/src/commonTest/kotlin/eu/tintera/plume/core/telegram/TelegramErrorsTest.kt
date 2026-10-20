@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_failed
+import eu.tintera.plume.resources.create_chat_username_too_many
 import eu.tintera.plume.resources.error_ai_compose_premium
 import eu.tintera.plume.resources.error_call_outdated
 import eu.tintera.plume.resources.error_call_privacy
@@ -71,6 +72,15 @@ class TelegramErrorsTest {
         assertTrue(limit.isChannelLimit())
         assertFalse(IllegalStateException("CHANNEL_PRIVATE").isChannelLimit())
         assertEquals(UiText(Res.string.error_channels_too_much), limit.userMessage(fallback))
+    }
+
+    @Test
+    fun `limit verejnych chatu se pozna a ma vlastni vetu`() {
+        val limit = IllegalStateException("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")
+        assertTrue(limit.isPublicChatsLimit())
+        assertFalse(limit.isChannelLimit(), "Jiný limit — opouštění skupin by tu nepomohlo")
+        assertFalse(IllegalStateException("CHANNELS_TOO_MUCH").isPublicChatsLimit())
+        assertEquals(UiText(Res.string.create_chat_username_too_many), limit.userMessage(fallback))
     }
 
     @Test

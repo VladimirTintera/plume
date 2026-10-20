@@ -83,6 +83,7 @@ import eu.tintera.plume.resources.edit_chat_discussion_on
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatTypeSection
+import eu.tintera.plume.features.channellimit.PublicLinkLimitSheet
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.PhotoCropOverlay
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
@@ -195,6 +196,13 @@ fun EditChatScreen(
             viewModel.upgradeHandled()
             currentOnUpgraded(old, new)
         }
+    }
+
+    if (viewModel.publicLimit.reached) {
+        PublicLinkLimitSheet(
+            onDismiss = { viewModel.publicLimitClosed(released = false) },
+            onReleased = { viewModel.publicLimitClosed(released = true) },
+        )
     }
 
     viewModel.upgradeAsked?.let { reason ->
@@ -395,7 +403,7 @@ fun EditChatScreen(
                     ChatTypeSection(
                         channel = chat.isChannel,
                         isPublic = viewModel.isPublic,
-                        onPublicChange = { viewModel.isPublic = it },
+                        onPublicChange = viewModel::choosePublic,
                         username = viewModel.username,
                         onUsernameChange = { viewModel.username = it },
                         status = viewModel.usernameStatus,

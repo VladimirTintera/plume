@@ -89,6 +89,7 @@ import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.navigation.ChannelLimitRequests
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.features.channellimit.ChannelLimitViewModel
+import eu.tintera.plume.features.channellimit.PublicLinkLimitViewModel
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -416,6 +417,7 @@ fun appModule() = module {
     single { ContactOffers() }
     single { ChannelLimitRequests() }
     viewModelOf(::ChannelLimitViewModel)
+    viewModelOf(::PublicLinkLimitViewModel)
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
     single { LocalTranscripts(settings = get(), chats = get()) }
@@ -866,6 +868,7 @@ fun appModule() = module {
             photoCrop = get(),
             conversations = get(),
             channelLimit = get(),
+            chats = get(),
         )
     }
 

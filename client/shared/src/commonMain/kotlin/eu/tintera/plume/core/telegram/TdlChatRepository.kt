@@ -89,6 +89,8 @@ import dev.g000sha256.tdl.dto.ChatType
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
+import dev.g000sha256.tdl.dto.Supergroup
+import dev.g000sha256.tdl.dto.PublicChatTypeHasUsername
 import dev.g000sha256.tdl.dto.ChatAction
 import dev.g000sha256.tdl.dto.ChatActionWatchingAnimations
 import dev.g000sha256.tdl.dto.ChatActionCancel
@@ -793,6 +795,53 @@ class TdlChatRepository(
         client.getInactiveSupergroupChats().toResult()
             .onFailure { logger.w(it) { "Neaktivní skupiny se nepodařilo načíst." } }
             .map { summariesFor(it.chatIds) }
+
+    /** Limit se pozná podle chyby; jiná chyba (spojení) je selhání, ne odpověď. */
+    override suspend fun canCreatePublicChat(): Result<Boolean> {
+        val failure = client.checkCreatedPublicChatsLimit(type = PublicChatTypeHasUsername()).toResult().exceptionOrNull()
+            ?: return Result.success(true)
+        if (failure.isPublicChatsLimit()) return Result.success(false)
+        logger.w(failure) { "Limit veřejných chatů se nepodařilo zjistit." }
+        return Result.failure(failure)
+    }
+
+    /** Server vrací jen id; jména a fotky dočte [summariesFor], odkaz supergroupa. */
+    override suspend fun createdPublicChats(): Result<List<PublicChat>> =
+        client.getCreatedPublicChats(type = PublicChatTypeHasUsername()).toResult()
+            .onFailure { logger.w(it) { "Vlastní veřejné chaty se nepodařilo načíst." } }
+            .map { found ->
+                summariesFor(found.chatIds).mapNotNull { summary ->
+                    val supergroup = supergroupOf(summary.id) ?: return@mapNotNull null
+                    val usernames = supergroup.usernames
+                    val username = usernames?.editableUsername?.takeIf { it.isNotEmpty() }
+                        ?: usernames?.activeUsernames?.firstOrNull()
+                        ?: return@mapNotNull null
+                    PublicChat(summary, username)
+                }
+            }
+
+    /**
+     * Upravitelné jméno se maže `setSupergroupUsername("")` — vypnout ho
+     * `toggleSupergroupUsernameIsActive` nejde. Další aktivní jména (sběratelská z Fragmentu)
+     * se vypnou; jinak by chat zůstal veřejný a místo pod limitem by se neuvolnilo.
+     */
+    override suspend fun releasePublicLink(chatId: Long): Result<Unit> = runCatching {
+        val supergroup = supergroupOf(chatId) ?: error("Chat $chatId není supergroupa.")
+        val usernames = supergroup.usernames ?: return@runCatching
+        val editable = usernames.editableUsername
+        if (editable.isNotEmpty()) {
+            client.setSupergroupUsername(supergroupId = supergroup.id, username = "").toResult().getOrThrow()
+        }
+        usernames.activeUsernames.filter { it != editable }.forEach { username ->
+            client.toggleSupergroupUsernameIsActive(supergroupId = supergroup.id, username = username, isActive = false)
+                .toResult().getOrThrow()
+        }
+    }.onFailure { logger.w(it) { "Odkaz chatu $chatId se nepodařilo odebrat." } }
+
+    private suspend fun supergroupOf(chatId: Long): Supergroup? {
+        val type = client.getChat(chatId = chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup ?: return null
+        return client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()
+    }
 
     override fun unreadCount(chatId: Long): Flow<Int> =
         all.map { it[chatId]?.unreadCount ?: 0 }.distinctUntilChanged()

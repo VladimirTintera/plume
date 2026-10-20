@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.ChatTypeSection
+import eu.tintera.plume.features.channellimit.PublicLinkLimitSheet
 import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.grouped
@@ -125,6 +126,13 @@ fun CreateChatScreen(
             sending = viewModel.sendingInvites,
             onSendInvites = viewModel::sendInvites,
             onDismiss = { onCreated(report.chatId) },
+        )
+    }
+
+    if (viewModel.publicLimit?.reached == true) {
+        PublicLinkLimitSheet(
+            onDismiss = { viewModel.publicLimitClosed(released = false) },
+            onReleased = { viewModel.publicLimitClosed(released = true) },
         )
     }
 
@@ -222,7 +230,7 @@ fun CreateChatScreen(
                 ChatTypeSection(
                     channel = channel,
                     isPublic = viewModel.isPublic,
-                    onPublicChange = { viewModel.isPublic = it },
+                    onPublicChange = viewModel::choosePublic,
                     username = viewModel.username,
                     onUsernameChange = { viewModel.username = it },
                     status = viewModel.usernameStatus,

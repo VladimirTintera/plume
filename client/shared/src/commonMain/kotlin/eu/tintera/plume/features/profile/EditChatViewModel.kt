@@ -50,6 +50,8 @@ import eu.tintera.plume.resources.edit_chat_upgrade_failed
 import eu.tintera.plume.resources.edit_profile_not_photo
 import androidx.compose.runtime.snapshotFlow
 import eu.tintera.plume.core.telegram.UsernameCheck
+import eu.tintera.plume.core.telegram.isPublicChatsLimit
+import eu.tintera.plume.features.channellimit.PublicLinkLimitCheck
 import eu.tintera.plume.core.telegram.usernameFormatError
 import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
 import eu.tintera.plume.core.ui.UsernameStatus
@@ -146,9 +148,34 @@ class EditChatViewModel(
 
     /** Veřejný chat s odkazem [username]; ukládá se tlačítkem Uložit spolu s texty. */
     var isPublic by mutableStateOf(false)
+        private set
     var username by mutableStateOf("")
     var usernameStatus by mutableStateOf<UsernameStatus>(UsernameStatus.Idle)
         private set
+
+    /** Limit vlastních veřejných chatů; při něm obrazovka ukáže `PublicLinkLimitSheet`. */
+    val publicLimit = PublicLinkLimitCheck(chats, viewModelScope)
+
+    /**
+     * Soukromý, nebo veřejný. Na veřejný se hned zjistí, jestli ho limit pustí — jen u chatu,
+     * který veřejný ještě není: jeho vlastní odkaz už se do limitu počítá.
+     */
+    fun choosePublic(public: Boolean) {
+        isPublic = public
+        when {
+            !public -> publicLimit.privateChosen()
+            original?.username.isNullOrEmpty() -> publicLimit.publicChosen { isPublic }
+        }
+    }
+
+    /**
+     * Sheet s limitem se zavřel. [released] = nějakému chatu se odebral odkaz a veřejný chat
+     * už jde; jinak zpátky na soukromý — odkaz by stejně nešel nastavit.
+     */
+    fun publicLimitClosed(released: Boolean) {
+        publicLimit.closed()
+        if (!released) isPublic = false
+    }
 
     /** Veřejné jméno, jak by se uložilo: u soukromého chatu prázdné. */
     private val effectiveUsername: String get() = if (isPublic) username.trim() else ""
@@ -326,7 +353,16 @@ class EditChatViewModel(
             saving = false
             result
                 .onSuccess { saved = true }
-                .onFailure { notice = it.reported(Res.string.edit_chat_save_failed) }
+                .onFailure { failure ->
+                    // Limit veřejných chatů se při volbě Veřejný zjistit nemusel (spojení);
+                    // server ho ohlásí až tady a místo hlášky se nabídne odebrat odkaz jinému.
+                    if (failure.isPublicChatsLimit()) {
+                        logger.w(failure) { "Odkaz chatu $chatId narazil na limit veřejných chatů." }
+                        publicLimit.hit()
+                    } else {
+                        notice = failure.reported(Res.string.edit_chat_save_failed)
+                    }
+                }
         }
     }
 
