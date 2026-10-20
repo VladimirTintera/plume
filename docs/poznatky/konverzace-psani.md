@@ -49,8 +49,9 @@ S klávesnicí se v konverzaci píše jako v Telegram Desktop, Slacku nebo Disco
     pokryly, jenže tam dojdou i klávesy z otevřeného sheetu a fokus by skočil do pole pod ním.
   - Požadavek fokusu jde na obal pole, ne na pole: `FocusRequester` na prvku bez vlastního
     fokusu ho předá prvnímu zaostřitelnému uvnitř, a tím je pole samo (ikony dekorace jsou pod ním).
-- **Ověření**: logika šipky testy; Esc, fokus po otevření a psaní kamkoli **na desktopu ověřené
-  nejsou** (sezení nemělo ovládání počítače) — viz popis PR.
+- **Ověření**: logika šipky testy; Esc, šipku, fokus po otevření a psaní kamkoli vyzkoušel
+  uživatel ručně v ladicím běhu na Windows. Android s fyzickou klávesnicí, macOS a iOS ověřené
+  nejsou.
 
 ## Vestavěná galerie (Android)
 
