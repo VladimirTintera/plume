@@ -612,12 +612,17 @@ a se serverem, takže přednostně:
     `docs/poznatky/seznam-chatu.md`, „Témata Uložených zpráv"), ~~autor příspěvku
     kanálu pro správce (`getMessageAuthor`)~~ (hotovo — TDLib ho vydá jen v přímých zprávách
     kanálu: kdo ze správců odpověděl; `docs/poznatky/prime-zpravy-kanalu.md`; zbývá ověřit
-    na zařízení), blokování z chatu Odpovědi
-    (`blockMessageSenderFromReplies`), ~~nahlášení reakcí a smazání reakcí člena u jedné zprávy
+    na zařízení), ~~blokování z chatu Odpovědi
+    (`blockMessageSenderFromReplies`)~~ (hotovo, nabídka nad zprávou → Další;
+    `docs/poznatky/spam-a-blokovani.md`, „Blokování z chatu Odpovědi"; zbývá ověřit se skutečným
+    chatem Odpovědi), ~~nahlášení reakcí a smazání reakcí člena u jedné zprávy
     (`reportMessageReactions`, `deleteMessageReactionsFromSender`)~~ (hotovo, detail reakcí;
     `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá ověřit na cizí reakci), smazání nedávných reakcí
-    (`clearRecentReactions`), obrysy samolepek při načítání (`getStickerOutlineSvgPath`), sady
-    samolepek použité na fotce (`getAttachedStickerSets`), ~~oznámení o poslechu hudby
+    (`clearRecentReactions`), ~~obrysy samolepek při načítání (`getStickerOutlineSvgPath`)~~
+    (hotovo, `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr samolepek"), ~~sady samolepek
+    použité na fotce (`getAttachedStickerSets`)~~ (hotovo, ⋮ prohlížeče;
+    `docs/poznatky/prohlizec-medii.md`, „Samolepky na fotce"; zbývá ověřit na fotce se
+    skutečnými samolepkami), ~~oznámení o poslechu hudby
     (`listenToAudio`)~~ (hotovo, `docs/poznatky/zvuk.md`, „Hudba").
 
 **Správa skupin a kanálů — zbytky:** ~~zrušit hlavní pozvánku (`replacePrimaryChatInviteLink`)~~
