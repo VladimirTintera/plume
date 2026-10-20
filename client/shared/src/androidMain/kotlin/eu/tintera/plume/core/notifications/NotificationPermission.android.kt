@@ -93,6 +93,33 @@ actual class NotificationPermission(private val context: Context) {
         prefs().edit().putBoolean(KEY_ASKED, true).apply()
     }
 
+    actual fun backgroundDataBlocked(): Boolean = prefs().getBoolean(KEY_BACKGROUND_DATA_BLOCKED, false)
+
+    actual fun openBackgroundDataSettings() {
+        // Uživatel jde stav měnit; zda to pomohlo, ukáže až další push v pozadí.
+        prefs().edit().putBoolean(KEY_BACKGROUND_DATA_BLOCKED, false).apply()
+        runCatching { context.startActivity(BackgroundDataWarning.settingsIntent(context)) }
+            .onFailure {
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+    }
+
+    /** Výsledek kontroly při pushi ([BackgroundDataWarning.check]). */
+    internal fun recordBackgroundData(blocked: Boolean) {
+        prefs().edit().putBoolean(KEY_BACKGROUND_DATA_BLOCKED, blocked).apply()
+    }
+
+    /** Smí se teď ukázat notifikace o zablokovaných datech? Když ano, zapíše si, že se ukázala. */
+    internal fun claimBackgroundDataNotification(intervalMs: Long): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - prefs().getLong(KEY_BACKGROUND_DATA_NOTIFIED_AT, 0) < intervalMs) return false
+        prefs().edit().putLong(KEY_BACKGROUND_DATA_NOTIFIED_AT, now).apply()
+        return true
+    }
+
     /** Ptali jsme se už na celoobrazovkové hovory? Jednou stačí, dál vede cesta přes Nastavení. */
     internal fun wasAskedFullScreen(): Boolean = prefs().getBoolean(KEY_ASKED_FULL_SCREEN, false)
 
@@ -110,5 +137,7 @@ actual class NotificationPermission(private val context: Context) {
         const val PREFS = "notification_permission"
         const val KEY_ASKED = "asked"
         const val KEY_ASKED_FULL_SCREEN = "asked_full_screen"
+        const val KEY_BACKGROUND_DATA_BLOCKED = "background_data_blocked"
+        const val KEY_BACKGROUND_DATA_NOTIFIED_AT = "background_data_notified_at"
     }
 }

@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.settings_background_data_blocked_summary
+import eu.tintera.plume.resources.settings_background_data_blocked
+import eu.tintera.plume.resources.data_usage_24dp
 import eu.tintera.plume.resources.settings_full_screen_calls_on
 import eu.tintera.plume.resources.settings_full_screen_calls_off
 import eu.tintera.plume.resources.settings_full_screen_calls
@@ -188,6 +191,19 @@ fun NotificationSettings(
                 },
                 trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
                 modifier = Modifier.clickable(onClick = viewModel::openFullScreenCallSettings),
+            )
+        }
+        // Jen když to push zjistil — jinak stav neznáme (`NotificationPermission.backgroundDataBlocked`).
+        if (state.backgroundDataBlocked) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = { Icon(painterResource(Res.drawable.data_usage_24dp), contentDescription = null) },
+                headlineContent = { Text(stringResource(Res.string.settings_background_data_blocked)) },
+                supportingContent = {
+                    Text(stringResource(Res.string.settings_background_data_blocked_summary), color = MaterialTheme.colorScheme.error)
+                },
+                trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
+                modifier = Modifier.clickable(onClick = viewModel::openBackgroundDataSettings),
             )
         }
     }

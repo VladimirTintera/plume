@@ -74,6 +74,11 @@ actual class NotificationPermission {
     actual fun fullScreenCallsAllowed(): Boolean? = null
 
     actual fun openFullScreenCallSettings() = Unit
+
+    /** Data na pozadí tu systém aplikaci zvlášť nebere. */
+    actual fun backgroundDataBlocked(): Boolean = false
+
+    actual fun openBackgroundDataSettings() = Unit
     actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) = Unit
 
     private fun refresh() {

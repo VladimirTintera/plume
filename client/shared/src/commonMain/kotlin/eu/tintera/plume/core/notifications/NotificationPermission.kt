@@ -50,6 +50,16 @@ expect class NotificationPermission {
     /** Otevře systémové nastavení celoobrazovkových notifikací aplikace ([fullScreenCallsAllowed]). */
     fun openFullScreenCallSettings()
 
+    /**
+     * Zjistil push, že aplikace v pozadí na mobilních datech nemá síť (vypnutá data na pozadí,
+     * spořič dat bez výjimky)? Pak hovory na mobilních datech nezazvoní. Jen Android; zjišťuje se
+     * až při pushi, takže `false` znamená „nevíme o tom", ne „je to v pořádku".
+     */
+    fun backgroundDataBlocked(): Boolean
+
+    /** Otevře systémové nastavení dat aplikace a zjištění zapomene — další push ho ověří znovu. */
+    fun openBackgroundDataSettings()
+
     /** Otevře systémové nastavení kanálu — zvuk, vibrace, důležitost. */
     fun openChannelSettings(channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID)
 

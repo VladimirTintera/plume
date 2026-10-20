@@ -311,6 +311,30 @@ místo výzvy ukáže jen plovoucí notifikaci a se zhasnutou obrazovkou nic.
   řádek ukáže nepovoleno, po zapnutí v systému a návratu povoleno; dotaz se znovu neukáže.
   Česky a na Androidu 17 neověřené, build z Play taky ne.
 
+#### Upozornění na zablokovaná data na pozadí
+
+S vypnutými „Daty na pozadí" (nebo spořičem dat bez výjimky) hovor na mobilních datech nezazvoní
+nikdy — viz odstavec o Foldu v „Push hovoru" níž. Plume to proto hlásí sám
+(`BackgroundDataWarning`, androidMain).
+
+- **Stav veřejné API neřekne** (`REJECT_METERED_BACKGROUND` je ve skrytém `NetworkPolicyManager`;
+  `restrictBackgroundStatus` je jen spořič dat). Prozradí ho **každý push v pozadí**: na měřené
+  síti hlásí `activeNetworkInfo.detailedState` `BLOCKED`. V popředí (i se službou v popředí) síť
+  jde vždycky, tam se nic nezjišťuje; neměřená síť (Wi-Fi) taky ne.
+- **Ukáže se notifikace** v kanálu Hovory („Hovory na mobilních datech nezazvoní"), nejvýš jednou
+  za týden, a **řádek v Nastavení → Notifikace** v chybové barvě. Obojí otevře
+  `Settings.ACTION_IGNORE_BACKGROUND_DATA_RESTRICTIONS_SETTINGS` (`AppDataUsageActivity`:
+  „Data na pozadí" a „Neomezený přístup k mobilním datům"). Zapíše se i do deníku hovorů.
+- **Push, který na měřené síti projde, stav zruší** a staré upozornění z lišty stáhne. Ťuknutí na
+  řádek ho schová hned (uživatel jde stav měnit), ověří ho další push.
+- **Ověřeno na Pixelu 5** (Android 14) na hotspotu Foldu (měřená síť) s
+  `adb shell cmd netpolicy add restrict-background-blacklist <uid>` (tentýž stav jako na Foldu:
+  `blocked=METERED_USER_RESTRICTED`): zpráva z Pixelu 7 Pro → záznam v deníku a notifikace; po
+  `… remove restrict-background-blacklist <uid>` další zpráva stav zrušila a notifikaci stáhla.
+  Řádek v Nastavení česky a jeho cíl ověřené na Pixelu 7 Pro (Android 17), ťuknutí na notifikaci
+  na Pixelu 5 (otevře „Využití dat" Plume s „Background data"). Pozor při ověřování: upozornění
+  je ve skupině notifikací Plume a v liště hned pod zprávou — ťuknutí o kus vedle otevře zprávu.
+
 #### Push hovoru: TDLib ho odmítne a hovor přijde až od serveru
 
 **Na spící aplikaci hovor nezazvonil vůbec.** `processPushNotification` push hovoru vždycky

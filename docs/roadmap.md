@@ -741,11 +741,6 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      udělá uživatel; bez ní Plume z Play na Androidu 14+ zamčený telefon při hovoru nerozsvítí.
      Aplikace stav ukazuje a jednou se zeptá (`docs/poznatky/notifikace.md`, „Celoobrazovková
      výzva hovoru").
-   - **Upozornit, když Plume nemá data na pozadí** — s vypnutými „Daty na pozadí" (Fold:
-     `REJECT_METERED_BACKGROUND`) hovor na mobilních datech nikdy nezazvoní (`docs/poznatky/
-     notifikace.md`, „Push hovoru"). Veřejné API stav per aplikaci neříká; v pozadí ho prozradí
-     `NetworkInfo.detailedState == BLOCKED` u pushe hovoru. Návrh: pak notifikace „Hovory na
-     mobilních datech nezazvoní" s odkazem `Settings.ACTION_IGNORE_BACKGROUND_DATA_RESTRICTIONS_SETTINGS`.
    - **Zpoždění hovoru změřit** — uživatel s Bluetooth sluchátky popsal zpoždění „jako
      vysílačka" po celý hovor, přitom RTT sítě 40–100 ms a buffer 50 ms. Sondou změřit dobu
      tam a zpět pípnutím (bez mikrofonu a reproduktoru) a zvlášť s sluchátky a bez nich;

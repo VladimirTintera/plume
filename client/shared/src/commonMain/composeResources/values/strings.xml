@@ -261,6 +261,10 @@
     <string name="settings_full_screen_calls">Incoming calls on full screen</string>
     <string name="settings_full_screen_calls_on">Allowed — a locked phone lights up and shows who is calling</string>
     <string name="settings_full_screen_calls_off">Not allowed — a locked phone only rings, the screen stays off</string>
+    <string name="settings_background_data_blocked">Background data is blocked</string>
+    <string name="settings_background_data_blocked_summary">On mobile data, Plume cannot receive calls or messages in the background. Allow background data.</string>
+    <string name="background_data_notification_title">Calls on mobile data will not ring</string>
+    <string name="background_data_notification_text">Plume is not allowed to use data in the background. Tap to allow background data.</string>
     <string name="full_screen_calls_prompt_title">Show calls on full screen?</string>
     <string name="full_screen_calls_prompt_text">So that an incoming call lights up a locked phone and shows who is calling, Plume needs the system permission for full-screen notifications.</string>
     <string name="full_screen_calls_prompt_open">Open settings</string>
