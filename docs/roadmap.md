@@ -615,8 +615,9 @@ a se serverem, takže přednostně:
 pozvánky rovnou vydá novou. ~~Upozornění vlastníka, kdo chat zdědí po odchodu
 (`getChatOwnerAfterLeaving`)~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Odchod
 vlastníka"). Zbývá gigaskupina (`toggleSupergroupIsBroadcastGroup`), oprava omylu antispamu
-(`reportSupergroupAntiSpamFalsePositive`, s ověřením antispamu výš), stav boostů pro správce
-(`getChatBoostStatus`, `getChatBoosts` — zdarma, na rozdíl od boostování), uvítací zprávy
+(`reportSupergroupAntiSpamFalsePositive`, s ověřením antispamu výš), ~~stav boostů pro správce
+(`getChatBoostStatus`)~~ — hotovo (`docs/poznatky/profil-chatu.md`, „Boosty"; seznam
+jednotlivých boostů `getChatBoosts` zbývá), uvítací zprávy
 (`addChatWelcomeMessage` a spol., novinka TDLib).
 
 **Tvorba samolepek** (`createNewStickerSet`, `uploadStickerFile`, `addStickerToSet`,

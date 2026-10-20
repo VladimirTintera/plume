@@ -2810,6 +2810,29 @@
     <string name="invite_links_delete_all_title">Smazat všechny zrušené odkazy?</string>
     <string name="invite_links_delete_all_body">Už neplatí; zmizí jen přehled, kdo se přes ně přidal.</string>
     <string name="invite_links_copied">Odkaz zkopírován.</string>
+    <string name="boosts_title">Boosty</string>
+    <string name="boosts_row_help">Úroveň a kolik boostů chybí do další</string>
+    <string name="boosts_level">Úroveň %1$d</string>
+    <string name="boosts_max_level">nejvyšší úroveň</string>
+    <string name="boosts_help">Boostovat můžou členové s Telegram Premium. Vyšší úrovně odemykají barvy, vlastní emoji, příběhy a další.</string>
+    <string name="boosts_copy_link">Kopírovat odkaz</string>
+    <string name="boosts_share_link">Sdílet odkaz</string>
+    <string name="boosts_failed">Stav boostů se nepodařilo načíst.</string>
+    <plurals name="boosts_total">
+        <item quantity="one">%1$s boost</item>
+        <item quantity="few">%1$s boosty</item>
+        <item quantity="other">%1$s boostů</item>
+    </plurals>
+    <plurals name="boosts_missing">
+        <item quantity="one">do úrovně %2$d chybí %1$s</item>
+        <item quantity="few">do úrovně %2$d chybí %1$s</item>
+        <item quantity="other">do úrovně %2$d chybí %1$s</item>
+    </plurals>
+    <plurals name="boosts_premium_members">
+        <item quantity="one">%1$s člen s Premium (%2$d %)</item>
+        <item quantity="few">%1$s členové s Premium (%2$d %)</item>
+        <item quantity="other">%1$s členů s Premium (%2$d %)</item>
+    </plurals>
     <string name="invite_links_created">Odkaz vytvořen a zkopírován.</string>
     <string name="invite_links_revoked">Odkaz zrušen.</string>
     <string name="invite_links_load_failed">Pozvánky se nepodařilo načíst.</string>

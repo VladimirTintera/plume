@@ -751,6 +751,8 @@ fun appModule() = module {
             chats = get(),
             stickers = get(),
             quickReaction = get(),
+            clipboard = get(),
+            sharer = get(),
         )
     }
 
