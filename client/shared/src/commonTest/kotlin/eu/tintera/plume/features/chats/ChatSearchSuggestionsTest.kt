@@ -27,6 +27,40 @@ class ChatSearchSuggestionsTest {
             removedTop += chatId
             return Result.success(Unit)
         }
+
+        val tags = mutableListOf("#plume", "#kotlin")
+        override suspend fun searchedTags(): Result<List<String>> = Result.success(tags.toList())
+        override suspend fun removeSearchedTag(tag: String): Result<Unit> {
+            tags -= tag
+            return Result.success(Unit)
+        }
+    }
+
+    /** Hledané hashtagy jsou v návrzích hlavního hledání; odebraný zmizí po novém čtení. */
+    @Test
+    fun hledaneHashtagyVNavrzichAOdebrani() = runTest {
+        val repository = Repository()
+        val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val search = ChatSearch(repository, scope, everywhere = true)
+        search.setSuggestionsWanted(true)
+        advanceUntilIdle()
+        assertEquals(listOf("#plume", "#kotlin"), search.state.value.tags)
+
+        search.removeTag("#plume")
+        advanceUntilIdle()
+        assertEquals(listOf("#kotlin"), search.state.value.tags)
+        scope.cancel()
+    }
+
+    /** Výběr chatu pro přeposílání (ne hlavní hledání) hashtagy nenabízí — hledat podle tagu tam nejde. */
+    @Test
+    fun vyberChatuHashtagyNenabizi() = runTest {
+        val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val search = ChatSearch(Repository(), scope)
+        search.setSuggestionsWanted(true)
+        advanceUntilIdle()
+        assertEquals(emptyList(), search.state.value.tags)
+        scope.cancel()
     }
 
     @Test

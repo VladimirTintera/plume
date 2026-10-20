@@ -110,6 +110,7 @@
     <string name="chats_search_empty_hint">Try a different word or name.</string>
     <string name="chats_search_people">People</string>
     <string name="chats_search_recent">Recent</string>
+    <string name="chats_search_tags">Searched hashtags</string>
     <string name="chats_search_recommended">Recommended channels</string>
     <string name="chats_search_clear_recent">Clear</string>
     <string name="chats_search_remove_recent">Remove from history</string>

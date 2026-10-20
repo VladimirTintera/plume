@@ -83,6 +83,8 @@ import eu.tintera.plume.resources.chats_search_archived
 import eu.tintera.plume.resources.chats_search_clear_recent
 import eu.tintera.plume.resources.chats_search_people
 import eu.tintera.plume.resources.chats_search_recent
+import eu.tintera.plume.resources.tag_24dp
+import eu.tintera.plume.resources.chats_search_tags
 import eu.tintera.plume.resources.chats_search_recommended
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
@@ -410,6 +412,8 @@ internal fun ChatSearchBar(
                 onMessageClick(chatId, messageId, topicId)
             },
             onLoadMoreMessages = onLoadMoreMessages,
+            // Hledaný hashtag z historie: hledá se znovu, jako by ho uživatel napsal.
+            onPickTag = { tag -> textFieldState.setTextAndPlaceCursorAtEnd(tag) },
             suggestionActions = suggestionActions,
             onFilterChange = onFilterChange,
             bookmarks = bookmarks,
@@ -486,6 +490,7 @@ private fun SearchResults(
     onPick: (Long) -> Unit,
     onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
     onLoadMoreMessages: () -> Unit,
+    onPickTag: (String) -> Unit,
     suggestionActions: SuggestionActions,
     onFilterChange: (MessageSearchFilter) -> Unit,
     bookmarks: List<MessageBookmark>,
@@ -499,7 +504,7 @@ private fun SearchResults(
 
     // Prázdný dotaz s druhem obsahu (z hledání přirozeným jazykem) hledá zprávy, ne návrhy.
     if (trimmed.isEmpty() && search.filter.content == null) {
-        Suggestions(search, onPick = { onPickLatest(it) }, actions = suggestionActions)
+        Suggestions(search, onPick = { onPickLatest(it) }, onPickTag = onPickTag, actions = suggestionActions)
         return
     }
 
@@ -902,6 +907,7 @@ private fun MessageResultRow(
 private fun Suggestions(
     search: ChatSearchState,
     onPick: (Long) -> Unit,
+    onPickTag: (String) -> Unit,
     actions: SuggestionActions,
 ) {
     var recommendedExpanded by rememberSaveable { mutableStateOf(false) }
@@ -937,6 +943,25 @@ private fun Suggestions(
                     modifier = Modifier.animateItem().groupedItem(index, search.recent.size, MaterialTheme.colorScheme.surfaceContainerLowest),
                     avatarShape = chat.kind.avatarShape(),
                     onRemove = { actions.onRemoveRecent(chat.id) },
+                )
+            }
+        }
+
+        if (search.tags.isNotEmpty()) {
+            item(key = "tags-header") { SectionHeader(stringResource(Res.string.chats_search_tags)) }
+            itemsIndexed(search.tags, key = { _, tag -> "tag-$tag" }) { index, tag ->
+                ListItem(
+                    headlineContent = { Text(tag, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    leadingContent = { Icon(painterResource(Res.drawable.tag_24dp), contentDescription = null) },
+                    trailingContent = {
+                        IconButton(onClick = { actions.onRemoveTag(tag) }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.chats_search_remove_recent))
+                        }
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.animateItem()
+                        .groupedItem(index, search.tags.size, MaterialTheme.colorScheme.surfaceContainerLowest)
+                        .clickable { onPickTag(tag) },
                 )
             }
         }
@@ -1081,6 +1106,7 @@ class SuggestionActions(
     val onClear: () -> Unit,
     val onRemoveRecent: (chatId: Long) -> Unit,
     val onRemoveTop: (chatId: Long) -> Unit,
+    val onRemoveTag: (tag: String) -> Unit = {},
 )
 
 private val TOP_CHAT_WIDTH = 76.dp

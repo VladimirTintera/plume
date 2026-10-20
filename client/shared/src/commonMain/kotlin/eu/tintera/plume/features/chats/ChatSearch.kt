@@ -90,6 +90,9 @@ class ChatSearch(
         // Doporučení až po lidech a historii: jde se pro ně na server, a ty dva bloky jsou to,
         // pro co uživatel hledání otevírá. Jen v hlavním hledání, ne v archivu ani výběru chatu.
         if (everywhere) {
+            // Hashtagy jen v hlavním hledání: hledat podle tagu jde jen tam.
+            val tags = repository.searchedTags().logged("searchedTags").orEmpty()
+            _state.update { if (it.query.isEmpty()) it.copy(tags = tags) else it }
             val recommended = repository.recommendedChannels().logged("recommendedChannels").orEmpty()
             _state.update { if (it.query.isEmpty()) it.copy(recommended = recommended) else it }
         }
@@ -224,6 +227,14 @@ class ChatSearch(
         }
     }
 
+    /** Hashtag z historie hledání pryč; návrhy se pak přečtou znovu. */
+    fun removeTag(tag: String) {
+        scope.launch {
+            repository.removeSearchedTag(tag).logged("removeSearchedTag")
+            suggestionsVersion.value++
+        }
+    }
+
     fun clearRecent() {
         scope.launch {
             repository.clearRecentlyFound().logged("clearRecentlyFound")
@@ -256,6 +267,8 @@ data class ChatSearchState(
     val searching: Boolean = false,
     val top: List<ChatSummary> = emptyList(),
     val recent: List<ChatSummary> = emptyList(),
+    /** Naposledy hledané hashtagy v návrzích (jen hlavní hledání). */
+    val tags: List<String> = emptyList(),
     /** Doporučené kanály v návrzích (jen hledání v hlavním seznamu); bez těch, které už odebírá. */
     val recommended: List<ChatSummary> = emptyList(),
     val global: List<ChatSummary> = emptyList(),
