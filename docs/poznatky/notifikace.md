@@ -331,8 +331,9 @@ nikdy — viz odstavec o Foldu v „Push hovoru" níž. Plume to proto hlásí s
   `adb shell cmd netpolicy add restrict-background-blacklist <uid>` (tentýž stav jako na Foldu:
   `blocked=METERED_USER_RESTRICTED`): zpráva z Pixelu 7 Pro → záznam v deníku a notifikace; po
   `… remove restrict-background-blacklist <uid>` další zpráva stav zrušila a notifikaci stáhla.
-  Řádek v Nastavení česky a jeho cíl ověřené na Pixelu 7 Pro (Android 17). Ťuknutí na notifikaci
-  na zamčeném Pixelu 5 neověřené (zámek); intent sám otevřel správnou obrazovku.
+  Řádek v Nastavení česky a jeho cíl ověřené na Pixelu 7 Pro (Android 17), ťuknutí na notifikaci
+  na Pixelu 5 (otevře „Využití dat" Plume s „Background data"). Pozor při ověřování: upozornění
+  je ve skupině notifikací Plume a v liště hned pod zprávou — ťuknutí o kus vedle otevře zprávu.
 
 #### Push hovoru: TDLib ho odmítne a hovor přijde až od serveru
 
