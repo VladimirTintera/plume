@@ -367,11 +367,11 @@ data class MediaRoute(
 data class StoriesRoute(val chatId: Long) : Route
 
 /**
- * Nový vlastní příběh z fotky [photoPath] (JPEG z výběru příloh, v cache aplikace). Vrší se
+ * Nový vlastní příběh z fotky nebo videa [path] (z výběru příloh, v cache aplikace). Vrší se
  * nad seznam chatů přes celou plochu; po zveřejnění se zavře.
  */
 @Serializable
-data class StoryComposerRoute(val photoPath: String) : Route
+data class StoryComposerRoute(val path: String, val video: Boolean = false) : Route
 
 /** [MediaRoute.startSeconds] bez času v médiu. */
 const val NO_START = -1

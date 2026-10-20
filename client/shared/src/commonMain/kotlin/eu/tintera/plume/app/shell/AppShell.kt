@@ -724,7 +724,7 @@ private fun shellEntryProvider(
             onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
             modifier = Modifier.listPaneInsets(twoPane),
             onOpenStories = { chatId -> chatsStack.openStories(chatId) },
-            onComposeStory = { path -> chatsStack.add(StoryComposerRoute(path)) },
+            onComposeStory = { path, video -> chatsStack.add(StoryComposerRoute(path, video)) },
         )
     }
 
@@ -1349,7 +1349,7 @@ private fun shellEntryProvider(
      */
     entry<StoryComposerRoute> { route ->
         StoryComposerScreen(
-            viewModel = koinViewModel(key = "story-composer-${route.photoPath}", parameters = { parametersOf(route.photoPath) }),
+            viewModel = koinViewModel(key = "story-composer-${route.path}", parameters = { parametersOf(route.path, route.video) }),
             onBack = { chatsStack.pop(route) },
             onPosted = { chatsStack.pop(route) },
         )

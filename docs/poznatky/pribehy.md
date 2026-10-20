@@ -1,9 +1,9 @@
 # Příběhy (stories)
 
 Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání,
-prohlížeč přes celou obrazovku a v něm reakce a odpověď; zveřejnění vlastního příběhu z fotky,
-počet zhlédnutí a smazání. Video příběh, seznam diváků, blízcí přátelé, skrytí do archivu
-a příběhy v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
+prohlížeč přes celou obrazovku a v něm reakce a odpověď; zveřejnění vlastního příběhu z fotky
+i videa, počet zhlédnutí a smazání. Seznam diváků, blízcí přátelé, skrytí do archivu a příběhy
+v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
 zprávě a odpověď na příběh jsou v `typy-zprav.md`.
 
 Skladba:
@@ -20,6 +20,7 @@ Skladba:
 | Lišta s odpovědí a reakcemi, lišta vlastního příběhu, velké emoji, hlášení | `features/stories/StoryReplyBar.kt` |
 | Nový příběh (obrazovka, výběr lidí) | `features/stories/StoryComposerScreen.kt`, `StoryComposerViewModel.kt`, routa `StoryComposerRoute` |
 | Plátno 1080 × 1920 | `core/ui/StoryPhoto.kt` + `AndroidStoryPhoto`, `IosStoryPhoto`, `DesktopStoryPhoto` |
+| Video 720 × 1280 H.265 | `core/ui/StoryVideo.kt` + `AndroidStoryVideo` (Media3 Transformer), `IosStoryVideo` (AVFoundation), desktop `UnsupportedStoryVideo` |
 
 ## Odkud se ví, kdo má příběh
 
@@ -131,8 +132,24 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   `StoryPhotoTest`), kreslí platforma: Android `Canvas`, iOS `UIGraphicsImageRenderer`,
   desktop `BufferedImage`. Převádí se až při zveřejnění — náhled jen kreslí `AsyncImage`
   s `Crop` / `Fit`, takže vypadá stejně.
-- **Video příběh není.** TDLib chce 720 × 1280, H.265 a klíčový snímek každou sekundu —
-  to je překódování, které aplikace nemá. Video z výběru skončí větou „jen z fotky".
+- **Video se převádí VŽDYCKY** (`StoryVideo`): TDLib chce MP4 720 × 1280, H.265 a klíčový
+  snímek každou sekundu, nejvýš 60 s — video z galerie tomu nevyhoví skoro nikdy. Delší video
+  se zkrátí na první minutu a obrazovka to předem řekne; vlastní výběr úseku zatím není.
+  - **Android: Media3 Transformer** jako u profilového videa (`exportVideo` dostal kodek
+    a interval klíčových snímků): `Presentation` 720 × 1280 (`LAYOUT_SCALE_TO_FIT_WITH_CROP`
+    pro Vyplnit, `LAYOUT_SCALE_TO_FIT` pro Celý záběr), `setiFrameIntervalSeconds(1)`,
+    2,5 Mbit/s, zvuk AAC, když ho zdroj má. **H.265 jen když ho zařízení zakóduje** —
+    jinak Transformer sám spadne na H.264; jestli ho server vezme, ověřené NENÍ.
+  - **iOS: `AVAssetExportSession` s předvolbou H.265** nad kompozicí obrazu i zvuku
+    a `AVMutableVideoComposition` 720 × 1280. **Interval klíčových snímků export nastavit
+    neumí** (jen `AVAssetWriter`) — iOS je jen přeložené.
+  - **Desktop video nepřevede** (`UnsupportedStoryVideo`); video z výběru tam skončí větou
+    „tady jen z fotky".
+  - Video bez zvuku jde jako animace (`isAnimation`), obálka je první snímek
+    (`coverFrameTimestamp = 0`). Náhled na obrazovce je první snímek (`ProfileVideo.frame`).
+  - Převod trvá pár vteřin; obrazovka během něj říká „Připravuji video…" a zavře se až
+    po něm (a po přijetí `postStory`).
+- **Volba „Celý záběr", ne „Celá fotka"** — platí pro fotku i video.
 - **Zveřejňuje se „za" Uložené zprávy** (`chatId` = id účtu, dokumentace `postStory`).
 - **Výchozí viditelnost jsou kontakty**, ne všichni: příběh je osobní a zveřejnit ho celému
   světu má být rozhodnutí. Vybraní lidé jdou přes `ChatPicker` jako členové nové skupiny
@@ -173,6 +190,11 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   **Výběr fotky na emulátoru s Androidem 11 nešel** — systémový výběr souborů ťuknutí na
   soubor nebral (ani v hledání); obrazovka se proto otevřela dočasnou sondou s fotkou v cache
   (necommituje se). Výběr je tentýž jako u příloh.
+- **Video ověřené tamtéž** (20. 10. 2026): záznam obrazovky emulátoru (1080 × 2340, bez
+  zvuku, 8 s) přes sondu → náhled prvním snímkem, Celý záběr s černými pruhy → Zveřejnit →
+  převod kodérem `c2.android.hevc.encoder` asi 6 s → „Story posted" → vlastní příběh
+  v prohlížeči se přehrává. **Server tedy H.265 z Transformeru vzal.** Neověřené: video se
+  zvukem, video delší než minuta (zkrácení jen v testu), spadnutí na H.264, iOS.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).

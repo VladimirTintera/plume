@@ -58,9 +58,9 @@ interface StoryRepository {
     suspend fun delete(posterChatId: Long, storyId: Int): Result<Unit>
 }
 
-/** Vlastní příběh připravený ke zveřejnění. [photoPath] je JPEG přesně 1080 × 1920 (`StoryPhoto`). */
+/** Vlastní příběh připravený ke zveřejnění. */
 data class StoryDraft(
-    val photoPath: String,
+    val media: StoryMedia,
     val caption: String,
     val audience: StoryAudience,
     /** Ponechat příběh v profilu i po vypršení. */
@@ -68,6 +68,15 @@ data class StoryDraft(
     /** Zakázat přeposílání a snímky obrazovky. */
     val protectContent: Boolean,
 )
+
+/** Obsah příběhu už převedený do tvaru, který TDLib vyžaduje. */
+sealed interface StoryMedia {
+    /** JPEG přesně 1080 × 1920 (`StoryPhoto`). */
+    data class Photo(val path: String) : StoryMedia
+
+    /** MP4 720 × 1280 (`StoryVideo`); bez zvuku jde jako animace. */
+    data class Video(val path: String, val durationSeconds: Double, val hasAudio: Boolean) : StoryMedia
+}
 
 /** Kdo příběh uvidí. Blízcí přátelé chybí vědomě: jejich seznam Plume zatím upravovat neumí. */
 sealed interface StoryAudience {

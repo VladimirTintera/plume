@@ -13,6 +13,7 @@ import dev.g000sha256.tdl.dto.CanPostStoryResultWeeklyLimitExceeded
 import dev.g000sha256.tdl.dto.ChatActiveStories
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputStoryContentPhoto
+import dev.g000sha256.tdl.dto.InputStoryContentVideo
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsContacts
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsEveryone
 import dev.g000sha256.tdl.dto.StoryPrivacySettingsSelectedUsers
@@ -203,7 +204,17 @@ class TdlStoryRepository(
         val me = myChatId() ?: return Result.failure(IllegalStateException("Účet není známý"))
         return client.postStory(
             chatId = me,
-            content = InputStoryContentPhoto(photo = InputFileLocal(path = draft.photoPath), addedStickerFileIds = intArrayOf()),
+            content = when (val media = draft.media) {
+                is StoryMedia.Photo -> InputStoryContentPhoto(photo = InputFileLocal(path = media.path), addedStickerFileIds = intArrayOf())
+                is StoryMedia.Video -> InputStoryContentVideo(
+                    video = InputFileLocal(path = media.path),
+                    addedStickerFileIds = intArrayOf(),
+                    duration = media.durationSeconds,
+                    // Náhled z prvního snímku; vlastní volbu obálky Plume zatím nemá.
+                    coverFrameTimestamp = 0.0,
+                    isAnimation = !media.hasAudio,
+                )
+            },
             caption = draft.caption.trim().takeIf { it.isNotEmpty() }?.let { FormattedText(text = it, entities = emptyArray()) },
             privacySettings = when (val audience = draft.audience) {
                 StoryAudience.Everyone -> StoryPrivacySettingsEveryone(exceptUserIds = longArrayOf())

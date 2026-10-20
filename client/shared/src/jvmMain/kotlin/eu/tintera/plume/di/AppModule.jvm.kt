@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ui.StoryVideo
+import eu.tintera.plume.core.ui.UnsupportedStoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
@@ -146,6 +148,7 @@ actual fun Module.platformModule() {
                 throw UnsupportedOperationException("Úprava fotky na desktopu zatím není.")
         }
     }
+    single<StoryVideo> { UnsupportedStoryVideo }
     single<ProfileVideo> {
         object : ProfileVideo {
             override suspend fun durationMs(path: String): Long =

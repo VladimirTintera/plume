@@ -873,7 +873,7 @@ fun appModule() = module {
     }
 
     viewModel { parameters ->
-        StoryComposerViewModel(photoPath = parameters.get(), repository = get(), storyPhoto = get())
+        StoryComposerViewModel(path = parameters.get(), isVideo = parameters.get(), repository = get(), storyPhoto = get(), storyVideo = get())
     }
     viewModel { parameters ->
         StoriesViewModel(startChatId = parameters.get(), repository = get(), appScope = get(named(APP_SCOPE)), quickReaction = get())

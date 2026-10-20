@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ui.AndroidStoryVideo
+import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.calls.AndroidCallPointerDisplay
 import eu.tintera.plume.core.calls.CallPointerDisplay
 import eu.tintera.plume.core.calls.CallRinger
@@ -160,6 +162,7 @@ actual fun Module.platformModule() {
         PhotoDescriptionSchedule(androidContext(), settings = get(), scope = get(named(APP_SCOPE)))
     }
     single<PhotoMarkupRenderer> { AndroidPhotoMarkupRenderer(androidContext()) }
+    single<StoryVideo> { AndroidStoryVideo(androidContext(), get()) }
     single<ProfileVideo> { AndroidProfileVideo(androidContext()) }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder(androidContext()) }

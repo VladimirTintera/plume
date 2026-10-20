@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -83,6 +84,8 @@ import eu.tintera.plume.resources.story_keep_on_profile_summary
 import eu.tintera.plume.resources.story_allow_screenshots
 import eu.tintera.plume.resources.story_post
 import eu.tintera.plume.resources.story_select_people
+import eu.tintera.plume.resources.story_video_preparing
+import eu.tintera.plume.resources.story_video_trimmed
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -160,7 +163,16 @@ fun StoryComposerScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                StoryPreview(path = viewModel.photoPath, fill = state.fill)
+                StoryPreview(path = state.previewPath, fill = state.fill)
+                if (viewModel.isVideo && (state.trimmed || state.posting)) {
+                    Text(
+                        stringResource(if (state.posting) Res.string.story_video_preparing else Res.string.story_video_trimmed),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
 
                 Row(
                     Modifier.fillMaxWidth(),
@@ -241,9 +253,12 @@ fun StoryComposerScreen(
     }
 }
 
-/** Náhled tak, jak ho uvidí ostatní: plátno 9 : 16, fotka vyplněná, nebo celá na černé. */
+/**
+ * Náhled tak, jak ho uvidí ostatní: plátno 9 : 16, fotka vyplněná, nebo celá na černé. U videa
+ * jeho první snímek; než je, čeká se na černém plátně.
+ */
 @Composable
-private fun StoryPreview(path: String, fill: Boolean) {
+private fun StoryPreview(path: String?, fill: Boolean) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Box(
             Modifier
@@ -253,12 +268,14 @@ private fun StoryPreview(path: String, fill: Boolean) {
                 // Černá, ne role schématu: tak bude plátno vypadat v příběhu u všech.
                 .background(Color.Black),
         ) {
-            AsyncImage(
-                model = localImage(path),
-                contentDescription = null,
-                contentScale = if (fill) ContentScale.Crop else ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
-            )
+            if (path != null) {
+                AsyncImage(
+                    model = localImage(path),
+                    contentDescription = null,
+                    contentScale = if (fill) ContentScale.Crop else ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }

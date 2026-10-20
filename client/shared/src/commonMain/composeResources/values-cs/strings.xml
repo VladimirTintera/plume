@@ -3269,7 +3269,7 @@
     <string name="story_compose_title">Nový příběh</string>
     <string name="story_post">Zveřejnit</string>
     <string name="story_fill">Vyplnit</string>
-    <string name="story_fit">Celá fotka</string>
+    <string name="story_fit">Celý záběr</string>
     <string name="story_caption">Popisek</string>
     <string name="story_audience_title">Kdo ho uvidí</string>
     <string name="story_audience_everyone">Všichni</string>
@@ -3286,7 +3286,9 @@
     <string name="story_keep_on_profile">Ponechat v profilu</string>
     <string name="story_keep_on_profile_summary">Zůstane v profilu i po 24 hodinách</string>
     <string name="story_allow_screenshots">Povolit snímky obrazovky a přeposílání</string>
-    <string name="story_photo_only">Příběh jde zatím složit jen z fotky.</string>
+    <string name="story_photo_only">Tady jde příběh složit jen z fotky.</string>
+    <string name="story_video_trimmed">Použije se jen první minuta videa.</string>
+    <string name="story_video_preparing">Připravuji video, může to chvíli trvat…</string>
     <string name="story_posted">Příběh je zveřejněný</string>
     <string name="chats_new_story">Nový příběh</string>
     <plurals name="story_views">
