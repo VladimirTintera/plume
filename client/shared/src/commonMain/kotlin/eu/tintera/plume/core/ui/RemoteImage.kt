@@ -76,6 +76,8 @@ fun RemoteImage(
     background: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
     placeholder: Minithumbnail? = null,
     autoDownload: Boolean = true,
+    /** Co kreslit, než dorazí obrázek (obrys samolepky); pod leskem načítání. */
+    placeholderContent: (@Composable () -> Unit)? = null,
 ) {
     // Ťuknutí na stažení platí pro tenhle soubor; jiný soubor na tomtéž místě (recyklovaná
     // položka seznamu) začíná zase podle nastavení.
@@ -114,6 +116,7 @@ fun RemoteImage(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (placeholder != null) BlurredPlaceholder(placeholder, contentScale)
+                    placeholderContent?.invoke()
                     if (!download && state !is FileState.Downloading) {
                         DownloadButton(onClick = { requested = true })
                     }
