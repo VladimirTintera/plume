@@ -3314,6 +3314,11 @@
     <string name="story_close_friends_empty">Seznam blízkých přátel je prázdný. Napřed na něj někoho přidej.</string>
     <string name="story_close_friends_saving">Seznam blízkých přátel se ještě ukládá, zkus to za chvíli.</string>
     <string name="story_close_friends_failed">Seznam blízkých přátel se nepodařilo uložit.</string>
+    <string name="story_hide">Skrýt příběhy do archivu</string>
+    <string name="story_unhide">Vrátit příběhy mezi ostatní</string>
+    <string name="story_hidden">Příběhy od %1$s jsou skryté v archivu</string>
+    <string name="story_unhidden">Příběhy od %1$s jsou zase mezi ostatními</string>
+    <string name="story_hide_failed">Příběhy se nepodařilo přesunout.</string>
     <string name="location_live_share">Sdílet živou polohu</string>
     <string name="location_live_share_hint">Posouvá se, dokud sdílení nezastavíš</string>
     <string name="location_live_period_title">Sdílet živou polohu na…</string>

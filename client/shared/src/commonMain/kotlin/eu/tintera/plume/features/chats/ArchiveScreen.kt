@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material3.MaterialTheme
+import eu.tintera.plume.features.stories.StoryStack
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.ReorderTopBar
 import eu.tintera.plume.resources.chats_reorder_title
@@ -59,6 +61,7 @@ fun ArchiveScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val archiveSettings by viewModel.archiveSettings.collectAsStateWithLifecycle()
+    val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
     val settingsOpen by viewModel.archiveSettingsOpen.collectAsStateWithLifecycle()
     val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
@@ -121,6 +124,14 @@ fun ArchiveScreen(
                     }
                 },
                 actions = {
+                    // Skrytí autoři příběhů: v archivu jako v pilulce hlavního seznamu.
+                    if (onOpenStories != null) {
+                        StoryStack(
+                            posters = storyStack,
+                            rim = MaterialTheme.colorScheme.surface,
+                            onOpen = onOpenStories,
+                        )
+                    }
                     // Jen když je co číst; jinak by ikona slibovala akci, která nic neudělá.
                     if (archiveUnread.chats > 0) {
                         WithTooltip(stringResource(Res.string.chats_archive_read_all)) {

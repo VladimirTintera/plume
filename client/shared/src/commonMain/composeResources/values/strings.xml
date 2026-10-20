@@ -3205,6 +3205,11 @@
     <string name="story_close_friends_empty">Your close friends list is empty. Add someone to it first.</string>
     <string name="story_close_friends_saving">Still saving your close friends, try again in a moment.</string>
     <string name="story_close_friends_failed">Couldn’t save your close friends.</string>
+    <string name="story_hide">Hide stories in archive</string>
+    <string name="story_unhide">Show stories again</string>
+    <string name="story_hidden">Stories from %1$s are hidden in the archive</string>
+    <string name="story_unhidden">Stories from %1$s are back among the others</string>
+    <string name="story_hide_failed">Couldn’t move the stories.</string>
     <string name="location_live_share">Share live location</string>
     <string name="location_live_share_hint">Keeps updating until you stop it</string>
     <string name="location_live_period_title">Share live location for…</string>

@@ -148,6 +148,7 @@ class TdlStoryRepository(
             stories = stories.stories.map {
                 StoryRef(id = it.storyId, date = it.date, isLive = it.isLive, isForCloseFriends = it.isForCloseFriends)
             },
+            canBeArchived = stories.canBeArchived,
         )
         _active.update { it + (stories.chatId to entry) }
     }
@@ -317,6 +318,14 @@ class TdlStoryRepository(
     override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> =
         client.setCloseFriends(userIds = userIds.toLongArray()).toResult()
             .onFailure { logger.w(it) { "setCloseFriends" } }
+            .map { }
+
+    override suspend fun setHidden(chatId: Long, hidden: Boolean): Result<Unit> =
+        client.setChatActiveStoriesList(
+            chatId = chatId,
+            storyList = if (hidden) StoryListArchive() else StoryListMain(),
+        ).toResult()
+            .onFailure { logger.w(it) { "setChatActiveStoriesList $chatId hidden=$hidden" } }
             .map { }
 
     override suspend fun close(posterChatId: Long, storyId: Int) {

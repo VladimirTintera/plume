@@ -2,8 +2,8 @@
 
 Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání,
 prohlížeč přes celou obrazovku a v něm reakce a odpověď; zveřejnění vlastního příběhu z fotky
-i videa (i jen pro blízké přátele), diváci (počet i seznam s reakcemi) a smazání. Skrytí do
-archivu a příběhy v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
+i videa (i jen pro blízké přátele), diváci (počet i seznam s reakcemi) a smazání; skrytí autora
+do archivu. Příběhy v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
 zprávě a odpověď na příběh jsou v `typy-zprav.md`.
 
 Skladba:
@@ -65,6 +65,25 @@ Skladba:
   posouvá dopředu sám server. Ťuknutí otevře prvního autora s nezhlédnutým.
 - **Jen v hlavním seznamu chatů** (`ChatsViewModel.storyStack`, `folder == Main`), ne ve složce
   archivu.
+
+## Skrytí autora do archivu
+
+⋮ v hlavičce prohlížeče → „Skrýt příběhy do archivu" / „Vrátit příběhy mezi ostatní"
+(`setChatActiveStoriesList` s `StoryListArchive` / `StoryListMain`).
+
+- **`canBeArchived` platí jen v hlavním seznamu.** U skrytého autora TDLib vrací `false`
+  (dokumentace: „True, if the stories are shown in the main story list and can be archived").
+  Nabídka se proto ukazuje pro `canBeArchived || isHidden` — bez toho šel autor skrýt, ale
+  už ne vrátit (ověřeno: ⋮ u skrytého chybělo). A protože jsou autoři v prohlížeči zmražení,
+  vrácený autor si `canBeArchived = false` ze skrytého stavu nesl dál a ⋮ zmizela — ViewModel
+  ho po vrácení nastaví zpátky. Vlastní příběhy nejdou skrýt ani vrátit.
+- **Skrytí autoři jsou v liště archivu** — hromádka (`StoryStack`) vedle nastavení archivu,
+  z `ChatsViewModel.storyStack` složky archivu (`StoryListKind.Archive`). Jinde se neobjeví.
+- **V hlavním seznamu chatů má skrytý autor jen tenký šedý lem** (jako zhlédnutý), i když má
+  nezhlédnuté: příběhy jdou z řádku otevřít, ale nevolají. Ve složce archivu se lem kreslí
+  normálně. Prohlížeč otevřený z řádku skrytého autora prochází skryté autory (jeho seznam).
+- Prohlížeč po přesunu zůstane, kde je, a ohlásí to pilulkou („Příběhy od … jsou skryté
+  v archivu"); hromádky a lemy se přeskládají updatem `chatActiveStories`.
 
 ## Prohlížeč
 
@@ -220,6 +239,11 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   Choose close friends" (prázdný seznam), výběr jen z kontaktů → Pixel 5 → „Close friends ·
   1 person" → Zveřejnit → u Pixelu 5 v oficiální aplikaci **zelený** kroužek. Neověřené:
   barva lemu v Plume u příjemce (Plume na Pixelu 5 je verze z Play), chyba uložení.
+- **Skrytí ověřené** (20. 10. 2026, …029, příběh Pixelu 5): ⋮ → „Hide stories in archive"
+  → pilulka, Pixel 5 zmizel z hromádky v pilulce; v archivu hromádka s Pixelem 5 →
+  prohlížeč → ⋮ „Show stories again" → pilulka, nabídka zase nabízí skrytí, Pixel 5 zpátky
+  v hromádce. Obě chyby s `canBeArchived` výš se našly tady. Neověřené: lem skrytého autora
+  s NEzhlédnutým příběhem (příběh byl zhlédnutý), iOS.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).
