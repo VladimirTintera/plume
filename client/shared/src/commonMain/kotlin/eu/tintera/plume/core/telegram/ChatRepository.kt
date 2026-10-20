@@ -337,6 +337,16 @@ interface ChatRepository {
     fun groupMembers(chatId: Long): Flow<GroupMembers?> = emptyFlow()
 
     /**
+     * Historie hovorů napříč chaty (`searchCallMessages`), od nejnovějšího; [offset] z předchozí
+     * stránky, napoprvé prázdný. [onlyMissed] = jen zmeškané a odmítnuté.
+     */
+    suspend fun callHistory(offset: String, onlyMissed: Boolean): Result<CallHistoryPage> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Smaže všechny zprávy o hovorech (`deleteAllCallMessages`); [revoke] = i protějškům. */
+    suspend fun deleteCallHistory(revoke: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Skupiny a kanály, ve kterých se uživatel dlouho neozval (`getInactiveSupergroupChats`) —
      * kandidáti na opuštění, když narazí na limit skupin a kanálů ([isChannelLimit]).
      */

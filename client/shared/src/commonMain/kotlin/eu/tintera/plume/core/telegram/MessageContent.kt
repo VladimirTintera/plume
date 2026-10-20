@@ -1074,11 +1074,11 @@ internal suspend fun Message.messageMedia(
  * Jak hovor dopadl z pohledu uživatele. [isOutgoing] je z TDLib, ne přepsaný jako u Uložených
  * zpráv — hovor sám se sebou neexistuje, takže tam nic nepřepisujeme.
  */
-private fun MessageCall.outcome(isOutgoing: Boolean): CallOutcome =
+internal fun MessageCall.outcome(isOutgoing: Boolean): CallOutcome =
     callOutcome(isOutgoing = isOutgoing, end = discardReason.toCallEnd())
 
 /** `wasMissed` u skupinového hovoru je „nevzal ani odmítl" — z pohledu volajícího totéž. */
-private fun MessageGroupCall.outcome(isOutgoing: Boolean): CallOutcome =
+internal fun MessageGroupCall.outcome(isOutgoing: Boolean): CallOutcome =
     callOutcome(isOutgoing = isOutgoing, end = if (wasMissed) CallEnd.Missed else CallEnd.HungUp)
 
 private fun CallDiscardReason.toCallEnd(): CallEnd = when (this) {

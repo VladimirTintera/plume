@@ -6,6 +6,16 @@ import dev.g000sha256.tdl.dto.CallProtocol
 import dev.g000sha256.tdl.dto.CallServerTypeTelegramReflector
 import dev.g000sha256.tdl.dto.CallServerTypeWebrtc
 import dev.g000sha256.tdl.dto.CallStateDiscarded
+import dev.g000sha256.tdl.dto.CallProblemDistortedSpeech
+import dev.g000sha256.tdl.dto.CallProblemDistortedVideo
+import dev.g000sha256.tdl.dto.CallProblemDropped
+import dev.g000sha256.tdl.dto.CallProblemEcho
+import dev.g000sha256.tdl.dto.CallProblemInterruptions
+import dev.g000sha256.tdl.dto.CallProblemNoise
+import dev.g000sha256.tdl.dto.CallProblemPixelatedVideo
+import dev.g000sha256.tdl.dto.CallProblemSilentLocal
+import dev.g000sha256.tdl.dto.CallProblemSilentRemote
+import dev.g000sha256.tdl.dto.InputCallDiscarded
 import dev.g000sha256.tdl.dto.CallStateError
 import dev.g000sha256.tdl.dto.CallStateExchangingKeys
 import dev.g000sha256.tdl.dto.CallStateHangingUp
@@ -79,6 +89,9 @@ internal class TdlCallRepository(
 
     private val _active = MutableStateFlow<ActiveCall?>(null)
     override val active: StateFlow<ActiveCall?> = _active.asStateFlow()
+
+    private val _ratingRequest = MutableStateFlow<CallRatingRequest?>(null)
+    override val ratingRequest: StateFlow<CallRatingRequest?> = _ratingRequest.asStateFlow()
 
     override val supported: Boolean get() = media != null
 
@@ -416,7 +429,20 @@ internal class TdlCallRepository(
                 }
             }
             is CallStateHangingUp -> Unit
-            is CallStateDiscarded -> finish(call.id, CallPhase.Ended)
+            is CallStateDiscarded -> {
+                // Server hodnocení chce jen někdy; ptáme se jen po hovoru, ve kterém se mluvilo —
+                // zrušený nebo nepřijatý hovor nemá co hodnotit.
+                val spoke = _active.value?.takeIf { it.id == call.id }?.connectedAt != null
+                if (state.needRating && spoke) {
+                    _ratingRequest.value = CallRatingRequest(callId = call.id, userId = call.userId, isVideo = call.isVideo)
+                }
+                if (state.needDebugInformation || state.needLog) {
+                    // Ladicí data a log ze knihovny Plume serveru neposílá (viz `docs/poznatky/hovory.md`,
+                    // „Hodnocení hovoru"); do deníku aspoň to, že o ně stál.
+                    note("Server asked for debug information ${state.needDebugInformation}, log ${state.needLog}", call.id)
+                }
+                finish(call.id, CallPhase.Ended)
+            }
             is CallStateError -> {
                 logger.w { "Hovor skončil chybou: ${state.error.code} ${state.error.message}" }
                 val reason = errorText(state.error.message, Res.string.call_bar_failed)
@@ -560,6 +586,23 @@ internal class TdlCallRepository(
         }
     }
 
+    override suspend fun rate(request: CallRatingRequest, stars: Int, comment: String, problems: Set<CallProblem>): Result<Unit> {
+        _ratingRequest.compareAndSet(request, null)
+        note("Rated: $stars stars, ${problems.size} problems", request.callId)
+        return holder.client.sendCallRating(
+            callId = InputCallDiscarded(callId = request.callId),
+            rating = stars.coerceIn(1, 5),
+            // Komentář a problémy jen u horšího než plného hodnocení — tak je TDLib bere.
+            comment = if (stars < 5) comment.trim() else "",
+            problems = if (stars < 5) problems.map { it.toTdl() }.toTypedArray() else emptyArray(),
+        ).toResult().map { }
+            .onFailure { logger.w(it) { "Hodnocení hovoru ${request.callId} se nepodařilo odeslat." } }
+    }
+
+    override fun dismissRating() {
+        _ratingRequest.value = null
+    }
+
     private fun note(text: String, callId: Int? = _active.value?.id) {
         journal?.record(text, callId)
     }
@@ -613,4 +656,16 @@ internal class TdlCallRepository(
         /** Id hovoru, který nikdy nezačal (TDLib čísluje hovory od 1). */
         const val FAILED_BEFORE_START_ID = 0
     }
+}
+
+private fun CallProblem.toTdl(): dev.g000sha256.tdl.dto.CallProblem = when (this) {
+    CallProblem.Echo -> CallProblemEcho()
+    CallProblem.Noise -> CallProblemNoise()
+    CallProblem.Interruptions -> CallProblemInterruptions()
+    CallProblem.DistortedSpeech -> CallProblemDistortedSpeech()
+    CallProblem.SilentLocal -> CallProblemSilentLocal()
+    CallProblem.SilentRemote -> CallProblemSilentRemote()
+    CallProblem.Dropped -> CallProblemDropped()
+    CallProblem.DistortedVideo -> CallProblemDistortedVideo()
+    CallProblem.PixelatedVideo -> CallProblemPixelatedVideo()
 }

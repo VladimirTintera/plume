@@ -589,6 +589,48 @@ může poslat sám: Nastavení → Pomoc → „Odeslat diagnostiku hovorů" slo
   - **Vnořené závorky se nesmí nahrazovat zase hranatými** (`[]`): vnější `Port[…Net[…]]` by se
     pak nikdy neodloupal a každá adresa by byla nový druh. Náhrada je `{}`.
 
+## Historie hovorů
+
+Menu účtu → Hovory (`CallsRoute`, `CallsScreen`, `CallsViewModel`, testy `CallsViewModelTest`):
+zprávy o hovorech napříč chaty (`searchCallMessages`, od nejnovějšího po stránkách), přepínač
+Všechny / Zmeškané (`onlyMissed`) a v ⋮ smazání celé historie (`deleteAllCallMessages`,
+s volbou „Smazat i ostatním" = `revoke`).
+
+- **Řádek mluví jako zpráva o hovoru v konverzaci** — tatáž šipka (`CallOutcome.icon`
+  z `CallRow`) a slova (`CallOutcome.title`), délka a čas. Zmeškaný a odmítnutý má jméno
+  i šipku v chybové barvě, jako v telefonu. Ťuknutí otevře chat (na široké ploše vedle),
+  sluchátko vpravo volá zpátky (`rememberStartCall`, s dotazem na mikrofon); u videohovoru
+  kamera. Skupinový hovor zpátky volat nejde, sluchátko nemá.
+- **Položka v menu jen tam, kde hovory jsou** (`CallRepository.supported`); na iOS by vedla
+  k seznamu, ze kterého nejde nic udělat.
+- **Po skončeném hovoru se historie čte znovu** (stav `active` přejde do `Ended`/`Failed`),
+  takže nový hovor přibude nahoře bez znovuotevření. Přepnutí filtru zahodí rozběhnuté čtení
+  (`generation`) — stránka starého filtru by se přilepila k novému. Tentýž hovor na hranici dvou
+  stránek je jednou (klíč seznamu).
+- **Ověřeno na emulátoru** (skutečný účet, jen čtení): historie s odchozími, příchozími,
+  zrušenými a zmeškanými hovory, filtr Zmeškané, stránkování posunem dolů (data do června).
+  Smazání historie a volání z řádku na zařízení ověřené NEJSOU.
+
+## Hodnocení hovoru
+
+Server po některých skončených hovorech chce hodnocení (`CallStateDiscarded.needRating`). Plume
+ho pak nabídne sheetem nad shellem (`CallRatingHost` / `CallRatingSheet`, žádost
+`CallRepository.ratingRequest`): pět hvězd, u méně než pěti co nefungovalo (`CallProblem`,
+obrazové jen u videohovoru) a nepovinný komentář; „Odeslat" volá `sendCallRating`
+s `InputCallDiscarded`. Zavření sheetu je „teď ne" — nic se nepošle a znovu se nezeptáme.
+
+- **Jen po hovoru, ve kterém se mluvilo** (`connectedAt`): zrušený nebo nepřijatý hovor nemá co
+  hodnotit, i kdyby server chtěl.
+- **Až zmizí obrazovka hovoru** (`active == null`): přes dobíhající hovor by se hodnotilo něco,
+  co ještě nekončí.
+- **Komentář a problémy jen u horšího než plného hodnocení** — u pěti hvězd je TDLib nebere.
+- **Ladicí data a log (`needDebugInformation`, `needLog`) Plume NEPOSÍLÁ**, jen do deníku
+  zapíše, že o ně server stál. Deník hovorů jde ven jen ručně (viz „Deník hovorů"); posílat ho
+  Telegramu automaticky je rozhodnutí, které nepadlo.
+- **Ověřen jen vzhled**, sondou (žádost podstrčená při startu, necommitnuto): hvězdy, problémy
+  a komentář po třech hvězdách, zavření gestem bez odeslání. **Skutečná žádost serveru
+  a odeslání hodnocení ověřené NEJSOU** — server o hodnocení žádá jen někdy.
+
 ## Vyzvánění a výstup zvuku (Android)
 
 - **Příchozí hovor zvoní `CallRinger`**: vyzváněcí tón telefonu (`RingtoneManager`,

@@ -245,6 +245,8 @@ import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.call_24dp
+import eu.tintera.plume.resources.calls_title
 import eu.tintera.plume.resources.chats_sponsor_announcement
 import eu.tintera.plume.resources.chats_sponsor_proxy
 import eu.tintera.plume.resources.archive_24dp
@@ -309,6 +311,8 @@ fun ChatListScreen(
     searchRequest: String?,
     onSearchRequestHandled: () -> Unit,
     onOpenArchive: () -> Unit,
+    /** Menu účtu → Hovory; `null` = položka není (platforma bez hovorů). */
+    onOpenCalls: (() -> Unit)? = null,
     onNewChat: () -> Unit = {},
     onNewGroup: () -> Unit = {},
     onNewChannel: () -> Unit = {},
@@ -510,6 +514,7 @@ fun ChatListScreen(
             archiveUnread = archiveUnread,
             onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
             onArchive = onOpenArchive,
+            onCalls = onOpenCalls,
             draftCount = drafts?.size ?: 0,
             onDrafts = { showDrafts = true },
             bookmarkCount = bookmarks.size,
@@ -1076,6 +1081,8 @@ private fun AccountMenu(
     archiveUnread: ArchiveUnread,
     onSavedMessages: () -> Unit,
     onArchive: () -> Unit,
+    /** Historie hovorů; `null` = bez položky (platforma bez hovorů). */
+    onCalls: (() -> Unit)?,
     /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
     draftCount: Int,
     onDrafts: () -> Unit,
@@ -1165,6 +1172,7 @@ private fun AccountMenu(
                         trailing = archiveBadge,
                         onClick = onArchive,
                     ),
+                    onCalls?.let { MenuAction(stringResource(Res.string.calls_title), Res.drawable.call_24dp, onClick = it) },
                     // Počet v neutrální barvě: koncept je náš rozdělaný text, ne nic, co by
                     // si žádalo pozornost jako nepřečtené.
                     if (draftCount > 0) {
