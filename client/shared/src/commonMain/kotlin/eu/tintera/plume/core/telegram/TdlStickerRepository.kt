@@ -324,6 +324,9 @@ class TdlStickerRepository(
                     }
             }
 
+    override suspend fun attachedStickerSets(fileId: Int): Result<List<StickerSetSummary>> =
+        client.getAttachedStickerSets(fileId = fileId).toResult().map { it.sets.toSummaries() }
+
     override suspend fun stickerSet(setId: Long): Result<List<StickerItem>> =
         client.getStickerSet(setId = setId)
             .toResult()

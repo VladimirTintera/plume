@@ -859,6 +859,7 @@ fun appModule() = module {
             onDeviceAi = getOrNull(),
             settings = get(),
             photoDescriptions = get(),
+            stickers = get(),
         )
     }
 

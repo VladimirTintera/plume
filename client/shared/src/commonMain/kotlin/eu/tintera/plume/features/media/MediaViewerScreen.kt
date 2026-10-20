@@ -134,6 +134,9 @@ import eu.tintera.plume.features.conversation.ReactionPickerSheet
 import eu.tintera.plume.resources.menu_reply
 import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.features.conversation.StickerSetSheet
+import eu.tintera.plume.resources.sticker_24dp
+import eu.tintera.plume.resources.media_attached_stickers
 import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.media_profile_photo_report
 import eu.tintera.plume.resources.add_reaction_24dp
@@ -279,6 +282,8 @@ fun MediaViewerScreen(
                 onSetMainProfilePhoto = viewModel::setMainProfilePhoto,
                 onDeleteProfilePhoto = viewModel::requestDeleteProfilePhoto,
                 onReportProfilePhoto = viewModel::requestReportProfilePhoto,
+                onAttachedStickers = viewModel::showAttachedStickers,
+                hasAttachedStickers = viewModel::hasAttachedStickers,
                 onRecognizeText = if (viewModel.canRecognizeText) viewModel::recognizeText else null,
                 onToggleTextLine = viewModel::toggleTextLine,
                 onClearTextSelection = viewModel::clearTextSelection,
@@ -321,6 +326,13 @@ fun MediaViewerScreen(
             snackbarHostState,
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = BOTTOM_BAR_HEIGHT),
         )
+    }
+
+    state.attachedStickerSets?.let { sets ->
+        AttachedStickerSetsSheet(sets = sets, onOpen = viewModel::openStickerSet, onDismiss = viewModel::dismissAttachedStickers)
+    }
+    state.openStickerSetId?.let { setId ->
+        StickerSetSheet(setId = setId, onPick = null, onDismiss = viewModel::dismissAttachedStickers)
     }
 
     if (state.reportingPhoto != null) {
@@ -372,6 +384,9 @@ private fun ViewerContent(
     onSetMainProfilePhoto: (photoId: Long) -> Unit,
     onDeleteProfilePhoto: (photoId: Long) -> Unit,
     onReportProfilePhoto: (photoId: Long) -> Unit,
+    /** „Samolepky na fotce" u stránky, která je má ([hasAttachedStickers]). */
+    onAttachedStickers: (messageId: Long) -> Unit,
+    hasAttachedStickers: (ViewerItem) -> Boolean,
     /** Text z fotky; `null` = platforma ho neumí. */
     onRecognizeText: ((messageId: Long) -> Unit)?,
     onToggleTextLine: (index: Int) -> Unit,
@@ -713,6 +728,7 @@ private fun ViewerContent(
                     onSetMainProfilePhoto = { onSetMainProfilePhoto(current.messageId) },
                     onDeleteProfilePhoto = { onDeleteProfilePhoto(current.messageId) },
                     onReportProfilePhoto = { onReportProfilePhoto(current.messageId) },
+                    onAttachedStickers = { onAttachedStickers(current.messageId) }.takeIf { hasAttachedStickers(current) },
                     // Jen fotka, a jen když jde uložit: u chatu se zakázaným ukládáním by text
                     // z fotky obešel tutéž ochranu jako snímek obrazovky.
                     onRecognizeText = onRecognizeText
@@ -922,6 +938,8 @@ private fun TopBar(
     onReportProfilePhoto: () -> Unit,
     onRecognizeText: (() -> Unit)?,
     onDescribePhoto: (() -> Unit)?,
+    /** `null` = na médiu samolepky nejsou. */
+    onAttachedStickers: (() -> Unit)? = null,
 ) {
     val actions = state.actions[item.messageId]
 
@@ -999,7 +1017,7 @@ private fun TopBar(
         val canSetMain = own && item.messageId != state.items.lastOrNull()?.messageId
         // Cizí profilovku jde nahlásit moderátorům, kde to TDLib dovolí.
         val reportable = item.messageId in state.reportablePhotos
-        if (canForward || canDelete || saveAs != null || own || reportable || recognizeText != null || describePhoto != null) {
+        if (canForward || canDelete || saveAs != null || own || reportable || recognizeText != null || describePhoto != null || onAttachedStickers != null) {
             var menuOpen by remember { mutableStateOf(false) }
             BusyOr(busy == MediaTask.SaveAs || busy == MediaTask.Text || busy == MediaTask.Describe) {
                 Box {
@@ -1022,6 +1040,9 @@ private fun TopBar(
                                         Res.drawable.auto_awesome_24dp,
                                         onClick = it,
                                     )
+                                },
+                                onAttachedStickers?.let {
+                                    MenuAction(stringResource(Res.string.media_attached_stickers), Res.drawable.sticker_24dp, onClick = it)
                                 },
                                 MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp, onClick = onForward).takeIf { canForward },
                                 saveAs?.let { MenuAction(stringResource(Res.string.media_save_as), Res.drawable.description_24dp, onClick = it) },

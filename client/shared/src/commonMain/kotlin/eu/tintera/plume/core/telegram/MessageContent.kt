@@ -1112,6 +1112,7 @@ internal fun Video.toMedia(
     minithumbnail = minithumbnail?.toDomain(),
     fileKey = video.remote.uniqueId.ifBlank { null },
     sizeBytes = video.expectedSize,
+    hasStickers = hasStickers,
 )
 
 /** Přepočítané kvality videa (zpráva i anketa) i s HLS seznamem, viz [VideoQuality]. */
@@ -1413,6 +1414,7 @@ internal fun Photo.toMedia(
 ): MessageMedia.Photo? = photoMedia(
     sizes = sizes.filterNotNull(),
     minithumbnail = minithumbnail,
+    hasStickers = hasStickers,
     hasSpoiler = hasSpoiler,
     isSensitive = isSensitive,
     isSecret = isSecret,
@@ -1431,6 +1433,7 @@ internal fun photoMedia(
     isSensitive: Boolean = false,
     isSecret: Boolean = false,
     selfDestructType: SelfDestructType? = null,
+    hasStickers: Boolean = false,
 ): MessageMedia.Photo? {
     val available = sizes.ifEmpty { return null }
 
@@ -1458,6 +1461,7 @@ internal fun photoMedia(
         isSecret = isSecret,
         selfDestructType = selfDestructType,
         minithumbnail = minithumbnail?.toDomain(),
+        hasStickers = hasStickers,
     )
 }
 
