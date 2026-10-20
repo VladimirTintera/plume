@@ -33,6 +33,11 @@ internal suspend fun MessageStory.toMedia(
         isAvailable = story != null,
         viaMention = viaMention,
         postedAt = story?.date ?: 0,
+        canBeReplied = story?.canBeReplied == true,
+        chosenReaction = story?.chosenReactionType?.toReactionKey(),
+        // TDLib „vlastní" přímo neříká; smazat jde jen příběh, který jsme zveřejnili my
+        // (nebo kanál, který spravujeme), a na ten se nereaguje.
+        isOwn = story?.canBeDeleted == true,
     )
 }
 

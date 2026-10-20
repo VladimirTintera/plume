@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -92,6 +95,8 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
     // Podklad je tmavý v každém motivu, ikony lišt proto světlé (jako prohlížeč médií).
     DarkSystemBars()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val reactionChoices by viewModel.reactionChoices.collectAsStateWithLifecycle()
+    val notice by viewModel.notice.collectAsStateWithLifecycle()
     val currentOnBack by rememberUpdatedState(onBack)
     LaunchedEffect(state.closed) { if (state.closed) currentOnBack() }
     if (state.posters.isEmpty()) {
@@ -122,7 +127,9 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
             .onSizeChanged { height = it.height.toFloat().coerceAtLeast(1f) }
             .graphicsLayer { alpha = 1f - (dismiss.value / height * DISMISS_FADE).coerceIn(0f, 0.6f) }
             .background(MaterialTheme.colorScheme.scrim)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            // Lišty a výřez, ne klávesnice: s ní by se příběh zmenšil. Nad klávesnici jde jen
+            // lišta s odpovědí (`imePadding` v ní; lišty tu už spotřebované odečte sama).
+            .windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout))
             .draggable(
                 state = dragState,
                 orientation = Orientation.Vertical,
@@ -161,12 +168,21 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     active = active,
                     paused = dragging,
                     restart = state.restart,
+                    reactionChoices = reactionChoices,
                     onNext = viewModel::next,
                     onPrevious = viewModel::previous,
                     onClose = onBack,
+                    onReact = { reaction -> key?.let { viewModel.react(it, reaction) } },
+                    onReply = { text, onResult -> key?.let { viewModel.reply(it, text, onResult) } },
                 )
             }
         }
+
+        StoryNotice(
+            notice = notice,
+            onShown = viewModel::noticeShown,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = STORY_BAR_HEIGHT + 8.dp),
+        )
     }
 }
 
@@ -178,11 +194,69 @@ private fun StoryPage(
     active: Boolean,
     paused: Boolean,
     restart: Int,
+    reactionChoices: List<String>,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onClose: () -> Unit,
+    onReact: (String) -> Unit,
+    onReply: (String, (Boolean) -> Unit) -> Unit,
+) {
+    var held by remember { mutableStateOf(false) }
+    // Psaní odpovědi a výběr reakce příběh zastaví — jinak by uživateli odjel pod rukama.
+    var composing by remember(author.chatId, index) { mutableStateOf(false) }
+    // Velké emoji přes příběh po dané reakci; klíč roste, ať se táž reakce ukáže znovu.
+    var burst by remember(author.chatId, index) { mutableStateOf<Pair<Int, String>?>(null) }
+    val bar = story != null && story.isAvailable && !story.isLive && !story.isOwn
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                StoryCard(
+                    author = author,
+                    index = index,
+                    story = story,
+                    active = active,
+                    paused = paused || held || composing,
+                    restart = restart,
+                    onHeld = { held = it },
+                    onNext = onNext,
+                    onPrevious = onPrevious,
+                    onClose = onClose,
+                )
+                ReactionBurst(burst, Modifier.align(Alignment.Center))
+            }
+            if (bar) Spacer(Modifier.height(STORY_BAR_HEIGHT))
+        }
+        if (bar && story != null) {
+            StoryReplyBar(
+                story = story,
+                reactionChoices = reactionChoices,
+                onComposingChange = { composing = it },
+                onReact = { reaction ->
+                    if (reaction != story.chosenReaction) burst = ((burst?.first ?: 0) + 1) to reaction
+                    onReact(reaction)
+                },
+                onReply = onReply,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+}
+
+/** Příběh sám: obsah, průběh a hlavička, ťuknutí a podržení. */
+@Composable
+private fun StoryCard(
+    author: ActiveStories,
+    index: Int,
+    story: MessageMedia.Story?,
+    active: Boolean,
+    paused: Boolean,
+    restart: Int,
+    onHeld: (Boolean) -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onClose: () -> Unit,
 ) {
-    var held by remember { mutableStateOf(false) }
     var progress by remember(author.chatId, index) { mutableFloatStateOf(0f) }
     val next = stringResource(Res.string.stories_next)
     val previous = stringResource(Res.string.stories_previous)
@@ -195,9 +269,9 @@ private fun StoryPage(
             .pointerInput(onNext, onPrevious) {
                 detectTapGestures(
                     onPress = {
-                        held = true
+                        onHeld(true)
                         tryAwaitRelease()
-                        held = false
+                        onHeld(false)
                     },
                     // Prázdné podržení: bez něj by puštění po pauze počítalo jako ťuknutí a přeskočilo.
                     onLongPress = {},
@@ -214,7 +288,7 @@ private fun StoryPage(
         StoryContent(
             story = story,
             active = active,
-            paused = paused || held,
+            paused = paused,
             restart = restart,
             onProgress = { progress = it },
             onFinished = onNext,

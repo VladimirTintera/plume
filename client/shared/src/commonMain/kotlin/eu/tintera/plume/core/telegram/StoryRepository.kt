@@ -27,6 +27,15 @@ interface StoryRepository {
 
     /** Příběh z obrazovky zmizel. Ke každému [open] patří jedno [close]. */
     suspend fun close(posterChatId: Long, storyId: Int)
+
+    /** Dá na příběh reakci (klíč, viz [customEmojiReaction]), nebo ji sundá (`null`). */
+    suspend fun react(posterChatId: Long, storyId: Int, reaction: String?): Result<Unit>
+
+    /**
+     * Odpoví na příběh zprávou do chatu s autorem. Zpráva v chatu cituje příběh
+     * (`MessageReplyToStory`), takže autor ví, na co odpovídáme.
+     */
+    suspend fun reply(posterChatId: Long, storyId: Int, text: String): Result<Unit>
 }
 
 /** Seznam příběhů: hlavní, nebo skrytý do archivu. */

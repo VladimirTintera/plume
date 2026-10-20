@@ -872,7 +872,7 @@ fun appModule() = module {
     }
 
     viewModel { parameters ->
-        StoriesViewModel(startChatId = parameters.get(), repository = get(), appScope = get(named(APP_SCOPE)))
+        StoriesViewModel(startChatId = parameters.get(), repository = get(), appScope = get(named(APP_SCOPE)), quickReaction = get())
     }
 
     viewModelOf(::NewChatViewModel)

@@ -1,7 +1,7 @@
 # Příběhy (stories)
 
-Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání
-a prohlížeč přes celou obrazovku. Reakce, odpovědi, skrytí do archivu, příběhy v profilu
+Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání,
+prohlížeč přes celou obrazovku a v něm reakce a odpověď. Skrytí do archivu, příběhy v profilu
 a zveřejnění vlastního příběhu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
 zprávě a odpověď na příběh jsou v `typy-zprav.md`.
 
@@ -16,6 +16,7 @@ Skladba:
 | ViewModel prohlížeče | `features/stories/StoriesViewModel.kt` |
 | Prohlížeč | `features/stories/StoriesScreen.kt`, routa `StoriesRoute` |
 | Hromádka v pilulce | `features/stories/StoryStack.kt` |
+| Lišta s odpovědí a reakcemi, velké emoji, hlášení | `features/stories/StoryReplyBar.kt` |
 
 ## Odkud se ví, kdo má příběh
 
@@ -85,6 +86,32 @@ Skladba:
   (`DarkSystemBars`).
 - **Živé vysílání a příběh, který už není**, ukážou větu a po 6 s jdou dál.
 
+## Reakce a odpověď
+
+Lišta pod cizím příběhem (`StoryReplyBar`): pole „Odpovědět…", „+" pro výběr reakce a srdce.
+
+- **Srdce je rychlá reakce na příběh, ne rychlá reakce účtu.** Oficiální aplikace dává na příběh
+  srdce bez ohledu na `setDefaultReactionType` (ta platí pro dvojité ťuknutí na zprávu). Klíč je
+  `❤` BEZ variačního selektoru — tak ho vede Telegram v seznamu reakcí. Je-li reakce dána, místo
+  srdce stojí ona a ťuknutí ji sundá; „+" otevře tentýž výběr jako prohlížeč médií
+  (`ReactionPickerSheet`, emoji z `QuickReaction.choices`).
+- **Reakce se přepne hned a při chybě vrátí** (jako u zprávy) — `setStoryReaction` s `null`
+  sundává. Velké emoji přes příběh potvrdí reakci i bez pohledu na lištu.
+- **Odpověď je zpráva do soukromého chatu s autorem** (`sendMessage` s
+  `InputMessageReplyToStory`; id soukromého chatu = id autora). V konverzaci ji kreslí citace
+  příběhu, kterou aplikace měla už dřív (`typy-zprav.md`, „Odpověď na příběh a odkaz na
+  příběh"). Pole je jen u `canBeReplied` — kanál odpověď nepovoluje, tam zbudou reakce.
+- **Vlastní příběh lištu nemá** (`MessageMedia.Story.isOwn`). TDLib „vlastní" přímo neříká;
+  pozná se podle `canBeDeleted` — smazat jde jen příběh, který jsme zveřejnili my (nebo kanál,
+  který spravujeme), a reagovat na něj stejně nejde.
+- **Psaní a výběr reakce příběh zastaví** — jinak by uživateli odjel uprostřed věty. Kořen
+  prohlížeče proto bere insety lišt a výřezu, NE klávesnice: se `safeDrawing` by se při psaní
+  zmenšil celý příběh. Nad klávesnici jede jen lišta (`imePadding`), zbytek ztmavne a ťuknutí
+  do ztmavnutí psaní ukončí.
+- **Příběh si nechává místo pro lištu** (`STORY_BAR_HEIGHT` pod kartou), lišta ho nepřekrývá.
+- **Výsledek hlásí pilulka nad lištou** („Odpověď odeslána", chyba přes `userMessage`), ne
+  snackbar — prohlížeč žádný `Scaffold` nemá.
+
 ## Ověření
 
 - **Free účet smí zveřejnit JEDEN příběh za 24 hodin.** Další pokus v oficiální aplikaci
@@ -97,5 +124,11 @@ Skladba:
   průběh, popisek, pauza podržením bez přeskočení, zavření tahem dolů, samo zavření po
   posledním příběhu, zešednutí lemu po zhlédnutí a „1 view" u autora v oficiální aplikaci.
   Sondou lem po sušence a čtverci a dílky (3, 5, 12 i všechny zhlédnuté).
-- **Neověřené:** video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
+- **Reakce a odpověď ověřené tamtéž** (20. 10. 2026): srdce (velké emoji, autor v oficiální
+  aplikaci vidí „1 view ❤ 1"), výměna přes „+" za 🔥, sundání ťuknutím, reakce po restartu
+  aplikace načtená ze serveru; odpověď s pauzou příběhu při psaní a ztmavnutím, pilulka
+  „Reply sent", zpráva v chatu s citací příběhu. **Fotka stojí 6 s a v testu to bylo málo** —
+  ťuknutí po snímku obrazovky už mířilo na zavřený prohlížeč; uživateli to nevadí, při psaní
+  příběh stojí.
+- **Neověřené:** lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).
