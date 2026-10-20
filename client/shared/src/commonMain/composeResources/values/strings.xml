@@ -208,6 +208,14 @@
     <string name="chats_delete_report">Report spam</string>
     <string name="chats_action_report">Report…</string>
     <string name="chats_delete_report_reason">Report — you'll pick a reason</string>
+    <string name="menu_block_sender">Block sender</string>
+    <string name="replies_block_title">Block this sender?</string>
+    <string name="replies_block_text">They won’t be able to reply to your comments.</string>
+    <string name="replies_block_delete_message">Delete this message</string>
+    <string name="replies_block_delete_all">Delete all their messages here</string>
+    <string name="replies_block_report_spam">Report spam</string>
+    <string name="replies_block_done">Sender blocked</string>
+    <string name="replies_block_failed">Couldn’t block the sender.</string>
     <string name="menu_report">Report</string>
     <string name="report_done">Reported to Telegram moderators</string>
     <string name="report_failed">Couldn't send the report</string>

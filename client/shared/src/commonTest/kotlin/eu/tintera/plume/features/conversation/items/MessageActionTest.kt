@@ -115,6 +115,7 @@ class MessageActionTest {
                 MessageMenuAction.Pin,
                 MessageMenuAction.Select,
                 MessageMenuAction.Report,
+                MessageMenuAction.BlockFromReplies,
                 MessageMenuAction.Delete,
             ),
             menuActions(message(), isPinned = false),

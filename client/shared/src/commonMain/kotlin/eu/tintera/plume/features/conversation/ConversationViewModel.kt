@@ -783,6 +783,9 @@ class ConversationViewModel(
     fun dismissTextSelection() = menu.dismissTextSelection()
     fun dismissMessageInfo() = menu.dismissMessageInfo()
     fun copyMessageLink(link: String) = menu.copyMessageLink(link)
+    fun dismissBlockFromReplies() = messageActions.dismissBlockFromReplies()
+    fun confirmBlockFromReplies(deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean) =
+        messageActions.confirmBlockFromReplies(deleteMessage, deleteAll, reportSpam)
 
     /** Odesílatel z „Informace o zprávě" (přímé zprávy kanálu): sheet se zavře a otevře se jeho profil. */
     fun openMessageAuthor(userId: Long) {
@@ -2041,6 +2044,7 @@ class ConversationViewModel(
             MessageMenuAction.Resend -> messageActions.resend(messageId)
             MessageMenuAction.Select -> selection.startSelection(messageId)
             MessageMenuAction.Report -> messageActions.reportMessage(messageId)
+            MessageMenuAction.BlockFromReplies -> messageActions.requestBlockFromReplies(messageId)
             MessageAction.ToggleSelection -> selection.toggleSelection(messageId)
             MessageMenuAction.ShareFile -> documents.shareDocument(messageId)
             MessageAction.OpenMedia, is MessageAction.OpenPollMedia, is MessageAction.OpenArticleMedia,

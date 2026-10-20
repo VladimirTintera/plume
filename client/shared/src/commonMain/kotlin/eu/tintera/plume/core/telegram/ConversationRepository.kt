@@ -713,6 +713,13 @@ interface ConversationRepository {
      * Odpoví na žádost protějšku o vypnutí ochrany obsahu ([approve] = povolit), zpráva
      * [messageId] je ta žádost (`processChatHasProtectedContentDisableRequest`).
      */
+    /**
+     * Zablokuje původního odesílatele zprávy [messageId] v chatu Odpovědi
+     * (`blockMessageSenderFromReplies`); volitelně smaže zprávu, všechny jeho zprávy, nahlásí spam.
+     */
+    suspend fun blockFromReplies(messageId: Long, deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     suspend fun answerProtectionDisableRequest(chatId: Long, messageId: Long, approve: Boolean): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
@@ -1315,6 +1322,11 @@ data class ChatInfo(
      * takže se na nic neptá.
      */
     val isSavedMessages: Boolean,
+    /**
+     * Chat Odpovědi (`replies_bot_chat_id`): sem chodí odpovědi na komentáře ze všech kanálů.
+     * Odesílatele odtud jde zablokovat ([ConversationRepository.blockFromReplies]).
+     */
+    val isReplies: Boolean = false,
     /** Rozepsaný text z minula (i z jiného zařízení), nebo `null`. */
     val draftText: String?,
     /** Ruční formátování [draftText] (tučné, citace…), jak ho koncept nese. */
