@@ -68,6 +68,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import org.koin.compose.koinInject
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.produceState
+import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -1611,6 +1617,7 @@ internal fun StickerPreview(
                 contentScale = ContentScale.Fit,
                 background = Color.Transparent,
                 modifier = Modifier.fillMaxSize(),
+                placeholderContent = { StickerOutline(sticker) },
             )
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { EmojiFallback(sticker.emoji) }
@@ -1648,6 +1655,28 @@ internal fun StickerPreview(
         )
 
         else -> Box(modifier) { stillImage() }
+    }
+}
+
+/**
+ * Obrys samolepky (`getStickerOutlineSvgPath`), dokud se nenačte — tvar místo prázdného místa,
+ * jako u oficiálních klientů. Souřadnice jsou v rozměrech samolepky, takže se zmenší stejně jako
+ * obrázek (`ContentScale.Fit`, na střed). Neznámý obrys = nic.
+ */
+@Composable
+private fun StickerOutline(sticker: MessageMedia.Sticker) {
+    val repository = koinInject<StickerRepository>()
+    val svg by produceState("", sticker.stickerFileId) { value = repository.outline(sticker.stickerFileId) }
+    val path = remember(svg) { svg.takeIf { it.isNotBlank() }?.let { runCatching { PathParser().parsePathString(it).toPath() }.getOrNull() } }
+        ?: return
+    val color = MaterialTheme.colorScheme.surfaceContainerHighest
+    Canvas(Modifier.fillMaxSize()) {
+        val width = sticker.width.takeIf { it > 0 } ?: return@Canvas
+        val height = sticker.height.takeIf { it > 0 } ?: return@Canvas
+        val scale = minOf(size.width / width, size.height / height)
+        translate(left = (size.width - width * scale) / 2f, top = (size.height - height * scale) / 2f) {
+            scale(scale, pivot = Offset.Zero) { drawPath(path, color) }
+        }
     }
 }
 

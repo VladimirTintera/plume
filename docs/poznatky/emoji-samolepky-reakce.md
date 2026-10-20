@@ -356,6 +356,18 @@ ho mezi nedávná.
 Tlačítko se samolepkou ve vstupním poli otevře bottom sheet: záložky Nedávné, Oblíbené
 a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako odpověď).
 
+- **Než se samolepka načte, kreslí se její obrys** (`getStickerOutlineSvgPath`, `StickerOutline`
+  ve `StickerPreview`, slot `placeholderContent` v `RemoteImage`) — tvar v `surfaceContainerHighest`
+  místo prázdného místa, jako u oficiálních klientů. Platí všude, kde se samolepka kreslí přes
+  `StickerPreview` (výběr, sada, bublina, karta dárku).
+  - **Souřadnice jsou v rozměrech samolepky** (TDLib `get_sticker_outline_svg_path` se zoomem 1
+    u běžných samolepek), takže se obrys zmenší stejně jako obrázek (Fit, na střed). Path parsuje
+    Compose (`PathParser`); nečitelný nebo prázdný obrys = nic.
+  - **Obrysy se pamatují v repository** (`TdlStickerRepository.outlines`): je to offline dotaz,
+    ale mřížka se na stovky samolepek ptá při každém posunu znovu.
+  - **Ověřeno na emulátoru** bez sítě (`svc wifi/data disable`): nedávné samolepky jako obrysy,
+    po zapnutí sítě je samolepky nahradily přesně na jejich místě.
+
 - **Bottom sheet, ne panel místo klávesnice.** Výměna klávesnice za panel tak, aby vstupní pole
   neposkočilo, je v Compose nejkřehčí část — sheet ji nepotřebuje. Klávesnice se před otevřením
   zavře, jinak by se se sheetem přetahovaly o spodek obrazovky.

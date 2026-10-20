@@ -17,6 +17,8 @@ import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -326,6 +328,21 @@ class TdlStickerRepository(
 
     override suspend fun attachedStickerSets(fileId: Int): Result<List<StickerSetSummary>> =
         client.getAttachedStickerSets(fileId = fileId).toResult().map { it.sets.toSummaries() }
+
+    /** Obrysy podle souboru samolepky — mřížka výběru se ptá na stovky samolepek opakovaně. */
+    private val outlines = mutableMapOf<Int, String>()
+    private val outlinesMutex = Mutex()
+
+    override suspend fun outline(stickerFileId: Int): String {
+        outlinesMutex.withLock { outlines[stickerFileId] }?.let { return it }
+        val path = client.getStickerOutlineSvgPath(
+            stickerFileId = stickerFileId,
+            forAnimatedEmoji = false,
+            forClickedAnimatedEmojiMessage = false,
+        ).toResult().getOrNull()?.text.orEmpty()
+        outlinesMutex.withLock { outlines[stickerFileId] = path }
+        return path
+    }
 
     override suspend fun stickerSet(setId: Long): Result<List<StickerItem>> =
         client.getStickerSet(setId = setId)

@@ -118,6 +118,12 @@ interface StickerRepository {
         Result.failure(UnsupportedOperationException())
 
     /**
+     * Obrys samolepky jako SVG path (`getStickerOutlineSvgPath`, offline), v souřadnicích
+     * samolepky; prázdný, když ho TDLib nezná. Kreslí se místo samolepky, dokud se nenačte.
+     */
+    suspend fun outline(stickerFileId: Int): String = ""
+
+    /**
      * Najde samolepky ve vlastních sadách i ve veřejných, a u slova navíc sady podle názvu.
      *
      * Nikdy neselže celé: když nevyjde jeden zdroj (typicky veřejné hledání bez sítě), vrátí se
