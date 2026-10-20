@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,7 +31,11 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.utf16CodePoint
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.type
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.platform.DesktopOs
@@ -69,6 +74,8 @@ private class ContentTarget(
     val acceptFiles: Boolean,
     val onContent: (KeyboardContent) -> Unit,
     val onError: (UiText) -> Unit,
+    /** Fokus pro pole — psaní mimo pole ho sem vrátí ([ContentDropArea]). */
+    val focus: FocusRequester,
 ) {
     val acceptsAny: Boolean get() = acceptAnimations || acceptImages || acceptFiles
 }
@@ -88,6 +95,10 @@ private val LocalContentTargetSlot = staticCompositionLocalOf<ContentTargetSlot?
  * Totéž nabídne kontextová nabídka pole: „Vložit obrázek", u souborů „Vložit jako přílohu".
  *
  * Přetažení přijímá [ContentDropArea] kolem; pole se u ní jen přihlásí se svými právy.
+ *
+ * **Pole je výchozí cíl klávesnice**: po složení (otevření chatu, přepnutí Alt+↓, zavření hledání
+ * nebo výběru) si vezme fokus, ať jde rovnou psát — jako Telegram Desktop nebo WhatsApp. Na
+ * telefonu by fokus vysunul klávesnici přes půl konverzace, proto jen tady.
  */
 @Composable
 actual fun KeyboardContentReceiver(
@@ -99,7 +110,9 @@ actual fun KeyboardContentReceiver(
     content: @Composable () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val target = rememberUpdatedState(ContentTarget(acceptAnimations, acceptImages, acceptFiles, onContent, onError))
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(focus) { focus.requestFocus() }
+    val target = rememberUpdatedState(ContentTarget(acceptAnimations, acceptImages, acceptFiles, onContent, onError, focus))
     val slot = LocalContentTargetSlot.current
     DisposableEffect(slot, target) {
         slot?.target = target
@@ -123,7 +136,9 @@ actual fun KeyboardContentReceiver(
         },
     ) {
         Box(
-            Modifier.onPreviewKeyEvent { event ->
+            // Na obalu, ne na poli: požadavek fokusu jde na první zaostřitelný prvek uvnitř, a tím
+            // je pole samo — ikony v jeho dekoraci leží až pod ním.
+            Modifier.focusRequester(focus).onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown || !event.isPaste()) return@onPreviewKeyEvent false
                 val current = target.value
                 val paste = clipboardPaste(current) ?: return@onPreviewKeyEvent false
@@ -151,6 +166,12 @@ actual fun ClipboardPasteSuggestion(
 /**
  * Přetažené soubory z Finderu nebo Průzkumníka. Přijímá jen seznam souborů — obrázek tažený
  * z prohlížeče přichází jako obraz bez souboru a ten zatím ne.
+ *
+ * **Psaní kamkoli do konverzace jde do pole.** Stisk znaku, který nespotřeboval nic jiného
+ * (zaostřený je výběr textu v bublině, tlačítko…), vrátí fokus poli. Znak sám pole dostane
+ * hned potom: AWT posílá stisk (`KEY_PRESSED`) a napsaný znak (`KEY_TYPED`) jako dvě události
+ * a druhá jde už k nově zaostřenému poli — i s diakritikou a mrtvými klávesami, které by
+ * vlastní vkládání znaku nezvládlo. Stisk se proto nespotřebuje.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -176,7 +197,10 @@ actual fun ContentDropArea(modifier: Modifier, content: @Composable BoxScope.() 
     }
     CompositionLocalProvider(LocalContentTargetSlot provides slot) {
         Box(
-            modifier.dragAndDropTarget(
+            modifier.onKeyEvent { event ->
+                if (event.startsTyping()) slot.target?.value?.focus?.requestFocus()
+                false
+            }.dragAndDropTarget(
                 shouldStartDragAndDrop = { event ->
                     slot.target?.value?.acceptsAny == true && event.dragData() is DragData.FilesList
                 },
@@ -187,6 +211,16 @@ actual fun ContentDropArea(modifier: Modifier, content: @Composable BoxScope.() 
             ContentDropOverlay(visible = dragOver, modifier = Modifier.matchParentSize())
         }
     }
+}
+
+/**
+ * Stisk, ze kterého bude napsaný znak: bez Ctrl, Alt a Meta (zkratky) a s tisknutelným znakem.
+ * Šipky, Tab, Esc ani F-klávesy znak nemají (`CHAR_UNDEFINED`), Enter a Backspace jsou řídicí.
+ */
+private fun KeyEvent.startsTyping(): Boolean {
+    if (type != KeyEventType.KeyDown || isCtrlPressed || isAltPressed || isMetaPressed) return false
+    val char = utf16CodePoint
+    return char >= ' '.code && char != 0x7F && char != java.awt.event.KeyEvent.CHAR_UNDEFINED.code
 }
 
 private fun KeyEvent.isPaste(): Boolean = when {

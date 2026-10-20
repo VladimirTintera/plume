@@ -21,6 +21,37 @@ zalomí řádek; odeslání je tam tlačítko a klávesa Odeslat (`ImeAction.Sen
 - **Ověřeno na emulátoru** přes `uinput` (viz `navigace.md`, „Klávesové zkratky"): Enter odeslal,
   Shift+Enter zalomil, prázdné pole nic, Enter z `input keyevent` zalomil.
 
+## Esc, šipka nahoru a fokus pole
+
+S klávesnicí se v konverzaci píše jako v Telegram Desktop, Slacku nebo Discordu:
+
+- **Esc zruší úpravu, pak odpověď** a teprve další Esc odejde z chatu (Zpět). Obsluha je na poli
+  (`onPreviewKeyEvent` v `MessageInput`), jen při stisku: Zpět z Esc spouští Compose na desktopu
+  taky při stisku (`BackNavigationEventInput`, zdroj `ui-desktop` 1.12), takže spotřebovaný stisk
+  stačí. **Na Androidu Esc pole nedostane** — bere ho dřív `MainActivity` jako Zpět (viz
+  `navigace.md`, „Esc = Zpět je výslovně v `MainActivity`"), a z chatu se tam odchází hned;
+  odpověď zůstane v konceptu jako po systémovém Zpět.
+- **Šipka nahoru v prázdném poli upraví poslední vlastní zprávu** (`editLastMessage`, testy
+  v `ConversationComposerTest`). Jen bez odpovědi, úpravy a příloh — jinak šipka patří poli.
+  Upravit jde jen to, co dovolí server (lhůta od odeslání), a to ví jen `messageActions`; ptá se
+  proto od nejnovější vlastní zprávy, nejvýš u pěti. O pár zpráv výš by šipka překvapila.
+- **Na desktopu si pole po složení vezme fokus** (`KeyboardContentReceiver` v jvmMain): otevření
+  chatu, přepnutí Alt+↓, zavření hledání nebo výběru (při nich pole složené není) — rovnou se
+  píše. Na telefonu by fokus vysunul klávesnici přes půl konverzace, proto jen desktop.
+- **Psaní kamkoli do konverzace jde do pole** (`ContentDropArea` v jvmMain, tatáž plocha, která
+  přijímá přetažené soubory). Stisk znaku bez Ctrl, Alt a Meta, který nikdo nespotřeboval
+  (zaostřený výběr textu v bublině, tlačítko), vrátí fokus poli. **Znak sám se nevkládá**: AWT
+  posílá stisk (`KEY_PRESSED`) a napsaný znak (`KEY_TYPED`) jako dvě události stejnou cestou
+  (`ComposeSceneMediator.onKeyEvent`) a druhá dojde už k nově zaostřenému poli — i s diakritikou
+  z české klávesnice, kterou by vlastní vkládání podle kódu klávesy nezvládlo.
+  - **Funguje jen, když je fokus někde v konverzaci.** Když není zaostřené nic, Compose klávesu
+    předá jen kořeni a plocha konverzace ji nevidí. Klávesy z okna (`onKeyEvent` okna) by to
+    pokryly, jenže tam dojdou i klávesy z otevřeného sheetu a fokus by skočil do pole pod ním.
+  - Požadavek fokusu jde na obal pole, ne na pole: `FocusRequester` na prvku bez vlastního
+    fokusu ho předá prvnímu zaostřitelnému uvnitř, a tím je pole samo (ikony dekorace jsou pod ním).
+- **Ověření**: logika šipky testy; Esc, fokus po otevření a psaní kamkoli **na desktopu ověřené
+  nejsou** (sezení nemělo ovládání počítače) — viz popis PR.
+
 ## Vestavěná galerie (Android)
 
 Sponka → „Fotka nebo video" otevře na Androidu 14 se SDK Extensions 15 **galerii v sheetu nad
