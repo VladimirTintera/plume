@@ -529,7 +529,19 @@ data class SpamActions(
      * action bar. Jinak se nahlášení ptá na důvod, a popisek to musí říct.
      */
     val reportsSpamDirectly: Boolean = false,
+    /**
+     * Kdo se stane vlastníkem, když vlastník odejde (`getChatOwnerAfterLeaving`); `null` u
+     * nevlastníka, soukromého chatu nebo když to zjistit nejde. Sheet odchodu to řekne předem.
+     */
+    val ownerAfterLeaving: OwnerAfterLeaving? = null,
 )
+
+/**
+ * Na koho přejde vlastnictví po odchodu vlastníka. Základní skupina hned ([immediately]),
+ * supergroupa a kanál až po sedmi dnech, když se vlastník nevrátí. [name] `null` = nemá kdo
+ * (server vrátí `FUTURE_CREATOR_NONE`, třeba když je ve skupině kromě vlastníka jen bot).
+ */
+data class OwnerAfterLeaving(val name: String?, val immediately: Boolean)
 
 sealed interface ChatListState {
 

@@ -169,6 +169,9 @@
     <string name="chats_leave_title">Opustit chat?</string>
     <string name="chats_delete_body">Historie chatu %1$s se smaže u tebe. Protějšku zůstane.</string>
     <string name="chats_leave_body">Odejdeš z %1$s a přestaneš dostávat zprávy. Zpátky se dá jen novou pozvánkou.</string>
+    <string name="chats_leave_owner_now">Jsi vlastník: vlastníkem se hned stane %1$s.</string>
+    <string name="chats_leave_owner_later">Jsi vlastník: když se do 7 dnů nevrátíš, vlastníkem se stane %1$s.</string>
+    <string name="chats_leave_owner_none">Jsi vlastník a vlastnictví nemá kdo převzít.</string>
     <string name="chats_archive">Archiv</string>
     <string name="chats_archive_empty_title">Archiv je prázdný</string>
     <string name="chats_archive_empty">Chat se sem přesune tahem do strany nebo z nabídky po dlouhém stisku.</string>

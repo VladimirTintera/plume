@@ -610,10 +610,12 @@ a se serverem, takže přednostně:
     samolepek použité na fotce (`getAttachedStickerSets`), oznámení o poslechu hudby
     (`listenToAudio`).
 
-**Správa skupin a kanálů — zbytky:** zrušit hlavní pozvánku (`replacePrimaryChatInviteLink`),
-gigaskupina (`toggleSupergroupIsBroadcastGroup`), oprava omylu antispamu
-(`reportSupergroupAntiSpamFalsePositive`, s ověřením antispamu výš), upozornění vlastníka, kdo
-chat zdědí po odchodu (`getChatOwnerAfterLeaving`), stav boostů pro správce
+**Správa skupin a kanálů — zbytky:** ~~zrušit hlavní pozvánku (`replacePrimaryChatInviteLink`)~~
+— už bylo: „Nahradit" u hlavní pozvánky volá `revokeChatInviteLink` a TDLib po zrušení hlavní
+pozvánky rovnou vydá novou. ~~Upozornění vlastníka, kdo chat zdědí po odchodu
+(`getChatOwnerAfterLeaving`)~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Odchod
+vlastníka"). Zbývá gigaskupina (`toggleSupergroupIsBroadcastGroup`), oprava omylu antispamu
+(`reportSupergroupAntiSpamFalsePositive`, s ověřením antispamu výš), stav boostů pro správce
 (`getChatBoostStatus`, `getChatBoosts` — zdarma, na rozdíl od boostování), uvítací zprávy
 (`addChatWelcomeMessage` a spol., novinka TDLib).
 

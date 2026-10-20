@@ -89,6 +89,21 @@ samostatně (nabídka nad chatem, ⋮ v hlavičce konverzace, nabídka nad zprá
   i konverzace ji mají každý ve svém ViewModelu a kreslí `ReportHost` (sheet + snackbar).
   Server dostává jako funkci, takže se pořadí kroků testuje bez TDLib.
 
+### Odchod vlastníka
+
+Vlastník, který odchází ze skupiny nebo kanálu, se v textu odchodu dozví, na koho chat přejde
+(`getChatOwnerAfterLeaving` → `SpamActions.ownerAfterLeaving`): u základní skupiny hned,
+u supergroupy a kanálu, když se do 7 dnů nevrátí. Když nemá kdo převzít (`FUTURE_CREATOR_NONE` —
+třeba je ve skupině kromě vlastníka jen bot), řekne to taky. Vrátit odchod vlastníka nejde, takže
+to má vědět předem.
+
+- **Čte se se `spamActions`** při otevření nabídky nad chatem a ⋮ v konverzaci — oba sheety
+  odchodu (`DeleteChatOptions`) to tak mají bez dalšího dotazu. Ptá se jen vlastník (lokální
+  stav člena); jiný by od TDLib dostal chybu.
+- **Ověřeno na emulátoru** ve vlastní testovací skupině (vlastník + bot): „Jsi vlastník
+  a vlastnictví nemá kdo převzít." Odchod se nepotvrzoval. Věta se jménem dědice ověřená NENÍ —
+  chce skupinu s dalším člověkem.
+
 ### Úklid spamu a pořadí
 
 - **Pořadí je nahlásit → zablokovat → smazat a na první chybě se ZASTAVÍ.** Nahlášení běží
