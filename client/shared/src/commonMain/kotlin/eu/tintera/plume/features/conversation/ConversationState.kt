@@ -572,8 +572,8 @@ data class ConversationState(
     val replyQuote: ReplyQuote? = null,
     /**
      * Počítadlo žádostí, ať si vstupní pole vezme fokus (a na telefonu vysune klávesnici). Roste
-     * jen s akcí uživatele („Odpovědět", tah, „Citovat"); odpověď obnovená z konceptu nebo
-     * vynucená botem ho nemění, jinak by klávesnice vyjela už při otevření chatu.
+     * jen s akcí uživatele („Odpovědět", tah, „Citovat", „Upravit"); odpověď obnovená z konceptu,
+     * vynucená botem ani návrat do úpravy po chybě ho nemění — klávesnice by vyjela sama od sebe.
      */
     val inputFocusRequest: Int = 0,
     /**

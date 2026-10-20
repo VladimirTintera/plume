@@ -455,7 +455,7 @@ internal fun MessageInput(
     var fieldHeight by remember { mutableStateOf(0.dp) }
     LaunchedEffect(typing) { if (!typing) formattingOpen = false }
     /*
-     * Po „Odpovědět" se rovnou píše: pole si vezme fokus a vysune klávesnici. Reaguje se jen na
+     * Po „Odpovědět" a „Upravit" se rovnou píše: pole si vezme fokus a vysune klávesnici. Reaguje se jen na
      * NOVOU hodnotu počítadla — ta, se kterou se pole složilo (návrat do konverzace, otočení),
      * je vyřízená, jinak by klávesnice vyjela při každém návratu do chatu.
      */

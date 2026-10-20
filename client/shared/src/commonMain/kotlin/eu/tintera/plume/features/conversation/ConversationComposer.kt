@@ -439,6 +439,7 @@ internal class ConversationComposer(
      *
      * Rozepsaný text se **odloží a po skončení úpravy vrátí**. Úprava je vsuvka — kdo si
      * uprostřed psaní všimne překlepu v minulé zprávě, nechce kvůli tomu přijít o rozepsanou.
+     * Pole si vezme fokus a vysune klávesnici, stejně jako po „Odpovědět" — upravuje se psaním.
      */
     fun startEdit(messageId: Long, canEditMedia: Boolean = false) {
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
@@ -449,6 +450,8 @@ internal class ConversationComposer(
             message.linkPreviewOptions ?: LinkPreviewOptions(),
             replace = replaceableMedia(message, canEditMedia),
         )
+        // Jen tady, ne v `enterEdit`: návrat do úpravy po chybě uložení přichází ze serveru.
+        state.update { it.copy(inputFocusRequest = it.inputFocusRequest + 1) }
     }
 
     /**
