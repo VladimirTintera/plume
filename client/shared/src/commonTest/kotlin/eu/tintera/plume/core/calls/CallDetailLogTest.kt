@@ -56,6 +56,19 @@ class CallDetailLogTest {
     }
 
     @Test
+    fun icePasswordsAreMaskedButNamesStay() {
+        assertEquals(
+            "Set ICE ufrag: gkZ8 pwd: *** on transport",
+            CallDetailLog.maskAddresses("Set ICE ufrag: gkZ8 pwd: nLde7s6h5aK0VIFc1p02kkMP on transport"),
+        )
+        assertEquals(
+            "Cand[:2269972041:0:udp:2122129152:100.87.238.x:32776:host::0:gkZ8:***:3:50:0]",
+            CallDetailLog.maskAddresses("Cand[:2269972041:0:udp:2122129152:100.87.238.x:32776:host::0:gkZ8:nLde7s6h5aK0VIFc1p02kkMP:3:50:0]"),
+        )
+        assertEquals("WebRtcVoiceMediaChannel::SetReceiverParameters", CallDetailLog.maskAddresses("WebRtcVoiceMediaChannel::SetReceiverParameters"))
+    }
+
+    @Test
     fun writeAfterCloseIsIgnored() {
         val log = CallDetailLog.open(dir, callId = 1)!!
         log.close()

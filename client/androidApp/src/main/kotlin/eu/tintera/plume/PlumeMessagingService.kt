@@ -1,10 +1,14 @@
 package eu.tintera.plume
 
+import android.app.ActivityManager
+import android.net.ConnectivityManager
+import android.os.PowerManager
 import co.touchlab.kermit.Logger
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.telegram.ConnectionController
+import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.PushKind
 import eu.tintera.plume.core.telegram.PushToken
@@ -86,7 +90,10 @@ class PlumeMessagingService : FirebaseMessagingService() {
             val call = processed?.getOrNull() == PushKind.Call
             // Push hovoru do deníku i s tím, jak dlouho cestoval: zmeškaný hovor se pak pozná
             // od pushe, který přišel pozdě, nebo vůbec (`docs/poznatky/notifikace.md`).
-            if (call) journal?.record("Call push, sent ${System.currentTimeMillis() - message.sentTime} ms ago, priority ${message.priority}/${message.originalPriority}")
+            if (call) {
+                journal?.record("Call push, sent ${System.currentTimeMillis() - message.sentTime} ms ago, priority ${message.priority}/${message.originalPriority}; ${environment()}")
+                watchConnection()
+            }
             // Hovor zvoní jen do zvednutí (desítky vteřin) a dozvědět se o něm jde jen od serveru:
             // spojení se otevře hned, ne až na timeout mrtvých soketů z doby před zmrazením.
             if (call && !repository.awaitIncomingCall(Duration.ZERO)) {
@@ -109,6 +116,41 @@ class PlumeMessagingService : FirebaseMessagingService() {
                 // které systém proces nezmrazí.
                 logger.i { "Push${if (call) " hovoru" else ""} se nestihl vyřídit do $DELIVERY_TIMEOUT, dočkám se v úloze." }
                 NotificationDeliveryWorker.enqueue(applicationContext, call = call && !callKnown)
+            }
+        }
+    }
+
+    /**
+     * Co může aplikaci v pozadí zavřít síť: Doze, úspora baterie, omezená data na pozadí, omezení
+     * aplikace v nastavení baterie — a jestli systém aplikaci síť zrovna nepouští (`BLOCKED`).
+     * Zmeškaný hovor se pak pozná od hovoru, ke kterému se TDLib nemohl připojit.
+     */
+    private fun environment(): String = runCatching {
+        val power = getSystemService(PowerManager::class.java)
+        val connectivity = getSystemService(ConnectivityManager::class.java)
+        val activity = getSystemService(ActivityManager::class.java)
+        @Suppress("DEPRECATION")
+        val net = connectivity.activeNetworkInfo
+        val dataSaver = when (connectivity.restrictBackgroundStatus) {
+            ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED -> "on"
+            ConnectivityManager.RESTRICT_BACKGROUND_STATUS_WHITELISTED -> "on, app exempt"
+            else -> "off"
+        }
+        @Suppress("DEPRECATION")
+        "idle ${power.isDeviceIdleMode}, battery saver ${power.isPowerSaveMode}, data saver $dataSaver, " +
+            "background restricted ${activity.isBackgroundRestricted}, network ${net?.typeName ?: "none"} ${net?.detailedState ?: ""}".trimEnd()
+    }.getOrElse { "environment unknown" }
+
+    /**
+     * Stav spojení TDLib do deníku po dobu, kdy se na hovor z pushe čeká (služba, pak úloha) —
+     * ať je u zmeškaného hovoru vidět, jestli se TDLib k serveru vůbec dostal.
+     */
+    private fun watchConnection() {
+        val journal = journal ?: return
+        val connection = GlobalContext.getOrNull()?.getOrNull<ConnectionRepository>() ?: return
+        scope.launch {
+            withTimeoutOrNull(CONNECTION_WATCH) {
+                connection.state.collect { journal.record("TDLib connection: $it") }
             }
         }
     }
@@ -144,5 +186,8 @@ class PlumeMessagingService : FirebaseMessagingService() {
          * ním aplikaci nic nezaručuje a opakované přetahování může vést ke snížení priority.
          */
         val DELIVERY_TIMEOUT = 8.seconds
+
+        /** Jak dlouho po pushi hovoru zapisovat stav spojení: služba a úloha na pozadí (1 min). */
+        val CONNECTION_WATCH = 70.seconds
     }
 }

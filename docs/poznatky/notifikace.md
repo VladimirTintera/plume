@@ -331,6 +331,15 @@ než systém proces zmrazil.
   zvoní, drží proces naživu Telecom (`GAINED_FGS_DELEGATION`, služba `VOIP` v popředí).
   Nestihne-li se to do 8 s, čeká se v `NotificationDeliveryWorker` s vlastním jménem úlohy —
   push obyčejné zprávy hned po něm by čekání na hovor jinak zrušil.
+- **Vypnutá „Data na pozadí" u Plume hovor na mobilních datech zabije úplně** (Fold,
+  20. 10. 2026: dva zmeškané hovory, push došel, „Call not known yet, reconnecting" a minutu nic).
+  `dumpsys netpolicy` ukázal `UID=… policy=1 (REJECT_METERED_BACKGROUND)` a `blocked_state=
+  {blocked=APP_BACKGROUND|METERED_USER_RESTRICTED}`: systém aplikaci v pozadí na měřené síti
+  síť zavře a dočasná výjimka z vysoké priority FCM to nepřebije (platí na Doze a standby, ne na
+  uživatelské omezení). Push přijde přes Play služby, TDLib se ale k serveru nedostane. Na Wi-Fi
+  se to neprojeví. Oficiální Telegram měl na témže telefonu `ALLOW_METERED_BACKGROUND`. Deník
+  proto u pushe hovoru zapisuje stav (`idle`, `battery saver`, `data saver`, `background
+  restricted`, síť a `BLOCKED`) a minutu po něm stav spojení TDLib.
 - **Běžící aplikace má hovor dřív než push** (spojením) — pak se spojení neotevírá znovu
   a nečeká se.
 - **Push chodí i po skončeném hovoru** (nejspíš ohlášení zmeškaného, rozlišit to bez

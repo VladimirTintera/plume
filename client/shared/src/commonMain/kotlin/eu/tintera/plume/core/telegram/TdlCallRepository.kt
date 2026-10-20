@@ -5,6 +5,13 @@ import dev.g000sha256.tdl.dto.Call
 import dev.g000sha256.tdl.dto.CallProtocol
 import dev.g000sha256.tdl.dto.CallServerTypeTelegramReflector
 import dev.g000sha256.tdl.dto.CallServerTypeWebrtc
+import dev.g000sha256.tdl.dto.CallDiscardReason
+import dev.g000sha256.tdl.dto.CallDiscardReasonDeclined
+import dev.g000sha256.tdl.dto.CallDiscardReasonDisconnected
+import dev.g000sha256.tdl.dto.CallDiscardReasonEmpty
+import dev.g000sha256.tdl.dto.CallDiscardReasonHungUp
+import dev.g000sha256.tdl.dto.CallDiscardReasonMissed
+import dev.g000sha256.tdl.dto.CallDiscardReasonUpgradeToGroupCall
 import dev.g000sha256.tdl.dto.CallStateDiscarded
 import dev.g000sha256.tdl.dto.CallProblemDistortedSpeech
 import dev.g000sha256.tdl.dto.CallProblemDistortedVideo
@@ -436,6 +443,12 @@ internal class TdlCallRepository(
             }
             is CallStateHangingUp -> Unit
             is CallStateDiscarded -> {
+                // TDLib pošle skončený hovor i znovu (po hovoru s `needDebugInformation`, 6 minut
+                // poté) — konec se vyřizuje jednou, o diagnostiku server žádá třeba až teď.
+                if (!endedCalls.add(call.id)) {
+                    if (state.needDebugInformation || state.needLog) sendDiagnostics(call.id, debug = state.needDebugInformation, log = state.needLog)
+                    return
+                }
                 // Server hodnocení chce jen někdy; ptáme se jen po hovoru, ve kterém se mluvilo —
                 // zrušený nebo nepřijatý hovor nemá co hodnotit.
                 val spoke = _active.value?.takeIf { it.id == call.id }?.connectedAt != null
@@ -448,6 +461,7 @@ internal class TdlCallRepository(
                 }
             }
             is CallStateError -> {
+                if (!endedCalls.add(call.id)) return
                 logger.w { "Hovor skončil chybou: ${state.error.code} ${state.error.message}" }
                 val reason = errorText(state.error.message, Res.string.call_bar_failed)
                 val known = _active.value?.takeIf { it.id == call.id }
@@ -653,12 +667,16 @@ internal class TdlCallRepository(
             }
             is CallStateExchangingKeys -> "Exchanging keys"
             is CallStateHangingUp -> "Hanging up"
-            is CallStateDiscarded -> "Discarded: ${state.reason::class.simpleName}"
+            // Jméno třídy ne: v buildu z Play ho R8 přejmenuje („Discarded: ue1").
+            is CallStateDiscarded -> if (call.id in endedCalls) null else "Discarded: ${state.reason.journalName()}"
             is CallStateError -> "Error ${state.error.code}: ${state.error.message}"
             else -> null
         } ?: return
         note(text, call.id)
     }
+
+    /** Hovory, jejichž konec už je vyřízený — TDLib je umí poslat znovu. */
+    private val endedCalls = mutableSetOf<Int>()
 
     /** Vzorkování přenosu do deníku, jednou za vteřinu, dokud hovor neskončí ([finish]). */
     private var sampling: Job? = null
@@ -718,3 +736,13 @@ internal fun callDebugInformation(applicationVersion: String, journal: List<Stri
         put("system", JsonPrimitive(platformSystemVersion))
         put("journal", JsonArray(journal.map { JsonPrimitive(it) }))
     }.toString()
+
+/** Důvod konce do deníku; `when` bez `else`, ať nový důvod v TDLib rozbije překlad, ne deník. */
+private fun CallDiscardReason.journalName(): String = when (this) {
+    is CallDiscardReasonHungUp -> "hung up"
+    is CallDiscardReasonDeclined -> "declined"
+    is CallDiscardReasonMissed -> "missed"
+    is CallDiscardReasonDisconnected -> "disconnected"
+    is CallDiscardReasonEmpty -> "no reason (accepted on another device, or cancelled before connecting)"
+    is CallDiscardReasonUpgradeToGroupCall -> "upgraded to a group call"
+}
