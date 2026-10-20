@@ -245,6 +245,8 @@ import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.download_24dp
+import eu.tintera.plume.resources.downloads_title
 import eu.tintera.plume.resources.call_24dp
 import eu.tintera.plume.resources.calls_title
 import eu.tintera.plume.resources.chats_sponsor_announcement
@@ -313,6 +315,8 @@ fun ChatListScreen(
     onOpenArchive: () -> Unit,
     /** Menu účtu → Hovory; `null` = položka není (platforma bez hovorů). */
     onOpenCalls: (() -> Unit)? = null,
+    /** Menu účtu → Stahování. */
+    onOpenDownloads: () -> Unit = {},
     onNewChat: () -> Unit = {},
     onNewGroup: () -> Unit = {},
     onNewChannel: () -> Unit = {},
@@ -515,6 +519,7 @@ fun ChatListScreen(
             onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
             onArchive = onOpenArchive,
             onCalls = onOpenCalls,
+            onDownloads = onOpenDownloads,
             draftCount = drafts?.size ?: 0,
             onDrafts = { showDrafts = true },
             bookmarkCount = bookmarks.size,
@@ -1084,6 +1089,7 @@ private fun AccountMenu(
     onArchive: () -> Unit,
     /** Historie hovorů; `null` = bez položky (platforma bez hovorů). */
     onCalls: (() -> Unit)?,
+    onDownloads: () -> Unit,
     /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
     draftCount: Int,
     onDrafts: () -> Unit,
@@ -1174,6 +1180,7 @@ private fun AccountMenu(
                         onClick = onArchive,
                     ),
                     onCalls?.let { MenuAction(stringResource(Res.string.calls_title), Res.drawable.call_24dp, onClick = it) },
+                    MenuAction(stringResource(Res.string.downloads_title), Res.drawable.download_24dp, onClick = onDownloads),
                     // Počet v neutrální barvě: koncept je náš rozdělaný text, ne nic, co by
                     // si žádalo pozornost jako nepřečtené.
                     if (draftCount > 0) {

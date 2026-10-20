@@ -76,6 +76,7 @@ import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
+import eu.tintera.plume.core.telegram.DownloadsRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.GifItem
@@ -266,6 +267,8 @@ class ConversationViewModel(
     currency: HomeRegion? = null,
     /** Čtečka Instant View z náhledu odkazu; bez ní se odkaz otevře v prohlížeči. */
     private val instantViewRequests: InstantViewRequests? = null,
+    /** Seznam stahování: stažený soubor ze zprávy se do něj přidá. */
+    private val downloads: DownloadsRepository? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -410,6 +413,8 @@ class ConversationViewModel(
         share = sharer::share,
         closeMenus = { menu.closeMenus() },
         logger = logger,
+        downloads = downloads,
+        chatId = chatId,
     )
     fun saveDocumentAs(messageId: Long, launcher: SaveAsLauncher) = documents.saveDocumentAs(messageId, launcher)
 

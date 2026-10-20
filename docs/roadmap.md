@@ -593,9 +593,9 @@ a se serverem, takže přednostně:
 6. ~~**Předem poznat, že protějšek nepřijímá zprávy** (`canSendMessageToUser`)~~ — hotovo,
    věta místo vstupního pole (`docs/poznatky/konverzace-psani.md`, „Práva psát"). Zbývá ověřit
    na zařízení s protějškem, který nové chaty omezuje nebo zprávy zpoplatnil.
-7. **Správce stahování** (`addFileToDownloads`, `searchFileDownloads`, `toggleDownloadIsPaused`,
-   `fileDownloadsUpdates` a spol.) — přehled stahovaných souborů s pozastavením. Dnes se stahuje
-   po jednom přes `downloadFile`.
+7. ~~**Správce stahování** (`addFileToDownloads`, `searchFileDownloads`, `toggleDownloadIsPaused`)~~
+   — hotovo, menu účtu → Stahování (`docs/poznatky/prohlizec-medii.md`, „Stahování"). Zbývá
+   ověřit pozastavení na velkém souboru a hledání v seznamu (`searchFileDownloads(query)`).
 8. **Nahrávání hlasovky a kolečka už během nahrávání** (`preliminaryUploadFile`) — dlouhá
    nahrávka by odešla hned po puštění.
 9. ~~**Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha)~~ — hotovo

@@ -1682,6 +1682,32 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
 
+### Stahování (seznam stažených souborů)
+
+Menu účtu → **Stahování** (`DownloadsRoute`, `features/downloads`, doména `core/telegram/Downloads.kt`):
+seznam souborů, které si uživatel stáhl z chatů, rozdělený na „Stahuje se" (s průběhem
+a pozastavením) a „Nedávno staženo". Seznam vede TDLib (`addFileToDownloads`,
+`searchFileDownloads`, `toggleDownloadIsPaused`, `removeFileFromDownloads`).
+
+- **Do seznamu jde jen VÝSLOVNÉ stažení souboru ze zprávy** (`ConversationDocuments`:
+  otevřít, sdílet, uložit jako). Ten pak stahování spustí sám; když se přidat nepovede, stáhne
+  se postaru přes `retryDownload`. Náhledy, fotky v konverzaci, streamované video ani soubor
+  v článku do seznamu nepatří — nejsou to „stažené soubory" a zahltily by ho.
+- **Seznam se po každé změně čte znovu** (`fileAddedToDownloads` / `fileDownload` /
+  `fileRemovedFromDownloads`, sloučené s 300ms debounce), průběh jednotlivých řádků si ale
+  odebírá řádek sám (`FileRepository.observe`) — kvůli procentům se seznam číst nemusí.
+- **Ťuknutí otevře zprávu v chatu** (`openFoundMessage`), podržení nabídne odebrání ze seznamu
+  a ve vlastní chybové skupině odebrání se smazáním souboru (`deleteFromCache`). Smaže se jen
+  stažená kopie v úložišti aplikace, zpráva v chatu zůstává.
+- **⋮ → Vymazat stažené** čistí jen dokončená (`removeAllFilesFromDownloads(onlyCompleted)`),
+  soubory zůstanou na disku. „Pozastavit vše" je v liště, jen když se něco stahuje.
+- **Řádky bloku si okraj dávají samy** (`groupedItem`, 16 dp) — `contentPadding` seznamu
+  vodorovný okraj mít nesmí, jinak je blok užší než ostatní obrazovky (ověřeno na emulátoru).
+- **Ověřeno na emulátoru**: prázdný stav, stažení `dokument.pdf` z chatu s testovacím botem
+  (otevřel se v prohlížeči PDF a v seznamu se objevil s chatem a velikostí), ťuknutí otevřelo
+  zprávu, odebrání se smazáním souboru seznam hned vyprázdnilo. **Pozastavení ověřené NENÍ** —
+  malý soubor se stáhne dřív, než se dá zmáčknout; hlídá ho `DownloadsViewModelTest`.
+
 ### Automatické stahování
 
 Nastavení → Úložiště → Automatické stahování: pro Wi-Fi, mobilní data a roaming jedna úroveň

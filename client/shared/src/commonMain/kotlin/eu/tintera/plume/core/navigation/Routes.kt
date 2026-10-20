@@ -163,6 +163,10 @@ data object ArchiveRoute : Route
 @Serializable
 data object CallsRoute : Route
 
+/** Seznam stahovaných souborů (menu účtu → Stahování); zpráva se souborem jde vedle. */
+@Serializable
+data object DownloadsRoute : Route
+
 /**
  * Konverzace v archivu. V list-detail rozvržení je to detail panel scény archivu.
  */
@@ -555,6 +559,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(CallsRoute::class, CallsRoute.serializer())
+            subclass(DownloadsRoute::class, DownloadsRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
             subclass(ArchiveDirectTopicsRoute::class, ArchiveDirectTopicsRoute.serializer())
