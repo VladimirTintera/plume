@@ -197,7 +197,8 @@ zapisuje dvakrát.
 - **Bez metadat list-detail scény**, takže ho `NavDisplay` vykreslí přes celou plochu i na
   rozloženém Foldu a desktopu; příběh je tam uprostřed v poměru 9 : 16. Lišty mají světlé ikony
   (`DarkSystemBars`).
-- **Živé vysílání a příběh, který už není**, ukážou větu a po 6 s jdou dál.
+- **Příběh, který už není**, ukáže větu a po 6 s jde dál. Živé vysílání má vlastní
+  kapitolu („Živé příběhy"); kde ho neumíme (desktop, iOS), ukáže větu taky.
 
 ## Reakce a odpověď
 
@@ -287,6 +288,57 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   Divák je `MessageSender`: člověk se dočte `getUser`, chat `getChat`. **Příběh pod sheetem
   stojí.** Po vypršení příběhu server seznam po čase přestane dávat (`hasExpiredViewers`) —
   sheet pak řekne, že už není, místo prázdna.
+
+## Živé příběhy
+
+Živý příběh je skupinový hovor (`StoryContentLive.groupCallId`, `MessageMedia.Story.live`).
+Divák se k němu připojí jako ztlumený účastník bez kamery a obraz se zvukem přijímá přes
+ntgcalls — tutéž knihovnu jako hovory ve dvou (`docs/poznatky/hovory.md`), ale ve vlastní
+instanci a na vlastním vlákně (`NtgLiveStreamMedia`). **Jen Android**: na desktopu a iOS se
+`LiveStreamMedia` nezaregistruje a prohlížeč i konverzace řeknou větou, že vysílání neumíme.
+
+- **Pořadí drží knihovna**: `createCall` vrátí přihlašovací JSON (v něm `ssrc` = `audioSourceId`
+  pro TDLib) → zdroje přehrávání (zvuk ostatních ve slotu `microphone`, obraz jako EXTERNAL,
+  stejně jako u hovoru ve dvou) → `joinLiveStory` → `connect` s odpovědí serveru → u vysílání
+  z kamery obraz vysílajícího (`getLiveStoryStreamer` → `addIncomingVideo`, změny přes
+  `updateGroupCallParticipant`).
+- **Podle odpovědi serveru jede hovor dvěma způsoby.** WebRTC (`RTC`), nebo po segmentech
+  (`STREAM`, `RTMP`): knihovna si pak sama řekne o čas streamu (`onRequestBroadcastTimestamp`
+  → `getGroupCallStreams`, největší `timeOffset`) a o segmenty (`onRequestBroadcastPart` →
+  `getGroupCallStreamSegment`, měřítko 0 = vteřina, kanál a kvalitu z požadavku). Tak to dělá
+  pytgcalls. Segment, který TDLib nedá, jde knihovně jako `NOT_READY` a zeptá se znovu.
+- **Stream po segmentech spojení nehlásí jako WebRTC**, proto se za „běží" bere i první snímek.
+- **Zvuk WebRTC přehrává jako hovor** (`USAGE_VOICE_COMMUNICATION`, AAudio), takže výstup vede
+  `CallAudioRouter` jako u hovoru — jen bez soupravy a sluchátek hraje reproduktor, ne
+  sluchátko u ucha (`fallback`). Telefon je po dobu sledování v režimu hovoru (hlasitost
+  tlačítky řídí hlasitost hovoru); po zavření se vrátí `MODE_NORMAL`.
+- **Sleduje se jen příběh, na kterém prohlížeč stojí** (`LiveStoryWatch` ve `StoriesViewModel`
+  hlídá aktuální klíč i načtenou stránku). Přechod jinam nebo zavření zastaví knihovnu
+  a pošle `leaveGroupCall` — přes `appScope`, protože `viewModelScope` je při zavření pryč.
+  Odchází se jen po úspěšném přihlášení, jinak TDLib vrátí `GROUPCALL_JOIN_MISSING`.
+- **Konec vysílání** hlásí `updateGroupCall` s `isActive = false`; když skončí dřív, než se
+  divák stihne přihlásit, odpoví server na `joinLiveStory` `GROUPCALL_FORBIDDEN`. Proto se po
+  nezdaru přihlášení stav hovoru dočte znovu a skončené vysílání řekne „Vysílání skončilo",
+  ne „nepodařilo se připojit" (ověřeno: smazání příběhu za připojování).
+- **Průběh je celý a dál se nejde samo** — vysílání nemá délku. Po konci nebo nezdaru stojí
+  věta 6 s, jako fotka. V hlavičce místo času štítek „ŽIVĚ" a kolik lidí se dívá
+  (`participantCount`).
+- **Ze zprávy a z odkazu** se živý příběh otevře v prohlížeči (`MessageAction.OpenStory`
+  → `ConversationLinks.openStory`), kde ho umíme; jinak věta jako dřív.
+- **Na zkoušku vysílání bez druhého telefonu**: `startLiveStory(isRtmpStream = true)` na
+  testovacím účtu, `getLiveStoryRtmpUrl` dá adresu a klíč, a z Macu
+  `ffmpeg -re -f lavfi -i testsrc2=size=720x1280:rate=30 -f lavfi -i sine=frequency=440 …
+  -c:v libx264 -c:a aac -f flv rtmps://…/s/<klíč>`. **Živý příběh se počítá do limitu
+  příběhů** — free účet pak `CanPostStoryResultPremiumNeeded` / `ActiveStoryLimitExceeded`,
+  stejně jako u fotky.
+- **Ověřeno na emulátoru (Android 11)** s RTMP vysíláním z …527 a divákem …029: obraz běží
+  plynule, „1 sleduje", zvuk teče (AAudio, reproduktor přes `setSpeakerphoneOn`), zavření
+  uvolní přehrávač a vrátí normální režim zvuku. **Neověřené**: vysílání z kamery
+  (WebRTC i velké publikum po segmentech), konec vysílání během sledování (jen testy
+  `LiveStoryWatchTest` — oba účty měly vyčerpaný denní limit), zvuk ušima na skutečném
+  telefonu, souběh s hovorem ve dvou.
+- **Co ještě není**: zprávy a reakce ve vysílání (`GroupCallMessage`, placené hvězdami),
+  vlastní vysílání (`startLiveStory` z kamery i RTMP) a sledování na desktopu.
 
 ## Ověření
 

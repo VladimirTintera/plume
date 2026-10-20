@@ -2858,8 +2858,13 @@ sealed interface MessageMedia {
         val albumIds: List<Int> = emptyList(),
         /** Jde vlastní příběh dát do alba (`canBeAddedToAlbum`). */
         val canBeAddedToAlbum: Boolean = false,
+        /** Živé vysílání: skupinový hovor, ke kterému se divák připojí; jinak `null`. */
+        val live: LiveStoryCall? = null,
     ) : MessageMedia
 }
+
+/** Hovor živého příběhu: [isRtmp] = vysílá server z RTMP, ne účastník z kamery. */
+data class LiveStoryCall(val groupCallId: Int, val isRtmp: Boolean)
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */
 /**

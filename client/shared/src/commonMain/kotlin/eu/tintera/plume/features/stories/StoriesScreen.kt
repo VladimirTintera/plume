@@ -118,6 +118,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
     val viewers by viewModel.viewers.collectAsStateWithLifecycle()
     val reportWizard by viewModel.report.wizard.collectAsStateWithLifecycle()
     val albumsSheet by viewModel.albums.collectAsStateWithLifecycle()
+    val live by viewModel.live.collectAsStateWithLifecycle()
     val currentOnBack by rememberUpdatedState(onBack)
     LaunchedEffect(state.closed) { if (state.closed) currentOnBack() }
     if (state.posters.isEmpty()) {
@@ -186,6 +187,8 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     author = author,
                     index = index,
                     story = key?.let { state.pages[it] },
+                    live = live?.takeIf { it.key == key },
+                    liveSupported = viewModel.liveSupported,
                     active = active,
                     // Seznam diváků přes příběh — příběh pod ním stojí.
                     paused = dragging || viewers != null || reportWizard != null || albumsSheet != null,
@@ -251,6 +254,8 @@ private fun StoryPage(
     author: ActiveStories,
     index: Int,
     story: MessageMedia.Story?,
+    live: LiveStoryState?,
+    liveSupported: Boolean,
     active: Boolean,
     paused: Boolean,
     restart: Int,
@@ -282,6 +287,8 @@ private fun StoryPage(
                     author = author,
                     index = index,
                     story = story,
+                    live = live,
+                    liveSupported = liveSupported,
                     active = active,
                     paused = paused || held || composing || confirmDelete,
                     restart = restart,
@@ -341,6 +348,8 @@ private fun StoryCard(
     author: ActiveStories,
     index: Int,
     story: MessageMedia.Story?,
+    live: LiveStoryState?,
+    liveSupported: Boolean,
     active: Boolean,
     paused: Boolean,
     restart: Int,
@@ -384,6 +393,8 @@ private fun StoryCard(
     ) {
         StoryContent(
             story = story,
+            live = live,
+            liveSupported = liveSupported,
             active = active,
             paused = paused || menuOpen,
             restart = restart,
@@ -396,6 +407,7 @@ private fun StoryCard(
             index = index,
             progress = progress,
             postedAt = story?.postedAt?.takeIf { it > 0 } ?: author.stories.getOrNull(index)?.date ?: 0,
+            liveViewers = if (story?.live != null && liveSupported) live?.viewers ?: 0 else null,
             onClose = onClose,
             menuOpen = menuOpen,
             onMenuOpenChange = { menuOpen = it },
@@ -429,6 +441,8 @@ private fun StoryCard(
 @Composable
 private fun BoxScope.StoryContent(
     story: MessageMedia.Story?,
+    live: LiveStoryState?,
+    liveSupported: Boolean,
     active: Boolean,
     paused: Boolean,
     restart: Int,
@@ -440,6 +454,8 @@ private fun BoxScope.StoryContent(
     val media = story?.content
     when {
         story == null -> LoadingIndicator(color = ON_SCRIM, modifier = Modifier.align(Alignment.Center))
+
+        story.live != null && liveSupported -> LiveStoryContent(live, active, paused, onProgress, onFinished)
 
         media is MessageMedia.Video -> {
             val file = if (active) rememberFileState(media.fileId) else FileState.Pending
@@ -533,6 +549,8 @@ private fun BoxScope.StoryHeader(
     index: Int,
     progress: Float,
     postedAt: Int,
+    /** Kolik lidí sleduje živý příběh; `null` = není živý (ukáže se čas zveřejnění). */
+    liveViewers: Int?,
     onClose: () -> Unit,
     menuOpen: Boolean,
     onMenuOpenChange: (Boolean) -> Unit,
@@ -592,7 +610,9 @@ private fun BoxScope.StoryHeader(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (postedAt > 0) {
+                if (liveViewers != null) {
+                    LiveBadge(liveViewers)
+                } else if (postedAt > 0) {
                     Text(
                         postedAt.asRelativeTime(),
                         color = ON_SCRIM.copy(alpha = SECONDARY_ALPHA),

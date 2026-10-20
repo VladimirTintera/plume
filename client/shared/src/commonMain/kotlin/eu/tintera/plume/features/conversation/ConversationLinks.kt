@@ -73,6 +73,8 @@ internal class ConversationLinks(
     private val logger: Logger,
     /** Limit skupin a kanálů: místo hlášky výběr neaktivních k opuštění (`ChannelLimitRequests`). */
     private val onChannelLimit: () -> Unit = {},
+    /** Živý příběh jde sledovat v prohlížeči (Android); jinak jen věta, že to neumíme. */
+    private val liveStoriesSupported: Boolean = false,
 ) {
     /**
      * Otevře odkaz ze zprávy. Odkaz na Telegram otevře aplikace sama ([InternalLink]), ostatní
@@ -418,7 +420,8 @@ internal class ConversationLinks(
     }
 
     /**
-     * Příběh z citace odpovědi nebo z odkazu: s fotkou či videem do prohlížeče, jinak jen věta.
+     * Příběh z citace odpovědi, z odkazu nebo ze zprávy: s fotkou či videem (a živý, kde ho
+     * umíme přehrát) do prohlížeče, jinak jen věta.
      * Ptá se až teď — příběh mezitím mohl vypršet, a prohlížeč, který se otevře a nemá co
      * ukázat, je horší než hláška nad polem.
      */
@@ -426,7 +429,7 @@ internal class ConversationLinks(
         scope.launch {
             val story = repository.story(target.posterChatId, target.storyId)
             when {
-                story.content != null -> state.update { it.copy(openStory = target) }
+                story.content != null || (story.live != null && liveStoriesSupported) -> state.update { it.copy(openStory = target) }
                 story.isLive -> state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
                 else -> state.update { it.copy(notice = UiText(Res.string.story_unavailable)) }
             }

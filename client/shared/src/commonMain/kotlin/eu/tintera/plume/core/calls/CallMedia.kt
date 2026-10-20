@@ -131,8 +131,8 @@ interface CallMediaEvents {
     fun onRemoteScreen(active: Boolean) = Unit
 }
 
-/** Který obraz hovoru se kreslí: náš z kamery (náhled), nebo protistrany. */
-enum class CallVideoSource { Local, Remote }
+/** Který obraz hovoru se kreslí: náš z kamery (náhled), protistrany, nebo živého příběhu. */
+enum class CallVideoSource { Local, Remote, Live }
 
 /**
  * Výstup zvuku hovoru. [name] je jméno zařízení, když ho má smysl ukázat: na Androidu jen

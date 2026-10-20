@@ -4,7 +4,8 @@ Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostat
 v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 Hovory ve dvou spojuje Plume na Androidu (zvuk i video, přes ntgcalls) a na desktopu (jen
-zvuk); iOS a skupinové hovory (videochaty) zatím nejsou. Zprávu o hovoru v historii popisuje
+zvuk); iOS a skupinové hovory (videochaty) zatím nejsou — jen příjem živého příběhu,
+který je skupinovým hovorem (`docs/poznatky/pribehy.md`, „Živé příběhy"). Zprávu o hovoru v historii popisuje
 `docs/poznatky/typy-zprav.md`, „Zpráva o hovoru", ohlášení příchozího
 `docs/poznatky/notifikace.md`, „Ohlášení příchozího hovoru". Co zbývá, je v `docs/roadmap.md`,
 „Hovory".
