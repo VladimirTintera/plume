@@ -2176,6 +2176,12 @@ data class MessageInfo(
     val viewers: List<MessageViewer>,
     /** Odkaz na zprávu; `null`, když ho chat nemá (soukromé chaty a neveřejné skupiny). */
     val link: String?,
+    /**
+     * Který správce zprávu za kanál skutečně poslal (`getMessageAuthor`) — jen v přímých
+     * zprávách kanálu, které uživatel spravuje (`canGetAuthor`), jinak `null`. Odběratel vidí
+     * odpověď od kanálu a ostatní správci by jinak nepoznali, kdo z nich odpověděl.
+     */
+    val author: SenderInfo? = null,
 )
 
 /** Kdo a kdy zprávu zhlédl. */

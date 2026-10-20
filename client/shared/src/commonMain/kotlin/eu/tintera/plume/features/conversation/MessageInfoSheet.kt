@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.MessageInfo
 import eu.tintera.plume.core.telegram.MessageReadState
+import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
@@ -34,6 +35,7 @@ import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.menu_sent_at
 import eu.tintera.plume.resources.message_info_auto_delete
+import eu.tintera.plume.resources.message_info_author
 import eu.tintera.plume.resources.message_info_edited
 import eu.tintera.plume.resources.message_info_link
 import eu.tintera.plume.resources.message_info_read
@@ -62,6 +64,7 @@ fun MessageInfoSheet(
     sheet: MessageInfoSheet,
     onCopyLink: (String) -> Unit,
     onDismiss: () -> Unit,
+    onOpenAuthor: (userId: Long) -> Unit = {},
 ) {
     // Modální sheet začíná skrytý a rozjede se sám. Náhrada za `rememberModalBottomSheetState`,
     // které je od Compose 1.12 zastaralé.
@@ -88,6 +91,12 @@ fun MessageInfoSheet(
         // skupiny v Nastavení, ne řádky na holé ploše oddělené čarou.
         Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)) {
             GroupedColumn(Modifier.fillMaxWidth()) {
+                // Kdo ze správců odpověděl za kanál v přímých zprávách — jinak to nejde poznat.
+                // Ťuknutí otevře jeho profil, stejně jako jméno odesílatele ve skupině.
+                info.author?.let { author ->
+                    AuthorRow(author, onClick = { onOpenAuthor(author.id) })
+                }
+
                 InfoRow(stringResource(Res.string.message_info_sent), info.sentAt.fullTime())
 
                 info.editedAt?.let { edited ->
@@ -194,6 +203,34 @@ private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null)
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/** Řádek autora: popisek, jméno a fotka, jako řádek zhlédnutí níž. */
+@Composable
+private fun AuthorRow(author: SenderInfo, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = stringResource(Res.string.message_info_author),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = author.title,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Avatar(chatId = author.id, title = author.title, avatarFileId = author.avatarFileId, size = 36.dp)
     }
 }
 

@@ -779,6 +779,12 @@ class ConversationViewModel(
     fun dismissMessageInfo() = menu.dismissMessageInfo()
     fun copyMessageLink(link: String) = menu.copyMessageLink(link)
 
+    /** Odesílatel z „Informace o zprávě" (přímé zprávy kanálu): sheet se zavře a otevře se jeho profil. */
+    fun openMessageAuthor(userId: Long) {
+        menu.dismissMessageInfo()
+        links.openSenderProfile(userId)
+    }
+
     /** Reakce na zprávy — viz [ConversationReactions]. */
     private val reactions: ConversationReactions = ConversationReactions(
         chatId = chatId,

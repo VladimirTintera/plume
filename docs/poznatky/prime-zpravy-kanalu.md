@@ -58,6 +58,18 @@ vlákno je `DirectMessagesChatTopic` a zprávy v něm mají `MessageTopicDirectM
 - **Nepřečtené značky (zmínky, reakce) ve vlákně počítá chat, ne vlákno** — vlákno nese jen
   `unreadReactionCount`, zmínky nemá. „Přečíst všechny reakce" ve vlákně volá
   `readAllDirectMessagesChatTopicReactions`.
+- **Kdo ze správců odpověděl, ukáže „Informace o zprávě"** (řádek „Odeslal(a)" s fotkou,
+  ťuknutí otevře profil; `MessageInfo.author`, `getMessageAuthor`). Odpověď správce jde za
+  kanál, takže ji ostatní správci od sebe jinak nerozeznají.
+  - **Jen tady, ne u příspěvků kanálu.** Audit to vedl jako „autor příspěvku kanálu pro
+    správce", jenže `MessagesManager::can_get_message_author` (TDLib master) pustí
+    `canGetAuthor` jen ve SPRAVOVANÉM monoforu (`is_admined_monoforum_channel`) a jen u zprávy,
+    jejímž odesílatelem je kanál. Ve vlastním kanálu bez podpisů přišlo na emulátoru `false`.
+  - **Řádek se ptá až s právem** (`canGetAuthor` z `getMessageProperties`, které sheet čte tak
+    jako tak), selhání `getMessageAuthor` ho jen vynechá — jako odkaz a zhlédnutí.
+  - **Na zařízení neověřené**: přímé zprávy testovacího kanálu jsou vypnuté a druhý účet, který
+    by do nich napsal, na emulátoru není. Ověřeno jen, že u běžného příspěvku kanálu řádek
+    nevznikne.
 
 ## Ověřeno
 
