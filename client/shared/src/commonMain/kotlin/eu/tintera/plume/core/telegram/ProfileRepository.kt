@@ -193,6 +193,9 @@ interface ProfileRepository {
      */
     suspend fun deleteChatForAll(chatId: Long): Result<Unit>
 
+    /** Stav boostů supergroupy nebo kanálu (`getChatBoostStatus`); správci vidí víc čísel. */
+    suspend fun boostStatus(chatId: Long): Result<BoostStatus> = Result.failure(UnsupportedOperationException())
+
     /**
      * Poslední akce ve skupině nebo kanálu (`getChatEventLog`), od nejnovější, stránkované
      * po [CHAT_LOG_PAGE]. Jen pro správce; Telegram je drží 48 hodin. [filter] zužuje hledáním,
@@ -652,3 +655,31 @@ data class ContactDetails(
     val noteMaxLength: Int = 0,
     val hasPersonalPhoto: Boolean = false,
 )
+
+/**
+ * Boosty skupiny nebo kanálu: úroveň a kolik boostů chybí do další (odemyká barvy, vlastní
+ * emoji, příběhy…). [premiumMembers] a [premiumPercentage] dostane jen správce, jinak nula.
+ */
+data class BoostStatus(
+    val level: Int,
+    val boostCount: Int,
+    /** Kolik boostů bylo potřeba na současnou úroveň. */
+    val currentLevelBoosts: Int,
+    /** Kolik boostů je potřeba na další úroveň; 0 = další úroveň není. */
+    val nextLevelBoosts: Int,
+    val premiumMembers: Int,
+    val premiumPercentage: Double,
+    /** Odkaz, přes který členové chat boostnou (`t.me/boost/…`). */
+    val boostUrl: String,
+) {
+    /** Kolik z cesty k další úrovni je hotovo (0..1); u nejvyšší úrovně 1. */
+    val progress: Float
+        get() {
+            val span = nextLevelBoosts - currentLevelBoosts
+            if (nextLevelBoosts == 0 || span <= 0) return 1f
+            return ((boostCount - currentLevelBoosts).toFloat() / span).coerceIn(0f, 1f)
+        }
+
+    /** Kolik boostů chybí do další úrovně; 0 u nejvyšší. */
+    val missingBoosts: Int get() = if (nextLevelBoosts == 0) 0 else (nextLevelBoosts - boostCount).coerceAtLeast(0)
+}

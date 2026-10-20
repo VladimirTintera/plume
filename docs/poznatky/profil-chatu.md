@@ -639,6 +639,23 @@ samolepek (záložka za Oblíbenými, viz „Výběr samolepek" v emoji-samolepk
   sheet se sadami a chybová hláška po odmítnutí (řádek zůstal „Žádná sada"). Skutečné nastavení
   ověřené NENÍ — účet nemá skupinu, kde by to server dovolil, a cizí skupiny se nemění.
 
+### Boosty
+
+Úprava supergroupy nebo kanálu má pro správce řádek „Boosty" (stejná podmínka jako záznam akcí,
+`canViewEventLog`). Sheet (`BoostStatusSheet`, `EditChatViewModel.openBoosts`) ukáže úroveň,
+počet boostů a kolik chybí do další úrovně s průběhem (`BoostStatus.progress`, testy
+`BoostStatusTest`), kolik členů má Premium (číslo dostane jen správce) a odkaz na boost ke
+zkopírování nebo sdílení — tím se o boost žádá členů.
+
+- **Boostovat samo Plume neumí** — chce to Premium, které cizí klient neprodá. Řádek je pro
+  správce, kteří chtějí vědět, kde chat stojí, a poslat odkaz dál.
+- **Průběh se počítá od současné úrovně** (`currentLevelBoostCount` → `nextLevelBoostCount`),
+  ne od nuly; u nejvyšší úrovně (`nextLevelBoostCount == 0`) je plný a nic nechybí.
+- **Znak procenta v textu je jednoduchý** (`%`): Compose Resources `%%` nerozbalí a ukázalo by
+  se zdvojené.
+- **Ověřeno na emulátoru** u vlastního testovacího kanálu: „Úroveň 0, 0 boostů · do úrovně 1
+  chybí 1", průběh a tlačítka odkazu. Kopírování a sdílení odkazu se neťukalo.
+
 ### Pozvánky a žádosti o vstup
 
 V úpravě skupiny (⋮ v profilu → Upravit) je blok Pozvánky se dvěma řádky: **Odkazy k pozvání**

@@ -42,6 +42,11 @@ import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.core.ui.VideoCropControl
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.invite_links_share_failed
+import eu.tintera.plume.resources.invite_links_copied
+import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.ui.TextClipboard
+import eu.tintera.plume.core.telegram.BoostStatus
 import eu.tintera.plume.resources.edit_chat_load_failed
 import eu.tintera.plume.resources.edit_chat_permissions_failed
 import eu.tintera.plume.resources.edit_chat_photo_failed
@@ -80,6 +85,9 @@ class EditChatViewModel(
     private val chats: ChatRepository,
     private val stickers: StickerRepository,
     quickReaction: QuickReaction,
+    /** Odkaz na boost do schránky a do systémového sdílení. */
+    private val clipboard: TextClipboard? = null,
+    private val sharer: MediaSharer? = null,
 ) : ViewModel() {
 
     /**
@@ -205,6 +213,42 @@ class EditChatViewModel(
 
     /** Jednorázová hláška pro snackbar; obrazovka ji po zobrazení vynuluje. */
     var notice by mutableStateOf<UiText?>(null)
+
+    /** Otevřený sheet boostů: `null` = zavřený, jinak stav načítání ([BoostSheet]). */
+    var boosts by mutableStateOf<BoostSheet?>(null)
+        private set
+
+    /** Boosty se čtou při každém otevření — mezitím mohly přibýt. */
+    fun openBoosts() {
+        boosts = BoostSheet()
+        viewModelScope.launch {
+            repository.boostStatus(chatId)
+                .onSuccess { status -> if (boosts != null) boosts = BoostSheet(status = status) }
+                .onFailure { failure ->
+                    logger.w(failure) { "Stav boostů chatu $chatId se nepodařilo načíst." }
+                    if (boosts != null) boosts = BoostSheet(failed = true)
+                }
+        }
+    }
+
+    fun closeBoosts() {
+        boosts = null
+    }
+
+    fun copyBoostLink() {
+        val url = boosts?.status?.boostUrl ?: return
+        val clipboard = clipboard ?: return
+        viewModelScope.launch {
+            clipboard.copy(url)
+            if (!clipboard.confirmsCopy) notice = UiText(Res.string.invite_links_copied)
+        }
+    }
+
+    /** Systémové sdílení odkazu na boost — poprosit členy, ať chat boostnou. */
+    fun shareBoostLink() {
+        val url = boosts?.status?.boostUrl ?: return
+        if (sharer?.shareText(url) != true) notice = UiText(Res.string.invite_links_share_failed)
+    }
 
     /** Smazání pro všechny právě běží. */
     var deleting by mutableStateOf(false)
@@ -612,3 +656,6 @@ class EditChatViewModel(
 
 /** Proč se základní skupina převádí na supergroupu — podle toho mluví potvrzení. */
 enum class GroupUpgradeReason { PublicLink, Topics }
+
+/** Sheet boostů: [status] po načtení, [failed] když načtení selhalo, jinak se načítá. */
+data class BoostSheet(val status: BoostStatus? = null, val failed: Boolean = false)

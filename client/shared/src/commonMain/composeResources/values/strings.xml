@@ -2721,6 +2721,26 @@
     <string name="invite_links_delete_all_title">Delete all revoked links?</string>
     <string name="invite_links_delete_all_body">They no longer work; only the overview of who joined through them disappears.</string>
     <string name="invite_links_copied">Link copied.</string>
+    <string name="boosts_title">Boosts</string>
+    <string name="boosts_row_help">Level and how many boosts are missing for the next one</string>
+    <string name="boosts_level">Level %1$d</string>
+    <string name="boosts_max_level">highest level</string>
+    <string name="boosts_help">Members with Telegram Premium can boost the chat. Higher levels unlock colors, custom emoji, stories and more.</string>
+    <string name="boosts_copy_link">Copy link</string>
+    <string name="boosts_share_link">Share link</string>
+    <string name="boosts_failed">Couldn’t load the boost status.</string>
+    <plurals name="boosts_total">
+        <item quantity="one">%1$s boost</item>
+        <item quantity="other">%1$s boosts</item>
+    </plurals>
+    <plurals name="boosts_missing">
+        <item quantity="one">%1$s more for level %2$d</item>
+        <item quantity="other">%1$s more for level %2$d</item>
+    </plurals>
+    <plurals name="boosts_premium_members">
+        <item quantity="one">%1$s member with Premium (%2$d %)</item>
+        <item quantity="other">%1$s members with Premium (%2$d %)</item>
+    </plurals>
     <string name="invite_links_created">Link created and copied.</string>
     <string name="invite_links_revoked">Link revoked.</string>
     <string name="invite_links_load_failed">Couldn't load the invite links.</string>

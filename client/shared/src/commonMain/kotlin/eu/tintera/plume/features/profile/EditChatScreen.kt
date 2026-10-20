@@ -98,6 +98,9 @@ import eu.tintera.plume.resources.edit_chat_people_count
 import eu.tintera.plume.resources.lock_24dp
 import eu.tintera.plume.resources.person_remove_24dp
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.rocket_launch_24dp
+import eu.tintera.plume.resources.boosts_row_help
+import eu.tintera.plume.resources.boosts_title
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.edit_chat_delete_group_body
 import eu.tintera.plume.resources.edit_chat_delete_channel_body
@@ -178,6 +181,14 @@ fun EditChatScreen(
 
     // Návrat ze seznamu omezených / vyhozených: obrazovka se skládá znovu a počty se přečtou.
     LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
+    viewModel.boosts?.let { sheet ->
+        BoostStatusSheet(
+            sheet = sheet,
+            onCopy = viewModel::copyBoostLink,
+            onShare = viewModel::shareBoostLink,
+            onDismiss = viewModel::closeBoosts,
+        )
+    }
     val notice = viewModel.notice
     val noticeText = notice?.resolve()
     // Snackbar mimo tělo efektu: vynulování hlášky mění klíč a zrušilo by ho (viz „Vrátit").
@@ -479,6 +490,19 @@ fun EditChatScreen(
 
                 // Omezení a vyhození: supergroup a kanál, vlastník a správce s právem omezovat.
                 chat.moderation?.let { ModerationGroup(it, onOpenRemoved) }
+
+                // Boosty: správce supergroupy a kanálu (stejná podmínka jako záznam akcí).
+                if (chat.canViewEventLog) {
+                    GroupedColumn(Modifier.fillMaxWidth()) {
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            headlineContent = { Text(stringResource(Res.string.boosts_title)) },
+                            supportingContent = { Text(stringResource(Res.string.boosts_row_help)) },
+                            leadingContent = { Icon(painterResource(Res.drawable.rocket_launch_24dp), contentDescription = null) },
+                            modifier = Modifier.clickable(onClick = viewModel::openBoosts),
+                        )
+                    }
+                }
 
                 if (chat.canViewEventLog) {
                     GroupedColumn(Modifier.fillMaxWidth()) {

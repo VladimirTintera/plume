@@ -1004,6 +1004,20 @@ class TdlProfileRepository(
         emitAll(sources.merge())
     }
 
+    override suspend fun boostStatus(chatId: Long): Result<BoostStatus> =
+        client.getChatBoostStatus(chatId = chatId).toResult()
+            .map { status ->
+                BoostStatus(
+                    level = status.level,
+                    boostCount = status.boostCount,
+                    currentLevelBoosts = status.currentLevelBoostCount,
+                    nextLevelBoosts = status.nextLevelBoostCount,
+                    premiumMembers = status.premiumMemberCount,
+                    premiumPercentage = status.premiumMemberPercentage,
+                    boostUrl = status.boostUrl,
+                )
+            }
+
     override fun memberUpdates(chatId: Long): Flow<Unit> = merge(
         holder.updates { chatMemberUpdates }.filter { it.chatId == chatId }.map { },
         holder.updates { supergroupFullInfoUpdates }.filter { supergroupChatId(it.supergroupId) == chatId }.map { },
