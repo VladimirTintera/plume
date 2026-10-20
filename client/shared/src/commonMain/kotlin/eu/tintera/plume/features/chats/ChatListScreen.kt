@@ -228,6 +228,10 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.StoryRingState
 import eu.tintera.plume.core.ui.storyRing
 import eu.tintera.plume.features.stories.StoryStack
+import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
+import eu.tintera.plume.resources.chats_new_story
+import eu.tintera.plume.resources.photo_camera_24dp
 import eu.tintera.plume.resources.stories_open
 import eu.tintera.plume.core.ui.ReorderRow
 import eu.tintera.plume.core.ui.ReorderTopBar
@@ -342,9 +346,23 @@ fun ChatListScreen(
     modifier: Modifier = Modifier,
     /** Příběhy autora (kroužek u avataru, hromádka v pilulce). */
     onOpenStories: (Long) -> Unit = {},
+    /** Nový příběh z vybrané fotky (cesta k připravenému JPEG); `null` = položka v „+" není. */
+    onComposeStory: ((String) -> Unit)? = null,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
+    val storyNotice by viewModel.storyNotice.collectAsStateWithLifecycle()
+    // Výběr fotky pro nový příběh; otevírá se až po kontrole limitu (`startStory`).
+    val storyPicker = rememberAttachmentPicker(
+        onPicked = { picked ->
+            val photo = picked.firstOrNull() as? OutgoingAttachment.Photo
+            if (photo != null) onComposeStory?.invoke(photo.path) else if (picked.isNotEmpty()) viewModel.storyNeedsPhoto()
+        },
+        onError = viewModel::storyError,
+    )
+    val onNewStory: (() -> Unit)? = onComposeStory
+        ?.takeIf { viewModel.canComposeStory }
+        ?.let { { viewModel.startStory(storyPicker::pickMedia) } }
     val naturalSearchAvailable by viewModel.naturalSearchAvailable.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val shownConnection = rememberShownConnection(connection)
@@ -379,6 +397,11 @@ fun ChatListScreen(
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(storyNotice) {
+        val message = storyNotice ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message.resolveNow())
+        viewModel.storyNoticeShown()
+    }
     val scope = rememberCoroutineScope()
 
     /*
@@ -556,6 +579,7 @@ fun ChatListScreen(
                 onNewChat = onNewChat,
                 onNewGroup = onNewGroup,
                 onNewChannel = onNewChannel,
+                onNewStory = onNewStory,
                 snackbarHostState = snackbarHostState,
                 account = accountMenu,
                 // V pořadí karet nad seznamem (níž, `header`): první čekající je nejdůležitější.
@@ -880,6 +904,7 @@ fun ChatListScreen(
                         onNewChat = onNewChat,
                         onNewGroup = onNewGroup,
                         onNewChannel = onNewChannel,
+                        onNewStory = onNewStory,
                         toolbar = if (folderTabs.isEmpty()) null else { fab ->
                             ChatFolderToolbar(
                                 tabs = folderTabs,
@@ -973,12 +998,16 @@ private fun NewChatFabMenu(
     onNewChat: () -> Unit,
     onNewGroup: () -> Unit,
     onNewChannel: () -> Unit,
+    /** Nový příběh; `null` = položka není (archiv, platforma bez příběhů). */
+    onNewStory: (() -> Unit)? = null,
     toolbar: (@Composable (fab: @Composable () -> Unit) -> Unit)? = null,
 ) {
     val createLabel = stringResource(Res.string.chats_create)
     val closeLabel = stringResource(Res.string.common_close)
     val closeAction = CustomAccessibilityAction(closeLabel) { onExpandedChange(false); true }
-    val items = listOf(
+    // Příběh nahoře, nejdál od palce: je nejvzácnější. Nová zpráva zůstává u tlačítka.
+    val items = listOfNotNull(
+        onNewStory?.let { Triple(Res.drawable.photo_camera_24dp, Res.string.chats_new_story, it) },
         Triple(Res.drawable.campaign_24dp, Res.string.new_chat_new_channel, onNewChannel),
         Triple(Res.drawable.group_24dp, Res.string.new_chat_new_group, onNewGroup),
         Triple(Res.drawable.edit_24dp, Res.string.chats_new, onNewChat),

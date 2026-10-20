@@ -60,6 +60,8 @@ import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chats_new_story
+import eu.tintera.plume.resources.photo_camera_24dp
 import eu.tintera.plume.resources.chats_search
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.cake_24dp
@@ -145,6 +147,7 @@ internal fun CollapsedChatList(
     onNewChat: () -> Unit,
     onNewGroup: () -> Unit,
     onNewChannel: () -> Unit,
+    onNewStory: (() -> Unit)?,
     snackbarHostState: SnackbarHostState,
     account: @Composable () -> Unit,
     /** Nejdůležitější karta, která v plném seznamu nahoře čeká; `null` = žádná. */
@@ -182,7 +185,7 @@ internal fun CollapsedChatList(
                 SelectionHeader(count = current.count, onClose = viewModel::closeSelection)
             } else {
                 account()
-                CreateButton(onNewChat = onNewChat, onNewGroup = onNewGroup, onNewChannel = onNewChannel)
+                CreateButton(onNewChat = onNewChat, onNewGroup = onNewGroup, onNewChannel = onNewChannel, onNewStory = onNewStory)
                 IconButton(onClick = onSearch, shapes = IconButtonDefaults.shapes()) {
                     Icon(painterResource(Res.drawable.search_24dp), contentDescription = stringResource(Res.string.chats_search))
                 }
@@ -259,7 +262,7 @@ internal fun CollapsedChatList(
  * položkami jako FAB menu plného seznamu. Nabídka je okno, takže ji ořez panelu neusekne.
  */
 @Composable
-private fun CreateButton(onNewChat: () -> Unit, onNewGroup: () -> Unit, onNewChannel: () -> Unit) {
+private fun CreateButton(onNewChat: () -> Unit, onNewGroup: () -> Unit, onNewChannel: () -> Unit, onNewStory: (() -> Unit)?) {
     var expanded by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.chats_create)
     Box(Modifier.padding(vertical = 4.dp)) {
@@ -273,12 +276,14 @@ private fun CreateButton(onNewChat: () -> Unit, onNewGroup: () -> Unit, onNewCha
             expanded = expanded,
             onDismiss = { expanded = false },
             popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.End),
-            groups = listOf(
+            groups = listOfNotNull(
                 listOf(
                     MenuAction(stringResource(Res.string.chats_new), Res.drawable.edit_24dp, onClick = onNewChat),
                     MenuAction(stringResource(Res.string.new_chat_new_group), Res.drawable.group_24dp, onClick = onNewGroup),
                     MenuAction(stringResource(Res.string.new_chat_new_channel), Res.drawable.campaign_24dp, onClick = onNewChannel),
                 ),
+                // Příběh je jiný druh tvorby než chat — vlastní skupina.
+                onNewStory?.let { listOf(MenuAction(stringResource(Res.string.chats_new_story), Res.drawable.photo_camera_24dp, onClick = it)) },
             ),
         )
     }

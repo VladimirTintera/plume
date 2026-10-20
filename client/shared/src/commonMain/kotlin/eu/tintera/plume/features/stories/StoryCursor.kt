@@ -76,6 +76,36 @@ fun StoriesState.previous(): StoriesState {
     }
 }
 
+/**
+ * Bez smazaného příběhu [key]. Zůstává se na stejném místě (tedy na dalším příběhu autora);
+ * autor bez příběhů ze seznamu zmizí a bez autorů se prohlížeč zavře.
+ */
+fun StoriesState.withoutStory(key: StoryKey): StoriesState {
+    val posterIndex = posters.indexOfFirst { it.chatId == key.posterChatId }
+    if (posterIndex < 0) return this
+    val author = posters[posterIndex]
+    val storyIndex = author.stories.indexOfFirst { it.id == key.storyId }
+    if (storyIndex < 0) return this
+    val remaining = author.stories - author.stories[storyIndex]
+    if (remaining.isEmpty()) {
+        val left = posters - author
+        if (left.isEmpty()) return copy(posters = left, pages = pages - key, closed = true)
+        return copy(
+            posters = left,
+            poster = if (posterIndex < poster || poster >= left.size) (poster - 1).coerceAtLeast(0) else poster,
+            positions = positions - author.chatId,
+            pages = pages - key,
+        )
+    }
+    val current = storyIndex(posterIndex)
+    val shifted = if (storyIndex < current) current - 1 else current
+    return copy(
+        posters = posters.toMutableList().also { it[posterIndex] = author.copy(stories = remaining) },
+        positions = positions + (author.chatId to shifted.coerceAtMost(remaining.size - 1)),
+        pages = pages - key,
+    )
+}
+
 /** Tahem do strany na jiného autora. */
 fun StoriesState.showPoster(index: Int): StoriesState =
     if (index == poster || index !in posters.indices) this else copy(poster = index)

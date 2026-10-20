@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.UiText
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -36,6 +38,54 @@ interface StoryRepository {
      * (`MessageReplyToStory`), takže autor ví, na co odpovídáme.
      */
     suspend fun reply(posterChatId: Long, storyId: Int, text: String): Result<Unit>
+
+    /**
+     * Smí účet právě teď zveřejnit příběh? Ptá se předem, ne až po výběru fotky: limit (u free
+     * účtu jeden příběh za den) se pozná dřív, než si uživatel příběh připraví.
+     */
+    suspend fun canPost(): StoryPostCheck
+
+    /**
+     * Zveřejní vlastní příběh. Návrat znamená jen „TDLib přijal" — nahrávání běží dál a jak
+     * dopadlo, řekne [postResults].
+     */
+    suspend fun post(draft: StoryDraft): Result<Unit>
+
+    /** Jak dopadlo zveřejnění (`updateStoryPostSucceeded` / `updateStoryPostFailed`). */
+    val postResults: Flow<StoryPostResult>
+
+    /** Smaže vlastní příběh. */
+    suspend fun delete(posterChatId: Long, storyId: Int): Result<Unit>
+}
+
+/** Vlastní příběh připravený ke zveřejnění. [photoPath] je JPEG přesně 1080 × 1920 (`StoryPhoto`). */
+data class StoryDraft(
+    val photoPath: String,
+    val caption: String,
+    val audience: StoryAudience,
+    /** Ponechat příběh v profilu i po vypršení. */
+    val keepOnProfile: Boolean,
+    /** Zakázat přeposílání a snímky obrazovky. */
+    val protectContent: Boolean,
+)
+
+/** Kdo příběh uvidí. Blízcí přátelé chybí vědomě: jejich seznam Plume zatím upravovat neumí. */
+sealed interface StoryAudience {
+    data object Everyone : StoryAudience
+    data object Contacts : StoryAudience
+    data class Selected(val userIds: List<Long>) : StoryAudience
+}
+
+sealed interface StoryPostCheck {
+    data object Allowed : StoryPostCheck
+
+    /** Nejde (limit, Premium); [reason] je věta pro uživatele. Nákup Premium se nenabízí. */
+    data class Denied(val reason: UiText) : StoryPostCheck
+}
+
+sealed interface StoryPostResult {
+    data object Posted : StoryPostResult
+    data class Failed(val reason: UiText) : StoryPostResult
 }
 
 /** Seznam příběhů: hlavní, nebo skrytý do archivu. */

@@ -63,6 +63,7 @@ import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asRelativeTime
@@ -73,6 +74,10 @@ import eu.tintera.plume.core.video.rememberVideoPlayer
 import eu.tintera.plume.features.media.ON_SCRIM
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.story_delete_confirm
+import eu.tintera.plume.resources.story_delete_text
+import eu.tintera.plume.resources.story_delete_title
 import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.stories_next
 import eu.tintera.plume.resources.stories_previous
@@ -174,6 +179,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     onClose = onBack,
                     onReact = { reaction -> key?.let { viewModel.react(it, reaction) } },
                     onReply = { text, onResult -> key?.let { viewModel.reply(it, text, onResult) } },
+                    onDelete = { key?.let(viewModel::delete) },
                 )
             }
         }
@@ -200,6 +206,7 @@ private fun StoryPage(
     onClose: () -> Unit,
     onReact: (String) -> Unit,
     onReply: (String, (Boolean) -> Unit) -> Unit,
+    onDelete: () -> Unit,
 ) {
     var held by remember { mutableStateOf(false) }
     // Psaní odpovědi a výběr reakce příběh zastaví — jinak by uživateli odjel pod rukama.
@@ -207,6 +214,8 @@ private fun StoryPage(
     // Velké emoji přes příběh po dané reakci; klíč roste, ať se táž reakce ukáže znovu.
     var burst by remember(author.chatId, index) { mutableStateOf<Pair<Int, String>?>(null) }
     val bar = story != null && story.isAvailable && !story.isLive && !story.isOwn
+    val ownBar = story != null && story.isAvailable && story.isOwn
+    var confirmDelete by remember(author.chatId, index) { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -216,7 +225,7 @@ private fun StoryPage(
                     index = index,
                     story = story,
                     active = active,
-                    paused = paused || held || composing,
+                    paused = paused || held || composing || confirmDelete,
                     restart = restart,
                     onHeld = { held = it },
                     onNext = onNext,
@@ -225,7 +234,28 @@ private fun StoryPage(
                 )
                 ReactionBurst(burst, Modifier.align(Alignment.Center))
             }
-            if (bar) Spacer(Modifier.height(STORY_BAR_HEIGHT))
+            if (bar || ownBar) Spacer(Modifier.height(STORY_BAR_HEIGHT))
+        }
+        if (ownBar && story != null) {
+            OwnStoryBar(
+                viewCount = story.viewCount,
+                onDelete = { confirmDelete = true },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+        if (confirmDelete) {
+            ConfirmDialog(
+                title = stringResource(Res.string.story_delete_title),
+                text = stringResource(Res.string.story_delete_text),
+                confirmLabel = stringResource(Res.string.story_delete_confirm),
+                icon = Res.drawable.delete_24dp,
+                destructive = true,
+                onConfirm = {
+                    confirmDelete = false
+                    onDelete()
+                },
+                onDismiss = { confirmDelete = false },
+            )
         }
         if (bar && story != null) {
             StoryReplyBar(

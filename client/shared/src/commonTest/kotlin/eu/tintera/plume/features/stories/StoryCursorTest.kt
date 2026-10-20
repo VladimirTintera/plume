@@ -83,4 +83,19 @@ class StoryCursorTest {
         assertEquals(StoryKey(1, 12), state.current)
         assertEquals(state, state.showPoster(5), "mimo rozsah se nic nemění")
     }
+
+    @Test
+    fun deletedStoryIsRemovedAndViewerMovesOn() {
+        var state = StoriesState(posters = listOf(author(1, listOf(10, 11, 12)), author(2, listOf(20))))
+        state = state.next()
+        assertEquals(StoryKey(1, 11), state.current)
+        state = state.withoutStory(StoryKey(1, 11))
+        assertEquals(StoryKey(1, 12), state.current, "na místě smazaného je další")
+        state = state.withoutStory(StoryKey(1, 12))
+        assertEquals(StoryKey(1, 10), state.current, "smazaný poslední → předchozí")
+        state = state.withoutStory(StoryKey(1, 10))
+        assertEquals(StoryKey(2, 20), state.current, "autor bez příběhů zmizí")
+        state = state.withoutStory(StoryKey(2, 20))
+        assertTrue(state.closed)
+    }
 }

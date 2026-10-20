@@ -366,6 +366,13 @@ data class MediaRoute(
 @Serializable
 data class StoriesRoute(val chatId: Long) : Route
 
+/**
+ * Nový vlastní příběh z fotky [photoPath] (JPEG z výběru příloh, v cache aplikace). Vrší se
+ * nad seznam chatů přes celou plochu; po zveřejnění se zavře.
+ */
+@Serializable
+data class StoryComposerRoute(val photoPath: String) : Route
+
 /** [MediaRoute.startSeconds] bez času v médiu. */
 const val NO_START = -1
 
@@ -591,6 +598,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EventLogRoute::class, EventLogRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(StoriesRoute::class, StoriesRoute.serializer())
+            subclass(StoryComposerRoute::class, StoryComposerRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())
             subclass(AddMembersRoute::class, AddMembersRoute.serializer())

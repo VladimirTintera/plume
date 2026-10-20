@@ -179,6 +179,7 @@ import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.StoriesRoute
+import eu.tintera.plume.core.navigation.StoryComposerRoute
 import eu.tintera.plume.core.navigation.NewChatRoute
 import eu.tintera.plume.core.navigation.NewContactRoute
 import eu.tintera.plume.core.navigation.NewGroupMembersRoute
@@ -208,6 +209,7 @@ import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.features.share.ShareToChatScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
 import eu.tintera.plume.features.stories.StoriesScreen
+import eu.tintera.plume.features.stories.StoryComposerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
 import eu.tintera.plume.features.settings.SettingsSectionScreen
@@ -722,6 +724,7 @@ private fun shellEntryProvider(
             onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
             modifier = Modifier.listPaneInsets(twoPane),
             onOpenStories = { chatId -> chatsStack.openStories(chatId) },
+            onComposeStory = { path -> chatsStack.add(StoryComposerRoute(path)) },
         )
     }
 
@@ -1344,6 +1347,14 @@ private fun shellEntryProvider(
      * Prohlížeč příběhů. Stejně jako prohlížeč médií bez metadat list-detail scény, takže ho
      * `NavDisplay` vykreslí přes celou plochu i na širokém rozvržení.
      */
+    entry<StoryComposerRoute> { route ->
+        StoryComposerScreen(
+            viewModel = koinViewModel(key = "story-composer-${route.photoPath}", parameters = { parametersOf(route.photoPath) }),
+            onBack = { chatsStack.pop(route) },
+            onPosted = { chatsStack.pop(route) },
+        )
+    }
+
     entry<StoriesRoute> { route ->
         StoriesScreen(
             // Klíč s autorem ze stejného důvodu jako u prohlížeče médií (cachovaný ViewModel).

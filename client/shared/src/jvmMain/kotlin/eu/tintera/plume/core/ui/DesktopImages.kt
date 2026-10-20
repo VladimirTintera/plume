@@ -28,6 +28,26 @@ class DesktopSquarePhoto : SquarePhoto {
     }
 }
 
+/** Fotka pro příběh přes ImageIO: plátno 1080 × 1920 a JPEG. */
+class DesktopStoryPhoto : StoryPhoto {
+
+    override suspend fun render(path: String, fill: Boolean): String = withContext(Dispatchers.IO) {
+        val image = ImageIO.read(File(path)) ?: error("Obrázek nejde dekódovat.")
+        val place = storyPhotoPlacement(image.width, image.height, fill)
+        val story = BufferedImage(STORY_PHOTO_WIDTH, STORY_PHOTO_HEIGHT, BufferedImage.TYPE_INT_RGB)
+        story.createGraphics().apply {
+            setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+            color = java.awt.Color.BLACK
+            fillRect(0, 0, STORY_PHOTO_WIDTH, STORY_PHOTO_HEIGHT)
+            drawImage(image, place.left.toInt(), place.top.toInt(), place.width.toInt(), place.height.toInt(), null)
+            dispose()
+        }
+        val output = File.createTempFile("story", ".jpg")
+        writeJpeg(story, output)
+        output.path
+    }
+}
+
 internal fun writeJpeg(image: BufferedImage, file: File) {
     val writer = ImageIO.getImageWritersByFormatName("jpeg").next()
     val parameters = writer.defaultWriteParam.apply {
