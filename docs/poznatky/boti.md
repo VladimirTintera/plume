@@ -425,6 +425,16 @@ zobrazí a zprostředkuje její události.
   se nenačte, dokud se nepotvrdí; „Zrušit" obrazovku zavře). Dokud se ptala konverzace, musel by
   si souhlas hlídat každý nový vstup zvlášť — profil bota i odkaz by na něj zapomněly. Dialog
   čeká na jméno bota (lokální `getUser`), jinak by na okamžik jmenoval „Mini aplikaci".
+- **Po odeslání zprávy se mini aplikace zavře sama** (`updateWebAppMessageSent` s `launchId`
+  téhle obrazovky, `WebAppRepository.messagesSent`): bot odpověděl na její dotaz
+  (`answerWebAppQuery`) a TDLib zavření přikazuje. Dřív zůstala otevřená nad odeslanou zprávou.
+  Týká se jen spuštění přes `openWebApp` — jen to má `launchId` a jen tam má stránka `query_id`.
+  - **Ověřuje se testovacím botem a laděním WebView**: zpráva s tlačítkem `web_app`
+    (`https://example.com/` stačí), po otevření `adb forward tcp:9333
+    localabstract:webview_devtools_remote_<pid>` (socket najde `cat /proc/net/unix`) a
+    `curl localhost:9333/json` vydá adresu stránky i s `tgWebAppData`, v něm `query_id`. Pak
+    `answerWebAppQuery` z curl. Debug build ladění WebView povolené má. Ověřeno na emulátoru:
+    mini aplikace zmizela a v chatu přibyla zpráva „přes @NoTiBoBoBot".
 - **Spuštění přes `openWebApp` se musí zavřít** (`closeWebApp` v `onCleared` přes `appScope`).
   Klávesnice a inline tlačítko jdou přes `getWebAppUrl` a spuštění nemají; **data botovi**
   (`web_app_data_send`) smí poslat jen mini aplikace z vlastní klávesnice (`keyboardButtonText`).
