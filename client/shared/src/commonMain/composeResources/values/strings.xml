@@ -328,6 +328,9 @@
     <string name="media_save_denied">Plume isn't allowed to save to the gallery</string>
     <string name="media_share">Share</string>
     <string name="media_more">More options</string>
+    <string name="media_attached_stickers">Stickers on this photo</string>
+    <string name="media_attached_stickers_none">No sticker sets found.</string>
+    <string name="media_attached_stickers_failed">Couldn’t load the sticker sets.</string>
     <string name="media_save_as">Save as…</string>
     <string name="media_saved_as">Saved</string>
     <string name="media_share_failed">Couldn't share</string>

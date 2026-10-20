@@ -1296,6 +1296,21 @@ v `core/video` (testy `VideoQualitiesTest`), čip a nabídka `VideoQualityChip`.
   stahuje celá (viz „Streamování na iOS"). Emulátor při softwarovém dekódování 720p sypal systémová ANR („Process system isn't
   responding") — přetížený hostitel, ne aplikace.
 
+### Samolepky na fotce
+
+Fotka nebo video se samolepkami (`Photo.hasStickers`, `Video.hasStickers`) má v ⋮ prohlížeče
+**Samolepky na fotce** (`getAttachedStickerSets`). Jediná sada se otevře rovnou
+(`StickerSetSheet`), víc se nabídne sheetem se seznamem (`AttachedStickerSetsSheet`), žádná =
+hláška.
+
+- **Hledá se podle NEJLEPŠÍ varianty** fotky (`fullFileId`) — té, kterou ukazuje prohlížeč.
+  Samolepky nalepil odesílatel v úpravě fotky, takže jsou ve všech velikostech stejné.
+- **Položka jen u médií s příznakem**: bez něj by u každé fotky slibovala něco, co tam není.
+- **Ověřeno na emulátoru pokusným buildem** (příznak vynucený u fotky v Uložených): skutečné
+  `getAttachedStickerSets` na fotce bez samolepek vrátí prázdný seznam → hláška; s podstrčenými
+  dvěma nainstalovanými sadami sheet se seznamem (název, počet, obálka) a ťuknutí otevřelo sadu.
+  Fotka se skutečnými samolepkami od odesílatele ověřená NENÍ — testovací účet žádnou nemá.
+
 ### Text z fotky
 
 ⋮ → „Text z fotky" rozpozná text v otevřené fotce, celé v telefonu: ML Kit z Play služeb na

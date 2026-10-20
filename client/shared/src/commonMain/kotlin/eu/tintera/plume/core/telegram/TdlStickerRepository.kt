@@ -326,6 +326,9 @@ class TdlStickerRepository(
                     }
             }
 
+    override suspend fun attachedStickerSets(fileId: Int): Result<List<StickerSetSummary>> =
+        client.getAttachedStickerSets(fileId = fileId).toResult().map { it.sets.toSummaries() }
+
     /** Obrysy podle souboru samolepky — mřížka výběru se ptá na stovky samolepek opakovaně. */
     private val outlines = mutableMapOf<Int, String>()
     private val outlinesMutex = Mutex()
