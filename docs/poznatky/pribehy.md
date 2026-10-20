@@ -68,6 +68,23 @@ Skladba:
 - **Jen v hlavním seznamu chatů** (`ChatsViewModel.storyStack`, `folder == Main`), ne ve složce
   archivu.
 
+## Úsek a obálka videa
+
+Pod náhledem videa je **tentýž pás jako u videa profilovky** (`VideoTrimBar` nad `VideoTrim`,
+`core/ui`): rámeček úseku se posouvá tahem, čárka obálky tahem za ni nebo ťuknutím do pásu.
+
+- **`VideoTrim.maxSegmentMs`**: profilovka 10 s (výchozí, beze změny), příběh minuta. Kratší
+  video je úsekem celé a posouvat ho nejde — pás pak vybírá jen obálku.
+- **Popisky pásu podle použití** (`VideoTrimLabels`): u profilovky je vybraný snímek „fotka"
+  (statická podoba), u příběhu „obálka". Pás je bílý na tmavém (dělaný pro ořez), na obrazovce
+  nového příběhu proto leží na černé ploše jako plátno příběhu.
+- **Náhled nahoře ukazuje vybranou obálku** — tak bude příběh vypadat v profilu a jako náhled.
+  Snímek se dočte až po krátké pauze po tahu (150 ms), ne po každém pixelu.
+- **Převod začíná na začátku úseku** (`StoryVideo.render(startMs)`: Android
+  `ClippingConfiguration.setStartPositionMs`, iOS `insertTimeRange` od `startMs`) a obálka jde
+  do `coverFrameTimestamp` v čase OD ZAČÁTKU PŘEVEDENÉHO videa (`VideoTrim.mainFrameSeconds`),
+  ne zdroje.
+
 ## Skrytí autora do archivu
 
 ⋮ v hlavičce prohlížeče → „Skrýt příběhy do archivu" / „Vrátit příběhy mezi ostatní"
@@ -200,7 +217,7 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   s `Crop` / `Fit`, takže vypadá stejně.
 - **Video se převádí VŽDYCKY** (`StoryVideo`): TDLib chce MP4 720 × 1280, H.265 a klíčový
   snímek každou sekundu, nejvýš 60 s — video z galerie tomu nevyhoví skoro nikdy. Delší video
-  se zkrátí na první minutu a obrazovka to předem řekne; vlastní výběr úseku zatím není.
+  se zkrátit musí — úsek si uživatel vybere sám (viz „Úsek a obálka videa" níž).
   - **Android: Media3 Transformer** jako u profilového videa (`exportVideo` dostal kodek
     a interval klíčových snímků): `Presentation` 720 × 1280 (`LAYOUT_SCALE_TO_FIT_WITH_CROP`
     pro Vyplnit, `LAYOUT_SCALE_TO_FIT` pro Celý záběr), `setiFrameIntervalSeconds(1)`,
@@ -211,8 +228,7 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
     neumí** (jen `AVAssetWriter`) — iOS je jen přeložené.
   - **Desktop video nepřevede** (`UnsupportedStoryVideo`); video z výběru tam skončí větou
     „tady jen z fotky".
-  - Video bez zvuku jde jako animace (`isAnimation`), obálka je první snímek
-    (`coverFrameTimestamp = 0`). Náhled na obrazovce je první snímek (`ProfileVideo.frame`).
+  - Video bez zvuku jde jako animace (`isAnimation`).
   - Převod trvá pár vteřin; obrazovka během něj říká „Připravuji video…" a zavře se až
     po něm (a po přijetí `postStory`).
 - **Volba „Celý záběr", ne „Celá fotka"** — platí pro fotku i video.
@@ -303,6 +319,11 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   a záložka zůstala, „All" vrátí dlaždici. Profil bez alb beze změny. **Skutečné album ověřené
   NENÍ** — vyrobit ho jde jen v oficiální aplikaci (⋮ u vlastního příběhu → Add to Album)
   a oba testovací telefony byly zamčené.
+- **Úsek a obálka ověřené na obrazovce** (20. 10. 2026, sonda s 70s záznamem obrazovky, bez
+  kontroly limitu): pás „Clip 0:00–1:00 · cover 0:00", tah posunul úsek na 0:05–1:05, ťuknutí
+  dalo obálku 0:48 a náhled se přepnul na ten snímek. **Zveřejnění s úsekem a obálkou ověřené
+  NENÍ** — účet …029 měl ten den vyčerpaný limit (server vrátil `canPostStory` „potřeba
+  Premium"); začátek úseku a čas obálky hlídá jen test.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).

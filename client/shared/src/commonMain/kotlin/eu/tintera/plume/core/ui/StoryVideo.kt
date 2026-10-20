@@ -13,14 +13,14 @@ interface StoryVideo {
     /** Délka zdroje v milisekundách. */
     suspend fun durationMs(path: String): Long
 
-    /** První snímek jako JPEG pro náhled na obrazovce nového příběhu. */
-    suspend fun preview(path: String): String
+    /** Snímek v čase [atMs] jako JPEG nejvýš [edge] px — náhled obálky i dlaždice pásu úseku. */
+    suspend fun frame(path: String, atMs: Long = 0, edge: Int = PROFILE_VIDEO_FRAME_EDGE): String
 
     /**
      * Převede video na plátno 9 : 16 ([fill] = vyplnit s ořezem krajů, jinak celé na černé),
-     * vezme nejvýš [STORY_VIDEO_MAX_SECONDS] s od začátku a vrátí cestu k MP4.
+     * vezme nejvýš [STORY_VIDEO_MAX_SECONDS] s od [startMs] a vrátí cestu k MP4.
      */
-    suspend fun render(path: String, fill: Boolean): RenderedStoryVideo
+    suspend fun render(path: String, fill: Boolean, startMs: Long = 0): RenderedStoryVideo
 }
 
 data class RenderedStoryVideo(
@@ -34,8 +34,8 @@ data class RenderedStoryVideo(
 object UnsupportedStoryVideo : StoryVideo {
     override val supported: Boolean = false
     override suspend fun durationMs(path: String): Long = 0
-    override suspend fun preview(path: String): String = error("Video příběh tady nejde.")
-    override suspend fun render(path: String, fill: Boolean): RenderedStoryVideo = error("Video příběh tady nejde.")
+    override suspend fun frame(path: String, atMs: Long, edge: Int): String = error("Video příběh tady nejde.")
+    override suspend fun render(path: String, fill: Boolean, startMs: Long): RenderedStoryVideo = error("Video příběh tady nejde.")
 }
 
 const val STORY_VIDEO_WIDTH = 720

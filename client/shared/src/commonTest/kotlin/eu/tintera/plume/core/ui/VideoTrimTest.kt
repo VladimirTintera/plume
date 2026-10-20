@@ -55,4 +55,11 @@ class VideoTrimTest {
         // Video kratší než okraj u konce: snímek nesmí vyjít před začátek.
         assertEquals(0, VideoTrim(50).withCover(40).coverMs)
     }
+
+    @Test
+    fun pribehMaUsekNaMinutu() {
+        val trim = VideoTrim(durationMs = 95_000, maxSegmentMs = 60_000)
+        assertEquals(60_000, trim.segmentMs)
+        assertEquals(35_000, trim.movedTo(50_000).startMs, "úsek nevyjede za konec videa")
+    }
 }

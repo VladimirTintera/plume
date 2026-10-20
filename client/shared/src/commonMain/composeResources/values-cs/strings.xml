@@ -3114,6 +3114,9 @@
     <string name="video_trim_move_earlier">Posunout úsek o sekundu zpět</string>
     <string name="video_trim_cover_later">Fotka o sekundu dál</string>
     <string name="video_trim_cover_earlier">Fotka o sekundu dřív</string>
+    <string name="video_trim_summary_cover">Úsek %1$s–%2$s · obálka %3$s</string>
+    <string name="video_trim_story_cover_later">Obálka o sekundu dál</string>
+    <string name="video_trim_story_cover_earlier">Obálka o sekundu dřív</string>
     <string name="saved_topic_my_notes">Moje poznámky</string>
     <string name="saved_topic_author_hidden">Skrytý autor</string>
     <string name="saved_topic_unknown_chat">Neznámý chat</string>
@@ -3295,7 +3298,7 @@
     <string name="story_keep_on_profile_summary">Zůstane v profilu i po 24 hodinách</string>
     <string name="story_allow_screenshots">Povolit snímky obrazovky a přeposílání</string>
     <string name="story_photo_only">Tady jde příběh složit jen z fotky.</string>
-    <string name="story_video_trimmed">Použije se jen první minuta videa.</string>
+    <string name="story_video_trimmed">Tahem rámečku vyber nejvýš minutu videa, čárkou obálku.</string>
     <string name="story_video_preparing">Připravuji video, může to chvíli trvat…</string>
     <string name="story_posted">Příběh je zveřejněný</string>
     <string name="chats_new_story">Nový příběh</string>

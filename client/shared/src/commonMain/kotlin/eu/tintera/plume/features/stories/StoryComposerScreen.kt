@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.ui.VideoTrimLabels
+import eu.tintera.plume.core.ui.VideoTrimBar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -190,6 +192,19 @@ fun StoryComposerScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 StoryPreview(path = state.previewPath, fill = state.fill)
+                // Úsek a obálka: tentýž pás jako u videa profilovky. Je bílý na tmavém, proto
+                // na černé ploše jako plátno příběhu.
+                viewModel.video?.let { control ->
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(ShapeDefaults.Large)
+                            .background(Color.Black)
+                            .padding(12.dp),
+                    ) {
+                        VideoTrimBar(control, Modifier.fillMaxWidth(), labels = VideoTrimLabels.StoryCover)
+                    }
+                }
                 if (viewModel.isVideo && (state.trimmed || state.posting)) {
                     Text(
                         stringResource(if (state.posting) Res.string.story_video_preparing else Res.string.story_video_trimmed),

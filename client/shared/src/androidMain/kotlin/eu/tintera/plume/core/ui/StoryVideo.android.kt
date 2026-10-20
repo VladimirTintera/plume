@@ -33,16 +33,20 @@ class AndroidStoryVideo(
 
     override suspend fun durationMs(path: String): Long = profileVideo.durationMs(path)
 
-    override suspend fun preview(path: String): String = profileVideo.frame(path, atMs = 0)
+    override suspend fun frame(path: String, atMs: Long, edge: Int): String = profileVideo.frame(path, atMs, edge)
 
-    override suspend fun render(path: String, fill: Boolean): RenderedStoryVideo {
+    override suspend fun render(path: String, fill: Boolean, startMs: Long): RenderedStoryVideo {
         val source = File(path)
         val (durationMs, hasAudio) = withContext(Dispatchers.IO) { probe(path) }
-        val lengthMs = minOf(durationMs, STORY_VIDEO_MAX_SECONDS * 1000L).coerceAtLeast(1)
+        val start = startMs.coerceIn(0, (durationMs - 1).coerceAtLeast(0))
+        val lengthMs = minOf(durationMs - start, STORY_VIDEO_MAX_SECONDS * 1000L).coerceAtLeast(1)
         val item = MediaItem.Builder()
             .setUri(Uri.fromFile(source))
             .setClippingConfiguration(
-                MediaItem.ClippingConfiguration.Builder().setEndPositionMs(lengthMs).build(),
+                MediaItem.ClippingConfiguration.Builder()
+                    .setStartPositionMs(start)
+                    .setEndPositionMs(start + lengthMs)
+                    .build(),
             )
             .build()
         val layout = if (fill) Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP else Presentation.LAYOUT_SCALE_TO_FIT

@@ -145,8 +145,11 @@ sealed interface StoryMedia {
     /** JPEG přesně 1080 × 1920 (`StoryPhoto`). */
     data class Photo(val path: String) : StoryMedia
 
-    /** MP4 720 × 1280 (`StoryVideo`); bez zvuku jde jako animace. */
-    data class Video(val path: String, val durationSeconds: Double, val hasAudio: Boolean) : StoryMedia
+    /**
+     * MP4 720 × 1280 (`StoryVideo`); bez zvuku jde jako animace. [coverSeconds] je obálka
+     * (snímek náhledu) v čase od začátku převedeného videa.
+     */
+    data class Video(val path: String, val durationSeconds: Double, val hasAudio: Boolean, val coverSeconds: Double = 0.0) : StoryMedia
 }
 
 /** Kdo příběh uvidí. */

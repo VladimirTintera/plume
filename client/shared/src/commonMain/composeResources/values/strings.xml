@@ -3015,6 +3015,9 @@
     <string name="video_trim_move_earlier">Move clip a second earlier</string>
     <string name="video_trim_cover_later">Photo a second later</string>
     <string name="video_trim_cover_earlier">Photo a second earlier</string>
+    <string name="video_trim_summary_cover">Clip %1$s–%2$s · cover %3$s</string>
+    <string name="video_trim_story_cover_later">Cover a second later</string>
+    <string name="video_trim_story_cover_earlier">Cover a second earlier</string>
     <string name="saved_topic_my_notes">My Notes</string>
     <string name="saved_topic_author_hidden">Hidden author</string>
     <string name="saved_topic_unknown_chat">Unknown chat</string>
@@ -3187,7 +3190,7 @@
     <string name="story_keep_on_profile_summary">Stays visible on your profile after 24 hours</string>
     <string name="story_allow_screenshots">Allow screenshots and forwarding</string>
     <string name="story_photo_only">Here a story can only be made from a photo.</string>
-    <string name="story_video_trimmed">Only the first minute of the video will be used.</string>
+    <string name="story_video_trimmed">Drag the frame to pick up to a minute of the video, and the line to pick the cover.</string>
     <string name="story_video_preparing">Preparing the video, this can take a moment…</string>
     <string name="story_posted">Story posted</string>
     <string name="chats_new_story">New story</string>

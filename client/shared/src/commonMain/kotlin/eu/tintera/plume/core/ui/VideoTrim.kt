@@ -1,19 +1,22 @@
 package eu.tintera.plume.core.ui
 
 /**
- * Úsek videa, který se stane animovanou profilovkou, a snímek, ze kterého server vyrobí její
- * statickou podobu (`mainFrameTimestamp`). Všechno v milisekundách od začátku zdrojového videa.
+ * Úsek videa, který se stane animovanou profilovkou (nebo příběhem), a snímek, ze kterého server
+ * vyrobí její statickou podobu (`mainFrameTimestamp`, u příběhu obálka). Všechno v milisekundách
+ * od začátku zdrojového videa.
  *
- * Úsek má pevnou délku [segmentMs] (nejvýš [PROFILE_VIDEO_MAX_SECONDS] s, kratší video celé)
- * a posouvá se jako celek; snímek leží vždycky UVNITŘ úseku — mimo něj by ho v nahrané
- * animaci nebylo z čeho vzít.
+ * Úsek má pevnou délku [segmentMs] (nejvýš [maxSegmentMs], kratší video celé) a posouvá se
+ * jako celek; snímek leží vždycky UVNITŘ úseku — mimo něj by ho v nahraném videu nebylo
+ * z čeho vzít.
  */
 data class VideoTrim(
     val durationMs: Long,
     val startMs: Long = 0,
     val coverMs: Long = 0,
+    /** Nejdelší úsek: profilovka [PROFILE_VIDEO_MAX_SECONDS] s, příběh minuta. */
+    val maxSegmentMs: Long = PROFILE_VIDEO_MAX_SECONDS * 1000L,
 ) {
-    val segmentMs: Long get() = minOf(durationMs, PROFILE_VIDEO_MAX_SECONDS * 1000L).coerceAtLeast(0)
+    val segmentMs: Long get() = minOf(durationMs, maxSegmentMs).coerceAtLeast(0)
 
     val endMs: Long get() = startMs + segmentMs
 

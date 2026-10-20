@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.stories
 
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import eu.tintera.plume.core.ui.VideoTrim
+import eu.tintera.plume.core.ui.VideoCropControl
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -68,21 +75,61 @@ class StoryComposerViewModel(
     private val _state = MutableStateFlow(StoryComposerState(previewPath = path.takeUnless { isVideo }))
     val state: StateFlow<StoryComposerState> = _state.asStateFlow()
 
+    /**
+     * Úsek a obálka videa pro pás snímků ([VideoTrimBar]); `null` u fotky, nebo dokud se nezná
+     * délka. Compose stav: pás se tahem mění po snímcích a čte ho přímo.
+     */
+    var video by mutableStateOf<VideoCropControl?>(null)
+        private set
+
+    private var previewJob: Job? = null
+
     init {
         viewModelScope.launch {
             repository.closeFriends().onSuccess { ids -> _state.update { it.copy(closeFriends = ids.toSet()) } }
         }
         if (isVideo) {
             viewModelScope.launch {
-                runCatching { storyVideo.preview(path) to storyVideo.durationMs(path) }
+                runCatching { storyVideo.frame(path, atMs = 0) to storyVideo.durationMs(path) }
                     .onSuccess { (preview, durationMs) ->
-                        _state.update {
-                            it.copy(previewPath = preview, trimmed = durationMs > STORY_VIDEO_MAX_SECONDS * 1000L)
-                        }
+                        val trim = VideoTrim(durationMs = durationMs, maxSegmentMs = STORY_VIDEO_MAX_SECONDS * 1000L)
+                        video = Control(trim)
+                        _state.update { it.copy(previewPath = preview, trimmed = trim.canMove) }
                     }
                     .onFailure { logger.w(it) { "Náhled videa pro příběh nejde" } }
             }
         }
+    }
+
+    /**
+     * Náhled ukazuje vybranou obálku — tak bude příběh vypadat v seznamu i v profilu. Po tahu
+     * se snímek dočte až po krátké pauze, ne po každém pixelu.
+     */
+    private fun showCover(coverMs: Long) {
+        previewJob?.cancel()
+        previewJob = viewModelScope.launch {
+            delay(COVER_PREVIEW_DELAY_MS)
+            runCatching { storyVideo.frame(path, coverMs) }
+                .onSuccess { frame -> _state.update { it.copy(previewPath = frame) } }
+        }
+    }
+
+    private inner class Control(initial: VideoTrim) : VideoCropControl {
+        override var trim by mutableStateOf(initial)
+            private set
+
+        override fun moveTo(startMs: Long) {
+            val before = trim.coverMs
+            trim = trim.movedTo(startMs)
+            if (trim.coverMs != before) showCover(trim.coverMs)
+        }
+
+        override fun chooseCover(atMs: Long) {
+            trim = trim.withCover(atMs)
+            showCover(trim.coverMs)
+        }
+
+        override suspend fun frame(atMs: Long, edge: Int): String = storyVideo.frame(path, atMs, edge)
     }
 
     fun setFill(fill: Boolean) = _state.update { it.copy(fill = fill) }
@@ -158,7 +205,10 @@ class StoryComposerViewModel(
         viewModelScope.launch {
             val rendered = runCatching {
                 if (isVideo) {
-                    storyVideo.render(path, current.fill).let { StoryMedia.Video(it.path, it.durationSeconds, it.hasAudio) }
+                    val trim = video?.trim
+                    storyVideo.render(path, current.fill, startMs = trim?.startMs ?: 0).let {
+                        StoryMedia.Video(it.path, it.durationSeconds, it.hasAudio, coverSeconds = trim?.mainFrameSeconds ?: 0.0)
+                    }
                 } else {
                     StoryMedia.Photo(storyPhoto.render(path, current.fill))
                 }
@@ -185,3 +235,6 @@ class StoryComposerViewModel(
         }
     }
 }
+
+/** Pauza po tahu obálky, než se dočte snímek pro náhled. */
+private const val COVER_PREVIEW_DELAY_MS = 150L
