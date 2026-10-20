@@ -329,9 +329,24 @@ Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayI
 `desktopClosesToTray`), jako Telegram Desktop. Bez toho by s oknem skončily i toasty.
 
 - **Vlastní AWT `TrayIcon`, ne `Tray` z Compose.** `Tray` hlásí jen `ActionListener`, a ten na
-  Windows znamená DVOJKLIK; ikona se tam ale otevírá jedním kliknutím. Nabídka je AWT
-  `PopupMenu` (jinou `TrayIcon` neumí, `Tray` ji má taky). Popisky se mění s jazykem aplikace
-  bez nové ikony (`setLabels`).
+  Windows znamená DVOJKLIK; ikona se tam ale otevírá jedním kliknutím. Popisky se mění
+  s jazykem aplikace bez nové ikony (`setLabels`).
+- **Nabídka je nativní menu Windows (`WindowsTrayMenu`, JNA nad user32), ne AWT `PopupMenu`.**
+  AWT si položky kreslí sám (owner-draw), takže jeho nabídka vypadala jako z Windows 95 a motiv
+  systému ji minul; `TrayIcon` jinou nabídku neumí, a ani `Tray` z Compose. Ikona proto nabídku
+  nemá a po puštění pravého tlačítka se zavolá `TrackPopupMenuEx` (`TPM_RETURNCMD`) na vlastním
+  vlákně se skrytým oknem: funkce blokuje ve vlastní smyčce a vlastník musí patřit témuž vláknu.
+  Okno musí jít do popředí (`SetForegroundWindow`), jinak nabídka po kliknutí jinam nezmizí,
+  a po zavření patří `WM_NULL` (oboje z dokumentace funkce). „Otevřít" je tučně
+  (`SetMenuDefaultItem`) — tutéž akci dělá kliknutí na ikonu. AWT `PopupMenu` zůstává jako
+  záloha, kdyby se user32 nenačetla. Ověřeno na Windows 11: nabídka vypadá jako systémová.
+- **Tmavá nabídka podle motivu aplikace** jde jen přes nedokumentované exporty uxtheme podle
+  pořadového čísla (135 `SetPreferredAppMode` s ForceDark / ForceLight, 136 `FlushMenuThemes`,
+  133 `AllowDarkModeForWindow`), jako v Notepad++ nebo Windows Terminalu. Pod 135 je až od
+  buildu 18362 (Windows 10 1903) tahle funkce, proto kontrola buildu přes `RtlGetVersion`
+  (`os.version` hlásí i na Windows 11 jen „10.0"). Motiv hlásí `WindowTitleBarAppearance`
+  (`DesktopTray.dark`); dokud okno nic neohlásilo (start do oznamovací oblasti), jde nabídka
+  podle systému.
 - **Jen Windows.** macOS má Dock a Linux oznamovací oblast mít nemusí (GNOME bez rozšíření)
   — schované okno by nešlo vrátit. Linux dál
   zavřením končí. AWT notifikace (`TrayNotifier`, Linux a Windows bez knihovny toastů) bere
