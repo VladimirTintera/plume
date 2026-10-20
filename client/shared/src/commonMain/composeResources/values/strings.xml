@@ -362,6 +362,18 @@
     <string name="error_flood_wait_seconds">Too quick. Try again in %1$d s.</string>
     <string name="error_flood_wait_minutes">Too quick. Try again in %1$d min.</string>
     <string name="error_pin_limit">You can't pin any more chats. Telegram Premium raises the limit.</string>
+    <string name="error_channels_too_much">You’re in too many groups and channels. Leave some to join new ones.</string>
+    <string name="channel_limit_title">Too many groups and channels</string>
+    <string name="channel_limit_text">You’ve reached the limit of groups and channels you can be in. Leave some you haven’t been active in to join or create new ones.</string>
+    <string name="channel_limit_premium">Telegram Premium doubles the limit.</string>
+    <string name="channel_limit_chats">Inactive groups and channels</string>
+    <string name="channel_limit_empty">No inactive groups or channels. Leave some from the chat list.</string>
+    <string name="channel_limit_failed">Couldn’t load inactive groups and channels.</string>
+    <string name="channel_limit_leave_failed">Couldn’t leave some of the chats.</string>
+    <plurals name="channel_limit_leave">
+        <item quantity="one">Leave %1$d chat</item>
+        <item quantity="other">Leave %1$d chats</item>
+    </plurals>
     <string name="error_invite_invalid">This invite link is invalid or has expired.</string>
     <string name="error_message_cannot_be_pinned">This message can't be pinned.</string>
     <string name="error_message_cannot_be_edited">It's too late to edit this message.</string>

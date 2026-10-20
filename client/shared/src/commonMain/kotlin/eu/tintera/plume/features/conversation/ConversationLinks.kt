@@ -13,6 +13,7 @@ import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.telegram.GuardDecision
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.JoinResult
+import eu.tintera.plume.core.telegram.isChannelLimit
 import eu.tintera.plume.core.telegram.LinkUserNotFoundException
 import eu.tintera.plume.core.telegram.UnsupportedProxyException
 import eu.tintera.plume.core.telegram.userMessage
@@ -70,6 +71,8 @@ internal class ConversationLinks(
     private val openProxy: (ProxyConfig) -> Unit,
     private val jumper: MessageJumper,
     private val logger: Logger,
+    /** Limit skupin a kanálů: místo hlášky výběr neaktivních k opuštění (`ChannelLimitRequests`). */
+    private val onChannelLimit: () -> Unit = {},
 ) {
     /**
      * Otevře odkaz ze zprávy. Odkaz na Telegram otevře aplikace sama ([InternalLink]), ostatní
@@ -222,6 +225,11 @@ internal class ConversationLinks(
                     }
                 }
                 .onFailure { failure ->
+                    if (failure.isChannelLimit()) {
+                        state.update { it.copy(invite = null) }
+                        onChannelLimit()
+                        return@onFailure
+                    }
                     val message = failure.reported(logger, Res.string.conversation_join_failed)
                     state.update { it.copy(invite = it.invite?.copy(joining = false), error = message) }
                 }
@@ -272,6 +280,11 @@ internal class ConversationLinks(
                     state.update { it.copy(folderInvite = null, notice = UiText(done, invite.preview.title)) }
                 }
                 .onFailure { failure ->
+                    if (failure.isChannelLimit()) {
+                        state.update { it.copy(folderInvite = null) }
+                        onChannelLimit()
+                        return@onFailure
+                    }
                     val message = failure.reported(logger, Res.string.folder_invite_failed)
                     state.update { it.copy(folderInvite = it.folderInvite?.copy(adding = false), error = message) }
                 }

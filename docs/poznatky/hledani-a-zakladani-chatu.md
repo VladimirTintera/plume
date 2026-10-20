@@ -452,6 +452,28 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   Pozvánka je i u veřejného chatu odkaz `t.me/+…` (`profile.inviteLink`), ne `t.me/jméno` —
   funguje stejně.
 
+## Limit skupin a kanálů
+
+Kdo je v nejvyšším povoleném počtu skupin a kanálů (server vrátí `CHANNELS_TOO_MUCH`), tomu
+vstup ani založení neprojde. Místo hlášky se nad celým shellem otevře sheet s neaktivními
+skupinami a kanály k opuštění (`ChannelLimitHost` / `ChannelLimitSheet`,
+`ChannelLimitViewModel`, testy `ChannelLimitViewModelTest`).
+
+- **Spouští ho místo, kde vstup selhal**, přes sdílený stav `ChannelLimitRequests`: „Přidat se"
+  v konverzaci, pozvánka a sdílená složka ze zprávy i zvenčí, založení skupiny nebo kanálu.
+  Sheet patří shellu, protože přijít může nad kteroukoli obrazovkou.
+- **Konstantu pozná `Throwable.isChannelLimit()` v `core/telegram`**, aby text od serveru
+  nevytekl z hranice. Kde se sheet neukáže, je pro tutéž chybu věta (`error_channels_too_much`).
+- **Neaktivní vydá server** (`getInactiveSupergroupChats`, jen id; jména a fotky z lokální
+  databáze). **Napřed není vybrané nic** — opouští se chaty a rozhodnout má uživatel, ne pořadí
+  od serveru. Opouští se tatáž cesta jako v seznamu chatů (`deleteOrLeave` → `leaveChat`);
+  když všechno projde, sheet odejde, co neprošlo, zůstane vybrané s hláškou.
+- **Řádek o Premium jen bez Premium** — limit zdvojnásobí, koupit ho Plume neumí, ale vědět se to má.
+- **Ověřeno jen vzhled**, dočasnou sondou (sheet otevřený při startu, necommitnuto) na
+  skutečném účtu: deset neaktivních skupin a kanálů, výběr a chybové tlačítko „Opustit 1 chat".
+  Nic se neopouštělo. **Samotný limit vyvolat nejde** (stovky skupin); vstup a založení
+  při limitu pokrývají testy (`ConversationChatActionsTest`, `TelegramErrorsTest`).
+
 ## Jeden výběr chatu: `ChatPicker`
 
 Přeposílání, sdílení ze systému i zahájení nové konverzace kreslí tentýž seznam

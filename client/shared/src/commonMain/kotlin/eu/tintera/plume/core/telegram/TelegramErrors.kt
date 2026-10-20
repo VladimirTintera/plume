@@ -35,6 +35,7 @@ import eu.tintera.plume.resources.error_phone_number_banned
 import eu.tintera.plume.resources.error_fresh_change_phone
 import eu.tintera.plume.resources.error_ai_compose_premium
 import eu.tintera.plume.resources.error_pin_limit
+import eu.tintera.plume.resources.error_channels_too_much
 import eu.tintera.plume.resources.error_recovery_code_expired
 import eu.tintera.plume.resources.error_recovery_code_invalid
 import eu.tintera.plume.resources.error_recovery_unavailable
@@ -76,6 +77,15 @@ import org.jetbrains.compose.resources.StringResource
  * [fallback].
  */
 fun Throwable.userMessage(fallback: StringResource): UiText = errorText(message, fallback)
+
+/**
+ * Uživatel je v nejvyšším povoleném počtu skupin a kanálů (`CHANNELS_TOO_MUCH`). Místo hlášky
+ * mu aplikace nabídne opustit neaktivní ([ChatRepository.inactiveGroups]) — vstup do dalšího
+ * chatu jinak nejde. Znění se kontroluje tady, aby konstanta od serveru nevytekla z hranice.
+ */
+fun Throwable.isChannelLimit(): Boolean = message == CHANNELS_TOO_MUCH
+
+private const val CHANNELS_TOO_MUCH = "CHANNELS_TOO_MUCH"
 
 /**
  * Totéž jako [userMessage] pro hlášku, která nepřišla jako výjimka — chyba, se kterou zpráva
@@ -131,6 +141,9 @@ internal fun errorText(raw: String?, fallback: StringResource): UiText {
 
         // Konstanty od serveru. TDLib je nepřekládá, posílá je dál, jak přišly.
         "PINNED_DIALOGS_TOO_MUCH" -> Res.string.error_pin_limit
+        // Limit skupin a kanálů (vstup, založení). Kde to jde, nabídne se místo hlášky výběr
+        // neaktivních k opuštění (`isChannelLimit`); věta je pro místa, kde ne.
+        CHANNELS_TOO_MUCH -> Res.string.error_channels_too_much
         // AI úpravy textu od serveru: bezplatné dotazy došly, další jsou s Premium
         // (dokumentace `composeTextWithAi` / `fixTextWithAi`).
         "AICOMPOSE_FLOOD_PREMIUM" -> Res.string.error_ai_compose_premium

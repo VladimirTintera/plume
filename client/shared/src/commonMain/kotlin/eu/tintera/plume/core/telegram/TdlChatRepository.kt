@@ -788,6 +788,12 @@ class TdlChatRepository(
         )
     }
 
+    /** Server vrací jen id; jména a fotky dočte [summariesFor] z lokální databáze. */
+    override suspend fun inactiveGroups(): Result<List<ChatSummary>> =
+        client.getInactiveSupergroupChats().toResult()
+            .onFailure { logger.w(it) { "Neaktivní skupiny se nepodařilo načíst." } }
+            .map { summariesFor(it.chatIds) }
+
     override fun unreadCount(chatId: Long): Flow<Int> =
         all.map { it[chatId]?.unreadCount ?: 0 }.distinctUntilChanged()
 

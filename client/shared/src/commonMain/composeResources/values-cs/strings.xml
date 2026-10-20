@@ -368,6 +368,19 @@
     <string name="error_flood_wait_seconds">Moc rychle po sobě. Zkus to za %1$d s.</string>
     <string name="error_flood_wait_minutes">Moc rychle po sobě. Zkus to za %1$d min.</string>
     <string name="error_pin_limit">Víc chatů připnout nejde. Vyšší limit má Telegram Premium.</string>
+    <string name="error_channels_too_much">Jsi v příliš mnoha skupinách a kanálech. Opusť některé a pak půjde vstoupit do dalších.</string>
+    <string name="channel_limit_title">Příliš mnoho skupin a kanálů</string>
+    <string name="channel_limit_text">Jsi v nejvyšším povoleném počtu skupin a kanálů. Opusť některé, ve kterých nejsi aktivní, a pak půjde vstoupit do dalších nebo založit nové.</string>
+    <string name="channel_limit_premium">S Telegram Premium je limit dvojnásobný.</string>
+    <string name="channel_limit_chats">Neaktivní skupiny a kanály</string>
+    <string name="channel_limit_empty">Žádné neaktivní skupiny ani kanály tu nejsou. Opusť některé ze seznamu chatů.</string>
+    <string name="channel_limit_failed">Neaktivní skupiny a kanály se nepodařilo načíst.</string>
+    <string name="channel_limit_leave_failed">Některé chaty se nepodařilo opustit.</string>
+    <plurals name="channel_limit_leave">
+        <item quantity="one">Opustit %1$d chat</item>
+        <item quantity="few">Opustit %1$d chaty</item>
+        <item quantity="other">Opustit %1$d chatů</item>
+    </plurals>
     <string name="error_invite_invalid">Pozvánka je neplatná nebo už vypršela.</string>
     <string name="error_message_cannot_be_pinned">Tuhle zprávu připnout nejde.</string>
     <string name="error_message_cannot_be_edited">Tuhle zprávu už upravit nejde.</string>

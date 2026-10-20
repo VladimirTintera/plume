@@ -6,6 +6,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.InviteLinkRepository
 import eu.tintera.plume.core.telegram.JoinResult
+import eu.tintera.plume.core.telegram.isChannelLimit
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.core.telegram.VideoChatInfo
@@ -75,6 +76,8 @@ internal class ConversationChatActions(
     private val awaitGuardBot: (guard: JoinResult.GuardBot, onApproved: (chatId: Long) -> Unit) -> Unit = { _, _ -> },
     /** Odblokovaný bot dostane „/start" (Start z [ConversationBots], i s parametrem z odkazu). */
     private val restartBot: () -> Unit = {},
+    /** Limit skupin a kanálů: místo hlášky výběr neaktivních k opuštění (`ChannelLimitRequests`). */
+    private val onChannelLimit: () -> Unit = {},
 ) {
     /**
      * Pruh nad konverzací (spam od neznámého, nasdílení čísla, žádost o vstup). Samostatný tok
@@ -148,8 +151,12 @@ internal class ConversationChatActions(
                     }
                 }
                 .onFailure { failure ->
-                    val message = failure.reported(logger, Res.string.conversation_join_failed)
-                    state.update { it.copy(error = message) }
+                    if (failure.isChannelLimit()) {
+                        onChannelLimit()
+                    } else {
+                        val message = failure.reported(logger, Res.string.conversation_join_failed)
+                        state.update { it.copy(error = message) }
+                    }
                 }
             state.update { it.copy(joining = false) }
         }
