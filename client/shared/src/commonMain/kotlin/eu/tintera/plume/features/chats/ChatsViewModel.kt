@@ -379,18 +379,25 @@ class ChatsViewModel(
     val storyRings: StateFlow<Map<Long, ActiveStories>> = stories?.active ?: MutableStateFlow(emptyMap())
 
     /**
-     * Autoři z hlavního seznamu příběhů v pořadí od TDLib — hromádka v pilulce hledání. Jen
-     * v hlavním seznamu chatů: patří sem i kontakty, se kterými chat nemáme, a ty jinde vidět nejsou.
+     * Autoři jednoho seznamu příběhů v pořadí od TDLib — hromádka v pilulce hledání (hlavní
+     * seznam) a v liště archivu (skrytí autoři). Patří sem i kontakty, se kterými chat nemáme,
+     * a ty jinde vidět nejsou.
      */
-    val storyStack: StateFlow<List<ActiveStories>> =
-        if (stories == null || folder != ChatFolder.Main) {
+    val storyStack: StateFlow<List<ActiveStories>> = run {
+        val list = when (folder) {
+            ChatFolder.Main -> StoryListKind.Main
+            ChatFolder.Archive -> StoryListKind.Archive
+            else -> null
+        }
+        if (stories == null || list == null) {
             MutableStateFlow(emptyList())
         } else {
             stories.active
-                .map { all -> storyListOrder(all.values, StoryListKind.Main) }
-                // Hned s hodnotou: hromádka by jinak naskočila snímek po složení pilulky.
-                .stateIn(viewModelScope, SharingStarted.Eagerly, storyListOrder(stories.active.value.values, StoryListKind.Main))
+                .map { all -> storyListOrder(all.values, list) }
+                // Hned s hodnotou: hromádka by jinak naskočila snímek po složení lišty.
+                .stateIn(viewModelScope, SharingStarted.Eagerly, storyListOrder(stories.active.value.values, list))
         }
+    }
 
     private val _storyNotice = MutableStateFlow<UiText?>(null)
 

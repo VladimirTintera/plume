@@ -97,6 +97,13 @@ class StoriesViewModelTest {
 
         override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> = Result.success(Unit)
 
+        val hidden = mutableListOf<Pair<Long, Boolean>>()
+
+        override suspend fun setHidden(chatId: Long, hidden: Boolean): Result<Unit> {
+            this.hidden += chatId to hidden
+            return Result.success(Unit)
+        }
+
         val offsets = mutableListOf<String>()
 
         /** Dvě stránky; druhá opakuje diváka z první (server to nevylučuje). */
@@ -187,6 +194,21 @@ class StoriesViewModelTest {
         assertEquals(listOf("", "dalsi"), repository.offsets, "po poslední stránce se už neptá")
         viewModel.closeViewers()
         assertNull(viewModel.viewers.value)
+    }
+
+    @Test
+    fun hidingFlipsTheAuthorBetweenLists() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.toggleHidden(7)
+        advanceUntilIdle()
+        assertEquals(listOf(7L to true), repository.hidden)
+        assertEquals(true, viewModel.state.value.posters.single().isHidden, "položka nabídky se přepne")
+        assertNotNull(viewModel.notice.value)
+        viewModel.toggleHidden(7)
+        advanceUntilIdle()
+        assertEquals(listOf(7L to true, 7L to false), repository.hidden)
+        assertEquals(false, viewModel.state.value.posters.single().isHidden)
     }
 
     @Test

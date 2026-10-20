@@ -64,6 +64,8 @@ import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ConfirmDialog
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.asRelativeTime
@@ -75,6 +77,12 @@ import eu.tintera.plume.features.media.ON_SCRIM
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.archive_24dp
+import eu.tintera.plume.resources.profile_more
+import eu.tintera.plume.resources.more_vert_24dp
+import eu.tintera.plume.resources.story_hide
+import eu.tintera.plume.resources.story_unhide
+import eu.tintera.plume.resources.unarchive_24dp
 import eu.tintera.plume.resources.story_delete_confirm
 import eu.tintera.plume.resources.story_delete_text
 import eu.tintera.plume.resources.story_delete_title
@@ -183,6 +191,7 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     onReply = { text, onResult -> key?.let { viewModel.reply(it, text, onResult) } },
                     onDelete = { key?.let(viewModel::delete) },
                     onViewers = { key?.let(viewModel::openViewers) },
+                    onToggleHidden = { viewModel.toggleHidden(author.chatId) },
                 )
             }
         }
@@ -220,6 +229,7 @@ private fun StoryPage(
     onReply: (String, (Boolean) -> Unit) -> Unit,
     onDelete: () -> Unit,
     onViewers: () -> Unit,
+    onToggleHidden: () -> Unit,
 ) {
     var held by remember { mutableStateOf(false) }
     // Psaní odpovědi a výběr reakce příběh zastaví — jinak by uživateli odjel pod rukama.
@@ -244,6 +254,7 @@ private fun StoryPage(
                     onNext = onNext,
                     onPrevious = onPrevious,
                     onClose = onClose,
+                    onToggleHidden = onToggleHidden,
                 )
                 ReactionBurst(burst, Modifier.align(Alignment.Center))
             }
@@ -300,8 +311,11 @@ private fun StoryCard(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onClose: () -> Unit,
+    onToggleHidden: () -> Unit,
 ) {
     var progress by remember(author.chatId, index) { mutableFloatStateOf(0f) }
+    // Otevřená nabídka autora příběh zastaví, jako podržení.
+    var menuOpen by remember(author.chatId) { mutableStateOf(false) }
     val next = stringResource(Res.string.stories_next)
     val previous = stringResource(Res.string.stories_previous)
 
@@ -332,7 +346,7 @@ private fun StoryCard(
         StoryContent(
             story = story,
             active = active,
-            paused = paused,
+            paused = paused || menuOpen,
             restart = restart,
             onProgress = { progress = it },
             onFinished = onNext,
@@ -344,6 +358,9 @@ private fun StoryCard(
             progress = progress,
             postedAt = story?.postedAt?.takeIf { it > 0 } ?: author.stories.getOrNull(index)?.date ?: 0,
             onClose = onClose,
+            menuOpen = menuOpen,
+            onMenuOpenChange = { menuOpen = it },
+            onToggleHidden = onToggleHidden,
         )
 
         val caption = story?.caption.orEmpty()
@@ -476,6 +493,9 @@ private fun BoxScope.StoryHeader(
     progress: Float,
     postedAt: Int,
     onClose: () -> Unit,
+    menuOpen: Boolean,
+    onMenuOpenChange: (Boolean) -> Unit,
+    onToggleHidden: () -> Unit,
 ) {
     Column(
         Modifier
@@ -532,6 +552,34 @@ private fun BoxScope.StoryHeader(
                         postedAt.asRelativeTime(),
                         color = ON_SCRIM.copy(alpha = SECONDARY_ALPHA),
                         style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+            // Skrýt do archivu / vrátit z něj. `canBeArchived` platí jen v hlavním seznamu —
+            // u skrytého autora je `false`, a vrátit ho jít musí. Vlastní příběhy nejdou ani jedno.
+            if (author.canBeArchived || author.isHidden) {
+                Box {
+                    IconButton(onClick = { onMenuOpenChange(true) }, shapes = IconButtonDefaults.shapes()) {
+                        Icon(painterResource(Res.drawable.more_vert_24dp), stringResource(Res.string.profile_more), tint = ON_SCRIM)
+                    }
+                    ExpressiveMenu(
+                        expanded = menuOpen,
+                        onDismiss = { onMenuOpenChange(false) },
+                        groups = listOf(
+                            listOf(
+                                if (author.isHidden) {
+                                    MenuAction(stringResource(Res.string.story_unhide), Res.drawable.unarchive_24dp) {
+                                        onMenuOpenChange(false)
+                                        onToggleHidden()
+                                    }
+                                } else {
+                                    MenuAction(stringResource(Res.string.story_hide), Res.drawable.archive_24dp) {
+                                        onMenuOpenChange(false)
+                                        onToggleHidden()
+                                    }
+                                },
+                            ),
+                        ),
                     )
                 }
             }

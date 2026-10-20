@@ -3,11 +3,15 @@ package eu.tintera.plume.features.stories
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.QuickReaction
+import eu.tintera.plume.core.telegram.StoryListKind
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.story_delete_failed
+import eu.tintera.plume.resources.story_hidden
+import eu.tintera.plume.resources.story_hide_failed
+import eu.tintera.plume.resources.story_unhidden
 import eu.tintera.plume.resources.story_deleted
 import eu.tintera.plume.resources.story_reaction_failed
 import eu.tintera.plume.resources.story_reply_failed
@@ -121,6 +125,34 @@ class StoriesViewModel(
 
     fun closeViewers() {
         _viewers.value = null
+    }
+
+    /**
+     * Skryje autora do archivu, nebo ho vrátí. Prohlížeč zůstane, kde je (autoři jsou zmražení),
+     * jen se přepne položka v nabídce; seznam chatů a hromádky se přeskládají updatem.
+     */
+    fun toggleHidden(chatId: Long) {
+        val author = _state.value.posters.firstOrNull { it.chatId == chatId } ?: return
+        val hide = !author.isHidden
+        viewModelScope.launch {
+            repository.setHidden(chatId, hide)
+                .onSuccess {
+                    _state.update { state ->
+                        state.copy(
+                            posters = state.posters.map {
+                                // Vrácený autor jde skrýt znovu: `canBeArchived` měl ze skrytého seznamu `false`.
+                                if (it.chatId == chatId) {
+                                    it.copy(list = if (hide) StoryListKind.Archive else StoryListKind.Main, canBeArchived = !hide || it.canBeArchived)
+                                } else {
+                                    it
+                                }
+                            },
+                        )
+                    }
+                    _notice.value = UiText(if (hide) Res.string.story_hidden else Res.string.story_unhidden, author.title)
+                }
+                .onFailure { failure -> _notice.value = failure.userMessage(Res.string.story_hide_failed) }
+        }
     }
 
     fun noticeShown() {

@@ -229,6 +229,7 @@ import eu.tintera.plume.core.ui.StoryRingState
 import eu.tintera.plume.core.ui.storyRing
 import eu.tintera.plume.features.stories.StoryStack
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.resources.chats_new_story
@@ -1676,7 +1677,14 @@ internal fun ChatListContent(
                                     if (selecting) viewModel.toggleSelected(chat) else viewModel.showActions(chat)
                                 },
                                 stories = storyRings[chat.id]?.let {
-                                    StoryRingState(total = it.stories.size, unread = it.unreadCount, closeFriends = it.hasUnreadForCloseFriends)
+                                    // Skrytý autor se mimo archiv nehlásí: lem jen tenký a šedý,
+                                    // jako by bylo zhlédnuté — příběhy jdou otevřít, ale nevolají.
+                                    val quiet = it.isHidden && viewModel.folder != ChatFolder.Archive
+                                    StoryRingState(
+                                        total = it.stories.size,
+                                        unread = if (quiet) 0 else it.unreadCount,
+                                        closeFriends = !quiet && it.hasUnreadForCloseFriends,
+                                    )
                                 },
                                 // Ve výběru avatar přepíná výběr jako zbytek řádku.
                                 onAvatarClick = onOpenStories

@@ -68,6 +68,12 @@ interface StoryRepository {
 
     /** Nahradí seznam blízkých přátel; smí na něm být jen kontakty. */
     suspend fun setCloseFriends(userIds: List<Long>): Result<Unit>
+
+    /**
+     * Skryje autorovy příběhy do archivu ([hidden]), nebo je vrátí mezi ostatní. Skrýt jde jen
+     * autora s [ActiveStories.canBeArchived], vrátit skrytého (vlastní příběhy ani jedno).
+     */
+    suspend fun setHidden(chatId: Long, hidden: Boolean): Result<Unit>
 }
 
 data class StoryViewersPage(
@@ -156,7 +162,15 @@ data class ActiveStories(
     /** Od nejstaršího po nejnovější, jak je posílá TDLib. */
     val stories: List<StoryRef>,
     val avatarColorId: Long = chatId,
+    /**
+     * Jde autorovy příběhy skrýt do archivu (`canBeArchived`). **TDLib ho dává jen v hlavním
+     * seznamu** — u už skrytého autora je `false`, vrátit ho ale jde ([isHidden]). Vlastní ne.
+     */
+    val canBeArchived: Boolean = false,
 ) {
+    /** Autorovy příběhy jsou skryté v archivu. */
+    val isHidden: Boolean get() = list == StoryListKind.Archive
+
     val unreadCount: Int get() = stories.count { it.id > maxReadStoryId }
 
     val hasUnread: Boolean get() = unreadCount > 0

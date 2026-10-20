@@ -40,6 +40,7 @@ class StoryComposerViewModelTest {
         val drafts = mutableListOf<StoryDraft>()
         val savedFriends = mutableListOf<List<Long>>()
         override suspend fun closeFriends(): Result<List<Long>> = Result.success(friends)
+        override suspend fun setHidden(chatId: Long, hidden: Boolean) = Result.success(Unit)
         override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> {
             savedFriends += userIds
             return if (failSaving) Result.failure(IllegalStateException("USER_NOT_MUTUAL_CONTACT")) else Result.success(Unit)
