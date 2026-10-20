@@ -46,6 +46,7 @@ import dev.g000sha256.tdl.dto.InputChecklistTask
 import dev.g000sha256.tdl.dto.InputMessageChecklist
 import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.MessageChatHasProtectedContentDisableRequested
 import dev.g000sha256.tdl.dto.SecretChatStatePending
 import dev.g000sha256.tdl.dto.SecretChatStateClosed
 import dev.g000sha256.tdl.dto.UserTypeBot
@@ -1733,6 +1734,10 @@ class TdlConversationRepository(
         contact.userId
     }
 
+    override suspend fun answerProtectionDisableRequest(chatId: Long, messageId: Long, approve: Boolean): Result<Unit> =
+        client.processChatHasProtectedContentDisableRequest(chatId = chatId, requestMessageId = messageId, approve = approve)
+            .toResult().map { }
+
     override suspend fun acceptSuggestedBirthdate(chatId: Long, messageId: Long): Result<Unit> = runCatching {
         val message = client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrThrow()
         val suggested = message.content as? MessageSuggestBirthdate ?: error("Zpráva $messageId nenese návrh data narození.")
@@ -2958,6 +2963,7 @@ class TdlConversationRepository(
             suggestedBirthdate = (content as? MessageSuggestBirthdate)?.takeIf { !outgoing }?.birthdate?.toDomain(),
             suggestedPhoto = (content as? MessageSuggestProfilePhoto)?.photo?.previewSize()
                 ?.let { SuggestedPhoto(fileId = it.photo.id, canSet = !outgoing) },
+            protectionDisableRequest = !outgoing && (content as? MessageChatHasProtectedContentDisableRequested)?.isExpired == false,
             timestamp = date,
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,

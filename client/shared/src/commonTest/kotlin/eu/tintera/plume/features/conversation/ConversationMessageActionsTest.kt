@@ -34,6 +34,13 @@ class ConversationMessageActionsTest {
         val pinned = mutableListOf<Pinned>()
         val deleted = mutableListOf<Pair<List<Long>, Boolean>>()
         val forwarded = mutableListOf<Forwarded>()
+        val protectionAnswers = mutableListOf<Pair<Long, Boolean>>()
+        var protectionResult: Result<Unit> = Result.success(Unit)
+
+        override suspend fun answerProtectionDisableRequest(chatId: Long, messageId: Long, approve: Boolean): Result<Unit> {
+            protectionAnswers += messageId to approve
+            return protectionResult
+        }
 
         override suspend fun pin(chatId: Long, messageId: Long, notify: Boolean, onlyForSelf: Boolean): Result<Unit> {
             pinned += Pinned(messageId, notify, onlyForSelf)
@@ -111,6 +118,32 @@ class ConversationMessageActionsTest {
         items = emptyList(),
         favoriteSticker = null,
     )
+
+    @Test
+    fun odpovedNaZadostOVypnutiOchranyOdejdeAPotvrdiSe() = runTest {
+        val state = stateWith(testChatInfo(), testMessage(5))
+        val actions = actions(state)
+
+        actions.answerProtectionRequest(5, approve = true)
+        advanceUntilIdle()
+
+        assertEquals(listOf(5L to true), repository.protectionAnswers)
+        assertNotNull(state.value.notice)
+        assertNull(state.value.error)
+    }
+
+    @Test
+    fun neuspesnaOdpovedNaZadostSeOhlasi() = runTest {
+        repository.protectionResult = Result.failure(IllegalStateException("MESSAGE_ID_INVALID"))
+        val state = stateWith(testChatInfo(), testMessage(5))
+        val actions = actions(state)
+
+        actions.answerProtectionRequest(5, approve = false)
+        advanceUntilIdle()
+
+        assertEquals(listOf(5L to false), repository.protectionAnswers)
+        assertNotNull(state.value.error)
+    }
 
     @Test
     fun vUlozenychZpravachSePripneHnedBezUpozorneni() = runTest {

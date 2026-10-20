@@ -1979,6 +1979,7 @@ class ConversationViewModel(
             MessageAction.AddContact -> messageActions.addSharedContact(messageId)
             MessageAction.AcceptSuggestedBirthdate -> messageActions.acceptSuggestedBirthdate(messageId)
             MessageAction.AcceptSuggestedPhoto -> messageActions.acceptSuggestedPhoto(messageId)
+            is MessageAction.AnswerProtectionRequest -> messageActions.answerProtectionRequest(messageId, action.approve)
             MessageAction.CallBack -> messageActions.callBack(messageId)
             MessageAction.StopLiveLocation -> attachments.stopLiveLocation(messageId)
             MessageAction.SetProximityAlert -> attachments.openProximityAlert(messageId)

@@ -219,6 +219,9 @@ sealed interface MessageAction {
     /** „Nastavit" u návrhu profilové fotky od protějšku (po potvrzení v dialogu). */
     data object AcceptSuggestedPhoto : MessageAction
 
+    /** Odpověď na žádost o vypnutí ochrany obsahu: [approve] povolit, jinak odmítnout. */
+    data class AnswerProtectionRequest(val approve: Boolean) : MessageAction
+
     /** Ťuknutí na zprávu o hovoru: zavolat zpátky, stejně (hlas / video) jako tehdy. */
     data object CallBack : MessageAction
 

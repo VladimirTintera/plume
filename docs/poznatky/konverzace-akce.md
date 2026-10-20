@@ -323,6 +323,27 @@ dřív dělaly, má pilulka po najetí myší (viz „Akce po najetí myší"):
   .isNewContextMenuEnabled`, v 1.12 na desktopu vypnutá → `LocalTextContextMenu.current.Area`).
   Kdyby ji bylo potřeba vypnout, stačí podat `TextContextMenu`, jehož `Area` jen vykreslí obsah.
 - Na Androidu ověřeno, že se nic nezměnilo (výběr v bublině není, tah na odpověď funguje).
+
+### Žádost o vypnutí ochrany obsahu
+
+V soukromém chatu, kde protějšek (s Premium) zapnul ochranu obsahu, může druhá strana požádat
+o vypnutí. Žádost je servisní zpráva (`MessageChatHasProtectedContentDisableRequested`) a pod
+větou má „Odmítnout" a „Povolit" (`ChatMessage.protectionDisableRequest`, `ProtectionRequestNote`,
+`processChatHasProtectedContentDisableRequest`).
+
+- **Tlačítka jen u příchozí a nevypršelé žádosti.** Vypršelou Telegram v historii nechá s jinou
+  větou, vlastní žádost odpovídat nedává smysl.
+- **Povolit jde přes potvrzení** — oba pak smí zprávy z chatu ukládat a přeposílat. Odmítnutí
+  je bez dialogu, nic se jím neotevírá.
+- **Oznámení se po odpovědi přepne samo** updatem obsahu zprávy; hláška jen potvrdí, co se stalo.
+- **TDLib žádost lokálně NEOVĚŘUJE**: `toggle_dialog_has_protected_content` jen zkontroluje,
+  že id zprávy je serverové, a pošle `toggleNoForwards` s `request_msg_id` a hodnotou
+  `!approve`. Odmítnutí je tedy „zapnout ochranu" — na zprávu, která žádost není, se proto
+  tlačítka zkoušet nesmí (pokusný build ověřoval jen vzhled, dialog a Zrušit).
+- **Ověřeno na emulátoru pokusným buildem** (příchozí zpráva testovacího bota vykreslená jako
+  žádost, necommituje se): věta, Odmítnout / Povolit, potvrzovací dialog, Zrušit. Skutečná žádost
+  od protějšku s Premium a odpověď serveru ověřené NEJSOU; logiku odpovědi hlídá
+  `ConversationMessageActionsTest`.
 - **Ověřeno na Windows 11** (ladicí běh, skutečná myš, uživatel): výběr tažením, Ctrl+C,
   textová nabídka na pravém tlačítku, ⋮ s úryvkem. macOS neověřený.
 
