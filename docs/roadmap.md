@@ -352,8 +352,8 @@ funkce, takže hranice jsou hrubé):
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
 | Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
-| **Příběhy (stories) a živé příběhy** | **19 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil s alby a jejich správou, nahlášení a upozornění hotové** |
-| Skupinové hovory a videochaty | 2 / 46 | jen pruh nad konverzací (sekce Hovory) |
+| **Příběhy (stories) a živé příběhy** | **21 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil s alby a jejich správou, nahlášení a upozornění hotové; sledování živých příběhů na Androidu**; zprávy ve vysílání a vlastní vysílání ne |
+| Skupinové hovory a videochaty | 6 / 46 | pruh nad konverzací (sekce Hovory); příjem obrazu a zvuku jen pro živé příběhy |
 | Premium a boosty | 1 / 18 | ne |
 | Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
 | Hvězdy, platby, TON, affiliate | 0 / 59 | ne — rozhodnutí, ne mezera (viz níž) |
@@ -573,7 +573,9 @@ a se serverem, takže přednostně:
    záložka „Příběhy"). ~~Nahlášení~~ — hotovo (průvodce jako u chatu). ~~Notifikace~~ — hotovo (rozsah i chat; obcházka chyby TDLib u rozsahu). ~~Alba příběhů~~ — hotovo prohlížení (čipy v záložce
    „Příběhy" v profilu) i správa u vlastního příběhu (založit, přidat, vyndat, přejmenovat,
    smazat, seřadit alba i příběhy v albu); skutečné album na zařízení ověřené není. ~~Výběr úseku a obálky videa~~ — hotovo (pás jako u profilového videa; zveřejnění
-   s úsekem ověřené není). Živé příběhy patří ke skupinovým hovorům.
+   s úsekem ověřené není). ~~Sledování živých příběhů~~ — hotovo na Androidu (ntgcalls,
+   WebRTC i stream po segmentech; ověřené RTMP vysílání). Zbývá: zprávy a reakce ve vysílání,
+   vlastní vysílání (z kamery i RTMP), sledování na desktopu, ověření vysílání z kamery.
 2. **Přihlášení na webu přes Telegram (OAuth)** — `newOauthRequestUpdates`, `getOauthLinkInfo`,
    `checkOauthRequestMatchCode`, `acceptOauthRequest`, `declineOauthRequest`. Kdo má jen Plume,
    žádost webu nepotvrdí. Tlačítko `LoginUrl` u zprávy bota už hotové je

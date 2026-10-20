@@ -42,6 +42,7 @@ internal suspend fun MessageStory.toMedia(
         viewersExpired = story?.hasExpiredViewers == true,
         albumIds = story?.albumIds?.toList().orEmpty(),
         canBeAddedToAlbum = story?.canBeAddedToAlbum == true,
+        live = (content as? StoryContentLive)?.let { LiveStoryCall(it.groupCallId, it.isRtmpStream) },
     )
 }
 

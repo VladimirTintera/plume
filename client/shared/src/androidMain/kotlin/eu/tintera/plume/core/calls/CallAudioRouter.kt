@@ -25,9 +25,14 @@ import co.touchlab.kermit.Logger
  *
  * Volá se z vlákna přenosu; změny zařízení chodí na hlavní vlákno (callback), stav je proto
  * `@Volatile` a na pořadí mezi nimi nezáleží — vždycky se znovu přečte, co je k dispozici.
+ *
+ * Živý příběh jde přes tutéž cestu (WebRTC v ntgcalls přehrává zvuk jako hovor), jen bez
+ * soupravy a sluchátek hraje z reproduktoru ([fallback]) — vysílání se nedrží u ucha.
  */
 internal class CallAudioRouter(
     private val audio: AudioManager,
+    /** Kam zvuk jde, když není připojená souprava ani sluchátka. */
+    private val fallback: CallAudioOutput = CallAudioOutput.Earpiece,
 ) : CallAudioRoutes {
     private var onChange: (available: List<CallAudioOutput>, current: CallAudioOutput) -> Unit = { _, _ -> }
     private val logger = Logger.withTag("CallAudioRouter")
@@ -100,6 +105,7 @@ internal class CallAudioRouter(
     private fun automatic(available: Set<CallAudioOutput>): CallAudioOutput =
         available.firstOrNull { it.kind == CallAudioOutput.Kind.Bluetooth }
             ?: available.firstOrNull { it.kind == CallAudioOutput.Kind.Headset }
+            ?: fallback.takeIf { it in available }
             ?: CallAudioOutput.Earpiece
 
     /** Výstupy k dispozici; u Androidu 12+ i se zařízením, které se pak předá systému. */

@@ -296,12 +296,9 @@ sealed interface MessageAction {
     /** Ťuknutí na nezaplacené placené médium: vysvětlit, že odemknout ho Plume neumí. */
     data object ExplainPaidMedia : MessageAction
 
-    /** Ťuknutí na živé vysílání v příběhu: sledovat ho Plume neumí, tak aspoň proč. */
-    data object ExplainLiveStory : MessageAction
-
     /**
-     * Příběh podle autora a id — citace odpovědi na příběh. Na rozdíl od sdíleného příběhu ve
-     * zprávě se obsah zjistí až po ťuknutí: příběh mezitím mohl vypršet.
+     * Příběh podle autora a id — citace odpovědi na příběh, nebo živé vysílání sdílené ve zprávě.
+     * Obsah se zjistí až po ťuknutí: příběh mezitím mohl vypršet a vysílání skončit.
      */
     data class OpenStory(val posterChatId: Long, val storyId: Int) : MessageAction
     data object CancelUpload : MessageAction

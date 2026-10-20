@@ -134,6 +134,7 @@ import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.TdlCallRepository
 import eu.tintera.plume.core.calls.CallMedia
+import eu.tintera.plume.core.calls.LiveStreamMedia
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.calls.CallPointerDisplay
 import eu.tintera.plume.core.calls.CallRequests
@@ -158,6 +159,8 @@ import eu.tintera.plume.features.notices.AccountNoticesViewModel
 import eu.tintera.plume.core.telegram.AccountNotices
 import eu.tintera.plume.core.telegram.TdlAccountNotices
 import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.core.telegram.LiveStoryRepository
+import eu.tintera.plume.core.telegram.TdlLiveStoryRepository
 import eu.tintera.plume.core.telegram.TdlStoryRepository
 import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
@@ -286,6 +289,7 @@ fun appModule() = module {
         )
     }
     // Eagerně: kdo má příběh, TDLib pošle spolu s chaty hned po přihlášení (viz `TdlStoryRepository`).
+    single<LiveStoryRepository> { TdlLiveStoryRepository(holder = get()) }
     single<StoryRepository>(createdAtStart = true) {
         TdlStoryRepository(holder = get(), session = get(), scope = get(named(APP_SCOPE)))
     }
@@ -690,6 +694,7 @@ fun appModule() = module {
             speechToText = getOrNull(),
             instantViewRequests = get(),
             downloads = get(),
+            liveStoriesSupported = getOrNull<LiveStreamMedia>() != null,
         )
     }
 
@@ -884,6 +889,8 @@ fun appModule() = module {
             repository = get(),
             appScope = get(named(APP_SCOPE)),
             quickReaction = get(),
+            liveRepository = get(),
+            liveMedia = getOrNull(),
         )
     }
 

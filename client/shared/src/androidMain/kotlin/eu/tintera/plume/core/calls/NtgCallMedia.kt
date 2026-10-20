@@ -7,7 +7,6 @@ import android.os.Process
 import co.touchlab.kermit.Logger
 import io.github.pytgcalls.ConnectionState
 import io.github.pytgcalls.NTgCalls
-import io.github.pytgcalls.VideoRotation
 import io.github.pytgcalls.devices.JavaVideoCapturerModule
 import io.github.pytgcalls.media.AudioDescription
 import io.github.pytgcalls.media.MediaDescription
@@ -16,18 +15,14 @@ import io.github.pytgcalls.media.StreamDevice
 import io.github.pytgcalls.media.StreamMode
 import io.github.pytgcalls.media.StreamStatus
 import io.github.pytgcalls.media.VideoDescription
-import io.github.pytgcalls.models.Frame
 import io.github.pytgcalls.p2p.RTCServer
 import org.json.JSONObject
 import org.webrtc.CapturerObserver
 import org.webrtc.ContextUtils
 import org.webrtc.EglBase
-import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
 import org.webrtc.VideoSink
-import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.first
@@ -93,11 +88,7 @@ class NtgCallMedia internal constructor(
 
     private val sinks = ConcurrentHashMap<CallVideoSource, VideoSink>()
 
-    /**
-     * Přímé buffery na snímky, po zdroji. Snímek 720p má 1,4 MB a nový buffer pro každý
-     * (30 za vteřinu) by uvolnil až GC; buffer se vrací, až ho renderer pustí.
-     */
-    private val framePools = ConcurrentHashMap<CallVideoSource, ConcurrentLinkedQueue<ByteBuffer>>()
+    private val frames = I420Frames()
 
     override val eglContext: EglBase.Context get() = JavaVideoCapturerModule.getSharedEGLContext()
 
@@ -163,12 +154,12 @@ class NtgCallMedia internal constructor(
                     }
                     events.onRemoteVideo(remoteCamera || remoteScreen)
                 }
-                instance.onFrames { _, mode, device, frames ->
+                instance.onFrames { _, mode, device, received ->
                     // Naše sdílená obrazovka se v náhledu nekreslí (obraz v obraze sebe sama).
                     if (device != StreamDevice.CAMERA && !(device == StreamDevice.SCREEN && mode == StreamMode.PLAYBACK)) return@onFrames
                     val source = if (mode == StreamMode.CAPTURE) CallVideoSource.Local else CallVideoSource.Remote
                     val sink = sinks[source] ?: return@onFrames
-                    frames.lastOrNull()?.let { render(source, sink, it) }
+                    received.lastOrNull()?.let { frames.render(source, sink, it) }
                 }
                 instance.createP2pCall(callId)
                 // Náhled pryč DŘÍV, než vznikne zdroj kamery knihovny: převzetí běžící kamery
@@ -289,7 +280,7 @@ class NtgCallMedia internal constructor(
             val switching = cameraOn && on
             cameraOn = on
             cameraFront = front
-            if (!on) framePools.remove(CallVideoSource.Local)
+            if (!on) frames.forget(CallVideoSource.Local)
             // Bez běžícího přenosu běží jen náhled; `start` dá kameru do zdrojů a ten ji převezme.
             val instance = ntg ?: run {
                 if (on) startPreview() else stopPreview()
@@ -384,35 +375,6 @@ class NtgCallMedia internal constructor(
         }
     }.onFailure { logger.w(it) { "Kamery se nepodařilo zjistit." } }.getOrDefault(emptyList())
 
-    /**
-     * Snímek I420 (těsně za sebou Y, U, V) do rendereru. Volá se z vlákna knihovny; renderer
-     * si snímek kreslí na vlastním vlákně EGL a buffer vrátí, až s ním skončí.
-     */
-    private fun render(source: CallVideoSource, sink: VideoSink, frame: Frame) {
-        val info = frame.frame_data ?: return
-        val width = info.width
-        val height = info.height
-        if (width <= 0 || height <= 0) return
-        val ySize = width * height
-        val chromaWidth = (width + 1) / 2
-        val chromaSize = chromaWidth * ((height + 1) / 2)
-        val size = ySize + 2 * chromaSize
-        if (frame.data.size < size) return
-        val pool = framePools.getOrPut(source) { ConcurrentLinkedQueue() }
-        val buffer = pool.poll()?.takeIf { it.capacity() >= size }?.apply { clear() } ?: ByteBuffer.allocateDirect(size)
-        buffer.put(frame.data, 0, size)
-        fun plane(offset: Int, length: Int) = buffer.duplicate().apply { position(offset); limit(offset + length) }.slice()
-        val i420 = JavaI420Buffer.wrap(
-            width, height,
-            plane(0, ySize), width,
-            plane(ySize, chromaSize), chromaWidth,
-            plane(ySize + chromaSize, chromaSize), chromaWidth,
-        ) { if (pool.size < FRAME_POOL_DEPTH) pool.offer(buffer) }
-        val video = VideoFrame(i420, info.rotation.degrees, info.absolute_capture_timestamp_ms * 1_000_000L)
-        runCatching { sink.onFrame(video) }
-        video.release()
-    }
-
     override fun stop() {
         worker.execute { stopNow() }
     }
@@ -448,7 +410,7 @@ class NtgCallMedia internal constructor(
         screenOn = false
         events = null
         cameraFront = true
-        framePools.clear()
+        frames.clear()
         // I u hovoru, který se nespojil (zrušený při vytáčení): zvuková relace běží od začátku.
         router?.stop()
         router = null
@@ -488,17 +450,6 @@ class NtgCallMedia internal constructor(
 
         /** Jak dlouho čekat na vlákno knihovny kvůli vzorku do deníku. */
         const val STATS_TIMEOUT_MS = 300L
-
-        /** Renderer drží nejvýš snímek, dva; víc bufferů je rezerva. */
-        const val FRAME_POOL_DEPTH = 4
-
-        val VideoRotation.degrees: Int
-            get() = when (this) {
-                VideoRotation.VIDEO_ROTATION_0 -> 0
-                VideoRotation.VIDEO_ROTATION_90 -> 90
-                VideoRotation.VIDEO_ROTATION_180 -> 180
-                VideoRotation.VIDEO_ROTATION_270 -> 270
-            }
 
         fun CallMediaServer.toRtcServer() = RTCServer(id, ipv4, ipv6, port, username, password, turn, stun, tcp, peerTag)
     }

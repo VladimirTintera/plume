@@ -99,7 +99,6 @@ import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.conversation_unpin_all_failed
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.paid_media_unsupported
-import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.conversation_history_failed
 import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
@@ -219,6 +218,8 @@ class ConversationViewModel(
     private val contactOffers: ContactOffers,
     /** Limit skupin a kanálů při vstupu: sheet s neaktivními k opuštění ukazuje shell. */
     private val channelLimit: ChannelLimitRequests? = null,
+    /** Živý příběh jde sledovat (jen kde je přenos, dnes Android). */
+    liveStoriesSupported: Boolean = false,
     /** „Odpovědět" z prohlížeče médií. */
     private val replyRequests: ConversationReplyRequests,
     /** Inline dotaz z tlačítka bota v jiném chatu ([BotButtonKind.SwitchInline]). */
@@ -583,6 +584,7 @@ class ConversationViewModel(
         jumper = jumper,
         logger = logger,
         onChannelLimit = { channelLimit?.request() },
+        liveStoriesSupported = liveStoriesSupported,
     )
     fun openConfirmedLink() = links.openConfirmedLink()
     fun dismissLink() = links.dismissLink()
@@ -2006,7 +2008,6 @@ class ConversationViewModel(
             MessageAction.OpenDocument -> documents.openDocument(messageId)
             MessageAction.CancelUpload -> messageActions.cancelUpload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
-            MessageAction.ExplainLiveStory -> _state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
             is MessageAction.OpenStory -> links.openStory(StoryTarget(action.posterChatId, action.storyId))
             MessageAction.ToggleVoice -> playback.toggleVoice(messageId)
             MessageAction.ToggleVideoNoteSound -> playback.toggleVideoNoteSound(messageId)

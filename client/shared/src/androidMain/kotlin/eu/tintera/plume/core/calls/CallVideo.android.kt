@@ -32,7 +32,8 @@ import org.webrtc.TextureViewRenderer
  */
 @Composable
 actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifier, fit: Boolean, onAspectRatio: (Float) -> Unit) {
-    val sinks = koinInject<CallMedia>() as? CallVideoSinks ?: return
+    // Živý příběh má vlastní přenos (bez hovoru ve dvou); ostatní obraz patří hovoru.
+    val sinks = (if (source == CallVideoSource.Live) koinInject<LiveStreamMedia>() else koinInject<CallMedia>()) as? CallVideoSinks ?: return
     val aspectRatio by rememberUpdatedState(onAspectRatio)
     // Poměr stran snímku po otočení (šířka / výška), `null` do prvního snímku.
     var frameAspect by remember(source) { mutableStateOf<Float?>(null) }

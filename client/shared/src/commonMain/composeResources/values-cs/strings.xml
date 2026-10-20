@@ -3256,6 +3256,16 @@
     <string name="story_unavailable">Příběh už není k&#160;dispozici</string>
     <string name="story_live">Živé vysílání</string>
     <string name="story_live_unsupported">Živé vysílání jde zatím sledovat jen v oficiální aplikaci Telegramu.</string>
+    <string name="story_live_badge">ŽIVĚ</string>
+    <plurals name="story_live_viewers">
+        <item quantity="one">%1$d sleduje</item>
+        <item quantity="few">%1$d sledují</item>
+        <item quantity="many">%1$d sleduje</item>
+        <item quantity="other">%1$d sleduje</item>
+    </plurals>
+    <string name="story_live_ended">Vysílání skončilo.</string>
+    <string name="story_live_failed">K vysílání se nepodařilo připojit.</string>
+    <string name="story_live_waiting">Čeká se na vysílání…</string>
     <string name="stories_next">Další příběh</string>
     <string name="stories_previous">Předchozí příběh</string>
     <string name="stories_open">Zobrazit příběhy: %1$s</string>

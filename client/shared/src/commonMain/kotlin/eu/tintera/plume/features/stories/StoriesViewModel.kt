@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.stories
 
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.LiveStoryRepository
+import eu.tintera.plume.core.calls.LiveStreamMedia
 import eu.tintera.plume.resources.story_albums_failed
 import eu.tintera.plume.core.telegram.STORY_ALBUM_NAME_MAX
 import eu.tintera.plume.core.telegram.StoryAlbum
@@ -48,7 +50,22 @@ class StoriesViewModel(
     private val appScope: CoroutineScope,
     /** Emoji, která jdou dát jako reakce (výběr přes „+"); bez něj jen srdce. */
     quickReaction: QuickReaction? = null,
+    /** Přehrávání živých příběhů; `null` = platforma je neumí (prohlížeč to řekne větou). */
+    liveRepository: LiveStoryRepository? = null,
+    liveMedia: LiveStreamMedia? = null,
 ) : ViewModel() {
+
+    private val liveWatch = if (liveRepository != null && liveMedia != null) {
+        LiveStoryWatch(liveRepository, liveMedia, viewModelScope, appScope)
+    } else {
+        null
+    }
+
+    /** Jde živý příběh v tomhle prohlížeči sledovat. */
+    val liveSupported: Boolean get() = liveWatch != null
+
+    /** Sledovaný živý příběh (jen ten, na kterém prohlížeč stojí); `null` = žádný. */
+    val live: StateFlow<LiveStoryState?> = liveWatch?.state ?: MutableStateFlow(null)
 
     /** Emoji do výběru reakcí v pořadí od serveru. */
     val reactionChoices: StateFlow<List<String>> = quickReaction?.choices ?: MutableStateFlow(emptyList())
@@ -120,6 +137,15 @@ class StoriesViewModel(
                     repository.open(key.posterChatId, key.storyId)
                     preload()
                 }
+            }
+        }
+        liveWatch?.let { watch ->
+            viewModelScope.launch {
+                // Živý příběh se sleduje, jen dokud na něm prohlížeč stojí — obsah se dočítá
+                // až po přechodu, proto se hlídá i načtená stránka, ne jen klíč.
+                state.map { s -> s.current?.let { key -> s.pages[key]?.live?.let { key to it } } }
+                    .distinctUntilChanged()
+                    .collect { current -> if (current == null) watch.stop() else watch.watch(current.first, current.second) }
             }
         }
     }
@@ -436,6 +462,7 @@ class StoriesViewModel(
     }
 
     override fun onCleared() {
+        liveWatch?.stop()
         opened?.let { key -> appScope.launch { repository.close(key.posterChatId, key.storyId) } }
         opened = null
     }
