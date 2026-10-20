@@ -617,8 +617,8 @@ a se serverem, takže přednostně:
     (`reportMessageReactions`, `deleteMessageReactionsFromSender`)~~ (hotovo, detail reakcí;
     `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá ověřit na cizí reakci), smazání nedávných reakcí
     (`clearRecentReactions`), obrysy samolepek při načítání (`getStickerOutlineSvgPath`), sady
-    samolepek použité na fotce (`getAttachedStickerSets`), oznámení o poslechu hudby
-    (`listenToAudio`).
+    samolepek použité na fotce (`getAttachedStickerSets`), ~~oznámení o poslechu hudby
+    (`listenToAudio`)~~ (hotovo, `docs/poznatky/zvuk.md`, „Hudba").
 
 **Správa skupin a kanálů — zbytky:** ~~zrušit hlavní pozvánku (`replacePrimaryChatInviteLink`)~~
 — už bylo: „Nahradit" u hlavní pozvánky volá `revokeChatInviteLink` a TDLib po zrušení hlavní
