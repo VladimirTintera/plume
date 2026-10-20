@@ -536,9 +536,9 @@ a se serverem, takže přednostně:
   (`guardBotUserId`) je zapsaná výš u nastavení skupiny.
 - **Mini aplikace se po odeslání zprávy nezavře** (`webAppMessageSentUpdates`: „Web App needs
   to be closed"). Ověřit s botem, který odpovídá přes `answerWebAppQuery`.
-- **Reklamy: nahlášení a další druhy.** Sponzorované zprávy se zobrazují a hlásí se zhlédnutí
-  i kliknutí, ale **nahlásit reklamu nejde** (`reportChatSponsoredMessage` s volbami jako
-  `reportChat`). Sponzorované chaty ve výsledcích hledání (`getSearchSponsoredChats`,
+- **Reklamy: další druhy.** ~~Nahlášení sponzorované zprávy (`reportChatSponsoredMessage`)~~ —
+  hotovo, ⋮ na kartě reklamy (`docs/poznatky/konverzace-zobrazeni.md`, „Sponzorované zprávy").
+  Sponzorované chaty ve výsledcích hledání (`getSearchSponsoredChats`,
   `viewSponsoredChat`, `openSponsoredChat`, `reportSponsoredChat`) a reklamy ve videu
   (`getVideoMessageAdvertisements` a spol.) Plume nemá vůbec — zjistit, které z nich podmínky
   API po klientech chtějí.
@@ -549,8 +549,9 @@ a se serverem, takže přednostně:
   u zprávy se přepnou za běhu (`docs/poznatky/konverzace-akce.md`, „Výběr textu myší v bublině").
   Zbývá žádost o vypnutí ochrany v soukromém chatu
   (`processChatHasProtectedContentDisableRequest`).
-- **Počet členů online** (`chatOnlineMemberCountUpdates`) — „128 členů, 12 online" v hlavičce
-  skupiny Plume nemá vůbec; update chodí jen pro otevřený chat.
+- ~~**Počet členů online** (`chatOnlineMemberCountUpdates`)~~ — hotovo, „128 členů, 12 online"
+  v hlavičce skupiny a počet odběratelů u kanálu (`docs/poznatky/konverzace-zobrazeni.md`,
+  „Počet členů v hlavičce").
 - ~~**Zablokování z jiného zařízení** (`chatBlockListUpdates`)~~ — hotovo: profil, sheet
   smazání v konverzaci a seznam blokovaných (`docs/poznatky/spam-a-blokovani.md`, „Blokování
   a nahlášení spamu"), i „Odblokovat" místo vstupního pole v chatu se zablokovaným.

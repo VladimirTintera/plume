@@ -1290,6 +1290,28 @@ otevře kanál se skokem na původní zprávu (`ChatTarget(chatId, messageId)`),
 - **Ověřuje se botem**: `forwardMessage` z chatu s botem do téhož chatu vyrobí přeposlanou zprávu
   s původem „uživatel". Kanál jako zdroj bot bez přístupu ke kanálu nepřepošle.
 
+## Počet členů v hlavičce
+
+Skupina má v podtitulu hlavičky „128 členů, 12 online", kanál „3 400 odběratelů"
+(`ChatRepository.groupMembers`, `ConversationState.members`). Dřív neměla skupina podtitul žádný.
+
+- **Počet supergroupy se bere z plného info** (`getSupergroupFullInfo`, živě přes
+  `updateSupergroupFullInfo`): `Supergroup.memberCount` je podle dokumentace známé jen u chatů
+  z některých seznamů (podobné kanály, hledání…), jinak nula. Základní skupina má počet
+  spolehlivě v `BasicGroup`.
+- **Online pošle TDLib jen otevřenému chatu** (`updateChatOnlineMemberCount` po `openChat`)
+  a klidně hned — dřív, než konverzace stihne začít poslouchat. Proto ho `TdlChatRepository`
+  odebírá od startu do mapy po chatech a konverzace z ní jen čte.
+- **„Online" až od dvou**: TDLib počítá i uživatele samotného, „1 online" by znamenalo „ty".
+  U kanálu se online neukazuje vůbec.
+- **Podtitul má pořadí**: výpadek spojení, název skupiny ve vlákně / tématu, přímé zprávy,
+  dostupnost protějšku a teprve pak členové — ve vlákně komentářů tedy dál stojí, ve které
+  skupině se diskutuje.
+- **Ověřeno na emulátoru**: veřejná skupina @tdlibchat bez přidání „9 037 členů, 249 online",
+  kanály @durov a @bbcrussian s počtem odběratelů, vlastní testovací skupina nejdřív
+  „1 člen" ze zastaralého plného info a po jeho obnovení (otevřel ho profil) sama
+  „2 členové" — update `updateSupergroupFullInfo` hlavičku přepíše bez znovuotevření.
+
 ## Sponzorované zprávy
 
 Zobrazení je podle [Telegram API ToS](https://core.telegram.org/api/terms) **povinné** a klient
@@ -1305,6 +1327,19 @@ do reklam nesmí zasahovat — nesmí je filtrovat, skrývat, ani měnit popisek
   pozadí a doručení už není jisté.
 - **Prázdný seznam je normální stav**, ne chyba: reklamy se servírují jen v dost velkých veřejných
   kanálech, nikdy uživatelům s Premium, a závisí na dostupné inzerci.
+- **Nahlásit reklamu jde ⋮ vedle štítku „Sponzorováno"** (`reportChatSponsoredMessage`).
+  Průvodce je TENTÝŽ `ReportFlow` a `ReportSheet` jako u chatu, jen druhá instance
+  (`sponsoredReportFlow`) s jiným voláním; id reklamy jede jako jediná zpráva požadavku.
+  Server se zeptá na důvod a mezi důvody bývá i „skrýt reklamy" — bez Premium skončí větou
+  „Skrýt reklamy jde jen s Telegram Premium" a reklama zůstane. Pro takové konce má průvodce
+  krok `ReportStep.Ended` (vlastní hláška, a jestli se má spustit, co čeká na nahlášení).
+- **Nahlášená reklama z konverzace zmizí** (i po skrytí reklam a u reklamy, kterou server už
+  nezná), jako v oficiálním klientovi. Skrýt reklamu sám od sebe klient nesmí; po nahlášení
+  uživatelem je to odpověď na jeho akci, ne zásah do zobrazení.
+- **Ověřeno na emulátoru** (kanál @bbcrussian bez odběru): ⋮ → „Nahlásit reklamu" otevře
+  průvodce s důvody od serveru („What's wrong with this ad?", anglicky i v české aplikaci —
+  text dodává server), volba „I don't want to see ads" bez Premium skončí hláškou o Premium
+  a reklama zůstane. **Skutečné nahlášení ověřené není** — šlo by moderátorům na cizí reklamu.
 
 ## Metriky zobrazení
 

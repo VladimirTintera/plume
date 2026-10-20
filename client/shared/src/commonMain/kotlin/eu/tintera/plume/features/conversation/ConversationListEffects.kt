@@ -64,6 +64,7 @@ internal fun ConversationSnackbars(
 ) {
     val haptics = LocalHapticFeedback.current
     ReportHost(viewModel.reportFlow, snackbarHostState)
+    ReportHost(viewModel.sponsoredReportFlow, snackbarHostState)
     ProxyLinkHost(viewModel.proxyLinkFlow, snackbarHostState)
 
     // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto

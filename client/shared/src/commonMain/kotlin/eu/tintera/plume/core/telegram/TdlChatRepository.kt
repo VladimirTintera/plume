@@ -335,6 +335,12 @@ class TdlChatRepository(
      */
     private val guardDecisions = MutableSharedFlow<Pair<Long, GuardDecision>>(replay = GUARD_DECISIONS_KEPT)
 
+    /**
+     * Členové online po chatech (`updateChatOnlineMemberCount`). Odebírá se od startu: TDLib
+     * počet pošle hned po `openChat`, klidně dřív, než konverzace stihne začít poslouchat.
+     */
+    private val onlineMembers = MutableStateFlow<Map<Long, Int>>(emptyMap())
+
     /** Odpočty zhasnutí „píše…", jeden na chat. */
     private val activityTimers = mutableMapOf<Long, Job>()
 
@@ -504,6 +510,12 @@ class TdlChatRepository(
         scope.launch {
             holder.updates { chatViewAsTopicsUpdates }.collect { update ->
                 edit(update.chatId) { it.copy(viewAsTopics = update.viewAsTopics) }
+            }
+        }
+
+        scope.launch {
+            holder.updates { chatOnlineMemberCountUpdates }.collect { update ->
+                onlineMembers.update { it + (update.chatId to update.onlineMemberCount) }
             }
         }
 
@@ -743,6 +755,38 @@ class TdlChatRepository(
 
     override fun appearance(chatId: Long): Flow<ChatAppearance?> =
         all.map { chats -> chats[chatId]?.let { ChatAppearance(it.title, it.avatarFileId) } }.distinctUntilChanged()
+
+    /**
+     * Počet členů se čte znovu po každém updatu skupiny (čtení je lokální, kromě prvního
+     * `getSupergroupFullInfo`). U supergroupy jen z plného info: `Supergroup.memberCount` je
+     * podle dokumentace známé jen u chatů z některých seznamů, jinak nula.
+     */
+    override fun groupMembers(chatId: Long): Flow<GroupMembers?> = flow {
+        val counts: Flow<GroupMembers?> = when (val type = client.getChat(chatId).toResult().getOrNull()?.type) {
+            is ChatTypeSupergroup -> merge(
+                holder.updates { supergroupFullInfoUpdates }.filter { it.supergroupId == type.supergroupId }.map { },
+                holder.updates { supergroupUpdates }.filter { it.supergroup.id == type.supergroupId }.map { },
+            )
+                .onStart { emit(Unit) }
+                .map {
+                    val count = client.getSupergroupFullInfo(supergroupId = type.supergroupId).toResult().getOrNull()?.memberCount
+                        ?: client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.memberCount
+                    count?.takeIf { it > 0 }?.let { GroupMembers(it, online = 0, isChannel = type.isChannel) }
+                }
+            is ChatTypeBasicGroup -> holder.updates { basicGroupUpdates }
+                .filter { it.basicGroup.id == type.basicGroupId }
+                .map { it.basicGroup.memberCount }
+                .onStart { client.getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()?.let { emit(it.memberCount) } }
+                .map { count -> count.takeIf { it > 0 }?.let { GroupMembers(it, online = 0, isChannel = false) } }
+            else -> return@flow
+        }
+        emitAll(
+            combine(counts, onlineMembers.map { it[chatId] ?: 0 }) { members, online ->
+                // Kanál online nepočítá, a kdyby, „12 online" u odběratelů nic neříká.
+                members?.copy(online = if (members.isChannel) 0 else online)
+            }.distinctUntilChanged(),
+        )
+    }
 
     override fun unreadCount(chatId: Long): Flow<Int> =
         all.map { it[chatId]?.unreadCount ?: 0 }.distinctUntilChanged()

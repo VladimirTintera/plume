@@ -49,6 +49,7 @@ import eu.tintera.plume.core.telegram.MessageInfo
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.GroupMembers
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.telegram.ReactionDetail
 import eu.tintera.plume.core.telegram.SendState
@@ -530,6 +531,8 @@ data class ConversationState(
     val selectingText: ChatMessage? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
     val presence: Presence? = null,
+    /** Počet členů (odběratelů) a kolik je online, pro podtitul hlavičky skupiny a kanálu. */
+    val members: GroupMembers? = null,
     /**
      * Co protějšek (ve skupině kdokoli) právě dělá. Kreslí se v seznamu zpráv tam, kam jeho zpráva
      * naskočí (`TypingItem`), ne v hlavičce.

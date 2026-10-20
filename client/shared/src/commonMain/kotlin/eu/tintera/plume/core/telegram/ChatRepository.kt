@@ -329,6 +329,13 @@ interface ChatRepository {
      */
     fun appearance(chatId: Long): Flow<ChatAppearance?>
 
+    /**
+     * Počet členů skupiny nebo odběratelů kanálu a kolik členů je právě online, živě — pro
+     * podtitul hlavičky konverzace. U soukromého chatu nic, `null`, dokud se počet nezjistí.
+     * Online počítá TDLib jen u OTEVŘENÉHO chatu (`openChat`), jinak je nula.
+     */
+    fun groupMembers(chatId: Long): Flow<GroupMembers?> = emptyFlow()
+
     /** Kolik je v chatu nepřečtených zpráv, živě (`UpdateChatReadInbox`); neznámý chat = 0. */
     fun unreadCount(chatId: Long): Flow<Int> = flowOf(0)
 
@@ -461,6 +468,12 @@ data class BlockedSender(
 
 /** Stránka seznamu blokovaných; [totalCount] je počet v celém seznamu, ne na stránce. */
 data class BlockedSendersPage(val senders: List<BlockedSender>, val totalCount: Int)
+
+/**
+ * Členové skupiny nebo kanálu pro podtitul hlavičky. [online] je u kanálu i u zavřeného chatu
+ * nula — TDLib ho počítá jen pro otevřenou skupinu.
+ */
+data class GroupMembers(val count: Int, val online: Int, val isChannel: Boolean)
 
 /** Chat (u člověka jeho soukromý chat, id = id uživatele) přibyl na hlavní seznam blokovaných, nebo z něj zmizel. */
 data class BlockChange(val chatId: Long, val blocked: Boolean)

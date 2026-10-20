@@ -1063,6 +1063,14 @@ interface ConversationRepository {
     suspend fun reportSponsoredClick(chatId: Long, messageId: Long): Result<Unit>
 
     /**
+     * Krok nahlášení sponzorované zprávy moderátorům (`reportChatSponsoredMessage`). Průvodce
+     * jako u chatu: úvodní požadavek bez [optionId], server se zeptá na důvod ([ReportStep.ChooseOption]).
+     * Mezi důvody bývá i „skrýt reklamy", které bez Premium skončí [ReportStep.Ended].
+     */
+    suspend fun reportSponsored(chatId: Long, messageId: Long, optionId: ReportOptionId?): Result<ReportStep> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Jak dlouho a jak celou uživatel zprávu viděl (TDLib `sendMessageViewMetrics`).
      *
      * TDLib to PŘIKAZUJE: volá se, když zpráva zmizí z obrazovky na víc než 300 ms, obrazovka

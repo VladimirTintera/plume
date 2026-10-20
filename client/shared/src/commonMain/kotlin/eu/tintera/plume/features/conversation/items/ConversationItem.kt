@@ -196,6 +196,9 @@ internal interface ConversationItemScope {
     /** Sponzorovaná zpráva není zpráva chatu, takže nemá ani [MessageAction]. */
     fun openSponsored(sponsored: SponsoredMessage)
 
+    /** Nahlásit reklamu (průvodce s důvody od serveru). */
+    fun reportSponsored(sponsored: SponsoredMessage) {}
+
     /** Tlačítko Zastavit u rozepsané odpovědi bota ([PendingReplyItem]); ta taky není zpráva chatu. */
     fun stopPendingReply() {}
 
@@ -393,6 +396,7 @@ internal data class SponsoredItem(val sponsored: SponsoredMessage) : Conversatio
         SponsoredCard(
             sponsored = sponsored,
             onClick = { scope.openSponsored(sponsored) },
+            onReport = { scope.reportSponsored(sponsored) },
             modifier = Modifier
                 .gathered(key, scope)
                 .graphicsLayer { translationX = -scope.timeReveal() }
