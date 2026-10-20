@@ -51,6 +51,7 @@ import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.GroupMembers
 import eu.tintera.plume.core.telegram.Presence
+import eu.tintera.plume.core.telegram.ReactionModeration
 import eu.tintera.plume.core.telegram.ReactionDetail
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SponsoredMessage
@@ -284,6 +285,8 @@ data class ReactionDetails(
     val counts: List<MessageReaction> = emptyList(),
     /** Vybraný filtr (klíč reakce); `null` = všechny. */
     val filter: String? = null,
+    /** Co smí správce s cizími reakcemi; zjišťuje se jednou při otevření. */
+    val moderation: ReactionModeration = ReactionModeration(),
 )
 
 /**

@@ -791,6 +791,8 @@ class ConversationViewModel(
     )
     fun filterReactionDetails(emoji: String?) = reactions.filterReactionDetails(emoji)
     fun dismissReactionDetails() = reactions.dismissReactionDetails()
+    fun deleteReactionsFrom(senderId: Long) = reactions.deleteReactionsFrom(senderId)
+    fun reportReactionsFrom(senderId: Long) = reactions.reportReactionsFrom(senderId)
 
     /** Efekty animovaných emoji, které vidí obě strany — viz [ConversationEmojiBursts]. */
     private val emojiBurstsPart: ConversationEmojiBursts = ConversationEmojiBursts(

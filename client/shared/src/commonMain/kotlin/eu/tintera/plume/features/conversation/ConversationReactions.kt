@@ -5,6 +5,11 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.report_failed
+import eu.tintera.plume.resources.report_done
+import eu.tintera.plume.resources.reactions_delete_failed
+import eu.tintera.plume.resources.reactions_deleted
 import eu.tintera.plume.resources.conversation_reaction_failed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -86,6 +91,49 @@ internal class ConversationReactions(
         val counts = state.value.messages.firstOrNull { it.id == messageId }?.reactions.orEmpty()
         state.update { it.copy(reactionDetails = ReactionDetails(messageId = messageId, counts = counts)) }
         loadReactionDetails(messageId, filter = null)
+        scope.launch {
+            val moderation = repository.reactionModeration(chatId, messageId)
+            state.update { current ->
+                val open = current.reactionDetails?.takeIf { it.messageId == messageId } ?: return@update current
+                current.copy(reactionDetails = open.copy(moderation = moderation))
+            }
+        }
+    }
+
+    /**
+     * Správce smaže všechny reakce člena [senderId] u otevřené zprávy. Seznam se pak přečte
+     * znovu; čipy pod zprávou srovná update reakcí od serveru.
+     */
+    fun deleteReactionsFrom(senderId: Long) {
+        val open = state.value.reactionDetails ?: return
+        scope.launch {
+            repository.deleteReactionsFrom(chatId, open.messageId, senderId)
+                .onSuccess {
+                    // Byl-li to poslední reagující, prázdný přehled nemá co ukazovat a zavře se. Pod
+                    // filtrem to platit nemusí (jiné reakce zbýt můžou), takže se filtr zruší.
+                    val remaining = open.items.filter { it.sender.id != senderId }
+                    val close = remaining.isEmpty() && open.filter == null
+                    val filter = open.filter.takeIf { remaining.isNotEmpty() }
+                    state.update {
+                        it.copy(
+                            notice = UiText(Res.string.reactions_deleted),
+                            reactionDetails = it.reactionDetails?.takeUnless { close }?.copy(items = remaining, filter = filter),
+                        )
+                    }
+                    if (!close) loadReactionDetails(open.messageId, filter)
+                }
+                .onFailure { failure -> state.update { it.copy(error = failure.reported(logger, Res.string.reactions_delete_failed)) } }
+        }
+    }
+
+    /** Nahlásí reakce člena [senderId] moderátorům Telegramu (bez průvodce — server důvod nechce). */
+    fun reportReactionsFrom(senderId: Long) {
+        val open = state.value.reactionDetails ?: return
+        scope.launch {
+            repository.reportReactionsFrom(chatId, open.messageId, senderId)
+                .onSuccess { state.update { it.copy(notice = UiText(Res.string.report_done)) } }
+                .onFailure { failure -> state.update { it.copy(error = failure.reported(logger, Res.string.report_failed)) } }
+        }
     }
 
     /**

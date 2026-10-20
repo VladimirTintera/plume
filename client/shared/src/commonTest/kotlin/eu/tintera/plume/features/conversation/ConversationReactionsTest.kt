@@ -2,6 +2,9 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.QuickReaction
+import eu.tintera.plume.core.telegram.ReactionDetail
+import eu.tintera.plume.core.telegram.ReactionModeration
+import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,6 +23,19 @@ class ConversationReactionsTest {
 
     private class FakeRepository(private val result: Result<Unit> = Result.success(Unit)) : UnimplementedConversationRepository() {
         val sent = mutableListOf<Sent>()
+        var details = emptyList<ReactionDetail>()
+        val deletedFrom = mutableListOf<Long>()
+
+        override suspend fun reactionDetails(chatId: Long, messageId: Long, reaction: String?) =
+            Result.success(details.filter { reaction == null || it.emoji == reaction })
+
+        override suspend fun reactionModeration(chatId: Long, messageId: Long) = ReactionModeration(canDelete = true)
+
+        override suspend fun deleteReactionsFrom(chatId: Long, messageId: Long, senderId: Long): Result<Unit> {
+            deletedFrom += senderId
+            details = details.filter { it.sender.id != senderId }
+            return result
+        }
 
         override suspend fun setReaction(chatId: Long, messageId: Long, emoji: String, add: Boolean): Result<Unit> {
             sent += Sent(messageId, emoji, add)
@@ -93,6 +109,59 @@ class ConversationReactionsTest {
 
         assertEquals(emptyList(), repository.sent)
         assertNull(state.value.error)
+    }
+
+    private fun detail(senderId: Long, emoji: String = "❤") =
+        ReactionDetail(SenderInfo(senderId, "Člen $senderId", avatarFileId = null), emoji, isOwn = false)
+
+    @Test
+    fun spravceSmazeReakceClenaAPrehledZustane() = runTest {
+        val state = testState(testMessage(1))
+        val repository = FakeRepository().apply { details = listOf(detail(10), detail(20, "👍")) }
+        val reactions = reactions(this, state, repository)
+
+        reactions.showReactionDetails(1)
+        advanceUntilIdle()
+        assertEquals(ReactionModeration(canDelete = true), state.value.reactionDetails?.moderation)
+
+        reactions.deleteReactionsFrom(10)
+        advanceUntilIdle()
+
+        assertEquals(listOf(10L), repository.deletedFrom)
+        assertEquals(listOf(detail(20, "👍")), state.value.reactionDetails?.items)
+        assertNotNull(state.value.notice)
+    }
+
+    @Test
+    fun poSmazaniPosledniReakcePrehledZavre() = runTest {
+        val state = testState(testMessage(1))
+        val repository = FakeRepository().apply { details = listOf(detail(10)) }
+        val reactions = reactions(this, state, repository)
+
+        reactions.showReactionDetails(1)
+        advanceUntilIdle()
+        reactions.deleteReactionsFrom(10)
+        advanceUntilIdle()
+
+        assertNull(state.value.reactionDetails)
+    }
+
+    @Test
+    fun podFiltremSeSmazaniVratiKeVsem() = runTest {
+        val state = testState(testMessage(1))
+        val repository = FakeRepository().apply { details = listOf(detail(10), detail(20, "👍")) }
+        val reactions = reactions(this, state, repository)
+
+        reactions.showReactionDetails(1)
+        advanceUntilIdle()
+        reactions.filterReactionDetails("❤")
+        advanceUntilIdle()
+        reactions.deleteReactionsFrom(10)
+        advanceUntilIdle()
+
+        val open = assertNotNull(state.value.reactionDetails)
+        assertNull(open.filter)
+        assertEquals(listOf(detail(20, "👍")), open.items)
     }
 
     private object NoQuickReaction : QuickReaction {
