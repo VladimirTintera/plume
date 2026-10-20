@@ -225,6 +225,7 @@ internal class ScreenItemScope(
     }
 
     override fun openSponsored(sponsored: SponsoredMessage) = viewModel.onSponsoredClick(sponsored)
+    override fun reportSponsored(sponsored: SponsoredMessage) = viewModel.reportSponsored(sponsored)
 
     override fun stopPendingReply() = viewModel.stopPendingReply()
 }

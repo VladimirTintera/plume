@@ -93,7 +93,7 @@ fun ReportSheet(
                     is ReportStep.EnterText -> TextStep(step, enabled = !wizard.busy, onSubmit = onSubmitText)
                     ReportStep.NeedsMessages -> MessagesStep(onDismiss)
                     // Hotový průvodce se zavírá dřív, než by tenhle krok šel vykreslit.
-                    ReportStep.Done -> Unit
+                    ReportStep.Done, is ReportStep.Ended -> Unit
                 }
             }
         }

@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Otevřený průvodce nahlášením: [step] je otázka, na kterou server čeká. Nikdy [ReportStep.Done]
- * — po něm se průvodce zavře.
+ * ani [ReportStep.Ended] — po nich se průvodce zavře.
  */
 data class ReportWizard(
     val chatId: Long,
@@ -111,6 +111,15 @@ class ReportFlow(
         _outcome.value = null
     }
 
+    /** Průvodce končí hláškou [message]; [then] se spustí, jen když je věc vyřízená ([done]). */
+    private suspend fun finish(message: UiText, done: Boolean) {
+        _wizard.value = null
+        _outcome.value = message
+        val next = then
+        then = null
+        if (done) next?.invoke()
+    }
+
     private fun send(chatId: Long) {
         val sent = request
         val sentIn = generation
@@ -120,14 +129,10 @@ class ReportFlow(
             if (sentIn != generation) return@launch
             result
                 .onSuccess { step ->
-                    if (step is ReportStep.Done) {
-                        _wizard.value = null
-                        _outcome.value = UiText(Res.string.report_done)
-                        val next = then
-                        then = null
-                        next?.invoke()
-                    } else {
-                        _wizard.value = ReportWizard(chatId = chatId, step = step)
+                    when (step) {
+                        ReportStep.Done -> finish(UiText(Res.string.report_done), done = true)
+                        is ReportStep.Ended -> finish(step.message, step.done)
+                        else -> _wizard.value = ReportWizard(chatId = chatId, step = step)
                     }
                 }
                 .onFailure { failure ->

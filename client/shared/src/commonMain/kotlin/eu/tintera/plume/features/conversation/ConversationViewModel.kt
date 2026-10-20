@@ -305,6 +305,14 @@ class ConversationViewModel(
     /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
     val reportFlow = ReportFlow(viewModelScope, chatRepository::report)
 
+    /**
+     * Průvodce nahlášením reklamy. Tentýž sheet a tatáž pravidla kroků, jen jiné volání
+     * (`reportChatSponsoredMessage`); id reklamy jede jako jediná zpráva požadavku.
+     */
+    val sponsoredReportFlow = ReportFlow(viewModelScope) { chatId, request ->
+        repository.reportSponsored(chatId, request.messageIds.single(), request.optionId)
+    }
+
     /** Proxy z odkazu `t.me/proxy` — přidá se až po potvrzení v dialogu. */
     val proxyLinkFlow = ProxyLinkFlow(viewModelScope, proxies)
 
@@ -1260,6 +1268,17 @@ class ConversationViewModel(
     }
 
     /**
+     * Nahlášení reklamy. Po nahlášení (i po skrytí reklam nebo když už reklama neexistuje)
+     * zmizí z konverzace, jako v oficiálním klientovi — ukazovat dál něco, co uživatel právě
+     * nahlásil, by působilo, že se nic nestalo. Další reklamy se načtou při příštím otevření.
+     */
+    fun reportSponsored(sponsored: SponsoredMessage) {
+        sponsoredReportFlow.start(chatId, messageIds = listOf(sponsored.messageId)) {
+            _state.update { state -> state.copy(sponsored = state.sponsored.filterNot { it.messageId == sponsored.messageId }) }
+        }
+    }
+
+    /**
      * Načte další stránku směrem do minulosti.
      *
      * Konec historie se pozná jen podle prázdné odpovědi — TDLib žádný příznak „jsi na začátku"
@@ -1751,6 +1770,12 @@ class ConversationViewModel(
             repository.presenceUpdates(chatId).collect { presence ->
                 _state.update { it.copy(presence = presence) }
             }
+        }
+
+        viewModelScope.launch {
+            // „128 členů, 12 online" v hlavičce skupiny. Online hlásí TDLib jen otevřenému
+            // chatu (`openChat` výš), a dokud je otevřený, posílá změny sám.
+            chatRepository.groupMembers(chatId).collect { members -> _state.update { it.copy(members = members) } }
         }
 
         viewModelScope.launch {

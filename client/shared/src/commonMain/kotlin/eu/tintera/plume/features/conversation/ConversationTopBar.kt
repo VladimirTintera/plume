@@ -53,12 +53,18 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.features.calls.ConversationCallButtons
 import eu.tintera.plume.features.conversation.items.describe
+import eu.tintera.plume.core.telegram.GroupMembers
+import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_members_online
+import eu.tintera.plume.resources.invite_members
+import eu.tintera.plume.resources.invite_subscribers
 import eu.tintera.plume.resources.comments_title
 import eu.tintera.plume.resources.direct_topics_subtitle
 import eu.tintera.plume.resources.conversation_fallback_title
 import eu.tintera.plume.resources.presence_online
 import eu.tintera.plume.resources.profile_open
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -266,6 +272,8 @@ internal fun ConversationTopBar(
                     val directSubtitle = stringResource(Res.string.direct_topics_subtitle)
                         .takeIf { state.info?.isDirectMessages == true && !state.narrowed }
                         ?.let { HeaderSubtitle.Text(it) }
+                    // Skupina a kanál: počet členů (odběratelů), ve skupině i kolik je online.
+                    val membersSubtitle = state.members?.let { HeaderSubtitle.Text(membersText(it)) }
                     val subtitle = shownConnection?.let { HeaderSubtitle.Connection(it) }
                         ?: threadSubtitle ?: directSubtitle ?: state.presence
                         // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
@@ -273,6 +281,7 @@ internal fun ConversationTopBar(
                         ?.takeUnless { state.info?.isSavedMessages == true }
                         ?.takeUnless { it is Presence.Online }
                         ?.let { HeaderSubtitle.Text(it.describe()) }
+                        ?: membersSubtitle
                     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                     val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
@@ -336,6 +345,24 @@ private val HEADER_STATUS_ICON = 16.dp
 private val HEADER_ONLINE_DOT = 11.dp
 
 /** Řádek pod názvem chatu: naposledy viděn, ve vlákně název skupiny, nebo výpadek spojení. */
+/**
+ * „128 členů, 12 online", u kanálu „3 400 odběratelů". Online se ukáže až od dvou: TDLib
+ * počítá i uživatele samotného, takže „1 online" by znamenalo jen „ty".
+ */
+@Composable
+private fun membersText(members: GroupMembers): String {
+    val count = pluralStringResource(
+        if (members.isChannel) Res.plurals.invite_subscribers else Res.plurals.invite_members,
+        members.count,
+        members.count.grouped(),
+    )
+    return if (members.online > 1) {
+        stringResource(Res.string.conversation_members_online, count, members.online.grouped())
+    } else {
+        count
+    }
+}
+
 private sealed interface HeaderSubtitle {
     data class Text(val text: String) : HeaderSubtitle
 

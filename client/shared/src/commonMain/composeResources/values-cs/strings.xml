@@ -529,6 +529,7 @@
     <string name="invite_request">Požádat o přijetí</string>
     <string name="invite_request_sent">Žádost odeslána, schválí ji správce.</string>
     <string name="join_guard_declined">Bot, který chat hlídá, vstup nepovolil.</string>
+    <string name="conversation_members_online">%1$s, %2$s online</string>
     <string name="folder_invite_title">Přidat složku</string>
     <string name="folder_invite_new">Přidej si složku a připoj se k chatům, které vybereš.</string>
     <string name="folder_invite_new_all_joined">Ve všech chatech složky už jsi. Přidá se jen složka.</string>
@@ -697,6 +698,11 @@
     <string name="sponsored_recommended">Doporučeno</string>
     <string name="sponsored_sponsored">Sponzorováno</string>
     <string name="sponsored_open">Otevřít</string>
+    <string name="sponsored_menu">Možnosti reklamy</string>
+    <string name="sponsored_report">Nahlásit reklamu</string>
+    <string name="sponsored_ads_hidden">Reklamy jsou skryté</string>
+    <string name="sponsored_hide_needs_premium">Skrýt reklamy jde jen s Telegram Premium.</string>
+    <string name="sponsored_report_gone">Tahle reklama už není k dispozici.</string>
     <string name="sender_you">Vy</string>
     <string name="media_sticker">Samolepka</string>
     <string name="media_video">Video</string>

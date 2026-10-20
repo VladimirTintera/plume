@@ -7,6 +7,8 @@ import eu.tintera.plume.core.telegram.ReportRequest
 import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.report_done
+import eu.tintera.plume.resources.sponsored_ads_hidden
+import eu.tintera.plume.resources.sponsored_hide_needs_premium
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -48,6 +50,44 @@ class ReportFlowTest {
         assertEquals(UiText(Res.string.report_done), flow.outcome.value)
         // Úvodní požadavek je prázdný — tak ho server u spamového action baru bere jako spam.
         assertEquals(listOf(ReportRequest()), server.requests)
+    }
+
+    /** Reklamy skryté po volbě důvodu: hláška od serveru a reklama pryč (zbytek proběhne). */
+    @Test
+    fun vyrizenyKonecPustiZbytekSVlastniHlaskou() = runTest {
+        val hidden = UiText(Res.string.sponsored_ads_hidden)
+        val server = Server(listOf(
+            Result.success(ReportStep.ChooseOption("Proč?", listOf(spam, other))),
+            Result.success(ReportStep.Ended(hidden, done = true)),
+        ))
+        val flow = flow(server)
+        var after = false
+
+        flow.start(chatId = 1, messageIds = listOf(9), then = { after = true })
+        advanceUntilIdle()
+        flow.choose(other)
+        advanceUntilIdle()
+
+        assertTrue(after)
+        assertNull(flow.wizard.value)
+        assertEquals(hidden, flow.outcome.value)
+        assertEquals(listOf(ReportRequest(messageIds = listOf(9)), ReportRequest(other.id, listOf(9))), server.requests)
+    }
+
+    /** Skrýt reklamy chce Premium: nic se nestalo, takže reklama zůstává. */
+    @Test
+    fun nevyrizenyKonecZbytekNepusti() = runTest {
+        val premium = UiText(Res.string.sponsored_hide_needs_premium)
+        val server = Server(listOf(Result.success(ReportStep.Ended(premium, done = false))))
+        val flow = flow(server)
+        var after = false
+
+        flow.start(chatId = 1, messageIds = listOf(9), then = { after = true })
+        advanceUntilIdle()
+
+        assertFalse(after)
+        assertNull(flow.wizard.value)
+        assertEquals(premium, flow.outcome.value)
     }
 
     /** Mazání musí počkat, až je nahlášeno: nahlásit jde jen chat, který ještě existuje. */

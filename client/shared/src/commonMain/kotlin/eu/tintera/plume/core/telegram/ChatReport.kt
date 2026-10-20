@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.UiText
+
 /**
  * Identifikátor důvodu nahlášení od serveru. Je to neprůhledný kus bajtů, který se jen vrací zpátky.
  *
@@ -45,6 +47,13 @@ sealed interface ReportStep {
      * je musí nahlásit z nabídky nad zprávou.
      */
     data object NeedsMessages : ReportStep
+
+    /**
+     * Server průvodce ukončil jinak než prostým „nahlášeno" ([message] říká jak — reklamy
+     * skryté, skrýt je jde jen s Premium, reklama už neexistuje). [done] = věc je vyřízená
+     * a co mělo přijít po nahlášení, proběhne; jinak ne.
+     */
+    data class Ended(val message: UiText, val done: Boolean) : ReportStep
 }
 
 /**
