@@ -600,8 +600,9 @@ a se serverem, takže přednostně:
    data přicházejí, jen se nekreslí. Zakládat je chce Business, číst ne.
 10. **Dárky v profilu** (`getReceivedGifts`, `getGiftCollections`) — prohlížení nic nestojí,
     posílání ano (viz níž).
-11. Drobnosti: hledání v tajných chatech (`searchSecretMessages` — hledání napříč chaty je
-    vynechává), ~~historie hledaných hashtagů (`getSearchedForTags`, `removeSearchedForTag`)~~ (hotovo,
+11. Drobnosti: ~~hledání v tajných chatech (`searchSecretMessages` — hledání napříč chaty je
+    vynechává)~~ (hotovo v konverzaci i napříč chaty, `docs/poznatky/tajne-chaty.md`, „Hledání";
+    zbývá ověřit na zařízení s tajným chatem), ~~historie hledaných hashtagů (`getSearchedForTags`, `removeSearchedForTag`)~~ (hotovo,
     `docs/poznatky/hledani-a-zakladani-chatu.md`, „Hledání chatů"),
     pořadí připnutých témat Uložených zpráv (`setPinnedSavedMessagesTopics`), ~~autor příspěvku
     kanálu pro správce (`getMessageAuthor`)~~ (hotovo — TDLib ho vydá jen v přímých zprávách
