@@ -370,6 +370,16 @@
     <string name="channel_limit_empty">No inactive groups or channels. Leave some from the chat list.</string>
     <string name="channel_limit_failed">Couldn’t load inactive groups and channels.</string>
     <string name="channel_limit_leave_failed">Couldn’t leave some of the chats.</string>
+    <string name="public_limit_title">Too many public links</string>
+    <string name="public_limit_text">You own the maximum number of public groups and channels. Remove the link from one of them, or keep this one private.</string>
+    <string name="public_limit_premium">Telegram Premium doubles the limit.</string>
+    <string name="public_limit_chats">Your public groups and channels</string>
+    <string name="public_limit_empty">No public groups or channels found.</string>
+    <string name="public_limit_failed">Couldn’t load your public groups and channels.</string>
+    <string name="public_limit_release">Remove link</string>
+    <string name="public_limit_release_title">Remove the link?</string>
+    <string name="public_limit_release_text">%1$s will become private and anyone will be able to take t.me/%2$s.</string>
+    <string name="public_limit_release_failed">Couldn’t remove the link.</string>
     <plurals name="channel_limit_leave">
         <item quantity="one">Leave %1$d chat</item>
         <item quantity="other">Leave %1$d chats</item>

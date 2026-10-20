@@ -36,6 +36,7 @@ import eu.tintera.plume.resources.error_fresh_change_phone
 import eu.tintera.plume.resources.error_ai_compose_premium
 import eu.tintera.plume.resources.error_pin_limit
 import eu.tintera.plume.resources.error_channels_too_much
+import eu.tintera.plume.resources.create_chat_username_too_many
 import eu.tintera.plume.resources.error_recovery_code_expired
 import eu.tintera.plume.resources.error_recovery_code_invalid
 import eu.tintera.plume.resources.error_recovery_unavailable
@@ -86,6 +87,15 @@ fun Throwable.userMessage(fallback: StringResource): UiText = errorText(message,
 fun Throwable.isChannelLimit(): Boolean = message == CHANNELS_TOO_MUCH
 
 private const val CHANNELS_TOO_MUCH = "CHANNELS_TOO_MUCH"
+
+/**
+ * Uživatel vlastní nejvíc veřejných skupin a kanálů, kolik server dovolí
+ * (`CHANNELS_ADMIN_PUBLIC_TOO_MUCH` z `checkCreatedPublicChatsLimit` i z nastavení odkazu).
+ * Místo hlášky se nabídne odebrat odkaz některému z vlastních ([ChatRepository.createdPublicChats]).
+ */
+fun Throwable.isPublicChatsLimit(): Boolean = message == CHANNELS_ADMIN_PUBLIC_TOO_MUCH
+
+private const val CHANNELS_ADMIN_PUBLIC_TOO_MUCH = "CHANNELS_ADMIN_PUBLIC_TOO_MUCH"
 
 /**
  * Totéž jako [userMessage] pro hlášku, která nepřišla jako výjimka — chyba, se kterou zpráva
@@ -144,6 +154,9 @@ internal fun errorText(raw: String?, fallback: StringResource): UiText {
         // Limit skupin a kanálů (vstup, založení). Kde to jde, nabídne se místo hlášky výběr
         // neaktivních k opuštění (`isChannelLimit`); věta je pro místa, kde ne.
         CHANNELS_TOO_MUCH -> Res.string.error_channels_too_much
+        // Limit vlastních veřejných chatů; v založení a úpravě se místo věty nabídne odebrat
+        // odkaz jinému (`isPublicChatsLimit`).
+        CHANNELS_ADMIN_PUBLIC_TOO_MUCH -> Res.string.create_chat_username_too_many
         // AI úpravy textu od serveru: bezplatné dotazy došly, další jsou s Premium
         // (dokumentace `composeTextWithAi` / `fixTextWithAi`).
         "AICOMPOSE_FLOOD_PREMIUM" -> Res.string.error_ai_compose_premium

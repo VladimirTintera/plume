@@ -352,6 +352,22 @@ interface ChatRepository {
      */
     suspend fun inactiveGroups(): Result<List<ChatSummary>> = Result.failure(UnsupportedOperationException())
 
+    /**
+     * Jde uživateli udělat další chat veřejným (`checkCreatedPublicChatsLimit`)? `false` = má
+     * nejvíc veřejných skupin a kanálů, kolik server dovolí ([isPublicChatsLimit]); pak se
+     * nabídne odebrat odkaz některému z [createdPublicChats].
+     */
+    suspend fun canCreatePublicChat(): Result<Boolean> = Result.failure(UnsupportedOperationException())
+
+    /** Vlastní veřejné skupiny a kanály (`getCreatedPublicChats`) s jejich odkazem. */
+    suspend fun createdPublicChats(): Result<List<PublicChat>> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Udělá z vlastního veřejného chatu soukromý: odkaz se uvolní a může si ho vzít kdokoli.
+     * Tím se uvolní místo pod limitem veřejných chatů.
+     */
+    suspend fun releasePublicLink(chatId: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Kolik je v chatu nepřečtených zpráv, živě (`UpdateChatReadInbox`); neznámý chat = 0. */
     fun unreadCount(chatId: Long): Flow<Int> = flowOf(0)
 
@@ -643,6 +659,9 @@ data class ArchiveSettings(
  * i supergroup), kanál. TDLib má typů víc, ale pro filtr a tvar avataru na víc nezáleží.
  */
 enum class ChatKind { Private, Group, Channel }
+
+/** Vlastní veřejný chat a jeho odkaz `t.me/[username]` (bez zavináče). */
+data class PublicChat(val chat: ChatSummary, val username: String)
 
 /**
  * Položka seznamu chatů.

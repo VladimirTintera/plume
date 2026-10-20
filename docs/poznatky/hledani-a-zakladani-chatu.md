@@ -418,7 +418,8 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   vlastní uživatelské jméno: místní pravidla hned, dostupnost po pauze (`UsernameStatus`
   a `usernameMessage` se proto přestěhovaly z úpravy profilu do `core/ui/UsernameMessage.kt`).
   **Zakládaný chat se ptá `checkChatUsername(chatId = 0)`** — tak to TDLib pro chat, který ještě
-  neexistuje, chce. Strop veřejných chatů (`PublicChatsTooMany`) má vlastní větu.
+  neexistuje, chce. Strop veřejných chatů (`PublicChatsTooMany`) má vlastní větu; zjišťuje se
+  ale už po volbě Veřejný (viz „Limit veřejných odkazů").
 - **Veřejné jméno se nastavuje až stojící supergroupě** (`setSupergroupUsername`),
   `createNewSupergroupChat` ho nebere. Když to selže (jméno mezitím někdo vzal), chat zůstane
   soukromý a řekne to dialog po založení — zakládat znovu by vyrobilo druhý chat.
@@ -473,6 +474,42 @@ skupinami a kanály k opuštění (`ChannelLimitHost` / `ChannelLimitSheet`,
   skutečném účtu: deset neaktivních skupin a kanálů, výběr a chybové tlačítko „Opustit 1 chat".
   Nic se neopouštělo. **Samotný limit vyvolat nejde** (stovky skupin); vstup a založení
   při limitu pokrývají testy (`ConversationChatActionsTest`, `TelegramErrorsTest`).
+
+## Limit veřejných odkazů
+
+Kdo vlastní nejvíc veřejných skupin a kanálů, kolik server dovolí (`CHANNELS_ADMIN_PUBLIC_TOO_MUCH`,
+bez Premium deset), tomu další veřejný odkaz neprojde. Při založení skupiny nebo kanálu
+i v úpravě chatu se proto po volbě **Veřejný** otevře sheet s vlastními veřejnými chaty
+a u každého jde odkaz odebrat (`PublicLinkLimitSheet`, `PublicLinkLimitViewModel`,
+`PublicLinkLimitCheck`, testy `PublicLinkLimitTest`).
+
+- **Zjišťuje se HNED po volbě Veřejný** (`checkCreatedPublicChatsLimit` s
+  `PublicChatTypeHasUsername`), ne až při uložení — jinak by uživatel vymýšlel a nechal
+  kontrolovat odkaz, který nastavit nepůjde. V úpravě jen u chatu, který veřejný ještě není:
+  jeho vlastní odkaz se do limitu už počítá. Kdo mezitím přepnul zpátky na soukromý, tomu se
+  sheet neotevře.
+- **Odpověď je CHYBA, ne hodnota**: limit vrací `checkCreatedPublicChatsLimit` jako selhání
+  s konstantou od serveru. `ChatRepository.canCreatePublicChat` ji převádí na `false`, jiná
+  chyba (spojení) je selhání a nic neblokuje — rozhodne server při uložení. Když ho ohlásí
+  až tam (úprava), otevře se tentýž sheet místo hlášky (`Throwable.isPublicChatsLimit()`
+  v `core/telegram`). Tam, kde se sheet neukáže, je pro konstantu věta.
+- **Zavření sheetu bez odebrání vrátí přepínač na Soukromý** — odkaz by stejně nešel nastavit.
+  Po odebrání sheet odejde a Veřejný zůstane.
+- **Odebrání = chat bude soukromý**: upravitelné jméno se maže `setSupergroupUsername("")`
+  (`toggleSupergroupUsernameIsActive` ho vypnout neumí), další aktivní jména (sběratelská
+  z Fragmentu) se vypnou — jinak by chat zůstal veřejný a místo pod limitem se neuvolnilo.
+  Potvrzuje se dialogem, protože odkaz si pak může vzít kdokoli.
+- **Server vydá jen id** (`getCreatedPublicChats`); jména a fotky dočte `summariesFor`, odkaz
+  `getSupergroup`.
+- **Celý řádek je tlačítko, vpravo jen ikona.** První verze měla vpravo textové „Odebrat odkaz"
+  a na telefonu se název i odkaz zalomily do useknutého prvního slova („Plume test", „t.me/")
+  — `Text(maxLines = 1)` bez `overflow` zalamuje po slovech a druhý řádek ořízne. Právě podle
+  odkazu se přitom vybírá.
+- **Ověřeno jen vzhled**, dočasnou sondou (`canCreatePublicChat` vracel limit, necommitnuto) na
+  skutečném účtu: sheet v založení kanálu i v úpravě vlastního soukromého kanálu, skutečné
+  veřejné skupiny účtu s odkazy, potvrzovací dialog (zrušen) a návrat na Soukromý po zavření.
+  **Nic se neodebíralo** a samotný limit vyvolat nejde (deset veřejných chatů); souběh
+  s přepnutím, odebrání a jeho selhání pokrývají testy.
 
 ## Jeden výběr chatu: `ChatPicker`
 

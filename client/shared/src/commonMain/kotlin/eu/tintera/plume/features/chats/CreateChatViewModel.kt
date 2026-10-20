@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatCreation
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.CreatedChat
 import eu.tintera.plume.core.telegram.OutgoingAttachment
@@ -19,6 +20,7 @@ import eu.tintera.plume.core.ui.UsernameStatus
 import eu.tintera.plume.core.telegram.isChannelLimit
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.navigation.ChannelLimitRequests
+import eu.tintera.plume.features.channellimit.PublicLinkLimitCheck
 import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.PreparedProfilePhoto
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
@@ -68,6 +70,8 @@ class CreateChatViewModel(
     conversations: ConversationRepository,
     /** Limit skupin a kanálů: založit další nejde, sheet s neaktivními k opuštění ukazuje shell. */
     private val channelLimit: ChannelLimitRequests? = null,
+    /** Limit vlastních veřejných chatů ([PublicLinkLimitCheck]); bez něj se nezjišťuje předem. */
+    chats: ChatRepository? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("CreateChat")
@@ -80,9 +84,28 @@ class CreateChatViewModel(
      * veřejný najde kdokoli a to má být vědomá volba, ne přehlédnutý přepínač.
      */
     var isPublic by mutableStateOf(false)
+        private set
     var username by mutableStateOf("")
     var usernameStatus by mutableStateOf<UsernameStatus>(UsernameStatus.Idle)
         private set
+
+    /** Limit vlastních veřejných chatů; při něm obrazovka ukáže `PublicLinkLimitSheet`. */
+    val publicLimit: PublicLinkLimitCheck? = chats?.let { PublicLinkLimitCheck(it, viewModelScope) }
+
+    /** Soukromý, nebo veřejný. Na veřejný se hned zjistí, jestli ho limit pustí. */
+    fun choosePublic(public: Boolean) {
+        isPublic = public
+        if (public) publicLimit?.publicChosen { isPublic } else publicLimit?.privateChosen()
+    }
+
+    /**
+     * Sheet s limitem se zavřel. [released] = nějakému chatu se odebral odkaz a veřejný chat
+     * už jde; jinak zpátky na soukromý — odkaz by stejně nešel nastavit.
+     */
+    fun publicLimitClosed(released: Boolean) {
+        publicLimit?.closed()
+        if (!released) isPublic = false
+    }
 
     /** Oříznutá fotka (nebo video) na disku; `null` = bez fotky. */
     var photo by mutableStateOf<PreparedProfilePhoto?>(null)
