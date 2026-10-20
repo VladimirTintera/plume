@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.resources.story_albums_failed
+import eu.tintera.plume.core.telegram.STORY_ALBUM_NAME_MAX
+import eu.tintera.plume.core.telegram.StoryAlbum
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.QuickReaction
@@ -196,6 +199,104 @@ class StoriesViewModel(
         }
     }
 
+    private val _albums = MutableStateFlow<StoryAlbumsState?>(null)
+
+    /** Otevřený panel alb vlastního příběhu; `null` = zavřený. */
+    val albums: StateFlow<StoryAlbumsState?> = _albums.asStateFlow()
+
+    fun openAlbums(key: StoryKey) {
+        val story = _state.value.pages[key] ?: return
+        _albums.value = StoryAlbumsState(key = key, inAlbums = story.albumIds.toSet())
+        viewModelScope.launch {
+            repository.albums(key.posterChatId)
+                .onSuccess { found -> _albums.update { it?.takeIf { s -> s.key == key }?.copy(albums = found) } }
+                .onFailure { failure ->
+                    _albums.value = null
+                    _notice.value = failure.userMessage(Res.string.story_albums_failed)
+                }
+        }
+    }
+
+    fun closeAlbums() {
+        _albums.value = null
+    }
+
+    /** Dá příběh do alba, nebo ho z něj vyndá. Přepne se hned, při chybě se vrátí. */
+    fun toggleAlbum(albumId: Int) {
+        val current = _albums.value ?: return
+        val add = albumId !in current.inAlbums
+        setInAlbums(current.key, if (add) current.inAlbums + albumId else current.inAlbums - albumId)
+        viewModelScope.launch {
+            repository.setInAlbum(current.key.posterChatId, albumId, current.key.storyId, add)
+                .onFailure { failure ->
+                    setInAlbums(current.key, current.inAlbums)
+                    albumError(failure)
+                }
+        }
+    }
+
+    /** Nové album rovnou s tímhle příběhem. */
+    fun createAlbum(name: String) {
+        val current = _albums.value ?: return
+        val trimmed = name.trim().take(STORY_ALBUM_NAME_MAX)
+        if (trimmed.isEmpty() || current.busy) return
+        _albums.update { it?.copy(busy = true) }
+        viewModelScope.launch {
+            repository.createAlbum(current.key.posterChatId, trimmed, listOf(current.key.storyId))
+                .onSuccess { album ->
+                    _albums.update { it?.copy(albums = it.albums.orEmpty() + album, busy = false) }
+                    setInAlbums(current.key, (_albums.value?.inAlbums ?: current.inAlbums) + album.id)
+                }
+                .onFailure { failure ->
+                    _albums.update { it?.copy(busy = false) }
+                    albumError(failure)
+                }
+        }
+    }
+
+    fun renameAlbum(albumId: Int, name: String) {
+        val current = _albums.value ?: return
+        val trimmed = name.trim().take(STORY_ALBUM_NAME_MAX)
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            repository.renameAlbum(current.key.posterChatId, albumId, trimmed)
+                .onSuccess { renamed ->
+                    _albums.update { state -> state?.copy(albums = state.albums?.map { if (it.id == albumId) renamed else it }) }
+                }
+                .onFailure(::albumError)
+        }
+    }
+
+    /** Smaže album (příběhy zůstanou). */
+    fun deleteAlbum(albumId: Int) {
+        val current = _albums.value ?: return
+        viewModelScope.launch {
+            repository.deleteAlbum(current.key.posterChatId, albumId)
+                .onSuccess {
+                    _albums.update { state -> state?.copy(albums = state.albums?.filterNot { it.id == albumId }) }
+                    setInAlbums(current.key, (_albums.value?.inAlbums ?: current.inAlbums) - albumId)
+                }
+                .onFailure(::albumError)
+        }
+    }
+
+    /**
+     * Chyba patří DO panelu, ne do pilulky prohlížeče: panel je samostatné okno a pilulku pod
+     * sebou zakryje (ověřeno — hláška nebyla vidět).
+     */
+    private fun albumError(failure: Throwable) {
+        _albums.update { it?.copy(error = failure.userMessage(Res.string.story_albums_failed)) }
+    }
+
+    /** Členství v albech v panelu i u příběhu (ať se po zavření a otevření panelu nevrátí staré). */
+    private fun setInAlbums(key: StoryKey, inAlbums: Set<Int>) {
+        _albums.update { it?.takeIf { s -> s.key == key }?.copy(inAlbums = inAlbums) ?: it }
+        _state.update { state ->
+            val story = state.pages[key] ?: return@update state
+            state.copy(pages = state.pages + (key to story.copy(albumIds = inAlbums.toList())))
+        }
+    }
+
     fun noticeShown() {
         _notice.value = null
     }
@@ -293,4 +394,15 @@ data class StoryViewersState(
     val error: UiText? = null,
     /** Seznam už server nedá (příběh je dávno pryč); ukáže se věta, ne prázdno. */
     val expired: Boolean = false,
+)
+
+/** Panel alb vlastního příběhu [key]: alba autora (`null` = načítají se) a ve kterých příběh je. */
+data class StoryAlbumsState(
+    val key: StoryKey,
+    val albums: List<StoryAlbum>? = null,
+    val inAlbums: Set<Int> = emptySet(),
+    /** Zakládá se album; tlačítko je neaktivní, ať nevzniknou dvě. */
+    val busy: Boolean = false,
+    /** Poslední chyba; ukazuje se v panelu. */
+    val error: UiText? = null,
 )

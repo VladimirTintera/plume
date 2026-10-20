@@ -95,7 +95,21 @@ interface StoryRepository {
 
     /** Příběhy jednoho alba po stránkách; [offset] = kolik už je načtených. */
     suspend fun albumStories(chatId: Long, albumId: Int, offset: Int = 0): Result<ProfileStoriesPage>
+
+    /** Nové album autora [posterChatId] (vlastní účet, kanál, který spravujeme) s příběhy [storyIds]. */
+    suspend fun createAlbum(posterChatId: Long, name: String, storyIds: List<Int>): Result<StoryAlbum>
+
+    /** Přidá příběh do alba ([inAlbum]), nebo ho z něj vyndá. */
+    suspend fun setInAlbum(chatId: Long, albumId: Int, storyId: Int, inAlbum: Boolean): Result<Unit>
+
+    suspend fun renameAlbum(chatId: Long, albumId: Int, name: String): Result<StoryAlbum>
+
+    /** Smaže album; příběhy v něm zůstanou. */
+    suspend fun deleteAlbum(chatId: Long, albumId: Int): Result<Unit>
 }
+
+/** Telegram bere název alba o 1–12 znacích (`createStoryAlbum`, `setStoryAlbumName`). */
+const val STORY_ALBUM_NAME_MAX = 12
 
 data class StoryAlbum(val id: Int, val name: String)
 

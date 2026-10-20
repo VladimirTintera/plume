@@ -2854,6 +2854,10 @@ sealed interface MessageMedia {
         val viewCount: Int? = null,
         /** Seznam diváků už server nedá (příběh vypršel před víc než `story_viewers_expiration_delay`). */
         val viewersExpired: Boolean = false,
+        /** Alba, ve kterých vlastní příběh je; u cizího prázdné (TDLib je dává jen spravovaným). */
+        val albumIds: List<Int> = emptyList(),
+        /** Jde vlastní příběh dát do alba (`canBeAddedToAlbum`). */
+        val canBeAddedToAlbum: Boolean = false,
     ) : MessageMedia
 }
 
