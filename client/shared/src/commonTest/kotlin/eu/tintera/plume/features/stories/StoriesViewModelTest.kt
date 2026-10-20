@@ -9,6 +9,10 @@ import eu.tintera.plume.core.telegram.StoryDraft
 import eu.tintera.plume.core.telegram.StoryPostCheck
 import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.ProfileStoriesPage
+import eu.tintera.plume.core.telegram.ReportOption
+import eu.tintera.plume.core.telegram.ReportOptionId
+import eu.tintera.plume.core.telegram.ReportRequest
+import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.StoryViewer
 import eu.tintera.plume.core.telegram.StoryViewersPage
@@ -102,6 +106,20 @@ class StoriesViewModelTest {
             Result.success(ProfileStoriesPage(emptyList(), 0, emptySet()))
 
         override suspend fun author(chatId: Long): ActiveStories? = active.value[chatId]?.copy(stories = emptyList())
+
+        val reports = mutableListOf<Pair<Int, ReportRequest>>()
+
+        /** Napřed důvod, po výběru hotovo — jako server. */
+        override suspend fun report(posterChatId: Long, storyId: Int, request: ReportRequest): Result<ReportStep> {
+            reports += storyId to request
+            return Result.success(
+                if (request.optionId == null) {
+                    ReportStep.ChooseOption("Proč?", listOf(ReportOption(ReportOptionId(byteArrayOf(1)), "Spam")))
+                } else {
+                    ReportStep.Done
+                },
+            )
+        }
 
         val hidden = mutableListOf<Pair<Long, Boolean>>()
 
@@ -231,6 +249,21 @@ class StoriesViewModelTest {
         viewModel.next()
         viewModel.next()
         assertEquals(true, viewModel.state.value.closed, "za posledním z mřížky konec, žádný další autor")
+    }
+
+    @Test
+    fun reportingAsksForReasonThenConfirms() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.reportStory(key)
+        advanceUntilIdle()
+        val step = viewModel.report.wizard.value?.step as? ReportStep.ChooseOption
+        assertNotNull(step, "napřed důvod od serveru")
+        viewModel.report.choose(step.options.single())
+        advanceUntilIdle()
+        assertNull(viewModel.report.wizard.value, "po nahlášení se průvodce zavře")
+        assertNotNull(viewModel.notice.value, "výsledek jde do pilulky")
+        assertEquals(listOf(1, 1), repository.reports.map { it.first }, "hlásí se příběh, ne chat")
     }
 
     @Test

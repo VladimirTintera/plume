@@ -3,6 +3,7 @@ package eu.tintera.plume.features.stories
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.QuickReaction
+import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.core.telegram.StoryListKind
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.userMessage
@@ -69,12 +70,38 @@ class StoriesViewModel(
     )
     val state: StateFlow<StoriesState> = _state.asStateFlow()
 
+    /** Hlášený příběh; průvodce se volá pro autora a tohle doplní, který příběh to je. */
+    private var reporting: StoryKey? = null
+
+    /**
+     * Průvodce nahlášením — tentýž jako u chatu a zpráv ([ReportFlow]). Hotovo nebo chyba jde
+     * do pilulky nad lištou ([notice]), prohlížeč snackbar nemá.
+     */
+    val report = ReportFlow(viewModelScope) { _, request ->
+        val key = reporting ?: return@ReportFlow Result.failure(IllegalStateException("Žádný hlášený příběh"))
+        repository.report(key.posterChatId, key.storyId, request)
+    }
+
+    /** Začne nahlášení příběhu [key]; prohlížeč pod průvodcem stojí. */
+    fun reportStory(key: StoryKey) {
+        reporting = key
+        report.start(key.posterChatId)
+    }
+
     /** Příběh, o kterém TDLib ví, že je otevřený. */
     private var opened: StoryKey? = null
 
     private val loading = mutableSetOf<StoryKey>()
 
     init {
+        viewModelScope.launch {
+            report.outcome.collect { outcome ->
+                if (outcome != null) {
+                    _notice.value = outcome
+                    report.consumeOutcome()
+                }
+            }
+        }
         if (storyIds.isNotEmpty()) {
             viewModelScope.launch {
                 val author = repository.author(startChatId)

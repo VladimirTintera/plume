@@ -86,6 +86,19 @@ Skladba:
 - Prohlížeč po přesunu zůstane, kde je, a ohlásí to pilulkou („Příběhy od … jsou skryté
   v archivu"); hromádky a lemy se přeskládají updatem `chatActiveStories`.
 
+## Nahlášení
+
+⋮ v hlavičce prohlížeče → „Nahlásit příběh" (vlastní skupina, chybová barva; jen cizí
+a dostupný příběh) → **tentýž průvodce jako u chatu a zpráv** (`ReportFlow`, `ReportSheet`,
+`docs/poznatky/spam-a-blokovani.md`). `reportStory` je průvodce stejně jako `reportChat`:
+prázdný požadavek se zeptá na důvod, pak případně na text; otázky i důvody píše server.
+
+- `ReportFlow` volá funkci (chatId, krok); ViewModel si pamatuje, KTERÝ příběh se hlásí
+  (`reporting`), a doplní ho — průvodce sám o příbězích neví.
+- Výsledek jde do pilulky nad lištou, ne do snackbaru (prohlížeč `Scaffold` nemá) —
+  ViewModel přeposílá `ReportFlow.outcome` do `notice`.
+- Pod průvodcem příběh stojí.
+
 ## Příběhy v profilu
 
 - **Avatar v hlavičce profilu má lem**, když má chat aktivní příběhy (`ChatProfileViewModel`
@@ -268,6 +281,10 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   profilu (⋮ → Post to Profile); v Plume (…029) profil Pixelu 5 → avatar s lemem → záložka
   „Stories" s dlaždicí → prohlížeč bez ⋮, po dohrání zpátky v profilu; ťuknutí na avatar
   pustí aktivní příběhy. Neověřené: stránkování, připnuté, video dlaždice, iOS.
+- **Nahlášení ověřené po seznam důvodů** (20. 10. 2026, příběh Pixelu 5): ⋮ → dvě skupiny
+  (skrýt / červené „Report story") → sheet „What is wrong with this story?" s důvody od
+  serveru → zavřeno bez odeslání, příběh pod sheetem stál. **Skutečné nahlášení odeslané
+  NENÍ** — šlo by Telegramu. Krok s textem a hláška po nahlášení jen v testu.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).

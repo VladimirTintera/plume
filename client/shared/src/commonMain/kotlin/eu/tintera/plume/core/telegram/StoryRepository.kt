@@ -83,6 +83,12 @@ interface StoryRepository {
 
     /** Jméno, fotka a druh autora pro hlavičku prohlížeče — i když teď žádný aktivní příběh nemá. */
     suspend fun author(chatId: Long): ActiveStories?
+
+    /**
+     * Jeden krok nahlášení příběhu (`reportStory`). Je to PRŮVODCE jako u chatu: prázdný
+     * [request] se zeptá na důvod, pak případně na text — viz [ChatRepository.report].
+     */
+    suspend fun report(posterChatId: Long, storyId: Int, request: ReportRequest): Result<ReportStep>
 }
 
 data class ProfileStoriesPage(
