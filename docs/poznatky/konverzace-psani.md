@@ -624,9 +624,11 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
   - Ověřeno na emulátoru: GIF poslaný z výběru → Upravit → sponka → výběr GIFů, ťuknutí na jiný
     → „Nový GIF" v hlavičce, po uložení nový GIF s „upraveno". **GIF poslaný přes inline bota
     (`via @gif`) ověřený není** — jestli u něj server výměnu dovolí, rozhoduje `canEditMedia`.
-- **Po „Upravit" se pole samo nefokusuje.** Že se něco stalo, ukazuje karta s původním textem
-  a fajfka místo odeslání; klávesnici si uživatel vyvolá ťuknutím do pole. Dřív si pole fokus
-  a klávesnici vyžádalo samo (uživatel si to nepřál).
+- **Po „Upravit" si pole vezme fokus a vysune klávesnici**, stejně jako po „Odpovědět" (viz
+  „Odpovědi (reply)"), kurzor stojí na konci textu. Chvíli se pole samo nefokusovalo, ale proti
+  odpovědi to bylo nekonzistentní a běžný uživatel čeká, že po „Upravit" rovnou píše — tak to
+  dělá i oficiální Telegram. Návrat do úpravy po neúspěšném uložení (`enterEdit` z `sendEdit`)
+  fokus nebere: přichází ze serveru, ne z ruky uživatele.
 
 ## Formátování při psaní
 
@@ -1056,6 +1058,17 @@ v `ConversationSuggestions` (`hashtagQuery`, `mentionQuery(…, atStart)`, testy
   u odpovědi na fotku, rozmazaný u odpovědi na spoiler, náhled nad polem po tahu na odpověď.
   Kolečko, samolepka, obal skladby a odpověď z jiného chatu jsou pokryté testem, **na zařízení
   ověřené nejsou**; iOS jen přeložené.
+- **„Odpovědět" zaostří pole a vysune klávesnici** (`ConversationState.inputFocusRequest`) —
+  z nabídky, tahem, „Citovat" i z prohlížeče médií, na všech platformách. „Upravit" taky. Odpovídá se proto,
+  aby se psalo; tak to dělá i oficiální Telegram, WhatsApp a Signal. Na desktopu chyběl fokus
+  nejvíc: po odpovědi se muselo ještě kliknout do pole.
+  - **Spouští to počítadlo, ne změna `replyingTo`.** Odpověď obnovená z konceptu při otevření
+    chatu a vynucená odpověď bota (`replyTo(focusInput = false)`) klávesnici vysunout nesmí —
+    reakce na stav by ji vytáhla při každém otevření chatu s rozepsanou odpovědí.
+  - **Pole si pamatuje vyřízenou hodnotu** (`rememberSaveable`, výchozí = hodnota při složení),
+    takže návrat do konverzace ani otočení žádost nezopakují.
+  - Ověřeno na emulátoru: nabídka → Odpovědět vysune klávesnici s kurzorem v poli, chat
+    s rozepsanou odpovědí se otevře bez klávesnice. **Desktop a iOS jen přeložené.**
 - **Vynucená odpověď bota může přebít koncept.** `restoreDraftReply` i vynucená odpověď nastavují
   `replyingTo`, jen když je prázdné, a kdo doběhne dřív, vyhraje — koncept se čte asynchronně.
   Při zkoušení citací v chatu s testovacím botem pozor na starou `force_reply`.

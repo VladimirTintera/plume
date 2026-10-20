@@ -509,6 +509,7 @@ internal fun ConversationBottomBar(
         ),
         replyingTo = state.replyingTo,
         replyQuote = state.replyQuote?.text,
+        focusRequest = state.inputFocusRequest,
         partnerName = state.info?.title,
         flight = state.flight,
         onCancelReply = viewModel::clearReply,

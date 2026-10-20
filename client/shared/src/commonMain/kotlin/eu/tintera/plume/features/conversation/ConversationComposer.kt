@@ -439,6 +439,7 @@ internal class ConversationComposer(
      *
      * Rozepsaný text se **odloží a po skončení úpravy vrátí**. Úprava je vsuvka — kdo si
      * uprostřed psaní všimne překlepu v minulé zprávě, nechce kvůli tomu přijít o rozepsanou.
+     * Pole si vezme fokus a vysune klávesnici, stejně jako po „Odpovědět" — upravuje se psaním.
      */
     fun startEdit(messageId: Long, canEditMedia: Boolean = false) {
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
@@ -449,6 +450,8 @@ internal class ConversationComposer(
             message.linkPreviewOptions ?: LinkPreviewOptions(),
             replace = replaceableMedia(message, canEditMedia),
         )
+        // Jen tady, ne v `enterEdit`: návrat do úpravy po chybě uložení přichází ze serveru.
+        state.update { it.copy(inputFocusRequest = it.inputFocusRequest + 1) }
     }
 
     /**
@@ -611,13 +614,21 @@ internal class ConversationComposer(
 
     /**
      * Nastaví zprávu, na kterou se odpovídá, případně jen její úryvek ([quote]). Zobrazí se nad
-     * vstupním polem.
+     * vstupním polem. S [focusInput] si pole vezme fokus a vysune klávesnici — odpovídá se proto,
+     * aby se psalo.
      */
-    fun replyTo(messageId: Long, quote: ReplyQuote? = null) {
+    fun replyTo(messageId: Long, quote: ReplyQuote? = null, focusInput: Boolean = true) {
         // Swipe na odpověď se nabízí u každé zprávy; kde se psát nesmí, není kam odpovědět.
         if (!state.value.canWrite) return
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
-        state.update { it.copy(replyingTo = message, replyQuote = quote, messageMenu = null) }
+        state.update {
+            it.copy(
+                replyingTo = message,
+                replyQuote = quote,
+                messageMenu = null,
+                inputFocusRequest = if (focusInput) it.inputFocusRequest + 1 else it.inputFocusRequest,
+            )
+        }
         // Citace je součást konceptu — jen když už se něco píše, jinak není co ukládat.
         if (draft.text.isNotBlank()) scheduleDraftSave()
     }
@@ -634,7 +645,9 @@ internal class ConversationComposer(
         }
         scope.launch {
             repository.message(chatId, messageId).onSuccess { message ->
-                state.update { it.copy(replyingTo = message, replyQuote = null, messageMenu = null) }
+                state.update {
+                    it.copy(replyingTo = message, replyQuote = null, messageMenu = null, inputFocusRequest = it.inputFocusRequest + 1)
+                }
                 if (draft.text.isNotBlank()) scheduleDraftSave()
             }
         }

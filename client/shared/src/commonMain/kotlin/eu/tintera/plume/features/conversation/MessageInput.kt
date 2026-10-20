@@ -140,6 +140,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -226,6 +227,8 @@ internal fun MessageInput(
     replyingTo: ChatMessage?,
     /** Citovaný úryvek [replyingTo], nebo `null` (odpověď na celou zprávu). */
     replyQuote: String?,
+    /** Počítadlo z `ConversationState.inputFocusRequest`; každá nová hodnota zaostří pole. */
+    focusRequest: Int,
     partnerName: String?,
     flight: MessageFlight?,
     onCancelReply: () -> Unit,
@@ -451,6 +454,19 @@ internal fun MessageInput(
     val fieldFocus = remember { FocusRequester() }
     var fieldHeight by remember { mutableStateOf(0.dp) }
     LaunchedEffect(typing) { if (!typing) formattingOpen = false }
+    /*
+     * Po „Odpovědět" a „Upravit" se rovnou píše: pole si vezme fokus a vysune klávesnici. Reaguje se jen na
+     * NOVOU hodnotu počítadla — ta, se kterou se pole složilo (návrat do konverzace, otočení),
+     * je vyřízená, jinak by klávesnice vyjela při každém návratu do chatu.
+     */
+    var handledFocusRequest by rememberSaveable { mutableIntStateOf(focusRequest) }
+    LaunchedEffect(focusRequest) {
+        if (focusRequest == handledFocusRequest) return@LaunchedEffect
+        handledFocusRequest = focusRequest
+        if (voiceActive) return@LaunchedEffect
+        fieldFocus.requestFocus()
+        keyboard?.show()
+    }
 
     var linkOptionsOpen by rememberSaveable { mutableStateOf(false) }
     // Náhled, který zmizel (smazaný odkaz, odeslaná zpráva), si sheet nenechá otevřený.
