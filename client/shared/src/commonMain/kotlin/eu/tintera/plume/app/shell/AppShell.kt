@@ -138,6 +138,10 @@ import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.navigation.ArchiveChatProfileRoute
 import eu.tintera.plume.core.navigation.ArchiveConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
+import eu.tintera.plume.core.telegram.CallRepository
+import eu.tintera.plume.features.calls.CallRatingHost
+import eu.tintera.plume.features.calls.CallsScreen
+import eu.tintera.plume.core.navigation.CallsRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
@@ -300,6 +304,8 @@ fun AppShell(modifier: Modifier = Modifier) {
         )
         // Probíhající hovor nad vším — přes celou obrazovku, nebo zmenšený do pruhu nahoře.
         CallOverlay(Modifier.align(Alignment.TopCenter))
+        // Hodnocení po hovoru, o které server požádal; až obrazovka hovoru zmizí.
+        CallRatingHost()
     }
 }
 
@@ -695,6 +701,8 @@ private fun shellEntryProvider(
             onOpenArchive = {
                 if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
             },
+            onOpenCalls = { if (chatsStack.lastOrNull() != CallsRoute) chatsStack.add(CallsRoute) }
+                .takeIf { koinInject<CallRepository>().supported },
             onNewChat = {
                 if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
             },
@@ -747,6 +755,19 @@ private fun shellEntryProvider(
      * Zahájení nové konverzace. List panel jako Chaty a Archiv: vlevo nahradí seznam chatů,
      * po výběru kontaktu se odebere a otevře se konverzace.
      */
+    // Historie hovorů: seznam vlevo, konverzace z ní vedle (jako nová konverzace).
+    entry<CallsRoute>(
+        metadata = Panes.list(
+            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+        ),
+    ) {
+        CallsScreen(
+            viewModel = koinViewModel(),
+            onBack = { chatsStack.remove(CallsRoute) },
+            onOpenChat = { chatId -> chatsStack.openConversation(chatId) },
+        )
+    }
+
     entry<NewChatRoute>(
         metadata = Panes.list(
             detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },

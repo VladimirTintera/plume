@@ -107,7 +107,7 @@ internal fun CallRow(call: MessageMedia.Call, accent: Color, onCallBack: (() -> 
 }
 
 /** Šipka ven u odchozího, dovnitř u příchozího; zalomená, když se nikdo nedovolal. */
-private fun CallOutcome.icon() = when (this) {
+internal fun CallOutcome.icon() = when (this) {
     CallOutcome.Outgoing -> Res.drawable.call_made_24dp
     CallOutcome.Incoming -> Res.drawable.call_received_24dp
     CallOutcome.Missed, CallOutcome.Declined -> Res.drawable.call_missed_24dp
