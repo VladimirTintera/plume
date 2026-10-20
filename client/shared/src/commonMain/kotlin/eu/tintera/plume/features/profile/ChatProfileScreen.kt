@@ -923,6 +923,7 @@ private fun TabContent(
             contentPadding = contentPadding,
             onOpen = onOpenStory,
             onLoadMore = viewModel::loadMoreStories,
+            onSelectAlbum = viewModel::selectStoryAlbum,
         )
 
         ProfileTab.CommonGroups -> RelatedChatsList(

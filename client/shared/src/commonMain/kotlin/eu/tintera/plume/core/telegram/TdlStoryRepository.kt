@@ -380,6 +380,26 @@ class TdlStoryRepository(
                 }
             }
 
+    override suspend fun albums(chatId: Long): Result<List<StoryAlbum>> =
+        client.getChatStoryAlbums(chatId = chatId).toResult()
+            .onFailure { logger.w(it) { "getChatStoryAlbums $chatId" } }
+            .map { result -> result.albums.map { StoryAlbum(id = it.id, name = it.name) } }
+
+    override suspend fun albumStories(chatId: Long, albumId: Int, offset: Int): Result<ProfileStoriesPage> =
+        client.getStoryAlbumStories(chatId = chatId, storyAlbumId = albumId, offset = offset, limit = PROFILE_PAGE).toResult()
+            .onFailure { logger.w(it) { "getStoryAlbumStories $chatId/$albumId" } }
+            .map { page ->
+                ProfileStoriesPage(
+                    stories = page.stories.map { story ->
+                        MessageStory(storyPosterChatId = chatId, storyId = story.id, viaMention = false)
+                            .toMedia(story) { id -> _active.value[id]?.title ?: client.getChat(chatId = id).toResult().getOrNull()?.title }
+                    },
+                    totalCount = page.totalCount,
+                    // Připnuté má jen profil, ne album.
+                    pinnedIds = emptySet(),
+                )
+            }
+
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()
             .onFailure { logger.w(it) { "closeStory $posterChatId/$storyId" } }

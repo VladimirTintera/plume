@@ -3,7 +3,8 @@
 Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání,
 prohlížeč přes celou obrazovku a v něm reakce a odpověď; zveřejnění vlastního příběhu z fotky
 i videa (i jen pro blízké přátele), diváci (počet i seznam s reakcemi) a smazání; skrytí autora
-do archivu; příběhy v profilu (lem kolem avataru a záložka „Příběhy"). Alba příběhů zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
+do archivu; příběhy v profilu (lem kolem avataru a záložka „Příběhy") i s alby. Správa alb
+(zakládání, přidávání) zatím není (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
 zprávě a odpověď na příběh jsou v `typy-zprav.md`.
 
 Skladba:
@@ -122,6 +123,13 @@ zapisuje dvakrát.
   (autor není v žádném seznamu). Jméno a fotku autora dočte `StoryRepository.author`, protože
   autor teď nemusí mít aktivní příběh; do té doby je prohlížeč prázdný, ne zavřený.
 - Vlastní profil (Uložené zprávy) záložku nemá; vlastní příběhy jsou v prohlížeči.
+- **Alba** (`getChatStoryAlbums`, `getStoryAlbumStories`): čipy „Vše" a názvy alb přes celou
+  šířku nad mřížkou, jen když autor nějaké má. Výběr alba mřížku vyprázdní a načte jeho
+  příběhy po stránkách (`offset` = počet načtených); odpověď na album, které uživatel mezitím
+  přepnul, se zahodí. Připnuté má jen „Vše". Prohlížeč z alba projde to, co je v mřížce vidět.
+  **Záložka se řídí `ProfileStories.available`, ne obsahem mřížky** — prázdné album by ji jinak
+  schovalo i s čipy, na kterých uživatel zrovna stojí. Prázdné (nebo nenačtené) album ukáže
+  „Album je prázdné".
 
 ## Prohlížeč
 
@@ -290,6 +298,11 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   (skrýt / červené „Report story") → sheet „What is wrong with this story?" s důvody od
   serveru → zavřeno bez odeslání, příběh pod sheetem stál. **Skutečné nahlášení odeslané
   NENÍ** — šlo by Telegramu. Krok s textem a hláška po nahlášení jen v testu.
+- **Alba ověřená jen sondou** (20. 10. 2026): podstrčená alba „Léto 2026" a „Výlety"
+  v profilu Pixelu 5 → čipy nad mřížkou, výběr alba (server ho nezná) → „This album is empty."
+  a záložka zůstala, „All" vrátí dlaždici. Profil bez alb beze změny. **Skutečné album ověřené
+  NENÍ** — vyrobit ho jde jen v oficiální aplikaci (⋮ u vlastního příběhu → Add to Album)
+  a oba testovací telefony byly zamčené.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).

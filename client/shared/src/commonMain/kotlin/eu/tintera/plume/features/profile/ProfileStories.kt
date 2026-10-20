@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.profile_story_albums_all
+import eu.tintera.plume.resources.profile_story_album_empty
+import eu.tintera.plume.core.ui.GroupEmptyRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +53,7 @@ internal fun ProfileStoriesGrid(
     contentPadding: PaddingValues,
     onOpen: (storyId: Int) -> Unit,
     onLoadMore: () -> Unit,
+    onSelectAlbum: (albumId: Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
@@ -55,6 +63,17 @@ internal fun ProfileStoriesGrid(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier.fillMaxSize(),
     ) {
+        // Alba jako čipy přes celou šířku nad mřížkou; „Vše" první. Bez alb nic.
+        if (stories.albums.isNotEmpty()) {
+            item(key = "albums", span = { GridItemSpan(maxLineSpan) }) {
+                AlbumChips(stories, onSelectAlbum)
+            }
+        }
+        if (stories.items.isEmpty() && !stories.loading && !stories.hasMore) {
+            item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
+                GroupEmptyRow(stringResource(Res.string.profile_story_album_empty))
+            }
+        }
         itemsIndexed(stories.items, key = { _, story -> story.storyId }) { index, story ->
             if (stories.hasMore) LoadMoreAtEnd(index, stories.items.size, onLoadMore)
             StoryTile(story, pinned = story.storyId in stories.pinnedIds, onClick = { onOpen(story.storyId) })
@@ -115,6 +134,29 @@ private fun StoryTile(story: MessageMedia.Story, pinned: Boolean, onClick: () ->
                     modifier = Modifier.size(BADGE_ICON),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AlbumChips(stories: ProfileStories, onSelectAlbum: (Int?) -> Unit) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+    ) {
+        item(key = "all") {
+            FilterChip(
+                selected = stories.albumId == null,
+                onClick = { onSelectAlbum(null) },
+                label = { Text(stringResource(Res.string.profile_story_albums_all)) },
+            )
+        }
+        items(stories.albums, key = { it.id }) { album ->
+            FilterChip(
+                selected = stories.albumId == album.id,
+                onClick = { onSelectAlbum(album.id) },
+                label = { Text(album.name, maxLines = 1) },
+            )
         }
     }
 }

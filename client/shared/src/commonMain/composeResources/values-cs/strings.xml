@@ -3332,6 +3332,8 @@
     <string name="profile_stories_open">Zobrazit příběhy</string>
     <string name="profile_story_open">Otevřít příběh</string>
     <string name="profile_story_pinned">Připnutý</string>
+    <string name="profile_story_albums_all">Vše</string>
+    <string name="profile_story_album_empty">Album je prázdné.</string>
     <string name="location_live_share">Sdílet živou polohu</string>
     <string name="location_live_share_hint">Posouvá se, dokud sdílení nezastavíš</string>
     <string name="location_live_period_title">Sdílet živou polohu na…</string>

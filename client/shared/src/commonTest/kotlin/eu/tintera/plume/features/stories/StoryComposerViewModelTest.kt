@@ -46,6 +46,8 @@ class StoryComposerViewModelTest {
         override suspend fun setHidden(chatId: Long, hidden: Boolean) = Result.success(Unit)
         override suspend fun profileStories(chatId: Long, fromStoryId: Int) = Result.success(ProfileStoriesPage(emptyList(), 0, emptySet()))
         override suspend fun author(chatId: Long): ActiveStories? = null
+        override suspend fun albums(chatId: Long) = Result.success(emptyList<eu.tintera.plume.core.telegram.StoryAlbum>())
+        override suspend fun albumStories(chatId: Long, albumId: Int, offset: Int) = Result.success(ProfileStoriesPage(emptyList(), 0, emptySet()))
         override suspend fun report(posterChatId: Long, storyId: Int, request: ReportRequest) = Result.success<ReportStep>(ReportStep.Done)
         override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> {
             savedFriends += userIds

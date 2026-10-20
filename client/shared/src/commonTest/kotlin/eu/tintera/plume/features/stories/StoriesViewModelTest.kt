@@ -121,6 +121,11 @@ class StoriesViewModelTest {
             )
         }
 
+        override suspend fun albums(chatId: Long) = Result.success(emptyList<eu.tintera.plume.core.telegram.StoryAlbum>())
+
+        override suspend fun albumStories(chatId: Long, albumId: Int, offset: Int) =
+            Result.success(ProfileStoriesPage(emptyList(), 0, emptySet()))
+
         val hidden = mutableListOf<Pair<Long, Boolean>>()
 
         override suspend fun setHidden(chatId: Long, hidden: Boolean): Result<Unit> {
