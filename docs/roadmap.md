@@ -577,9 +577,9 @@ a se serverem, takže přednostně:
    (`getExternalLinkInfo`, `getExternalLink`) ne.
 3. ~~**Seznam hovorů a hodnocení** (`searchCallMessages`, `deleteAllCallMessages`,
    `sendCallRating`)~~ — hotovo: menu účtu → Hovory a hodnocení po hovoru, o které server
-   požádá (`docs/poznatky/hovory.md`, „Historie hovorů" a „Hodnocení hovoru"). Zbývá
-   rozhodnout ladicí data a log pro Telegram (`sendCallDebugInformation`, `sendCallLog`):
-   server o ně občas stojí, Plume je zatím neposílá — deník hovorů jde ven jen ručně.
+   požádá, i ladicí data a log, když o ně server požádá (`sendCallDebugInformation`,
+   `sendCallLog`; `docs/poznatky/hovory.md`, „Historie hovorů" a „Hodnocení hovoru"). Zbývá
+   ověřit na zařízení skutečnou žádost serveru o hodnocení a o ladicí data.
 4. **Import chatu z jiné aplikace** (`getMessageFileType`, `getMessageImportConfirmationText`,
    `importMessages`) — export z WhatsAppu sdílený do Plume. Cíl sdílení na Androidu už je
    (`docs/poznatky/sdileni.md`), chybí rozpoznání exportu a průběh importu.

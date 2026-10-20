@@ -16,6 +16,7 @@ import dev.g000sha256.tdl.dto.CallProblemPixelatedVideo
 import dev.g000sha256.tdl.dto.CallProblemSilentLocal
 import dev.g000sha256.tdl.dto.CallProblemSilentRemote
 import dev.g000sha256.tdl.dto.InputCallDiscarded
+import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.CallStateError
 import dev.g000sha256.tdl.dto.CallStateExchangingKeys
 import dev.g000sha256.tdl.dto.CallStateHangingUp
@@ -43,6 +44,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import eu.tintera.plume.core.connectivity.NetworkKind
 import eu.tintera.plume.core.connectivity.NetworkStatus
 import kotlinx.coroutines.flow.Flow
@@ -80,6 +84,8 @@ internal class TdlCallRepository(
     private val journal: CallJournal? = null,
     /** Popředí aplikace — do deníku, jestli se hovor zadrhl se zhasnutou obrazovkou. */
     foreground: Flow<Boolean>? = null,
+    /** Verze aplikace do ladicích dat pro Telegram. */
+    private val applicationVersion: String = "",
 ) : CallRepository {
 
     /** Telefon je bez sítě; nový hovor si stav převezme. */
@@ -436,12 +442,10 @@ internal class TdlCallRepository(
                 if (state.needRating && spoke) {
                     _ratingRequest.value = CallRatingRequest(callId = call.id, userId = call.userId, isVideo = call.isVideo)
                 }
-                if (state.needDebugInformation || state.needLog) {
-                    // Ladicí data a log ze knihovny Plume serveru neposílá (viz `docs/poznatky/hovory.md`,
-                    // „Hodnocení hovoru"); do deníku aspoň to, že o ně stál.
-                    note("Server asked for debug information ${state.needDebugInformation}, log ${state.needLog}", call.id)
-                }
                 finish(call.id, CallPhase.Ended)
+                if (state.needDebugInformation || state.needLog) {
+                    sendDiagnostics(call.id, debug = state.needDebugInformation, log = state.needLog)
+                }
             }
             is CallStateError -> {
                 logger.w { "Hovor skončil chybou: ${state.error.code} ${state.error.message}" }
@@ -599,6 +603,35 @@ internal class TdlCallRepository(
             .onFailure { logger.w(it) { "Hodnocení hovoru ${request.callId} se nepodařilo odeslat." } }
     }
 
+    /**
+     * Ladicí data a log, o které server po hovoru požádal (`needDebugInformation`, `needLog`).
+     * Jen technické údaje: řádky deníku k tomuhle hovoru (stavy, verze, servery, přenos, síť —
+     * žádná jména, čísla ani obsah, viz [CallJournal]) a podrobný výpis přenosu se zamaskovanými
+     * adresami (`CallDetailLog`). Posílá se chvilku po konci, až výpis doběhne a zavře se.
+     */
+    private fun sendDiagnostics(callId: Int, debug: Boolean, log: Boolean) {
+        val journal = journal ?: return
+        scope.launch {
+            delay(DIAGNOSTICS_SETTLE_MS)
+            if (debug) {
+                val info = callDebugInformation(applicationVersion, journal.lastCallLines(callId))
+                holder.client.sendCallDebugInformation(callId = InputCallDiscarded(callId = callId), debugInformation = info).toResult()
+                    .onSuccess { note("Sent debug information to Telegram", callId) }
+                    .onFailure { logger.w(it) { "Ladicí data hovoru $callId se nepodařilo odeslat." } }
+            }
+            if (log) {
+                val path = journal.detailLog(callId)
+                if (path == null) {
+                    note("No detail log to send to Telegram", callId)
+                } else {
+                    holder.client.sendCallLog(callId = InputCallDiscarded(callId = callId), logFile = InputFileLocal(path = path)).toResult()
+                        .onSuccess { note("Sent call log to Telegram", callId) }
+                        .onFailure { logger.w(it) { "Log hovoru $callId se nepodařilo odeslat." } }
+                }
+            }
+        }
+    }
+
     override fun dismissRating() {
         _ratingRequest.value = null
     }
@@ -669,3 +702,19 @@ private fun CallProblem.toTdl(): dev.g000sha256.tdl.dto.CallProblem = when (this
     CallProblem.DistortedVideo -> CallProblemDistortedVideo()
     CallProblem.PixelatedVideo -> CallProblemPixelatedVideo()
 }
+
+/** Jak dlouho po konci hovoru počkat s ladicími daty: výpis přenosu se zavírá až se zastavením médií. */
+private const val DIAGNOSTICS_SETTLE_MS = 3_000L
+
+/**
+ * Ladicí data hovoru pro Telegram (`sendCallDebugInformation`, formát je na aplikaci): JSON
+ * s klientem, verzí, telefonem, systémem a řádky deníku k hovoru.
+ */
+internal fun callDebugInformation(applicationVersion: String, journal: List<String>): String =
+    buildJsonObject {
+        put("client", JsonPrimitive("Plume"))
+        put("version", JsonPrimitive(applicationVersion))
+        put("device", JsonPrimitive(platformDeviceModel))
+        put("system", JsonPrimitive(platformSystemVersion))
+        put("journal", JsonArray(journal.map { JsonPrimitive(it) }))
+    }.toString()

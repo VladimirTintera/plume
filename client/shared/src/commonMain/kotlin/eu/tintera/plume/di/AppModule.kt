@@ -87,6 +87,7 @@ import eu.tintera.plume.core.telegram.TdlInstantViewRepository
 import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.navigation.ChannelLimitRequests
+import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.features.channellimit.ChannelLimitViewModel
 import eu.tintera.plume.core.share.ShareRequests
@@ -298,6 +299,7 @@ fun appModule() = module {
             pointerDisplay = getOrNull<CallPointerDisplay>(),
             journal = getOrNull<CallJournal>(),
             foreground = getOrNull<AppForeground>()?.isForeground,
+            applicationVersion = getOrNull<TelegramPaths>()?.applicationVersion.orEmpty(),
         )
     }
     if (autosavesToGallery) {
