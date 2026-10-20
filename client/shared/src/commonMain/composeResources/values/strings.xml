@@ -1257,6 +1257,13 @@
     <string name="service_topic_unhidden">The topic is visible again</string>
     <string name="service_protected_content_disable_requested">Someone asked to turn content protection off</string>
     <string name="service_protected_content_disable_expired">The request to turn content protection off expired</string>
+    <string name="protection_request_reject">Decline</string>
+    <string name="protection_request_approve">Allow</string>
+    <string name="protection_request_confirm_title">Turn off content protection?</string>
+    <string name="protection_request_confirm_text">Both of you will be able to save, copy and forward messages from this chat.</string>
+    <string name="protection_request_approved">Content protection turned off</string>
+    <string name="protection_request_rejected">Request declined</string>
+    <string name="protection_request_failed">Couldn’t answer the request.</string>
     <string name="service_suggested_post_approved">A suggested post was approved</string>
     <string name="service_suggested_post_declined">A suggested post was declined</string>
     <string name="service_suggested_post_declined_comment">The suggested post was declined: “%1$s”</string>

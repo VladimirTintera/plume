@@ -48,6 +48,17 @@ import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.lock_open_24dp
+import eu.tintera.plume.resources.protection_request_confirm_text
+import eu.tintera.plume.resources.protection_request_confirm_title
+import eu.tintera.plume.resources.protection_request_approve
+import eu.tintera.plume.resources.protection_request_reject
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
+import eu.tintera.plume.core.ui.GroupActionText
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import eu.tintera.plume.resources.conversation_unread_divider
 import eu.tintera.plume.resources.date_with_time
 import org.jetbrains.compose.resources.stringResource
@@ -139,6 +150,7 @@ internal fun ServiceMessage(
     onOpen: (ServiceOpen) -> Unit = {},
     onAcceptBirthdate: () -> Unit = {},
     onAcceptPhoto: () -> Unit = {},
+    onAnswerProtection: (approve: Boolean) -> Unit = {},
 ) {
     // Text oznámení je [ChatMessage.description] a překládá se až tady — převedená zpráva
     // žije v paměti déle než jazyk aplikace.
@@ -154,6 +166,10 @@ internal fun ServiceMessage(
     }
     if (birthdate != null) {
         SuggestedBirthdateNote(text, birthdate, modifier, onAcceptBirthdate)
+        return
+    }
+    if (message.protectionDisableRequest) {
+        ProtectionRequestNote(text, modifier, onAnswerProtection)
         return
     }
     if (link == null && target == null && open != null) {
@@ -294,6 +310,51 @@ private fun SuggestedBirthdateNote(text: String, birthdate: Birthdate, modifier:
             },
             onDismiss = { confirm = false },
             icon = Res.drawable.cake_24dp,
+        )
+    }
+}
+
+/**
+ * Žádost protějšku o vypnutí ochrany obsahu: věta a pod ní „Odmítnout" a „Povolit". Povolení
+ * jde přes potvrzení — protějšek pak smí zprávy z chatu ukládat a přeposílat.
+ */
+@Composable
+private fun ProtectionRequestNote(text: String, modifier: Modifier, onAnswer: (approve: Boolean) -> Unit) {
+    var confirm by rememberSaveable { mutableStateOf(false) }
+    val reject = stringResource(Res.string.protection_request_reject)
+    val approve = stringResource(Res.string.protection_request_approve)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
+    ) {
+        CenteredNote(text = text)
+        ActionButtonGroup(
+            listOf(
+                GroupAction(reject, { onAnswer(false) }, compressionLimit = ButtonDefaults.TextButtonContentPadding) { buttonModifier, source ->
+                    TextButton(onClick = { onAnswer(false) }, modifier = buttonModifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                        GroupActionText(reject)
+                    }
+                },
+                GroupAction(approve, { confirm = true }, compressionLimit = ButtonDefaults.TextButtonContentPadding) { buttonModifier, source ->
+                    TextButton(onClick = { confirm = true }, modifier = buttonModifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                        GroupActionText(approve)
+                    }
+                },
+            ),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        )
+    }
+    if (confirm) {
+        ConfirmDialog(
+            title = stringResource(Res.string.protection_request_confirm_title),
+            text = stringResource(Res.string.protection_request_confirm_text),
+            confirmLabel = approve,
+            onConfirm = {
+                confirm = false
+                onAnswer(true)
+            },
+            onDismiss = { confirm = false },
+            icon = Res.drawable.lock_open_24dp,
         )
     }
 }

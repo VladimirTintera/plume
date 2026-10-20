@@ -308,8 +308,9 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageChatHasProtectedContentToggled -> UiText(
         if (newHasProtectedContent) Res.string.service_protected_content_on else Res.string.service_protected_content_off,
     )
-    // Žádost o vypnutí ochrany obsahu musí odsouhlasit víc správců, takže platí jen chvíli;
-    // vypršenou žádost Telegram nechává v historii stát, jen s jiným významem.
+    // Žádost protějšku o vypnutí ochrany obsahu v soukromém chatu platí jen chvíli; vypršenou
+    // Telegram nechává v historii stát, jen s jiným významem. Odpověď nese oznámení samo
+    // (`ChatMessage.protectionDisableRequest`).
     is MessageChatHasProtectedContentDisableRequested -> UiText(
         if (isExpired) Res.string.service_protected_content_disable_expired
         else Res.string.service_protected_content_disable_requested,

@@ -346,6 +346,7 @@ internal data class ServiceMessageItem(
                             onJumpTo = { scope.onAction(message.id, MessageAction.JumpTo(it)) },
                             onAcceptBirthdate = { scope.onAction(message.id, MessageAction.AcceptSuggestedBirthdate) },
                             onAcceptPhoto = { scope.onAction(message.id, MessageAction.AcceptSuggestedPhoto) },
+                            onAnswerProtection = { approve -> scope.onAction(message.id, MessageAction.AnswerProtectionRequest(approve)) },
                             onOpen = { open ->
                                 scope.onAction(
                                     message.id,

@@ -547,8 +547,10 @@ a se serverem, takže přednostně:
 
 - ~~**Ochrana obsahu** (`chatHasProtectedContentUpdates`)~~ — hotovo, výběr textu a akce
   u zprávy se přepnou za běhu (`docs/poznatky/konverzace-akce.md`, „Výběr textu myší v bublině").
-  Zbývá žádost o vypnutí ochrany v soukromém chatu
-  (`processChatHasProtectedContentDisableRequest`).
+  ~~Žádost o vypnutí ochrany v soukromém chatu
+  (`processChatHasProtectedContentDisableRequest`)~~ — hotovo, Odmítnout / Povolit pod žádostí
+  (`docs/poznatky/konverzace-akce.md`, „Žádost o vypnutí ochrany obsahu"); zbývá ověřit se
+  skutečnou žádostí.
 - ~~**Počet členů online** (`chatOnlineMemberCountUpdates`)~~ — hotovo, „128 členů, 12 online"
   v hlavičce skupiny a počet odběratelů u kanálu (`docs/poznatky/konverzace-zobrazeni.md`,
   „Počet členů v hlavičce").

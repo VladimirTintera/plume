@@ -1285,6 +1285,13 @@
     <string name="service_topic_unhidden">Téma je zase vidět</string>
     <string name="service_protected_content_disable_requested">Někdo požádal o vypnutí ochrany obsahu</string>
     <string name="service_protected_content_disable_expired">Žádost o vypnutí ochrany obsahu vypršela</string>
+    <string name="protection_request_reject">Odmítnout</string>
+    <string name="protection_request_approve">Povolit</string>
+    <string name="protection_request_confirm_title">Vypnout ochranu obsahu?</string>
+    <string name="protection_request_confirm_text">Oba pak budete moct zprávy z tohohle chatu ukládat, kopírovat a přeposílat.</string>
+    <string name="protection_request_approved">Ochrana obsahu je vypnutá</string>
+    <string name="protection_request_rejected">Žádost odmítnuta</string>
+    <string name="protection_request_failed">Na žádost se nepodařilo odpovědět.</string>
     <string name="service_suggested_post_approved">Navržený příspěvek byl schválen</string>
     <string name="service_suggested_post_declined">Navržený příspěvek byl odmítnut</string>
     <string name="service_suggested_post_declined_comment">Navržený příspěvek byl odmítnut: „%1$s“</string>

@@ -14,6 +14,9 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.protection_request_failed
+import eu.tintera.plume.resources.protection_request_rejected
+import eu.tintera.plume.resources.protection_request_approved
 import eu.tintera.plume.resources.photo_suggestion_failed
 import eu.tintera.plume.resources.photo_suggestion_saved
 import eu.tintera.plume.resources.birthdate_suggestion_failed
@@ -261,6 +264,24 @@ internal class ConversationMessageActions(
                 .onFailure { failure ->
                     logger.w(failure) { "Nastavení navrženého data narození ze zprávy $messageId selhalo." }
                     state.update { it.copy(error = failure.userMessage(Res.string.birthdate_suggestion_failed)) }
+                }
+        }
+    }
+
+    /**
+     * Odpoví na žádost protějšku o vypnutí ochrany obsahu. Oznámení se pak samo přepne podle
+     * updatu obsahu zprávy; hláška jen potvrdí, co se stalo.
+     */
+    fun answerProtectionRequest(messageId: Long, approve: Boolean) {
+        scope.launch {
+            repository.answerProtectionDisableRequest(chatId, messageId, approve)
+                .onSuccess {
+                    val notice = if (approve) Res.string.protection_request_approved else Res.string.protection_request_rejected
+                    state.update { it.copy(notice = UiText(notice)) }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Odpověď na žádost o vypnutí ochrany obsahu ($messageId) selhala." }
+                    state.update { it.copy(error = failure.userMessage(Res.string.protection_request_failed)) }
                 }
         }
     }

@@ -706,6 +706,13 @@ interface ConversationRepository {
         Result.failure(UnsupportedOperationException())
 
     /**
+     * Odpoví na žádost protějšku o vypnutí ochrany obsahu ([approve] = povolit), zpráva
+     * [messageId] je ta žádost (`processChatHasProtectedContentDisableRequest`).
+     */
+    suspend fun answerProtectionDisableRequest(chatId: Long, messageId: Long, approve: Boolean): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Nastaví jako vlastní profilovku fotku, kterou protějšek navrhl zprávou [messageId]
      * (`MessageSuggestProfilePhoto`). Fotka se stáhne a nahraje znovu — je to cizí soubor.
      */
@@ -1529,6 +1536,12 @@ data class ChatMessage(
     val suggestedBirthdate: Birthdate? = null,
     /** Profilová fotka navržená zprávou (`MessageSuggestProfilePhoto`), oběma směry. */
     val suggestedPhoto: SuggestedPhoto? = null,
+    /**
+     * Protějšek žádá o vypnutí ochrany obsahu v soukromém chatu a žádost ještě platí
+     * (`MessageChatHasProtectedContentDisableRequested`, příchozí, nevypršelá) — oznámení nese
+     * „Povolit" a „Odmítnout".
+     */
+    val protectionDisableRequest: Boolean = false,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,
