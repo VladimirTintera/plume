@@ -952,6 +952,32 @@ Nejvýš tři řádky, pak „Zobrazit všech N skladeb".
   v notifikaci; odebrání křížkem v úpravě profilu ukáže prázdnou sekci s radou. **Neověřené:**
   víc skladeb (navazování, „předchozí"), obal alba, iOS.
 
+### Dárky v profilu
+
+Profil člověka a kanálu má záložku **Dárky** (`ProfileTab.Gifts`, `ProfileGifts.kt`): mřížka
+dlaždic se samolepkou dárku, sběratelský na pozadí ve svých barvách s pořadovým číslem, běžný
+s cenou ve hvězdách, připnutý s připínáčkem. Ťuknutí otevře sheet s tou samou kartou, jakou
+kreslí dárek ve zprávě (`GiftCard`), a pod ní „Obdrženo 14. října".
+
+- **Záložka se ukáže, jen když `giftCount > 0`** (`UserFullInfo` / `SupergroupFullInfo`) a první
+  stránka něco vrátí. Přidává se na KONEC řady jako společné skupiny — dorazí vlastním dotazem
+  a doprostřed by posunula záložku, na které uživatel stojí. Selhání se nehlásí.
+- **Cizím TDLib vydá jen dárky vystavené v profilu**, `excludeUnsaved` vynutí sám. Vlastní profil
+  (Uložené zprávy) a skupiny dárky nemají; spravovat vlastní dárky (vystavit, připnout,
+  proměnit, sbírky `getGiftCollections`) Plume neumí, to je pro oficiální aplikaci.
+- **Stránky po 30 přes `nextOffset`**, dotahuje je `LoadMoreAtEnd` jako sdílená média.
+  `receivedGiftId` má jen příjemce, takže klíč dlaždice se u cizího profilu skládá z id dárku,
+  dárce a data; dvojí výskyt téhož klíče se zahodí.
+- **Samolepky v mřížce STOJÍ** (`playing = false`), hraje jen ta v sheetu. Desítky animovaných
+  samolepek naráz by zbytečně zatěžovaly.
+- **Pozadí sběratelského dárku určuje Telegram, ne motiv**, proto má číslo a připínáček na něm
+  bílou barvu napevno.
+- **Dárek bez `background` shodí wrapper** — týká se i `getReceivedGifts`. Na Androidu a desktopu
+  to obchází `TdlibJsonRepair`, **na iOS ne** (viz „Odpovědi TDLib, které wrapper nerozebere").
+- **Ověřeno na emulátoru** na kanálu @durov (jen čtení): záložka, sběratelské i běžné dárky,
+  připnuté, dotahování dalších stránek, sheet sběratelského dárku (model, symbol, pozadí)
+  i běžného (dárce, vzkaz, hodnota). Profil člověka s dárky a iOS ověřené nejsou.
+
 ### Návrh profilové fotky
 
 Člověku jde z profilu navrhnout profilovku (⋮ → „Navrhnout profilovou fotku",

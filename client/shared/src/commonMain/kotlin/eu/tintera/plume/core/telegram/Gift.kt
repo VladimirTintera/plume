@@ -11,6 +11,9 @@ import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageUpgradedGift
+import dev.g000sha256.tdl.dto.ReceivedGift
+import dev.g000sha256.tdl.dto.SentGiftRegular
+import dev.g000sha256.tdl.dto.SentGiftUpgraded
 
 /**
  * Co se darovalo. Telegram má na dárky sedm druhů zpráv a každý nese něco jiného; karta je
@@ -117,6 +120,56 @@ internal suspend fun MessageUpgradedGift.toMedia(senderName: suspend (Long) -> S
     senderName = senderId?.let { nameOf(it.key(), senderName) },
     receiverName = receiverId?.let { nameOf(it.key(), senderName) },
 )
+
+/**
+ * Dárek z profilu jako karta. Příjemce je majitel profilu, takže se neuvádí; dárce TDLib
+ * u soukromého dárku (`isPrivate`) neprozradí, a pak řádek „Od:" chybí.
+ */
+internal suspend fun ReceivedGift.toProfileGift(senderName: suspend (Long) -> String?): ProfileGift {
+    val sender = senderId?.let { nameOf(it.key(), senderName) }
+    val media = when (val sent = gift) {
+        is SentGiftRegular -> MessageMedia.Gift(
+            kind = GiftKind.Regular(
+                starCount = sent.gift.starCount,
+                sellStarCount = sellStarCount,
+                wasConverted = false,
+                wasUpgraded = false,
+                wasRefunded = wasRefunded,
+            ),
+            sticker = sent.gift.sticker?.toMedia(),
+            text = text.text,
+            senderName = sender,
+            receiverName = null,
+        )
+        is SentGiftUpgraded -> MessageMedia.Gift(
+            kind = GiftKind.Upgraded(
+                title = sent.gift.title,
+                number = sent.gift.number,
+                modelName = sent.gift.model.name,
+                symbolName = sent.gift.symbol.name,
+                backdropName = sent.gift.backdrop.name,
+                centerColor = sent.gift.backdrop.colors.centerColor,
+                edgeColor = sent.gift.backdrop.colors.edgeColor,
+                wasTransferred = false,
+            ),
+            sticker = sent.gift.model.sticker.toMedia(),
+            text = text.text,
+            senderName = sender,
+            receiverName = null,
+        )
+    }
+    val giftId = when (val sent = gift) {
+        is SentGiftRegular -> sent.gift.id
+        is SentGiftUpgraded -> sent.gift.id
+    }
+    return ProfileGift(
+        // `receivedGiftId` má jen příjemce; cizí profil dostane klíč z dárku, dárce a data.
+        key = receivedGiftId.ifBlank { "$giftId:${senderId?.key() ?: 0}:$date" },
+        gift = media,
+        date = date,
+        isPinned = isPinned,
+    )
+}
 
 internal suspend fun MessageRefundedUpgradedGift.toMedia(senderName: suspend (Long) -> String?) = MessageMedia.Gift(
     kind = GiftKind.RefundedUpgrade,

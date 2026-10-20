@@ -488,6 +488,9 @@
     <string name="profile_tab_video_notes">Kolečka</string>
     <string name="profile_tab_common_groups">Skupiny</string>
     <string name="profile_tab_similar_channels">Podobné</string>
+    <string name="profile_tab_gifts">Dárky</string>
+    <string name="gift_number">#%1$s</string>
+    <string name="gift_received_on">Obdrženo %1$s</string>
     <string name="profile_shared_gif">GIF</string>
     <string name="profile_shared_video_note">Video kolečko</string>
     <string name="profile_tab_media">Média</string>

@@ -598,8 +598,9 @@ a se serverem, takže přednostně:
    nahrávka by odešla hned po puštění.
 9. **Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha, úvodní stránka) —
    data přicházejí, jen se nekreslí. Zakládat je chce Business, číst ne.
-10. **Dárky v profilu** (`getReceivedGifts`, `getGiftCollections`) — prohlížení nic nestojí,
-    posílání ano (viz níž).
+10. ~~**Dárky v profilu** (`getReceivedGifts`)~~ — hotovo, záložka Dárky
+    (`docs/poznatky/profil-chatu.md`, „Dárky v profilu"). Sbírky (`getGiftCollections`) a správa
+    vlastních dárků zbývají; posílání stojí hvězdy (viz níž).
 11. Drobnosti: ~~hledání v tajných chatech (`searchSecretMessages` — hledání napříč chaty je
     vynechává)~~ (hotovo v konverzaci i napříč chaty, `docs/poznatky/tajne-chaty.md`, „Hledání";
     zbývá ověřit na zařízení s tajným chatem), ~~historie hledaných hashtagů (`getSearchedForTags`, `removeSearchedForTag`)~~ (hotovo,

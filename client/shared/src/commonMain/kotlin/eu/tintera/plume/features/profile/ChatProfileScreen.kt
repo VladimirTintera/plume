@@ -210,6 +210,8 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.profile_tab_gifts
+import eu.tintera.plume.resources.redeem_24dp
 import eu.tintera.plume.resources.secret_chat_key_title
 import eu.tintera.plume.resources.secret_chat_key_compare
 import eu.tintera.plume.resources.lock_24dp
@@ -566,6 +568,10 @@ fun ChatProfileScreen(
                 )
             }
 
+            state.openGift?.let { gift ->
+                ProfileGiftSheet(gift = gift, onDismiss = viewModel::closeGift)
+            }
+
             if (showChatColor) {
                 ChatColorSheet(
                     current = chatColor,
@@ -897,6 +903,13 @@ private fun TabContent(
             onOpen = viewModel::openRelatedChat,
         )
 
+        ProfileTab.Gifts -> ProfileGiftsGrid(
+            gifts = state.gifts ?: ProfileGifts(),
+            contentPadding = contentPadding,
+            onOpen = viewModel::openGift,
+            onLoadMore = viewModel::loadMoreGifts,
+        )
+
         ProfileTab.Members -> ProfileMembersList(
             list = state.members,
             contentPadding = contentPadding,
@@ -1024,6 +1037,7 @@ private val ProfileTab.key: String
         is ProfileTab.Shared -> kind.name
         ProfileTab.CommonGroups -> "common-groups"
         ProfileTab.SimilarChannels -> "similar-channels"
+        ProfileTab.Gifts -> "gifts"
     }
 
 /** Ikona vybrané záložky; vyplněná varianta tam, kde ji Material Symbols má. */
@@ -1040,6 +1054,7 @@ private fun ProfileTab.icon(): DrawableResource = when (this) {
     }
     ProfileTab.CommonGroups -> Res.drawable.group_filled_24dp
     ProfileTab.SimilarChannels -> Res.drawable.campaign_24dp
+    ProfileTab.Gifts -> Res.drawable.redeem_24dp
 }
 
 /** Kolik záložek se vejde do řady na telefon; s víc má každá svou šířku a řada se může posouvat. */
@@ -1064,6 +1079,7 @@ private fun ProfileTab.label(): StringResource = when (this) {
     }
     ProfileTab.CommonGroups -> Res.string.profile_tab_common_groups
     ProfileTab.SimilarChannels -> Res.string.profile_tab_similar_channels
+    ProfileTab.Gifts -> Res.string.profile_tab_gifts
 }
 
 @Composable
