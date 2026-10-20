@@ -1,5 +1,19 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.resources.story_album_reorder_stories
+import eu.tintera.plume.resources.profile_story_album_empty
+import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.arrow_back_24dp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.ShapeDefaults
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
+import eu.tintera.plume.core.ui.asRelativeTime
+import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.GroupEmptyRow
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.resources.story_albums_reorder
 import eu.tintera.plume.resources.reorder_done
 import eu.tintera.plume.resources.folder_24dp
@@ -96,6 +110,9 @@ internal fun StoryAlbumsSheet(
     onRename: (albumId: Int, name: String) -> Unit,
     onDelete: (albumId: Int) -> Unit,
     onReorder: (albumIds: List<Int>) -> Unit,
+    onOpenAlbumStories: (albumId: Int) -> Unit,
+    onReorderAlbumStories: (storyIds: List<Int>) -> Unit,
+    onCloseAlbumStories: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Dialog nad sheetem: nové album (`null` id), nebo přejmenování.
@@ -105,6 +122,15 @@ internal fun StoryAlbumsSheet(
     var reordering by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
+        state.storiesOrder?.let { order ->
+            AlbumStoriesReorder(
+                title = state.albums?.firstOrNull { it.id == order.albumId }?.name.orEmpty(),
+                stories = order.stories,
+                onDone = onReorderAlbumStories,
+                onBack = onCloseAlbumStories,
+            )
+            return@ModalBottomSheet
+        }
         val loaded = state.albums
         if (reordering && loaded != null) {
             AlbumReorder(
@@ -159,6 +185,7 @@ internal fun StoryAlbumsSheet(
                         checked = album.id in state.inAlbums,
                         onToggle = { onToggle(album.id) },
                         onRename = { naming = album.id to album.name },
+                        onReorderStories = { onOpenAlbumStories(album.id) },
                         onDelete = { deleting = album },
                     )
                 }
@@ -194,7 +221,14 @@ internal fun StoryAlbumsSheet(
 }
 
 @Composable
-private fun AlbumRow(album: StoryAlbum, checked: Boolean, onToggle: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
+private fun AlbumRow(
+    album: StoryAlbum,
+    checked: Boolean,
+    onToggle: () -> Unit,
+    onRename: () -> Unit,
+    onReorderStories: () -> Unit,
+    onDelete: () -> Unit,
+) {
     var menu by remember { mutableStateOf(false) }
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -214,6 +248,10 @@ private fun AlbumRow(album: StoryAlbum, checked: Boolean, onToggle: () -> Unit, 
                             MenuAction(stringResource(Res.string.story_album_rename), Res.drawable.edit_24dp) {
                                 menu = false
                                 onRename()
+                            },
+                            MenuAction(stringResource(Res.string.story_album_reorder_stories), Res.drawable.drag_indicator_24dp) {
+                                menu = false
+                                onReorderStories()
                             },
                         ),
                         listOf(
@@ -279,6 +317,91 @@ private fun AlbumReorder(albums: List<StoryAlbum>, onDone: (List<Int>) -> Unit) 
         }
     }
 }
+
+/**
+ * Pořadí příběhů v albu: řádky s náhledem příběhu a popiskem (nebo datem), tah za úchyt.
+ * Pošle se až „Hotovo". Šipka zpět vrátí panel k albům bez uložení.
+ */
+@Composable
+private fun AlbumStoriesReorder(
+    title: String,
+    stories: List<MessageMedia.Story>?,
+    onDone: (List<Int>) -> Unit,
+    onBack: () -> Unit,
+) {
+    val order = remember(stories) { stories.orEmpty().toMutableStateList() }
+    val listState = rememberLazyListState()
+    fun move(from: Int, to: Int) {
+        if (from !in order.indices || to !in order.indices) return
+        order.add(to, order.removeAt(from))
+    }
+    val dragState = rememberDragReorderState(
+        listState = listState,
+        canMove = { true },
+        onMove = { from, to -> move(order.indexOfFirst { it.storyId == from }, order.indexOfFirst { it.storyId == to }) },
+    )
+    Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp),
+        ) {
+            IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                Icon(painterResource(Res.drawable.arrow_back_24dp), stringResource(Res.string.common_back))
+            }
+            SheetTitle(title, maxLines = 1, modifier = Modifier.weight(1f))
+            if (!stories.isNullOrEmpty()) {
+                TextButton(onClick = { onDone(order.map { it.storyId }) }, shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(Res.string.reorder_done))
+                }
+            }
+        }
+        when {
+            stories == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+            stories.isEmpty() -> GroupEmptyRow(stringResource(Res.string.profile_story_album_empty), Modifier.padding(16.dp))
+            else -> LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+                modifier = Modifier.fillMaxWidth().heightIn(max = REORDER_LIST_HEIGHT),
+            ) {
+                itemsIndexed(order, key = { _, story -> story.storyId }) { index, story ->
+                    ReorderRow(
+                        key = story.storyId,
+                        title = story.caption.ifBlank { story.postedAt.asRelativeTime() },
+                        shape = groupItemShape(index, order.size),
+                        dragState = dragState,
+                        onMoveUp = if (index > 0) { { move(index, index - 1) } } else null,
+                        onMoveDown = if (index < order.lastIndex) { { move(index, index + 1) } } else null,
+                        modifier = Modifier.draggedItem(dragState, story.storyId),
+                    ) {
+                        StoryThumbnail(story)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Náhled příběhu v řádku: na výšku jako příběh, fotka nebo snímek videa. */
+@Composable
+private fun StoryThumbnail(story: MessageMedia.Story) {
+    val fileId = when (val media = story.content) {
+        is MessageMedia.Photo -> media.fileId
+        is MessageMedia.Video -> media.thumbnailFileId ?: media.fileId
+        else -> null
+    }
+    Box(
+        Modifier
+            .size(width = THUMB_WIDTH, height = THUMB_HEIGHT)
+            .clip(ShapeDefaults.ExtraSmall)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+    ) {
+        fileId?.let { RemoteImage(fileId = it, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+    }
+}
+
+private val THUMB_WIDTH = 27.dp
+private val THUMB_HEIGHT = 48.dp
 
 /** Strop výšky seznamu v řazení; delší se roluje a „Hotovo" zůstane nahoře vidět. */
 private val REORDER_LIST_HEIGHT = 480.dp

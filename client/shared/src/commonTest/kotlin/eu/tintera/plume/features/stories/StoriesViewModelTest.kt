@@ -149,8 +149,17 @@ class StoriesViewModelTest {
             return Result.success(Unit)
         }
 
-        override suspend fun albumStories(chatId: Long, albumId: Int, offset: Int) =
-            Result.success(ProfileStoriesPage(emptyList(), 0, emptySet()))
+        /** Album o třech příbězích, server je dává po dvou. */
+        override suspend fun albumStories(chatId: Long, albumId: Int, offset: Int): Result<ProfileStoriesPage> {
+            if (failAlbums) return Result.failure(IllegalStateException("ALBUM_ID_INVALID"))
+            val all = listOf(10, 11, 12).map { story(chatId, it) }
+            return Result.success(ProfileStoriesPage(all.drop(offset).take(2), all.size, emptySet()))
+        }
+
+        override suspend fun reorderAlbumStories(chatId: Long, albumId: Int, storyIds: List<Int>): Result<Unit> {
+            albumCalls += "order $albumId $storyIds"
+            return if (failAlbums) Result.failure(IllegalStateException("STORY_ID_INVALID")) else Result.success(Unit)
+        }
 
         val hidden = mutableListOf<Pair<Long, Boolean>>()
 
@@ -336,6 +345,49 @@ class StoriesViewModelTest {
         viewModel.reorderAlbums(listOf(1, 2))
         advanceUntilIdle()
         assertEquals(listOf(2, 1), viewModel.albums.value?.albums?.map { it.id }, "při chybě zpátky")
+        assertNotNull(viewModel.albums.value?.error)
+    }
+
+    @Test
+    fun albumStoriesLoadAllPagesAndReorder() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.openAlbums(key)
+        advanceUntilIdle()
+        viewModel.openAlbumStories(2)
+        assertEquals(AlbumStoriesOrder(2), viewModel.albums.value?.storiesOrder, "napřed načítání")
+        advanceUntilIdle()
+        assertEquals(listOf(10, 11, 12), viewModel.albums.value?.storiesOrder?.stories?.map { it.storyId }, "všechny stránky")
+
+        viewModel.reorderAlbumStories(listOf(10, 11, 12))
+        advanceUntilIdle()
+        assertNull(viewModel.albums.value?.storiesOrder)
+        assertEquals(emptyList(), repository.albumCalls, "beze změny se neposílá")
+
+        viewModel.openAlbumStories(2)
+        advanceUntilIdle()
+        viewModel.reorderAlbumStories(listOf(12, 10, 11))
+        advanceUntilIdle()
+        assertEquals(listOf("order 2 [12, 10, 11]"), repository.albumCalls)
+
+        viewModel.openAlbumStories(2)
+        advanceUntilIdle()
+        repository.failAlbums = true
+        viewModel.reorderAlbumStories(listOf(11, 12, 10))
+        advanceUntilIdle()
+        assertNotNull(viewModel.albums.value?.error, "chyba v panelu")
+    }
+
+    @Test
+    fun failedAlbumStoriesLoadClosesOrder() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.openAlbums(key)
+        advanceUntilIdle()
+        repository.failAlbums = true
+        viewModel.openAlbumStories(1)
+        advanceUntilIdle()
+        assertNull(viewModel.albums.value?.storiesOrder)
         assertNotNull(viewModel.albums.value?.error)
     }
 

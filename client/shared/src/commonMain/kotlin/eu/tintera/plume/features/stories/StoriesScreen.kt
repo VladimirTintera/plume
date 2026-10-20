@@ -213,6 +213,9 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                 onRename = viewModel::renameAlbum,
                 onDelete = viewModel::deleteAlbum,
                 onReorder = viewModel::reorderAlbums,
+                onOpenAlbumStories = viewModel::openAlbumStories,
+                onReorderAlbumStories = viewModel::reorderAlbumStories,
+                onCloseAlbumStories = viewModel::closeAlbumStories,
                 onDismiss = viewModel::closeAlbums,
             )
         }
