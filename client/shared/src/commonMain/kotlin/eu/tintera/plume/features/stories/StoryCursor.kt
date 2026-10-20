@@ -3,6 +3,7 @@ package eu.tintera.plume.features.stories
 import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StoryListKind
+import eu.tintera.plume.core.telegram.StoryRef
 
 /** Autoři jednoho seznamu příběhů v pořadí TDLib: dvojice (order, id chatu) sestupně. */
 fun storyListOrder(all: Collection<ActiveStories>, list: StoryListKind): List<ActiveStories> =
@@ -17,6 +18,24 @@ fun viewerPosters(all: Map<Long, ActiveStories>, startChatId: Long): List<Active
     val start = all[startChatId] ?: return emptyList()
     val list = start.list ?: return listOf(start)
     return storyListOrder(all.values, list)
+}
+
+/**
+ * Prohlížeč nad příběhy z profilu: jeden autor a přesně [storyIds] v pořadí mřížky, otevřený
+ * na [startStoryId]. Nic z toho není „nezhlédnuté" (`maxReadStoryId` na maximu) a autor není
+ * v žádném seznamu — skrýt do archivu se tu nedá.
+ */
+fun profileStoriesState(author: ActiveStories, storyIds: List<Int>, startStoryId: Int): StoriesState {
+    val poster = author.copy(
+        stories = storyIds.map { StoryRef(id = it, date = 0) },
+        maxReadStoryId = Int.MAX_VALUE,
+        list = null,
+        canBeArchived = false,
+    )
+    return StoriesState(
+        posters = listOf(poster),
+        positions = mapOf(author.chatId to storyIds.indexOf(startStoryId).coerceAtLeast(0)),
+    )
 }
 
 data class StoryKey(val posterChatId: Long, val storyId: Int)

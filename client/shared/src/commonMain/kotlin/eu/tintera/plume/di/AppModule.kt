@@ -750,6 +750,7 @@ fun appModule() = module {
             chatColors = get(),
             contactOffers = get(),
             photoCrop = get(),
+            stories = get(),
         )
     }
 
@@ -876,7 +877,14 @@ fun appModule() = module {
         StoryComposerViewModel(path = parameters.get(), isVideo = parameters.get(), repository = get(), storyPhoto = get(), storyVideo = get())
     }
     viewModel { parameters ->
-        StoriesViewModel(startChatId = parameters.get(), repository = get(), appScope = get(named(APP_SCOPE)), quickReaction = get())
+        StoriesViewModel(
+            startChatId = parameters.get(),
+            storyIds = (parameters.values.getOrNull(1) as? List<*>)?.filterIsInstance<Int>().orEmpty(),
+            startStoryId = parameters.values.getOrNull(2) as? Int ?: 0,
+            repository = get(),
+            appScope = get(named(APP_SCOPE)),
+            quickReaction = get(),
+        )
     }
 
     viewModelOf(::NewChatViewModel)

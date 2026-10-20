@@ -328,6 +328,35 @@ class TdlStoryRepository(
             .onFailure { logger.w(it) { "setChatActiveStoriesList $chatId hidden=$hidden" } }
             .map { }
 
+    override suspend fun profileStories(chatId: Long, fromStoryId: Int): Result<ProfileStoriesPage> =
+        client.getChatPostedToChatPageStories(chatId = chatId, fromStoryId = fromStoryId, limit = PROFILE_PAGE).toResult()
+            .onFailure { logger.w(it) { "getChatPostedToChatPageStories $chatId" } }
+            .map { page ->
+                ProfileStoriesPage(
+                    stories = page.stories.map { story ->
+                        MessageStory(storyPosterChatId = chatId, storyId = story.id, viaMention = false)
+                            .toMedia(story) { id -> _active.value[id]?.title ?: client.getChat(chatId = id).toResult().getOrNull()?.title }
+                    },
+                    totalCount = page.totalCount,
+                    pinnedIds = page.pinnedStoryIds.toSet(),
+                )
+            }
+
+    override suspend fun author(chatId: Long): ActiveStories? {
+        _active.value[chatId]?.let { return it }
+        val chat = client.getChat(chatId = chatId).toResult().getOrNull() ?: return null
+        return ActiveStories(
+            chatId = chatId,
+            title = chat.title,
+            avatarFileId = chat.photo?.small?.id,
+            kind = chat.type.chatKind(),
+            list = null,
+            order = 0,
+            maxReadStoryId = 0,
+            stories = emptyList(),
+        )
+    }
+
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()
             .onFailure { logger.w(it) { "closeStory $posterChatId/$storyId" } }
@@ -357,6 +386,9 @@ private fun retryIn(seconds: Int): UiText {
 private const val STORY_ACTIVE_PERIOD = 86_400
 
 private const val MAX_LOAD_ROUNDS = 50
+
+/** Stránka příběhů v profilu; TDLib si počet stejně volí sám. */
+private const val PROFILE_PAGE = 30
 
 /** Stránka diváků; víc se do sheetu najednou nevejde a další se dočte při posunu. */
 private const val VIEWERS_PAGE = 50

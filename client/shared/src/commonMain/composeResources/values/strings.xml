@@ -3210,6 +3210,10 @@
     <string name="story_hidden">Stories from %1$s are hidden in the archive</string>
     <string name="story_unhidden">Stories from %1$s are back among the others</string>
     <string name="story_hide_failed">Couldn’t move the stories.</string>
+    <string name="profile_tab_stories">Stories</string>
+    <string name="profile_stories_open">Show stories</string>
+    <string name="profile_story_open">Open story</string>
+    <string name="profile_story_pinned">Pinned</string>
     <string name="location_live_share">Share live location</string>
     <string name="location_live_share_hint">Keeps updating until you stop it</string>
     <string name="location_live_period_title">Share live location for…</string>

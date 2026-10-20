@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import kotlinx.coroutines.flow.distinctUntilChanged
+import eu.tintera.plume.core.telegram.ActiveStories
+import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.resources.birthdate_suggest_failed
 import eu.tintera.plume.resources.birthdate_suggest_sent
 import eu.tintera.plume.core.telegram.Birthdate
@@ -132,6 +135,8 @@ class ChatProfileViewModel(
     contactOffers: ContactOffers? = null,
     /** Ořez navrhované profilovky; bez něj se „Navrhnout fotku" nenabízí. */
     private val photoCrop: ProfilePhotoCrop? = null,
+    /** Příběhy: lem kolem avataru a záložka „Příběhy"; bez nich obojí chybí. */
+    private val stories: StoryRepository? = null,
 ) : ViewModel() {
 
     /** Barva, kterou uživatel konverzaci dal; `null` = barvy aplikace. */
@@ -186,6 +191,8 @@ class ChatProfileViewModel(
                     if (profile.kind == ProfileKind.User) observePresence()
                     loadRelatedChats(profile)
                     if (profile.giftCount > 0) loadMoreGifts()
+                    // Uložené zprávy profil s příběhy nemají; vlastní příběhy jsou v prohlížeči.
+                    if (profile.kind != ProfileKind.SavedMessages) loadMoreStories()
                 }
                 .onFailure { failure ->
                     _state.update { it.copy(loading = false, error = failure.reported(Res.string.profile_failed)) }
@@ -193,6 +200,13 @@ class ChatProfileViewModel(
         }
         viewModelScope.launch {
             chats.muted(chatId).collect { muted -> _state.update { it.copy(muted = muted) } }
+        }
+        stories?.let { repository ->
+            viewModelScope.launch {
+                repository.active.map { it[chatId] }.distinctUntilChanged().collect { active ->
+                    _state.update { it.copy(activeStories = active) }
+                }
+            }
         }
         viewModelScope.launch {
             /*
@@ -904,6 +918,38 @@ class ChatProfileViewModel(
     }
 
     /**
+     * Další stránka příběhů v profilu (první, když ještě žádná není). Selhání se nehlásí —
+     * záložka se jen neukáže, jako u dárků. Konec je, když stránka nepřinese nic nového.
+     */
+    fun loadMoreStories() {
+        val repository = stories ?: return
+        val current = _state.value.profileStories
+        if (current?.loading == true || (current != null && !current.hasMore)) return
+        _state.update { it.copy(profileStories = (it.profileStories ?: ProfileStories()).copy(loading = true)) }
+        viewModelScope.launch {
+            repository.profileStories(chatId, fromStoryId = current?.items?.lastOrNull()?.storyId ?: 0)
+                .onSuccess { page ->
+                    _state.update { state ->
+                        val before = state.profileStories?.items.orEmpty()
+                        val items = (before + page.stories).distinctBy { it.storyId }
+                        state.copy(
+                            profileStories = ProfileStories(
+                                items = items,
+                                total = page.totalCount,
+                                pinnedIds = state.profileStories?.pinnedIds.orEmpty() + page.pinnedIds,
+                                hasMore = items.size > before.size && items.size < page.totalCount,
+                            ),
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Příběhy v profilu se nepodařilo načíst." }
+                    _state.update { it.copy(profileStories = it.profileStories?.copy(loading = false, hasMore = false)) }
+                }
+        }
+    }
+
+    /**
      * Další stránka dárků (první, když ještě žádná není). Selhání se nehlásí — záložka se jen
      * neukáže nebo neprodlouží, jako u společných skupin.
      */
@@ -1270,6 +1316,10 @@ data class ChatProfileState(
     val similarChannels: List<RelatedChat>? = null,
     /** Dárky v profilu; `null` = žádné nebo se ještě nenačetly (záložka se nekreslí). */
     val gifts: ProfileGifts? = null,
+    /** Příběhy, které autor nechal v profilu; `null` = nenačtené (záložka se nekreslí). */
+    val profileStories: ProfileStories? = null,
+    /** Aktivní příběhy chatu — lem kolem avataru v hlavičce; `null` = žádné. */
+    val activeStories: ActiveStories? = null,
     /** Dárek otevřený v sheetu. */
     val openGift: ProfileGift? = null,
     /** Načtený obsah záložek; chybějící klíč = záložka se ještě neukázala. */
@@ -1323,6 +1373,7 @@ data class ChatProfileState(
                 if (!commonGroups.isNullOrEmpty()) add(ProfileTab.CommonGroups)
                 if (!similarChannels.isNullOrEmpty()) add(ProfileTab.SimilarChannels)
                 if (!gifts?.items.isNullOrEmpty()) add(ProfileTab.Gifts)
+                if (!profileStories?.items.isNullOrEmpty()) add(ProfileTab.Stories)
             }
         }
 
@@ -1359,7 +1410,19 @@ sealed interface ProfileTab {
 
     /** Dárky vystavené v profilu člověka nebo kanálu. */
     data object Gifts : ProfileTab
+
+    /** Příběhy, které autor nechal v profilu (i vypršelé). */
+    data object Stories : ProfileTab
 }
+
+/** Načtené příběhy profilu; připnuté jdou první (tak je vrací server). */
+data class ProfileStories(
+    val items: List<MessageMedia.Story> = emptyList(),
+    val total: Int = 0,
+    val pinnedIds: Set<Int> = emptySet(),
+    val hasMore: Boolean = true,
+    val loading: Boolean = false,
+)
 
 /** Načtené dárky profilu; [nextOffset] `null` = všechny. */
 data class ProfileGifts(

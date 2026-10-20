@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.profile_stories_open
+import eu.tintera.plume.resources.profile_tab_stories
+import eu.tintera.plume.resources.history_toggle_off_24dp
+import eu.tintera.plume.core.ui.storyRing
+import eu.tintera.plume.core.ui.StoryRingState
 import eu.tintera.plume.resources.cake_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButtonIcon
@@ -303,6 +308,11 @@ fun ChatProfileScreen(
     /** Záložka: zavřít profil a skočit v konverzaci na zprávu. */
     onOpenMessage: (messageId: Long) -> Unit = {},
     /**
+     * Příběhy: [storyIds] z mřížky v profilu otevřené na [startStoryId], prázdné = aktivní
+     * příběhy (ťuknutí na avatar s lemem).
+     */
+    onOpenStories: (storyIds: List<Int>, startStoryId: Int) -> Unit = { _, _ -> },
+    /**
      * ✕ místo šipky zpět: profil stojí jako panel vedle konverzace, takže se zavírá, ne vrací.
      * Obrazovky otevřené z profilu (úprava, práva člena) šipku zpět mají — vedou zpátky do něj.
      */
@@ -489,6 +499,7 @@ fun ChatProfileScreen(
                         scroll = { scrollState.value },
                         onTitlePlaced = { titleBottom = it },
                         onOpenPhotos = onOpenPhotos,
+                        onOpenStories = { onOpenStories(emptyList(), 0) },
                     )
                     if (state.offerContact && profile.kind == ProfileKind.User && profile.userId != null && !profile.isContact) {
                         AddContactButton(onClick = { viewModel.setContact(true) })
@@ -651,6 +662,7 @@ fun ChatProfileScreen(
                     topPadding = padding.calculateTopPadding(),
                     bottomPadding = 24.dp + bottom,
                     onOpenMessage = onOpenMessage,
+                    onOpenStories = onOpenStories,
                 )
             }
         }
@@ -689,6 +701,7 @@ private fun ProfileTabs(
     topPadding: Dp,
     bottomPadding: Dp,
     onOpenMessage: (messageId: Long) -> Unit,
+    onOpenStories: (storyIds: List<Int>, startStoryId: Int) -> Unit,
 ) {
     /*
      * Počet stránek i klíč čtou TÝŽ stav. Pager je uvnitř `BoxWithConstraints`
@@ -746,6 +759,9 @@ private fun ProfileTabs(
                     viewModel = viewModel,
                     contentPadding = contentPadding,
                     onOpenMessage = onOpenMessage,
+                    onOpenStory = { storyId ->
+                        onOpenStories(state.profileStories?.items.orEmpty().map { it.storyId }, storyId)
+                    },
                 )
             }
         }
@@ -899,8 +915,16 @@ private fun TabContent(
     contentPadding: PaddingValues,
     /** GIF a kolečko: zavřít profil a skočit na zprávu, prohlížeč je neumí. */
     onOpenMessage: (messageId: Long) -> Unit,
+    onOpenStory: (storyId: Int) -> Unit,
 ) {
     when (tab) {
+        ProfileTab.Stories -> ProfileStoriesGrid(
+            stories = state.profileStories ?: ProfileStories(),
+            contentPadding = contentPadding,
+            onOpen = onOpenStory,
+            onLoadMore = viewModel::loadMoreStories,
+        )
+
         ProfileTab.CommonGroups -> RelatedChatsList(
             chats = state.commonGroups.orEmpty(),
             contentPadding = contentPadding,
@@ -1048,6 +1072,7 @@ private val ProfileTab.key: String
         ProfileTab.CommonGroups -> "common-groups"
         ProfileTab.SimilarChannels -> "similar-channels"
         ProfileTab.Gifts -> "gifts"
+        ProfileTab.Stories -> "stories"
     }
 
 /** Ikona vybrané záložky; vyplněná varianta tam, kde ji Material Symbols má. */
@@ -1065,6 +1090,8 @@ private fun ProfileTab.icon(): DrawableResource = when (this) {
     ProfileTab.CommonGroups -> Res.drawable.group_filled_24dp
     ProfileTab.SimilarChannels -> Res.drawable.campaign_24dp
     ProfileTab.Gifts -> Res.drawable.redeem_24dp
+    // Přerušovaný kruh — tvar, kterým Telegram příběhy značí.
+    ProfileTab.Stories -> Res.drawable.history_toggle_off_24dp
 }
 
 /** Kolik záložek se vejde do řady na telefon; s víc má každá svou šířku a řada se může posouvat. */
@@ -1090,6 +1117,7 @@ private fun ProfileTab.label(): StringResource = when (this) {
     ProfileTab.CommonGroups -> Res.string.profile_tab_common_groups
     ProfileTab.SimilarChannels -> Res.string.profile_tab_similar_channels
     ProfileTab.Gifts -> Res.string.profile_tab_gifts
+    ProfileTab.Stories -> Res.string.profile_tab_stories
 }
 
 @Composable
@@ -1101,6 +1129,8 @@ private fun ProfileHeader(
     /** Spodek jména v px od vršku hlavičky — odtud výš ho nese lišta. */
     onTitlePlaced: (Int) -> Unit,
     onOpenPhotos: () -> Unit,
+    /** Ťuknutí na avatar s lemem: aktivní příběhy chatu. */
+    onOpenStories: () -> Unit,
 ) {
     val avatarShape = when (profile.kind) {
         ProfileKind.Group -> ChatKind.Group
@@ -1110,6 +1140,12 @@ private fun ProfileHeader(
     // Bez fotky (iniciály) není co prohlížet; Uložené zprávy profil nemají.
     val hasPhoto = (profile.photoFileId ?: profile.photoThumbnailFileId) != null &&
         profile.kind != ProfileKind.SavedMessages
+    // Aktivní příběhy mají přednost před fotkami: lem slibuje, že ťuknutí je pustí (jako
+    // v seznamu chatů). Historie fotek zůstává bez příběhů.
+    val activeStories = state.activeStories
+    val ring = activeStories?.let {
+        StoryRingState(total = it.stories.size, unread = it.unreadCount, closeFriends = it.hasUnreadForCloseFriends)
+    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1140,12 +1176,22 @@ private fun ProfileHeader(
                     alpha = 1f - progress
                     transformOrigin = TransformOrigin(0.5f, 1f)
                 }
+                // Lem příběhů PŘED ořezem — kreslí se ven z avataru a ořez by ho uřízl.
+                .storyRing(
+                    ring = ring,
+                    shape = avatarShape,
+                    unreadColor = if (ring?.closeFriends == true) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                    readColor = MaterialTheme.colorScheme.outlineVariant,
+                    gap = HEADER_RING_GAP,
+                    width = HEADER_RING_WIDTH,
+                    readWidth = HEADER_RING_READ_WIDTH,
+                )
                 // Ořez před klikáním, jinak by vlnka přetekla přes tvar avataru do čtverce.
                 .clip(avatarShape)
                 .clickable(
-                    enabled = hasPhoto,
-                    onClickLabel = stringResource(Res.string.profile_photos_open),
-                    onClick = onOpenPhotos,
+                    enabled = hasPhoto || ring != null,
+                    onClickLabel = stringResource(if (ring != null) Res.string.profile_stories_open else Res.string.profile_photos_open),
+                    onClick = if (ring != null) onOpenStories else onOpenPhotos,
                 ),
         )
         // Řádek se jménem a statusem; kde končí, hlásí řádek, ne text — text v něm má pozici
@@ -1865,3 +1911,8 @@ private fun birthdateWithAge(birthdate: Birthdate): String {
     val age = birthdate.ageOn(today) ?: return label
     return stringResource(Res.string.birthdate_with_age, label, pluralStringResource(Res.plurals.birthdate_age, age, age))
 }
+
+/** Lem příběhů kolem velkého avataru v hlavičce — o něco výraznější než v seznamu. */
+private val HEADER_RING_GAP = 4.dp
+private val HEADER_RING_WIDTH = 3.dp
+private val HEADER_RING_READ_WIDTH = 2.dp

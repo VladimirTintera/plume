@@ -364,7 +364,12 @@ data class MediaRoute(
  * hromádka v pilulce). Tahem do strany jde na další autory téhož seznamu příběhů.
  */
 @Serializable
-data class StoriesRoute(val chatId: Long) : Route
+data class StoriesRoute(
+    val chatId: Long,
+    /** Příběhy z profilu (mřížka „Příběhy"); prázdné = aktivní příběhy a přechod na další autory. */
+    val storyIds: List<Int> = emptyList(),
+    val startStoryId: Int = 0,
+) : Route
 
 /**
  * Nový vlastní příběh z fotky nebo videa [path] (z výběru příloh, v cache aplikace). Vrší se

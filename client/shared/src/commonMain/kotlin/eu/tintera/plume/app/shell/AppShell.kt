@@ -1035,6 +1035,7 @@ private fun shellEntryProvider(
             ChatProfileScreen(
                 viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
+                onOpenStories = { storyIds, start -> chatsStack.openStories(route.chatId, storyIds, start) },
                 // Hledat patří konverzaci: profil se zavře a konverzace pod ním otevře hledání.
                 // Profil odesílatele otevřený ze skupiny má pod sebou SKUPINU — pak se místo ní
                 // otevře konverzace s ním, jinak by hledání čekalo na chat, který není vidět.
@@ -1255,6 +1256,7 @@ private fun shellEntryProvider(
             ChatProfileScreen(
                 viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
+                onOpenStories = { storyIds, start -> chatsStack.openStories(route.chatId, storyIds, start) },
                 onSearch = {
                     searchRequests.request(route.chatId)
                     chatsStack.pop(route)
@@ -1358,7 +1360,10 @@ private fun shellEntryProvider(
     entry<StoriesRoute> { route ->
         StoriesScreen(
             // Klíč s autorem ze stejného důvodu jako u prohlížeče médií (cachovaný ViewModel).
-            viewModel = koinViewModel(key = "stories-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            viewModel = koinViewModel(
+                key = "stories-${route.chatId}-${route.storyIds.hashCode()}-${route.startStoryId}",
+                parameters = { parametersOf(route.chatId, route.storyIds, route.startStoryId) },
+            ),
             onBack = { chatsStack.pop(route) },
         )
     }
@@ -1797,8 +1802,8 @@ private fun MutableList<NavKey>.openSavedTopics(chatId: Long) {
 }
 
 /** Prohlížeč příběhů nad čímkoli; druhé ťuknutí (dvojité) ho nezdvojí. */
-private fun MutableList<NavKey>.openStories(chatId: Long) {
-    if (lastOrNull() !is StoriesRoute) add(StoriesRoute(chatId))
+private fun MutableList<NavKey>.openStories(chatId: Long, storyIds: List<Int> = emptyList(), startStoryId: Int = 0) {
+    if (lastOrNull() !is StoriesRoute) add(StoriesRoute(chatId, storyIds, startStoryId))
 }
 
 /** Totéž co [isOpenConversation], ale pro větev archivu. */
