@@ -142,6 +142,8 @@ import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.features.calls.CallRatingHost
 import eu.tintera.plume.features.calls.CallsScreen
 import eu.tintera.plume.core.navigation.CallsRoute
+import eu.tintera.plume.core.navigation.DownloadsRoute
+import eu.tintera.plume.features.downloads.DownloadsScreen
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
@@ -703,6 +705,7 @@ private fun shellEntryProvider(
             },
             onOpenCalls = { if (chatsStack.lastOrNull() != CallsRoute) chatsStack.add(CallsRoute) }
                 .takeIf { koinInject<CallRepository>().supported },
+            onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
             onNewChat = {
                 if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
             },
@@ -765,6 +768,19 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(),
             onBack = { chatsStack.remove(CallsRoute) },
             onOpenChat = { chatId -> chatsStack.openConversation(chatId) },
+        )
+    }
+
+    // Stahování: seznam vlevo, zpráva se souborem vedle (jako nalezená zpráva).
+    entry<DownloadsRoute>(
+        metadata = Panes.list(
+            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+        ),
+    ) {
+        DownloadsScreen(
+            viewModel = koinViewModel(),
+            onBack = { chatsStack.remove(DownloadsRoute) },
+            onOpenMessage = { chatId, messageId -> chatsStack.openFoundMessage(chatId, messageId, topicId = null) },
         )
     }
 

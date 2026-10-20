@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration.Companion.seconds
 import eu.tintera.plume.core.files.SaveAsLauncher
+import eu.tintera.plume.core.telegram.DownloadsRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -40,6 +41,12 @@ internal class ConversationDocuments(
     /** Položka nabídky nad zprávou zavírá nabídku sama, než začne stahovat. */
     private val closeMenus: () -> Unit,
     private val logger: Logger,
+    /**
+     * Seznam stahování TDLib: soubor stažený ze zprávy se do něj přidá, takže ho uživatel najde
+     * v Stahování (menu účtu). `null` = jen obyčejné stažení (testy).
+     */
+    private val downloads: DownloadsRepository? = null,
+    private val chatId: Long = 0,
 ) {
     /** Běžící otevírání souborů podle `fileId`; druhé ťuknutí to čekání zruší. */
     private val documentJobs = mutableMapOf<Int, Job>()
@@ -54,7 +61,7 @@ internal class ConversationDocuments(
     /** Soubor v článku: stejně jako soubor ve zprávě, jen se hledá v médiích článku. */
     fun openArticleDocument(messageId: Long, index: Int) {
         val document = state.value.articleMedia(messageId, index) as? MessageMedia.Document ?: return
-        withDocument(document) { path, _ ->
+        withDocument(document, messageId = null) { path, _ ->
             if (!openFile(path, document.mimeType)) {
                 state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
             }
@@ -116,11 +123,13 @@ internal class ConversationDocuments(
             is MessageMedia.Audio -> media.asDocument()
             else -> return
         }
-        withDocument(document, use)
+        withDocument(document, messageId, use)
     }
 
     private fun withDocument(
         document: MessageMedia.Document,
+        /** Zpráva se souborem — kvůli seznamu stahování; soubor v článku ji nemá. */
+        messageId: Long?,
         use: suspend (path: String, document: MessageMedia.Document) -> Unit,
     ) {
 
@@ -140,7 +149,11 @@ internal class ConversationDocuments(
             try {
                 logger.d { "Otevírám soubor ${document.fileId} (${document.fileName})" }
                 // Ťuknutí je výslovný pokyn: stahování se spustí znovu, i kdyby předchozí zůstalo viset.
-                fileRepository.retryDownload(document.fileId)
+                // Soubor ze zprávy jde přes seznam stahování (ten stahování spustí sám); když se
+                // přidat nepovede, stáhne se postaru.
+                val listed = messageId != null && downloads != null && chatId != 0L &&
+                    downloads.add(document.fileId, chatId, messageId).isSuccess
+                if (!listed) fileRepository.retryDownload(document.fileId)
 
                 val states = fileRepository.file(document.fileId)
                     .onEach { file ->

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.files.SaveAsLauncher
+import eu.tintera.plume.core.telegram.FakeDownloads
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.UnimplementedFileRepository
@@ -52,7 +53,7 @@ class ConversationDocumentsTest {
     private var shares = true
     private var menusClosed = 0
 
-    private fun TestScope.documents(state: MutableStateFlow<ConversationState>) = ConversationDocuments(
+    private fun TestScope.documents(state: MutableStateFlow<ConversationState>, downloads: FakeDownloads? = null) = ConversationDocuments(
         state = state,
         scope = this,
         fileRepository = files,
@@ -60,6 +61,8 @@ class ConversationDocumentsTest {
         share = { path, name -> shared += path to name; shares },
         closeMenus = { menusClosed++ },
         logger = testLogger,
+        downloads = downloads,
+        chatId = if (downloads != null) TEST_CHAT else 0,
     )
 
     private fun stateWithDocument() = testState(
@@ -99,6 +102,27 @@ class ConversationDocumentsTest {
         assertEquals(listOf("/data/smlouva.pdf" to "application/pdf"), opened)
         assertTrue(state.value.documentDownloads.isEmpty())
         assertNull(state.value.notice)
+    }
+
+    @Test
+    fun souborZeZpravyJdeDoSeznamuStahovani() = runTest {
+        val downloads = FakeDownloads()
+        val state = stateWithDocument()
+        documents(state, downloads).openDocument(1)
+        runCurrent()
+
+        assertEquals(listOf(Triple(FILE, TEST_CHAT, 1L)), downloads.added)
+        // Stahování spustil seznam; postaru se nestahuje.
+        assertEquals(emptyList(), files.retried)
+    }
+
+    @Test
+    fun kdyzSeNepridaDoSeznamuStahujeSePostaru() = runTest {
+        val downloads = FakeDownloads(addResult = Result.failure(IllegalStateException("FILE_ID_INVALID")))
+        documents(stateWithDocument(), downloads).openDocument(1)
+        runCurrent()
+
+        assertEquals(listOf(FILE), files.retried)
     }
 
     @Test

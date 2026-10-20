@@ -162,6 +162,9 @@ import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.links.ExternalLinkViewModel
 import eu.tintera.plume.features.calls.CallsViewModel
+import eu.tintera.plume.features.downloads.DownloadsViewModel
+import eu.tintera.plume.core.telegram.DownloadsRepository
+import eu.tintera.plume.core.telegram.TdlDownloadsRepository
 import eu.tintera.plume.features.settings.MyQrCodeViewModel
 import eu.tintera.plume.features.chats.NewContactViewModel
 import eu.tintera.plume.features.chats.CreateChatViewModel
@@ -288,6 +291,7 @@ fun appModule() = module {
         TdlAutosaveRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
     single<NotificationSoundRepository> { TdlNotificationSoundRepository(holder = get()) }
+    single<DownloadsRepository> { TdlDownloadsRepository(holder = get()) }
     // Eager: příchozí hovor chodí updatem a nesmí se minout. Mediální vrstva je jen tam,
     // kde ji platformní modul zaregistruje (Android); jinde jsou hovory nedostupné.
     single { CallRequests() }
@@ -676,6 +680,7 @@ fun appModule() = module {
             currency = getOrNull(),
             speechToText = getOrNull(),
             instantViewRequests = get(),
+            downloads = get(),
         )
     }
 
@@ -862,6 +867,7 @@ fun appModule() = module {
     viewModelOf(::MyQrCodeViewModel)
     viewModelOf(::ExternalLinkViewModel)
     viewModelOf(::CallsViewModel)
+    viewModelOf(::DownloadsViewModel)
 
     // Druh a členové jdou z routy; indexem, `get()` by bral podle typu.
     viewModel { parameters ->
