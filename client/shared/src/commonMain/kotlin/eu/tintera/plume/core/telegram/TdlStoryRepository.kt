@@ -3,6 +3,9 @@ package eu.tintera.plume.core.telegram
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.dto.ChatActiveStories
+import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.InputMessageReplyToStory
+import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.MessageStory
 import dev.g000sha256.tdl.dto.StoryList
 import dev.g000sha256.tdl.dto.StoryListArchive
@@ -131,6 +134,31 @@ class TdlStoryRepository(
         client.openStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()
             .onFailure { logger.w(it) { "openStory $posterChatId/$storyId" } }
     }
+
+    override suspend fun react(posterChatId: Long, storyId: Int, reaction: String?): Result<Unit> =
+        client.setStoryReaction(
+            storyPosterChatId = posterChatId,
+            storyId = storyId,
+            reactionType = reaction?.toReactionType(),
+            // Reakce z příběhu patří mezi nedávné jako reakce u zprávy.
+            updateRecentReactions = true,
+        ).toResult()
+            .onFailure { logger.w(it) { "setStoryReaction $posterChatId/$storyId" } }
+            .map { }
+
+    override suspend fun reply(posterChatId: Long, storyId: Int, text: String): Result<Unit> =
+        client.sendMessage(
+            // Odpověď jde do soukromého chatu s autorem — jeho id je id toho chatu.
+            chatId = posterChatId,
+            replyTo = InputMessageReplyToStory(storyPosterChatId = posterChatId, storyId = storyId),
+            inputMessageContent = InputMessageText(
+                text = FormattedText(text = text, entities = emptyArray()),
+                linkPreviewOptions = null,
+                clearDraft = false,
+            ),
+        ).toResult()
+            .onFailure { logger.w(it) { "Odpověď na příběh $posterChatId/$storyId" } }
+            .map { }
 
     override suspend fun close(posterChatId: Long, storyId: Int) {
         client.closeStory(storyPosterChatId = posterChatId, storyId = storyId).toResult()

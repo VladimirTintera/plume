@@ -1,0 +1,138 @@
+package eu.tintera.plume.features.stories
+
+import eu.tintera.plume.core.telegram.ActiveStories
+import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.StoryListKind
+import eu.tintera.plume.core.telegram.StoryRef
+import eu.tintera.plume.core.telegram.StoryRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class StoriesViewModelTest {
+
+    private class FakeStories(var failReaction: Boolean = false) : StoryRepository {
+        override val active: StateFlow<Map<Long, ActiveStories>> = MutableStateFlow(
+            mapOf(
+                7L to ActiveStories(
+                    chatId = 7,
+                    title = "Autor",
+                    avatarFileId = null,
+                    kind = ChatKind.Private,
+                    list = StoryListKind.Main,
+                    order = 1,
+                    maxReadStoryId = 0,
+                    stories = listOf(StoryRef(id = 1, date = 1)),
+                ),
+            ),
+        )
+        val opened = mutableListOf<Int>()
+        val reactions = mutableListOf<String?>()
+        val replies = mutableListOf<String>()
+
+        override suspend fun story(posterChatId: Long, storyId: Int) = MessageMedia.Story(
+            posterChatId = posterChatId,
+            storyId = storyId,
+            posterName = "Autor",
+            content = null,
+            caption = "",
+            isLive = false,
+            isAvailable = true,
+            viaMention = false,
+            canBeReplied = true,
+        )
+
+        override suspend fun open(posterChatId: Long, storyId: Int) {
+            opened += storyId
+        }
+
+        override suspend fun close(posterChatId: Long, storyId: Int) = Unit
+
+        override suspend fun react(posterChatId: Long, storyId: Int, reaction: String?): Result<Unit> {
+            reactions += reaction
+            return if (failReaction) Result.failure(IllegalStateException("REACTION_INVALID")) else Result.success(Unit)
+        }
+
+        override suspend fun reply(posterChatId: Long, storyId: Int, text: String): Result<Unit> {
+            replies += text
+            return Result.success(Unit)
+        }
+    }
+
+    private val key = StoryKey(7, 1)
+
+    @BeforeTest
+    fun setUp() {
+        Dispatchers.setMain(StandardTestDispatcher())
+    }
+
+    @AfterTest
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    private fun TestScope.viewModel(repository: FakeStories) =
+        StoriesViewModel(startChatId = 7, repository = repository, appScope = this).also { advanceUntilIdle() }
+
+    @Test
+    fun openingCountsTheViewAndLoadsTheStory() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        assertEquals(listOf(1), repository.opened)
+        assertNotNull(viewModel.state.value.pages[key])
+    }
+
+    @Test
+    fun sameReactionTwiceRemovesIt() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        viewModel.react(key, "❤")
+        assertEquals("❤", viewModel.state.value.pages[key]?.chosenReaction, "přepne se hned")
+        advanceUntilIdle()
+        viewModel.react(key, "❤")
+        advanceUntilIdle()
+        assertNull(viewModel.state.value.pages[key]?.chosenReaction)
+        assertEquals(listOf("❤", null), repository.reactions)
+    }
+
+    @Test
+    fun failedReactionIsRevertedAndReported() = runTest {
+        val repository = FakeStories(failReaction = true)
+        val viewModel = viewModel(repository)
+        viewModel.react(key, "👍")
+        advanceUntilIdle()
+        assertNull(viewModel.state.value.pages[key]?.chosenReaction)
+        assertNotNull(viewModel.notice.value)
+    }
+
+    @Test
+    fun replyIsTrimmedAndConfirmed() = runTest {
+        val repository = FakeStories()
+        val viewModel = viewModel(repository)
+        var result: Boolean? = null
+        viewModel.reply(key, "  ahoj  ") { result = it }
+        advanceUntilIdle()
+        assertEquals(listOf("ahoj"), repository.replies)
+        assertEquals(true, result)
+        assertNotNull(viewModel.notice.value)
+
+        viewModel.reply(key, "   ") { result = false }
+        advanceUntilIdle()
+        assertEquals(listOf("ahoj"), repository.replies, "prázdná odpověď se neposílá")
+    }
+}

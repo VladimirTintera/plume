@@ -2826,9 +2826,8 @@ sealed interface MessageMedia {
     ) : MessageMedia
 
     /**
-     * Sdílený příběh (`MessageStory`). Příběhy aplikace jinak nemá — žádný kroužek nad seznamem
-     * chatů, žádné přehrávání po sobě —, ale příběh poslaný do chatu je obyčejná fotka nebo
-     * video, a ten jde ukázat jako snímek a otevřít v prohlížeči médií.
+     * Příběh: sdílený do zprávy (`MessageStory`), citovaný odpovědí, nebo stránka prohlížeče
+     * příběhů (`StoryRepository.story`). Obsah je obyčejná fotka nebo video.
      */
     data class Story(
         val posterChatId: Long,
@@ -2845,6 +2844,12 @@ sealed interface MessageMedia {
         val viaMention: Boolean,
         /** Kdy autor příběh zveřejnil (unixové sekundy); 0 = neznámo. */
         val postedAt: Int = 0,
+        /** Jde na příběh odpovědět zprávou autorovi (`Story.canBeReplied`) — u kanálu ne. */
+        val canBeReplied: Boolean = false,
+        /** Naše reakce na příběh (klíč, viz [customEmojiReaction]); `null` = žádná. */
+        val chosenReaction: String? = null,
+        /** Vlastní příběh (nebo kanálu, který spravujeme): reagovat ani odpovídat na něj nejde. */
+        val isOwn: Boolean = false,
     ) : MessageMedia
 }
 

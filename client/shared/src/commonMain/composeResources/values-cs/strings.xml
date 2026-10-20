@@ -3249,6 +3249,12 @@
     <string name="stories_previous">Předchozí příběh</string>
     <string name="stories_open">Zobrazit příběhy: %1$s</string>
     <string name="stories_stack">Příběhy</string>
+    <string name="story_reply_hint">Odpovědět…</string>
+    <string name="story_reply_sent">Odpověď odeslána</string>
+    <string name="story_reply_failed">Odpověď se nepodařilo odeslat.</string>
+    <string name="story_react_heart">Reagovat srdcem</string>
+    <string name="story_reaction_remove">Odebrat reakci</string>
+    <string name="story_reaction_failed">Reakci se nepodařilo uložit.</string>
     <string name="location_live_share">Sdílet živou polohu</string>
     <string name="location_live_share_hint">Posouvá se, dokud sdílení nezastavíš</string>
     <string name="location_live_period_title">Sdílet živou polohu na…</string>

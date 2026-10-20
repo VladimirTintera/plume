@@ -3143,6 +3143,12 @@
     <string name="stories_previous">Previous story</string>
     <string name="stories_open">Show stories of %1$s</string>
     <string name="stories_stack">Stories</string>
+    <string name="story_reply_hint">Reply…</string>
+    <string name="story_reply_sent">Reply sent</string>
+    <string name="story_reply_failed">Couldn’t send the reply.</string>
+    <string name="story_react_heart">React with a heart</string>
+    <string name="story_reaction_remove">Remove reaction</string>
+    <string name="story_reaction_failed">Couldn’t save the reaction.</string>
     <string name="location_live_share">Share live location</string>
     <string name="location_live_share_hint">Keeps updating until you stop it</string>
     <string name="location_live_period_title">Share live location for…</string>

@@ -2,7 +2,14 @@ package eu.tintera.plume.features.stories
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.story_reaction_failed
+import eu.tintera.plume.resources.story_reply_failed
+import eu.tintera.plume.resources.story_reply_sent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +30,17 @@ class StoriesViewModel(
     startChatId: Long,
     private val repository: StoryRepository,
     private val appScope: CoroutineScope,
+    /** Emoji, která jdou dát jako reakce (výběr přes „+"); bez něj jen srdce. */
+    quickReaction: QuickReaction? = null,
 ) : ViewModel() {
+
+    /** Emoji do výběru reakcí v pořadí od serveru. */
+    val reactionChoices: StateFlow<List<String>> = quickReaction?.choices ?: MutableStateFlow(emptyList())
+
+    private val _notice = MutableStateFlow<UiText?>(null)
+
+    /** Krátké hlášení nad lištou (odpověď odeslána, chyba); UI ho po zobrazení sundá [noticeShown]. */
+    val notice: StateFlow<UiText?> = _notice.asStateFlow()
 
     private val _state = MutableStateFlow(
         viewerPosters(repository.active.value, startChatId).let { posters ->
@@ -59,6 +76,49 @@ class StoriesViewModel(
     fun previous() = _state.update { it.previous() }
 
     fun showPoster(index: Int) = _state.update { it.showPoster(index) }
+
+    fun noticeShown() {
+        _notice.value = null
+    }
+
+    /**
+     * Přepne reakci: táž reakce podruhé ji sundá, jiná ji vymění. Přepíná se hned (optimisticky)
+     * a při chybě vrátí, jako reakce u zprávy.
+     */
+    fun react(key: StoryKey, reaction: String) {
+        val story = _state.value.pages[key] ?: return
+        val previous = story.chosenReaction
+        val next = reaction.takeIf { it != previous }
+        setReaction(key, next)
+        viewModelScope.launch {
+            repository.react(key.posterChatId, key.storyId, next).onFailure { failure ->
+                setReaction(key, previous)
+                _notice.value = failure.userMessage(Res.string.story_reaction_failed)
+            }
+        }
+    }
+
+    private fun setReaction(key: StoryKey, reaction: String?) = _state.update { state ->
+        val story = state.pages[key] ?: return@update state
+        state.copy(pages = state.pages + (key to story.copy(chosenReaction = reaction)))
+    }
+
+    /** Odešle odpověď; [onResult] dostane `true`, když odešla (pole se pak vyprázdní). */
+    fun reply(key: StoryKey, text: String, onResult: (Boolean) -> Unit) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            repository.reply(key.posterChatId, key.storyId, trimmed)
+                .onSuccess {
+                    _notice.value = UiText(Res.string.story_reply_sent)
+                    onResult(true)
+                }
+                .onFailure { failure ->
+                    _notice.value = failure.userMessage(Res.string.story_reply_failed)
+                    onResult(false)
+                }
+        }
+    }
 
     /**
      * Načte aktuální příběh a ty, na které se nejspíš půjde dál: další u téhož autora a první
