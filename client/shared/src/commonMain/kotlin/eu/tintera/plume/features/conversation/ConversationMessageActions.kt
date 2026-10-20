@@ -14,6 +14,8 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.replies_block_failed
+import eu.tintera.plume.resources.replies_block_done
 import eu.tintera.plume.resources.protection_request_failed
 import eu.tintera.plume.resources.protection_request_rejected
 import eu.tintera.plume.resources.protection_request_approved
@@ -232,6 +234,28 @@ internal class ConversationMessageActions(
      * „Nahlásit" z nabídky nad zprávou: průvodce s touhle zprávou (u alba s celým albem, jako
      * u mazání). Server se pak zeptá na důvod — zprávy mu tím odpadne dodávat zvlášť.
      */
+    /** „Zablokovat odesílatele" v chatu Odpovědi: nejdřív potvrzení s volbami. */
+    fun requestBlockFromReplies(messageId: Long) {
+        closeMenus()
+        state.update { it.copy(pendingRepliesBlock = messageId) }
+    }
+
+    fun dismissBlockFromReplies() = state.update { it.copy(pendingRepliesBlock = null) }
+
+    /** Zablokuje odesílatele zprávy z chatu Odpovědi. Smazané zprávy zmizí updatem. */
+    fun confirmBlockFromReplies(deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean) {
+        val messageId = state.value.pendingRepliesBlock ?: return
+        state.update { it.copy(pendingRepliesBlock = null) }
+        scope.launch {
+            repository.blockFromReplies(messageId, deleteMessage, deleteAll, reportSpam)
+                .onSuccess { state.update { it.copy(notice = UiText(Res.string.replies_block_done)) } }
+                .onFailure { failure ->
+                    logger.w(failure) { "Zablokování odesílatele z Odpovědí ($messageId) selhalo." }
+                    state.update { it.copy(error = failure.userMessage(Res.string.replies_block_failed)) }
+                }
+        }
+    }
+
     fun reportMessage(messageId: Long) {
         val ids = state.value.albumMemberIds(messageId)
         closeMenus()

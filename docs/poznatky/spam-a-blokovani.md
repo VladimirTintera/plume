@@ -257,3 +257,20 @@ i profil stojí na chatu, a ten po smazání není.
   kontakt" z pruhu přidal kontakt a pruh zhasl**, jméno je z účtu protějšku (ne to, pod kterým
   ho měl uživatel uložený dřív). Nahlášení se nezkoušelo (šlo by moderátorům). Pruh čeká jen
   na chat, kde příjemce sám ještě nic nenapsal — proto mazání u sebe.
+
+## Blokování z chatu Odpovědi
+
+V chatu Odpovědi (sem chodí odpovědi na komentáře ze všech kanálů, `replies_bot_chat_id`) má
+nabídka nad cizí zprávou pod „Další" položku **Zablokovat odesílatele**
+(`MessageMenuAction.BlockFromReplies`, `blockMessageSenderFromReplies`). Potvrzení nabídne
+smazat zprávu (zaškrtnuté předem), smazat všechny jeho zprávy tady a nahlásit spam.
+
+- **Blokuje se PŮVODNÍ odesílatel**, ne chat Odpovědi — zprávy tam jsou přeposlané od lidí
+  z komentářů. Obyčejné zablokování chatu by tu zablokovalo služební účet.
+- **Chat se pozná podle options** (`ChatInfo.isReplies`), ne podle názvu — ten je lokalizovaný.
+- **Smazat zprávu je zaškrtnuté předem**, smazat vše a nahlásit spam ne: kdo blokuje, zprávu
+  vidět nechce; silnější kroky si má vybrat sám.
+- **Ověřeno na emulátoru jen vzhled** (pokusný build prohlásil chat s testovacím botem za chat
+  Odpovědi): položka v „Další" pod Nahlásit, dialog s volbami, Zrušit. Testovací účet chat
+  Odpovědi nemá a potvrzení na zprávu odjinud by se serveru poslat nemělo. Logiku hlídá
+  `ConversationMessageActionsTest`.

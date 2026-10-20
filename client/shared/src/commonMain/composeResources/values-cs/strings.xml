@@ -211,6 +211,14 @@
     <string name="chats_delete_report">Nahlásit spam</string>
     <string name="chats_action_report">Nahlásit…</string>
     <string name="chats_delete_report_reason">Nahlásit — vybereš důvod</string>
+    <string name="menu_block_sender">Zablokovat odesílatele</string>
+    <string name="replies_block_title">Zablokovat odesílatele?</string>
+    <string name="replies_block_text">Na tvoje komentáře už nebude moct odpovídat.</string>
+    <string name="replies_block_delete_message">Smazat tuhle zprávu</string>
+    <string name="replies_block_delete_all">Smazat všechny jeho zprávy tady</string>
+    <string name="replies_block_report_spam">Nahlásit spam</string>
+    <string name="replies_block_done">Odesílatel zablokován</string>
+    <string name="replies_block_failed">Odesílatele se nepodařilo zablokovat.</string>
     <string name="menu_report">Nahlásit</string>
     <string name="report_done">Nahlášeno moderátorům Telegramu</string>
     <string name="report_failed">Nahlášení se nepodařilo odeslat</string>

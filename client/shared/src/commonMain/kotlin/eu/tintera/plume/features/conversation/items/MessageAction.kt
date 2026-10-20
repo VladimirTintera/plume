@@ -41,6 +41,8 @@ import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.menu_block_sender
+import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.resources.menu_profile_audio_remove
 import eu.tintera.plume.resources.menu_profile_audio_add
 import eu.tintera.plume.resources.music_note_24dp
@@ -628,6 +630,16 @@ sealed interface MessageMenuAction : MessageAction {
             MenuPresentation(Res.drawable.flag_24dp, Res.string.menu_report).takeIf { menu.actions.canReport }
     }
 
+    /**
+     * Zablokovat odesílatele zprávy v chatu Odpovědi (`blockMessageSenderFromReplies`). Kandidát
+     * u každé zprávy; ukáže se jen tam ([MessageMenu.blockFromReplies]). Volby (smazat, spam)
+     * jsou v potvrzovacím dialogu.
+     */
+    data object BlockFromReplies : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.block_24dp, Res.string.menu_block_sender).takeIf { menu.blockFromReplies }
+    }
+
     /** Pro sebe, nebo pro všechny — rozhodne se až v potvrzovacím dialogu. */
     data object Delete : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
@@ -741,6 +753,6 @@ val MessageMenuAction.slot: MenuSlot
         MessageMenuAction.SelectText, MessageMenuAction.Summarize, MessageMenuAction.Explain -> MenuSlot.Text
         MessageMenuAction.ToggleBookmark, MessageMenuAction.Remind, MessageMenuAction.Pin, MessageMenuAction.Unpin -> MenuSlot.Later
         MessageMenuAction.Select -> MenuSlot.Selection
-        MessageMenuAction.Report -> MenuSlot.Report
+        MessageMenuAction.Report, MessageMenuAction.BlockFromReplies -> MenuSlot.Report
         MessageMenuAction.DeletePollOption, MessageMenuAction.Delete -> MenuSlot.Destructive
     }

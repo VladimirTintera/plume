@@ -1734,6 +1734,14 @@ class TdlConversationRepository(
         contact.userId
     }
 
+    override suspend fun blockFromReplies(messageId: Long, deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean): Result<Unit> =
+        client.blockMessageSenderFromReplies(
+            messageId = messageId,
+            deleteMessage = deleteMessage,
+            deleteAllMessages = deleteAll,
+            reportSpam = reportSpam,
+        ).toResult().map { }
+
     override suspend fun answerProtectionDisableRequest(chatId: Long, messageId: Long, approve: Boolean): Result<Unit> =
         client.processChatHasProtectedContentDisableRequest(chatId = chatId, requestMessageId = messageId, approve = approve)
             .toResult().map { }
@@ -2350,6 +2358,8 @@ class TdlConversationRepository(
                     // po přihlášení ho TDLib zná bez dotazu na server.
                     isSavedMessages = (chat.type as? ChatTypePrivate)?.userId
                         ?.let { it == client.getMe().toResult().getOrNull()?.id } == true,
+                    isReplies = (client.getOption(name = REPLIES_BOT_CHAT_OPTION).toResult().getOrNull() as? OptionValueInteger)
+                        ?.value == chat.id,
                     draftText = draft?.text,
                     draftFormats = draft?.formats.orEmpty(),
                     canJoin = access.canJoin,
@@ -4050,6 +4060,9 @@ private const val RECENT_LOCATIONS_LIMIT = 100
 
 /** Výsledků hledání v chatu na stránku; další se dotahují, až k nim uživatel došipkuje. */
 private const val IN_CHAT_SEARCH_PAGE = 50
+
+/** Id chatu Odpovědi; TDLib ho drží v options. */
+private const val REPLIES_BOT_CHAT_OPTION = "replies_bot_chat_id"
 
 /** Strop shod v tajném chatu — TDLib víc než sto najednou nevydá a pokračování se nečte. */
 private const val SECRET_SEARCH_LIMIT = 100

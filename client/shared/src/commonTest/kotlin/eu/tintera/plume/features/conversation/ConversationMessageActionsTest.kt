@@ -34,6 +34,12 @@ class ConversationMessageActionsTest {
         val pinned = mutableListOf<Pinned>()
         val deleted = mutableListOf<Pair<List<Long>, Boolean>>()
         val forwarded = mutableListOf<Forwarded>()
+        val blocked = mutableListOf<List<Any>>()
+
+        override suspend fun blockFromReplies(messageId: Long, deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean): Result<Unit> {
+            blocked += listOf(messageId, deleteMessage, deleteAll, reportSpam)
+            return Result.success(Unit)
+        }
         val protectionAnswers = mutableListOf<Pair<Long, Boolean>>()
         var protectionResult: Result<Unit> = Result.success(Unit)
 
@@ -118,6 +124,34 @@ class ConversationMessageActionsTest {
         items = emptyList(),
         favoriteSticker = null,
     )
+
+    @Test
+    fun blokovaniZOdpovediSePotvrdiAOdejdeSVolbami() = runTest {
+        val state = stateWith(testChatInfo(), testMessage(9))
+        val actions = actions(state)
+
+        actions.requestBlockFromReplies(9)
+        assertEquals(9L, state.value.pendingRepliesBlock)
+        actions.confirmBlockFromReplies(deleteMessage = true, deleteAll = false, reportSpam = true)
+        advanceUntilIdle()
+
+        assertEquals(listOf(listOf<Any>(9L, true, false, true)), repository.blocked)
+        assertNull(state.value.pendingRepliesBlock)
+        assertNotNull(state.value.notice)
+    }
+
+    @Test
+    fun zrusenaZadostOBlokovaniNicNeposle() = runTest {
+        val state = stateWith(testChatInfo(), testMessage(9))
+        val actions = actions(state)
+
+        actions.requestBlockFromReplies(9)
+        actions.dismissBlockFromReplies()
+        actions.confirmBlockFromReplies(deleteMessage = true, deleteAll = true, reportSpam = true)
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), repository.blocked)
+    }
 
     @Test
     fun odpovedNaZadostOVypnutiOchranyOdejdeAPotvrdiSe() = runTest {

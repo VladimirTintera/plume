@@ -230,6 +230,7 @@ internal class ConversationMessageMenu(
                         bookmarked = bookmarks?.isBookmarked(chatId, messageId),
                         profileAudio = profileAudioTask.await(),
                         pressedMessageId = pressed?.takeIf { it != messageId },
+                        blockFromReplies = it.info?.isReplies == true && !message.isOutgoing,
                         pressedPollOptionId = pollOptionId?.takeIf { id -> message.poll?.options?.any { it.id == id && it.canDelete } == true },
                         bubbleSelection = selection,
                         inTranslationLanguage = inTranslationLanguage,

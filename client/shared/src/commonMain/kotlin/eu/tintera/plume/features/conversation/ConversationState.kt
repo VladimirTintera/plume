@@ -339,6 +339,8 @@ data class MessageMenu(
     val pressedMessageId: Long? = null,
     /** Odpověď ankety pod prstem (její id), když jde smazat — viz `MessageMenuAction.DeletePollOption`. */
     val pressedPollOptionId: String? = null,
+    /** Cizí zpráva v chatu Odpovědi — odesílatele jde zablokovat ([MessageMenuAction.BlockFromReplies]). */
+    val blockFromReplies: Boolean = false,
     /**
      * Úryvek vybraný myší přímo v bublině (desktop, `bubbleTextSelectable`). Nabídka s ním jedná
      * jako s výběrem ve své kopii: „Kopírovat" vezme úryvek, „Odpovědět" je „Citovat".
@@ -564,6 +566,8 @@ data class ConversationState(
     val discreetUnread: Int = 0,
     /** Zpráva čekající na potvrzení smazání. */
     val pendingDelete: PendingDelete? = null,
+    /** Zpráva z chatu Odpovědi, u které se potvrzuje zablokování odesílatele. */
+    val pendingRepliesBlock: Long? = null,
     /** Zpráva čekající na potvrzení připnutí. */
     val pendingPin: PendingPin? = null,
     /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */

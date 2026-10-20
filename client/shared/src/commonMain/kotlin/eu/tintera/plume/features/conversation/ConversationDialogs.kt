@@ -28,6 +28,15 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.replies_block_report_spam
+import eu.tintera.plume.resources.replies_block_delete_all
+import eu.tintera.plume.resources.replies_block_delete_message
+import eu.tintera.plume.resources.replies_block_text
+import eu.tintera.plume.resources.replies_block_title
+import eu.tintera.plume.resources.menu_block_sender
+import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.core.ui.DialogCheckRow
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.conversation_location_title
 import eu.tintera.plume.resources.conversation_schedule_past
 import eu.tintera.plume.resources.conversation_schedule_time
@@ -385,6 +394,13 @@ internal fun ConversationDialogs(
         )
     }
 
+    state.pendingRepliesBlock?.let {
+        RepliesBlockDialog(
+            onConfirm = viewModel::confirmBlockFromReplies,
+            onDismiss = viewModel::dismissBlockFromReplies,
+        )
+    }
+
     state.messageInfo?.let { sheet ->
         MessageInfoSheet(
             sheet = sheet,
@@ -626,3 +642,31 @@ internal sealed interface ScheduleTarget {
 
 /** Výchozí čas ve výběru hodiny při plánování: za hodinu od teď. */
 private const val SCHEDULE_DEFAULT_AHEAD_SECONDS = 60L * 60
+
+/**
+ * Zablokování odesílatele z chatu Odpovědi. Smazat zprávu je zaškrtnuté předem (kdo blokuje,
+ * zprávu nechce), smazat vše od něj a nahlásit spam ne — to jsou silnější kroky.
+ */
+@Composable
+private fun RepliesBlockDialog(
+    onConfirm: (deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var deleteMessage by rememberSaveable { mutableStateOf(true) }
+    var deleteAll by rememberSaveable { mutableStateOf(false) }
+    var reportSpam by rememberSaveable { mutableStateOf(false) }
+    ConfirmDialog(
+        title = stringResource(Res.string.replies_block_title),
+        text = stringResource(Res.string.replies_block_text),
+        confirmLabel = stringResource(Res.string.menu_block_sender),
+        onConfirm = { onConfirm(deleteMessage, deleteAll, reportSpam) },
+        onDismiss = onDismiss,
+        icon = Res.drawable.block_24dp,
+        destructive = true,
+    ) {
+        DialogCheckRow(label = stringResource(Res.string.replies_block_delete_message), checked = deleteMessage, onChange = { deleteMessage = it })
+        DialogCheckRow(label = stringResource(Res.string.replies_block_delete_all), checked = deleteAll, onChange = { deleteAll = it })
+        DialogCheckRow(label = stringResource(Res.string.replies_block_report_spam), checked = reportSpam, onChange = { reportSpam = it })
+    }
+}
+

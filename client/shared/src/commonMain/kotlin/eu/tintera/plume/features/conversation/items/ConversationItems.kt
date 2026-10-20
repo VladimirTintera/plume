@@ -329,6 +329,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean, customEmoji: B
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
     add(MessageMenuAction.Select)
     add(MessageMenuAction.Report)
+    add(MessageMenuAction.BlockFromReplies)
     if (poll?.options?.any { it.canDelete } == true) add(MessageMenuAction.DeletePollOption)
     add(MessageMenuAction.Delete)
 }
