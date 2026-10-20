@@ -84,6 +84,9 @@ import eu.tintera.plume.resources.story_keep_on_profile_summary
 import eu.tintera.plume.resources.story_allow_screenshots
 import eu.tintera.plume.resources.story_post
 import eu.tintera.plume.resources.story_select_people
+import eu.tintera.plume.resources.story_audience_close_friends
+import eu.tintera.plume.resources.story_close_friends_pick
+import eu.tintera.plume.resources.story_close_friends_title
 import eu.tintera.plume.resources.story_video_preparing
 import eu.tintera.plume.resources.story_video_trimmed
 import org.jetbrains.compose.resources.pluralStringResource
@@ -107,7 +110,8 @@ fun StoryComposerScreen(
     val haptics = LocalHapticFeedback.current
     val snackbar = remember { SnackbarHostState() }
     val currentOnPosted by rememberUpdatedState(onPosted)
-    var picking by rememberSaveable { mutableStateOf(false) }
+    // Otevřený výběr lidí: pro „Vybraní lidé", nebo úprava seznamu blízkých přátel.
+    var picking by rememberSaveable { mutableStateOf<AudienceChoice?>(null) }
 
     LaunchedEffect(state.posted) { if (state.posted) currentOnPosted() }
     LaunchedEffect(state.error) {
@@ -117,17 +121,39 @@ fun StoryComposerScreen(
         viewModel.errorShown()
     }
 
-    if (picking) {
-        StoryAudiencePicker(
-            initial = state.selected,
-            onDone = { picked ->
-                viewModel.setSelected(picked)
-                picking = false
-            },
-            onBack = { picking = false },
-            modifier = modifier,
-        )
-        return
+    when (picking) {
+        AudienceChoice.Selected -> {
+            StoryAudiencePicker(
+                title = stringResource(Res.string.story_select_people),
+                initial = state.selected,
+                contactsOnly = false,
+                onDone = { picked ->
+                    viewModel.setSelected(picked)
+                    picking = null
+                },
+                onBack = { picking = null },
+                modifier = modifier,
+            )
+            return
+        }
+
+        AudienceChoice.CloseFriends -> {
+            StoryAudiencePicker(
+                title = stringResource(Res.string.story_close_friends_title),
+                initial = state.closeFriends.orEmpty(),
+                // Telegram bere mezi blízké přátele jen kontakty.
+                contactsOnly = true,
+                onDone = { picked ->
+                    viewModel.saveCloseFriends(picked)
+                    picking = null
+                },
+                onBack = { picking = null },
+                modifier = modifier,
+            )
+            return
+        }
+
+        else -> Unit
     }
 
     Scaffold(
@@ -212,9 +238,16 @@ fun StoryComposerScreen(
                     } else {
                         pluralStringResource(Res.plurals.story_audience_selected_count, state.selected.size, state.selected.size)
                     }
+                    val friends = state.closeFriends
+                    val friendsSummary = when {
+                        friends == null -> null
+                        friends.isEmpty() -> stringResource(Res.string.story_close_friends_pick)
+                        else -> pluralStringResource(Res.plurals.story_audience_selected_count, friends.size, friends.size)
+                    }
                     val options = listOf(
                         Triple(AudienceChoice.Everyone, stringResource(Res.string.story_audience_everyone), null),
                         Triple(AudienceChoice.Contacts, stringResource(Res.string.story_audience_contacts), null),
+                        Triple(AudienceChoice.CloseFriends, stringResource(Res.string.story_audience_close_friends), friendsSummary),
                         Triple(AudienceChoice.Selected, stringResource(Res.string.story_audience_selected), selectedSummary),
                     )
                     options.forEachIndexed { index, (choice, label, supporting) ->
@@ -225,11 +258,15 @@ fun StoryComposerScreen(
                             index = index,
                             count = options.size,
                             onClick = {
-                                // Vybraní bez výběru rovnou k výběru lidí (volba by jinak nic
-                                // neznamenala); vybraní podruhé výběr otevřou k úpravě.
-                                val pick = choice == AudienceChoice.Selected &&
-                                    (state.selected.isEmpty() || state.audience == AudienceChoice.Selected)
-                                if (pick) picking = true else viewModel.setAudience(choice)
+                                // Vybraní / blízcí přátelé bez nikoho rovnou k výběru lidí (volba
+                                // by jinak nic neznamenala); podruhé výběr otevřou k úpravě.
+                                val people = when (choice) {
+                                    AudienceChoice.Selected -> state.selected
+                                    AudienceChoice.CloseFriends -> friends.orEmpty()
+                                    else -> null
+                                }
+                                val pick = people != null && (people.isEmpty() || state.audience == choice)
+                                if (pick) picking = choice else viewModel.setAudience(choice)
                             },
                         )
                     }
@@ -280,10 +317,15 @@ private fun StoryPreview(path: String?, fill: Boolean) {
     }
 }
 
-/** Výběr lidí, kteří příběh uvidí — kontakty a soukromé chaty, jako členové nové skupiny. */
+/**
+ * Výběr lidí, kteří příběh uvidí — kontakty a soukromé chaty, jako členové nové skupiny. Pro
+ * blízké přátele ([contactsOnly]) jen kontakty a potvrdit jde i prázdný výběr (vyprázdnění seznamu).
+ */
 @Composable
 private fun StoryAudiencePicker(
+    title: String,
     initial: Set<Long>,
+    contactsOnly: Boolean,
     onDone: (Set<Long>) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -291,17 +333,22 @@ private fun StoryAudiencePicker(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var selected by rememberSaveable { mutableStateOf(initial.toList()) }
+    val contacts = PickerSection(key = "contacts", chats = groupMemberCandidates(state.contacts, state.savedMessagesChatId), title = stringResource(Res.string.new_chat_contacts))
     ChatPicker(
-        title = stringResource(Res.string.story_select_people),
+        title = title,
         query = state.query,
         onQueryChange = viewModel::onQueryChange,
         searchPlaceholder = stringResource(Res.string.new_chat_search),
         loading = state.loading && state.contacts.isEmpty(),
-        sections = listOf(
-            PickerSection(key = "contacts", chats = groupMemberCandidates(state.contacts, state.savedMessagesChatId), title = stringResource(Res.string.new_chat_contacts)),
-            PickerSection(key = "chats", chats = groupMemberCandidates(state.chatResults, state.savedMessagesChatId), title = stringResource(Res.string.chats_search_section_chats)),
-            PickerSection(key = "global", chats = groupMemberCandidates(state.globalResults, state.savedMessagesChatId), title = stringResource(Res.string.chats_search_section_global)),
-        ),
+        sections = if (contactsOnly) {
+            listOf(contacts)
+        } else {
+            listOf(
+                contacts,
+                PickerSection(key = "chats", chats = groupMemberCandidates(state.chatResults, state.savedMessagesChatId), title = stringResource(Res.string.chats_search_section_chats)),
+                PickerSection(key = "global", chats = groupMemberCandidates(state.globalResults, state.savedMessagesChatId), title = stringResource(Res.string.chats_search_section_global)),
+            )
+        },
         enabled = true,
         onPick = { chatId -> selected = if (chatId in selected) selected - chatId else selected + chatId },
         selected = selected.toSet(),
@@ -309,6 +356,7 @@ private fun StoryAudiencePicker(
         onConfirm = { onDone(selected.toSet()) },
         confirmLabel = Res.string.story_audience_done,
         confirmIcon = Res.drawable.check_24dp,
+        confirmWhenEmpty = contactsOnly,
         showPresence = true,
         onBack = onBack,
         modifier = modifier,

@@ -93,6 +93,10 @@ class StoriesViewModelTest {
             return Result.success(Unit)
         }
 
+        override suspend fun closeFriends(): Result<List<Long>> = Result.success(emptyList())
+
+        override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> = Result.success(Unit)
+
         val offsets = mutableListOf<String>()
 
         /** Dvě stránky; druhá opakuje diváka z první (server to nevylučuje). */

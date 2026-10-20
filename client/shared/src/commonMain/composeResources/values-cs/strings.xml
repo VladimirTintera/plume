@@ -3308,6 +3308,12 @@
     <string name="story_viewers_failed">Nepodařilo se načíst, kdo příběh viděl.</string>
     <string name="story_viewer_forwarded">Přeposláno · %1$s</string>
     <string name="story_viewer_reposted">Sdíleno v příběhu · %1$s</string>
+    <string name="story_audience_close_friends">Blízcí přátelé</string>
+    <string name="story_close_friends_title">Blízcí přátelé</string>
+    <string name="story_close_friends_pick">Vybrat blízké přátele</string>
+    <string name="story_close_friends_empty">Seznam blízkých přátel je prázdný. Napřed na něj někoho přidej.</string>
+    <string name="story_close_friends_saving">Seznam blízkých přátel se ještě ukládá, zkus to za chvíli.</string>
+    <string name="story_close_friends_failed">Seznam blízkých přátel se nepodařilo uložit.</string>
     <string name="location_live_share">Sdílet živou polohu</string>
     <string name="location_live_share_hint">Posouvá se, dokud sdílení nezastavíš</string>
     <string name="location_live_period_title">Sdílet živou polohu na…</string>

@@ -33,8 +33,17 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class StoryComposerViewModelTest {
 
-    private class Posting : StoryRepository {
+    private class Posting(
+        var friends: List<Long> = emptyList(),
+        val failSaving: Boolean = false,
+    ) : StoryRepository {
         val drafts = mutableListOf<StoryDraft>()
+        val savedFriends = mutableListOf<List<Long>>()
+        override suspend fun closeFriends(): Result<List<Long>> = Result.success(friends)
+        override suspend fun setCloseFriends(userIds: List<Long>): Result<Unit> {
+            savedFriends += userIds
+            return if (failSaving) Result.failure(IllegalStateException("USER_NOT_MUTUAL_CONTACT")) else Result.success(Unit)
+        }
         override val active: StateFlow<Map<Long, ActiveStories>> = MutableStateFlow(emptyMap())
         override suspend fun story(posterChatId: Long, storyId: Int): MessageMedia.Story = error("nevolá se")
         override suspend fun open(posterChatId: Long, storyId: Int) = Unit
@@ -149,5 +158,38 @@ class StoryComposerViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(true), videos.fills)
         assertEquals(StoryMedia.Video("klip.mp4.story.mp4", durationSeconds = 60.0, hasAudio = false), repository.drafts.single().media)
+    }
+
+    @Test
+    fun closeFriendsArePostedOnlyWithSomeoneOnTheList() = runTest {
+        val repository = Posting(friends = emptyList())
+        val viewModel = StoryComposerViewModel("foto.jpg", isVideo = false, repository = repository, storyPhoto = Renderer(), storyVideo = Videos())
+        advanceUntilIdle()
+        assertEquals(emptySet(), viewModel.state.value.closeFriends)
+        viewModel.setAudience(AudienceChoice.CloseFriends)
+        viewModel.post()
+        advanceUntilIdle()
+        assertTrue(repository.drafts.isEmpty(), "prázdný seznam = příběh nikdo neuvidí")
+        assertNotNull(viewModel.state.value.error)
+
+        viewModel.errorShown()
+        viewModel.saveCloseFriends(setOf(7L, 8L))
+        advanceUntilIdle()
+        assertEquals(listOf(listOf(7L, 8L)), repository.savedFriends)
+        assertEquals(AudienceChoice.CloseFriends, viewModel.state.value.audience)
+        viewModel.post()
+        advanceUntilIdle()
+        assertEquals(StoryAudience.CloseFriends, repository.drafts.single().audience)
+    }
+
+    @Test
+    fun failedCloseFriendsSaveIsReverted() = runTest {
+        val repository = Posting(friends = listOf(1L), failSaving = true)
+        val viewModel = StoryComposerViewModel("foto.jpg", isVideo = false, repository = repository, storyPhoto = Renderer(), storyVideo = Videos())
+        advanceUntilIdle()
+        viewModel.saveCloseFriends(setOf(1L, 2L))
+        advanceUntilIdle()
+        assertEquals(setOf(1L), viewModel.state.value.closeFriends)
+        assertNotNull(viewModel.state.value.error)
     }
 }

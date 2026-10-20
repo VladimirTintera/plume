@@ -62,6 +62,12 @@ interface StoryRepository {
      * stránky (prázdný = první). Nejdřív ti s reakcí, pak podle času.
      */
     suspend fun viewers(storyId: Int, offset: String = ""): Result<StoryViewersPage>
+
+    /** Id uživatelů na seznamu blízkých přátel. Seznam je nastavení ÚČTU (sdílí ho všichni klienti). */
+    suspend fun closeFriends(): Result<List<Long>>
+
+    /** Nahradí seznam blízkých přátel; smí na něm být jen kontakty. */
+    suspend fun setCloseFriends(userIds: List<Long>): Result<Unit>
 }
 
 data class StoryViewersPage(
@@ -106,10 +112,13 @@ sealed interface StoryMedia {
     data class Video(val path: String, val durationSeconds: Double, val hasAudio: Boolean) : StoryMedia
 }
 
-/** Kdo příběh uvidí. Blízcí přátelé chybí vědomě: jejich seznam Plume zatím upravovat neumí. */
+/** Kdo příběh uvidí. */
 sealed interface StoryAudience {
     data object Everyone : StoryAudience
     data object Contacts : StoryAudience
+
+    /** Lidé ze seznamu blízkých přátel (`setCloseFriends`). */
+    data object CloseFriends : StoryAudience
     data class Selected(val userIds: List<Long>) : StoryAudience
 }
 
@@ -151,6 +160,9 @@ data class ActiveStories(
     val unreadCount: Int get() = stories.count { it.id > maxReadStoryId }
 
     val hasUnread: Boolean get() = unreadCount > 0
+
+    /** Mezi nezhlédnutými je příběh jen pro blízké přátele (autor nás má na seznamu). */
+    val hasUnreadForCloseFriends: Boolean get() = stories.any { it.isForCloseFriends && it.id > maxReadStoryId }
 
     /** Kde se má autor otevřít: na prvním nezhlédnutém, a když jsou všechny zhlédnuté, od začátku. */
     val firstToShow: Int get() = stories.indexOfFirst { it.id > maxReadStoryId }.coerceAtLeast(0)
