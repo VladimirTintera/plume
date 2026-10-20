@@ -54,6 +54,8 @@ object BackgroundDataWarning {
      */
     suspend fun report(context: Context, permission: NotificationPermission, blocked: Boolean): Boolean {
         permission.recordBackgroundData(blocked)
+        // Data zase jdou: staré upozornění by v liště tvrdilo něco, co už neplatí.
+        if (!blocked) runCatching { NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID) }
         if (!blocked || !permission.isGranted()) return false
         if (!permission.claimBackgroundDataNotification(NOTIFY_INTERVAL.inWholeMilliseconds)) return false
         val notification = NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
