@@ -46,8 +46,8 @@ class TdlNotificationSettingsRepository(
 
     /**
      * Rozsah se zapisuje **celým objektem**, stejně jako ztlumení chatu. Co v [ScopeSettings]
-     * není (zvuk, stories), se přenese z aktuálního stavu — jinak by se uživateli tiše přepsal
-     * třeba zvuk nastavený v jiném klientovi.
+     * není (zvuk, zvuk příběhů), se přenese z aktuálního stavu — jinak by se uživateli tiše
+     * přepsal třeba zvuk nastavený v jiném klientovi.
      */
     override suspend fun setScopeSettings(scope: NotificationScope, settings: ScopeSettings): Result<Unit> {
         val current = client.getScopeNotificationSettings(scope = scope.toTdl()).toResult()
@@ -56,18 +56,32 @@ class TdlNotificationSettingsRepository(
             muteFor = if (settings.enabled) 0 else MUTE_FOREVER,
             soundId = current.soundId,
             showPreview = settings.showPreview,
-            useDefaultMuteStories = current.useDefaultMuteStories,
-            muteStories = current.muteStories,
+            useDefaultMuteStories = settings.storyAlerts == StoryAlerts.TopContacts,
+            // U „nejčastějších kontaktů" `muteStories` nic neznamená; nechá se, jak bylo.
+            muteStories = when (settings.storyAlerts) {
+                StoryAlerts.TopContacts -> current.muteStories
+                StoryAlerts.All -> false
+                StoryAlerts.None -> true
+            },
             storySoundId = current.storySoundId,
-            showStoryPoster = current.showStoryPoster,
+            showStoryPoster = settings.showStoryPoster,
             disablePinnedMessageNotifications = !settings.pinnedMessages,
             disableMentionNotifications = !settings.mentions,
         )
-        return client.setScopeNotificationSettings(scope = scope.toTdl(), notificationSettings = updated)
+        if (onlyStoriesDiffer(current, updated)) {
+            // Obcházka chyby TDLib: změna JEN v příbězích se zahodí — viz [onlyStoriesDiffer].
+            // Napřed se zapíše s maličko jiným ztlumením (TDLib změnu vezme a pošle na server
+            // celé nastavení i s příběhy), pak se ztlumení vrátí.
+            write(scope, updated.withMuteFor(nudgedMuteFor(current.muteFor))).onFailure { return Result.failure(it) }
+        }
+        return write(scope, updated)
+    }
+
+    private suspend fun write(scope: NotificationScope, settings: ScopeNotificationSettings): Result<Unit> =
+        client.setScopeNotificationSettings(scope = scope.toTdl(), notificationSettings = settings)
             .toResult()
             .map { }
             .onFailure { logger.w(it) { "Nastavení rozsahu $scope se nepodařilo uložit." } }
-    }
 
     override suspend fun exceptions(scope: NotificationScope): Result<List<NotificationException>> =
         client.getChatNotificationSettingsExceptions(scope = scope.toTdl(), compareSound = false)
@@ -244,6 +258,12 @@ class TdlNotificationSettingsRepository(
         pinnedMessages = !disablePinnedMessageNotifications,
         mentions = !disableMentionNotifications,
         soundId = soundId,
+        storyAlerts = when {
+            useDefaultMuteStories -> StoryAlerts.TopContacts
+            muteStories -> StoryAlerts.None
+            else -> StoryAlerts.All
+        },
+        showStoryPoster = showStoryPoster,
     )
 
     override suspend fun setScopeSound(scope: NotificationScope, soundId: Long): Result<Unit> {
@@ -296,4 +316,49 @@ internal fun defaultChatNotificationSettings() = ChatNotificationSettings(
     disablePinnedMessageNotifications = false,
     useDefaultDisableMentionNotifications = true,
     disableMentionNotifications = false,
+)
+
+/**
+ * Liší se nastavení rozsahu JEN v příbězích? **TDLib takovou změnu zahodí**:
+ * `NotificationSettingsManager::update_scope_notification_settings` (ověřeno ve zdroji, master
+ * 2026-10) porovnává jen ztlumení, zvuk, náhled, připnuté a zmínky — pole příběhů
+ * (`useDefaultMuteStories`, `muteStories`, `showStoryPoster`, zvuk příběhů) ne, takže se změna
+ * neuloží ani nepošle na server. U chatu (`need_update_dialog_notification_settings`) je porovnává.
+ */
+internal fun onlyStoriesDiffer(current: ScopeNotificationSettings, updated: ScopeNotificationSettings): Boolean {
+    val storiesDiffer = current.useDefaultMuteStories != updated.useDefaultMuteStories ||
+        current.muteStories != updated.muteStories ||
+        current.showStoryPoster != updated.showStoryPoster ||
+        current.storySoundId != updated.storySoundId
+    val restDiffers = current.muteFor != updated.muteFor ||
+        current.soundId != updated.soundId ||
+        current.showPreview != updated.showPreview ||
+        current.disablePinnedMessageNotifications != updated.disablePinnedMessageNotifications ||
+        current.disableMentionNotifications != updated.disableMentionNotifications
+    return storiesDiffer && !restDiffers
+}
+
+/**
+ * Ztlumení na chvilku jiné, aby TDLib změnu vzal: zapnutý rozsah na 1 s (kdyby druhý zápis
+ * selhal, samo vyprší), ztlumený napořád na 10 let (pořád „navždy", viz [muteState]), ztlumený
+ * dočasně o sekundu déle.
+ */
+internal fun nudgedMuteFor(muteFor: Int): Int = when {
+    muteFor <= 0 -> 1
+    muteFor > TEN_YEARS_SECONDS -> TEN_YEARS_SECONDS
+    else -> muteFor + 1
+}
+
+private const val TEN_YEARS_SECONDS = 10 * 365 * 24 * 60 * 60
+
+private fun ScopeNotificationSettings.withMuteFor(seconds: Int) = ScopeNotificationSettings(
+    muteFor = seconds,
+    soundId = soundId,
+    showPreview = showPreview,
+    useDefaultMuteStories = useDefaultMuteStories,
+    muteStories = muteStories,
+    storySoundId = storySoundId,
+    showStoryPoster = showStoryPoster,
+    disablePinnedMessageNotifications = disablePinnedMessageNotifications,
+    disableMentionNotifications = disableMentionNotifications,
 )

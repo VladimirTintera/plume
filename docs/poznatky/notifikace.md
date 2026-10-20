@@ -475,6 +475,34 @@ JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
   samostatná notifikace téhož chatu, příspěvek kanálu kanálem `channels`. Do skutečných skupin
   se testovací zprávy neposílají — test jde jen tam, kde je bot.
 
+### Upozornění na příběhy
+
+Nastavení ÚČTU (platí i v oficiálních klientech), ne aplikace:
+
+- **Rozsah: Nastavení → Notifikace → Soukromé chaty → „Nové příběhy"** — od nejčastějších
+  kontaktů (`useDefaultMuteStories`: Telegram upozorní jen na prvních pět z
+  `topChatCategoryUsers`), od všech, vypnuto — a „Ukazovat autora" (`showStoryPoster`).
+  U soukromých chatů, protože příběhy zveřejňují hlavně lidé (tak to mají i oficiální klienti).
+- **Chat: sheet Upozornění v profilu → „Nové příběhy"** (`ChatNotificationOption.Stories`,
+  jen u lidí a kanálů, ne u tématu). Bez vlastní volby platí rozsah; u „nejčastějších
+  kontaktů" se neví, jestli chat mezi ně patří, přepínač to proto ukazuje jako zapnuté.
+  Vlastní volba příběhů se počítá do „Obnovit" (`isDefault`).
+- **TDLib změnu rozsahu, která se týká JEN příběhů, zahodí** — neuloží ji ani nepošle na
+  server, bez chyby. `NotificationSettingsManager::update_scope_notification_settings`
+  (zdroj TDLib, master 2026-10) porovnává jen ztlumení, zvuk, náhled, připnuté a zmínky; pole
+  příběhů ne. U chatu (`need_update_dialog_notification_settings`) je porovnává, tam to jde.
+  Našlo se na emulátoru: „Od všech" i „Vypnuto" se hned po zápisu četly zpátky jako
+  „nejčastější kontakty". **Obcházka** (`onlyStoriesDiffer`, `nudgedMuteFor`
+  v `TdlNotificationSettingsRepository`, testy `ScopeStoriesWorkaroundTest`): když se mění jen
+  příběhy, zapíše se rozsah dvakrát — napřed se ztlumením posunutým o sekundu (TDLib změnu
+  vezme a pošle na server celé nastavení i s příběhy), pak se ztlumení vrátí. Zapnutý rozsah
+  se tak ztlumí na 1 s, takže kdyby druhý zápis selhal, samo to vyprší; ztlumený napořád jde
+  na 10 let (pořád „navždy"). Ověřeno: hodnota vydrží restart aplikace a upozornění rozsahu
+  zůstanou zapnutá. **Až TDLib opraví porovnání, obcházka může pryč** (neškodí ani pak —
+  zapisuje se jen při změně samotných příběhů).
+- **Jestli upozornění na nový příběh opravdu chodí, ověřené NENÍ** — free účet smí mít jeden
+  aktivní příběh a testovací účty ho měly; jak je TDLib doručí (push), se zatím neví.
+
 ### Zvuky z Telegramu
 
 Nastavení → Notifikace → u každého rozsahu „Zvuk" (`NotificationSoundSheet`,

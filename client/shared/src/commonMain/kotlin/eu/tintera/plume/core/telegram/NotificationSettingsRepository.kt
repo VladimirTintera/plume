@@ -89,6 +89,11 @@ data class ChatNotificationPrefs(
     val soundIsDefault: Boolean = true,
     /** Zvuk, který by chat (téma) měl bez vlastního — co nabízí volba „podle výchozího nastavení". */
     val defaultSoundId: Long = DEFAULT_SOUND_ID,
+    /**
+     * Upozornění na nové příběhy chatu. Bez vlastní volby platí rozsah — a u „nejčastějších
+     * kontaktů" ([StoryAlerts.TopContacts]) se neví, jestli mezi ně chat patří; bere se jako zapnuté.
+     */
+    val stories: Boolean = true,
 )
 
 enum class NotificationDefaults {
@@ -107,7 +112,14 @@ sealed interface MuteState {
     data class Until(val epochSeconds: Long) : MuteState
 }
 
-enum class ChatNotificationOption { ShowPreview, PinnedMessages, Mentions }
+enum class ChatNotificationOption {
+    ShowPreview,
+    PinnedMessages,
+    Mentions,
+
+    /** Upozornit na nové příběhy chatu (`muteStories`). */
+    Stories,
+}
 
 /**
  * Ztlumení z počtu zbývajících sekund, jak ho posílá TDLib. Nad rok se bere jako „navždy" —
@@ -137,7 +149,17 @@ data class ScopeSettings(
     val mentions: Boolean,
     /** Zvuk: [DEFAULT_SOUND_ID], [NO_SOUND_ID], nebo id tónu účtu. */
     val soundId: Long = DEFAULT_SOUND_ID,
+    /** Na čí nové příběhy upozorňovat (`useDefaultMuteStories` / `muteStories`). */
+    val storyAlerts: StoryAlerts = StoryAlerts.TopContacts,
+    /** Jméno autora v upozornění na příběh (`showStoryPoster`). */
+    val showStoryPoster: Boolean = true,
 )
+
+/**
+ * Upozornění na nové příběhy v rozsahu. Výchozí je [TopContacts]: Telegram pak upozorňuje jen
+ * na prvních pět nejčastějších kontaktů (`useDefaultMuteStories`) — na všechny by to byl šum.
+ */
+enum class StoryAlerts { TopContacts, All, None }
 
 data class NotificationException(
     val chatId: Long,
