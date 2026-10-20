@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.StoryAlbum
 import kotlinx.coroutines.flow.distinctUntilChanged
 import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.StoryRepository
@@ -918,35 +919,82 @@ class ChatProfileViewModel(
     }
 
     /**
-     * Další stránka příběhů v profilu (první, když ještě žádná není). Selhání se nehlásí —
-     * záložka se jen neukáže, jako u dárků. Konec je, když stránka nepřinese nic nového.
+     * Další stránka příběhů v profilu (první, když ještě žádná není) — všech, nebo vybraného
+     * alba ([ProfileStories.albumId]). Selhání se nehlásí — záložka se jen neukáže, jako
+     * u dárků. Konec je, když stránka nepřinese nic nového nebo je načteno všechno.
      */
     fun loadMoreStories() {
         val repository = stories ?: return
         val current = _state.value.profileStories
         if (current?.loading == true || (current != null && !current.hasMore)) return
+        val albumId = current?.albumId
         _state.update { it.copy(profileStories = (it.profileStories ?: ProfileStories()).copy(loading = true)) }
         viewModelScope.launch {
-            repository.profileStories(chatId, fromStoryId = current?.items?.lastOrNull()?.storyId ?: 0)
-                .onSuccess { page ->
+            val page = if (albumId == null) {
+                repository.profileStories(chatId, fromStoryId = current?.items?.lastOrNull()?.storyId ?: 0)
+            } else {
+                repository.albumStories(chatId, albumId, offset = current.items.size)
+            }
+            page
+                .onSuccess { loaded ->
                     _state.update { state ->
-                        val before = state.profileStories?.items.orEmpty()
-                        val items = (before + page.stories).distinctBy { it.storyId }
+                        val stories = state.profileStories ?: ProfileStories()
+                        // Odpověď na album, které už uživatel přepnul, se zahodí.
+                        if (stories.albumId != albumId) return@update state
+                        val items = (stories.items + loaded.stories).distinctBy { it.storyId }
                         state.copy(
-                            profileStories = ProfileStories(
+                            profileStories = stories.copy(
                                 items = items,
-                                total = page.totalCount,
-                                pinnedIds = state.profileStories?.pinnedIds.orEmpty() + page.pinnedIds,
-                                hasMore = items.size > before.size && items.size < page.totalCount,
+                                total = loaded.totalCount,
+                                pinnedIds = stories.pinnedIds + loaded.pinnedIds,
+                                hasMore = items.size > stories.items.size && items.size < loaded.totalCount,
+                                loading = false,
+                                // Záložka se ukáže podle VŠECH příběhů; prázdné album ji neschová.
+                                available = stories.available || items.isNotEmpty(),
                             ),
                         )
                     }
+                    if (albumId == null && current == null) loadStoryAlbums()
                 }
                 .onFailure { failure ->
                     logger.w(failure) { "Příběhy v profilu se nepodařilo načíst." }
                     _state.update { it.copy(profileStories = it.profileStories?.copy(loading = false, hasMore = false)) }
                 }
         }
+    }
+
+    /** Alba autora — čipy nad mřížkou. Selhání nevadí, mřížka zůstane bez nich. */
+    private fun loadStoryAlbums() {
+        val repository = stories ?: return
+        viewModelScope.launch {
+            repository.albums(chatId)
+                .onSuccess { albums ->
+                    _state.update { state ->
+                        val stories = state.profileStories ?: ProfileStories()
+                        state.copy(profileStories = stories.copy(albums = albums, available = stories.available || albums.isNotEmpty()))
+                    }
+                }
+                .onFailure { logger.w(it) { "Alba příběhů se nepodařilo načíst." } }
+        }
+    }
+
+    /** Přepne mřížku na album [albumId], nebo (`null`) na všechny příběhy v profilu. */
+    fun selectStoryAlbum(albumId: Int?) {
+        val current = _state.value.profileStories ?: return
+        if (current.albumId == albumId) return
+        _state.update {
+            it.copy(
+                profileStories = current.copy(
+                    albumId = albumId,
+                    items = emptyList(),
+                    total = 0,
+                    pinnedIds = emptySet(),
+                    hasMore = true,
+                    loading = false,
+                ),
+            )
+        }
+        loadMoreStories()
     }
 
     /**
@@ -1373,7 +1421,7 @@ data class ChatProfileState(
                 if (!commonGroups.isNullOrEmpty()) add(ProfileTab.CommonGroups)
                 if (!similarChannels.isNullOrEmpty()) add(ProfileTab.SimilarChannels)
                 if (!gifts?.items.isNullOrEmpty()) add(ProfileTab.Gifts)
-                if (!profileStories?.items.isNullOrEmpty()) add(ProfileTab.Stories)
+                if (profileStories?.available == true) add(ProfileTab.Stories)
             }
         }
 
@@ -1415,13 +1463,22 @@ sealed interface ProfileTab {
     data object Stories : ProfileTab
 }
 
-/** Načtené příběhy profilu; připnuté jdou první (tak je vrací server). */
+/**
+ * Načtené příběhy profilu — všechny, nebo jednoho alba ([albumId]); připnuté jdou první (tak je
+ * vrací server, jen u všech).
+ */
 data class ProfileStories(
     val items: List<MessageMedia.Story> = emptyList(),
     val total: Int = 0,
     val pinnedIds: Set<Int> = emptySet(),
     val hasMore: Boolean = true,
     val loading: Boolean = false,
+    /** Alba autora; prázdné = čipy se nekreslí. */
+    val albums: List<StoryAlbum> = emptyList(),
+    /** Vybrané album; `null` = všechny příběhy. */
+    val albumId: Int? = null,
+    /** Autor má v profilu nějaké příběhy nebo alba — záložka se ukáže a už nezmizí. */
+    val available: Boolean = false,
 )
 
 /** Načtené dárky profilu; [nextOffset] `null` = všechny. */

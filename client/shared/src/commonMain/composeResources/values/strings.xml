@@ -3223,6 +3223,8 @@
     <string name="profile_stories_open">Show stories</string>
     <string name="profile_story_open">Open story</string>
     <string name="profile_story_pinned">Pinned</string>
+    <string name="profile_story_albums_all">All</string>
+    <string name="profile_story_album_empty">This album is empty.</string>
     <string name="location_live_share">Share live location</string>
     <string name="location_live_share_hint">Keeps updating until you stop it</string>
     <string name="location_live_period_title">Share live location for…</string>

@@ -89,7 +89,15 @@ interface StoryRepository {
      * [request] se zeptá na důvod, pak případně na text — viz [ChatRepository.report].
      */
     suspend fun report(posterChatId: Long, storyId: Int, request: ReportRequest): Result<ReportStep>
+
+    /** Alba příběhů, která autor v profilu vystavil (`getChatStoryAlbums`). */
+    suspend fun albums(chatId: Long): Result<List<StoryAlbum>>
+
+    /** Příběhy jednoho alba po stránkách; [offset] = kolik už je načtených. */
+    suspend fun albumStories(chatId: Long, albumId: Int, offset: Int = 0): Result<ProfileStoriesPage>
 }
+
+data class StoryAlbum(val id: Int, val name: String)
 
 data class ProfileStoriesPage(
     /** Obsah příběhů (fotka nebo video) v pořadí od serveru. */
