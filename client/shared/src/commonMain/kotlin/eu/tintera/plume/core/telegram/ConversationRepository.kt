@@ -705,6 +705,10 @@ interface ConversationRepository {
     suspend fun acceptSuggestedBirthdate(chatId: Long, messageId: Long): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
+    /** Skladba [audioFileId] se poslouchala [durationSeconds] vteřin (`listenToAudio`). */
+    suspend fun listenToAudio(audioFileId: Int, durationSeconds: Int): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     /**
      * Odpoví na žádost protějšku o vypnutí ochrany obsahu ([approve] = povolit), zpráva
      * [messageId] je ta žádost (`processChatHasProtectedContentDisableRequest`).
