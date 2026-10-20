@@ -213,6 +213,16 @@ class ConversationChatActionsTest {
         assertFalse(blockedState(WriteAccess.SecretPending).value.showsUnblock)
     }
 
+    /** Protějšek, který zprávy nepřijímá (`canSendMessageToUser`): věta místo pole, ne swipe. */
+    @Test
+    fun protejsekKteryZpravyNeprijimaNemaPole() {
+        for (access in listOf(WriteAccess.PremiumOnly, WriteAccess.DeletedAccount, WriteAccess.PaidMessages)) {
+            val state = ConversationState(info = testChatInfo().copy(writeAccess = access))
+            assertFalse(state.canWrite, "$access")
+            assertFalse(state.showsUnblock, "$access")
+        }
+    }
+
     @Test
     fun odblokovaniVratiPoleADruheTuknutiNeposilaZnovu() = runTest {
         val state = blockedState()

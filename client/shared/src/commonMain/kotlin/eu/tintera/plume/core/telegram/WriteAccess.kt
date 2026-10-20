@@ -30,6 +30,21 @@ enum class WriteAccess {
 
     /** Tajný chat je ukončený (jednou ze stran, nebo vypršel); psát do něj už nejde nikdy. */
     SecretClosed,
+
+    /**
+     * Protějšek přijímá nové chaty jen od kontaktů a uživatelů s Premium
+     * (`canSendMessageToUserResultUserRestrictsNewChats`).
+     */
+    PremiumOnly,
+
+    /** Smazaný nebo neznámý účet (`canSendMessageToUserResultUserIsDeleted`). */
+    DeletedAccount,
+
+    /**
+     * Zprávy protějšku se platí hvězdami (`canSendMessageToUserResultUserHasPaidMessages`).
+     * Placení Plume nemá (`docs/roadmap.md`, „Vědomě mimo"), takže zpráva by skončila chybou.
+     */
+    PaidMessages,
 }
 
 /** Postavení uživatele ve skupině nebo kanálu, zúžené na to, co z něj aplikace potřebuje. */

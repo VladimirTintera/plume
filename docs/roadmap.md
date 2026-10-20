@@ -585,9 +585,9 @@ a se serverem, takže přednostně:
 5. **Limit kanálů a skupin.** `CHANNELS_TOO_MUCH` dnes skončí obecnou chybou; oficiální klient
    nabídne opustit neaktivní (`getInactiveSupergroupChats`). Totéž u veřejného odkazu:
    `checkCreatedPublicChatsLimit` a seznam vlastních veřejných chatů (`getCreatedPublicChats`).
-6. **Předem poznat, že protějšek nepřijímá zprávy** (`canSendMessageToUser`: jen kontakty,
-   jen Premium, placené) — místo chyby po odeslání pruh nad vstupním polem. Navazuje na „kdo
-   smí psát" v sekci Nastavení.
+6. ~~**Předem poznat, že protějšek nepřijímá zprávy** (`canSendMessageToUser`)~~ — hotovo,
+   věta místo vstupního pole (`docs/poznatky/konverzace-psani.md`, „Práva psát"). Zbývá ověřit
+   na zařízení s protějškem, který nové chaty omezuje nebo zprávy zpoplatnil.
 7. **Správce stahování** (`addFileToDownloads`, `searchFileDownloads`, `toggleDownloadIsPaused`,
    `fileDownloadsUpdates` a spol.) — přehled stahovaných souborů s pozastavením. Dnes se stahuje
    po jednom přes `downloadFile`.
