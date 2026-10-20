@@ -2,8 +2,8 @@
 
 Prohlížení cizích příběhů: lem kolem avataru v řádku chatu, hromádka autorů v pilulce hledání,
 prohlížeč přes celou obrazovku a v něm reakce a odpověď; zveřejnění vlastního příběhu z fotky
-i videa, počet zhlédnutí a smazání. Seznam diváků, blízcí přátelé, skrytí do archivu a příběhy
-v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
+i videa, diváci (počet i seznam s reakcemi) a smazání. Blízcí přátelé, skrytí do archivu
+a příběhy v profilu zatím nejsou (`docs/roadmap.md`, „Příběhy"). Sdílený příběh ve
 zprávě a odpověď na příběh jsou v `typy-zprav.md`.
 
 Skladba:
@@ -20,6 +20,7 @@ Skladba:
 | Lišta s odpovědí a reakcemi, lišta vlastního příběhu, velké emoji, hlášení | `features/stories/StoryReplyBar.kt` |
 | Nový příběh (obrazovka, výběr lidí) | `features/stories/StoryComposerScreen.kt`, `StoryComposerViewModel.kt`, routa `StoryComposerRoute` |
 | Plátno 1080 × 1920 | `core/ui/StoryPhoto.kt` + `AndroidStoryPhoto`, `IosStoryPhoto`, `DesktopStoryPhoto` |
+| Seznam diváků | `features/stories/StoryViewersSheet.kt`, stav `StoryViewersState` ve `StoriesViewModel` |
 | Video 720 × 1280 H.265 | `core/ui/StoryVideo.kt` + `AndroidStoryVideo` (Media3 Transformer), `IosStoryVideo` (AVFoundation), desktop `UnsupportedStoryVideo` |
 
 ## Odkud se ví, kdo má příběh
@@ -162,7 +163,14 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   odebírá ho `ChatsViewModel` hlavního seznamu.
 - **Vlastní příběh v prohlížeči** má místo odpovědi lištu s počtem zhlédnutí
   (`interactionInfo.viewCount`) a košem (`deleteStory` po `ConfirmDialog`). Smazaný příběh
-  z prohlížeče zmizí a jde se na další (`withoutStory`); seznam diváků zatím není.
+  z prohlížeče zmizí a jde se na další (`withoutStory`).
+- **Seznam diváků** (`getStoryInteractions`) otevře ťuknutí na počet zhlédnutí: bottom sheet
+  s fotkou, jménem, časem a reakcí vpravo; přeposlání a sdílení do vlastního příběhu mají větu
+  místo času. Řadí se **nejdřív s reakcí** (`preferWithReaction`), dočítá se po 50, když
+  seznam dojede na konec. Téhož diváka server může vrátit na dvou stránkách — slučuje se.
+  Divák je `MessageSender`: člověk se dočte `getUser`, chat `getChat`. **Příběh pod sheetem
+  stojí.** Po vypršení příběhu server seznam po čase přestane dávat (`hasExpiredViewers`) —
+  sheet pak řekne, že už není, místo prázdna.
 
 ## Ověření
 
@@ -195,6 +203,10 @@ skupina nabídky) → kontrola limitu → výběr fotky → obrazovka „Nový p
   převod kodérem `c2.android.hevc.encoder` asi 6 s → „Story posted" → vlastní příběh
   v prohlížeči se přehrává. **Server tedy H.265 z Transformeru vzal.** Neověřené: video se
   zvukem, video delší než minuta (zkrácení jen v testu), spadnutí na H.264, iOS.
+- **Diváci ověření** (20. 10. 2026): Pixel 5 si v oficiální aplikaci pustil video příběh
+  účtu …029 (H.265 z Plume přehrál) a dal srdce; v Plume „1 view" → sheet s „Pixel 5 · 19:22"
+  a ❤, příběh pod sheetem stál. Neověřené: stránkování (víc než 50 diváků — jen v testu),
+  přeposlání a sdílení, vypršelý seznam.
 - **Neověřené:** výběr fotky na novějším Androidu a iOS, „Celá fotka" s fotkou na šířku,
   převod na iOS a desktopu (jen přeložené), lišta u příběhu kanálu (bez pole) a u vlastního příběhu (bez lišty), video příběh, přechod mezi víc autory tahem i ťuknutím (logika v testech),
   rozložený Fold a desktop, iOS (jen přeložené).

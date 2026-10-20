@@ -352,7 +352,7 @@ funkce, takže hranice jsou hrubé):
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
 | Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
-| **Příběhy (stories) a živé příběhy** | **13 / 59** | **prohlížení, reakce, odpovědi a zveřejnění (fotka i video) hotové**; diváci, archiv a profil ne |
+| **Příběhy (stories) a živé příběhy** | **14 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video) a diváci hotové**; archiv a profil ne |
 | Skupinové hovory a videochaty | 2 / 46 | jen pruh nad konverzací (sekce Hovory) |
 | Premium a boosty | 1 / 18 | ne |
 | Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
@@ -568,7 +568,7 @@ a se serverem, takže přednostně:
    ~~Reakce a odpověď~~ — hotovo (srdce, výběr reakcí, odpověď do chatu s autorem).
    ~~Vlastní příběh z fotky~~ — hotovo (limit předem, plátno 1080 × 1920, viditelnost,
    počet zhlédnutí, smazání). ~~Video příběh~~ — hotovo (převod na H.265 720 × 1280, prvních
-   60 s; výběr úseku a obálky zatím ne). Chybí seznam diváků (`getStoryInteractions`), blízcí přátelé (`setCloseFriends`), skrytí do archivu
+   60 s; výběr úseku a obálky zatím ne). ~~Seznam diváků~~ — hotovo (s reakcemi, po stránkách). Chybí blízcí přátelé (`setCloseFriends`), skrytí do archivu
    (`setChatActiveStoriesList`), příběhy a alba v profilu (`getChatPostedToChatPageStories`,
    `getChatStoryAlbums`), nahlášení (`reportStory`) a notifikace (`muteStories` v sekci
    Notifikace). Živé příběhy patří ke skupinovým hovorům.

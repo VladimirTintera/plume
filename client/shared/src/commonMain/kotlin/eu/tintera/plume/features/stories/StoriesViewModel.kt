@@ -12,6 +12,8 @@ import eu.tintera.plume.resources.story_deleted
 import eu.tintera.plume.resources.story_reaction_failed
 import eu.tintera.plume.resources.story_reply_failed
 import eu.tintera.plume.resources.story_reply_sent
+import eu.tintera.plume.resources.story_viewers_failed
+import eu.tintera.plume.core.telegram.StoryViewer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -78,6 +80,48 @@ class StoriesViewModel(
     fun previous() = _state.update { it.previous() }
 
     fun showPoster(index: Int) = _state.update { it.showPoster(index) }
+
+    private val _viewers = MutableStateFlow<StoryViewersState?>(null)
+
+    /** Otevřený seznam diváků vlastního příběhu; `null` = zavřený. */
+    val viewers: StateFlow<StoryViewersState?> = _viewers.asStateFlow()
+
+    fun openViewers(key: StoryKey) {
+        val expired = _state.value.pages[key]?.viewersExpired == true
+        _viewers.value = StoryViewersState(storyId = key.storyId, expired = expired, nextOffset = "".takeUnless { expired })
+        loadMoreViewers()
+    }
+
+    /** Další stránka diváků; volá ji konec seznamu. Souběžné volání se zahodí. */
+    fun loadMoreViewers() {
+        val current = _viewers.value ?: return
+        val offset = current.nextOffset ?: return
+        if (current.loading) return
+        _viewers.value = current.copy(loading = true, error = null)
+        viewModelScope.launch {
+            repository.viewers(current.storyId, offset)
+                .onSuccess { page ->
+                    _viewers.update { state ->
+                        state?.takeIf { it.storyId == current.storyId }?.copy(
+                            // Server mezi stránkami nic neslibuje; téhož diváka podruhé neukazovat.
+                            viewers = (state.viewers + page.viewers).distinctBy { it.chatId to it.action },
+                            total = page.totalCount,
+                            nextOffset = page.nextOffset,
+                            loading = false,
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    _viewers.update { state ->
+                        state?.copy(loading = false, nextOffset = null, error = failure.userMessage(Res.string.story_viewers_failed))
+                    }
+                }
+        }
+    }
+
+    fun closeViewers() {
+        _viewers.value = null
+    }
 
     fun noticeShown() {
         _notice.value = null
@@ -165,3 +209,15 @@ class StoriesViewModel(
         opened = null
     }
 }
+
+/** Seznam diváků vlastního příběhu. [nextOffset] `""` = první stránka, `null` = víc jich není. */
+data class StoryViewersState(
+    val storyId: Int,
+    val viewers: List<StoryViewer> = emptyList(),
+    val total: Int = 0,
+    val nextOffset: String? = "",
+    val loading: Boolean = false,
+    val error: UiText? = null,
+    /** Seznam už server nedá (příběh je dávno pryč); ukáže se věta, ne prázdno. */
+    val expired: Boolean = false,
+)
