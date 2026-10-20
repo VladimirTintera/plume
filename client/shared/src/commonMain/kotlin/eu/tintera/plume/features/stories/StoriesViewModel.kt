@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.resources.story_albums_failed
 import eu.tintera.plume.core.telegram.STORY_ALBUM_NAME_MAX
 import eu.tintera.plume.core.telegram.StoryAlbum
@@ -298,6 +299,45 @@ class StoriesViewModel(
     }
 
     /**
+     * Otevře řazení příběhů alba [albumId]: načte je všechny (alba jsou malá, řadí se celé),
+     * do té doby panel ukazuje čekání.
+     */
+    fun openAlbumStories(albumId: Int) {
+        val current = _albums.value ?: return
+        _albums.update { it?.copy(storiesOrder = AlbumStoriesOrder(albumId)) }
+        viewModelScope.launch {
+            val loaded = mutableListOf<MessageMedia.Story>()
+            while (true) {
+                val page = repository.albumStories(current.key.posterChatId, albumId, offset = loaded.size)
+                    .getOrElse { failure ->
+                        _albums.update { it?.copy(storiesOrder = null) }
+                        albumError(failure)
+                        return@launch
+                    }
+                val before = loaded.size
+                page.stories.forEach { story -> if (loaded.none { it.storyId == story.storyId }) loaded += story }
+                if (loaded.size == before || loaded.size >= page.totalCount) break
+            }
+            _albums.update { state ->
+                state?.takeIf { it.storiesOrder?.albumId == albumId }?.copy(storiesOrder = AlbumStoriesOrder(albumId, loaded)) ?: state
+            }
+        }
+    }
+
+    fun closeAlbumStories() = _albums.update { it?.copy(storiesOrder = null) }
+
+    /** Uloží nové pořadí příběhů v albu a řazení zavře; chyba se ukáže v panelu. */
+    fun reorderAlbumStories(storyIds: List<Int>) {
+        val current = _albums.value ?: return
+        val order = current.storiesOrder ?: return
+        _albums.update { it?.copy(storiesOrder = null) }
+        if (storyIds == order.stories?.map { it.storyId }) return
+        viewModelScope.launch {
+            repository.reorderAlbumStories(current.key.posterChatId, order.albumId, storyIds).onFailure(::albumError)
+        }
+    }
+
+    /**
      * Chyba patří DO panelu, ne do pilulky prohlížeče: panel je samostatné okno a pilulku pod
      * sebou zakryje (ověřeno — hláška nebyla vidět).
      */
@@ -422,4 +462,9 @@ data class StoryAlbumsState(
     val busy: Boolean = false,
     /** Poslední chyba; ukazuje se v panelu. */
     val error: UiText? = null,
+    /** Řazení příběhů jednoho alba; `null` = panel ukazuje alba. */
+    val storiesOrder: AlbumStoriesOrder? = null,
 )
+
+/** Příběhy alba [albumId] k seřazení; `null` = načítají se. */
+data class AlbumStoriesOrder(val albumId: Int, val stories: List<MessageMedia.Story>? = null)

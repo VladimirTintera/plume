@@ -352,7 +352,7 @@ funkce, takže hranice jsou hrubé):
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
 | Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
-| **Příběhy (stories) a živé příběhy** | **19 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil s alby a jejich správou, nahlášení a upozornění hotové**; pořadí příběhů v albu ne |
+| **Příběhy (stories) a živé příběhy** | **19 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil s alby a jejich správou, nahlášení a upozornění hotové** |
 | Skupinové hovory a videochaty | 2 / 46 | jen pruh nad konverzací (sekce Hovory) |
 | Premium a boosty | 1 / 18 | ne |
 | Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
@@ -572,7 +572,7 @@ a se serverem, takže přednostně:
    ~~Skrytí do archivu~~ — hotovo (⋮ v prohlížeči, hromádka v archivu). ~~Příběhy v profilu~~ — hotovo (lem kolem avataru,
    záložka „Příběhy"). ~~Nahlášení~~ — hotovo (průvodce jako u chatu). ~~Notifikace~~ — hotovo (rozsah i chat; obcházka chyby TDLib u rozsahu). ~~Alba příběhů~~ — hotovo prohlížení (čipy v záložce
    „Příběhy" v profilu) i správa u vlastního příběhu (založit, přidat, vyndat, přejmenovat,
-   smazat, seřadit); pořadí příběhů v albu ne a skutečné album na zařízení ověřené není. ~~Výběr úseku a obálky videa~~ — hotovo (pás jako u profilového videa; zveřejnění
+   smazat, seřadit alba i příběhy v albu); skutečné album na zařízení ověřené není. ~~Výběr úseku a obálky videa~~ — hotovo (pás jako u profilového videa; zveřejnění
    s úsekem ověřené není). Živé příběhy patří ke skupinovým hovorům.
 2. **Přihlášení na webu přes Telegram (OAuth)** — `newOauthRequestUpdates`, `getOauthLinkInfo`,
    `checkOauthRequestMatchCode`, `acceptOauthRequest`, `declineOauthRequest`. Kdo má jen Plume,

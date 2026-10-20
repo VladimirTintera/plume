@@ -96,7 +96,14 @@ nahoře „Nové album" (`createStoryAlbum` rovnou s tímhle příběhem), u alb
 - **Pořadí alb** (`reorderStoryAlbums`): od dvou alb řádek „Seřadit alba", který panel přepne
   do řazení — tytéž řádky s úchytem jako u hudby v profilu (`ReorderRow`, `DragReorder`;
   čtečka má „Posunout nahoru / dolů"). Pošle se až „Hotovo", ne po každém přesunu; přeskládá
-  se hned a při chybě vrátí. Pořadí příběhů uvnitř alba (`reorderStoryAlbumStories`) není.
+  se hned a při chybě vrátí.
+- **Pořadí příběhů v albu** (`reorderStoryAlbumStories`): ⋮ u alba → „Seřadit příběhy" přepne
+  panel na seznam příběhů alba (náhled 9 : 16, popisek, a když není, čas zveřejnění), šipka zpět
+  vrátí k albům bez uložení. **Načtou se VŠECHNY stránky alba** (`getStoryAlbumStories` po
+  stránkách), ne jen první: TDLib dané příběhy posune na začátek a zbytek nechá za nimi, takže
+  řazení z neúplného seznamu by tiše přeházelo konec alba. Posílá se celé pořadí a jen když se
+  změnilo; chyba načtení i uložení jde do panelu. Ověřeno na emulátoru se sondou (falešné album
+  ze tří kopií aktivního příběhu): přetažení, „Hotovo" poslalo `[23, 21, 22]`, zpět nic.
 - **Název má 1–12 znaků** (`STORY_ALBUM_NAME_MAX`): pole víc nepustí a ukazuje počítadlo,
   ViewModel ořízne mezery a zkrátí pro jistotu taky.
 - **Zaškrtnutí se přepne hned a při chybě vrátí**; zapisuje se i do `MessageMedia.Story.albumIds`

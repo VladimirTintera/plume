@@ -109,6 +109,12 @@ interface StoryRepository {
 
     /** Nové pořadí alb autora (tak se ukazují v profilu). */
     suspend fun reorderAlbums(chatId: Long, albumIds: List<Int>): Result<Unit>
+
+    /**
+     * Nové pořadí příběhů v albu. TDLib dané příběhy posune na začátek a zbytek nechá za nimi,
+     * proto se posílá celé pořadí.
+     */
+    suspend fun reorderAlbumStories(chatId: Long, albumId: Int, storyIds: List<Int>): Result<Unit>
 }
 
 /** Telegram bere název alba o 1–12 znacích (`createStoryAlbum`, `setStoryAlbumName`). */

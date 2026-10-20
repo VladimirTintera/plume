@@ -3345,6 +3345,7 @@
     <string name="story_album_delete_title">Smazat album %1$s?</string>
     <string name="story_album_delete_text">Příběhy v něm zůstanou, zmizí jen album.</string>
     <string name="story_albums_reorder">Seřadit alba</string>
+    <string name="story_album_reorder_stories">Seřadit příběhy</string>
     <string name="profile_tab_stories">Příběhy</string>
     <string name="profile_stories_open">Zobrazit příběhy</string>
     <string name="profile_story_open">Otevřít příběh</string>
