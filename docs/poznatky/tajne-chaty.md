@@ -59,6 +59,25 @@ a ukončit je (konverzace tajného chatu → ⋮ → „Ukončit tajný chat").
 - **Ukončení z protějšku dorazí se zpožděním, když je Plume v pozadí** (zmrazený proces):
   ověřeno, že po návratu do popředí se stav do chvíle přepne. V popředí okamžitě.
 
+## Hledání
+
+- **Hledání v konverzaci jde přes `searchSecretMessages`**, ne `searchChatMessages`: ten
+  s dotazem v tajném chatu vrátí chybu „Message search is not supported in secret chats"
+  (`MessagesManager::search_dialog_messages`, zprávy na serveru nejsou). Rozhoduje typ chatu
+  v repository (`getChat`, lokální), ViewModel o tom neví.
+  - **Jedna stránka, sto shod, bez pokračování.** Offset je tu řetězec, kdežto hledání
+    v konverzaci stránkuje podle id zprávy; tajné chaty bývají krátké.
+  - **Odesílatele TDLib filtrovat neumí** — filtr „od koho" se uplatní na výsledek.
+  - **Prázdný dotaz `searchSecretMessages` odmítá** („must use searchChatMessages instead"),
+    takže hledání jen podle odesílatele zůstává na `searchChatMessages`.
+- **Globální hledání zpráv přimíchá tajné chaty do první stránky** (`searchSecretMessages`
+  s `chatId = 0`). `searchMessages` je neprochází. Jen s dotazem a bez filtru na skupiny
+  a kanály; období hlídá aplikace, protože TDLib ho u tajných chatů neumí. Další stránky jsou
+  jen ze serveru, takže stará shoda z tajného chatu může stát nad novější zprávou ze
+  druhé stránky.
+- **Na zařízení neověřené**: účet na emulátoru tajný chat nemá a založit ho nejde bez
+  protějšku na druhém zařízení. Ověřeno jen, že běžné hledání zpráv funguje dál.
+
 ## Šifrovací klíč
 
 Profil tajného chatu → „Šifrovací klíč" (řádek s malým obrázkem) → list s obrázkem 12 × 12,

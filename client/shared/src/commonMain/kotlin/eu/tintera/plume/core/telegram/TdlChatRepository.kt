@@ -141,6 +141,7 @@ import dev.g000sha256.tdl.dto.UserStatusOffline
 import dev.g000sha256.tdl.dto.UserStatusOnline
 import dev.g000sha256.tdl.dto.UserStatusRecently
 import kotlinx.coroutines.coroutineScope
+import dev.g000sha256.tdl.dto.SearchMessagesFilter
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Job
@@ -1538,23 +1539,36 @@ class TdlChatRepository(
     override suspend fun searchPublicChats(query: String): Result<List<ChatSummary>> =
         client.searchPublicChats(query = query).toResult().map { summariesFor(it.chatIds) }
 
-    override suspend fun searchMessages(query: String, offset: String, filter: MessageSearchFilter): Result<FoundMessagesPage> {
+    override suspend fun searchMessages(query: String, offset: String, filter: MessageSearchFilter): Result<FoundMessagesPage> = coroutineScope {
         val (minDate, maxDate) = filter.period.dateRange(Clock.System.now().epochSeconds)
-        return client.searchMessages(
-            // `null` = hlavní seznam i archiv; tajné chaty `searchMessages` stejně neprochází.
+        /*
+         * Tajné chaty `searchMessages` neprochází (zprávy nejsou na serveru), mají vlastní
+         * `searchSecretMessages`. Přimíchají se jen do PRVNÍ stránky a jen tam, kde dávají smysl:
+         * s dotazem (prázdný TDLib odmítne) a bez filtru na skupiny a kanály. Období se
+         * u nich hlídá tady, TDLib ho neumí.
+         */
+        val secretAsync = async {
+            if (offset.isNotEmpty() || query.isBlank() || filter.chatKind !in setOf(null, ChatKind.Private)) {
+                emptyList()
+            } else {
+                client.searchSecretMessages(
+                    chatId = 0,
+                    query = query,
+                    offset = "",
+                    limit = MESSAGE_SEARCH_PAGE,
+                    filter = filter.content?.toTdl(),
+                ).toResult().getOrNull()?.messages?.filterNotNull()
+                    ?.filter { (minDate == 0 || it.date >= minDate) && (maxDate == 0 || it.date <= maxDate) }
+                    .orEmpty()
+            }
+        }
+        client.searchMessages(
+            // `null` = hlavní seznam i archiv.
             chatList = null,
             query = query,
             offset = offset,
             limit = MESSAGE_SEARCH_PAGE,
-            filter = when (filter.content) {
-                null -> null
-                SearchContent.Photos -> SearchMessagesFilterPhoto()
-                SearchContent.Videos -> SearchMessagesFilterVideo()
-                SearchContent.Files -> SearchMessagesFilterDocument()
-                SearchContent.Links -> SearchMessagesFilterUrl()
-                SearchContent.Voice -> SearchMessagesFilterVoiceNote()
-                SearchContent.Music -> SearchMessagesFilterAudio()
-            },
+            filter = filter.content?.toTdl(),
             chatTypeFilter = when (filter.chatKind) {
                 null -> null
                 ChatKind.Private -> SearchMessagesChatTypeFilterPrivate()
@@ -1565,7 +1579,24 @@ class TdlChatRepository(
             maxDate = maxDate,
         )
             .toResult()
-            .map { it.toPage() }
+            .map { found ->
+                val secret = secretAsync.await()
+                if (secret.isEmpty()) {
+                    found.toPage()
+                } else {
+                    // Od nejnovější, jako výsledky ze serveru.
+                    pageOf((found.messages.filterNotNull() + secret).sortedByDescending { it.date }, found.nextOffset)
+                }
+            }
+    }
+
+    private fun SearchContent.toTdl(): SearchMessagesFilter = when (this) {
+        SearchContent.Photos -> SearchMessagesFilterPhoto()
+        SearchContent.Videos -> SearchMessagesFilterVideo()
+        SearchContent.Files -> SearchMessagesFilterDocument()
+        SearchContent.Links -> SearchMessagesFilterUrl()
+        SearchContent.Voice -> SearchMessagesFilterVoiceNote()
+        SearchContent.Music -> SearchMessagesFilterAudio()
     }
 
     override suspend fun recentPhotos(limit: Int): Result<List<RecentPhoto>> =
@@ -1610,8 +1641,9 @@ class TdlChatRepository(
      * Stránka nalezených zpráv. Chaty se dočtou ([summariesFor]) — u veřejných příspěvků jde
      * o kanály, které uživatel nesleduje a TDLib je zná jen díky téhle odpovědi.
      */
-    private suspend fun FoundMessages.toPage(): FoundMessagesPage {
-        val found = messages.filterNotNull()
+    private suspend fun FoundMessages.toPage(): FoundMessagesPage = pageOf(messages.filterNotNull(), nextOffset)
+
+    private suspend fun pageOf(found: List<Message>, nextOffset: String): FoundMessagesPage {
         val chats = summariesFor(found.map { it.chatId }.distinct().toLongArray()).associateBy { it.id }
         return FoundMessagesPage(
             messages = found.mapNotNull { message ->

@@ -902,8 +902,13 @@ class TdlConversationRepository(
         query: String,
         fromMessageId: Long,
         senderUserId: Long?,
-    ): Result<ChatSearchPage> =
-        client.searchChatMessages(
+    ): Result<ChatSearchPage> {
+        // Tajný chat: `searchChatMessages` s dotazem TDLib odmítne („Message search is not
+        // supported in secret chats") — zprávy na serveru nejsou, hledá se v lokální databázi.
+        if (query.isNotBlank() && client.getChat(chatId = chatId).toResult().getOrNull()?.type is ChatTypeSecret) {
+            return searchSecret(chatId, query, fromMessageId, senderUserId)
+        }
+        return client.searchChatMessages(
             chatId = chatId,
             topicId = topic,
             query = query,
@@ -922,6 +927,35 @@ class TdlConversationRepository(
                     nextFromMessageId = found.nextFromMessageId.takeIf { it != 0L },
                 )
             }
+    }
+
+    /**
+     * Hledání v tajném chatu (`searchSecretMessages`). Jedna stránka bez pokračování: offset je
+     * u něj řetězec, kdežto hledání v konverzaci stránkuje podle id zprávy, a tajné chaty bývají
+     * krátké — sto shod stačí. Odesílatele TDLib filtrovat neumí, tak se filtruje tady.
+     */
+    private suspend fun searchSecret(
+        chatId: Long,
+        query: String,
+        fromMessageId: Long,
+        senderUserId: Long?,
+    ): Result<ChatSearchPage> {
+        if (fromMessageId != 0L) return Result.success(ChatSearchPage(emptyList(), total = null, nextFromMessageId = null))
+        return client.searchSecretMessages(
+            chatId = chatId,
+            query = query,
+            offset = "",
+            limit = SECRET_SEARCH_LIMIT,
+            filter = null,
+        )
+            .toResult()
+            .map { found ->
+                val ids = found.messages.filterNotNull()
+                    .filter { senderUserId == null || (it.senderId as? MessageSenderUser)?.userId == senderUserId }
+                    .map { it.id }
+                ChatSearchPage(messageIds = ids, total = ids.size, nextFromMessageId = null)
+            }
+    }
 
     override suspend fun pinnedMessages(chatId: Long): Result<PinnedMessages> {
         val isGroup = isGroup(chatId)
@@ -4010,6 +4044,9 @@ private const val RECENT_LOCATIONS_LIMIT = 100
 
 /** Výsledků hledání v chatu na stránku; další se dotahují, až k nim uživatel došipkuje. */
 private const val IN_CHAT_SEARCH_PAGE = 50
+
+/** Strop shod v tajném chatu — TDLib víc než sto najednou nevydá a pokračování se nečte. */
+private const val SECRET_SEARCH_LIMIT = 100
 
 /** Kolik nepřečtených zmínek nebo reakcí se načte, než se z nich vybere nejstarší. */
 private const val UNREAD_MARKS_PAGE = 100
