@@ -1322,7 +1322,26 @@ class TdlChatRepository(
                 client.getUserFullInfo(userId = userId).toResult().getOrNull()?.blockList != null,
             canReport = chat.canBeReported || chat.reportsSpamDirectly(),
             reportsSpamDirectly = chat.reportsSpamDirectly(),
+            ownerAfterLeaving = ownerAfterLeaving(chat),
         )
+    }
+
+    /**
+     * Dědic chatu, jen když je uživatel jeho vlastníkem (lokální dotaz); jinak TDLib volání
+     * odmítne a bez vlastnictví to stejně nic neznamená. Nezjištěný dědic sheet odchodu nezdrží.
+     */
+    private suspend fun ownerAfterLeaving(chat: Chat): OwnerAfterLeaving? {
+        val status = client.ownMemberStatus(chat) as? OwnMemberStatus.Creator ?: return null
+        if (!status.isMember) return null
+        val immediately = chat.type is ChatTypeBasicGroup
+        val heir = client.getChatOwnerAfterLeaving(chatId = chat.id).toResult().getOrElse { failure ->
+            // Nemá kdo převzít — i to má vlastník vědět dřív, než odejde.
+            if (failure.message == FUTURE_CREATOR_NONE) return OwnerAfterLeaving(name = null, immediately = immediately)
+            logger.i { "Dědice chatu ${chat.id} se nepodařilo zjistit: ${failure.message}" }
+            return null
+        }
+        val name = listOf(heir.firstName, heir.lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { return null }
+        return OwnerAfterLeaving(name = name, immediately = immediately)
     }
 
     override suspend fun setBlocked(chatId: Long, blocked: Boolean): Result<Unit> {
@@ -2096,6 +2115,9 @@ private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
     is ChatActionBarAddContact -> SpamBar(canReportSpam = false, canBlock = false, canAddContact = true)
     else -> null
 }
+
+/** `getChatOwnerAfterLeaving`: vlastnictví nemá kdo převzít. */
+private const val FUTURE_CREATOR_NONE = "FUTURE_CREATOR_NONE"
 
 /** Kolik hovorů se čte naráz; TDLib jich vrátí, kolik uzná za vhodné (do stovky). */
 private const val CALL_HISTORY_PAGE = 50

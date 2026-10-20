@@ -38,6 +38,9 @@ import eu.tintera.plume.resources.chats_delete_body
 import eu.tintera.plume.resources.chats_delete_report
 import eu.tintera.plume.resources.chats_delete_report_reason
 import eu.tintera.plume.resources.chats_leave_body
+import eu.tintera.plume.resources.chats_leave_owner_later
+import eu.tintera.plume.resources.chats_leave_owner_none
+import eu.tintera.plume.resources.chats_leave_owner_now
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.logout_24dp
 import org.jetbrains.compose.resources.DrawableResource
@@ -145,8 +148,17 @@ fun DeleteChatOptions(
     var block by rememberSaveable { mutableStateOf(false) }
     var report by rememberSaveable { mutableStateOf(false) }
 
+    // Vlastník odchází: na koho chat přejde, má vědět dřív, než ťukne (vrátit to nejde).
+    val heir = spam?.ownerAfterLeaving?.takeIf { !isPrivate }?.let { owner ->
+        when {
+            owner.name == null -> stringResource(Res.string.chats_leave_owner_none)
+            owner.immediately -> stringResource(Res.string.chats_leave_owner_now, owner.name)
+            else -> stringResource(Res.string.chats_leave_owner_later, owner.name)
+        }
+    }
+    val leaveBody = stringResource(if (isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body, title)
     CleanupOptions(
-        body = stringResource(if (isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body, title),
+        body = heir?.let { "$leaveBody\n\n$it" } ?: leaveBody,
         toggles = listOfNotNull(
             CleanupToggle(stringResource(Res.string.chats_delete_block), block) { block = it }.takeIf { canBlock },
             CleanupToggle(

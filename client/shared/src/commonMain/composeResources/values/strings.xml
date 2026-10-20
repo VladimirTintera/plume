@@ -169,6 +169,9 @@
     <string name="chats_leave_title">Leave the chat?</string>
     <string name="chats_delete_body">The history of %1$s will be deleted for you. The other side keeps theirs.</string>
     <string name="chats_leave_body">You will leave %1$s and stop receiving messages. Getting back in needs a new invite.</string>
+    <string name="chats_leave_owner_now">You’re the owner: %1$s becomes the new owner right away.</string>
+    <string name="chats_leave_owner_later">You’re the owner: if you don’t come back within 7 days, %1$s becomes the new owner.</string>
+    <string name="chats_leave_owner_none">You’re the owner, and there’s nobody who could take over ownership.</string>
     <string name="chats_archive">Archive</string>
     <string name="chats_archive_empty_title">Archive is empty</string>
     <string name="chats_archive_empty">Swipe a chat aside, or archive it from its long-press menu, and it moves here.</string>
