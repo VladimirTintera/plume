@@ -2,6 +2,7 @@ package eu.tintera.plume.app.root.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
@@ -11,6 +12,7 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
+import eu.tintera.plume.core.platform.DesktopTray
 import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.platform.MacTitleBar
 import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsAdaptiveTitleBar
@@ -45,6 +47,8 @@ actual fun WindowTitleBarAppearance(isDark: Boolean, background: Color, content:
         return
     }
     if (!windows) return
+    // Nabídka ikony v oznamovací oblasti ve stejném motivu jako okno (WindowsTrayMenu).
+    SideEffect { DesktopTray.dark = isDark }
     current.setWindowsAdaptiveTitleBar(dark = isDark)
     LaunchedEffect(current, background, content) {
         val hwnd = Native.getComponentPointer(current) ?: return@LaunchedEffect

@@ -33,7 +33,8 @@ val desktopClosesToTray: Boolean by lazy {
 /**
  * Ikona v oznamovací oblasti, dokud je ve složení. Vlastní AWT `TrayIcon`, ne `Tray`
  * z Compose: ten vrací okno jen dvojklikem (`ActionListener`), kdežto ve Windows se ikona
- * otevírá jedním kliknutím. Nabídka je AWT `PopupMenu` jako u `Tray` — jinou `TrayIcon` neumí.
+ * otevírá jedním kliknutím. Nabídka je nativní menu Windows ([WindowsTrayMenu]); AWT `PopupMenu`
+ * zůstává jen jako záloha, kdyby se user32 přes JNA nenačetla.
  */
 @Composable
 fun DesktopTrayIcon(onOpen: () -> Unit, onQuit: () -> Unit) {
@@ -60,25 +61,54 @@ internal object DesktopTray {
     var icon: TrayIcon? = null
         private set
 
+    /** Motiv aplikace pro nativní nabídku; `null`, dokud ho okno neohlásí (pak podle systému). */
+    @Volatile
+    var dark: Boolean? = null
+
+    @Volatile
+    private var openLabel = ""
+
+    @Volatile
+    private var quitLabel = ""
+
+    // Záloha bez nativní nabídky.
     private val openItem = MenuItem()
     private val quitItem = MenuItem()
 
     fun add(onOpen: () -> Unit, onQuit: () -> Unit): TrayIcon? = runCatching {
         val image = DesktopTray::class.java.getResourceAsStream("/plume-icon.png")?.use(ImageIO::read)?.let(DesktopDevMark::icon)
             ?: BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
-        openItem.addActionListener { onOpen() }
-        quitItem.addActionListener { onQuit() }
-        val menu = PopupMenu().apply {
-            add(openItem)
-            addSeparator()
-            add(quitItem)
+        val native = WindowsTrayMenu.available
+        val menu = if (native) {
+            null
+        } else {
+            openItem.addActionListener { onOpen() }
+            quitItem.addActionListener { onQuit() }
+            PopupMenu().apply {
+                add(openItem)
+                addSeparator()
+                add(quitItem)
+            }
         }
         TrayIcon(image, DesktopDevMark.name(APP_NAME), menu).apply {
             isImageAutoSize = true
             addMouseListener(object : MouseAdapter() {
                 override fun mouseClicked(event: MouseEvent) {
-                    // Jedno kliknutí levým; pravé otevírá nabídku samo.
+                    // Jedno kliknutí levým; pravé otevírá nabídku.
                     if (event.button == MouseEvent.BUTTON1) EventQueue.invokeLater(onOpen)
+                }
+
+                override fun mouseReleased(event: MouseEvent) {
+                    // Jako ve Windows: nabídka po puštění pravého tlačítka.
+                    if (native && event.button == MouseEvent.BUTTON3) {
+                        WindowsTrayMenu.show(
+                            groups = listOf(
+                                listOf(WindowsTrayMenu.Item(openLabel, default = true, onClick = onOpen)),
+                                listOf(WindowsTrayMenu.Item(quitLabel, onClick = onQuit)),
+                            ),
+                            dark = dark,
+                        )
+                    }
                 }
             })
             SystemTray.getSystemTray().add(this)
@@ -95,6 +125,8 @@ internal object DesktopTray {
     }
 
     fun setLabels(open: String, quit: String) {
+        openLabel = open
+        quitLabel = quit
         openItem.label = open
         quitItem.label = quit
     }
