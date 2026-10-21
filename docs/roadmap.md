@@ -578,7 +578,9 @@ a se serverem, takže přednostně:
    vlastní vysílání (z kamery i RTMP), sledování na desktopu, ověření vysílání z kamery.
 2. ~~**Přihlášení na webu přes Telegram (OAuth)** a automatické přihlášení po ťuknutí na odkaz
    (`getExternalLinkInfo`, `getExternalLink`)~~ — hotovo (`docs/poznatky/prihlaseni.md`,
-   „Přihlášení na webu účtem Telegramu"). Zbývá ověřit se skutečnou žádostí z webu.
+   „Přihlášení na webu účtem Telegramu"). **Se skutečným webem nefunguje kvůli TDLib**
+   (push `OAUTH_REQUEST` bez `data_url`, odkaz `t.me/oauth` jako mini aplikace) — nahlásit
+   upstream a ověřit po bumpu wrapperu.
 3. ~~**Seznam hovorů a hodnocení** (`searchCallMessages`, `deleteAllCallMessages`,
    `sendCallRating`)~~ — hotovo: menu účtu → Hovory a hodnocení po hovoru, o které server
    požádá, i ladicí data a log, když o ně server požádá (`sendCallDebugInformation`,

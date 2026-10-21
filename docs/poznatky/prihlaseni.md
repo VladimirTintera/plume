@@ -483,8 +483,19 @@ jako u tlačítka bota, a potvrzení vezme adresu z `getExternalLink` (`Conversa
   „Přihlásit" → TDLib `URL_INVALID` → věta „Přihlášení se nepovedlo". Logiku hlídá `OauthViewModelTest`.
 - **Odkaz ze zprávy** (Play v Uložených zprávách) se po `getExternalLinkInfo` otevřel v prohlížeči
   jako dřív.
-- **Skutečná žádost z webu ani web s přihlášením z odkazu ověřené NEJSOU** — chtělo by to zadat
-  telefonní číslo na cizím webu.
+- **Skutečná žádost z webu (21. 10. 2026, testovací účet na ukázce `core.telegram.org/bots/telegram-login`)
+  do sheetu NEDOJDE — obě cesty zastaví TDLib** (wrapper 15.0.0):
+  - **Žádost po zadání čísla chodí JEN pushem** (`OAUTH_REQUEST`, `NotificationManager`);
+    jiný update ji nenese. Push do Plume dorazil, ale `processPushNotification` skončil chybou
+    `Can't find field "data_url"` — TDLib čeká `custom.data_url`, server ho v pushi nemá (nebo
+    jinde). `updateNewOauthRequest` tak nepřijde nikdy. Chyba TDLib, ne Plume — nahlásit upstream.
+  - **Odkaz `t.me/oauth?startapp=…`** (tlačítko „Continue with Telegram" / QR) TDLib v téhle
+    verzi rozpozná jako MINI APLIKACI (`OAuth Bot`), ne `InternalLinkTypeOauth`. Plume ji
+    otevře a web v ní ukáže vlastní potvrzení (zařízení, místo, IP) s pruhem „Update Telegram for
+    a faster, native login experience". Ťuknutí na „Log In" v ní na emulátoru nic neudělalo —
+    neověřené, jestli kvůli WebView, nebo propadlému odkazu.
+  - **Sheet a jeho logika jsou tedy připravené** na novější TDLib; do té doby je vidět jen se
+    sondou. Při bumpu wrapperu ověřit znovu stejnou ukázkou (číslo i odkaz).
 
 ## Odhlášení
 
