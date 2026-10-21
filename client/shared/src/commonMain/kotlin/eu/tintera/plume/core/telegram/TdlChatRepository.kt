@@ -57,6 +57,8 @@ import dev.g000sha256.tdl.dto.ChatJoinResultSuccess
 import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
 import dev.g000sha256.tdl.dto.InternalLinkTypeStickerSet
 import dev.g000sha256.tdl.dto.InternalLinkTypeStory
+import dev.g000sha256.tdl.dto.LoginUrlInfoRequestConfirmation
+import dev.g000sha256.tdl.dto.LoginUrlInfoOpen
 import dev.g000sha256.tdl.dto.InternalLinkTypeBotStart
 import dev.g000sha256.tdl.dto.InternalLinkTypeMainWebApp
 import dev.g000sha256.tdl.dto.InternalLinkTypeWebApp
@@ -950,6 +952,29 @@ class TdlChatRepository(
             client.toggleChatIsMarkedAsUnread(chatId = chatId, isMarkedAsUnread = false).toResult().getOrThrow()
         }
     }
+
+    /** `when` bez `else`: nový druh odpovědi v novější TDLib má rozbít překlad. */
+    override suspend fun externalLinkInfo(url: String): Result<LoginUrlPrompt> = runCatching {
+        when (val info = client.getExternalLinkInfo(link = url).toResult().getOrThrow()) {
+            is LoginUrlInfoOpen -> LoginUrlPrompt.Open(url = info.url, skipConfirmation = info.skipConfirmation)
+            is LoginUrlInfoRequestConfirmation -> LoginUrlPrompt.Confirm(
+                url = info.url,
+                domain = info.domain,
+                botName = botDisplayName(info.botUserId),
+                requestWriteAccess = info.requestWriteAccess,
+            )
+        }
+    }
+
+    override suspend fun externalLoginUrl(url: String, allowWriteAccess: Boolean): Result<String> =
+        client.getExternalLink(link = url, allowWriteAccess = allowWriteAccess).toResult().map { it.url }
+
+    /** Bot jako „@jméno", jinak celé jméno; lokální dotaz, TDLib ho zná s odpovědí. */
+    private suspend fun botDisplayName(userId: Long): String =
+        client.getUser(userId = userId).toResult().getOrNull()?.let { user ->
+            user.usernames?.activeUsernames?.firstOrNull()?.let { "@$it" }
+                ?: listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ")
+        }.orEmpty()
 
     override suspend fun resolveLink(url: String): Result<InternalLink?> {
         // Neinterní odkaz TDLib hlásí chybou — to není selhání, jen adresa pro prohlížeč.

@@ -2363,6 +2363,7 @@
     <string name="bot_login_text">%1$s will get your name, username and profile photo.</string>
     <string name="bot_login_write_access">Allow %1$s to send me messages</string>
     <string name="bot_login_confirm">Log in</string>
+    <string name="external_login_done">Signed in to %1$s</string>
     <string name="bot_login_failed">Couldn't log you in, the website opened without logging in</string>
     <string name="bot_unsupported_switch_inline">Plume can’t handle this bot button yet.</string>
     <string name="bot_unsupported_buy">Plume can't make payments yet.</string>

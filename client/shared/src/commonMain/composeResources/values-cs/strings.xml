@@ -2422,6 +2422,7 @@
     <string name="bot_login_text">Web %1$s dostane tvoje jméno, uživatelské jméno a profilovou fotku.</string>
     <string name="bot_login_write_access">Dovolit %1$s posílat mi zprávy</string>
     <string name="bot_login_confirm">Přihlásit se</string>
+    <string name="external_login_done">Přihlášeno na %1$s</string>
     <string name="bot_login_failed">Přihlásit se nepodařilo, web se otevřel bez přihlášení</string>
     <string name="bot_unsupported_switch_inline">Tohle tlačítko bota Plume zatím neumí.</string>
     <string name="bot_unsupported_buy">Platby Plume zatím neumí.</string>

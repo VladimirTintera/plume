@@ -710,6 +710,8 @@ data class ConversationState(
     val confirmShareLocation: Boolean = false,
     /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */
     val confirmLink: String? = null,
+    /** Webový odkaz, který nabízí přihlášení účtem Telegramu (`getExternalLinkInfo`). */
+    val externalLogin: ExternalLogin? = null,
     /** Tlačítko bota chce uživatele přihlásit na web; čeká se na potvrzení v dialogu. */
     val loginRequest: LoginRequest? = null,
     /** Upozornění od bota, které se musí potvrdit (`showAlert`); `null` = žádné. */
@@ -1109,3 +1111,7 @@ internal fun ReplaceMedia.accepts(attachment: OutgoingAttachment): Boolean = whe
 
 /** Odpověď [optionId] ankety ve zprávě [messageId] čeká na potvrzení smazání; [text] ji v dialogu pojmenuje. */
 data class PendingPollOptionDelete(val messageId: Long, val optionId: String, val text: String)
+
+/** Odkaz [link] ze zprávy, na jehož web se dá přihlásit ([prompt] říká kam a co web dostane). */
+data class ExternalLogin(val link: String, val prompt: LoginUrlPrompt.Confirm)
+

@@ -441,6 +441,40 @@ before authorization":
   ukázaly hlavní vlákno při studeném startu v `TimSort` nad `foldDiacritics`. Klíč se teď
   počítá jednou na zemi (`sortedByName`, testy `CountryOrderTest`).
 
+## Přihlášení na webu účtem Telegramu
+
+Uživatel se přihlašuje na cizím webu, ne do Plume.
+
+### Automatické přihlášení po ťuknutí na odkaz
+
+Webový odkaz ze zprávy se napřed zeptá serveru (`getExternalLinkInfo`): „otevřít" (s potvrzením
+adresy, pokud ho nevypne `skipConfirmation`), nebo „zeptat se" — pak tentýž `LoginUrlDialog`
+jako u přihlašovacího tlačítka bota, a potvrzení vezme adresu z `getExternalLink`
+(`ConversationLinks.openExternal`). Prázdná adresa = přihlášeno, stačí to říct hláškou.
+
+- **Chyba nebo zavřený dialog = obyčejný odkaz**: uživatel na odkaz ťukl, web chtěl.
+- **V tajném chatu se serveru na odkaz neptá** — TDLib to tam dovoluje jen se zapnutými náhledy.
+- **Ověřeno na emulátoru jen to, že se běžný odkaz otevírá dál** (Play v Uložených zprávách se po
+  `getExternalLinkInfo` otevřel v prohlížeči). Web, který přihlášení z odkazu skutečně nabízí,
+  ověřený není.
+
+### Proč tu není potvrzení žádosti webu (OAuth)
+
+Sheet pro žádost webu (`updateNewOauthRequest`, `getOauthLinkInfo`, `acceptOauthRequest`…) byl
+hotový, ale **se skutečným webem do něj nic nedojde, obě cesty zastaví TDLib** (wrapper 15.0.0,
+ověřeno 21. 10. 2026 na ukázce `core.telegram.org/bots/telegram-login` s testovacím účtem), takže
+se z PR vyndal:
+
+- **Žádost po zadání čísla chodí JEN pushem** (`OAUTH_REQUEST`, `NotificationManager`). Push do
+  Plume dorazil, ale `processPushNotification` skončil chybou `Can't find field "data_url"` —
+  TDLib čeká `custom.data_url`, server ho v pushi nemá. `updateNewOauthRequest` nepřijde nikdy.
+- **Odkaz `t.me/oauth?startapp=…`** (tlačítko „Continue with Telegram" / QR) tahle TDLib rozpozná
+  jako MINI APLIKACI „OAuth Bot", ne `InternalLinkTypeOauth`. Plume ji otevře a web v ní ukáže
+  vlastní potvrzení s pruhem „Update Telegram for a faster, native login experience". To je
+  dnes jediná cesta; „Log In" v ní na emulátoru nereagoval (neověřené proč).
+- **Při bumpu wrapperu** ověřit obojí znovu stejnou ukázkou; kód sheetu je v historii větve
+  `feat/prihlaseni-na-webu` (VladimirTintera/telegram#929).
+
 ## Odhlášení
 
 - **Po odhlášení je TDLib klient MRTVÝ.** `logOut` projde `LoggingOut` → `Closing` → `Closed`

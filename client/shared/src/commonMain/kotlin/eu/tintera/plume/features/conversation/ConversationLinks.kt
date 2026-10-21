@@ -12,6 +12,7 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.telegram.GuardDecision
 import eu.tintera.plume.core.telegram.InternalLink
+import eu.tintera.plume.core.telegram.LoginUrlPrompt
 import eu.tintera.plume.core.telegram.JoinResult
 import eu.tintera.plume.core.telegram.isChannelLimit
 import eu.tintera.plume.core.telegram.LinkUserNotFoundException
@@ -21,6 +22,8 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.proxy.ProxyLinkFlow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.bot_login_failed
+import eu.tintera.plume.resources.external_login_done
 import eu.tintera.plume.resources.article_load_failed
 import eu.tintera.plume.resources.comments_unavailable
 import eu.tintera.plume.resources.contact_link_expired
@@ -93,11 +96,7 @@ internal class ConversationLinks(
             chatRepository.resolveLink(url)
                 .onSuccess { link ->
                     when (link) {
-                        null -> if (confirmExternal) {
-                            state.update { it.copy(confirmLink = url) }
-                        } else {
-                            openUrl(url)
-                        }
+                        null -> openExternal(url, confirmExternal)
                         is InternalLink.Chat -> openChatLink(link)
                         // Sdílení bez vybraného chatu: obsah nese čip v shellu (viz ShareRequests).
                         is InternalLink.ShareText -> shareRequests.start(link.text, hasFiles = false)
@@ -382,6 +381,57 @@ internal class ConversationLinks(
             // Skrytý účet server neprozradí, značka se u něj nedá ťuknout.
             is ForwardOrigin.Hidden -> Unit
         }
+    }
+
+    /**
+     * Webový odkaz. Napřed se zeptá serveru (`getExternalLinkInfo`), jestli web nechce uživatele
+     * rovnou přihlásit účtem Telegramu — pak dialog jako u tlačítka bota. Jinak, nebo když dotaz
+     * selže, obyčejné otevření (s potvrzením adresy, kde se potvrzuje). V tajném chatu se
+     * serveru na odkaz neptá: TDLib to tam předepisuje jen se zapnutými náhledy odkazů.
+     */
+    private suspend fun openExternal(url: String, confirmExternal: Boolean) {
+        val plain: (String) -> Unit = { target ->
+            if (confirmExternal) state.update { it.copy(confirmLink = target) } else openUrl(target)
+        }
+        if (state.value.info?.isSecret == true) return plain(url)
+        chatRepository.externalLinkInfo(url)
+            .onSuccess { prompt ->
+                when (prompt) {
+                    is LoginUrlPrompt.Open -> if (prompt.skipConfirmation) openUrl(prompt.url) else plain(prompt.url)
+                    is LoginUrlPrompt.Confirm -> state.update { it.copy(externalLogin = ExternalLogin(url, prompt)) }
+                }
+            }
+            .onFailure { plain(url) }
+    }
+
+    /** Přihlášení z odkazu potvrzené v dialogu; [allowWriteAccess] = bot webu smí psát. */
+    fun confirmExternalLogin(allowWriteAccess: Boolean) {
+        val login = state.value.externalLogin ?: return
+        state.update { it.copy(externalLogin = null) }
+        scope.launch {
+            chatRepository.externalLoginUrl(login.link, allowWriteAccess)
+                .onSuccess { target ->
+                    // Prázdná adresa = přihlášeno, stačí to říct.
+                    if (target.isBlank()) {
+                        state.update { it.copy(notice = UiText(Res.string.external_login_done, login.prompt.domain)) }
+                    } else {
+                        openUrl(target)
+                    }
+                }
+                // Přihlásit se nepovedlo, ale web uživatel chtěl — otevře se bez přihlášení.
+                .onFailure { failure ->
+                    logger.w(failure) { "Přihlášení z odkazu (${login.prompt.domain}) selhalo." }
+                    state.update { it.copy(notice = UiText(Res.string.bot_login_failed)) }
+                    openUrl(login.link)
+                }
+        }
+    }
+
+    /** Dialog zavřený bez přihlášení: odkaz se otevře obyčejně, chtěl ho uživatel. */
+    fun dismissExternalLogin() {
+        val login = state.value.externalLogin ?: return
+        state.update { it.copy(externalLogin = null) }
+        openUrl(login.link)
     }
 
     /**
