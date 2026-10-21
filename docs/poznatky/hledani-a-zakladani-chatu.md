@@ -170,6 +170,46 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 - **Ověřování snímky: `sips -c` ořezává ze STŘEDU**, `--cropOffset` ignoruje. Výřez „horní
   části" byl ve skutečnosti prostředek obrazovky a vypadalo to, že bar chybí.
 
+### Sponzorované chaty ve výsledcích
+
+[Specifikace reklam](https://core.telegram.org/api/sponsored-messages) říká, že klient sponzorované
+chaty v globálním hledání podporovat MUSÍ: za vlastními výsledky, před veřejnými. Podmínky API
+(§3.3) vyžadují výslovně jen reklamy v kanálech, ale specifikace, na kterou odkazují, chce i tohle,
+reklamy u botů a ve videu (ty Plume zatím nemá, viz roadmapa).
+
+- **`getSearchSponsoredChats(query)`** běží vedle `searchPublicChats`, jen v hlavním hledání
+  (`ChatSearch(sponsored = true)` v `ChatsViewModel`). Nová konverzace hledá veřejné chaty taky,
+  ale reklama tam nepatří; hashtag a prázdný dotaz se na ni neptají vůbec.
+- **Sekce „Sponzorováno" mezi „Chaty" a „Globální výsledky"**, nesbaluje se. Řádek nese jméno
+  a tvář chatu, pod nimi `sponsorInfo` a `additionalInfo` CELÉ — je to text o tom, kdo reklamu
+  platí a na čem je založená („Ad funded by…", „This ad may be based on: your current search
+  input"), tedy průhlednost reklamy, kterou TDLib chce „ukázat spolu s chatem". Ořez na tři řádky
+  usekl právě důvod reklamy.
+- **Zhlédnutí (`viewSponsoredChat`) jde, až je řádek na obrazovce celý**, a jen jednou za život
+  ViewModelu (`seenSponsoredChats`). Pozná se z `layoutInfo` seznamu podle klíče řádku.
+- **Klíč položky lazy seznamu musí jít do `Bundle`.** Datová třída jako klíč (`SponsoredRowKey`)
+  shodila aplikaci hned při prvním výsledku s reklamou (`IllegalArgumentException: Type of the key
+  … is not supported`); klíč je proto řetězec `sponsored-<uniqueId>`.
+- **Výsledky se drží u začátku, dokud jimi uživatel nepohne.** Sekce přicházejí v libovolném pořadí
+  (zprávy bývají dřív než chaty od serveru a reklama) a seznam drží pozici podle první viditelné
+  položky, takže vložené sekce odjely nad horní hranu: pod „games" začínal seznam zprávami
+  a reklama nebyla vidět vůbec. Stejně tak mohly odjet chaty od serveru a veřejné výsledky.
+- **Ťuknutí hlásí `openSponsoredChat` a otevře chat.** Hlášení běží ve `viewModelScope` seznamu
+  chatů, který pod otevřeným chatem zůstává v zásobníku.
+- **⋮ → Nahlásit reklamu** je týž `ReportFlow` a `ReportSheet` jako u reklamy v kanálu, s voláním
+  `reportSponsoredChat`; překlad výsledku (`ReportSponsoredResult.toReportStep`) je pro obě reklamy
+  společný. Nahlášená reklama z výsledků zmizí.
+- **Hláška po nahlášení musí jít do snackbaru UVNITŘ hledání.** Rozbalené hledání je vlastní okno
+  (celoobrazovkové i panel na široké ploše jsou popupy), takže snackbar seznamu chatů zůstal pod
+  ním a uživatel výsledek nahlášení neviděl. `ChatSearchBar` má proto vlastní `snackbarHostState`.
+- **Server reklamy dávkuje.** Tentýž dotaz („crypto") vrátil jednou reklamu a hned nato žádnou;
+  „vpn" nevrátilo nic. Prázdný seznam je běžný stav, ne chyba.
+- **Ověřeno na emulátoru** (dočasným výpisem volání): reklama pod „crypto", „bitcoin", „trading",
+  „games" a „news", zhlédnutí nahlášené jednou na reklamu (TDLib přijal), otevření nahlášené
+  a chat otevřený, průvodce nahlášením s důvody od serveru, „I don't want to see ads" bez Premium
+  skončí hláškou v hledání a reklama zůstane. **Skutečné nahlášení moderátorům ověřené není** —
+  šlo by na cizí reklamu. Panel na široké ploše, iOS a desktop jen přeložené.
+
 ### Hledání přirozeným jazykem
 
 V rozbaleném hledání je u dotazu o aspoň třech slovech ikona „Hledat s AI" (jen se zapnutou

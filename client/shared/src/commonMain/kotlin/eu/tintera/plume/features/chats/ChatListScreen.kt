@@ -406,6 +406,7 @@ fun ChatListScreen(
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
+    val searchSnackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(storyNotice) {
         val message = storyNotice ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message.resolveNow())
@@ -465,6 +466,8 @@ fun ChatListScreen(
         onBackCompleted = { fabMenuExpanded = false },
     )
 
+    // Reklama se hlásí z rozbaleného hledání, takže i hláška patří do něj.
+    ReportHost(viewModel.sponsoredChatReportFlow, searchSnackbarHostState)
     ChatActionsHost(
         viewModel,
         snackbarHostState,
@@ -643,7 +646,8 @@ fun ChatListScreen(
                             viewModel.search.recordFound(chatId)
                             scrollToChat = chatId
                             // Výsledky hledání jsou položky seznamu, takže vědí, jestli se chat otevírá tématy.
-                            val forum = with(search) { results + top + recent + global }.any { it.id == chatId && it.opensAsTopics }
+                            val forum = with(search) { results + top + recent + global + sponsored.map { it.chat } }
+                                .any { it.id == chatId && it.opensAsTopics }
                             if (forum) onForumClick(chatId) else onChatClick(chatId)
                         },
                         onMessageClick = { chatId, messageId, topicId ->
@@ -663,6 +667,14 @@ fun ChatListScreen(
                             )
                         },
                         onFilterChange = viewModel.search::setFilter,
+                        snackbarHostState = searchSnackbarHostState,
+                        sponsoredActions = remember(viewModel) {
+                            SponsoredActions(
+                                onSeen = viewModel::sponsoredChatSeen,
+                                onOpen = viewModel::sponsoredChatOpened,
+                                onReport = viewModel::reportSponsoredChat,
+                            )
+                        },
                         aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
                         request = searchRequest,
                         onRequestHandled = onSearchRequestHandled,

@@ -1330,6 +1330,8 @@ do reklam nesmí zasahovat — nesmí je filtrovat, skrývat, ani měnit popisek
 - **Nahlásit reklamu jde ⋮ vedle štítku „Sponzorováno"** (`reportChatSponsoredMessage`).
   Průvodce je TENTÝŽ `ReportFlow` a `ReportSheet` jako u chatu, jen druhá instance
   (`sponsoredReportFlow`) s jiným voláním; id reklamy jede jako jediná zpráva požadavku.
+  Výsledek překládá `ReportSponsoredResult.toReportStep`, společný se sponzorovanými chaty
+  v hledání (`hledani-a-zakladani-chatu.md`).
   Server se zeptá na důvod a mezi důvody bývá i „skrýt reklamy" — bez Premium skončí větou
   „Skrýt reklamy jde jen s Telegram Premium" a reklama zůstane. Pro takové konce má průvodce
   krok `ReportStep.Ended` (vlastní hláška, a jestli se má spustit, co čeká na nahlášení).

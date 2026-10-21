@@ -276,6 +276,24 @@ interface ChatRepository {
     suspend fun recommendedChannels(): Result<List<ChatSummary>> = Result.success(emptyList())
 
     /**
+     * Sponzorované chaty k dotazu v globálním hledání (`getSearchSponsoredChats`). Podle
+     * [specifikace reklam](https://core.telegram.org/api/sponsored-messages) je klient zobrazit
+     * MUSÍ, mezi vlastními a veřejnými výsledky. Prázdný seznam je běžný stav (žádná inzerce,
+     * Premium).
+     */
+    suspend fun searchSponsoredChats(query: String): Result<List<SponsoredSearchChat>> = Result.success(emptyList())
+
+    /** Sponzorovaný chat byl na obrazovce celý (`viewSponsoredChat`); hlásí se jednou. */
+    suspend fun reportSponsoredChatView(uniqueId: Long): Result<Unit> = Result.success(Unit)
+
+    /** Uživatel sponzorovaný chat otevřel (`openSponsoredChat`); hlásí se PŘED otevřením. */
+    suspend fun reportSponsoredChatOpen(uniqueId: Long): Result<Unit> = Result.success(Unit)
+
+    /** Krok nahlášení sponzorovaného chatu (`reportSponsoredChat`); `null` = první požadavek. */
+    suspend fun reportSponsoredChat(uniqueId: Long, optionId: ReportOptionId?): Result<ReportStep> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Nejnovější fotky ze všech chatů (hlavní seznam i archiv; tajné chaty TDLib neprochází),
      * nejnovější první — pro popisy fotek na pozadí. [limit] nejvýš 100 (strop `searchMessages`).
      */
@@ -899,3 +917,16 @@ data class ChatAppearance(
 
 /** Fotka ze zprávy pro popis na pozadí: kde je a plná velikost, kterou model dostane. */
 data class RecentPhoto(val chatId: Long, val messageId: Long, val fileId: Int, val date: Int)
+
+/**
+ * Sponzorovaný chat ve výsledcích hledání. [uniqueId] identifikuje TENHLE výsledek (ne chat)
+ * a jde do hlášení zhlédnutí, otevření i nahlášení.
+ */
+data class SponsoredSearchChat(
+    val uniqueId: Long,
+    val chat: ChatSummary,
+    /** Kdo reklamu platí, jak to dodá Telegram; prázdné = není. */
+    val sponsorInfo: String,
+    /** Doplňující informace k reklamě od Telegramu; prázdné = není. */
+    val additionalInfo: String,
+)
