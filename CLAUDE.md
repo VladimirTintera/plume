@@ -64,7 +64,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Emoji, samolepky a reakce](docs/poznatky/emoji-samolepky-reakce.md) — velká emoji, kostky, efekty, vlastní emoji, výběry samolepek / GIFů / emoji, reakce a jejich čipy
 - [Notifikace](docs/poznatky/notifikace.md) — TDLib a push, kanály a nastavení, zvuky z Telegramu, akce z notifikace, iOS (APNs), ohlášení hovoru, pruh videochatu
 - [Sdílení do aplikace](docs/poznatky/sdileni.md) — ShareRequests, čip „Sdílíte: …“ a jeho uložení, Direct Share a obrazovka „Komu: …“, iOS rozšíření a návrhy chatů
-- [Přihlášení a odhlášení](docs/poznatky/prihlaseni.md) — QR kód, přihlašovací obrazovka (kód, heslo, obnova, země), odhlášení a nový klient
+- [Přihlášení a odhlášení](docs/poznatky/prihlaseni.md) — QR kód, přihlašovací obrazovka (kód, heslo, obnova, země), přihlášení na webu účtem Telegramu (OAuth a odkazy), odhlášení a nový klient
 - [Šifrovaná databáze, spojení a proxy](docs/poznatky/databaze-spojeni-proxy.md) — klíč databáze a jeho migrace, stav spojení a obnova po pozadí, proxy a sponzorovaný chat
 - [Systémová oznámení od Telegramu](docs/poznatky/systemova-oznameni.md) — oznámení od služby, nové podmínky služby, zmrazený účet, doporučené akce; proč se odebírají eagerně
 - [Nastavení](docs/poznatky/nastaveni.md) — AppSettings (DataStore), obrazovka nastavení, pomoc (Zeptat se), soukromí, úprava profilu a ořez fotky, narozeniny, osobní kanál, víc uživatelských jmen, dvoufázové ověření, přihlašovací e-mail, přístupové klíče, změna čísla, smazání účtu, diskrétní čtení, zařízení, úložiště a přenesená data, „Co je nového“, jazykový balíček Telegramu, synchronizace bez backendu (WebApp CloudStorage)

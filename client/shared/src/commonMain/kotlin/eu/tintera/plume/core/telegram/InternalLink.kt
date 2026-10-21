@@ -106,6 +106,12 @@ sealed interface InternalLink {
      * zjišťuje až tam, kde se rozhoduje, co ukázat (příběh už nemusí být).
      */
     data class Story(val posterChatId: Long, val storyId: Int) : InternalLink
+
+    /**
+     * Žádost webu o přihlášení účtem Telegramu (`InternalLinkTypeOauth`). TDLib předepisuje
+     * zpracovat ji JEN z odkazu zvenčí ([OauthLogin.open]); v aplikaci se ignoruje.
+     */
+    data class Oauth(val url: String) : InternalLink
 }
 
 /** Obrazovka aplikace, na kterou vede odkaz [InternalLink.Screen]. */

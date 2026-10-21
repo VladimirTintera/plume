@@ -441,6 +441,51 @@ before authorization":
   ukázaly hlavní vlákno při studeném startu v `TimSort` nad `foldDiacritics`. Klíč se teď
   počítá jednou na zemi (`sortedByName`, testy `CountryOrderTest`).
 
+## Přihlášení na webu účtem Telegramu
+
+Dvě cesty, kterými se uživatel přihlašuje na cizím webu, ne do Plume.
+
+### Žádost webu (OAuth)
+
+Web, kde člověk zadá telefonní číslo („Přihlásit přes Telegram"), pošle žádost do aplikace
+(`updateNewOauthRequest`); totéž přijde z přihlašovacího odkazu otevřeného zvenčí
+(`InternalLinkTypeOauth` → `InternalLink.Oauth` → `ExternalLinkViewModel`). Plume ji ukáže
+sheetem nad celou aplikací (`OauthHost` vedle `AccountNoticesHost`, `OauthViewModel`,
+`TdlOauthLogin`).
+
+- **Odběr eagerně v `core/telegram`** (`createdAtStart`), jako systémová oznámení: update bez
+  odběratele se ztratí a žádost platí jen minutu. Žádosti jdou po jedné, nejstarší první.
+- **Kdo a odkud**: doména, ověřená aplikace (`verifiedAppName`, prázdná = „Neověřená
+  aplikace", tak to TDLib předepisuje), prohlížeč a systém, IP adresa, místo. Žádost může
+  vyvolat kdokoli, kdo zná číslo — odmítnutí je jediná ochrana, proto věta pod volbami.
+- **Číslo shodné s webem**: s `matchCodeFirst` se vybírá PŘED potvrzením a ověří ho
+  `checkOauthRequestMatchCode` (špatné = žádost propadla); bez něj se `checkOauthRequestMatchCode`
+  volat NESMÍ a vybrané číslo jde rovnou do `acceptOauthRequest`.
+- **Telefon a psaní bota jen, když o ně web žádá** (`requestPhoneNumberAccess`,
+  `requestWriteAccess`); psaní předvyplněné jako u tlačítka bota, telefon ne.
+- **Zavření sheetu bez rozhodnutí = odmítnutí** (`declineOauthRequest`), ať web ví, že má skončit.
+- **Prázdná adresa z `acceptOauthRequest` = hotovo**, stačí to říct; jinak se otevře.
+- **Z odkazu uvnitř aplikace se žádost NEZPRACUJE** (předpis TDLib) — v chatu je to obyčejný odkaz.
+
+### Automatické přihlášení po ťuknutí na odkaz
+
+Webový odkaz ze zprávy se napřed zeptá serveru (`getExternalLinkInfo`): „otevřít" (s potvrzením
+adresy, pokud ho nevypne `skipConfirmation`), nebo „zeptat se" — pak tentýž `LoginUrlDialog`
+jako u tlačítka bota, a potvrzení vezme adresu z `getExternalLink` (`ConversationLinks.openExternal`).
+
+- **Chyba nebo zavřený dialog = obyčejný odkaz**: uživatel na odkaz ťukl, web chtěl.
+- **V tajném chatu se serveru na odkaz neptá** — TDLib to tam dovoluje jen se zapnutými náhledy.
+
+### Ověření
+
+- **Emulátor pokusným buildem** (podstrčená žádost `probe`, necommituje se): sheet s doménou,
+  „Neověřená aplikace", prohlížečem, IP a místem, výběr čísla → potvrzení se dvěma volbami,
+  „Přihlásit" → TDLib `URL_INVALID` → věta „Přihlášení se nepovedlo". Logiku hlídá `OauthViewModelTest`.
+- **Odkaz ze zprávy** (Play v Uložených zprávách) se po `getExternalLinkInfo` otevřel v prohlížeči
+  jako dřív.
+- **Skutečná žádost z webu ani web s přihlášením z odkazu ověřené NEJSOU** — chtělo by to zadat
+  telefonní číslo na cizím webu.
+
 ## Odhlášení
 
 - **Po odhlášení je TDLib klient MRTVÝ.** `logOut` projde `LoggingOut` → `Closing` → `Closed`

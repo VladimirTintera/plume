@@ -576,11 +576,9 @@ a se serverem, takže přednostně:
    s úsekem ověřené není). ~~Sledování živých příběhů~~ — hotovo na Androidu (ntgcalls,
    WebRTC i stream po segmentech; ověřené RTMP vysílání). Zbývá: zprávy a reakce ve vysílání,
    vlastní vysílání (z kamery i RTMP), sledování na desktopu, ověření vysílání z kamery.
-2. **Přihlášení na webu přes Telegram (OAuth)** — `newOauthRequestUpdates`, `getOauthLinkInfo`,
-   `checkOauthRequestMatchCode`, `acceptOauthRequest`, `declineOauthRequest`. Kdo má jen Plume,
-   žádost webu nepotvrdí. Tlačítko `LoginUrl` u zprávy bota už hotové je
-   (`docs/poznatky/boti.md`); automatické přihlášení po ťuknutí na odkaz
-   (`getExternalLinkInfo`, `getExternalLink`) ne.
+2. ~~**Přihlášení na webu přes Telegram (OAuth)** a automatické přihlášení po ťuknutí na odkaz
+   (`getExternalLinkInfo`, `getExternalLink`)~~ — hotovo (`docs/poznatky/prihlaseni.md`,
+   „Přihlášení na webu účtem Telegramu"). Zbývá ověřit se skutečnou žádostí z webu.
 3. ~~**Seznam hovorů a hodnocení** (`searchCallMessages`, `deleteAllCallMessages`,
    `sendCallRating`)~~ — hotovo: menu účtu → Hovory a hodnocení po hovoru, o které server
    požádá, i ladicí data a log, když o ně server požádá (`sendCallDebugInformation`,

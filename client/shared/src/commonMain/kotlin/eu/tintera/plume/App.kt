@@ -1,6 +1,7 @@
 package eu.tintera.plume
 
 import eu.tintera.plume.features.notices.AccountNoticesHost
+import eu.tintera.plume.features.oauth.OauthHost
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
@@ -156,7 +157,11 @@ fun AppRoot(content: @Composable () -> Unit) {
 
                         // Dialogy od Telegramu (oznámení, podmínky) až nad odemčený obsah — pod
                         // zámkem by z nich byl vidět text, který zámek chrání.
-                        if (!covered) AccountNoticesHost()
+                        if (!covered) {
+                            AccountNoticesHost()
+                            // Žádost webu o přihlášení — taky až nad odemčený obsah.
+                            OauthHost()
+                        }
 
                         if (covered) {
                             // Kryt v hlavním okně: okno zámku se ukáže až s animací a během

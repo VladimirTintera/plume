@@ -111,6 +111,19 @@ interface ChatRepository {
      */
     suspend fun resolveLink(url: String): Result<InternalLink?>
 
+    /**
+     * Co udělat s webovým odkazem po ťuknutí (`getExternalLinkInfo`): otevřít, nebo se zeptat,
+     * jestli se na webu přihlásit účtem Telegramu ([LoginUrlPrompt.Confirm]).
+     */
+    suspend fun externalLinkInfo(url: String): Result<LoginUrlPrompt> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Adresa, která uživatele na webu [url] rovnou přihlásí (`getExternalLink`); prázdná =
+     * přihlášení proběhlo a stačí to oznámit.
+     */
+    suspend fun externalLoginUrl(url: String, allowWriteAccess: Boolean): Result<String> =
+        Result.failure(UnsupportedOperationException())
+
     /** Přidá se do chatu přes pozvánku ([InternalLink.Invite]). */
     suspend fun joinByInvite(link: String): Result<JoinResult>
 

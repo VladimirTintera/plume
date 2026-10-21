@@ -339,6 +339,14 @@ internal fun ConversationDialogs(
     state.loginRequest?.let { request ->
         LoginUrlDialog(prompt = request.prompt, onConfirm = viewModel::confirmLogin, onDismiss = viewModel::dismissLogin)
     }
+    state.externalLogin?.let { login ->
+        LoginUrlDialog(
+            prompt = login.prompt,
+            onConfirm = viewModel::confirmExternalLogin,
+            onDismiss = viewModel::dismissExternalLogin,
+        )
+    }
+
     state.confirmLink?.let { url ->
         OpenLinkDialog(url = url, onOpen = viewModel::openConfirmedLink, onDismiss = viewModel::dismissLink)
     }

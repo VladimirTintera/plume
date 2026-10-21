@@ -588,6 +588,8 @@ class ConversationViewModel(
     )
     fun openConfirmedLink() = links.openConfirmedLink()
     fun dismissLink() = links.dismissLink()
+    fun confirmExternalLogin(allowWriteAccess: Boolean) = links.confirmExternalLogin(allowWriteAccess)
+    fun dismissExternalLogin() = links.dismissExternalLogin()
     fun consumeOpenWebApp() = links.consumeOpenWebApp()
     fun joinInvite() = links.joinInvite()
     fun dismissInvite() = links.dismissInvite()
