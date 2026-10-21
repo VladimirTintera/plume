@@ -746,6 +746,7 @@
     <string name="sponsored_recommended">Doporučeno</string>
     <string name="sponsored_sponsored">Sponzorováno</string>
     <string name="sponsored_open">Otevřít</string>
+    <string name="sponsored_bar_ad">Reklama</string>
     <string name="sponsored_menu">Možnosti reklamy</string>
     <string name="sponsored_report">Nahlásit reklamu</string>
     <string name="sponsored_ads_hidden">Reklamy jsou skryté</string>

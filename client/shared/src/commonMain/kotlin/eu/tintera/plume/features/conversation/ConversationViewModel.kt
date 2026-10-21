@@ -89,6 +89,7 @@ import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
+import eu.tintera.plume.core.telegram.isTrustedSponsorUrl
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.ui.TextClipboard
@@ -1125,7 +1126,9 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            // Mimo kanály vrací TDLib prázdný seznam, takže se nemusí ptát na typ chatu.
+            // Mimo kanály a chaty s botem vrací TDLib prázdný seznam, takže se nemusí ptát na
+            // typ chatu. TDLib výsledek drží v keši (specifikace chce 5 minut), proto se může
+            // ptát při každém otevření.
             repository.sponsoredMessages(chatId).onSuccess { sponsored ->
                 _state.update { it.copy(sponsored = sponsored) }
             }
@@ -1301,11 +1304,15 @@ class ConversationViewModel(
      *
      * Hlášení odchází **před** otevřením odkazu — jakmile se otevře prohlížeč, aplikace jde do
      * pozadí a doručení by už nebylo jisté.
+     *
+     * Odkaz jde cestou odkazů z textu ([ConversationLinks.openLink]): odkaz do Telegramu se
+     * otevře v aplikaci, webová adresa mimo domény Telegramu ([isTrustedSponsorUrl]) až po
+     * potvrzení v dialogu — obojí specifikace reklam předepisuje.
      */
     fun onSponsoredClick(sponsored: SponsoredMessage) {
         viewModelScope.launch {
             repository.reportSponsoredClick(chatId, sponsored.messageId)
-            urlOpener.open(sponsored.url)
+            links.openLink(sponsored.url, confirmExternal = !isTrustedSponsorUrl(sponsored.url))
         }
     }
 

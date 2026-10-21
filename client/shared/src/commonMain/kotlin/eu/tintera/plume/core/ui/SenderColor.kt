@@ -47,3 +47,25 @@ internal fun senderHue(baseHue: Double, index: Int): Double =
 internal const val SENDER_COLOR_COUNT = 8
 
 private const val SENDER_CHROMA = 48.0
+
+/**
+ * Barva z Telegramu (`accent_color_id`) — u reklamy (`sponsoredMessage.accent_color_id`).
+ *
+ * Vestavěných barev je sedm (červená, oranžová, fialová, zelená, tyrkysová, modrá, růžová)
+ * a vyšší id jsou barvy profilu, které by se musely dočíst `updateAccentColors`; ty spadnou
+ * na vestavěnou podle zbytku. **Z Telegramu se bere jen ODSTÍN**, sytost a světlost jsou jako
+ * u [senderColor] — tón podle režimu drží kontrast na plochách aplikace a natvrdo zadaná
+ * barva Telegramu by v tmavém motivu nebo v paletě se zvýšeným kontrastem zmizela.
+ */
+@Composable
+fun telegramAccentColor(accentColorId: Int): Color {
+    val scheme = MaterialTheme.colorScheme
+    val dark = scheme.surface.luminance() < 0.5f
+    return remember(accentColorId, dark) {
+        val hue = TELEGRAM_ACCENT_HUES[accentColorId.absoluteValue % TELEGRAM_ACCENT_HUES.size]
+        Hct.from(hue, SENDER_CHROMA, if (dark) 80.0 else 40.0).toColor()
+    }
+}
+
+/** HCT odstíny vestavěných barev Telegramu v pořadí jejich id (0 = červená … 6 = růžová). */
+private val TELEGRAM_ACCENT_HUES = doubleArrayOf(25.0, 60.0, 305.0, 140.0, 210.0, 265.0, 350.0)

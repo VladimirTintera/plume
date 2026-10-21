@@ -11,7 +11,7 @@ vlastní soubor v `features/conversation/`:
 | Část | Soubor | Co v ní je |
 |---|---|---|
 | Hlavička | `ConversationTopBar.kt` | výběr, hledání, nebo název s avatarem, podtitulem a akcemi |
-| Pruhy nad seznamem | `ConversationBars.kt` | spam a oznámení o chatu, žádosti o vstup, videochat, připnuté, dock polohy, přehrávač |
+| Pruhy nad seznamem | `ConversationBars.kt` | spam a oznámení o chatu, reklama u bota, žádosti o vstup, videochat, připnuté, dock polohy, přehrávač |
 | Obsah | `ConversationContent.kt` | seznam zpráv, nebo stav místo něj; plovoucí datum |
 | Spodní lišta | `ConversationBottomBar.kt` | vstupní pole s napovídáním, nebo lišta místo něj (Přidat se, Start, ztlumení…) |
 | Vstupní pole | `MessageInput.kt` | karta pole, tlačítko odeslání a nahrávání, hlavičky citace a úpravy |
@@ -1325,8 +1325,18 @@ do reklam nesmí zasahovat — nesmí je filtrovat, skrývat, ani měnit popisek
   statistiku inzerenta.
 - **Kliknutí se hlásí PŘED otevřením odkazu** — jakmile se otevře prohlížeč, aplikace jde do
   pozadí a doručení už není jisté.
+- **Odkaz reklamy jde cestou odkazů z textu** (`ConversationLinks.openLink`), ne rovnou do
+  prohlížeče: odkaz do Telegramu (`t.me/…`, `tg://…`) se otevře v aplikaci a webová adresa
+  mimo domény Telegramu až po potvrzení v dialogu. Seznam domén bez potvrzení je ze
+  specifikace (`isTrustedSponsorUrl`, testy `TrustedSponsorUrlTest`); hostitel smí mít jen
+  písmena, číslice, tečky a pomlčky, takže `https://t.me@cizi.example` (přihlašovací údaje
+  v adrese) ani port neprojdou. Platí pro kanál i bota — dřív šel odkaz z karty v kanálu
+  rovnou do prohlížeče, i když vedl na kanál v Telegramu.
+- **Formátování textu (`entities`) se kreslí** (`RichText`), ale odkaz v textu je taky ťuknutí
+  na reklamu: kliknutí se musí nahlásit a cíl určuje reklama.
+- **⋮ s nahlášením jen u reklamy s `can_be_reported`** — specifikace nahlášení jiné nedovolí.
 - **Prázdný seznam je normální stav**, ne chyba: reklamy se servírují jen v dost velkých veřejných
-  kanálech, nikdy uživatelům s Premium, a závisí na dostupné inzerci.
+  kanálech a některých botech, nikdy uživatelům s Premium, a závisí na dostupné inzerci.
 - **Nahlásit reklamu jde ⋮ vedle štítku „Sponzorováno"** (`reportChatSponsoredMessage`).
   Průvodce je TENTÝŽ `ReportFlow` a `ReportSheet` jako u chatu, jen druhá instance
   (`sponsoredReportFlow`) s jiným voláním; id reklamy jede jako jediná zpráva požadavku.
@@ -1340,6 +1350,46 @@ do reklam nesmí zasahovat — nesmí je filtrovat, skrývat, ani měnit popisek
   průvodce s důvody od serveru („What's wrong with this ad?", anglicky i v české aplikaci —
   text dodává server), volba „I don't want to see ads" bez Premium skončí hláškou o Premium
   a reklama zůstane. **Skutečné nahlášení ověřené není** — šlo by moderátorům na cizí reklamu.
+
+### Reklama u bota
+
+`getChatSponsoredMessages` vrací reklamy i v chatu s botem a [specifikace](https://core.telegram.org/api/sponsored-messages)
+je tam chce jinak než v kanálu: **pruh nad konverzací**, „akin to an action bar". Dřív se
+kreslily jako karta pod zprávami, protože komentář ve ViewModelu tvrdil, že mimo kanály je
+seznam prázdný.
+
+- **Že jde o bota, rozhoduje repository** (`SponsoredMessage.inBotChat`): TDLib reklamy vrací
+  jen kanálům a chatům s botem, takže soukromý chat (`ChatTypePrivate`) je bot. Neptá se
+  `ChatInfo` — ta při příchodu reklam ještě nemusí být načtená a reklama by na okamžik
+  naskočila jako karta.
+- **Pruh je `SponsoredBar`** ve sloupci pruhů (`ConversationBars`) hned pod pruhem proti
+  spamu, se sklem a tvarem `ChatBarSurface`. Ze seznamu zpráv reklama u bota vypadne
+  (`conversationItems`).
+- **Předponu „Reklama" / „Doporučeno" přidává klient** v barvě odkazů (`primary`; „modrá" ze
+  specifikace je barva odkazů oficiálního klientu), jméno inzerenta za ní nese barvu reklamy
+  a proužek vlevo taky.
+- **Barva reklamy je `accent_color_id`** (`telegramAccentColor` v `core/ui/SenderColor.kt`):
+  z Telegramu se bere jen ODSTÍN sedmi vestavěných barev, tón a sytost jsou jako u barev
+  odesílatelů. Proti sklu pruhu se ověřuje `accentOn`. Vyšší id (barvy profilu) by se musela
+  dočíst `updateAccentColors`; spadnou na vestavěnou podle zbytku.
+- **Text se neořezává.** Zhlédnutí se smí hlásit, až je vidět celý text; hlásí se po vteřině
+  zobrazení pruhu, jednou za relaci (`reportSponsoredSeen`), přes `viewMessages` jako u kanálu.
+- **Fotka inzerenta (`sponsor.photo`) je náhled vpravo**, ⋮ s nahlášením za ní.
+- **Keš 5 minut** ze specifikace drží TDLib sama; konverzace se ptá při každém otevření.
+- **Stránka bota (`BotIntroPage`) pod pruh zajíždí a je zdrojem skla** (`hazeSource(listHaze)`
+  s podkladem v barvě stránky, odsazení `topPadding` uvnitř posuvné plochy). Reklama se ukazuje
+  hlavně v chatu s botem, který uživatel ještě nespustil — tedy nad touto stránkou, ne nad
+  seznamem zpráv. Bez toho ležel avatar bota PŘES pruh a sklo bez zdroje ukazovalo prosvítající
+  stín a světlejší obdélník v obrysu obsahu stránky.
+- **Ověřeno na emulátoru** (česky, světlý i tmavý motiv): reklamu server vracel botům
+  @notcoin_bot, @blum, @major, @tapswap_bot, @catizenbot, @DurgerKingBot, @SaveAsBot,
+  @GPT4Telegrambot, @TonRocketBot a @send (ne pokaždé — reklamy se střídají a někdy přijde nic),
+  ne @wallet, @HamsterKombat_bot, @utubebot, @like ani @vote. Pruh s vlastními emoji v textu,
+  s fotkou i bez ní, `viewMessages` i `clickChatSponsoredMessage` server přijal (`Ok`), ťuknutí
+  otevřelo bota inzerenta v aplikaci, ⋮ otevře průvodce s důvody od serveru (nahlášení se
+  neodeslalo). @GPT4Telegrambot jednou poslal reklamu s `can_be_reported = false`. Karta
+  v kanálu (@bbcrussian) beze změny. **Neověřené:** potvrzení u odkazu mimo domény Telegramu
+  (žádná z viděných reklam takový neměla; jen testy) a iOS / desktop.
 
 ## Metriky zobrazení
 

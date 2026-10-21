@@ -12,6 +12,7 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -142,6 +143,12 @@ internal fun BoxScope.ConversationContent(
                 avatarFileId = state.info?.avatarFileId,
                 online = shownConnection == null && state.presence is Presence.Online,
                 onAction = { itemScope.onAction(0L, it) },
+                // Nad stránkou bota stojí pruhy (hlavně reklama u bota): jejich sklo bere
+                // obraz z `listHaze` a stránka pod ně musí zajet, jinak by je překryla.
+                // Podklad v barvě stránky: bez něj sklo rozostřilo jen obsah stránky a jeho
+                // hranice prosvítala pruhem jako světlejší obdélník.
+                modifier = Modifier.hazeSource(listHaze).background(MaterialTheme.colorScheme.background),
+                topPadding = topPadding,
             )
         }
 

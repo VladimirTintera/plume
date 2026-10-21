@@ -2760,23 +2760,34 @@ class TdlConversationRepository(
     override fun protectedContentUpdates(chatId: Long): Flow<Boolean> =
         holder.updates { chatHasProtectedContentUpdates }.filter { it.chatId == chatId }.map { it.hasProtectedContent }
 
-    override suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>> =
-        if (forumTopicId != null) Result.success(emptyList()) else client.getChatSponsoredMessages(chatId = chatId)
+    override suspend fun sponsoredMessages(chatId: Long): Result<List<SponsoredMessage>> {
+        if (forumTopicId != null) return Result.success(emptyList())
+        return client.getChatSponsoredMessages(chatId = chatId)
             .toResult()
             .map { sponsored ->
-                sponsored.messages.filterNotNull().map { message ->
+                val messages = sponsored.messages.filterNotNull()
+                // TDLib je vrací jen kanálům a chatům s botem; soukromý chat je tedy bot. Ptá se
+                // jen, když nějaká reklama přišla — dotaz na chat je lokální.
+                val inBotChat = messages.isNotEmpty() &&
+                    client.getChat(chatId = chatId).toResult().getOrNull()?.type is ChatTypePrivate
+                messages.map { message ->
                     SponsoredMessage(
                         messageId = message.messageId,
                         title = message.title,
                         // Obsah je MessageContent jako u běžné zprávy; reklamy jsou v praxi text.
-                        text = (message.content as? MessageText)?.text?.text.orEmpty(),
+                        body = (message.content as? MessageText)?.text?.toBody() ?: MessageBody.Empty,
                         buttonText = message.buttonText,
                         url = message.sponsor.url,
                         isRecommended = message.isRecommended,
                         additionalInfo = message.additionalInfo.takeIf { it.isNotBlank() },
+                        canBeReported = message.canBeReported,
+                        photo = message.sponsor.photo?.toMedia(),
+                        accentColorId = message.accentColorId,
+                        inBotChat = inBotChat,
                     )
                 }
             }
+    }
 
     override suspend fun reportSponsoredView(chatId: Long, messageId: Long): Result<Unit> =
         // TDLib nemá pro sponzorované zprávy zvláštní funkci — jejich id se předává do
