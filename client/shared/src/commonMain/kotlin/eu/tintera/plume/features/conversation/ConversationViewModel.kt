@@ -406,6 +406,20 @@ class ConversationViewModel(
     val transcribeContext: StateFlow<TranscribeContext> get() = playback.transcribeContext
 
     /** Soubory ve zprávách: stažení a otevření, sdílení, uložení — viz [ConversationDocuments]. */
+    /** Import chatu z jiné aplikace — viz [ConversationImport]. */
+    private val chatImport: ConversationImport = ConversationImport(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        shareRequests = shareRequests,
+        logger = logger,
+        attachAsFiles = { files -> attachments.addAttachments(files) },
+    )
+    fun confirmChatImport() = chatImport.confirm()
+    fun dismissChatImport() = chatImport.dismiss()
+    fun attachChatExportInstead() = chatImport.attachInstead()
+
     private val documents: ConversationDocuments = ConversationDocuments(
         state = _state,
         scope = viewModelScope,
@@ -1105,7 +1119,8 @@ class ConversationViewModel(
             // v shellu přijde, až uživatel v otevřené konverzaci ťukne na „Vložit sem".
             shareRequests.deliveries(chatId).collect { content ->
                 composer.draftRestored.await()
-                attachments.receiveShared(content)
+                // Export chatu z jiné aplikace se nabídne k importu, ne jako příloha.
+                if (!chatImport.offer(content)) attachments.receiveShared(content)
             }
         }
 

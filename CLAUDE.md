@@ -63,7 +63,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Typy zpráv](docs/poznatky/typy-zprav.md) — popisy a servisní zprávy, články a Instant View, počty a komentáře, témata ve skupinách, placená média, dárky, příběhy, kontakt, hovor
 - [Emoji, samolepky a reakce](docs/poznatky/emoji-samolepky-reakce.md) — velká emoji, kostky, efekty, vlastní emoji, výběry samolepek / GIFů / emoji, reakce a jejich čipy
 - [Notifikace](docs/poznatky/notifikace.md) — TDLib a push, kanály a nastavení, zvuky z Telegramu, akce z notifikace, iOS (APNs), ohlášení hovoru, pruh videochatu
-- [Sdílení do aplikace](docs/poznatky/sdileni.md) — ShareRequests, čip „Sdílíte: …“ a jeho uložení, Direct Share a obrazovka „Komu: …“, iOS rozšíření a návrhy chatů
+- [Sdílení do aplikace](docs/poznatky/sdileni.md) — ShareRequests, čip „Sdílíte: …“ a jeho uložení, Direct Share a obrazovka „Komu: …“, import chatu z WhatsAppu, iOS rozšíření a návrhy chatů
 - [Přihlášení a odhlášení](docs/poznatky/prihlaseni.md) — QR kód, přihlašovací obrazovka (kód, heslo, obnova, země), přihlášení na webu z odkazu (a proč ne OAuth), odhlášení a nový klient
 - [Šifrovaná databáze, spojení a proxy](docs/poznatky/databaze-spojeni-proxy.md) — klíč databáze a jeho migrace, stav spojení a obnova po pozadí, proxy a sponzorovaný chat
 - [Systémová oznámení od Telegramu](docs/poznatky/systemova-oznameni.md) — oznámení od služby, nové podmínky služby, zmrazený účet, doporučené akce; proč se odebírají eagerně

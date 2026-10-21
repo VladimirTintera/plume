@@ -302,6 +302,42 @@ sdílející z Fotek.
   pravidla jako u příloh v konverzaci, viz „Úprava fotky před odesláním" v `konverzace-psani.md`
   (tam i proč se během úpravy schovává galerie a jak sdílení ověřit z Google Fotek).
 
+### Import chatu z jiné aplikace
+
+Export chatu z WhatsAppu (Android: „Exportovat chat" sdílí `.txt` a média jako víc souborů
+najednou) jde do Plume jako každé jiné sdílení: čip „Sdílíte…", otevřít chat, „Vložit sem".
+Teprve konverzace (`ConversationImport`) se podívá, jestli mezi soubory není `.txt`, který
+Telegram pozná jako export, a místo příloh nabídne import.
+
+- **Export pozná server, ne my.** Prvních sto řádků souboru jde do `getMessageFileType`; formát
+  exportu se liší jazykem i verzí WhatsAppu a parsovat ho sami by znamenalo honit každou změnu.
+  Neznámý soubor (`messageFileTypeUnknown`) jde obvyklou cestou jako příloha. Ostatní sdílené
+  soubory jsou přílohy exportu, server je páruje podle jména („IMG-…jpg (file attached)").
+- **Strop výběru příloh (deset) by import ořízl o média**, proto se u sdílení víc souborů, mezi
+  kterými je `.txt`, bere až 300 (`EXPORT_FILE_LIMIT` v `ShareIntake.android.kt`). Jestli je to
+  opravdu export, se tam ještě neví.
+- **Druh exportu se hlídá PŘED dialogem.** Soukromý export (`messageFileTypePrivate`) jde jen do
+  soukromého chatu, skupinový (`messageFileTypeGroup`) jen do skupiny. `getMessageImportConfirmationText`
+  to nekontroluje — větu k potvrzení vydá do každého chatu, kde smíme importovat, a soukromý
+  export do skupiny odmítl až samotný `importMessages` (`IMPORT_PEER_TYPE_INVALID`), tedy po
+  potvrzení a nahrání. Repository proto porovná druh s typem chatu a nehodí-li se, dialog řekne
+  proč a nabídne export „Vložit jako soubor" — tak, jak by šel bez rozpoznání.
+- **Věta k potvrzení je od serveru a ukazuje se** („Imported messages will appear at the time…").
+  Není to chybová hláška, ale text, který má uživatel před importem vidět (jako podmínky
+  služby); je v jazyce balíčku Telegramu, tedy zatím anglicky.
+- **Zpráva z importu má za odesílatele zástupný účet „Imported Message"** se šedou tváří; kdo ji
+  napsal, nese jen `Message.importInfo.senderName` (holé jméno z exportu). Bublina proto ukáže
+  to jméno a místo tváře zástupného účtu iniciály.
+- **Server po importu hlásí nepřečtené zmínky** (odznak „@ 2" u dvou importovaných zpráv
+  v testovací skupině) — jeho rozhodnutí, aplikace s tím nic nedělá.
+- **Neumí:** export jako `.zip` (WhatsApp na iOS), import do chatu jinak než ze sdílení.
+  iOS rozšíření sdílení předává soubory stejnou cestou, ověřené tam ale nic není.
+- **Ověřeno na emulátoru** podstrčeným sdílením (víc souborů `adb` sdílet neumí, viz výš):
+  skupinový export s fotkou naimportovaný do vlastní testovací skupiny (zprávy ve „Včera 18:02",
+  fotka spárovaná, jména z exportu), týž export v soukromém chatu (věta „Skupinový chat jde
+  naimportovat jen do skupiny…" a vložení jako dva soubory nad pole), soukromý export v chatu
+  s botem (bez věty od serveru). Skutečný export z WhatsAppu ověřený není.
+
 ### iOS: rozšíření sdílení
 
 Na iOS je sdílení **rozšíření** (`iosApp/ShareExtension`, SwiftUI): list „Sdílet do" s chaty

@@ -720,6 +720,25 @@ interface ConversationRepository {
     suspend fun blockFromReplies(messageId: Long, deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
+    /**
+     * Je [head] (prvních až sto řádků souboru) export chatu z jiné aplikace (`getMessageFileType`)?
+     * `null` = není, nebo ho Telegram nezná.
+     */
+    suspend fun chatExportKind(head: String): Result<ChatExportKind?> = Result.success(null)
+
+    /**
+     * Věta, kterou má uživatel před importem do chatu [chatId] potvrdit (`getMessageImportConfirmationText`).
+     * Selže i tam, kam export druhu [kind] nepatří: soukromý jen do soukromého chatu, skupinový do skupiny.
+     */
+    suspend fun importConfirmation(chatId: Long, kind: ChatExportKind): Result<String> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Naimportuje zprávy ze souboru [messageFile] (s přílohami [attachedFiles], párovanými podle
+     * jména souboru) do chatu [chatId] (`importMessages`). Hotovo = server import převzal.
+     */
+    suspend fun importMessages(chatId: Long, messageFile: String, attachedFiles: List<String>): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     suspend fun answerProtectionDisableRequest(chatId: Long, messageId: Long, approve: Boolean): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
@@ -1282,6 +1301,12 @@ data class ChatSearchPage(
     val total: Int?,
     val nextFromMessageId: Long?,
 )
+
+/** Co je v exportu chatu z jiné aplikace (`MessageFileType`): soukromý chat s [name], nebo skupina. */
+sealed interface ChatExportKind {
+    data class Private(val name: String) : ChatExportKind
+    data class Group(val title: String) : ChatExportKind
+}
 
 /** Hlavička konverzace. */
 data class ChatInfo(
