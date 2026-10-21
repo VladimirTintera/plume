@@ -30,6 +30,65 @@ Teď je prázdné.
   development tools); v kódu se nenastavuje (`docs/poznatky/nastaveni.md`, „Zařízení").
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
   `docs/poznatky/release.md`, „R8").
+- **Play Console: deklarace služeb v popředí a celoobrazovkových notifikací** (Obsah
+  aplikace). Play hlásí sedm nedeklarovaných typů služby v popředí. **U každého chce kromě
+  zaškrtnuté úlohy i popis a odkaz na video**, které funkci ukazuje: záznam obrazovky,
+  na YouTube jako neveřejné video. Bez deklarace Play vydání s těmi oprávněními nepustí.
+  Jedno video z videohovoru stačí na všechny čtyři typy hovoru, pokud je v něm kamera,
+  sdílení obrazovky a odchod z aplikace. Kdo co v kódu spouští: `CallService`,
+  `MusicPlaybackService`, `LiveLocationService` a `ModelDownloadWorker`, typy jsou
+  v `AndroidManifest.xml` vstupního bodu. Popisy níž jsou návrhy, anglicky, protože je čte
+  recenzent Googlu. Názvy úloh kromě kamery jsou odhad: zaškrtnout tu, která odpovídá
+  smyslu; „Jiné" jen tehdy, když nesedí nic, protože vede k delší ruční kontrole.
+  - [ ] **Celoobrazovkové notifikace** (`USE_FULL_SCREEN_INTENT`, samostatná deklarace):
+    hlavní funkce „Volání a přijímání hovorů", udělit předem „Ano". Video není potřeba.
+    Bez ní Plume z Play na Androidu 14+ zamčený telefon při hovoru nerozsvítí. Aplikace stav
+    ukazuje a jednou se zeptá (`docs/poznatky/notifikace.md`, „Celoobrazovková výzva hovoru").
+  - [ ] **`FOREGROUND_SERVICE_CAMERA`**: úloha „Streamování z kamery na pozadí". Video:
+    videohovor se zapnutou kamerou, pak Domů nebo okénko (PiP) a protistrana dál vidí obraz.
+    > Plume is a Telegram client with voice and video calls. During a video call the user can
+    > leave the app (switch to another app, use picture-in-picture, or lock the screen) and
+    > the call continues; the camera keeps streaming to the other party while the foreground
+    > service runs. The camera type is added only when the user turns the camera on in a
+    > call, and the service stops when the call ends.
+  - [ ] **`FOREGROUND_SERVICE_PHONE_CALL`**: úloha pro probíhající hovor (VoIP). Video:
+    přijatý hovor, odchod z aplikace, hovor běží dál s notifikací a jde zavěsit z ní.
+    > Plume makes and receives Telegram voice and video calls (VoIP, registered with the system
+    > Telecom framework through androidx.core.telecom). The foreground service runs for the whole call
+    > so the call continues when the user leaves the app or locks the screen, and shows an
+    > ongoing call notification with Hang up. It stops when the call ends.
+  - [ ] **`FOREGROUND_SERVICE_MICROPHONE`**: úloha pro hovor / přístup k mikrofonu na pozadí.
+    Video: tentýž hovor, protistrana slyší i po odchodu z aplikace.
+    > During a Telegram voice or video call the microphone must keep sending the user's voice
+    > to the other party after the user leaves the app or locks the screen. The microphone
+    > is used only while a call is in progress and the service stops when the call ends.
+  - [ ] **`FOREGROUND_SERVICE_MEDIA_PROJECTION`**: úloha pro sdílení obrazovky. Video:
+    v hovoru sdílet obrazovku, přepnout do jiné aplikace, protistrana ji vidí.
+    > In a call the user can share their screen with the other party. The user starts it
+    > explicitly and confirms the system screen capture dialog; sharing continues while the
+    > user switches to other apps, which is the point of sharing the screen. It stops when
+    > the user stops sharing or the call ends.
+  - [ ] **`FOREGROUND_SERVICE_MEDIA_PLAYBACK`**: úloha pro přehrávání zvuku na pozadí. Video:
+    pustit skladbu (hudební soubor) v chatu, odejít z aplikace, hraje dál a ovládá se
+    z notifikace.
+    > Users can play music files and audio sent in Telegram chats. Playback continues in the
+    > background with a media notification and media session controls (Media3
+    > MediaSessionService), and stops when the playlist ends or the user stops it.
+  - [ ] **`FOREGROUND_SERVICE_LOCATION`**: úloha pro sdílení polohy. Video: v chatu poslat
+    živou polohu (sponka → Poloha), odejít z aplikace, poloha se dál aktualizuje
+    a notifikace sdílení jde zastavit.
+    > Users can share their live location in a Telegram chat for a period they choose
+    > (15 minutes to 8 hours, or until they stop it). The service keeps updating the location in the shared message
+    > while the app is in the background and shows a notification with Stop. It is started
+    > only from the app in the foreground after the user's explicit action; background
+    > location permission is not requested.
+  - [ ] **`FOREGROUND_SERVICE_DATA_SYNC`**: úloha pro stahování / přenos dat po síti. Video:
+    Nastavení → AI v zařízení → stáhnout model, odejít z aplikace, průběh v notifikaci.
+    Ověřit ještě stahování v release buildu a na telefonu (sekce „AI v zařízení" níž).
+    > The user can download an on-device AI model (Gemma, several GB) for summaries and reply
+    > suggestions. The download is started explicitly by the user, runs as a WorkManager task
+    > in a foreground service with a progress notification and Stop, and continues if the
+    > user leaves the app. It stops when the download finishes or the user cancels it.
 
 ## Zveřejnění zdrojáků
 
@@ -738,13 +797,8 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    - **Android: hodinový videohovor** (teplota a baterie; šest minut ověřených,
      `docs/poznatky/hovory.md`, „Ověřeno 14. 10. 2026"). Ostatní dřív neověřené kousky
      (Bluetooth, okénko, Android 11, hovor z oficiálního klienta) jsou ověřené.
-   - **Play Console: deklarovat typy služby v popředí `camera` a `mediaProjection`** (kamera
-     videohovoru a sdílení obrazovky na pozadí) — udělá uživatel, bez toho Play vydání
-     s videohovory a sdílením nepustí.
-   - **Play Console: deklarace celoobrazovkových notifikací** (`USE_FULL_SCREEN_INTENT`) —
-     udělá uživatel; bez ní Plume z Play na Androidu 14+ zamčený telefon při hovoru nerozsvítí.
-     Aplikace stav ukazuje a jednou se zeptá (`docs/poznatky/notifikace.md`, „Celoobrazovková
-     výzva hovoru").
+   - **Play Console: deklarace služeb v popředí hovoru a celoobrazovkových notifikací** —
+     checklist v „Než se dá vydat na veřejnost".
    - **Zpoždění hovoru změřit** — uživatel s Bluetooth sluchátky popsal zpoždění „jako
      vysílačka" po celý hovor, přitom RTT sítě 40–100 ms a buffer 50 ms. Sondou změřit dobu
      tam a zpět pípnutím (bez mikrofonu a reproduktoru) a zvlášť s sluchátky a bez nich;
@@ -817,7 +871,8 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
     → Play Feature Delivery,
   - ~~**stahování na pozadí**~~ — hotovo (úloha WorkManageru s notifikací průběhu a „Zastavit";
     `docs/poznatky/ai-v-zarizeni.md`, „AI v zařízení"). Zbývá ověřit v release buildu a na telefonu a **vyplnit
-    v Play Console deklaraci služby v popředí `dataSync`**.
+    v Play Console deklaraci služby v popředí `dataSync`** (checklist v „Než se dá vydat
+    na veřejnost").
 - **Beta ML Kitu sledovat.** `1.0.0-beta4` je zatím nejnovější; novější verze může `Feature -1`
   opravit a preview zpřístupnit bez vlastního runtime. Stojí za to to při bumpu zkusit znovu.
 - **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,
