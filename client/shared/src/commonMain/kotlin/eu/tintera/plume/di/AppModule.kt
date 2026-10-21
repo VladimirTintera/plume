@@ -157,10 +157,6 @@ import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.notices.AccountNoticesViewModel
 import eu.tintera.plume.core.telegram.AccountNotices
-import eu.tintera.plume.core.telegram.OauthLogin
-import eu.tintera.plume.core.ui.UrlOpener
-import eu.tintera.plume.core.telegram.TdlOauthLogin
-import eu.tintera.plume.features.oauth.OauthViewModel
 import eu.tintera.plume.core.telegram.TdlAccountNotices
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.LiveStoryRepository
@@ -299,8 +295,6 @@ fun appModule() = module {
     }
     // Eager ze stejného důvodu: zmrazení účtu a podmínky služby TDLib pošle hned po startu
     // a oznámení od služby jen jednou — odběr, který vznikne až s obrazovkou, by je minul.
-    // Eager: žádost o přihlášení na webu chodí updatem a platí jen minutu.
-    single<OauthLogin>(createdAtStart = true) { TdlOauthLogin(holder = get(), scope = get(named(APP_SCOPE))) }
     single<AccountNotices>(createdAtStart = true) {
         TdlAccountNotices(holder = get(), scope = get(named(APP_SCOPE)))
     }
@@ -905,7 +899,6 @@ fun appModule() = module {
     viewModelOf(::MyQrCodeViewModel)
     viewModelOf(::ExternalLinkViewModel)
     viewModelOf(::CallsViewModel)
-    viewModel { OauthViewModel(oauth = get(), openUrl = { url -> get<UrlOpener>().open(url) }) }
     viewModelOf(::DownloadsViewModel)
 
     // Druh a členové jdou z routy; indexem, `get()` by bral podle typu.

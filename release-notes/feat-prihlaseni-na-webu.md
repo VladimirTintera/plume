@@ -1,3 +1,3 @@
 type: feat
-cs: Potvrzení přihlášení na webu přes Telegram a přihlášení z odkazu
-en: Approve website sign-ins with Telegram and sign in from links
+cs: Odkaz na web, který nabízí přihlášení přes Telegram, se zeptá a přihlásí
+en: Links to websites offering Telegram login ask and sign you in

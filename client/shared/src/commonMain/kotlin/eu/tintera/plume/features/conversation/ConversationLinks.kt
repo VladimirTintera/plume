@@ -97,9 +97,6 @@ internal class ConversationLinks(
                 .onSuccess { link ->
                     when (link) {
                         null -> openExternal(url, confirmExternal)
-                        // Žádost o přihlášení se zpracovává jen z odkazu zvenčí (předpis TDLib);
-                        // z chatu je to obyčejný odkaz.
-                        is InternalLink.Oauth -> openExternal(url, confirmExternal)
                         is InternalLink.Chat -> openChatLink(link)
                         // Sdílení bez vybraného chatu: obsah nese čip v shellu (viz ShareRequests).
                         is InternalLink.ShareText -> shareRequests.start(link.text, hasFiles = false)

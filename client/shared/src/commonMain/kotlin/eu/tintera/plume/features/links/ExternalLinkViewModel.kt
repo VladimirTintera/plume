@@ -16,7 +16,6 @@ import eu.tintera.plume.core.telegram.ContactLinkExpiredException
 import eu.tintera.plume.core.telegram.isChannelLimit
 import eu.tintera.plume.core.telegram.GuardDecision
 import eu.tintera.plume.core.telegram.InternalLink
-import eu.tintera.plume.core.telegram.OauthLogin
 import eu.tintera.plume.core.telegram.JoinResult
 import eu.tintera.plume.core.telegram.LinkUserNotFoundException
 import eu.tintera.plume.core.telegram.LoginLinkKind
@@ -73,8 +72,6 @@ class ExternalLinkViewModel(
     private val contactOffers: ContactOffers,
     /** Limit skupin a kanálů při vstupu: sheet s neaktivními k opuštění ukazuje shell. */
     private val channelLimit: ChannelLimitRequests,
-    /** Přihlášení na webu z odkazu zvenčí: sheet ukazuje `OauthHost` nad aplikací. */
-    private val oauth: OauthLogin? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ExternalLink")
@@ -142,7 +139,6 @@ class ExternalLinkViewModel(
                     is InternalLink.Screen -> navigate(ExternalDestination.Screen(link.screen))
                     is InternalLink.LoginWarning -> _state.update { it.copy(loginWarning = link.kind) }
                     is InternalLink.Story -> navigate(ExternalDestination.Story(link.posterChatId, link.storyId))
-                    is InternalLink.Oauth -> oauth?.open(link.url)
                 }
             }
             .onFailure { failure ->
