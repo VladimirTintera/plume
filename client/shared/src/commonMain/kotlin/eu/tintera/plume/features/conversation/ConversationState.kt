@@ -568,6 +568,8 @@ data class ConversationState(
     val pendingDelete: PendingDelete? = null,
     /** Zpráva z chatu Odpovědi, u které se potvrzuje zablokování odesílatele. */
     val pendingRepliesBlock: Long? = null,
+    /** Sdílený export chatu z jiné aplikace čekající na potvrzení importu. */
+    val chatImport: ChatImportOffer? = null,
     /** Zpráva čekající na potvrzení připnutí. */
     val pendingPin: PendingPin? = null,
     /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */

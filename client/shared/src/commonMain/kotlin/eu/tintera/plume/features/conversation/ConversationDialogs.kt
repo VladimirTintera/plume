@@ -4,6 +4,13 @@ import eu.tintera.plume.resources.menu_select
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.MediaReplacement
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LinearProgressIndicator
+import org.jetbrains.compose.resources.pluralStringResource
+import eu.tintera.plume.core.telegram.ChatExportKind
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -28,6 +35,14 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.download_24dp
+import eu.tintera.plume.resources.chat_import_attach_instead
+import eu.tintera.plume.resources.chat_import_files
+import eu.tintera.plume.resources.chat_import_confirm
+import eu.tintera.plume.resources.chat_import_not_here_group
+import eu.tintera.plume.resources.chat_import_not_here_private
+import eu.tintera.plume.resources.chat_import_title
+import eu.tintera.plume.resources.chat_import_title_group
 import eu.tintera.plume.resources.replies_block_report_spam
 import eu.tintera.plume.resources.replies_block_delete_all
 import eu.tintera.plume.resources.replies_block_delete_message
@@ -402,6 +417,15 @@ internal fun ConversationDialogs(
         )
     }
 
+    state.chatImport?.let { offer ->
+        ChatImportDialog(
+            offer,
+            onConfirm = viewModel::confirmChatImport,
+            onAttachInstead = viewModel::attachChatExportInstead,
+            onDismiss = viewModel::dismissChatImport,
+        )
+    }
+
     state.pendingRepliesBlock?.let {
         RepliesBlockDialog(
             onConfirm = viewModel::confirmBlockFromReplies,
@@ -675,6 +699,52 @@ private fun RepliesBlockDialog(
         DialogCheckRow(label = stringResource(Res.string.replies_block_delete_message), checked = deleteMessage, onChange = { deleteMessage = it })
         DialogCheckRow(label = stringResource(Res.string.replies_block_delete_all), checked = deleteAll, onChange = { deleteAll = it })
         DialogCheckRow(label = stringResource(Res.string.replies_block_report_spam), checked = reportSpam, onChange = { reportSpam = it })
+    }
+}
+
+/**
+ * Import chatu z jiné aplikace. Věta k potvrzení je od serveru (`getMessageImportConfirmationText`)
+ * — říká, co import udělá (zprávy se objeví jako staré, s jejich daty). Do chatu, kam import
+ * nejde, server větu nevydá a dialog to jen oznámí.
+ */
+@Composable
+private fun ChatImportDialog(offer: ChatImportOffer, onConfirm: () -> Unit, onAttachInstead: () -> Unit, onDismiss: () -> Unit) {
+    val (title, notHere) = when (val kind = offer.kind) {
+        is ChatExportKind.Private -> stringResource(Res.string.chat_import_title, kind.name) to Res.string.chat_import_not_here_private
+        is ChatExportKind.Group -> stringResource(Res.string.chat_import_title_group, kind.title) to Res.string.chat_import_not_here_group
+    }
+    val confirmation = offer.confirmation
+    if (confirmation == null) {
+        // Import sem nejde; export se dá aspoň poslat jako soubor, jak by šel bez rozpoznání.
+        ConfirmDialog(
+            title = title,
+            text = stringResource(notHere),
+            confirmLabel = stringResource(Res.string.chat_import_attach_instead),
+            onConfirm = onAttachInstead,
+            onDismiss = onDismiss,
+            icon = Res.drawable.download_24dp,
+        )
+        return
+    }
+    ConfirmDialog(
+        title = title,
+        text = confirmation,
+        confirmLabel = stringResource(Res.string.chat_import_confirm),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.download_24dp,
+        confirmEnabled = !offer.importing,
+    ) {
+        if (offer.attachedFiles.isNotEmpty()) {
+            Text(
+                pluralStringResource(Res.plurals.chat_import_files, offer.attachedFiles.size, offer.attachedFiles.size),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (offer.importing) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
     }
 }
 

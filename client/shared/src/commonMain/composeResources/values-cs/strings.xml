@@ -816,6 +816,20 @@
     <string name="forward_title">Přeposlat do</string>
     <string name="forward_send">Přeposlat (%1$d)</string>
     <string name="share_preparing">Připravuji soubory…</string>
+    <string name="chat_import_title">Importovat chat s %1$s?</string>
+    <string name="chat_import_title_group">Importovat skupinu %1$s?</string>
+    <string name="chat_import_not_here_private">Chat s jedním člověkem jde naimportovat jen do soukromého chatu s ním, a musí to být vzájemný kontakt. Export můžeš poslat aspoň jako soubor.</string>
+    <string name="chat_import_not_here_group">Skupinový chat jde naimportovat jen do skupiny, kde smíš měnit údaje. Export můžeš poslat aspoň jako soubor.</string>
+    <string name="chat_import_attach_instead">Vložit jako soubor</string>
+    <string name="chat_import_confirm">Importovat</string>
+    <string name="chat_import_done">Chat naimportován</string>
+    <string name="chat_import_failed">Chat se nepodařilo naimportovat.</string>
+    <plurals name="chat_import_files">
+        <item quantity="one">Včetně %1$d přiloženého souboru</item>
+        <item quantity="few">Včetně %1$d přiložených souborů</item>
+        <item quantity="many">Včetně %1$d přiloženého souboru</item>
+        <item quantity="other">Včetně %1$d přiložených souborů</item>
+    </plurals>
     <string name="share_failed_files">Některé sdílené soubory se nepodařilo připravit</string>
     <string name="share_access_denied_title">Android snímek nepředal</string>
     <string name="share_access_denied_gallery">Vyber ho v galerii dole — bývá to první fotka.</string>

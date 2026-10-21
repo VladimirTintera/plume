@@ -804,6 +804,18 @@
     <string name="forward_title">Forward to</string>
     <string name="forward_send">Forward (%1$d)</string>
     <string name="share_preparing">Preparing files…</string>
+    <string name="chat_import_title">Import chat with %1$s?</string>
+    <string name="chat_import_title_group">Import group %1$s?</string>
+    <string name="chat_import_not_here_private">A chat with one person can only be imported into your private chat with them, and they must be a mutual contact. You can still send the export as a file.</string>
+    <string name="chat_import_not_here_group">A group chat can only be imported into a group where you can change its info. You can still send the export as a file.</string>
+    <string name="chat_import_attach_instead">Attach as file</string>
+    <string name="chat_import_confirm">Import</string>
+    <string name="chat_import_done">Chat imported</string>
+    <string name="chat_import_failed">Couldn’t import the chat.</string>
+    <plurals name="chat_import_files">
+        <item quantity="one">Including %1$d attached file</item>
+        <item quantity="other">Including %1$d attached files</item>
+    </plurals>
     <string name="share_failed_files">Some shared files couldn't be prepared</string>
     <string name="share_access_denied_title">Android didn't hand the screenshot over</string>
     <string name="share_access_denied_gallery">Pick it in the gallery below — it's usually the first photo.</string>

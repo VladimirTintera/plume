@@ -9,6 +9,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.ui.PICK_LIMIT
 import eu.tintera.plume.core.ui.prepareFile
+import eu.tintera.plume.core.ui.displayName
 import eu.tintera.plume.core.ui.prepareVisual
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +52,15 @@ class ShareIntake(
             ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)?.takeIf { uris.isEmpty() }
         if (text.isNullOrBlank() && uris.isEmpty()) return true
 
-        val limited = uris.take(PICK_LIMIT)
+        /*
+         * Export chatu z WhatsAppu přichází jako `.txt` se všemi médii najednou (desítky souborů).
+         * Strop výběru příloh by import ořízl o přílohy, proto se u sdílení s `.txt` bere víc —
+         * jestli to export opravdu je, pozná až konverzace (`ConversationImport`).
+         */
+        val exportLike = uris.size > 1 && uris.any { uri ->
+            runCatching { displayName(context, uri) }.getOrNull()?.endsWith(".txt", ignoreCase = true) == true
+        }
+        val limited = uris.take(if (exportLike) EXPORT_FILE_LIMIT else PICK_LIMIT)
         val declared = declaredTypes(intent)
         val visual = limited.isNotEmpty() && limited.all { isVisual(typeOf(it) ?: declared) }
         val shortcutChat = chatIdFromShortcut(intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID))
@@ -150,3 +159,6 @@ class ShareIntake(
         else -> mimeType.startsWith("image/") || mimeType.startsWith("video/")
     }
 }
+
+/** Kolik souborů se vezme ze sdílení, které vypadá jako export chatu (`.txt` s přílohami). */
+private const val EXPORT_FILE_LIMIT = 300

@@ -46,6 +46,9 @@ import dev.g000sha256.tdl.dto.InputChecklistTask
 import dev.g000sha256.tdl.dto.InputMessageChecklist
 import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.MessageFileTypeUnknown
+import dev.g000sha256.tdl.dto.MessageFileTypeGroup
+import dev.g000sha256.tdl.dto.MessageFileTypePrivate
 import dev.g000sha256.tdl.dto.MessageChatHasProtectedContentDisableRequested
 import dev.g000sha256.tdl.dto.SecretChatStatePending
 import dev.g000sha256.tdl.dto.SecretChatStateClosed
@@ -1745,6 +1748,34 @@ class TdlConversationRepository(
     override suspend fun listenToAudio(audioFileId: Int, durationSeconds: Int): Result<Unit> =
         client.listenToAudio(audioFileId = audioFileId, duration = durationSeconds).toResult().map { }
 
+    override suspend fun chatExportKind(head: String): Result<ChatExportKind?> =
+        client.getMessageFileType(messageFileHead = head).toResult().map { type ->
+            when (type) {
+                is MessageFileTypePrivate -> ChatExportKind.Private(type.name)
+                is MessageFileTypeGroup -> ChatExportKind.Group(type.title)
+                is MessageFileTypeUnknown -> null
+            }
+        }
+
+    override suspend fun importConfirmation(chatId: Long, kind: ChatExportKind): Result<String> = runCatching {
+        // Větu server vydá do každého chatu, kde smíme importovat, druh exportu ale nehlídá — ten
+        // odmítne až samotný import (IMPORT_PEER_TYPE_INVALID), tedy po potvrzení a nahrání.
+        val type = client.getChat(chatId = chatId).toResult().getOrThrow().type
+        val fits = when (kind) {
+            is ChatExportKind.Private -> type is ChatTypePrivate
+            is ChatExportKind.Group -> type is ChatTypeBasicGroup || (type is ChatTypeSupergroup && !type.isChannel)
+        }
+        check(fits) { "Export druhu $kind do chatu typu ${type::class.simpleName} nejde." }
+        client.getMessageImportConfirmationText(chatId = chatId).toResult().getOrThrow().text
+    }
+
+    override suspend fun importMessages(chatId: Long, messageFile: String, attachedFiles: List<String>): Result<Unit> =
+        client.importMessages(
+            chatId = chatId,
+            messageFile = InputFileLocal(path = messageFile),
+            attachedFiles = attachedFiles.map { InputFileLocal(path = it) }.toTypedArray(),
+        ).toResult().map { }
+
     override suspend fun answerProtectionDisableRequest(chatId: Long, messageId: Long, approve: Boolean): Result<Unit> =
         client.processChatHasProtectedContentDisableRequest(chatId = chatId, requestMessageId = messageId, approve = approve)
             .toResult().map { }
@@ -2904,13 +2935,18 @@ class TdlConversationRepository(
         // Jméno a tvář mají smysl jen ve skupině a jen u cizích zpráv — jinde je to šum. Obojí
         // z jednoho dotazu (a z cache), ne ze dvou.
         val sender = if (isGroup && !outgoing) resolveSender(senderId) else null
+        /*
+         * Zpráva z importu (export z WhatsAppu) má za odesílatele zástupný účet „Imported Message"
+         * se šedou tváří; kdo ji doopravdy napsal, nese jen `importInfo` jako holé jméno z exportu.
+         */
+        val importedFrom = importInfo?.senderName?.takeIf { sender != null && it.isNotBlank() }
 
         return ChatMessage(
             id = id,
             isOutgoing = outgoing,
-            senderName = sender?.title,
-            senderAvatarFileId = sender?.avatarFileId,
-            senderVerification = sender?.verification,
+            senderName = importedFrom ?: sender?.title,
+            senderAvatarFileId = sender?.avatarFileId?.takeIf { importedFrom == null },
+            senderVerification = sender?.verification?.takeIf { importedFrom == null },
             senderId = senderId,
             text = body.text,
             entities = body.entities,

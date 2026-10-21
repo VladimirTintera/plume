@@ -586,9 +586,10 @@ a se serverem, takže přednostně:
    požádá, i ladicí data a log, když o ně server požádá (`sendCallDebugInformation`,
    `sendCallLog`; `docs/poznatky/hovory.md`, „Historie hovorů" a „Hodnocení hovoru"). Zbývá
    ověřit na zařízení skutečnou žádost serveru o hodnocení a o ladicí data.
-4. **Import chatu z jiné aplikace** (`getMessageFileType`, `getMessageImportConfirmationText`,
-   `importMessages`) — export z WhatsAppu sdílený do Plume. Cíl sdílení na Androidu už je
-   (`docs/poznatky/sdileni.md`), chybí rozpoznání exportu a průběh importu.
+4. ~~**Import chatu z jiné aplikace** (`getMessageFileType`, `getMessageImportConfirmationText`,
+   `importMessages`)~~ — hotovo: export z WhatsAppu sdílený do Plume se v chatu nabídne
+   k importu (`docs/poznatky/sdileni.md`, „Import chatu z jiné aplikace"). Zbývá export jako
+   `.zip` (WhatsApp na iOS) a ověření se skutečným exportem z WhatsAppu.
 5. ~~**Limit kanálů a skupin** (`CHANNELS_TOO_MUCH`, `getInactiveSupergroupChats`) a veřejných
    odkazů (`checkCreatedPublicChatsLimit`, `getCreatedPublicChats`)~~ — hotovo, sheet
    s neaktivními k opuštění a sheet s vlastními veřejnými chaty k odebrání odkazu
