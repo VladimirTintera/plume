@@ -17,7 +17,10 @@ import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.features.chats.ChatDeleteSheet
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chat_24dp
 import eu.tintera.plume.resources.chats_action_delete
+import eu.tintera.plume.resources.conversation_switch_chat
+import eu.tintera.plume.resources.conversation_switch_chat_hint
 import eu.tintera.plume.resources.clear_history
 import eu.tintera.plume.resources.delete_sweep_24dp
 import eu.tintera.plume.resources.chats_action_report
@@ -50,7 +53,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * ⋮ v hlavičce konverzace: všechno kromě hovoru (ten je v liště, `ConversationCallButtons`).
  *
- * Skupiny podle významu: práce s obsahem chatu (hledat, shrnout, Uložené po chatech, ztlumit),
+ * Skupiny podle významu: přepnutí na jiný chat (otevře přepínač pod šipkou zpět), práce s obsahem chatu (hledat, shrnout, Uložené po chatech, ztlumit),
  * nahlášení a nakonec nevratné akce v chybové barvě — ukončit tajný chat, smazat chat / opustit
  * skupinu nebo kanál. Nahlášení a smazání sem přešly z ⋮ profilu: týkají se konverzace, ne
  * člověka, a v profilu otevřeném z cizí zprávy ve skupině nedávaly smysl.
@@ -72,6 +75,8 @@ internal fun ConversationMenu(
     onViewAsChats: (() -> Unit)?,
     /** Skupina s tématy jako seznam témat; `null` mimo celou skupinu s tématy. */
     onViewAsTopics: (() -> Unit)?,
+    /** Rychlý přepínač chatů pod šipkou zpět; `null`, když není na co přepnout. */
+    onSwitchChat: (() -> Unit)?,
 ) {
     val info = state.info
     val wholeChat = info != null && !state.narrowed && !info.isSavedMessages
@@ -90,6 +95,19 @@ internal fun ConversationMenu(
     val clearRights = info?.clearHistory?.takeIf { wholeChat }
 
     val groups = listOf(
+        // Přepnutí je pohyb mezi chaty, ne práce s tímhle, proto skupina sama. Je tu hlavně kvůli
+        // tomu, že podržení šipky nikdo nenajde: nápověda pod položkou tu cestu prozradí
+        // a nabídka se otevře pod šipkou, ne tady.
+        listOfNotNull(
+            onSwitchChat?.let {
+                MenuAction(
+                    stringResource(Res.string.conversation_switch_chat),
+                    Res.drawable.chat_24dp,
+                    supporting = stringResource(Res.string.conversation_switch_chat_hint),
+                    onClick = it,
+                )
+            },
+        ),
         listOfNotNull(
             if (showsContent) {
                 MenuAction(stringResource(Res.string.conversation_search), Res.drawable.search_24dp, onClick = viewModel::openSearch)

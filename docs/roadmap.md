@@ -1309,7 +1309,8 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
 - ~~**Rychlý přepínač mezi aktivními chaty (Quick Switcher v konverzaci).**~~ — hotovo jako
   podržení šipky zpět: nabídka naposledy otevřených chatů a vršku seznamu, ťuknutí chat nahradí
   (`docs/poznatky/konverzace-pohyb.md`, „Rychlý přepínač chatů"). Tah po vstupním poli vědomě ne
-  (pere se s posunem kurzoru a výběrem textu). Zbývá ověřit na iOS.
+  (pere se s posunem kurzoru a výběrem textu). Aby se dal najít, je i v ⋮ s nápovědou podržení
+  a šipka nese odznak nepřečtených chatů jinde. Zbývá ověřit na iOS.
 
 ---
 

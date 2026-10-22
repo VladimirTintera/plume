@@ -44,6 +44,18 @@ class ChatSwitcher(private val chats: ChatRepository) {
         )
     }.distinctUntilChanged()
 
+    /** Odznak na šipce zpět v konverzaci [currentChatId], viz [unreadElsewhere]. */
+    fun unreadElsewhere(currentChatId: Long): Flow<Int> = combine(
+        chats.mainUnread,
+        chats.chats(ChatFolder.Main),
+    ) { unread, main ->
+        unreadElsewhere(
+            unmutedUnreadChats = unread.unmutedChats,
+            chats = (main as? ChatListState.Ready)?.chats.orEmpty(),
+            currentChatId = currentChatId,
+        )
+    }.distinctUntilChanged()
+
     private companion object {
         /** Víc, než se nabízí: otevřený chat a chaty bez souhrnu z nabídky vypadnou. */
         const val MAX_RECENT = 16
@@ -51,12 +63,17 @@ class ChatSwitcher(private val chats: ChatRepository) {
 }
 
 /**
- * Chaty pro přepínač: naposledy otevřené ([recent], nejčerstvější první), pak hlavní seznam
- * v pořadí od TDLib. Archivovaný chat jen z historie — kdo ho otevřel, chce se k němu vrátit,
- * ale vršek archivu do „aktivních" nepatří.
+ * Chaty pro přepínač: naposledy otevřený chat ([recent], nejčerstvější první), pak nepřečtené
+ * chaty z hlavního seznamu, zbytek historie a nakonec hlavní seznam v pořadí od TDLib.
+ * Archivovaný chat jen z historie — kdo ho otevřel, chce se k němu vrátit, ale vršek archivu do
+ * „aktivních" nepatří.
  *
- * Sponzorovaný chat se nenabízí nikdy (uživatel si ho nevybral) a Uložené zprávy ze seznamu jen
- * připnuté — stejné pravidlo jako v seznamu chatů. Z historie ano: tam je dal uživatel sám.
+ * - **Nepřečtené hned za posledním chatem**, protože je slibuje odznak na šipce
+ *   ([unreadElsewhere], počítá tytéž). Dřív chodily až v pořadí seznamu a nepřečtený chat
+ *   na osmém místě se do nabídky nevešel: šipka hlásila „1" a nabídka ho neukázala. Poslední
+ *   chat před nimi zůstává, protože přepínání sem a tam mezi dvěma chaty je hlavní použití.
+ * - Sponzorovaný chat se nenabízí nikdy (uživatel si ho nevybral) a Uložené zprávy ze seznamu
+ *   jen připnuté — stejné pravidlo jako v seznamu chatů. Z historie ano: tam je dal uživatel sám.
  */
 fun switcherChats(
     recent: List<Long>,
@@ -67,13 +84,33 @@ fun switcherChats(
     max: Int = SWITCHER_MAX_CHATS,
 ): List<ChatSummary> {
     val known = (archived + chats).associateBy { it.id }
-    val fromRecent = recent.mapNotNull { known[it] }
+    val fromRecent = recent.mapNotNull { known[it] }.filter { it.id != currentChatId }
     val fromList = chats.filter { it.id != savedMessagesChatId || it.isPinned }
-    return (fromRecent + fromList)
+    val unread = fromList.filter { it.countsAsUnread() }
+    return (fromRecent.take(1) + unread + fromRecent.drop(1) + fromList)
         .filter { it.id != currentChatId && it.sponsor == null }
         .distinctBy { it.id }
         .take(max)
 }
+
+/**
+ * Kolik nepřečtených chatů čeká mimo otevřenou konverzaci: počet od TDLib
+ * ([unmutedUnreadChats], hlavní seznam) bez chatu [currentChatId], pokud se do něj počítá.
+ *
+ * - **Jen neztlumené.** Odznak na šipce zve zpátky do seznamu; ztlumený chat si o to neříká,
+ *   stejně jako v seznamu chatů a u složek.
+ * - **Otevřený chat se odečítá podle stejného pravidla, jakým počítá TDLib** (nepřečtené zprávy
+ *   nebo ruční příznak, ne ztlumený): dokud se v něm zprávy neoznačí přečtené, je v počtu taky,
+ *   a „1" na šipce by mířila na chat, který je právě na obrazovce. Archiv v počtu není (TDLib
+ *   ho počítá zvlášť), takže archivovaný otevřený chat se neodečítá.
+ */
+fun unreadElsewhere(unmutedUnreadChats: Int, chats: List<ChatSummary>, currentChatId: Long): Int {
+    val currentCounted = chats.firstOrNull { it.id == currentChatId }?.countsAsUnread() == true
+    return (unmutedUnreadChats - if (currentCounted) 1 else 0).coerceAtLeast(0)
+}
+
+/** Pravidlo `unreadUnmutedCount` z TDLib: nepřečtené zprávy nebo ruční příznak, ne ztlumený. */
+private fun ChatSummary.countsAsUnread(): Boolean = !isMuted && (unreadCount > 0 || isMarkedAsUnread)
 
 /** Tolik se vejde do nabídky pod šipkou i na nízkém displeji bez posouvání. */
 const val SWITCHER_MAX_CHATS = 6
