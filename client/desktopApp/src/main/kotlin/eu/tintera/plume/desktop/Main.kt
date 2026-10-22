@@ -36,6 +36,7 @@ import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.platform.desktopClosesToTray
 import eu.tintera.plume.core.telegram.preloadTdlibNativeDependencies
+import eu.tintera.plume.core.ui.DesktopImageLoader
 import eu.tintera.plume.core.ui.rememberDesktopShortcutHandler
 import eu.tintera.plume.core.ui.DesktopMenuBar
 import eu.tintera.plume.di.startKoin
@@ -65,6 +66,8 @@ fun main(args: Array<String>) {
     // přebarví podle motivu aplikace (jinak by do té doby svítil bílý). Musí být před vznikem okna.
     setMacOsAdaptiveTitleBar()
     startKoin()
+    // Obrázky zmenšované s filtrováním; výchozí dekodér Coilu na Skie bere nejbližší pixel.
+    DesktopImageLoader.install()
     // Spouštění po přihlášení míří na spouštěč; po přeinstalaci jinam se cesta opraví.
     LaunchAtLogin().refreshCommand()
     // Po přihlášení (`--autostart`) rovnou do oznamovací oblasti — okno nemá vyskakovat.
