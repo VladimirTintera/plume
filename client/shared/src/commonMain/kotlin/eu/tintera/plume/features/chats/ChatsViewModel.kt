@@ -37,6 +37,7 @@ import eu.tintera.plume.core.telegram.ChatFolderRepository
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.SponsoredSearchChat
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.RecommendedChatFolder
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -678,7 +679,38 @@ class ChatsViewModel(
     val swipeActions: StateFlow<ChatSwipeActions> = settings.chatSwipeActions
 
     /** Hledání v hlavičce seznamu (chaty, veřejné chaty i zprávy). Archiv hledání nemá, u něj zůstane bez dotazu a nic nehledá. */
-    val search = ChatSearch(repository, viewModelScope, everywhere = true)
+    val search = ChatSearch(repository, viewModelScope, everywhere = true, sponsored = true)
+
+    /** Sponzorované chaty, jejichž zhlédnutí už odešlo — každé se hlásí jednou, ne při každém posunu. */
+    private val seenSponsoredChats = HashSet<Long>()
+
+    /** Sponzorovaný chat ve výsledcích hledání byl na obrazovce celý (`viewSponsoredChat`). */
+    fun sponsoredChatSeen(uniqueId: Long) {
+        if (!seenSponsoredChats.add(uniqueId)) return
+        viewModelScope.launch { repository.reportSponsoredChatView(uniqueId) }
+    }
+
+    /**
+     * Ťuknutí na sponzorovaný chat (`openSponsoredChat`). Seznam chatů zůstává v zásobníku pod
+     * otevřeným chatem, takže hlášení doběhne i po přechodu.
+     */
+    fun sponsoredChatOpened(uniqueId: Long) {
+        viewModelScope.launch { repository.reportSponsoredChatOpen(uniqueId) }
+    }
+
+    /**
+     * Průvodce nahlášením sponzorovaného chatu — tentýž jako u reklamy v kanálu, jen jiné volání.
+     * Id výsledku (ne chatu) jede jako jediná „zpráva" požadavku.
+     */
+    val sponsoredChatReportFlow = ReportFlow(viewModelScope) { _, request ->
+        repository.reportSponsoredChat(request.messageIds.single(), request.optionId)
+    }
+
+    fun reportSponsoredChat(sponsored: SponsoredSearchChat) {
+        sponsoredChatReportFlow.start(sponsored.chat.id, messageIds = listOf(sponsored.uniqueId)) {
+            search.dropSponsored(sponsored.uniqueId)
+        }
+    }
 
     /** Umí telefon hledat přirozeným jazykem (zapnutá AI, připravený model)? */
     val naturalSearchAvailable: StateFlow<Boolean> = (naturalSearch?.available ?: flowOf(false))

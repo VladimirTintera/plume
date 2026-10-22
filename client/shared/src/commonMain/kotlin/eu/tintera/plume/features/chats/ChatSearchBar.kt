@@ -1,5 +1,15 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
+import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.more_vert_24dp
+import eu.tintera.plume.resources.sponsored_report
+import eu.tintera.plume.resources.sponsored_menu
+import eu.tintera.plume.resources.sponsored_sponsored
+import eu.tintera.plume.core.ui.WithTooltip
+import eu.tintera.plume.core.telegram.SponsoredSearchChat
 import eu.tintera.plume.core.telegram.SearchContent
 import org.jetbrains.compose.resources.DrawableResource
 import eu.tintera.plume.resources.image_24dp
@@ -191,6 +201,13 @@ internal fun ChatSearchBar(
     /** Úklid návrhů pod prázdným dotazem: vymazat historii, odebrat jeden chat, odebrat člověka. */
     suggestionActions: SuggestionActions,
     onFilterChange: (MessageSearchFilter) -> Unit,
+    /** Sponzorované chaty ve výsledcích: zhlédnutí, otevření, nahlášení. */
+    sponsoredActions: SponsoredActions,
+    /**
+     * Hlášky z rozbaleného hledání (výsledek nahlášení reklamy). Hledání je vlastní okno (popup),
+     * takže snackbar seznamu chatů by zůstal pod ním a uživatel by ho neviděl.
+     */
+    snackbarHostState: SnackbarHostState,
     /** Dotaz zvenku (hashtag z konverzace): hledání se s ním rozbalí. */
     request: String?,
     onRequestHandled: () -> Unit,
@@ -399,6 +416,7 @@ internal fun ChatSearchBar(
     }
 
     val results: @Composable ColumnScope.() -> Unit = {
+        Box(Modifier.fillMaxSize()) {
         SearchResults(
             query = textFieldState.text.toString(),
             search = search,
@@ -416,10 +434,22 @@ internal fun ChatSearchBar(
             onPickTag = { tag -> textFieldState.setTextAndPlaceCursorAtEnd(tag) },
             suggestionActions = suggestionActions,
             onFilterChange = onFilterChange,
+            sponsoredActions = sponsoredActions,
+            onPickSponsored = { ad ->
+                // Otevření se hlásí dřív, než se chat otevře (specifikace reklam).
+                sponsoredActions.onOpen(ad.uniqueId)
+                collapse()
+                onChatClick(ad.chat.id)
+            },
             bookmarks = bookmarks,
             bookmarkTitles = bookmarkTitles,
             describedPhotos = describedPhotos,
         )
+        SnackbarHost(
+            snackbarHostState,
+            Modifier.align(Alignment.BottomCenter).padding(bottom = resultsPadding().calculateBottomPadding()),
+        )
+        }
     }
 
     /*
@@ -493,6 +523,8 @@ private fun SearchResults(
     onPickTag: (String) -> Unit,
     suggestionActions: SuggestionActions,
     onFilterChange: (MessageSearchFilter) -> Unit,
+    sponsoredActions: SponsoredActions,
+    onPickSponsored: (SponsoredSearchChat) -> Unit,
     bookmarks: List<MessageBookmark>,
     bookmarkTitles: Map<Long, String>,
     describedPhotos: List<StoredPhotoDescription>,
@@ -525,6 +557,8 @@ private fun SearchResults(
         emptyList()
     }
     val global = if (current && chatsShown) search.globalOnly.filter { filter.chatKind == null || it.kind == filter.chatKind } else emptyList()
+    // Reklama patří k dotazu, ne k filtru zpráv; druh chatu ji zúží jako veřejné výsledky.
+    val sponsored = if (current && chatsShown) search.sponsored.filter { filter.chatKind == null || it.chat.kind == filter.chatKind } else emptyList()
     val messages = if (current) search.messages else emptyList()
     val settled = current && search.settled
     /*
@@ -557,7 +591,7 @@ private fun SearchResults(
      * vystřídal indikátor, úvodní animace prázdného stavu by se pouštěla při každém znaku.
      */
     var emptyShown by remember { mutableStateOf(false) }
-    val nothing = chats.isEmpty() && global.isEmpty() && messages.isEmpty() && foundBookmarks.isEmpty() && foundPhotos.isEmpty() && !showSaved
+    val nothing = chats.isEmpty() && sponsored.isEmpty() && global.isEmpty() && messages.isEmpty() && foundBookmarks.isEmpty() && foundPhotos.isEmpty() && !showSaved
     SideEffect { emptyShown = nothing && (settled || emptyShown) }
 
     Column(Modifier.fillMaxSize()) {
@@ -598,6 +632,21 @@ private fun SearchResults(
         var photosExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
         val listState = rememberLazyListState()
 
+        /*
+         * Výsledky přicházejí po sekcích a v libovolném pořadí: zprávy bývají dřív než chaty od
+         * serveru, veřejné výsledky a reklama. Seznam drží pozici podle první viditelné položky,
+         * takže sekce vložené NAD ni odjely nad horní hranu — pod „games" začínal seznam až zprávami
+         * a sponzorovaný chat nebyl vidět vůbec (a jeho zhlédnutí se nenahlásilo). Dokud uživatel
+         * výsledky sám neposunul, drží se proto seznam u začátku.
+         */
+        var userScrolled by remember(trimmed) { mutableStateOf(false) }
+        LaunchedEffect(listState) {
+            listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) userScrolled = true }
+        }
+        LaunchedEffect(trimmed, chats.size, sponsored.size, global.size, showSaved) {
+            if (!userScrolled && listState.firstVisibleItemIndex > 0) listState.scrollToItem(0)
+        }
+
         // Další stránka zpráv, jakmile se listuje ke konci.
         LaunchedEffect(listState) {
             snapshotFlow {
@@ -605,6 +654,21 @@ private fun SearchResults(
                 val last = info.visibleItemsInfo.lastOrNull()?.index ?: return@snapshotFlow false
                 last >= info.totalItemsCount - LOAD_MORE_THRESHOLD
             }.collect { nearEnd -> if (nearEnd) onLoadMoreLatest() }
+        }
+
+        /*
+         * Zhlédnutí sponzorovaného chatu se hlásí, až je řádek na obrazovce CELÝ (specifikace:
+         * „when the sponsored peer is shown on screen"). Opakování hlídá ViewModel.
+         */
+        val onSponsoredSeenLatest by rememberUpdatedState(sponsoredActions.onSeen)
+        LaunchedEffect(listState) {
+            snapshotFlow {
+                val info = listState.layoutInfo
+                info.visibleItemsInfo.mapNotNull { item ->
+                    sponsoredUniqueId(item.key)
+                        ?.takeIf { item.offset >= info.viewportStartOffset && item.offset + item.size <= info.viewportEndOffset }
+                }
+            }.collect { seen -> seen.forEach { onSponsoredSeenLatest(it) } }
         }
 
         val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
@@ -657,6 +721,25 @@ private fun SearchResults(
                     avatarColorId = chat.avatarColorId,
                     secret = chat.isSecret,
                 )
+            }
+
+            /*
+             * Sponzorované chaty stojí mezi vlastními a veřejnými výsledky — tam je specifikace
+             * reklam chce (`my_results` → sponzorované → `results`). Nadpis „Sponzorováno" říká,
+             * že jde o reklamu; sbalit ani skrýt se nedají.
+             */
+            if (sponsored.isNotEmpty()) {
+                item(key = "sponsored-header") {
+                    SectionHeader(stringResource(Res.string.sponsored_sponsored))
+                }
+                itemsIndexed(sponsored, key = { _, ad -> sponsoredRowKey(ad.uniqueId) }) { index, ad ->
+                    SponsoredResultRow(
+                        ad = ad,
+                        onClick = { onPickSponsored(ad) },
+                        onReport = { sponsoredActions.onReport(ad) },
+                        modifier = Modifier.animateItem().groupedItem(index, sponsored.size, rowColor),
+                    )
+                }
             }
 
             if (global.isNotEmpty()) {
@@ -1102,6 +1185,87 @@ private fun ChatResultRow(
 }
 
 /** Úklid návrhů pod prázdným dotazem; jeden objekt místo tří parametrů hledání. */
+/** Co jde se sponzorovaným chatem ve výsledcích hledání (viz `ChatsViewModel`). */
+class SponsoredActions(
+    val onSeen: (uniqueId: Long) -> Unit,
+    val onOpen: (uniqueId: Long) -> Unit,
+    val onReport: (SponsoredSearchChat) -> Unit,
+)
+
+/*
+ * Klíč řádku sponzorovaného chatu — podle něj se v seznamu pozná, který je vidět. Řetězec, ne
+ * vlastní třída: klíč položky lazy seznamu si Android ukládá do `Bundle` a datová třída tam
+ * aplikaci shodila hned při prvním výsledku s reklamou.
+ */
+private const val SPONSORED_KEY_PREFIX = "sponsored-"
+
+private fun sponsoredRowKey(uniqueId: Long): String = SPONSORED_KEY_PREFIX + uniqueId
+
+private fun sponsoredUniqueId(key: Any): Long? =
+    (key as? String)?.takeIf { it.startsWith(SPONSORED_KEY_PREFIX) }?.removePrefix(SPONSORED_KEY_PREFIX)?.toLongOrNull()
+
+/**
+ * Sponzorovaný chat ve výsledcích hledání. Informace o sponzorovi a doplňující text od Telegramu
+ * jsou pod jménem — TDLib je chce „ukázat spolu s chatem". ⋮ nabízí nahlášení; skrýt reklamu
+ * klient nesmí (mezi důvody od serveru bývá skrytí reklam, které server podmíní Premium).
+ */
+@Composable
+private fun SponsoredResultRow(
+    ad: SponsoredSearchChat,
+    onClick: () -> Unit,
+    onReport: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val info = listOf(ad.sponsorInfo, ad.additionalInfo).filter { it.isNotBlank() }.joinToString("\n")
+    ListItem(
+        headlineContent = { Text(ad.chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = if (info.isNotEmpty()) {
+            // Celé, neořezané: „Ad funded by" a „This ad may be based on" je povinná průhlednost
+            // reklamy (EU), ne ozdoba — useknuté za třetím řádkem ztratilo právě důvod reklamy.
+            { Text(info) }
+        } else {
+            null
+        },
+        leadingContent = {
+            Avatar(
+                chatId = ad.chat.avatarColorId,
+                title = ad.chat.title,
+                avatarFileId = ad.chat.avatarFileId,
+                size = 40.dp,
+                shape = ad.chat.kind.avatarShape(),
+            )
+        },
+        trailingContent = { SponsoredResultMenu(onReport) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = modifier.clickable(onClick = onClick),
+    )
+}
+
+@Composable
+private fun SponsoredResultMenu(onReport: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val label = stringResource(Res.string.sponsored_menu)
+    Box {
+        WithTooltip(label) {
+            IconButton(onClick = { open = true }, shapes = IconButtonDefaults.shapes()) {
+                Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = label)
+            }
+        }
+        ExpressiveMenu(
+            expanded = open,
+            onDismiss = { open = false },
+            groups = listOf(
+                listOf(
+                    MenuAction(label = stringResource(Res.string.sponsored_report), icon = Res.drawable.flag_24dp) {
+                        open = false
+                        onReport()
+                    },
+                ),
+            ),
+        )
+    }
+}
+
 class SuggestionActions(
     val onClear: () -> Unit,
     val onRemoveRecent: (chatId: Long) -> Unit,

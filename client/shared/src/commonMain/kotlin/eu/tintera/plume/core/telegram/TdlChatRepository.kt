@@ -1722,6 +1722,34 @@ class TdlChatRepository(
     override suspend fun removeTopChat(chatId: Long): Result<Unit> =
         client.removeTopChat(category = TopChatCategoryUsers(), chatId = chatId).toResult().map { }
 
+    override suspend fun searchSponsoredChats(query: String): Result<List<SponsoredSearchChat>> =
+        client.getSearchSponsoredChats(query = query).toResult().map { result ->
+            val summaries = summariesFor(result.chats.map { it.chatId }.toLongArray()).associateBy { it.id }
+            result.chats.mapNotNull { sponsored ->
+                // Chat, který TDLib nepřečte, se ukázat nedá; reklama bez chatu by byl prázdný řádek.
+                summaries[sponsored.chatId]?.let { chat ->
+                    SponsoredSearchChat(
+                        uniqueId = sponsored.uniqueId,
+                        chat = chat,
+                        sponsorInfo = sponsored.sponsorInfo,
+                        additionalInfo = sponsored.additionalInfo,
+                    )
+                }
+            }
+        }
+
+    override suspend fun reportSponsoredChatView(uniqueId: Long): Result<Unit> =
+        client.viewSponsoredChat(sponsoredChatUniqueId = uniqueId).toResult().map { }
+
+    override suspend fun reportSponsoredChatOpen(uniqueId: Long): Result<Unit> =
+        client.openSponsoredChat(sponsoredChatUniqueId = uniqueId).toResult().map { }
+
+    override suspend fun reportSponsoredChat(uniqueId: Long, optionId: ReportOptionId?): Result<ReportStep> =
+        client.reportSponsoredChat(sponsoredChatUniqueId = uniqueId, optionId = optionId?.bytes ?: ByteArray(0))
+            .toResult()
+            .onFailure { logger.w(it) { "Nahlášení sponzorovaného chatu $uniqueId selhalo." } }
+            .map { it.toReportStep() }
+
     override suspend fun recommendedChannels(): Result<List<ChatSummary>> =
         client.getRecommendedChats().toResult().map { chats ->
             // Odebírané kanály mezi doporučeními nemají co dělat. Server je vynechává sám (ověřeno:

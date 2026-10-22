@@ -8,14 +8,6 @@ import dev.g000sha256.tdl.dto.InputChatPhotoAnimation
 import dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.sponsored_ads_hidden
-import eu.tintera.plume.resources.sponsored_hide_needs_premium
-import eu.tintera.plume.resources.sponsored_report_gone
-import dev.g000sha256.tdl.dto.ReportSponsoredResultAdsHidden
-import dev.g000sha256.tdl.dto.ReportSponsoredResultFailed
-import dev.g000sha256.tdl.dto.ReportSponsoredResultOk
-import dev.g000sha256.tdl.dto.ReportSponsoredResultOptionRequired
-import dev.g000sha256.tdl.dto.ReportSponsoredResultPremiumRequired
 import eu.tintera.plume.resources.conversation_send_failed_unknown
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
@@ -2844,21 +2836,7 @@ class TdlConversationRepository(
         client.reportChatSponsoredMessage(chatId = chatId, messageId = messageId, optionId = optionId?.bytes ?: ByteArray(0))
             .toResult()
             .onFailure { logger.w(it) { "Nahlášení sponzorované zprávy $messageId selhalo." } }
-            .map { result ->
-                // Bez `else`: nový výsledek v novější TDLib musí rozbít překlad, ne tiše skončit.
-                when (result) {
-                    is ReportSponsoredResultOk -> ReportStep.Done
-                    is ReportSponsoredResultOptionRequired -> ReportStep.ChooseOption(
-                        title = result.title,
-                        options = result.options.map { ReportOption(ReportOptionId(it.id), it.text) },
-                    )
-                    is ReportSponsoredResultAdsHidden -> ReportStep.Ended(UiText(Res.string.sponsored_ads_hidden), done = true)
-                    is ReportSponsoredResultPremiumRequired ->
-                        ReportStep.Ended(UiText(Res.string.sponsored_hide_needs_premium), done = false)
-                    // Reklama je stará nebo zmizela; nahlásit už nejde, ale ani ji ukazovat.
-                    is ReportSponsoredResultFailed -> ReportStep.Ended(UiText(Res.string.sponsored_report_gone), done = true)
-                }
-            }
+            .map { it.toReportStep() }
 
     override fun stoppedPendingMessages(chatId: Long): Flow<Long> =
         holder.updates { stopMessageDraftUpdates }
