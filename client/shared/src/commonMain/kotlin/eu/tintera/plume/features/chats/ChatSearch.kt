@@ -6,6 +6,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessage
 import eu.tintera.plume.core.telegram.MessageSearchFilter
+import eu.tintera.plume.core.telegram.SponsoredSearchChat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -31,6 +32,10 @@ import kotlinx.coroutines.launch
  * (stránkované, [loadMoreMessages]). To chce jen hledání v seznamu chatů; výběr pro přeposílání
  * hledá jen chaty.
  *
+ * S [sponsored] k tomu sponzorované chaty, které Telegram k dotazu přimíchá (`getSearchSponsoredChats`)
+ * — jen hlavní hledání v seznamu chatů, kde je specifikace reklam chce a kde se i hlásí jejich
+ * zhlédnutí. Nová konverzace hledá veřejné chaty taky, ale reklama tam nepatří.
+ *
  * S prázdným dotazem ukazuje návrhy — nejčastější lidi a historii hledání —, ale jen když
  * o ně volající požádá ([setSuggestionsWanted]). Výběr pro přeposílání má pod prázdným hledáním
  * celý seznam chatů a návrhy by tam byly navíc.
@@ -41,6 +46,7 @@ class ChatSearch(
     private val repository: ChatRepository,
     private val scope: CoroutineScope,
     private val everywhere: Boolean = false,
+    private val sponsored: Boolean = false,
 ) {
     private val logger = Logger.withTag("ChatSearch")
 
@@ -148,6 +154,12 @@ class ChatSearch(
                     val global = repository.searchPublicChats(text).logged("searchPublicChats").orEmpty()
                     _state.update { it.copy(global = global) }
                 }
+                if (sponsored) {
+                    launch {
+                        val ads = repository.searchSponsoredChats(text).logged("searchSponsoredChats").orEmpty()
+                        _state.update { it.copy(sponsored = ads) }
+                    }
+                }
                 launch {
                     val page = messagePage(text, "", filter)
                     _state.update {
@@ -228,6 +240,11 @@ class ChatSearch(
     }
 
     /** Hashtag z historie hledání pryč; návrhy se pak přečtou znovu. */
+    /** Nahlášený sponzorovaný chat z výsledků zmizí, jako reklama v kanálu. */
+    fun dropSponsored(uniqueId: Long) {
+        _state.update { state -> state.copy(sponsored = state.sponsored.filterNot { it.uniqueId == uniqueId }) }
+    }
+
     fun removeTag(tag: String) {
         scope.launch {
             repository.removeSearchedTag(tag).logged("removeSearchedTag")
@@ -272,6 +289,8 @@ data class ChatSearchState(
     /** Doporučené kanály v návrzích (jen hledání v hlavním seznamu); bez těch, které už odebírá. */
     val recommended: List<ChatSummary> = emptyList(),
     val global: List<ChatSummary> = emptyList(),
+    /** Sponzorované chaty k dotazu (jen hlavní hledání); patří mezi [results] a [global]. */
+    val sponsored: List<SponsoredSearchChat> = emptyList(),
     val messages: List<FoundMessage> = emptyList(),
     val messagesNextOffset: String? = null,
     val messagesLoading: Boolean = false,
