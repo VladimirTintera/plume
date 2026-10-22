@@ -25,7 +25,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.telegram.SponsoredMessage
+import eu.tintera.plume.features.conversation.items.AnimationBubble
+import eu.tintera.plume.features.conversation.items.MessageAttachment
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.collectAsState
+import org.koin.compose.koinInject
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.RichText
@@ -59,6 +66,8 @@ import org.jetbrains.compose.resources.stringResource
 fun SponsoredCard(
     sponsored: SponsoredMessage,
     onClick: () -> Unit,
+    /** Ťuknutí na médium — hlásí se jinak než tlačítko, viz [SponsoredMessage.mediaOpensLink]. */
+    onMediaClick: () -> Unit,
     onReport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -105,6 +114,10 @@ fun SponsoredCard(
                 )
             }
 
+            sponsored.media?.let { media ->
+                SponsoredMedia(media, sponsored.messageId, onMediaClick)
+            }
+
             sponsored.additionalInfo?.let {
                 Text(
                     text = it,
@@ -122,6 +135,42 @@ fun SponsoredCard(
                 Text(sponsored.buttonText.ifBlank { stringResource(Res.string.sponsored_open) })
             }
         }
+    }
+}
+
+/**
+ * Médium reklamy přes celou šířku karty, kreslené jako příloha zprávy: fotka, video s délkou
+ * a symbolem přehrání, GIF hraje sám. Pořadí v kartě (titulek, text, médium, tlačítko) je
+ * ze [specifikace](https://core.telegram.org/api/sponsored-messages).
+ *
+ * Nabídka nad médiem (dlouhý stisk) není: reklama není zpráva chatu a nahlášení má ⋮.
+ */
+@Composable
+private fun SponsoredMedia(media: MessageMedia, messageId: Long, onClick: () -> Unit) {
+    val shape = ShapeDefaults.Medium
+    if (media is MessageMedia.Animation) {
+        BoxWithConstraints {
+            val revealedSpoilers = koinInject<RevealedSpoilers>()
+            val revealedIds by revealedSpoilers.revealed.collectAsState()
+            AnimationBubble(
+                animation = media,
+                shape = shape,
+                onRequestMenu = {},
+                modifier = Modifier.size(photoFrame(maxWidth, media.width.toFloat() / media.height.toFloat(), fillWidth = true)),
+                revealed = !media.hasSpoiler || messageId in revealedIds,
+                onReveal = { revealedSpoilers.reveal(messageId) },
+                onOpen = onClick,
+            )
+        }
+    } else {
+        MessageAttachment(
+            media = media,
+            messageId = messageId,
+            onOpen = onClick,
+            onRequestMenu = {},
+            mediaShape = shape,
+            fillWidth = true,
+        )
     }
 }
 

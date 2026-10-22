@@ -1353,6 +1353,44 @@ do reklam nesmí zasahovat — nesmí je filtrovat, skrývat, ani měnit popisek
   text dodává server), volba „I don't want to see ads" bez Premium skončí hláškou o Premium
   a reklama zůstane. **Skutečné nahlášení ověřené není** — šlo by moderátorům na cizí reklamu.
 
+### Reklama s médiem
+
+Reklama v kanálu nese `MessageContent` jako běžná zpráva a **v praxi bývá fotka s popiskem**,
+ne text. Repository dřív bralo jen `MessageText` („reklamy jsou v praxi text") a karta pak
+ukazovala jen štítek, jméno a tlačítko — obsah reklamy chyběl celý. Zjištěno dočasným výpisem
+v @bbcrussian (22. 10. 2026): obě reklamy „News Wire" byly `MessagePhoto` s popiskem.
+
+- **Text je text, nebo popisek média** (`quotableText`), médium jen fotka, video a GIF
+  (`sponsoredMedia`) — jiná specifikace reklam nezná.
+- **Pořadí v kartě je ze specifikace**: štítek, jméno, text, médium, tlačítko. Médium kreslí
+  `MessageAttachment` přes celou šířku karty (`fillWidth`), GIF hraje sám jako v bublině.
+  Nabídka nad médiem (dlouhý stisk) není — reklama není zpráva chatu, nahlášení má ⋮.
+- **Ťuknutí na médium se hlásí `isMediaClick = true`** a chová se podle druhu
+  (`SponsoredMessage.mediaOpensLink`): fotka a GIF (= video bez zvuku) otevřou odkaz, video
+  jde na celou obrazovku a odkaz se NEOTEVŘE. Tak to specifikace rozlišuje pro „videos with
+  sound". `Video` z TDLib příznak zvuku nenese, takže se dělí podle typu: GIF je MP4 bez
+  zvuku, video se bere jako video se zvukem.
+- **GIF reklamy na ťuknutí neodpauzuje, ale otevře odkaz** (`AnimationBubble(onOpen = …)`);
+  velký GIF, který se sám nestáhl, první ťuknutí stáhne jako v bublině.
+- **Video reklamy jde do prohlížeče médií** (`MediaRoute(sponsored = true)`). Reklama není
+  v historii chatu, takže ji prohlížeč načte znovu ze seznamu reklam (`loadSponsored`); TDLib
+  ho drží pět minut v keši a vrátí tutéž reklamu se stejným id bez dotazu na server. Stránka
+  je jediná a bez akcí (jako příloha ankety), místo data štítek „Sponzorováno".
+- **Pod médiem v prohlížeči je tlačítko reklamy** (`SponsoredButtonBar`, na místě pruhu
+  reakcí). Kliknutí se hlásí `fromFullscreen = true` (v `appScope` — prohlížeč se hned
+  zavírá), prohlížeč se zavře a odkaz předá konverzaci pod sebou (`SponsoredLinkRequests`,
+  stav jako `ConversationReplyRequests`): otevírání odkazů (do aplikace, cizí web po
+  potvrzení) žije v konverzaci, ne v prohlížeči.
+- **Ťuknutí na video na celé obrazovce odkaz neotevírá**, ačkoli specifikace by ho chtěla
+  hlásit s oběma příznaky a otevřít odkaz: ťuknutí v prohlížeči skrývá ovládání a přehrávač,
+  odkaz nese tlačítko. Kdyby to vadilo, patří to do `VideoPage(onTap)` jen u reklamy.
+- **Ověřeno na emulátoru** (@bbcrussian, česky): karta s popiskem a fotkou, ťuknutí na fotku
+  nahlásilo `isMediaClick` (`Ok`) a otevřelo mini aplikaci inzerenta (dotaz na otevření,
+  zrušeno). Cesta videa ověřená dočasným přepnutím `mediaOpensLink` na `false` u fotky:
+  prohlížeč s jménem, štítkem, popiskem a tlačítkem, tlačítko nahlásilo `fromFullscreen`
+  (`Ok`), prohlížeč se zavřel a odkaz otevřela konverzace. **Neověřené:** skutečná video
+  a GIF reklama (server je neposlal), iOS a desktop.
+
 ### Reklama u bota
 
 `getChatSponsoredMessages` vrací reklamy i v chatu s botem a [specifikace](https://core.telegram.org/api/sponsored-messages)

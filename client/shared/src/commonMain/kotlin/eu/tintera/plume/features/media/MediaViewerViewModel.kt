@@ -107,6 +107,8 @@ class MediaViewerViewModel(
     private val articleMedia: Int = NO_ARTICLE_MEDIA,
     /** Příběh podle autora ([chatId]) a id místo přílohy zprávy — viz [loadStory]. */
     private val storyId: Int = NO_STORY,
+    /** Médium sponzorované zprávy [messageId] (video reklamy) — viz [loadSponsored]. */
+    private val sponsored: Boolean = false,
     private val repository: ConversationRepository,
     private val profileRepository: ProfileRepository,
     private val files: FileRepository,
@@ -166,7 +168,7 @@ class MediaViewerViewModel(
      */
     private val isStory: Boolean get() = storyId != NO_STORY
 
-    private val notMessages: Boolean get() = isPollMedia || isArticleMedia || profilePhotos || isStory
+    private val notMessages: Boolean get() = isPollMedia || isArticleMedia || profilePhotos || isStory || sponsored
 
     /** Běžící popis fotky ([describePhoto]); zavření panelu nebo odlistování ho zruší. */
     private var describeJob: Job? = null
@@ -179,6 +181,7 @@ class MediaViewerViewModel(
                 isPollMedia -> loadPollMedia()
                 isArticleMedia -> loadArticleMedia()
                 isStory -> loadStory()
+                sponsored -> loadSponsored()
                 else -> loadInitial()
             }
         }
@@ -192,7 +195,7 @@ class MediaViewerViewModel(
             repository.chatInfo(chatId).onSuccess { info -> _state.update { it.copy(chatTitle = info.title) } }
         }
         // Příběh není zpráva chatu — úpravy ani mazání zpráv autora se ho netýkají.
-        if (!profilePhotos && !isStory) observeMessages()
+        if (!profilePhotos && !isStory && !sponsored) observeMessages()
     }
 
     /** Změny zpráv, na kterých prohlížeč stojí: reakce, úprava, vypršení a smazání. */
@@ -480,6 +483,63 @@ class MediaViewerViewModel(
                 error = if (item == null) UiText(Res.string.story_unavailable) else null,
             )
         }
+    }
+
+    /**
+     * Médium reklamy (video na celé obrazovce): jediná stránka bez listování a bez akcí, jako
+     * příloha ankety. Reklama v historii chatu není; seznam reklam drží TDLib pět minut v keši,
+     * takže druhý dotaz vrátí tutéž reklamu se stejným id, aniž by šel na server. Pod snímkem
+     * je tlačítko reklamy ([MediaViewerState.sponsored], [openSponsoredLink]).
+     */
+    private suspend fun loadSponsored() {
+        single = true
+        repository.sponsoredMessages(chatId)
+            .onSuccess { ads ->
+                val ad = ads.firstOrNull { it.messageId == messageId }
+                val item = ad?.media
+                    ?.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video }
+                    ?.let {
+                        ViewerItem(
+                            messageId = messageId,
+                            media = it,
+                            caption = ad.text,
+                            isOutgoing = false,
+                            senderName = ad.title,
+                            timestamp = 0,
+                        )
+                    }
+                _state.update {
+                    it.copy(
+                        items = listOfNotNull(item),
+                        initialPosition = null,
+                        reachedOldest = true,
+                        reachedNewest = true,
+                        loading = false,
+                        sponsored = ad?.takeIf { item != null }?.let { ViewerSponsored(it.buttonText, it.url, it.isRecommended) },
+                        error = if (item == null) UiText(Res.string.media_unsupported) else null,
+                    )
+                }
+            }
+            .onFailure { failure ->
+                logger.w(failure) { "Reklama $messageId se nepodařila načíst." }
+                _state.update {
+                    it.copy(loading = false, error = failure.userMessage(Res.string.media_photo_load_failed))
+                }
+            }
+    }
+
+    /**
+     * Tlačítko reklamy na celé obrazovce: kliknutí se hlásí s `fromFullscreen` a vrátí se odkaz,
+     * který otevře konverzace pod prohlížečem. Hlášení jede v [appScope] — prohlížeč se hned
+     * zavírá a [viewModelScope] by ho zrušil.
+     */
+    fun openSponsoredLink(): String? {
+        val sponsored = _state.value.sponsored ?: return null
+        appScope.launch {
+            repository.reportSponsoredClick(chatId, messageId, fromFullscreen = true)
+                .onFailure { logger.w(it) { "Kliknutí na reklamu $messageId se nepodařilo nahlásit." } }
+        }
+        return sponsored.url
     }
 
     /**
@@ -813,7 +873,7 @@ class MediaViewerViewModel(
         }
         describeJob?.cancel()
         // Fotka zprávy, ne profilovka, příběh ani médium ankety či článku — jen ta má id zprávy.
-        val ofMessage = !profilePhotos && storyId == NO_STORY && pollMedia == NO_POLL_MEDIA && articleMedia == NO_ARTICLE_MEDIA
+        val ofMessage = !notMessages
         // Jednou popsaná fotka se ukáže hned: model by psal tentýž popis znovu a pálil baterii.
         photoDescriptions?.takeIf { ofMessage }?.get(chatId, messageId)?.let { stored ->
             closeRecognizedText()
@@ -1274,4 +1334,9 @@ data class MediaViewerState(
     val isSelfDestruct: Boolean = false,
     val selfDestructType: SelfDestructType? = null,
     val remainingSeconds: Int? = null,
+    /** Médium reklamy: štítek místo data a tlačítko pod snímkem; `null` mimo reklamu. */
+    val sponsored: ViewerSponsored? = null,
 )
+
+/** Reklama v prohlížeči: popisek tlačítka od Telegramu (nepřekládá se), cíl a druh štítku. */
+data class ViewerSponsored(val buttonText: String, val url: String, val isRecommended: Boolean)

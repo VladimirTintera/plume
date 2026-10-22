@@ -1111,8 +1111,18 @@ interface ConversationRepository {
      */
     suspend fun reportSponsoredView(chatId: Long, messageId: Long): Result<Unit>
 
-    /** Nahlásí kliknutí. Musí odejít dřív, než se otevře odkaz. */
-    suspend fun reportSponsoredClick(chatId: Long, messageId: Long): Result<Unit>
+    /**
+     * Nahlásí kliknutí. Musí odejít dřív, než se otevře odkaz.
+     *
+     * [isMediaClick] = ťuknutí na médium reklamy, ne na tlačítko; [fromFullscreen] = kliknutí
+     * z videa reklamy na celé obrazovce (tlačítko v prohlížeči médií).
+     */
+    suspend fun reportSponsoredClick(
+        chatId: Long,
+        messageId: Long,
+        isMediaClick: Boolean = false,
+        fromFullscreen: Boolean = false,
+    ): Result<Unit>
 
     /**
      * Krok nahlášení sponzorované zprávy moderátorům (`reportChatSponsoredMessage`). Průvodce

@@ -281,6 +281,7 @@ fun ConversationScreen(
             onOpenMedia = { currentNavigation.onOpenMedia(it) },
             onOpenPollMedia = { messageId, index -> currentNavigation.onOpenPollMedia(messageId, index) },
             onOpenArticleMedia = { messageId, index -> currentNavigation.onOpenArticleMedia(messageId, index) },
+            onOpenSponsoredMedia = { currentNavigation.onOpenSponsoredMedia(it) },
             onOpenStickerSet = { sheets.openStickerSetId = it },
             onSearch = { currentNavigation.onSearch(it) },
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.

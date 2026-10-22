@@ -76,6 +76,7 @@ import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.core.telegram.StorageRepository
 import eu.tintera.plume.core.telegram.TdlStorageRepository
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
+import eu.tintera.plume.features.conversation.SponsoredLinkRequests
 import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePickerViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
@@ -454,6 +455,7 @@ fun appModule() = module {
     single { VideoPositions(settings = get()) }
     single { ChatColors(settings = get(), chats = get()) }
     single { ConversationReplyRequests() }
+    single { SponsoredLinkRequests() }
     single { InlineQueryRequests() }
     single { RevealedSpoilers() }
     single { SelfDestructTimers() }
@@ -669,6 +671,7 @@ fun appModule() = module {
             contactOffers = get(),
             channelLimit = get(),
             replyRequests = get(),
+            sponsoredLinks = get(),
             inlineQueryRequests = get(),
             inviteLinks = get(),
             proxies = get(),
@@ -862,6 +865,7 @@ fun appModule() = module {
             profilePhotos = parameters.values.getOrNull(3) as? Boolean ?: false,
             articleMedia = parameters.values.getOrNull(4) as? Int ?: NO_ARTICLE_MEDIA,
             storyId = parameters.values.getOrNull(5) as? Int ?: NO_STORY,
+            sponsored = parameters.values.getOrNull(6) as? Boolean ?: false,
             repository = get(),
             profileRepository = get(),
             files = get(),

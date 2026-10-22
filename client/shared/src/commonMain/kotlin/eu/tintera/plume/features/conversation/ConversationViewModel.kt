@@ -223,6 +223,8 @@ class ConversationViewModel(
     liveStoriesSupported: Boolean = false,
     /** „Odpovědět" z prohlížeče médií. */
     private val replyRequests: ConversationReplyRequests,
+    /** Odkaz reklamy z tlačítka v prohlížeči médií (video reklamy na celé obrazovce). */
+    private val sponsoredLinks: SponsoredLinkRequests,
     /** Inline dotaz z tlačítka bota v jiném chatu ([BotButtonKind.SwitchInline]). */
     private val inlineQueryRequests: InlineQueryRequests,
     /** Jen kvůli pruhu s čekajícími žádostmi o vstup (vidí ho správce, který je smí vyřizovat). */
@@ -1026,6 +1028,16 @@ class ConversationViewModel(
             }
         }
 
+        // Tlačítko reklamy v prohlížeči: kliknutí nahlásil prohlížeč, odkaz se otevírá tady.
+        viewModelScope.launch {
+            sponsoredLinks.request.collect { request ->
+                if (request?.chatId == chatId) {
+                    sponsoredLinks.consume(chatId)
+                    openSponsoredLink(request.url)
+                }
+            }
+        }
+
         // Anketa se zakládá ve vlastním formuláři a rozepsanou odpověď si odnesla; formulář
         // ohlásí, že odešla (i naplánovaná), a odpověď zmizí jako po odeslání textu.
         viewModelScope.launch {
@@ -1309,11 +1321,26 @@ class ConversationViewModel(
      * otevře v aplikaci, webová adresa mimo domény Telegramu ([isTrustedSponsorUrl]) až po
      * potvrzení v dialogu — obojí specifikace reklam předepisuje.
      */
-    fun onSponsoredClick(sponsored: SponsoredMessage) {
+    fun onSponsoredClick(sponsored: SponsoredMessage, isMediaClick: Boolean = false) {
         viewModelScope.launch {
-            repository.reportSponsoredClick(chatId, sponsored.messageId)
-            links.openLink(sponsored.url, confirmExternal = !isTrustedSponsorUrl(sponsored.url))
+            repository.reportSponsoredClick(chatId, sponsored.messageId, isMediaClick = isMediaClick)
+            openSponsoredLink(sponsored.url)
         }
+    }
+
+    /**
+     * Ťuknutí na video reklamy: hlásí se jako kliknutí na médium, ale odkaz se neotevře —
+     * video jde na celou obrazovku (navigace je věc obrazovky) a odkaz otevře až tlačítko
+     * reklamy tam ([SponsoredLinkRequests]).
+     */
+    fun onSponsoredVideoOpened(sponsored: SponsoredMessage) {
+        viewModelScope.launch {
+            repository.reportSponsoredClick(chatId, sponsored.messageId, isMediaClick = true)
+        }
+    }
+
+    private fun openSponsoredLink(url: String) {
+        links.openLink(url, confirmExternal = !isTrustedSponsorUrl(url))
     }
 
     /**

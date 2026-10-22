@@ -14,7 +14,10 @@ data class SponsoredMessage(
     val messageId: Long,
     /** Jméno inzerenta. */
     val title: String,
-    /** Text reklamy i s formátováním (`message` + `entities`). */
+    /**
+     * Text reklamy i s formátováním (`message` + `entities`) — u reklamy s médiem jeho popisek.
+     * Prázdný, když reklama nese jen médium.
+     */
     val body: MessageBody,
     /** Popisek tlačítka, jak ho dodá Telegram — nepřekládá se. */
     val buttonText: String,
@@ -26,6 +29,12 @@ data class SponsoredMessage(
     val additionalInfo: String?,
     /** Smí se nahlásit moderátorům (`can_be_reported`); jinak ⋮ s nahlášením chybí. */
     val canBeReported: Boolean = true,
+    /**
+     * Médium reklamy v kanálu ([MessageMedia.Photo], [MessageMedia.Video], nebo
+     * [MessageMedia.Animation]); `null` u textové. Ťuknutí na něj se hlásí jako kliknutí na
+     * médium, viz [mediaOpensLink].
+     */
+    val media: MessageMedia? = null,
     /** Fotka inzerenta (`sponsor.photo`) — u reklamy u bota náhled vpravo v pruhu. */
     val photo: MessageMedia.Photo? = null,
     /** Barva reklamy (`accent_color_id`), viz `telegramAccentColor`. */
@@ -39,6 +48,14 @@ data class SponsoredMessage(
 ) {
     /** Text bez formátování. */
     val text: String get() = body.text
+
+    /**
+     * Ťuknutí na médium otevře odkaz reklamy (fotka, GIF = video bez zvuku), nebo médium na celé
+     * obrazovce (video se zvukem) — tak to [specifikace](https://core.telegram.org/api/sponsored-messages)
+     * rozlišuje. Odkaz se u videa otevře až tlačítkem reklamy v prohlížeči. `Video` z TDLib
+     * příznak zvuku nenese, takže se video bere jako video se zvukem.
+     */
+    val mediaOpensLink: Boolean get() = media !is MessageMedia.Video
 }
 
 /**

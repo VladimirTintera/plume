@@ -61,6 +61,7 @@ import eu.tintera.plume.features.settings.TwoStepScreen
 import eu.tintera.plume.features.settings.AppLockScreen
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
+import eu.tintera.plume.features.conversation.SponsoredLinkRequests
 import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePick
 import eu.tintera.plume.features.conversation.SwitchInlinePickerScreen
@@ -884,6 +885,9 @@ private fun shellEntryProvider(
                     onOpenArticleMedia = { messageId, index ->
                         chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
                     },
+                    onOpenSponsoredMedia = { messageId ->
+                        chatsStack.add(MediaRoute(route.chatId, messageId, sponsored = true))
+                    },
                     onOpenStory = { story ->
                         chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
                     },
@@ -1221,6 +1225,9 @@ private fun shellEntryProvider(
                     onOpenArticleMedia = { messageId, index ->
                         chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
                     },
+                    onOpenSponsoredMedia = { messageId ->
+                        chatsStack.add(MediaRoute(route.chatId, messageId, sponsored = true))
+                    },
                     onOpenStory = { story ->
                         chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
                     },
@@ -1307,6 +1314,7 @@ private fun shellEntryProvider(
      */
     entry<MediaRoute> { route ->
         val replyRequests = koinInject<ConversationReplyRequests>()
+        val sponsoredLinks = koinInject<SponsoredLinkRequests>()
         /*
          * Klíč sdíleného prvku fotky nese, ODKUD se letí: táž fotka je v bublině i v mřížce
          * sdílených médií v profilu a se společným klíčem se ty dvě spárovaly mezi sebou —
@@ -1322,9 +1330,17 @@ private fun shellEntryProvider(
                 // ViewModel se cachuje podle klíče a Koin u cachované instance
                 // ignoruje nové parametry. U ankety i přílohu — obrázků je pod jedním id víc.
                 viewModel = koinViewModel(
-                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.profilePhotos}-${route.articleMedia}-${route.storyId}",
+                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.profilePhotos}-${route.articleMedia}-${route.storyId}-${route.sponsored}",
                     parameters = {
-                        parametersOf(route.chatId, route.messageId, route.pollMedia, route.profilePhotos, route.articleMedia, route.storyId)
+                        parametersOf(
+                            route.chatId,
+                            route.messageId,
+                            route.pollMedia,
+                            route.profilePhotos,
+                            route.articleMedia,
+                            route.storyId,
+                            route.sponsored,
+                        )
                     },
                 ),
                 // Profilovky vlastního účtu se otevírají z Nastavení, všechno ostatní z Chatů.
@@ -1341,6 +1357,11 @@ private fun shellEntryProvider(
                     }
                 },
                 startSeconds = route.startSeconds,
+                // Video reklamy se otevírá jen z konverzace, takže je pod prohlížečem a odkaz otevře ona.
+                onOpenSponsoredLink = { url ->
+                    sponsoredLinks.request(route.chatId, url)
+                    chatsStack.pop(route)
+                },
             )
         }
     }

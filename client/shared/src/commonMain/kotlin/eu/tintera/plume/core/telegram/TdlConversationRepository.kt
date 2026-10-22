@@ -2766,8 +2766,9 @@ class TdlConversationRepository(
                     SponsoredMessage(
                         messageId = message.messageId,
                         title = message.title,
-                        // Obsah je MessageContent jako u běžné zprávy; reklamy jsou v praxi text.
-                        body = (message.content as? MessageText)?.text?.toBody() ?: MessageBody.Empty,
+                        // Obsah je MessageContent jako u běžné zprávy: text, nebo médium s popiskem.
+                        body = message.content.quotableText()?.toBody() ?: MessageBody.Empty,
+                        media = message.content.sponsoredMedia(),
                         buttonText = message.buttonText,
                         url = message.sponsor.url,
                         isRecommended = message.isRecommended,
@@ -2793,13 +2794,17 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
-    override suspend fun reportSponsoredClick(chatId: Long, messageId: Long): Result<Unit> =
+    override suspend fun reportSponsoredClick(
+        chatId: Long,
+        messageId: Long,
+        isMediaClick: Boolean,
+        fromFullscreen: Boolean,
+    ): Result<Unit> =
         client.clickChatSponsoredMessage(
             chatId = chatId,
             messageId = messageId,
-            // Klikáme na tlačítko, ne na médium, a ne z celoobrazovkového režimu.
-            isMediaClick = false,
-            fromFullscreen = false,
+            isMediaClick = isMediaClick,
+            fromFullscreen = fromFullscreen,
         )
             .toResult()
             .map { }
@@ -4064,6 +4069,17 @@ internal fun MessageContent.quotableText(): FormattedText? = when (this) {
     is MessageAudio -> caption
     is MessageVoiceNote -> caption
     is MessagePaidMedia -> caption
+    else -> null
+}
+
+/**
+ * Médium sponzorované zprávy: fotka, video, nebo GIF — jiná média specifikace reklam nezná.
+ * Video s přepočítanými kvalitami jako u běžné zprávy, přehrává se v prohlížeči.
+ */
+internal fun MessageContent.sponsoredMedia(): MessageMedia? = when (this) {
+    is MessagePhoto -> photo.toMedia(hasSpoiler = hasSpoiler)
+    is MessageVideo -> video.toMedia(hasSpoiler = hasSpoiler).copy(alternatives = alternativeVideos.toQualities())
+    is MessageAnimation -> animation.toMedia().copy(hasSpoiler = hasSpoiler)
     else -> null
 }
 
