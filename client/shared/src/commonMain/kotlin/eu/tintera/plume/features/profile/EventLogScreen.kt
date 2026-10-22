@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -16,6 +17,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +45,7 @@ import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.event_log_antispam_report
 import eu.tintera.plume.resources.event_log_empty
 import eu.tintera.plume.resources.event_log_empty_help
 import eu.tintera.plume.resources.event_log_title
@@ -333,7 +336,12 @@ private fun EventList(events: List<ChatLogEvent>, viewModel: EventLogViewModel, 
             }
             itemsIndexed(day, key = { _, event -> event.id }) { index, event ->
                 if (event.id == events.last().id) LaunchedEffect(event.id) { viewModel.loadMore() }
-                EventRow(event, Modifier.animateItem().clip(groupItemShape(index, day.size)))
+                EventRow(
+                    event = event,
+                    reportingAntiSpam = event.id in viewModel.reportingAntiSpam,
+                    onReportAntiSpam = { viewModel.reportAntiSpamMistake(event) },
+                    modifier = Modifier.animateItem().clip(groupItemShape(index, day.size)),
+                )
             }
         }
         if (viewModel.loadingMore) {
@@ -345,7 +353,13 @@ private fun EventList(events: List<ChatLogEvent>, viewModel: EventLogViewModel, 
 }
 
 @Composable
-private fun EventRow(event: ChatLogEvent, modifier: Modifier = Modifier) {
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun EventRow(
+    event: ChatLogEvent,
+    reportingAntiSpam: Boolean,
+    onReportAntiSpam: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val description = event.description.resolve()
     // Smazaný účet jméno nemá; popis pak nese řádek sám.
     val actor = event.actor.title.ifBlank { null }
@@ -362,6 +376,19 @@ private fun EventRow(event: ChatLogEvent, modifier: Modifier = Modifier) {
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
+                }
+                // Zprávu smazal antispam a správce ji může označit za omyl. Tlačítko v řádku, ne
+                // v nabídce: jiná akce nad událostí není, nabídka s jedinou položkou by ji jen schovala.
+                if (event.antiSpamMessageId != null) {
+                    OutlinedButton(
+                        onClick = onReportAntiSpam,
+                        enabled = !reportingAntiSpam,
+                        shapes = ButtonDefaults.shapesFor(ButtonDefaults.ExtraSmallContainerHeight),
+                        contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.ExtraSmallContainerHeight),
+                        modifier = Modifier.padding(top = 8.dp).heightIn(min = ButtonDefaults.ExtraSmallContainerHeight),
+                    ) {
+                        Text(stringResource(Res.string.event_log_antispam_report))
+                    }
                 }
             }
         },

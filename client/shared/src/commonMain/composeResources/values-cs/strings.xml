@@ -3968,6 +3968,9 @@
     <string name="event_log_nothing_found">Nic neodpovídá</string>
     <string name="event_log_nothing_found_help">Zkus jiné hledání nebo vypni některé filtry.</string>
     <string name="event_log_clear_filters">Zrušit filtry</string>
+    <string name="event_log_antispam_report">Není to spam</string>
+    <string name="event_log_antispam_reported">Díky. Telegram podle toho doladí antispam ve skupině.</string>
+    <string name="event_log_antispam_failed">Omyl antispamu se nepodařilo nahlásit.</string>
     <string name="event_on">zapnuto</string>
     <string name="event_off">vypnuto</string>
     <string name="event_closed">uzavřeno</string>

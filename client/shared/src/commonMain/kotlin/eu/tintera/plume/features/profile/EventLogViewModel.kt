@@ -12,8 +12,11 @@ import eu.tintera.plume.core.telegram.ChatLogFilter
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.telegram.withAntiSpamReported
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.event_log_antispam_failed
+import eu.tintera.plume.resources.event_log_antispam_reported
 import eu.tintera.plume.resources.event_log_failed
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -54,6 +57,10 @@ class EventLogViewModel(
 
     /** Jednorázová hláška pro snackbar; obrazovka ji po zobrazení vynuluje. */
     var notice by mutableStateOf<UiText?>(null)
+
+    /** Události, jejichž omyl antispamu se právě hlásí — tlačítko čeká a druhé ťuknutí nic neodešle. */
+    var reportingAntiSpam by mutableStateOf<Set<Long>>(emptySet())
+        private set
 
     private var loadJob: Job? = null
 
@@ -118,6 +125,29 @@ class EventLogViewModel(
                     notice = failure.reported()
                 }
             loadingMore = false
+        }
+    }
+
+    /**
+     * Zprávu smazal antispam omylem (`reportSupergroupAntiSpamFalsePositive`). Po nahlášení
+     * tlačítko z řádku zmizí; zprávu to nevrátí — Telegram tím ladí antispam skupiny, smazanou
+     * zprávu může správce poslat znovu sám.
+     */
+    fun reportAntiSpamMistake(event: ChatLogEvent) {
+        val messageId = event.antiSpamMessageId ?: return
+        if (event.id in reportingAntiSpam) return
+        reportingAntiSpam += event.id
+        viewModelScope.launch {
+            repository.reportAntiSpamFalsePositive(chatId, messageId)
+                .onSuccess {
+                    events = events?.withAntiSpamReported(event.id)
+                    notice = UiText(Res.string.event_log_antispam_reported)
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Omyl antispamu u zprávy $messageId v chatu $chatId se nepodařilo nahlásit." }
+                    notice = failure.userMessage(Res.string.event_log_antispam_failed)
+                }
+            reportingAntiSpam -= event.id
         }
     }
 

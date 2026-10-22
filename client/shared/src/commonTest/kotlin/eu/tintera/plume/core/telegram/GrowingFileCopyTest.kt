@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import okio.FileSystem
 import okio.Path
+import okio.use
 import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.Test
