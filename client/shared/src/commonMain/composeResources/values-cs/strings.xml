@@ -2901,6 +2901,13 @@
     <string name="boosts_copy_link">Kopírovat odkaz</string>
     <string name="boosts_share_link">Sdílet odkaz</string>
     <string name="boosts_failed">Stav boostů se nepodařilo načíst.</string>
+    <string name="boosts_list_title">Kdo boostuje</string>
+    <string name="boosts_load_more">Načíst další</string>
+    <string name="boosts_no_winner">Soutěž bez výherce</string>
+    <string name="boosts_expires">do %1$s</string>
+    <string name="boosts_source_gift_code">dárkový kód</string>
+    <string name="boosts_source_giveaway">soutěž</string>
+    <string name="boosts_count">%1$d×</string>
     <plurals name="boosts_total">
         <item quantity="one">%1$s boost</item>
         <item quantity="few">%1$s boosty</item>

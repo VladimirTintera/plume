@@ -655,6 +655,15 @@ zkopírování nebo sdílení — tím se o boost žádá členů.
   se zdvojené.
 - **Ověřeno na emulátoru** u vlastního testovacího kanálu: „Úroveň 0, 0 boostů · do úrovně 1
   chybí 1", průběh a tlačítka odkazu. Kopírování a sdílení odkazu se neťukalo.
+- **Pod stavem je „Kdo boostuje"** (`getChatBoosts`, `ProfileRepository.boosts`, stránky po 50
+  přes `nextOffset`, „Načíst další"): tvář a jméno, do kdy boost platí, odkud je (dárkový kód,
+  soutěž; Premium se nepíše, je to běžný případ) a „3×" u víc boostů od téhož (Premium má víc
+  slotů). Soutěž, ve které se výherce nenašel (`user_id` 0), je řádek „Soutěž bez výherce".
+  - **Stav a seznam se čtou souběžně a selhání seznamu stav nezahodí** — seznam se pak jen
+    neukáže. Bez boostů se oddíl nekreslí vůbec; „0 boostů" říká už stav nad ním.
+  - **Ověřeno na emulátoru**: testovací kanál boosty nemá (`total_count` 0), oddíl se neukázal.
+    Vzhled řádků a „Načíst další" se sondou (dva podstrčené boosty, další stránka od serveru
+    prázdná, tlačítko pak zmizelo). **Neověřené:** skutečné boosty a dárkové kódy.
 
 ### Pozvánky a žádosti o vstup
 

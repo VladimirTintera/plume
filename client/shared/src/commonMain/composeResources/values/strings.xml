@@ -2809,6 +2809,13 @@
     <string name="boosts_copy_link">Copy link</string>
     <string name="boosts_share_link">Share link</string>
     <string name="boosts_failed">Couldn’t load the boost status.</string>
+    <string name="boosts_list_title">Boosters</string>
+    <string name="boosts_load_more">Load more</string>
+    <string name="boosts_no_winner">Giveaway without a winner</string>
+    <string name="boosts_expires">until %1$s</string>
+    <string name="boosts_source_gift_code">gift code</string>
+    <string name="boosts_source_giveaway">giveaway</string>
+    <string name="boosts_count">%1$d×</string>
     <plurals name="boosts_total">
         <item quantity="one">%1$s boost</item>
         <item quantity="other">%1$s boosts</item>
