@@ -126,7 +126,8 @@ toasty WinRT (oddíl „Notifikace na Windows" níž), na Linuxu AWT `TrayIcon.d
   (`AppReopenedListener`), na Windows ikona v oznamovací oblasti (oddíl „Oznamovací oblast
   a jediná instance" níž); všude klik na oznámení a další spuštění. Ukončuje Cmd+Q, resp.
   nabídka ikony. Na Linuxu zavření aplikaci ukončí.
-- **Odznak** je počet nepřečtených v neztlumených chatech hlavního seznamu, jako na iOS: v Docku
+- **Odznak** je počet nepřečtených v neztlumených chatech hlavního seznamu od TDLib
+  (`ChatRepository.unreadMessages`, viz `docs/poznatky/notifikace.md`), jako na iOS: v Docku
   text (`Taskbar.setIconBadge`), na Windows overlay na tlačítku okna (oddíl „Hlavní panel
   Windows" níž). Obojí řídí `DesktopTaskbar`.
 - **Tiché hodiny platí** (`supportsQuietHours = true`): oznámení přijde bez zvuku.

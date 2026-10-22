@@ -293,6 +293,10 @@ class TdlChatRepository(
 
     override val archiveUnread: StateFlow<ArchiveUnread> = _archiveUnread.asStateFlow()
 
+    private val _unreadMessages = MutableStateFlow<Int?>(null)
+
+    override val unreadMessages: StateFlow<Int?> = _unreadMessages.asStateFlow()
+
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> {
         val list = listFor(folder)
         // Seznam složky, kterou už repository zná z pozic, se publikuje hned — jinak by do
@@ -653,6 +657,13 @@ class TdlChatRepository(
                     is ChatListFolder -> _folderUnread.update { it + (list.chatFolderId to unread) }
                     else -> Unit
                 }
+            }
+        }
+
+        // Nepřečtené zprávy hlavního seznamu pro odznak na ikoně; stejná podmínka jako výš.
+        scope.launch {
+            holder.updates { unreadMessageCountUpdates }.collect { update ->
+                if (update.chatList is ChatListMain) _unreadMessages.value = update.unreadUnmutedCount
             }
         }
 
@@ -2016,6 +2027,7 @@ class TdlChatRepository(
         all.value = emptyMap()
         activitySenders.value = emptyMap()
         _archiveUnread.value = ArchiveUnread()
+        _unreadMessages.value = null
         _folderUnread.value = emptyMap()
         _chatFolders.value = ChatFolders()
         lists.value.values.forEach { it.value = ChatListState.Loading }

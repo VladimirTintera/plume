@@ -785,6 +785,12 @@ registruje `registerDevice` s `deviceTokenApplePush` (`IosPush`); token vydá iO
   které TDLib hlásí jako přečtené, a srovná odznak (`setBadgeCount`, nepřečtené zprávy
   neztlumených chatů hlavního seznamu) — server ho nastavuje v pushi a po přečtení v aplikaci by
   zůstal starý. Servisní klíče se v popředí nezobrazují.
+- **Číslo odznaku počítá TDLib** (`ChatRepository.unreadMessages`, `UpdateUnreadMessageCount`
+  pro hlavní seznam, `unreadUnmutedCount`), ne součet `unreadCount` nad načtenými chaty. Hlavní
+  seznam se načítá po stránkách, takže součet vynechal chaty, ke kterým se seznam ještě
+  nedostal, a skákal, jak se seznam dočítal. Update chodí hned po startu (ověřeno na Androidu
+  dočasným výpisem: `unread=3 unmuted=3`) a jen se zapnutou databází zpráv, jako
+  `UpdateUnreadChatCount` u archivu. Totéž číslo má odznak na desktopu.
 - **Vysvětlení před systémovým dotazem je společné** (`NotificationRationaleDialog`). iOS dá
   systémový dotaz jen jednou napořád; „Teď ne" se pamatuje v `NSUserDefaults`.
 - **`simctl push` rozšíření NESPUSTÍ** — vloží notifikaci přímo (v logu `mutableContent: YES`
