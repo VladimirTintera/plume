@@ -406,7 +406,7 @@ funkce, takže hranice jsou hrubé):
 | Samolepky a emoji | 32 / 62 | prohlížení a posílání hotové; tvorba vlastních sad ne |
 | Reakce | 13 / 18 | hotové; placené reakce ne |
 | Notifikace | 16 / 23 | hotové; reakce TDLib neumí (viz níž) |
-| Mini aplikace a boti (uživatelská strana) | 15 / 50 | hotové; zbytek jsou volání jen pro boty, nabídka příloh a streamované odpovědi |
+| Mini aplikace a boti (uživatelská strana) | 15 / 50 | hotové; zbývá část mostu mini aplikací (viz audit 22. 10.), nabídka příloh; zbytek jsou volání jen pro boty |
 | Soubory a stahování | 6 / 31 | stahování po jednom; správce stahování a předběžné nahrávání ne |
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
@@ -720,6 +720,54 @@ vlastníka"). ~~Gigaskupina (`toggleSupergroupIsBroadcastGroup`)~~ — hotovo, n
 `docs/poznatky/profil-chatu.md`, „Boosty"; zbývá ověřit na chatu se skutečnými boosty), ~~uvítací zprávy
 (`addChatWelcomeMessage` a spol., novinka TDLib)~~ — hotovo pro textové zprávy
 (`docs/poznatky/profil-chatu.md`, „Uvítací zprávy"); média a úprava existující zbývají.
+
+### Audit 22. 10. 2026: druhé síto
+
+Znovu všech 1022 funkcí proti kódu: **volá se 486** (po auditu 19. 10. a pracích po něm),
+nevolaných zůstává 536. Většina spadá pod „Vědomě mimo" níž, pod Hovory (videochaty, skupinové
+hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
+
+- ~~**Odhrnutá notifikace se vracela**~~ — hotovo: TDLib se o odhrnutí dozví
+  (`removeNotificationGroup`, dokumentace ho pro zavření uživatelem předepisuje) a presenter
+  zapomene řádky; dřív je další zpráva téhož chatu vrátila do notifikace
+  (`docs/poznatky/notifikace.md`, „Odhrnutí notifikace"). Zbývá iOS a desktop.
+- **Most mini aplikací umí jen část API pro Web Apps.** Na co stránka čeká, odpoví se
+  „zrušeno" (`docs/poznatky/boti.md`), takže nic nevisí — ale funkce chybí:
+  `requestWriteAccess` dnes odmítne VŽDY (`canBotSendMessages`, `allowBotToSendMessages`),
+  sdílení připravené zprávy `shareMessage` (`getPreparedInlineMessage`), výběr chatu nebo lidí
+  `requestChat` (`getPreparedKeyboardButton`), stažení souboru `downloadFile`
+  (`checkWebAppFileDownload`), `DeviceStorage` / `SecureStorage`, poloha, celá obrazovka
+  a zástupce na ploše. Emoji status z mini aplikace chce Premium. Přednostně zápis
+  a `shareMessage` — na ty se mini aplikace spoléhají nejčastěji.
+- **Podobné kanály: oznámit otevření** (`openChatSimilarChat`) — dokumentace chce, aby klient
+  TDLib řekl, že chat otevřel ze seznamu podobných (statistika doporučení na serveru). Malé,
+  kontrakt. K tomu podobní boti v profilu bota (`getBotSimilarBots`, `openBotSimilarBot`)
+  a náhledy mini aplikace v profilu bota (`getBotMediaPreviews`).
+- **Témata Uložených zpráv a vlákna přímých zpráv kanálu:** skok na datum
+  (`getSavedMessagesTopicMessageByDate`, `getDirectMessagesChatTopicMessageByDate`; dnes jde jen
+  v celém chatu), vymazání za vybrané dny (`deleteSavedMessagesTopicMessagesByDate`,
+  `deleteDirectMessagesChatTopicMessagesByDate`) a odepnout vše ve vlákně
+  (`unpinAllDirectMessagesChatTopicMessages`).
+- **Příběhy — správa zveřejněného:** úprava (`editStory`, `editStoryCover`), změna viditelnosti
+  (`setStoryPrivacySettings`), ponechat v profilu a připnout (`toggleStoryIsPostedToChatPage`,
+  `setChatPinnedStories`), archiv vlastních prošlých příběhů (`getChatArchivedStories`),
+  příběh za kanál (`getChatsToPostStories`). Reakce u příběhu nabízet podle
+  `getStoryAvailableReactions` (dnes neověřené, co výběr nabízí) a ťuknutí na místo v příběhu
+  (`searchPublicStoriesByLocation`, `…ByVenue`).
+- **Drobnosti v nastavení a hledání:** obnovit všechna nastavení upozornění
+  (`resetAllNotificationSettings`), smazat všechny výjimky ukládání do galerie
+  (`clearAutosaveSettingsExceptions`), vymazat celou historii hashtagů (`clearSearchedForTags`;
+  po jednom už jde), sběratelské jméno nebo číslo z Fragmentu v profilu
+  (`getCollectibleItemInfo`), neznámý odkaz `tg://` s vysvětlením od serveru
+  (`getDeepLinkInfo`), profilová fotka z emoji (`getDefaultProfilePhotoCustomEmojiStickers`).
+- **Prohlížeč odkazů podle Telegramu** (`getLinkWebBrowserType`, `changeWebBrowserSettings`,
+  výjimky po adresách) — novinka TDLib, nastavení synchronizované přes účet. Plume má vlastní
+  „Odkazy v aplikaci"; až se bude sahat na otevírání odkazů, zvážit převzetí.
+- **Správa kanálu za boosty:** počet boostů, se kterými člen obejde pomalý režim a omezení
+  (`setSupergroupUnrestrictBoostCount`), vypnutí reklam ve vlastním kanálu
+  (`toggleSupergroupCanHaveSponsoredMessages`), hlavní záložka profilu kanálu i vlastního
+  (`setSupergroupMainProfileTab`, `setMainProfileTab`). Barvy, emoji status a sada emoji
+  skupiny patří pod „Vzhled od Telegramu" (vědomě ne).
 
 **Tvorba samolepek** (`createNewStickerSet`, `uploadStickerFile`, `addStickerToSet`,
 `setStickerEmojis` a dalších 12) — oficiální klient má editor samolepek z fotky. Velký kus,

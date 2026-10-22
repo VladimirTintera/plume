@@ -34,6 +34,12 @@ object NotificationIntents {
     /** Ztlumení chatu z notifikace. Týž příjemce jako [ACTION_REPLY]. */
     const val ACTION_MUTE = "eu.tintera.plume.action.NOTIFICATION_MUTE"
 
+    /** Uživatel notifikaci chatu odhrnul (delete intent). Týž příjemce jako [ACTION_REPLY]. */
+    const val ACTION_DISMISS = "eu.tintera.plume.action.NOTIFICATION_DISMISS"
+
+    /** Nejvyšší id notifikace od TDLib, které odhrnutá notifikace ukazovala. */
+    const val EXTRA_MAX_NOTIFICATION_ID = "eu.tintera.plume.extra.MAX_NOTIFICATION_ID"
+
     /** Odmítnutí příchozího hovoru z notifikace. Týž příjemce jako [ACTION_REPLY]. */
     const val ACTION_DECLINE_CALL = "eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL"
 
@@ -222,6 +228,27 @@ object NotificationIntents {
     }
 
     private const val SHOW_CALL_REQUEST = 7303
+
+    /**
+     * Broadcast při odhrnutí notifikace (`setDeleteIntent`). Systém ho pošle JEN při zavření
+     * uživatelem (tah, „Vymazat vše"), ne při ťuknutí s auto-cancel ani při `cancel` z aplikace.
+     * [maxNotificationId] jede v intentu, ne v paměti presenteru: notifikace přežije proces,
+     * a odhrnout ji jde i po restartu. UPDATE_CURRENT ho přepíše každým překreslením.
+     */
+    fun dismiss(context: Context, groupId: Int, chatId: Long, maxNotificationId: Int?): PendingIntent {
+        val intent = Intent(ACTION_DISMISS)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+            .apply { if (maxNotificationId != null) putExtra(EXTRA_MAX_NOTIFICATION_ID, maxNotificationId) else removeExtra(EXTRA_MAX_NOTIFICATION_ID) }
+
+        return PendingIntent.getBroadcast(
+            context,
+            groupId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
 
     /** Broadcast „Ztlumit". IMMUTABLE — do intentu nikdo nic nevkládá. */
     fun mute(context: Context, groupId: Int, chatId: Long): PendingIntent {

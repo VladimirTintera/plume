@@ -58,7 +58,22 @@ interface NotificationRepository {
      * zvuku —, ale odmítnout ano: volající to pozná hned a nečeká na vyzvánění do ztracena.
      */
     suspend fun declineCall(callId: Int, isVideo: Boolean): Result<Unit>
+
+    /**
+     * Uživatel notifikace skupiny [groupId] odhrnul (`removeNotificationGroup`). TDLib je jinak
+     * drží jako aktivní, dokud se chat nepřečte, a dokumentace volání předepisuje právě pro
+     * zavření uživatelem. Odeberou se notifikace po [maxNotificationId] včetně — novější, které
+     * mezitím přibyly, zůstanou.
+     */
+    suspend fun dismissGroup(groupId: Int, maxNotificationId: Int): Result<Unit>
 }
+
+/**
+ * Po které id notifikace se odhrnutá skupina odebere ([NotificationRepository.dismissGroup]):
+ * nejvyšší id mezi řádky, které uživatel viděl. `null`, když žádný řádek id od TDLib nenese
+ * (jen vlastní odpovědi a řádky převzaté po restartu) — pak TDLib nemáme co říct.
+ */
+fun dismissUpTo(notificationIds: List<Int?>): Int? = notificationIds.filterNotNull().maxOrNull()
 
 /** Co push nesl, podle toho, jak s ním TDLib naložil. */
 enum class PushKind {

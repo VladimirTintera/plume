@@ -270,6 +270,17 @@ actual class NotificationPresenter(
     }
 
     /**
+     * Uživatel notifikaci odhrnul: zapomenout její řádky. [conversations] by je jinak držely
+     * a další zpráva téhož chatu by notifikaci poskládala i s tím, co uživatel zavřel. TDLib
+     * o odhrnutí řekne příjemce akce zvlášť (`NotificationActions.dismiss`).
+     */
+    suspend fun dismissed(groupId: Int) = withContext(dispatcher) {
+        conversations.remove(groupId)
+        recentlyRemoved.removeAll { it.groupId == groupId }
+        logger.d { "Notifikace $groupId odhrnuta, řádky zapomenuty." }
+    }
+
+    /**
      * Úklid po odhlášení: notifikace i zkratky konverzací. Zkratky nesou názvy chatů a fotky
      * a visí v nabídce ikony aplikace — po odhlášení by tam zůstaly chaty cizího účtu.
      */
@@ -440,6 +451,16 @@ actual class NotificationPresenter(
                     notificationId = groupId,
                     chatId = conversation.chatId,
                     topicId = conversation.topicId,
+                ),
+            )
+            // Odhrnutí řekne TDLib i presenteru, že notifikace je pryč ([dismissed]). Jinak se
+            // odhrnuté zprávy s další zprávou téhož chatu vrátily do notifikace.
+            .setDeleteIntent(
+                NotificationIntents.dismiss(
+                    context = context,
+                    groupId = groupId,
+                    chatId = conversation.chatId,
+                    maxNotificationId = dismissUpTo(conversation.lines.map { it.notificationId }),
                 ),
             )
             .build()

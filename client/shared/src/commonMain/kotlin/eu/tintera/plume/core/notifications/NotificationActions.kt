@@ -122,6 +122,15 @@ class NotificationActions(
         return notifications.declineCall(callId, isVideo)
     }
 
+    /**
+     * Uživatel notifikaci odhrnul: TDLib ji přestane držet ([NotificationRepository.dismissGroup]).
+     * Bez toho by ji měl za aktivní až do přečtení chatu.
+     */
+    suspend fun dismiss(groupId: Int, maxNotificationId: Int, timeout: Duration): Result<Unit> {
+        if (!awaitReady(timeout)) return Result.failure(IllegalStateException("TDLib není přihlášený do $timeout."))
+        return notifications.dismissGroup(groupId, maxNotificationId)
+    }
+
     private suspend fun awaitReady(timeout: Duration): Boolean =
         withTimeoutOrNull(timeout) { session.authStage.first { it == AuthStage.Ready } } != null
 

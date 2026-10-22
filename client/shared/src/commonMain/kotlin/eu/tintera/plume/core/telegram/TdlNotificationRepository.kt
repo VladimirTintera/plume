@@ -361,6 +361,12 @@ class TdlNotificationRepository(
             .map { }
             .onFailure { logger.w(it) { "Hovor $callId se nepodařilo odmítnout." } }
 
+    override suspend fun dismissGroup(groupId: Int, maxNotificationId: Int): Result<Unit> =
+        client.removeNotificationGroup(notificationGroupId = groupId, maxNotificationId = maxNotificationId)
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Odhrnutou skupinu notifikací $groupId se nepodařilo odebrat." } }
+
     override suspend fun registerDevice(token: PushToken): Result<Unit> {
         val deviceToken: DeviceToken = when (token) {
             is PushToken.Firebase ->
