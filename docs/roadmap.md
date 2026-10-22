@@ -681,8 +681,9 @@ a se serverem, takže přednostně:
    kóduje až po skončení, kolečko se ořezává exportem), ověření na pomalé síti a přehrání
    fragmentovaného kolečka v oficiálních klientech (ověřeno jen AVFoundation a Plume).
 9. ~~**Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha)~~ — hotovo
-   (`docs/poznatky/profil-chatu.md`, „Profil firmy"). Zbývá úvodní stránka (`startPage`)
-   v prázdné konverzaci a ověření na skutečném firemním účtu.
+   (`docs/poznatky/profil-chatu.md`, „Profil firmy"). ~~Úvodní stránka (`startPage`)
+   v prázdné konverzaci~~ — hotovo („Úvodní stránka firmy v prázdném chatu"). Zbývá ověření
+   na skutečném firemním účtu.
 10. ~~**Dárky v profilu** (`getReceivedGifts`)~~ — hotovo, záložka Dárky
     (`docs/poznatky/profil-chatu.md`, „Dárky v profilu"). Sbírky (`getGiftCollections`) a správa
     vlastních dárků zbývají; posílání stojí hvězdy (viz níž).

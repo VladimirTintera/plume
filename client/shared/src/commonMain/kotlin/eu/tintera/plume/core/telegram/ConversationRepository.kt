@@ -634,6 +634,12 @@ interface ConversationRepository {
     suspend fun botIntro(chatId: Long): Result<BotIntro?>
 
     /**
+     * Úvodní stránka firemního účtu (Telegram Business, `businessInfo.startPage`) pro prázdný
+     * chat; `null` u chatu, který ji nemá.
+     */
+    suspend fun businessIntro(chatId: Long): Result<BusinessIntro?> = Result.success(null)
+
+    /**
      * Spustí bota (`sendBotStartMessage`) — v chatu se objeví „/start" a bot dostane [parameter]
      * (prázdný bez odkazu). Jako ostatní odesílání vrací rozepsanou zprávu hned.
      */
@@ -1756,6 +1762,16 @@ data class BotIntro(
     val descriptionEntities: List<MessageEntity> = emptyList(),
     val photo: MessageMedia.Photo? = null,
     val animation: MessageMedia.Animation? = null,
+)
+
+/**
+ * Úvodní stránka firmy, kterou firemní účet ukazuje v prázdném chatu: nadpis, text a uvítací
+ * samolepka. Každá část smí chybět.
+ */
+data class BusinessIntro(
+    val title: String,
+    val message: String,
+    val sticker: MessageMedia.Sticker? = null,
 )
 
 /** Kdy naplánovaná zpráva odejde. */
