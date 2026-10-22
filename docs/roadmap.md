@@ -714,7 +714,7 @@ a se serverem, takže přednostně:
 — už bylo: „Nahradit" u hlavní pozvánky volá `revokeChatInviteLink` a TDLib po zrušení hlavní
 pozvánky rovnou vydá novou. ~~Upozornění vlastníka, kdo chat zdědí po odchodu
 (`getChatOwnerAfterLeaving`)~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Odchod
-vlastníka"). Zbývá gigaskupina (`toggleSupergroupIsBroadcastGroup`), oprava omylu antispamu
+vlastníka"). ~~Gigaskupina (`toggleSupergroupIsBroadcastGroup`)~~ — hotovo, nabízí se jen s doporučením od Telegramu; na zařízení NEOVĚŘENÉ, testovací účet tak velkou skupinu nemá (`docs/poznatky/profil-chatu.md`, „Gigaskupina"). Zbývá oprava omylu antispamu
 (`reportSupergroupAntiSpamFalsePositive`, s ověřením antispamu výš), ~~stav boostů pro správce
 (`getChatBoostStatus`)~~ — hotovo i se seznamem jednotlivých boostů (`getChatBoosts`;
 `docs/poznatky/profil-chatu.md`, „Boosty"; zbývá ověřit na chatu se skutečnými boosty), uvítací zprávy

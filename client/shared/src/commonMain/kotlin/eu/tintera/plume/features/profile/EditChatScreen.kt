@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.broadcast_group_confirm
+import eu.tintera.plume.resources.broadcast_group_body
+import eu.tintera.plume.resources.broadcast_group_title
+import eu.tintera.plume.resources.broadcast_group_row_help
+import eu.tintera.plume.resources.broadcast_group_row
 import eu.tintera.plume.resources.group_24dp
 import eu.tintera.plume.resources.history_24dp
 import eu.tintera.plume.core.ui.SaveActionButton
@@ -174,6 +180,7 @@ fun EditChatScreen(
     var showSlowMode by rememberSaveable { mutableStateOf(false) }
     var showReactions by rememberSaveable { mutableStateOf(false) }
     var confirmDeleteChat by rememberSaveable { mutableStateOf(false) }
+    var confirmBroadcastGroup by rememberSaveable { mutableStateOf(false) }
     val currentOnDeleted by rememberUpdatedState(onDeleted)
     LaunchedEffect(viewModel.deleted) {
         if (viewModel.deleted) currentOnDeleted()
@@ -288,6 +295,21 @@ fun EditChatScreen(
             onDismiss = { confirmDeleteChat = false },
             icon = Res.drawable.delete_24dp,
             destructive = true,
+        )
+    }
+
+    if (confirmBroadcastGroup) {
+        // Nevratné, ale nic nemaže — proto potvrzení bez chybové barvy, ikona říká, co se stane.
+        ConfirmDialog(
+            title = stringResource(Res.string.broadcast_group_title),
+            text = stringResource(Res.string.broadcast_group_body),
+            confirmLabel = stringResource(Res.string.broadcast_group_confirm),
+            onConfirm = {
+                confirmBroadcastGroup = false
+                viewModel.convertToBroadcastGroup()
+            },
+            onDismiss = { confirmBroadcastGroup = false },
+            icon = Res.drawable.campaign_24dp,
         )
     }
 
@@ -513,6 +535,19 @@ fun EditChatScreen(
                             supportingContent = { Text(stringResource(Res.string.event_log_row_help)) },
                             leadingContent = { Icon(painterResource(Res.drawable.history_24dp), contentDescription = null) },
                             modifier = Modifier.clickable(onClick = onOpenEventLog),
+                        )
+                    }
+                }
+
+                // Gigaskupina: jen vlastníkovi, kterému ji Telegram doporučil (`offersBroadcastGroup`).
+                if (viewModel.offersBroadcastGroup) {
+                    GroupedColumn(Modifier.fillMaxWidth()) {
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            headlineContent = { Text(stringResource(Res.string.broadcast_group_row)) },
+                            supportingContent = { Text(stringResource(Res.string.broadcast_group_row_help)) },
+                            leadingContent = { Icon(painterResource(Res.drawable.campaign_24dp), contentDescription = null) },
+                            modifier = Modifier.clickable(enabled = !viewModel.convertingToBroadcast) { confirmBroadcastGroup = true },
                         )
                     }
                 }
