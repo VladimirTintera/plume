@@ -72,7 +72,7 @@ internal fun SponsoredBar(
         Row(
             Modifier
                 .clickable(onClick = onClick)
-                .padding(start = 16.dp, end = if (sponsored.canBeReported) 4.dp else 12.dp, top = 10.dp, bottom = 10.dp),
+                .padding(start = 16.dp, end = if (sponsored.hasMenu) 4.dp else 12.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
@@ -117,7 +117,7 @@ internal fun SponsoredBar(
                         .clip(RoundedCornerShape(10.dp)),
                 )
             }
-            if (sponsored.canBeReported) SponsoredMenu(onReport)
+            SponsoredMenu(sponsored, onReport)
         }
     }
 }

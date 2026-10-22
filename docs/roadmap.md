@@ -609,8 +609,9 @@ a se serverem, takže přednostně:
   `viewVideoMessageAdvertisement`, `clickVideoMessageAdvertisement`,
   `reportVideoMessageAdvertisement`)~~ — hotovo (`docs/poznatky/prohlizec-medii.md`, „Reklamy
   ve videu"); skutečnou reklamu od serveru zatím nevrátil žádný kanál, ověřeno s podstrčenou.
-  Zbývá **„Informace o sponzorovi"** u reklamy v kanálu (`SponsoredMessage.sponsor`, karta ho
-  dnes neukazuje; rámeček ve videu už ji má v ⋮).
+  ~~**„Informace o sponzorovi"** u reklamy v kanálu a u bota (`sponsor.info`,
+  `additional_info`)~~ — hotovo, v ⋮ (`docs/poznatky/konverzace-zobrazeni.md`,
+  „Sponzorované zprávy"); se skutečnou reklamou, která informace nese, ověřené není.
 
 **Živé updaty bez odběru** (stav se přečte jednou a pak stárne):
 

@@ -2777,6 +2777,7 @@ class TdlConversationRepository(
                         photo = message.sponsor.photo?.toMedia(),
                         accentColorId = message.accentColorId,
                         inBotChat = inBotChat,
+                        sponsorInfo = message.sponsor.info.takeIf { it.isNotBlank() },
                     )
                 }
             }

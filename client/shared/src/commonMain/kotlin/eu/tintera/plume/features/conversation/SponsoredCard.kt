@@ -42,6 +42,10 @@ import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.more_vert_24dp
 import eu.tintera.plume.resources.sponsored_menu
 import eu.tintera.plume.resources.sponsored_report
+import eu.tintera.plume.resources.sponsored_info
+import eu.tintera.plume.resources.info_24dp
+import eu.tintera.plume.core.ui.SponsorInfoDialog
+import eu.tintera.plume.core.ui.sponsorInfoText
 import eu.tintera.plume.resources.sponsored_open
 import eu.tintera.plume.resources.sponsored_recommended
 import eu.tintera.plume.resources.sponsored_sponsored
@@ -58,9 +62,9 @@ import org.jetbrains.compose.resources.stringResource
  * Vizuálně se drží stranou od bublin: je to vlastní karta přes celou šířku se štítkem
  * „Sponzorováno", aby si ji uživatel nespletl se zprávou od někoho z kanálu.
  *
- * ⋮ vedle štítku nabízí nahlášení ([onReport]), jen u reklamy, která ho dovolí
- * (`canBeReported`). Skrýt reklamu klient nesmí, nahlásit ji ano —
- * a mezi důvody od serveru bývá i skrytí reklam, které server sám podmíní Premium.
+ * ⋮ vedle štítku nabízí „Informace o sponzorovi" (kdo platí, proč se reklama ukazuje) a nahlášení
+ * ([onReport]), jen u reklamy, která ho dovolí (`canBeReported`). Skrýt reklamu klient nesmí,
+ * nahlásit ji ano — a mezi důvody od serveru bývá i skrytí reklam, které server sám podmíní Premium.
  */
 @Composable
 fun SponsoredCard(
@@ -90,7 +94,7 @@ fun SponsoredCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                if (sponsored.canBeReported) SponsoredMenu(onReport)
+                SponsoredMenu(sponsored, onReport)
             }
 
             if (sponsored.title.isNotBlank()) {
@@ -116,14 +120,6 @@ fun SponsoredCard(
 
             sponsored.media?.let { media ->
                 SponsoredMedia(media, sponsored.messageId, onMediaClick)
-            }
-
-            sponsored.additionalInfo?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
 
             Button(
@@ -175,13 +171,21 @@ private fun SponsoredMedia(media: MessageMedia, messageId: Long, onClick: () -> 
 }
 
 /**
- * ⋮ s nahlášením. Malé tlačítko (bez minimální dotykové plochy by štítek nad ním odskočil
- * o celých 48 dp), zarovnané do pravého rohu karty.
+ * ⋮ s „Informacemi o sponzorovi" a nahlášením — každé jen tam, kde má co nabídnout: informace,
+ * když Telegram poslal `sponsor.info` nebo `additional_info` (specifikace je pak chce nabídnout
+ * povinně), nahlášení u reklamy s `canBeReported`. Bez obojího ⋮ chybí.
+ *
+ * Malé tlačítko (bez minimální dotykové plochy by štítek nad ním odskočil o celých 48 dp),
+ * zarovnané do pravého rohu karty.
  */
 @Composable
-internal fun SponsoredMenu(onReport: () -> Unit) {
+internal fun SponsoredMenu(sponsored: SponsoredMessage, onReport: () -> Unit) {
+    val info = sponsorInfoText(sponsored.sponsorInfo, sponsored.additionalInfo)
+    if (info.isEmpty() && !sponsored.canBeReported) return
     var open by remember { mutableStateOf(false) }
+    var infoOpen by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.sponsored_menu)
+    if (infoOpen) SponsorInfoDialog(info, onDismiss = { infoOpen = false })
     Box {
         WithTooltip(label) {
             IconButton(
@@ -200,11 +204,15 @@ internal fun SponsoredMenu(onReport: () -> Unit) {
             expanded = open,
             onDismiss = { open = false },
             groups = listOf(
-                listOf(
+                listOfNotNull(
+                    MenuAction(label = stringResource(Res.string.sponsored_info), icon = Res.drawable.info_24dp) {
+                        open = false
+                        infoOpen = true
+                    }.takeIf { info.isNotEmpty() },
                     MenuAction(label = stringResource(Res.string.sponsored_report), icon = Res.drawable.flag_24dp) {
                         open = false
                         onReport()
-                    },
+                    }.takeIf { sponsored.canBeReported },
                 ),
             ),
         )

@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -18,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -38,9 +35,10 @@ import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.WithTooltip
+import eu.tintera.plume.core.ui.SponsorInfoDialog
+import eu.tintera.plume.core.ui.sponsorInfoText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
-import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.resources.more_vert_24dp
@@ -80,7 +78,7 @@ internal fun VideoAdBox(
     val currentHeld by rememberUpdatedState(onHeld)
     LaunchedEffect(infoOpen, menuOpen) { currentHeld(infoOpen || menuOpen) }
     DisposableEffect(Unit) { onDispose { currentHeld(false) } }
-    val info = listOf(ad.sponsorInfo, ad.additionalInfo).filter { it.isNotBlank() }.joinToString("\n\n")
+    val info = sponsorInfoText(ad.sponsorInfo, ad.additionalInfo)
 
     Surface(
         onClick = onOpen,
@@ -138,18 +136,7 @@ internal fun VideoAdBox(
         }
     }
 
-    if (infoOpen) {
-        AlertDialog(
-            onDismissRequest = { infoOpen = false },
-            title = { Text(stringResource(Res.string.sponsored_info)) },
-            text = { Text(info) },
-            confirmButton = {
-                TextButton(onClick = { infoOpen = false }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.common_close))
-                }
-            },
-        )
-    }
+    if (infoOpen) SponsorInfoDialog(info, onDismiss = { infoOpen = false })
 }
 
 @Composable
