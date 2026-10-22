@@ -1055,7 +1055,19 @@ kreslí dárek ve zprávě (`GiftCard`), a pod ní „Obdrženo 14. října".
   a doprostřed by posunula záložku, na které uživatel stojí. Selhání se nehlásí.
 - **Cizím TDLib vydá jen dárky vystavené v profilu**, `excludeUnsaved` vynutí sám. Vlastní profil
   (Uložené zprávy) a skupiny dárky nemají; spravovat vlastní dárky (vystavit, připnout,
-  proměnit, sbírky `getGiftCollections`) Plume neumí, to je pro oficiální aplikaci.
+  proměnit, zakládat sbírky) Plume neumí, to je pro oficiální aplikaci.
+- **Sbírky jsou čipy nad mřížkou** (`getGiftCollections`, `ProfileRepository.giftCollections`),
+  jako alba příběhů: „Vše" a každá neprázdná sbírka s počtem dárků. Výběr čte dárky znovu
+  s `collectionId` (`selectGiftCollection`); odpověď ke sbírce, kterou uživatel mezitím přepnul,
+  se zahodí. Sbírka, ze které cizí nic nevidí, ukáže „Žádný dárek z téhle sbírky není v profilu
+  vystavený" (počet ve sbírce započítává i nevystavené).
+  - **Záložka Dárky musí přežít prázdnou mřížku.** Při přepnutí sbírky jsou položky na chvíli
+    prázdné; s podmínkou jen na položky záložka zmizela a pager uskočil na Příběhy (ověřeno na
+    emulátoru při návratu na „Vše"). Záložka proto zůstává, dokud jsou sbírky nebo vybraná sbírka.
+  - **Ověřeno na emulátoru**: `getGiftCollections` u kanálu @durov a dalších velkých kanálů
+    prošel a vrátil prázdný seznam (sbírky se zatím skoro nepoužívají), čipy se pak nekreslí.
+    Čipy, přepnutí, prázdná sbírka a návrat na „Vše" s podstrčenými sbírkami. **Skutečná
+    sbírka s dárky ověřená NENÍ.**
 - **Stránky po 30 přes `nextOffset`**, dotahuje je `LoadMoreAtEnd` jako sdílená média.
   `receivedGiftId` má jen příjemce, takže klíč dlaždice se u cizího profilu skládá z id dárku,
   dárce a data; dvojí výskyt téhož klíče se zahodí.

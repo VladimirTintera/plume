@@ -685,7 +685,7 @@ a se serverem, takže přednostně:
    v prázdné konverzaci~~ — hotovo („Úvodní stránka firmy v prázdném chatu"). Zbývá ověření
    na skutečném firemním účtu.
 10. ~~**Dárky v profilu** (`getReceivedGifts`)~~ — hotovo, záložka Dárky
-    (`docs/poznatky/profil-chatu.md`, „Dárky v profilu"). Sbírky (`getGiftCollections`) a správa
+    (`docs/poznatky/profil-chatu.md`, „Dárky v profilu"). ~~Sbírky (`getGiftCollections`)~~ — hotovo, čipy nad mřížkou (skutečná sbírka ověřená není). Správa
     vlastních dárků zbývají; posílání stojí hvězdy (viz níž).
 11. Drobnosti: ~~hledání v tajných chatech (`searchSecretMessages` — hledání napříč chaty je
     vynechává)~~ (hotovo v konverzaci i napříč chaty, `docs/poznatky/tajne-chaty.md`, „Hledání";

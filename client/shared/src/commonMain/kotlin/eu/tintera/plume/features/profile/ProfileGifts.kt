@@ -1,6 +1,14 @@
 package eu.tintera.plume.features.profile
 
 import androidx.compose.foundation.background
+import eu.tintera.plume.resources.profile_gift_collection_chip
+import eu.tintera.plume.resources.profile_gift_collection_empty
+import eu.tintera.plume.resources.profile_story_albums_all
+import eu.tintera.plume.core.ui.GroupEmptyRow
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +70,8 @@ internal fun ProfileGiftsGrid(
     onOpen: (ProfileGift) -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Výběr sbírky v čipech nad mřížkou; `null` = všechny dárky. */
+    onSelectCollection: (collectionId: Int?) -> Unit = {},
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(GIFT_TILE_MIN),
@@ -70,6 +80,16 @@ internal fun ProfileGiftsGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxSize(),
     ) {
+        if (gifts.collections.isNotEmpty()) {
+            item(key = "collections", span = { GridItemSpan(maxLineSpan) }) {
+                CollectionChips(gifts, onSelectCollection)
+            }
+            if (gifts.items.isEmpty() && !gifts.loading && gifts.nextOffset == null) {
+                item(key = "collection-empty", span = { GridItemSpan(maxLineSpan) }) {
+                    GroupEmptyRow(stringResource(Res.string.profile_gift_collection_empty))
+                }
+            }
+        }
         itemsIndexed(gifts.items, key = { _, gift -> gift.key }) { index, gift ->
             // Konec mřížky si řekne o další stránku (efektem, ne přímo v kompozici).
             if (gifts.nextOffset != null) LoadMoreAtEnd(index, gifts.items.size, onLoadMore)
@@ -81,6 +101,39 @@ internal fun ProfileGiftsGrid(
                     LoadingIndicator()
                 }
             }
+        }
+    }
+}
+
+/**
+ * Sbírky dárků jako čipy — stejně jako alba příběhů v záložce Příběhy. Počet dárků je v čipu:
+ * sbírka se vybírá podle jména, ale číslo řekne, jestli se ťuknutí vyplatí.
+ */
+@Composable
+private fun CollectionChips(gifts: ProfileGifts, onSelect: (Int?) -> Unit) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+    ) {
+        item(key = "all") {
+            FilterChip(
+                selected = gifts.collectionId == null,
+                onClick = { onSelect(null) },
+                label = { Text(stringResource(Res.string.profile_story_albums_all)) },
+            )
+        }
+        items(gifts.collections, key = { it.id }) { collection ->
+            FilterChip(
+                selected = gifts.collectionId == collection.id,
+                onClick = { onSelect(collection.id) },
+                label = {
+                    Text(
+                        stringResource(Res.string.profile_gift_collection_chip, collection.name, collection.giftCount.grouped()),
+                        maxLines = 1,
+                        style = LocalTextStyle.current.tabularNumbers(),
+                    )
+                },
+            )
         }
     }
 }
