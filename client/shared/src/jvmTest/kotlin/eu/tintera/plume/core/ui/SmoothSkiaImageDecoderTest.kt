@@ -10,7 +10,6 @@ import coil3.size.Precision
 import coil3.size.Size
 import kotlin.math.abs
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import okio.Buffer
@@ -27,7 +26,7 @@ import org.jetbrains.skia.impl.use
 /**
  * Zmenšení obrázku na desktopu musí průměrovat, ne brát každý n-tý pixel.
  *
- * Svislé proužky po jednom pixelu (černá, bílá) zmenšené na desetinu: s filtrováním vyjde šedá,
+ * Svislé proužky po jednom pixelu (černá, bílá) zmenšené zhruba na desetinu: s filtrováním vyjde šedá,
  * nejbližší soused vybere jen jednu z barev. Výchozí dekodér Coilu je tu pro srovnání — kdyby
  * ho Coil opravil, test na něm spadne a vlastní dekodér může pryč.
  */
@@ -37,7 +36,8 @@ class SmoothSkiaImageDecoderTest {
     fun downscaleAveragesFineDetail() = runTest {
         val pixels = decode { source, options -> SmoothSkiaImageDecoder(source, options).decode() }
 
-        assertEquals(STRIPES / FACTOR, pixels.width)
+        // Coil násobí poměrem v plovoucí čárce, takže může vyjít o pixel méně.
+        assertTrue(pixels.width in SMALL - 1..SMALL, "šířka ${pixels.width}")
         val worst = pixels.greys().maxOf { abs(it - MID_GREY) }
         assertTrue(worst < 40, "zmenšené proužky mají být šedé, nejhorší odchylka $worst")
     }
@@ -52,11 +52,15 @@ class SmoothSkiaImageDecoderTest {
     private suspend fun decode(decoder: suspend (ImageSource, Options) -> DecodeResult): Bitmap {
         val options = Options(
             context = PlatformContext.INSTANCE,
-            size = Size(STRIPES / FACTOR, STRIPES / FACTOR),
+            size = Size(SMALL, SMALL),
             precision = Precision.INEXACT,
         )
         val source = ImageSource(Buffer().write(stripesPng()), FileSystem.SYSTEM)
-        return (decoder(source, options).image as BitmapImage).bitmap
+        return when (val image = decoder(source, options).image) {
+            is SmoothImage -> image.bitmap
+            is BitmapImage -> image.bitmap
+            else -> error("nečekaný obrázek $image")
+        }
     }
 
     private fun stripesPng(): ByteArray {
@@ -78,7 +82,11 @@ class SmoothSkiaImageDecoderTest {
 
     private companion object {
         const val STRIPES = 400
-        const val FACTOR = 10
+        /**
+         * Zmenšení NE na celý zlomek: při přesné desetině padá střed každého vzorku na hranici
+         * dvou proužků a šedá vyjde i z obyčejného bilineárního filtru.
+         */
+        const val SMALL = 37
         const val MID_GREY = 128
     }
 }

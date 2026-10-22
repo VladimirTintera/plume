@@ -2,7 +2,6 @@ package eu.tintera.plume.core.ui
 
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
-import coil3.asImage
 import coil3.decode.DecodeResult
 import coil3.decode.DecodeUtils
 import coil3.decode.Decoder
@@ -31,13 +30,17 @@ import org.jetbrains.skia.impl.use
  * rozpadne do moiré. Na Androidu to není (dekóduje `BitmapFactory` s filtrováním). iOS jede přes
  * týž kód Coilu, takže ho to nejspíš potkává taky — tam se to neověřovalo ani neopravilo.
  *
- * Kreslení v Compose to nespraví: dekódovaný obrázek už má velikost plochy, takže se kreslí
- * zhruba 1 : 1 a zuby jsou v něm samotném.
- *
  * Vlastní dekodér dělá totéž co výchozí (stejný výpočet velikosti, stejné meze), jen zmenšuje
  * přes mipmapy (`LINEAR` / `LINEAR`): Skia si k obrázku postaví řadu polovičních zmenšenin
  * průměrováním a vzorkuje mezi dvěma nejbližšími. Coil přidává komponenty od uživatele PŘED
  * výchozí, takže se výchozí dekodér k obrázku nedostane.
+ *
+ * **Totéž platí pro kreslení, a tam `filterQuality` nepomůže.** Bitmapu (`BitmapImage`) kreslí
+ * Compose přes `drawImageRect` se `strict = true` a Skia s přísným výřezem mipmapy nepoužije —
+ * `FilterQuality.Medium` zubatí stejně jako výchozí `Low` (změřeno, `SmoothImageTest`). Obrázek
+ * větší než plocha se kreslit musí: fotka v prohlížeči v plném rozlišení (aby šla přiblížit,
+ * [zoomLoadsFullResolution]) a fotka z paměti Coilu, kterou bublina převezme po prohlížeči místo
+ * vlastní menší. Dekodér proto vrací [SmoothImage], který se kreslí sám.
  */
 object DesktopImageLoader {
 
@@ -68,7 +71,7 @@ internal class SmoothSkiaImageDecoder(
             image.close()
         }
         bitmap.setImmutable()
-        return DecodeResult(image = bitmap.asImage(), isSampled = sampled)
+        return DecodeResult(image = SmoothImage(bitmap), isSampled = sampled)
     }
 
     class Factory : Decoder.Factory {
@@ -118,6 +121,47 @@ private fun Image.scaledFor(options: Options): Bitmap {
         )
     }
     return bitmap
+}
+
+/**
+ * Obrázek, který se kreslí přes mipmapy při jakémkoli zmenšení.
+ *
+ * Coil kreslí obrázek, který není `BitmapImage`, přes `ImagePainter`: zmenší canvas na plochu
+ * a zavolá [draw]. Zmenšení je tak v matici canvasu a Skia podle něj vybere úroveň mipmapy;
+ * přiblížení v `graphicsLayer` se do matice přičte taky, takže se při něm sahá po plném rozlišení.
+ *
+ * Skia obrázek je jeden po celou dobu života (ne nový při každém kreslení), aby si GPU nechala
+ * texturu i s mipmapami a nestavěla je v každém snímku znovu.
+ */
+internal class SmoothImage(val bitmap: Bitmap) : coil3.Image {
+
+    private val image = Image.makeFromBitmap(bitmap)
+
+    override val size: Long
+        get() = bitmap.imageInfo.computeMinByteSize().toLong().takeIf { it > 0 } ?: (4L * width * height)
+
+    override val width: Int get() = bitmap.width
+
+    override val height: Int get() = bitmap.height
+
+    override val shareable: Boolean get() = true
+
+    override fun draw(canvas: Canvas) {
+        canvas.drawImageRect(
+            image = image,
+            srcLeft = 0f,
+            srcTop = 0f,
+            srcRight = width.toFloat(),
+            srcBottom = height.toFloat(),
+            dstLeft = 0f,
+            dstTop = 0f,
+            dstRight = width.toFloat(),
+            dstBottom = height.toFloat(),
+            samplingMode = SMOOTH_SAMPLING,
+            paint = null,
+            strict = false,
+        )
+    }
 }
 
 private val SMOOTH_SAMPLING = FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR)

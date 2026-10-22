@@ -122,6 +122,7 @@ import eu.tintera.plume.core.ui.screenOrientationLockSupported
 import androidx.compose.ui.platform.LocalWindowInfo
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.zoomLoadsFullResolution
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
 import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
 import eu.tintera.plume.features.conversation.items.spoilerBlur
@@ -1307,6 +1308,8 @@ private fun ZoomableImage(
             // Soubor bez náhledu rozměry nemá a karta je čtverec; tam by `Crop` ukrojil kraje.
             contentScale = if (photo.width > 0 && photo.height > 0) ContentScale.Crop else ContentScale.Fit,
             background = Color.Transparent,
+            // Přiblížení jde do 5×; z obrázku velkého jako karta by se jen roztahovalo.
+            fullResolution = zoomLoadsFullResolution,
             modifier = Modifier
                 .fillMaxSize()
                 .spoilerBlur(hasSpoiler, revealed, spoilerStyle),

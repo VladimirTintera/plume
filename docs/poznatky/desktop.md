@@ -682,7 +682,7 @@ kolečko na posun do strany, jen když je v tom směru kam; jinak událost propa
   a záložky kategorií ve výběru emoji se posouvají tam i zpět, kolečko nad mřížkou emoji ji dál
   posouvá svisle a řada zůstane. Desktop za běhu neověřený.
 
-## Zubaté obrázky (dekodér Coilu)
+## Zubaté a rozmazané obrázky (Coil na Skie)
 
 Zmenšené fotky byly na desktopu zubaté (písmo na letáku v prohlížeči, hrany), na Androidu ne.
 **Výchozí `SkiaImageDecoder` Coilu zmenšuje nejbližším sousedem**: dekóduje celý obrázek
@@ -694,14 +694,32 @@ v 3.6). Z každých pár pixelů se vezme jeden a zbytek zahodí.
   `core/ui`): týž výpočet velikosti, zmenšení přes mipmapy `LINEAR` / `LINEAR`. Zapojuje ho
   `Main.kt` přes `SingletonImageLoader.setSafe`; Coil dává komponenty od uživatele PŘED výchozí,
   takže se výchozí dekodér k obrázku nedostane.
-- **`filterQuality` u `AsyncImage` nepomůže.** Dekódovaný obrázek už má velikost plochy, kreslí se
-  zhruba 1 : 1 a zuby jsou v něm samotném. (Compose na Skie mapuje `Low` na bilineární bez mipmap,
-  `Medium` s mipmapami, `High` na Mitchellův kubický filtr.)
-- **Test hlídá obojí** (`SmoothSkiaImageDecoderTest`): proužky po pixelu zmenšené na desetinu
-  musí vyjít šedé a výchozí dekodér Coilu je musí dál dávat černobílé. Spadne-li druhý test, Coil
-  to opravil a vlastní dekodér může pryč.
-- **iOS jede přes týž kód Coilu** (`nonAndroidMain`), takže ho to nejspíš potkává taky. Tam to
-  ověřené ani opravené není.
+- **Při kreslení `filterQuality` NEPOMŮŽE, ani `Medium`.** Compose na Skie mapuje `Medium` na
+  mipmapy, jenže bitmapu kreslí `drawImageRect` se `strict = true` (`SkiaBackedCanvas`) a Skia
+  s přísným výřezem mipmapy nepoužije — změřeno, `Medium` zubatí stejně jako `Low`. Na tom by
+  se zubatý zmenšený obrázek vrátil všude, kde je bitmapa větší než plocha: fotka v plném
+  rozlišení v prohlížeči a fotka z paměti Coilu, kterou bublina převezme po prohlížeči (Coil
+  větší obrázek z paměti přijme místo dekódování menšího).
+- **Proto dekodér vrací `SmoothImage`, ne `BitmapImage`.** Coil kreslí obrázek, který není
+  bitmapa, přes `ImagePainter`: zmenší canvas na plochu a zavolá `Image.draw`. Ten kreslí
+  s mipmapami `LINEAR` / `LINEAR` bez přísného výřezu a úroveň mipmapy si Skia vybere z matice,
+  do které se přičte i přiblížení z `graphicsLayer`. Skia obrázek drží `SmoothImage` po celý
+  život, ať si GPU nechá texturu i s mipmapami (Compose dělá `Image.makeFromBitmap` při každém
+  kreslení).
+- **Přiblížení v prohlížeči bylo rozmazané**, i když zmenšení už zubaté nebylo: dekodér zmenší
+  přesně na kartu (na desktopu kolem 360 px na šířku) a přiblížení až 5× ten malý obrázek jen
+  roztahovalo. Android to nemá — `BitmapFactory` zmenšuje přes `inSampleSize` po mocninách
+  dvou, nechá obrázek až dvakrát větší než kartu, a karta je široká jako displej. Prohlížeč
+  proto na desktopu bere plné rozlišení (`RemoteImage(fullResolution = …)`, `Size.ORIGINAL`,
+  přepínač `zoomLoadsFullResolution`); Android a iOS dál velikost karty.
+- **Testy hlídají obojí i s pastmi** (`SmoothSkiaImageDecoderTest`, `SmoothImageTest`): proužky
+  po pixelu zmenšené na 37 px musí z dekodéru i z `SmoothImage` vyjít šedé, výchozí dekodér
+  Coilu a Compose s `Medium` je musí dál dávat zubaté. Spadne-li některý z kontrolních testů,
+  knihovna to opravila a obcházka může pryč. **Zmenšení NE přesně na desetinu**: tam padá střed
+  každého vzorku na hranici dvou proužků a šedá vyjde i z obyčejného bilineárního filtru —
+  první verze testu tak „dokázala", že `Low` průměruje.
+- **iOS jede přes týž kód Coilu** (`nonAndroidMain`), takže ho nejspíš potkává obojí. Tam to
+  ověřené ani opravené není (`zoomLoadsFullResolution = false`, výchozí dekodér).
 
 ## Co platforma (zatím) neumí
 
