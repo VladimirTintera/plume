@@ -466,6 +466,11 @@
     <string name="conversation_message_deleted">That message is no longer available.</string>
     <string name="conversation_search">Search in chat</string>
     <string name="conversation_switch_chat">Switch chat</string>
+    <string name="conversation_switch_chat_hint">Faster: hold the back arrow</string>
+    <plurals name="conversation_back_unread">
+        <item quantity="one">Back, %1$d unread chat</item>
+        <item quantity="other">Back, %1$d unread chats</item>
+    </plurals>
     <string name="conversation_search_position">%1$d of %2$d</string>
     <string name="conversation_search_none">No results</string>
     <string name="conversation_selection_select">Select message</string>

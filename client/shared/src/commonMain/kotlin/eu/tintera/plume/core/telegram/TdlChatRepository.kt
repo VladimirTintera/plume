@@ -293,6 +293,10 @@ class TdlChatRepository(
 
     override val archiveUnread: StateFlow<ArchiveUnread> = _archiveUnread.asStateFlow()
 
+    private val _mainUnread = MutableStateFlow(ArchiveUnread())
+
+    override val mainUnread: StateFlow<ArchiveUnread> = _mainUnread.asStateFlow()
+
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> {
         val list = listFor(folder)
         // Seznam složky, kterou už repository zná z pozic, se publikuje hned — jinak by do
@@ -640,15 +644,16 @@ class TdlChatRepository(
         }
 
         /*
-         * Počet nepřečtených chatů v archivu a ve složkách. Nepočítá se nad [chats] — archiv
-         * i složka se načítají až při otevření, takže dokud je nikdo neotevřel, není z čeho
-         * počítat; tohle chodí i bez nich. TDLib ho posílá jen se zapnutou databází zpráv
-         * (`useMessageDatabase`).
+         * Počet nepřečtených chatů v hlavním seznamu, v archivu a ve složkách. Nepočítá se nad
+         * [chats] — archiv i složka se načítají až při otevření, takže dokud je nikdo neotevřel,
+         * není z čeho počítat; tohle chodí i bez nich. TDLib ho posílá jen se zapnutou databází
+         * zpráv (`useMessageDatabase`).
          */
         scope.launch {
             holder.updates { unreadChatCountUpdates }.collect { update ->
                 val unread = ArchiveUnread(chats = update.unreadCount, unmutedChats = update.unreadUnmutedCount)
                 when (val list = update.chatList) {
+                    is ChatListMain -> _mainUnread.value = unread
                     is ChatListArchive -> _archiveUnread.value = unread
                     is ChatListFolder -> _folderUnread.update { it + (list.chatFolderId to unread) }
                     else -> Unit

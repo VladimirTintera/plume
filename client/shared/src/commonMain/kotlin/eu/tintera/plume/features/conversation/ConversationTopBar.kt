@@ -83,6 +83,8 @@ internal fun ConversationTopBar(
     onSummary: (() -> Unit)?,
 ) {
     val connection by viewModel.connection.collectAsStateWithLifecycle()
+    // Šipka zpět i ⋮ otevírají tentýž přepínač — pod šipkou, ať je vidět, kde ho najít příště.
+    val switcher = rememberChatSwitcherState(chatId = viewModel.chatId, onSwitch = navigation.onSwitchChat)
     state.selection?.let { selection ->
         SelectionTopBar(selection = selection, onClose = viewModel::closeSelection)
         return
@@ -311,7 +313,7 @@ internal fun ConversationTopBar(
         },
         navigationIcon = {
             // Podržení nabídne rychlý přepínač chatů; ťuknutí je dál „zpět".
-            ChatSwitcherBackButton(chatId = viewModel.chatId, onBack = navigation.onBack, onSwitch = navigation.onSwitchChat)
+            ChatSwitcherBackButton(state = switcher, onBack = navigation.onBack)
         },
         actions = {
             // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
@@ -327,6 +329,7 @@ internal fun ConversationTopBar(
                 onViewAsChats = navigation.onViewAsChats?.takeIf { state.info?.isSavedMessages == true && !state.narrowed },
                 // Skupina s tématy otevřená jako zprávy: zpátky na seznam témat, jen z celé skupiny.
                 onViewAsTopics = navigation.onViewAsTopics?.takeIf { state.info?.isForum == true && !state.narrowed },
+                onSwitchChat = switcher::open.takeIf { switcher.canSwitch },
             )
         },
     )

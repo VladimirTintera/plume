@@ -56,16 +56,50 @@ class ChatSwitcherTest {
         )
     }
 
-    private fun chat(id: Long, sponsor: ChatSponsor? = null) = ChatSummary(
+    /**
+     * Nepřečtený chat hluboko v seznamu se do nabídky vejde (slibuje ho odznak na šipce), hned za
+     * posledním otevřeným; ztlumený nepřečtený přednost nemá.
+     */
+    @Test
+    fun neprecteneZaPoslednim() {
+        val chats = (1L..10L).map { chat(it, unread = if (it == 9L) 2 else 0, muted = false) } +
+            chat(11, unread = 4, muted = true)
+        assertEquals(
+            listOf(5L, 9L, 4L, 2L),
+            switcherChats(recent = listOf(1, 5, 4), chats = chats, archived = emptyList(), currentChatId = 1, savedMessagesChatId = null, max = 4).map { it.id },
+        )
+    }
+
+    /** Otevřený nepřečtený chat se z počtu na šipce odečte, ztlumený ani přečtený ne. */
+    @Test
+    fun neprecteneJinde() {
+        val chats = listOf(chat(1, unread = 3), chat(2, unread = 1, muted = true), chat(3, markedUnread = true), chat(4))
+        assertEquals(2, unreadElsewhere(unmutedUnreadChats = 3, chats = chats, currentChatId = 1))
+        assertEquals(2, unreadElsewhere(unmutedUnreadChats = 3, chats = chats, currentChatId = 3))
+        assertEquals(3, unreadElsewhere(unmutedUnreadChats = 3, chats = chats, currentChatId = 2))
+        assertEquals(3, unreadElsewhere(unmutedUnreadChats = 3, chats = chats, currentChatId = 4))
+        // Chat mimo hlavní seznam (archiv, odkaz) v počtu TDLib není.
+        assertEquals(3, unreadElsewhere(unmutedUnreadChats = 3, chats = chats, currentChatId = 99))
+        // Počet od TDLib ještě nedorazil: odznak nesmí jít do minusu.
+        assertEquals(0, unreadElsewhere(unmutedUnreadChats = 0, chats = chats, currentChatId = 1))
+    }
+
+    private fun chat(
+        id: Long,
+        sponsor: ChatSponsor? = null,
+        unread: Int = 0,
+        muted: Boolean = false,
+        markedUnread: Boolean = false,
+    ) = ChatSummary(
         id = id,
         title = "Chat $id",
-        unreadCount = 0,
+        unreadCount = unread,
         lastMessagePreview = null,
         isPinned = false,
         order = id,
         avatarFileId = null,
-        isMuted = false,
-        isMarkedAsUnread = false,
+        isMuted = muted,
+        isMarkedAsUnread = markedUnread,
         kind = ChatKind.Private,
         lastMessageTimestamp = null,
         presence = null,

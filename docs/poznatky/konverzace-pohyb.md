@@ -636,8 +636,12 @@ Podržení šipky zpět v hlavičce konverzace nabídne chaty, mezi kterými už
   zavřela pod otevřenou nabídkou. Haptiku volá aplikace sama (`longPress()`), protože gesto
   detekuje sama. Čtečce nese akci `semantics { onLongClick(label = "Přepnout chat") }`;
   v `uiautomator` je pak uzel tlačítka `long-clickable="true"`.
-- **Co nabídnout: naposledy otevřené, pak vršek hlavního seznamu** (`switcherChats`, testy
-  `ChatSwitcherTest`), nejvýš šest položek bez otevřeného chatu. Historie je jen v paměti:
+- **Co nabídnout: poslední otevřený, nepřečtené, zbytek historie, pak vršek hlavního seznamu**
+  (`switcherChats`, testy `ChatSwitcherTest`), nejvýš šest položek bez otevřeného chatu.
+  Nepřečtené (neztlumené) mají přednost před historií, protože je slibuje odznak na šipce:
+  v pořadí seznamu se nepřečtený chat na osmém místě do nabídky nevešel a šipka hlásila „1"
+  bez chatu, na který by ukazovala (zjištěno na emulátoru). Poslední chat před nimi zůstává
+  kvůli přepínání sem a tam mezi dvěma chaty. Historie je jen v paměti:
   nese „s kým si teď píšu" a po restartu ji nahradí pořadí v seznamu, které říká skoro totéž.
   Archivovaný chat jen z historie, sponzorovaný nikdy, Uložené zprávy ze seznamu jen připnuté
   (stejně jako v seznamu chatů). Id, které v seznamech není (chat z odkazu, jiný účet), se
@@ -652,7 +656,30 @@ Podržení šipky zpět v hlavičce konverzace nabídne chaty, mezi kterými už
   v hlavní větvi). Skupina s tématy otevře seznam témat, Uložené zprávy po chatech seznam svých
   témat — podle téže volby jako ťuknutí v seznamu.
 - **V bublině konverzace se přepínač nenabízí** (`onSwitchChat = null`): bublina je jeden chat
-  a jiný do ní nepatří.
+  a jiný do ní nepatří — ani položka v ⋮, ani odznak na šipce.
+- **Podržení samo nikdo nenajde, proto má přepínač dvě trvalé stopy.** M3 učí, že podržení
+  ikonového tlačítka ukáže popisek, takže pod ním nikdo nabídku nečeká. Jednorázovou bublinu
+  s nápovědou lidé zavírají nečtenou, split button (M3E `SplitButtonLayout`) je na hlavní akci
+  s variantami a ve slotu navigace by šipka dostala plochu nebo rámeček. Místo toho:
+  - **„Přepnout chat" v ⋮** jako samostatná skupina nahoře, s nápovědou pod popiskem
+    („Rychleji: podržte šipku zpět", `MenuAction.supporting` → `supportingText`). Položka
+    otevře TUTÉŽ nabídku POD ŠIPKOU, ne podnabídku v ⋮ — kdo ji použije, vidí, kde přepínač
+    bydlí. Stav nabídky proto drží `ChatSwitcherState` v hlavičce (`rememberChatSwitcherState`)
+    a sdílí ho šipka i ⋮. Bez chatů, na které přepnout, položka chybí.
+  - **Odznak na šipce s počtem nepřečtených chatů jinde** (`unreadElsewhere`, testy
+    `ChatSwitcherTest`). Počet je od TDLib pro hlavní seznam (`UpdateUnreadChatCount` →
+    `ChatRepository.mainUnread`), ne nad načtenými chaty: seznam se dotahuje po stránkách.
+    Jen neztlumené, jako u složek. Otevřený chat se odečte podle téhož pravidla, jakým počítá
+    TDLib (nepřečtené zprávy nebo ruční příznak, ne ztlumený), jinak by „1" mířila na chat na
+    obrazovce, než se v něm zprávy označí přečtené. Archiv TDLib počítá zvlášť, archivovaný
+    otevřený chat se tedy neodečítá. Když je seznam vidět vedle konverzace
+    (`LocalPaneNeighbours.listBeside`), odznak se nekreslí — opakoval by odznaky seznamu.
+    Čtečka dostane „Zpět, 3 nepřečtené chaty" (`conversation_back_unread`). Odznak je
+    v `primary` jako odznaky v seznamu a v nabídce pod šipkou: výchozí `Badge` má chybovou
+    barvu a vedle nich hlásil poruchu (vidět na emulátoru).
+  - **Ověřeno na emulátoru** (Pixel 10 Pro XL, česky i anglicky): odznak „1", položka v ⋮
+    s nápovědou otevře přepínač pod šipkou, nepřečtený chat z osmého místa je v nabídce první,
+    podržení dál funguje, popisek pro čtečku. **iOS ani desktop neověřené.**
 - **Ověřeno na emulátoru Fold** (rozložený i složený): nabídka s fotkami a odznakem (ztlumený chat
   neutrálně), jedna vibrace `constant=0`, puštění po podržení konverzaci nezavřelo, přepnutí
   z tématu do chatu a z chatu do skupiny s tématy (otevřel se seznam témat), zpět z přepnutého

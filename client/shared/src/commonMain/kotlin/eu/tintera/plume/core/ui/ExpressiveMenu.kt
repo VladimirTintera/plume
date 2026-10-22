@@ -23,12 +23,16 @@ import org.jetbrains.compose.resources.painterResource
  *
  * [trailing] je na konci řádku (odznak s počtem) — je to STAV toho, kam položka vede, ne další
  * akce; klikání nese celý řádek.
+ *
+ * [supporting] je drobný text pod popiskem — třeba rychlejší cesta k téže akci („podržte šipku
+ * zpět"), kterou se uživatel dozví pokaždé, když položku použije.
  */
 class MenuAction(
     val label: String,
     val icon: DrawableResource? = null,
     val destructive: Boolean = false,
     val trailing: (@Composable () -> Unit)? = null,
+    val supporting: String? = null,
     val onClick: () -> Unit,
 )
 
@@ -84,6 +88,7 @@ fun ExpressiveMenu(
                         shape = MenuDefaults.itemShape(index, group.size).shape,
                         leadingIcon = action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
                         trailingIcon = action.trailing,
+                        supportingText = action.supporting?.let { text -> { Text(text) } },
                         colors = colors,
                     )
                 }

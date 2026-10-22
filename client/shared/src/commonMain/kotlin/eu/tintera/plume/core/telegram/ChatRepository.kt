@@ -309,6 +309,13 @@ interface ChatRepository {
     val archiveUnread: StateFlow<ArchiveUnread>
 
     /**
+     * Kolik chatů v hlavním seznamu je nepřečtených (odznak na šipce zpět v konverzaci). Taky od
+     * TDLib, ne nad [chats]: seznam se dotahuje po stránkách a nepřečtený chat hluboko v něm by
+     * v počtu chyběl.
+     */
+    val mainUnread: StateFlow<ArchiveUnread>
+
+    /**
      * Nastavení archivu. Čte se na vyžádání — TDLib na jeho změnu žádný update neposílá, takže
      * se pak drží u toho, kdo ho zobrazuje.
      */
