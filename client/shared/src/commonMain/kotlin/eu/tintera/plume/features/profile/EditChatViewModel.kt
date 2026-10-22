@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.welcome_messages_delete_failed
+import eu.tintera.plume.resources.welcome_messages_add_failed
+import eu.tintera.plume.core.telegram.WelcomeMessage
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.Job
 import eu.tintera.plume.resources.edit_chat_forum_failed
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSetSummary
@@ -275,6 +280,57 @@ class EditChatViewModel(
     fun shareBoostLink() {
         val url = boosts?.status?.boostUrl ?: return
         if (sharer?.shareText(url) != true) notice = UiText(Res.string.invite_links_share_failed)
+    }
+
+    /** Otevřený sheet uvítacích zpráv: `null` = zavřený ([WelcomeSheet]). */
+    var welcome by mutableStateOf<WelcomeSheet?>(null)
+        private set
+
+    private var welcomeJob: Job? = null
+
+    /**
+     * Uvítací zprávy se sledují, dokud je sheet otevřený — seznam přichází updatem po načtení
+     * i po každé změně (přidání, smazání, i z jiného zařízení), takže se po akci nemusí číst znovu.
+     */
+    fun openWelcomeMessages() {
+        welcome = WelcomeSheet()
+        welcomeJob?.cancel()
+        welcomeJob = viewModelScope.launch {
+            repository.welcomeMessages(chatId)
+                .catch { failure ->
+                    logger.w(failure) { "Uvítací zprávy chatu $chatId se nepodařilo načíst." }
+                    welcome = welcome?.copy(failed = true)
+                }
+                .collect { messages -> welcome = welcome?.copy(messages = messages) }
+        }
+    }
+
+    fun closeWelcomeMessages() {
+        welcomeJob?.cancel()
+        welcomeJob = null
+        welcome = null
+    }
+
+    fun addWelcomeMessage(text: String) {
+        val sheet = welcome ?: return
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || sheet.busy) return
+        welcome = sheet.copy(busy = true)
+        viewModelScope.launch {
+            repository.addWelcomeMessage(chatId, trimmed)
+                .onSuccess { welcome = welcome?.copy(busy = false, added = (welcome?.added ?: 0) + 1) }
+                .onFailure { failure ->
+                    welcome = welcome?.copy(busy = false)
+                    notice = failure.reported(Res.string.welcome_messages_add_failed)
+                }
+        }
+    }
+
+    fun deleteWelcomeMessage(id: Int) {
+        viewModelScope.launch {
+            repository.deleteWelcomeMessage(chatId, id)
+                .onFailure { failure -> notice = failure.reported(Res.string.welcome_messages_delete_failed) }
+        }
     }
 
     /** Smazání pro všechny právě běží. */
@@ -683,6 +739,18 @@ class EditChatViewModel(
 
 /** Proč se základní skupina převádí na supergroupu — podle toho mluví potvrzení. */
 enum class GroupUpgradeReason { PublicLink, Topics }
+
+/**
+ * Sheet uvítacích zpráv: [messages] po načtení (`null` = načítá se), [failed] když načtení
+ * selhalo, [busy] během přidávání. [added] se zvedá po každém přidání — sheet podle něj
+ * vyprázdní pole.
+ */
+data class WelcomeSheet(
+    val messages: List<WelcomeMessage>? = null,
+    val failed: Boolean = false,
+    val busy: Boolean = false,
+    val added: Int = 0,
+)
 
 /** Sheet boostů: [status] po načtení, [failed] když načtení selhalo, jinak se načítá. */
 data class BoostSheet(

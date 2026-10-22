@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.celebration_24dp
+import eu.tintera.plume.resources.welcome_messages_row_help
+import eu.tintera.plume.resources.welcome_messages_title
 import eu.tintera.plume.resources.group_24dp
 import eu.tintera.plume.resources.history_24dp
 import eu.tintera.plume.core.ui.SaveActionButton
@@ -181,6 +184,14 @@ fun EditChatScreen(
 
     // Návrat ze seznamu omezených / vyhozených: obrazovka se skládá znovu a počty se přečtou.
     LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
+    viewModel.welcome?.let { sheet ->
+        WelcomeMessagesSheet(
+            sheet = sheet,
+            onAdd = viewModel::addWelcomeMessage,
+            onDelete = viewModel::deleteWelcomeMessage,
+            onDismiss = viewModel::closeWelcomeMessages,
+        )
+    }
     viewModel.boosts?.let { sheet ->
         BoostStatusSheet(
             sheet = sheet,
@@ -491,6 +502,19 @@ fun EditChatScreen(
 
                 // Omezení a vyhození: supergroup a kanál, vlastník a správce s právem omezovat.
                 chat.moderation?.let { ModerationGroup(it, onOpenRemoved) }
+
+                // Uvítací zprávy pro nové členy: vlastník a správce s právem je spravovat.
+                if (chat.rights.canManageWelcomeMessages) {
+                    GroupedColumn(Modifier.fillMaxWidth()) {
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            headlineContent = { Text(stringResource(Res.string.welcome_messages_title)) },
+                            supportingContent = { Text(stringResource(Res.string.welcome_messages_row_help)) },
+                            leadingContent = { Icon(painterResource(Res.drawable.celebration_24dp), contentDescription = null) },
+                            modifier = Modifier.clickable(onClick = viewModel::openWelcomeMessages),
+                        )
+                    }
+                }
 
                 // Boosty: správce supergroupy a kanálu (stejná podmínka jako záznam akcí).
                 if (chat.canViewEventLog) {
