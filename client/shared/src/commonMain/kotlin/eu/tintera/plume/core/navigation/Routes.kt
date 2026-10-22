@@ -357,6 +357,11 @@ data class MediaRoute(
      * [messageId] 0 — stránka není zpráva. `NO_STORY` = běžná zpráva.
      */
     val storyId: Int = NO_STORY,
+    /**
+     * Médium sponzorované zprávy [messageId] místo přílohy zprávy (video reklamy na celou
+     * obrazovku). Reklama není v historii chatu, prohlížeč ji načte ze seznamu reklam.
+     */
+    val sponsored: Boolean = false,
 ) : Route
 
 /**

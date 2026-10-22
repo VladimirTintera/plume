@@ -26,6 +26,8 @@ import eu.tintera.plume.resources.media_describe_hide
 import eu.tintera.plume.resources.media_text
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import eu.tintera.plume.core.ui.readString
@@ -152,6 +154,9 @@ import eu.tintera.plume.resources.media_self_destruct_seconds
 import eu.tintera.plume.resources.media_view_once
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.media_more
+import eu.tintera.plume.resources.sponsored_open
+import eu.tintera.plume.resources.sponsored_recommended
+import eu.tintera.plume.resources.sponsored_sponsored
 import eu.tintera.plume.resources.media_save
 import eu.tintera.plume.resources.media_save_as
 import eu.tintera.plume.resources.media_profile_photo_delete_text
@@ -201,6 +206,11 @@ fun MediaViewerScreen(
      * Platí jen pro zprávu, se kterou se prohlížeč otevřel (`initialMessageId`).
      */
     startSeconds: Int = NO_START,
+    /**
+     * Tlačítko reklamy (video reklamy na celé obrazovce): prohlížeč kliknutí nahlásí, zavře se
+     * a odkaz předá sem — otevírá ho konverzace pod ním.
+     */
+    onOpenSponsoredLink: (url: String) -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Podklad je tmavý v obou motivech, takže i ikony lišt musí být světlé.
@@ -296,6 +306,12 @@ fun MediaViewerScreen(
                 onDismiss = {
                     viewModel.onDismiss()
                     onBack()
+                },
+                onSponsoredButton = {
+                    viewModel.openSponsoredLink()?.let { url ->
+                        viewModel.onDismiss()
+                        onOpenSponsoredLink(url)
+                    }
                 },
                 startSeconds = startSeconds,
             )
@@ -399,6 +415,8 @@ private fun ViewerContent(
     onCloseDescription: () -> Unit,
     onFocusShown: () -> Unit,
     onDismiss: () -> Unit,
+    /** Tlačítko reklamy pod snímkem; kreslí se jen u reklamy ([MediaViewerState.sponsored]). */
+    onSponsoredButton: () -> Unit,
     startSeconds: Int,
 ) {
     val items = state.items
@@ -804,6 +822,20 @@ private fun ViewerContent(
             }
         }
 
+        // Tlačítko reklamy na místě pruhu reakcí — reklama reakce ani odpověď nemá.
+        val sponsored = state.sponsored
+        val sponsoredVisible = settled && !immersive && current != null && sponsored != null
+        var sponsoredArrived by remember { mutableStateOf(false) }
+        LaunchedEffect(sponsoredVisible) { if (sponsoredVisible) sponsoredArrived = true }
+        AnimatedVisibility(
+            visible = sponsoredVisible,
+            enter = if (sponsoredArrived) chromeEnter else slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } + chromeEnter,
+            exit = chromeExit,
+            modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
+        ) {
+            if (current != null && sponsored != null) SponsoredButtonBar(current, sponsored, onSponsoredButton)
+        }
+
         // Text z fotky na místě pruhu reakcí; poslední text se drží i během odjezdu panelu.
         var lastPhotoText by remember { mutableStateOf(photoText) }
         if (photoText != null) lastPhotoText = photoText
@@ -974,9 +1006,15 @@ private fun TopBar(
             } else {
                 null
             }
+            // Reklama čas nemá; místo něj štítek, ať se nesplete s příspěvkem kanálu.
+            val sponsored = state.sponsored
+            val subtitle = if (sponsored != null) {
+                stringResource(if (sponsored.isRecommended) Res.string.sponsored_recommended else Res.string.sponsored_sponsored)
+            } else {
+                "${item.timestamp.asDayLabel()} ${item.timestamp.asTimeOfDay()}"
+            }
             Text(
-                text = listOfNotNull("${item.timestamp.asDayLabel()} ${item.timestamp.asTimeOfDay()}", counter)
-                    .joinToString(" · "),
+                text = listOfNotNull(subtitle, counter).joinToString(" · "),
                 style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
                 color = ON_SCRIM.copy(alpha = SECONDARY_ALPHA),
                 maxLines = 1,
@@ -1164,6 +1202,28 @@ private fun ReactionBar(
             },
             onDismiss = { pickerOpen = false },
         )
+    }
+}
+
+/**
+ * Tlačítko reklamy pod médiem na celé obrazovce. Specifikace ho tu chce: odkaz reklamy se
+ * u videa otevírá až odsud, ťuknutí na video v konverzaci jen přehrává.
+ */
+@Composable
+private fun SponsoredButtonBar(item: ViewerItem, sponsored: ViewerSponsored, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .height(BOTTOM_BAR_HEIGHT)
+            .strayTapGuard(item.messageId)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Button(onClick = onClick, shapes = ButtonDefaults.shapes()) {
+            // Popisek dodává Telegram — vlastní text by byl zásah do reklamy.
+            Text(sponsored.buttonText.ifBlank { stringResource(Res.string.sponsored_open) }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 

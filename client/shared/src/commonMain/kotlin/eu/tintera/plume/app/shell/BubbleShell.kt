@@ -12,6 +12,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import eu.tintera.plume.app.root.presentation.theme.ChatColorTheme
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
+import eu.tintera.plume.features.conversation.SponsoredLinkRequests
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
@@ -41,6 +42,7 @@ import org.koin.core.parameter.parametersOf
 fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -> Unit) {
     val backStack = rememberNavBackStack(NavSavedStateConfiguration, ConversationRoute(chatId))
     val replyRequests = koinInject<ConversationReplyRequests>()
+    val sponsoredLinks = koinInject<SponsoredLinkRequests>()
     val decorators = listOf<NavEntryDecorator<NavKey>>(
         rememberSaveableStateHolderNavEntryDecorator(),
         rememberViewModelStoreNavEntryDecorator(),
@@ -60,6 +62,7 @@ fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -
                         onOpenMediaAt = { messageId, seconds -> backStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds)) },
                         onOpenPollMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, pollMedia = index)) },
                         onOpenArticleMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, articleMedia = index)) },
+                        onOpenSponsoredMedia = { messageId -> backStack.add(MediaRoute(route.chatId, messageId, sponsored = true)) },
                         onForward = { onOpenInApp(route.chatId) },
                         onOpenChat = { target -> onOpenInApp(target.chatId) },
                         onSearch = { onOpenInApp(route.chatId) },
@@ -85,9 +88,17 @@ fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -
             ) {
                 MediaViewerScreen(
                     viewModel = koinViewModel(
-                        key = "bubble-media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.articleMedia}",
+                        key = "bubble-media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.articleMedia}-${route.sponsored}",
                         parameters = {
-                            parametersOf(route.chatId, route.messageId, route.pollMedia, route.profilePhotos, route.articleMedia, route.storyId)
+                            parametersOf(
+                                route.chatId,
+                                route.messageId,
+                                route.pollMedia,
+                                route.profilePhotos,
+                                route.articleMedia,
+                                route.storyId,
+                                route.sponsored,
+                            )
                         },
                     ),
                     onBack = { backStack.remove(route) },
@@ -98,6 +109,10 @@ fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -
                         backStack.remove(route)
                     },
                     startSeconds = route.startSeconds,
+                    onOpenSponsoredLink = { url ->
+                        sponsoredLinks.request(route.chatId, url)
+                        backStack.remove(route)
+                    },
                 )
             }
         }

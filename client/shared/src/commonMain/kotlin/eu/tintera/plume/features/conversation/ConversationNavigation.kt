@@ -29,6 +29,8 @@ data class ConversationNavigation(
     val onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
     /** Médium článku v prohlížeči; `index` viz [MessageAction.OpenArticleMedia]. */
     val onOpenArticleMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
+    /** Video reklamy na celé obrazovce (prohlížeč s tlačítkem reklamy). */
+    val onOpenSponsoredMedia: (messageId: Long) -> Unit = {},
     /** Příběh v prohlížeči — citace odpovědi na příběh, odkaz `t.me/jméno/s/N`. */
     val onOpenStory: (StoryTarget) -> Unit = {},
     /**

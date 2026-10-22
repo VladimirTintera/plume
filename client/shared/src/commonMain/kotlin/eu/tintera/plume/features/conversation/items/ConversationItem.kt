@@ -199,6 +199,12 @@ internal interface ConversationItemScope {
     /** Nahlásit reklamu (průvodce s důvody od serveru). */
     fun reportSponsored(sponsored: SponsoredMessage) {}
 
+    /**
+     * Ťuknutí na médium reklamy: fotka a GIF otevřou odkaz, video jde na celou obrazovku
+     * ([SponsoredMessage.mediaOpensLink]). Obojí se hlásí jako kliknutí na médium.
+     */
+    fun openSponsoredMedia(sponsored: SponsoredMessage) = openSponsored(sponsored)
+
     /** Tlačítko Zastavit u rozepsané odpovědi bota ([PendingReplyItem]); ta taky není zpráva chatu. */
     fun stopPendingReply() {}
 
@@ -397,6 +403,7 @@ internal data class SponsoredItem(val sponsored: SponsoredMessage) : Conversatio
         SponsoredCard(
             sponsored = sponsored,
             onClick = { scope.openSponsored(sponsored) },
+            onMediaClick = { scope.openSponsoredMedia(sponsored) },
             onReport = { scope.reportSponsored(sponsored) },
             modifier = Modifier
                 .gathered(key, scope)

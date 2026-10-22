@@ -127,7 +127,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun sponsoredMessages(chatId: Long) : Result<List<SponsoredMessage>> = error("sponsoredMessages")
     override suspend fun joinChat(chatId: Long) : Result<JoinResult> = error("joinChat")
     override suspend fun reportSponsoredView(chatId: Long, messageId: Long) : Result<Unit> = error("reportSponsoredView")
-    override suspend fun reportSponsoredClick(chatId: Long, messageId: Long) : Result<Unit> = error("reportSponsoredClick")
+    override suspend fun reportSponsoredClick(chatId: Long, messageId: Long, isMediaClick: Boolean, fromFullscreen: Boolean) : Result<Unit> = error("reportSponsoredClick")
     override suspend fun reportViewMetrics(chatId: Long, metrics: MessageViewMetrics) : Result<Unit> = error("reportViewMetrics")
     override fun pendingMessages(chatId: Long) : Flow<PendingBotMessage> = error("pendingMessages")
     override fun stoppedPendingMessages(chatId: Long) : Flow<Long> = error("stoppedPendingMessages")

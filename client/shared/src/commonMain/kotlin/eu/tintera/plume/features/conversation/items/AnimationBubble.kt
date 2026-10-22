@@ -63,6 +63,8 @@ internal fun AnimationBubble(
     modifier: Modifier = Modifier,
     revealed: Boolean = true,
     onReveal: () -> Unit = {},
+    /** Ťuknutí na stažený GIF místo pozastavení — u reklamy otevře její odkaz. */
+    onOpen: (() -> Unit)? = null,
 ) {
     // Nad stropem automatického stahování (podle sítě) se čeká na ťuknutí. GIF, který už na
     // disku je, hraje i tak — jen se kvůli němu nic nestahuje.
@@ -84,6 +86,7 @@ internal fun AnimationBubble(
                     when {
                         hidden -> onReveal()
                         path == null -> requested = true
+                        onOpen != null -> onOpen()
                         else -> paused = !paused
                     }
                 },

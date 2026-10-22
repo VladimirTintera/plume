@@ -58,6 +58,7 @@ internal class ScreenItemScope(
     private val onOpenMedia: (messageId: Long) -> Unit,
     private val onOpenPollMedia: (messageId: Long, index: Int) -> Unit,
     private val onOpenArticleMedia: (messageId: Long, index: Int) -> Unit,
+    private val onOpenSponsoredMedia: (messageId: Long) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
     private val onSearch: (query: String) -> Unit,
     private val onSaveFileAs: (messageId: Long) -> Unit,
@@ -226,6 +227,15 @@ internal class ScreenItemScope(
 
     override fun openSponsored(sponsored: SponsoredMessage) = viewModel.onSponsoredClick(sponsored)
     override fun reportSponsored(sponsored: SponsoredMessage) = viewModel.reportSponsored(sponsored)
+
+    override fun openSponsoredMedia(sponsored: SponsoredMessage) {
+        if (sponsored.mediaOpensLink) {
+            viewModel.onSponsoredClick(sponsored, isMediaClick = true)
+        } else {
+            viewModel.onSponsoredVideoOpened(sponsored)
+            onOpenSponsoredMedia(sponsored.messageId)
+        }
+    }
 
     override fun stopPendingReply() = viewModel.stopPendingReply()
 }
