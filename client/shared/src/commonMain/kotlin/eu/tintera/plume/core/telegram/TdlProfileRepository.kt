@@ -402,6 +402,9 @@ class TdlProfileRepository(
             canSetStickerSet = !isChannel && supergroupInfo?.canSetStickerSet == true,
             canDeleteForAll = chat.canBeDeletedForAllUsers,
             canViewEventLog = supergroup != null && (own is OwnMemberStatus.Admin || (own as? OwnMemberStatus.Creator)?.isMember == true),
+            supergroupId = (chat.type as? ChatTypeSupergroup)?.supergroupId?.takeIf { !isChannel },
+            isOwner = owner,
+            isBroadcastGroup = supergroup?.isBroadcastGroup == true,
             settings = chat.memberGroupKind()?.let { kind ->
                 groupSettings(chat, kind, own, supergroup, supergroupInfo)
             } ?: GroupSettings(),
@@ -1073,6 +1076,9 @@ class TdlProfileRepository(
         }
         emitAll(sources.merge())
     }
+
+    override suspend fun convertToBroadcastGroup(supergroupId: Long): Result<Unit> =
+        client.toggleSupergroupIsBroadcastGroup(supergroupId = supergroupId).toResult().map { }
 
     override fun welcomeMessages(chatId: Long): Flow<List<WelcomeMessage>> = channelFlow {
         // Seznam přichází updatem: odběr musí běžet dřív, než se o načtení řekne, jinak by první

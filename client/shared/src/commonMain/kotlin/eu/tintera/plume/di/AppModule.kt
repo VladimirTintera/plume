@@ -781,6 +781,7 @@ fun appModule() = module {
             quickReaction = get(),
             clipboard = get(),
             sharer = get(),
+            notices = get(),
         )
     }
 

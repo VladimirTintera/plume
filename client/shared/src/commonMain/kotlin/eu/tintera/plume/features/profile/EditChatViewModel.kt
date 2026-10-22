@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.broadcast_group_failed
+import eu.tintera.plume.resources.broadcast_group_done
+import eu.tintera.plume.core.telegram.offersBroadcastGroup
+import eu.tintera.plume.core.telegram.AccountNotices
 import eu.tintera.plume.resources.welcome_messages_delete_failed
 import eu.tintera.plume.resources.welcome_messages_add_failed
 import eu.tintera.plume.core.telegram.WelcomeMessage
@@ -94,7 +98,22 @@ class EditChatViewModel(
     /** Odkaz na boost do schránky a do systémového sdílení. */
     private val clipboard: TextClipboard? = null,
     private val sharer: MediaSharer? = null,
+    /** Doporučení převést skupinu na gigaskupinu; bez něj se převod nenabízí. */
+    notices: AccountNotices? = null,
 ) : ViewModel() {
+
+    /**
+     * Telegram doporučuje převést tyhle supergroupy na gigaskupinu (viz [offersBroadcastGroup]).
+     * Compose stav, ne holý `StateFlow.value`: doporučení může dorazit až po otevření úpravy
+     * a řádek se pak musí ukázat sám.
+     */
+    private var broadcastSuggestions by mutableStateOf<Set<Long>>(emptySet())
+
+    init {
+        notices?.let { source ->
+            viewModelScope.launch { source.broadcastGroupSuggestions.collect { broadcastSuggestions = it } }
+        }
+    }
 
     /**
      * Upravovaný chat. Po převodu základní skupiny na supergroupu se změní na id nové skupiny —
@@ -550,6 +569,31 @@ class EditChatViewModel(
                 permissions = previous
                 notice = failure.reported(Res.string.edit_chat_permissions_failed)
             }
+        }
+    }
+
+    /** Nabídnout převod na gigaskupinu: vlastníkovi, kterému ho Telegram doporučil. */
+    val offersBroadcastGroup: Boolean
+        get() = original?.let { offersBroadcastGroup(it, broadcastSuggestions) } == true
+
+    /** Převod na gigaskupinu právě běží. */
+    var convertingToBroadcast by mutableStateOf(false)
+        private set
+
+    /** Převede skupinu na gigaskupinu; potvrzení drží obrazovka (převod je nevratný). */
+    fun convertToBroadcastGroup() {
+        val chat = original ?: return
+        val supergroupId = chat.supergroupId ?: return
+        if (convertingToBroadcast || !offersBroadcastGroup) return
+        convertingToBroadcast = true
+        viewModelScope.launch {
+            repository.convertToBroadcastGroup(supergroupId)
+                .onSuccess {
+                    original = original?.copy(isBroadcastGroup = true)
+                    notice = UiText(Res.string.broadcast_group_done)
+                }
+                .onFailure { notice = it.reported(Res.string.broadcast_group_failed) }
+            convertingToBroadcast = false
         }
     }
 

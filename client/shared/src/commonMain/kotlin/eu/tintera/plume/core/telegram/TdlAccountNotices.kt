@@ -60,6 +60,9 @@ class TdlAccountNotices(
     private val _suggestedActions = MutableStateFlow<List<SuggestedAction>>(emptyList())
     override val suggestedActions: StateFlow<List<SuggestedAction>> = _suggestedActions.asStateFlow()
 
+    private val _broadcastGroupSuggestions = MutableStateFlow<Set<Long>>(emptySet())
+    override val broadcastGroupSuggestions: StateFlow<Set<Long>> = _broadcastGroupSuggestions.asStateFlow()
+
     /** Objekt od TDLib ke každé akci — `hideSuggestedAction` chce zpátky přesně ten. */
     private val tdlActions = mutableMapOf<SuggestedAction, TdlSuggestedAction>()
 
@@ -112,6 +115,10 @@ class TdlAccountNotices(
                 val added = update.addedActions.mapNotNull { tdl -> tdl.toDomain()?.also { tdlActions[it] = tdl } }
                 removed.forEach { tdlActions.remove(it) }
                 _suggestedActions.update { current -> (current - removed + added).distinct() }
+                // Převod na gigaskupinu do karty nepatří (viz `toDomain`), drží se zvlášť po skupinách.
+                val addedGroups = update.addedActions.filterIsInstance<SuggestedActionConvertToBroadcastGroup>().map { it.supergroupId }
+                val removedGroups = update.removedActions.filterIsInstance<SuggestedActionConvertToBroadcastGroup>().map { it.supergroupId }
+                _broadcastGroupSuggestions.update { current -> current - removedGroups.toSet() + addedGroups }
             }
         }
         // Narozeniny kontaktů: TDLib pošle seznam po startu a pak při každé změně (i po schování).
@@ -138,6 +145,7 @@ class TdlAccountNotices(
                 _termsOfService.value = null
                 _freeze.value = null
                 _suggestedActions.value = emptyList()
+                _broadcastGroupSuggestions.value = emptySet()
                 _closeBirthdays.value = emptyList()
                 tdlActions.clear()
             }
@@ -205,8 +213,9 @@ internal fun TdlSuggestedAction.toDomain(): SuggestedAction? = when (this) {
     is SuggestedActionSetBirthdate -> SuggestedAction.SetBirthdate
     is SuggestedActionEnableArchiveAndMuteNewChats -> SuggestedAction.ArchiveUnknownChats
     is SuggestedActionCustom -> SuggestedAction.Custom(name = name, title = title.text, description = description.text, url = url)
-    // Placené služby Plume nepropaguje (Premium, hvězdy, dárky); převod skupiny na kanál
-    // nastavit neumí; nápověda k fajfkám je v aplikaci jinde. Přístupový klíč přidat
+    // Placené služby Plume nepropaguje (Premium, hvězdy, dárky); převod na gigaskupinu do karty
+    // nepatří — nabízí ho úprava té skupiny (`broadcastGroupSuggestions`); nápověda k fajfkám
+    // je v aplikaci jinde. Přístupový klíč přidat
     // NEJDE: Android a iOS ho k doméně telegram.org dovolí vytvořit jen aplikacím, které
     // Telegram uvádí na webu (assetlinks.json, apple-app-site-association).
     is SuggestedActionAddLoginPasskey, is SuggestedActionConvertToBroadcastGroup,

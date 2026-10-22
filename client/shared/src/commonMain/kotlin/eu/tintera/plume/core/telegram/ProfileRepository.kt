@@ -203,6 +203,12 @@ interface ProfileRepository {
     suspend fun deleteChatForAll(chatId: Long): Result<Unit>
 
     /**
+     * Převede supergroupu na gigaskupinu (`toggleSupergroupIsBroadcastGroup`): bez stropu členů,
+     * psát smějí jen správci. **Nevratné.** Jen vlastník, viz [offersBroadcastGroup].
+     */
+    suspend fun convertToBroadcastGroup(supergroupId: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Uvítací zprávy chatu pro nové členy, od první po poslední (`loadChatWelcomeMessages`
      * a `updateChatWelcomeMessages`). Tok se ozve po načtení a po každé změně, i z jiného
      * zařízení. Jen pro vlastníka a správce s právem ([ChatEditRights.canManageWelcomeMessages]).
@@ -411,7 +417,25 @@ data class EditableChat(
     val canDeleteForAll: Boolean = false,
     /** Poslední akce ([ProfileRepository.eventLog]): supergroup a kanál, vlastník a správce. */
     val canViewEventLog: Boolean = false,
+    /** Supergroup, ke které se dá zeptat na převod na gigaskupinu; `null` u kanálu a základní skupiny. */
+    val supergroupId: Long? = null,
+    /** Vlastník chatu — jen ten smí skupinu převést na gigaskupinu. */
+    val isOwner: Boolean = false,
+    /** Skupina už je gigaskupina (`Supergroup.isBroadcastGroup`). */
+    val isBroadcastGroup: Boolean = false,
 )
+
+/**
+ * Nabídnout převod na gigaskupinu (`toggleSupergroupIsBroadcastGroup`)? Jen vlastníkovi běžné
+ * supergroupy (ne kanálu, ne už převedené), a jen když ho Telegram sám doporučil
+ * (`suggestedActionConvertToBroadcastGroup`, [AccountNotices.broadcastGroupSuggestions]).
+ * Server převod dovolí až skupině blízko stropu členů a hranici klientovi neříká jinak než
+ * touhle doporučenou akcí — nabízet ho dřív by znamenalo tlačítko, které skončí chybou.
+ */
+fun offersBroadcastGroup(chat: EditableChat, suggested: Set<Long>): Boolean {
+    val supergroupId = chat.supergroupId ?: return false
+    return chat.isOwner && !chat.isChannel && !chat.isBroadcastGroup && supergroupId in suggested
+}
 
 /**
  * Kolik členů má správce omezených a vyhozených. Jen supergroup a kanál, a jen pro vlastníka nebo správce s právem omezovat:

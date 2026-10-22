@@ -40,6 +40,13 @@ interface AccountNotices {
     suspend fun hideSuggestedAction(action: SuggestedAction): Result<Unit>
 
     /**
+     * Supergroupy, které Telegram doporučuje převést na gigaskupinu
+     * (`suggestedActionConvertToBroadcastGroup`). Do karty nahoře v seznamu nepatří — jsou to
+     * rady vlastníkovi jedné skupiny, nabízí je úprava té skupiny ([offersBroadcastGroup]).
+     */
+    val broadcastGroupSuggestions: StateFlow<Set<Long>> get() = NO_SUGGESTIONS
+
+    /**
      * Kontakty, které měly nebo budou mít narozeniny (`updateContactCloseBirthdays`): včera, dnes
      * a zítra. Prázdné po [hideCloseBirthdays] na 24 hodin.
      */
@@ -50,6 +57,8 @@ interface AccountNotices {
 }
 
 private val NO_BIRTHDAYS: StateFlow<List<CloseBirthday>> = kotlinx.coroutines.flow.MutableStateFlow(emptyList())
+
+private val NO_SUGGESTIONS: StateFlow<Set<Long>> = kotlinx.coroutines.flow.MutableStateFlow(emptySet())
 
 /**
  * Doporučená akce od Telegramu, kterou Plume umí nabídnout. TDLib jich zná víc (Premium, hvězdy,

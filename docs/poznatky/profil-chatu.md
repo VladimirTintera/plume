@@ -665,6 +665,24 @@ zkopírování nebo sdílení — tím se o boost žádá členů.
     Vzhled řádků a „Načíst další" se sondou (dva podstrčené boosty, další stránka od serveru
     prázdná, tlačítko pak zmizelo). **Neověřené:** skutečné boosty a dárkové kódy.
 
+### Gigaskupina
+
+Úprava supergroupy nabízí vlastníkovi **Převést na gigaskupinu** (`toggleSupergroupIsBroadcastGroup`,
+`ProfileRepository.convertToBroadcastGroup`): skupina bez stropu členů, psát smějí jen správci.
+Převod je nevratný, proto potvrzení (`ConfirmDialog`, bez chybové barvy — nic se nemaže).
+
+- **Nabízí se jen tam, kde ho Telegram sám doporučil** (`suggestedActionConvertToBroadcastGroup`
+  s id supergroupy, `AccountNotices.broadcastGroupSuggestions`; pravidlo `offersBroadcastGroup`,
+  testy `BroadcastGroupTest`). Server převod dovolí až skupině blízko stropu členů a hranici
+  klientovi jinak neprozradí; řádek nabízený pořád by u běžné skupiny jen skončil chybou.
+- **Doporučení nejde do karty nahoře v seznamu chatů** — je to rada vlastníkovi jedné skupiny,
+  ne účtu. Karta ho dál vynechává (`toDomain` vrací `null`), drží se zvlášť po skupinách.
+- **Stav doporučení se v úpravě čte jako Compose stav**, ne holé `StateFlow.value`: doporučení
+  může dorazit až po otevření úpravy a řádek se pak musí ukázat sám.
+- **Neověřeno na zařízení.** Testovací účet žádnou tak velkou skupinu nevlastní, takže
+  doporučení nikdy nepřijde a řádek se neukáže. Ověřené jen testy pravidla a to, že úprava
+  běžné skupiny řádek neukazuje a nic nespadne.
+
 ### Uvítací zprávy
 
 Úprava skupiny nebo kanálu má řádek **Uvítací zprávy** (`WelcomeMessagesSheet`,

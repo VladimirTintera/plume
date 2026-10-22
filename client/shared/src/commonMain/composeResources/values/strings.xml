@@ -2802,6 +2802,13 @@
     <string name="invite_links_delete_all_body">They no longer work; only the overview of who joined through them disappears.</string>
     <string name="invite_links_copied">Link copied.</string>
     <string name="boosts_title">Boosts</string>
+    <string name="broadcast_group_row">Convert to broadcast group</string>
+    <string name="broadcast_group_row_help">No member limit, only admins can post</string>
+    <string name="broadcast_group_title">Convert to a broadcast group?</string>
+    <string name="broadcast_group_body">The group will have no member limit, but only admins will be able to post. This can't be undone.</string>
+    <string name="broadcast_group_confirm">Convert</string>
+    <string name="broadcast_group_done">The group is now a broadcast group</string>
+    <string name="broadcast_group_failed">The group couldn't be converted.</string>
     <string name="welcome_messages_title">Welcome messages</string>
     <string name="welcome_messages_row_help">Messages new members get when they join</string>
     <string name="welcome_messages_help">New members get these messages when they join, in this order.</string>
