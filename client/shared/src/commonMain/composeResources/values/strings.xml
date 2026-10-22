@@ -2378,6 +2378,16 @@
     <string name="webapp_load_failed">Couldn't open the mini app.</string>
     <string name="webapp_close_confirm_title">Close the mini app?</string>
     <string name="webapp_close_confirm_text">Unsaved changes may be lost.</string>
+    <string name="webapp_write_access_title">Allow %1$s to message you?</string>
+    <string name="webapp_write_access_text">The mini app asks to let the bot send you messages. You can stop it anytime by blocking the bot.</string>
+    <string name="webapp_write_access_allow">Allow</string>
+    <string name="webapp_download_title">Download file?</string>
+    <string name="webapp_download_text">%1$s wants to download “%2$s” from %3$s.</string>
+    <string name="webapp_download_confirm">Download</string>
+    <string name="webapp_share_title">Share message</string>
+    <string name="webapp_share_info">%1$s prepared this message. It will be sent via the bot.</string>
+    <string name="webapp_share_confirm_count">Send (%1$d)</string>
+    <string name="webapp_share_failed">Couldn't send the message.</string>
     <string name="webapp_popup_ok">OK</string>
     <string name="webapp_consent_title">Open the mini app?</string>
     <string name="webapp_consent_text">%1$s will see your name, username and language. What you do in the mini app may be sent to the bot.</string>

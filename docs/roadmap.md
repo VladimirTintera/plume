@@ -406,7 +406,7 @@ funkce, takže hranice jsou hrubé):
 | Samolepky a emoji | 32 / 62 | prohlížení a posílání hotové; tvorba vlastních sad ne |
 | Reakce | 13 / 18 | hotové; placené reakce ne |
 | Notifikace | 16 / 23 | hotové; reakce TDLib neumí (viz níž) |
-| Mini aplikace a boti (uživatelská strana) | 15 / 50 | hotové; zbývá část mostu mini aplikací (viz audit 22. 10.), nabídka příloh; zbytek jsou volání jen pro boty |
+| Mini aplikace a boti (uživatelská strana) | 20 / 50 | hotové i zápis, sdílení, výběr chatu a stažení z mini aplikace; zbývá úložiště zařízení, poloha, nabídka příloh; zbytek jsou volání jen pro boty |
 | Soubory a stahování | 6 / 31 | stahování po jednom; správce stahování a předběžné nahrávání ne |
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
@@ -731,14 +731,11 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   (`removeNotificationGroup`, dokumentace ho pro zavření uživatelem předepisuje) a presenter
   zapomene řádky; dřív je další zpráva téhož chatu vrátila do notifikace
   (`docs/poznatky/notifikace.md`, „Odhrnutí notifikace"). Zbývá iOS a desktop.
-- **Most mini aplikací umí jen část API pro Web Apps.** Na co stránka čeká, odpoví se
-  „zrušeno" (`docs/poznatky/boti.md`), takže nic nevisí — ale funkce chybí:
-  `requestWriteAccess` dnes odmítne VŽDY (`canBotSendMessages`, `allowBotToSendMessages`),
-  sdílení připravené zprávy `shareMessage` (`getPreparedInlineMessage`), výběr chatu nebo lidí
-  `requestChat` (`getPreparedKeyboardButton`), stažení souboru `downloadFile`
-  (`checkWebAppFileDownload`), `DeviceStorage` / `SecureStorage`, poloha, celá obrazovka
-  a zástupce na ploše. Emoji status z mini aplikace chce Premium. Přednostně zápis
-  a `shareMessage` — na ty se mini aplikace spoléhají nejčastěji.
+- **Most mini aplikací.** ~~`requestWriteAccess`, `shareMessage`, `requestChat`,
+  `downloadFile`~~ — hotovo (`docs/poznatky/boti.md`, „Požadavky mini aplikace"); skutečnou
+  připravenou zprávu a tlačítko ověřit s botem, který je vyrobí přes Bot API. Zbývá
+  `DeviceStorage` / `SecureStorage`, poloha, celá obrazovka a zástupce na ploše; emoji status
+  z mini aplikace chce Premium.
 - **Podobné kanály: oznámit otevření** (`openChatSimilarChat`) — dokumentace chce, aby klient
   TDLib řekl, že chat otevřel ze seznamu podobných (statistika doporučení na serveru). Malé,
   kontrakt. K tomu podobní boti v profilu bota (`getBotSimilarBots`, `openBotSimilarBot`)

@@ -37,7 +37,7 @@ internal fun InlineQueryResults.toPage(): InlineResultsPage = InlineResultsPage(
  *
  * `when` bez `else` ze stejného důvodu jako u tlačítka.
  */
-private fun InlineQueryResult.toDomain(): InlineResult? = when (this) {
+internal fun InlineQueryResult.toDomain(): InlineResult? = when (this) {
     is InlineQueryResultAnimation -> InlineResult.Gif(id, animation.toMedia())
     is InlineQueryResultSticker -> InlineResult.Sticker(id, sticker.toMedia())
     is InlineQueryResultPhoto -> photo.gridFileId()?.let { fileId ->

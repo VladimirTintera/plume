@@ -1,5 +1,19 @@
 package eu.tintera.plume.features.webapp
 
+import androidx.compose.material3.Surface
+import eu.tintera.plume.core.telegram.BotShareSource
+import eu.tintera.plume.core.telegram.PreparedButton
+import eu.tintera.plume.features.forward.BotShareScreen
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
+import eu.tintera.plume.resources.chat_24dp
+import eu.tintera.plume.resources.download_24dp
+import eu.tintera.plume.resources.webapp_write_access_title
+import eu.tintera.plume.resources.webapp_write_access_text
+import eu.tintera.plume.resources.webapp_write_access_allow
+import eu.tintera.plume.resources.webapp_download_title
+import eu.tintera.plume.resources.webapp_download_text
+import eu.tintera.plume.resources.webapp_download_confirm
 import eu.tintera.plume.core.ui.DialogCheckRow
 import eu.tintera.plume.resources.apps_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -145,75 +159,108 @@ fun WebAppScreen(
     // Hlavička v barvě od stránky leží pod stavovou lištou; na tmavé by tmavé ikony lišty zmizely
     // (BotFather si nastaví tmavou hlavičku i ve světlém motivu aplikace).
     if (headerContent == Color.White) DarkSystemBars()
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        state.title ?: stringResource(Res.string.webapp_title),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+    val botName = state.title ?: stringResource(Res.string.webapp_title)
+    // Box kvůli výběrům přes mini aplikaci (sdílení zprávy, chat pro bota): WebView zůstane
+    // pod nimi naživu, stránka čeká na odpověď a po návratu je tam, kde byla.
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            state.title ?: stringResource(Res.string.webapp_title),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    navigationIcon = {
+                        if (state.backVisible) {
+                            IconButton(onClick = viewModel::back, shapes = IconButtonDefaults.shapes()) {
+                                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                            }
+                        } else {
+                            IconButton(onClick = viewModel::requestClose, shapes = IconButtonDefaults.shapes()) {
+                                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = headerColor,
+                        scrolledContainerColor = headerColor,
+                        titleContentColor = headerContent,
+                        navigationIconContentColor = headerContent,
+                    ),
+                )
+            },
+            bottomBar = {
+                WebAppBottomBar(
+                    main = state.mainButton,
+                    secondary = state.secondaryButton,
+                    position = state.secondaryPosition,
+                    color = state.bottomBarColor?.let(::rgbColor) ?: MaterialTheme.colorScheme.surface,
+                    onMain = viewModel::pressMainButton,
+                    onSecondary = viewModel::pressSecondaryButton,
+                )
+            },
+            contentWindowInsets = WindowInsets(0),
+        ) { padding ->
+            val background = state.backgroundColor?.let(::rgbColor) ?: MaterialTheme.colorScheme.surface
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(background)
+                    .onSizeChanged { size -> heightDp = with(density) { size.height.toDp().value.toInt() } },
+                contentAlignment = Alignment.Center,
+            ) {
+                state.url?.let { address ->
+                    WebAppWebView(
+                        url = address,
+                        controller = controller,
+                        backgroundColor = state.backgroundColor ?: theme.background,
+                        onEvent = viewModel::onEvent,
+                        onPageLoaded = viewModel::pageLoaded,
+                        modifier = Modifier.fillMaxSize(),
                     )
-                },
-                navigationIcon = {
-                    if (state.backVisible) {
-                        IconButton(onClick = viewModel::back, shapes = IconButtonDefaults.shapes()) {
-                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                        }
-                    } else {
-                        IconButton(onClick = viewModel::requestClose, shapes = IconButtonDefaults.shapes()) {
-                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = headerColor,
-                    scrolledContainerColor = headerColor,
-                    titleContentColor = headerContent,
-                    navigationIconContentColor = headerContent,
-                ),
-            )
-        },
-        bottomBar = {
-            WebAppBottomBar(
-                main = state.mainButton,
-                secondary = state.secondaryButton,
-                position = state.secondaryPosition,
-                color = state.bottomBarColor?.let(::rgbColor) ?: MaterialTheme.colorScheme.surface,
-                onMain = viewModel::pressMainButton,
-                onSecondary = viewModel::pressSecondaryButton,
-            )
-        },
-        contentWindowInsets = WindowInsets(0),
-    ) { padding ->
-        val background = state.backgroundColor?.let(::rgbColor) ?: MaterialTheme.colorScheme.surface
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(background)
-                .onSizeChanged { size -> heightDp = with(density) { size.height.toDp().value.toInt() } },
-            contentAlignment = Alignment.Center,
-        ) {
-            state.url?.let { address ->
-                WebAppWebView(
-                    url = address,
-                    controller = controller,
-                    backgroundColor = state.backgroundColor ?: theme.background,
-                    onEvent = viewModel::onEvent,
-                    onPageLoaded = viewModel::pageLoaded,
-                    modifier = Modifier.fillMaxSize(),
+                }
+                when {
+                    state.error != null -> Text(
+                        state.error!!.resolve(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                    state.consent -> Unit
+                    state.loading -> LoadingIndicator()
+                }
+            }
+        }
+
+        state.share?.let { share ->
+            WebAppOverlay(onBack = { viewModel.shareFinished(sent = false) }) {
+                PreparedShareScreen(
+                    viewModel = koinViewModel(key = "web-app-share-${share.id}", parameters = { parametersOf(share.message) }),
+                    message = share.message,
+                    bot = botName,
+                    onBack = { viewModel.shareFinished(sent = false) },
+                    onSent = { viewModel.shareFinished(sent = true) },
                 )
             }
-            when {
-                state.error != null -> Text(
-                    state.error!!.resolve(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(24.dp),
+        }
+        state.chatRequest?.let { request ->
+            val users = (request.button as? PreparedButton.Users)?.request
+            val chat = (request.button as? PreparedButton.Chat)?.request
+            WebAppOverlay(onBack = { viewModel.chatRequestFinished(shared = false) }) {
+                BotShareScreen(
+                    viewModel = koinViewModel(
+                        key = "web-app-chat-${request.requestId}",
+                        parameters = { parametersOf(BotShareSource.WebApp(viewModel.botUserId, request.requestId), users, chat) },
+                    ),
+                    users = users,
+                    chat = chat,
+                    onBack = { viewModel.chatRequestFinished(shared = false) },
+                    onShared = { viewModel.chatRequestFinished(shared = true) },
                 )
-                state.consent -> Unit
-                state.loading -> LoadingIndicator()
             }
         }
     }
@@ -229,6 +276,26 @@ fun WebAppScreen(
     state.popup?.let { popup ->
         WebAppPopupDialog(popup, onClose = viewModel::popupClosed)
     }
+    if (state.writeAccessDialog) {
+        ConfirmDialog(
+            title = stringResource(Res.string.webapp_write_access_title, botName),
+            text = stringResource(Res.string.webapp_write_access_text),
+            confirmLabel = stringResource(Res.string.webapp_write_access_allow),
+            onConfirm = viewModel::allowWriteAccess,
+            onDismiss = viewModel::declineWriteAccess,
+            icon = Res.drawable.chat_24dp,
+        )
+    }
+    state.download?.let { download ->
+        ConfirmDialog(
+            title = stringResource(Res.string.webapp_download_title),
+            text = stringResource(Res.string.webapp_download_text, botName, download.fileName, urlHost(download.url)),
+            confirmLabel = stringResource(Res.string.webapp_download_confirm),
+            onConfirm = viewModel::confirmDownload,
+            onDismiss = viewModel::dismissDownload,
+            icon = Res.drawable.download_24dp,
+        )
+    }
     if (state.closeDialog) {
         ConfirmDialog(
             title = stringResource(Res.string.webapp_close_confirm_title),
@@ -240,6 +307,23 @@ fun WebAppScreen(
         )
     }
 }
+
+/**
+ * Výběr přes celou mini aplikaci. Zpět ho zavře (a stránka dostane „odmítnuto"), ne mini
+ * aplikaci — handler je složený později než ten obrazovky, takže má přednost.
+ */
+@Composable
+private fun WebAppOverlay(onBack: () -> Unit, content: @Composable () -> Unit) {
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = true,
+        onBackCompleted = onBack,
+    )
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) { content() }
+}
+
+/** Doména z adresy pro větu u stahování — odkud soubor je, ne celá adresa s parametry. */
+internal fun urlHost(url: String): String = url.substringAfter("://").substringBefore('/').substringBefore('?').substringAfter('@')
 
 /**
  * Souhlas před prvním otevřením mini aplikace u bota. TDLib ho předepisuje: mini aplikace

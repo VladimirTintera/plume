@@ -21,6 +21,7 @@ import eu.tintera.plume.core.contacts.ContactSaver
 import eu.tintera.plume.core.currency.HomeRegion
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
+import eu.tintera.plume.core.files.WebFileDownloader
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.locale.AppLanguage
@@ -112,6 +113,7 @@ actual fun Module.platformModule() {
     single { UrlOpener(settings = get()) }
     single { AppLanguage() }
     single { FileOpener() }
+    single { WebFileDownloader(get()) }
     single { MediaSaver() }
     single<TextRecognizer> {
         object : TextRecognizer {

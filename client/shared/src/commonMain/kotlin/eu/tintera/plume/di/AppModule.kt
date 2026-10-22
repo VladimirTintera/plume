@@ -28,6 +28,7 @@ import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.features.forward.ShareContactViewModel
 import eu.tintera.plume.features.profile.AddMembersViewModel
 import eu.tintera.plume.features.forward.BotShareViewModel
+import eu.tintera.plume.core.telegram.BotShareSource
 import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.features.profile.JoinRequestsViewModel
@@ -45,6 +46,7 @@ import eu.tintera.plume.features.profile.ChatAutosaveViewModel
 import eu.tintera.plume.features.forum.ForumTopicsViewModel
 import eu.tintera.plume.features.saved.SavedTopicsViewModel
 import eu.tintera.plume.features.webapp.WebAppViewModel
+import eu.tintera.plume.features.webapp.PreparedShareViewModel
 import eu.tintera.plume.core.telegram.WebAppRepository
 import eu.tintera.plume.core.telegram.TdlWebAppRepository
 import eu.tintera.plume.features.profile.EditChatViewModel
@@ -741,8 +743,13 @@ fun appModule() = module {
             settings = get(),
             chats = get(),
             urlOpener = get(),
+            downloader = get(),
             appScope = get(named(APP_SCOPE)),
         )
+    }
+
+    viewModel { parameters ->
+        PreparedShareViewModel(message = parameters.get(), conversations = get(), chatRepository = get())
     }
 
     viewModel { parameters ->
@@ -849,13 +856,12 @@ fun appModule() = module {
         ShareContactViewModel(userId = parameters.get(), repository = get(), chatRepository = get(), shareTargets = get())
     }
 
-    // Parametry INDEXEM: chat a zpráva jsou dvě `Long`, požadavky bývají `null`.
+    // Parametry INDEXEM: požadavky bývají `null`.
     viewModel { parameters ->
         BotShareViewModel(
-            chatId = parameters.values[0] as Long,
-            messageId = parameters.values[1] as Long,
-            users = parameters.values[2] as? BotUsersRequest,
-            chat = parameters.values[3] as? BotChatRequest,
+            source = parameters.values[0] as BotShareSource,
+            users = parameters.values[1] as? BotUsersRequest,
+            chat = parameters.values[2] as? BotChatRequest,
             repository = get(),
             chatRepository = get(),
         )

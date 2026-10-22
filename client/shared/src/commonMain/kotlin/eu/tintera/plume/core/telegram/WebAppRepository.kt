@@ -68,6 +68,48 @@ interface WebAppRepository {
 
     /** Jméno bota do hlavičky (`@jméno`, jinak jméno). */
     suspend fun botName(botUserId: Long): String?
+
+    /**
+     * Smí bot uživateli už psát (`canBotSendMessages`)? `false` i tehdy, když se to nepodařilo
+     * zjistit — pak se uživatel zeptá, a dovolení navíc nic nerozbije.
+     */
+    suspend fun canBotWrite(botUserId: Long): Boolean = false
+
+    /** Dovolí botovi psát uživateli (`allowBotToSendMessages`) — mini aplikace o to požádala. */
+    suspend fun allowBotToWrite(botUserId: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Zpráva, kterou bot připravil ke sdílení (`getPreparedInlineMessage`, `shareMessage`).
+     * Chyba = zpráva vypršela nebo neexistuje.
+     */
+    suspend fun preparedMessage(botUserId: Long, preparedMessageId: String): Result<PreparedMessage> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Tlačítko „vyber chat / lidi", které bot připravil (`getPreparedKeyboardButton`, `requestChat`). */
+    suspend fun preparedButton(botUserId: Long, preparedButtonId: String): Result<PreparedButton> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
+     * Smí mini aplikace stáhnout soubor [url] jako [fileName] (`checkWebAppFileDownload`)?
+     * Vrací jméno očištěné od nebezpečných znaků (`cleanFileName`), pod kterým se uloží.
+     */
+    suspend fun checkDownload(botUserId: Long, fileName: String, url: String): Result<String> =
+        Result.failure(UnsupportedOperationException())
+}
+
+/**
+ * Zpráva, kterou bot připravil a mini aplikace ji nabízí ke sdílení. Pošle se jako výsledek
+ * inline dotazu [queryId] / [result] („přes @bot"), jen do chatů z [targets].
+ */
+data class PreparedMessage(val queryId: Long, val result: InlineResult, val targets: SwitchInlineTarget.Chosen)
+
+/** Tlačítko připravené botem pro `requestChat`: koho vybrat, jako u tlačítek ve zprávě. */
+sealed interface PreparedButton {
+    data class Users(val request: BotUsersRequest) : PreparedButton
+    data class Chat(val request: BotChatRequest) : PreparedButton
+
+    /** Založení spravovaného bota — Plume ho neumí ani u tlačítka ve zprávě. */
+    data object Unsupported : PreparedButton
 }
 
 /**

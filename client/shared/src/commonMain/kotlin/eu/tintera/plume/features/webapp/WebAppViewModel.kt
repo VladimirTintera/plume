@@ -3,7 +3,10 @@ package eu.tintera.plume.features.webapp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.files.WebFileDownloader
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.PreparedButton
+import eu.tintera.plume.core.telegram.PreparedMessage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.NamedWebApp
@@ -51,7 +54,23 @@ data class WebAppState(
     val consent: Boolean = false,
     /** Pojmenovaná mini aplikace chce psát uživateli: souhlas nabídne zaškrtávátko. */
     val consentWriteAccess: Boolean = false,
+    /** Mini aplikace žádá, aby bot smí uživateli psát (`requestWriteAccess`); bot to zatím nesmí. */
+    val writeAccessDialog: Boolean = false,
+    /** Soubor, který chce mini aplikace stáhnout (`downloadFile`); čeká na potvrzení. */
+    val download: WebAppDownload? = null,
+    /** Zpráva připravená botem ke sdílení (`shareMessage`); přes mini aplikaci je výběr chatů. */
+    val share: PreparedShare? = null,
+    /** Výběr chatu nebo lidí pro bota (`requestChat`); přes mini aplikaci je výběr. */
+    val chatRequest: WebAppChatRequest? = null,
 )
+
+/** Stažení, o které mini aplikace žádá; [fileName] už očištěné od nebezpečných znaků. */
+data class WebAppDownload(val url: String, val fileName: String)
+
+data class PreparedShare(val id: String, val message: PreparedMessage)
+
+/** [button] je jen [PreparedButton.Users] nebo [PreparedButton.Chat]; nepodporované se rovnou odmítne. */
+data class WebAppChatRequest(val requestId: String, val button: PreparedButton)
 
 /** Co má udělat obrazovka — WebView a navigace jsou její. */
 sealed interface WebAppEffect {
@@ -84,7 +103,7 @@ sealed interface WebAppEffect {
  */
 class WebAppViewModel(
     private val chatId: Long,
-    private val botUserId: Long,
+    val botUserId: Long,
     private val url: String,
     private val launch: Boolean,
     private val keyboardButtonText: String?,
@@ -99,6 +118,7 @@ class WebAppViewModel(
     private val settings: AppSettings,
     private val chats: ChatRepository,
     private val urlOpener: UrlOpener,
+    private val downloader: WebFileDownloader,
     private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -234,7 +254,10 @@ class WebAppViewModel(
             }
             is WebAppEvent.ReadClipboard -> post(WebAppEvents.clipboardTextReceived(event.requestId))
             WebAppEvent.RequestPhone -> post(WebAppEvents.phoneRequested())
-            WebAppEvent.RequestWriteAccess -> post(WebAppEvents.writeAccessRequested())
+            WebAppEvent.RequestWriteAccess -> requestWriteAccess()
+            is WebAppEvent.SharePreparedMessage -> sharePreparedMessage(event.id)
+            is WebAppEvent.RequestChat -> requestChat(event.requestId)
+            is WebAppEvent.DownloadFile -> requestDownload(event.url, event.fileName)
             is WebAppEvent.OpenInvoice -> post(WebAppEvents.invoiceClosed(event.slug))
             WebAppEvent.RequestFullscreen -> post(WebAppEvents.fullscreenFailed())
             WebAppEvent.CheckHomeScreen -> post(WebAppEvents.homeScreenChecked())
@@ -273,6 +296,103 @@ class WebAppViewModel(
     fun popupClosed(buttonId: String?) {
         _state.update { it.copy(popup = null) }
         post(WebAppEvents.popupClosed(buttonId))
+    }
+
+    /**
+     * Bot, který uživateli psát smí, dostane „dovoleno" hned (`canBotSendMessages`); jinak se
+     * Plume zeptá. Tak to dělají oficiální klienti — mini aplikace se ptá při každém spuštění
+     * a uživatel by jinak potvrzoval pořád dokola.
+     */
+    private fun requestWriteAccess() {
+        if (_state.value.writeAccessDialog) return
+        viewModelScope.launch {
+            if (repository.canBotWrite(botUserId)) {
+                post(WebAppEvents.writeAccessRequested(allowed = true))
+            } else {
+                _state.update { it.copy(writeAccessDialog = true) }
+            }
+        }
+    }
+
+    fun allowWriteAccess() {
+        _state.update { it.copy(writeAccessDialog = false) }
+        viewModelScope.launch {
+            val allowed = repository.allowBotToWrite(botUserId).isSuccess
+            post(WebAppEvents.writeAccessRequested(allowed))
+        }
+    }
+
+    fun declineWriteAccess() {
+        _state.update { it.copy(writeAccessDialog = false) }
+        post(WebAppEvents.writeAccessRequested(allowed = false))
+    }
+
+    /** Napřed se zeptá serveru, jestli bot soubor nabízet smí; teprve pak uživatele. */
+    private fun requestDownload(url: String, fileName: String) {
+        if (_state.value.download != null) {
+            post(WebAppEvents.fileDownloadRequested(downloading = false))
+            return
+        }
+        viewModelScope.launch {
+            repository.checkDownload(botUserId, fileName, url)
+                .onSuccess { clean -> _state.update { it.copy(download = WebAppDownload(url, clean)) } }
+                .onFailure { post(WebAppEvents.fileDownloadRequested(downloading = false)) }
+        }
+    }
+
+    fun confirmDownload() {
+        val download = _state.value.download ?: return
+        _state.update { it.copy(download = null) }
+        post(WebAppEvents.fileDownloadRequested(downloader.download(download.url, download.fileName)))
+    }
+
+    fun dismissDownload() {
+        _state.update { it.copy(download = null) }
+        post(WebAppEvents.fileDownloadRequested(downloading = false))
+    }
+
+    /** Zprávu, kterou TDLib nevydá, server už zapomněl (připravená zpráva platí omezeně dlouho). */
+    private fun sharePreparedMessage(id: String) {
+        if (_state.value.share != null) return
+        viewModelScope.launch {
+            repository.preparedMessage(botUserId, id)
+                .onSuccess { message -> _state.update { it.copy(share = PreparedShare(id, message)) } }
+                .onFailure { post(WebAppEvents.preparedMessageFailed(WebAppErrors.MESSAGE_EXPIRED)) }
+        }
+    }
+
+    /** Výběr chatů skončil: [sent] = zpráva odešla, jinak ho uživatel zavřel. */
+    fun shareFinished(sent: Boolean) {
+        _state.update { it.copy(share = null) }
+        post(if (sent) WebAppEvents.preparedMessageSent() else WebAppEvents.preparedMessageFailed(WebAppErrors.USER_DECLINED))
+    }
+
+    private fun requestChat(requestId: String) {
+        if (_state.value.chatRequest != null) return
+        viewModelScope.launch {
+            repository.preparedButton(botUserId, requestId)
+                .onSuccess { button ->
+                    if (button is PreparedButton.Unsupported) {
+                        post(WebAppEvents.requestedChatFailed(requestId, WebAppErrors.UNSUPPORTED))
+                    } else {
+                        _state.update { it.copy(chatRequest = WebAppChatRequest(requestId, button)) }
+                    }
+                }
+                .onFailure { post(WebAppEvents.requestedChatFailed(requestId, WebAppErrors.UNKNOWN_ERROR)) }
+        }
+    }
+
+    /** Výběr pro bota skončil: [shared] = bot dostal chat nebo lidi, jinak ho uživatel zavřel. */
+    fun chatRequestFinished(shared: Boolean) {
+        val request = _state.value.chatRequest ?: return
+        _state.update { it.copy(chatRequest = null) }
+        post(
+            if (shared) {
+                WebAppEvents.requestedChatSent(request.requestId)
+            } else {
+                WebAppEvents.requestedChatFailed(request.requestId, WebAppErrors.USER_DECLINED)
+            },
+        )
     }
 
     private fun openExternal(url: String) {
