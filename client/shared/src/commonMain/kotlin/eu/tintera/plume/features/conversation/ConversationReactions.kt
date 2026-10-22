@@ -11,6 +11,7 @@ import eu.tintera.plume.resources.report_done
 import eu.tintera.plume.resources.reactions_delete_failed
 import eu.tintera.plume.resources.reactions_deleted
 import eu.tintera.plume.resources.conversation_reaction_failed
+import eu.tintera.plume.resources.reactions_recent_clear_failed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -58,6 +59,25 @@ internal class ConversationReactions(
     }
 
     /**
+     * Vymaže nedávno použité reakce (potvrzené ve výběru). Tlačítko z otevřeného výběru zmizí
+     * hned; pořadí emoji se srovná až při příštím otevření (TDLib je řadí znovu). Při selhání
+     * se tlačítko vrátí.
+     */
+    fun clearRecentReactions() {
+        state.update { it.copy(messageMenu = it.messageMenu?.copy(hasRecentReactions = false)) }
+        scope.launch {
+            repository.clearRecentReactions().onFailure { failure ->
+                state.update {
+                    it.copy(
+                        messageMenu = it.messageMenu?.copy(hasRecentReactions = true),
+                        error = failure.reported(logger, Res.string.reactions_recent_clear_failed),
+                    )
+                }
+            }
+        }
+    }
+
+    /**
      * Rychlá reakce dvojitým ťuknutím: přepne reakci účtu ([QuickReaction]) jako ťuknutí na ni
      * v nabídce — už přidanou tedy odebere.
      *
@@ -76,7 +96,7 @@ internal class ConversationReactions(
         }
         scope.launch {
             val available = repository.availableReactions(chatId, messageId).getOrNull() ?: return@launch
-            if (reaction in available) toggleReaction(messageId, reaction)
+            if (reaction in available.emoji) toggleReaction(messageId, reaction)
         }
     }
 

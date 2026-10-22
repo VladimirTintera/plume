@@ -695,8 +695,10 @@ a se serverem, takže přednostně:
     `docs/poznatky/spam-a-blokovani.md`, „Blokování z chatu Odpovědi"; zbývá ověřit se skutečným
     chatem Odpovědi), ~~nahlášení reakcí a smazání reakcí člena u jedné zprávy
     (`reportMessageReactions`, `deleteMessageReactionsFromSender`)~~ (hotovo, detail reakcí;
-    `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá ověřit na cizí reakci), smazání nedávných reakcí
-    (`clearRecentReactions`), ~~obrysy samolepek při načítání (`getStickerOutlineSvgPath`)~~
+    `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá ověřit na cizí reakci), ~~smazání nedávných reakcí
+    (`clearRecentReactions`)~~ (hotovo, plný výběr reakcí nad zprávou; má smysl jen s Premium —
+    bez něj TDLib nedávné neřadí; `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá
+    ověřit s Premium), ~~obrysy samolepek při načítání (`getStickerOutlineSvgPath`)~~
     (hotovo, `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr samolepek"), ~~sady samolepek
     použité na fotce (`getAttachedStickerSets`)~~ (hotovo, ⋮ prohlížeče;
     `docs/poznatky/prohlizec-medii.md`, „Samolepky na fotce"; zbývá ověřit na fotce se

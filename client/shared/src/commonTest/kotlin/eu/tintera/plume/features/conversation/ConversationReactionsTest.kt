@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.ReactionDetail
@@ -9,6 +10,7 @@ import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -41,6 +43,29 @@ class ConversationReactionsTest {
             sent += Sent(messageId, emoji, add)
             return result
         }
+
+        var clearedRecent = 0
+
+        override suspend fun clearRecentReactions(): Result<Unit> {
+            clearedRecent++
+            return result
+        }
+    }
+
+    private fun withMenu(state: MutableStateFlow<ConversationState>) = state.update {
+        it.copy(
+            messageMenu = MessageMenu(
+                messageId = 1,
+                timestamp = 0,
+                isOutgoing = false,
+                emoji = listOf("❤", "🎃"),
+                chosenEmoji = emptySet(),
+                actions = MessageActions.Fallback,
+                items = emptyList(),
+                favoriteSticker = null,
+                hasRecentReactions = true,
+            ),
+        )
     }
 
     private var menusClosed = 0
@@ -109,6 +134,36 @@ class ConversationReactionsTest {
 
         assertEquals(emptyList(), repository.sent)
         assertNull(state.value.error)
+    }
+
+    /** „Vymazat nedávné" zmizí hned a volání odejde; reakce samy zůstávají nabízené. */
+    @Test
+    fun vymazaniNedavnychSchovaTlacitko() = runTest {
+        val state = testState(testMessage(1))
+        withMenu(state)
+        val repository = FakeRepository()
+        val reactions = reactions(this, state, repository)
+
+        reactions.clearRecentReactions()
+        assertEquals(false, state.value.messageMenu?.hasRecentReactions)
+        advanceUntilIdle()
+
+        assertEquals(1, repository.clearedRecent)
+        assertEquals(listOf("❤", "🎃"), state.value.messageMenu?.emoji)
+        assertNull(state.value.error)
+    }
+
+    @Test
+    fun nepovedeneVymazaniNedavnychTlacitkoVrati() = runTest {
+        val state = testState(testMessage(1))
+        withMenu(state)
+        val reactions = reactions(this, state, FakeRepository(Result.failure(IllegalStateException("FLOOD_WAIT_5"))))
+
+        reactions.clearRecentReactions()
+        advanceUntilIdle()
+
+        assertEquals(true, state.value.messageMenu?.hasRecentReactions)
+        assertNotNull(state.value.error)
     }
 
     private fun detail(senderId: Long, emoji: String = "❤") =

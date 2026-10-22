@@ -4,6 +4,13 @@ import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.core.ui.DialogCheckRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.delete_24dp
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
+import eu.tintera.plume.resources.reactions_recent_clear
+import eu.tintera.plume.resources.reactions_recent_clear_title
+import eu.tintera.plume.resources.reactions_recent_clear_text
+import eu.tintera.plume.resources.reactions_recent_clear_confirm
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.features.conversation.items.EmojiBursts
 import androidx.compose.animation.animateContentSize
@@ -103,6 +110,7 @@ import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.ui.strayTapGuard
 import eu.tintera.plume.core.ui.distinctOnBoth
 import eu.tintera.plume.core.ui.toggle
+import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.bubbleColorFor
 import eu.tintera.plume.features.conversation.items.MenuAnchor
@@ -649,6 +657,10 @@ internal fun MessageMenuLayer(
                     onAction(MessageAction.React(emoji))
                 },
                 onDismiss = { expanded = false },
+                onClearRecent = {
+                    haptics.confirm()
+                    onAction(MessageAction.ClearRecentReactions)
+                }.takeIf { shown.menu.hasRecentReactions },
             )
         }
     }
@@ -787,6 +799,10 @@ private fun QuickReactions(
  * Bez napůl rozbaleného stavu (`enabledValues`), stejně jako výběr samolepek; mřížka má pevnou
  * výšku, aby se sheet nenatahoval podle počtu emoji. Ve starém sheetu nešlo ťuknout na emoji —
  * podezřelý byl `FlowRow` bez scrollování a napůl rozbalený stav, obojí tady odpadá.
+ *
+ * **„Vymazat nedávné" je nahoře nad mřížkou** ([onClearRecent], jen když seznam nedávných
+ * existuje), jako „Vymazat" v Nedávných samolepkách. Oddíl „Nedávno použité" tu NENÍ: které
+ * reakce jsou nedávné, TDLib neřekne (viz `TdlConversationRepository.availableReactions`).
  */
 @Composable
 internal fun ReactionPickerSheet(
@@ -795,8 +811,24 @@ internal fun ReactionPickerSheet(
     gridHeight: Dp,
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
+    onClearRecent: (() -> Unit)? = null,
 ) {
     val sheetState = rememberExpandedSheetState()
+    var confirmClear by remember { mutableStateOf(false) }
+    if (confirmClear && onClearRecent != null) {
+        ConfirmDialog(
+            title = stringResource(Res.string.reactions_recent_clear_title),
+            text = stringResource(Res.string.reactions_recent_clear_text),
+            confirmLabel = stringResource(Res.string.reactions_recent_clear_confirm),
+            onConfirm = {
+                confirmClear = false
+                onClearRecent()
+            },
+            onDismiss = { confirmClear = false },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -810,6 +842,15 @@ internal fun ReactionPickerSheet(
             modifier = Modifier.fillMaxWidth().height(gridHeight),
             contentPadding = PaddingValues(REACTION_SHEET_PADDING),
         ) {
+            if (onClearRecent != null) {
+                item(key = "clear-recent", span = { GridItemSpan(maxLineSpan) }) {
+                    Box(Modifier.animateItem(), contentAlignment = Alignment.CenterEnd) {
+                        TextButton(onClick = { confirmClear = true }, shapes = ButtonDefaults.shapes()) {
+                            Text(stringResource(Res.string.reactions_recent_clear))
+                        }
+                    }
+                }
+            }
             // Emoji jako klíč: `availableReactions` je vrací bez duplicit.
             items(emoji, key = { it }) { item ->
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {

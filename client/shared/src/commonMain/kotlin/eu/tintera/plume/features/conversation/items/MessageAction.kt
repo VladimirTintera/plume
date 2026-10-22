@@ -146,6 +146,9 @@ sealed interface MessageAction {
     /** Reakce z pruhu nebo z plného výběru v nabídce; přepíná (přidá / odebere). */
     data class React(val emoji: String) : MessageAction
 
+    /** „Vymazat" u nedávno použitých v plném výběru reakcí (už potvrzené). */
+    data object ClearRecentReactions : MessageAction
+
     /** Ťuknutí na čip reakce — detail, kdo reagoval. */
     data object ShowReactions : MessageAction
 

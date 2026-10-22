@@ -47,7 +47,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun oldestUnreadMark(chatId: Long, kind: UnreadMarkKind) : Result<Long?> = error("oldestUnreadMark")
     override suspend fun readAllMarks(chatId: Long, kind: UnreadMarkKind) : Result<Unit> = error("readAllMarks")
     override suspend fun setReaction(chatId: Long, messageId: Long, emoji: String, add: Boolean) : Result<Unit> = error("setReaction")
-    override suspend fun availableReactions(chatId: Long, messageId: Long) : Result<List<String>> = error("availableReactions")
+    override suspend fun availableReactions(chatId: Long, messageId: Long) : Result<ReactionChoices> = error("availableReactions")
     override suspend fun reactionDetails(chatId: Long, messageId: Long, reaction: String?) : Result<List<ReactionDetail>> = error("reactionDetails")
     override suspend fun messageInfo(chatId: Long, messageId: Long) : Result<MessageInfo> = error("messageInfo")
     override suspend fun messageActions(chatId: Long, messageId: Long) : Result<MessageActions> = error("messageActions")

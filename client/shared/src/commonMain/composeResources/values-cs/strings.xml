@@ -1557,6 +1557,11 @@
     <string name="reactions_delete_from">Smazat jeho reakce</string>
     <string name="reactions_deleted">Reakce smazány</string>
     <string name="reactions_delete_failed">Reakce se nepodařilo smazat.</string>
+    <string name="reactions_recent_clear">Vymazat nedávné</string>
+    <string name="reactions_recent_clear_confirm">Vymazat</string>
+    <string name="reactions_recent_clear_title">Vymazat nedávné reakce?</string>
+    <string name="reactions_recent_clear_text">Nedávno použité reakce se ve výběru přestanou řadit dopředu, na všech tvých zařízeních.</string>
+    <string name="reactions_recent_clear_failed">Nedávné reakce se nepodařilo vymazat.</string>
     <string name="attachment_remove_file">Odebrat soubor</string>
     <string name="attachment_remove_photo">Odebrat fotku</string>
     <string name="emoji_search">Hledat emoji</string>

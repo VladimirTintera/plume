@@ -7,6 +7,7 @@ import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
+import eu.tintera.plume.core.telegram.ReactionChoices
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageInfo
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -64,7 +65,7 @@ class ConversationMessageMenuTest {
         var info: CompletableDeferred<Result<MessageInfo>>? = null
         var infoResult: Result<MessageInfo> = Result.success(INFO)
 
-        override suspend fun availableReactions(chatId: Long, messageId: Long) = Result.success(listOf("👍", "❤"))
+        override suspend fun availableReactions(chatId: Long, messageId: Long) = Result.success(ReactionChoices(listOf("👍", "❤")))
         override suspend fun messageActions(chatId: Long, messageId: Long) = actions
         override suspend fun messageInfo(chatId: Long, messageId: Long) = info?.await() ?: infoResult
     }
