@@ -92,7 +92,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun inlineBot(username: String) : Result<InlineBotInfo?> = error("inlineBot")
     override suspend fun inlineResults(botUserId: Long, chatId: Long, query: String, offset: String, location: GeoPoint?) : Result<InlineResultsPage> = error("inlineResults")
     override suspend fun sendInlineResult(chatId: Long, queryId: Long, resultId: String, replyToMessageId: Long?, quote: ReplyQuote?) : Result<ChatMessage> = error("sendInlineResult")
-    override suspend fun sendVoiceNote(chatId: Long, path: String, durationSeconds: Int, waveform: ByteArray, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions) : Result<ChatMessage> = error("sendVoiceNote")
+    override suspend fun sendVoiceNote(chatId: Long, path: String, durationSeconds: Int, waveform: ByteArray, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions, uploadedFileId: Int?) : Result<ChatMessage> = error("sendVoiceNote")
     override suspend fun sendVideoNote(chatId: Long, videoNote: OutgoingVideoNote, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions) : Result<ChatMessage> = error("sendVideoNote")
     override suspend fun sendAttachments(chatId: Long, attachments: List<OutgoingAttachment>, caption: String, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions, mentions: List<NameMention>, formats: List<FormatSpan>) : Result<List<ChatMessage>> = error("sendAttachments")
     override suspend fun editText(chatId: Long, messageId: Long, text: String, linkPreview: LinkPreviewOptions?, formats: List<FormatSpan>) : Result<Unit> = error("editText")

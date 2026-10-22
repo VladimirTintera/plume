@@ -629,13 +629,17 @@ AVFoundation na iOS.
   720 × 720, server zprávu přijal — jako `video`, ne `video_note` (ověřeno Bot API), takže
   u všech byla obdélníkem s tlačítkem přehrání. Soubor proto musí být opravdu malý.
 - **CameraX výstup zmenšit neumí, jen oříznout.** Kvalita je SD (480p → 480 × 480), s fallbackem
-  radši nižším; kamera bez SD (emulátor, část telefonů) ale jinak než 720p nenatočí. Takové
-  kolečko se po nahrání přepočítá na 480 × 480 přes Media3 Transformer (`shrinkIfNeeded`) —
-  jen když je potřeba. Minuta na emulátoru: do deseti vteřin od konce nahrávání i s nahráním
+  radši nižším. Kamera bez SD v `CamcorderProfile` (emulátor, část telefonů) bere kvality ze
+  schopností kodéru (`VIDEO_CAPABILITIES_SOURCE_CODEC_CAPABILITIES`), kde SD bývá; až když není
+  ani tam, natočí 720p a kolečko se po nahrání přepočítá na 480 × 480 přes Media3 Transformer
+  (`shrinkIfNeeded`) — jen když je potřeba. Minuta na emulátoru: do deseti vteřin od konce nahrávání i s nahráním
   na server.
 - **Po minutě kolečko odejde samo** (`VIDEO_NOTE_MAX_DURATION_MS`, víc Telegram nepřijme),
   pozastavený čas (nabídka, výběr času) se nepočítá. Ověřeno: 60 s, 480 px, 1,9 MB.
 - **Délka, strana a náhled se čtou až z hotového souboru** (`prepareVideoNote`), ne z časovače.
+- **Na Androidu je kolečko fragmentované MP4** (`FragmentedVideoNoteMuxer`), aby šlo nahrávat
+  do Telegramu už během nahrávání; délku v hlavičce nemá a spojování s tím počítá. Viz
+  `docs/poznatky/zvuk.md`, „Nahrávání do Telegramu už během nahrávání".
 - **iOS: `AVCaptureMovieFileOutput` do `.mov` a export do čtvercového MP4** se středovým ořezem
   (`AVMutableVideoComposition` po `preferredTransform`, strana nejvýš 480). **Přepnout kameru
   během nahrávání tam nejde** — výstup do souboru při výměně vstupu nahrávání ukončí; umělo by

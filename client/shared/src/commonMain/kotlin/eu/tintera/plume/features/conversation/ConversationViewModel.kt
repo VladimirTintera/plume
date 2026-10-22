@@ -74,6 +74,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.LiveUploads
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.core.telegram.DownloadsRepository
@@ -273,6 +274,8 @@ class ConversationViewModel(
     private val instantViewRequests: InstantViewRequests? = null,
     /** Seznam stahování: stažený soubor ze zprávy se do něj přidá. */
     private val downloads: DownloadsRepository? = null,
+    /** Hlasovka se nahrává do Telegramu už během nahrávání; bez toho se posílá až hotová. */
+    private val liveUploads: LiveUploads? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -356,6 +359,7 @@ class ConversationViewModel(
         media = mediaSender,
         readAfterOwnMessage = ::readAfterOwnMessage,
         logger = logger,
+        liveUploads = liveUploads,
     )
     val voiceRecording: StateFlow<VoiceRecording?> = recorder.voiceRecording
     val voicePreview: StateFlow<VoicePreview?> = recorder.voicePreview

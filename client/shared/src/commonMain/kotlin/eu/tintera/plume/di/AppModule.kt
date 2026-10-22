@@ -128,6 +128,8 @@ import eu.tintera.plume.core.telegram.ContactSync
 import eu.tintera.plume.core.telegram.TdlContactSync
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.TdlAiTextRepository
+import eu.tintera.plume.core.telegram.TdlLiveUploads
+import eu.tintera.plume.core.telegram.LiveUploads
 import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.FileRepository
@@ -282,6 +284,8 @@ fun appModule() = module {
     // Eagerně: styly psaní chodí jen updatem po přihlášení (viz `TdlAiTextRepository`).
     single<ContactSync> { TdlContactSync(holder = get()) }
     single<AiTextRepository>(createdAtStart = true) { TdlAiTextRepository(holder = get(), scope = get(named(APP_SCOPE))) }
+    // Eagerně: odběr `updateFileGenerationStart` musí běžet dřív než první nahrávání (viz `TdlLiveUploads`).
+    single<LiveUploads>(createdAtStart = true) { TdlLiveUploads(holder = get(), scope = get(named(APP_SCOPE))) }
     single<ChatRepository>(createdAtStart = true) {
         TdlChatRepository(
             holder = get(),
@@ -697,6 +701,7 @@ fun appModule() = module {
             speechToText = getOrNull(),
             instantViewRequests = get(),
             downloads = get(),
+            liveUploads = get(),
             liveStoriesSupported = getOrNull<LiveStreamMedia>() != null,
         )
     }

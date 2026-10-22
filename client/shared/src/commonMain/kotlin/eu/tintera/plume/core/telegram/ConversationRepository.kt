@@ -851,6 +851,8 @@ interface ConversationRepository {
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
         options: SendOptions = SendOptions(),
+        /** Soubor nahraný už během nahrávání ([LiveUploads]); `null` = posílá se [path]. */
+        uploadedFileId: Int? = null,
     ): Result<ChatMessage>
 
     /**
@@ -1314,6 +1316,8 @@ data class OutgoingVideoNote(
     val length: Int,
     val durationSeconds: Int,
     val thumbnail: OutgoingThumbnail?,
+    /** Soubor už nahraný do Telegramu během nahrávání ([LiveUploads]); `null` = posílá se [path]. */
+    val uploadedFileId: Int? = null,
 )
 
 /** Náhled přílohy připravený na disku (JPEG). */

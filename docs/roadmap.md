@@ -671,8 +671,11 @@ a se serverem, takže přednostně:
 7. ~~**Správce stahování** (`addFileToDownloads`, `searchFileDownloads`, `toggleDownloadIsPaused`)~~
    — hotovo, menu účtu → Stahování (`docs/poznatky/prohlizec-medii.md`, „Stahování"). Zbývá
    ověřit pozastavení na velkém souboru a hledání v seznamu (`searchFileDownloads(query)`).
-8. **Nahrávání hlasovky a kolečka už během nahrávání** (`preliminaryUploadFile`) — dlouhá
-   nahrávka by odešla hned po puštění.
+8. ~~**Nahrávání hlasovky a kolečka už během nahrávání** (`preliminaryUploadFile`)~~ — hotovo
+   pro hlasovku nahrávanou vcelku na Androidu 10+ a pro kolečko na Androidu (fragmentované MP4,
+   `docs/poznatky/zvuk.md`, „Nahrávání do Telegramu už během nahrávání"). Zbývá iOS (Opus se
+   kóduje až po skončení, kolečko se ořezává exportem), ověření na pomalé síti a přehrání
+   fragmentovaného kolečka v oficiálních klientech (ověřeno jen AVFoundation a Plume).
 9. ~~**Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha)~~ — hotovo
    (`docs/poznatky/profil-chatu.md`, „Profil firmy"). Zbývá úvodní stránka (`startPage`)
    v prázdné konverzaci a ověření na skutečném firemním účtu.

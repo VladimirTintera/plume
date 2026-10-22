@@ -91,6 +91,8 @@ class CaptureSlot : MediaCapture {
 
     override val level: Float get() = camera?.level ?: 0f
 
+    override val livePath: String? get() = camera?.livePath
+
     override suspend fun stop(): String = current().stop()
 
     override fun cancel() {

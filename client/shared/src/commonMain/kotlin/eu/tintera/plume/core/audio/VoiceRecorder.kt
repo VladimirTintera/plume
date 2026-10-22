@@ -40,6 +40,14 @@ interface MediaCapture {
     fun resume()
 
     /**
+     * Soubor, do kterého se PRÁVĚ nahrává a který bude i výsledkem [stop], dokud nahrávání běží
+     * vcelku. Podle něj se hlasovka i kolečko nahrávají do Telegramu už během nahrávání
+     * (`LiveUploads`). `null` = nahrávač soubor dopisuje až na konci (iOS kóduje hlasovku po
+     * skončení a kolečko ořezává exportem, M4A má index na konci) a nahrávat předem nemá smysl.
+     */
+    val livePath: String? get() = null
+
+    /**
      * Jde za hotovou nahrávku [path] připojit další úsek ([join]) — nahrávání po poslechu
      * náhledu. Výchozí je Ogg/Opus z mikrofonu; M4A z Androidu 9 a staršího spojit neumíme.
      */
@@ -111,6 +119,8 @@ class RecordedVoice(
     val waveform: ByteArray,
     val durationMs: Long = durationSeconds * 1000L,
     val levels: List<Float> = emptyList(),
+    /** Soubor už nahraný do Telegramu během nahrávání (`LiveUploads`); `null` = posílá se [path]. */
+    val uploadedFileId: Int? = null,
 )
 
 /**

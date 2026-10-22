@@ -243,6 +243,75 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
 - **Odesílá se jako samolepka** (`sendMedia`): bez letu, rozepsaný text zůstává, citace se použije.
 
+### Nahrávání do Telegramu už během nahrávání
+
+Hlasovka i kolečko se nahrávají na server, zatímco uživatel mluví (`preliminaryUploadFile`,
+`LiveUploads`, `TdlLiveUploads`); po puštění tlačítka zbývá poslat poslední díl, ne celou nahrávku. TDLib to
+v dokumentaci doporučuje přesně pro nahrávané hlasovky a kolečka.
+
+- **Rostoucí soubor jde jako GENEROVANÝ** (`inputFileGenerated` s vlastní konverzí
+  `plume-live-voice#…`). TDLib pošle `updateFileGenerationStart` s cestou, kam máme soubor
+  vytvářet; nahrávku tam po 300 ms dokopírujeme (`GrowingFileCopy`, testy `GrowingFileCopyTest`)
+  a hlásíme hotovou délku (`setFileGenerationProgress`). Po puštění se dokopíruje zbytek
+  a `finishFileGeneration`; zpráva odejde s `inputFileId`. Lokální soubor (`inputFileLocal`) by
+  nešel — TDLib si velikost přečte jednou na začátku.
+- **Bez odhadu velikosti TDLib během nahrávání nenahraje NIC.** S `expectedSize = 0` zůstal
+  `uploadedSize` na nule po celou nahrávku (díl volí podle velikosti a u neznámé čeká na velký).
+  S odhadem nahrává po dílech 64 kB (menší ani s menším odhadem), odhad roste s nahrávkou.
+  Změřeno: 20 s nahrávky (99 kB) mělo při puštění nahraných 64 kB; po odeslání
+  `isUploadingCompleted` a velikost na serveru = velikost souboru.
+- **Jen nahrávání vcelku** (`MediaCapture.livePath`): Android 10+ s Ogg/Opus, jeden úsek.
+  Pauza (nabídka odeslání, výběr času) končí úsek a úseky se na konci spojí do jiného souboru,
+  navázání po náhledu taky — předem nahrané se zahodí (`cancelPreliminaryUploadFile`) a pošle
+  se celý soubor. iOS kóduje Opus až po skončení a M4A (Android 9) má index na konci souboru:
+  tam `livePath` není a posílá se jako dřív. Kolečko viz níž.
+- **Hotový soubor se porovná se zkopírovaným** (`GrowingFileCopy.finish`): kdyby nahrávač na
+  konci přepsal začátek, nahrálo by se něco jiného, než odejde. Ogg z `MediaRecorder` začátek
+  nepřepisuje (ověřeno, shoda u všech pokusů); kontrola je pojistka, ne nutnost.
+- **Náhled před odesláním si nahraný soubor nese** (`RecordedVoice.uploadedFileId`); koš nebo
+  navázání ho zahodí. Po pádu aplikace TDLib generování s naší konverzí obnoví — nikdo na něj
+  nečeká, tak se hned ukončí chybou (proto `TdlLiveUploads` vzniká eagerně).
+- **Kolečko (Android) se zapisuje jako FRAGMENTOVANÉ MP4** (`FragmentedVideoNoteMuxer`,
+  `Recorder.Builder.setMuxerFactory`). Výchozí muxer CameraX (`Media3MuxerImpl` nad `Mp4Muxer`)
+  si na začátku nechá místo na index (`free`) a velikost `mdat` a obojí dopíše po skončení —
+  jenže začátek už by byl na serveru: **TDLib nahrává jen souvislý začátek**
+  (`setFileGenerationProgress` zná jen `localPrefixSize`, `PartsManager` jede po prefixu)
+  a nahraný díl znovu neposílá. Oficiální Telegram pro Android to řeší nahráním prvního dílu
+  až nakonec (`uploadFirstPartLater`), to přes TDLib nejde. `FragmentedMp4Muxer` z Media3 píše
+  do kanálu bez posunu: `ftyp` + `moov` bez vzorků, pak `moof` + `mdat` po klíčových snímcích
+  (na emulátoru po 2 s). Pauza kolečka soubor NEMĚNÍ (kamera píše dál do téhož), předem
+  nahrané se nezahazuje; navázání po náhledu (`join`) a zmenšení (`shrinkIfNeeded`) dají jiný
+  soubor a posílá se celý. `setMuxerFactory` je `@RestrictTo` — změnu rozhraní při bumpu CameraX
+  ohlásí překladač.
+  - **Telegram fragmentované kolečko bere**: Bot API ho dostal jako `video_note` (480 px, délka
+    sedí), stažený soubor je bajtově shodný s odeslaným, AVFoundation (iOS/macOS) ho přečte
+    celé i se snímkem uprostřed.
+  - **Délka v hlavičce NENÍ** (`mvhd` 0, bez `mehd`). `MediaMetadataRetriever` pak vrátí nulu
+    a kolečko mělo v náhledu 0:01 (server si délku opravil sám); `videoMetadata` ji teď
+    dopočítá z posledního vzorku (`MediaExtractor`). **Transformer délku chce u každé položky
+    sekvence kromě poslední** („Could not retrieve required duration for EditedMediaItem 0") —
+    spojení koleček proto první část napřed přebalí jednopoložkovým exportem
+    (`withKnownDuration`); `setDurationUs` u `EditedMediaItem` loader z ExoPlayeru ignoruje.
+  - **Zvukové vzorky musí být označené jako synchronní.** Kodér zvuku je jako klíčové
+    neoznačuje a fragmentovaný muxer to přenese do `trun`; ExoPlayer pak zvuk před prvním
+    synchronním vzorkem zahodí — AMR z emulátoru nehrál vůbec a Transformer ho při spojení
+    ztratil („The preceding MediaItem does not contain any audio track"). U AAC to ExoPlayer
+    1.11 přepíše sám (`allSamplesAreSyncSamples`), starší přehrávače ne. Ověřeno rozborem `trun`:
+    252 z 252 zvukových vzorků nesynchronních před opravou, 0 po ní.
+  - **Emulátor má v `CamcorderProfile` jen 720p**, takže se kolečko vždycky přepočítávalo
+    a předem nahrané nešlo použít. Bez SD v profilech se kvality berou ze schopností kodéru
+    (`VIDEO_CAPABILITIES_SOURCE_CODEC_CAPABILITIES`) — emulátor pak natočí 640 × 480 → 480 × 480.
+    Telefony s SD v profilech jedou dál podle profilů.
+  - **Ověřeno na emulátoru** (dočasným výpisem): kolečka 9–21 s ve vlastní skupině i chatu
+    s botem; při puštění bylo nahráno 128 z 169 kB, 256 z 324 kB, 320 z 340 kB (s pauzou
+    v nabídce odeslání); zamčení s ■ a náhledem, navázání (8 + 7 s → 15 s, bot dostal
+    `video_note` 15 s). **Neověřené:** přehrání v oficiálních klientech, telefon se skutečnou
+    kamerou (AAC, otočení přes `Mp4OrientationData`), pomalá síť, přepnutí kamery během nahrávání.
+- **Ověřeno na emulátoru** (dočasným výpisem, vlastní testovací skupina): tři hlasovky 12–20 s,
+  nahrávání během záznamu, shoda souboru, odeslané zprávy s waveformem a délkou. **Neověřené:**
+  pomalá síť (kde je to znát nejvíc), skutečný telefon, náhled s předem nahraným souborem na
+  zařízení (jen testy).
+
 ## Hudba
 
 `MessageAudio` je `MessageMedia.Audio` a hraje přímo v bublině (`AudioContent`): obal alba
