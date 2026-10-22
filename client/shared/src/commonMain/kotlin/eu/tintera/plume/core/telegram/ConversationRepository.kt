@@ -339,7 +339,13 @@ interface ConversationRepository {
     ): Result<Unit>
 
     /** Emoji nabízená u téhle zprávy. Liší se chat od chatu — kanály si sadu omezují. */
-    suspend fun availableReactions(chatId: Long, messageId: Long): Result<List<String>>
+    suspend fun availableReactions(chatId: Long, messageId: Long): Result<ReactionChoices>
+
+    /**
+     * Vymaže seznam nedávno použitých reakcí. Je v cloudu, takže zmizí na všech zařízeních
+     * účtu; nejčastější reakce (pořadí rychlého řádku) drží server zvlášť a ty zůstanou.
+     */
+    suspend fun clearRecentReactions(): Result<Unit> = Result.success(Unit)
 
     /**
      * Kdo na zprávu reagoval a čím, od nejnovější reakce.
@@ -851,6 +857,8 @@ interface ConversationRepository {
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
         options: SendOptions = SendOptions(),
+        /** Soubor nahraný už během nahrávání ([LiveUploads]); `null` = posílá se [path]. */
+        uploadedFileId: Int? = null,
     ): Result<ChatMessage>
 
     /**
@@ -1314,6 +1322,8 @@ data class OutgoingVideoNote(
     val length: Int,
     val durationSeconds: Int,
     val thumbnail: OutgoingThumbnail?,
+    /** Soubor už nahraný do Telegramu během nahrávání ([LiveUploads]); `null` = posílá se [path]. */
+    val uploadedFileId: Int? = null,
 )
 
 /** Náhled přílohy připravený na disku (JPEG). */
@@ -2142,6 +2152,20 @@ class Minithumbnail(val jpeg: ByteArray, val width: Int, val height: Int) {
  * se kreslí jako obrázek. Placená reakce (hvězdičky) se přeskočí, aby zbytek reakcí u zprávy
  * nezmizel.
  */
+/**
+ * Reakce nabízené u zprávy. [emoji] jsou všechny v pořadí pro rychlý řádek (nejčastější,
+ * nedávné, populární, bez duplicit). [hasRecent]: seznam nedávno použitých není prázdný a řadí
+ * se podle něj — jen tehdy má smysl ho vymazat ([ConversationRepository.clearRecentReactions]).
+ */
+data class ReactionChoices(
+    val emoji: List<String>,
+    val hasRecent: Boolean = false,
+) {
+    companion object {
+        val None = ReactionChoices(emptyList())
+    }
+}
+
 data class MessageReaction(
     /** Klíč reakce — obyčejné emoji, nebo [customEmojiReaction]. */
     val emoji: String,

@@ -42,6 +42,7 @@ open class UnimplementedChatRepository : ChatRepository {
     override suspend fun topChats() : Result<List<ChatSummary>> = error("topChats")
     override val archiveUnread: StateFlow<ArchiveUnread> get() = error("archiveUnread")
     override val mainUnread: StateFlow<ArchiveUnread> get() = error("mainUnread")
+    override val unreadMessages: StateFlow<Int?> get() = error("unreadMessages")
     override suspend fun archiveSettings() : Result<ArchiveSettings> = error("archiveSettings")
     override suspend fun setArchiveSettings(settings: ArchiveSettings) : Result<Unit> = error("setArchiveSettings")
     override suspend fun loadMore(folder: ChatFolder): Unit = error("loadMore")

@@ -1521,6 +1521,11 @@
     <string name="reactions_delete_from">Delete their reactions</string>
     <string name="reactions_deleted">Reactions deleted</string>
     <string name="reactions_delete_failed">Couldn’t delete the reactions.</string>
+    <string name="reactions_recent_clear">Clear recent</string>
+    <string name="reactions_recent_clear_confirm">Clear</string>
+    <string name="reactions_recent_clear_title">Clear recent reactions?</string>
+    <string name="reactions_recent_clear_text">Recently used reactions will no longer be listed first in the picker, on all your devices.</string>
+    <string name="reactions_recent_clear_failed">Couldn’t clear recent reactions.</string>
     <string name="attachment_remove_file">Remove the file</string>
     <string name="attachment_remove_photo">Remove the photo</string>
     <string name="emoji_search">Search emoji</string>

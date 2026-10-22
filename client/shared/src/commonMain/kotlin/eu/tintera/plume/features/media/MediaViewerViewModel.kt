@@ -679,7 +679,7 @@ class MediaViewerViewModel(
         viewModelScope.launch {
             val reactions = async { repository.availableReactions(chatId, messageId) }
             val actions = async { repository.messageActions(chatId, messageId) }
-            val available = reactions.await().getOrNull()
+            val available = reactions.await().getOrNull()?.emoji
             val allowed = actions.await().getOrNull()
             _state.update {
                 it.copy(

@@ -9,6 +9,7 @@ import androidx.media3.effect.Presentation
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.MediaItem
 import android.net.Uri
+import android.media.MediaMetadataRetriever
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -18,6 +19,7 @@ import android.view.Surface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.DynamicRange
 import androidx.camera.core.MirrorMode
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
@@ -133,16 +135,45 @@ private class AndroidVideoNoteCamera(
     private val logger = Logger.withTag("VideoNoteCamera")
 
     private val preview = Preview.Builder().build()
-    private val videoCapture = VideoCapture.Builder(
-        Recorder.Builder()
-            // SD (480p) mají skoro všechny telefony; bez něj radši nižší než vyšší — TDLib bere
-            // stranu kolečka jen pod 640 px (viz [prepareVideoNote]).
-            .setQualitySelector(QualitySelector.from(Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)))
-            .setTargetVideoEncodingBitRate(VIDEO_BITRATE)
-            .build(),
-    )
-        .setMirrorMode(MirrorMode.MIRROR_MODE_ON_FRONT_ONLY)
-        .build()
+
+    /** Vzniká s prvním nahráváním: odkud brát kvality, rozhoduje kamera ([videoCapabilitiesSource]). */
+    private var videoCapture: VideoCapture<Recorder>? = null
+
+    @SuppressLint("RestrictedApi")
+    private fun videoCapture(provider: ProcessCameraProvider): VideoCapture<Recorder> =
+        videoCapture ?: VideoCapture.Builder(
+            Recorder.Builder()
+                // SD (480p) mají skoro všechny telefony; bez něj radši nižší než vyšší — TDLib bere
+                // stranu kolečka jen pod 640 px (viz [prepareVideoNote]).
+                .setQualitySelector(QualitySelector.from(Quality.SD, FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)))
+                .setVideoCapabilitiesSource(videoCapabilitiesSource(provider))
+                .setTargetVideoEncodingBitRate(VIDEO_BITRATE)
+                // Soubor se jen připisuje, takže se nahrává do Telegramu už během nahrávání (`LiveUploads`).
+                .setMuxerFactory(FragmentedVideoNoteMuxer.factory)
+                .build(),
+        )
+            .setMirrorMode(MirrorMode.MIRROR_MODE_ON_FRONT_ONLY)
+            .build()
+            .also { videoCapture = it }
+
+    /**
+     * Kvality podle profilů výrobce (`CamcorderProfile`), a když v nich SD chybí, podle schopností
+     * kodéru. Bez SD by kamera natočila 720p a kolečko by se po skončení přepočítávalo
+     * ([shrinkIfNeeded]) — vteřiny čekání navíc a jiný soubor, než jaký se nahrával předem.
+     * Emulátor má v profilech jen 720p, kodér SD zvládne.
+     */
+    private fun videoCapabilitiesSource(provider: ProcessCameraProvider): Int {
+        val info = runCatching { provider.getCameraInfo(selector) }.getOrNull()
+            ?: return Recorder.VIDEO_CAPABILITIES_SOURCE_CAMCORDER_PROFILE
+        fun hasSd(source: Int) = runCatching {
+            Quality.SD in Recorder.getVideoCapabilities(info, source).getSupportedQualities(DynamicRange.SDR)
+        }.getOrDefault(false)
+        return when {
+            hasSd(Recorder.VIDEO_CAPABILITIES_SOURCE_CAMCORDER_PROFILE) -> Recorder.VIDEO_CAPABILITIES_SOURCE_CAMCORDER_PROFILE
+            hasSd(Recorder.VIDEO_CAPABILITIES_SOURCE_CODEC_CAPABILITIES) -> Recorder.VIDEO_CAPABILITIES_SOURCE_CODEC_CAPABILITIES
+            else -> Recorder.VIDEO_CAPABILITIES_SOURCE_CAMCORDER_PROFILE
+        }
+    }
 
     private var selector = CameraSelector.DEFAULT_FRONT_CAMERA
     private var recording: Recording? = null
@@ -192,7 +223,7 @@ private class AndroidVideoNoteCamera(
         finalized = done
         amplitude = 0f
         recording = try {
-            videoCapture.output
+            videoCapture(provider).output
                 .prepareRecording(context, FileOutputOptions.Builder(target).build())
                 .withAudioEnabled()
                 .asPersistentRecording()
@@ -217,11 +248,19 @@ private class AndroidVideoNoteCamera(
         val group = UseCaseGroup.Builder()
             .setViewPort(ViewPort.Builder(Rational(1, 1), Surface.ROTATION_0).build())
             .addUseCase(preview)
-            .addUseCase(videoCapture)
+            .addUseCase(videoCapture(provider))
             .build()
         provider.unbindAll()
         provider.bindToLifecycle(owner, selector, group)
     }
+
+    /**
+     * Fragmentované MP4 se jen připisuje (viz [FragmentedVideoNoteMuxer]), takže soubor, do
+     * kterého se nahrává, je i výsledek [stop] — pokud se nepřepočítává ([shrinkIfNeeded]); pak
+     * se předem nahrané zahodí a posílá se zmenšený soubor. Pauza soubor nemění.
+     */
+    override val livePath: String?
+        get() = output?.takeIf { recording != null }?.absolutePath
 
     /** Odmocnina zvedne tiché úrovně, ať je řeč vidět — stejně jako u hlasovky. */
     override val level: Float get() = sqrt(amplitude.coerceIn(0f, 1f))
@@ -278,18 +317,47 @@ private class AndroidVideoNoteCamera(
         val first = File(previous)
         val second = File(next)
         val target = File(second.parentFile, "video-note-joined.mp4")
-        val sequence = EditedMediaItemSequence.Builder(squareItem(first), squareItem(second)).build()
+        val head = File(second.parentFile, "video-note-head.mp4")
         try {
+            val indexed = withKnownDuration(first, head)
+            val sequence = EditedMediaItemSequence.Builder(squareItem(indexed), squareItem(second)).build()
             export(Composition.Builder(sequence).build(), target, audioMimeType = MimeTypes.AUDIO_AAC)
         } catch (failure: Throwable) {
             target.delete()
             throw failure
+        } finally {
+            head.delete()
         }
         first.delete()
         // Složka předchozího kolečka zůstala prázdná (náhledový snímek maže volající); prázdnou smaže.
         first.parentFile?.delete()
         second.delete()
         return target.absolutePath
+    }
+
+    /**
+     * [source], nebo jeho kopie přebalená do běžného MP4 v [target], když délku v hlavičce nemá.
+     *
+     * **Transformer chce délku u každé položky sekvence kromě poslední** („Could not retrieve
+     * required duration for EditedMediaItem 0") a fragmentované kolečko z kamery
+     * ([FragmentedVideoNoteMuxer]) ji v hlavičce nenese — zná se až z fragmentů. Jedna položka
+     * bez efektů se jen přebalí (bez překódování), a ta délku mít nemusí.
+     */
+    private suspend fun withKnownDuration(source: File, target: File): File {
+        val known = runCatching {
+            MediaMetadataRetriever().run {
+                try {
+                    setDataSource(source.absolutePath)
+                    (extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) > 0
+                } finally {
+                    release()
+                }
+            }
+        }.getOrDefault(false)
+        if (known) return source
+        val item = EditedMediaItem.Builder(MediaItem.fromUri(Uri.fromFile(source))).build()
+        export(Composition.Builder(EditedMediaItemSequence.Builder(item).build()).build(), target)
+        return target
     }
 
     private fun squareItem(source: File): EditedMediaItem =

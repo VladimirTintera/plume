@@ -627,9 +627,13 @@ a se serverem, takže přednostně:
 - ~~**Zablokování z jiného zařízení** (`chatBlockListUpdates`)~~ — hotovo: profil, sheet
   smazání v konverzaci a seznam blokovaných (`docs/poznatky/spam-a-blokovani.md`, „Blokování
   a nahlášení spamu"), i „Odblokovat" místo vstupního pole v chatu se zablokovaným.
-- Drobné: změna nainstalované sady samolepek (`stickerSetUpdates`), počet zpráv v tématu
-  Uložených zpráv (`topicMessageCountUpdates`), nepřečtené zprávy v seznamu
-  (`unreadMessageCountUpdates`, dnes se počítají chaty).
+- Drobné: ~~změna nainstalované sady samolepek (`stickerSetUpdates`)~~ (hotovo, výběr i detail
+  sady se přečtou znovu; `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr samolepek"; zbývá
+  ověřit se sadou, do které autor přidá samolepku), ~~nepřečtené zprávy
+  (`unreadMessageCountUpdates`)~~ (hotovo, odznak na iOS a desktopu počítá TDLib místo součtu
+  nad načtenými chaty; `docs/poznatky/notifikace.md`; iOS a desktop jen přeložené).
+  Počet zpráv v tématu Uložených zpráv (`topicMessageCountUpdates`) vědomě NE: Plume ho nikde
+  neukazuje, update by neměl co obnovit — přijde na řadu, až bude počet někde vidět.
 
 **Funkce pro běžného uživatele** (bez Premium a bez plateb):
 
@@ -671,8 +675,11 @@ a se serverem, takže přednostně:
 7. ~~**Správce stahování** (`addFileToDownloads`, `searchFileDownloads`, `toggleDownloadIsPaused`)~~
    — hotovo, menu účtu → Stahování (`docs/poznatky/prohlizec-medii.md`, „Stahování"). Zbývá
    ověřit pozastavení na velkém souboru a hledání v seznamu (`searchFileDownloads(query)`).
-8. **Nahrávání hlasovky a kolečka už během nahrávání** (`preliminaryUploadFile`) — dlouhá
-   nahrávka by odešla hned po puštění.
+8. ~~**Nahrávání hlasovky a kolečka už během nahrávání** (`preliminaryUploadFile`)~~ — hotovo
+   pro hlasovku nahrávanou vcelku na Androidu 10+ a pro kolečko na Androidu (fragmentované MP4,
+   `docs/poznatky/zvuk.md`, „Nahrávání do Telegramu už během nahrávání"). Zbývá iOS (Opus se
+   kóduje až po skončení, kolečko se ořezává exportem), ověření na pomalé síti a přehrání
+   fragmentovaného kolečka v oficiálních klientech (ověřeno jen AVFoundation a Plume).
 9. ~~**Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha)~~ — hotovo
    (`docs/poznatky/profil-chatu.md`, „Profil firmy"). Zbývá úvodní stránka (`startPage`)
    v prázdné konverzaci a ověření na skutečném firemním účtu.
@@ -692,8 +699,10 @@ a se serverem, takže přednostně:
     `docs/poznatky/spam-a-blokovani.md`, „Blokování z chatu Odpovědi"; zbývá ověřit se skutečným
     chatem Odpovědi), ~~nahlášení reakcí a smazání reakcí člena u jedné zprávy
     (`reportMessageReactions`, `deleteMessageReactionsFromSender`)~~ (hotovo, detail reakcí;
-    `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá ověřit na cizí reakci), smazání nedávných reakcí
-    (`clearRecentReactions`), ~~obrysy samolepek při načítání (`getStickerOutlineSvgPath`)~~
+    `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá ověřit na cizí reakci), ~~smazání nedávných reakcí
+    (`clearRecentReactions`)~~ (hotovo, plný výběr reakcí nad zprávou; má smysl jen s Premium —
+    bez něj TDLib nedávné neřadí; `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce"; zbývá
+    ověřit s Premium), ~~obrysy samolepek při načítání (`getStickerOutlineSvgPath`)~~
     (hotovo, `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr samolepek"), ~~sady samolepek
     použité na fotce (`getAttachedStickerSets`)~~ (hotovo, ⋮ prohlížeče;
     `docs/poznatky/prohlizec-medii.md`, „Samolepky na fotce"; zbývá ověřit na fotce se

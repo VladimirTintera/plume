@@ -6,6 +6,7 @@ import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.ReactionChoices
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -200,7 +201,7 @@ internal class ConversationMessageMenu(
                     alreadyInLanguage(detected, translation.translationTarget())
                 }
                 MenuLoad(
-                    emojiTask.await().getOrDefault(emptyList()),
+                    emojiTask.await().getOrDefault(ReactionChoices.None),
                     actionsTask.await().getOrElse { failure ->
                         logger.w(failure) { "Příznaky zprávy $messageId se nepodařilo zjistit." }
                         MessageActions.Fallback
@@ -222,7 +223,8 @@ internal class ConversationMessageMenu(
                         messageId = messageId,
                         timestamp = message.timestamp,
                         isOutgoing = message.isOutgoing,
-                        emoji = emoji,
+                        emoji = emoji.emoji,
+                        hasRecentReactions = emoji.hasRecent,
                         chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
                         actions = actions,
                         items = shownItems,
@@ -272,7 +274,7 @@ internal class ConversationMessageMenu(
     }
 
     private data class MenuLoad(
-        val emoji: List<String>,
+        val emoji: ReactionChoices,
         val actions: MessageActions,
         val favorite: Boolean?,
         val inTranslationLanguage: Boolean,

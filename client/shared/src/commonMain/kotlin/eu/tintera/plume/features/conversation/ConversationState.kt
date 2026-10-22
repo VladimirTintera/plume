@@ -310,6 +310,8 @@ data class MessageMenu(
     val isOutgoing: Boolean,
     /** Nabídnutá emoji. Prázdné je běžný stav (Uložené zprávy), ne chyba. */
     val emoji: List<String>,
+    /** Seznam nedávno použitých reakcí existuje a řadí se podle něj — výběr nabídne „Vymazat nedávné". */
+    val hasRecentReactions: Boolean = false,
     /** Emoji, která uživatel u téhle zprávy už dal — v rychlém řádku se zvýrazní. */
     val chosenEmoji: Set<String>,
     /** Co server dovolí; načítá se až při otevření nabídky. */

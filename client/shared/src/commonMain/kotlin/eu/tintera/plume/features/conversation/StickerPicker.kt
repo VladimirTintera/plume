@@ -500,6 +500,25 @@ class StickerPickerViewModel(
         }
     }
 
+    /*
+     * Obsah sad se načítá jednou ([load], [loadCustomEmoji]) a výběr žije s konverzací. Když
+     * autor do sady přidá samolepku nebo ji přejmenuje, TDLib pošle `UpdateStickerSet` —
+     * načtená sada se přečte znovu, jinak by zůstala stará až do odchodu z chatu. Nenačtené
+     * sady se nechají být, načtou se s první návštěvou.
+     */
+    init {
+        viewModelScope.launch {
+            repository.changedSets().collect { setId ->
+                if (setId in setContents.value) {
+                    repository.stickerSet(setId).onSuccess { stickers -> setContents.update { it + (setId to stickers) } }
+                }
+                if (setId in customEmojiContents.value) {
+                    repository.customEmojiSet(setId).onSuccess { items -> customEmojiContents.update { it + (setId to items) } }
+                }
+            }
+        }
+    }
+
     private data class SearchRequest(val text: String, val languageCodes: List<String>)
 
     private companion object {

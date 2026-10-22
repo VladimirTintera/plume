@@ -718,7 +718,7 @@ class TdlConversationRepository(
             .map { }
     }
 
-    override suspend fun availableReactions(chatId: Long, messageId: Long): Result<List<String>> =
+    override suspend fun availableReactions(chatId: Long, messageId: Long): Result<ReactionChoices> =
         client.getMessageAvailableReactions(
             chatId = chatId,
             messageId = messageId,
@@ -737,10 +737,24 @@ class TdlConversationRepository(
 
                 // Pořadí schválně: nejdřív doporučené, pak nedávno použité, pak populární.
                 // Duplicity se odstraní, ale první výskyt si drží pozici.
-                all.filter { isPremium || !it.needsPremium }
-                    .mapNotNull { it.type.toReactionKey() }
-                    .distinct()
+                ReactionChoices(
+                    emoji = all.filter { isPremium || !it.needsPremium }
+                        .mapNotNull { it.type.toReactionKey() }
+                        .distinct(),
+                    /*
+                     * Které reakce jsou nedávné, TDLib NEŘEKNE (`ReactionManager::
+                     * get_sorted_available_reactions`): bez Premium nedávné při řazení nepoužije
+                     * vůbec a všechno dá do `topReactions`; s Premium za nedávné rovnou připojí
+                     * všechny ostatní a `popularReactions` nechá prázdné. Neprázdné „nedávné"
+                     * vedle prázdných „populárních" je tedy jediný spolehlivý znak, že seznam
+                     * nedávných existuje a řazení ovlivňuje.
+                     */
+                    hasRecent = available.recentReactions.isNotEmpty() && available.popularReactions.isEmpty(),
+                )
             }
+
+    override suspend fun clearRecentReactions(): Result<Unit> =
+        client.clearRecentReactions().toResult().map { }
 
     /**
      * Příznaky, co se s konkrétní zprávou smí.
@@ -1397,6 +1411,7 @@ class TdlConversationRepository(
         replyToMessageId: Long?,
         quote: ReplyQuote?,
         options: SendOptions,
+        uploadedFileId: Int?,
     ): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
@@ -1406,7 +1421,8 @@ class TdlConversationRepository(
             replyMarkup = null,
             inputMessageContent = InputMessageVoiceNote(
                 voiceNote = InputVoiceNote(
-                    voiceNote = InputFileLocal(path = path),
+                    // Předem nahraný soubor se pošle podle id — TDLib použije už nahrané části.
+                    voiceNote = uploadedFileId?.let { InputFileId(id = it) } ?: InputFileLocal(path = path),
                     duration = durationSeconds,
                     waveform = waveform,
                 ),
@@ -1432,7 +1448,8 @@ class TdlConversationRepository(
             replyMarkup = null,
             inputMessageContent = InputMessageVideoNote(
                 videoNote = InputVideoNote(
-                    videoNote = InputFileLocal(path = videoNote.path),
+                    // Předem nahraný soubor se pošle podle id — TDLib použije už nahrané části.
+                    videoNote = videoNote.uploadedFileId?.let { InputFileId(id = it) } ?: InputFileLocal(path = videoNote.path),
                     thumbnail = videoNote.thumbnail?.let {
                         InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
                     },
