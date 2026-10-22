@@ -66,6 +66,8 @@ internal sealed interface OwnMemberStatus {
         val canManageTopics: Boolean = false,
         /** Právo mazat cizí zprávy, a tím i cizí téma (`deleteForumTopic`). */
         val canDeleteMessages: Boolean = false,
+        /** Právo spravovat uvítací zprávy pro nové členy (`addChatWelcomeMessage` a spol.). */
+        val canSendWelcomeMessages: Boolean = false,
     ) : OwnMemberStatus
     data object Member : OwnMemberStatus
     data class Restricted(
@@ -229,8 +231,10 @@ data class ChatEditRights(
      * zvát (výchozí práva), ale odkazy spravovat ne — `createChatInviteLink` chce správce.
      */
     val canManageInvites: Boolean = false,
+    /** Uvítací zprávy pro nové členy: vlastník, nebo správce s `canSendWelcomeMessages`. */
+    val canManageWelcomeMessages: Boolean = false,
 ) {
-    val any: Boolean get() = canChangeInfo || canRestrictMembers || canManageInvites
+    val any: Boolean get() = canChangeInfo || canRestrictMembers || canManageInvites || canManageWelcomeMessages
 }
 
 /**
@@ -253,7 +257,7 @@ internal fun chatEditRights(
     null -> ChatEditRights()
     is OwnMemberStatus.Creator ->
         if (status.isMember) {
-            ChatEditRights(canChangeInfo = true, canRestrictMembers = !isChannel, canManageInvites = true)
+            ChatEditRights(canChangeInfo = true, canRestrictMembers = !isChannel, canManageInvites = true, canManageWelcomeMessages = true)
         } else {
             ChatEditRights()
         }
@@ -262,6 +266,7 @@ internal fun chatEditRights(
         // Kanál výchozí práva členů nemá — nikdo do něj nepíše, takže není co omezovat.
         canRestrictMembers = status.canRestrictMembers && !isChannel,
         canManageInvites = status.canInviteUsers,
+        canManageWelcomeMessages = status.canSendWelcomeMessages,
     )
     OwnMemberStatus.Member ->
         ChatEditRights(canChangeInfo = !isChannel && membersCanChangeInfo)

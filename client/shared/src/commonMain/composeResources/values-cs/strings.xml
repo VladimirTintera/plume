@@ -2901,6 +2901,16 @@
     <string name="broadcast_group_confirm">Převést</string>
     <string name="broadcast_group_done">Skupina je teď gigaskupina</string>
     <string name="broadcast_group_failed">Skupinu se nepodařilo převést.</string>
+    <string name="welcome_messages_title">Uvítací zprávy</string>
+    <string name="welcome_messages_row_help">Zprávy, které dostanou noví členové po vstupu</string>
+    <string name="welcome_messages_help">Noví členové dostanou tyhle zprávy po vstupu, v tomto pořadí.</string>
+    <string name="welcome_messages_empty">Zatím žádné uvítací zprávy.</string>
+    <string name="welcome_messages_failed">Uvítací zprávy se nepodařilo načíst.</string>
+    <string name="welcome_messages_new">Nová uvítací zpráva</string>
+    <string name="welcome_messages_add">Přidat</string>
+    <string name="welcome_messages_delete">Smazat uvítací zprávu</string>
+    <string name="welcome_messages_add_failed">Uvítací zprávu se nepodařilo přidat.</string>
+    <string name="welcome_messages_delete_failed">Uvítací zprávu se nepodařilo smazat.</string>
     <string name="boosts_row_help">Úroveň a kolik boostů chybí do další</string>
     <string name="boosts_level">Úroveň %1$d</string>
     <string name="boosts_max_level">nejvyšší úroveň</string>

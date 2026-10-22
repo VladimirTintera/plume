@@ -1,6 +1,8 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.UiText
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlin.time.Duration
 
 /**
@@ -205,6 +207,19 @@ interface ProfileRepository {
      * psát smějí jen správci. **Nevratné.** Jen vlastník, viz [offersBroadcastGroup].
      */
     suspend fun convertToBroadcastGroup(supergroupId: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Uvítací zprávy chatu pro nové členy, od první po poslední (`loadChatWelcomeMessages`
+     * a `updateChatWelcomeMessages`). Tok se ozve po načtení a po každé změně, i z jiného
+     * zařízení. Jen pro vlastníka a správce s právem ([ChatEditRights.canManageWelcomeMessages]).
+     */
+    fun welcomeMessages(chatId: Long): Flow<List<WelcomeMessage>> = emptyFlow()
+
+    /** Přidá uvítací zprávu s textem [text] (`addChatWelcomeMessage`). */
+    suspend fun addWelcomeMessage(chatId: Long, text: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Smaže uvítací zprávu [id] (`deleteChatWelcomeMessage`). */
+    suspend fun deleteWelcomeMessage(chatId: Long, id: Int): Result<Unit> = Result.failure(UnsupportedOperationException())
 
     /** Stav boostů supergroupy nebo kanálu (`getChatBoostStatus`); správci vidí víc čísel. */
     suspend fun boostStatus(chatId: Long): Result<BoostStatus> = Result.failure(UnsupportedOperationException())
@@ -760,4 +775,14 @@ data class ProfileGiftsPage(
     val gifts: List<ProfileGift>,
     val total: Int,
     val nextOffset: String?,
+)
+
+/**
+ * Uvítací zpráva, kterou chat posílá novým členům. [text] je text zprávy nebo popisek média;
+ * [description] slovní podoba obsahu bez textu („Fotka", „Samolepka"), aby šel řádek přečíst.
+ */
+data class WelcomeMessage(
+    val id: Int,
+    val text: String,
+    val description: UiText?,
 )

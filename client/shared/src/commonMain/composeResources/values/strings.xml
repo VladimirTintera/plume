@@ -2809,6 +2809,16 @@
     <string name="broadcast_group_confirm">Convert</string>
     <string name="broadcast_group_done">The group is now a broadcast group</string>
     <string name="broadcast_group_failed">The group couldn't be converted.</string>
+    <string name="welcome_messages_title">Welcome messages</string>
+    <string name="welcome_messages_row_help">Messages new members get when they join</string>
+    <string name="welcome_messages_help">New members get these messages when they join, in this order.</string>
+    <string name="welcome_messages_empty">No welcome messages yet.</string>
+    <string name="welcome_messages_failed">Welcome messages couldn't be loaded.</string>
+    <string name="welcome_messages_new">New welcome message</string>
+    <string name="welcome_messages_add">Add</string>
+    <string name="welcome_messages_delete">Delete welcome message</string>
+    <string name="welcome_messages_add_failed">The welcome message couldn't be added.</string>
+    <string name="welcome_messages_delete_failed">The welcome message couldn't be deleted.</string>
     <string name="boosts_row_help">Level and how many boosts are missing for the next one</string>
     <string name="boosts_level">Level %1$d</string>
     <string name="boosts_max_level">highest level</string>
