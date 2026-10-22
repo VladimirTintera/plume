@@ -115,6 +115,18 @@ kontrola poznámek na PR a Play Listing; nic z toho nestaví.
   podle cesty k Javě: daemon běží na toolchainu z `gradle/gradle-daemon-jvm.properties`
   (`~/.gradle/jdks`, sdílený s lokální prací), ne na JDK od `setup-java`. A `./gradlew --stop`
   by zastavil všechny daemony téže verze Gradlu, i ty z IDE.
+- **Gradle v jobech běží pod vlastním registrem daemonů** (krok „Isolate Gradle daemons":
+  `GRADLE_OPTS` s `-Dorg.gradle.daemon.registry.base=~/.gradle/plume-ci-daemon` do
+  `$GITHUB_ENV`). Platí to i obráceně k bodu výš: `gradlew --stop` z lokální práce nebo ze
+  sezení agenta (pouští ho po každém buildu) by zastavil i daemon běžícího releasu a ten by
+  spadl na „Gradle build daemon has been stopped: stop command received". Tak dvakrát spadl
+  Server Release v mlogu (KMPMlog#992) a odtud je krok převzatý; jméno registru nese projekt,
+  ať se nepotká s CI kmpmlog a telemetry na týchž strojích. **Nový job s Gradlem na
+  self-hosted dostane týž krok.** Na HQDEV50 jde cesta přes `cygpath -m`: s
+  `MSYS_NO_PATHCONV=1` by Java z `/c/Users/…` udělala `C:\c\Users\…` (ověřeno sondou).
+  Kdo daemon zastavil, poznáš z logů v `~/.gradle/daemon/<verze>/`: `Stop` dostanou všechny
+  daemony naráz a ten, kterému vteřinu předtím skončil build, nese v `currentDir` cestu toho,
+  kdo `--stop` pouští.
 - **Android SDK si job stáhne sám** (`setup-android` → `~/.android/sdk`; MSI i DMG ho potřebují
   kvůli Android targetu `:client:shared`). Runner nemá `ANDROID_HOME`, takže SDK ze Studia
   (`~/Library/Android/sdk`) zůstává nedotčené.

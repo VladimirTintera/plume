@@ -154,6 +154,22 @@ jobs:
         with:
           cache-disabled: ${{ runner.environment != 'github-hosted' }}
 
+      # Vlastní registr Gradle daemonů: `gradlew --stop` zastaví všechny daemony z registru
+      # v ~/.gradle/daemon a na self-hosted strojích ho pouští i ostatní práce (terminál, IDE,
+      # sezení agentů tohohle i jiných projektů, po každém svém buildu). Release pak padá na
+      # „Gradle build daemon has been stopped: stop command received"; v mlogu takhle dvakrát
+      # spadl Server Release (KMPMlog#992). Pod vlastním registrem je daemon CI vidět jen pro
+      # tentýž registr. Stálá složka, ať se mezi běhy znovu použije; jméno nese projekt, ať se
+      # nepotká s CI kmpmlog a telemetry na týchž strojích. Přes GRADLE_OPTS v $GITHUB_ENV, ne
+      # parametrem `./gradlew`, aby platil pro každé volání Gradlu v jobu. Na Windows cesta
+      # s lomítky (`cygpath -m`): `/c/Users/…` z Git Bashe by Java vzala jako `C:\c\Users\…`,
+      # když převod cest MSYS neběží (MSYS_NO_PATHCONV). Na hostovaném runneru nic nemění.
+      - name: Isolate Gradle daemons
+        run: |
+          base="$HOME/.gradle/plume-ci-daemon"
+          if command -v cygpath > /dev/null; then base="$(cygpath -m "$base")"; fi
+          echo "GRADLE_OPTS=${GRADLE_OPTS:+$GRADLE_OPTS }-Dorg.gradle.daemon.registry.base=$base" >> "$GITHUB_ENV"
+
       # Desktop nepotřebuje Android, ale `:client:shared` je KMP knihovna s Android targetem
       # a AGP chce SDK s compileSdk už při konfiguraci. Hostovaný runner ho má předinstalovaný.
       # POZOR: musí odpovídat android-compileSdk v gradle/libs.versions.toml.
@@ -250,6 +266,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-disabled: ${{ runner.environment != 'github-hosted' }}
+
+      # Vlastní registr Gradle daemonů — proč, viz týž krok v jobu windows.
+      - name: Isolate Gradle daemons
+        run: |
+          base="$HOME/.gradle/plume-ci-daemon"
+          if command -v cygpath > /dev/null; then base="$(cygpath -m "$base")"; fi
+          echo "GRADLE_OPTS=${GRADLE_OPTS:+$GRADLE_OPTS }-Dorg.gradle.daemon.registry.base=$base" >> "$GITHUB_ENV"
 
       # Viz job windows: SDK kvůli Android targetu `:client:shared`, macos-latest ho má.
       - name: Install Android SDK platform
