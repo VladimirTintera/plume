@@ -186,6 +186,7 @@ fun EditChatScreen(
             sheet = sheet,
             onCopy = viewModel::copyBoostLink,
             onShare = viewModel::shareBoostLink,
+            onLoadMore = viewModel::loadMoreBoosts,
             onDismiss = viewModel::closeBoosts,
         )
     }

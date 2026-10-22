@@ -47,6 +47,7 @@ import eu.tintera.plume.resources.invite_links_copied
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.telegram.BoostStatus
+import eu.tintera.plume.core.telegram.ChatBoostEntry
 import eu.tintera.plume.resources.edit_chat_load_failed
 import eu.tintera.plume.resources.edit_chat_permissions_failed
 import eu.tintera.plume.resources.edit_chat_photo_failed
@@ -218,15 +219,41 @@ class EditChatViewModel(
     var boosts by mutableStateOf<BoostSheet?>(null)
         private set
 
-    /** Boosty se čtou při každém otevření — mezitím mohly přibýt. */
+    /**
+     * Boosty se čtou při každém otevření — mezitím mohly přibýt. Stav a první stránka seznamu
+     * souběžně; selhání seznamu stav nezahodí (seznam se pak prostě neukáže).
+     */
     fun openBoosts() {
         boosts = BoostSheet()
         viewModelScope.launch {
             repository.boostStatus(chatId)
-                .onSuccess { status -> if (boosts != null) boosts = BoostSheet(status = status) }
+                .onSuccess { status -> boosts = boosts?.copy(status = status) }
                 .onFailure { failure ->
                     logger.w(failure) { "Stav boostů chatu $chatId se nepodařilo načíst." }
-                    if (boosts != null) boosts = BoostSheet(failed = true)
+                    boosts = boosts?.copy(failed = true)
+                }
+        }
+        loadBoosts(offset = "")
+    }
+
+    /** Další stránka seznamu boostů („Načíst další"). */
+    fun loadMoreBoosts() {
+        val sheet = boosts ?: return
+        val offset = sheet.nextOffset ?: return
+        if (sheet.loadingMore) return
+        boosts = sheet.copy(loadingMore = true)
+        loadBoosts(offset)
+    }
+
+    private fun loadBoosts(offset: String) {
+        viewModelScope.launch {
+            repository.boosts(chatId, offset)
+                .onSuccess { page ->
+                    boosts = boosts?.let { it.copy(entries = it.entries.orEmpty() + page.boosts, nextOffset = page.nextOffset, loadingMore = false) }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Seznam boostů chatu $chatId se nepodařilo načíst." }
+                    boosts = boosts?.copy(entries = boosts?.entries.orEmpty(), nextOffset = null, loadingMore = false)
                 }
         }
     }
@@ -658,4 +685,12 @@ class EditChatViewModel(
 enum class GroupUpgradeReason { PublicLink, Topics }
 
 /** Sheet boostů: [status] po načtení, [failed] když načtení selhalo, jinak se načítá. */
-data class BoostSheet(val status: BoostStatus? = null, val failed: Boolean = false)
+data class BoostSheet(
+    val status: BoostStatus? = null,
+    val failed: Boolean = false,
+    /** Jednotlivé boosty; `null` = první stránka se ještě čte. */
+    val entries: List<ChatBoostEntry>? = null,
+    /** Odkud číst další stránku; `null` = dál nic není. */
+    val nextOffset: String? = null,
+    val loadingMore: Boolean = false,
+)

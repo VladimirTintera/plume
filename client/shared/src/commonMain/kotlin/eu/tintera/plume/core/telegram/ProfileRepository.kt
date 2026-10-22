@@ -204,6 +204,12 @@ interface ProfileRepository {
     suspend fun boostStatus(chatId: Long): Result<BoostStatus> = Result.failure(UnsupportedOperationException())
 
     /**
+     * Jednotlivé boosty chatu (`getChatBoosts`), od posledního, po stránkách; [offset] je
+     * [ChatBoostsPage.nextOffset] předchozí stránky. Jen pro správce.
+     */
+    suspend fun boosts(chatId: Long, offset: String = ""): Result<ChatBoostsPage> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Poslední akce ve skupině nebo kanálu (`getChatEventLog`), od nejnovější, stránkované
      * po [CHAT_LOG_PAGE]. Jen pro správce; Telegram je drží 48 hodin. [filter] zužuje hledáním,
      * druhem akce a autory.
@@ -694,6 +700,25 @@ data class BoostStatus(
     /** Kolik boostů chybí do další úrovně; 0 u nejvyšší. */
     val missingBoosts: Int get() = if (nextLevelBoosts == 0) 0 else (nextLevelBoosts - boostCount).coerceAtLeast(0)
 }
+
+/**
+ * Jeden boost chatu. [booster] je člověk, od kterého boost je; `null` u soutěže bez výherce
+ * nebo u smazaného účtu. [count] stejných boostů od téhož (Premium dává víc slotů).
+ */
+data class ChatBoostEntry(
+    val id: String,
+    val booster: SenderInfo?,
+    val count: Int,
+    val source: BoostSource,
+    /** Kdy boost vyprší (Unix čas). */
+    val expiresAt: Int,
+)
+
+/** Odkud boost je: předplatné Premium, dárkový kód od chatu, nebo výhra v jeho soutěži. */
+enum class BoostSource { Premium, GiftCode, Giveaway }
+
+/** Stránka boostů; [nextOffset] `null` = dál nic není. */
+data class ChatBoostsPage(val boosts: List<ChatBoostEntry>, val nextOffset: String?)
 
 /**
  * Dárek v profilu: obsah jako karta dárku ve zprávě ([MessageMedia.Gift], kreslí ho tatáž

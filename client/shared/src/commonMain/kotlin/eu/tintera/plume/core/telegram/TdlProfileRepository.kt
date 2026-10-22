@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.ChatBoostSourceGiftCode
+import dev.g000sha256.tdl.dto.ChatBoostSourceGiveaway
+import dev.g000sha256.tdl.dto.ChatBoostSourcePremium
 import dev.g000sha256.tdl.dto.CanTransferOwnershipResultOk
 import dev.g000sha256.tdl.dto.CanTransferOwnershipResultPasswordNeeded
 import dev.g000sha256.tdl.dto.CanTransferOwnershipResultPasswordTooFresh
@@ -1082,6 +1085,30 @@ class TdlProfileRepository(
                 )
             }
 
+    override suspend fun boosts(chatId: Long, offset: String): Result<ChatBoostsPage> =
+        client.getChatBoosts(chatId = chatId, onlyGiftCodes = false, offset = offset, limit = BOOSTS_PAGE)
+            .toResult()
+            .map { found ->
+                ChatBoostsPage(
+                    boosts = found.boosts.map { boost ->
+                        val (source, userId) = when (val s = boost.source) {
+                            is ChatBoostSourcePremium -> BoostSource.Premium to s.userId
+                            is ChatBoostSourceGiftCode -> BoostSource.GiftCode to s.userId
+                            is ChatBoostSourceGiveaway -> BoostSource.Giveaway to s.userId
+                        }
+                        ChatBoostEntry(
+                            id = boost.id,
+                            // 0 = soutěž, ve které se výherce nenašel.
+                            booster = userId.takeIf { it != 0L }?.let { member(it)?.first },
+                            count = boost.count,
+                            source = source,
+                            expiresAt = boost.expirationDate,
+                        )
+                    },
+                    nextOffset = found.nextOffset.ifEmpty { null },
+                )
+            }
+
     override fun memberUpdates(chatId: Long): Flow<Unit> = merge(
         holder.updates { chatMemberUpdates }.filter { it.chatId == chatId }.map { },
         holder.updates { supergroupFullInfoUpdates }.filter { supergroupChatId(it.supergroupId) == chatId }.map { },
@@ -1350,3 +1377,6 @@ private const val REPORT_TEXT_MAX = 1024
 
 /** Dárků na stránku — mřížka po třech je ukáže na pár posunutí. */
 private const val GIFTS_PAGE_SIZE = 30
+
+/** Boostů na stránku; víc jich server najednou nevydá (oficiální klienti berou 25–50). */
+private const val BOOSTS_PAGE = 50

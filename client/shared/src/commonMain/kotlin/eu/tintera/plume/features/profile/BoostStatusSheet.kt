@@ -41,6 +41,23 @@ import eu.tintera.plume.resources.boosts_premium_members
 import eu.tintera.plume.resources.boosts_share_link
 import eu.tintera.plume.resources.boosts_title
 import eu.tintera.plume.resources.boosts_total
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import eu.tintera.plume.core.telegram.BoostSource
+import eu.tintera.plume.core.telegram.ChatBoostEntry
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.GroupedColumn
+import eu.tintera.plume.core.ui.asDate
+import eu.tintera.plume.resources.boosts_list_title
+import eu.tintera.plume.resources.boosts_load_more
+import eu.tintera.plume.resources.boosts_no_winner
+import eu.tintera.plume.resources.boosts_expires
+import eu.tintera.plume.resources.boosts_source_gift_code
+import eu.tintera.plume.resources.boosts_source_giveaway
+import eu.tintera.plume.resources.boosts_count
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -55,6 +72,7 @@ internal fun BoostStatusSheet(
     sheet: BoostSheet,
     onCopy: () -> Unit,
     onShare: () -> Unit,
+    onLoadMore: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
@@ -68,7 +86,10 @@ internal fun BoostStatusSheet(
             SheetTitle(stringResource(Res.string.boosts_title))
             val status = sheet.status
             when {
-                status != null -> BoostStatusContent(status, onCopy, onShare)
+                status != null -> {
+                    BoostStatusContent(status, onCopy, onShare)
+                    BoostList(sheet, onLoadMore)
+                }
                 sheet.failed -> Text(
                     stringResource(Res.string.boosts_failed),
                     style = MaterialTheme.typography.bodyMedium,
@@ -137,3 +158,68 @@ private fun BoostStatusContent(status: BoostStatus, onCopy: () -> Unit, onShare:
         )
     }
 }
+
+/**
+ * Kdo chat boostuje (`getChatBoosts`): tvář a jméno, kolik boostů, odkud (dárkový kód, soutěž;
+ * Premium se nepíše — je to běžný případ) a do kdy platí. Bez boostů se oddíl nekreslí, stav
+ * nad ním už říká „0 boostů"; selhání seznamu taky ne — stav je hlavní a ten se načetl.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun BoostList(sheet: BoostSheet, onLoadMore: () -> Unit) {
+    val entries = sheet.entries
+    when {
+        entries == null -> Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+        entries.isEmpty() -> Unit
+        else -> {
+            Text(
+                stringResource(Res.string.boosts_list_title),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            GroupedColumn {
+                entries.forEach { BoostRow(it) }
+            }
+            if (sheet.nextOffset != null) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    if (sheet.loadingMore) {
+                        LoadingIndicator()
+                    } else {
+                        TextButton(onClick = onLoadMore, shapes = ButtonDefaults.shapes()) {
+                            Text(stringResource(Res.string.boosts_load_more))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoostRow(entry: ChatBoostEntry) {
+    val booster = entry.booster
+    val name = booster?.title ?: stringResource(Res.string.boosts_no_winner)
+    val details = listOfNotNull(
+        stringResource(Res.string.boosts_expires, entry.expiresAt.asDate()),
+        when (entry.source) {
+            BoostSource.Premium -> null
+            BoostSource.GiftCode -> stringResource(Res.string.boosts_source_gift_code)
+            // U soutěže bez výherce to říká už jméno.
+            BoostSource.Giveaway -> stringResource(Res.string.boosts_source_giveaway).takeIf { booster != null }
+        },
+    ).joinToString(" · ")
+    ListItem(
+        headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = { Text(details) },
+        leadingContent = {
+            Avatar(chatId = booster?.id ?: 0, title = name, avatarFileId = booster?.avatarFileId, size = 40.dp)
+        },
+        // Víc boostů od téhož (Premium má víc slotů) jako počet vpravo.
+        trailingContent = entry.count.takeIf { it > 1 }?.let { count ->
+            { Text(stringResource(Res.string.boosts_count, count), style = MaterialTheme.typography.labelLarge.tabularNumbers()) }
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+

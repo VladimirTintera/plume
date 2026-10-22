@@ -715,8 +715,8 @@ pozvánky rovnou vydá novou. ~~Upozornění vlastníka, kdo chat zdědí po odc
 (`getChatOwnerAfterLeaving`)~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Odchod
 vlastníka"). Zbývá gigaskupina (`toggleSupergroupIsBroadcastGroup`), oprava omylu antispamu
 (`reportSupergroupAntiSpamFalsePositive`, s ověřením antispamu výš), ~~stav boostů pro správce
-(`getChatBoostStatus`)~~ — hotovo (`docs/poznatky/profil-chatu.md`, „Boosty"; seznam
-jednotlivých boostů `getChatBoosts` zbývá), uvítací zprávy
+(`getChatBoostStatus`)~~ — hotovo i se seznamem jednotlivých boostů (`getChatBoosts`;
+`docs/poznatky/profil-chatu.md`, „Boosty"; zbývá ověřit na chatu se skutečnými boosty), uvítací zprávy
 (`addChatWelcomeMessage` a spol., novinka TDLib).
 
 **Tvorba samolepek** (`createNewStickerSet`, `uploadStickerFile`, `addStickerToSet`,
