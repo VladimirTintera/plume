@@ -10,6 +10,7 @@ import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.core.location.mapsSearchUrl
 import eu.tintera.plume.core.location.mapsUrl
 import eu.tintera.plume.core.telegram.ProfileGift
+import eu.tintera.plume.core.telegram.GiftCollection
 import eu.tintera.plume.resources.edit_profile_not_photo
 import eu.tintera.plume.resources.photo_suggest_failed
 import eu.tintera.plume.resources.photo_suggest_sent
@@ -1004,26 +1005,54 @@ class ChatProfileViewModel(
     fun loadMoreGifts() {
         val current = _state.value.gifts
         if (current?.loading == true || (current != null && current.nextOffset == null)) return
+        val collectionId = current?.collectionId
         _state.update { it.copy(gifts = (it.gifts ?: ProfileGifts()).copy(loading = true)) }
         viewModelScope.launch {
-            profiles.receivedGifts(chatId, current?.nextOffset.orEmpty())
+            profiles.receivedGifts(chatId, current?.nextOffset.orEmpty(), collectionId ?: 0)
                 .onSuccess { page ->
                     _state.update { state ->
-                        val before = state.gifts?.items.orEmpty()
+                        val gifts = state.gifts ?: ProfileGifts()
+                        // Odpověď ke sbírce, kterou uživatel mezitím přepnul, se zahodí.
+                        if (gifts.collectionId != collectionId) return@update state
                         state.copy(
-                            gifts = ProfileGifts(
-                                items = (before + page.gifts).distinctBy { it.key },
+                            gifts = gifts.copy(
+                                items = (gifts.items + page.gifts).distinctBy { it.key },
                                 total = page.total,
                                 nextOffset = page.nextOffset,
+                                loading = false,
                             ),
                         )
                     }
+                    if (current == null) loadGiftCollections()
                 }
                 .onFailure { failure ->
                     logger.w(failure) { "Dárky v profilu se nepodařilo načíst." }
                     _state.update { it.copy(gifts = it.gifts?.copy(loading = false, nextOffset = null)) }
                 }
         }
+    }
+
+    /** Sbírky dárků — čipy nad mřížkou, jako alba příběhů. Selhání nevadí, mřížka zůstane bez nich. */
+    private fun loadGiftCollections() {
+        viewModelScope.launch {
+            profiles.giftCollections(chatId)
+                .onSuccess { collections ->
+                    _state.update { state ->
+                        state.copy(gifts = (state.gifts ?: ProfileGifts()).copy(collections = collections.filter { it.giftCount > 0 }))
+                    }
+                }
+                .onFailure { logger.w(it) { "Sbírky dárků se nepodařilo načíst." } }
+        }
+    }
+
+    /** Přepne mřížku na sbírku [collectionId], nebo (`null`) na všechny dárky v profilu. */
+    fun selectGiftCollection(collectionId: Int?) {
+        val current = _state.value.gifts ?: return
+        if (current.collectionId == collectionId) return
+        _state.update {
+            it.copy(gifts = current.copy(collectionId = collectionId, items = emptyList(), total = 0, nextOffset = "", loading = false))
+        }
+        loadMoreGifts()
     }
 
     /** Adresa firmy v mapách: podle souřadnic, a když je firma nezadala, hledáním adresy. */
@@ -1420,7 +1449,11 @@ data class ChatProfileState(
                 // tu, na které uživatel zrovna stojí.
                 if (!commonGroups.isNullOrEmpty()) add(ProfileTab.CommonGroups)
                 if (!similarChannels.isNullOrEmpty()) add(ProfileTab.SimilarChannels)
-                if (!gifts?.items.isNullOrEmpty()) add(ProfileTab.Gifts)
+                // Záložka zůstane i nad prázdnou nebo právě načítanou sbírkou — jinak by při
+                // přepnutí sbírky zmizela a pager by uskočil jinam.
+                // Ověřeno na emulátoru: s podmínkou jen na položky záložka při návratu na „Vše"
+                // zmizela a pager uskočil na Příběhy. Se sbírkami je přepínání vždycky.
+                if (gifts != null && (gifts.items.isNotEmpty() || gifts.collections.isNotEmpty() || gifts.collectionId != null)) add(ProfileTab.Gifts)
                 if (profileStories?.available == true) add(ProfileTab.Stories)
             }
         }
@@ -1487,6 +1520,10 @@ data class ProfileGifts(
     val total: Int = 0,
     val nextOffset: String? = null,
     val loading: Boolean = false,
+    /** Sbírky majitele; prázdné = čipy se nekreslí. Bez prázdných sbírek. */
+    val collections: List<GiftCollection> = emptyList(),
+    /** Vybraná sbírka; `null` = všechny dárky v profilu. */
+    val collectionId: Int? = null,
 )
 
 /** Pauza v psaní, po které se hledání členů zeptá serveru. */

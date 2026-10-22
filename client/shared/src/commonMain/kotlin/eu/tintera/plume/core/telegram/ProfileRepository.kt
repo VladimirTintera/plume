@@ -134,8 +134,14 @@ interface ProfileRepository {
      * Dárky v profilu člověka nebo kanálu (`getReceivedGifts`), stránka po stránce od [offset]
      * (prázdný = první). Cizím TDLib vydá jen dárky vystavené v profilu.
      */
-    suspend fun receivedGifts(chatId: Long, offset: String): Result<ProfileGiftsPage> =
+    suspend fun receivedGifts(chatId: Long, offset: String, collectionId: Int = 0): Result<ProfileGiftsPage> =
         Result.failure(UnsupportedOperationException())
+
+    /**
+     * Sbírky dárků, do kterých si majitel dárky v profilu roztřídil (`getGiftCollections`).
+     * Prázdný seznam = žádné. Dárky jedné sbírky čte [receivedGifts] s jejím `collectionId`.
+     */
+    suspend fun giftCollections(chatId: Long): Result<List<GiftCollection>> = Result.success(emptyList())
 
     suspend fun members(
         chatId: Long,
@@ -771,6 +777,13 @@ data class ProfileGift(
 )
 
 /** Stránka dárků; [nextOffset] `null` = dál nic není. */
+/** Sbírka dárků v profilu: jméno, kolik dárků obsahuje. */
+data class GiftCollection(
+    val id: Int,
+    val name: String,
+    val giftCount: Int,
+)
+
 data class ProfileGiftsPage(
     val gifts: List<ProfileGift>,
     val total: Int,

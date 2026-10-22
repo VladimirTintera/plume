@@ -943,6 +943,7 @@ private fun TabContent(
             contentPadding = contentPadding,
             onOpen = viewModel::openGift,
             onLoadMore = viewModel::loadMoreGifts,
+            onSelectCollection = viewModel::selectGiftCollection,
         )
 
         ProfileTab.Members -> ProfileMembersList(

@@ -3301,6 +3301,8 @@
     <string name="profile_story_pinned">Pinned</string>
     <string name="profile_story_albums_all">All</string>
     <string name="profile_story_album_empty">This album is empty.</string>
+    <string name="profile_gift_collection_chip">%1$s · %2$s</string>
+    <string name="profile_gift_collection_empty">No gifts in this collection are shown in the profile.</string>
     <string name="location_live_share">Share live location</string>
     <string name="location_live_share_hint">Keeps updating until you stop it</string>
     <string name="location_live_period_title">Share live location for…</string>

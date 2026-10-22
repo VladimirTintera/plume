@@ -786,17 +786,28 @@ class TdlProfileRepository(
         found.chatIds.toList().mapNotNull { relatedChat(it) }
     }
 
-    override suspend fun receivedGifts(chatId: Long, offset: String): Result<ProfileGiftsPage> = runCatching {
+    /** Majitel dárků chatu: člověk u soukromého (i tajného) chatu, jinak chat sám. */
+    private suspend fun giftOwner(chatId: Long): MessageSender {
         val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
-        val owner: MessageSender = when (val type = chat.type) {
+        return when (val type = chat.type) {
             is ChatTypePrivate -> MessageSenderUser(userId = type.userId)
             is ChatTypeSecret -> MessageSenderUser(userId = type.userId)
             else -> MessageSenderChat(chatId = chatId)
         }
+    }
+
+    override suspend fun giftCollections(chatId: Long): Result<List<GiftCollection>> = runCatching {
+        client.getGiftCollections(ownerId = giftOwner(chatId)).toResult().getOrThrow()
+            .collections.filterNotNull()
+            .map { GiftCollection(id = it.id, name = it.name, giftCount = it.giftCount) }
+    }
+
+    override suspend fun receivedGifts(chatId: Long, offset: String, collectionId: Int): Result<ProfileGiftsPage> = runCatching {
         val found = client.getReceivedGifts(
             businessConnectionId = "",
-            ownerId = owner,
-            collectionId = 0,
+            ownerId = giftOwner(chatId),
+            // 0 = všechny dárky v profilu, jinak jen dárky té sbírky.
+            collectionId = collectionId,
             // Cizím TDLib vynutí jen vystavené; filtry druhů nic nevylučují.
             excludeUnsaved = false,
             excludeSaved = false,

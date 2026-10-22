@@ -3415,6 +3415,8 @@
     <string name="profile_story_pinned">Připnutý</string>
     <string name="profile_story_albums_all">Vše</string>
     <string name="profile_story_album_empty">Album je prázdné.</string>
+    <string name="profile_gift_collection_chip">%1$s · %2$s</string>
+    <string name="profile_gift_collection_empty">Žádný dárek z téhle sbírky není v profilu vystavený.</string>
     <string name="location_live_share">Sdílet živou polohu</string>
     <string name="location_live_share_hint">Posouvá se, dokud sdílení nezastavíš</string>
     <string name="location_live_period_title">Sdílet živou polohu na…</string>
