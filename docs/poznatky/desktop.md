@@ -682,6 +682,27 @@ kolečko na posun do strany, jen když je v tom směru kam; jinak událost propa
   a záložky kategorií ve výběru emoji se posouvají tam i zpět, kolečko nad mřížkou emoji ji dál
   posouvá svisle a řada zůstane. Desktop za běhu neověřený.
 
+## Zubaté obrázky (dekodér Coilu)
+
+Zmenšené fotky byly na desktopu zubaté (písmo na letáku v prohlížeči, hrany), na Androidu ne.
+**Výchozí `SkiaImageDecoder` Coilu zmenšuje nejbližším sousedem**: dekóduje celý obrázek
+a na cílovou velikost ho překreslí se `SamplingMode.DEFAULT`, což je ve Skie
+`FilterMipmap(NEAREST, NONE)` (`coil3.util.makeFromImage` v `nonAndroidMain`, Coil 3.5 i `main`
+v 3.6). Z každých pár pixelů se vezme jeden a zbytek zahodí.
+
+- **Oprava je vlastní dekodér** (`DesktopImageLoader`, `SmoothSkiaImageDecoder` v `jvmMain`
+  `core/ui`): týž výpočet velikosti, zmenšení přes mipmapy `LINEAR` / `LINEAR`. Zapojuje ho
+  `Main.kt` přes `SingletonImageLoader.setSafe`; Coil dává komponenty od uživatele PŘED výchozí,
+  takže se výchozí dekodér k obrázku nedostane.
+- **`filterQuality` u `AsyncImage` nepomůže.** Dekódovaný obrázek už má velikost plochy, kreslí se
+  zhruba 1 : 1 a zuby jsou v něm samotném. (Compose na Skie mapuje `Low` na bilineární bez mipmap,
+  `Medium` s mipmapami, `High` na Mitchellův kubický filtr.)
+- **Test hlídá obojí** (`SmoothSkiaImageDecoderTest`): proužky po pixelu zmenšené na desetinu
+  musí vyjít šedé a výchozí dekodér Coilu je musí dál dávat černobílé. Spadne-li druhý test, Coil
+  to opravil a vlastní dekodér může pryč.
+- **iOS jede přes týž kód Coilu** (`nonAndroidMain`), takže ho to nejspíš potkává taky. Tam to
+  ověřené ani opravené není.
+
 ## Co platforma (zatím) neumí
 
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
