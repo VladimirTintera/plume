@@ -2014,6 +2014,7 @@ class ConversationViewModel(
                 )
             }
             is MessageAction.React -> reactions.toggleReaction(messageId, action.emoji)
+            MessageAction.ClearRecentReactions -> reactions.clearRecentReactions()
             MessageAction.QuickReact -> reactions.quickReact(messageId)
             MessageAction.ShowReactions -> reactions.showReactionDetails(messageId)
             MessageAction.ToggleReadReceipt -> menu.toggleReadReceipt(messageId)

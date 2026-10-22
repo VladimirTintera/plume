@@ -807,6 +807,22 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   duplicit a pruh bere prvních šest (`MAX_QUICK_REACTIONS`). Přidání reakce posílá
   `updateRecentReactions = true`, takže se i reakce z Plume propíše do „nedávných" všude.
   Počítadlo v aplikaci by vidělo jen reakce z tohohle zařízení a s pořadím serveru by se přelo.
+- **„Vymazat nedávné" je nahoře v plném výběru reakcí** (`clearRecentReactions`, s potvrzením —
+  seznam je v cloudu), jen v nabídce nad zprávou. **Oddíl „Nedávno použité" NENÍ, protože TDLib
+  neřekne, které reakce jsou nedávné** (`ReactionManager::get_sorted_available_reactions`):
+  - **Bez Premium nedávné při řazení vůbec nepoužije** a všechno dá do `topReactions` —
+    testovací účet dostal všech 73 reakcí v top, `recentReactions` i `popularReactions` prázdné,
+    i hned po reakci neobvyklým 🎃. Vymazání by tedy nic viditelného neudělalo a tlačítko se
+    bez Premium neukáže.
+  - **S Premium** je top nejvýš dva řádky (`2 × rowSize`) a za skutečně nedávné připojí do
+    `recentReactions` rovnou VŠECHNY ostatní; `popularReactions` je pak prázdné. Hranice
+    nedávné / ostatní se tedy poznat nedá — jediný spolehlivý znak, že seznam nedávných
+    existuje, je neprázdné `recentReactions` vedle prázdného `popularReactions`
+    (`ReactionChoices.hasRecent`). Podle něj se tlačítko ukazuje.
+  - Po vymazání tlačítko zmizí hned, pořadí se srovná při příštím otevření (TDLib řadí znovu).
+  - **Ověřeno na emulátoru sondou** (tlačítko vynucené): vzhled, potvrzení a volání
+    (`Success`), tlačítko po něm zmizí. Testy `ConversationReactionsTest`. **Neověřené:** účet
+    s Premium, kde se tlačítko ukáže samo a pořadí po vymazání změní.
 - **Pruh reakcí bere jen ÚMYSLNÉ ťuknutí** (`strayTapGuard` v `core/ui`, testy
   `StrayTapGuardTest`) — v prohlížeči médií i nad zprávou. Srdíčko se dvakrát samo přidalo
   fotce, aniž by uživatel o nabídce věděl. **`clickable` tah nezruší, dokud prst neopustí
