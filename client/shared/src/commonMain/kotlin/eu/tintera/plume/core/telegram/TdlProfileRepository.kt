@@ -21,6 +21,9 @@ import dev.g000sha256.tdl.dto.ChatAvailableReactions
 import dev.g000sha256.tdl.dto.ChatMemberStatusMember
 import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.filter
@@ -1070,6 +1073,40 @@ class TdlProfileRepository(
         }
         emitAll(sources.merge())
     }
+
+    override fun welcomeMessages(chatId: Long): Flow<List<WelcomeMessage>> = channelFlow {
+        // Seznam přichází updatem: odběr musí běžet dřív, než se o načtení řekne, jinak by první
+        // dávka odešla do prázdna (`onStart` by čekal na odpověď a sběr by ještě nezačal).
+        launch(start = CoroutineStart.UNDISPATCHED) {
+            holder.updates { chatWelcomeMessagesUpdates }
+                .filter { it.chatId == chatId }
+                .collect { update ->
+                    send(
+                        update.messages.filterNotNull().map { message ->
+                            WelcomeMessage(
+                                id = message.id,
+                                text = message.content.quotableText()?.text.orEmpty(),
+                                description = message.content.previewTextOrNull(isOutgoing = true, isChannelPost = false),
+                            )
+                        },
+                    )
+                }
+        }
+        client.loadChatWelcomeMessages(chatId = chatId).toResult().onFailure { close(it) }
+    }
+
+    override suspend fun addWelcomeMessage(chatId: Long, text: String): Result<Unit> =
+        client.addChatWelcomeMessage(
+            chatId = chatId,
+            inputMessageContent = InputMessageText(
+                text = FormattedText(text = text, entities = emptyArray()),
+                linkPreviewOptions = null,
+                clearDraft = false,
+            ),
+        ).toResult().map { }
+
+    override suspend fun deleteWelcomeMessage(chatId: Long, id: Int): Result<Unit> =
+        client.deleteChatWelcomeMessage(chatId = chatId, welcomeMessageId = id).toResult().map { }
 
     override suspend fun boostStatus(chatId: Long): Result<BoostStatus> =
         client.getChatBoostStatus(chatId = chatId).toResult()

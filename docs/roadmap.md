@@ -717,8 +717,9 @@ pozvánky rovnou vydá novou. ~~Upozornění vlastníka, kdo chat zdědí po odc
 vlastníka"). Zbývá gigaskupina (`toggleSupergroupIsBroadcastGroup`), oprava omylu antispamu
 (`reportSupergroupAntiSpamFalsePositive`, s ověřením antispamu výš), ~~stav boostů pro správce
 (`getChatBoostStatus`)~~ — hotovo i se seznamem jednotlivých boostů (`getChatBoosts`;
-`docs/poznatky/profil-chatu.md`, „Boosty"; zbývá ověřit na chatu se skutečnými boosty), uvítací zprávy
-(`addChatWelcomeMessage` a spol., novinka TDLib).
+`docs/poznatky/profil-chatu.md`, „Boosty"; zbývá ověřit na chatu se skutečnými boosty), ~~uvítací zprávy
+(`addChatWelcomeMessage` a spol., novinka TDLib)~~ — hotovo pro textové zprávy
+(`docs/poznatky/profil-chatu.md`, „Uvítací zprávy"); média a úprava existující zbývají.
 
 **Tvorba samolepek** (`createNewStickerSet`, `uploadStickerFile`, `addStickerToSet`,
 `setStickerEmojis` a dalších 12) — oficiální klient má editor samolepek z fotky. Velký kus,

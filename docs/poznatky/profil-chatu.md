@@ -665,6 +665,31 @@ zkopírování nebo sdílení — tím se o boost žádá členů.
     Vzhled řádků a „Načíst další" se sondou (dva podstrčené boosty, další stránka od serveru
     prázdná, tlačítko pak zmizelo). **Neověřené:** skutečné boosty a dárkové kódy.
 
+### Uvítací zprávy
+
+Úprava skupiny nebo kanálu má řádek **Uvítací zprávy** (`WelcomeMessagesSheet`,
+`EditChatViewModel.openWelcomeMessages`, `ProfileRepository.welcomeMessages`): zprávy, které
+noví členové dostanou po vstupu, v pořadí, v jakém odejdou, se smazáním u každé a polem pro
+novou textovou. Novinka TDLib (`addChatWelcomeMessage`, `deleteChatWelcomeMessage`,
+`loadChatWelcomeMessages`).
+
+- **Kdo je smí spravovat:** vlastník, nebo správce s právem `canSendWelcomeMessages`
+  (`ChatEditRights.canManageWelcomeMessages`, test v `WriteAccessTest`). Je to samostatné právo
+  — správce, který má jen ho, úpravu chatu otevře taky.
+- **Seznam přichází updatem** (`updateChatWelcomeMessages`), `loadChatWelcomeMessages` jen řekne
+  o načtení. Odběr proto musí běžet DŘÍV (`channelFlow` se sběrem spuštěným `UNDISPATCHED`),
+  jinak by první dávka odešla do prázdna. Po přidání i smazání (i z jiného zařízení) přijde nový
+  seznam sám, sheet ho jen sleduje, dokud je otevřený.
+- **Pole se vyprázdní až po potvrzení serveru** (`WelcomeSheet.added`), ne při ťuknutí: po chybě
+  by text zmizel.
+- **Média přidávat Plume neumí** (TDLib bere i fotku, video, samolepku…). Zpráva s médiem od
+  jiného klienta se ukáže popisem obsahu („Fotka", `previewTextOrNull`) a jde smazat.
+  Úprava existující zprávy (`editChatWelcomeMessage`) ani smazání všech naráz nejsou.
+- **Ověřeno na emulátoru** ve vlastní testovací skupině „Plume test zalozeni" (vlastník):
+  prázdný seznam od serveru, přidání „Vitejte v Plume testu" (vrátilo se updatem, pole se
+  vyprázdnilo), smazání (seznam zase prázdný). **Neověřené:** že noví členové zprávu opravdu
+  dostanou (chtělo by druhý účet), správce jen s tímhle právem, kanál.
+
 ### Pozvánky a žádosti o vstup
 
 V úpravě skupiny (⋮ v profilu → Upravit) je blok Pozvánky se dvěma řádky: **Odkazy k pozvání**

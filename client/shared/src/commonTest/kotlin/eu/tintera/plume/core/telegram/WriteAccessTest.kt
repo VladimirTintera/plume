@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class WriteAccessTest {
 
@@ -98,12 +99,12 @@ class WriteAccessTest {
     @Test
     fun vlastnikSmiVsechno() {
         assertEquals(
-            ChatEditRights(canChangeInfo = true, canRestrictMembers = true, canManageInvites = true),
+            ChatEditRights(canChangeInfo = true, canRestrictMembers = true, canManageInvites = true, canManageWelcomeMessages = true),
             chatEditRights(false, OwnMemberStatus.Creator(isMember = true), membersCanChangeInfo = false),
         )
         // V kanálu není co omezovat: výchozí práva členů nemá.
         assertEquals(
-            ChatEditRights(canChangeInfo = true, canRestrictMembers = false, canManageInvites = true),
+            ChatEditRights(canChangeInfo = true, canRestrictMembers = false, canManageInvites = true, canManageWelcomeMessages = true),
             chatEditRights(true, OwnMemberStatus.Creator(isMember = true), membersCanChangeInfo = false),
         )
         // Vlastník, který ve skupině není, ji upravovat nemůže.
@@ -122,6 +123,11 @@ class WriteAccessTest {
         val jenZvat = OwnMemberStatus.Admin(canPostMessages = true, canInviteUsers = true)
         assertEquals(ChatEditRights(canManageInvites = true), chatEditRights(false, jenZvat, false))
         assertEquals(ChatEditRights(canManageInvites = true), chatEditRights(true, jenZvat, false))
+
+        // Uvítací zprávy jsou vlastní právo správce; úpravu chatu tím dostane i bez ostatních.
+        val jenUvitani = OwnMemberStatus.Admin(canPostMessages = true, canSendWelcomeMessages = true)
+        assertEquals(ChatEditRights(canManageWelcomeMessages = true), chatEditRights(false, jenUvitani, false))
+        assertTrue(chatEditRights(false, jenUvitani, false).any)
 
         // Správce bez jediného z nich nabídku úpravy vůbec nedostane.
         assertEquals(ChatEditRights(), chatEditRights(false, OwnMemberStatus.Admin(canPostMessages = true), false))
