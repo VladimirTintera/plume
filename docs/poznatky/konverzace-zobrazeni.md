@@ -1335,6 +1335,15 @@ do reklam nesmí zasahovat — nesmí je filtrovat, skrývat, ani měnit popisek
 - **Formátování textu (`entities`) se kreslí** (`RichText`), ale odkaz v textu je taky ťuknutí
   na reklamu: kliknutí se musí nahlásit a cíl určuje reklama.
 - **⋮ s nahlášením jen u reklamy s `can_be_reported`** — specifikace nahlášení jiné nedovolí.
+- **„Informace o sponzorovi" jsou v ⋮** (`SponsoredMenu`), kdykoli Telegram pošle `sponsor.info`
+  (kdo reklamu platí) nebo `additional_info` — specifikace je pak chce nabídnout povinně.
+  Dialog (`SponsorInfoDialog`, `core/ui/SponsorInfo.kt`) je společný pro kartu v kanálu, pruh
+  u bota i reklamu ve videu. Dřív `sponsor.info` chybělo úplně a `additional_info` stálo
+  drobným písmem v kartě; teď je obojí na jednom místě a karta je kratší. Bez nahlášení
+  i bez informací ⋮ chybí (`SponsoredMessage.hasMenu`, podle něj má pruh u bota okraj).
+  **Žádná reklama v kanálech ověřených na emulátoru (BBC Russian, Meduza, RIA, TASS, Durov)
+  informace nenesla** — sponzorované chaty v hledání ano („Advertiser…", „Ad funded by…").
+  Volba a dialog ověřené s podstrčeným `sponsor.info`.
 - **Prázdný seznam je normální stav**, ne chyba: reklamy se servírují jen v dost velkých veřejných
   kanálech a některých botech, nikdy uživatelům s Premium, a závisí na dostupné inzerci.
 - **Nahlásit reklamu jde ⋮ vedle štítku „Sponzorováno"** (`reportChatSponsoredMessage`).

@@ -45,7 +45,13 @@ data class SponsoredMessage(
      * u botů předepisuje.
      */
     val inBotChat: Boolean = false,
+    /** Kdo reklamu platí (`sponsor.info`); `null` když není. S [additionalInfo] jde do „Informací o sponzorovi". */
+    val sponsorInfo: String? = null,
 ) {
+    /** Má ⋮ co nabídnout — informace o sponzorovi, nebo nahlášení (viz `SponsoredMenu`). */
+    val hasMenu: Boolean
+        get() = canBeReported || !sponsorInfo.isNullOrBlank() || !additionalInfo.isNullOrBlank()
+
     /** Text bez formátování. */
     val text: String get() = body.text
 
