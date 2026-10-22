@@ -734,6 +734,7 @@
     <string name="sponsored_recommended">Recommended</string>
     <string name="sponsored_sponsored">Sponsored</string>
     <string name="sponsored_open">Open</string>
+    <string name="sponsored_bar_ad">Ad</string>
     <string name="sponsored_menu">Ad options</string>
     <string name="sponsored_report">Report ad</string>
     <string name="sponsored_ads_hidden">Ads are hidden</string>

@@ -89,7 +89,8 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
 
     // Reklama stojí pod nejnovější zprávou. Okno v historii nejnovější zprávy nemá, takže by
     // se karta vykreslila uprostřed minulosti; ukáže se, až se okno dostránkuje k přítomnosti.
-    if (state.reachedEnd) state.sponsored.mapTo(items, ::SponsoredItem)
+    // Reklama u bota do seznamu nepatří — je to pruh nad konverzací (`SponsoredBar`).
+    if (state.reachedEnd) state.sponsored.filterNot { it.inBotChat }.mapTo(items, ::SponsoredItem)
 
     // „Píše…" stojí tam, kam zpráva naskočí: nad reklamou, pod nejnovější zprávou. V okně
     // v historii nejnovější zpráva není, takže tam by stálo uprostřed minulosti. Rozepsaná

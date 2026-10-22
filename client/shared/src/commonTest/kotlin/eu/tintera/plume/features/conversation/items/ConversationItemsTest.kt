@@ -18,6 +18,7 @@ import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.PostStats
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
+import eu.tintera.plume.core.telegram.MessageBody
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -183,7 +184,7 @@ class ConversationItemsTest {
 
     @Test
     fun reklamaDoleANacitaniNahore() {
-        val sponsored = SponsoredMessage(messageId = 7L, title = "", text = "", buttonText = "", url = "", isRecommended = false, additionalInfo = null)
+        val sponsored = SponsoredMessage(messageId = 7L, title = "", body = MessageBody.Empty, buttonText = "", url = "", isRecommended = false, additionalInfo = null)
         val result = items(
             message(1),
             state = ConversationState(sponsored = listOf(sponsored), loading = true),
@@ -193,13 +194,24 @@ class ConversationItemsTest {
 
     @Test
     fun piseStojiPodNejnovejsiZpravouANadReklamou() {
-        val sponsored = SponsoredMessage(messageId = 7L, title = "", text = "", buttonText = "", url = "", isRecommended = false, additionalInfo = null)
+        val sponsored = SponsoredMessage(messageId = 7L, title = "", body = MessageBody.Empty, buttonText = "", url = "", isRecommended = false, additionalInfo = null)
         val result = items(
             message(2),
             message(1),
             state = ConversationState(sponsored = listOf(sponsored), typing = Typing(ChatActivity.Typing, sender = null)),
         )
         assertEquals(listOf("ad", "typing", "m2", "m1", "day"), result.kinds())
+    }
+
+    @Test
+    fun reklamaUBotaVSeznamuNeni() {
+        // U bota je reklama pruh nad konverzací, ne karta pod zprávami.
+        val sponsored = SponsoredMessage(
+            messageId = 7L, title = "", body = MessageBody.Empty, buttonText = "", url = "", isRecommended = false,
+            additionalInfo = null, inBotChat = true,
+        )
+        val result = items(message(1), state = ConversationState(sponsored = listOf(sponsored)))
+        assertEquals(listOf("m1", "day"), result.kinds())
     }
 
     @Test

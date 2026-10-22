@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.hazeBlur
@@ -36,6 +37,7 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.ui.chatTitle
 import eu.tintera.plume.features.conversation.items.MessageAction
@@ -43,9 +45,9 @@ import eu.tintera.plume.features.conversation.items.SoundingVideoNote
 import eu.tintera.plume.features.conversation.items.mapUrl
 
 /**
- * Pruhy plovoucí nad seznamem: proti spamu a další oznámení o chatu, žádosti o vstup,
- * videochat, připnuté zprávy, dock živé polohy a mini přehrávač. Seznam se odsazuje o jejich
- * změřenou výšku ([onPinnedHeight]).
+ * Pruhy plovoucí nad seznamem: proti spamu a další oznámení o chatu, reklama u bota, žádosti
+ * o vstup, videochat, připnuté zprávy, dock živé polohy a mini přehrávač. Seznam se odsazuje
+ * o jejich změřenou výšku ([onPinnedHeight]).
  *
  * Stav pruhů (který je vidět, co je schované, otevřený sheet z pruhu) si drží sám.
  */
@@ -184,6 +186,40 @@ internal fun BoxScope.ConversationBars(
                     null -> Unit
                 }
             }
+            // Reklama u bota hned pod spamem — u bota je to jeho „akční lišta" (viz `SponsoredBar`).
+            // Omezený chat ji neukazuje, stejně jako ostatní pruhy o obsahu.
+            val botAd = state.sponsored.firstOrNull { it.inBotChat }
+            val lastBotAd = remember { arrayOf<SponsoredMessage?>(null) }
+            if (botAd != null) lastBotAd[0] = botAd
+            AnimatedVisibility(
+                visible = botAd != null && !chatHidden,
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            ) {
+                lastBotAd[0]?.let { ad ->
+                    // Zhlédnutí jako u karty v kanálu: až pruh chvíli stojí celý na obrazovce
+                    // (text se neořezává), jednou za relaci — hlídá `reportSponsoredSeen`.
+                    if (botAd != null) {
+                        LaunchedEffect(ad.messageId) {
+                            delay(SPONSORED_BAR_VIEW_DELAY_MS)
+                            viewModel.reportSponsoredSeen(ad.messageId)
+                        }
+                    }
+                    SponsoredBar(
+                        sponsored = ad,
+                        onClick = { viewModel.onSponsoredClick(ad) },
+                        onReport = { viewModel.reportSponsored(ad) },
+                        glass = Modifier.hazeBlur(
+                            input = HazeInput.Sources(listHaze),
+                            style = glassStyle(
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                alpha = GLASS_TEXT_TINT_ALPHA,
+                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                            ),
+                        ),
+                    )
+                }
+            }
             // Žádosti o vstup hned pod spamem: čekají na rozhodnutí, jako on.
             val shownJoinRequests = joinRequests?.takeIf { it.count > joinRequestsHiddenAt }
             val lastJoinRequests = remember { arrayOf<PendingJoinRequests?>(null) }
@@ -318,3 +354,6 @@ internal fun BoxScope.ConversationBars(
         )
     }
 }
+
+/** Jak dlouho musí pruh reklamy u bota stát na obrazovce, než se zhlédnutí nahlásí (jako u karty). */
+private const val SPONSORED_BAR_VIEW_DELAY_MS = 1000L

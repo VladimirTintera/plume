@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.flag_24dp
@@ -41,7 +42,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Sponzorovaná zpráva v kanálu.
+ * Sponzorovaná zpráva v kanálu. Reklama u bota je pruh nad konverzací ([SponsoredBar]).
  *
  * **Podle [Telegram API ToS](https://core.telegram.org/api/terms) je zobrazení povinné** a klient
  * do reklam nesmí zasahovat. Proto se nedá skrýt ani přeskočit a popisek tlačítka se bere
@@ -50,7 +51,8 @@ import org.jetbrains.compose.resources.stringResource
  * Vizuálně se drží stranou od bublin: je to vlastní karta přes celou šířku se štítkem
  * „Sponzorováno", aby si ji uživatel nespletl se zprávou od někoho z kanálu.
  *
- * ⋮ vedle štítku nabízí nahlášení ([onReport]). Skrýt reklamu klient nesmí, nahlásit ji ano —
+ * ⋮ vedle štítku nabízí nahlášení ([onReport]), jen u reklamy, která ho dovolí
+ * (`canBeReported`). Skrýt reklamu klient nesmí, nahlásit ji ano —
  * a mezi důvody od serveru bývá i skrytí reklam, které server sám podmíní Premium.
  */
 @Composable
@@ -79,7 +81,7 @@ fun SponsoredCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                SponsoredMenu(onReport)
+                if (sponsored.canBeReported) SponsoredMenu(onReport)
             }
 
             if (sponsored.title.isNotBlank()) {
@@ -92,7 +94,15 @@ fun SponsoredCard(
             }
 
             if (sponsored.text.isNotBlank()) {
-                Text(text = sponsored.text, style = MaterialTheme.typography.bodyMedium)
+                // Odkaz v textu je taky ťuknutí na reklamu: kliknutí se musí nahlásit a cíl
+                // určuje reklama, ne entita.
+                RichText(
+                    text = sponsored.body.text,
+                    entities = sponsored.body.entities,
+                    style = MaterialTheme.typography.bodyMedium,
+                    onLinkClick = { onClick() },
+                    onEntityClick = { onClick() },
+                )
             }
 
             sponsored.additionalInfo?.let {
@@ -120,7 +130,7 @@ fun SponsoredCard(
  * o celých 48 dp), zarovnané do pravého rohu karty.
  */
 @Composable
-private fun SponsoredMenu(onReport: () -> Unit) {
+internal fun SponsoredMenu(onReport: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.sponsored_menu)
     Box {

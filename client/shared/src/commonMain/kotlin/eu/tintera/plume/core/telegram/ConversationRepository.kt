@@ -1082,7 +1082,8 @@ interface ConversationRepository {
     suspend fun sender(senderId: Long): Result<SenderInfo>
 
     /**
-     * Sponzorované zprávy pro daný chat. Mimo kanály vrací prázdný seznam.
+     * Sponzorované zprávy pro daný chat. Mimo kanály a chaty s botem vrací prázdný seznam;
+     * reklama u bota má [SponsoredMessage.inBotChat].
      *
      * Zobrazení je podle Telegram ToS **povinné** — výsledek se nesmí filtrovat ani skrývat.
      */

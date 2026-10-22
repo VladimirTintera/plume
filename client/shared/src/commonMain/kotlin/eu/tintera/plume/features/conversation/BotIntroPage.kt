@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.BotIntro
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -58,6 +59,11 @@ internal fun BotIntroPage(
     /** Ťuknutí na odkaz, zmínku, hashtag nebo příkaz v popisu — tytéž akce jako v textu zprávy. */
     onAction: (MessageAction) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Výška pruhů nad konverzací (reklama u bota, spam). Odsazuje se UVNITŘ posuvné plochy:
+     * stránka pod pruh zajíždí jako seznam zpráv a jeho sklo má co rozostřit.
+     */
+    topPadding: Dp = 0.dp,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -65,6 +71,7 @@ internal fun BotIntroPage(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .padding(top = topPadding)
             .padding(horizontal = 32.dp, vertical = 32.dp),
     ) {
         Box {

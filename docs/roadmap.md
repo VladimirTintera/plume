@@ -601,10 +601,11 @@ a se serverem, takže přednostně:
   `viewSponsoredChat`, `openSponsoredChat`, `reportSponsoredChat`)~~ — hotovo
   (`docs/poznatky/hledani-a-zakladani-chatu.md`, „Sponzorované chaty ve výsledcích").
   Podmínky API (§3.3) chtějí výslovně jen reklamy v kanálech, [specifikace
-  reklam](https://core.telegram.org/api/sponsored-messages) ale „must" říká i u dalších druhů,
-  které Plume nemá: **reklama v chatu s botem** jako pruh nad konverzací (`getChatSponsoredMessages`
-  ji vrací i pro boty; dnes by se vykreslila jako karta pod zprávami, se štítkem „Ad" /
-  „Recommended" a barvou z `color` nepočítá), **reklamy ve videu** na celé obrazovce
+  reklam](https://core.telegram.org/api/sponsored-messages) ale „must" říká i u dalších druhů:
+  ~~**reklama v chatu s botem** jako pruh nad konverzací~~ — hotovo, `SponsoredBar` se
+  štítkem „Reklama" / „Doporučeno", barvou z `accent_color_id`, fotkou vpravo a odkazem
+  s potvrzením mimo domény Telegramu (`docs/poznatky/konverzace-zobrazeni.md`, „Reklama
+  u bota"). Zbývají **reklamy ve videu** na celé obrazovce
   (`getVideoMessageAdvertisements`, `viewVideoMessageAdvertisement`,
   `clickVideoMessageAdvertisement`, `reportVideoMessageAdvertisement`; zobrazovat postupně po
   `max_display_duration`, časovač stojí s videem) a **„Informace o sponzorovi"** u reklamy
