@@ -409,6 +409,26 @@ akce** (Zprávy, Členové, Správci, Omezení, Informace o skupině, Pozvánky,
   nechá jen zprávy; nabídka Kdo s vlastníkem (jediný správce — že filtr podle autora
   vyřadí cizí akce, ověřit nešlo, všechny akce jsou jeho).
 
+#### Omyl antispamu
+
+Zpráva, kterou smazal agresivní antispam skupiny, má v Posledních akcích pod náhledem tlačítko
+**Není to spam** (`reportSupergroupAntiSpamFalsePositive`; `ChatLogEvent.antiSpamMessageId`,
+`EventLogViewModel.reportAntiSpamMistake`, testy `AntiSpamReportTest`).
+
+- **Nabízí se jen podle příznaku od TDLib** (`ChatEventMessageDeleted.canReportAntiSpamFalsePositive`):
+  zprávu smazanou správcem nahlásit nejde a volání by skončilo chybou. Id pro volání je id
+  smazané zprávy, ne události, a supergroupa se dočte z chatu.
+- **Tlačítko v řádku, ne nabídka nad událostí**: jiná akce nad událostí není a nabídka s jedinou
+  položkou by ji jen schovala. Malé obrysové tlačítko (`ExtraSmallContainerHeight`) pod
+  podrobností, ať řádek neroste víc, než musí.
+- **Po nahlášení tlačítko zmizí** (`withAntiSpamReported`), během čekání je vypnuté a druhé
+  ťuknutí nic neodešle. Po chybě zůstává a hláška jde přes `userMessage`. Zprávu to NEVRÁTÍ —
+  Telegram tím ladí antispam skupiny; hláška o úspěchu proto neslibuje obnovení.
+- **Na zařízení NEOVĚŘENÉ.** Událost vzniká jen tam, kde agresivní antispam (`canToggleAggressiveAntiSpam`,
+  server ho dovolí až větší skupině) zprávu opravdu smazal; testovací účet takovou skupinu nemá.
+  Ověřené jsou testy ViewModelu nad `FakeProfileRepository` (testovací náhrada repository, ze které
+  si test přepíše jen volané metody).
+
 ### Omezení a vyhození
 
 Úprava skupiny má kartu **Členové** s řádky Omezení a Vyhození (v kanálu jen Vyhození), každý

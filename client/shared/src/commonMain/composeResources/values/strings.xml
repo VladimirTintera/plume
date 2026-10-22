@@ -3844,6 +3844,9 @@
     <string name="event_log_nothing_found">No matching actions</string>
     <string name="event_log_nothing_found_help">Try a different search or turn off some filters.</string>
     <string name="event_log_clear_filters">Clear filters</string>
+    <string name="event_log_antispam_report">Not spam</string>
+    <string name="event_log_antispam_reported">Thanks. Telegram will use this to tune anti-spam in this group.</string>
+    <string name="event_log_antispam_failed">Couldn't report the anti-spam mistake.</string>
     <string name="event_on">on</string>
     <string name="event_off">off</string>
     <string name="event_closed">closed</string>

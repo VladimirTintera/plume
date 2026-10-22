@@ -146,7 +146,19 @@ data class ChatLogEvent(
     val description: UiText,
     /** Co k tomu patří: text zprávy, nový popis, odkaz; `null` = nic. */
     val detail: UiText? = null,
+    /**
+     * Zprávu smazal agresivní antispam a jde nahlásit jako omyl
+     * ([ProfileRepository.reportAntiSpamFalsePositive]): id smazané zprávy, jinak `null`.
+     */
+    val antiSpamMessageId: Long? = null,
 )
+
+/**
+ * Omyl antispamu u události [eventId] je nahlášený: druhé nahlášení téže zprávy by nic
+ * nepřidalo, tlačítko z řádku zmizí. Ostatní události zůstávají, jak byly.
+ */
+internal fun List<ChatLogEvent>.withAntiSpamReported(eventId: Long): List<ChatLogEvent> =
+    map { if (it.id == eventId) it.copy(antiSpamMessageId = null) else it }
 
 /** Stránka záznamu; [nextFromEventId] `null` = konec. */
 data class ChatLogPage(val events: List<ChatLogEvent>, val nextFromEventId: Long?)

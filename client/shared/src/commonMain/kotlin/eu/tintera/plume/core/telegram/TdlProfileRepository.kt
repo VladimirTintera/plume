@@ -40,6 +40,7 @@ import dev.g000sha256.tdl.dto.ChatMemberStatusLeft
 import dev.g000sha256.tdl.dto.ChatPhoto
 import dev.g000sha256.tdl.dto.MessageChatChangePhoto
 import dev.g000sha256.tdl.dto.SearchMessagesFilterChatPhoto
+import dev.g000sha256.tdl.dto.ChatEventMessageDeleted
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSecret
@@ -503,11 +504,21 @@ class TdlProfileRepository(
                     actor = sender(event.memberId),
                     description = text.description,
                     detail = text.detail,
+                    antiSpamMessageId = (event.action as? ChatEventMessageDeleted)
+                        ?.takeIf { it.canReportAntiSpamFalsePositive }
+                        ?.message?.id,
                 )
             },
             // Plná stránka = možná je další; pokračuje se od nejstarší vrácené (TDLib ji vynechá).
             nextFromEventId = events.lastOrNull()?.id?.takeIf { events.size == CHAT_LOG_PAGE },
         )
+    }
+
+    override suspend fun reportAntiSpamFalsePositive(chatId: Long, messageId: Long): Result<Unit> = runCatching {
+        val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup
+            ?: error("Chat $chatId není supergroup, antispam v něm není.")
+        client.reportSupergroupAntiSpamFalsePositive(supergroupId = type.supergroupId, messageId = messageId)
+            .toResult().getOrThrow()
     }
 
     override suspend fun administrators(chatId: Long): Result<List<SenderInfo>> = runCatching {

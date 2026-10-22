@@ -244,6 +244,14 @@ interface ProfileRepository {
     suspend fun eventLog(chatId: Long, fromEventId: Long = 0, filter: ChatLogFilter = ChatLogFilter()): Result<ChatLogPage>
 
     /**
+     * Nahlásí, že agresivní antispam smazal zprávu [messageId] omylem
+     * (`reportSupergroupAntiSpamFalsePositive`). Jen u zpráv z [eventLog] s
+     * [ChatLogEvent.antiSpamMessageId]; zprávu to nevrátí, Telegram tím ladí antispam skupiny.
+     */
+    suspend fun reportAntiSpamFalsePositive(chatId: Long, messageId: Long): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Vlastník a správci skupiny nebo kanálu — kdo může v záznamu akcí figurovat jako autor
      * (filtr podle autora). Jen lidé; smazané účty vynechané.
      */
