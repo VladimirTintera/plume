@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.BotIntro
+import eu.tintera.plume.core.telegram.BusinessIntro
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -44,5 +45,28 @@ class BotStartTest {
         // Parametr z odkazu Start nabídne hned, profil až nad načtenou prázdnou historií.
         assertFalse(showsBotIntro(ConversationState(botIntro = bot, botStartParameter = "x")))
         assertFalse(showsBotIntro(ConversationState(botIntro = null, reachedStart = true)))
+    }
+
+    private val business = BusinessIntro(title = "Vítejte", message = "Odpovídáme do hodiny.")
+
+    /** Úvodní stránka firmy jen nad načtenou prázdnou historií, jako profil bota. */
+    @Test
+    fun uvodniStrankaFirmyJenVPrazdnemNactenemChatu() {
+        assertTrue(showsBusinessIntro(ConversationState(businessIntro = business, reachedStart = true)))
+        assertFalse(showsBusinessIntro(ConversationState(businessIntro = business)))
+        assertFalse(showsBusinessIntro(ConversationState(businessIntro = business, loading = true, reachedStart = true)))
+        assertFalse(showsBusinessIntro(ConversationState(businessIntro = null, reachedStart = true)))
+    }
+
+    /** Firma bez bota Start nenabízí; bot s úvodní stránkou firmy má přednost svou stránkou. */
+    @Test
+    fun firmaStartNenabiziABotMaPrednost() {
+        val firm = ConversationState(businessIntro = business, reachedStart = true)
+        assertFalse(showsBotStart(firm))
+        assertTrue(showsIntroPage(firm))
+
+        val botFirm = ConversationState(botIntro = bot, businessIntro = business, reachedStart = true)
+        assertTrue(showsBotIntro(botFirm))
+        assertFalse(showsBusinessIntro(botFirm))
     }
 }

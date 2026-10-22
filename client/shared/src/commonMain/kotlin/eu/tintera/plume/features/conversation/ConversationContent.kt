@@ -152,6 +152,20 @@ internal fun BoxScope.ConversationContent(
             )
         }
 
+        showsBusinessIntro(state) -> {
+            val shownConnection = rememberShownConnection(connection)
+            BusinessIntroPage(
+                intro = state.businessIntro ?: return,
+                chatId = viewModel.chatId,
+                title = state.info?.title.orEmpty(),
+                avatarFileId = state.info?.avatarFileId,
+                online = shownConnection == null && state.presence is Presence.Online,
+                // Pod pruhy nad konverzací musí stránka zajet, jako stránka bota.
+                modifier = Modifier.hazeSource(listHaze).background(MaterialTheme.colorScheme.background),
+                topPadding = topPadding,
+            )
+        }
+
         // Prázdná konverzace a chyba bez zpráv: tentýž stav jako omezený nebo citlivý chat výš.
         state.messages.isEmpty() -> {
             val error = state.error

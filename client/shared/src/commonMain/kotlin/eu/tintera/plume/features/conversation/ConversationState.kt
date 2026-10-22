@@ -38,6 +38,7 @@ import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.telegram.BotIntro
+import eu.tintera.plume.core.telegram.BusinessIntro
 import eu.tintera.plume.core.telegram.SpeechTrial
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -730,6 +731,8 @@ data class ConversationState(
     val openMediaAt: MediaAt? = null,
     /** Popis bota; `null` = chat není s botem (a Start se nenabízí). */
     val botIntro: BotIntro? = null,
+    /** Úvodní stránka firemního účtu do prázdného chatu ([BusinessIntroPage]); `null` = žádná. */
+    val businessIntro: BusinessIntro? = null,
     /** Parametr ze startovacího odkazu, který čeká na Start ([BotStartRequests]). */
     val botStartParameter: String? = null,
     /** Start odešel a čeká se na odpověď — tlačítko je neaktivní. */

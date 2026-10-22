@@ -2507,6 +2507,16 @@ class TdlConversationRepository(
         )
     }
 
+    override suspend fun businessIntro(chatId: Long): Result<BusinessIntro?> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val userId = (chat.type as? ChatTypePrivate)?.userId ?: return@runCatching null
+        if (userId == myId()) return@runCatching null
+        val page = client.getUserFullInfo(userId = userId).toResult().getOrNull()?.businessInfo?.startPage
+            ?: return@runCatching null
+        BusinessIntro(title = page.title, message = page.message, sticker = page.sticker?.toMedia())
+            .takeIf { it.title.isNotBlank() || it.message.isNotBlank() || it.sticker != null }
+    }
+
     override suspend fun startBot(chatId: Long, parameter: String): Result<ChatMessage> =
         // Soukromý chat s botem má id rovné id bota.
         client.sendBotStartMessage(botUserId = chatId, chatId = chatId, parameter = parameter)

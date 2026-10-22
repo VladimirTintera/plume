@@ -22,4 +22,17 @@ internal fun showsBotStart(state: ConversationState): Boolean {
  * není co hledat a lupa nad profilem působila jako ovládání stránky.
  */
 internal fun showsBotIntro(state: ConversationState): Boolean =
-    state.botIntro != null && state.messages.isEmpty() && state.reachedStart && !state.loading
+    state.botIntro != null && showsEmptyChat(state)
+
+/**
+ * Kreslit místo prázdného chatu úvodní stránku firmy ([BusinessIntroPage])? Tentýž důkaz
+ * prázdnoty jako u bota; bot má přednost (jeho stránka nese i Start).
+ */
+internal fun showsBusinessIntro(state: ConversationState): Boolean =
+    state.businessIntro != null && state.botIntro == null && showsEmptyChat(state)
+
+/** Stránka místo konverzace (bot, firma): hlavička pak schová avatar i hledání. */
+internal fun showsIntroPage(state: ConversationState): Boolean = showsBotIntro(state) || showsBusinessIntro(state)
+
+private fun showsEmptyChat(state: ConversationState): Boolean =
+    state.messages.isEmpty() && state.reachedStart && !state.loading

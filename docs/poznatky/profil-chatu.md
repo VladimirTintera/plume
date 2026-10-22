@@ -977,11 +977,28 @@ platformy — podle souřadnic, a když je firma nezadala, hledáním adresy (`m
   z doby načtení a TDLib je neobnovuje. Výpočet (`stateAt`) je čistá funkce nad minutami týdne:
   úseky přes půlnoc (So 20–24 a Ne 0–2) spojí do jednoho, v neděli večer najde pondělní ráno.
 - **Úvodní stránka firmy (`startPage`) v profilu není** — patří do prázdné konverzace jako
-  popis bota; zbývá. Uvítací a nepřítomnou zprávu TDLib cizím nevydá.
+  popis bota (`BusinessIntroPage`, viz níž). Uvítací a nepřítomnou zprávu TDLib cizím nevydá.
 - **Ověřeno na emulátoru pokusným buildem** (vymyšlená doba a adresa u testovacího bota,
   necommituje se): v úterý ve 12:14 v polední pauze „Zavřeno · otevírá v 13:00", sheet
   s dvěma úseky po–pá, sobotou a zavřenou nedělí, adresa otevřela Google Mapy. Skutečný firemní
   účet ověřený NENÍ — v kontaktech žádný není.
+
+#### Úvodní stránka firmy v prázdném chatu
+
+Prázdný chat s firemním účtem ukazuje místo „Zatím tu nic není" stránku, kterou si firma
+nastavila (`businessInfo.startPage`: nadpis, text, uvítací samolepka) — `BusinessIntroPage`,
+`ConversationRepository.businessIntro`, rozhodnutí `showsBusinessIntro` (testy v `BotStartTest`).
+
+- **Skladba jako profil bota** (`BotIntroPage`): tvář a jméno nahoře, hlavička svůj avatar
+  i hledání schová (`showsIntroPage`). Samolepka je nad nadpisem, jak ji kreslí oficiální
+  klienti; ťuknutí na ni nic nedělá, není to zpráva.
+- **Tentýž důkaz prázdnoty jako u bota**: až nad načtenou prázdnou historií (`reachedStart`,
+  ne během načítání), jinak by stránka u každého chatu na okamžik blikla.
+- **Bot má přednost** — jeho stránka nese i tlačítko Start. Vlastní účet (Uložené zprávy) se
+  neptá.
+- **Ověřeno na emulátoru s podstrčenou stránkou** (každému soukromému chatu, prázdný chat
+  s kontaktem, necommituje se): tvář, jméno, animovaná samolepka, nadpis a text, hlavička bez
+  avataru. **Skutečný firemní účet s úvodní stránkou ověřený NENÍ** — v kontaktech žádný není.
 
 ### Dárky v profilu
 

@@ -140,7 +140,7 @@ internal fun ConversationTopBar(
             ) {
                 // Nad profilem bota je jeho tvář velká uprostřed obrazovky a nese i tečku
                 // (`BotIntroPage`); v hlavičce by byla podruhé.
-                val headerAvatar = !showsBotIntro(state)
+                val headerAvatar = !showsIntroPage(state)
                 // Téma: jeho ikona místo fotky skupiny. Nic neletí — seznam témat je
                 // jiná obrazovka a fotka skupiny v ní v řádku není.
                 state.info?.topic?.let { topic ->
@@ -323,7 +323,7 @@ internal fun ConversationTopBar(
             ConversationMenu(
                 state = state,
                 viewModel = viewModel,
-                showsContent = !showsBotIntro(state) && !chatHidden,
+                showsContent = !showsIntroPage(state) && !chatHidden,
                 onSummary = onSummary,
                 // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
                 onViewAsChats = navigation.onViewAsChats?.takeIf { state.info?.isSavedMessages == true && !state.narrowed },

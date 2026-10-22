@@ -1830,6 +1830,9 @@ class ConversationViewModel(
                 repository.botIntro(chatId).onSuccess { intro -> _state.update { it.copy(botIntro = intro) } }
             }
             viewModelScope.launch {
+                repository.businessIntro(chatId).onSuccess { intro -> _state.update { it.copy(businessIntro = intro) } }
+            }
+            viewModelScope.launch {
                 botStartRequests.parameter(chatId).collect { parameter ->
                     _state.update { it.copy(botStartParameter = parameter) }
                 }
