@@ -1296,6 +1296,41 @@ v `core/video` (testy `VideoQualitiesTest`), čip a nabídka `VideoQualityChip`.
   stahuje celá (viz „Streamování na iOS"). Emulátor při softwarovém dekódování 720p sypal systémová ANR („Process system isn't
   responding") — přetížený hostitel, ne aplikace.
 
+#### Reklamy ve videu
+
+Video z kanálu na celé obrazovce může mít reklamy (`getVideoMessageAdvertisements`, jen když
+`messageProperties.canGetVideoAdvertisements`). [Specifikace
+reklam](https://core.telegram.org/api/sponsored-messages) je chce ukázat jako malý rámeček nad
+přehrávačem: postupně, první po `start_delay`, další `between_delay` po skrytí předchozí, každou
+nejvýš `max_display_duration`; zavřít ji uživatel smí až po `min_display_duration`.
+
+- **Čas je čas PŘEHRÁVÁNÍ.** Pozastavené video, galerie i zavřený prohlížeč časovače stojí —
+  příklad ve specifikaci to počítá právě tak. Plán (`VideoAdSchedule`, testy
+  `VideoAdScheduleTest`) proto dostává jen úseky, kdy video hrálo; tiká `ViewerVideoAds` po
+  250 ms, dokud prohlížeč hlásí hrající video (`onVideoPlaying`).
+- **Plán patří prohlížeči, ne videu.** Další video téhož kanálu se na reklamy neptá znovu a plán
+  nezačíná od nuly (specifikace). Video bez reklam se zkusí jen jednou.
+- **Zhlédnutí jde, jakmile se rámeček ukáže**, jednou za reklamu — rámeček ukazuje text celý,
+  neořezaný. **Ťuknutí** nahlásí kliknutí (`clickVideoMessageAdvertisement`) a odkaz otevře
+  konverzace pod prohlížečem, stejně jako tlačítko reklamy s videem (prohlížeč se zavře).
+- **✕ má místo od začátku**, do minima je jen neviditelné. Dokud chybělo, stál na jeho místě ⋮
+  a s příchodem ✕ uskočil; ťuknutí na ⋮ pak trefilo reklamu a otevřelo inzerenta.
+- **Otevřená nabídka, informace o sponzorovi nebo průvodce nahlášením reklamu drží** — čas
+  mezitím stojí. Bez toho se reklama po maximu skryla i s nabídkou, kterou uživatel právě četl.
+- **„Informace o sponzorovi" jsou v ⋮** (kdo platí, na čem je reklama založená), ne v rámečku:
+  nad videem by dlouhý text zakryl obraz. Nahlásit jen tam, kde to TDLib dovolí
+  (`canBeReported`); průvodce je týž jako u reklamy v kanálu, nahlášená reklama zmizí hned.
+- **Video na emulátoru hraje jen se softwarovým dekodérem** (`emulator … -feature
+  -HardwareDecoder`); s hardwarovým padá `MediaCodec … error 14` a „Video se nepodařilo
+  přehrát" — a reklamy se pak neukážou vůbec, protože čekají na přehrávání.
+- **Ověřeno na emulátoru** v kanálu BBC Russian: server hlásí `canGetVideoAdvertisements = true`
+  a dotaz projde, ale reklamu zatím nevrátil. Zbytek s dočasně podstrčenými dvěma reklamami:
+  první po 3 s přehrávání, skrytá po maximu, druhá po mezeře (snímky s časem zařízení), ✕ až
+  po minimu, zavření, ⋮ s informacemi o sponzorovi (reklama mezitím drží), ťuknutí otevřelo
+  odkaz a server přijal zhlédnutí i kliknutí, nahlášení skončilo hláškou „Tahle reklama už není
+  k dispozici" (podstrčenou reklamu server nezná). **Skutečná reklama od serveru, fotka
+  inzerenta, iOS a desktop ověřené nejsou.**
+
 ### Samolepky na fotce
 
 Fotka nebo video se samolepkami (`Photo.hasStickers`, `Video.hasStickers`) má v ⋮ prohlížeče

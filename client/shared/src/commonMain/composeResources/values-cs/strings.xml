@@ -749,6 +749,8 @@
     <string name="sponsored_bar_ad">Reklama</string>
     <string name="sponsored_menu">Možnosti reklamy</string>
     <string name="sponsored_report">Nahlásit reklamu</string>
+    <string name="sponsored_info">Informace o sponzorovi</string>
+    <string name="sponsored_close">Zavřít reklamu</string>
     <string name="sponsored_ads_hidden">Reklamy jsou skryté</string>
     <string name="sponsored_hide_needs_premium">Skrýt reklamy jde jen s Telegram Premium.</string>
     <string name="sponsored_report_gone">Tahle reklama už není k dispozici.</string>

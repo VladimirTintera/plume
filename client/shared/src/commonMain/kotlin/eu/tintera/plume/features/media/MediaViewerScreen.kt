@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.features.report.ReportHost
 import androidx.compose.foundation.focusable
 import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.ui.focus.FocusRequester
@@ -213,6 +214,7 @@ fun MediaViewerScreen(
     onOpenSponsoredLink: (url: String) -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val videoAd by viewModel.videoAd.collectAsStateWithLifecycle()
     // Podklad je tmavý v obou motivech, takže i ikony lišt musí být světlé.
     DarkSystemBars()
     // Mizející médium se nesmí dát vyfotit — jinak by odpočet nic neznamenal.
@@ -313,6 +315,22 @@ fun MediaViewerScreen(
                         onOpenSponsoredLink(url)
                     }
                 },
+                videoAd = videoAd,
+                videoAdActions = remember(viewModel) {
+                    VideoAdActions(
+                        onPlaying = viewModel::onVideoPlaying,
+                        // Odkaz inzerenta otevře konverzace pod prohlížečem (jako tlačítko reklamy).
+                        onOpen = {
+                            viewModel.openVideoAd()?.let { url ->
+                                viewModel.onDismiss()
+                                onOpenSponsoredLink(url)
+                            }
+                        },
+                        onClose = viewModel::closeVideoAd,
+                        onReport = viewModel::reportVideoAd,
+                        onHeld = viewModel::holdVideoAd,
+                    )
+                },
                 startSeconds = startSeconds,
             )
         } else {
@@ -343,6 +361,8 @@ fun MediaViewerScreen(
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = BOTTOM_BAR_HEIGHT),
         )
     }
+
+    ReportHost(viewModel.videoAdReportFlow, snackbarHostState)
 
     state.attachedStickerSets?.let { sets ->
         AttachedStickerSetsSheet(sets = sets, onOpen = viewModel::openStickerSet, onDismiss = viewModel::dismissAttachedStickers)
@@ -417,6 +437,9 @@ private fun ViewerContent(
     onDismiss: () -> Unit,
     /** Tlačítko reklamy pod snímkem; kreslí se jen u reklamy ([MediaViewerState.sponsored]). */
     onSponsoredButton: () -> Unit,
+    /** Reklama nad hrajícím videem z kanálu; `null` = žádná. */
+    videoAd: ViewerVideoAd?,
+    videoAdActions: VideoAdActions,
     startSeconds: Int,
 ) {
     val items = state.items
@@ -503,6 +526,8 @@ private fun ViewerContent(
     var controlsLocked by rememberSaveable { mutableStateOf(false) }
     // Které video právě hraje (id zprávy); hlásí ho vybraná stránka.
     var playingVideo by remember { mutableStateOf<Long?>(null) }
+    // Čas reklam nad videem běží jen při přehrávání na celé obrazovce.
+    LaunchedEffect(playingVideo, immersive) { videoAdActions.onPlaying(playingVideo?.takeIf { immersive }) }
     var forcedOrientation by rememberSaveable { mutableStateOf<ScreenOrientation?>(null) }
     LaunchedEffect(immersive) {
         if (!immersive) {
@@ -725,6 +750,34 @@ private fun ViewerContent(
 
         val chromeEnter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec())
         val chromeExit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
+
+        /*
+         * Reklama nad videem: jen na celé obrazovce, kde video hraje, nahoře pod ovládáním
+         * přehrávače. Drží se i se schovaným ovládáním — po dobu zobrazení ji schovat nejde.
+         */
+        AnimatedVisibility(
+            visible = immersive && videoAd != null,
+            enter = chromeEnter,
+            exit = chromeExit,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .then(fadeWithDismiss)
+                .padding(top = topInset, start = 16.dp, end = 16.dp),
+        ) {
+            // Poslední zobrazená zůstane vidět, dokud rámeček neodjede. Obyčejný držák, ne stav:
+            // zápis stavu během kompozice by ji spustil znovu.
+            val last = remember { arrayOfNulls<ViewerVideoAd>(1) }
+            if (videoAd != null) last[0] = videoAd
+            last[0]?.let { shown ->
+                VideoAdBox(
+                    shown = shown,
+                    onOpen = videoAdActions.onOpen,
+                    onClose = videoAdActions.onClose,
+                    onReport = videoAdActions.onReport,
+                    onHeld = videoAdActions.onHeld,
+                )
+            }
+        }
 
         AnimatedVisibility(
             visible = !immersive && current != null && !state.isSelfDestruct,
@@ -1365,3 +1418,11 @@ private const val CHOSEN_ALPHA = 0.22f
 /** Datum pod jménem je druhotné. */
 private const val SECONDARY_ALPHA = 0.75f
 
+/** Co jde s reklamou nad videem (viz [ViewerVideoAds]). */
+internal class VideoAdActions(
+    val onPlaying: (messageId: Long?) -> Unit,
+    val onOpen: () -> Unit,
+    val onClose: () -> Unit,
+    val onReport: () -> Unit,
+    val onHeld: (Boolean) -> Unit,
+)

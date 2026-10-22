@@ -1112,6 +1112,22 @@ interface ConversationRepository {
     suspend fun reportSponsoredView(chatId: Long, messageId: Long): Result<Unit>
 
     /**
+     * Reklamy k videu zprávy na celé obrazovce (`getVideoMessageAdvertisements`); `null`, když je
+     * zpráva mít nemůže (`canGetVideoAdvertisements`) nebo server žádnou nedal.
+     */
+    suspend fun videoAds(chatId: Long, messageId: Long): Result<VideoAds?> = Result.success(null)
+
+    /** Reklama nad videem byla celá na obrazovce (`viewVideoMessageAdvertisement`); jednou. */
+    suspend fun reportVideoAdView(uniqueId: Long): Result<Unit> = Result.success(Unit)
+
+    /** Ťuknutí na reklamu nad videem (`clickVideoMessageAdvertisement`); hlásí se PŘED otevřením. */
+    suspend fun reportVideoAdClick(uniqueId: Long): Result<Unit> = Result.success(Unit)
+
+    /** Krok nahlášení reklamy nad videem (`reportVideoMessageAdvertisement`); `null` = první požadavek. */
+    suspend fun reportVideoAd(uniqueId: Long, optionId: ReportOptionId?): Result<ReportStep> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Nahlásí kliknutí. Musí odejít dřív, než se otevře odkaz.
      *
      * [isMediaClick] = ťuknutí na médium reklamy, ne na tlačítko; [fromFullscreen] = kliknutí

@@ -737,6 +737,8 @@
     <string name="sponsored_bar_ad">Ad</string>
     <string name="sponsored_menu">Ad options</string>
     <string name="sponsored_report">Report ad</string>
+    <string name="sponsored_info">Sponsor info</string>
+    <string name="sponsored_close">Close ad</string>
     <string name="sponsored_ads_hidden">Ads are hidden</string>
     <string name="sponsored_hide_needs_premium">Hiding ads requires Telegram Premium.</string>
     <string name="sponsored_report_gone">This ad is no longer available.</string>
