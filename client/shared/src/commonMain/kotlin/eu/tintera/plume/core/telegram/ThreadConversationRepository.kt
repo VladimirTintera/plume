@@ -210,8 +210,9 @@ class ThreadConversationRepository(
         replyToMessageId: Long?,
         quote: ReplyQuote?,
         options: SendOptions,
+        uploadedFileId: Int?,
     ): Result<ChatMessage> =
-        delegate.sendVoiceNote(chatId, path, durationSeconds, waveform, reply(replyToMessageId), quote, options)
+        delegate.sendVoiceNote(chatId, path, durationSeconds, waveform, reply(replyToMessageId), quote, options, uploadedFileId)
 
     override suspend fun sendVideoNote(
         chatId: Long,

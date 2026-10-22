@@ -10,6 +10,8 @@ import eu.tintera.plume.core.audio.oggOpusFile
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ContentAccess
+import eu.tintera.plume.core.telegram.LiveUpload
+import eu.tintera.plume.core.telegram.LiveUploads
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
@@ -84,6 +86,34 @@ class ConversationRecorderTest {
         override fun resume() {
             calls += "resume"
         }
+
+        /** Jako Android Ogg/Opus: soubor, do kterého se nahrává, je i výsledek. */
+        var live = false
+        override val livePath: String? get() = current?.takeIf { live }?.toString()
+    }
+
+    /** Předběžné nahrávání: zapisuje, co se s ním dělo, a [complete] vrací [fileId]. */
+    private class FakeLiveUploads : LiveUploads {
+        val events = mutableListOf<String>()
+        var fileId: Int? = 77
+
+        override fun startVoiceNote(path: String): LiveUpload {
+            events += "start"
+            return object : LiveUpload {
+                override suspend fun complete(finalPath: String): Int? {
+                    events += "complete"
+                    return fileId.takeIf { finalPath == path }
+                }
+
+                override fun abandon() {
+                    events += "abandon"
+                }
+            }
+        }
+
+        override fun discard(fileId: Int) {
+            events += "discard $fileId"
+        }
     }
 
     private class FakePlayer : VoicePlayerControl {
@@ -109,6 +139,7 @@ class ConversationRecorderTest {
 
     private class FakeRepository : UnimplementedConversationRepository() {
         val voiceNotes = mutableListOf<Pair<String, Int>>()
+        val uploadedIds = mutableListOf<Int?>()
 
         override suspend fun sendVoiceNote(
             chatId: Long,
@@ -118,8 +149,10 @@ class ConversationRecorderTest {
             replyToMessageId: Long?,
             quote: ReplyQuote?,
             options: SendOptions,
+            uploadedFileId: Int?,
         ): Result<ChatMessage> {
             voiceNotes += path to durationSeconds
+            uploadedIds += uploadedFileId
             return Result.success(testMessage(600, outgoing = true))
         }
     }
@@ -128,6 +161,7 @@ class ConversationRecorderTest {
     private val player = FakePlayer()
     private val repository = FakeRepository()
     private var readAfterOwn = 0
+    private val liveUploads = FakeLiveUploads()
 
     /** Jedno nahrávání: části se dá rozsah, který se po testu zruší (v `init` drží nekonečný odběr). */
     private fun recording(
@@ -155,6 +189,7 @@ class ConversationRecorderTest {
             },
             readAfterOwnMessage = { readAfterOwn++ },
             logger = testLogger,
+            liveUploads = liveUploads,
         )
         try {
             test(recorder, state)
@@ -276,5 +311,86 @@ class ConversationRecorderTest {
         assertNull(recorder.voiceRecording.value)
         assertFalse(fileSystem.exists(path))
         assertTrue(repository.voiceNotes.isEmpty())
+    }
+
+    /** Nahrávání vcelku se nahrává předem a odejde podle id souboru, ne cesty. */
+    @Test
+    fun predemNahranaHlasovkaOdejdePodleId() = recording { recorder, _ ->
+        capture.live = true
+        recorder.startRecording()
+        delay(MIN_DURATION_MS + 100)
+
+        recorder.sendRecording()
+        delay(300)
+
+        assertEquals(listOf("start", "complete"), liveUploads.events)
+        assertEquals(listOf<Int?>(77), repository.uploadedIds)
+    }
+
+    /** Nahrávač, který soubor dopisuje až na konci (iOS, kamera), předem nenahrává. */
+    @Test
+    fun bezZivehoSouboruSeNahravaAzHotova() = recording { recorder, _ ->
+        recorder.startRecording()
+        delay(MIN_DURATION_MS + 100)
+
+        recorder.sendRecording()
+        delay(300)
+
+        assertTrue(liveUploads.events.isEmpty())
+        assertEquals(listOf<Int?>(null), repository.uploadedIds)
+    }
+
+    /** Pauza (nabídka odeslání) dá jiný soubor — předem nahrané se zahodí a pošle se celá. */
+    @Test
+    fun pauzaPredemNahraneZahodi() = recording { recorder, _ ->
+        capture.live = true
+        recorder.startRecording()
+        delay(MIN_DURATION_MS + 100)
+
+        recorder.pauseRecording()
+        recorder.sendRecording()
+        delay(300)
+
+        assertEquals(listOf("start", "abandon"), liveUploads.events)
+        assertEquals(listOf<Int?>(null), repository.uploadedIds)
+    }
+
+    @Test
+    fun zrusenaNahravkaZrusiIPredemNahravani() = recording { recorder, _ ->
+        capture.live = true
+        recorder.startRecording()
+
+        recorder.cancelRecording()
+
+        assertEquals(listOf("start", "abandon"), liveUploads.events)
+    }
+
+    /** Krátká nahrávka se neposílá, předem nahrávané se zruší. */
+    @Test
+    fun kratkaNahravkaZrusiPredemNahravani() = recording { recorder, _ ->
+        capture.live = true
+        recorder.startRecording()
+
+        recorder.sendRecording()
+        delay(200)
+
+        assertEquals(listOf("start", "abandon"), liveUploads.events)
+        assertTrue(repository.uploadedIds.isEmpty())
+    }
+
+    /** Zahozený náhled nikdo neodešle — předem nahraný soubor se zahodí taky. */
+    @Test
+    fun zahozenyNahledZahodiPredemNahrane() = recording { recorder, _ ->
+        capture.live = true
+        recorder.startRecording()
+        delay(MIN_DURATION_MS + 100)
+
+        recorder.stopRecordingForPreview()
+        delay(300)
+        assertEquals(77, recorder.voicePreview.value?.voice?.uploadedFileId)
+
+        recorder.discardVoicePreview()
+
+        assertEquals(listOf("start", "complete", "discard 77"), liveUploads.events)
     }
 }

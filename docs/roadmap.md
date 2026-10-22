@@ -671,8 +671,10 @@ a se serverem, takže přednostně:
 7. ~~**Správce stahování** (`addFileToDownloads`, `searchFileDownloads`, `toggleDownloadIsPaused`)~~
    — hotovo, menu účtu → Stahování (`docs/poznatky/prohlizec-medii.md`, „Stahování"). Zbývá
    ověřit pozastavení na velkém souboru a hledání v seznamu (`searchFileDownloads(query)`).
-8. **Nahrávání hlasovky a kolečka už během nahrávání** (`preliminaryUploadFile`) — dlouhá
-   nahrávka by odešla hned po puštění.
+8. ~~**Nahrávání hlasovky už během nahrávání** (`preliminaryUploadFile`)~~ — hotovo pro
+   hlasovku nahrávanou vcelku na Androidu 10+ (`docs/poznatky/zvuk.md`, „Nahrávání do Telegramu
+   už během nahrávání"). Zbývá kolečko (MP4 dopisuje index na konec — chtělo by fragmentované
+   MP4), iOS (Opus se kóduje až po skončení) a ověření na pomalé síti.
 9. ~~**Profil firmy** (`UserFullInfo.businessInfo`: otevírací doba, poloha)~~ — hotovo
    (`docs/poznatky/profil-chatu.md`, „Profil firmy"). Zbývá úvodní stránka (`startPage`)
    v prázdné konverzaci a ověření na skutečném firemním účtu.

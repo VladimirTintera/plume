@@ -243,6 +243,39 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
 - **Odesílá se jako samolepka** (`sendMedia`): bez letu, rozepsaný text zůstává, citace se použije.
 
+### Nahrávání do Telegramu už během nahrávání
+
+Hlasovka se nahrává na server, zatímco uživatel mluví (`preliminaryUploadFile`, `LiveUploads`,
+`TdlLiveUploads`); po puštění tlačítka zbývá poslat poslední díl, ne celou nahrávku. TDLib to
+v dokumentaci doporučuje přesně pro nahrávané hlasovky a kolečka.
+
+- **Rostoucí soubor jde jako GENEROVANÝ** (`inputFileGenerated` s vlastní konverzí
+  `plume-live-voice#…`). TDLib pošle `updateFileGenerationStart` s cestou, kam máme soubor
+  vytvářet; nahrávku tam po 300 ms dokopírujeme (`GrowingFileCopy`, testy `GrowingFileCopyTest`)
+  a hlásíme hotovou délku (`setFileGenerationProgress`). Po puštění se dokopíruje zbytek
+  a `finishFileGeneration`; zpráva odejde s `inputFileId`. Lokální soubor (`inputFileLocal`) by
+  nešel — TDLib si velikost přečte jednou na začátku.
+- **Bez odhadu velikosti TDLib během nahrávání nenahraje NIC.** S `expectedSize = 0` zůstal
+  `uploadedSize` na nule po celou nahrávku (díl volí podle velikosti a u neznámé čeká na velký).
+  S odhadem nahrává po dílech 64 kB (menší ani s menším odhadem), odhad roste s nahrávkou.
+  Změřeno: 20 s nahrávky (99 kB) mělo při puštění nahraných 64 kB; po odeslání
+  `isUploadingCompleted` a velikost na serveru = velikost souboru.
+- **Jen nahrávání vcelku** (`MediaCapture.livePath`): Android 10+ s Ogg/Opus, jeden úsek.
+  Pauza (nabídka odeslání, výběr času) končí úsek a úseky se na konci spojí do jiného souboru,
+  navázání po náhledu taky — předem nahrané se zahodí (`cancelPreliminaryUploadFile`) a pošle
+  se celý soubor. iOS kóduje Opus až po skončení, M4A (Android 9) i kolečko (MP4) mají index na
+  konci souboru: tam `livePath` není a posílá se jako dřív.
+- **Hotový soubor se porovná se zkopírovaným** (`GrowingFileCopy.finish`): kdyby nahrávač na
+  konci přepsal začátek, nahrálo by se něco jiného, než odejde. Ogg z `MediaRecorder` začátek
+  nepřepisuje (ověřeno, shoda u všech pokusů); kontrola je pojistka, ne nutnost.
+- **Náhled před odesláním si nahraný soubor nese** (`RecordedVoice.uploadedFileId`); koš nebo
+  navázání ho zahodí. Po pádu aplikace TDLib generování s naší konverzí obnoví — nikdo na něj
+  nečeká, tak se hned ukončí chybou (proto `TdlLiveUploads` vzniká eagerně).
+- **Ověřeno na emulátoru** (dočasným výpisem, vlastní testovací skupina): tři hlasovky 12–20 s,
+  nahrávání během záznamu, shoda souboru, odeslané zprávy s waveformem a délkou. **Neověřené:**
+  pomalá síť (kde je to znát nejvíc), skutečný telefon, náhled s předem nahraným souborem na
+  zařízení (jen testy).
+
 ## Hudba
 
 `MessageAudio` je `MessageMedia.Audio` a hraje přímo v bublině (`AudioContent`): obal alba

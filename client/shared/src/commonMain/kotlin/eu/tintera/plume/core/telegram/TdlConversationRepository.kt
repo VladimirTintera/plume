@@ -1397,6 +1397,7 @@ class TdlConversationRepository(
         replyToMessageId: Long?,
         quote: ReplyQuote?,
         options: SendOptions,
+        uploadedFileId: Int?,
     ): Result<ChatMessage> =
         client.sendMessage(
             chatId = chatId,
@@ -1406,7 +1407,8 @@ class TdlConversationRepository(
             replyMarkup = null,
             inputMessageContent = InputMessageVoiceNote(
                 voiceNote = InputVoiceNote(
-                    voiceNote = InputFileLocal(path = path),
+                    // Předem nahraný soubor se pošle podle id — TDLib použije už nahrané části.
+                    voiceNote = uploadedFileId?.let { InputFileId(id = it) } ?: InputFileLocal(path = path),
                     duration = durationSeconds,
                     waveform = waveform,
                 ),

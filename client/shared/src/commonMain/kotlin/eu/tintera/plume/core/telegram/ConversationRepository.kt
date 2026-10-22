@@ -851,6 +851,8 @@ interface ConversationRepository {
         replyToMessageId: Long?,
         quote: ReplyQuote? = null,
         options: SendOptions = SendOptions(),
+        /** Soubor nahraný už během nahrávání ([LiveUploads]); `null` = posílá se [path]. */
+        uploadedFileId: Int? = null,
     ): Result<ChatMessage>
 
     /**

@@ -86,6 +86,13 @@ actual class AudioRecorder(private val context: Context) : MediaCapture {
         return created
     }
 
+    /**
+     * Ogg/Opus nahrávaný vcelku: první a jediný úsek je i výsledek [stop]. Po pauze (víc úseků,
+     * na konci se spojí) a u M4A (index na konci) předem nahrávat nejde.
+     */
+    override val livePath: String?
+        get() = segments.singleOrNull()?.takeIf { opus && recorder != null }?.absolutePath
+
     /** `maxAmplitude` je špička od posledního čtení; odmocnina zvedne tiché úrovně, ať je řeč vidět. */
     actual override val level: Float
         get() = recorder?.let { sqrt(it.maxAmplitude / 32767f).coerceIn(0f, 1f) } ?: 0f
