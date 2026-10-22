@@ -605,11 +605,12 @@ a se serverem, takže přednostně:
   ~~**reklama v chatu s botem** jako pruh nad konverzací~~ — hotovo, `SponsoredBar` se
   štítkem „Reklama" / „Doporučeno", barvou z `accent_color_id`, fotkou vpravo a odkazem
   s potvrzením mimo domény Telegramu (`docs/poznatky/konverzace-zobrazeni.md`, „Reklama
-  u bota"). Zbývají **reklamy ve videu** na celé obrazovce
-  (`getVideoMessageAdvertisements`, `viewVideoMessageAdvertisement`,
-  `clickVideoMessageAdvertisement`, `reportVideoMessageAdvertisement`; zobrazovat postupně po
-  `max_display_duration`, časovač stojí s videem) a **„Informace o sponzorovi"** u reklamy
-  v kanálu (`SponsoredMessage.sponsor`, karta ho dnes neukazuje).
+  u bota"). ~~**Reklamy ve videu** na celé obrazovce (`getVideoMessageAdvertisements`,
+  `viewVideoMessageAdvertisement`, `clickVideoMessageAdvertisement`,
+  `reportVideoMessageAdvertisement`)~~ — hotovo (`docs/poznatky/prohlizec-medii.md`, „Reklamy
+  ve videu"); skutečnou reklamu od serveru zatím nevrátil žádný kanál, ověřeno s podstrčenou.
+  Zbývá **„Informace o sponzorovi"** u reklamy v kanálu (`SponsoredMessage.sponsor`, karta ho
+  dnes neukazuje; rámeček ve videu už ji má v ⋮).
 
 **Živé updaty bez odběru** (stav se přečte jednou a pak stárne):
 

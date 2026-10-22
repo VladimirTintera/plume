@@ -2794,6 +2794,41 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
+    override suspend fun videoAds(chatId: Long, messageId: Long): Result<VideoAds?> = runCatching {
+        val properties = client.getMessageProperties(chatId = chatId, messageId = messageId).toResult().getOrThrow()
+        if (!properties.canGetVideoAdvertisements) return@runCatching null
+        val result = client.getVideoMessageAdvertisements(chatId = chatId, messageId = messageId).toResult().getOrThrow()
+        val ads = result.advertisements.map { ad ->
+            VideoAd(
+                uniqueId = ad.uniqueId,
+                title = ad.title,
+                text = ad.text,
+                minDisplaySeconds = ad.minDisplayDuration,
+                maxDisplaySeconds = ad.maxDisplayDuration,
+                canBeReported = ad.canBeReported,
+                url = ad.sponsor.url,
+                photo = ad.sponsor.photo?.toMedia(),
+                sponsorInfo = ad.sponsor.info,
+                additionalInfo = ad.additionalInfo,
+            )
+        }
+        ads.takeIf { it.isNotEmpty() }?.let {
+            VideoAds(ads = it, startDelaySeconds = result.startDelay, betweenDelaySeconds = result.betweenDelay)
+        }
+    }
+
+    override suspend fun reportVideoAdView(uniqueId: Long): Result<Unit> =
+        client.viewVideoMessageAdvertisement(advertisementUniqueId = uniqueId).toResult().map { }
+
+    override suspend fun reportVideoAdClick(uniqueId: Long): Result<Unit> =
+        client.clickVideoMessageAdvertisement(advertisementUniqueId = uniqueId).toResult().map { }
+
+    override suspend fun reportVideoAd(uniqueId: Long, optionId: ReportOptionId?): Result<ReportStep> =
+        client.reportVideoMessageAdvertisement(advertisementUniqueId = uniqueId, optionId = optionId?.bytes ?: ByteArray(0))
+            .toResult()
+            .onFailure { logger.w(it) { "Nahlášení reklamy ve videu $uniqueId selhalo." } }
+            .map { it.toReportStep() }
+
     override suspend fun reportSponsoredClick(
         chatId: Long,
         messageId: Long,

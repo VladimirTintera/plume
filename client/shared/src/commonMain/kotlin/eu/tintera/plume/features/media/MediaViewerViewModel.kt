@@ -140,6 +140,39 @@ class MediaViewerViewModel(
     private var loadingNewer = false
 
     /**
+     * Reklamy nad videem z kanálu na celé obrazovce ([ViewerVideoAds]). Jen u médií chatu —
+     * profilové fotky, příběh, anketa, článek ani reklama samotná je nemají.
+     */
+    private val videoAds = ViewerVideoAds(
+        chatId = chatId,
+        enabled = pollMedia == NO_POLL_MEDIA && !profilePhotos && articleMedia == NO_ARTICLE_MEDIA &&
+            storyId == NO_STORY && !sponsored,
+        scope = viewModelScope,
+        appScope = appScope,
+        repository = repository,
+        logger = logger,
+    )
+
+    /** Reklama nad hrajícím videem; `null` = žádná. */
+    val videoAd: StateFlow<ViewerVideoAd?> = videoAds.shown
+
+    /** Průvodce nahlášením reklamy nad videem; kreslí ho obrazovka. */
+    val videoAdReportFlow get() = videoAds.reportFlow
+
+    /** Které video hraje na celé obrazovce (`null` = žádné) — čas reklam běží jen při přehrávání. */
+    fun onVideoPlaying(messageId: Long?) = videoAds.setPlaying(messageId)
+
+    fun closeVideoAd() = videoAds.close()
+
+    /** Ťuknutí na reklamu nad videem: nahlásí kliknutí a vrátí odkaz inzerenta. */
+    fun openVideoAd(): String? = videoAds.open()
+
+    fun reportVideoAd() = videoAds.report()
+
+    /** U reklamy je otevřená nabídka nebo informace o sponzorovi — nesmí se zatím skrýt. */
+    fun holdVideoAd(held: Boolean) = videoAds.setHeld(held)
+
+    /**
      * Otevřený je soubor (obrázek nebo video poslané jako dokument). Listuje se jen fotkami
      * a videi, mezi které nepatří, takže se ukazuje sám a bez pořadí „N z M" — TDLib by ho
      * počítala mezi fotkami.
