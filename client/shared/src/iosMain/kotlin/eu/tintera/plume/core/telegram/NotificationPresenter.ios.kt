@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import platform.UserNotifications.UNNotification
@@ -48,9 +49,10 @@ actual class NotificationPresenter(private val chats: ChatRepository) {
         }
 
         scope.launch {
-            ready.map { state -> state.chats.filter { !it.isMuted }.sumOf { it.unreadCount } }
+            // Počet od TDLib, ne součet nad načtenou částí seznamu (viz `ChatRepository.unreadMessages`).
+            chats.unreadMessages
+                .filterNotNull()
                 .distinctUntilChanged()
-                .debounce(SETTLE_MS)
                 .collect { count ->
                     UNUserNotificationCenter.currentNotificationCenter().setBadgeCount(count.toLong()) { error ->
                         if (error != null) logger.w { "Odznak se nepodařilo nastavit: ${error.localizedDescription}" }

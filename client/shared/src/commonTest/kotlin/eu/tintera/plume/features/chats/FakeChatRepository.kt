@@ -90,6 +90,8 @@ open class FakeChatRepository(
     override suspend fun topChats(): Result<List<ChatSummary>> = Result.success(emptyList())
 
     override val archiveUnread: StateFlow<ArchiveUnread> = MutableStateFlow(ArchiveUnread())
+
+    override val unreadMessages: StateFlow<Int?> = MutableStateFlow(null)
     override val chatFolders: StateFlow<ChatFolders> = MutableStateFlow(ChatFolders())
     override val folderUnread: StateFlow<Map<Int, ArchiveUnread>> = MutableStateFlow(emptyMap())
 

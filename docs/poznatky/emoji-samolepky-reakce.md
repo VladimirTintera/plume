@@ -560,6 +560,17 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   na serveru je. Po odeslání se výslovně přidá mezi nedávné, aby byla hned nahoře.
 - **Sheet se nejdřív schová, teprve pak se pošle.** Zmizení bez animace vypadá jako pád.
 - **Samolepka nezakládá let ze vstupního pole** a nemaže rozepsaný text — z pole nevyletěla.
+- **Změnu sady hlásí `UpdateStickerSet`** (`StickerRepository.changedSets`): obsah sady
+  načtený ve výběru se přečte znovu, detail sady a záložky (název, obálka) taky. Bez toho zůstala
+  sada, do které autor přidal samolepku, stará až do odchodu z chatu (výběr žije s konverzací).
+  - **Chodí jen u sady, kterou TDLib načetl CELOU a klientovi už poslal, a jen při skutečné
+    změně** (`StickersManager::update_sticker_set`: `is_changed_ && was_loaded_ &&
+    was_update_sent_`). Načtení sady ani přidání sady z trendů (zná jen ukázku) ho nevyvolá —
+    obnova po updatu se tedy nezacyklí. Ověřeno na emulátoru dočasným výpisem: otevření výběru,
+    záložek sad i trendů nic, odebrání celé načtené sady v jejím detailu update poslalo a dorazil
+    do repository i do ViewModelu výběru.
+  - **Neověřené:** sada, do které autor opravdu přidal samolepku (testovací účet žádnou vlastní
+    nemá; založit ji přes bota by byla veřejná sada).
 - **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
   `group` s `translateY="960"`, cesta zůstává, jak je.
 

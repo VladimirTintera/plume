@@ -627,9 +627,13 @@ a se serverem, takže přednostně:
 - ~~**Zablokování z jiného zařízení** (`chatBlockListUpdates`)~~ — hotovo: profil, sheet
   smazání v konverzaci a seznam blokovaných (`docs/poznatky/spam-a-blokovani.md`, „Blokování
   a nahlášení spamu"), i „Odblokovat" místo vstupního pole v chatu se zablokovaným.
-- Drobné: změna nainstalované sady samolepek (`stickerSetUpdates`), počet zpráv v tématu
-  Uložených zpráv (`topicMessageCountUpdates`), nepřečtené zprávy v seznamu
-  (`unreadMessageCountUpdates`, dnes se počítají chaty).
+- Drobné: ~~změna nainstalované sady samolepek (`stickerSetUpdates`)~~ (hotovo, výběr i detail
+  sady se přečtou znovu; `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr samolepek"; zbývá
+  ověřit se sadou, do které autor přidá samolepku), ~~nepřečtené zprávy
+  (`unreadMessageCountUpdates`)~~ (hotovo, odznak na iOS a desktopu počítá TDLib místo součtu
+  nad načtenými chaty; `docs/poznatky/notifikace.md`; iOS a desktop jen přeložené).
+  Počet zpráv v tématu Uložených zpráv (`topicMessageCountUpdates`) vědomě NE: Plume ho nikde
+  neukazuje, update by neměl co obnovit — přijde na řadu, až bude počet někde vidět.
 
 **Funkce pro běžného uživatele** (bez Premium a bez plateb):
 

@@ -10,6 +10,7 @@ import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerSetInfo
 import dev.g000sha256.tdl.dto.StickerFullTypeCustomEmoji
 import dev.g000sha256.tdl.dto.StickerFullTypeRegular
+import dev.g000sha256.tdl.dto.StickerSet
 import dev.g000sha256.tdl.dto.StickerType
 import dev.g000sha256.tdl.dto.StickerTypeCustomEmoji
 import dev.g000sha256.tdl.dto.StickerTypeRegular
@@ -58,10 +59,14 @@ class TdlStickerRepository(
     private val client: TdlClient get() = holder.client
 
     override fun installedSets(kind: StickerSetKind): Flow<List<StickerSetSummary>> =
-        holder.updates { installedStickerSetsUpdates }
-            // Každý druh má vlastní seznam (masky, samolepky, emoji); bere se jen ten jeden.
-            .filter { it.stickerType.kind() == kind }
-            .map { }
+        merge(
+            holder.updates { installedStickerSetsUpdates }
+                // Každý druh má vlastní seznam (masky, samolepky, emoji); bere se jen ten jeden.
+                .filter { it.stickerType.kind() == kind }
+                .map { },
+            // Přejmenovaná nainstalovaná sada nebo nová obálka; seznam nainstalovaných se tím nemění.
+            installedSetChanges { it.stickerType.kind() == kind },
+        )
             .onStart { emit(Unit) }
             .map {
                 client.getInstalledStickerSets(stickerType = kind.toTdl())
@@ -106,10 +111,13 @@ class TdlStickerRepository(
             }
 
     override fun stickerSetDetail(setId: Long): Flow<StickerSetDetail?> =
-        holder.updates { installedStickerSetsUpdates }
-            // Přidání i odebrání sady mění seznam nainstalovaných; jiný update o sadě TDLib nepošle.
+        merge(
+            // Přidání i odebrání sady mění seznam nainstalovaných, ne sadu samu.
             // Bez filtru druhu: detail ukazuje i sady vlastních emoji.
-            .map { }
+            holder.updates { installedStickerSetsUpdates }.map { },
+            // Změna obsahu nebo názvu sady (autor přidal samolepku) — `UpdateStickerSet`.
+            holder.updates { stickerSetUpdates }.filter { it.stickerSet.id == setId }.map { },
+        )
             .onStart { emit(Unit) }
             .map {
                 client.getStickerSet(setId = setId)
@@ -130,6 +138,24 @@ class TdlStickerRepository(
                         null
                     }
             }
+
+    /**
+     * `UpdateStickerSet` chodí jen u sady, kterou už TDLib načetl CELOU a klientovi jednou
+     * poslal, a jen při skutečné změně (`StickersManager::update_sticker_set`: `is_changed_`,
+     * `was_loaded_`, `was_update_sent_`). Načtení sady ani přidání sady z trendů (zná jen ukázku)
+     * ho nevyvolá — obnova obsahu se tedy nezacyklí.
+     */
+    override fun changedSets(): Flow<Long> =
+        holder.updates { stickerSetUpdates }.map { it.stickerSet.id }
+
+    /**
+     * Změna nainstalované sady daného druhu (`UpdateStickerSet`). Chodí i u sad, které uživatel
+     * nemá (otevřený detail, právě odebraná) — ty seznam nainstalovaných nemění.
+     */
+    private fun installedSetChanges(kind: (StickerSet) -> Boolean): Flow<Unit> =
+        holder.updates { stickerSetUpdates }
+            .filter { it.stickerSet.isInstalled && !it.stickerSet.isArchived && kind(it.stickerSet) }
+            .map { }
 
     override fun trendingSets(): Flow<List<StickerSetSample>> =
         merge(
@@ -249,9 +275,12 @@ class TdlStickerRepository(
     }
 
     override fun customEmojiSets(): Flow<List<CustomEmojiSet>> =
-        holder.updates { installedStickerSetsUpdates }
-            .filter { it.stickerType is StickerTypeCustomEmoji }
-            .map { }
+        merge(
+            holder.updates { installedStickerSetsUpdates }
+                .filter { it.stickerType is StickerTypeCustomEmoji }
+                .map { },
+            installedSetChanges { it.stickerType is StickerTypeCustomEmoji },
+        )
             .onStart { emit(Unit) }
             .map {
                 client.getInstalledStickerSets(stickerType = StickerTypeCustomEmoji())

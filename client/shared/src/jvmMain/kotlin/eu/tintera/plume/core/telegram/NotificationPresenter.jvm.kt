@@ -31,11 +31,8 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
@@ -316,16 +313,13 @@ actual class NotificationPresenter internal constructor(
         DesktopTaskbar.setUnread(0)
     }
 
-    @OptIn(FlowPreview::class)
     private fun startBadge() {
         DesktopTaskbar.start(scope)
         scope.launch {
-            chats.chats(ChatFolder.Main)
-                .filterIsInstance<ChatListState.Ready>()
-                .map { state -> state.chats.filter { !it.isMuted }.sumOf { it.unreadCount } }
+            // Počet od TDLib, ne součet nad načtenou částí seznamu (viz `ChatRepository.unreadMessages`).
+            chats.unreadMessages
+                .filterNotNull()
                 .distinctUntilChanged()
-                // Seznam se při startu skládá po dávkách; stačí se podívat, až se usadí.
-                .debounce(BADGE_SETTLE_MS)
                 .collect(DesktopTaskbar::setUnread)
         }
     }
@@ -340,8 +334,6 @@ actual class NotificationPresenter internal constructor(
     private fun callId(groupId: Int) = "call-$groupId"
 
     private companion object {
-        const val BADGE_SETTLE_MS = 1_000L
-
         /** Na přihlášení TDLib po studeném startu z toastu. */
         val READY_TIMEOUT = 30.seconds
 

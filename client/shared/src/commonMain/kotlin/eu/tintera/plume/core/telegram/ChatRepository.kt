@@ -309,6 +309,15 @@ interface ChatRepository {
     val archiveUnread: StateFlow<ArchiveUnread>
 
     /**
+     * Nepřečtené zprávy v neztlumených chatech hlavního seznamu — číslo na ikoně aplikace (iOS,
+     * desktop). `null`, dokud ho TDLib neohlásil.
+     *
+     * Počítá TDLib (`UpdateUnreadMessageCount`), ne součet nad [chats]: hlavní seznam se načítá
+     * po stránkách, takže součet nad ním chyběl u chatů, ke kterým se seznam ještě nedostal.
+     */
+    val unreadMessages: StateFlow<Int?>
+
+    /**
      * Nastavení archivu. Čte se na vyžádání — TDLib na jeho změnu žádný update neposílá, takže
      * se pak drží u toho, kdo ho zobrazuje.
      */

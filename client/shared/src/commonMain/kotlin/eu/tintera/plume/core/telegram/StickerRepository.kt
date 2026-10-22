@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * Samolepky uživatele pro výběr: nainstalované sady, nedávno použité a oblíbené.
@@ -44,9 +45,16 @@ interface StickerRepository {
 
     /**
      * Sada i s tím, jestli ji má uživatel nainstalovanou. Živý tok: po přidání nebo odebrání
-     * (i z jiného zařízení) se přečte znovu. `null`, když se sadu nepodařilo načíst.
+     * (i z jiného zařízení) i po změně obsahu sady se přečte znovu. `null`, když se sadu
+     * nepodařilo načíst.
      */
     fun stickerSetDetail(setId: Long): Flow<StickerSetDetail?>
+
+    /**
+     * Id sad, jejichž obsah nebo název se změnil (autor přidal samolepku, přejmenoval sadu).
+     * Pro obsah sad načtený jednou ([stickerSet], [customEmojiSet]) — kdo si ho drží, načte ho znovu.
+     */
+    fun changedSets(): Flow<Long> = emptyFlow()
 
     /**
      * Populární sady, které Telegram právě doporučuje. Živý tok: přepočítá se, když se trendy
