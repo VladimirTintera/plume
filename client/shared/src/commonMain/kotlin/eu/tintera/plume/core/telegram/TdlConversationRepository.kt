@@ -1434,7 +1434,8 @@ class TdlConversationRepository(
             replyMarkup = null,
             inputMessageContent = InputMessageVideoNote(
                 videoNote = InputVideoNote(
-                    videoNote = InputFileLocal(path = videoNote.path),
+                    // Předem nahraný soubor se pošle podle id — TDLib použije už nahrané části.
+                    videoNote = videoNote.uploadedFileId?.let { InputFileId(id = it) } ?: InputFileLocal(path = videoNote.path),
                     thumbnail = videoNote.thumbnail?.let {
                         InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
                     },

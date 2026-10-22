@@ -41,9 +41,9 @@ interface MediaCapture {
 
     /**
      * Soubor, do kterého se PRÁVĚ nahrává a který bude i výsledkem [stop], dokud nahrávání běží
-     * vcelku (bez pauzy). Podle něj se hlasovka nahrává do Telegramu už během nahrávání
-     * (`LiveUploads`). `null` = nahrávač soubor dopisuje až na konci (iOS kóduje po skončení,
-     * MP4 dopíše index) a nahrávat předem nemá smysl.
+     * vcelku. Podle něj se hlasovka i kolečko nahrávají do Telegramu už během nahrávání
+     * (`LiveUploads`). `null` = nahrávač soubor dopisuje až na konci (iOS kóduje hlasovku po
+     * skončení a kolečko ořezává exportem, M4A má index na konci) a nahrávat předem nemá smysl.
      */
     val livePath: String? get() = null
 

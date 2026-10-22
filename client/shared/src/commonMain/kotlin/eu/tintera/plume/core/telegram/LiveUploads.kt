@@ -1,8 +1,8 @@
 package eu.tintera.plume.core.telegram
 
 /**
- * Nahrávání souboru do Telegramu už během jeho zápisu (`preliminaryUploadFile`) — hlasovka se
- * nahrává, zatímco uživatel mluví, a po puštění tlačítka odejde skoro hned i po minutách řeči.
+ * Nahrávání souboru do Telegramu už během jeho zápisu (`preliminaryUploadFile`) — hlasovka
+ * i kolečko se nahrávají, zatímco uživatel mluví, a po puštění tlačítka odejdou skoro hned.
  */
 interface LiveUploads {
     /**
@@ -11,11 +11,14 @@ interface LiveUploads {
      */
     fun startVoiceNote(path: String): LiveUpload?
 
+    /** Totéž pro video kolečko — MP4, které kamera jen připisuje (fragmentované). */
+    fun startVideoNote(path: String): LiveUpload?
+
     /** Předem nahraný soubor [fileId] nikdo neodešle (zahozený náhled, nahrávání dál). */
     fun discard(fileId: Int)
 }
 
-/** Jedno rozběhnuté nahrávání ([LiveUploads.startVoiceNote]). */
+/** Jedno rozběhnuté nahrávání ([LiveUploads.startVoiceNote], [LiveUploads.startVideoNote]). */
 interface LiveUpload {
     /**
      * Nahrávka je hotová v [finalPath]: dopíše se zbytek a vrátí se id souboru, který se pošle

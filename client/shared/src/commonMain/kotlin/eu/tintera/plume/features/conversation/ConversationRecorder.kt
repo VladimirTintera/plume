@@ -66,9 +66,10 @@ internal class ConversationRecorder(
     private val voiceRecorder = VoiceRecorder(audioRecorder, scope)
 
     /**
-     * Hlasovka, která se nahrává do Telegramu, zatímco uživatel mluví ([LiveUploads]). Jen
-     * u nahrávání vcelku (`MediaCapture.livePath`): pauza i navázání na náhled dají jiný soubor,
-     * tak se zahodí a pošle se hotová nahrávka.
+     * Hlasovka nebo kolečko, které se nahrává do Telegramu, zatímco uživatel mluví
+     * ([LiveUploads]). Jen u nahrávání vcelku (`MediaCapture.livePath`): pauza hlasovky
+     * i navázání na náhled dají jiný soubor, tak se zahodí a pošle se hotová nahrávka. Pauza
+     * kolečka soubor nemění (kamera píše dál do téhož).
      */
     private var liveUpload: LiveUpload? = null
 
@@ -139,7 +140,10 @@ internal class ConversationRecorder(
      * se rozpracované kolečko zahodí: kamera s kompozicí končí a nahrávat by nebylo do čeho.
      */
     fun attachCamera(camera: VideoNoteCamera) {
-        cameraSlot.attach(camera) { videoRecorder.cancel() }
+        cameraSlot.attach(camera) {
+            if (videoRecorder.state.value != null) abandonLiveUpload()
+            videoRecorder.cancel()
+        }
     }
 
     fun detachCamera(camera: VideoNoteCamera) {
@@ -154,9 +158,9 @@ internal class ConversationRecorder(
         }
         if (voiceRecorder.state.value != null) return
         silencePlayback()
-        videoRecorder.start().onFailure {
-            state.update { it.copy(error = UiText(Res.string.conversation_video_note_start_failed)) }
-        }
+        videoRecorder.start()
+            .onSuccess { liveUpload = cameraSlot.livePath?.let { path -> liveUploads?.startVideoNote(path) } }
+            .onFailure { state.update { it.copy(error = UiText(Res.string.conversation_video_note_start_failed)) } }
     }
 
     /** Přepne, co nahraje podržení tlačítka. Zápis jde přes [appScope], jako ostatní volby. */
@@ -324,22 +328,37 @@ internal class ConversationRecorder(
      * nahrávání: soubor je hotový teprve teď a na iOS se navíc ořezává do čtverce.
      */
     private fun sendVideoRecording(options: SendOptions) {
+        val live = liveUpload.also { liveUpload = null }
         scope.launch {
             val tooShort = (videoRecorder.state.value?.elapsedMs ?: 0L) < MIN_DURATION_MS
             val recorded = videoRecorder.finish()
             if (recorded == null) {
+                live?.abandon()
                 reportRecordingLost(tooShort)
                 return@launch
             }
             media.sendMedia(Res.string.conversation_video_note_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
                 runCatching { prepareVideoNote(recorded.path) }
-                    .onFailure { failure -> logger.w(failure) { "Kolečko nejde připravit k odeslání." } }
+                    .onFailure { failure ->
+                        logger.w(failure) { "Kolečko nejde připravit k odeslání." }
+                        live?.abandon()
+                    }
                     .fold(
-                        onSuccess = { note -> repository.sendVideoNote(chatId, note, replyTo, quote, options) },
+                        onSuccess = { note -> repository.sendVideoNote(chatId, withLiveUpload(live, note), replyTo, quote, options) },
                         onFailure = { failure -> Result.failure(failure) },
                     )
             }
         }
+    }
+
+    /**
+     * Připravené kolečko převezme předem nahraný soubor, když sedí ([LiveUpload.complete]) —
+     * až po [prepareVideoNote], který soubor jen čte. Zmenšené kolečko (`shrinkIfNeeded`) je
+     * jiný soubor, takže se předem nahrané zahodí a pošle se celé.
+     */
+    private suspend fun withLiveUpload(live: LiveUpload?, note: OutgoingVideoNote): OutgoingVideoNote {
+        val fileId = live?.complete(note.path) ?: return note
+        return note.copy(uploadedFileId = fileId)
     }
 
     /**
@@ -353,6 +372,7 @@ internal class ConversationRecorder(
         // Mezistav hned: dokončení (zmenšení na Androidu, ořez na iOS) trvá vteřiny.
         val finishing = VideoNotePreview(note = null)
         _videoNotePreview.value = finishing
+        val live = liveUpload.also { liveUpload = null }
         scope.launch {
             val recorded = videoRecorder.finish()
             val note = recorded?.let {
@@ -360,6 +380,8 @@ internal class ConversationRecorder(
                     .onFailure { failure -> logger.w(failure) { "Kolečko nejde připravit k náhledu." } }
                     .getOrNull()
             }
+                ?.let { withLiveUpload(live, it) }
+            if (note == null) live?.abandon()
             // Koš během dokončování: náhled už nikdo nechce, soubory pryč.
             if (_videoNotePreview.value !== finishing) {
                 note?.let(::deleteVideoNote) ?: recorded?.let { deleteQuietly(it.path) }
@@ -396,6 +418,8 @@ internal class ConversationRecorder(
             .onSuccess {
                 _videoNotePreview.value = null
                 preview.note?.thumbnail?.path?.let(::deleteQuietly)
+                // Po navázání vznikne spojené kolečko; předem nahraný začátek nikdo nepošle.
+                preview.note?.uploadedFileId?.let { liveUploads?.discard(it) }
             }
             .onFailure { state.update { it.copy(error = UiText(Res.string.conversation_video_note_start_failed)) } }
     }
@@ -407,9 +431,11 @@ internal class ConversationRecorder(
         preview.note?.let(::deleteVideoNote)
     }
 
+    /** Kolečko, které nikdo neodešle: soubory pryč a předem nahraný soubor taky. */
     private fun deleteVideoNote(note: OutgoingVideoNote) {
         deleteQuietly(note.path)
         note.thumbnail?.path?.let(::deleteQuietly)
+        note.uploadedFileId?.let { liveUploads?.discard(it) }
     }
 
     private fun sendVideoNotePreview(options: SendOptions) {

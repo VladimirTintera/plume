@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.graphics.Matrix
 import android.media.ExifInterface
+import android.media.MediaExtractor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
@@ -146,6 +147,31 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
     )
 }
 
+/**
+ * Délka podle posledního vzorku. **Fragmentované MP4 délku v hlavičce nemá** (`mvhd` 0, bez
+ * `mehd` — kolečko z kamery, viz `FragmentedVideoNoteMuxer`) a `MediaMetadataRetriever` pak
+ * vrátí nulu; kolečko by se tvářilo jako vteřinové. `MediaExtractor` projde fragmenty a čas
+ * posledního vzorku zná. Projde se jen hlavička vzorků, ne obsah — u minuty kolečka zlomek vteřiny.
+ */
+private fun lastSampleTimeMs(target: File): Long {
+    val extractor = MediaExtractor()
+    return try {
+        extractor.setDataSource(target.absolutePath)
+        for (track in 0 until extractor.trackCount) extractor.selectTrack(track)
+        var lastUs = 0L
+        while (extractor.sampleTime >= 0) {
+            lastUs = maxOf(lastUs, extractor.sampleTime)
+            if (!extractor.advance()) break
+        }
+        lastUs / 1000
+    } catch (failure: Exception) {
+        Logger.withTag("VideoMetadata").w(failure) { "Délku videa nejde dopočítat ze vzorků." }
+        0L
+    } finally {
+        extractor.release()
+    }
+}
+
 internal class VideoMetadata(val width: Int, val height: Int, val durationSeconds: Int, val thumbnail: OutgoingThumbnail?)
 
 /** Rozměry (po otočení), délka a první snímek jako JPEG náhled vedle souboru. */
@@ -157,7 +183,9 @@ internal fun videoMetadata(target: File): VideoMetadata {
         val rawWidth = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
         val rawHeight = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
         val rotated = metadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) % 180 != 0
-        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            ?.takeIf { it > 0 }
+            ?: lastSampleTimeMs(target)
 
         val thumbnail = runCatching {
             val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
@@ -331,7 +359,9 @@ private fun audioMetadata(target: File): OutgoingAttachment.Audio {
     try {
         retriever.setDataSource(target.absolutePath)
         fun text(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
-        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            ?.takeIf { it > 0 }
+            ?: lastSampleTimeMs(target)
         val cover = runCatching {
             val bytes = retriever.embeddedPicture ?: return@runCatching null
             val picture = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@runCatching null

@@ -4,6 +4,8 @@ import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.Error
+import dev.g000sha256.tdl.dto.FileType
+import dev.g000sha256.tdl.dto.FileTypeVideoNote
 import dev.g000sha256.tdl.dto.FileTypeVoiceNote
 import dev.g000sha256.tdl.dto.InputFileGenerated
 import dev.g000sha256.tdl.dto.UpdateFileGenerationStart
@@ -62,13 +64,21 @@ class TdlLiveUploads(
         }
     }
 
-    override fun startVoiceNote(path: String): LiveUpload = Upload(path, CONVERSION_PREFIX + Random.nextLong().toULong().toString(16))
+    override fun startVoiceNote(path: String): LiveUpload = Upload(path, FileTypeVoiceNote(), VOICE_EXPECTED_SIZE)
+
+    override fun startVideoNote(path: String): LiveUpload = Upload(path, FileTypeVideoNote(), VIDEO_EXPECTED_SIZE)
 
     override fun discard(fileId: Int) {
         scope.launch { client.cancelPreliminaryUploadFile(fileId = fileId) }
     }
 
-    private inner class Upload(private val path: String, private val conversion: String) : LiveUpload {
+    private inner class Upload(
+        private val path: String,
+        private val fileType: FileType,
+        /** Počáteční odhad velikosti; bez něj TDLib nenahraje nic (viz [VOICE_EXPECTED_SIZE]). */
+        private val expectedSize: Long,
+    ) : LiveUpload {
+        private val conversion = CONVERSION_PREFIX + Random.nextLong().toULong().toString(16)
         private val generation = CompletableDeferred<UpdateFileGenerationStart>()
         private val fileId = CompletableDeferred<Int?>()
         private var copy: GrowingFileCopy? = null
@@ -77,11 +87,11 @@ class TdlLiveUploads(
         private val job = scope.launch {
             lock.withLock { waiting[conversion] = generation }
             val file = client.preliminaryUploadFile(
-                file = InputFileGenerated(originalPath = path, conversion = conversion, expectedSize = EXPECTED_SIZE),
-                fileType = FileTypeVoiceNote(),
+                file = InputFileGenerated(originalPath = path, conversion = conversion, expectedSize = expectedSize),
+                fileType = fileType,
                 priority = UPLOAD_PRIORITY,
             ).toResult()
-                .onFailure { logger.w(it) { "Předběžné nahrávání hlasovky nejde spustit." } }
+                .onFailure { logger.w(it) { "Předběžné nahrávání nejde spustit." } }
                 .getOrNull()
             fileId.complete(file?.id)
             if (file == null) return@launch
@@ -92,7 +102,7 @@ class TdlLiveUploads(
             while (true) {
                 val copied = withContext(Dispatchers.Default) { runCatching { growing.copyAvailable() }.getOrDefault(reported) }
                 if (copied > reported) {
-                    client.setFileGenerationProgress(generationId = started.generationId, expectedSize = maxOf(EXPECTED_SIZE, copied * 2), localPrefixSize = copied)
+                    client.setFileGenerationProgress(generationId = started.generationId, expectedSize = maxOf(expectedSize, copied * 2), localPrefixSize = copied)
                     reported = copied
                 }
                 delay(COPY_INTERVAL_MS)
@@ -105,19 +115,19 @@ class TdlLiveUploads(
             job.cancelAndJoin()
             val growing = copy
             if (id == null || started == null || growing == null || lock.withLock { started.generationId in stopped }) {
-                logger.i { "Předem nahranou hlasovku nejde použít (soubor $id, generování ${started?.generationId})." }
+                logger.i { "Předem nahrané nejde použít (soubor $id, generování ${started?.generationId})." }
                 abandon()
                 return null
             }
             val total = withContext(Dispatchers.Default) { runCatching { growing.finish(finalPath.toPath()) }.getOrNull() }
             if (total == null) {
-                logger.i { "Hotová hlasovka se liší od předem nahrané; posílá se celá." }
+                logger.i { "Hotový soubor se liší od předem nahraného; posílá se celý." }
                 abandon()
                 return null
             }
             client.setFileGenerationProgress(generationId = started.generationId, expectedSize = total, localPrefixSize = total)
             return client.finishFileGeneration(generationId = started.generationId, error = null).toResult()
-                .onFailure { logger.w(it) { "Generování předem nahrané hlasovky nejde dokončit." } }
+                .onFailure { logger.w(it) { "Generování předem nahraného souboru nejde dokončit." } }
                 .map { id }
                 .getOrElse {
                     abandon()
@@ -142,9 +152,9 @@ class TdlLiveUploads(
 
     private companion object {
         /** Naše generování; po restartu podle ní poznáme osiřelé (viz třída). Nesmí začínat `#`. */
-        const val CONVERSION_PREFIX = "plume-live-voice#"
+        const val CONVERSION_PREFIX = "plume-live#"
 
-        /** Hlasovka je to, na co uživatel čeká — přednost před stahováním médií v pozadí. */
+        /** Hlasovka a kolečko jsou to, na co uživatel čeká — přednost před stahováním médií v pozadí. */
         const val UPLOAD_PRIORITY = 16
 
         const val COPY_INTERVAL_MS = 300L
@@ -156,7 +166,10 @@ class TdlLiveUploads(
          * ani při menším odhadu), takže minutová hlasovka (~240 kB) je při puštění skoro celá
          * nahraná. Jak nahrávka roste, odhad se zvedá (`setFileGenerationProgress`).
          */
-        const val EXPECTED_SIZE = 64L * 1024
+        const val VOICE_EXPECTED_SIZE = 64L * 1024
+
+        /** Kolečko má kolem 1 Mbit/s (`VIDEO_BITRATE`), vteřina ~125 kB; odhad roste stejně. */
+        const val VIDEO_EXPECTED_SIZE = 512L * 1024
 
         /** Na rozjezd nahrávání se po puštění tlačítka čeká nejvýš takhle; pak se posílá celý soubor. */
         const val START_TIMEOUT_MS = 3_000L

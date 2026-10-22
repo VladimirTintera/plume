@@ -97,7 +97,11 @@ class ConversationRecorderTest {
         val events = mutableListOf<String>()
         var fileId: Int? = 77
 
-        override fun startVoiceNote(path: String): LiveUpload {
+        override fun startVoiceNote(path: String): LiveUpload = start(path)
+
+        override fun startVideoNote(path: String): LiveUpload = start(path)
+
+        private fun start(path: String): LiveUpload {
             events += "start"
             return object : LiveUpload {
                 override suspend fun complete(finalPath: String): Int? {
