@@ -62,7 +62,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Příběhy](docs/poznatky/pribehy.md) — odkud se ví, kdo má příběh, lem po tvaru avataru s dílky, hromádka v pilulce hledání, prohlížeč (zmražení autorů, openStory/closeStory, pauza podržením), limit jednoho příběhu za den u free účtu
 - [Typy zpráv](docs/poznatky/typy-zprav.md) — popisy a servisní zprávy, články a Instant View, počty a komentáře, témata ve skupinách, placená média, dárky, příběhy, kontakt, hovor
 - [Emoji, samolepky a reakce](docs/poznatky/emoji-samolepky-reakce.md) — velká emoji, kostky, efekty, vlastní emoji, výběry samolepek / GIFů / emoji, reakce a jejich čipy
-- [Notifikace](docs/poznatky/notifikace.md) — TDLib a push, kanály a nastavení, zvuky z Telegramu, akce z notifikace, iOS (APNs), ohlášení hovoru, pruh videochatu
+- [Notifikace](docs/poznatky/notifikace.md) — TDLib a push, kanály a nastavení, zvuky z Telegramu, akce z notifikace a její odhrnutí, iOS (APNs), ohlášení hovoru, pruh videochatu
 - [Sdílení do aplikace](docs/poznatky/sdileni.md) — ShareRequests, čip „Sdílíte: …“ a jeho uložení, Direct Share a obrazovka „Komu: …“, import chatu z WhatsAppu, iOS rozšíření a návrhy chatů
 - [Přihlášení a odhlášení](docs/poznatky/prihlaseni.md) — QR kód, přihlašovací obrazovka (kód, heslo, obnova, země), přihlášení na webu z odkazu (a proč ne OAuth), odhlášení a nový klient
 - [Šifrovaná databáze, spojení a proxy](docs/poznatky/databaze-spojeni-proxy.md) — klíč databáze a jeho migrace, stav spojení a obnova po pozadí, proxy a sponzorovaný chat

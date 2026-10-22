@@ -747,6 +747,39 @@ stáhne. Všechny akce jdou přes jednoho příjemce a jednu třídu (`Notificat
   proto rozbalit PŘEDEM, čekat na „Zobrazuji" v logu a tlačítko hledat `uiautomator dump`
   až potom — poloha tlačítek se mění s počtem řádků notifikace. Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
 
+#### Odhrnutí notifikace
+
+Odhrnutá notifikace chatu (tah do strany, „Vymazat vše") řekne TDLib, že je pryč
+(`removeNotificationGroup`), a presenter zapomene její řádky (`NotificationPresenter.dismissed`).
+Cesta: `setDeleteIntent` → `NotificationIntents.dismiss` → `NotificationActionReceiver`
+(`ACTION_DISMISS`) → `NotificationActions.dismiss` → `NotificationRepository.dismissGroup`.
+
+- **Bez toho se odhrnuté zprávy VRACELY.** Presenter drží řádky každé skupiny v paměti
+  (`conversations`) a nová zpráva téhož chatu je připsala k nim, takže notifikace vyskočila
+  znovu i s tím, co uživatel zavřel. TDLib je navíc měl za aktivní až do přečtení chatu;
+  dokumentace `removeNotificationGroup` předepisuje volání právě pro zavření uživatelem.
+- **Delete intent posílá systém JEN při zavření uživatelem**, ne při ťuknutí s auto-cancel
+  ani při `cancel` z aplikace (zrušení po přečtení, prázdná skupina). Ověřeno: ťuknutí
+  notifikaci zavřelo a otevřelo chat, broadcast nepřišel.
+- **Id, po které se odebírá, jede v intentu, ne v paměti** (`EXTRA_MAX_NOTIFICATION_ID`,
+  `dismissUpTo`, testy `DismissUpToTest`): notifikace přežije proces a odhrnout ji jde i po
+  restartu. Bere se nejvyšší id mezi řádky, které uživatel viděl — novější notifikace, která
+  mezitím přibyla, zůstane. Když žádný řádek id od TDLib nenese (jen vlastní odpověď, řádky
+  převzaté po restartu), TDLib se nic neříká; hádané vysoké id by smazalo i to, co uživatel
+  neviděl.
+- **Po odebrání pošle TDLib `removedNotificationIds`** a presenter, který skupinu už nezná,
+  ruší „celou notifikaci" — ta je ale pryč, takže se nic nestane (kromě bubliny, ta zůstává
+  přes `keepBubble`).
+- **Ověřeno na emulátoru**: dvě připomínky v jedné notifikaci, odhrnutí (log „Skupina 13
+  odhrnuta po notifikaci 887", TDLib skupinu odebral), třetí připomínka přišla jako notifikace
+  s JEDNÍM řádkem. Stav před opravou se na zařízení nereprodukoval, plyne z kódu presenteru.
+- **Notifikace bez bota jdou vyvolat připomínkou**: naplánovaná zpráva do Uložených zpráv
+  (`SendOptions(schedule = MessageSchedule.At(…))`, nejdřív za minutu) přijde v čase
+  s notifikací jako od kohokoli jiného. Na víc řádků v jedné notifikaci stačí dvě pět vteřin
+  po sobě; aplikace musí být v pozadí.
+- **iOS a desktop odhrnutí TDLib nehlásí.** Na iOS notifikace skládá rozšíření bez TDLib
+  (APNs) a zavření by chtělo kategorii s `customDismissAction`; desktop notifikace jen ukazuje.
+
 ### Notifikace na iOS (APNs)
 
 Na iOS notifikace **zobrazuje systém přímo z APNs pushe od Telegramu**, ne aplikace. Zařízení se

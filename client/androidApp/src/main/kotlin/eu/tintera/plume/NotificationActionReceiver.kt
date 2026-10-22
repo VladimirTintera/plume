@@ -19,7 +19,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Akce z notifikace: odpověď, označení za přečtené a ztlumení.
+ * Akce z notifikace: odpověď, označení za přečtené, ztlumení a odhrnutí.
  *
  * **Proces může být mrtvý nebo zmrazený** — akce z notifikace ho probudí stejně jako push, takže
  * TDLib se teprve rozbíhá (`startKoin` z `MainApplication`) a na přihlášení se čeká. Po dobu
@@ -64,6 +64,18 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     koin.get<NotificationActions>().declineCall(callId, isVideo, READY_TIMEOUT)
                         // Notifikaci stáhne TDLib: hovor skončil.
                         .onSuccess { logger.d { "Hovor $callId z notifikace odmítnut." } }
+                }
+            }
+
+            NotificationIntents.ACTION_DISMISS -> {
+                val maxNotificationId = intent.intExtra(NotificationIntents.EXTRA_MAX_NOTIFICATION_ID)
+                runAsync {
+                    koin.get<NotificationPresenter>().dismissed(groupId)
+                    // Bez id od TDLib (jen vlastní odpovědi, řádky po restartu) nemá TDLib co odebrat.
+                    if (maxNotificationId != null) {
+                        koin.get<NotificationActions>().dismiss(groupId, maxNotificationId, READY_TIMEOUT)
+                            .onSuccess { logger.d { "Skupina $groupId odhrnuta po notifikaci $maxNotificationId." } }
+                    }
                 }
             }
 

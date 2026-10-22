@@ -243,6 +243,7 @@
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_MARK_READ" />
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_MUTE" />
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL" />
+                <action android:name="eu.tintera.plume.action.NOTIFICATION_DISMISS" />
             </intent-filter>
         </receiver>
 
