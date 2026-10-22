@@ -81,6 +81,13 @@ jobs:
         with:
           cache-disabled: ${{ runner.environment != 'github-hosted' }}
 
+      # Vlastní registr Gradle daemonů — proč, viz týž krok v jobu windows v desktop-release.yml.
+      - name: Isolate Gradle daemons
+        run: |
+          base="$HOME/.gradle/plume-ci-daemon"
+          if command -v cygpath > /dev/null; then base="$(cygpath -m "$base")"; fi
+          echo "GRADLE_OPTS=${GRADLE_OPTS:+$GRADLE_OPTS }-Dorg.gradle.daemon.registry.base=$base" >> "$GITHUB_ENV"
+
       # Runner image nemusí mít čerstvé SDK platformy a AGP si je samo nedotáhne (auto-download
       # potřebuje odsouhlasené licence). Instalujeme explicitně.
       # POZOR: musí odpovídat android-compileSdk v gradle/libs.versions.toml. Balíček pro
