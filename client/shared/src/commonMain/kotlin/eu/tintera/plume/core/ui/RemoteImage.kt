@@ -41,6 +41,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
+import coil3.size.Size
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.Minithumbnail
@@ -78,6 +81,11 @@ fun RemoteImage(
     autoDownload: Boolean = true,
     /** Co kreslit, než dorazí obrázek (obrys samolepky); pod leskem načítání. */
     placeholderContent: (@Composable () -> Unit)? = null,
+    /**
+     * Dekódovat v plném rozlišení, ne na velikost plochy — pro fotku, která jde přiblížit
+     * (prohlížeč médií). Jen kde je to potřeba, viz [zoomLoadsFullResolution].
+     */
+    fullResolution: Boolean = false,
 ) {
     // Ťuknutí na stažení platí pro tenhle soubor; jiný soubor na tomtéž místě (recyklovaná
     // položka seznamu) začíná zase podle nastavení.
@@ -126,9 +134,17 @@ fun RemoteImage(
                 // velkou fotkou): bez lesku by stála, jako by víc nebylo. Náhled nese jen fotka,
                 // takže pruh je vždycky ten nad fotkou.
                 val sharpening = current != readyPath && state is FileState.Downloading
+                val context = LocalPlatformContext.current
+                val model = remember(current, fullResolution) {
+                    if (fullResolution) {
+                        ImageRequest.Builder(context).data(localImage(current)).size(Size.ORIGINAL).build()
+                    } else {
+                        localImage(current)
+                    }
+                }
                 AsyncImage(
                     // Coil potřebuje schéma; holá cesta by se vyhodnotila jako relativní URI.
-                    model = localImage(current),
+                    model = model,
                     contentDescription = contentDescription,
                     contentScale = contentScale,
                     modifier = Modifier
