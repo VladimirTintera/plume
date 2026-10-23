@@ -239,15 +239,23 @@ class ChatSearch(
         }
     }
 
-    /** Hashtag z historie hledání pryč; návrhy se pak přečtou znovu. */
     /** Nahlášený sponzorovaný chat z výsledků zmizí, jako reklama v kanálu. */
     fun dropSponsored(uniqueId: Long) {
         _state.update { state -> state.copy(sponsored = state.sponsored.filterNot { it.uniqueId == uniqueId }) }
     }
 
+    /** Hashtag z historie hledání pryč; návrhy se pak přečtou znovu. */
     fun removeTag(tag: String) {
         scope.launch {
             repository.removeSearchedTag(tag).logged("removeSearchedTag")
+            suggestionsVersion.value++
+        }
+    }
+
+    /** Všechny hashtagy z historie pryč (Vymazat u sekce Hashtagy), jako u nedávných chatů. */
+    fun clearTags() {
+        scope.launch {
+            repository.clearSearchedTags().logged("clearSearchedForTags")
             suggestionsVersion.value++
         }
     }

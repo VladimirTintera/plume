@@ -123,6 +123,7 @@ internal class ConversationLinks(
                         )
                         is InternalLink.Screen -> state.update { it.copy(openScreen = link.screen) }
                         is InternalLink.LoginWarning -> state.update { it.copy(loginWarning = link.kind) }
+                        is InternalLink.DeepLinkInfo -> state.update { it.copy(deepLinkInfo = link) }
                         is InternalLink.Story -> openStory(StoryTarget(link.posterChatId, link.storyId))
                         is InternalLink.WebApp -> requestWebApp(
                             WebAppRequest(
@@ -487,6 +488,8 @@ internal class ConversationLinks(
     }
 
     fun dismissLoginWarning() = state.update { it.copy(loginWarning = null) }
+
+    fun dismissDeepLinkInfo() = state.update { it.copy(deepLinkInfo = null) }
 
     fun consumeAddBotToGroup() {
         state.update { it.copy(addBotToGroup = null) }

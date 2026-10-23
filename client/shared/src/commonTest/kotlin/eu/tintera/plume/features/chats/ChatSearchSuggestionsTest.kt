@@ -34,6 +34,11 @@ class ChatSearchSuggestionsTest {
             tags -= tag
             return Result.success(Unit)
         }
+
+        override suspend fun clearSearchedTags(): Result<Unit> {
+            tags.clear()
+            return Result.success(Unit)
+        }
     }
 
     /** Hledané hashtagy jsou v návrzích hlavního hledání; odebraný zmizí po novém čtení. */
@@ -49,6 +54,21 @@ class ChatSearchSuggestionsTest {
         search.removeTag("#plume")
         advanceUntilIdle()
         assertEquals(listOf("#kotlin"), search.state.value.tags)
+        scope.cancel()
+    }
+
+    /** Vymazat u sekce Hashtagy smaže celou historii tagů a sekce po novém čtení zmizí. */
+    @Test
+    fun vymazaniVsechHashtagu() = runTest {
+        val repository = Repository()
+        val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler))
+        val search = ChatSearch(repository, scope, everywhere = true)
+        search.setSuggestionsWanted(true)
+        advanceUntilIdle()
+
+        search.clearTags()
+        advanceUntilIdle()
+        assertEquals(emptyList(), search.state.value.tags)
         scope.cancel()
     }
 

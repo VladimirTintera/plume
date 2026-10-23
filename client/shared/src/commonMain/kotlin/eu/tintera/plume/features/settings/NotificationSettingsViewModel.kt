@@ -18,6 +18,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.settings_launch_at_login_failed
 import eu.tintera.plume.resources.settings_notif_error
+import eu.tintera.plume.resources.settings_notif_reset_all_done
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -186,6 +187,18 @@ class NotificationSettingsViewModel(
                             )
                         }
                     }
+                }
+                .onFailure(::fail)
+        }
+    }
+
+    /** Obnovení všeho: rozsahy dorazí updatem, výjimky (teď prázdné) se přečtou znovu. */
+    fun resetAll() {
+        viewModelScope.launch {
+            repository.resetAll()
+                .onSuccess {
+                    local.update { it.copy(openExceptions = null, notice = UiText(Res.string.settings_notif_reset_all_done)) }
+                    loadExceptions()
                 }
                 .onFailure(::fail)
         }

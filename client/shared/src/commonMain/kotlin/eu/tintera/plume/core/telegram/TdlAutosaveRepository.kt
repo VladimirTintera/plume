@@ -71,6 +71,11 @@ class TdlAutosaveRepository(
             .map { mutex.withLock { cached = null } }
             .onFailure { logger.w(it) { "Nastavení ukládání do galerie se nepodařilo uložit ($scope)." } }
 
+    override suspend fun clearExceptions(): Result<Unit> =
+        holder.client.clearAutosaveSettingsExceptions().toResult()
+            .map { mutex.withLock { cached = null } }
+            .onFailure { logger.w(it) { "Výjimky ukládání do galerie se nepodařilo odebrat." } }
+
     /**
      * Fotka nebo video, které se uložit smí. Ne: vlastní zpráva, naplánovaná, chráněný obsah
      * (`canBeSaved`), mizející médium a tajný chat — ukládat cokoli z nich do galerie by obcházelo

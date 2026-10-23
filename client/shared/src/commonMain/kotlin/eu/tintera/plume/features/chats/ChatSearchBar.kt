@@ -1031,7 +1031,11 @@ private fun Suggestions(
         }
 
         if (search.tags.isNotEmpty()) {
-            item(key = "tags-header") { SectionHeader(stringResource(Res.string.chats_search_tags)) }
+            item(key = "tags-header") {
+                SectionHeader(stringResource(Res.string.chats_search_tags)) {
+                    TextButton(onClick = actions.onClearTags, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.chats_search_clear_recent)) }
+                }
+            }
             itemsIndexed(search.tags, key = { _, tag -> "tag-$tag" }) { index, tag ->
                 ListItem(
                     headlineContent = { Text(tag, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -1271,6 +1275,7 @@ class SuggestionActions(
     val onRemoveRecent: (chatId: Long) -> Unit,
     val onRemoveTop: (chatId: Long) -> Unit,
     val onRemoveTag: (tag: String) -> Unit = {},
+    val onClearTags: () -> Unit = {},
 )
 
 private val TOP_CHAT_WIDTH = 76.dp

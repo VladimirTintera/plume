@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.InternalLinkTypeUnknownDeepLink
 import dev.g000sha256.tdl.dto.SearchMessagesFilterAudio
 import dev.g000sha256.tdl.dto.SearchMessagesFilterVoiceNote
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
@@ -1139,6 +1140,14 @@ class TdlChatRepository(
             is InternalLinkTypeAuthenticationCode -> Result.success(InternalLink.LoginWarning(LoginLinkKind.Code))
             is InternalLinkTypeQrCodeAuthentication -> Result.success(InternalLink.LoginWarning(LoginLinkKind.QrCode))
 
+            // `tg://…`, které TDLib nezná: server k některým má vysvětlení. Když nemá (404), zůstává
+            // to, co dřív — prohlížeč, který odkaz případně předá oficiálnímu klientovi.
+            is InternalLinkTypeUnknownDeepLink -> Result.success(
+                client.getDeepLinkInfo(link = type.link).toResult().getOrNull()
+                    ?.takeIf { it.text.text.isNotBlank() }
+                    ?.let { InternalLink.DeepLinkInfo(it.text.toBody(), needsUpdate = it.needUpdateApplication) },
+            )
+
             // Ostatní druhy (platby, alba příběhů, dárky, témata vzhledu…) zatím neumíme; prohlížeč
             // je aspoň otevře v oficiálním klientovi, když ho uživatel má.
             else -> Result.success(null)
@@ -1672,6 +1681,9 @@ class TdlChatRepository(
 
     override suspend fun removeSearchedTag(tag: String): Result<Unit> =
         client.removeSearchedForTag(tag = tag).toResult().map { }
+
+    override suspend fun clearSearchedTags(): Result<Unit> =
+        client.clearSearchedForTags(clearCashtags = false).toResult().map { }
 
     override suspend fun searchPublicPosts(tag: String, offset: String): Result<FoundMessagesPage> =
         client.searchPublicMessagesByTag(tag = tag, offset = offset, limit = MESSAGE_SEARCH_PAGE)

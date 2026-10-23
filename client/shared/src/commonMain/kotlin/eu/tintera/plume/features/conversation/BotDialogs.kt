@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.InternalLink
+import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.resources.deep_link_info_title
+import eu.tintera.plume.resources.deep_link_update_title
+import androidx.compose.material3.MaterialTheme
 import eu.tintera.plume.core.ui.DialogCheckRow
 import eu.tintera.plume.resources.how_to_reg_24dp
 import eu.tintera.plume.resources.location_on_24dp
@@ -121,6 +126,29 @@ internal fun LoginUrlDialog(prompt: LoginUrlPrompt.Confirm, onConfirm: (allowWri
         } else {
             null
         },
+    )
+}
+
+/**
+ * Vysvětlení neznámého `tg://` odkazu od serveru (`InternalLink.DeepLinkInfo`). Text i jeho
+ * odkazy píše Telegram; když pomůže novější verze, nadpis to řekne.
+ */
+@Composable
+internal fun DeepLinkInfoDialog(info: InternalLink.DeepLinkInfo, onLinkClick: (String) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(if (info.needsUpdate) Res.string.deep_link_update_title else Res.string.deep_link_info_title))
+        },
+        text = {
+            RichText(
+                text = info.body.text,
+                entities = info.body.entities,
+                style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                onLinkClick = onLinkClick,
+            )
+        },
+        confirmButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_alert_ok)) } },
     )
 }
 

@@ -115,6 +115,13 @@ class TdlNotificationSettingsRepository(
             .map { }
             .onFailure { logger.w(it) { "Nastavení chatu $chatId se nepodařilo vrátit." } }
 
+    /** Rozsahy se ozvou updatem ([scopeSettings]), výjimky si volající přečte znovu. */
+    override suspend fun resetAll(): Result<Unit> =
+        client.resetAllNotificationSettings()
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Nastavení notifikací se nepodařilo obnovit." } }
+
     /** Nenastavená volba přijde jako `OptionValueEmpty` — tedy „nevypnuto". */
     override suspend fun contactJoinedEnabled(): Result<Boolean> =
         client.getOption(name = CONTACT_JOINED_OPTION)

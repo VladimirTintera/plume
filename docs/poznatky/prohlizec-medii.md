@@ -1856,3 +1856,8 @@ z prohlížeče.
   existující fotky do `Pictures/Plume` i skutečné nově příchozí fotky ze soukromého chatu.
   **Změna nastavení na serveru a iOS vyzkoušené NEJSOU** (iOS jen přeložené) — nastavení platí
   pro celý účet včetně oficiálních aplikací.
+- **„Odebrat všechny výjimky" pod seznamem výjimek je `clearAutosaveSettingsExceptions`**
+  (potvrzení, výchozí pravidla zůstanou; testy `AutosaveClearExceptionsTest`). Seznam zmizí až
+  po odpovědi a novém čtení, ne předem — ViewModel mezipaměť repository po zápisu zahodí stejně
+  jako u `set`. Ověřeno na emulátoru: výjimka „Fotky" založená v profilu kanálu se v Úložišti
+  ukázala s řádkem „Odebrat všechny výjimky" a po potvrzení zmizela i se sekcí.

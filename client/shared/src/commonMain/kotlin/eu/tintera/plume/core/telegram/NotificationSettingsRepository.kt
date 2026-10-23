@@ -25,6 +25,13 @@ interface NotificationSettingsRepository {
     /** Chat se vrátí k výchozímu nastavení svého rozsahu. */
     suspend fun resetToDefault(chatId: Long): Result<Unit>
 
+    /**
+     * Všechno zpátky na výchozí (`resetAllNotificationSettings`): rozsahy i všechny chaty —
+     * výjimky zmizí, ztlumené chaty se odtlumí, náhledy se zase ukazují. Nastavení zařízení
+     * (kanály, tiché hodiny) ani volba o nových kontaktech se tím nemění.
+     */
+    suspend fun resetAll(): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Upozornit, když se ke Telegramu připojí někdo z kontaktů? */
     suspend fun contactJoinedEnabled(): Result<Boolean>
 

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.CollectibleInfo
+import eu.tintera.plume.core.telegram.CollectibleItem
 import eu.tintera.plume.core.telegram.StoryAlbum
 import kotlinx.coroutines.flow.distinctUntilChanged
 import eu.tintera.plume.core.telegram.ActiveStories
@@ -1081,6 +1083,31 @@ class ChatProfileViewModel(
 
     fun closeGift() = _state.update { it.copy(openGift = null) }
 
+    /**
+     * Sheet „z Fragmentu" nad řádkem se jménem nebo číslem. Údaje se čtou až teď (dotaz na server
+     * za každou položku), ne s profilem — většina profilů žádnou sběratelskou položku nemá.
+     */
+    fun openCollectible(items: List<CollectibleItem>) {
+        if (items.isEmpty()) return
+        _state.update { it.copy(collectible = CollectibleSheet(items)) }
+        items.forEach { item ->
+            viewModelScope.launch {
+                val result = profiles.collectibleInfo(item)
+                _state.update { state ->
+                    val sheet = state.collectible?.takeIf { it.items == items } ?: return@update state
+                    state.copy(
+                        collectible = result.fold(
+                            onSuccess = { sheet.copy(infos = sheet.infos + (item to it)) },
+                            onFailure = { sheet.copy(failed = sheet.failed + item) },
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    fun closeCollectible() = _state.update { it.copy(collectible = null) }
+
     /** Ťuknutí na skupinu nebo kanál v záložce: otevřít ho jako konverzaci. */
     fun openRelatedChat(chatId: Long) {
         _state.update { it.copy(openChat = chatId) }
@@ -1390,6 +1417,13 @@ data class MediaCalendarState(
 /** Id skladby z hudby v profilu ve frontě hudby: záporné, ať se nepotká s id zpráv chatu. */
 fun profileAudioKey(fileId: Int): Long = -fileId.toLong()
 
+/** Položky v sheetu „z Fragmentu" a co o nich server řekl; chybějící = ještě se načítá. */
+data class CollectibleSheet(
+    val items: List<CollectibleItem>,
+    val infos: Map<CollectibleItem, CollectibleInfo> = emptyMap(),
+    val failed: Set<CollectibleItem> = emptySet(),
+)
+
 data class ChatProfileState(
     val profile: ChatProfile? = null,
     /** Hudba v profilu; `null` = žádná (nebo ji uživatel skrývá). */
@@ -1421,6 +1455,8 @@ data class ChatProfileState(
     val activeStories: ActiveStories? = null,
     /** Dárek otevřený v sheetu. */
     val openGift: ProfileGift? = null,
+    /** Sběratelská jména nebo číslo otevřené v sheetu „z Fragmentu". */
+    val collectible: CollectibleSheet? = null,
     /** Načtený obsah záložek; chybějící klíč = záložka se ještě neukázala. */
     val shared: Map<SharedMediaKind, SharedMediaTab> = emptyMap(),
     /** Text v poli hledání záložky — může předbíhat [SharedMediaTab.query], dokud server neodpoví. */

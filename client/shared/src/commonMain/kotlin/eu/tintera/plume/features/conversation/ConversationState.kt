@@ -677,6 +677,8 @@ data class ConversationState(
     val openStory: StoryTarget? = null,
     /** Přihlašovací odkaz, který se z ťuknutí neotevírá — jen upozornění; `null` = žádný. */
     val loginWarning: LoginLinkKind? = null,
+    /** Vysvětlení neznámého `tg://` odkazu od serveru. */
+    val deepLinkInfo: InternalLink.DeepLinkInfo? = null,
     /** Jednorázová událost: odkaz `t.me/bot?startgroup=…` — otevřít výběr skupiny. */
     val addBotToGroup: InternalLink.BotStartInGroup? = null,
     /** Tlačítko bota s inline dotazem do jiného chatu: obrazovka otevře výběr chatu. */

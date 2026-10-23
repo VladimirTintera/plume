@@ -102,6 +102,13 @@ sealed interface InternalLink {
     data class LoginWarning(val kind: LoginLinkKind) : InternalLink
 
     /**
+     * Odkaz `tg://…`, kterému TDLib nerozumí, ale server k němu má vysvětlení (`getDeepLinkInfo`):
+     * typicky „tuhle funkci tvoje verze aplikace neumí, aktualizuj". [needsUpdate] říká, že
+     * pomůže novější verze. Text je od serveru, i s odkazy.
+     */
+    data class DeepLinkInfo(val body: MessageBody, val needsUpdate: Boolean) : InternalLink
+
+    /**
      * Příběh (`t.me/jméno/s/N`). Otevře se v prohlížeči médií jako sdílený příběh; obsah se
      * zjišťuje až tam, kde se rozhoduje, co ukázat (příběh už nemusí být).
      */
