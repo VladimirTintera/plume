@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.BackgroundFillGradient
 import dev.g000sha256.tdl.dto.ChatPhotoStickerTypeCustomEmoji
+import dev.g000sha256.tdl.dto.ChatPhotoStickerTypeRegularOrMask
 import dev.g000sha256.tdl.dto.InputChatPhotoSticker
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,6 +22,18 @@ class EmojiPhotoTest {
         assertEquals(0x5A7FFF, fill.topColor)
         assertEquals(0x2CA0F2, fill.bottomColor)
         assertEquals(0, fill.rotationAngle)
+    }
+
+    /** Samolepka jde se sadou i id; náhled pro aplikaci na server nejde. */
+    @Test
+    fun samolepkaJdeSeSadouAId() {
+        val photo = ProfilePhotoFile.Sticker(stickerSetId = 77, stickerId = 501, background = EmojiPhotoBackground(0x4DD08A, 0x1E9E8C))
+
+        val input = assertIs<InputChatPhotoSticker>(photo.toInputChatPhoto())
+        val type = assertIs<ChatPhotoStickerTypeRegularOrMask>(input.sticker.type)
+        assertEquals(77, type.stickerSetId)
+        assertEquals(501, type.stickerId)
+        assertEquals(0x4DD08A, assertIs<BackgroundFillGradient>(input.sticker.backgroundFill).topColor)
     }
 
     /** TDLib bere barvy pozadí jako RGB — alfa navíc by server odmítl. */

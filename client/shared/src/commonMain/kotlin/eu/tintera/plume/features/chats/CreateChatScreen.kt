@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.layout.FlowRow
+import eu.tintera.plume.core.telegram.ProfilePhotoFile
+import eu.tintera.plume.features.profile.EmojiPhotoPreview
+import eu.tintera.plume.features.profile.EmojiPhotoSheet
+import eu.tintera.plume.resources.mood_24dp
+import eu.tintera.plume.resources.emoji_photo_open
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.ui.SaveActionButton
 import eu.tintera.plume.core.ui.FormTextField
@@ -137,6 +146,18 @@ fun CreateChatScreen(
     }
 
     val picker = rememberAttachmentPicker(onPicked = viewModel::setPhoto, onError = viewModel::reportError)
+    var showEmojiPhoto by rememberSaveable { mutableStateOf(false) }
+    if (showEmojiPhoto) {
+        EmojiPhotoSheet(
+            forChat = true,
+            previewShape = (if (viewModel.channel) ChatKind.Channel else ChatKind.Group).avatarShape(),
+            onSet = { choice ->
+                showEmojiPhoto = false
+                viewModel.chooseEmojiPhoto(choice)
+            },
+            onDismiss = { showEmojiPhoto = false },
+        )
+    }
     val channel = viewModel.channel
 
     // Ořez fotky leží přes celou obrazovku, nad Scaffoldem.
@@ -180,21 +201,27 @@ fun CreateChatScreen(
             ) {
                 PhotoSlot(
                     path = viewModel.photo?.preview,
+                    emoji = viewModel.emojiPhoto,
                     channel = channel,
                     busy = viewModel.photoBusy,
                     enabled = !viewModel.creating,
                     onPick = picker::pickMedia,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Tři tlačítka se na úzký telefon nevejdou vedle sebe — co přeteče, jde pod.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
                     TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy && !viewModel.creating, shapes = ButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                         Text(
                             stringResource(
-                                if (viewModel.photo == null) Res.string.create_chat_add_photo else Res.string.edit_profile_change_photo,
+                                if (!viewModel.hasPhoto) Res.string.create_chat_add_photo else Res.string.edit_profile_change_photo,
                             ),
                         )
                     }
-                    if (viewModel.photo != null) {
+                    TextButton(onClick = { showEmojiPhoto = true }, enabled = !viewModel.photoBusy && !viewModel.creating, shapes = ButtonDefaults.shapes()) {
+                        Icon(painterResource(Res.drawable.mood_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Text(stringResource(Res.string.emoji_photo_open))
+                    }
+                    if (viewModel.hasPhoto) {
                         TextButton(onClick = viewModel::removePhoto, enabled = !viewModel.creating, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.edit_chat_delete_photo))
                         }
@@ -255,7 +282,7 @@ fun CreateChatScreen(
 
 /** Fotka v tvaru, jaký bude mít chat v seznamu — skupina sušenka, kanál čtverec. */
 @Composable
-private fun PhotoSlot(path: String?, channel: Boolean, busy: Boolean, enabled: Boolean, onPick: () -> Unit) {
+private fun PhotoSlot(path: String?, emoji: ProfilePhotoFile?, channel: Boolean, busy: Boolean, enabled: Boolean, onPick: () -> Unit) {
     val shape = (if (channel) ChatKind.Channel else ChatKind.Group).avatarShape()
     Box(contentAlignment = Alignment.Center) {
         Surface(
@@ -265,7 +292,9 @@ private fun PhotoSlot(path: String?, channel: Boolean, busy: Boolean, enabled: B
             modifier = Modifier.size(AVATAR_SIZE).clip(shape).clickable(enabled = enabled && !busy, onClick = onPick),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                if (path != null) {
+                if (emoji != null) {
+                    EmojiPhotoPreview(photo = emoji, size = AVATAR_SIZE, shape = shape)
+                } else if (path != null) {
                     AsyncImage(
                         model = localImage(path),
                         contentDescription = null,

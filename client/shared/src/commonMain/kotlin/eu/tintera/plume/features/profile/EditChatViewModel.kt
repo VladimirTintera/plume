@@ -551,7 +551,7 @@ class EditChatViewModel(
     }
 
     /** Fotka z emoji ([EmojiPhotoSheet]) jde rovnou, bez ořezu — obrázek vyrobí server. */
-    fun setEmojiPhoto(photo: ProfilePhotoFile.Emoji) {
+    fun setEmojiPhoto(photo: ProfilePhotoFile) {
         photoBusy = true
         viewModelScope.launch {
             repository.setPhoto(chatId, photo)

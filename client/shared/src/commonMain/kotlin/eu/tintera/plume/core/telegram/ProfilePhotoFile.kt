@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import dev.g000sha256.tdl.dto.BackgroundFillGradient
 import dev.g000sha256.tdl.dto.ChatPhotoSticker
 import dev.g000sha256.tdl.dto.ChatPhotoStickerTypeCustomEmoji
+import dev.g000sha256.tdl.dto.ChatPhotoStickerTypeRegularOrMask
 import dev.g000sha256.tdl.dto.InputChatPhoto
 import dev.g000sha256.tdl.dto.InputChatPhotoAnimation
 import dev.g000sha256.tdl.dto.InputChatPhotoSticker
@@ -31,6 +32,18 @@ sealed interface ProfilePhotoFile {
      * server; aplikace posílá jen id emoji a přechod pozadí.
      */
     data class Emoji(val customEmojiId: Long, val background: EmojiPhotoBackground) : ProfilePhotoFile
+
+    /**
+     * Samolepka ze sady na barevném pozadí (`ChatPhotoStickerTypeRegularOrMask`); jako [Emoji]
+     * ji na fotku vykreslí server. [preview] je jen pro náhled v aplikaci (zakládání skupiny
+     * ukazuje volbu, než ji pošle) — na server jdou id.
+     */
+    data class Sticker(
+        val stickerSetId: Long,
+        val stickerId: Long,
+        val background: EmojiPhotoBackground,
+        val preview: MessageMedia.Sticker? = null,
+    ) : ProfilePhotoFile
 }
 
 /**
@@ -61,11 +74,15 @@ internal fun ProfilePhotoFile.toInputChatPhoto(): InputChatPhoto = when (this) {
     is ProfilePhotoFile.Emoji -> InputChatPhotoSticker(
         sticker = ChatPhotoSticker(
             type = ChatPhotoStickerTypeCustomEmoji(customEmojiId = customEmojiId),
-            backgroundFill = BackgroundFillGradient(
-                topColor = background.top,
-                bottomColor = background.bottom,
-                rotationAngle = 0,
-            ),
+            backgroundFill = background.toFill(),
+        ),
+    )
+    is ProfilePhotoFile.Sticker -> InputChatPhotoSticker(
+        sticker = ChatPhotoSticker(
+            type = ChatPhotoStickerTypeRegularOrMask(stickerSetId = stickerSetId, stickerId = stickerId),
+            backgroundFill = background.toFill(),
         ),
     )
 }
+
+private fun EmojiPhotoBackground.toFill() = BackgroundFillGradient(topColor = top, bottomColor = bottom, rotationAngle = 0)

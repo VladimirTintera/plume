@@ -223,8 +223,17 @@ stejně jako fotka z galerie (`ProfilePhotoFile.Emoji` → `InputChatPhotoSticke
   každou jinou. Náhled v sheetu je jen přiblížení — na emulátoru vyšla serverová fotka stejně.
 - **Nabídka emoji se liší pro účet a pro chat** (`getDefaultProfilePhotoCustomEmojiStickers`
   / `getDefaultChatPhotoCustomEmojiStickers`, `StickerRepository.defaultPhotoEmoji`) a jde
-  použít bez Premium. Libovolné vlastní emoji nebo samolepku (`ChatPhotoStickerTypeRegularOrMask`)
-  sheet nenabízí.
+  použít bez Premium.
+- **Mimo nabídku: nainstalované sady vlastních emoji i samolepek.** Přepínač Emoji /
+  Samolepky, pod ním sady jako čipy („Nabídka" a sady emoji, resp. sady samolepek). Samolepka
+  jde jako `ChatPhotoStickerTypeRegularOrMask` (id sady a samolepky, `ProfilePhotoFile.Sticker`).
+  **Emoji z nainstalované sady server přijal i bez Premium** (ověřeno: „Duck Emoji" na účtu
+  bez Premium). Hledat ve všech sadách sheet neumí — sady se přidávají z výběru samolepek
+  v konverzaci.
+- **I při zakládání skupiny a kanálu** (`CreateChatScreen`, „Z emoji" vedle „Přidat fotku").
+  Volba se drží v `CreateChatViewModel.emojiPhoto` a na server jde až po založení, stejně jako
+  fotka ze souboru; jedna vylučuje druhou. Náhled kreslí `EmojiPhotoPreview` — samolepka si
+  proto nese i `preview` (jen pro aplikaci, na server jdou id).
 - **Barvy pozadí jsou pevné RGB bez alfy** (`EMOJI_PHOTO_BACKGROUNDS`): jsou to data fotky,
   kterou uvidí všichni v každém klientovi, ne barvy rozhraní, takže z motivu být nemůžou.
   `BackgroundFill` alfu nebere.
@@ -233,7 +242,10 @@ stejně jako fotka z galerie (`ProfilePhotoFile.Emoji` → `InputChatPhotoSticke
 - **Tři tlačítka pod avatarem jsou `FlowRow`**: „Odebrat fotku" na telefonu přeteče na druhý
   řádek, vedle sebe by se nevešla.
 - **Ověřeno na emulátoru v testovací skupině** („Plume test fotka"): sheet načetl nabídku,
-  přechod i emoji šly vybrat a fotka ze serveru odpovídala náhledu. Vlastní fotku účtu jsem
+  přechod i emoji šly vybrat a fotka ze serveru odpovídala náhledu. Pak emoji ze sady „Duck
+  Emoji" a samolepka ze sady „Funky Goose" — obojí server vykreslil. Založení skupiny „Plume
+  test emoji" s fotkou z emoji: skupina vznikla rovnou s ní (servisní zpráva „Změnil(a) jsi
+  fotku skupiny"), pak smazaná pro všechny. Vlastní fotku účtu jsem
   neměnil (uviděly by ji kontakty) — jde touž cestou přes `setProfilePhoto`.
 
 ### Správa členů
