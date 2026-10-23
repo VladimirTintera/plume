@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.BusinessBotBar
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -184,6 +185,32 @@ internal fun BoxScope.ConversationBars(
                         ),
                     )
                     null -> Unit
+                }
+            }
+            // Firemní bot (Telegram Business) pod pruhem proti spamu: stav chatu, ne oznámení.
+            val businessBot by viewModel.businessBotBar.collectAsStateWithLifecycle()
+            val lastBusinessBot = remember { arrayOf<BusinessBotBar?>(null) }
+            if (businessBot != null) lastBusinessBot[0] = businessBot
+            AnimatedVisibility(
+                visible = businessBot != null,
+                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+            ) {
+                lastBusinessBot[0]?.let { bar ->
+                    BusinessBotBarPill(
+                        bar = bar,
+                        onSetPaused = viewModel::setBusinessBotPaused,
+                        onManage = { viewModel.openBusinessBotManage(bar.manageUrl) },
+                        onRemove = viewModel::removeBusinessBot,
+                        glass = Modifier.hazeBlur(
+                            input = HazeInput.Sources(listHaze),
+                            style = glassStyle(
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                alpha = GLASS_TEXT_TINT_ALPHA,
+                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                            ),
+                        ),
+                    )
                 }
             }
             // Reklama u bota hned pod spamem — u bota je to jeho „akční lišta" (viz `SponsoredBar`).

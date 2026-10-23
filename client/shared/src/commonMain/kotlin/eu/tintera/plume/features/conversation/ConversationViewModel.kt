@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.BusinessBotBar
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.features.media.PhotoDescriptions
 import eu.tintera.plume.features.conversation.items.EmojiBurst
@@ -543,6 +544,14 @@ class ConversationViewModel(
     )
     val chatBar: StateFlow<ChatBar?> get() = chatActions.chatBar
     val videoChat: StateFlow<VideoChatInfo?> get() = chatActions.videoChat
+    val businessBotBar: StateFlow<BusinessBotBar?> get() = chatActions.businessBotBar
+
+    fun setBusinessBotPaused(paused: Boolean) = chatActions.setBusinessBotPaused(paused)
+
+    fun removeBusinessBot() = chatActions.removeBusinessBot()
+
+    /** „Spravovat bota": odkaz od serveru, otevře se jako každý jiný. */
+    fun openBusinessBotManage(url: String) = links.openLink(url)
     val joinRequests: StateFlow<PendingJoinRequests?> get() = chatActions.joinRequests
     fun explainVideoChat() = chatActions.explainVideoChat()
     val chatGone: StateFlow<Boolean> get() = chatActions.chatGone

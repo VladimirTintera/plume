@@ -502,6 +502,21 @@ interface ChatRepository {
     fun chatBar(chatId: Long): Flow<ChatBar?>
 
     /**
+     * Pruh firemního bota (`updateChatBusinessBotManageBar`, jen účty s Telegram Business):
+     * bot, který za uživatele odpovídá v tomhle chatu; `null` = žádný.
+     */
+    fun businessBotBar(chatId: Long): Flow<BusinessBotBar?> = kotlinx.coroutines.flow.flowOf(null)
+
+    /** Pozastavit / obnovit firemního bota v chatu (`toggleBusinessConnectedBotChatIsPaused`). */
+    suspend fun setBusinessBotPaused(chatId: Long, paused: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Firemní bot v chatu přestane odpovídat napořád (`removeBusinessConnectedBotFromChat`):
+     * chat přibude mezi vyloučené v nastavení Business.
+     */
+    suspend fun removeBusinessBotFromChat(chatId: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Probíhající nebo naplánovaný videochat (ve skupině) či živé vysílání (v kanálu), nebo
      * `null`. Živé: chat hlásí začátek a konec (`UpdateChatVideoChat`), hovor počet účastníků
      * (`UpdateGroupCall`).

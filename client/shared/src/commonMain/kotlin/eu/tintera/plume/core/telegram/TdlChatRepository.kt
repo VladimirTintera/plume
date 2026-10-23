@@ -1484,6 +1484,33 @@ class TdlChatRepository(
             .map { client.getChat(chatId = chatId).toResult().getOrNull()?.chatBar() }
             .distinctUntilChanged()
 
+    /** Jako [chatBar]: odběr před prvním čtením, update se jen promítne do celého pruhu. */
+    override fun businessBotBar(chatId: Long): Flow<BusinessBotBar?> =
+        holder.updates { chatBusinessBotManageBarUpdates }
+            .filter { it.chatId == chatId }
+            .map { it.businessBotManageBar }
+            .onStart { emit(client.getChat(chatId = chatId).toResult().getOrNull()?.businessBotManageBar) }
+            .map { bar ->
+                bar?.let {
+                    BusinessBotBar(
+                        botUserId = it.botUserId,
+                        botName = botDisplayName(it.botUserId),
+                        manageUrl = it.manageUrl,
+                        isPaused = it.isBotPaused,
+                        canReply = it.canBotReply,
+                    )
+                }
+            }
+            .distinctUntilChanged()
+
+    override suspend fun setBusinessBotPaused(chatId: Long, paused: Boolean): Result<Unit> =
+        client.toggleBusinessConnectedBotChatIsPaused(chatId = chatId, isPaused = paused).toResult().map { }
+            .onFailure { logger.w(it) { "Firemního bota v chatu $chatId se nepodařilo pozastavit ($paused)." } }
+
+    override suspend fun removeBusinessBotFromChat(chatId: Long): Result<Unit> =
+        client.removeBusinessConnectedBotFromChat(chatId = chatId).toResult().map { }
+            .onFailure { logger.w(it) { "Firemního bota se z chatu $chatId nepodařilo odebrat." } }
+
     /**
      * Chat říká, ŽE videochat je (`groupCallId`, nula = není), hovor, kolik v něm je lidí a jestli
      * teprve začne. Při změně hovoru se odběr přepne (`flatMapLatest`).
