@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.history_toggle_off_24dp
+import eu.tintera.plume.resources.my_stories_title
 import eu.tintera.plume.resources.chats_bookmarks_count
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -327,6 +329,7 @@ fun ChatListScreen(
     onOpenCalls: (() -> Unit)? = null,
     /** Menu účtu → Stahování. */
     onOpenDownloads: () -> Unit = {},
+    onOpenMyStories: () -> Unit = {},
     onNewChat: () -> Unit = {},
     onNewGroup: () -> Unit = {},
     onNewChannel: () -> Unit = {},
@@ -562,6 +565,7 @@ fun ChatListScreen(
             onArchive = onOpenArchive,
             onCalls = onOpenCalls,
             onDownloads = onOpenDownloads,
+            onMyStories = onOpenMyStories,
             draftCount = drafts?.size ?: 0,
             onDrafts = { showDrafts = true },
             bookmarkCount = bookmarks.size,
@@ -1157,6 +1161,7 @@ private fun AccountMenu(
     /** Historie hovorů; `null` = bez položky (platforma bez hovorů). */
     onCalls: (() -> Unit)?,
     onDownloads: () -> Unit,
+    onMyStories: () -> Unit,
     /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
     draftCount: Int,
     onDrafts: () -> Unit,
@@ -1248,6 +1253,7 @@ private fun AccountMenu(
                     ),
                     onCalls?.let { MenuAction(stringResource(Res.string.calls_title), Res.drawable.call_24dp, onClick = it) },
                     MenuAction(stringResource(Res.string.downloads_title), Res.drawable.download_24dp, onClick = onDownloads),
+                    MenuAction(stringResource(Res.string.my_stories_title), Res.drawable.history_toggle_off_24dp, onClick = onMyStories),
                     // Počet v neutrální barvě: koncept je náš rozdělaný text, ne nic, co by
                     // si žádalo pozornost jako nepřečtené.
                     if (draftCount > 0) {

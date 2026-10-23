@@ -115,10 +115,44 @@ interface StoryRepository {
      * proto se posílá celé pořadí.
      */
     suspend fun reorderAlbumStories(chatId: Long, albumId: Int, storyIds: List<Int>): Result<Unit>
+
+    /** Změní, komu je vlastní příběh vidět (`setStoryPrivacySettings`). */
+    suspend fun setAudience(storyId: Int, audience: StoryAudience): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Nechá příběh v profilu i po vypršení, nebo ho odtamtud vezme (`toggleStoryIsPostedToChatPage`). */
+    suspend fun setOnProfile(posterChatId: Long, storyId: Int, onProfile: Boolean): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Připnuté příběhy v profilu [chatId], v pořadí od serveru. */
+    suspend fun pinnedStoryIds(chatId: Long): Result<List<Int>> = Result.failure(UnsupportedOperationException())
+
+    /** Připne příběh v profilu nahoru, nebo ho odepne (`setChatPinnedStories` s celým seznamem). */
+    suspend fun setPinned(chatId: Long, storyId: Int, pinned: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Archiv: všechny vlastní příběhy i vypršelé, od nejnovějšího (`getChatArchivedStories`). */
+    suspend fun archivedStories(chatId: Long, fromStoryId: Int = 0): Result<ProfileStoriesPage> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Nový popisek vlastního příběhu (`editStory`); prázdný popisek odebere. */
+    suspend fun editCaption(posterChatId: Long, storyId: Int, caption: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Vlastní účet — příběhy se zveřejňují „za" Uložené zprávy, jejichž id je id účtu. */
+    suspend fun myChatId(): Long? = null
 }
 
 /** Telegram bere název alba o 1–12 znacích (`createStoryAlbum`, `setStoryAlbumName`). */
 const val STORY_ALBUM_NAME_MAX = 12
+
+/** Kolik příběhů smí být v profilu připnutých (`pinned_story_count_max`, výchozí od serveru 3). */
+const val STORY_PINNED_MAX = 3
+
+/**
+ * Nový seznam připnutých po připnutí / odepnutí [storyId]. Připnutý jde na začátek (nejnovější
+ * připnutí první, jako v oficiální aplikaci), seznam se zastropí na [max]. Odepnutí ho jen vyjme.
+ */
+fun pinnedAfter(current: List<Int>, storyId: Int, pinned: Boolean, max: Int = STORY_PINNED_MAX): List<Int> =
+    if (pinned) (listOf(storyId) + current.filterNot { it == storyId }).take(max) else current.filterNot { it == storyId }
 
 data class StoryAlbum(val id: Int, val name: String)
 

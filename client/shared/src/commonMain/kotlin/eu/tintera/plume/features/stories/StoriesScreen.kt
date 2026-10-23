@@ -75,6 +75,17 @@ import eu.tintera.plume.core.ui.rememberFileState
 import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.video.rememberVideoPlayer
 import eu.tintera.plume.features.media.ON_SCRIM
+import eu.tintera.plume.resources.push_pin_24dp
+import eu.tintera.plume.resources.keep_off_24dp
+import eu.tintera.plume.resources.history_toggle_off_24dp
+import eu.tintera.plume.resources.visibility_24dp
+import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.story_pin
+import eu.tintera.plume.resources.story_unpin
+import eu.tintera.plume.resources.story_profile_add
+import eu.tintera.plume.resources.story_profile_remove
+import eu.tintera.plume.resources.story_audience_menu
+import eu.tintera.plume.resources.story_edit_caption
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.delete_24dp
@@ -97,6 +108,7 @@ import eu.tintera.plume.resources.stories_previous
 import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.story_unavailable
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
@@ -118,6 +130,9 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
     val viewers by viewModel.viewers.collectAsStateWithLifecycle()
     val reportWizard by viewModel.report.wizard.collectAsStateWithLifecycle()
     val albumsSheet by viewModel.albums.collectAsStateWithLifecycle()
+    val audienceSheet by viewModel.audience.collectAsStateWithLifecycle()
+    val captionEdit by viewModel.captionEdit.collectAsStateWithLifecycle()
+    val pinned by viewModel.pinned.collectAsStateWithLifecycle()
     val live by viewModel.live.collectAsStateWithLifecycle()
     val currentOnBack by rememberUpdatedState(onBack)
     LaunchedEffect(state.closed) { if (state.closed) currentOnBack() }
@@ -171,6 +186,22 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
             val index = state.storyIndex(page)
             val key = state.keyAt(page)
             val active = page == state.poster && pager.settledPage == page && !pager.isScrollInProgress
+            val story = key?.let { state.pages[it] }
+            // Správa vlastního příběhu v ⋮: jen co TDLib u příběhu dovolí.
+            val own = if (key != null && story != null && story.isOwn && story.isAvailable) {
+                val isPinned = key.storyId in pinned[key.posterChatId].orEmpty()
+                OwnStoryMenu(
+                    onEditCaption = { viewModel.openCaptionEdit(key) }.takeIf { story.canBeEdited },
+                    onAudience = { viewModel.openAudience(key) }.takeIf { story.audience != null },
+                    onToggleProfile = { viewModel.setOnProfile(key, !story.isOnProfile) }.takeIf { story.canToggleOnProfile },
+                    onProfile = story.isOnProfile,
+                    // Připnout jde jen příběh, který v profilu je.
+                    onTogglePin = { viewModel.setPinned(key, !isPinned) }.takeIf { story.canToggleOnProfile && story.isOnProfile },
+                    pinned = isPinned,
+                )
+            } else {
+                null
+            }
             Box(
                 Modifier
                     .fillMaxSize()
@@ -186,12 +217,13 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                 StoryPage(
                     author = author,
                     index = index,
-                    story = key?.let { state.pages[it] },
+                    story = story,
                     live = live?.takeIf { it.key == key },
                     liveSupported = viewModel.liveSupported,
                     active = active,
                     // Seznam diváků přes příběh — příběh pod ním stojí.
-                    paused = dragging || viewers != null || reportWizard != null || albumsSheet != null,
+                    paused = dragging || viewers != null || reportWizard != null || albumsSheet != null ||
+                        audienceSheet != null || captionEdit != null,
                     restart = state.restart,
                     reactionChoices = reactionChoices,
                     onNext = viewModel::next,
@@ -204,8 +236,21 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                     onToggleHidden = { viewModel.toggleHidden(author.chatId) },
                     onReport = { key?.let(viewModel::reportStory) },
                     onAlbums = { key?.let(viewModel::openAlbums) },
+                    own = own,
                 )
             }
+        }
+
+        audienceSheet?.let { sheet ->
+            StoryAudiencePickerSheet(sheet = sheet, onChoose = viewModel::setAudience, onDismiss = viewModel::closeAudience)
+        }
+
+        captionEdit?.let { key ->
+            StoryCaptionDialog(
+                initial = state.pages[key]?.caption.orEmpty(),
+                onConfirm = viewModel::editCaption,
+                onDismiss = viewModel::closeCaptionEdit,
+            )
         }
 
         albumsSheet?.let { albums ->
@@ -270,6 +315,7 @@ private fun StoryPage(
     onToggleHidden: () -> Unit,
     onReport: () -> Unit,
     onAlbums: () -> Unit,
+    own: OwnStoryMenu?,
 ) {
     var held by remember { mutableStateOf(false) }
     // Psaní odpovědi a výběr reakce příběh zastaví — jinak by uživateli odjel pod rukama.
@@ -299,6 +345,7 @@ private fun StoryPage(
                     onToggleHidden = onToggleHidden,
                     onReport = onReport,
                     onAlbums = onAlbums,
+                    own = own,
                 )
                 ReactionBurst(burst, Modifier.align(Alignment.Center))
             }
@@ -360,6 +407,7 @@ private fun StoryCard(
     onToggleHidden: () -> Unit,
     onReport: () -> Unit,
     onAlbums: () -> Unit,
+    own: OwnStoryMenu?,
 ) {
     var progress by remember(author.chatId, index) { mutableFloatStateOf(0f) }
     // Otevřená nabídka autora příběh zastaví, jako podržení.
@@ -414,6 +462,7 @@ private fun StoryCard(
             onToggleHidden = onToggleHidden,
             onReport = onReport.takeIf { story != null && story.isAvailable && !story.isOwn },
             onAlbums = onAlbums.takeIf { story != null && story.isOwn && story.canBeAddedToAlbum },
+            own = own,
         )
 
         val caption = story?.caption.orEmpty()
@@ -559,6 +608,8 @@ private fun BoxScope.StoryHeader(
     onReport: (() -> Unit)?,
     /** Alba vlastního příběhu; `null` = nejde (cizí, nesmí do alba). */
     onAlbums: (() -> Unit)?,
+    /** Správa vlastního příběhu; `null` u cizího. */
+    own: OwnStoryMenu?,
 ) {
     Column(
         Modifier
@@ -644,6 +695,30 @@ private fun BoxScope.StoryHeader(
                     open()
                 }
             }
+            fun action(label: String, icon: DrawableResource, run: () -> Unit) = MenuAction(label, icon) {
+                onMenuOpenChange(false)
+                run()
+            }
+            val ownEdit = listOfNotNull(
+                own?.onEditCaption?.let { action(stringResource(Res.string.story_edit_caption), Res.drawable.edit_24dp, it) },
+                own?.onAudience?.let { action(stringResource(Res.string.story_audience_menu), Res.drawable.visibility_24dp, it) },
+            )
+            val ownProfile = listOfNotNull(
+                own?.onToggleProfile?.let {
+                    if (own.onProfile) {
+                        action(stringResource(Res.string.story_profile_remove), Res.drawable.history_toggle_off_24dp, it)
+                    } else {
+                        action(stringResource(Res.string.story_profile_add), Res.drawable.history_toggle_off_24dp, it)
+                    }
+                },
+                own?.onTogglePin?.let {
+                    if (own.pinned) {
+                        action(stringResource(Res.string.story_unpin), Res.drawable.keep_off_24dp, it)
+                    } else {
+                        action(stringResource(Res.string.story_pin), Res.drawable.push_pin_24dp, it)
+                    }
+                },
+            )
             // Nahlásit jde cizí příběh, který je vidět; vlastní ne. Vlastní skupina a chybová
             // barva, jako u každé nevratné akce v nabídce.
             val report = onReport?.let { report ->
@@ -652,7 +727,7 @@ private fun BoxScope.StoryHeader(
                     report()
                 }
             }
-            if (archive != null || report != null || albums != null) {
+            if (archive != null || report != null || albums != null || ownEdit.isNotEmpty() || ownProfile.isNotEmpty()) {
                 Box {
                     IconButton(onClick = { onMenuOpenChange(true) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.more_vert_24dp), stringResource(Res.string.profile_more), tint = ON_SCRIM)
@@ -660,7 +735,8 @@ private fun BoxScope.StoryHeader(
                     ExpressiveMenu(
                         expanded = menuOpen,
                         onDismiss = { onMenuOpenChange(false) },
-                        groups = listOfNotNull(listOfNotNull(archive, albums), listOfNotNull(report)),
+                        groups = listOf(ownEdit, ownProfile + listOfNotNull(albums), listOfNotNull(archive), listOfNotNull(report))
+                            .filter { it.isNotEmpty() },
                     )
                 }
             }
@@ -691,3 +767,16 @@ private const val DISMISS_THRESHOLD = 0.18f
 
 /** Jak rychle při zavíracím tahu prosvítá obsah pod prohlížečem. */
 private const val DISMISS_FADE = 2.5f
+
+/**
+ * Správa vlastního příběhu v nabídce ⋮. `null` u akce = TDLib ji u příběhu nedovolí
+ * (`canBeEdited`, `canSetPrivacySettings`, `canToggleIsPostedToChatPage`).
+ */
+internal class OwnStoryMenu(
+    val onEditCaption: (() -> Unit)?,
+    val onAudience: (() -> Unit)?,
+    val onToggleProfile: (() -> Unit)?,
+    val onProfile: Boolean,
+    val onTogglePin: (() -> Unit)?,
+    val pinned: Boolean,
+)

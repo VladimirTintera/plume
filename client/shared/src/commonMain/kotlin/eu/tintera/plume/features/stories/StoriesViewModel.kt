@@ -1,8 +1,17 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.telegram.pinnedAfter
+import eu.tintera.plume.core.telegram.StoryAudience
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.LiveStoryRepository
 import eu.tintera.plume.core.calls.LiveStreamMedia
+import eu.tintera.plume.resources.story_caption_saved
+import eu.tintera.plume.resources.story_audience_changed
+import eu.tintera.plume.resources.story_unpinned
+import eu.tintera.plume.resources.story_pinned
+import eu.tintera.plume.resources.story_manage_failed
+import eu.tintera.plume.resources.story_profile_removed
+import eu.tintera.plume.resources.story_profile_added
 import eu.tintera.plume.resources.story_albums_failed
 import eu.tintera.plume.core.telegram.STORY_ALBUM_NAME_MAX
 import eu.tintera.plume.core.telegram.StoryAlbum
@@ -384,6 +393,128 @@ class StoriesViewModel(
         _notice.value = null
     }
 
+    private val _pinned = MutableStateFlow<Map<Long, List<Int>>>(emptyMap())
+
+    /**
+     * Připnuté příběhy v profilu podle autora. Jen u vlastních (připnout jde jen tam) a načtou se,
+     * až je vlastní příběh vidět — nabídka podle nich píše „Připnout" / „Odepnout".
+     */
+    val pinned: StateFlow<Map<Long, List<Int>>> = _pinned.asStateFlow()
+
+    private fun loadPinned(posterChatId: Long) {
+        if (posterChatId in _pinned.value) return
+        _pinned.update { it + (posterChatId to emptyList()) }
+        viewModelScope.launch {
+            repository.pinnedStoryIds(posterChatId).onSuccess { ids -> _pinned.update { it + (posterChatId to ids) } }
+        }
+    }
+
+    /**
+     * Nechá příběh v profilu i po vypršení, nebo ho odtamtud vezme. Přepne se hned a při chybě
+     * vrátí. Příběh vzatý z profilu přestane být připnutý — server ho z připnutých vyřadí sám.
+     */
+    fun setOnProfile(key: StoryKey, onProfile: Boolean) {
+        val story = _state.value.pages[key] ?: return
+        updatePage(key) { it.copy(isOnProfile = onProfile) }
+        val pinnedBefore = _pinned.value[key.posterChatId]
+        if (!onProfile) _pinned.update { it + (key.posterChatId to pinnedAfter(pinnedBefore.orEmpty(), key.storyId, pinned = false)) }
+        viewModelScope.launch {
+            repository.setOnProfile(key.posterChatId, key.storyId, onProfile)
+                .onSuccess { _notice.value = UiText(if (onProfile) Res.string.story_profile_added else Res.string.story_profile_removed) }
+                .onFailure { failure ->
+                    updatePage(key) { it.copy(isOnProfile = story.isOnProfile) }
+                    pinnedBefore?.let { before -> _pinned.update { it + (key.posterChatId to before) } }
+                    _notice.value = failure.userMessage(Res.string.story_manage_failed)
+                }
+        }
+    }
+
+    /** Připne příběh v profilu nahoru, nebo ho odepne. Přepne se hned a při chybě vrátí. */
+    fun setPinned(key: StoryKey, pinned: Boolean) {
+        val before = _pinned.value[key.posterChatId].orEmpty()
+        _pinned.update { it + (key.posterChatId to pinnedAfter(before, key.storyId, pinned)) }
+        viewModelScope.launch {
+            repository.setPinned(key.posterChatId, key.storyId, pinned)
+                .onSuccess { _notice.value = UiText(if (pinned) Res.string.story_pinned else Res.string.story_unpinned) }
+                .onFailure { failure ->
+                    _pinned.update { it + (key.posterChatId to before) }
+                    _notice.value = failure.userMessage(Res.string.story_manage_failed)
+                }
+        }
+    }
+
+    private val _audience = MutableStateFlow<StoryAudienceSheet?>(null)
+
+    /** Otevřený výběr, kdo vlastní příběh uvidí; `null` = zavřený. */
+    val audience: StateFlow<StoryAudienceSheet?> = _audience.asStateFlow()
+
+    fun openAudience(key: StoryKey) {
+        val current = _state.value.pages[key]?.audience ?: return
+        _audience.value = StoryAudienceSheet(key, current)
+        viewModelScope.launch {
+            // Blízké přátele jde vybrat, jen když na seznamu někdo je — jinak by příběh nikdo neviděl.
+            repository.closeFriends().onSuccess { friends ->
+                _audience.update { it?.takeIf { s -> s.key == key }?.copy(closeFriends = friends.size) }
+            }
+        }
+    }
+
+    fun closeAudience() {
+        _audience.value = null
+    }
+
+    /** Nová viditelnost; přepne se hned a při chybě vrátí. */
+    fun setAudience(audience: StoryAudience) {
+        val sheet = _audience.value ?: return
+        _audience.value = null
+        if (audience == sheet.audience) return
+        updatePage(sheet.key) { it.copy(audience = audience) }
+        viewModelScope.launch {
+            repository.setAudience(sheet.key.storyId, audience)
+                .onSuccess { _notice.value = UiText(Res.string.story_audience_changed) }
+                .onFailure { failure ->
+                    updatePage(sheet.key) { it.copy(audience = sheet.audience) }
+                    _notice.value = failure.userMessage(Res.string.story_manage_failed)
+                }
+        }
+    }
+
+    private val _captionEdit = MutableStateFlow<StoryKey?>(null)
+
+    /** Příběh, kterému se upravuje popisek; `null` = dialog zavřený. */
+    val captionEdit: StateFlow<StoryKey?> = _captionEdit.asStateFlow()
+
+    fun openCaptionEdit(key: StoryKey) {
+        if (_state.value.pages[key]?.canBeEdited == true) _captionEdit.value = key
+    }
+
+    fun closeCaptionEdit() {
+        _captionEdit.value = null
+    }
+
+    /** Nový popisek (prázdný ho odebere); přepne se hned a při chybě vrátí. */
+    fun editCaption(caption: String) {
+        val key = _captionEdit.value ?: return
+        _captionEdit.value = null
+        val story = _state.value.pages[key] ?: return
+        val trimmed = caption.trim()
+        if (trimmed == story.caption) return
+        updatePage(key) { it.copy(caption = trimmed) }
+        viewModelScope.launch {
+            repository.editCaption(key.posterChatId, key.storyId, trimmed)
+                .onSuccess { _notice.value = UiText(Res.string.story_caption_saved) }
+                .onFailure { failure ->
+                    updatePage(key) { it.copy(caption = story.caption) }
+                    _notice.value = failure.userMessage(Res.string.story_manage_failed)
+                }
+        }
+    }
+
+    private fun updatePage(key: StoryKey, change: (MessageMedia.Story) -> MessageMedia.Story) = _state.update { state ->
+        val story = state.pages[key] ?: return@update state
+        state.copy(pages = state.pages + (key to change(story)))
+    }
+
     /**
      * Přepne reakci: táž reakce podruhé ji sundá, jiná ji vymění. Přepíná se hned (optimisticky)
      * a při chybě vrátí, jako reakce u zprávy.
@@ -458,6 +589,7 @@ class StoriesViewModel(
             val story = repository.story(key.posterChatId, key.storyId)
             loading.remove(key)
             _state.update { it.copy(pages = it.pages + (key to story)) }
+            if (story.isOwn && story.canToggleOnProfile) loadPinned(key.posterChatId)
         }
     }
 
@@ -481,6 +613,9 @@ data class StoryViewersState(
 )
 
 /** Panel alb vlastního příběhu [key]: alba autora (`null` = načítají se) a ve kterých příběh je. */
+/** Výběr viditelnosti vlastního příběhu; [closeFriends] = kolik lidí je na seznamu (`null`, dokud se nenačte). */
+data class StoryAudienceSheet(val key: StoryKey, val audience: StoryAudience, val closeFriends: Int? = null)
+
 data class StoryAlbumsState(
     val key: StoryKey,
     val albums: List<StoryAlbum>? = null,

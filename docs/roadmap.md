@@ -411,7 +411,7 @@ funkce, takže hranice jsou hrubé):
 | Hovory ve dvou | 6 / 12 | hotové na Androidu a macOS; seznam hovorů a hodnocení ne |
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
 | Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
-| **Příběhy (stories) a živé příběhy** | **21 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil s alby a jejich správou, nahlášení a upozornění hotové; sledování živých příběhů na Androidu**; zprávy ve vysílání a vlastní vysílání ne |
+| **Příběhy (stories) a živé příběhy** | **26 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil s alby a jejich správou, nahlášení a upozornění, správa zveřejněného (popisek, viditelnost, profil, připnutí) a archiv vlastních hotové; sledování živých příběhů na Androidu**; zprávy ve vysílání a vlastní vysílání ne |
 | Skupinové hovory a videochaty | 6 / 46 | pruh nad konverzací (sekce Hovory); příjem obrazu a zvuku jen pro živé příběhy |
 | Premium a boosty | 1 / 18 | ne |
 | Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
@@ -743,12 +743,12 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   vybrané dny) a odepnout vše ve vlákně~~ — hotovo (`docs/poznatky/konverzace-pohyb.md`, „Skok
   na datum"; `konverzace-akce.md`, „Vymazání historie"). Ověřené v tématu Uložených zpráv,
   vlákno přímých zpráv zbývá ověřit s druhým účtem.
-- **Příběhy — správa zveřejněného:** úprava (`editStory`, `editStoryCover`), změna viditelnosti
-  (`setStoryPrivacySettings`), ponechat v profilu a připnout (`toggleStoryIsPostedToChatPage`,
-  `setChatPinnedStories`), archiv vlastních prošlých příběhů (`getChatArchivedStories`),
-  příběh za kanál (`getChatsToPostStories`). Reakce u příběhu nabízet podle
-  `getStoryAvailableReactions` (dnes neověřené, co výběr nabízí) a ťuknutí na místo v příběhu
-  (`searchPublicStoriesByLocation`, `…ByVenue`).
+- ~~**Příběhy — správa zveřejněného:** úprava popisku, změna viditelnosti, ponechat v profilu
+  a připnout, archiv vlastních prošlých příběhů~~ — hotovo (⋮ v prohlížeči, menu účtu → Moje
+  příběhy; `docs/poznatky/pribehy.md`, „Správa vlastního příběhu"). Zbývá výměna média
+  (`editStory` s obsahem, `editStoryCover`), výběr lidí ve viditelnosti, příběh za kanál
+  (`getChatsToPostStories`), reakce podle `getStoryAvailableReactions` a ťuknutí na místo
+  v příběhu (`searchPublicStoriesByLocation`, `…ByVenue`); skutečnou změnu viditelnosti ověřit.
 - **Drobnosti v nastavení a hledání:** obnovit všechna nastavení upozornění
   (`resetAllNotificationSettings`), smazat všechny výjimky ukládání do galerie
   (`clearAutosaveSettingsExceptions`), vymazat celou historii hashtagů (`clearSearchedForTags`;

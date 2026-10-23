@@ -144,6 +144,8 @@ import eu.tintera.plume.features.calls.CallRatingHost
 import eu.tintera.plume.features.calls.CallsScreen
 import eu.tintera.plume.core.navigation.CallsRoute
 import eu.tintera.plume.core.navigation.DownloadsRoute
+import eu.tintera.plume.core.navigation.MyStoriesRoute
+import eu.tintera.plume.features.stories.MyStoriesScreen
 import eu.tintera.plume.features.downloads.DownloadsScreen
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
@@ -712,6 +714,7 @@ private fun shellEntryProvider(
             onOpenCalls = { if (chatsStack.lastOrNull() != CallsRoute) chatsStack.add(CallsRoute) }
                 .takeIf { koinInject<CallRepository>().supported },
             onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
+            onOpenMyStories = { if (chatsStack.lastOrNull() != MyStoriesRoute) chatsStack.add(MyStoriesRoute) },
             onNewChat = {
                 if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
             },
@@ -790,6 +793,19 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(),
             onBack = { chatsStack.remove(DownloadsRoute) },
             onOpenMessage = { chatId, messageId -> chatsStack.openFoundMessage(chatId, messageId, topicId = null) },
+        )
+    }
+
+    // Moje příběhy: mřížka přes list panel, prohlížeč z ní přes celou plochu (jako z profilu).
+    entry<MyStoriesRoute>(
+        metadata = Panes.list(
+            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+        ),
+    ) {
+        MyStoriesScreen(
+            viewModel = koinViewModel(),
+            onBack = { chatsStack.remove(MyStoriesRoute) },
+            onOpenStories = { chatId, storyIds, start -> chatsStack.openStories(chatId, storyIds, start) },
         )
     }
 

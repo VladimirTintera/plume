@@ -2961,6 +2961,14 @@ sealed interface MessageMedia {
         val canBeAddedToAlbum: Boolean = false,
         /** Živé vysílání: skupinový hovor, ke kterému se divák připojí; jinak `null`. */
         val live: LiveStoryCall? = null,
+        /** Vlastní příběh jde upravit (popisek; `canBeEdited`). */
+        val canBeEdited: Boolean = false,
+        /** Komu je vlastní příběh vidět; `null` u cizího nebo když ho nejde měnit (`canSetPrivacySettings`). */
+        val audience: StoryAudience? = null,
+        /** Jde přepnout, jestli příběh zůstane v profilu i po vypršení (`canToggleIsPostedToChatPage`). */
+        val canToggleOnProfile: Boolean = false,
+        /** Příběh zůstane v profilu i po vypršení (`isPostedToChatPage`). */
+        val isOnProfile: Boolean = false,
     ) : MessageMedia
 }
 

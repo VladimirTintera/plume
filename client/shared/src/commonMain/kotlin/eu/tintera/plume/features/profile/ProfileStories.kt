@@ -55,6 +55,8 @@ internal fun ProfileStoriesGrid(
     onLoadMore: () -> Unit,
     onSelectAlbum: (albumId: Int?) -> Unit,
     modifier: Modifier = Modifier,
+    /** Věta nad prázdnou mřížkou; výchozí je prázdné album (v profilu jinak záložka není). */
+    emptyText: String? = null,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(STORY_TILE_MIN),
@@ -71,7 +73,7 @@ internal fun ProfileStoriesGrid(
         }
         if (stories.items.isEmpty() && !stories.loading && !stories.hasMore) {
             item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
-                GroupEmptyRow(stringResource(Res.string.profile_story_album_empty))
+                GroupEmptyRow(emptyText ?: stringResource(Res.string.profile_story_album_empty))
             }
         }
         itemsIndexed(stories.items, key = { _, story -> story.storyId }) { index, story ->

@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlThrowable
+import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.CanPostStoryResult
 import dev.g000sha256.tdl.dto.CanPostStoryResultActiveStoryLimitExceeded
 import dev.g000sha256.tdl.dto.CanPostStoryResultBoostNeeded
@@ -23,10 +24,6 @@ import dev.g000sha256.tdl.dto.StoryInteraction
 import dev.g000sha256.tdl.dto.StoryInteractionTypeForward
 import dev.g000sha256.tdl.dto.StoryInteractionTypeRepost
 import dev.g000sha256.tdl.dto.StoryInteractionTypeView
-import dev.g000sha256.tdl.dto.StoryPrivacySettingsCloseFriends
-import dev.g000sha256.tdl.dto.StoryPrivacySettingsContacts
-import dev.g000sha256.tdl.dto.StoryPrivacySettingsEveryone
-import dev.g000sha256.tdl.dto.StoryPrivacySettingsSelectedUsers
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.story_limit_active
@@ -198,7 +195,7 @@ class TdlStoryRepository(
             .map { }
 
     /** Vlastní příběh se zveřejňuje „za" Uložené zprávy, jejichž id je id účtu. */
-    private suspend fun myChatId(): Long? = session.me().getOrNull()?.id
+    override suspend fun myChatId(): Long? = session.me().getOrNull()?.id
 
     override suspend fun canPost(): StoryPostCheck {
         val me = myChatId() ?: return StoryPostCheck.Denied(UiText(Res.string.story_post_check_failed))
@@ -226,12 +223,7 @@ class TdlStoryRepository(
                 )
             },
             caption = draft.caption.trim().takeIf { it.isNotEmpty() }?.let { FormattedText(text = it, entities = emptyArray()) },
-            privacySettings = when (val audience = draft.audience) {
-                StoryAudience.Everyone -> StoryPrivacySettingsEveryone(exceptUserIds = longArrayOf())
-                StoryAudience.Contacts -> StoryPrivacySettingsContacts(exceptUserIds = longArrayOf())
-                StoryAudience.CloseFriends -> StoryPrivacySettingsCloseFriends()
-                is StoryAudience.Selected -> StoryPrivacySettingsSelectedUsers(userIds = audience.userIds.toLongArray())
-            },
+            privacySettings = draft.audience.toPrivacySettings(),
             albumIds = intArrayOf(),
             // Delší i kratší doba je jen pro Premium; 24 h je jediná, kterou smí každý.
             activePeriod = STORY_ACTIVE_PERIOD,
@@ -431,6 +423,56 @@ class TdlStoryRepository(
     override suspend fun reorderAlbumStories(chatId: Long, albumId: Int, storyIds: List<Int>): Result<Unit> =
         client.reorderStoryAlbumStories(chatId = chatId, storyAlbumId = albumId, storyIds = storyIds.toIntArray()).toResult()
             .onFailure { logger.w(it) { "reorderStoryAlbumStories $chatId/$albumId" } }
+            .map { }
+
+    override suspend fun setAudience(storyId: Int, audience: StoryAudience): Result<Unit> =
+        client.setStoryPrivacySettings(storyId = storyId, privacySettings = audience.toPrivacySettings()).toResult()
+            .onFailure { logger.w(it) { "setStoryPrivacySettings $storyId" } }
+            .map { }
+
+    override suspend fun setOnProfile(posterChatId: Long, storyId: Int, onProfile: Boolean): Result<Unit> =
+        client.toggleStoryIsPostedToChatPage(storyPosterChatId = posterChatId, storyId = storyId, isPostedToChatPage = onProfile)
+            .toResult()
+            .onFailure { logger.w(it) { "toggleStoryIsPostedToChatPage $posterChatId/$storyId $onProfile" } }
+            .map { }
+
+    // Připnuté vydá jen první stránka příběhů v profilu (`fromStoryId = 0`).
+    override suspend fun pinnedStoryIds(chatId: Long): Result<List<Int>> =
+        client.getChatPostedToChatPageStories(chatId = chatId, fromStoryId = 0, limit = 1).toResult()
+            .onFailure { logger.w(it) { "getChatPostedToChatPageStories $chatId (připnuté)" } }
+            .map { it.pinnedStoryIds.toList() }
+
+    override suspend fun setPinned(chatId: Long, storyId: Int, pinned: Boolean): Result<Unit> = runCatching {
+        val current = pinnedStoryIds(chatId).getOrThrow()
+        val max = client.getOption(name = "pinned_story_count_max").toResult().getOrNull()
+            ?.let { (it as? OptionValueInteger)?.value?.toInt() } ?: STORY_PINNED_MAX
+        client.setChatPinnedStories(chatId = chatId, storyIds = pinnedAfter(current, storyId, pinned, max).toIntArray())
+            .toResult().getOrThrow()
+        Unit
+    }.onFailure { logger.w(it) { "setChatPinnedStories $chatId $storyId $pinned" } }
+
+    override suspend fun archivedStories(chatId: Long, fromStoryId: Int): Result<ProfileStoriesPage> =
+        client.getChatArchivedStories(chatId = chatId, fromStoryId = fromStoryId, limit = PROFILE_PAGE).toResult()
+            .onFailure { logger.w(it) { "getChatArchivedStories $chatId" } }
+            .map { page ->
+                ProfileStoriesPage(
+                    stories = page.stories.map { story ->
+                        MessageStory(storyPosterChatId = chatId, storyId = story.id, viaMention = false)
+                            .toMedia(story) { id -> _active.value[id]?.title ?: client.getChat(chatId = id).toResult().getOrNull()?.title }
+                    },
+                    totalCount = page.totalCount,
+                    pinnedIds = page.pinnedStoryIds.toSet(),
+                )
+            }
+
+    override suspend fun editCaption(posterChatId: Long, storyId: Int, caption: String): Result<Unit> =
+        client.editStory(
+            storyPosterChatId = posterChatId,
+            storyId = storyId,
+            // Obsah a oblasti zůstávají (`null`); prázdný popisek ho odebere.
+            caption = FormattedText(text = caption.trim(), entities = emptyArray()),
+        ).toResult()
+            .onFailure { logger.w(it) { "editStory $posterChatId/$storyId" } }
             .map { }
 
     override suspend fun close(posterChatId: Long, storyId: Int) {
