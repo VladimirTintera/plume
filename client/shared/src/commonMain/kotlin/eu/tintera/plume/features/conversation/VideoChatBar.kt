@@ -20,8 +20,8 @@ import org.jetbrains.compose.resources.stringResource
  * Probíhající nebo naplánovaný videochat (živé vysílání v kanálu) nad konverzací, tvarem
  * i sklem jako pruh připnutých zpráv — oba plavou nad seznamem a patří k sobě.
  *
- * - **Připojit se Plume neumí**, pruh jen ohlásí, že se něco děje; ťuknutí řekne, kde se
- *   připojit ([onClick]). Bez pruhu by kdo má jen Plume o videochatu nevěděl vůbec.
+ * - **Ťuknutí otevře videochat na poslech** ([onClick]), kde to jde (Android); naplánovaný
+ *   a platforma bez přenosu dostanou větu proč ne.
  * - **Odznak je kamera v terciárním kruhu** — terciární role nese v aplikaci „živé" věci
  *   (hlas, nahrávání), a od primárního špendlíku připnutých se tak pruhy odliší i barvou.
  */

@@ -414,7 +414,7 @@ funkce, takže hranice jsou hrubé):
 | AI od serveru | 3 / 13 | úpravy textu hotové; vlastní styly a články ne |
 | Jazyk a překlad | 1 / 17 | překlad zprávy a jazykový balíček hotové; zbytek nepotřebujeme |
 | **Příběhy (stories) a živé příběhy** | **26 / 59** | **prohlížení, reakce, odpovědi, zveřejnění (fotka i video, blízcí přátelé), diváci, skrytí do archivu, profil s alby a jejich správou, nahlášení a upozornění, správa zveřejněného (popisek, viditelnost, profil, připnutí) a archiv vlastních hotové; sledování živých příběhů na Androidu**; zprávy ve vysílání a vlastní vysílání ne |
-| Skupinové hovory a videochaty | 6 / 46 | pruh nad konverzací (sekce Hovory); příjem obrazu a zvuku jen pro živé příběhy |
+| Skupinové hovory a videochaty | 6 / 46 | pruh nad konverzací (sekce Hovory); příjem obrazu a zvuku pro živé příběhy a poslech videochatu |
 | Premium a boosty | 1 / 18 | ne |
 | Vzhled od Telegramu (pozadí, motivy, barvy, emoji status) | 1 / 33 | vědomě ne (`roadmap-konverzace.md`, „Vědomě NE") |
 | Hvězdy, platby, TON, affiliate | 0 / 59 | ne — rozhodnutí, ne mezera (viz níž) |
@@ -829,7 +829,8 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      mezi dvěma telefony, i z pushe se zabitým procesem. Na iOS ohlásí hovor push od Telegramu sám (`PHONE_CALL_REQUEST`
      v textech pushe); v popředí aplikace se zatím neohlašuje nic.
    - ~~**Hovory ve skupině**~~ — hotovo: pruh „Probíhá videochat" / „Živé vysílání" / naplánovaný
-     nad konverzací s počtem účastníků (`docs/poznatky/notifikace.md`, „Pruh videochatu"). Připojit se nejde;
+     nad konverzací s počtem účastníků (`docs/poznatky/notifikace.md`, „Pruh videochatu"). Na Androidu
+     z něj jde videochat poslouchat (viz krok 2, „Videochat na poslech"); jinde se připojit nejde;
      ťuknutí řekne, kde to jde.
 2. **Skutečné hovory** (největší samostatný kus práce v projektu). Průzkum 13. 10. 2026
    (`docs/poznatky/hovory.md`): sonda na dvou účtech ukázala, že oficiální Android bere
@@ -894,7 +895,12 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      (`docs/poznatky/hovory.md`, „Ukazovátko na sdílené obrazovce"); zbývá ověřit desktop
      jako diváka a opakovat `Hello`, když se oprávnění povolí až za sdílení. Plné vzdálené
      ovládání zvažované a odložené (důvody tamtéž).
-   - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory / videochaty**.
+   - **Videochat na poslech** — hotovo na Androidu: připojení ztlumeně z pruhu, účastníci,
+     zvuk, jeden obraz (sdílená obrazovka přednostně), Opustit (`docs/poznatky/hovory.md`,
+     „Videochat na poslech"). Zbývá: ověřit s mluvícím účastníkem, kamerou a sdílením obrazovky
+     a velký videochat po segmentech; mluvení (odtlumení, zvednutí ruky), poslech na pozadí
+     s pruhem nad aplikací, mřížka víc kamer, „kdo mluví", desktop.
+   - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory s mluvením**.
    Původní plán sondy:
 
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:

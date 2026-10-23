@@ -1054,6 +1054,46 @@ oficiální klient zprávy ignoruje.
   - pojistky (souhlas pro každé spojení, indikátor, stop).
   Ukazovátko pokryje většinu pomoci na dálku bez těchto rizik.
 
+## Videochat na poslech
+
+Videochat skupiny (a živé vysílání kanálu) jde z pruhu nad konverzací otevřít a poslouchat
+(`VideoChatScreen`, `VideoChatWatch`, `VideoChatRepository`). Přenos je tentýž jako
+u živých příběhů — `NtgLiveStreamMedia`, skupinový hovor jen na příjem (`docs/poznatky/pribehy.md`,
+„Živé příběhy") —, liší se přihlášení (`joinVideoChat` místo `joinLiveStory`) a účastníci.
+**Jen Android**, kde je přenos; jinde ťuknutí na pruh řekne větou, že připojit se jde jen
+v oficiální aplikaci. Mluvit, zvednout ruku ani zapnout kameru zatím nejde: posluchač je
+ztlumený a obrazovka to říká.
+
+- **Účastníci chodí jen updaty** (`updateGroupCallParticipant`). Po připojení se dočtou
+  (`loadGroupCallParticipants` po 100 — TDLib ho bere jen v připojeném hovoru, proto až
+  z `onJoined`); **prázdné `order` znamená odchod** a účastník ze seznamu zmizí. Řadí se
+  podle `order` jako text, sestupně. Ověřeno se dvěma posluchači: odchod jednoho (šipka zpět)
+  druhému ze seznamu zmizí hned.
+- **Zvuk mluvících přehrává knihovna sama.** `updateAudioSsrcMappings` (a `onRequestParticipants`)
+  v ntgcalls 3.0.3 patří konferenčním hovorům: běžný videochat (RTC) i RTMP ho odmítnou
+  výjimkou „Invalid call type" (ověřeno na obou). Přiřazovat zdroje zvuku účastníkům netřeba.
+- **Obraz se kreslí jeden** (`mainVideoFor`): sdílená obrazovka má přednost před kamerou,
+  jinak kamera prvního v pořadí; vlastní ne. Při změně se starý endpoint odebere
+  (`removeIncomingVideo`) a nový přidá. U RTMP obraz posílá server, ne účastník — přijde
+  stream sám a oblast obrazu se ukáže vždy. Víc obrazů naráz (mřížka kamer) zatím ne:
+  `CallVideoSource.Live` je jeden výstup.
+- **„Kdo mluví" Plume neukazuje.** `isSpeaking` v TDLib nastavuje jen klient sám
+  (`setGroupCallParticipantIsSpeaking` z úrovní zvuku z tgcalls) a ntgcalls úrovně zvuku
+  ostatních nevydává.
+- **Odchod z obrazovky = odchod z hovoru** (zpět i Opustit, `leaveGroupCall` přes `appScope`
+  jako u živého příběhu). Poslech na pozadí s pruhem nad aplikací zatím není. Zvuk po odchodu
+  uvolní přehrávač (AAudio) a vrátí normální režim zvuku.
+- **Konec videochatu za poslechu** (`updateGroupCall`, `isActive = false`) zastaví přenos
+  a obrazovka řekne „Videochat skončil".
+- **Ověřeno na emulátorech 23. 10. 2026** (`Plume_A11` …029 a `Plume_Barvy` …527, skupina
+  „Plume test moderace"): videochat přes RTMP s obrazem z ffmpeg (`createVideoChat(isRtmpStream =
+  true)` + `getVideoChatRtmpUrl` sondou na …527) — obraz, zvuk (AAudio ve stavu started),
+  Opustit, obnovení obrazu po výpadku vysílání; běžný videochat se dvěma posluchači — oba
+  v seznamu toho druhého, odchod. **Neověřené**: mluvící účastník (zvuk přes RTC), kamera
+  a sdílení obrazovky účastníka, velký videochat po segmentech, živé vysílání v kanálu.
+  Sonda (necommituje se) volala v `Ready` `createVideoChat` a nakonec `endGroupCall`; ve
+  skupině po ní zůstanou servisní zprávy.
+
 ## Neověřené
 
 - **VoIP pushe na iOS** pro aplikaci s vlastním `api_id` (`deviceTokenApplePushVoIP`) — bez

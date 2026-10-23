@@ -169,6 +169,8 @@ import eu.tintera.plume.core.telegram.TdlAccountNotices
 import eu.tintera.plume.core.telegram.StoryRepository
 import eu.tintera.plume.core.telegram.LiveStoryRepository
 import eu.tintera.plume.core.telegram.TdlLiveStoryRepository
+import eu.tintera.plume.core.telegram.TdlVideoChatRepository
+import eu.tintera.plume.core.telegram.VideoChatRepository
 import eu.tintera.plume.core.telegram.TdlStoryRepository
 import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
@@ -199,6 +201,7 @@ import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.stories.StoriesViewModel
+import eu.tintera.plume.features.videochat.VideoChatViewModel
 import eu.tintera.plume.features.stories.StoryComposerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
@@ -304,6 +307,7 @@ fun appModule() = module {
     }
     // Eagerně: kdo má příběh, TDLib pošle spolu s chaty hned po přihlášení (viz `TdlStoryRepository`).
     single<LiveStoryRepository> { TdlLiveStoryRepository(holder = get()) }
+    single<VideoChatRepository> { TdlVideoChatRepository(holder = get()) }
     single<StoryRepository>(createdAtStart = true) {
         TdlStoryRepository(holder = get(), session = get(), scope = get(named(APP_SCOPE)))
     }
@@ -935,6 +939,15 @@ fun appModule() = module {
     viewModelOf(::CallsViewModel)
     viewModelOf(::DownloadsViewModel)
     viewModelOf(::MyStoriesViewModel)
+    viewModel { parameters ->
+        VideoChatViewModel(
+            chatId = parameters.get(),
+            groupCallId = parameters.values[1] as Int,
+            repository = get(),
+            appScope = get(named(APP_SCOPE)),
+            media = getOrNull(),
+        )
+    }
 
     // Druh a členové jdou z routy; indexem, `get()` by bral podle typu.
     viewModel { parameters ->

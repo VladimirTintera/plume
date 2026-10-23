@@ -184,6 +184,7 @@ import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.StoriesRoute
+import eu.tintera.plume.core.navigation.VideoChatRoute
 import eu.tintera.plume.core.navigation.StoryComposerRoute
 import eu.tintera.plume.core.navigation.NewChatRoute
 import eu.tintera.plume.core.navigation.NewContactRoute
@@ -214,6 +215,7 @@ import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.features.share.ShareToChatScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
 import eu.tintera.plume.features.stories.StoriesScreen
+import eu.tintera.plume.features.videochat.VideoChatScreen
 import eu.tintera.plume.features.stories.StoryComposerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
@@ -909,6 +911,7 @@ private fun shellEntryProvider(
                     onOpenStory = { story ->
                         chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
                     },
+                    onOpenVideoChat = { groupCallId -> chatsStack.openVideoChat(route.chatId, groupCallId) },
                     onForward = { messageIds ->
                         chatsStack.add(ForwardRoute(route.chatId, messageIds))
                     },
@@ -1249,6 +1252,7 @@ private fun shellEntryProvider(
                     onOpenStory = { story ->
                         chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
                     },
+                    onOpenVideoChat = { groupCallId -> chatsStack.openVideoChat(route.chatId, groupCallId) },
                     onForward = { messageIds ->
                         chatsStack.add(ForwardRoute(route.chatId, messageIds))
                     },
@@ -1401,6 +1405,16 @@ private fun shellEntryProvider(
             ),
             onBack = { chatsStack.pop(route) },
             onPosted = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<VideoChatRoute> { route ->
+        VideoChatScreen(
+            viewModel = koinViewModel(
+                key = "video-chat-${route.groupCallId}",
+                parameters = { parametersOf(route.chatId, route.groupCallId) },
+            ),
+            onBack = { chatsStack.pop(route) },
         )
     }
 
@@ -1858,6 +1872,11 @@ private fun MutableList<NavKey>.openForum(chatId: Long) {
 private fun MutableList<NavKey>.openSavedTopics(chatId: Long) {
     removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
     add(SavedTopicsRoute(chatId))
+}
+
+/** Videochat nad konverzací; druhé ťuknutí na pruh ho nezdvojí. */
+private fun MutableList<NavKey>.openVideoChat(chatId: Long, groupCallId: Int) {
+    if (lastOrNull() !is VideoChatRoute) add(VideoChatRoute(chatId, groupCallId))
 }
 
 /** Prohlížeč příběhů nad čímkoli; druhé ťuknutí (dvojité) ho nezdvojí. */

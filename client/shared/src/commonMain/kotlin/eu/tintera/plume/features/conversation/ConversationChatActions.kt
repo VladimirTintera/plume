@@ -39,6 +39,7 @@ import eu.tintera.plume.resources.secret_chat_closed
 import eu.tintera.plume.resources.spam_bar_contact_added
 import eu.tintera.plume.resources.spam_bar_failed
 import eu.tintera.plume.resources.video_chat_join_elsewhere
+import eu.tintera.plume.resources.video_chat_not_started
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -137,8 +138,19 @@ internal class ConversationChatActions(
             .distinctUntilChanged()
             .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** Ťuknutí na pruh videochatu: připojit se jde zatím jen jinde. */
-    fun explainVideoChat() = state.update { it.copy(notice = UiText(Res.string.video_chat_join_elsewhere)) }
+    /**
+     * Ťuknutí na pruh videochatu: id hovoru pro obrazovku videochatu, nebo `null` a věta proč
+     * ne — naplánovaný ještě neběží a bez přenosu (iOS, desktop) se připojit nejde.
+     */
+    fun videoChatToOpen(info: VideoChatInfo, supported: Boolean): Int? {
+        val notice = when {
+            info.scheduledStart != null -> Res.string.video_chat_not_started
+            !supported -> Res.string.video_chat_join_elsewhere
+            else -> return info.groupCallId
+        }
+        state.update { it.copy(notice = UiText(notice)) }
+        return null
+    }
 
     private val _chatGone = MutableStateFlow(false)
 

@@ -31,6 +31,8 @@ data class ConversationNavigation(
     val onOpenArticleMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
     /** Video reklamy na celé obrazovce (prohlížeč s tlačítkem reklamy). */
     val onOpenSponsoredMedia: (messageId: Long) -> Unit = {},
+    /** Videochat chatu na poslech (ťuknutí na pruh nad konverzací). */
+    val onOpenVideoChat: (groupCallId: Int) -> Unit = {},
     /** Příběh v prohlížeči — citace odpovědi na příběh, odkaz `t.me/jméno/s/N`. */
     val onOpenStory: (StoryTarget) -> Unit = {},
     /**

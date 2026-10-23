@@ -283,7 +283,7 @@ internal fun BoxScope.ConversationBars(
                 lastVideoChat[0]?.let { info ->
                     VideoChatBar(
                         info = info,
-                        onClick = viewModel::explainVideoChat,
+                        onClick = { viewModel.videoChatToOpen(info)?.let(navigation.onOpenVideoChat) },
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
                             style = glassStyle(

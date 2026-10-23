@@ -381,6 +381,13 @@ data class StoriesRoute(
 ) : Route
 
 /**
+ * Videochat chatu [chatId] na poslech (ťuknutí na pruh nad konverzací). Přes celou plochu;
+ * odchodem z obrazovky se z hovoru odchází.
+ */
+@Serializable
+data class VideoChatRoute(val chatId: Long, val groupCallId: Int) : Route
+
+/**
  * Nový vlastní příběh z fotky nebo videa [path] (z výběru příloh, v cache aplikace). Vrší se
  * nad seznam chatů přes celou plochu; po zveřejnění se zavře. S [editStoryId] vymění médium
  * zveřejněného příběhu autora [editPosterChatId] (popisek [editCaption] se předvyplní).
@@ -622,6 +629,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EventLogRoute::class, EventLogRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(StoriesRoute::class, StoriesRoute.serializer())
+            subclass(VideoChatRoute::class, VideoChatRoute.serializer())
             subclass(StoryComposerRoute::class, StoryComposerRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())

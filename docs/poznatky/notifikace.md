@@ -382,8 +382,9 @@ než systém proces zmrazil.
 
 Probíhající nebo naplánovaný videochat skupiny (v kanálu živé vysílání) má nad konverzací pruh
 (`VideoChatBar`, `ChatRepository.videoChat`, `VideoChatInfo`): „Probíhá videochat · název ·
-12 účastníků", „Videochat začne zítra 18:00". Připojit se Plume neumí; ťuknutí řekne, že to
-jde zatím jen v oficiální aplikaci. Bez pruhu by kdo má jen Plume o videochatu nevěděl.
+12 účastníků", „Videochat začne zítra 18:00". Ťuknutí otevře videochat na poslech
+(`docs/poznatky/hovory.md`, „Videochat na poslech"); naplánovaný ještě nezačal a na iOS
+a desktopu přenos chybí — tam ťuknutí řekne větou proč ne.
 
 - **Chat říká ŽE, hovor KOLIK.** `Chat.videoChat.groupCallId` (živě `UpdateChatVideoChat`,
   nula = žádný) přepíná odběr hovoru (`flatMapLatest`); počet účastníků, název a naplánovaný
