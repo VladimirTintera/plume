@@ -145,41 +145,15 @@ internal fun StoryReplyBar(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             if (story.canBeReplied) {
-                BasicTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = ON_SCRIM),
-                    cursorBrush = SolidColor(ON_SCRIM),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Send,
-                    ),
-                    keyboardActions = KeyboardActions(onSend = { send() }),
+                StoryTextField(
+                    text = text,
+                    onTextChange = { text = it },
+                    hint = stringResource(Res.string.story_reply_hint),
+                    onSend = ::send,
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 4.dp)
                         .onFocusChanged { focused = it.isFocused },
-                    decorationBox = { inner ->
-                        Box(
-                            Modifier
-                                .height(FIELD_HEIGHT)
-                                .border(1.dp, ON_SCRIM.copy(alpha = FIELD_BORDER_ALPHA), CircleShape)
-                                .padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            if (text.isEmpty()) {
-                                Text(
-                                    stringResource(Res.string.story_reply_hint),
-                                    color = ON_SCRIM.copy(alpha = HINT_ALPHA),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            inner()
-                        }
-                    },
                 )
             } else {
                 Spacer(Modifier.weight(1f))
@@ -234,6 +208,50 @@ internal fun StoryReplyBar(
             onDismiss = { pickerOpen = false },
         )
     }
+}
+
+/** Jednořádkové pole přes příběh: obrys v barvě nad závojem, Odeslat na klávesnici. */
+@Composable
+internal fun StoryTextField(
+    text: String,
+    onTextChange: (String) -> Unit,
+    hint: String,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BasicTextField(
+        value = text,
+        onValueChange = onTextChange,
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = ON_SCRIM),
+        cursorBrush = SolidColor(ON_SCRIM),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = ImeAction.Send,
+        ),
+        keyboardActions = KeyboardActions(onSend = { onSend() }),
+        modifier = modifier,
+        decorationBox = { inner ->
+            Box(
+                Modifier
+                    .height(FIELD_HEIGHT)
+                    .border(1.dp, ON_SCRIM.copy(alpha = FIELD_BORDER_ALPHA), CircleShape)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (text.isEmpty()) {
+                    Text(
+                        hint,
+                        color = ON_SCRIM.copy(alpha = HINT_ALPHA),
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                inner()
+            }
+        },
+    )
 }
 
 /**

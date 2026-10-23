@@ -28,9 +28,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.Spacer
@@ -76,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.core.telegram.LiveMessage
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -324,6 +327,8 @@ fun StoriesScreen(
                     onClose = onBack,
                     onReact = { reaction -> key?.let { viewModel.react(it, reaction) } },
                     onReply = { text, onResult -> key?.let { viewModel.reply(it, text, onResult) } },
+                    onLiveSend = viewModel::sendLiveMessage,
+                    onLiveDelete = { message, spam -> viewModel.deleteLiveMessage(message.id, spam) },
                     onDelete = { key?.let(viewModel::delete) },
                     onViewers = { key?.let(viewModel::openViewers) },
                     onToggleHidden = { viewModel.toggleHidden(author.chatId) },
@@ -408,6 +413,8 @@ private fun StoryPage(
     onClose: () -> Unit,
     onReact: (String) -> Unit,
     onReply: (String, (Boolean) -> Unit) -> Unit,
+    onLiveSend: (String, (Boolean) -> Unit) -> Unit,
+    onLiveDelete: (LiveMessage, Boolean) -> Unit,
     onDelete: () -> Unit,
     onViewers: () -> Unit,
     onToggleHidden: () -> Unit,
@@ -422,6 +429,9 @@ private fun StoryPage(
     var burst by remember(author.chatId, index) { mutableStateOf<Pair<Int, String>?>(null) }
     val bar = story != null && story.isAvailable && !story.isLive && !story.isOwn
     val ownBar = story != null && story.isAvailable && story.isOwn
+    // Chat vysílání: jen u cizího živého příběhu, který tu jde sledovat.
+    val liveBar = story != null && story.live != null && liveSupported && !story.isOwn
+    val liveRunning = live != null && (live.phase == LivePhase.Connecting || live.phase == LivePhase.Live)
     var confirmDelete by remember(author.chatId, index) { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
@@ -446,8 +456,23 @@ private fun StoryPage(
                     own = own,
                 )
                 ReactionBurst(burst, Modifier.align(Alignment.Center))
+                if (liveBar && liveRunning && live != null) {
+                    LiveChatMessages(
+                        messages = live.messages,
+                        canModerate = live.canModerate,
+                        onDelete = onLiveDelete,
+                        // S klávesnicí jede lišta s polem nahoru a chat nad ni. Odsazení před
+                        // výškou, ať se chat posune, a ne zmenší; místo pro lištu pod obrazem už je.
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .imePadding()
+                            .fillMaxWidth()
+                            .fillMaxHeight(LIVE_CHAT_HEIGHT),
+                    )
+                    LiveReactionBurst(live.reaction, Modifier.align(Alignment.Center))
+                }
             }
-            if (bar || ownBar) Spacer(Modifier.height(STORY_BAR_HEIGHT))
+            if (bar || ownBar || liveBar) Spacer(Modifier.height(STORY_BAR_HEIGHT))
         }
         if (ownBar && story != null) {
             OwnStoryBar(
@@ -470,6 +495,9 @@ private fun StoryPage(
                 },
                 onDismiss = { confirmDelete = false },
             )
+        }
+        if (liveBar && liveRunning && live != null) {
+            LiveMessageBar(live, onLiveSend, Modifier.align(Alignment.BottomCenter))
         }
         if (bar && story != null) {
             StoryReplyBar(
@@ -861,6 +889,9 @@ private const val SHADE_ALPHA = 0.5f
 private const val TRACK_ALPHA = 0.35f
 private const val SECONDARY_ALPHA = 0.75f
 private const val CAPTION_LINES = 6
+
+/** Kolik výšky obrazu smí zabrat chat živého vysílání. */
+private const val LIVE_CHAT_HEIGHT = 0.4f
 
 /** Jak daleko dolů (v podílu výšky) musí tah zajít, aby se prohlížeč zavřel. */
 private const val DISMISS_THRESHOLD = 0.18f

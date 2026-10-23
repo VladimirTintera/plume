@@ -31,6 +31,18 @@ interface LiveStoryRepository {
 
     /** Segment streamu od [timeMs]: kanál 0 je zvuk, ostatní obraz účastníků. */
     suspend fun segment(groupCallId: Int, timeMs: Long, channelId: Int, quality: LiveVideoQuality?): Result<ByteArray>
+
+    /**
+     * Zprávy a placené reakce ve vysílání pro všechny hovory; filtruje volající. Historii
+     * TDLib nevydává — chodí jen to, co přijde za sledování (i vlastní odeslaná zpráva).
+     */
+    val messageEvents: Flow<LiveMessageEvent>
+
+    /** Pošle zprávu zdarma; placené zprávy (hvězdy) Plume neposílá. Text bez zalomení řádků. */
+    suspend fun sendMessage(groupCallId: Int, text: String): Result<Unit>
+
+    /** Smaže zprávu (vlastní, nebo jako správce); [reportSpam] ji zároveň nahlásí. */
+    suspend fun deleteMessage(groupCallId: Int, messageId: Int, reportSpam: Boolean): Result<Unit>
 }
 
 data class LiveCall(
@@ -38,7 +50,41 @@ data class LiveCall(
     val isActive: Boolean,
     val participantCount: Int,
     val isRtmp: Boolean,
+    /** Psát smí i tenhle divák (`canSendMessages`); vysílající je může zakázat všem. */
+    val canSendMessages: Boolean = false,
+    /** Kolik hvězd stojí jedna zpráva řadového diváka; 0 = zdarma. */
+    val messageStarCount: Long = 0,
+    /** Smí mazat cizí zprávy (vysílající a správci). */
+    val canDeleteMessages: Boolean = false,
 )
+
+/** Zpráva v chatu živého vysílání. Prázdný [text] = placená reakce bez textu. */
+data class LiveMessage(
+    val id: Int,
+    val senderId: Long,
+    val senderName: String,
+    val avatarFileId: Int?,
+    val text: String,
+    /** Kolik hvězd odesílatel za zprávu zaplatil; placené se zvýrazňují. */
+    val starCount: Long,
+    /** Od vysílajícího — kreslí se jako zpráva nejvyšší úrovně. */
+    val isFromOwner: Boolean,
+    val canBeDeleted: Boolean,
+)
+
+sealed interface LiveMessageEvent {
+    val groupCallId: Int
+
+    data class New(override val groupCallId: Int, val message: LiveMessage) : LiveMessageEvent
+
+    data class Deleted(override val groupCallId: Int, val messageIds: Set<Int>) : LiveMessageEvent
+
+    /** Odeslání vlastní zprávy selhalo — zpráva z chatu zmizí. */
+    data class SendFailed(override val groupCallId: Int, val messageId: Int) : LiveMessageEvent
+
+    /** Placená reakce (hvězdy) od diváka — přes vysílání proletí. */
+    data class PaidReaction(override val groupCallId: Int, val senderName: String?, val starCount: Long) : LiveMessageEvent
+}
 
 /** Vysílající: id uživatele nebo chatu, kterým účastník vystupuje, a jeho obraz. */
 data class LiveStreamer(

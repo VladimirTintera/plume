@@ -4,6 +4,9 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.calls.CallConnection
 import eu.tintera.plume.core.calls.LiveStreamHost
 import eu.tintera.plume.core.calls.LiveStreamMedia
+import eu.tintera.plume.core.telegram.LiveCall
+import eu.tintera.plume.core.telegram.LiveMessage
+import eu.tintera.plume.core.telegram.LiveMessageEvent
 import eu.tintera.plume.core.telegram.LiveStoryCall
 import eu.tintera.plume.core.telegram.LiveStoryRepository
 import eu.tintera.plume.core.telegram.LiveStreamer
@@ -28,7 +31,19 @@ data class LiveStoryState(
     val viewers: Int = 0,
     /** Přišel obraz — do té doby se čeká (vysílající ještě nezapnul kameru, stream se plní). */
     val hasVideo: Boolean = false,
+    /** Chat vysílání od chvíle připojení, nejnovější poslední; drží se jen [MAX_LIVE_MESSAGES]. */
+    val messages: List<LiveMessage> = emptyList(),
+    /** Psát jde zdarma: divák smí a vysílající za zprávy nechce hvězdy. */
+    val canSend: Boolean = false,
+    /** Psaní by stálo hvězdy — místo pole věta, Plume hvězdami neplatí. */
+    val paidOnly: Boolean = false,
+    /** Smí mazat cizí zprávy — nabídne i nahlášení spamu. */
+    val canModerate: Boolean = false,
+    /** Poslední placená reakce, která má přes vysílání proletět; [LiveReaction.id] roste. */
+    val reaction: LiveReaction? = null,
 )
+
+data class LiveReaction(val id: Int, val senderName: String?, val starCount: Long)
 
 /**
  * Sledování živého příběhu v prohlížeči: připojení jako divák, obraz vysílajícího, počet
@@ -42,6 +57,8 @@ class LiveStoryWatch(
     private val media: LiveStreamMedia,
     private val scope: CoroutineScope,
     private val appScope: CoroutineScope,
+    /** Server odeslanou zprávu odmítl až po přijetí (`updateGroupCallMessageSendFailed`). */
+    private val onSendFailed: () -> Unit = {},
 ) {
     private val logger = Logger.withTag("LiveStory")
 
@@ -67,8 +84,14 @@ class LiveStoryWatch(
         job = scope.launch {
             launch {
                 repository.callUpdates.filter { it.groupCallId == id }.collect { update ->
-                    _state.update { it?.copy(viewers = update.participantCount) }
+                    _state.update { it?.withCall(update) }
                     if (!update.isActive) ended()
+                }
+            }
+            launch {
+                repository.messageEvents.filter { it.groupCallId == id }.collect { event ->
+                    _state.update { it?.withMessage(event) }
+                    if (event is LiveMessageEvent.SendFailed) onSendFailed()
                 }
             }
             if (!call.isRtmp) {
@@ -78,7 +101,7 @@ class LiveStoryWatch(
             }
             val info = repository.call(id).getOrNull()
             if (info != null) {
-                _state.update { it?.copy(viewers = info.participantCount) }
+                _state.update { it?.withCall(info) }
                 if (!info.isActive) {
                     ended()
                     return@launch
@@ -98,6 +121,19 @@ class LiveStoryWatch(
         media.stop(call.groupCallId.toLong())
         if (joined) appScope.launch { repository.leave(call.groupCallId) }
         joined = false
+    }
+
+    /** Pošle zprávu do sledovaného vysílání; mimo vysílání nic. */
+    suspend fun send(text: String): Result<Unit> {
+        val call = watching ?: return Result.failure(IllegalStateException("No live story"))
+        return repository.sendMessage(call.groupCallId, text)
+    }
+
+    suspend fun delete(messageId: Int, reportSpam: Boolean): Result<Unit> {
+        val call = watching ?: return Result.failure(IllegalStateException("No live story"))
+        return repository.deleteMessage(call.groupCallId, messageId, reportSpam).onSuccess {
+            _state.update { it?.copy(messages = it.messages.filterNot { message -> message.id == messageId }) }
+        }
     }
 
     private fun ended() {
@@ -166,3 +202,25 @@ class LiveStoryWatch(
         }
     }
 }
+
+private fun LiveStoryState.withCall(call: LiveCall) = copy(
+    viewers = call.participantCount,
+    canSend = call.canSendMessages && call.messageStarCount == 0L,
+    paidOnly = call.canSendMessages && call.messageStarCount > 0L,
+    canModerate = call.canDeleteMessages,
+)
+
+internal fun LiveStoryState.withMessage(event: LiveMessageEvent): LiveStoryState = when (event) {
+    // Táž zpráva může přijít znovu (úprava stavu po odeslání) — nahradí tu dřívější.
+    is LiveMessageEvent.New -> copy(
+        messages = (messages.filterNot { it.id == event.message.id } + event.message).takeLast(MAX_LIVE_MESSAGES),
+    )
+    is LiveMessageEvent.Deleted -> copy(messages = messages.filterNot { it.id in event.messageIds })
+    is LiveMessageEvent.SendFailed -> copy(messages = messages.filterNot { it.id == event.messageId })
+    is LiveMessageEvent.PaidReaction -> copy(
+        reaction = LiveReaction((reaction?.id ?: 0) + 1, event.senderName, event.starCount),
+    )
+}
+
+/** Kolik zpráv chatu vysílání držet; starší by stejně nikdo neodroloval. */
+internal const val MAX_LIVE_MESSAGES = 100

@@ -1,7 +1,12 @@
 package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
+import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.GroupCall
+import dev.g000sha256.tdl.dto.GroupCallMessage
+import dev.g000sha256.tdl.dto.MessageSender
+import dev.g000sha256.tdl.dto.MessageSenderChat
+import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.GroupCallJoinParameters
 import dev.g000sha256.tdl.dto.GroupCallParticipant
@@ -12,6 +17,9 @@ import dev.g000sha256.tdl.dto.GroupCallVideoQualityThumbnail
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** [LiveStoryRepository] nad TDLib. */
 class TdlLiveStoryRepository(private val holder: TelegramClientHolder) : LiveStoryRepository {
@@ -77,6 +85,76 @@ class TdlLiveStoryRepository(private val holder: TelegramClientHolder) : LiveSto
                 null -> null
             },
         ).toResult().map { it.data }
+
+    override val messageEvents: Flow<LiveMessageEvent> = merge(
+        holder.updates { newGroupCallMessageUpdates }.mapNotNull { update ->
+            update.message.toLiveMessage()?.let { LiveMessageEvent.New(update.groupCallId, it) }
+        },
+        holder.updates { groupCallMessagesDeletedUpdates }.map { update ->
+            LiveMessageEvent.Deleted(update.groupCallId, update.messageIds.toSet())
+        },
+        holder.updates { groupCallMessageSendFailedUpdates }.map { update ->
+            logger.w { "sendGroupCallMessage ${update.groupCallId}/${update.messageId}: ${update.error.message}" }
+            LiveMessageEvent.SendFailed(update.groupCallId, update.messageId)
+        },
+        holder.updates { newGroupCallPaidReactionUpdates }.map { update ->
+            LiveMessageEvent.PaidReaction(update.groupCallId, sender(update.senderId)?.name, update.starCount)
+        },
+    )
+
+    override suspend fun sendMessage(groupCallId: Int, text: String): Result<Unit> =
+        client.sendGroupCallMessage(
+            groupCallId = groupCallId,
+            // Do živého příběhu se zalomení řádků poslat nedá.
+            text = FormattedText(text = text.replace('\n', ' '), entities = emptyArray()),
+            paidMessageStarCount = 0,
+        ).toResult()
+            .onFailure { logger.w(it) { "sendGroupCallMessage $groupCallId" } }
+            .map { }
+
+    override suspend fun deleteMessage(groupCallId: Int, messageId: Int, reportSpam: Boolean): Result<Unit> =
+        client.deleteGroupCallMessages(
+            groupCallId = groupCallId,
+            messageIds = intArrayOf(messageId),
+            reportSpam = reportSpam,
+        ).toResult()
+            .onFailure { logger.w(it) { "deleteGroupCallMessages $groupCallId/$messageId" } }
+            .map { }
+
+    private suspend fun GroupCallMessage.toLiveMessage(): LiveMessage? {
+        val sender = sender(senderId) ?: return null
+        return LiveMessage(
+            id = messageId,
+            senderId = senderId.plainId(),
+            senderName = sender.name,
+            avatarFileId = sender.avatarFileId,
+            text = text.text,
+            starCount = paidMessageStarCount,
+            isFromOwner = isFromOwner,
+            canBeDeleted = canBeDeleted,
+        )
+    }
+
+    private class Sender(val name: String, val avatarFileId: Int?)
+
+    private val senders = mutableMapOf<Long, Sender>()
+    private val sendersMutex = Mutex()
+
+    /** Jméno a fotka odesílatele; ve vysílání píšou stále titíž, proto mezipaměť. */
+    private suspend fun sender(id: MessageSender): Sender? {
+        val key = id.plainId()
+        sendersMutex.withLock { senders[key] }?.let { return it }
+        val resolved = when (id) {
+            is MessageSenderUser -> client.getUser(userId = id.userId).toResult().getOrNull()?.let { user ->
+                Sender(listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "), user.profilePhoto?.small?.id)
+            }
+            is MessageSenderChat -> client.getChat(chatId = id.chatId).toResult().getOrNull()?.let { chat ->
+                Sender(chat.title, chat.photo?.small?.id)
+            }
+        } ?: return null
+        sendersMutex.withLock { senders[key] = resolved }
+        return resolved
+    }
 }
 
 private fun GroupCall.toLiveCall() = LiveCall(
@@ -84,6 +162,9 @@ private fun GroupCall.toLiveCall() = LiveCall(
     isActive = isActive,
     participantCount = participantCount,
     isRtmp = isRtmpStream,
+    canSendMessages = canSendMessages && areMessagesAllowed,
+    messageStarCount = paidMessageStarCount,
+    canDeleteMessages = canDeleteMessages,
 )
 
 private fun GroupCallParticipant.toStreamer() = LiveStreamer(

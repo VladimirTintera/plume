@@ -3273,6 +3273,15 @@
     <string name="story_live_ended">The live stream has ended.</string>
     <string name="story_live_failed">Couldn't connect to the live stream.</string>
     <string name="story_live_waiting">Waiting for the stream…</string>
+    <string name="story_live_message_hint">Comment…</string>
+    <string name="story_live_message_failed">Couldn't send the message.</string>
+    <string name="story_live_message_delete_failed">Couldn't delete the message.</string>
+    <string name="story_live_message_delete_spam">Delete and report spam</string>
+    <string name="story_live_paid_only">Commenting on this live stream costs Telegram Stars.</string>
+    <plurals name="story_live_stars">
+        <item quantity="one">%1$d Telegram Star</item>
+        <item quantity="other">%1$d Telegram Stars</item>
+    </plurals>
     <string name="stories_next">Next story</string>
     <string name="stories_previous">Previous story</string>
     <string name="stories_open">Show stories of %1$s</string>

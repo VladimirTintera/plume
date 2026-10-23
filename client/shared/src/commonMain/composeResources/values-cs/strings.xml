@@ -3386,6 +3386,17 @@
     <string name="story_live_ended">Vysílání skončilo.</string>
     <string name="story_live_failed">K vysílání se nepodařilo připojit.</string>
     <string name="story_live_waiting">Čeká se na vysílání…</string>
+    <string name="story_live_message_hint">Komentovat…</string>
+    <string name="story_live_message_failed">Zprávu se nepodařilo odeslat.</string>
+    <string name="story_live_message_delete_failed">Zprávu se nepodařilo smazat.</string>
+    <string name="story_live_message_delete_spam">Smazat a nahlásit spam</string>
+    <string name="story_live_paid_only">Komentáře k tomuto vysílání stojí hvězdy Telegramu.</string>
+    <plurals name="story_live_stars">
+        <item quantity="one">%1$d hvězda Telegramu</item>
+        <item quantity="few">%1$d hvězdy Telegramu</item>
+        <item quantity="many">%1$d hvězdy Telegramu</item>
+        <item quantity="other">%1$d hvězd Telegramu</item>
+    </plurals>
     <string name="stories_next">Další příběh</string>
     <string name="stories_previous">Předchozí příběh</string>
     <string name="stories_open">Zobrazit příběhy: %1$s</string>

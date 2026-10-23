@@ -34,6 +34,8 @@ import eu.tintera.plume.resources.story_hide_failed
 import eu.tintera.plume.resources.story_unhidden
 import eu.tintera.plume.resources.story_deleted
 import eu.tintera.plume.resources.story_reaction_failed
+import eu.tintera.plume.resources.story_live_message_delete_failed
+import eu.tintera.plume.resources.story_live_message_failed
 import eu.tintera.plume.resources.story_reply_failed
 import eu.tintera.plume.resources.story_reply_sent
 import eu.tintera.plume.resources.story_viewers_failed
@@ -69,7 +71,9 @@ class StoriesViewModel(
 ) : ViewModel() {
 
     private val liveWatch = if (liveRepository != null && liveMedia != null) {
-        LiveStoryWatch(liveRepository, liveMedia, viewModelScope, appScope)
+        LiveStoryWatch(liveRepository, liveMedia, viewModelScope, appScope) {
+            _notice.value = UiText(Res.string.story_live_message_failed)
+        }
     } else {
         null
     }
@@ -628,6 +632,31 @@ class StoriesViewModel(
                     _notice.value = failure.userMessage(Res.string.story_reply_failed)
                     onResult(false)
                 }
+        }
+    }
+
+    /** Pošle zprávu do sledovaného živého vysílání; [onResult] jako u [reply]. */
+    fun sendLiveMessage(text: String, onResult: (Boolean) -> Unit) {
+        val watch = liveWatch ?: return
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            watch.send(trimmed)
+                .onSuccess { onResult(true) }
+                .onFailure { failure ->
+                    _notice.value = failure.userMessage(Res.string.story_live_message_failed)
+                    onResult(false)
+                }
+        }
+    }
+
+    /** Smaže zprávu z chatu vysílání (vlastní, nebo jako správce i s nahlášením spamu). */
+    fun deleteLiveMessage(messageId: Int, reportSpam: Boolean) {
+        val watch = liveWatch ?: return
+        viewModelScope.launch {
+            watch.delete(messageId, reportSpam).onFailure { failure ->
+                _notice.value = failure.userMessage(Res.string.story_live_message_delete_failed)
+            }
         }
     }
 
