@@ -11,47 +11,34 @@ Desktopová aplikace pro macOS, Windows a Linux: `jvm()` target v `:client:share
 ./gradlew :client:desktopApp:packageDmg          # balíček pro systém, na kterém se staví (Dmg/Msi/Deb)
 ```
 
-## TDLib na desktopu: wrapper ho má, ale macOS knihovna je rozbitá
+## TDLib na desktopu: wrapper ji veze v jaru
 
 `tdl-coroutines` publikuje `tdl-coroutines-jvm` s nativní TDLib pro macOS, Linux i Windows
-(x64 i arm64) v jednom jaru (109 MB). Wrapper si při prvním použití sám vybere knihovnu podle
+(x64 i arm64) v jednom jaru (115 MB). Wrapper si při prvním použití sám vybere knihovnu podle
 `os.name`/`os.arch`, rozbalí ji do dočasného adresáře a nahraje. Vlastní build TDLib ani fork
 wrapperu tedy potřeba nejsou.
 
-- **macOS knihovna se mimo stroj autora nenačte.** `libtdjsonjava.dylib` (15.0.0) odkazuje
-  absolutní cestou na Homebrew autora: `/opt/homebrew/opt/openjdk/…/libjvm.dylib` a
-  `/opt/homebrew/opt/openssl@3/lib/libssl.3.dylib` (x64 totéž pod `/usr/local`). Výsledek je
-  `UnsatisfiedLinkError: Library not loaded: …/libjvm.dylib` s jakýmkoli JDK, které není
-  Homebrew `openjdk` — i na Macu s Homebrew OpenSSL. Nahlášeno jako
-  [g000sha256/tdl-coroutines#163](https://github.com/g000sha256/tdl-coroutines/issues/163).
-  Ukáže to `otool -L` nad knihovnou z jaru.
-- **Obcházka je přepis jaru při buildu** (`TdlibJarTransform` v
-  `client/desktopApp/build.gradle.kts`, Gradle artifact transform na `runtimeClasspath`):
-  1. **jen nativní knihovna tohoto systému a architektury** (jar spadne na ~50 MB; jpackage
+- **Jar se při buildu přepisuje** (`TdlibJarTransform` v `client/desktopApp/build.gradle.kts`,
+  Gradle artifact transform na `runtimeClasspath`):
+  1. **jen nativní knihovna tohoto systému a architektury** (jar spadne na ~55 MB; jpackage
      stejně cizí systém zabalit neumí),
-  2. **`install_name_tool`**: `libjvm` → `@rpath/libjvm.dylib`, OpenSSL → `@rpath/libssl.3.dylib`
-     a `@rpath/libcrypto.3.dylib`, a **nový ad-hoc podpis** (`codesign -s -`) — arm64 Mac
-     změněnou knihovnu s neplatným podpisem nenahraje,
-  3. **přibalené OpenSSL** z Homebrew stroje, který staví (`-PopensslDir=…` jinak), s install
-     name `@rpath/…`,
-  4. **hook `TdlibJsonRepair`** (viz níž).
-- **`@rpath` závislost dyld najde mezi UŽ NAHRANÝMI knihovnami podle install name.** `libjvm`
-  je v procesu dřív než cokoli jiného a jeho install name je `@rpath/libjvm.dylib`; OpenSSL
-  nahraje `preloadTdlibNativeDependencies()` v `main` dřív, než `startKoin` spustí TDLib.
-  Wrapper rozbaluje jen svoji knihovnu, takže přibalené OpenSSL musí rozbalit a nahrát někdo
-  jiný. Pořadí v `main` je proto povinné.
-- **Ověřeno**: ladicí běh na macOS 26.6 (arm64, JDK 21 mimo Homebrew) se přihlásil QR kódem,
-  načetl seznam chatů a odeslal zprávu; zabalená `Plume.app` (runtime z jlinku) dojde
-  k přihlášení. Původní jar ve stejném JVM padá na `libjvm`. **Windows a Linux neověřené.**
-- **Až #163 upstream opraví**, body 2 a 3 z transformu zmizí (a s nimi
-  `preloadTdlibNativeDependencies` a požadavek na Homebrew OpenSSL při buildu). Body 1 a 4
-  můžou zůstat.
+  2. **hook `TdlibJsonRepair`** (viz níž).
+- **Do 15.0.0 se macOS knihovna mimo stroj autora nenačetla.** Odkazovala absolutní cestou na
+  Homebrew autora (`/opt/homebrew/opt/openjdk/…/libjvm.dylib`, `…/openssl@3/lib/libssl.3.dylib`)
+  a padala na `UnsatisfiedLinkError` s jakýmkoli JDK mimo Homebrew `openjdk`. Transform proto
+  přepisoval cesty (`install_name_tool` + nový ad-hoc podpis), přibaloval Homebrew OpenSSL
+  a `main` ho nahrával dřív než TDLib. Nahlášeno jako
+  [g000sha256/tdl-coroutines#163](https://github.com/g000sha256/tdl-coroutines/issues/163),
+  **opravené v 16.0.0**: knihovna nemá jedinou závislost mimo `/usr/lib` (OpenSSL je slinkované
+  staticky) a obcházka i požadavek na Homebrew `openssl@3` při buildu zmizely.
+  **Při bumpu wrapperu ověřit `otool -L` nad knihovnou z jaru**: cokoli mimo `/usr/lib/`
+  a `/System/` je návrat té chyby.
 
-### Další omezení binárek wrapperu (15.0.0)
+### Další omezení binárek wrapperu (16.0.0)
 
-- **macOS arm64 je `minos 26.0`**, x64 `minos 15.0` (`vtool -show-build`). Na Apple Silicon
-  tedy desktop běží až od macOS 26.
-- **Linux potřebuje glibc 2.38+** (Ubuntu 24.04, Debian 13) a systémové `libssl.so.3`.
+- **macOS je `minos 12.0`** na arm64 i x64 (`vtool -show-build`; v 15.0.0 arm64 26.0, x64 15.0).
+  Nejnižší podporovaný systém teď určují jiné knihovny, viz „macOS (DMG)".
+- **Linux potřebuje glibc 2.34+** (Ubuntu 22.04) a systémové `libssl.so.3`.
 - **Windows** si OpenSSL a zlib veze vedle `tdjsonjava.dll` sám.
 
 ## Hook TdlibJsonRepair na JVM
@@ -503,17 +490,19 @@ v příloze. Runnery jsou vlastní, viz „Self-hosted runnery" v `release.md`. 
 ### macOS (DMG)
 
 - **Jen Apple Silicon.** jpackage balí pro architekturu JDK, které staví, a Mac runneru
-  (i záložní `macos-latest`) je arm64 (job to na začátku ověří `uname -m`). TDLib z wrapperu tam chce macOS 26, proto
-  `minimumSystemVersion` v `build.gradle.kts` (arm64 26.0, x64 15.0) — dřív bylo v `Info.plist`
-  výchozí 10.13 a aplikace by na starším systému naběhla a spadla až při nahrání TDLib.
-- **Homebrew `openssl@3` na runneru** kvůli přepisu jaru TDLib (výš, „TDLib na desktopu").
-  Přibalené OpenSSL je z bottle runneru; jeho `minos` je pod 26, takže nevadí.
+  (i záložní `macos-latest`) je arm64 (job to na začátku ověří `uname -m`).
+- **`minimumSystemVersion` v `build.gradle.kts` je nejvyšší `minos` přibalených nativních
+  knihoven** (`vtool -show-build`): arm64 14.0 kvůli ntgcalls (hovory; TDLib 12.0, most
+  k notifikacím 11.0), x64 12.0 kvůli TDLib (ntgcalls pro macOS x64 nevychází). Bez něj je
+  v `Info.plist` výchozí 10.13 a aplikace by na starším systému naběhla a spadla až při nahrání
+  knihovny. S wrapperem 15.0.0 to bylo arm64 26.0 a x64 15.0. **Na macOS pod 26 spuštění
+  ověřené NENÍ** — není na čem.
 - **Podpis je jen ad hoc** (jpackage s hardened runtime, `entitlements.plist`), bez Developer ID
   a notarizace. Gatekeeper aplikaci staženou z internetu napoprvé neotevře; povolí se
   v Nastavení systému → Soukromí a zabezpečení → „Přesto otevřít" (od macOS 15 už nejde obejít
   přes Ctrl+klik → Otevřít). Návod je v textu releasu. Podpis Developer ID chce placený účet
   Apple Developer (roadmapa).
-- **Lokálně** stačí `./gradlew :client:desktopApp:packageDmg` (s Homebrew `openssl@3`);
+- **Lokálně** stačí `./gradlew :client:desktopApp:packageDmg`;
   balíček je v `client/desktopApp/build/compose/binaries/main/dmg/`.
 
 ## Cesty k souborům na Windows

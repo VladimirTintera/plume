@@ -238,7 +238,7 @@ jobs:
           if-no-files-found: error
 
   # Jen Apple Silicon: `macos-latest` je arm64 a jpackage balí pro architekturu JDK, které staví.
-  # TDLib z wrapperu tam chce macOS 26 (`minimumSystemVersion` v build.gradle.kts).
+  # Hovory (ntgcalls) tam chtějí macOS 14 (`minimumSystemVersion` v build.gradle.kts).
   macos:
     needs: version
     runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
@@ -292,11 +292,6 @@ jobs:
             echo 'kotlin.daemon.jvmargs=-Xmx2g'
             echo 'org.gradle.workers.max=2'
           } >> ~/.gradle/gradle.properties
-
-      # Přibaluje se k TDLib, jejíž macOS knihovna systémové OpenSSL nenajde
-      # (tdl-coroutines#163, docs/poznatky/desktop.md). Na runneru bývá, jistota nic nestojí.
-      - name: Install OpenSSL 3
-        run: brew list openssl@3 > /dev/null 2>&1 || brew install openssl@3
 
       - name: Check Telegram API credentials
         env:
@@ -363,7 +358,7 @@ jobs:
           # 0.x = ještě ne stabilní, na stránce releasů jako pre-release
           if [[ "$VERSION" == 0.* ]]; then echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT"; fi
           {
-            echo "**Desktop** ${VERSION} — Windows (MSI), macOS 26+ na Apple Silicon (DMG)"
+            echo "**Desktop** ${VERSION} — Windows (MSI), macOS 14+ na Apple Silicon (DMG)"
             echo
             echo "Balíčky nejsou podepsané:"
             echo

@@ -183,11 +183,9 @@ Android je napřed; tohle je, čím se to dorovnává.
 Běží na macOS (ověřeno: přihlášení QR kódem, seznam chatů, konverzace, odeslání zprávy).
 Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 
-- **Ověřit Windows a Linux.** Přeložené a zabalitelné, ale nespuštěné. Linux chce glibc 2.38+.
-- **TDLib wrapper: počkat na opravu [tdl-coroutines#163](https://github.com/g000sha256/tdl-coroutines/issues/163)**
-  a pak z přepisu jaru vyhodit opravu dylibu a přibalené OpenSSL. Do té doby se na macOS
-  staví jen s Homebrew `openssl@3` a desktop na Apple Silicon běží až od macOS 26 (`minos`
-  binárky wrapperu — taky v issue).
+- **Ověřit Windows a Linux.** Přeložené a zabalitelné, ale nespuštěné. Linux chce glibc 2.34+.
+- **Ověřit macOS pod 26.** Od wrapperu 16.0.0 má balíček `minimumSystemVersion` 14.0 (Apple
+  Silicon, kvůli ntgcalls), spuštěné je ale jen na macOS 26.
 - **Notifikace: ověřit Windows a Linux** (AWT `TrayIcon`, na Linuxu podle prostředí —
   lepší by byl `org.freedesktop.Notifications` přes D-Bus), odznak v Docku a zavření okna
   s návratem z Docku. Akce v oznámení (Odpovědět, Přečteno) zatím nejsou; na macOS by šly

@@ -26,7 +26,7 @@ Rozpracovaný detail chatu má vlastní seznam:
 ./gradlew :client:androidApp:assembleDebug          # Android APK
 ./gradlew :client:shared:linkDebugFrameworkIosSimulatorArm64   # ověření iOS linku
 ./gradlew :client:shared:testAndroidHostTest       # testy commonTest na JVM (sekundy, bez emulátoru)
-./gradlew :client:desktopApp:run                    # desktop (macOS potřebuje brew install openssl@3)
+./gradlew :client:desktopApp:run                    # desktop
 open iosApp/iosApp.xcodeproj                         # iOS se staví z Xcode
 ```
 
@@ -74,7 +74,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Výkon a paměť](docs/poznatky/vykon.md) — reporty Compose kompilátoru, LeakCanary, heap dumpy, composition tracing, start a plynulost
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků
 - [Hovory](docs/poznatky/hovory.md) — co dělá TDLib a co knihovna (ntgcalls), verze a servery, licence, obálka na Androidu (služba, Telecom, výstup zvuku), ticho a zablokování v knihovně, videohovory a obraz v obraze, sdílení obrazovky a ukazovátko, hovor z konverzace a chybové hlášky, historie hovorů a hodnocení, desktop (JNA, zvonění a okénko příchozího hovoru, video)
-- [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (rozbitá macOS knihovna, OpenSSL, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter), titulek okna v barvách motivu, vložení ze schránky a přetažení souborů, release MSI a DMG a ikony, bubliny z kořene kompozice, zubaté a rozmazané obrázky (dekodér Coilu, přiblížení), co desktop neumí
+- [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (jen knihovna systému, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter), titulek okna v barvách motivu, vložení ze schránky a přetažení souborů, release MSI a DMG a ikony, bubliny z kořene kompozice, zubaté a rozmazané obrázky (dekodér Coilu, přiblížení), co desktop neumí
 
 ## Pracovní postup
 
@@ -254,9 +254,10 @@ a nepřijde jediná další odpověď ani update. Spolknout ji proto nejde, mus�
   `StarGift::get_gift_object` (TDLib `StarGift.cpp`) nechá pozadí `nullptr`, když ho server
   k dárku nepošle. Týká se `getAvailableGifts` i zpráv `MessageGift` /
   `MessageRefundedUpgradedGift` — chat s takovým dárkem (i jako poslední zprávou v seznamu chatů)
-  by aplikaci shazoval pokaždé znovu. Ve wrapperu 15.0.0 (nejnovější) opravené není; nahlášené
+  by aplikaci shazoval pokaždé znovu. Ve wrapperu 16.0.0 (TDLib 1.8.68) opravené není; nahlášené
   jako [g000sha256/tdl-coroutines#162](https://github.com/g000sha256/tdl-coroutines/issues/162)
-  (s kandidáty níž a návrhem, ať přijímací smyčka jednu vadnou odpověď přežije).
+  (s kandidáty níž a návrhem, ať přijímací smyčka jednu vadnou odpověď přežije). Autor opravil
+  dokumentaci v TDLib 1.8.69 (tdlib/td#3761), pole tedy bude nullable od wrapperu 17.0.0.
 - **Obcházka: odpověď se opraví dřív, než ji wrapper dostane** (`TdlibJsonRepair`, testy
   `TdlibJsonRepairTest`). Tabulka „typ → chybějící pole → výchozí objekt" doplní pole, které
   TDLib vynechal; aplikace `Gift.background` nečte, takže na hodnotě nezáleží. Odpověď bez

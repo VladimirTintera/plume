@@ -245,7 +245,7 @@ tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.co
     dependsOn(verifyReleaseConfiguration)
 }
 
-// Obcházka pádu `tdl-coroutines` 15.0.0 na odpovědi TDLib, ve které chybí pole dokumentované
+// Obcházka pádu `tdl-coroutines` (15.0.0, 16.0.0) na odpovědi TDLib, ve které chybí pole dokumentované
 // jako povinné (dárek bez `background`). Viz „Dárek" v docs/poznatky/typy-zprav.md.
 //
 // Za každé `JsonClient.receive` uvnitř wrapperu se vloží `TdlibReceiveHook.afterReceive`, takže

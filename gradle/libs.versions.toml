@@ -5,11 +5,11 @@ android-minSdk = "26"
 android-targetSdk = "37"
 agp = "9.2.1"
 
-# Kotlin — 2.4.10 je VYNUCENÁ hodnota, ne volba. `dev.g000sha256:tdl-coroutines:15.0.0` je
-# publikovaný z Kotlinu 2.4.10 a jeho iOS klib se starším kompilátorem nenačte. Při bumpu TDLib
+# Kotlin — 2.4.21 je VYNUCENÁ hodnota, ne volba. `dev.g000sha256:tdl-coroutines:16.0.0` je
+# publikovaný z Kotlinu 2.4.21 a jeho iOS klib se starším kompilátorem nenačte. Při bumpu TDLib
 # wrapperu vždycky zkontroluj Kotlin verzi v jeho Gradle metadatech:
 #   curl -s https://repo1.maven.org/maven2/dev/g000sha256/tdl-coroutines-iosarm64/<ver>/tdl-coroutines-iosarm64-<ver>.module | grep -A2 kotlin-stdlib
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
 kotlinx-datetime = "0.8.0"
@@ -99,7 +99,7 @@ litertlm = "0.11.0"
 
 # TDLib wrapper. Upstream TDLib dělá breaking changes i v patch verzích — proto je celý wrapper
 # schovaný za :client:shared/core/telegram a nikde jinde se jeho typy neobjevují.
-tdl = "15.0.0"
+tdl = "16.0.0"
 # Hledání memory leaků v debug buildu (jen `debugImplementation` ve vstupním bodu). 3.0 je zatím
 # alpha; 2.14 je poslední stabilní.
 leakcanary = "2.14"
