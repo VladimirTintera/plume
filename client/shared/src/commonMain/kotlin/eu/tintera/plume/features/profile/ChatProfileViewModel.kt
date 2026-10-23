@@ -912,6 +912,13 @@ class ChatProfileViewModel(
         viewModelScope.launch {
             when (profile.kind) {
                 ProfileKind.User, ProfileKind.Bot -> {
+                    if (profile.kind == ProfileKind.Bot && profile.hasMainWebApp) {
+                        launch {
+                            profiles.botMediaPreviews(profile.userId ?: chatId)
+                                .onSuccess { found -> _state.update { it.copy(appPreviews = found) } }
+                                .onFailure { logger.w(it) { "Ukázky mini aplikace se nepodařilo načíst." } }
+                        }
+                    }
                     if (profile.kind == ProfileKind.Bot) {
                         launch {
                             profiles.similarBots(profile.userId ?: chatId)
@@ -1455,6 +1462,8 @@ data class ChatProfileState(
     val activeStories: ActiveStories? = null,
     /** Dárek otevřený v sheetu. */
     val openGift: ProfileGift? = null,
+    /** Ukázky mini aplikace bota (fotky a videa); prázdné = žádné. */
+    val appPreviews: List<MessageMedia> = emptyList(),
     /** Sběratelská jména nebo číslo otevřené v sheetu „z Fragmentu". */
     val collectible: CollectibleSheet? = null,
     /** Načtený obsah záložek; chybějící klíč = záložka se ještě neukázala. */

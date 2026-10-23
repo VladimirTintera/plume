@@ -1002,6 +1002,19 @@ obsahu bývá zlomek zpráv.
     s počty odběratelů), ťuknutí otevřelo kanál a TDLib oznámení přijal (žádné varování v logu);
     @wallet → Podobné s deseti boty a „1 844 403 uživatelů měsíčně", ťuknutí otevřelo bota.
     Durger King podobné boty nemá (server vrátí prázdný seznam) a záložka se neukáže.
+- **Ukázky mini aplikace** (`getBotMediaPreviews`, `ProfileRepository.botMediaPreviews`,
+  `BotAppPreviews`): u bota s hlavní mini aplikací (`hasMainWebApp`) řada náhledů na výšku pod
+  tlačítky, jako v obchodě s aplikacemi. Bez ukázek se blok nekreslí; ostatní boti se ani
+  neptají.
+  - **Obsah je `StoryContent`** — fotka nebo video jako u příběhu, takže převod je tentýž
+    (`Photo.toMedia`, `StoryVideo.toMedia`). Živé vysílání ukázka být nemůže a vynechá se.
+  - **Ťuknutí otevře prohlížeč přes celou obrazovku** (`AppPreviewViewer`): posun do stran,
+    „N z M", video ve smyčce jen na právě ukázané stránce. Je to dialog, ne routa — k ukázkám
+    se nikam dál nechodí. **Dialog nesahal pod systémové lišty** a profil nad a pod ukázkou
+    prosvítal; společné `DialogProperties` to neumí, proto `FullScreenDialog` (`core/ui`,
+    Android `decorFitsSystemWindows = false`, iOS `usePlatformInsets = false`), jako zámek aplikace.
+  - **Ověřeno na emulátoru**: @wallet ukázal tři videa, prohlížeč „2 z 3" přes celé okno
+    a video hrálo. iOS a desktop jen přeložené.
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.
