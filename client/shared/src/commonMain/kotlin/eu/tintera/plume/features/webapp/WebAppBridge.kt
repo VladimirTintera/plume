@@ -59,7 +59,19 @@ sealed interface WebAppEvent {
     data class DownloadFile(val url: String, val fileName: String) : WebAppEvent
     data class OpenInvoice(val slug: String) : WebAppEvent
     data object RequestFullscreen : WebAppEvent
+    data object ExitFullscreen : WebAppEvent
     data object CheckHomeScreen : WebAppEvent
+    /** Přidat zástupce mini aplikace na plochu (`addToHomeScreen`). */
+    data object AddToHomeScreen : WebAppEvent
+    /** `DeviceStorage.setItem` / `removeItem` ([value] `null`). */
+    data class DeviceStorageSave(val requestId: String, val key: String, val value: String?) : WebAppEvent
+    data class DeviceStorageGet(val requestId: String, val key: String) : WebAppEvent
+    data class DeviceStorageClear(val requestId: String) : WebAppEvent
+    /** Cokoli ze `SecureStorage` — Plume ho nemá, odpovídá se chybou. */
+    data class SecureStorage(val requestId: String) : WebAppEvent
+    data object CheckLocation : WebAppEvent
+    data object RequestLocation : WebAppEvent
+    data object OpenLocationSettings : WebAppEvent
     data class Unknown(val type: String) : WebAppEvent
 }
 
@@ -184,7 +196,31 @@ fun parseWebAppEvent(type: String, data: String?): WebAppEvent {
         }
         "web_app_open_invoice" -> WebAppEvent.OpenInvoice(string("slug").orEmpty())
         "web_app_request_fullscreen" -> WebAppEvent.RequestFullscreen
+        "web_app_exit_fullscreen" -> WebAppEvent.ExitFullscreen
         "web_app_check_home_screen" -> WebAppEvent.CheckHomeScreen
+        "web_app_add_to_home_screen" -> WebAppEvent.AddToHomeScreen
+        "web_app_device_storage_save_key" -> {
+            val requestId = string("req_id")
+            val key = string("key")
+            if (requestId == null || key == null) {
+                WebAppEvent.Unknown(type)
+            } else {
+                // `removeItem` posílá `value: null`.
+                WebAppEvent.DeviceStorageSave(requestId, key, (body["value"] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.contentOrNull)
+            }
+        }
+        "web_app_device_storage_get_key" -> {
+            val requestId = string("req_id")
+            val key = string("key")
+            if (requestId == null || key == null) WebAppEvent.Unknown(type) else WebAppEvent.DeviceStorageGet(requestId, key)
+        }
+        "web_app_device_storage_clear" -> string("req_id")?.let(WebAppEvent::DeviceStorageClear) ?: WebAppEvent.Unknown(type)
+        "web_app_secure_storage_save_key", "web_app_secure_storage_get_key",
+        "web_app_secure_storage_restore_key", "web_app_secure_storage_clear",
+        -> string("req_id")?.let(WebAppEvent::SecureStorage) ?: WebAppEvent.Unknown(type)
+        "web_app_check_location" -> WebAppEvent.CheckLocation
+        "web_app_request_location" -> WebAppEvent.RequestLocation
+        "web_app_open_location_settings" -> WebAppEvent.OpenLocationSettings
         else -> WebAppEvent.Unknown(type)
     }
 }
@@ -199,6 +235,7 @@ object WebAppErrors {
     const val MESSAGE_SEND_FAILED = "MESSAGE_SEND_FAILED"
     const val UNSUPPORTED = "UNSUPPORTED"
     const val UNKNOWN_ERROR = "UNKNOWN_ERROR"
+    const val QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
 }
 
 /** Událost pro stránku: typ a JSON data (objekt), jak je čeká `Telegram.WebView.receiveEvent`. */
@@ -220,11 +257,14 @@ object WebAppEvents {
         }.toString(),
     )
 
-    /** Okraje řeší aplikace (hlavička a tlačítko jsou mimo WebView), takže nuly. */
-    fun safeAreaChanged(type: String) = WebAppOutgoing(
+    /**
+     * Okraje řeší aplikace (hlavička a tlačítko jsou mimo WebView), takže nuly. Na celé ploše
+     * je nahoře zavírací tlačítko přes stránku — obsah ho má nechat volné ([top]).
+     */
+    fun safeAreaChanged(type: String, top: Int = 0) = WebAppOutgoing(
         type,
         buildJsonObject {
-            put("top", 0)
+            put("top", top)
             put("bottom", 0)
             put("left", 0)
             put("right", 0)
@@ -307,9 +347,89 @@ object WebAppEvents {
         }.toString(),
     )
 
-    fun fullscreenFailed() = WebAppOutgoing("fullscreen_failed", """{"error":"UNSUPPORTED"}""")
+    fun fullscreenChanged(fullscreen: Boolean) = WebAppOutgoing(
+        "fullscreen_changed",
+        buildJsonObject { put("is_fullscreen", fullscreen) }.toString(),
+    )
 
-    fun homeScreenChecked() = WebAppOutgoing("home_screen_checked", """{"status":"unsupported"}""")
+    /** Stav zástupce na ploše: `added`, `missing`, `unknown` nebo `unsupported`. */
+    fun homeScreenChecked(status: String) = WebAppOutgoing(
+        "home_screen_checked",
+        buildJsonObject { put("status", status) }.toString(),
+    )
+
+    fun homeScreenAdded() = WebAppOutgoing("home_screen_added", "{}")
+
+    fun homeScreenFailed(error: String) = WebAppOutgoing(
+        "home_screen_failed",
+        buildJsonObject { put("error", error) }.toString(),
+    )
+
+    fun deviceStorageSaved(requestId: String) = WebAppOutgoing(
+        "device_storage_key_saved",
+        buildJsonObject { put("req_id", requestId) }.toString(),
+    )
+
+    /** Hodnota klíče; chybějící je `null`. */
+    fun deviceStorageReceived(requestId: String, value: String?) = WebAppOutgoing(
+        "device_storage_key_received",
+        buildJsonObject {
+            put("req_id", requestId)
+            put("value", value?.let(::JsonPrimitive) ?: JsonNull)
+        }.toString(),
+    )
+
+    fun deviceStorageCleared(requestId: String) = WebAppOutgoing(
+        "device_storage_cleared",
+        buildJsonObject { put("req_id", requestId) }.toString(),
+    )
+
+    fun deviceStorageFailed(requestId: String, error: String) = WebAppOutgoing(
+        "device_storage_failed",
+        buildJsonObject {
+            put("req_id", requestId)
+            put("error", error)
+        }.toString(),
+    )
+
+    fun secureStorageFailed(requestId: String) = WebAppOutgoing(
+        "secure_storage_failed",
+        buildJsonObject {
+            put("req_id", requestId)
+            put("error", WebAppErrors.UNSUPPORTED)
+        }.toString(),
+    )
+
+    /** Je poloha k mání a smí ji bot znát? [requested] = uživatel už odpověděl. */
+    fun locationChecked(available: Boolean, requested: Boolean, granted: Boolean) = WebAppOutgoing(
+        "location_checked",
+        buildJsonObject {
+            put("available", available)
+            put("access_requested", requested)
+            put("access_granted", granted)
+        }.toString(),
+    )
+
+    /** Poloha pro bota, nebo `available: false` (odmítnuto, nezjištěno). Výška, kurz a rychlost se nevedou. */
+    fun locationRequested(latitude: Double?, longitude: Double?) = WebAppOutgoing(
+        "location_requested",
+        buildJsonObject {
+            if (latitude == null || longitude == null) {
+                put("available", false)
+            } else {
+                put("available", true)
+                put("latitude", latitude)
+                put("longitude", longitude)
+                put("altitude", JsonNull)
+                put("course", JsonNull)
+                put("speed", JsonNull)
+                put("horizontal_accuracy", JsonNull)
+                put("vertical_accuracy", JsonNull)
+                put("course_accuracy", JsonNull)
+                put("speed_accuracy", JsonNull)
+            }
+        }.toString(),
+    )
 }
 
 /**

@@ -734,9 +734,10 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   (`docs/poznatky/notifikace.md`, „Odhrnutí notifikace"). Zbývá iOS a desktop.
 - **Most mini aplikací.** ~~`requestWriteAccess`, `shareMessage`, `requestChat`,
   `downloadFile`~~ — hotovo (`docs/poznatky/boti.md`, „Požadavky mini aplikace"); skutečnou
-  připravenou zprávu a tlačítko ověřit s botem, který je vyrobí přes Bot API. Zbývá
-  `DeviceStorage` / `SecureStorage`, poloha, celá obrazovka a zástupce na ploše; emoji status
-  z mini aplikace chce Premium.
+  připravenou zprávu a tlačítko ověřit s botem, který je vyrobí přes Bot API. ~~`DeviceStorage`,
+  poloha, celá obrazovka a zástupce na ploše (Android)~~ — hotovo (tamtéž, „Úložiště, poloha,
+  celá plocha a zástupce na ploše"). Zbývá `SecureStorage` (odpovídá „nepodporováno"),
+  zástupce na iOS a desktopu; emoji status z mini aplikace chce Premium.
 - ~~**Podobné kanály: oznámit otevření** (`openChatSimilarChat`) a podobní boti v profilu bota
   (`getBotSimilarBots`, `openBotSimilarBot`)~~ — hotovo (`docs/poznatky/profil-chatu.md`,
   „Záložka Podobné"). Zbývají náhledy mini aplikace v profilu bota (`getBotMediaPreviews`).

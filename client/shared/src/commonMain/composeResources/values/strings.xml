@@ -2400,6 +2400,9 @@
     <string name="webapp_load_failed">Couldn't open the mini app.</string>
     <string name="webapp_close_confirm_title">Close the mini app?</string>
     <string name="webapp_close_confirm_text">Unsaved changes may be lost.</string>
+    <string name="webapp_location_title">Share your location with %1$s?</string>
+    <string name="webapp_location_text">The mini app will get the current location of this device. Plume remembers your answer for this bot.</string>
+    <string name="webapp_location_allow">Share</string>
     <string name="webapp_write_access_title">Allow %1$s to message you?</string>
     <string name="webapp_write_access_text">The mini app asks to let the bot send you messages. You can stop it anytime by blocking the bot.</string>
     <string name="webapp_write_access_allow">Allow</string>

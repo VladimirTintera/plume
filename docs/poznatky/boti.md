@@ -558,6 +558,37 @@ a z oficiálních klientů (Telegram Desktop `attach_bot_webview.cpp`) — dokum
   **Skutečná připravená zpráva a tlačítko ověřené NEJSOU** — vyrobí je jen bot přes Bot API
   (`savePreparedInlineMessage`, `savePreparedKeyboardButton`) a na to je potřeba token.
 
+### Úložiště, poloha, celá plocha a zástupce na ploše
+
+- **`DeviceStorage`** (`web_app_device_storage_*`, `MiniAppStorage` v `core/webapp`): klíč → text
+  v zařízení, vlastní DataStore soubor vedle nastavení (`mini_app_storage.preferences_pb`).
+  **Klíče jsou oddělené po účtu a botovi** (účet = id Uložených zpráv) — po přihlášení jiným
+  účtem by táž mini aplikace jinak viděla data předchozího. Strop 5 MB na bota jako u
+  oficiálních klientů; přes strop `device_storage_failed` s `QUOTA_EXCEEDED`, stará data zůstanou.
+  Každý požadavek dostane odpověď, i chybovou — stránka na ni jinak čeká navždy.
+- **`SecureStorage` Plume nemá**: na každý požadavek `secure_storage_failed` s `UNSUPPORTED`.
+  Šifrované úložiště by chtělo vlastní šifrování hodnot (klíč v Keystore / Keychainu,
+  `SecretStore` drží jen jeden klíč) — zatím ne.
+- **Poloha** (`web_app_check_location` / `request_location`): bot ji dostane jen se souhlasem;
+  poprvé (a po odmítnutí znovu) se ptá dialog a odpověď se pamatuje pro účet a bota. Poloha je
+  přesná (`rememberDeviceLocation(precise = true)`), systémové oprávnění se žádá až teď.
+  Výška, kurz a rychlost se nevedou (`null`). Nastavení polohy pro boty (`open_location_settings`)
+  Plume nemá.
+- **Celá plocha** (`requestFullscreen` / `exitFullscreen`): hlavička aplikace zmizí, zpět /
+  zavřít je tónové tlačítko přes stránku a `content_safe_area` hlásí nahoře 56 dp, ať ho
+  stránka nechá volné. Pod stavovou lištu stránka nezajíždí (`statusBarsPadding`), proto
+  `safe_area` zůstává nulová.
+- **Zástupce na ploše** (`addToHomeScreen`, `checkHomeScreenStatus`; `HomeScreenShortcuts`,
+  jen Android): připnutý zástupce s ikonou aplikace otevírá `t.me/<bot>?startapp` přímo
+  v Plume — tudy vede i odkaz zvenčí (souhlas, hlavní mini aplikace). Stav `added` / `missing`
+  podle připnutých zástupců; bot bez uživatelského jména a iOS / desktop → `unsupported`.
+- **Ověřeno na emulátoru** v Durger Kingu přes CDP (`Telegram.WebApp.*` z konzole WebView):
+  DeviceStorage zápis, čtení, smazání (pak `null`); SecureStorage → `UNSUPPORTED`; celá plocha
+  `isFullscreen=true`, `contentSafeAreaInset.top=56`, hlavička pryč a zpět; poloha → dialog,
+  po odmítnutí `null`; zástupce `missing` → dialog launcheru → `added`, a ťuknutí na zástupce
+  otevřelo mini aplikaci i ze studeného startu. Sdílení polohy se schválením se nezkoušelo
+  (cizímu botovi).
+
 ## Strážní bot u vstupu do chatu
 
 Skupina nebo kanál může vstup svěřit botovi („guard bot"): `joinChatByInviteLink` i `joinChat`

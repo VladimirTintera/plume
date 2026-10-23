@@ -69,6 +69,9 @@ interface WebAppRepository {
     /** Jméno bota do hlavičky (`@jméno`, jinak jméno). */
     suspend fun botName(botUserId: Long): String?
 
+    /** Uživatelské jméno bota bez `@` (pro odkaz `t.me/<bot>?startapp`); `null` = nemá. */
+    suspend fun botUsername(botUserId: Long): String? = null
+
     /**
      * Smí bot uživateli už psát (`canBotSendMessages`)? `false` i tehdy, když se to nepodařilo
      * zjistit — pak se uživatel zeptá, a dovolení navíc nic nerozbije.

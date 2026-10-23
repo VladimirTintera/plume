@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
+import eu.tintera.plume.di.MINI_APP_STORAGE
 import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.ui.UnsupportedStoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
@@ -168,6 +170,7 @@ actual fun Module.platformModule() {
     single { EarSensor() }
 
     single { createSettingsDataStore(File(desktopDataDirectory, SETTINGS_FILE_NAME).path) }
+    single(named(MINI_APP_STORAGE)) { createSettingsDataStore(File(desktopDataDirectory, MINI_APP_STORAGE_FILE_NAME).path) }
 }
 
 /**

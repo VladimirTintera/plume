@@ -121,4 +121,52 @@ class WebAppBridgeTest {
         assertEquals(0xAABBCC, parseHexColor("#abc"))
         assertEquals(null, parseHexColor("red"))
     }
+
+    @Test
+    fun ulozisteVZarizeni() {
+        assertEquals(
+            WebAppEvent.DeviceStorageSave("r1", "skore", "42"),
+            parseWebAppEvent("web_app_device_storage_save_key", """{"req_id":"r1","key":"skore","value":"42"}"""),
+        )
+        // `removeItem` posílá null.
+        assertEquals(
+            WebAppEvent.DeviceStorageSave("r2", "skore", null),
+            parseWebAppEvent("web_app_device_storage_save_key", """{"req_id":"r2","key":"skore","value":null}"""),
+        )
+        assertEquals(
+            WebAppEvent.DeviceStorageGet("r3", "skore"),
+            parseWebAppEvent("web_app_device_storage_get_key", """{"req_id":"r3","key":"skore"}"""),
+        )
+        assertEquals(WebAppEvent.DeviceStorageClear("r4"), parseWebAppEvent("web_app_device_storage_clear", """{"req_id":"r4"}"""))
+        assertEquals(
+            WebAppOutgoing("device_storage_key_received", """{"req_id":"r3","value":null}"""),
+            WebAppEvents.deviceStorageReceived("r3", null),
+        )
+        assertEquals(
+            WebAppOutgoing("device_storage_failed", """{"req_id":"r1","error":"QUOTA_EXCEEDED"}"""),
+            WebAppEvents.deviceStorageFailed("r1", WebAppErrors.QUOTA_EXCEEDED),
+        )
+    }
+
+    /** Zabezpečené úložiště Plume nemá: každý jeho požadavek dostane chybu, jinak by stránka visela. */
+    @Test
+    fun zabezpeceneUlozisteOdmitne() {
+        assertEquals(WebAppEvent.SecureStorage("s1"), parseWebAppEvent("web_app_secure_storage_get_key", """{"req_id":"s1","key":"t"}"""))
+        assertEquals(
+            WebAppOutgoing("secure_storage_failed", """{"req_id":"s1","error":"UNSUPPORTED"}"""),
+            WebAppEvents.secureStorageFailed("s1"),
+        )
+    }
+
+    @Test
+    fun polohaCelaPlochaAZastupce() {
+        assertEquals(WebAppEvent.CheckLocation, parseWebAppEvent("web_app_check_location", null))
+        assertEquals(WebAppEvent.RequestLocation, parseWebAppEvent("web_app_request_location", "{}"))
+        assertEquals(WebAppEvent.ExitFullscreen, parseWebAppEvent("web_app_exit_fullscreen", null))
+        assertEquals(WebAppEvent.AddToHomeScreen, parseWebAppEvent("web_app_add_to_home_screen", null))
+        assertEquals(WebAppOutgoing("location_requested", """{"available":false}"""), WebAppEvents.locationRequested(null, null))
+        assertTrue(WebAppEvents.locationRequested(50.08, 14.42).data.contains(""""latitude":50.08"""))
+        assertEquals(WebAppOutgoing("fullscreen_changed", """{"is_fullscreen":true}"""), WebAppEvents.fullscreenChanged(true))
+        assertEquals(WebAppOutgoing("home_screen_checked", """{"status":"missing"}"""), WebAppEvents.homeScreenChecked("missing"))
+    }
 }
