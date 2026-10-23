@@ -723,6 +723,24 @@ private fun ProfileTabs(
     val scope = rememberCoroutineScope()
     val collapseFirst = remember(scrollState) { collapseFirst(scrollState) }
 
+    // Hlavní záložka, kterou zvolil člověk nebo správci kanálu: profil na ni přeskočí, jakmile
+    // se objeví (záložky přibývají, jak dorážejí počty a dárky). Jen jednou a jen dokud uživatel
+    // sám nepřepnul — jinak by mu záložka pod rukama uskočila.
+    val mainTab = state.profile?.mainTab?.toProfileTab()
+    var mainTabDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(mainTab, tabs) {
+        if (mainTabDone || mainTab == null) return@LaunchedEffect
+        if (pagerState.currentPage != 0) {
+            mainTabDone = true
+            return@LaunchedEffect
+        }
+        val index = tabs.indexOf(mainTab)
+        if (index >= 0) {
+            pagerState.scrollToPage(index)
+            mainTabDone = true
+        }
+    }
+
     // Stránky začínají pod záložkami a mají vzduch od okrajů, jako skupiny v seznamu chatů.
     val contentPadding = PaddingValues(
         start = 16.dp,

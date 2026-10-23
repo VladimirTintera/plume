@@ -162,6 +162,7 @@ class TdlProfileRepository(
                 val full = client.getSupergroupFullInfo(supergroupId = type.supergroupId).toResult().getOrNull()
                 base.withAbout(describe(full?.description.orEmpty())).copy(
                     kind = if (type.isChannel) ProfileKind.Channel else ProfileKind.Group,
+                    mainTab = full?.mainProfileTab?.toDomain(),
                     verification = group?.verificationStatus.toVerification(),
                     botVerification = botVerificationNote(full?.botVerification),
                     usernames = group?.usernames?.activeUsernames?.toList().orEmpty(),
@@ -236,6 +237,7 @@ class TdlProfileRepository(
             // TDLib posílá číslo bez „+"; prázdné = uživatel ho neukazuje.
             phone = user.phoneNumber.takeIf { it.isNotBlank() }?.let { "+$it" },
             birthdate = full?.birthdate?.toDomain(),
+            mainTab = full?.mainProfileTab?.toDomain(),
             personalChannel = full?.personalChatId?.takeIf { it != 0L }?.let { client.personalChannel(it) },
             userId = userId,
             isBlocked = full?.blockList != null,
@@ -418,7 +420,7 @@ class TdlProfileRepository(
             isOwner = owner,
             isBroadcastGroup = supergroup?.isBroadcastGroup == true,
             settings = chat.memberGroupKind()?.let { kind ->
-                groupSettings(chat, kind, own, supergroup, supergroupInfo)
+                groupSettings(chat, kind, own, supergroup, supergroupInfo, sponsoredBoosts = { sponsoredBoostLevels(chat.id) })
             } ?: GroupSettings(),
             moderation = (chat.type as? ChatTypeSupergroup)?.takeIf { own.canModerate() }?.let { type ->
                 MemberModeration(
@@ -442,13 +444,26 @@ class TdlProfileRepository(
             limit = 1,
         ).toResult().getOrNull()?.totalCount ?: 0
 
+    /**
+     * Současná úroveň kanálu a úroveň, od které jdou vypnout reklamy — dva dotazy, proto jen
+     * pro vlastníka kanálu ([groupSettings] je volá, až když se reklamy nabízejí). `null` =
+     * server neodpověděl; vypnutí se pak nenabídne.
+     */
+    private suspend fun sponsoredBoostLevels(chatId: Long): Pair<Int, Int>? {
+        val level = client.getChatBoostStatus(chatId = chatId).toResult().getOrNull()?.level ?: return null
+        val min = client.getChatBoostFeatures(isChannel = true).toResult().getOrNull()
+            ?.minSponsoredMessageDisableBoostLevel ?: return null
+        return level to min
+    }
+
     /** Současné nastavení, zúžené na to, co [groupSettingsOffer] nabídne. */
-    private fun groupSettings(
+    private suspend fun groupSettings(
         chat: Chat,
         kind: MemberGroupKind,
         own: OwnMemberStatus?,
         supergroup: Supergroup?,
         info: SupergroupFullInfo?,
+        sponsoredBoosts: suspend () -> Pair<Int, Int>?,
     ): GroupSettings {
         val offer = groupSettingsOffer(
             kind = kind,
@@ -474,6 +489,17 @@ class TdlProfileRepository(
             slowModeDelay = info?.slowModeDelay?.takeIf { offer.slowMode },
             toggles = offer.toggles.associateWith(::value),
             reactions = chat.availableReactions.toChatReactions().takeIf { offer.reactions },
+            unrestrictBoostCount = info?.unrestrictBoostCount?.takeIf { offer.unrestrictBoosts },
+            sponsoredMessages = if (offer.sponsoredMessages && info != null) {
+                val levels = sponsoredBoosts()
+                SponsoredMessagesSetting(
+                    enabled = info.canHaveSponsoredMessages,
+                    level = levels?.first ?: 0,
+                    // Neznámá mez = vypnout nejde (úroveň 0 by ji jinak „splnila").
+                    minLevel = levels?.second ?: Int.MAX_VALUE,
+                )
+            } else null,
+            mainTab = MainTabSetting(info?.mainProfileTab?.toDomain()).takeIf { offer.mainTab && info != null },
         )
     }
 
@@ -570,6 +596,28 @@ class TdlProfileRepository(
 
     override suspend fun setSlowMode(chatId: Long, seconds: Int): Result<Unit> =
         client.setChatSlowModeDelay(chatId = chatId, slowModeDelay = seconds).toResult().map { }
+
+    private suspend fun supergroupIdOf(chatId: Long): Long =
+        (client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup)?.supergroupId
+            ?: error("Chat $chatId není supergroup ani kanál.")
+
+    override suspend fun setUnrestrictBoostCount(chatId: Long, count: Int): Result<Unit> = runCatching {
+        client.setSupergroupUnrestrictBoostCount(supergroupId = supergroupIdOf(chatId), unrestrictBoostCount = count)
+            .toResult().getOrThrow()
+        Unit
+    }
+
+    override suspend fun setSponsoredMessages(chatId: Long, enabled: Boolean): Result<Unit> = runCatching {
+        client.toggleSupergroupCanHaveSponsoredMessages(supergroupId = supergroupIdOf(chatId), canHaveSponsoredMessages = enabled)
+            .toResult().getOrThrow()
+        Unit
+    }
+
+    override suspend fun setMainProfileTab(chatId: Long, tab: ProfileMainTab): Result<Unit> = runCatching {
+        client.setSupergroupMainProfileTab(supergroupId = supergroupIdOf(chatId), mainProfileTab = tab.toTdl())
+            .toResult().getOrThrow()
+        Unit
+    }
 
     override suspend fun setGroupToggle(chatId: Long, toggle: GroupToggle, value: Boolean): Result<Unit> = runCatching {
         if (toggle == GroupToggle.ProtectedContent) {

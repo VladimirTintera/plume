@@ -286,6 +286,15 @@ interface ProfileRepository {
      */
     suspend fun setReactions(chatId: Long, reactions: ChatReactions): Result<Unit>
 
+    /** Boosty, se kterými člen obejde pomalý režim a omezení; hodnoty z [UNRESTRICT_BOOST_COUNTS]. */
+    suspend fun setUnrestrictBoostCount(chatId: Long, count: Int): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Reklamy v kanálu zapnout / vypnout (vypnout jen od úrovně z [SponsoredMessagesSetting]). */
+    suspend fun setSponsoredMessages(chatId: Long, enabled: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Hlavní záložka profilu kanálu. */
+    suspend fun setMainProfileTab(chatId: Long, tab: ProfileMainTab): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /**
      * Jeden člen se vším, co jeho správa potřebuje — role, práva, omezení a hlavně
      * [MemberDetail.actions], tedy co s ním smí právě tenhle uživatel.
@@ -526,6 +535,8 @@ data class ChatProfile(
     val collectibleUsernames: Set<String> = emptySet(),
     /** Datum narození uživatele, jen když ho vidět smím; u skupiny a kanálu `null`. */
     val birthdate: Birthdate? = null,
+    /** Záložka, na které se má profil otevřít (zvolil ji člověk nebo správci kanálu); `null` = žádná. */
+    val mainTab: ProfileMainTab? = null,
     /** Kanál, který uživatel ukazuje v profilu; jinak `null`. */
     val personalChannel: PersonalChannel? = null,
     /** Počet členů / odběratelů; u soukromého chatu `null`. */

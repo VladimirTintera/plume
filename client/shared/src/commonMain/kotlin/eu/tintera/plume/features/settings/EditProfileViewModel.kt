@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.telegram.ProfileMainTab
+import eu.tintera.plume.resources.edit_profile_main_tab_failed
 import eu.tintera.plume.core.telegram.ProfilePhotoFile
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -74,6 +76,13 @@ class EditProfileViewModel(
     var usernames by mutableStateOf(AccountUsernames())
         private set
 
+    /**
+     * Hlavní záložka profilu, jak ji uvidí ostatní; `null` = nevybraná. Ukládá se hned, jako
+     * uživatelská jména — není to rozepsaný text.
+     */
+    var mainTab by mutableStateOf<ProfileMainTab?>(null)
+        private set
+
     /** Osobní kanál v profilu; `null` = žádný. Ukládá se tlačítkem Uložit. */
     var personalChannel by mutableStateOf<PersonalChannel?>(null)
 
@@ -115,6 +124,7 @@ class EditProfileViewModel(
                     birthdate = profile.birthdate
                     personalChannel = profile.personalChannel
                     usernames = profile.usernames
+                    mainTab = profile.mainTab
                     // Datum bez roku: rok ukazovat nechtěl. Bez data: nové datum rok ukazuje.
                     showBirthYear = profile.birthdate?.year != null || profile.birthdate == null
                 }
@@ -300,6 +310,18 @@ class EditProfileViewModel(
                 .onSuccess { reloadPhoto() }
                 .onFailure { notice = it.reported(Res.string.edit_profile_photo_failed) }
             photoBusy = false
+        }
+    }
+
+    fun chooseMainTab(tab: ProfileMainTab) {
+        val previous = mainTab
+        if (previous == tab) return
+        mainTab = tab
+        viewModelScope.launch {
+            account.setMainProfileTab(tab).onFailure { failure ->
+                mainTab = previous
+                notice = failure.reported(Res.string.edit_profile_main_tab_failed)
+            }
         }
     }
 

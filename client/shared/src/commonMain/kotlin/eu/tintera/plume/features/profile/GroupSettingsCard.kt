@@ -1,5 +1,17 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.ProfileMainTab
+import eu.tintera.plume.core.telegram.UNRESTRICT_BOOST_COUNTS
+import eu.tintera.plume.core.ui.ChoiceRow
+import eu.tintera.plume.resources.rocket_launch_24dp
+import eu.tintera.plume.resources.edit_chat_unrestrict_boosts
+import eu.tintera.plume.resources.edit_chat_unrestrict_boosts_help
+import eu.tintera.plume.resources.edit_chat_unrestrict_boosts_off
+import eu.tintera.plume.resources.edit_chat_unrestrict_boosts_count
+import eu.tintera.plume.resources.edit_chat_sponsored
+import eu.tintera.plume.resources.edit_chat_sponsored_help
+import eu.tintera.plume.resources.edit_chat_sponsored_locked
+import eu.tintera.plume.resources.edit_chat_sponsored_unknown
 import eu.tintera.plume.core.ui.MediumButton
 import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -94,6 +106,9 @@ internal fun GroupSettingsCard(
     onOpenSlowMode: () -> Unit,
     onOpenReactions: () -> Unit,
     onToggle: (GroupToggle, Boolean) -> Unit,
+    onUnrestrictBoosts: (Int) -> Unit = {},
+    onSponsoredMessages: (Boolean) -> Unit = {},
+    onMainTab: (ProfileMainTab) -> Unit = {},
 ) {
     val haptics = LocalHapticFeedback.current
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -129,6 +144,48 @@ internal fun GroupSettingsCard(
                 val (title, help) = toggle.texts()
                 ToggleRow(title, help, checked, haptics) { onToggle(toggle, it) }
             }
+            settings.unrestrictBoostCount?.let { count ->
+                ChoiceRow(
+                    headline = stringResource(Res.string.edit_chat_unrestrict_boosts),
+                    options = UNRESTRICT_BOOST_COUNTS,
+                    selected = count,
+                    label = { boostCountLabel(it) },
+                    onSelect = onUnrestrictBoosts,
+                    icon = Res.drawable.rocket_launch_24dp,
+                    note = stringResource(Res.string.edit_chat_unrestrict_boosts_help),
+                )
+            }
+            settings.sponsoredMessages?.let { sponsored ->
+                // Zapnout jde vždycky, vypnout až od úrovně boostů — jinak je přepínač zamčený
+                // a věta pod ním říká, kolik chybí.
+                val locked = sponsored.enabled && !sponsored.canDisable
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(Res.string.edit_chat_sponsored)) },
+                    supportingContent = {
+                        Text(
+                            if (sponsored.canDisable || !sponsored.enabled) {
+                                stringResource(Res.string.edit_chat_sponsored_help)
+                            } else if (sponsored.minLevel == Int.MAX_VALUE) {
+                                stringResource(Res.string.edit_chat_sponsored_unknown)
+                            } else {
+                                stringResource(Res.string.edit_chat_sponsored_locked, sponsored.minLevel, sponsored.level)
+                            },
+                        )
+                    },
+                    trailingContent = { IconSwitch(checked = sponsored.enabled, onCheckedChange = null, enabled = !locked) },
+                    modifier = Modifier.toggleable(
+                        value = sponsored.enabled,
+                        enabled = !locked,
+                        role = Role.Switch,
+                        onValueChange = { on ->
+                            haptics.toggle(on)
+                            onSponsoredMessages(on)
+                        },
+                    ),
+                )
+            }
+            settings.mainTab?.let { setting -> MainTabRow(current = setting.current, onSelect = onMainTab) }
         }
     }
 }
@@ -168,6 +225,10 @@ private fun GroupToggle.texts(): Pair<StringResource, StringResource> = when (th
     GroupToggle.ProtectedContent ->
         Res.string.edit_chat_toggle_protected_content to Res.string.edit_chat_toggle_protected_content_help
 }
+
+@Composable
+private fun boostCountLabel(count: Int): String =
+    if (count == 0) stringResource(Res.string.edit_chat_unrestrict_boosts_off) else pluralStringResource(Res.plurals.edit_chat_unrestrict_boosts_count, count, count)
 
 @Composable
 private fun slowModeLabel(seconds: Int): String =

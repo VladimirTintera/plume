@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.MainTabSetting
+import eu.tintera.plume.core.telegram.ProfileMainTab
+import eu.tintera.plume.core.telegram.SponsoredMessagesSetting
 import eu.tintera.plume.core.telegram.ProfilePhotoFile
 import eu.tintera.plume.resources.broadcast_group_failed
 import eu.tintera.plume.resources.broadcast_group_done
@@ -648,6 +651,43 @@ class EditChatViewModel(
         viewModelScope.launch {
             repository.setGroupToggle(chatId, toggle, value).onFailure { failure ->
                 settings = settings.copy(toggles = before)
+                notice = failure.reported(Res.string.edit_chat_setting_failed)
+            }
+        }
+    }
+
+    fun setUnrestrictBoosts(count: Int) {
+        val previous = settings.unrestrictBoostCount ?: return
+        if (previous == count) return
+        settings = settings.copy(unrestrictBoostCount = count)
+        viewModelScope.launch {
+            repository.setUnrestrictBoostCount(chatId, count).onFailure { failure ->
+                settings = settings.copy(unrestrictBoostCount = previous)
+                notice = failure.reported(Res.string.edit_chat_setting_failed)
+            }
+        }
+    }
+
+    /** Vypnout jen od úrovně boostů ([SponsoredMessagesSetting.canDisable]); karta to hlídá taky. */
+    fun setSponsoredMessages(enabled: Boolean) {
+        val previous = settings.sponsoredMessages ?: return
+        if (previous.enabled == enabled || (!enabled && !previous.canDisable)) return
+        settings = settings.copy(sponsoredMessages = previous.copy(enabled = enabled))
+        viewModelScope.launch {
+            repository.setSponsoredMessages(chatId, enabled).onFailure { failure ->
+                settings = settings.copy(sponsoredMessages = previous)
+                notice = failure.reported(Res.string.edit_chat_setting_failed)
+            }
+        }
+    }
+
+    fun setMainTab(tab: ProfileMainTab) {
+        val previous = settings.mainTab ?: return
+        if (previous.current == tab) return
+        settings = settings.copy(mainTab = MainTabSetting(tab))
+        viewModelScope.launch {
+            repository.setMainProfileTab(chatId, tab).onFailure { failure ->
+                settings = settings.copy(mainTab = previous)
                 notice = failure.reported(Res.string.edit_chat_setting_failed)
             }
         }

@@ -535,6 +535,9 @@ fun EditChatScreen(
                         onOpenSlowMode = { showSlowMode = true },
                         onOpenReactions = { showReactions = true },
                         onToggle = viewModel::setToggle,
+                        onUnrestrictBoosts = viewModel::setUnrestrictBoosts,
+                        onSponsoredMessages = viewModel::setSponsoredMessages,
+                        onMainTab = viewModel::setMainTab,
                     )
                 }
 

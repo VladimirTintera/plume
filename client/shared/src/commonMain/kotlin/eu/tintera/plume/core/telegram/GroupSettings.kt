@@ -49,6 +49,24 @@ data class ChatReactions(val all: Boolean, val emojis: List<String> = emptyList(
 }
 
 /**
+ * Hlavní záložka profilu (`ProfileTab` v TDLib): na ní se profil otevře v každém klientovi.
+ * [Posts] jsou příběhy ponechané v profilu.
+ */
+enum class ProfileMainTab { Posts, Gifts, Media, Files, Links, Music, Voice, Gifs }
+
+/**
+ * Reklamy v kanálu (`canHaveSponsoredMessages`, hodnotu zná jen vlastník). Zapnout jdou vždycky,
+ * vypnout až od úrovně boostů [minLevel] (`minSponsoredMessageDisableBoostLevel`); [level] je
+ * současná úroveň kanálu.
+ */
+data class SponsoredMessagesSetting(val enabled: Boolean, val level: Int, val minLevel: Int) {
+    val canDisable: Boolean get() = level >= minLevel
+}
+
+/** Hlavní záložka kanálu; [current] `null` = správci nevybrali, klient volí sám. */
+data class MainTabSetting(val current: ProfileMainTab?)
+
+/**
  * Nastavení, jak ho uživatel vidí a smí měnit. Co v něm chybí (`null`, chybějící klíč), se
  * nenabízí.
  */
@@ -59,8 +77,19 @@ data class GroupSettings(
     val toggles: Map<GroupToggle, Boolean> = emptyMap(),
     /** Povolené reakce; `null` = nenabízí se. */
     val reactions: ChatReactions? = null,
+    /**
+     * Kolikrát musí člen skupinu boostnout, aby obešel pomalý režim a omezení práv
+     * (`unrestrictBoostCount`, 0 = volba vypnutá); `null` = nenabízí se.
+     */
+    val unrestrictBoostCount: Int? = null,
+    /** Reklamy v kanálu; `null` = nenabízí se. */
+    val sponsoredMessages: SponsoredMessagesSetting? = null,
+    /** Hlavní záložka profilu kanálu; `null` = nenabízí se. */
+    val mainTab: MainTabSetting? = null,
 ) {
-    val any: Boolean get() = slowModeDelay != null || toggles.isNotEmpty() || reactions != null
+    val any: Boolean
+        get() = slowModeDelay != null || toggles.isNotEmpty() || reactions != null ||
+            unrestrictBoostCount != null || sponsoredMessages != null || mainTab != null
 }
 
 /** Co se nabídne — výsledek [groupSettingsOffer], bez hodnot. */
@@ -68,6 +97,9 @@ data class GroupSettingsOffer(
     val slowMode: Boolean = false,
     val toggles: Set<GroupToggle> = emptySet(),
     val reactions: Boolean = false,
+    val unrestrictBoosts: Boolean = false,
+    val sponsoredMessages: Boolean = false,
+    val mainTab: Boolean = false,
 )
 
 /**
@@ -87,6 +119,10 @@ data class GroupSettingsOffer(
  *   `SupergroupFullInfo`) — závisí na velikosti skupiny, ne jen na právech.
  * - **Podpisy a profily autorů jen v kanálu.**
  * - **Přímé zprávy jen v kanálu a jen vlastník** („requires owner privileges").
+ * - **Boosty pro obejití omezení jen v supergroupě s právem omezovat**
+ *   (`setSupergroupUnrestrictBoostCount`), **reklamy jen vlastník kanálu**
+ *   (`toggleSupergroupCanHaveSponsoredMessages`), **hlavní záložka jen kanál s právem měnit údaje**
+ *   (`setSupergroupMainProfileTab`).
  */
 internal fun groupSettingsOffer(
     kind: MemberGroupKind,
@@ -122,8 +158,14 @@ internal fun groupSettingsOffer(
         slowMode = supergroup && restrict,
         toggles = toggles,
         reactions = changeInfo,
+        unrestrictBoosts = supergroup && restrict,
+        sponsoredMessages = channel && owner,
+        mainTab = channel && changeInfo,
     )
 }
+
+/** Počty boostů, které TDLib přijme (`setSupergroupUnrestrictBoostCount`); 0 = vypnout. */
+val UNRESTRICT_BOOST_COUNTS: List<Int> = (0..8).toList()
 
 /** Doby pomalého režimu, které TDLib přijme (`setChatSlowModeDelay`), v sekundách. */
 val SLOW_MODE_DELAYS = listOf(0, 5, 10, 30, 60, 300, 900, 3600)

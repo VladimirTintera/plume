@@ -1963,6 +1963,7 @@
     <string name="profile_notif_reset_group">Use group settings</string>
     <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_save">Save</string>
+    <string name="edit_profile_main_tab_failed">Couldn't change the main profile tab.</string>
     <string name="edit_profile_change_photo">Change photo</string>
     <string name="emoji_photo_open">From emoji</string>
     <string name="emoji_photo_title">Photo from emoji</string>
@@ -2739,6 +2740,20 @@
     </plurals>
     <string name="edit_chat_settings_group">Group settings</string>
     <string name="edit_chat_settings_channel">Channel settings</string>
+    <string name="edit_chat_unrestrict_boosts">Boosts to bypass restrictions</string>
+    <string name="edit_chat_unrestrict_boosts_help">Members who boost the group this many times can ignore slow mode and member restrictions.</string>
+    <string name="edit_chat_unrestrict_boosts_off">Off</string>
+    <plurals name="edit_chat_unrestrict_boosts_count">
+        <item quantity="one">After %1$d boost</item>
+        <item quantity="other">After %1$d boosts</item>
+    </plurals>
+    <string name="edit_chat_sponsored">Sponsored messages</string>
+    <string name="edit_chat_sponsored_help">Telegram shows sponsored messages to subscribers.</string>
+    <string name="edit_chat_sponsored_locked">You can turn them off from boost level %1$d. The channel is at level %2$d.</string>
+    <string name="edit_chat_sponsored_unknown">Turning them off depends on the channel's boost level, which couldn't be loaded.</string>
+    <string name="main_tab">Main profile tab</string>
+    <string name="main_tab_auto">Automatic</string>
+    <string name="main_tab_note">The profile opens on this tab in every app.</string>
     <string name="edit_chat_slow_mode">Slow mode</string>
     <string name="edit_chat_slow_mode_off">Off</string>
     <string name="edit_chat_slow_mode_help">How often a member can send a message. Admins aren't limited.</string>

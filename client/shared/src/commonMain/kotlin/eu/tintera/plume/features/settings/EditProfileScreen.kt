@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.features.profile.MainTabRow
 import androidx.compose.foundation.layout.FlowRow
 import eu.tintera.plume.features.profile.EmojiPhotoSheet
 import eu.tintera.plume.resources.mood_24dp
@@ -307,6 +308,7 @@ fun EditProfileScreen(
                         onOpen = viewModel::loadSuitableChannels,
                         onChange = { viewModel.personalChannel = it },
                     )
+                    MainTabRow(current = viewModel.mainTab, onSelect = viewModel::chooseMainTab)
                     PhoneNumberRow(onClick = onChangePhone)
                 }
                 OwnProfileMusicSection(onNotice = { viewModel.notice = it })
