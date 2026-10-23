@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.resources.story_cover_title
+import eu.tintera.plume.resources.story_cover_hint
 import eu.tintera.plume.core.telegram.StoryPoster
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.story_edit_title
@@ -169,7 +171,17 @@ fun StoryComposerScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(if (viewModel.edit != null) Res.string.story_edit_title else Res.string.story_compose_title)) },
+                title = {
+                    Text(
+                        stringResource(
+                            when {
+                                viewModel.edit?.coverOnly == true -> Res.string.story_cover_title
+                                viewModel.edit != null -> Res.string.story_edit_title
+                                else -> Res.string.story_compose_title
+                            },
+                        ),
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack, enabled = !state.posting, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
@@ -210,6 +222,17 @@ fun StoryComposerScreen(
                     ) {
                         VideoTrimBar(control, Modifier.fillMaxWidth(), labels = VideoTrimLabels.StoryCover)
                     }
+                }
+                // Jen obálka: video už je zveřejněné, ořez ani popisek se tu nemění.
+                if (viewModel.edit?.coverOnly == true) {
+                    Text(
+                        stringResource(Res.string.story_cover_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    return@Column
                 }
                 if (viewModel.isVideo && (state.trimmed || state.posting)) {
                     Text(

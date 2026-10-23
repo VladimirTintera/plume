@@ -47,6 +47,11 @@ class StoryComposerViewModelTest {
     ) : StoryRepository {
         val drafts = mutableListOf<StoryDraft>()
         val replaced = mutableListOf<Triple<Int, StoryMedia, String>>()
+        val covers = mutableListOf<Pair<Int, Double>>()
+        override suspend fun editCover(posterChatId: Long, storyId: Int, coverSeconds: Double): Result<Unit> {
+            covers += storyId to coverSeconds
+            return Result.success(Unit)
+        }
         override suspend fun postTargets() = Result.success(targets)
         override suspend fun canPostAs(chatId: Long) = channelCheck
         override suspend fun replaceMedia(posterChatId: Long, storyId: Int, media: StoryMedia, caption: String): Result<Unit> {
@@ -161,6 +166,32 @@ class StoryComposerViewModelTest {
 
         assertTrue(repository.drafts.isEmpty())
         assertEquals(listOf(Triple(42, StoryMedia.Photo("nova.jpg.story.jpg") as StoryMedia, "Nový")), repository.replaced)
+        assertTrue(viewModel.state.value.posted)
+    }
+
+    /** Jen obálka: nic se nepřevádí ani nezveřejňuje, jde čas vybraného snímku. */
+    @Test
+    fun coverOnlySavesCoverTimestamp() = runTest {
+        val repository = Posting()
+        val videos = Videos(durationMs = 20_000)
+        val viewModel = StoryComposerViewModel(
+            "pribeh.mp4",
+            isVideo = true,
+            repository = repository,
+            storyPhoto = Renderer(),
+            storyVideo = videos,
+            edit = StoryEditTarget(posterChatId = 7, storyId = 42, caption = "", coverOnly = true),
+        )
+        advanceUntilIdle()
+        val control = assertNotNull(viewModel.video)
+        control.chooseCover(5_000)
+        viewModel.post()
+        advanceUntilIdle()
+
+        assertEquals(listOf(42 to 5.0), repository.covers)
+        assertTrue(repository.drafts.isEmpty())
+        assertTrue(repository.replaced.isEmpty())
+        assertTrue(videos.fills.isEmpty(), "video se nepřevádí")
         assertTrue(viewModel.state.value.posted)
     }
 

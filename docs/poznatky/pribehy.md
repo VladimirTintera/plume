@@ -129,8 +129,16 @@ příběh, který v profilu je.
   s `editStoryId`, `StoryEditTarget`) — fotka i video se převedou stejně (plátno 1080 × 1920,
   video 720 × 1280), popisek je předvyplněný a ukládá se s médiem. Viditelnost a ostatní volby
   editor v režimu úprav neukazuje, příběh je má svoje. Po návratu prohlížeč příběh dočte znovu
-  (`reloadReplaced` v `LifecycleResumeEffect`), jinak by ukazoval staré soubory. **Jen obálka
-  videa (`editStoryCover`) zvlášť není** — nová obálka se vybere s novým videem.
+  (`reloadReplaced` v `LifecycleResumeEffect`), jinak by ukazoval staré soubory.
+- **Změnit obálku** videa (`editStoryCover`, `StoryRepository.editCover`): TENTÝŽ editor
+  v režimu „jen obálka" (`StoryEditTarget.coverOnly`) nad staženým videem příběhu — pás snímků
+  na výběr obálky, bez ořezu, výplně a popisku; nic se nepřevádí ani nenahrává, jde jen čas
+  snímku od začátku videa. Položka v ⋮ je jen u videa a až je stažené (editor čte snímky
+  ze souboru); dokud se stahuje, chybí.
+- **Pod editorem prohlížeč stojí** (`covered` z životního cyklu položky: pod RESUMED = jiná
+  obrazovka nahoře). Bez toho příběh dojel, prohlížeč se zavřel a po uložení nebylo kam se
+  vrátit. Čte se `collectAsState`, NE `…WithLifecycle` — to by sběr při zastavení vypnulo
+  a přechod by nepoznalo.
   - **Během výběru fotky příběh stojí** (`replaceKey` v `paused`). Výběr fotek na Androidu je
     panel přes aplikaci, ne celá obrazovka, a prohlížeč pod ním dál běžel: příběh dojel,
     prohlížeč se zavřel a vybraná fotka neměla kam dojít — editor se vůbec neotevřel (ověřeno
@@ -285,7 +293,12 @@ Lišta pod cizím příběhem (`StoryReplyBar`): pole „Odpovědět…", „+" 
   srdce bez ohledu na `setDefaultReactionType` (ta platí pro dvojité ťuknutí na zprávu). Klíč je
   `❤` BEZ variačního selektoru — tak ho vede Telegram v seznamu reakcí. Je-li reakce dána, místo
   srdce stojí ona a ťuknutí ji sundá; „+" otevře tentýž výběr jako prohlížeč médií
-  (`ReactionPickerSheet`, emoji z `QuickReaction.choices`).
+  (`ReactionPickerSheet`).
+- **Nabídka „+" je od serveru pro příběhy** (`getStoryAvailableReactions`,
+  `StoryRepository.availableReactions`, jednou při otevření prohlížeče): v jeho pořadí, i vlastní
+  emoji; reakce, které chtějí Premium, se bez něj vynechají (jako u zprávy). Dokud nedorazí nebo
+  když selže, je tam výběr rychlé reakce jako dřív (`QuickReaction.choices`). Ověřeno na
+  příběhu kanálu: nabídka ❤ 👍 🔥 … v pořadí od serveru, jiném než rychlá reakce (bez reakce).
 - **Reakce se přepne hned a při chybě vrátí** (jako u zprávy) — `setStoryReaction` s `null`
   sundává. Velké emoji přes příběh potvrdí reakci i bez pohledu na lištu.
 - **Odpověď je zpráva do soukromého chatu s autorem** (`sendMessage` s

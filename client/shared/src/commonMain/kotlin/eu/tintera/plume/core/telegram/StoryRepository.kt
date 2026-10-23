@@ -153,6 +153,17 @@ interface StoryRepository {
      */
     suspend fun postTargets(): Result<List<StoryPoster>> = Result.success(emptyList())
 
+    /** Nová obálka videa zveřejněného příběhu (`editStoryCover`): snímek v čase [coverSeconds]. */
+    suspend fun editCover(posterChatId: Long, storyId: Int, coverSeconds: Double): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
+     * Reakce, které jde dát na příběh (`getStoryAvailableReactions`), v pořadí od serveru, jako
+     * klíče reakcí ([customEmojiReaction] u vlastních emoji). Reakce, které chtějí Premium,
+     * se bez něj vynechají.
+     */
+    suspend fun availableReactions(): Result<List<String>> = Result.success(emptyList())
+
     /** Smí se teď zveřejnit příběh za chat [chatId] (`canPostStory`)? Vlastní účet viz [canPost]. */
     suspend fun canPostAs(chatId: Long): StoryPostCheck = StoryPostCheck.Allowed
 }

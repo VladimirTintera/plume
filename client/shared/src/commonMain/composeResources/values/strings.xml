@@ -3281,6 +3281,9 @@
     <string name="story_limit_premium">Posting stories from this account needs Telegram Premium.</string>
     <string name="story_post_not_allowed">You can’t post a story here.</string>
     <string name="story_post_live_active">You can’t post a story while your live stream is on.</string>
+    <string name="story_cover_menu">Change cover</string>
+    <string name="story_cover_title">Story cover</string>
+    <string name="story_cover_hint">The cover is shown in the story list and on your profile. Pick a frame on the strip above.</string>
     <string name="story_edit_title">Edit story</string>
     <string name="story_edit_save">Save</string>
     <string name="story_post_as">Post as</string>

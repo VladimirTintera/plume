@@ -46,7 +46,9 @@ class StoriesViewModelTest {
         /** Příběh je vlastní a dá se spravovat (popisek, viditelnost, profil). */
         val own: Boolean = false,
         var failManage: Boolean = false,
+        val storyReactions: List<String> = emptyList(),
     ) : StoryRepository {
+        override suspend fun availableReactions() = Result.success(storyReactions)
         override val active: StateFlow<Map<Long, ActiveStories>> = MutableStateFlow(
             mapOf(
                 7L to ActiveStories(
@@ -516,6 +518,21 @@ class StoriesViewModelTest {
         viewModel.setAudience(StoryAudience.Contacts)
         advanceUntilIdle()
         assertEquals(StoryAudience.Everyone, viewModel.state.value.pages[key]?.audience)
+    }
+
+    /** Nabídka reakcí u příběhu je od TDLib (`getStoryAvailableReactions`), i s vlastními emoji. */
+    @Test
+    fun reactionChoicesComeFromStoryReactions() = runTest {
+        val repository = FakeStories(storyReactions = listOf("👍", "🔥", "custom:42"))
+        val viewModel = viewModel(repository)
+        assertEquals(listOf("👍", "🔥", "custom:42"), viewModel.reactionChoices.value)
+    }
+
+    /** Bez reakcí od TDLib (selhání, prázdné) zůstává nabídka rychlé reakce — tady prázdná. */
+    @Test
+    fun emptyStoryReactionsFallBack() = runTest {
+        val viewModel = viewModel(FakeStories())
+        assertEquals(emptyList(), viewModel.reactionChoices.value)
     }
 
     /** „Vybraní lidé" přes výběr lidí; prázdný výběr nic nezmění. */

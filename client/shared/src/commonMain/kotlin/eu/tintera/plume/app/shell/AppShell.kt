@@ -1391,10 +1391,10 @@ private fun shellEntryProvider(
     entry<StoryComposerRoute> { route ->
         StoryComposerScreen(
             viewModel = koinViewModel(
-                key = "story-composer-${route.path}-${route.editStoryId}",
+                key = "story-composer-${route.path}-${route.editStoryId}-${route.editCoverOnly}",
                 parameters = {
                     val edit = route.editStoryId?.let { id ->
-                        route.editPosterChatId?.let { poster -> StoryEditTarget(poster, id, route.editCaption) }
+                        route.editPosterChatId?.let { poster -> StoryEditTarget(poster, id, route.editCaption, coverOnly = route.editCoverOnly) }
                     }
                     parametersOf(route.path, route.video, edit)
                 },
@@ -1420,6 +1420,7 @@ private fun shellEntryProvider(
                         editPosterChatId = target.posterChatId,
                         editStoryId = target.storyId,
                         editCaption = target.caption,
+                        editCoverOnly = target.coverOnly,
                     ),
                 )
             },

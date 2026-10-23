@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.stories
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import eu.tintera.plume.resources.story_audience_pick_someone
 import eu.tintera.plume.core.telegram.pinnedAfter
 import eu.tintera.plume.core.telegram.StoryAudience
@@ -78,7 +81,17 @@ class StoriesViewModel(
     val live: StateFlow<LiveStoryState?> = liveWatch?.state ?: MutableStateFlow(null)
 
     /** Emoji do výběru reakcí v pořadí od serveru. */
-    val reactionChoices: StateFlow<List<String>> = quickReaction?.choices ?: MutableStateFlow(emptyList())
+    private val storyReactions = MutableStateFlow<List<String>?>(null)
+
+    /**
+     * Reakce v nabídce u příběhu: ty, které příběhy berou (`getStoryAvailableReactions`, i vlastní
+     * emoji), a dokud nedorazí nebo když selžou, výběr rychlé reakce jako dřív.
+     */
+    val reactionChoices: StateFlow<List<String>> = combine(
+        storyReactions,
+        quickReaction?.choices ?: MutableStateFlow(emptyList()),
+    ) { story, quick -> story?.takeIf { it.isNotEmpty() } ?: quick }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, quickReaction?.choices?.value.orEmpty())
 
     private val _notice = MutableStateFlow<UiText?>(null)
 
@@ -125,6 +138,9 @@ class StoriesViewModel(
     private val loading = mutableSetOf<StoryKey>()
 
     init {
+        viewModelScope.launch {
+            repository.availableReactions().onSuccess { storyReactions.value = it }
+        }
         viewModelScope.launch {
             report.outcome.collect { outcome ->
                 if (outcome != null) {
