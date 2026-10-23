@@ -71,6 +71,15 @@ class AutosaveViewModel(
         }
     }
 
+    /** Všechny výjimky pryč; seznam zmizí až po odpovědi — potvrzený dialog nečeká na nic dalšího. */
+    fun clearExceptions() {
+        viewModelScope.launch {
+            autosave.clearExceptions()
+                .onSuccess { load() }
+                .onFailure { failure -> _state.update { it.copy(error = failure.userMessage(Res.string.autosave_save_failed)) } }
+        }
+    }
+
     fun consumeError() {
         _state.update { it.copy(error = null) }
     }

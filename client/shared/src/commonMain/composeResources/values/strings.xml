@@ -1010,6 +1010,10 @@
     <string name="content_contact">Contact: %1$s</string>
     <string name="content_game">Game: %1$s</string>
     <string name="content_invoice">Payment: %1$s</string>
+    <string name="collectible_title">Collectibles</string>
+    <string name="collectible_purchased">Bought on Fragment on %1$s for %2$s (≈ %3$s).</string>
+    <string name="collectible_open">View on Fragment</string>
+    <string name="collectible_failed">Fragment didn't say anything about this one.</string>
     <string name="product_price">%1$s %2$s</string>
     <plurals name="product_price_stars">
         <item quantity="one">%1$s star</item>
@@ -1935,6 +1939,11 @@
     <string name="settings_notif_other">Other</string>
     <string name="settings_notif_contact_joined">Contact joined Telegram</string>
     <string name="settings_notif_mentions_sound_summary">Sound for mentions and replies, in system settings</string>
+    <string name="settings_notif_reset_all">Reset all notifications</string>
+    <string name="settings_notif_reset_all_confirm_title">Reset all notifications?</string>
+    <string name="settings_notif_reset_all_confirm_text">Muted chats will be unmuted, exceptions removed and previews shown again, on all your devices. Notification sounds and quiet hours on this device stay as they are.</string>
+    <string name="settings_notif_reset_all_confirm">Reset</string>
+    <string name="settings_notif_reset_all_done">Notifications reset to defaults.</string>
     <string name="settings_notif_error">Couldn't save the setting.</string>
     <string name="date_tomorrow">tomorrow</string>
     <string name="date_upcoming_time">%1$s, %2$s</string>
@@ -2372,6 +2381,8 @@
     </plurals>
     <string name="bot_answer">%1$s</string>
     <string name="bot_button_failed">The bot didn't respond.</string>
+    <string name="deep_link_info_title">About this link</string>
+    <string name="deep_link_update_title">Update needed</string>
     <string name="login_link_code_title">Sign-in code</string>
     <string name="login_link_code_text">This link carries a code for signing in to a Telegram account. Plume won't use it from a tap. Never share the code with anyone — Telegram never asks for it in a message.</string>
     <string name="login_link_qr_title">Signing in another device</string>
@@ -3793,6 +3804,10 @@
     <string name="autosave_photos_videos_up_to">Photos and videos up to %1$s</string>
     <string name="autosave_hint">Photos and videos from new messages are saved once they download; downloading follows Automatic downloads above. The setting is shared by all devices of your account.</string>
     <string name="autosave_exceptions">Exceptions</string>
+    <string name="autosave_exceptions_clear">Remove all exceptions</string>
+    <string name="autosave_exceptions_clear_title">Remove all exceptions?</string>
+    <string name="autosave_exceptions_clear_text">These chats will follow the rules for private chats, groups and channels again.</string>
+    <string name="autosave_exceptions_clear_confirm">Remove</string>
     <string name="autosave_photos_switch">Photos</string>
     <string name="autosave_videos_switch">Videos</string>
     <string name="autosave_max_video">Largest video</string>

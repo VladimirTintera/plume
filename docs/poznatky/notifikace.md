@@ -474,6 +474,13 @@ JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
   kanálu): zpráva ve skupině kanálem `groups`, `text_mention` účtu kanálem `mentions` jako
   samostatná notifikace téhož chatu, příspěvek kanálu kanálem `channels`. Do skutečných skupin
   se testovací zprávy neposílají — test jde jen tam, kde je bot.
+- **„Obnovit všechna upozornění" (Ostatní, poslední řádek) je `resetAllNotificationSettings`**:
+  rozsahy i všechny chaty zpátky na výchozí, výjimky zmizí, ztlumené chaty se odtlumí — na všech
+  zařízeních účtu, proto potvrzení s chybovou barvou. Kanály Androidu, tiché hodiny ani volba
+  „Kontakt se připojil" (je to `OptionValue`, ne nastavení upozornění) se nemění a věta
+  v potvrzení to říká. Rozsahy po obnovení dorazí updatem (`scopeSettings` je živý), výjimky si
+  ViewModel přečte znovu. **Na emulátoru ověřené jen do potvrzovacího dialogu**: účet má šest
+  skutečných výjimek a obnovení by je smazalo i v oficiálních aplikacích.
 
 ### Upozornění na příběhy
 

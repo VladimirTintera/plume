@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.CollectibleItem
+import eu.tintera.plume.core.telegram.isCollectiblePhone
 import eu.tintera.plume.resources.profile_stories_open
 import eu.tintera.plume.resources.profile_tab_stories
 import eu.tintera.plume.resources.history_toggle_off_24dp
@@ -541,6 +543,7 @@ fun ChatProfileScreen(
                             onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
                             onOpenBusinessHours = { showBusinessHours = true },
                             onOpenBusinessAddress = viewModel::openBusinessAddress,
+                            onOpenCollectible = viewModel::openCollectible,
                         )
                     }
                     // Hudba patří k člověku jako bio, ale je to seznam, ne údaj — vlastní blok
@@ -592,6 +595,10 @@ fun ChatProfileScreen(
 
             state.openGift?.let { gift ->
                 ProfileGiftSheet(gift = gift, onDismiss = viewModel::closeGift)
+            }
+
+            state.collectible?.let { sheet ->
+                CollectibleInfoSheet(sheet = sheet, onOpenUrl = viewModel::openLink, onDismiss = viewModel::closeCollectible)
             }
 
             if (showChatColor) {
@@ -1475,11 +1482,18 @@ private fun ProfileInfo(
     onOpenChatColor: (() -> Unit)?,
     onOpenBusinessHours: () -> Unit,
     onOpenBusinessAddress: () -> Unit,
+    /** Sběratelská jména nebo číslo z Fragmentu — ťuknutí na řádek ukáže, kdy a za kolik se koupily. */
+    onOpenCollectible: (List<CollectibleItem>) -> Unit,
 ) {
     val rows = buildList<@Composable (Shape) -> Unit> {
         profile.usernames.firstOrNull()?.let { username ->
+            val collectibles = profile.usernames.filter { it in profile.collectibleUsernames }.map { CollectibleItem.Username(it) }
             add { shape ->
-                InfoRow(label = stringResource(Res.string.profile_username), shape = shape) {
+                InfoRow(
+                    label = stringResource(Res.string.profile_username),
+                    shape = shape,
+                    onClick = { onOpenCollectible(collectibles) }.takeIf { collectibles.isNotEmpty() },
+                ) {
                     Column {
                         Text(stringResource(Res.string.profile_username_value, username), style = MaterialTheme.typography.bodyLarge)
                         // Další zapnutá jména (sběratelská z Fragmentu) pod hlavním — najdou ho podle všech.
@@ -1498,7 +1512,11 @@ private fun ProfileInfo(
         }
         profile.phone?.let { phone ->
             add { shape ->
-                InfoRow(label = stringResource(Res.string.profile_phone), shape = shape) {
+                InfoRow(
+                    label = stringResource(Res.string.profile_phone),
+                    shape = shape,
+                    onClick = { onOpenCollectible(listOf(CollectibleItem.Phone(phone))) }.takeIf { isCollectiblePhone(phone) },
+                ) {
                     Text(phone, style = MaterialTheme.typography.bodyLarge)
                 }
             }

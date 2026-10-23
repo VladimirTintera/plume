@@ -384,17 +384,21 @@ interface ChatRepository {
     fun groupMembers(chatId: Long): Flow<GroupMembers?> = emptyFlow()
 
     /**
-     * Historie hovorů napříč chaty (`searchCallMessages`), od nejnovějšího; [offset] z předchozí
-     * stránky, napoprvé prázdný. [onlyMissed] = jen zmeškané a odmítnuté.
-     */
-    /**
      * Naposledy hledané hashtagy (`getSearchedForTags`), od nejnovějšího. Zapisuje je TDLib sám
-     * při hledání podle tagu; aplikace je jen čte a odebírá ([removeSearchedTag]).
+     * při hledání podle tagu; aplikace je jen čte a odebírá ([removeSearchedTag], [clearSearchedTags]).
      */
     suspend fun searchedTags(): Result<List<String>> = Result.success(emptyList())
 
     /** Jeden hashtag z historie hledání pryč (`removeSearchedForTag`). */
     suspend fun removeSearchedTag(tag: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Všechny hashtagy z historie hledání pryč (`clearSearchedForTags`); cashtagy Plume nehledá. */
+    suspend fun clearSearchedTags(): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Historie hovorů napříč chaty (`searchCallMessages`), od nejnovějšího; [offset] z předchozí
+     * stránky, napoprvé prázdný. [onlyMissed] = jen zmeškané a odmítnuté.
+     */
 
     suspend fun callHistory(offset: String, onlyMissed: Boolean): Result<CallHistoryPage> =
         Result.failure(UnsupportedOperationException())

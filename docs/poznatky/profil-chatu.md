@@ -1163,3 +1163,25 @@ uživatel uložené, poznámka a vlastní fotka. Nic z toho kontakt nevidí, ost
   - Odebrání fotky vrátilo iniciály.
   - Návrat jména a smazání poznámky (prázdná poznámka) vrátily kontakt do původního stavu.
   - **Neověřené:** iOS a poznámka s formátováním od jiného klienta.
+
+### Sběratelská jména a čísla z Fragmentu
+
+Ťuknutí na řádek se jménem, když je mezi jmény sběratelské, nebo na číslo +888 otevře sheet
+„Sběratelské položky" (`CollectibleInfoSheet`): u každé položky kdy a za kolik se koupila
+na Fragmentu (v TONech a přibližně v dolarech) a tlačítko na její stránku
+(`getCollectibleItemInfo`, `CollectibleItem`, `CollectibleInfo`; testy `CollectibleTest`).
+
+- **TDLib sběratelská jména neoznačuje.** Pozná se to rozdílem: vlastní jméno je jen jedno
+  (`usernames.editableUsername`), každé další zapnuté (`activeUsernames`) se dá jen koupit
+  (`ChatProfile.collectibleUsernames`). Vlastní jméno může chybět — pak je sběratelské i to
+  hlavní. Oficiální klient ho bere stejně.
+- **Číslo je sběratelské, když začíná 888** (anonymní čísla jsou jen z Fragmentu); TDLib ho chce
+  bez „+".
+- **Údaje se čtou až po ťuknutí**, pro každou položku zvlášť a souběžně; položka, o které server
+  nic neřekne, má větu místo ceny. Většina profilů žádnou sběratelskou položku nemá, takže se
+  s profilem nic navíc nenačítá.
+- **Částka v kryptoměně je v nejmenších jednotkách** (TON má devět desetinných míst,
+  `cryptoAmountParts` ořízne koncové nuly); cena v měně jde přes `Price` jako u faktur.
+- **Ověřeno na emulátoru**: kanál @durov (pět sběratelských jmen pod hlavním) ukázal pět bloků
+  s daty a cenami, „Zobrazit na Fragmentu" otevřel prohlížeč. Číslo +888 ověřené není (žádný
+  dostupný profil ho neukazuje).

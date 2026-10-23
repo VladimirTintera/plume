@@ -749,12 +749,14 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   (`editStory` s obsahem, `editStoryCover`), výběr lidí ve viditelnosti, příběh za kanál
   (`getChatsToPostStories`), reakce podle `getStoryAvailableReactions` a ťuknutí na místo
   v příběhu (`searchPublicStoriesByLocation`, `…ByVenue`); skutečnou změnu viditelnosti ověřit.
-- **Drobnosti v nastavení a hledání:** obnovit všechna nastavení upozornění
+- **Drobnosti v nastavení a hledání:** ~~obnovit všechna nastavení upozornění
   (`resetAllNotificationSettings`), smazat všechny výjimky ukládání do galerie
-  (`clearAutosaveSettingsExceptions`), vymazat celou historii hashtagů (`clearSearchedForTags`;
-  po jednom už jde), sběratelské jméno nebo číslo z Fragmentu v profilu
-  (`getCollectibleItemInfo`), neznámý odkaz `tg://` s vysvětlením od serveru
-  (`getDeepLinkInfo`), profilová fotka z emoji (`getDefaultProfilePhotoCustomEmojiStickers`).
+  (`clearAutosaveSettingsExceptions`), vymazat celou historii hashtagů (`clearSearchedForTags`),
+  sběratelské jméno nebo číslo z Fragmentu v profilu (`getCollectibleItemInfo`), neznámý odkaz
+  `tg://` s vysvětlením od serveru (`getDeepLinkInfo`)~~ — hotovo (`notifikace.md`,
+  `prohlizec-medii.md`, `hledani-a-zakladani-chatu.md`, `profil-chatu.md`). Obnovení upozornění
+  ověřené jen po potvrzovací dialog, číslo +888 neověřené. Zbývá profilová fotka z emoji
+  (`getDefaultProfilePhotoCustomEmojiStickers`).
 - **Prohlížeč odkazů podle Telegramu** (`getLinkWebBrowserType`, `changeWebBrowserSettings`,
   výjimky po adresách) — novinka TDLib, nastavení synchronizované přes účet. Plume má vlastní
   „Odkazy v aplikaci"; až se bude sahat na otevírání odkazů, zvážit převzetí.

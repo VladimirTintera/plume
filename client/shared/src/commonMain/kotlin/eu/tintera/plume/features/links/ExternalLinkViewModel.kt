@@ -138,6 +138,7 @@ class ExternalLinkViewModel(
                     )
                     is InternalLink.Screen -> navigate(ExternalDestination.Screen(link.screen))
                     is InternalLink.LoginWarning -> _state.update { it.copy(loginWarning = link.kind) }
+                    is InternalLink.DeepLinkInfo -> _state.update { it.copy(deepLinkInfo = link) }
                     is InternalLink.Story -> navigate(ExternalDestination.Story(link.posterChatId, link.storyId))
                 }
             }
@@ -251,6 +252,14 @@ class ExternalLinkViewModel(
 
     fun dismissLoginWarning() = _state.update { it.copy(loginWarning = null) }
 
+    fun dismissDeepLinkInfo() = _state.update { it.copy(deepLinkInfo = null) }
+
+    /** Odkaz uvnitř vysvětlení od serveru: zavře dialog a otevře se jako odkaz zvenčí. */
+    fun openDeepLinkInfoLink(url: String) {
+        dismissDeepLinkInfo()
+        viewModelScope.launch { resolve(url) }
+    }
+
     private fun Throwable.reported(fallback: StringResource): UiText {
         logger.w(this) { "Odkaz zvenčí se nepodařilo otevřít." }
         return userMessage(fallback)
@@ -269,6 +278,8 @@ data class ExternalLinkState(
     val folderInvite: FolderInviteSheetState? = null,
     val stickerSet: Long? = null,
     val loginWarning: LoginLinkKind? = null,
+    /** Vysvětlení neznámého `tg://` odkazu od serveru. */
+    val deepLinkInfo: InternalLink.DeepLinkInfo? = null,
     /** Jednorázová hláška pro snackbar shellu. */
     val message: UiText? = null,
 )

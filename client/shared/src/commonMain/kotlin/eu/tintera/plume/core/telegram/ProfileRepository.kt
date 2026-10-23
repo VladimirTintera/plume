@@ -261,6 +261,10 @@ interface ProfileRepository {
     suspend fun reportAntiSpamFalsePositive(chatId: Long, messageId: Long): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
+    /** Kdy a za kolik se sběratelské jméno nebo číslo koupilo na Fragmentu (`getCollectibleItemInfo`). */
+    suspend fun collectibleInfo(item: CollectibleItem): Result<CollectibleInfo> =
+        Result.failure(UnsupportedOperationException())
+
     /**
      * Vlastník a správci skupiny nebo kanálu — kdo může v záznamu akcí figurovat jako autor
      * (filtr podle autora). Jen lidé; smazané účty vynechané.
@@ -514,6 +518,12 @@ data class ChatProfile(
     val aboutEntities: List<MessageEntity>,
     /** Telefon, jen když ho uživatel ukazuje (jinak prázdný řetězec od TDLib → `null`). */
     val phone: String?,
+    /**
+     * Sběratelská jména z Fragmentu: zapnutá jména kromě toho, které si účet nastavil sám
+     * (`editableUsername`). TDLib je jinak neoznačuje — vlastní jméno je jen jedno, každé další
+     * zapnuté se dá jen koupit.
+     */
+    val collectibleUsernames: Set<String> = emptySet(),
     /** Datum narození uživatele, jen když ho vidět smím; u skupiny a kanálu `null`. */
     val birthdate: Birthdate? = null,
     /** Kanál, který uživatel ukazuje v profilu; jinak `null`. */

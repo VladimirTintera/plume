@@ -624,6 +624,14 @@ class ConversationViewModel(
     fun consumeOpenScreen() = links.consumeOpenScreen()
     fun consumeOpenStory() = links.consumeOpenStory()
     fun dismissLoginWarning() = links.dismissLoginWarning()
+
+    fun dismissDeepLinkInfo() = links.dismissDeepLinkInfo()
+
+    /** Odkaz uvnitř vysvětlení od serveru: zavře dialog a otevře se jako každý jiný. */
+    fun openDeepLinkInfoLink(url: String) {
+        links.dismissDeepLinkInfo()
+        links.openLink(url)
+    }
     fun consumeAddBotToGroup() = links.consumeAddBotToGroup()
     fun consumeSwitchInline() = links.consumeSwitchInline()
 

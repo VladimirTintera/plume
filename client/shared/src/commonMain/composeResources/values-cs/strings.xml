@@ -1029,6 +1029,10 @@
     <string name="content_contact">Kontakt: %1$s</string>
     <string name="content_game">Hra: %1$s</string>
     <string name="content_invoice">Platba: %1$s</string>
+    <string name="collectible_title">Sběratelské položky</string>
+    <string name="collectible_purchased">Koupeno na Fragmentu %1$s za %2$s (≈ %3$s).</string>
+    <string name="collectible_open">Zobrazit na Fragmentu</string>
+    <string name="collectible_failed">Fragment o této položce nic neprozradil.</string>
     <string name="product_price">%1$s %2$s</string>
     <plurals name="product_price_stars">
         <item quantity="one">%1$s hvězda</item>
@@ -1990,6 +1994,11 @@
     <string name="settings_notif_other">Ostatní</string>
     <string name="settings_notif_contact_joined">Kontakt se připojil k Telegramu</string>
     <string name="settings_notif_mentions_sound_summary">Zvuk zmínek a odpovědí v nastavení systému</string>
+    <string name="settings_notif_reset_all">Obnovit všechna upozornění</string>
+    <string name="settings_notif_reset_all_confirm_title">Obnovit všechna upozornění?</string>
+    <string name="settings_notif_reset_all_confirm_text">Ztlumené chaty se odtlumí, výjimky zmizí a náhledy se zase budou ukazovat, a to na všech tvých zařízeních. Zvuky upozornění a tiché hodiny v tomhle zařízení zůstanou.</string>
+    <string name="settings_notif_reset_all_confirm">Obnovit</string>
+    <string name="settings_notif_reset_all_done">Upozornění jsou zpátky ve výchozím nastavení.</string>
     <string name="settings_notif_error">Nastavení se nepodařilo uložit.</string>
     <string name="date_tomorrow">zítra</string>
     <string name="date_upcoming_time">%1$s %2$s</string>
@@ -2435,6 +2444,8 @@
     </plurals>
     <string name="bot_answer">%1$s</string>
     <string name="bot_button_failed">Bot neodpověděl.</string>
+    <string name="deep_link_info_title">K tomuto odkazu</string>
+    <string name="deep_link_update_title">Potřeba aktualizovat</string>
     <string name="login_link_code_title">Přihlašovací kód</string>
     <string name="login_link_code_text">Tenhle odkaz nese kód pro přihlášení k účtu Telegramu. Plume ho z ťuknutí nepoužije. Kód nikomu nesdělujte — Telegram si o něj nikdy neříká zprávou.</string>
     <string name="login_link_qr_title">Přihlášení jiného zařízení</string>
@@ -3915,6 +3926,10 @@
     <string name="autosave_photos_videos_up_to">Fotky a videa do %1$s</string>
     <string name="autosave_hint">Fotky a videa z nových zpráv se uloží, jakmile se stáhnou; stahování řídí Automatické stahování výš. Nastavení je společné pro všechna zařízení účtu.</string>
     <string name="autosave_exceptions">Výjimky</string>
+    <string name="autosave_exceptions_clear">Odebrat všechny výjimky</string>
+    <string name="autosave_exceptions_clear_title">Odebrat všechny výjimky?</string>
+    <string name="autosave_exceptions_clear_text">Tyto chaty se budou zase řídit pravidly pro soukromé chaty, skupiny a kanály.</string>
+    <string name="autosave_exceptions_clear_confirm">Odebrat</string>
     <string name="autosave_photos_switch">Fotky</string>
     <string name="autosave_videos_switch">Videa</string>
     <string name="autosave_max_video">Největší video</string>

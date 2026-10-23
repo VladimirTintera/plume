@@ -43,6 +43,13 @@ import eu.tintera.plume.core.telegram.AutosaveScope
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.AutosaveScopeSettings
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.ConfirmDialog
+import eu.tintera.plume.core.ui.GroupBreak
+import eu.tintera.plume.resources.autosave_exceptions_clear
+import eu.tintera.plume.resources.autosave_exceptions_clear_confirm
+import eu.tintera.plume.resources.autosave_exceptions_clear_text
+import eu.tintera.plume.resources.autosave_exceptions_clear_title
+import eu.tintera.plume.resources.delete_sweep_24dp
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.chatTitle
 import eu.tintera.plume.core.ui.fileSizeText
@@ -91,6 +98,21 @@ internal fun AutosaveGroup(viewModel: AutosaveViewModel, snackbarHostState: Snac
         scope.launch { snackbarHostState.showSnackbar(error.resolveNow()) }
     }
     var editing by rememberSaveable(stateSaver = AutosaveScopeSaver) { mutableStateOf<AutosaveScope?>(null) }
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
+    if (confirmClear) {
+        ConfirmDialog(
+            title = stringResource(Res.string.autosave_exceptions_clear_title),
+            text = stringResource(Res.string.autosave_exceptions_clear_text),
+            confirmLabel = stringResource(Res.string.autosave_exceptions_clear_confirm),
+            icon = Res.drawable.delete_sweep_24dp,
+            destructive = true,
+            onConfirm = {
+                confirmClear = false
+                viewModel.clearExceptions()
+            },
+            onDismiss = { confirmClear = false },
+        )
+    }
     val permission = rememberSavePermission()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -132,6 +154,13 @@ internal fun AutosaveGroup(viewModel: AutosaveViewModel, snackbarHostState: Snac
                         modifier = Modifier.clickable { editing = AutosaveScope.Chat(exception.chatId) },
                     )
                 }
+                GroupBreak()
+                SettingsActionRow(
+                    icon = Res.drawable.delete_sweep_24dp,
+                    title = stringResource(Res.string.autosave_exceptions_clear),
+                    destructive = true,
+                    onClick = { confirmClear = true },
+                )
             }
         }
         Text(

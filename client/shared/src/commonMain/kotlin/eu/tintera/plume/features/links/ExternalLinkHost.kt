@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.links
 
+import eu.tintera.plume.features.conversation.DeepLinkInfoDialog
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
@@ -80,6 +81,9 @@ fun ExternalLinkHost(
     }
     state.loginWarning?.let { kind ->
         LoginLinkWarningDialog(kind = kind, onDismiss = viewModel::dismissLoginWarning)
+    }
+    state.deepLinkInfo?.let { info ->
+        DeepLinkInfoDialog(info = info, onLinkClick = viewModel::openDeepLinkInfoLink, onDismiss = viewModel::dismissDeepLinkInfo)
     }
     ProxyLinkHost(viewModel.proxyLinkFlow, snackbarHostState)
 

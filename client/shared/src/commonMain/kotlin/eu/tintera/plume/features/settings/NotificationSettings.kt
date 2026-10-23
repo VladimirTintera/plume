@@ -7,6 +7,13 @@ import eu.tintera.plume.resources.settings_notif_stories_all
 import eu.tintera.plume.resources.settings_notif_stories_top
 import eu.tintera.plume.resources.settings_notif_stories
 import eu.tintera.plume.core.ui.ChoiceRow
+import eu.tintera.plume.core.ui.ConfirmDialog
+import eu.tintera.plume.core.ui.GroupBreak
+import eu.tintera.plume.resources.refresh_24dp
+import eu.tintera.plume.resources.settings_notif_reset_all
+import eu.tintera.plume.resources.settings_notif_reset_all_confirm
+import eu.tintera.plume.resources.settings_notif_reset_all_confirm_text
+import eu.tintera.plume.resources.settings_notif_reset_all_confirm_title
 import eu.tintera.plume.core.telegram.StoryAlerts
 import eu.tintera.plume.resources.settings_background_data_blocked_summary
 import eu.tintera.plume.resources.settings_background_data_blocked
@@ -139,6 +146,7 @@ fun NotificationSettings(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val soundsState by sounds.state.collectAsStateWithLifecycle()
     val tones by sounds.tones.collectAsStateWithLifecycle()
+    var confirmReset by rememberSaveable { mutableStateOf(false) }
 
     val notice = state.notice
     val noticeText = notice?.resolve()
@@ -286,6 +294,29 @@ fun NotificationSettings(
                 onClick = { viewModel.openChannelSettings(NotificationChannelKind.Mentions) },
             )
         }
+        // Účtové nastavení (rozsahy a chaty), ne zařízení: kanály a tiché hodiny zůstanou.
+        GroupBreak()
+        SettingsActionRow(
+            icon = Res.drawable.refresh_24dp,
+            title = stringResource(Res.string.settings_notif_reset_all),
+            destructive = true,
+            onClick = { confirmReset = true },
+        )
+    }
+
+    if (confirmReset) {
+        ConfirmDialog(
+            title = stringResource(Res.string.settings_notif_reset_all_confirm_title),
+            text = stringResource(Res.string.settings_notif_reset_all_confirm_text),
+            confirmLabel = stringResource(Res.string.settings_notif_reset_all_confirm),
+            icon = Res.drawable.refresh_24dp,
+            destructive = true,
+            onConfirm = {
+                confirmReset = false
+                viewModel.resetAll()
+            },
+            onDismiss = { confirmReset = false },
+        )
     }
 
     state.openExceptions?.let { open ->

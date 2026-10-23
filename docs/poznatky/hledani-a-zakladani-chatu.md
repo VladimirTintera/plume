@@ -31,7 +31,10 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
     hledání), „Plume test kanal" z historie křížkem pryč i se sekcí.
 - **Pod návrhy jsou i naposledy hledané hashtagy** (`getSearchedForTags`, jen hlavní hledání,
   testy `ChatSearchSuggestionsTest`). Ťuknutí tag vloží do pole a hledá znovu, křížek ho odebere
-  (`removeSearchedForTag`).
+  (`removeSearchedForTag`), „Vymazat" u nadpisu sekce smaže všechny (`clearSearchedForTags`
+  s `clearCashtags = false` — cashtagy Plume nehledá, tak je ani nemaže). Ověřeno na emulátoru:
+  po hledání `#telegram` ve veřejných příspěvcích sekce byla, po „Vymazat" zmizela a nedávno
+  hledané chaty zůstaly.
   - **Zapisuje je TDLib sám, a jen při hledání veřejných příspěvků** (`searchPublicMessagesByTag`,
     přepínač „Veřejné příspěvky"). Hledání tagu ve vlastních chatech (`searchMessages`) do
     historie nic nepřidá — ověřeno na emulátoru.
@@ -411,6 +414,20 @@ přihlašovacím odkazem), kreslí host sám, i s vlastním snackbarem.
   přes stránku `t.me`), řádek v Nastavení po přepnutí v systému, prošlý kód (věta), Wi-Fi kód
   (věta), `adb shell am start -a android.intent.action.VIEW -d "tg://resolve?domain=…"`
   a `-d "https://t.me/…"` za běhu i za studena, otočení displeje po otevření odkazu.
+
+### Neznámý odkaz `tg://`
+
+`tg://…`, kterému TDLib nerozumí (`internalLinkTypeUnknownDeepLink`), se zeptá serveru
+(`getDeepLinkInfo`). Když server vysvětlení má, ukáže se dialog s jeho textem i s odkazy
+(`InternalLink.DeepLinkInfo`, `DeepLinkInfoDialog`) — z konverzace i zvenčí; nadpis „Potřeba
+aktualizovat", když server řekne, že pomůže novější verze (`need_update_application`).
+
+- **Bez vysvětlení (404) zůstává chování jako dřív**: `resolveLink` vrátí `null` a odkaz jde
+  tam, kam šel — z konverzace do systému (případně do oficiálního klienta), zvenčí hláška.
+- **Text je od serveru a anglicky** („Please update your app"), překládat ho nejde.
+- **Ověřeno na emulátoru testovacími odkazy z dokumentace TDLib**: `tg://need_update_for_some_feature`
+  (nadpis o aktualizaci, tučné „new feature") a `tg:some_unsupported_feature` („Feature is not
+  supported in this app"), obojí přes `am start -a VIEW -d …`.
 
 ### Kontaktní odkaz do profilu
 

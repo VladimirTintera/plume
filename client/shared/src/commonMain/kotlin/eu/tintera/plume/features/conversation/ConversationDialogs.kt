@@ -370,6 +370,10 @@ internal fun ConversationDialogs(
         LoginLinkWarningDialog(kind = kind, onDismiss = viewModel::dismissLoginWarning)
     }
 
+    state.deepLinkInfo?.let { info ->
+        DeepLinkInfoDialog(info = info, onLinkClick = viewModel::openDeepLinkInfoLink, onDismiss = viewModel::dismissDeepLinkInfo)
+    }
+
     if (state.decliningSuggestedPost != null) {
         DeclineSuggestedPostDialog(
             onConfirm = viewModel::declineSuggestedPost,

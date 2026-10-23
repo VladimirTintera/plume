@@ -17,6 +17,9 @@ interface AutosaveRepository {
     /** Změní výchozí pravidlo nebo výjimku; `null` u výjimky ji odebere. */
     suspend fun set(scope: AutosaveScope, settings: AutosaveScopeSettings?): Result<Unit>
 
+    /** Odebere všechny výjimky naráz (`clearAutosaveSettingsExceptions`); výchozí pravidla zůstanou. */
+    suspend fun clearExceptions(): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /**
      * Fotky a videa z nově příchozích zpráv, která se uložit SMĚJÍ (ne tajný chat, chráněný
      * obsah, mizející médium ani vlastní zpráva). Zda se uložit MAJÍ, rozhoduje [autosaveAction].

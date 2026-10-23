@@ -2,6 +2,8 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.dto.ChatBoostSourceGiftCode
+import dev.g000sha256.tdl.dto.CollectibleItemTypePhoneNumber
+import dev.g000sha256.tdl.dto.CollectibleItemTypeUsername
 import dev.g000sha256.tdl.dto.ChatBoostSourceGiveaway
 import dev.g000sha256.tdl.dto.ChatBoostSourcePremium
 import dev.g000sha256.tdl.dto.CanTransferOwnershipResultOk
@@ -163,6 +165,10 @@ class TdlProfileRepository(
                     verification = group?.verificationStatus.toVerification(),
                     botVerification = botVerificationNote(full?.botVerification),
                     usernames = group?.usernames?.activeUsernames?.toList().orEmpty(),
+                    collectibleUsernames = collectibleUsernames(
+                        group?.usernames?.activeUsernames?.toList().orEmpty(),
+                        group?.usernames?.editableUsername,
+                    ),
                     linkedChat = full?.linkedChatId?.takeIf { it != 0L }?.let { linkedId ->
                         // Lokální dotaz; chat, který TDLib nezná (soukromý kanál bez členství), se vynechá.
                         client.getChat(chatId = linkedId).toResult().getOrNull()
@@ -223,6 +229,10 @@ class TdlProfileRepository(
                 else -> ProfileKind.User
             },
             usernames = user.usernames?.activeUsernames?.toList().orEmpty(),
+            collectibleUsernames = collectibleUsernames(
+                user.usernames?.activeUsernames?.toList().orEmpty(),
+                user.usernames?.editableUsername,
+            ),
             // TDLib posílá číslo bez „+"; prázdné = uživatel ho neukazuje.
             phone = user.phoneNumber.takeIf { it.isNotBlank() }?.let { "+$it" },
             birthdate = full?.birthdate?.toDomain(),
@@ -514,6 +524,24 @@ class TdlProfileRepository(
             nextFromEventId = events.lastOrNull()?.id?.takeIf { events.size == CHAT_LOG_PAGE },
         )
     }
+
+    override suspend fun collectibleInfo(item: CollectibleItem): Result<CollectibleInfo> =
+        client.getCollectibleItemInfo(
+            type = when (item) {
+                is CollectibleItem.Username -> CollectibleItemTypeUsername(username = item.username)
+                is CollectibleItem.Phone -> CollectibleItemTypePhoneNumber(phoneNumber = item.phone.removePrefix("+"))
+            },
+        ).toResult()
+            .map { info ->
+                CollectibleInfo(
+                    purchaseDate = info.purchaseDate,
+                    price = Price(amount = info.amount, currency = info.currency),
+                    cryptocurrency = info.cryptocurrency,
+                    cryptocurrencyAmount = info.cryptocurrencyAmount,
+                    url = info.url,
+                )
+            }
+            .onFailure { Logger.withTag("Profile").w(it) { "Údaje z Fragmentu ($item) se nepodařilo načíst." } }
 
     override suspend fun reportAntiSpamFalsePositive(chatId: Long, messageId: Long): Result<Unit> = runCatching {
         val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup
