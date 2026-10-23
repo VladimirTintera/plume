@@ -10,7 +10,6 @@ import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 import java.nio.charset.Charset
-import java.nio.file.Files
 import java.text.Normalizer
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -104,12 +103,13 @@ compose.desktop {
                 bundleID = "eu.tintera.plume"
                 iconFile.set(project.file("icons/plume.icns"))
                 appCategory = "public.app-category.social-networking"
-                // Podle `minos` TDLib z wrapperu (`vtool -show-build`): arm64 26.0, x64 15.0.
-                // Bez toho je v Info.plist 10.13 a na starším systému by aplikace naběhla
-                // a spadla až při nahrání TDLib; takhle ji Finder rovnou odmítne s vysvětlením.
+                // Podle nejvyššího `minos` přibalených nativních knihoven (`vtool -show-build`):
+                // TDLib z wrapperu 12.0, ntgcalls (hovory, jen arm64) 14.0. Bez toho je
+                // v Info.plist 10.13 a na starším systému by aplikace naběhla a spadla až při
+                // nahrání knihovny; takhle ji Finder rovnou odmítne s vysvětlením.
                 // Balí se jen pro architekturu JDK, které staví (jako `tdlibPlatform` níž).
                 val arm64 = System.getProperty("os.arch").lowercase().let { "aarch64" in it || "arm64" in it }
-                minimumSystemVersion = if (arm64) "26.0" else "15.0"
+                minimumSystemVersion = if (arm64) "14.0" else "12.0"
                 // Hovory: podpis s hardened runtime potřebuje oprávnění ke kameře a mikrofonu,
                 // jinak TCC dotaz neukáže a AVFoundation tiše nedává nic. Soubor nahrazuje
                 // výchozí oprávnění Compose, proto je opakuje.
@@ -151,23 +151,17 @@ afterEvaluate {
 // ---------------------------------------------------------------------------------------------
 // Přepis jaru `tdl-coroutines-jvm`
 //
-// Wrapper publikuje desktopovou TDLib v jednom jaru pro všechny systémy (109 MB) a jeho
-// macOS knihovna se mimo stroj autora nenačte (g000sha256/tdl-coroutines#163). Než se to opraví
-// upstream, jar se při buildu přepíše artifact transformem:
+// Wrapper publikuje desktopovou TDLib v jednom jaru pro všechny systémy (115 MB). Jar se při
+// buildu přepíše artifact transformem:
 //
 // 1. **Jen nativní knihovna tohoto systému a architektury.** Balí se stejně jen pro systém,
 //    na kterém se staví; cizí knihovny by v balíčku zabraly ~300 MB.
-// 2. **macOS: opravené cesty v `libtdjsonjava.dylib`** (`install_name_tool`) — `libjvm` na
-//    `@rpath/libjvm.dylib` (už nahraný JVM), OpenSSL na `@rpath/libssl.3.dylib`
-//    a `@rpath/libcrypto.3.dylib` — a nový ad-hoc podpis (`codesign -s -`), bez kterého arm64
-//    změněnou knihovnu nenahraje.
-// 3. **macOS: přibalené OpenSSL** z Homebrew stroje, který staví (`-PopensslDir=…` jinak), se
-//    stejně přepsanými jmény. Nahrává ho `preloadTdlibNativeDependencies` při startu.
-// 4. **Hook `TdlibJsonRepair`**: za každé `JsonClient.receive` uvnitř wrapperu se vloží
+// 2. **Hook `TdlibJsonRepair`**: za každé `JsonClient.receive` uvnitř wrapperu se vloží
 //    `TdlibReceiveHook.afterReceive`, stejně jako na Androidu instrumentací (viz
 //    `TdlibReceiveHookFactory` v androidApp). JVM jar wrapperu obfuskovaný není.
 //
-// Až #163 upstream opraví, body 2 a 3 zmizí; 1 a 4 můžou zůstat.
+// Do verze 15.0.0 se tu navíc přepisovaly cesty v macOS knihovně a přibalovalo OpenSSL
+// (g000sha256/tdl-coroutines#163); od 16.0.0 je knihovna bez závislostí mimo systém.
 // ---------------------------------------------------------------------------------------------
 
 abstract class TdlibJarTransform : TransformAction<TdlibJarTransform.Parameters> {
@@ -176,11 +170,6 @@ abstract class TdlibJarTransform : TransformAction<TdlibJarTransform.Parameters>
         /** Složka ve jaru wrapperu pro tenhle stroj: `macos/arm64`, `linux/x64`, `windows/x64`… */
         @get:Input
         val platform: Property<String>
-
-        /** `libssl.3.dylib` a `libcrypto.3.dylib` k přibalení; mimo macOS prázdné. */
-        @get:InputFiles
-        @get:PathSensitive(PathSensitivity.NAME_ONLY)
-        val openssl: ConfigurableFileCollection
     }
 
     @get:InputArtifact
@@ -195,70 +184,21 @@ abstract class TdlibJarTransform : TransformAction<TdlibJarTransform.Parameters>
         }
         val platform = parameters.platform.get()
         val output = outputs.file(input.nameWithoutExtension + "-plume.jar")
-        val work = createTempDir()
-        try {
-            ZipFile(input).use { zip ->
-                ZipOutputStream(output.outputStream().buffered()).use { out ->
-                    for (entry in zip.entries()) {
-                        if (entry.isDirectory) continue
-                        val name = entry.name
-                        val native = NATIVE_ROOTS.any { name.startsWith("$it/") }
-                        if (native && !name.startsWith("$platform/")) continue
-                        var bytes = zip.getInputStream(entry).use { it.readBytes() }
-                        when {
-                            name.endsWith(".class") && name.startsWith("dev/g000sha256/tdl/") -> bytes = hookReceive(bytes)
-                            name == "$platform/libtdjsonjava.dylib" -> bytes = patchDylib(work, bytes)
-                        }
-                        out.putNextEntry(ZipEntry(name))
-                        out.write(bytes)
-                        out.closeEntry()
-                    }
-                    if (platform.startsWith("macos/")) {
-                        parameters.openssl.files.sortedBy { it.name }.forEach { library ->
-                            out.putNextEntry(ZipEntry("$platform/${library.name}"))
-                            out.write(patchDylib(work, library.readBytes(), id = "@rpath/${library.name}"))
-                            out.closeEntry()
-                        }
-                    }
-                }
-            }
-        } finally {
-            work.deleteRecursively()
-        }
-    }
-
-    private fun createTempDir(): File = Files.createTempDirectory("tdlib-jar").toFile()
-
-    /**
-     * Přesměruje závislosti mimo systém na `@rpath` (podle jména knihovny, ne podle cesty — ta
-     * se s Homebrew liší podle architektury i verze) a knihovnu znovu podepíše.
-     */
-    private fun patchDylib(work: File, bytes: ByteArray, id: String? = null): ByteArray {
-        val file = File(work, "patch.dylib")
-        file.writeBytes(bytes)
-        val dependencies = run("otool", "-L", file.path).lines().drop(1)
-            .map { it.trim().substringBefore(" (") }
-            .filter { it.isNotEmpty() }
-        val arguments = buildList {
-            id?.let { addAll(listOf("-id", it)) }
-            dependencies.forEach { path ->
-                val name = path.substringAfterLast('/')
-                val external = !path.startsWith("/usr/lib/") && !path.startsWith("/System/") && !path.startsWith("@")
-                if (external && (name == "libjvm.dylib" || name.startsWith("libssl.") || name.startsWith("libcrypto."))) {
-                    addAll(listOf("-change", path, "@rpath/$name"))
+        ZipFile(input).use { zip ->
+            ZipOutputStream(output.outputStream().buffered()).use { out ->
+                for (entry in zip.entries()) {
+                    if (entry.isDirectory) continue
+                    val name = entry.name
+                    val native = NATIVE_ROOTS.any { name.startsWith("$it/") }
+                    if (native && !name.startsWith("$platform/")) continue
+                    var bytes = zip.getInputStream(entry).use { it.readBytes() }
+                    if (name.endsWith(".class") && name.startsWith("dev/g000sha256/tdl/")) bytes = hookReceive(bytes)
+                    out.putNextEntry(ZipEntry(name))
+                    out.write(bytes)
+                    out.closeEntry()
                 }
             }
         }
-        if (arguments.isNotEmpty()) run("install_name_tool", *arguments.toTypedArray(), file.path)
-        run("codesign", "--force", "--sign", "-", file.path)
-        return file.readBytes().also { file.delete() }
-    }
-
-    private fun run(vararg command: String): String {
-        val process = ProcessBuilder(*command).redirectErrorStream(true).start()
-        val output = process.inputStream.bufferedReader().readText()
-        check(process.waitFor() == 0) { "${command.first()} selhal: $output" }
-        return output
     }
 
     /** Totéž co `TdlibReceiveHookFactory` v androidApp, jen nad jednou třídou bez AGP. */
@@ -309,24 +249,6 @@ val tdlibPlatform: String = run {
     "$system/" + if ("aarch64" in arch || "arm64" in arch) "arm64" else "x64"
 }
 
-/**
- * OpenSSL k přibalení na macOS: `-PopensslDir=…`, jinak Homebrew `openssl@3`. Musí být pro
- * tutéž architekturu jako JDK, které aplikaci pouští.
- */
-val opensslLibraries: List<File> = if (!tdlibPlatform.startsWith("macos/")) emptyList() else {
-    val candidates = listOfNotNull(
-        providers.gradleProperty("opensslDir").orNull,
-        "/opt/homebrew/opt/openssl@3/lib",
-        "/usr/local/opt/openssl@3/lib",
-    ).map(::File)
-    val directory = candidates.firstOrNull { File(it, "libssl.3.dylib").isFile }
-        ?: throw GradleException(
-            "Desktop na macOS potřebuje OpenSSL 3 k přibalení k TDLib (tdl-coroutines#163): " +
-                "brew install openssl@3, nebo -PopensslDir=<adresář s libssl.3.dylib>.",
-        )
-    listOf(File(directory, "libcrypto.3.dylib"), File(directory, "libssl.3.dylib"))
-}
-
 val tdlibPatched = Attribute.of("eu.tintera.plume.tdlibPatched", Boolean::class.javaObjectType)
 
 dependencies {
@@ -337,7 +259,6 @@ dependencies {
         to.attribute(tdlibPatched, true).attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "jar")
         parameters {
             platform.set(tdlibPlatform)
-            openssl.from(opensslLibraries)
         }
     }
 }

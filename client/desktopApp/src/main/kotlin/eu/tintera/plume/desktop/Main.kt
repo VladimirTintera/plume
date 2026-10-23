@@ -35,7 +35,6 @@ import eu.tintera.plume.core.platform.DesktopTrayIcon
 import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.platform.desktopClosesToTray
-import eu.tintera.plume.core.telegram.preloadTdlibNativeDependencies
 import eu.tintera.plume.core.ui.DesktopImageLoader
 import eu.tintera.plume.core.ui.rememberDesktopShortcutHandler
 import eu.tintera.plume.core.ui.DesktopMenuBar
@@ -53,15 +52,13 @@ import javax.imageio.ImageIO
  * v `:client:shared`.
  *
  * Pořadí je povinné: napřed jediná instance (druhá by narazila na zamčenou databázi TDLib),
- * pak OpenSSL pro TDLib dřív, než ho `startKoin` poprvé použije (spouští TDLib hned, viz
- * `startKoin`), jinak se nativní knihovna na macOS nenačte.
+ * teprve pak `startKoin`, který TDLib hned spouští.
  */
 fun main(args: Array<String>) {
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
     // Jazyk aplikace, jestli si ho uživatel zvolil — dřív, než se přečte první text.
     DesktopAppLanguage.applyAtStartup()
-    preloadTdlibNativeDependencies()
     // macOS: titulek podle systémového vzhledu do chvíle, než ho `WindowTitleBarAppearance`
     // přebarví podle motivu aplikace (jinak by do té doby svítil bílý). Musí být před vznikem okna.
     setMacOsAdaptiveTitleBar()

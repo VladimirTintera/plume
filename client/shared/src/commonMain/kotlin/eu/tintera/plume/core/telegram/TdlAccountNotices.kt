@@ -24,6 +24,7 @@ import dev.g000sha256.tdl.dto.SuggestedActionSetProfilePhoto
 import dev.g000sha256.tdl.dto.SuggestedActionSubscribeToAnnualPremium
 import dev.g000sha256.tdl.dto.SuggestedActionUpgradePremium
 import dev.g000sha256.tdl.dto.SuggestedActionViewChecksHint
+import dev.g000sha256.tdl.dto.SuggestedActionViewFirstTonWalletTransferHint
 import dev.g000sha256.tdl.dto.SuggestedAction as TdlSuggestedAction
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
@@ -215,7 +216,7 @@ internal fun TdlSuggestedAction.toDomain(): SuggestedAction? = when (this) {
     is SuggestedActionCustom -> SuggestedAction.Custom(name = name, title = title.text, description = description.text, url = url)
     // Placené služby Plume nepropaguje (Premium, hvězdy, dárky); převod na gigaskupinu do karty
     // nepatří — nabízí ho úprava té skupiny (`broadcastGroupSuggestions`); nápověda k fajfkám
-    // je v aplikaci jinde. Přístupový klíč přidat
+    // je v aplikaci jinde, peněženku TON Plume nemá. Přístupový klíč přidat
     // NEJDE: Android a iOS ho k doméně telegram.org dovolí vytvořit jen aplikacím, které
     // Telegram uvádí na webu (assetlinks.json, apple-app-site-association).
     is SuggestedActionAddLoginPasskey, is SuggestedActionConvertToBroadcastGroup,
@@ -223,6 +224,7 @@ internal fun TdlSuggestedAction.toDomain(): SuggestedAction? = when (this) {
     is SuggestedActionGiftPremiumForChristmas, is SuggestedActionRestorePremium,
     is SuggestedActionSubscribeToAnnualPremium,
     is SuggestedActionUpgradePremium, is SuggestedActionViewChecksHint,
+    is SuggestedActionViewFirstTonWalletTransferHint,
         -> null
 }
 

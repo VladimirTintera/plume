@@ -156,7 +156,7 @@ printf 'LANG=en_US.UTF-8\nLC_ALL=en_US.UTF-8\n' >> .env
 ```
 
 Předpoklady jsou na vývojářském Macu tak jako tak: Homebrew s `gh`, `gnupg` (ověření podpisu
-JDK v `setup-java`) a `openssl@3` (DMG). `PATH` služby je zamrzlý v `.path` z okamžiku
+JDK v `setup-java`). `PATH` služby je zamrzlý v `.path` z okamžiku
 `config.sh`; nový nástroj mimo `/opt/homebrew/bin` → doplnit tam a `./svc.sh stop && ./svc.sh start`.
 Logy: `~/Library/Logs/actions.runner.VladimirTintera-telegram.plume-mac/`.
 

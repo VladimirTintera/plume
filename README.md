@@ -54,8 +54,7 @@ aplikaci, [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md) pro detail ch
    (build fáze „Compile Kotlin Framework"). Do `iosApp/Configuration/Config.xcconfig` doplň `TEAM_ID`,
    pokud chceš běžet na zařízení.
 
-5. Desktop — na macOS napřed `brew install openssl@3` (přibaluje se k TDLib, viz
-   `docs/poznatky/desktop.md`), pak:
+5. Desktop:
 
    ```bash
    ./gradlew :client:desktopApp:run
