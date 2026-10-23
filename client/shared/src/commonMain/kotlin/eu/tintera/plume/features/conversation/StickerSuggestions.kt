@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.lazy.rememberLazyListState
+import eu.tintera.plume.core.ui.REDUCED_STICKER_FRAME_RATE
 import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -146,6 +147,8 @@ internal fun StickerSuggestionsPanel(
                 StickerPreview(
                     sticker = sticker.preview,
                     playing = true,
+                    // Řádek návrhů hraje víc samolepek naráz, jako mřížka výběru.
+                    maxFrameRate = REDUCED_STICKER_FRAME_RATE,
                     modifier = Modifier
                         .size(STICKER_SUGGESTION_CELL)
                         .clip(RoundedCornerShape(CELL_CORNER))

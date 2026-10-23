@@ -17,9 +17,6 @@ fun VideoSticker(
     fileId: Int,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    playing: Boolean = true,
-    /** `false` = video zatím nepouštět a kreslit [placeholder] (viz `AnimatedSticker`). */
-    load: Boolean = true,
     placeholder: @Composable () -> Unit,
 ) {
     if (!webmStickersSupported) {
@@ -27,13 +24,13 @@ fun VideoSticker(
         return
     }
     val path = (rememberFileState(fileId) as? FileState.Ready)?.path
-    if (path == null || !load) {
+    if (path == null) {
         Box(modifier) { placeholder() }
         return
     }
     WebmSticker(
         path = path,
-        playing = playing,
+        playing = true,
         contentDescription = contentDescription,
         modifier = modifier,
         placeholder = placeholder,

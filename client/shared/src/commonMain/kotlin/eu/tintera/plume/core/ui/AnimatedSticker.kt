@@ -1,26 +1,15 @@
 package eu.tintera.plume.core.ui
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import eu.tintera.plume.core.telegram.FileState
-import io.github.alexzhirkevich.compottie.Compottie
 import io.github.alexzhirkevich.compottie.LottieComposition
 import io.github.alexzhirkevich.compottie.LottieCompositionCache
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
-import io.github.alexzhirkevich.compottie.animateLottieCompositionAsState
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
-import io.github.alexzhirkevich.compottie.rememberLottiePainter
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import okio.buffer
@@ -37,8 +26,8 @@ import okio.use
  * načíst nepodařil. Má to být **statický náhled** samolepky: ten odpovídá prvnímu snímku, takže
  * přechod na animaci není skok z prázdna. Rozbitá animace tak zůstane aspoň obrázkem.
  *
- * Animace hraje ve smyčce jako v Telegramu. Zastavit mimo obrazovku ji není potřeba: položka
- * `LazyColumn` mimo viewport se z kompozice odebere, a s ní i hodiny animace.
+ * Kreslí se mimo hlavní vlákno do bitmap ([RenderedSticker]) a další snímek čeká, až se
+ * předchozí vykreslí — samolepka mimo obrazovku ani v aplikaci na pozadí nic nepočítá.
  */
 @Composable
 fun AnimatedSticker(
@@ -50,14 +39,13 @@ fun AnimatedSticker(
      * v trendech), by hrající samolepky stály víc, než přinesou; hraje se až tam, kde má smysl.
      */
     isPlaying: Boolean = true,
-    /**
-     * `false` = animaci zatím nenačítat, kreslit jen [placeholder]. Na rozdíl od vynechání celé
-     * samolepky zůstává kompozice táž: až se načítání povolí, vymění se jen placeholder za animaci
-     * a náhled pod ním se nestaví znovu.
-     */
-    load: Boolean = true,
     /** Jak animace běží; výchozí je smyčka (viz [StickerPlayback]). */
     playback: StickerPlayback = StickerPlayback.Loop,
+    /**
+     * Nejvyšší snímková frekvence smyčky. Samolepky mají 60; mřížka výběru a emoji v textu,
+     * kde jich hraje desítky naráz, berou [REDUCED_STICKER_FRAME_RATE].
+     */
+    maxFrameRate: Int = FULL_STICKER_FRAME_RATE,
     /** Doběhla animace hraná jednou ([StickerPlayback.Once]). */
     onFinished: () -> Unit = {},
     /**
@@ -72,55 +60,22 @@ fun AnimatedSticker(
 
     // Spec se skládá i bez cesty, ať je struktura kompozice pořád stejná; bez ní se nic nenačítá.
     val composition = rememberLottieComposition(
-        spec = TgsSpec(path.takeIf { load }),
+        spec = TgsSpec(path),
         cache = stickerCompositions,
     ).value
 
-    Box(modifier, contentAlignment = Alignment.Center) {
-        if (composition == null) {
-            placeholder()
-        } else {
-            Image(
-                painter = when (playback) {
-                    StickerPlayback.Loop -> rememberLottiePainter(
-                        composition = composition,
-                        isPlaying = isPlaying,
-                        // Zastavená smyčka se rozběhne tam, kde stála, ne od začátku: výběr
-                        // samolepek je při zasouvání zmrazí a zpátky vytažený sheet je pustí dál.
-                        restartOnPlay = false,
-                        iterations = Compottie.IterateForever,
-                    )
-                    StickerPlayback.Once -> {
-                        val state = animateLottieCompositionAsState(composition, iterations = 1)
-                        val finished by rememberUpdatedState(onFinished)
-                        // Konec se hlídá mimo kompozici: průběh se mění každý snímek a čtený
-                        // v kompozici by ji s každým snímkem skládal znovu.
-                        LaunchedEffect(state) {
-                            snapshotFlow { state.isAtEnd }.first { it }
-                            finished()
-                        }
-                        val marker by rememberUpdatedState(onMarker)
-                        if (markerFrame > 0) {
-                            LaunchedEffect(state, markerFrame) {
-                                snapshotFlow {
-                                    val frame = composition.startFrame +
-                                        (composition.endFrame - composition.startFrame) * state.progress
-                                    frame >= composition.startFrame + markerFrame || state.isAtEnd
-                                }.first { it }
-                                marker()
-                            }
-                        }
-                        rememberLottiePainter(composition = composition, progress = { state.progress })
-                    }
-                    StickerPlayback.LastFrame ->
-                        rememberLottiePainter(composition = composition, progress = { 1f })
-                },
-                contentDescription = contentDescription,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
+    RenderedSticker(
+        composition = composition,
+        playback = playback,
+        isPlaying = isPlaying,
+        maxFrameRate = maxFrameRate,
+        onFinished = onFinished,
+        markerFrame = markerFrame,
+        onMarker = onMarker,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        placeholder = placeholder,
+    )
 }
 
 /** Jak se animace samolepky přehrává. */
@@ -152,10 +107,21 @@ private data class TgsSpec(private val path: String?) : LottieCompositionSpec {
     override suspend fun load(): LottieComposition {
         // Bez cesty (soubor se ještě stahuje) se nenačítá nic; výjimka jen ponechá placeholder.
         val file = checkNotNull(path) { "Soubor samolepky ještě není stažený." }
-        val json = FileSystem.SYSTEM.source(file.toPath()).gzip().buffer().use { it.readUtf8() }
-        return LottieComposition.parse(json)
+        return parsing.withPermit {
+            val json = FileSystem.SYSTEM.source(file.toPath()).gzip().buffer().use { it.readUtf8() }
+            LottieComposition.parse(json)
+        }
     }
 }
+
+/**
+ * Kolik samolepek se smí parsovat naráz. Parsování JSONu animace alokuje megabajty a nová mřížka
+ * (přepnutá kategorie, sada) jich chce desítky v jednom okamžiku: naměřeno ~100 MB během vteřiny,
+ * GC to nestíhal a vlákna čekala na blokující GC („WaitForGcToComplete blocked Alloc" ~120 ms),
+ * hlavní vlákno taky. Po dvou se to rozloží a samolepky naskakují postupně ze svých náhledů.
+ * Samolepka, která mezitím odjede z obrazovky, z fronty vypadne zrušením.
+ */
+private val parsing = Semaphore(PARALLEL_PARSES)
 
 /**
  * Rozparsované animace samolepek.
@@ -173,3 +139,10 @@ private val stickerCompositions = LottieCompositionCache(STICKER_CACHE_SIZE)
 suspend fun forgetStickerAnimations() = stickerCompositions.clear()
 
 private const val STICKER_CACHE_SIZE = 50
+private const val PARALLEL_PARSES = 2
+
+/** Snímková frekvence samolepky, která hraje sama (bublina, náhled). */
+const val FULL_STICKER_FRAME_RATE = 60
+
+/** Snímková frekvence tam, kde hrají desítky samolepek naráz (mřížka výběru, emoji v textu). */
+const val REDUCED_STICKER_FRAME_RATE = 30

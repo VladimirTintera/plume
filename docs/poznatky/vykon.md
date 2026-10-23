@@ -203,6 +203,32 @@ Nálezy a opravy (emulátor Plume_Galerie_Fold, debug build, říjen 2026):
   porovnává identitou**, i když je data class z `val`. Report kompilátoru ho ukáže bez
   `stable` u parametru (`chat: ChatSummary` místo `stable chat: ChatSummary`).
 
+### Debug build zkresluje Kotlin
+
+Debug build je `debuggable` a ART v něm kód interpretuje a JITuje opatrněji (v nativním pádu
+byly rámce `art::interpreter::Execute`). Na výpočtech, které jsou čistý Kotlin, je to znát
+víc než na skládání UI: snímek samolepky z Compottie stál v debug buildu ~2,5 ms, v ne-debuggable
+~0,9 ms, a výchozí `main` měl ve stejném scénáři medián snímku 44 ms proti 16 ms. **Kdo měří
+výkon výpočtu, měří ne-debuggable build**; poměr dvou debug buildů vyjde jinak.
+
+- **Ne-debuggable debug build bez odhlášení**: dočasně `getByName("debug") { isDebuggable = false }`
+  v `client/androidApp/build.gradle.kts`. Podpis zůstane debug, takže jde `adb install -r` přes
+  přihlášenou aplikaci. Release build by chtěl odinstalaci (jiný podpis), a tím odhlášení.
+- **LeakCanary v ne-debuggable buildu shodí start** („LeakCanary in non-debuggable build").
+  Povolí ho prostředek `leak_canary_allow_in_non_debuggable_build = true`, a to dočasným
+  souborem v `client/androidApp/src/debug/res/values/`: `resValue` v Gradle projekt nemá
+  zapnuté („custom resource values, but the feature is disabled").
+- **Před měřením `adb shell cmd package compile -m speed -f eu.tintera.plume`** u obou
+  porovnávaných buildů, ať oba běží AOT a nezáleží na tom, kolik se toho stihlo zahřát.
+- **Perfetto funguje i bez `debuggable`**: `sched`, frame timeline i řezy `view` a `gfx`
+  (`Choreographer#doFrame`, `Record View#draw`) chodí dál. Composition tracing (broadcast
+  z „Recompozice za běhu") v ne-debuggable buildu ověřený není.
+- **Na co čeká spící hlavní vlákno**, prozradí `logcat` procesu: `WaitForGcToComplete blocked
+  Alloc … for 122ms` a `Waiting for a blocking GC Alloc` jsou pauzy kvůli GC, které v Perfettu
+  vypadají jako stav `S` uprostřed `recompose` nebo `Record View#draw` bez zjistitelného
+  budiče. Řádky `… GC freed 105MB AllocSpace bytes` řeknou, kolik se alokovalo.
+- **Ostatní emulátory při měření vypnout**: sdílí CPU Macu a zkreslují časy.
+
 ### Start a plynulost
 
 Měřeno v říjnu 2026: emulátor Plume_Galerie_Fold s release buildem (R8) podepsaným debug klíčem

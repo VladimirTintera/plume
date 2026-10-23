@@ -65,6 +65,8 @@ fun CustomEmojiImage(id: Long, fallback: String, modifier: Modifier = Modifier) 
                 fileId = shown.animationFileId,
                 contentDescription = shown.emoji,
                 modifier = image,
+                // Emoji v textu hrají po desítkách (zpráva, výběr emoji).
+                maxFrameRate = REDUCED_STICKER_FRAME_RATE,
                 placeholder = { shown.stillFileId?.let { StillEmoji(it, shown.emoji) } ?: placeholder() },
             )
             shown?.stillFileId != null -> Box(image) { StillEmoji(shown.stillFileId, shown.emoji) }

@@ -1104,6 +1104,13 @@ běh ukázal, že se ustálí i native heap. Zbylo:
 
 - **Fully drawn na Foldu** ověřit s první verzí, která `ReportDrawnWhen` nese: měřené
   hodnoty na telefonu jsou zatím jen první snímek.
+- **Samolepky na víc vláknech.** Kreslení `.tgs` běží mimo hlavní vlákno, ale jen na jednom,
+  protože Compottie má globální pracovní objekty a sdílené vrstvy kompozice
+  (`docs/poznatky/emoji-samolepky-reakce.md`, „Samolepky `.tgs` se kreslí MIMO hlavní vlákno").
+  Na emulátoru stíhá mřížku na ~80 %, na slabším telefonu samolepky ubírají snímky. Šlo by
+  rozložit kompozice bez ořezu cesty (`"ty":"tm"`) na víc pevných vláken, nebo poslat opravu
+  globálů do Compottie. Napřed změřit na skutečném starším telefonu (Pixel 5).
+- **Kreslení samolepek na iOS a desktopu ověřit naživo** — přeloženo, ale spuštěné jen na Androidu.
 
 ---
 
