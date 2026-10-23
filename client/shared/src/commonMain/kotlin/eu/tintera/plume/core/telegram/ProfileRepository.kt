@@ -261,6 +261,12 @@ interface ProfileRepository {
     suspend fun reportAntiSpamFalsePositive(chatId: Long, messageId: Long): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
+    /**
+     * Ukázky mini aplikace bota (`getBotMediaPreviews`): fotky a videa, které autor bota nahrál
+     * jako náhled aplikace. Prázdné = žádné (nebo bot mini aplikaci nemá).
+     */
+    suspend fun botMediaPreviews(botUserId: Long): Result<List<MessageMedia>> = Result.success(emptyList())
+
     /** Kdy a za kolik se sběratelské jméno nebo číslo koupilo na Fragmentu (`getCollectibleItemInfo`). */
     suspend fun collectibleInfo(item: CollectibleItem): Result<CollectibleInfo> =
         Result.failure(UnsupportedOperationException())

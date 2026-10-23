@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.telegram.StoryPoster
+import eu.tintera.plume.core.telegram.StoryPostCheck
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import eu.tintera.plume.core.ui.VideoTrim
@@ -55,7 +57,19 @@ data class StoryComposerState(
     val error: UiText? = null,
     /** Zveřejnění přijato — obrazovka se zavře, výsledek nahrávání ohlásí seznam chatů. */
     val posted: Boolean = false,
+    /** Kanály a skupiny, za které jde příběh zveřejnit; prázdné = jen vlastní účet. */
+    val posters: List<StoryPoster> = emptyList(),
+    /** Za koho se zveřejní; `null` = vlastní účet. */
+    val poster: StoryPoster? = null,
+    /** Za vybraný kanál to teď nejde (boosty…); věta pro uživatele, `null` = jde. */
+    val posterDenied: UiText? = null,
 )
+
+/**
+ * Úprava zveřejněného příběhu místo nového: editor vymění fotku nebo video příběhu
+ * [storyId] autora [posterChatId] (`editStory`). [caption] je současný popisek, předvyplní se.
+ */
+data class StoryEditTarget(val posterChatId: Long, val storyId: Int, val caption: String)
 
 /**
  * Nový vlastní příběh z fotky nebo videa [path] (z výběru příloh; fotka už otočená podle EXIF).
@@ -68,11 +82,13 @@ class StoryComposerViewModel(
     private val repository: StoryRepository,
     private val storyPhoto: StoryPhoto,
     private val storyVideo: StoryVideo,
+    /** Vyměnit médium zveřejněného příběhu; `null` = nový příběh. */
+    val edit: StoryEditTarget? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Stories")
 
-    private val _state = MutableStateFlow(StoryComposerState(previewPath = path.takeUnless { isVideo }))
+    private val _state = MutableStateFlow(StoryComposerState(previewPath = path.takeUnless { isVideo }, caption = edit?.caption.orEmpty()))
     val state: StateFlow<StoryComposerState> = _state.asStateFlow()
 
     /**
@@ -87,6 +103,12 @@ class StoryComposerViewModel(
     init {
         viewModelScope.launch {
             repository.closeFriends().onSuccess { ids -> _state.update { it.copy(closeFriends = ids.toSet()) } }
+        }
+        // Za kanál jen nový příběh; úprava patří tomu, kdo příběh zveřejnil.
+        if (edit == null) {
+            viewModelScope.launch {
+                repository.postTargets().onSuccess { found -> _state.update { it.copy(posters = found) } }
+            }
         }
         if (isVideo) {
             viewModelScope.launch {
@@ -172,6 +194,22 @@ class StoryComposerViewModel(
 
     fun setKeepOnProfile(keep: Boolean) = _state.update { it.copy(keepOnProfile = keep) }
 
+    /**
+     * Zveřejnit za kanál (nebo skupinu), `null` = za sebe. Jestli to za kanál teď jde, se ptá
+     * hned (`canPostStory`) — kanál bez boostů příběh nezveřejní a lepší to vědět předem.
+     */
+    fun setPoster(poster: StoryPoster?) {
+        _state.update { it.copy(poster = poster, posterDenied = null) }
+        poster ?: return
+        viewModelScope.launch {
+            val check = repository.canPostAs(poster.chatId)
+            _state.update { state ->
+                if (state.poster != poster) return@update state
+                state.copy(posterDenied = (check as? StoryPostCheck.Denied)?.reason)
+            }
+        }
+    }
+
     fun setAllowScreenshots(allow: Boolean) = _state.update { it.copy(allowScreenshots = allow) }
 
     fun errorShown() = _state.update { it.copy(error = null) }
@@ -179,7 +217,12 @@ class StoryComposerViewModel(
     fun post() {
         val current = _state.value
         if (current.posting) return
-        val audience = when (current.audience) {
+        current.posterDenied?.let { reason ->
+            _state.update { it.copy(error = reason) }
+            return
+        }
+        // Kanálu viditelnost nenastavuje (TDLib ji u příběhu za chat ignoruje): vidí ho odběratelé.
+        val audience = if (edit != null || current.poster != null) StoryAudience.Everyone else when (current.audience) {
             AudienceChoice.Everyone -> StoryAudience.Everyone
             AudienceChoice.Contacts -> StoryAudience.Contacts
             AudienceChoice.CloseFriends -> {
@@ -219,15 +262,21 @@ class StoryComposerViewModel(
                 _state.update { it.copy(posting = false, error = UiText(Res.string.story_post_failed)) }
                 return@launch
             }
-            repository.post(
-                StoryDraft(
-                    media = rendered,
-                    caption = current.caption,
-                    audience = audience,
-                    keepOnProfile = current.keepOnProfile,
-                    protectContent = !current.allowScreenshots,
-                ),
-            )
+            val result = if (edit != null) {
+                repository.replaceMedia(edit.posterChatId, edit.storyId, rendered, current.caption)
+            } else {
+                repository.post(
+                    StoryDraft(
+                        media = rendered,
+                        caption = current.caption,
+                        audience = audience,
+                        keepOnProfile = current.keepOnProfile,
+                        protectContent = !current.allowScreenshots,
+                        posterChatId = current.poster?.chatId,
+                    ),
+                )
+            }
+            result
                 .onSuccess { _state.update { it.copy(posting = false, posted = true) } }
                 .onFailure { failure ->
                     _state.update { it.copy(posting = false, error = failure.userMessage(Res.string.story_post_failed)) }

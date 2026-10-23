@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogScreen
 import eu.tintera.plume.core.navigation.ArchiveEventLogRoute
 import eu.tintera.plume.core.navigation.EventLogRoute
@@ -1389,7 +1390,15 @@ private fun shellEntryProvider(
      */
     entry<StoryComposerRoute> { route ->
         StoryComposerScreen(
-            viewModel = koinViewModel(key = "story-composer-${route.path}", parameters = { parametersOf(route.path, route.video) }),
+            viewModel = koinViewModel(
+                key = "story-composer-${route.path}-${route.editStoryId}",
+                parameters = {
+                    val edit = route.editStoryId?.let { id ->
+                        route.editPosterChatId?.let { poster -> StoryEditTarget(poster, id, route.editCaption) }
+                    }
+                    parametersOf(route.path, route.video, edit)
+                },
+            ),
             onBack = { chatsStack.pop(route) },
             onPosted = { chatsStack.pop(route) },
         )
@@ -1403,6 +1412,17 @@ private fun shellEntryProvider(
                 parameters = { parametersOf(route.chatId, route.storyIds, route.startStoryId) },
             ),
             onBack = { chatsStack.pop(route) },
+            onReplaceMedia = { target, path, video ->
+                chatsStack.add(
+                    StoryComposerRoute(
+                        path = path,
+                        video = video,
+                        editPosterChatId = target.posterChatId,
+                        editStoryId = target.storyId,
+                        editCaption = target.caption,
+                    ),
+                )
+            },
         )
     }
 

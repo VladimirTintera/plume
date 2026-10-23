@@ -328,6 +328,8 @@ fun ChatProfileScreen(
     val chatColor by viewModel.chatColor.collectAsStateWithLifecycle()
     var showChatColor by rememberSaveable { mutableStateOf(false) }
     var showBusinessHours by rememberSaveable { mutableStateOf(false) }
+    // Index otevřené ukázky mini aplikace; `null` = prohlížeč zavřený.
+    var openAppPreview by rememberSaveable { mutableStateOf<Int?>(null) }
     var showSecretKey by rememberSaveable { mutableStateOf(false) }
     // Zvuk z Telegramu pro tenhle chat: tóny účtu a zápis má ViewModel zvuků z Nastavení.
     val sounds = rememberChatSounds(viewModel.chatId)
@@ -515,6 +517,9 @@ fun ChatProfileScreen(
                         directMessages = profile.directMessagesChatId?.let { profile.directMessagesAdmin },
                         onOpenDirectMessages = viewModel::openDirectMessages,
                     )
+                    if (state.appPreviews.isNotEmpty()) {
+                        BotAppPreviews(previews = state.appPreviews, onOpen = { openAppPreview = it })
+                    }
                     val notifications = state.notifications
                     val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
                     val chatAutosave = autosaveChatType(profile.kind, profile.isSecretChat)
@@ -591,6 +596,10 @@ fun ChatProfileScreen(
             val businessHours = profile.business?.openingHours.orEmpty()
             if (showBusinessHours && businessHours.isNotEmpty()) {
                 BusinessHoursSheet(hours = businessHours, onDismiss = { showBusinessHours = false })
+            }
+
+            openAppPreview?.let { index ->
+                AppPreviewViewer(previews = state.appPreviews, initial = index, onDismiss = { openAppPreview = null })
             }
 
             state.openGift?.let { gift ->

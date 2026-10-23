@@ -740,17 +740,19 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   zástupce na iOS a desktopu; emoji status z mini aplikace chce Premium.
 - ~~**Podobné kanály: oznámit otevření** (`openChatSimilarChat`) a podobní boti v profilu bota
   (`getBotSimilarBots`, `openBotSimilarBot`)~~ — hotovo (`docs/poznatky/profil-chatu.md`,
-  „Záložka Podobné"). Zbývají náhledy mini aplikace v profilu bota (`getBotMediaPreviews`).
+  „Záložka Podobné"). ~~Náhledy mini aplikace v profilu bota (`getBotMediaPreviews`)~~ — hotovo (tamtéž,
+  „Ukázky mini aplikace").
 - ~~**Témata Uložených zpráv a vlákna přímých zpráv kanálu:** skok na datum, vymazání (i za
   vybrané dny) a odepnout vše ve vlákně~~ — hotovo (`docs/poznatky/konverzace-pohyb.md`, „Skok
   na datum"; `konverzace-akce.md`, „Vymazání historie"). Ověřené v tématu Uložených zpráv,
   vlákno přímých zpráv zbývá ověřit s druhým účtem.
 - ~~**Příběhy — správa zveřejněného:** úprava popisku, změna viditelnosti, ponechat v profilu
   a připnout, archiv vlastních prošlých příběhů~~ — hotovo (⋮ v prohlížeči, menu účtu → Moje
-  příběhy; `docs/poznatky/pribehy.md`, „Správa vlastního příběhu"). Zbývá výměna média
-  (`editStory` s obsahem, `editStoryCover`), výběr lidí ve viditelnosti, příběh za kanál
-  (`getChatsToPostStories`), reakce podle `getStoryAvailableReactions` a ťuknutí na místo
-  v příběhu (`searchPublicStoriesByLocation`, `…ByVenue`); skutečnou změnu viditelnosti ověřit.
+  příběhy; `docs/poznatky/pribehy.md`, „Správa vlastního příběhu"). ~~Výměna média
+  (`editStory` s obsahem), výběr lidí ve viditelnosti, příběh za kanál (`getChatsToPostStories`)~~
+  — hotovo (tamtéž; „Příběh za kanál nebo skupinu"); výměna média i výběr lidí ověřené na emulátoru. Zbývá samotná obálka videa (`editStoryCover`), reakce podle
+  `getStoryAvailableReactions` a ťuknutí na místo v příběhu (`searchPublicStoriesByLocation`,
+  `…ByVenue`); skutečnou změnu viditelnosti ověřit.
 - **Drobnosti v nastavení a hledání:** ~~obnovit všechna nastavení upozornění
   (`resetAllNotificationSettings`), smazat všechny výjimky ukládání do galerie
   (`clearAutosaveSettingsExceptions`), vymazat celou historii hashtagů (`clearSearchedForTags`),
@@ -759,8 +761,8 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   `prohlizec-medii.md`, `hledani-a-zakladani-chatu.md`, `profil-chatu.md`). Obnovení upozornění
   ověřené jen po potvrzovací dialog, číslo +888 neověřené. ~~Profilová fotka z emoji
   (`getDefaultProfilePhotoCustomEmojiStickers`)~~ — hotovo („Z emoji" v úpravě profilu
-  i chatu; `profil-chatu.md`, „Fotka z emoji"). Zbývá fotka z libovolného vlastního emoji nebo
-  samolepky a fotka z emoji už při zakládání skupiny.
+  i chatu; `profil-chatu.md`, „Fotka z emoji"). ~~Fotka z vlastního emoji nebo
+  samolepky z nainstalovaných sad a fotka z emoji už při zakládání skupiny~~ — hotovo (tamtéž).
 - **Prohlížeč odkazů podle Telegramu** (`getLinkWebBrowserType`, `changeWebBrowserSettings`,
   výjimky po adresách) — novinka TDLib, nastavení synchronizované přes účet. Plume má vlastní
   „Odkazy v aplikaci"; až se bude sahat na otevírání odkazů, zvážit převzetí.

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.ProfilePhotoFile
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -110,6 +111,20 @@ class CreateChatViewModel(
     /** Oříznutá fotka (nebo video) na disku; `null` = bez fotky. */
     var photo by mutableStateOf<PreparedProfilePhoto?>(null)
         private set
+
+    /**
+     * Fotka z emoji nebo samolepky (`EmojiPhotoSheet`); s [photo] se vylučuje — volba jedné
+     * zahodí druhou. Na server jde až po založení, stejně jako fotka ze souboru.
+     */
+    var emojiPhoto by mutableStateOf<ProfilePhotoFile?>(null)
+        private set
+
+    val hasPhoto: Boolean get() = photo != null || emojiPhoto != null
+
+    fun chooseEmojiPhoto(choice: ProfilePhotoFile) {
+        emojiPhoto = choice
+        photo = null
+    }
     var photoBusy by mutableStateOf(false)
         private set
 
@@ -205,7 +220,12 @@ class CreateChatViewModel(
         photoBusy = true
         viewModelScope.launch {
             runCatching { photoCrop.crop(region) }
-                .onSuccess { prepared -> if (prepared != null) photo = prepared }
+                .onSuccess { prepared ->
+                    if (prepared != null) {
+                        photo = prepared
+                        emojiPhoto = null
+                    }
+                }
                 .onFailure { failure ->
                     logger.w(failure) { "Fotku pro nový chat se nepodařilo připravit." }
                     notice = UiText(Res.string.edit_chat_photo_failed)
@@ -216,6 +236,7 @@ class CreateChatViewModel(
 
     fun removePhoto() {
         photo = null
+        emojiPhoto = null
     }
 
     fun reportError(message: UiText) {
@@ -250,8 +271,8 @@ class CreateChatViewModel(
     }
 
     private suspend fun finish(chat: CreatedChat) {
-        val photoFailed = photo?.let { prepared ->
-            profiles.setPhoto(chat.chatId, prepared.file)
+        val photoFailed = (photo?.file ?: emojiPhoto)?.let { file ->
+            profiles.setPhoto(chat.chatId, file)
                 .onFailure { logger.w(it) { "Fotku nového chatu ${chat.chatId} se nepodařilo nastavit." } }
                 .isFailure
         } ?: false

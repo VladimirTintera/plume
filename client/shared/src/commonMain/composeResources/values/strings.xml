@@ -527,6 +527,8 @@
     <string name="profile_shared_photo">Photo</string>
     <string name="profile_shared_failed">Shared content couldn't be loaded.</string>
     <string name="profile_search">Search</string>
+    <string name="profile_app_previews">App previews</string>
+    <string name="profile_app_preview_position">%1$d of %2$d</string>
     <string name="profile_open_app">Open</string>
     <string name="profile_info">Info</string>
     <string name="profile_linked_discussion">Discussion group</string>
@@ -1966,10 +1968,14 @@
     <string name="edit_profile_main_tab_failed">Couldn't change the main profile tab.</string>
     <string name="edit_profile_change_photo">Change photo</string>
     <string name="emoji_photo_open">From emoji</string>
-    <string name="emoji_photo_title">Photo from emoji</string>
+    <string name="emoji_photo_title">Photo from emoji or sticker</string>
     <string name="emoji_photo_background">Background %1$d</string>
     <string name="emoji_photo_set">Set photo</string>
     <string name="emoji_photo_failed">Couldn't load emoji for the photo.</string>
+    <string name="emoji_photo_source_emoji">Emoji</string>
+    <string name="emoji_photo_source_stickers">Stickers</string>
+    <string name="emoji_photo_suggested">Suggested</string>
+    <string name="emoji_photo_no_stickers">No sticker sets added yet. Add some from the sticker picker in a chat.</string>
     <string name="edit_profile_delete_photo">Remove photo</string>
     <string name="edit_profile_delete_photo_body">Your current profile photo will be deleted. If you had an earlier one, it will show instead.</string>
     <string name="edit_profile_delete_photo_confirm">Remove</string>
@@ -3275,6 +3281,12 @@
     <string name="story_limit_premium">Posting stories from this account needs Telegram Premium.</string>
     <string name="story_post_not_allowed">You can’t post a story here.</string>
     <string name="story_post_live_active">You can’t post a story while your live stream is on.</string>
+    <string name="story_edit_title">Edit story</string>
+    <string name="story_edit_save">Save</string>
+    <string name="story_post_as">Post as</string>
+    <string name="story_post_as_me">Me</string>
+    <string name="story_chat_premium">Posting stories on behalf of a group or channel requires Telegram Premium.</string>
+    <string name="story_chat_boost">This chat needs more boosts before it can post stories.</string>
     <string name="story_compose_title">New story</string>
     <string name="story_post">Post</string>
     <string name="story_fill">Fill</string>
@@ -3293,6 +3305,7 @@
     <string name="story_audience_pick_someone">Choose who can see the story.</string>
     <string name="story_keep_on_profile">Keep on my profile</string>
     <string name="story_keep_on_profile_summary">Stays visible on your profile after 24 hours</string>
+    <string name="story_replace_media">Replace photo or video</string>
     <string name="story_edit_caption">Edit caption…</string>
     <string name="story_caption_save">Save</string>
     <string name="story_caption_saved">Caption saved</string>

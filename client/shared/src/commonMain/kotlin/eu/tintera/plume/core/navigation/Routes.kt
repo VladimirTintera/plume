@@ -382,10 +382,17 @@ data class StoriesRoute(
 
 /**
  * Nový vlastní příběh z fotky nebo videa [path] (z výběru příloh, v cache aplikace). Vrší se
- * nad seznam chatů přes celou plochu; po zveřejnění se zavře.
+ * nad seznam chatů přes celou plochu; po zveřejnění se zavře. S [editStoryId] vymění médium
+ * zveřejněného příběhu autora [editPosterChatId] (popisek [editCaption] se předvyplní).
  */
 @Serializable
-data class StoryComposerRoute(val path: String, val video: Boolean = false) : Route
+data class StoryComposerRoute(
+    val path: String,
+    val video: Boolean = false,
+    val editPosterChatId: Long? = null,
+    val editStoryId: Int? = null,
+    val editCaption: String = "",
+) : Route
 
 /** [MediaRoute.startSeconds] bez času v médiu. */
 const val NO_START = -1
