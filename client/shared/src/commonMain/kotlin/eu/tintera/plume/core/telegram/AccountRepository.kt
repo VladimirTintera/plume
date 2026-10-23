@@ -48,6 +48,9 @@ interface AccountRepository {
     /** Nová profilová fotka z připraveného souboru (čtvercový JPEG, nebo krátké čtvercové video). */
     suspend fun setPhoto(photo: ProfilePhotoFile): Result<Unit>
 
+    /** Hlavní záložka vlastního profilu (`setMainProfileTab`), jak ji uvidí ostatní. */
+    suspend fun setMainProfileTab(tab: ProfileMainTab): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Odebere současnou fotku; ukáže se ta předchozí, pokud nějaká je. */
     suspend fun deletePhoto(): Result<Unit>
 
@@ -164,6 +167,8 @@ data class EditableProfile(
     val personalChannel: PersonalChannel? = null,
     /** Všechna uživatelská jména účtu (víc jich mívá jen ten, kdo si je koupil na Fragmentu). */
     val usernames: AccountUsernames = AccountUsernames(),
+    /** Hlavní záložka profilu; `null` = nevybraná, klienti volí sami. */
+    val mainTab: ProfileMainTab? = null,
 )
 
 enum class UsernameCheck { Available, Invalid, Occupied, Purchasable, TooManyPublic }

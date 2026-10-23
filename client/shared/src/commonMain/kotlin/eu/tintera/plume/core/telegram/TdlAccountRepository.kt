@@ -70,6 +70,7 @@ class TdlAccountRepository(
                 usernames = me.usernames?.let {
                     AccountUsernames(active = it.activeUsernames.toList(), disabled = it.disabledUsernames.toList(), editable = it.editableUsername)
                 } ?: AccountUsernames(),
+                mainTab = full?.mainProfileTab?.toDomain(),
             ),
         )
     }
@@ -167,6 +168,11 @@ class TdlAccountRepository(
         client.setProfilePhoto(photo = photo.toInputChatPhoto(), isPublic = false)
             .toResult().map { }
             .onFailure { logger.w(it) { "Fotku se nepodařilo nastavit." } }
+
+    override suspend fun setMainProfileTab(tab: ProfileMainTab): Result<Unit> =
+        client.setMainProfileTab(mainProfileTab = tab.toTdl())
+            .toResult().map { }
+            .onFailure { logger.w(it) { "Hlavní záložku profilu se nepodařilo nastavit." } }
 
     override suspend fun deletePhoto(): Result<Unit> {
         val photoId = client.getMe().toResult().getOrElse { return Result.failure(it) }.profilePhoto?.id

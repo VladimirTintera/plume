@@ -2018,6 +2018,7 @@
     <string name="profile_notif_reset_group">Vrátit nastavení skupiny</string>
     <string name="edit_profile_title">Upravit profil</string>
     <string name="edit_profile_save">Uložit</string>
+    <string name="edit_profile_main_tab_failed">Hlavní záložku profilu se nepodařilo změnit.</string>
     <string name="edit_profile_change_photo">Změnit fotku</string>
     <string name="emoji_photo_open">Z emoji</string>
     <string name="emoji_photo_title">Fotka z emoji</string>
@@ -2830,6 +2831,21 @@
     </plurals>
     <string name="edit_chat_settings_group">Nastavení skupiny</string>
     <string name="edit_chat_settings_channel">Nastavení kanálu</string>
+    <string name="edit_chat_unrestrict_boosts">Boosty pro obejití omezení</string>
+    <string name="edit_chat_unrestrict_boosts_help">Kdo skupinu boostne aspoň tolikrát, nemusí dodržovat pomalý režim ani omezení členů.</string>
+    <string name="edit_chat_unrestrict_boosts_off">Vypnuto</string>
+    <plurals name="edit_chat_unrestrict_boosts_count">
+        <item quantity="one">Po %1$d boostu</item>
+        <item quantity="few">Po %1$d boostech</item>
+        <item quantity="other">Po %1$d boostech</item>
+    </plurals>
+    <string name="edit_chat_sponsored">Sponzorované zprávy</string>
+    <string name="edit_chat_sponsored_help">Telegram ukazuje odběratelům sponzorované zprávy.</string>
+    <string name="edit_chat_sponsored_locked">Vypnout jdou od úrovně boostů %1$d, kanál má úroveň %2$d.</string>
+    <string name="edit_chat_sponsored_unknown">Vypnutí závisí na úrovni boostů kanálu a tu se nepodařilo načíst.</string>
+    <string name="main_tab">Hlavní záložka profilu</string>
+    <string name="main_tab_auto">Automaticky</string>
+    <string name="main_tab_note">Na této záložce se profil otevře v každé aplikaci.</string>
     <string name="edit_chat_slow_mode">Pomalý režim</string>
     <string name="edit_chat_slow_mode_off">Vypnutý</string>
     <string name="edit_chat_slow_mode_help">Jak často smí člen poslat zprávu. Správců se to netýká.</string>

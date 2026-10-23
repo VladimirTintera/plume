@@ -762,11 +762,13 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
 - **Prohlížeč odkazů podle Telegramu** (`getLinkWebBrowserType`, `changeWebBrowserSettings`,
   výjimky po adresách) — novinka TDLib, nastavení synchronizované přes účet. Plume má vlastní
   „Odkazy v aplikaci"; až se bude sahat na otevírání odkazů, zvážit převzetí.
-- **Správa kanálu za boosty:** počet boostů, se kterými člen obejde pomalý režim a omezení
+- ~~**Správa kanálu za boosty:** počet boostů, se kterými člen obejde pomalý režim a omezení
   (`setSupergroupUnrestrictBoostCount`), vypnutí reklam ve vlastním kanálu
   (`toggleSupergroupCanHaveSponsoredMessages`), hlavní záložka profilu kanálu i vlastního
-  (`setSupergroupMainProfileTab`, `setMainProfileTab`). Barvy, emoji status a sada emoji
-  skupiny patří pod „Vzhled od Telegramu" (vědomě ne).
+  (`setSupergroupMainProfileTab`, `setMainProfileTab`)~~ — hotovo (karta nastavení v úpravě
+  chatu, úprava profilu; profil se otevře na hlavní záložce; `profil-chatu.md`, „Správa za
+  boosty a hlavní záložka"). Skutečné vypnutí reklam neověřené (chce úroveň 50). Barvy, emoji
+  status a sada emoji skupiny patří pod „Vzhled od Telegramu" (vědomě ne).
 
 **Tvorba samolepek** (`createNewStickerSet`, `uploadStickerFile`, `addStickerToSet`,
 `setStickerEmojis` a dalších 12) — oficiální klient má editor samolepek z fotky. Velký kus,

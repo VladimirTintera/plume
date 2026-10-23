@@ -381,6 +381,36 @@ antispam, podpisy a profily autorů v kanálu, zakázat ukládání obsahu. Na k
   „Plume test smazani": aplikace se vrátila do seznamu a skupina z něj zmizela. Kanál, veřejná
   skupina, diskuse kanálu, skrytí členů a antispam ověřené NEJSOU (testovací účet takové nemá).
 
+#### Správa za boosty a hlavní záložka
+
+Karta má navíc tři volby (stejná `groupSettingsOffer`, testy `ChannelBoostSettingsTest`):
+
+- **Boosty pro obejití omezení** (supergroupa, právo omezovat; `setSupergroupUnrestrictBoostCount`,
+  `SupergroupFullInfo.unrestrictBoostCount`): řádek s nabídkou Vypnuto / po 1–8 boostech. Kdo
+  skupinu boostne aspoň tolikrát, nemusí dodržovat pomalý režim ani omezení členů.
+- **Sponzorované zprávy** (jen vlastník kanálu; `toggleSupergroupCanHaveSponsoredMessages`,
+  `canHaveSponsoredMessages` zná jen vlastník). **Zapnout jdou vždycky, vypnout až od úrovně
+  boostů** `chatBoostFeatures.minSponsoredMessageDisableBoostLevel` (pro kanál dnes 50).
+  Úroveň se čte `getChatBoostStatus`, mez `getChatBoostFeatures(isChannel = true)` — dva dotazy
+  navíc, proto jen když se volba nabízí. Pod mezí je přepínač zamčený a věta říká, od které
+  úrovně to jde a jakou kanál má; když mez nepřišla, vypnout se nenabídne (`Int.MAX_VALUE`).
+- **Hlavní záložka profilu** (kanál, právo měnit údaje; `setSupergroupMainProfileTab`) — na ní
+  se profil otevře v každé aplikaci. Totéž má vlastní profil v úpravě profilu
+  (`setMainProfileTab`, `UserFullInfo.mainProfileTab`) a ukládá se hned.
+  - **„Automaticky" se nabízí, jen dokud nic vybrané není**: zrušit volbu TDLib neumí,
+    `setMainProfileTab` bere jen konkrétní záložku. Kdo ji jednou nastaví, může ji jen měnit.
+  - **Plume volbu i respektuje**: profil (`ChatProfile.mainTab`) přeskočí na odpovídající záložku,
+    jakmile se objeví — záložky přibývají, jak dorážejí počty, dárky a příběhy. Jen jednou a jen
+    dokud uživatel sám nepřepnul (`mainTabDone`), jinak by záložka uskočila pod rukou.
+    Hlavní záložka, kterou chat nemá (bez GIFů, bez příběhů), se nepoužije.
+  - „Příspěvky" (`profileTabPosts`) jsou v Plume záložka Příběhy.
+- **Ověřeno na emulátoru** („Plume test kanal", vlastník; „Plume test zalozeni", diskuse kanálu):
+  sponzorované zprávy zamčené s větou „od úrovně 50, kanál má úroveň 0"; hlavní záložka Příběhy
+  a pak GIFy drží server (po novém otevření úpravy), „Automaticky" po první volbě zmizelo a profil
+  kanálu s odkazem a GIFem se otevřel rovnou na GIFech (druhá záložka). Boosty „Po 2 boostech"
+  po novém otevření drží, pak vráceno na Vypnuto. Vlastní hlavní záložka jen zobrazená, neměněná
+  (uvidí ji kontakty); skutečné vypnutí reklam nešlo ověřit (kanál nemá úroveň 50).
+
 ### Poslední akce
 
 Úprava skupiny nebo kanálu má pro správce řádek **Poslední akce** (`EventLogRoute`,
