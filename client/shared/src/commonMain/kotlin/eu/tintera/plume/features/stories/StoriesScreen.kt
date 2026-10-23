@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stories
 
+import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.ui.StoryVideo
@@ -148,16 +149,34 @@ fun StoriesScreen(
     val captionEdit by viewModel.captionEdit.collectAsStateWithLifecycle()
     val pickingPeople by viewModel.pickingPeople.collectAsStateWithLifecycle()
     val pinned by viewModel.pinned.collectAsStateWithLifecycle()
-    // Návrat z editoru po výměně média: příběh se dočte znovu (nové soubory).
+    val storyVideoSupported = koinInject<StoryVideo>().supported
+    // Příběh, kterému se vybírá nové médium. **Po dobu výběru příběh stojí**: výběr fotek je
+    // panel přes aplikaci, ne celá obrazovka, takže prohlížeč pod ním dál běží — příběh dojel,
+    // prohlížeč se zavřel a vybraná fotka pak neměla kam dojít (ověřeno na emulátoru).
+    var replaceKey by remember { mutableStateOf<StoryKey?>(null) }
+    // Návrat z editoru po výměně média: příběh se dočte znovu (nové soubory). Zrušený výběr
+    // nic nevrátí — pauza se po návratu uvolní sama, až by výsledek přišel (příprava fotky trvá).
     LifecycleResumeEffect(viewModel) {
         viewModel.reloadReplaced()
         onPauseOrDispose { }
     }
-    val storyVideoSupported = koinInject<StoryVideo>().supported
-    var replaceKey by remember { mutableStateOf<StoryKey?>(null) }
+    val replaceScope = rememberCoroutineScope()
+    LifecycleResumeEffect(replaceKey) {
+        val pending = replaceKey
+        val release = if (pending != null) {
+            replaceScope.launch {
+                delay(REPLACE_PICK_GRACE_MS)
+                if (replaceKey == pending) replaceKey = null
+            }
+        } else {
+            null
+        }
+        onPauseOrDispose { release?.cancel() }
+    }
     val replacePicker = rememberAttachmentPicker(
         onPicked = { picked ->
             val key = replaceKey ?: return@rememberAttachmentPicker
+            replaceKey = null
             val target = StoryEditTarget(key.posterChatId, key.storyId, state.pages[key]?.caption.orEmpty())
             when (val first = picked.firstOrNull()) {
                 is OutgoingAttachment.Photo -> {
@@ -278,7 +297,7 @@ fun StoriesScreen(
                     active = active,
                     // Seznam diváků přes příběh — příběh pod ním stojí.
                     paused = dragging || viewers != null || reportWizard != null || albumsSheet != null ||
-                        audienceSheet != null || captionEdit != null,
+                        audienceSheet != null || captionEdit != null || replaceKey != null,
                     restart = state.restart,
                     reactionChoices = reactionChoices,
                     onNext = viewModel::next,
@@ -842,3 +861,6 @@ internal class OwnStoryMenu(
     val onTogglePin: (() -> Unit)?,
     val pinned: Boolean,
 )
+
+/** Jak dlouho po návratu z výběru fotek čekat na výsledek, než se pauza uvolní (zrušený výběr nic nevrátí). */
+private const val REPLACE_PICK_GRACE_MS = 3_000L

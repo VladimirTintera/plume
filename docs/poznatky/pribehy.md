@@ -131,6 +131,10 @@ příběh, který v profilu je.
   editor v režimu úprav neukazuje, příběh je má svoje. Po návratu prohlížeč příběh dočte znovu
   (`reloadReplaced` v `LifecycleResumeEffect`), jinak by ukazoval staré soubory. **Jen obálka
   videa (`editStoryCover`) zvlášť není** — nová obálka se vybere s novým videem.
+  - **Během výběru fotky příběh stojí** (`replaceKey` v `paused`). Výběr fotek na Androidu je
+    panel přes aplikaci, ne celá obrazovka, a prohlížeč pod ním dál běžel: příběh dojel,
+    prohlížeč se zavřel a vybraná fotka neměla kam dojít — editor se vůbec neotevřel (ověřeno
+    na emulátoru). Zrušený výběr nic nevrátí, proto se pauza po návratu uvolní sama za 3 s.
 - **Viditelnost** (`setStoryPrivacySettings`): tytéž volby jako u nového příběhu, `ChoiceListItem`
   v panelu. **Výjimky („všichni kromě…") Plume nenastavuje ani neukazuje**, změna je zahodí.
   **Blízcí přátelé jdou vybrat jen s neprázdným seznamem** (`closeFriends`) — jinak by příběh
@@ -151,8 +155,10 @@ příběh, který v profilu je.
   Panel viditelnosti ukázal Všichni / Moje kontakty / Vybraní lidé (0 lidí) a větu o prázdném
   seznamu blízkých přátel. **Skutečná změna viditelnosti ověřená NENÍ**: každá jiná volba by
   příběh ukázala kontaktům; testy ji pokrývají. **Výměna média a výběr lidí z prohlížeče
-  ověřené na zařízení NEJSOU** (účet neměl vlastní příběh a nový se kvůli tomu nezveřejňoval);
-  pokrývají je `StoryComposerViewModelTest` a `StoriesViewModelTest`.
+  ověřené na emulátoru** na příběhu viditelném jen testovacímu botovi (se souhlasem uživatele,
+  pak smazaný): přechod → pruhy → přechod, prohlížeč po uložení hned ukázal nové médium;
+  „Vybraní lidé" otevřel výběr s předvybraným botem, přidání druhého → „Viditelnost změněna"
+  a po novém otevření „2 lidé" ze serveru. Přidat tak šli jen boti, kteří příběhy nevidí.
 
 ### Příběh za kanál nebo skupinu
 
