@@ -134,7 +134,9 @@ příběh, který v profilu je.
   v režimu „jen obálka" (`StoryEditTarget.coverOnly`) nad staženým videem příběhu — pás snímků
   na výběr obálky, bez ořezu, výplně a popisku; nic se nepřevádí ani nenahrává, jde jen čas
   snímku od začátku videa. Položka v ⋮ je jen u videa a až je stažené (editor čte snímky
-  ze souboru); dokud se stahuje, chybí.
+  ze souboru); dokud se stahuje, chybí. **Ověřeno na emulátoru** na video příběhu viditelném
+  jen testovacímu botovi (se souhlasem uživatele, pak smazaný): obálka 0:00 → 0:02, v „Moje
+  příběhy → Archiv" pak náhled s novým snímkem; prohlížeč pod editorem zůstal otevřený.
 - **Pod editorem prohlížeč stojí** (`covered` z životního cyklu položky: pod RESUMED = jiná
   obrazovka nahoře). Bez toho příběh dojel, prohlížeč se zavřel a po uložení nebylo kam se
   vrátit. Čte se `collectAsState`, NE `…WithLifecycle` — to by sběr při zastavení vypnulo
