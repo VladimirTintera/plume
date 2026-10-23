@@ -722,6 +722,48 @@ v 3.6). Z každých pár pixelů se vezme jeden a zbytek zahodí.
 - **iOS jede přes týž kód Coilu** (`nonAndroidMain`), takže ho nejspíš potkává obojí. Tam to
   ověřené ani opravené není (`zoomLoadsFullResolution = false`, výchozí dekodér).
 
+## Video: GIFy a tichá kolečka (FFmpeg)
+
+GIF je v Telegramu MP4 (H.264) a JVM vlastní dekodér nemá. `VideoPlayer` na desktopu proto
+dekóduje přes **FFmpeg z JavaCPP** (`org.bytedeco:ffmpeg`, LGPL build, dynamicky linkované
+knihovny): `FfmpegVideoDecoder` čte snímky, swscale je převede rovnou do BGRA ve velikosti
+plochy a `VideoSurface` je kreslí jako obrázky Skii.
+
+- **Jen ztlumené video.** Zvukový výstup desktop nemá, takže `load(muted = false)` hlásí
+  `isFailed` jako dřív — video, které vypadá, že hraje, a mlčí, by bylo horší než náhled.
+  Hraje tedy GIF (bublina, výběr GIFů, náhled před odesláním) a tichá smyčka kolečka; kolečko
+  se zvukem, příběhy a prohlížeč videa zůstávají, jak byly (video otevírá aplikace systému).
+- **Proč FFmpeg, ne JCodec.** JCodec je čistá Java a ~1 MB, ale pomalý (GIFů hraje v chatu víc
+  naráz), od roku 2020 se nevyvíjí a pro plné video a zvuk by se FFmpeg stejně přidával. Cena:
+  nativní knihovny pro jeden systém mají 20–30 MB (Windows 30 MB).
+- **Nativní jar jen pro systém, na kterém se staví** (`javacppPlatform` v `build.gradle.kts`
+  sdíleného modulu), stejně jako Skia a TDLib. JavaCPP knihovny při prvním použití vybalí do
+  `~/.javacpp/cache` — napoprvé to trvá kolem vteřiny, proto se dekodér otevírá jen v korutině
+  přehrávače, nikdy na hlavním vlákně. Na systému bez knihoven `open` vyhodí
+  `UnsatisfiedLinkError`, přehrávač nahlásí `isFailed` a zůstane náhled.
+- **Cesta jde FFmpegu v UTF-8 jako `BytePointer`**, ne `String`: JavaCPP by řetězec převedl
+  kódováním systému (JDK 17 na českých Windows cp1250) a soubor s diakritikou v cestě by nenašel.
+- **Jedno vlákno dekodéru na přehrávač** (`thread_count = 1`): GIFů hraje víc naráz a výchozí
+  sada vláken pro každý by jich vyrobila desítky. Korutiny běží na `Dispatchers.Default`
+  a mezi snímky spí, takže vlákno drží jen po dobu dekódování.
+- **Snímek se zmenšuje už ve swscale na velikost plochy** (`fitSize`, testy `FitSizeTest`),
+  nikdy nezvětšuje. GIF 1280 × 720 v bublině by jinak převáděl a nahrával devětkrát víc pixelů,
+  než je vidět. Barvy podle `colorspace` snímku (BT.709 u HD, jinak BT.601), jinak by HD bylo
+  do zelena.
+- **Skia obrázek snímku se zavírá ručně, na hlavním vlákně**, hned po výměně za další.
+  `makeRaster` drží pixely v nativní paměti a halda o nich neví: spoléhat na GC by u GIFu
+  znamenalo desítky MB za vteřinu, než se uklidí. Kreslí se na hlavním vlákně, takže v tu chvíli
+  obrázek nikdo nekreslí, a co už je zaznamenané, drží si ve Skie vlastní referenci. Snímek
+  z předchozího souboru nebo po uvolnění přehrávače se zahodí (`generation`).
+- **Časování podle PTS od kotvy** (snímek a okamžik, kdy se pustil); pauza, skok a rychlost
+  kotvu zahodí. Smyčka pokračuje na téže časové ose, aby první snímek nepřeskočil délku
+  posledního. Zaostane-li dekodér o víc než 250 ms, čas se srovná od aktuálního snímku místo
+  zrychleného dohánění.
+- **Ověřeno na Windows** testovacími MP4 z FFmpegu v balíčku (`ffmpeg.exe` leží v nativním jaru,
+  kodér `libopenh264`): 60 snímků po 33 ms, skok, smyčka, pauza, konec, cesta s diakritikou,
+  barvy pruhů, vykreslení `VideoSurface` přes `ImageComposeScene`; GIFy v konverzaci
+  ověřené v běžící aplikaci (23. 10. 2026). **macOS a Linux jen přeložené.**
+
 ## Co platforma (zatím) neumí
 
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
@@ -729,8 +771,9 @@ přepínání kamery; náhled kamery před spojením jen na macOS.
 
 Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání
 zvuku vyhodí výjimku („hlasovku se nepodařilo přehrát"), nahrávání taky („nahrávání nejde
-spustit"), video má `isFailed = true` a otevírá se v aplikaci systému
-(`viewerUnsupportedFormats` obsahuje všechna videa a HEIC), kamera pro kolečka je `null`
+spustit"), video se zvukem má `isFailed = true` a otevírá se v aplikaci systému
+(`viewerUnsupportedFormats` obsahuje všechna videa a HEIC; ztlumené hraje, viz „Video: GIFy
+a tichá kolečka"), kamera pro kolečka je `null`
 (nenabídne se). Seznam chybějícího je v `docs/roadmap.md`, sekce Desktop.
 
 - **Výběr příloh je AWT `FileDialog`** (na macOS nativní panel). Soubor se nekopíruje — na

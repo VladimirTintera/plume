@@ -198,8 +198,11 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   a Linux neověřené. Co zbývá, je v sekci Hovory.
 - **Zvuk**: přehrávání hlasovek (Opus) a hudby, nahrávání hlasovek. JVM sám Opus ani MP3
   neumí; kandidáti jsou nativní libopus přes JNA, nebo FFmpeg (JavaCV) pro všechno naráz.
-- **Video**: přehrávač v aplikaci (vlcj chce VLC v systému, JavaCV nese FFmpeg). Dnes se video
-  otevírá v aplikaci systému.
+- **Video**: ztlumené hraje (GIFy, tichá smyčka kolečka) přes FFmpeg z JavaCPP
+  (`docs/poznatky/desktop.md`, „Video: GIFy a tichá kolečka"). Zbývá zvuk videa (FFmpeg
+  dekóduje i zvuk, chybí výstup a synchronizace) — pak kolečko se zvukem, příběhy a prohlížeč
+  videa; dnes se video otevírá v aplikaci systému. Streamování rozestavěného souboru by chtělo
+  vlastní `AVIOContext`.
 - **Trezor tajemství na Windows a Linuxu** (DPAPI, Secret Service / libsecret). Dnes soubor
   s právy jen pro vlastníka vedle databáze.
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
