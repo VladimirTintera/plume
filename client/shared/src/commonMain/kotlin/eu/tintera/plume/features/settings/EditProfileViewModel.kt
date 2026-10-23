@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.telegram.ProfilePhotoFile
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -285,6 +286,17 @@ class EditProfileViewModel(
         viewModelScope.launch {
             runCatching { photoCrop.crop(region) }
                 .mapCatching { prepared -> prepared?.let { account.setPhoto(it.file).getOrThrow() } }
+                .onSuccess { reloadPhoto() }
+                .onFailure { notice = it.reported(Res.string.edit_profile_photo_failed) }
+            photoBusy = false
+        }
+    }
+
+    /** Fotka z emoji ([EmojiPhotoSheet]) jde rovnou, bez ořezu — obrázek vyrobí server. */
+    fun setEmojiPhoto(photo: ProfilePhotoFile.Emoji) {
+        photoBusy = true
+        viewModelScope.launch {
+            account.setPhoto(photo)
                 .onSuccess { reloadPhoto() }
                 .onFailure { notice = it.reported(Res.string.edit_profile_photo_failed) }
             photoBusy = false

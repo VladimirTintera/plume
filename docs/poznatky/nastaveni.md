@@ -315,6 +315,8 @@ jméno, příjmení, uživatelské jméno a bio.
   zůstává dvoupanelem, takže výchozí `PopUntilScaffoldValueChange` odebral úpravu i sekci pod
   ní a gesto zpět odešlo z Nastavení rovnou do Chatů. Klik na jinou sekci úpravu ze zásobníku
   odebere taky, jinak by visela pod novou sekcí.
+- **Fotka z emoji** („Z emoji" vedle „Změnit fotku") je popsaná u úpravy skupiny
+  (`docs/poznatky/profil-chatu.md`, „Fotka z emoji") — obrazovky ji sdílejí.
 - **Fotka se ukládá hned, texty až tlačítkem Uložit.** Fotka má vlastní nahrávání; kdyby čekala
   na Uložit, zmizela by s odchodem. Ořízne se na čtverec podle výřezu z ořezu (`SquarePhoto`,
   platformní; viz „Ořez profilové fotky") — kreslí se v kruhu a neořezanou by každý klient

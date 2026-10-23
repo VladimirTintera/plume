@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.ProfilePhotoFile
 import eu.tintera.plume.resources.broadcast_group_failed
 import eu.tintera.plume.resources.broadcast_group_done
 import eu.tintera.plume.core.telegram.offersBroadcastGroup
@@ -540,6 +541,17 @@ class EditChatViewModel(
             // jinak — stejně jako u vlastní profilovky. Výřez vybral uživatel.
             runCatching { photoCrop.crop(region) }
                 .mapCatching { prepared -> prepared?.let { repository.setPhoto(chatId, it.file).getOrThrow() } }
+                .onSuccess { reloadPhoto() }
+                .onFailure { notice = it.reported(Res.string.edit_chat_photo_failed) }
+            photoBusy = false
+        }
+    }
+
+    /** Fotka z emoji ([EmojiPhotoSheet]) jde rovnou, bez ořezu — obrázek vyrobí server. */
+    fun setEmojiPhoto(photo: ProfilePhotoFile.Emoji) {
+        photoBusy = true
+        viewModelScope.launch {
+            repository.setPhoto(chatId, photo)
                 .onSuccess { reloadPhoto() }
                 .onFailure { notice = it.reported(Res.string.edit_chat_photo_failed) }
             photoBusy = false

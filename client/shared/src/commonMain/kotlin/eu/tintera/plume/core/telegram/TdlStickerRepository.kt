@@ -300,6 +300,12 @@ class TdlStickerRepository(
                     }
             }
 
+    override suspend fun defaultPhotoEmoji(forChat: Boolean): Result<List<CustomEmojiItem>> =
+        (if (forChat) client.getDefaultChatPhotoCustomEmojiStickers() else client.getDefaultProfilePhotoCustomEmojiStickers())
+            .toResult()
+            .map { found -> found.stickers.filterNotNull().mapNotNull { it.toCustomEmojiItem() } }
+            .onFailure { logger.w(it) { "Emoji na profilovou fotku se nepodařilo načíst." } }
+
     override suspend fun customEmojiSet(setId: Long): Result<List<CustomEmojiItem>> =
         client.getStickerSet(setId = setId)
             .toResult()

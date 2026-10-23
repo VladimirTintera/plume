@@ -102,6 +102,13 @@ interface StickerRepository {
     /** Nainstalované sady vlastních emoji, v pořadí uživatele. Živý tok jako [installedSets]. */
     fun customEmojiSets(): Flow<List<CustomEmojiSet>>
 
+    /**
+     * Vlastní emoji, která Telegram nabízí na profilovou fotku — účtu
+     * (`getDefaultProfilePhotoCustomEmojiStickers`), nebo skupiny a kanálu ([forChat],
+     * `getDefaultChatPhotoCustomEmojiStickers`). Jdou použít i bez Premium.
+     */
+    suspend fun defaultPhotoEmoji(forChat: Boolean): Result<List<CustomEmojiItem>> = Result.success(emptyList())
+
     /** Vlastní emoji jedné sady; načítá se až při otevření její záložky. */
     suspend fun customEmojiSet(setId: Long): Result<List<CustomEmojiItem>>
 
