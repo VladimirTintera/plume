@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.dto.ChatBoostSourceGiftCode
 import dev.g000sha256.tdl.dto.ChatBoostSourceGiveaway
 import dev.g000sha256.tdl.dto.ChatBoostSourcePremium
@@ -850,6 +851,31 @@ class TdlProfileRepository(
     override suspend fun similarChannels(chatId: Long): Result<List<RelatedChat>> = runCatching {
         val found = client.getChatSimilarChats(chatId = chatId).toResult().getOrThrow()
         found.chatIds.toList().take(RELATED_CHATS_LIMIT).mapNotNull { relatedChat(it) }
+    }
+
+    override suspend fun similarBots(botUserId: Long): Result<List<RelatedChat>> = runCatching {
+        val found = client.getBotSimilarBots(botUserId = botUserId).toResult().getOrThrow()
+        found.userIds.toList().take(RELATED_CHATS_LIMIT).mapNotNull { id ->
+            val user = client.getUser(userId = id).toResult().getOrNull() ?: return@mapNotNull null
+            RelatedChat(
+                chatId = user.id,
+                title = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "),
+                photoFileId = user.profilePhoto?.small?.id,
+                // Měsíční uživatelé; nula znamená „server nevydal", ne „nikdo".
+                memberCount = (user.type as? UserTypeBot)?.activeUserCount?.takeIf { it > 0 },
+                isChannel = false,
+                isBot = true,
+            )
+        }
+    }
+
+    override suspend fun similarOpened(sourceId: Long, openedId: Long, bots: Boolean) {
+        val result = if (bots) {
+            client.openBotSimilarBot(botUserId = sourceId, openedBotUserId = openedId)
+        } else {
+            client.openChatSimilarChat(chatId = sourceId, openedChatId = openedId)
+        }
+        result.toResult().onFailure { Logger.withTag("Profile").w(it) { "Otevření podobného $openedId u $sourceId TDLib nepřijal." } }
     }
 
     /** Chat do záložky: název, fotka a počet členů. Chat, který se načíst nedá, se vynechá. */

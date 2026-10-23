@@ -130,6 +130,16 @@ interface ProfileRepository {
      */
     suspend fun similarChannels(chatId: Long): Result<List<RelatedChat>>
 
+    /** Boti podobní botovi [botUserId] (`getBotSimilarBots`); i tady jich bez Premium server vydá pár. */
+    suspend fun similarBots(botUserId: Long): Result<List<RelatedChat>> = Result.success(emptyList())
+
+    /**
+     * Uživatel otevřel [openedId] ze záložky Podobné u [sourceId] — kanál (`openChatSimilarChat`),
+     * nebo bot ([bots], `openBotSimilarBot`, id jsou id uživatelů). Dokumentace TDLib to po klientovi
+     * chce: server podle toho ladí doporučení. Selhání nic nezastaví, jen se zapíše.
+     */
+    suspend fun similarOpened(sourceId: Long, openedId: Long, bots: Boolean) = Unit
+
     /**
      * Dárky v profilu člověka nebo kanálu (`getReceivedGifts`), stránka po stránce od [offset]
      * (prázdný = první). Cizím TDLib vydá jen dárky vystavené v profilu.
@@ -602,7 +612,7 @@ data class ProfileMember(
 
 enum class MemberRole { Owner, Admin, Member }
 
-/** Chat v záložce Společné skupiny nebo Podobné kanály. */
+/** Chat v záložce Společné skupiny nebo Podobné (kanály u kanálu, boti u bota). */
 data class RelatedChat(
     val chatId: Long,
     val title: String,
@@ -610,6 +620,8 @@ data class RelatedChat(
     /** Počet členů / odběratelů; `null`, když ho server nevydal. */
     val memberCount: Int?,
     val isChannel: Boolean,
+    /** Bot v záložce Podobné u bota; [memberCount] je pak počet uživatelů za měsíc. */
+    val isBot: Boolean = false,
 )
 
 /** Kolik společných skupin a podobných kanálů se čte — víc jich v záložce nikdo procházet nebude. */

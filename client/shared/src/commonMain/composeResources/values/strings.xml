@@ -499,6 +499,10 @@
     <string name="profile_tab_common_groups">Groups</string>
     <string name="profile_tab_similar_channels">Similar</string>
     <string name="profile_tab_gifts">Gifts</string>
+    <plurals name="profile_bot_monthly_users">
+        <item quantity="one">%1$s monthly user</item>
+        <item quantity="other">%1$s monthly users</item>
+    </plurals>
     <string name="gift_number">#%1$s</string>
     <string name="gift_received_on">Received %1$s</string>
     <string name="profile_shared_gif">GIF</string>

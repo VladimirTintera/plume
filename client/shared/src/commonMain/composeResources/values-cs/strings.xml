@@ -510,6 +510,11 @@
     <string name="profile_tab_common_groups">Skupiny</string>
     <string name="profile_tab_similar_channels">Podobné</string>
     <string name="profile_tab_gifts">Dárky</string>
+    <plurals name="profile_bot_monthly_users">
+        <item quantity="one">%1$s uživatel měsíčně</item>
+        <item quantity="few">%1$s uživatelé měsíčně</item>
+        <item quantity="other">%1$s uživatelů měsíčně</item>
+    </plurals>
     <string name="gift_number">#%1$s</string>
     <string name="gift_received_on">Obdrženo %1$s</string>
     <string name="profile_shared_gif">GIF</string>
