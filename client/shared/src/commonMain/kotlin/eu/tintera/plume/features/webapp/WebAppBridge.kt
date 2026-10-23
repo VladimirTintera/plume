@@ -20,9 +20,10 @@ import kotlinx.serialization.json.put
  * `Telegram.WebView.receiveEvent(typ, data)`. Tady je jen překlad — čistý a testovaný
  * (`WebAppBridgeTest`), WebView data jen přenáší.
  *
- * Názvy a tvar událostí jsou z dokumentace Telegramu (core.telegram.org/api/web-events).
+ * Názvy a tvar událostí jsou z dokumentace Telegramu (core.telegram.org/api/web-events)
+ * a ze skriptu `telegram-web-app.js` (u novějších, které dokumentace událostí ještě nemá).
  * **Neznámá událost se ignoruje** ([WebAppEvent.Unknown]); na ty, na které stránka čeká
- * odpověď (telefon, zápis, faktura…), se odpovídá „zrušeno", jinak by visela.
+ * odpověď a Plume je neumí (telefon, faktura…), se odpovídá „zrušeno", jinak by visela.
  */
 sealed interface WebAppEvent {
     data object Ready : WebAppEvent
@@ -50,6 +51,12 @@ sealed interface WebAppEvent {
     data class ReadClipboard(val requestId: String) : WebAppEvent
     data object RequestPhone : WebAppEvent
     data object RequestWriteAccess : WebAppEvent
+    /** Sdílet zprávu připravenou botem (`shareMessage`, `web_app_send_prepared_message`). */
+    data class SharePreparedMessage(val id: String) : WebAppEvent
+    /** Vybrat chat nebo lidi pro tlačítko připravené botem (`requestChat`, `web_app_request_chat`). */
+    data class RequestChat(val requestId: String) : WebAppEvent
+    /** Stáhnout soubor z adresy https (`downloadFile`, `web_app_request_file_download`). */
+    data class DownloadFile(val url: String, val fileName: String) : WebAppEvent
     data class OpenInvoice(val slug: String) : WebAppEvent
     data object RequestFullscreen : WebAppEvent
     data object CheckHomeScreen : WebAppEvent
@@ -161,11 +168,37 @@ fun parseWebAppEvent(type: String, data: String?): WebAppEvent {
         "web_app_read_text_from_clipboard" -> string("req_id")?.let(WebAppEvent::ReadClipboard) ?: WebAppEvent.Unknown(type)
         "web_app_request_phone" -> WebAppEvent.RequestPhone
         "web_app_request_write_access" -> WebAppEvent.RequestWriteAccess
+        "web_app_send_prepared_message" -> string("id")?.takeIf { it.isNotEmpty() }
+            ?.let(WebAppEvent::SharePreparedMessage) ?: WebAppEvent.Unknown(type)
+        "web_app_request_chat" -> string("req_id")?.takeIf { it.isNotEmpty() }
+            ?.let(WebAppEvent::RequestChat) ?: WebAppEvent.Unknown(type)
+        "web_app_request_file_download" -> {
+            val url = string("url")
+            val name = string("file_name")
+            // Jen https, jako kontroluje skript Telegramu; bez jména není pod čím uložit.
+            if (url != null && url.startsWith("https://") && !name.isNullOrBlank()) {
+                WebAppEvent.DownloadFile(url, name)
+            } else {
+                WebAppEvent.Unknown(type)
+            }
+        }
         "web_app_open_invoice" -> WebAppEvent.OpenInvoice(string("slug").orEmpty())
         "web_app_request_fullscreen" -> WebAppEvent.RequestFullscreen
         "web_app_check_home_screen" -> WebAppEvent.CheckHomeScreen
         else -> WebAppEvent.Unknown(type)
     }
+}
+
+/**
+ * Kódy chyb pro stránku — z dokumentace Web Apps (`shareMessageFailed`) a toho, co posílají
+ * oficiální klienti u `requestChat`. Stránka je porovnává, takže se nepřekládají.
+ */
+object WebAppErrors {
+    const val USER_DECLINED = "USER_DECLINED"
+    const val MESSAGE_EXPIRED = "MESSAGE_EXPIRED"
+    const val MESSAGE_SEND_FAILED = "MESSAGE_SEND_FAILED"
+    const val UNSUPPORTED = "UNSUPPORTED"
+    const val UNKNOWN_ERROR = "UNKNOWN_ERROR"
 }
 
 /** Událost pro stránku: typ a JSON data (objekt), jak je čeká `Telegram.WebView.receiveEvent`. */
@@ -233,7 +266,38 @@ object WebAppEvents {
 
     fun phoneRequested() = WebAppOutgoing("phone_requested", """{"status":"cancelled"}""")
 
-    fun writeAccessRequested() = WebAppOutgoing("write_access_requested", """{"status":"cancelled"}""")
+    /** Odpověď na `requestWriteAccess`: [allowed] = bot smí uživateli psát. */
+    fun writeAccessRequested(allowed: Boolean) = WebAppOutgoing(
+        "write_access_requested",
+        buildJsonObject { put("status", if (allowed) "allowed" else "cancelled") }.toString(),
+    )
+
+    fun preparedMessageSent() = WebAppOutgoing("prepared_message_sent", "{}")
+
+    /** Sdílení nedopadlo; [error] je kód z dokumentace ([WebAppErrors]). */
+    fun preparedMessageFailed(error: String) = WebAppOutgoing(
+        "prepared_message_failed",
+        buildJsonObject { put("error", error) }.toString(),
+    )
+
+    fun requestedChatSent(requestId: String) = WebAppOutgoing(
+        "requested_chat_sent",
+        buildJsonObject { put("req_id", requestId) }.toString(),
+    )
+
+    fun requestedChatFailed(requestId: String, error: String) = WebAppOutgoing(
+        "requested_chat_failed",
+        buildJsonObject {
+            put("req_id", requestId)
+            put("error", error)
+        }.toString(),
+    )
+
+    /** Odpověď na `downloadFile`: [downloading] = stahování začalo, jinak ho uživatel odmítl. */
+    fun fileDownloadRequested(downloading: Boolean) = WebAppOutgoing(
+        "file_download_requested",
+        buildJsonObject { put("status", if (downloading) "downloading" else "cancelled") }.toString(),
+    )
 
     fun invoiceClosed(slug: String) = WebAppOutgoing(
         "invoice_closed",

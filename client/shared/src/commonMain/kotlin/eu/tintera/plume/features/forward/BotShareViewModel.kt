@@ -3,6 +3,7 @@ package eu.tintera.plume.features.forward
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.BotChatRequest
+import eu.tintera.plume.core.telegram.BotShareSource
 import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -48,8 +49,8 @@ internal fun botShareCandidates(
 }
 
 /**
- * Výběr pro tlačítko bota „vyber lidi" ([users]) nebo „vyber chat" ([chat]) ve zprávě
- * [messageId] chatu [chatId].
+ * Výběr pro tlačítko bota „vyber lidi" ([users]) nebo „vyber chat" ([chat]) ze zprávy bota,
+ * nebo připravené mini aplikací ([source]).
  *
  * - **Lidí víc, chat jeden.** Lidé se zaškrtávají (nejvýš [BotUsersRequest.maxQuantity])
  *   a sdílí tlačítkem pod kartou, která říká, co bot dostane. Chat se po ťuknutí potvrzuje
@@ -58,8 +59,7 @@ internal fun botShareCandidates(
  *   pozná hned u řádku, ne až po odeslání.
  */
 class BotShareViewModel(
-    private val chatId: Long,
-    private val messageId: Long,
+    private val source: BotShareSource,
     private val users: BotUsersRequest?,
     private val chat: BotChatRequest?,
     private val repository: ConversationRepository,
@@ -117,7 +117,7 @@ class BotShareViewModel(
         _busy.value = true
         viewModelScope.launch {
             // Soukromý chat má id uživatele.
-            repository.shareUsersWithBot(chatId, messageId, request.buttonId, listOf(summary.id), onlyCheck = true)
+            repository.shareUsersWithBot(source, request.buttonId, listOf(summary.id), onlyCheck = true)
                 .onSuccess { _selected.update { it + summary } }
                 .onFailure { _error.value = UiText(Res.string.bot_share_user_not_allowed) }
             _busy.value = false
@@ -127,7 +127,7 @@ class BotShareViewModel(
     private fun check(request: BotChatRequest, summary: ChatSummary) {
         _busy.value = true
         viewModelScope.launch {
-            repository.shareChatWithBot(chatId, messageId, request.buttonId, summary.id, onlyCheck = true)
+            repository.shareChatWithBot(source, request.buttonId, summary.id, onlyCheck = true)
                 .onSuccess { _pendingChat.value = summary }
                 .onFailure { _error.value = UiText(Res.string.bot_share_chat_not_allowed) }
             _busy.value = false
@@ -144,12 +144,12 @@ class BotShareViewModel(
         val result: suspend () -> Result<Unit> = when {
             users != null -> {
                 val ids = _selected.value.map { it.id }.takeIf { it.isNotEmpty() } ?: return
-                suspend { repository.shareUsersWithBot(chatId, messageId, users.buttonId, ids, onlyCheck = false) }
+                suspend { repository.shareUsersWithBot(source, users.buttonId, ids, onlyCheck = false) }
             }
             chat != null -> {
                 val target = _pendingChat.value ?: return
                 _pendingChat.value = null
-                suspend { repository.shareChatWithBot(chatId, messageId, chat.buttonId, target.id, onlyCheck = false) }
+                suspend { repository.shareChatWithBot(source, chat.buttonId, target.id, onlyCheck = false) }
             }
             else -> return
         }

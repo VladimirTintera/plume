@@ -2,6 +2,8 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestChat
+import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestUsers
 import dev.g000sha256.tdl.dto.ThemeParameters
 import dev.g000sha256.tdl.dto.WebAppOpenModeFullSize
 import dev.g000sha256.tdl.dto.WebAppOpenParameters
@@ -102,6 +104,49 @@ class TdlWebAppRepository(private val holder: TelegramClientHolder) : WebAppRepo
         client.getUser(userId = botUserId).toResult().getOrNull()?.let { user ->
             listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null }
         }
+
+    override suspend fun canBotWrite(botUserId: Long): Boolean =
+        client.canBotSendMessages(botUserId = botUserId).toResult().isSuccess
+
+    override suspend fun allowBotToWrite(botUserId: Long): Result<Unit> =
+        client.allowBotToSendMessages(botUserId = botUserId)
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Botovi $botUserId nejde dovolit psát." } }
+
+    override suspend fun preparedMessage(botUserId: Long, preparedMessageId: String): Result<PreparedMessage> =
+        client.getPreparedInlineMessage(botUserId = botUserId, preparedMessageId = preparedMessageId)
+            .toResult()
+            .mapCatching { prepared ->
+                PreparedMessage(
+                    queryId = prepared.inlineQueryId,
+                    result = prepared.result.toDomain() ?: error("Připravená zpráva bez náhledu."),
+                    targets = prepared.chatTypes.toChosen(),
+                )
+            }
+            .onFailure { logger.w(it) { "Připravenou zprávu $preparedMessageId bota $botUserId nejde načíst." } }
+
+    override suspend fun preparedButton(botUserId: Long, preparedButtonId: String): Result<PreparedButton> =
+        client.getPreparedKeyboardButton(botUserId = botUserId, preparedButtonId = preparedButtonId)
+            .toResult()
+            .map { button ->
+                when (val type = button.type) {
+                    is KeyboardButtonTypeRequestUsers -> PreparedButton.Users(type.toBotUsersRequest())
+                    is KeyboardButtonTypeRequestChat -> PreparedButton.Chat(type.toBotChatRequest())
+                    // TDLib jiný druh slibuje nevydat; kdyby přece, mini aplikace dostane „nepodporováno".
+                    else -> PreparedButton.Unsupported
+                }
+            }
+            .onFailure { logger.w(it) { "Připravené tlačítko $preparedButtonId bota $botUserId nejde načíst." } }
+
+    override suspend fun checkDownload(botUserId: Long, fileName: String, url: String): Result<String> =
+        client.checkWebAppFileDownload(botUserId = botUserId, fileName = fileName, url = url)
+            .toResult()
+            .mapCatching {
+                client.cleanFileName(fileName = fileName).toResult().getOrNull()?.text?.ifBlank { null }
+                    ?: error("Jméno souboru po očištění nezbylo.")
+            }
+            .onFailure { logger.w(it) { "Mini aplikace bota $botUserId nesmí stáhnout $url." } }
 
     private fun parameters(theme: WebAppTheme) = WebAppOpenParameters(
         theme = ThemeParameters(

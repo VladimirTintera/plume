@@ -82,7 +82,10 @@ import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestUsers
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestChat
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeWebApp
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestManagedBot
+import dev.g000sha256.tdl.dto.KeyboardButtonSource
+import dev.g000sha256.tdl.dto.TargetChatTypes
 import dev.g000sha256.tdl.dto.KeyboardButtonSourceMessage
+import dev.g000sha256.tdl.dto.KeyboardButtonSourceWebApp
 import dev.g000sha256.tdl.dto.ButtonStyle
 import dev.g000sha256.tdl.dto.InputMessageContact
 import dev.g000sha256.tdl.dto.Contact
@@ -2563,28 +2566,26 @@ class TdlConversationRepository(
     }
 
     override suspend fun shareUsersWithBot(
-        chatId: Long,
-        messageId: Long,
+        source: BotShareSource,
         buttonId: Int,
         userIds: List<Long>,
         onlyCheck: Boolean,
     ): Result<Unit> =
         client.shareUsersWithBot(
-            source = KeyboardButtonSourceMessage(chatId = chatId, messageId = messageId),
+            source = source.toTdl(),
             buttonId = buttonId,
             sharedUserIds = userIds.toLongArray(),
             onlyCheck = onlyCheck,
         ).toResult().map { }
 
     override suspend fun shareChatWithBot(
-        chatId: Long,
-        messageId: Long,
+        source: BotShareSource,
         buttonId: Int,
         sharedChatId: Long,
         onlyCheck: Boolean,
     ): Result<Unit> =
         client.shareChatWithBot(
-            source = KeyboardButtonSourceMessage(chatId = chatId, messageId = messageId),
+            source = source.toTdl(),
             buttonId = buttonId,
             sharedChatId = sharedChatId,
             onlyCheck = onlyCheck,
@@ -4374,12 +4375,7 @@ private fun InlineKeyboardButtonTypeSwitchInline.toSwitchInline(bot: String?): B
     bot ?: return null
     val target = when (val chat = targetChat) {
         is TargetChatCurrent -> SwitchInlineTarget.Current
-        is TargetChatChosen -> SwitchInlineTarget.Chosen(
-            users = chat.types.allowUserChats,
-            bots = chat.types.allowBotChats,
-            groups = chat.types.allowGroupChats,
-            channels = chat.types.allowChannelChats,
-        )
+        is TargetChatChosen -> chat.types.toChosen()
         is TargetChatInternalLink -> return null
     }
     return BotButtonKind.SwitchInline(bot = bot, query = query, target = target)
@@ -4406,22 +4402,8 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
                                 else -> PollComposerMode.Any
                             },
                         )
-                        is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Users(
-                            BotUsersRequest(
-                                buttonId = type.id,
-                                bots = type.userIsBot.takeIf { type.restrictUserIsBot },
-                                maxQuantity = type.maxQuantity.coerceAtLeast(1),
-                            ),
-                        )
-                        is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Chat(
-                            BotChatRequest(
-                                buttonId = type.id,
-                                channel = type.chatIsChannel,
-                                forum = type.chatIsForum.takeIf { type.restrictChatIsForum },
-                                botIsMember = type.botIsMember,
-                                botAdministrator = type.botAdministratorRights != null,
-                            ),
-                        )
+                        is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Users(type.toBotUsersRequest())
+                        is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Chat(type.toBotChatRequest())
                         is KeyboardButtonTypeWebApp -> ReplyKeyboardButtonKind.WebApp(type.url)
                         is KeyboardButtonTypeRequestManagedBot -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.ManagedBot)
                     },
@@ -4543,3 +4525,30 @@ private fun SuggestedPostInfo.toDomain() = SuggestedPost(
 
 /** Strop komentáře k odmítnutí (`declineSuggestedPost`). */
 private const val DECLINE_COMMENT_MAX = 128
+
+internal fun BotShareSource.toTdl(): KeyboardButtonSource = when (this) {
+    is BotShareSource.Message -> KeyboardButtonSourceMessage(chatId = chatId, messageId = messageId)
+    is BotShareSource.WebApp -> KeyboardButtonSourceWebApp(botUserId = botUserId, preparedButtonId = preparedButtonId)
+}
+
+internal fun KeyboardButtonTypeRequestUsers.toBotUsersRequest() = BotUsersRequest(
+    buttonId = id,
+    bots = userIsBot.takeIf { restrictUserIsBot },
+    maxQuantity = maxQuantity.coerceAtLeast(1),
+)
+
+internal fun KeyboardButtonTypeRequestChat.toBotChatRequest() = BotChatRequest(
+    buttonId = id,
+    channel = chatIsChannel,
+    forum = chatIsForum.takeIf { restrictChatIsForum },
+    botIsMember = botIsMember,
+    botAdministrator = botAdministratorRights != null,
+)
+
+/** Druhy chatů, kam bot dovolil poslat výsledek (`TargetChatTypes`). */
+internal fun TargetChatTypes.toChosen() = SwitchInlineTarget.Chosen(
+    users = allowUserChats,
+    bots = allowBotChats,
+    groups = allowGroupChats,
+    channels = allowChannelChats,
+)

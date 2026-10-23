@@ -46,6 +46,7 @@ import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
+import eu.tintera.plume.core.files.WebFileDownloader
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.share.AndroidShareTargetPublisher
 import eu.tintera.plume.core.share.ShareIntake
@@ -122,6 +123,7 @@ actual fun Module.platformModule() {
     single { UrlOpener(androidContext(), settings = get()) }
     single { AppLanguage(androidContext()) }
     single { FileOpener(androidContext()) }
+    single { WebFileDownloader(androidContext()) }
     single { MediaSaver(androidContext()) }
     single<TextRecognizer> { MlKitTextRecognizer() }
     single<OnDeviceTranslator> { MlKitTranslator(androidContext()) }

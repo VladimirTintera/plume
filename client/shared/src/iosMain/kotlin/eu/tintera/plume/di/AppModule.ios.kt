@@ -25,6 +25,7 @@ import eu.tintera.plume.core.audio.NowPlayingControls
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSaver
+import eu.tintera.plume.core.files.WebFileDownloader
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.share.IosShareInbox
 import eu.tintera.plume.core.share.IosShareSnapshot
@@ -79,6 +80,7 @@ actual fun Module.platformModule() {
     single { UrlOpener(settings = get()) }
     single { AppLanguage() }
     single { FileOpener() }
+    single { WebFileDownloader(get()) }
     single { MediaSaver() }
     single<TextRecognizer> { VisionTextRecognizer() }
     single { MediaSharer() }

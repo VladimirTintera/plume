@@ -1003,17 +1003,17 @@ interface ConversationRepository {
     suspend fun botMenuApp(chatId: Long): Result<BotMenuApp?>
 
     /**
-     * Sdílí účty [userIds] s botem přes tlačítko klávesnice ve zprávě [messageId]. S [onlyCheck]
-     * se jen ověří, že je tlačítko přijme (bot, prémiový účet…) — nic neodejde.
+     * Sdílí účty [userIds] s botem přes tlačítko klávesnice z [source]. S [onlyCheck] se jen
+     * ověří, že je tlačítko přijme (bot, prémiový účet…) — nic neodejde.
      */
-    suspend fun shareUsersWithBot(chatId: Long, messageId: Long, buttonId: Int, userIds: List<Long>, onlyCheck: Boolean): Result<Unit>
+    suspend fun shareUsersWithBot(source: BotShareSource, buttonId: Int, userIds: List<Long>, onlyCheck: Boolean): Result<Unit>
 
     /**
      * Sdílí chat [sharedChatId] s botem. S [onlyCheck] jen ověří omezení tlačítka; to, jestli
      * bot do chatu smí (člen, správce), se ověří až při skutečném sdílení — TDLib ho tam případně
      * přidá a práva udělí sám.
      */
-    suspend fun shareChatWithBot(chatId: Long, messageId: Long, buttonId: Int, sharedChatId: Long, onlyCheck: Boolean): Result<Unit>
+    suspend fun shareChatWithBot(source: BotShareSource, buttonId: Int, sharedChatId: Long, onlyCheck: Boolean): Result<Unit>
 
     /**
      * Změny toho, jestli se do chatu smí psát a jestli se k němu jde přidat (správce změní
@@ -2009,6 +2009,15 @@ sealed interface ReplyKeyboardButtonKind {
 }
 
 enum class UnsupportedKeyboardButton { ManagedBot }
+
+/** Odkud je tlačítko „vyber lidi / chat", se kterým se s botem sdílí. */
+sealed interface BotShareSource {
+    /** Tlačítko vlastní klávesnice ve zprávě bota. */
+    data class Message(val chatId: Long, val messageId: Long) : BotShareSource
+
+    /** Tlačítko, které bot připravil mini aplikaci (`requestChat`, `savePreparedKeyboardButton`). */
+    data class WebApp(val botUserId: Long, val preparedButtonId: String) : BotShareSource
+}
 
 /**
  * Tlačítko bota „vyber lidi". [buttonId] patří botovi (podle něj pozná, na co odpověď je).

@@ -2440,6 +2440,16 @@
     <string name="webapp_load_failed">Mini aplikaci se nepodařilo otevřít.</string>
     <string name="webapp_close_confirm_title">Zavřít mini aplikaci?</string>
     <string name="webapp_close_confirm_text">Neuložené změny se můžou ztratit.</string>
+    <string name="webapp_write_access_title">Dovolit %1$s psát ti?</string>
+    <string name="webapp_write_access_text">Mini aplikace žádá, aby ti bot mohl posílat zprávy. Zarazit to jde kdykoli zablokováním bota.</string>
+    <string name="webapp_write_access_allow">Dovolit</string>
+    <string name="webapp_download_title">Stáhnout soubor?</string>
+    <string name="webapp_download_text">%1$s chce stáhnout soubor „%2$s“ z %3$s.</string>
+    <string name="webapp_download_confirm">Stáhnout</string>
+    <string name="webapp_share_title">Sdílet zprávu</string>
+    <string name="webapp_share_info">Tuhle zprávu připravil %1$s. Odejde jako zpráva přes bota.</string>
+    <string name="webapp_share_confirm_count">Poslat (%1$d)</string>
+    <string name="webapp_share_failed">Zprávu se nepodařilo poslat.</string>
     <string name="webapp_popup_ok">OK</string>
     <string name="webapp_consent_title">Otevřít mini aplikaci?</string>
     <string name="webapp_consent_text">%1$s uvidí tvoje jméno, uživatelské jméno a jazyk. Co v mini aplikaci uděláš, může dostat i bot.</string>

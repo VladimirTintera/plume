@@ -410,8 +410,9 @@ zobrazí a zprostředkuje její události.
 - **Události překládá čistý most** (`WebAppBridge.kt`, testy `WebAppBridgeTest`), WebView data
   jen přenáší. Zpět se doručují `Telegram.WebView.receiveEvent(typ, data)`; typ i data jdou do
   skriptu jako JSON literály, nic se neescapuje ručně.
-- **Na co stránka čeká odpověď, na to se odpoví, i když to Plume neumí** (telefon, zápis, faktura,
+- **Na co stránka čeká odpověď, na to se odpoví, i když to Plume neumí** (telefon, faktura,
   celá obrazovka, plocha): „zrušeno" / „nepodporováno". Jinak by mini aplikace visela.
+  Zápis, sdílení zprávy, výběr chatu a stažení souboru Plume umí — viz „Požadavky mini aplikace".
   Schránku mini aplikacím nedáváme (`data: null`).
 - **Motiv jsou barvy aplikace** (`webAppTheme`: stránka `surface`, sekce `surfaceContainerLowest`
   jako bloky seznamů, tlačítka `primary`) — do adresy přes TDLib i do `theme_changed` po změně
@@ -509,6 +510,53 @@ zobrazí a zprostředkuje její události.
   otevření z vlastní klávesnice (ukázka tam hlásí „zavřeno" — objednávat dovolí jen s `query_id`
   z `openWebApp`, to je vlastnost ukázky). **Neověřeno**: popup, vlastní metody, `web_app_data_send`,
   odkaz na Telegram z mini aplikace a iOS (jen přeložené).
+
+### Požadavky mini aplikace: zápis, sdílení, výběr chatu, stažení
+
+Čtyři volání, na která stránka čeká odpověď a která Plume dřív jen odmítal
+(`WebAppViewModel`, most `WebAppBridge`, testy `WebAppRequestsTest`, `PreparedShareViewModelTest`,
+`BotShareSourceTest`). Názvy událostí a tvar odpovědí jsou ze skriptu `telegram-web-app.js`
+a z oficiálních klientů (Telegram Desktop `attach_bot_webview.cpp`) — dokumentace událostí
+`requestChat` ještě nemá.
+
+- **`requestWriteAccess`** (`write_access_requested`): bot, který psát už smí
+  (`canBotSendMessages`), dostane „allowed" bez ptaní — mini aplikace se ptá při každém
+  spuštění a uživatel by potvrzoval pořád dokola. Jinak `ConfirmDialog` „Dovolit … psát ti?"
+  a `allowBotToSendMessages`. Dřív odpověď byla VŽDY „cancelled".
+- **`shareMessage`** (`web_app_send_prepared_message` → `prepared_message_sent` / `_failed`):
+  `getPreparedInlineMessage` vydá výsledek inline dotazu a povolené druhy chatů; výběr
+  (`PreparedShareScreen`) nabídne jen ty a jen chaty, kam se smí psát
+  (`inlineQueryTargets`, tentýž výběr jako tlačítko bota s inline dotazem), víc cílů naráz.
+  Odešle se `sendInlineResult` („přes @bot"). Kódy chyb podle dokumentace: zpráva, kterou TDLib
+  nevydá, `MESSAGE_EXPIRED`, zavřený výběr `USER_DECLINED`. **Povedlo se, když odešla aspoň do
+  jednoho chatu** (jako Desktop); když nikam, výběr zůstane s hláškou.
+  - **Náhled řádkového výsledku má vlastní kresbu** (`PreparedRow`), ne řádek z panelu inline
+    bota: ten má barvy plovoucího panelu a na tónované kartě byl text skoro neviditelný
+    (ověřeno snímkem). Obrázkové výsledky se kreslí jako v panelu.
+- **`requestChat`** (`web_app_request_chat` → `requested_chat_sent` / `_failed`, obojí s `req_id`):
+  `getPreparedKeyboardButton` vydá tlačítko „vyber chat / lidi" a dál jde tentýž výběr jako
+  u tlačítka ve zprávě (`BotShareScreen`). Rozdíl je jen zdroj tlačítka: `BotShareSource`
+  (`Message` / `WebApp` → `KeyboardButtonSourceWebApp`). Založení spravovaného bota Plume neumí
+  ani u zprávy → `UNSUPPORTED`; nenačtené tlačítko `UNKNOWN_ERROR` (Desktop posílá kód od
+  serveru, ten nám TDLib textem nevydá).
+- **`downloadFile`** (`web_app_request_file_download` → `file_download_requested`): napřed
+  `checkWebAppFileDownload` (smí bot soubor nabízet?), pak `ConfirmDialog` s botem, jménem
+  a doménou. Jméno projde `cleanFileName`. Stahuje systém (`WebFileDownloader`): Android
+  správcem stahování do Stažených s notifikací, pod Androidem 10 (zápis do Stažených by chtěl
+  oprávnění za běhu) a na iOS / desktopu prohlížeč.
+- **Výběry jsou přes celou mini aplikaci ve stejné obrazovce** (`WebAppOverlay`), ne nová
+  routa: WebView pod nimi zůstane naživu a stránka po návratu dostane odpověď tam, kde čekala.
+  Zpět zavře výběr (handler je složený později, má přednost), ne mini aplikaci.
+- **Ověřeno na emulátoru laděním WebView** (`adb forward` na `webview_devtools_remote_<pid>`,
+  `Runtime.evaluate` s voláním `Telegram.WebApp.…` a čekáním na callback; klient protokolu je
+  v pythonu bez knihoven, websocket ručně):
+  BotFather `requestWriteAccess` → `allowed=true` bez dialogu; Durger King → dialog, Zrušit
+  → `allowed=false`; `downloadFile` s logem z telegram.org → dialog, Stáhnout → soubor ve
+  Stažených, `downloading=true`; neexistující `shareMessage` → `MESSAGE_EXPIRED`, neexistující
+  `requestChat` → `UNKNOWN_ERROR`. Výběry s podstrčeným obsahem (sonda, necommituje se): vzhled,
+  zpět gestem i šipkou → `USER_DECLINED`, neodeslaná zpráva → hláška.
+  **Skutečná připravená zpráva a tlačítko ověřené NEJSOU** — vyrobí je jen bot přes Bot API
+  (`savePreparedInlineMessage`, `savePreparedKeyboardButton`) a na to je potřeba token.
 
 ## Strážní bot u vstupu do chatu
 

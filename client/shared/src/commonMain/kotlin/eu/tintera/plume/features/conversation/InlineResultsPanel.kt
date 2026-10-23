@@ -164,7 +164,7 @@ internal fun InlineResultsPanel(
 }
 
 @Composable
-private fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Unit, onPreview: () -> Unit) {
+internal fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Unit, onPreview: () -> Unit) {
     when (result) {
         // Tentýž GIF jako ve výběru GIFů: hraje, dokud je vidět, velký se sám nestahuje.
         is InlineResult.Gif -> GifCell(gif = GifItem(result.animation), onPick = { onPick(result) }, onPreview = onPreview)
@@ -282,7 +282,7 @@ private fun InlineResultPreview(result: InlineResult, onPick: () -> Unit, onClos
     }
 }
 
-private val InlineRowKind.icon: DrawableResource
+internal val InlineRowKind.icon: DrawableResource
     get() = when (this) {
         InlineRowKind.Article -> Res.drawable.description_24dp
         InlineRowKind.File -> Res.drawable.attach_file_24dp

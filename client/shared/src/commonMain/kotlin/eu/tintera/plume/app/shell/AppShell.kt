@@ -169,6 +169,7 @@ import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.features.conversation.BotShareRequest
 import eu.tintera.plume.features.forward.BotShareScreen
 import eu.tintera.plume.core.navigation.BotShareRoute
+import eu.tintera.plume.core.telegram.BotShareSource
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.features.conversation.PollComposerScreen
 import eu.tintera.plume.features.conversation.ChecklistComposerScreen
@@ -1507,7 +1508,7 @@ private fun shellEntryProvider(
         BotShareScreen(
             viewModel = koinViewModel(
                 key = "bot-share-${route.chatId}-${route.messageId}-${route.buttonId}",
-                parameters = { parametersOf(route.chatId, route.messageId, users, chat) },
+                parameters = { parametersOf(BotShareSource.Message(route.chatId, route.messageId), users, chat) },
             ),
             users = users,
             chat = chat,
