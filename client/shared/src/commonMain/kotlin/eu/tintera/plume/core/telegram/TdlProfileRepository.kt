@@ -674,7 +674,6 @@ class TdlProfileRepository(
     override suspend fun setDescription(chatId: Long, description: String): Result<Unit> =
         client.setChatDescription(chatId = chatId, description = description).toResult().map { }
 
-    /** Fotka ze samolepky (`InputChatPhotoSticker`) je další druh a aplikace ji nenabízí. */
     override suspend fun setPhoto(chatId: Long, photo: ProfilePhotoFile): Result<Unit> =
         client.setChatPhoto(chatId = chatId, photo = photo.toInputChatPhoto()).toResult().map { }
 

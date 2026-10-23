@@ -755,8 +755,10 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   sběratelské jméno nebo číslo z Fragmentu v profilu (`getCollectibleItemInfo`), neznámý odkaz
   `tg://` s vysvětlením od serveru (`getDeepLinkInfo`)~~ — hotovo (`notifikace.md`,
   `prohlizec-medii.md`, `hledani-a-zakladani-chatu.md`, `profil-chatu.md`). Obnovení upozornění
-  ověřené jen po potvrzovací dialog, číslo +888 neověřené. Zbývá profilová fotka z emoji
-  (`getDefaultProfilePhotoCustomEmojiStickers`).
+  ověřené jen po potvrzovací dialog, číslo +888 neověřené. ~~Profilová fotka z emoji
+  (`getDefaultProfilePhotoCustomEmojiStickers`)~~ — hotovo („Z emoji" v úpravě profilu
+  i chatu; `profil-chatu.md`, „Fotka z emoji"). Zbývá fotka z libovolného vlastního emoji nebo
+  samolepky a fotka z emoji už při zakládání skupiny.
 - **Prohlížeč odkazů podle Telegramu** (`getLinkWebBrowserType`, `changeWebBrowserSettings`,
   výjimky po adresách) — novinka TDLib, nastavení synchronizované přes účet. Plume má vlastní
   „Odkazy v aplikaci"; až se bude sahat na otevírání odkazů, zvážit převzetí.

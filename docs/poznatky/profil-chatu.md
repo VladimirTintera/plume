@@ -210,6 +210,32 @@ název, popis a výchozí práva členů.
   Stejně tak `adb input text` s `%s` na pomalém emulátoru useklo konec popisu („Testovaci
   skupina p"): obsah pole se proto čte dumpem PŘED uložením, ne až ze serveru.
 
+### Fotka z emoji
+
+„Z emoji" vedle „Změnit fotku" v úpravě skupiny / kanálu i v úpravě vlastního profilu otevře
+`EmojiPhotoSheet`: vlastní emoji z nabídky Telegramu na barevném přechodu, náhled v tvaru
+avataru (skupina sušenka, kanál čtverec, účet kruh). Nastaví se hned, bez ořezu a bez Uložit,
+stejně jako fotka z galerie (`ProfilePhotoFile.Emoji` → `InputChatPhotoSticker`; testy
+`EmojiPhotoTest`).
+
+- **Obrázek i animaci vyrobí server.** Aplikace posílá jen id emoji a přechod pozadí
+  (`ChatPhotoStickerTypeCustomEmoji`, `BackgroundFillGradient`); hotovou fotku pak dostane jako
+  každou jinou. Náhled v sheetu je jen přiblížení — na emulátoru vyšla serverová fotka stejně.
+- **Nabídka emoji se liší pro účet a pro chat** (`getDefaultProfilePhotoCustomEmojiStickers`
+  / `getDefaultChatPhotoCustomEmojiStickers`, `StickerRepository.defaultPhotoEmoji`) a jde
+  použít bez Premium. Libovolné vlastní emoji nebo samolepku (`ChatPhotoStickerTypeRegularOrMask`)
+  sheet nenabízí.
+- **Barvy pozadí jsou pevné RGB bez alfy** (`EMOJI_PHOTO_BACKGROUNDS`): jsou to data fotky,
+  kterou uvidí všichni v každém klientovi, ne barvy rozhraní, takže z motivu být nemůžou.
+  `BackgroundFill` alfu nebere.
+- **Jednobarevné emoji se v náhledu kreslí bíle**, jak ho na fotce vykreslí server; barva textu
+  z motivu by na sytém pozadí zmizela.
+- **Tři tlačítka pod avatarem jsou `FlowRow`**: „Odebrat fotku" na telefonu přeteče na druhý
+  řádek, vedle sebe by se nevešla.
+- **Ověřeno na emulátoru v testovací skupině** („Plume test fotka"): sheet načetl nabídku,
+  přechod i emoji šly vybrat a fotka ze serveru odpovídala náhledu. Vlastní fotku účtu jsem
+  neměnil (uviděly by ji kontakty) — jde touž cestou přes `setProfilePhoto`.
+
 ### Správa členů
 
 Dlouhý stisk na členovi v záložce Členové otevře nabídku (`MemberActionsSheet`): napsat zprávu,

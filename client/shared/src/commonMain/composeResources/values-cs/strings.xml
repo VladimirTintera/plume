@@ -2019,6 +2019,11 @@
     <string name="edit_profile_title">Upravit profil</string>
     <string name="edit_profile_save">Uložit</string>
     <string name="edit_profile_change_photo">Změnit fotku</string>
+    <string name="emoji_photo_open">Z emoji</string>
+    <string name="emoji_photo_title">Fotka z emoji</string>
+    <string name="emoji_photo_background">Pozadí %1$d</string>
+    <string name="emoji_photo_set">Nastavit fotku</string>
+    <string name="emoji_photo_failed">Emoji na fotku se nepodařilo načíst.</string>
     <string name="edit_profile_delete_photo">Odebrat fotku</string>
     <string name="edit_profile_delete_photo_body">Současná profilová fotka se smaže. Jestli jsi měl(a) nějakou dřív, ukáže se místo ní.</string>
     <string name="edit_profile_delete_photo_confirm">Odebrat</string>

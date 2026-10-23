@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.foundation.layout.FlowRow
+import eu.tintera.plume.resources.mood_24dp
+import eu.tintera.plume.resources.emoji_photo_open
 import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.broadcast_group_confirm
 import eu.tintera.plume.resources.broadcast_group_body
@@ -178,6 +181,7 @@ fun EditChatScreen(
     val scope = rememberCoroutineScope()
     val currentOnBack by rememberUpdatedState(onBack)
     var confirmDeletePhoto by rememberSaveable { mutableStateOf(false) }
+    var showEmojiPhoto by rememberSaveable { mutableStateOf(false) }
     var showDiscussion by rememberSaveable { mutableStateOf(false) }
     var showStickerSet by rememberSaveable { mutableStateOf(false) }
     var showSlowMode by rememberSaveable { mutableStateOf(false) }
@@ -265,6 +269,19 @@ fun EditChatScreen(
             onDismiss = { confirmDeletePhoto = false },
             icon = Res.drawable.delete_24dp,
             destructive = true,
+        )
+    }
+
+    val emojiChat = viewModel.original
+    if (showEmojiPhoto && emojiChat != null) {
+        EmojiPhotoSheet(
+            forChat = true,
+            previewShape = (if (emojiChat.isChannel) ChatKind.Channel else ChatKind.Group).avatarShape(),
+            onSet = { photo ->
+                showEmojiPhoto = false
+                viewModel.setEmojiPhoto(photo)
+            },
+            onDismiss = { showEmojiPhoto = false },
         )
     }
 
@@ -407,10 +424,15 @@ fun EditChatScreen(
                         // Nahrávání fotky trvá: kolečko přes avatar, jako průběh nahrávání přílohy.
                         if (viewModel.photoBusy) CircularWavyProgressIndicator(Modifier.size(AVATAR_SIZE))
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Tři tlačítka se na úzký telefon nevejdou vedle sebe — co přeteče, jde pod.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
                         TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy, shapes = ButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                             Text(stringResource(Res.string.edit_profile_change_photo))
+                        }
+                        TextButton(onClick = { showEmojiPhoto = true }, enabled = !viewModel.photoBusy, shapes = ButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.mood_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                            Text(stringResource(Res.string.emoji_photo_open))
                         }
                         if (chat.photoFileId != null) {
                             TextButton(onClick = { confirmDeletePhoto = true }, enabled = !viewModel.photoBusy, shapes = ButtonDefaults.shapes()) {
