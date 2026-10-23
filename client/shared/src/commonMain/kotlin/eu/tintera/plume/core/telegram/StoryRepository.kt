@@ -139,6 +139,22 @@ interface StoryRepository {
 
     /** Vlastní účet — příběhy se zveřejňují „za" Uložené zprávy, jejichž id je id účtu. */
     suspend fun myChatId(): Long? = null
+
+    /**
+     * Vymění fotku nebo video zveřejněného příběhu (`editStory` s obsahem); [caption] se zapíše
+     * s ním. Oblasti na příběhu zůstanou. Diváci a reakce příběhu zůstávají, je to tentýž příběh.
+     */
+    suspend fun replaceMedia(posterChatId: Long, storyId: Int, media: StoryMedia, caption: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
+     * Kanály a skupiny, za které smí uživatel zveřejnit příběh (`getChatsToPostStories`), bez
+     * vlastního účtu. Jestli to jde právě teď (boosty), řekne [canPostAs].
+     */
+    suspend fun postTargets(): Result<List<StoryPoster>> = Result.success(emptyList())
+
+    /** Smí se teď zveřejnit příběh za chat [chatId] (`canPostStory`)? Vlastní účet viz [canPost]. */
+    suspend fun canPostAs(chatId: Long): StoryPostCheck = StoryPostCheck.Allowed
 }
 
 /** Telegram bere název alba o 1–12 znacích (`createStoryAlbum`, `setStoryAlbumName`). */
@@ -195,7 +211,12 @@ data class StoryDraft(
     val keepOnProfile: Boolean,
     /** Zakázat přeposílání a snímky obrazovky. */
     val protectContent: Boolean,
+    /** Za koho: kanál nebo skupina z [StoryRepository.postTargets]; `null` = vlastní účet. */
+    val posterChatId: Long? = null,
 )
+
+/** Kanál nebo skupina, za kterou jde zveřejnit příběh. */
+data class StoryPoster(val chatId: Long, val title: String, val avatarFileId: Int?, val kind: ChatKind)
 
 /** Obsah příběhu už převedený do tvaru, který TDLib vyžaduje. */
 sealed interface StoryMedia {

@@ -29,6 +29,8 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.story_limit_active
 import eu.tintera.plume.resources.story_limit_hours
 import eu.tintera.plume.resources.story_limit_premium
+import eu.tintera.plume.resources.story_chat_premium
+import eu.tintera.plume.resources.story_chat_boost
 import eu.tintera.plume.resources.story_post_check_failed
 import eu.tintera.plume.resources.story_post_failed
 import eu.tintera.plume.resources.story_post_live_active
@@ -36,6 +38,7 @@ import eu.tintera.plume.resources.story_post_not_allowed
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageReplyToStory
 import dev.g000sha256.tdl.dto.InputMessageText
@@ -208,20 +211,62 @@ class TdlStoryRepository(
         )
     }
 
-    override suspend fun post(draft: StoryDraft): Result<Unit> {
-        val me = myChatId() ?: return Result.failure(IllegalStateException("Účet není známý"))
-        return client.postStory(
-            chatId = me,
-            content = when (val media = draft.media) {
-                is StoryMedia.Photo -> InputStoryContentPhoto(photo = InputFileLocal(path = media.path), addedStickerFileIds = intArrayOf())
-                is StoryMedia.Video -> InputStoryContentVideo(
-                    video = InputFileLocal(path = media.path),
-                    addedStickerFileIds = intArrayOf(),
-                    duration = media.durationSeconds,
-                    coverFrameTimestamp = media.coverSeconds,
-                    isAnimation = !media.hasAudio,
-                )
+    override suspend fun canPostAs(chatId: Long): StoryPostCheck =
+        client.canPostStory(chatId = chatId).toResult().fold(
+            // Za chat věta o Premium bez „tohoto účtu" a boosty s tím, co chybí.
+            onSuccess = { result ->
+                when (result) {
+                    is CanPostStoryResultPremiumNeeded -> StoryPostCheck.Denied(UiText(Res.string.story_chat_premium))
+                    is CanPostStoryResultBoostNeeded -> StoryPostCheck.Denied(UiText(Res.string.story_chat_boost))
+                    else -> result.toCheck()
+                }
             },
+            onFailure = { failure ->
+                logger.w(failure) { "canPostStory $chatId" }
+                StoryPostCheck.Denied(failure.userMessage(Res.string.story_post_check_failed))
+            },
+        )
+
+    override suspend fun postTargets(): Result<List<StoryPoster>> = runCatching {
+        client.getChatsToPostStories().toResult().getOrThrow().chatIds.toList()
+            .mapNotNull { id -> client.getChat(chatId = id).toResult().getOrNull() }
+            .map { chat ->
+                StoryPoster(
+                    chatId = chat.id,
+                    title = chat.title,
+                    avatarFileId = chat.photo?.small?.id,
+                    kind = if ((chat.type as? ChatTypeSupergroup)?.isChannel == true) ChatKind.Channel else ChatKind.Group,
+                )
+            }
+    }.onFailure { logger.w(it) { "getChatsToPostStories" } }
+
+    override suspend fun replaceMedia(posterChatId: Long, storyId: Int, media: StoryMedia, caption: String): Result<Unit> =
+        client.editStory(
+            storyPosterChatId = posterChatId,
+            storyId = storyId,
+            content = media.toInput(),
+            // Oblasti zůstávají (`null`); popisek jde s obsahem, prázdný ho odebere.
+            caption = FormattedText(text = caption.trim(), entities = emptyArray()),
+        ).toResult()
+            .onFailure { logger.w(it) { "editStory s obsahem $posterChatId/$storyId" } }
+            .map { }
+
+    private fun StoryMedia.toInput() = when (this) {
+        is StoryMedia.Photo -> InputStoryContentPhoto(photo = InputFileLocal(path = path), addedStickerFileIds = intArrayOf())
+        is StoryMedia.Video -> InputStoryContentVideo(
+            video = InputFileLocal(path = path),
+            addedStickerFileIds = intArrayOf(),
+            duration = durationSeconds,
+            coverFrameTimestamp = coverSeconds,
+            isAnimation = !hasAudio,
+        )
+    }
+
+    override suspend fun post(draft: StoryDraft): Result<Unit> {
+        val poster = draft.posterChatId ?: myChatId() ?: return Result.failure(IllegalStateException("Účet není známý"))
+        return client.postStory(
+            chatId = poster,
+            content = draft.media.toInput(),
             caption = draft.caption.trim().takeIf { it.isNotEmpty() }?.let { FormattedText(text = it, entities = emptyArray()) },
             privacySettings = draft.audience.toPrivacySettings(),
             albumIds = intArrayOf(),

@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogViewModel
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
 import eu.tintera.plume.features.instantview.InstantViewViewModel
@@ -896,7 +897,14 @@ fun appModule() = module {
     }
 
     viewModel { parameters ->
-        StoryComposerViewModel(path = parameters.get(), isVideo = parameters.get(), repository = get(), storyPhoto = get(), storyVideo = get())
+        StoryComposerViewModel(
+            path = parameters.get(),
+            isVideo = parameters.get(),
+            repository = get(),
+            storyPhoto = get(),
+            storyVideo = get(),
+            edit = parameters.values.getOrNull(2) as? StoryEditTarget,
+        )
     }
     viewModel { parameters ->
         StoriesViewModel(

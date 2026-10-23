@@ -747,10 +747,11 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   vlákno přímých zpráv zbývá ověřit s druhým účtem.
 - ~~**Příběhy — správa zveřejněného:** úprava popisku, změna viditelnosti, ponechat v profilu
   a připnout, archiv vlastních prošlých příběhů~~ — hotovo (⋮ v prohlížeči, menu účtu → Moje
-  příběhy; `docs/poznatky/pribehy.md`, „Správa vlastního příběhu"). Zbývá výměna média
-  (`editStory` s obsahem, `editStoryCover`), výběr lidí ve viditelnosti, příběh za kanál
-  (`getChatsToPostStories`), reakce podle `getStoryAvailableReactions` a ťuknutí na místo
-  v příběhu (`searchPublicStoriesByLocation`, `…ByVenue`); skutečnou změnu viditelnosti ověřit.
+  příběhy; `docs/poznatky/pribehy.md`, „Správa vlastního příběhu"). ~~Výměna média
+  (`editStory` s obsahem), výběr lidí ve viditelnosti, příběh za kanál (`getChatsToPostStories`)~~
+  — hotovo (tamtéž; „Příběh za kanál nebo skupinu"); výměna média i výběr lidí ověřené na emulátoru. Zbývá samotná obálka videa (`editStoryCover`), reakce podle
+  `getStoryAvailableReactions` a ťuknutí na místo v příběhu (`searchPublicStoriesByLocation`,
+  `…ByVenue`); skutečnou změnu viditelnosti ověřit.
 - **Drobnosti v nastavení a hledání:** ~~obnovit všechna nastavení upozornění
   (`resetAllNotificationSettings`), smazat všechny výjimky ukládání do galerie
   (`clearAutosaveSettingsExceptions`), vymazat celou historii hashtagů (`clearSearchedForTags`),

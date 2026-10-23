@@ -6,6 +6,9 @@ import eu.tintera.plume.core.telegram.StoryAudience
 import eu.tintera.plume.core.telegram.StoryDraft
 import eu.tintera.plume.core.telegram.StoryMedia
 import eu.tintera.plume.core.telegram.StoryPostCheck
+import eu.tintera.plume.core.telegram.StoryPoster
+import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.telegram.StoryPostResult
 import eu.tintera.plume.core.telegram.ProfileStoriesPage
 import eu.tintera.plume.core.telegram.ReportRequest
@@ -39,8 +42,17 @@ class StoryComposerViewModelTest {
     private class Posting(
         var friends: List<Long> = emptyList(),
         val failSaving: Boolean = false,
+        val targets: List<StoryPoster> = emptyList(),
+        val channelCheck: StoryPostCheck = StoryPostCheck.Allowed,
     ) : StoryRepository {
         val drafts = mutableListOf<StoryDraft>()
+        val replaced = mutableListOf<Triple<Int, StoryMedia, String>>()
+        override suspend fun postTargets() = Result.success(targets)
+        override suspend fun canPostAs(chatId: Long) = channelCheck
+        override suspend fun replaceMedia(posterChatId: Long, storyId: Int, media: StoryMedia, caption: String): Result<Unit> {
+            replaced += Triple(storyId, media, caption)
+            return Result.success(Unit)
+        }
         val savedFriends = mutableListOf<List<Long>>()
         override suspend fun closeFriends(): Result<List<Long>> = Result.success(friends)
         override suspend fun setHidden(chatId: Long, hidden: Boolean) = Result.success(Unit)
@@ -128,6 +140,65 @@ class StoryComposerViewModelTest {
         assertTrue(draft.keepOnProfile)
         assertTrue(draft.protectContent, "zakázané snímky = chráněný obsah")
         assertTrue(viewModel.state.value.posted)
+    }
+
+    /** Úprava vymění médium a popisek, nic nového nezveřejní. */
+    @Test
+    fun editReplacesMediaInsteadOfPosting() = runTest {
+        val repository = Posting()
+        val viewModel = StoryComposerViewModel(
+            "nova.jpg",
+            isVideo = false,
+            repository = repository,
+            storyPhoto = Renderer(),
+            storyVideo = Videos(),
+            edit = StoryEditTarget(posterChatId = 7, storyId = 42, caption = "Starý popisek"),
+        )
+        assertEquals("Starý popisek", viewModel.state.value.caption)
+        viewModel.setCaption("Nový")
+        viewModel.post()
+        advanceUntilIdle()
+
+        assertTrue(repository.drafts.isEmpty())
+        assertEquals(listOf(Triple(42, StoryMedia.Photo("nova.jpg.story.jpg") as StoryMedia, "Nový")), repository.replaced)
+        assertTrue(viewModel.state.value.posted)
+    }
+
+    /** Za kanál: draft nese kanál a viditelnost se nenastavuje (vidí ho odběratelé). */
+    @Test
+    fun postsAsChannel() = runTest {
+        val channel = StoryPoster(chatId = -100, title = "Kanál", avatarFileId = null, kind = ChatKind.Channel)
+        val repository = Posting(targets = listOf(channel))
+        val viewModel = StoryComposerViewModel("foto.jpg", isVideo = false, repository = repository, storyPhoto = Renderer(), storyVideo = Videos())
+        advanceUntilIdle()
+        assertEquals(listOf(channel), viewModel.state.value.posters)
+        viewModel.setAudience(AudienceChoice.Selected)
+        viewModel.setPoster(channel)
+        advanceUntilIdle()
+        viewModel.post()
+        advanceUntilIdle()
+
+        val draft = repository.drafts.single()
+        assertEquals(-100L, draft.posterChatId)
+        assertEquals(StoryAudience.Everyone, draft.audience)
+    }
+
+    /** Kanál bez boostů: zveřejnit nejde a obrazovka řekne proč. */
+    @Test
+    fun deniedChannelIsRefused() = runTest {
+        val channel = StoryPoster(chatId = -100, title = "Kanál", avatarFileId = null, kind = ChatKind.Channel)
+        val reason = UiText.Raw("Chce to boosty")
+        val repository = Posting(targets = listOf(channel), channelCheck = StoryPostCheck.Denied(reason))
+        val viewModel = StoryComposerViewModel("foto.jpg", isVideo = false, repository = repository, storyPhoto = Renderer(), storyVideo = Videos())
+        advanceUntilIdle()
+        viewModel.setPoster(channel)
+        advanceUntilIdle()
+        assertEquals(reason, viewModel.state.value.posterDenied)
+        viewModel.post()
+        advanceUntilIdle()
+
+        assertTrue(repository.drafts.isEmpty())
+        assertEquals(reason, viewModel.state.value.error)
     }
 
     @Test
