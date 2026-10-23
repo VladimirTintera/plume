@@ -739,7 +739,8 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   z mini aplikace chce Premium.
 - ~~**Podobné kanály: oznámit otevření** (`openChatSimilarChat`) a podobní boti v profilu bota
   (`getBotSimilarBots`, `openBotSimilarBot`)~~ — hotovo (`docs/poznatky/profil-chatu.md`,
-  „Záložka Podobné"). Zbývají náhledy mini aplikace v profilu bota (`getBotMediaPreviews`).
+  „Záložka Podobné"). ~~Náhledy mini aplikace v profilu bota (`getBotMediaPreviews`)~~ — hotovo (tamtéž,
+  „Ukázky mini aplikace").
 - ~~**Témata Uložených zpráv a vlákna přímých zpráv kanálu:** skok na datum, vymazání (i za
   vybrané dny) a odepnout vše ve vlákně~~ — hotovo (`docs/poznatky/konverzace-pohyb.md`, „Skok
   na datum"; `konverzace-akce.md`, „Vymazání historie"). Ověřené v tématu Uložených zpráv,

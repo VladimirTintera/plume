@@ -539,6 +539,8 @@
     <string name="profile_shared_photo">Fotka</string>
     <string name="profile_shared_failed">Sdílený obsah se nepodařilo načíst.</string>
     <string name="profile_search">Hledat</string>
+    <string name="profile_app_previews">Ukázky aplikace</string>
+    <string name="profile_app_preview_position">%1$d z %2$d</string>
     <string name="profile_open_app">Otevřít</string>
     <string name="profile_info">Informace</string>
     <string name="profile_linked_discussion">Diskusní skupina</string>

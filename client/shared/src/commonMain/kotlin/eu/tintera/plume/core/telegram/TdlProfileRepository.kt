@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.StoryContentPhoto
+import dev.g000sha256.tdl.dto.StoryContentVideo
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.dto.ChatBoostSourceGiftCode
 import dev.g000sha256.tdl.dto.CollectibleItemTypePhoneNumber
@@ -550,6 +552,19 @@ class TdlProfileRepository(
             nextFromEventId = events.lastOrNull()?.id?.takeIf { events.size == CHAT_LOG_PAGE },
         )
     }
+
+    /** Obsah ukázky je tentýž `StoryContent` jako u příběhu; živé vysílání ukázka být nemůže. */
+    override suspend fun botMediaPreviews(botUserId: Long): Result<List<MessageMedia>> =
+        client.getBotMediaPreviews(botUserId = botUserId).toResult()
+            .map { found ->
+                found.previews.filterNotNull().mapNotNull { preview ->
+                    when (val content = preview.content) {
+                        is StoryContentPhoto -> content.photo.toMedia()
+                        is StoryContentVideo -> content.video.toMedia()
+                        else -> null
+                    }
+                }
+            }
 
     override suspend fun collectibleInfo(item: CollectibleItem): Result<CollectibleInfo> =
         client.getCollectibleItemInfo(
