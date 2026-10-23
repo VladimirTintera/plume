@@ -2,29 +2,20 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.resources.smartphone_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.InviteMembersBar
 import eu.tintera.plume.core.telegram.JoinRequestBar
 import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.chat_bar_join_request_channel
-import eu.tintera.plume.resources.chat_bar_join_request_date
+import eu.tintera.plume.resources.chat_bar_join_request
 import eu.tintera.plume.resources.chat_bar_invite_members
 import eu.tintera.plume.resources.chat_bar_invite_members_hint
-import eu.tintera.plume.resources.chat_bar_join_request_group
 import eu.tintera.plume.resources.chat_bar_share_phone
 import eu.tintera.plume.resources.chat_bar_share_phone_confirm
 import eu.tintera.plume.resources.chat_bar_share_phone_text
@@ -32,14 +23,20 @@ import eu.tintera.plume.resources.chat_bar_share_phone_title
 import eu.tintera.plume.resources.chat_bar_share_phone_hint
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_close
+import eu.tintera.plume.resources.how_to_reg_24dp
+import eu.tintera.plume.resources.person_add_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * Pruh nad konverzací, který nic nehlásí ani neblokuje: nasdílení čísla vzájemnému kontaktu
  * ([SharePhoneBar]), pozvání lidí do čerstvé skupiny ([InviteMembersBar]) a vysvětlení zprávy
- * od správce, u kterého uživatel žádal o vstup ([JoinRequestBar]). Tvarem a okrajem je to tentýž pruh jako [SpamBarCard] — jedno místo
- * nad konverzací, kam server dává nabídky, jeden vzhled.
+ * od správce, u kterého uživatel žádal o vstup ([JoinRequestBar]).
+ *
+ * **Pilulka jako pruh připnutých ([BarPill]), ne karta s tlačítkem.** Dřív to byla karta
+ * s větou a tónovým tlačítkem pod ní: o dva řádky vyšší než ostatní pruhy, s plochou tlačítka
+ * na ploše skla — mezi pilulkami připnutých a videochatu vypadala jako cizí prvek. Akce je teď
+ * celý pruh a nadpis ji pojmenovává („Pozvat členy"), jako u připnutých skok na zprávu.
  *
  * Křížek pruh zavře napořád (`removeChatActionBar`), jako u pruhu proti spamu.
  */
@@ -49,57 +46,45 @@ internal fun ChatNoticeBarCard(
     onSharePhone: () -> Unit,
     onInviteMembers: () -> Unit,
     onDismiss: () -> Unit,
-    /** Mléčné sklo nad seznamem, jako u ostatních pruhů ([ChatBarSurface]). */
+    /** Mléčné sklo nad seznamem, jako u ostatních pruhů. */
     glass: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
-    ChatBarSurface(glass = glass, modifier = modifier) {
-        Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
-            Column(Modifier.weight(1f).padding(top = 12.dp, bottom = 8.dp)) {
-                when (bar) {
-                    SharePhoneBar -> {
-                        Text(
-                            text = stringResource(Res.string.chat_bar_share_phone_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Box(Modifier.padding(top = 12.dp)) {
-                            ChatBarButton(stringResource(Res.string.chat_bar_share_phone), onSharePhone)
-                        }
-                    }
-                    InviteMembersBar -> {
-                        Text(
-                            text = stringResource(Res.string.chat_bar_invite_members_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Box(Modifier.padding(top = 12.dp)) {
-                            ChatBarButton(stringResource(Res.string.chat_bar_invite_members), onInviteMembers)
-                        }
-                    }
-                    is JoinRequestBar -> {
-                        Text(
-                            text = stringResource(
-                                if (bar.isChannel) Res.string.chat_bar_join_request_channel
-                                else Res.string.chat_bar_join_request_group,
-                                bar.chatTitle,
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        // Datum na vlastním řádku za dvojtečkou: `asDayLabel` je nadpisový
-                        // („Včera") a uprostřed věty by mělo velké písmeno.
-                        Text(
-                            text = stringResource(Res.string.chat_bar_join_request_date, bar.requestDate.asDayLabel()),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                    }
-                    else -> Unit
-                }
-            }
-            IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
-                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
-            }
+    val dismiss: @Composable () -> Unit = {
+        IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
+            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
         }
+    }
+    when (bar) {
+        SharePhoneBar -> BarPill(
+            title = stringResource(Res.string.chat_bar_share_phone),
+            subtitle = stringResource(Res.string.chat_bar_share_phone_hint),
+            onClick = onSharePhone,
+            glass = glass,
+            modifier = modifier,
+            leading = { BarBadge(Res.drawable.smartphone_24dp) },
+            trailing = dismiss,
+        )
+        InviteMembersBar -> BarPill(
+            title = stringResource(Res.string.chat_bar_invite_members),
+            subtitle = stringResource(Res.string.chat_bar_invite_members_hint),
+            onClick = onInviteMembers,
+            glass = glass,
+            modifier = modifier,
+            leading = { BarBadge(Res.drawable.person_add_24dp) },
+            trailing = dismiss,
+        )
+        // Název chatu a den za tečkou, ne uprostřed věty: `asDayLabel` je nadpisový („Včera").
+        is JoinRequestBar -> BarPill(
+            title = stringResource(Res.string.chat_bar_join_request),
+            subtitle = listOf(bar.chatTitle, bar.requestDate.asDayLabel()).filter { it.isNotBlank() }.joinToString(" · "),
+            onClick = null,
+            glass = glass,
+            modifier = modifier,
+            leading = { BarBadge(Res.drawable.how_to_reg_24dp) },
+            trailing = dismiss,
+        )
+        else -> Unit
     }
 }
 

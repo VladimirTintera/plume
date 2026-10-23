@@ -2687,15 +2687,13 @@
     </plurals>
     <string name="verification_by_bot">Verified by a bot</string>
     <string name="verification_by_bot_named">Verified by %1$s</string>
-    <string name="chat_bar_share_phone_hint">This contact can’t see your phone number.</string>
+    <string name="chat_bar_share_phone_hint">This contact can’t see your number</string>
     <string name="chat_bar_share_phone">Share my number</string>
     <string name="chat_bar_share_phone_title">Share your number?</string>
     <string name="chat_bar_share_phone_text">%1$s will see your phone number.</string>
     <string name="chat_bar_share_phone_confirm">Share</string>
     <string name="chat_bar_phone_shared">Phone number shared</string>
-    <string name="chat_bar_join_request_group">You’re getting this message in reply to your request to join the group “%1$s”.</string>
-    <string name="chat_bar_join_request_channel">You’re getting this message in reply to your request to join the channel “%1$s”.</string>
-    <string name="chat_bar_join_request_date">Request sent: %1$s</string>
+    <string name="chat_bar_join_request">Reply to your join request</string>
     <string name="settings_default_auto_delete">Auto-delete in new chats</string>
     <string name="settings_default_auto_delete_failed">Couldn’t change it, try again</string>
     <string name="settings_default_auto_delete_explanation">Messages in every chat you start from now on will disappear for everyone after this time. Chats you already have aren’t affected.</string>
@@ -2823,7 +2821,7 @@
     <string name="add_members_bot_admin_title">Add the bot as an admin?</string>
     <string name="add_members_bot_admin_text">Bots can only join a channel as admins. %1$s will be able to post, edit and delete posts; you can change its rights in the channel's members.</string>
     <string name="add_members_bot_admin_confirm">Add as admin</string>
-    <string name="chat_bar_invite_members_hint">Invite people to your new group.</string>
+    <string name="chat_bar_invite_members_hint">Add people to your new group</string>
     <string name="chat_bar_invite_members">Invite members</string>
     <string name="share_contact_title">Send contact to</string>
     <string name="share_contact_hidden_phone">Hides their number — can’t be sent</string>

@@ -162,7 +162,7 @@ internal fun SpamBarCard(
 }
 
 /**
- * Plocha pruhu nad konverzací (spam, nasdílení čísla, žádost o vstup): **mléčné sklo se stínem
+ * Plocha víceřádkového pruhu nad konverzací (spam, reklama u bota): **mléčné sklo se stínem
  * 3 dp, jako pruh připnutých a žádostí** — plave nad posouvaným seznamem, takže stín je na místě.
  * Dřív to byla neprůhledná karta `surfaceContainerHigh` se stínem 2 dp a mezi skleněnými pruhy
  * pod ní vypadala jako cizí prvek. Zaoblení `LargeIncreased` (ne pilulka): pruh má víc řádků.

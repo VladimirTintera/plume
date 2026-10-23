@@ -1,26 +1,11 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.ui.FaceStack
@@ -65,24 +50,14 @@ internal fun JoinRequestsBar(
         else -> names
     }
 
-    Surface(
-        color = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = CircleShape,
-        shadowElevation = if (floating) 3.dp else 0.dp,
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (floating) Modifier.padding(horizontal = 12.dp, vertical = 6.dp) else Modifier),
-    ) {
-        Row(
-            Modifier
-                .clip(CircleShape)
-                .then(glass)
-                .clickable(onClick = onClick)
-                .heightIn(min = BAR_HEIGHT)
-                .padding(start = BADGE_INSET, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+    BarPill(
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+        glass = glass,
+        modifier = modifier,
+        floating = floating,
+        leading = {
             if (requests.recent.isNotEmpty()) {
                 FaceStack(
                     faces = requests.recent,
@@ -91,37 +66,15 @@ internal fun JoinRequestsBar(
                     size = FACE_SIZE,
                 )
             } else {
-                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape, modifier = Modifier.size(BADGE_SIZE)) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painterResource(Res.drawable.person_add_24dp),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
+                BarBadge(Res.drawable.person_add_24dp)
             }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                subtitle?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
+        },
+        trailing = {
             IconButton(onClick = onHide, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.join_requests_bar_hide))
             }
-        }
-    }
+        },
+    )
 }
 
-private val BAR_HEIGHT = 56.dp
-private val BADGE_SIZE = 40.dp
 private val FACE_SIZE = 32.dp
-private val BADGE_INSET = (BAR_HEIGHT - BADGE_SIZE) / 2
