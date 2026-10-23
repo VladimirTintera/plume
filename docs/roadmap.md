@@ -650,8 +650,11 @@ a se serverem, takže přednostně:
    „Příběhy" v profilu) i správa u vlastního příběhu (založit, přidat, vyndat, přejmenovat,
    smazat, seřadit alba i příběhy v albu); skutečné album na zařízení ověřené není. ~~Výběr úseku a obálky videa~~ — hotovo (pás jako u profilového videa; zveřejnění
    s úsekem ověřené není). ~~Sledování živých příběhů~~ — hotovo na Androidu (ntgcalls,
-   WebRTC i stream po segmentech; ověřené RTMP vysílání). Zbývá: zprávy a reakce ve vysílání,
-   vlastní vysílání (z kamery i RTMP), sledování na desktopu, ověření vysílání z kamery.
+   WebRTC i stream po segmentech; ověřené RTMP vysílání). ~~Zprávy ve vysílání~~ — hotovo
+   (čtení, komentáře zdarma, smazání, cizí placené reakce; `docs/poznatky/pribehy.md`, „Chat
+   vysílání"); ověřený jen vzhled sondou, se skutečným vysíláním zbývá ověřit (limit příběhů
+   na testovacích účtech). Zbývá: vlastní vysílání (z kamery i RTMP), sledování na desktopu,
+   ověření vysílání z kamery; placené zprávy a reakce patří pod hvězdy (vědomě mimo).
 2. **Přihlášení na webu přes Telegram (OAuth)** — potvrzení žádosti webu dnes NEJDE kvůli TDLib
    (push `OAUTH_REQUEST` bez `data_url`, odkaz `t.me/oauth` jako mini aplikace; `docs/poznatky/prihlaseni.md`,
    „Proč tu není potvrzení žádosti webu"). Nahlásit upstream a vrátit se k tomu po bumpu wrapperu.

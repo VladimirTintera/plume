@@ -429,8 +429,51 @@ instanci a na vlastním vlákně (`NtgLiveStreamMedia`). **Jen Android**: na des
   (WebRTC i velké publikum po segmentech), konec vysílání během sledování (jen testy
   `LiveStoryWatchTest` — oba účty měly vyčerpaný denní limit), zvuk ušima na skutečném
   telefonu, souběh s hovorem ve dvou.
-- **Co ještě není**: zprávy a reakce ve vysílání (`GroupCallMessage`, placené hvězdami),
-  vlastní vysílání (`startLiveStory` z kamery i RTMP) a sledování na desktopu.
+- **Co ještě není**: vlastní vysílání (`startLiveStory` z kamery i RTMP), placené zprávy
+  a reakce z Plume (hvězdy) a sledování na desktopu.
+
+### Chat vysílání
+
+Zprávy diváků se kreslí přes spodek obrazu (`LiveChatMessages` v `LiveStoryChat.kt`),
+pole pro komentář je lišta pod ním (`LiveMessageBar`). Stav drží `LiveStoryWatch` spolu se
+sledováním (`LiveStoryState.messages`), takže chat žije přesně tak dlouho jako připojení.
+
+- **Historie neexistuje.** TDLib nemá funkci, která by zprávy vysílání vydala; chodí jen
+  updaty (`updateNewGroupCallMessage`, `…MessagesDeleted`, `…MessageSendFailed`,
+  `updateNewGroupCallPaidReaction`) od chvíle, kdy se odebírají. Proto se odběr spouští
+  v `watch` dřív než připojení, a proto se drží jen posledních 100 zpráv (`MAX_LIVE_MESSAGES`).
+- **Vlastní zpráva přijde taky updatem** — `sendGroupCallMessage` vrací jen `Ok`. Když ji
+  server odmítne až potom, přijde `updateGroupCallMessageSendFailed` s jejím id: zpráva
+  z chatu zmizí a ukáže se hláška (`onSendFailed`). Táž zpráva může přijít znovu, nahradí
+  dřívější podle id.
+- **Hvězdami Plume neplatí, ani tady.** Zpráva jde vždy s `paidMessageStarCount = 0`. Když
+  vysílající za zprávy hvězdy chce (`groupCall.paidMessageStarCount > 0`), místo pole stojí
+  věta (`paidOnly`). Placené reakce (`addPendingLiveStoryReaction`) Plume neposílá vůbec;
+  cizí jen ukazuje — pilulka s počtem hvězd a jménem proletí přes obraz (`LiveReactionBurst`).
+  Zpráva s prázdným textem je placená reakce, která se v chatu drží jako řádek.
+- **Psát smí divák jen s `canSendMessages` A `areMessagesAllowed`** — vysílající může
+  komentáře vypnout všem a první příznak to neodráží.
+- **Barvy úrovní od serveru se neberou.** `updateGroupCallMessageLevels` přijde jednou po
+  startu (repository by musela vznikat eagerně) a barvy nesedí k paletě. Placená zpráva má
+  plochu `tertiaryContainer`, zpráva vysílajícího (`isFromOwner`) `primaryContainer`.
+- **Do živého příběhu nejde zalomení řádku** (dokumentace `sendGroupCallMessage`), pole je
+  jednořádkové a repository zalomení pro jistotu nahradí mezerou. Entity se neposílají.
+- **Smazání** podržením zprávy s `canBeDeleted`; kdo smí mazat cizí (`canDeleteMessages`),
+  dostane i „Smazat a nahlásit spam" (`deleteGroupCallMessages(reportSpam = true)`).
+- **Chat dojede na novou zprávu jen tomu, kdo nečte starší.** Seznam (`reverseLayout`) drží
+  pozici podle klíče, takže index první viditelné položky po příchodu zprávy poskočí
+  o počet nových — porovnává se s ním, ne s nulou.
+- **S klávesnicí jede chat nad pole**: `imePadding` PŘED `fillMaxHeight(0.4f)`, jinak by se
+  odsazení vešlo do výšky chatu a chat by se smrštil na pár řádků. Odečítat výšku lišty
+  netřeba — místo pro ni pod obrazem už je (`Spacer` v `StoryPage`), takže `exclude`
+  posadil chat přesně za pole (ověřeno na emulátoru, první pokus).
+- **Ověřeno na emulátoru jen vzhled, sondou** (23. 10. 2026, Plume_Barvy …527, česky):
+  podstrčené zprávy v prohlížeči archivovaného příběhu — běžné, od vysílajícího, placené
+  s hvězdami, placená reakce bez textu, proletující pilulka, nabídka Smazat / Smazat
+  a nahlásit spam, psaní s klávesnicí. **Se skutečným vysíláním NEOVĚŘENO**: oba testovací
+  účty měly vyčerpaný denní limit příběhů (`CanPostStoryResultPremiumNeeded` bez aktivního
+  příběhu — dopoledne se zveřejňovalo při ladění obálky). Zbývá: odeslání a příchod zpráv
+  mezi …527 a …029, odmítnutá zpráva, smazání, zpráva vysílajícího.
 
 ## Ověření
 
