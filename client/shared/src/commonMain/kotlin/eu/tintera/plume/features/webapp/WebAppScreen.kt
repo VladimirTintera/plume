@@ -1,5 +1,13 @@
 package eu.tintera.plume.features.webapp
 
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.FilledTonalIconButton
+import eu.tintera.plume.resources.webapp_location_title
+import eu.tintera.plume.resources.webapp_location_text
+import eu.tintera.plume.resources.webapp_location_allow
+import eu.tintera.plume.resources.location_on_24dp
+import eu.tintera.plume.core.location.rememberDeviceLocation
+import eu.tintera.plume.core.webapp.rememberHomeScreenShortcuts
 import androidx.compose.material3.Surface
 import eu.tintera.plume.core.telegram.BotShareSource
 import eu.tintera.plume.core.telegram.PreparedButton
@@ -124,6 +132,9 @@ fun WebAppScreen(
     val currentHeight by rememberUpdatedState(heightDp)
     val currentClose by rememberUpdatedState(onClose)
     val currentOpenChat by rememberUpdatedState(onOpenChat)
+    // Poloha pro bota: přesná, o oprávnění se žádá až teď (souhlas s botem už padl ve VM).
+    val location = rememberDeviceLocation(precise = true)
+    val shortcuts = rememberHomeScreenShortcuts()
 
     LaunchedEffect(Unit) { viewModel.start(theme) }
     LaunchedEffect(theme) { viewModel.themeChanged(theme) }
@@ -140,6 +151,15 @@ fun WebAppScreen(
                 }
                 WebAppEffect.Close -> currentClose()
                 is WebAppEffect.OpenChat -> currentOpenChat(effect.target)
+                WebAppEffect.RequestLocation -> location.request { point -> viewModel.locationResult(point?.latitude, point?.longitude) }
+                is WebAppEffect.HomeScreen -> {
+                    val status = if (effect.add) {
+                        if (shortcuts.add(effect.id, effect.label, effect.url)) "added" else shortcuts.status(effect.id)
+                    } else {
+                        shortcuts.status(effect.id)
+                    }
+                    viewModel.homeScreenResult(effect.add, status)
+                }
             }
         }
     }
@@ -165,7 +185,8 @@ fun WebAppScreen(
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                TopAppBar(
+                // Na celé ploše hlavička zmizí; zavřít jde tlačítkem přes stránku (níž).
+                if (!state.fullscreen) TopAppBar(
                     title = {
                         Text(
                             state.title ?: stringResource(Res.string.webapp_title),
@@ -210,6 +231,8 @@ fun WebAppScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .background(background)
+                    // Bez hlavičky by stránka zajela pod stavovou lištu; okraje hlásíme nulové.
+                    .then(if (state.fullscreen) Modifier.statusBarsPadding() else Modifier)
                     .onSizeChanged { size -> heightDp = with(density) { size.height.toDp().value.toInt() } },
                 contentAlignment = Alignment.Center,
             ) {
@@ -222,6 +245,19 @@ fun WebAppScreen(
                         onPageLoaded = viewModel::pageLoaded,
                         modifier = Modifier.fillMaxSize(),
                     )
+                }
+                if (state.fullscreen) {
+                    // Zavřít / zpět přes stránku; stránka má nahoře volno (`content_safe_area`).
+                    FilledTonalIconButton(
+                        onClick = viewModel::back,
+                        shapes = IconButtonDefaults.shapes(),
+                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
+                    ) {
+                        Icon(
+                            painterResource(if (state.backVisible) Res.drawable.arrow_back_24dp else Res.drawable.close_24dp),
+                            contentDescription = stringResource(if (state.backVisible) Res.string.common_back else Res.string.common_close),
+                        )
+                    }
                 }
                 when {
                     state.error != null -> Text(
@@ -275,6 +311,16 @@ fun WebAppScreen(
     }
     state.popup?.let { popup ->
         WebAppPopupDialog(popup, onClose = viewModel::popupClosed)
+    }
+    if (state.locationConsent) {
+        ConfirmDialog(
+            title = stringResource(Res.string.webapp_location_title, botName),
+            text = stringResource(Res.string.webapp_location_text),
+            confirmLabel = stringResource(Res.string.webapp_location_allow),
+            onConfirm = { viewModel.answerLocationConsent(true) },
+            onDismiss = { viewModel.answerLocationConsent(false) },
+            icon = Res.drawable.location_on_24dp,
+        )
     }
     if (state.writeAccessDialog) {
         ConfirmDialog(

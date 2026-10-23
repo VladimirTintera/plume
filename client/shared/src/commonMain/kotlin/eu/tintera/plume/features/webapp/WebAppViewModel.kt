@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.webapp
 
+import eu.tintera.plume.core.webapp.MiniAppStorage
+import eu.tintera.plume.core.webapp.MiniAppStorageFull
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -62,6 +64,10 @@ data class WebAppState(
     val share: PreparedShare? = null,
     /** Výběr chatu nebo lidí pro bota (`requestChat`); přes mini aplikaci je výběr. */
     val chatRequest: WebAppChatRequest? = null,
+    /** Mini aplikace přes celou plochu (`requestFullscreen`): bez hlavičky aplikace. */
+    val fullscreen: Boolean = false,
+    /** Mini aplikace chce polohu a bot ji ještě znát nesmí: dialog se souhlasem. */
+    val locationConsent: Boolean = false,
 )
 
 /** Stažení, o které mini aplikace žádá; [fileName] už očištěné od nebezpečných znaků. */
@@ -79,6 +85,10 @@ sealed interface WebAppEffect {
     data class Haptic(val kind: WebAppHaptic) : WebAppEffect
     data object Close : WebAppEffect
     data class OpenChat(val target: ChatTarget) : WebAppEffect
+    /** Zjistit polohu zařízení a vrátit ji do [WebAppViewModel.locationResult]. */
+    data object RequestLocation : WebAppEffect
+    /** Zástupce na ploše: zjistit stav ([add] `false`), nebo přidat — výsledek do [WebAppViewModel.homeScreenResult]. */
+    data class HomeScreen(val id: String, val label: String, val url: String, val add: Boolean) : WebAppEffect
 }
 
 /**
@@ -120,6 +130,7 @@ class WebAppViewModel(
     private val urlOpener: UrlOpener,
     private val downloader: WebFileDownloader,
     private val appScope: CoroutineScope,
+    private val storage: MiniAppStorage,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("WebApp")
@@ -228,7 +239,7 @@ class WebAppViewModel(
             WebAppEvent.RequestTheme -> theme?.let { post(WebAppEvents.themeChanged(it)) }
             WebAppEvent.RequestViewport -> effect(WebAppEffect.ReportViewport)
             WebAppEvent.RequestSafeArea -> post(WebAppEvents.safeAreaChanged("safe_area_changed"))
-            WebAppEvent.RequestContentSafeArea -> post(WebAppEvents.safeAreaChanged("content_safe_area_changed"))
+            WebAppEvent.RequestContentSafeArea -> post(contentSafeArea())
             is WebAppEvent.MainButton -> _state.update { it.copy(mainButton = event.button) }
             is WebAppEvent.SecondaryButton -> _state.update {
                 it.copy(secondaryButton = event.button, secondaryPosition = event.position)
@@ -259,10 +270,126 @@ class WebAppViewModel(
             is WebAppEvent.RequestChat -> requestChat(event.requestId)
             is WebAppEvent.DownloadFile -> requestDownload(event.url, event.fileName)
             is WebAppEvent.OpenInvoice -> post(WebAppEvents.invoiceClosed(event.slug))
-            WebAppEvent.RequestFullscreen -> post(WebAppEvents.fullscreenFailed())
-            WebAppEvent.CheckHomeScreen -> post(WebAppEvents.homeScreenChecked())
+            WebAppEvent.RequestFullscreen -> setFullscreen(true)
+            WebAppEvent.ExitFullscreen -> setFullscreen(false)
+            WebAppEvent.CheckHomeScreen -> homeScreen(add = false)
+            WebAppEvent.AddToHomeScreen -> homeScreen(add = true)
+            is WebAppEvent.DeviceStorageSave -> deviceStorage(event.requestId) { account ->
+                storage.set(account, botUserId, event.key, event.value)
+                WebAppEvents.deviceStorageSaved(event.requestId)
+            }
+            is WebAppEvent.DeviceStorageGet -> deviceStorage(event.requestId) { account ->
+                WebAppEvents.deviceStorageReceived(event.requestId, storage.get(account, botUserId, event.key))
+            }
+            is WebAppEvent.DeviceStorageClear -> deviceStorage(event.requestId) { account ->
+                storage.clear(account, botUserId)
+                WebAppEvents.deviceStorageCleared(event.requestId)
+            }
+            is WebAppEvent.SecureStorage -> post(WebAppEvents.secureStorageFailed(event.requestId))
+            WebAppEvent.CheckLocation -> checkLocation()
+            WebAppEvent.RequestLocation -> requestLocation()
+            // Vlastní nastavení polohy pro boty Plume nemá; souhlas se mění u dalšího dotazu.
+            WebAppEvent.OpenLocationSettings -> logger.i { "Mini aplikace chce nastavení polohy, Plume ho nemá." }
             is WebAppEvent.Unknown -> logger.i { "Mini aplikace poslala neznámou událost ${event.type}." }
         }
+    }
+
+    private fun contentSafeArea() =
+        WebAppEvents.safeAreaChanged("content_safe_area_changed", top = if (_state.value.fullscreen) FULLSCREEN_CONTROLS_DP else 0)
+
+    private fun setFullscreen(fullscreen: Boolean) {
+        _state.update { it.copy(fullscreen = fullscreen) }
+        post(WebAppEvents.fullscreenChanged(fullscreen))
+        post(contentSafeArea())
+        // Bez hlavičky má stránka víc místa — výšku si musí přepočítat.
+        effect(WebAppEffect.ReportViewport)
+    }
+
+    /**
+     * Úložiště v zařízení pro účet a bota; chyba (plné úložiště, neznámý účet) jde stránce jako
+     * `device_storage_failed`, jinak by na odpověď čekala navždy.
+     */
+    private fun deviceStorage(requestId: String, action: suspend (account: Long) -> WebAppOutgoing) {
+        viewModelScope.launch {
+            val account = chats.savedMessagesChatId.value
+            val reply = if (account == null) {
+                WebAppEvents.deviceStorageFailed(requestId, WebAppErrors.UNKNOWN_ERROR)
+            } else {
+                runCatching { action(account) }.getOrElse { failure ->
+                    logger.w(failure) { "DeviceStorage mini aplikace selhalo." }
+                    WebAppEvents.deviceStorageFailed(
+                        requestId,
+                        if (failure is MiniAppStorageFull) WebAppErrors.QUOTA_EXCEEDED else WebAppErrors.UNKNOWN_ERROR,
+                    )
+                }
+            }
+            post(reply)
+        }
+    }
+
+    private fun checkLocation() {
+        viewModelScope.launch {
+            val allowed = chats.savedMessagesChatId.value?.let { storage.locationAllowed(it, botUserId) }
+            post(WebAppEvents.locationChecked(available = true, requested = allowed != null, granted = allowed == true))
+        }
+    }
+
+    /**
+     * Polohu dostane bot jen se souhlasem — poprvé (a po odmítnutí znovu) se ptá dialog, jako
+     * u oficiálních klientů. Souhlas se pamatuje pro účet a bota.
+     */
+    private fun requestLocation() {
+        viewModelScope.launch {
+            val allowed = chats.savedMessagesChatId.value?.let { storage.locationAllowed(it, botUserId) }
+            if (allowed == true) effect(WebAppEffect.RequestLocation) else _state.update { it.copy(locationConsent = true) }
+        }
+    }
+
+    fun answerLocationConsent(allow: Boolean) {
+        _state.update { it.copy(locationConsent = false) }
+        viewModelScope.launch {
+            chats.savedMessagesChatId.value?.let { storage.setLocationAllowed(it, botUserId, allow) }
+            if (allow) effect(WebAppEffect.RequestLocation) else post(WebAppEvents.locationRequested(null, null))
+        }
+    }
+
+    /** Poloha od zařízení, nebo `null` (oprávnění v systému odmítnuto, nezjištěno). */
+    fun locationResult(latitude: Double?, longitude: Double?) {
+        post(WebAppEvents.locationRequested(latitude, longitude))
+    }
+
+    /**
+     * Zástupce otevírá hlavní mini aplikaci bota odkazem `t.me/<bot>?startapp` — tudy vede
+     * i odkaz zvenčí, takže souhlas a ostatní pravidla platí stejně. Bot bez uživatelského jména
+     * odkaz nemá a zástupce nejde.
+     */
+    private fun homeScreen(add: Boolean) {
+        viewModelScope.launch {
+            val username = repository.botUsername(botUserId)
+            if (username == null) {
+                post(if (add) WebAppEvents.homeScreenFailed(WebAppErrors.UNSUPPORTED) else WebAppEvents.homeScreenChecked("unsupported"))
+                return@launch
+            }
+            effect(
+                WebAppEffect.HomeScreen(
+                    id = "webapp-$botUserId",
+                    label = _state.value.title?.removePrefix("@") ?: username,
+                    url = "https://t.me/$username?startapp",
+                    add = add,
+                ),
+            )
+        }
+    }
+
+    /** Výsledek od platformy: stav `added` / `missing` / `unsupported`, u přidání `added` = povedlo se. */
+    fun homeScreenResult(add: Boolean, status: String) {
+        post(
+            when {
+                !add -> WebAppEvents.homeScreenChecked(status)
+                status == "added" -> WebAppEvents.homeScreenAdded()
+                else -> WebAppEvents.homeScreenFailed(if (status == "unsupported") WebAppErrors.UNSUPPORTED else WebAppErrors.UNKNOWN_ERROR)
+            },
+        )
     }
 
     fun pressMainButton() {
@@ -452,3 +579,6 @@ private fun themeColor(theme: WebAppTheme, key: String?): Int? = when (key) {
     "bottom_bar_bg_color" -> theme.bottomBarBackground
     else -> null
 }
+
+/** Výška pruhu se zavíracím tlačítkem přes stránku na celé ploše, v CSS pixelech (= dp). */
+internal const val FULLSCREEN_CONTROLS_DP = 56

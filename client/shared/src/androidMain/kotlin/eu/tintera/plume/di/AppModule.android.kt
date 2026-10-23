@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
+import eu.tintera.plume.di.MINI_APP_STORAGE
 import eu.tintera.plume.core.ui.AndroidStoryVideo
 import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.calls.AndroidCallPointerDisplay
@@ -187,6 +189,7 @@ actual fun Module.platformModule() {
 
     // `filesDir`, ne cache: nastavení se nesmí ztratit, když systém uklízí místo.
     single { createSettingsDataStore(androidContext().filesDir.resolve(SETTINGS_FILE_NAME).absolutePath) }
+    single(named(MINI_APP_STORAGE)) { createSettingsDataStore(androidContext().filesDir.resolve(MINI_APP_STORAGE_FILE_NAME).absolutePath) }
 
     // Widget s chaty na ploše: podklady se musí psát od startu procesu, ne až se složí UI —
     // aplikaci často budí jen push a widget má i pak ukázat čerstvý stav.

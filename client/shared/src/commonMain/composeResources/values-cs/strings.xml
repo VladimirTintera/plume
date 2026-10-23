@@ -2469,6 +2469,9 @@
     <string name="webapp_load_failed">Mini aplikaci se nepodařilo otevřít.</string>
     <string name="webapp_close_confirm_title">Zavřít mini aplikaci?</string>
     <string name="webapp_close_confirm_text">Neuložené změny se můžou ztratit.</string>
+    <string name="webapp_location_title">Sdílet polohu s %1$s?</string>
+    <string name="webapp_location_text">Mini aplikace dostane současnou polohu tohoto zařízení. Plume si odpověď pro tohoto bota zapamatuje.</string>
+    <string name="webapp_location_allow">Sdílet</string>
     <string name="webapp_write_access_title">Dovolit %1$s psát ti?</string>
     <string name="webapp_write_access_text">Mini aplikace žádá, aby ti bot mohl posílat zprávy. Zarazit to jde kdykoli zablokováním bota.</string>
     <string name="webapp_write_access_allow">Dovolit</string>

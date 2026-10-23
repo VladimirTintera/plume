@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
+import eu.tintera.plume.di.MINI_APP_STORAGE
 import eu.tintera.plume.core.ui.IosStoryVideo
 import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
@@ -122,4 +124,5 @@ actual fun Module.platformModule() {
 
     // Application Support, stejně jako databáze TDLib: data aplikace, ne dokumenty uživatele.
     single { createSettingsDataStore(applicationSupportDirectory() + "/" + SETTINGS_FILE_NAME) }
+    single(named(MINI_APP_STORAGE)) { createSettingsDataStore(applicationSupportDirectory() + "/" + MINI_APP_STORAGE_FILE_NAME) }
 }

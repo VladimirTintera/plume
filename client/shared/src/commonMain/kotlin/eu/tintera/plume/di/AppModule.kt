@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.webapp.MiniAppStorage
+import eu.tintera.plume.core.webapp.DataStoreMiniAppStorage
 import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogViewModel
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
@@ -252,6 +254,9 @@ expect fun Module.platformModule()
  */
 internal const val APP_SCOPE = "appScope"
 
+/** DataStore úložiště mini aplikací (`DeviceStorage`), vedle nastavení aplikace. */
+internal const val MINI_APP_STORAGE = "miniAppStorage"
+
 fun appModule() = module {
     platformModule()
 
@@ -410,6 +415,9 @@ fun appModule() = module {
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
     single<AppSettings>(createdAtStart = true) {
         DataStoreAppSettings(dataStore = get(), scope = get(named(APP_SCOPE)))
+    }
+    single<MiniAppStorage> {
+        DataStoreMiniAppStorage(get(named(MINI_APP_STORAGE)))
     }
 
     // Jeden přehrávač hlasovek na aplikaci: hraje nejvýš jedna. Na hlavním vlákně, protože
@@ -747,6 +755,7 @@ fun appModule() = module {
             urlOpener = get(),
             downloader = get(),
             appScope = get(named(APP_SCOPE)),
+            storage = get(),
         )
     }
 

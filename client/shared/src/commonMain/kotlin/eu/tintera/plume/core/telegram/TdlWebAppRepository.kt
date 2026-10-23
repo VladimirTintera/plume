@@ -105,6 +105,9 @@ class TdlWebAppRepository(private val holder: TelegramClientHolder) : WebAppRepo
             listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ").ifBlank { null }
         }
 
+    override suspend fun botUsername(botUserId: Long): String? =
+        client.getUser(userId = botUserId).toResult().getOrNull()?.usernames?.activeUsernames?.firstOrNull { it.isNotBlank() }
+
     override suspend fun canBotWrite(botUserId: Long): Boolean =
         client.canBotSendMessages(botUserId = botUserId).toResult().isSuccess
 
