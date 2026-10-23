@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.BusinessBotBar
 import eu.tintera.plume.core.telegram.BotIntro
 import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.JoinResult
@@ -73,6 +74,10 @@ class ConversationChatActionsTest {
 
         override fun chatBar(chatId: Long): Flow<ChatBar?> = bar
         override fun videoChat(chatId: Long): Flow<VideoChatInfo?> = videoChat
+        val businessBot = MutableStateFlow<BusinessBotBar?>(null)
+        override fun businessBotBar(chatId: Long): Flow<BusinessBotBar?> = businessBot
+        override suspend fun setBusinessBotPaused(chatId: Long, paused: Boolean) = call("bot paused $paused")
+        override suspend fun removeBusinessBotFromChat(chatId: Long) = call("bot remove")
         override suspend fun setMuted(chatId: Long, muted: Boolean) = call("mute $muted")
         override suspend fun addToContacts(chatId: Long) = call("contact")
         override suspend fun unarchiveFromSpamBar(chatId: Long) = call("unarchive")
@@ -130,6 +135,25 @@ class ConversationChatActionsTest {
         )
 
     private val spamBar = SpamBar(canReportSpam = true, canBlock = true, canAddContact = true)
+
+    /** Pruh firemního bota: stav jde z TDLib, akce na repository; ve vlákně komentářů žádný. */
+    @Test
+    fun pruhFiremnihoBota() = runTest {
+        val bot = BusinessBotBar(botUserId = 5, botName = "Asistent", manageUrl = "https://t.me/x", isPaused = false, canReply = true)
+        chats.businessBot.value = bot
+        val chat = actions(testState())
+        val thread = actions(testState(), threadRootId = 7)
+        backgroundScope.launch { chat.businessBotBar.collect {} }
+        backgroundScope.launch { thread.businessBotBar.collect {} }
+        runCurrent()
+        assertEquals(bot, chat.businessBotBar.value)
+        assertNull(thread.businessBotBar.value)
+
+        chat.setBusinessBotPaused(true)
+        chat.removeBusinessBot()
+        runCurrent()
+        assertEquals(listOf("bot paused true", "bot remove"), chats.calls)
+    }
 
     @Test
     fun pruhSeUPrevedeneSkupinyNeukazuje() = runTest {

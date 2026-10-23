@@ -188,6 +188,23 @@ to má vědět předem.
 - **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
   zbyla mezi textem a tlačítky mezera a pruh vypadal rozpadle.
 
+#### Pruh firemního bota
+
+Účet s Telegram Business může nechat odpovídat bota. TDLib to u chatu hlásí zvlášť
+(`Chat.businessBotManageBar`, `updateChatBusinessBotManageBar`), ne jako `ChatActionBar`;
+pilulka (`BusinessBotBarPill`, `ChatRepository.businessBotBar`) stojí pod pruhem proti spamu.
+
+- **Nabídka z ⋮ i ťuknutí na pruh**: Pozastavit / Obnovit bota
+  (`toggleBusinessConnectedBotChatIsPaused`), Spravovat bota (`manageUrl` od serveru, otevře se
+  jako každý odkaz) a Odebrat z tohoto chatu (`removeBusinessConnectedBotFromChat`, chat přibude
+  mezi vyloučené v nastavení Business) s potvrzením v chybové barvě.
+- **Křížek nemá.** Je to stav chatu, ne oznámení — zmizí, až bot z chatu zmizí; pozastavený se
+  pozná šedým jménem a podnadpisem. Podnadpis říká i to, že bot odpovídat nemůže (`canBotReply`).
+- **Ve vlákně komentářů žádný** — firemní bot odpovídá v soukromém chatu.
+- **Ověřeno na emulátoru podstrčeným pruhem** (sonda v repository, necommituje se; účet Business
+  nemá): pilulka s botem a „V tomto chatu odpovídá firemní bot", nabídka se třemi akcemi
+  a potvrzení odebrání. Skutečný pruh a odezva serveru na pozastavení ověřené NEJSOU.
+
 ### Seznam blokovaných v Nastavení
 
 Obecné → Soukromí → Blokovaní (řádek s počtem, `BlockedSettings`) otevře obrazovku

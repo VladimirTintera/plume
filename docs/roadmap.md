@@ -357,8 +357,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     - ~~**`InviteMembers`**~~ — hotovo (`InviteMembersBar`, výběr `AddMembersScreen`, i z ⋮
       v profilu). Pruh ověřený podstrčeným stavem, přidání testovacím botem; odmítnutí kvůli
       soukromí ověřené se dvěma účty při zakládání skupiny (z ⋮ v profilu ne).
-    - **Pruh firemního bota** (`UpdateChatBusinessBotManageBar`, jen účty s Telegram Business):
-      pozastavit bota v chatu a odkaz na jeho správu. Je to samostatný update, ne `ChatActionBar`.
+    - ~~**Pruh firemního bota** (`UpdateChatBusinessBotManageBar`, jen účty s Telegram Business)~~
+      — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Pruh firemního bota"); skutečný pruh
+      neověřený (účet Business nemá).
   - ~~**Nahlásit z režimu výběru víc zpráv**~~ — hotovo (vlajka v liště výběru).
   - ~~**Ověřit skutečný pruh (`UpdateChatActionBar`)** na chatu od cizího~~ — ověřeno se dvěma účty
     (`docs/poznatky/spam-a-blokovani.md`, „Ověření"); nahlášení se vědomě nezkoušelo.

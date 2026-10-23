@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.BusinessBotBar
+import eu.tintera.plume.resources.business_bot_failed
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -90,6 +92,31 @@ internal class ConversationChatActions(
             bar.takeIf { !upgraded }
         }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Pruh firemního bota (jen účty s Telegram Business); ve vlákně komentářů ne — bot odpovídá
+     * v soukromém chatu.
+     */
+    val businessBotBar: StateFlow<BusinessBotBar?> =
+        (if (threadRootId == null) chatRepository.businessBotBar(chatId) else flowOf(null))
+            .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Pozastavit / obnovit firemního bota; pruh se přepne updatem od TDLib. */
+    fun setBusinessBotPaused(paused: Boolean) {
+        scope.launch {
+            chatRepository.setBusinessBotPaused(chatId, paused).onFailure { failure ->
+                state.update { it.copy(error = failure.userMessage(Res.string.business_bot_failed)) }
+            }
+        }
+    }
+
+    fun removeBusinessBot() {
+        scope.launch {
+            chatRepository.removeBusinessBotFromChat(chatId).onFailure { failure ->
+                state.update { it.copy(error = failure.userMessage(Res.string.business_bot_failed)) }
+            }
+        }
+    }
 
     /**
      * Videochat skupiny / živé vysílání kanálu pro pruh nad konverzací. Ve vlákně komentářů ne —
