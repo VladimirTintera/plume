@@ -4,8 +4,8 @@ import eu.tintera.plume.core.telegram.LiveVideo
 import eu.tintera.plume.core.telegram.LiveVideoQuality
 
 /**
- * Přenos živého příběhu (skupinového hovoru) k divákovi — jen příjem, nic se neposílá. Jen
- * Android (ntgcalls); jinde se nezaregistruje a prohlížeč ukáže, že vysílání neumí.
+ * Přenos skupinového hovoru k posluchači (živý příběh, videochat) — jen příjem, nic se
+ * neposílá. Jen Android (ntgcalls); jinde se nezaregistruje a obrazovka řekne, že to neumí.
  *
  * Všechno jde přes [host]: knihovna si řekne o připojení i o segmenty streamu a hostitel jí je
  * obstará z TDLib. Obraz se kreslí přes `CallVideo(CallVideoSource.Live)`.

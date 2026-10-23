@@ -10,10 +10,6 @@ import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.GroupCallJoinParameters
 import dev.g000sha256.tdl.dto.GroupCallParticipant
-import dev.g000sha256.tdl.dto.GroupCallParticipantVideoInfo
-import dev.g000sha256.tdl.dto.GroupCallVideoQualityFull
-import dev.g000sha256.tdl.dto.GroupCallVideoQualityMedium
-import dev.g000sha256.tdl.dto.GroupCallVideoQualityThumbnail
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
@@ -67,24 +63,11 @@ class TdlLiveStoryRepository(private val holder: TelegramClientHolder) : LiveSto
         }
 
     override suspend fun streamTimestamp(groupCallId: Int): Result<Long> =
-        client.getGroupCallStreams(groupCallId = groupCallId).toResult()
+        client.groupCallStreamTimestamp(groupCallId)
             .onFailure { logger.w(it) { "getGroupCallStreams $groupCallId" } }
-            .map { result -> result.streams.maxOfOrNull { it.timeOffset } ?: 0L }
 
     override suspend fun segment(groupCallId: Int, timeMs: Long, channelId: Int, quality: LiveVideoQuality?): Result<ByteArray> =
-        client.getGroupCallStreamSegment(
-            groupCallId = groupCallId,
-            timeOffset = timeMs,
-            // Knihovna chce segmenty po vteřině (tak to dělá i pytgcalls); měřítko 1 = půl vteřiny.
-            scale = 0,
-            channelId = channelId,
-            videoQuality = when (quality) {
-                LiveVideoQuality.Thumbnail -> GroupCallVideoQualityThumbnail()
-                LiveVideoQuality.Medium -> GroupCallVideoQualityMedium()
-                LiveVideoQuality.Full -> GroupCallVideoQualityFull()
-                null -> null
-            },
-        ).toResult().map { it.data }
+        client.groupCallSegment(groupCallId, timeMs, channelId, quality)
 
     override val messageEvents: Flow<LiveMessageEvent> = merge(
         holder.updates { newGroupCallMessageUpdates }.mapNotNull { update ->
@@ -171,9 +154,4 @@ private fun GroupCallParticipant.toStreamer() = LiveStreamer(
     participantId = participantId.plainId(),
     camera = videoInfo?.toLiveVideo(),
     screen = screenSharingVideoInfo?.toLiveVideo(),
-)
-
-private fun GroupCallParticipantVideoInfo.toLiveVideo() = LiveVideo(
-    endpoint = endpointId,
-    sourceGroups = sourceGroups.map { LiveVideoSourceGroup(it.semantics, it.sourceIds.toList()) },
 )

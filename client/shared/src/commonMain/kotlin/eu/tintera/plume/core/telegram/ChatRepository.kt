@@ -549,6 +549,8 @@ interface ChatRepository {
  * tgcalls, viz `docs/roadmap.md`, „Hovory"); pruh jen řekne, že se něco děje.
  */
 data class VideoChatInfo(
+    /** Hovor, ke kterému se připojuje obrazovka videochatu. */
+    val groupCallId: Int,
     /** Živé vysílání (kanál, RTMP) — jiná věta než videochat skupiny. */
     val isLiveStream: Boolean,
     /** Kolik lidí je připojených; `null`, dokud se hovor nenačte. */

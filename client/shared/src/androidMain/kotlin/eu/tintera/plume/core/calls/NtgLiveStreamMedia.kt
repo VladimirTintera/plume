@@ -27,7 +27,7 @@ import org.webrtc.VideoSink
 import java.util.concurrent.Executors
 
 /**
- * Živý příběh přes ntgcalls: skupinový hovor jen na příjem. Pořadí drží knihovna — hovor
+ * Živý příběh a videochat přes ntgcalls: skupinový hovor jen na příjem. Pořadí drží knihovna — hovor
  * (`createCall` vrátí přihlašovací payload) → zdroje přehrávání → přihlášení přes TDLib →
  * `connect` s odpovědí serveru → obraz vysílajícího (`addIncomingVideo`). Podle odpovědi
  * jede hovor přes WebRTC, nebo po segmentech streamu, o které si knihovna říká sama

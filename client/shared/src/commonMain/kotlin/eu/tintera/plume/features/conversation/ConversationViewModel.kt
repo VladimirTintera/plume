@@ -222,7 +222,7 @@ class ConversationViewModel(
     /** Limit skupin a kanálů při vstupu: sheet s neaktivními k opuštění ukazuje shell. */
     private val channelLimit: ChannelLimitRequests? = null,
     /** Živý příběh jde sledovat (jen kde je přenos, dnes Android). */
-    liveStoriesSupported: Boolean = false,
+    private val liveStoriesSupported: Boolean = false,
     /** „Odpovědět" z prohlížeče médií. */
     private val replyRequests: ConversationReplyRequests,
     /** Odkaz reklamy z tlačítka v prohlížeči médií (video reklamy na celé obrazovce). */
@@ -553,7 +553,8 @@ class ConversationViewModel(
     /** „Spravovat bota": odkaz od serveru, otevře se jako každý jiný. */
     fun openBusinessBotManage(url: String) = links.openLink(url)
     val joinRequests: StateFlow<PendingJoinRequests?> get() = chatActions.joinRequests
-    fun explainVideoChat() = chatActions.explainVideoChat()
+    /** Videochat poslouchá tentýž přenos jako živý příběh, takže jde tam, kde jde živý příběh. */
+    fun videoChatToOpen(info: VideoChatInfo): Int? = chatActions.videoChatToOpen(info, supported = liveStoriesSupported)
     val chatGone: StateFlow<Boolean> get() = chatActions.chatGone
     val unarchived: StateFlow<Boolean> get() = chatActions.unarchived
     fun join() = chatActions.join()

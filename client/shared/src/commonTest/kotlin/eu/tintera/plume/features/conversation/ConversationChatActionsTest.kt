@@ -170,8 +170,17 @@ class ConversationChatActionsTest {
     }
 
     @Test
+    fun tuknutiNaVideochatOtevreJenBeziciTamKdeJdePoslouchat() = runTest {
+        val actions = actions(testState())
+        val running = VideoChatInfo(groupCallId = 9, isLiveStream = false, participantCount = 3, scheduledStart = null, title = "")
+        assertEquals(9, actions.videoChatToOpen(running, supported = true))
+        assertNull(actions.videoChatToOpen(running, supported = false), "bez přenosu jen věta")
+        assertNull(actions.videoChatToOpen(running.copy(scheduledStart = 1_900_000_000), supported = true), "naplánovaný ještě neběží")
+    }
+
+    @Test
     fun videochatAZadostiSeVeVlaknuKomentaruNeukazuji() = runTest {
-        chats.videoChat.value = VideoChatInfo(isLiveStream = false, participantCount = 3, scheduledStart = null, title = "")
+        chats.videoChat.value = VideoChatInfo(groupCallId = 9, isLiveStream = false, participantCount = 3, scheduledStart = null, title = "")
         inviteLinks.requests.value = PendingJoinRequests(count = 2)
 
         val chat = actions(testState())

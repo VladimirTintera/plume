@@ -1531,7 +1531,7 @@ class TdlChatRepository(
 
     private fun groupCall(chatId: Long, callId: Int): Flow<VideoChatInfo?> = flow {
         val isChannel = (client.getChat(chatId = chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup)?.isChannel == true
-        emit(VideoChatInfo(isLiveStream = isChannel, participantCount = null, scheduledStart = null, title = ""))
+        emit(VideoChatInfo(groupCallId = callId, isLiveStream = isChannel, participantCount = null, scheduledStart = null, title = ""))
         client.getGroupCall(groupCallId = callId).toResult()
             .onSuccess { emit(it.toVideoChatInfo(isChannel)) }
             .onFailure { logger.w(it) { "Videochat $callId chatu $chatId se nepodařilo načíst." } }
@@ -1547,6 +1547,7 @@ class TdlChatRepository(
             null
         } else {
             VideoChatInfo(
+                groupCallId = id,
                 isLiveStream = isChannel || isRtmpStream,
                 participantCount = participantCount,
                 scheduledStart = scheduledStartDate.takeIf { it > 0 },
