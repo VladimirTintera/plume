@@ -736,10 +736,9 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   připravenou zprávu a tlačítko ověřit s botem, který je vyrobí přes Bot API. Zbývá
   `DeviceStorage` / `SecureStorage`, poloha, celá obrazovka a zástupce na ploše; emoji status
   z mini aplikace chce Premium.
-- **Podobné kanály: oznámit otevření** (`openChatSimilarChat`) — dokumentace chce, aby klient
-  TDLib řekl, že chat otevřel ze seznamu podobných (statistika doporučení na serveru). Malé,
-  kontrakt. K tomu podobní boti v profilu bota (`getBotSimilarBots`, `openBotSimilarBot`)
-  a náhledy mini aplikace v profilu bota (`getBotMediaPreviews`).
+- ~~**Podobné kanály: oznámit otevření** (`openChatSimilarChat`) a podobní boti v profilu bota
+  (`getBotSimilarBots`, `openBotSimilarBot`)~~ — hotovo (`docs/poznatky/profil-chatu.md`,
+  „Záložka Podobné"). Zbývají náhledy mini aplikace v profilu bota (`getBotMediaPreviews`).
 - **Témata Uložených zpráv a vlákna přímých zpráv kanálu:** skok na datum
   (`getSavedMessagesTopicMessageByDate`, `getDirectMessagesChatTopicMessageByDate`; dnes jde jen
   v celém chatu), vymazání za vybrané dny (`deleteSavedMessagesTopicMessagesByDate`,

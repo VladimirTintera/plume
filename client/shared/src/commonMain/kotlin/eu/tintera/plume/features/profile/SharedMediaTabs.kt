@@ -125,6 +125,7 @@ import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.fileSizeText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.profile_bot_monthly_users
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.resources.language_24dp
@@ -492,7 +493,11 @@ internal fun RelatedChatsList(
                     {
                         Text(
                             pluralStringResource(
-                                if (chat.isChannel) Res.plurals.invite_subscribers else Res.plurals.invite_members,
+                                when {
+                                    chat.isBot -> Res.plurals.profile_bot_monthly_users
+                                    chat.isChannel -> Res.plurals.invite_subscribers
+                                    else -> Res.plurals.invite_members
+                                },
                                 count,
                                 count.grouped(),
                             ),

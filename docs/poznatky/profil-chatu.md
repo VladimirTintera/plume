@@ -921,9 +921,19 @@ obsahu bývá zlomek zpráv.
 - **Ověřeno na emulátoru** (14. 10. 2026, účet …527, profil „Pixel 7 Pro"): záložky Média,
   Odkazy, GIFy, Kolečka, Skupiny přes celou šířku i po výběru poslední; kulaté kolečko s délkou,
   GIF se štítkem, ťuknutí na obojí skočilo na zprávu; pět společných skupin s počty, ťuknutí
-  otevřelo skupinu. **Podobné kanály ověřené NEJSOU** — testovací účet
-  nemá kanál, ke kterému by server podobné vydal. Řada, která se nevejde, se ověřila se
-  záložkou Hlasovky (sedm záložek).
+  otevřelo skupinu. Řada, která se nevejde, se ověřila se záložkou Hlasovky (sedm záložek).
+- **Záložka Podobné je u kanálu i u bota** (`ProfileTab.Similar(bots)`, `getChatSimilarChats`
+  / `getBotSimilarBots`). U bota stojí za Společnými skupinami, má ikonu robota místo megafonu
+  a pod jménem počet uživatelů za měsíc (`UserTypeBot.activeUserCount`; nula = server nevydal,
+  řádek se nekreslí).
+  - **Otevření z Podobných se TDLib hlásí** (`openChatSimilarChat`, u bota `openBotSimilarBot`;
+    `ChatProfileViewModel.openSimilar`) — dokumentace to po klientovi chce, server podle toho
+    ladí doporučení. Selhání nic nezastaví, jen se zapíše. Bot nemusí mít chat založený, proto
+    se otevírá přes `privateChat` jako člen skupiny.
+  - **Ověřeno na emulátoru** (23. 10. 2026): BBC News | Русская служба → Podobné (Медуза, Дождь…
+    s počty odběratelů), ťuknutí otevřelo kanál a TDLib oznámení přijal (žádné varování v logu);
+    @wallet → Podobné s deseti boty a „1 844 403 uživatelů měsíčně", ťuknutí otevřelo bota.
+    Durger King podobné boty nemá (server vrátí prázdný seznam) a záložka se neukáže.
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.

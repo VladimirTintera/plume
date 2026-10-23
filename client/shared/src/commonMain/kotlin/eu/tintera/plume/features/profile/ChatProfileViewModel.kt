@@ -902,15 +902,25 @@ class ChatProfileViewModel(
 
     /** Člen skupiny: otevře se soukromý chat s ním (TDLib ho založí lokálně, nic se neposílá). */
     /**
-     * Společné skupiny (u člověka a bota) a podobné kanály (u kanálu). Selhání se nehlásí, jen
+     * Společné skupiny (u člověka a bota), podobné kanály (u kanálu) a podobní boti (u bota).
+     * Selhání se nehlásí, jen
      * se záložka neukáže — profil je k užitku i bez nich, stejně jako bez sdíleného obsahu.
      */
     private fun loadRelatedChats(profile: ChatProfile) {
         viewModelScope.launch {
             when (profile.kind) {
-                ProfileKind.User, ProfileKind.Bot -> profiles.commonGroups(profile.userId ?: chatId)
-                    .onSuccess { found -> _state.update { it.copy(commonGroups = found) } }
-                    .onFailure { logger.w(it) { "Společné skupiny se nepodařilo načíst." } }
+                ProfileKind.User, ProfileKind.Bot -> {
+                    if (profile.kind == ProfileKind.Bot) {
+                        launch {
+                            profiles.similarBots(profile.userId ?: chatId)
+                                .onSuccess { found -> _state.update { it.copy(similarChannels = found) } }
+                                .onFailure { logger.w(it) { "Podobné boty se nepodařilo načíst." } }
+                        }
+                    }
+                    profiles.commonGroups(profile.userId ?: chatId)
+                        .onSuccess { found -> _state.update { it.copy(commonGroups = found) } }
+                        .onFailure { logger.w(it) { "Společné skupiny se nepodařilo načíst." } }
+                }
                 ProfileKind.Channel -> profiles.similarChannels(chatId)
                     .onSuccess { found -> _state.update { it.copy(similarChannels = found) } }
                     .onFailure { logger.w(it) { "Podobné kanály se nepodařilo načíst." } }
@@ -1074,6 +1084,18 @@ class ChatProfileViewModel(
     /** Ťuknutí na skupinu nebo kanál v záložce: otevřít ho jako konverzaci. */
     fun openRelatedChat(chatId: Long) {
         _state.update { it.copy(openChat = chatId) }
+    }
+
+    /**
+     * Ťuknutí na kanál nebo bota v záložce Podobné: TDLib se dozví, odkud uživatel přišel
+     * (server podle toho ladí doporučení), a chat se otevře. Bot nemusí mít chat založený,
+     * proto jde přes [openMember] (`createPrivateChat`).
+     */
+    fun openSimilar(openedId: Long) {
+        val profile = _state.value.profile ?: return
+        val bots = profile.kind == ProfileKind.Bot
+        viewModelScope.launch { profiles.similarOpened(if (bots) profile.userId ?: chatId else chatId, openedId, bots) }
+        if (bots) openMember(openedId) else openRelatedChat(openedId)
     }
 
     fun openMember(userId: Long) {
@@ -1448,7 +1470,7 @@ data class ChatProfileState(
                 // Na konci: dorazí samostatným dotazem a záložka přidaná doprostřed by posunula
                 // tu, na které uživatel zrovna stojí.
                 if (!commonGroups.isNullOrEmpty()) add(ProfileTab.CommonGroups)
-                if (!similarChannels.isNullOrEmpty()) add(ProfileTab.SimilarChannels)
+                if (!similarChannels.isNullOrEmpty()) add(ProfileTab.Similar(bots = profile?.kind == ProfileKind.Bot))
                 // Záložka zůstane i nad prázdnou nebo právě načítanou sbírkou — jinak by při
                 // přepnutí sbírky zmizela a pager by uskočil jinam.
                 // Ověřeno na emulátoru: s podmínkou jen na položky záložka při návratu na „Vše"
@@ -1486,8 +1508,8 @@ sealed interface ProfileTab {
     /** Skupiny, ve kterých je člověk i účet. Jen profil uživatele a bota. */
     data object CommonGroups : ProfileTab
 
-    /** Kanály podobné tomuhle. Jen profil kanálu. */
-    data object SimilarChannels : ProfileTab
+    /** Kanály podobné kanálu, nebo boti podobní botovi ([bots]). */
+    data class Similar(val bots: Boolean) : ProfileTab
 
     /** Dárky vystavené v profilu člověka nebo kanálu. */
     data object Gifts : ProfileTab

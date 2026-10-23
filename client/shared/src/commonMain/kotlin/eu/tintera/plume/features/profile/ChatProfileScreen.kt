@@ -22,6 +22,7 @@ import eu.tintera.plume.resources.profile_tab_common_groups
 import eu.tintera.plume.resources.profile_tab_video_notes
 import eu.tintera.plume.resources.profile_tab_gifs
 import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.smart_toy_24dp
 import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.profile_personal_channel
 import eu.tintera.plume.resources.profile_personal_channel_subscribers
@@ -932,10 +933,10 @@ private fun TabContent(
             onOpen = viewModel::openRelatedChat,
         )
 
-        ProfileTab.SimilarChannels -> RelatedChatsList(
+        is ProfileTab.Similar -> RelatedChatsList(
             chats = state.similarChannels.orEmpty(),
             contentPadding = contentPadding,
-            onOpen = viewModel::openRelatedChat,
+            onOpen = viewModel::openSimilar,
         )
 
         ProfileTab.Gifts -> ProfileGiftsGrid(
@@ -1072,7 +1073,7 @@ private val ProfileTab.key: String
         ProfileTab.Members -> "members"
         is ProfileTab.Shared -> kind.name
         ProfileTab.CommonGroups -> "common-groups"
-        ProfileTab.SimilarChannels -> "similar-channels"
+        is ProfileTab.Similar -> "similar"
         ProfileTab.Gifts -> "gifts"
         ProfileTab.Stories -> "stories"
     }
@@ -1090,7 +1091,7 @@ private fun ProfileTab.icon(): DrawableResource = when (this) {
         SharedMediaKind.Voice -> Res.drawable.mic_24dp
     }
     ProfileTab.CommonGroups -> Res.drawable.group_filled_24dp
-    ProfileTab.SimilarChannels -> Res.drawable.campaign_24dp
+    is ProfileTab.Similar -> if (bots) Res.drawable.smart_toy_24dp else Res.drawable.campaign_24dp
     ProfileTab.Gifts -> Res.drawable.redeem_24dp
     // Přerušovaný kruh — tvar, kterým Telegram příběhy značí.
     ProfileTab.Stories -> Res.drawable.history_toggle_off_24dp
@@ -1117,7 +1118,7 @@ private fun ProfileTab.label(): StringResource = when (this) {
         SharedMediaKind.Voice -> Res.string.profile_tab_voice
     }
     ProfileTab.CommonGroups -> Res.string.profile_tab_common_groups
-    ProfileTab.SimilarChannels -> Res.string.profile_tab_similar_channels
+    is ProfileTab.Similar -> Res.string.profile_tab_similar_channels
     ProfileTab.Gifts -> Res.string.profile_tab_gifts
     ProfileTab.Stories -> Res.string.profile_tab_stories
 }

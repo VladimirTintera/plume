@@ -27,6 +27,18 @@ class ProfileTabsTest {
         assertEquals(listOf(ProfileTab.Shared(SharedMediaKind.Media)), ChatProfileState(counts = counts, commonGroups = emptyList()).tabs)
     }
 
+    /** U bota přijdou společné skupiny i podobní boti; Podobné stojí za Skupinami, jako u kanálu na konci. */
+    @Test
+    fun podobniBotiJsouZaSpolecnymiSkupinami() {
+        val counts = SharedMediaCounts(media = 0, files = 0, links = 0)
+        val bot = RelatedChat(chatId = 42, title = "Bot", photoFileId = null, memberCount = 1000, isChannel = false, isBot = true)
+        assertEquals(
+            listOf(ProfileTab.CommonGroups, ProfileTab.Similar(bots = false)),
+            ChatProfileState(counts = counts, commonGroups = listOf(group), similarChannels = listOf(bot)).tabs,
+        )
+        assertEquals(listOf(ProfileTab.Similar(bots = false)), ChatProfileState(counts = counts, similarChannels = listOf(bot)).tabs)
+    }
+
     @Test
     fun dokudNedorazilyPoctyNeniZadnaZalozka() {
         assertEquals(emptyList(), ChatProfileState(commonGroups = listOf(group)).tabs)
