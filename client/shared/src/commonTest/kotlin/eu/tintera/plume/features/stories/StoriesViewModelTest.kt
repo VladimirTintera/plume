@@ -518,6 +518,29 @@ class StoriesViewModelTest {
         assertEquals(StoryAudience.Everyone, viewModel.state.value.pages[key]?.audience)
     }
 
+    /** „Vybraní lidé" přes výběr lidí; prázdný výběr nic nezmění. */
+    @Test
+    fun selectedPeopleFromPicker() = runTest {
+        val repository = FakeStories(own = true)
+        val viewModel = viewModel(repository)
+        viewModel.openAudience(key)
+        advanceUntilIdle()
+        viewModel.pickPeople()
+        assertNull(viewModel.audience.value, "sheet ustoupí výběru lidí")
+        assertNotNull(viewModel.pickingPeople.value)
+
+        viewModel.confirmPeople(emptySet())
+        advanceUntilIdle()
+        assertEquals(emptyList(), repository.audiences)
+
+        viewModel.openAudience(key)
+        viewModel.pickPeople()
+        viewModel.confirmPeople(setOf(11L, 12L))
+        advanceUntilIdle()
+        assertNull(viewModel.pickingPeople.value)
+        assertEquals(listOf<StoryAudience>(StoryAudience.Selected(listOf(11L, 12L))), repository.audiences)
+    }
+
     /** Stejná volba nic neposílá. */
     @Test
     fun sameAudienceSendsNothing() = runTest {

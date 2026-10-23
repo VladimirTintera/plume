@@ -123,13 +123,21 @@ příběh, který v profilu je.
 
 - **Všechno se přepne hned a při chybě vrátí** (jako reakce), výsledek hlásí pilulka nad lištou.
 - **Popisek** (`editStory` jen s `caption`, obsah zůstává): dialog s polem, prázdný popisek
-  popisek odebere. Výměna fotky nebo videa ve zveřejněném příběhu zatím není.
+  popisek odebere.
+- **Vyměnit fotku nebo video** (`editStory` s obsahem, `StoryRepository.replaceMedia`): výběr
+  přílohy a pak TENTÝŽ editor jako u nového příběhu v režimu úprav (`StoryComposerRoute`
+  s `editStoryId`, `StoryEditTarget`) — fotka i video se převedou stejně (plátno 1080 × 1920,
+  video 720 × 1280), popisek je předvyplněný a ukládá se s médiem. Viditelnost a ostatní volby
+  editor v režimu úprav neukazuje, příběh je má svoje. Po návratu prohlížeč příběh dočte znovu
+  (`reloadReplaced` v `LifecycleResumeEffect`), jinak by ukazoval staré soubory. **Jen obálka
+  videa (`editStoryCover`) zvlášť není** — nová obálka se vybere s novým videem.
 - **Viditelnost** (`setStoryPrivacySettings`): tytéž volby jako u nového příběhu, `ChoiceListItem`
   v panelu. **Výjimky („všichni kromě…") Plume nenastavuje ani neukazuje**, změna je zahodí.
   **Blízcí přátelé jdou vybrat jen s neprázdným seznamem** (`closeFriends`) — jinak by příběh
   neviděl nikdo; pod volbami je pak věta, že se seznam nastaví u nového příběhu. **„Vybraní
-  lidé" jen u příběhu, který je už má**, a seznam se nemění: výběr lidí přes celou obrazovku
-  by v prohlížeči zakryl příběh. Stejná volba nic neposílá.
+  lidé" otevřou výběr lidí** (`StoryAudiencePicker` z editoru, `pickPeople` / `confirmPeople`)
+  místo příběhu přes celou plochu, se současným výběrem předvybraným; prázdný výběr nic nezmění
+  (příběh by nikdo neviděl). Stejná volba nic neposílá.
 - **Ponechat v profilu** (`toggleStoryIsPostedToChatPage`). Příběh vzatý z profilu přestane být
   připnutý (server ho z připnutých vyřadí); prohlížeč to promítne hned i do svého seznamu.
 - **Připnutí** (`setChatPinnedStories` s CELÝM seznamem): repository si napřed přečte připnuté
@@ -142,7 +150,23 @@ příběh, který v profilu je.
   v „Moje příběhy → V profilu" se špendlíkem po připnutí, odepnutí, odebrání z profilu, smazání.
   Panel viditelnosti ukázal Všichni / Moje kontakty / Vybraní lidé (0 lidí) a větu o prázdném
   seznamu blízkých přátel. **Skutečná změna viditelnosti ověřená NENÍ**: každá jiná volba by
-  příběh ukázala kontaktům; testy ji pokrývají.
+  příběh ukázala kontaktům; testy ji pokrývají. **Výměna média a výběr lidí z prohlížeče
+  ověřené na zařízení NEJSOU** (účet neměl vlastní příběh a nový se kvůli tomu nezveřejňoval);
+  pokrývají je `StoryComposerViewModelTest` a `StoriesViewModelTest`.
+
+### Příběh za kanál nebo skupinu
+
+Editor nového příběhu má nad viditelností **Zveřejnit jako**: Já a chaty z
+`getChatsToPostStories` (`StoryRepository.postTargets`). Vybraný chat se hned ověří
+(`canPostStory` → `canPostAs`) a důvod odmítnutí je pod ním; zveřejnit za něj pak nejde.
+
+- **Za chat viditelnost není** (TDLib ji u příběhu za chat ignoruje, vidí ho odběratelé),
+  editor ji schová. Ponechat v profilu i snímky obrazovky zůstávají.
+- **Věty odmítnutí jsou pro chat vlastní**: obecná „jen s Premium" mluvila o „tomto účtu",
+  u skupiny to nedávalo smysl (`story_chat_premium`, `story_chat_boost`).
+- **Ověřeno na emulátoru**: seznam ukázal testovací skupiny a kanály účtu, „Plume test fotka"
+  hned s větou o Premium (účet ho nemá). Skutečné zveřejnění za chat ověřené není — chce
+  Premium nebo boosty.
 
 ## Moje příběhy
 

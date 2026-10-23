@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.resources.story_select_people
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,9 +46,9 @@ import org.jetbrains.compose.resources.stringResource
  *
  * - **Blízcí přátelé jdou vybrat, jen když na seznamu někdo je** ([StoryAudienceSheet.closeFriends]);
  *   s prázdným seznamem by příběh neviděl nikdo. Seznam je nastavení účtu a upravuje se u nového
- *   příběhu — tady by výběr lidí přes celou obrazovku zakryl příběh.
- * - **„Vybraní lidé" se nabízí jen u příběhu, který vybrané lidi už má**, a nechá jejich seznam.
- *   Vybírat lidi znovu tady nejde (z téhož důvodu); kdo chce jiné, zveřejní příběh znovu.
+ *   příběhu.
+ * - **„Vybraní lidé" otevře výběr lidí** ([onPickPeople]) — přes celou plochu místo příběhu,
+ *   stejný jako u nového příběhu. Současný výběr je v něm předvybraný.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +56,7 @@ internal fun StoryAudiencePickerSheet(
     sheet: StoryAudienceSheet,
     onChoose: (StoryAudience) -> Unit,
     onDismiss: () -> Unit,
+    onPickPeople: () -> Unit,
 ) {
     val selected = sheet.audience as? StoryAudience.Selected
     val friends = sheet.closeFriends
@@ -70,15 +72,14 @@ internal fun StoryAudiencePickerSheet(
                 ),
             )
         }
-        if (selected != null) {
-            add(
-                Triple(
-                    selected,
-                    stringResource(Res.string.story_audience_selected),
-                    pluralStringResource(Res.plurals.story_audience_selected_count, selected.userIds.size, selected.userIds.size),
-                ),
-            )
-        }
+        add(
+            Triple(
+                selected ?: StoryAudience.Selected(emptyList()),
+                stringResource(Res.string.story_audience_selected),
+                selected?.let { pluralStringResource(Res.plurals.story_audience_selected_count, it.userIds.size, it.userIds.size) }
+                    ?: stringResource(Res.string.story_select_people),
+            ),
+        )
     }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
         Column(
@@ -94,7 +95,8 @@ internal fun StoryAudiencePickerSheet(
                         selected = sheet.audience == audience,
                         index = index,
                         count = options.size,
-                        onClick = { onChoose(audience) },
+                        // Vybraní lidé vždycky přes výběr: ťuknutí na vybranou volbu výběr upraví.
+                        onClick = { if (audience is StoryAudience.Selected) onPickPeople() else onChoose(audience) },
                     )
                 }
             }

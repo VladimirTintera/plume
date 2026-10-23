@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.stories
 
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.ui.StoryVideo
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
+import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.StoryAudience
+import eu.tintera.plume.resources.story_select_people
+import eu.tintera.plume.resources.story_replace_media
+import eu.tintera.plume.resources.add_photo_alternate_24dp
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -121,7 +130,12 @@ import kotlin.math.abs
  * v poměru 9 : 16 — tak ho autor natočil.
  */
 @Composable
-fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
+fun StoriesScreen(
+    viewModel: StoriesViewModel,
+    onBack: () -> Unit,
+    /** Vyměnit médium vlastního příběhu: editor nad prohlížečem s vybranou fotkou nebo videem. */
+    onReplaceMedia: (target: StoryEditTarget, path: String, video: Boolean) -> Unit = { _, _, _ -> },
+) {
     // Podklad je tmavý v každém motivu, ikony lišt proto světlé (jako prohlížeč médií).
     DarkSystemBars()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -132,7 +146,44 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
     val albumsSheet by viewModel.albums.collectAsStateWithLifecycle()
     val audienceSheet by viewModel.audience.collectAsStateWithLifecycle()
     val captionEdit by viewModel.captionEdit.collectAsStateWithLifecycle()
+    val pickingPeople by viewModel.pickingPeople.collectAsStateWithLifecycle()
     val pinned by viewModel.pinned.collectAsStateWithLifecycle()
+    // Návrat z editoru po výměně média: příběh se dočte znovu (nové soubory).
+    LifecycleResumeEffect(viewModel) {
+        viewModel.reloadReplaced()
+        onPauseOrDispose { }
+    }
+    val storyVideoSupported = koinInject<StoryVideo>().supported
+    var replaceKey by remember { mutableStateOf<StoryKey?>(null) }
+    val replacePicker = rememberAttachmentPicker(
+        onPicked = { picked ->
+            val key = replaceKey ?: return@rememberAttachmentPicker
+            val target = StoryEditTarget(key.posterChatId, key.storyId, state.pages[key]?.caption.orEmpty())
+            when (val first = picked.firstOrNull()) {
+                is OutgoingAttachment.Photo -> {
+                    viewModel.replacingMedia(key)
+                    onReplaceMedia(target, first.path, false)
+                }
+                // Video převede jen platforma s kodérem (desktop ho nemá).
+                is OutgoingAttachment.Video -> if (storyVideoSupported) {
+                    viewModel.replacingMedia(key)
+                    onReplaceMedia(target, first.path, true)
+                }
+                else -> Unit
+            }
+        },
+        onError = {},
+    )
+    pickingPeople?.let { sheet ->
+        StoryAudiencePicker(
+            title = stringResource(Res.string.story_select_people),
+            initial = (sheet.audience as? StoryAudience.Selected)?.userIds.orEmpty().toSet(),
+            contactsOnly = false,
+            onDone = viewModel::confirmPeople,
+            onBack = viewModel::closePeoplePicker,
+        )
+        return
+    }
     val live by viewModel.live.collectAsStateWithLifecycle()
     val currentOnBack by rememberUpdatedState(onBack)
     LaunchedEffect(state.closed) { if (state.closed) currentOnBack() }
@@ -192,6 +243,10 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
                 val isPinned = key.storyId in pinned[key.posterChatId].orEmpty()
                 OwnStoryMenu(
                     onEditCaption = { viewModel.openCaptionEdit(key) }.takeIf { story.canBeEdited },
+                    onReplaceMedia = {
+                        replaceKey = key
+                        replacePicker.pickMedia()
+                    }.takeIf { story.canBeEdited },
                     onAudience = { viewModel.openAudience(key) }.takeIf { story.audience != null },
                     onToggleProfile = { viewModel.setOnProfile(key, !story.isOnProfile) }.takeIf { story.canToggleOnProfile },
                     onProfile = story.isOnProfile,
@@ -242,7 +297,12 @@ fun StoriesScreen(viewModel: StoriesViewModel, onBack: () -> Unit) {
         }
 
         audienceSheet?.let { sheet ->
-            StoryAudiencePickerSheet(sheet = sheet, onChoose = viewModel::setAudience, onDismiss = viewModel::closeAudience)
+            StoryAudiencePickerSheet(
+                sheet = sheet,
+                onChoose = viewModel::setAudience,
+                onDismiss = viewModel::closeAudience,
+                onPickPeople = viewModel::pickPeople,
+            )
         }
 
         captionEdit?.let { key ->
@@ -701,6 +761,7 @@ private fun BoxScope.StoryHeader(
             }
             val ownEdit = listOfNotNull(
                 own?.onEditCaption?.let { action(stringResource(Res.string.story_edit_caption), Res.drawable.edit_24dp, it) },
+                own?.onReplaceMedia?.let { action(stringResource(Res.string.story_replace_media), Res.drawable.add_photo_alternate_24dp, it) },
                 own?.onAudience?.let { action(stringResource(Res.string.story_audience_menu), Res.drawable.visibility_24dp, it) },
             )
             val ownProfile = listOfNotNull(
@@ -774,6 +835,7 @@ private const val DISMISS_FADE = 2.5f
  */
 internal class OwnStoryMenu(
     val onEditCaption: (() -> Unit)?,
+    val onReplaceMedia: (() -> Unit)?,
     val onAudience: (() -> Unit)?,
     val onToggleProfile: (() -> Unit)?,
     val onProfile: Boolean,

@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.telegram.StoryPoster
+import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.resources.story_edit_title
+import eu.tintera.plume.resources.story_edit_save
+import eu.tintera.plume.resources.story_post_as
+import eu.tintera.plume.resources.story_post_as_me
 import eu.tintera.plume.core.ui.VideoTrimLabels
 import eu.tintera.plume.core.ui.VideoTrimBar
 import androidx.compose.foundation.background
@@ -163,7 +169,7 @@ fun StoryComposerScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.story_compose_title)) },
+                title = { Text(stringResource(if (viewModel.edit != null) Res.string.story_edit_title else Res.string.story_compose_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack, enabled = !state.posting, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
@@ -174,7 +180,7 @@ fun StoryComposerScreen(
                         LoadingIndicator(Modifier.padding(end = 12.dp).size(40.dp))
                     } else {
                         SaveActionButton(onClick = viewModel::post, enabled = true) {
-                            Text(stringResource(Res.string.story_post))
+                            Text(stringResource(if (viewModel.edit != null) Res.string.story_edit_save else Res.string.story_post))
                         }
                     }
                 },
@@ -241,49 +247,77 @@ fun StoryComposerScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                Text(
-                    stringResource(Res.string.story_audience_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-                )
-                Column(Modifier.selectableGroup()) {
-                    val selectedSummary = if (state.selected.isEmpty()) {
-                        stringResource(Res.string.story_select_people)
-                    } else {
-                        pluralStringResource(Res.plurals.story_audience_selected_count, state.selected.size, state.selected.size)
-                    }
-                    val friends = state.closeFriends
-                    val friendsSummary = when {
-                        friends == null -> null
-                        friends.isEmpty() -> stringResource(Res.string.story_close_friends_pick)
-                        else -> pluralStringResource(Res.plurals.story_audience_selected_count, friends.size, friends.size)
-                    }
-                    val options = listOf(
-                        Triple(AudienceChoice.Everyone, stringResource(Res.string.story_audience_everyone), null),
-                        Triple(AudienceChoice.Contacts, stringResource(Res.string.story_audience_contacts), null),
-                        Triple(AudienceChoice.CloseFriends, stringResource(Res.string.story_audience_close_friends), friendsSummary),
-                        Triple(AudienceChoice.Selected, stringResource(Res.string.story_audience_selected), selectedSummary),
+                // Úprava mění jen obsah a popisek; viditelnost a ostatní volby má příběh svoje.
+                if (viewModel.edit != null) return@Column
+
+                if (state.posters.isNotEmpty()) {
+                    Text(
+                        stringResource(Res.string.story_post_as),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
                     )
-                    options.forEachIndexed { index, (choice, label, supporting) ->
-                        ChoiceListItem(
-                            label = label,
-                            supporting = supporting,
-                            selected = state.audience == choice,
-                            index = index,
-                            count = options.size,
-                            onClick = {
-                                // Vybraní / blízcí přátelé bez nikoho rovnou k výběru lidí (volba
-                                // by jinak nic neznamenala); podruhé výběr otevřou k úpravě.
-                                val people = when (choice) {
-                                    AudienceChoice.Selected -> state.selected
-                                    AudienceChoice.CloseFriends -> friends.orEmpty()
-                                    else -> null
-                                }
-                                val pick = people != null && (people.isEmpty() || state.audience == choice)
-                                if (pick) picking = choice else viewModel.setAudience(choice)
-                            },
+                    Column(Modifier.selectableGroup()) {
+                        val choices = listOf<StoryPoster?>(null) + state.posters
+                        choices.forEachIndexed { index, poster ->
+                            ChoiceListItem(
+                                label = poster?.title ?: stringResource(Res.string.story_post_as_me),
+                                supporting = if (poster != null && poster == state.poster) state.posterDenied?.resolve() else null,
+                                selected = state.poster == poster,
+                                index = index,
+                                count = choices.size,
+                                onClick = { viewModel.setPoster(poster) },
+                            )
+                        }
+                    }
+                }
+
+                // Za kanál viditelnost není: příběh vidí jeho odběratelé.
+                if (state.poster == null) {
+                    Text(
+                        stringResource(Res.string.story_audience_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+                    )
+                    Column(Modifier.selectableGroup()) {
+                        val selectedSummary = if (state.selected.isEmpty()) {
+                            stringResource(Res.string.story_select_people)
+                        } else {
+                            pluralStringResource(Res.plurals.story_audience_selected_count, state.selected.size, state.selected.size)
+                        }
+                        val friends = state.closeFriends
+                        val friendsSummary = when {
+                            friends == null -> null
+                            friends.isEmpty() -> stringResource(Res.string.story_close_friends_pick)
+                            else -> pluralStringResource(Res.plurals.story_audience_selected_count, friends.size, friends.size)
+                        }
+                        val options = listOf(
+                            Triple(AudienceChoice.Everyone, stringResource(Res.string.story_audience_everyone), null),
+                            Triple(AudienceChoice.Contacts, stringResource(Res.string.story_audience_contacts), null),
+                            Triple(AudienceChoice.CloseFriends, stringResource(Res.string.story_audience_close_friends), friendsSummary),
+                            Triple(AudienceChoice.Selected, stringResource(Res.string.story_audience_selected), selectedSummary),
                         )
+                        options.forEachIndexed { index, (choice, label, supporting) ->
+                            ChoiceListItem(
+                                label = label,
+                                supporting = supporting,
+                                selected = state.audience == choice,
+                                index = index,
+                                count = options.size,
+                                onClick = {
+                                    // Vybraní / blízcí přátelé bez nikoho rovnou k výběru lidí (volba
+                                    // by jinak nic neznamenala); podruhé výběr otevřou k úpravě.
+                                    val people = when (choice) {
+                                        AudienceChoice.Selected -> state.selected
+                                        AudienceChoice.CloseFriends -> friends.orEmpty()
+                                        else -> null
+                                    }
+                                    val pick = people != null && (people.isEmpty() || state.audience == choice)
+                                    if (pick) picking = choice else viewModel.setAudience(choice)
+                                },
+                            )
+                        }
                     }
                 }
 
@@ -337,7 +371,7 @@ private fun StoryPreview(path: String?, fill: Boolean) {
  * blízké přátele ([contactsOnly]) jen kontakty a potvrdit jde i prázdný výběr (vyprázdnění seznamu).
  */
 @Composable
-private fun StoryAudiencePicker(
+internal fun StoryAudiencePicker(
     title: String,
     initial: Set<Long>,
     contactsOnly: Boolean,

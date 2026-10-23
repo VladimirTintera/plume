@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.resources.story_audience_pick_someone
 import eu.tintera.plume.core.telegram.pinnedAfter
 import eu.tintera.plume.core.telegram.StoryAudience
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -461,6 +462,54 @@ class StoriesViewModel(
 
     fun closeAudience() {
         _audience.value = null
+    }
+
+    private val _pickingPeople = MutableStateFlow<StoryAudienceSheet?>(null)
+
+    /**
+     * Otevřený výběr lidí pro „Vybraní lidé" (místo sheetu viditelnosti, přes celou plochu);
+     * `null` = zavřený. Nese příběh a současnou viditelnost, kam se po potvrzení vrátí.
+     */
+    val pickingPeople: StateFlow<StoryAudienceSheet?> = _pickingPeople.asStateFlow()
+
+    fun pickPeople() {
+        _pickingPeople.value = _audience.value ?: return
+        _audience.value = null
+    }
+
+    fun closePeoplePicker() {
+        _pickingPeople.value = null
+    }
+
+    /** Vybraní lidé z výběru; prázdný výběr nic nemění — příběh by nikdo neviděl. */
+    fun confirmPeople(userIds: Set<Long>) {
+        val sheet = _pickingPeople.value ?: return
+        _pickingPeople.value = null
+        if (userIds.isEmpty()) {
+            _notice.value = UiText(Res.string.story_audience_pick_someone)
+            return
+        }
+        _audience.value = sheet
+        setAudience(StoryAudience.Selected(userIds.toList()))
+    }
+
+    // Příběh, kterému se v editoru vyměňuje médium; po návratu se přečte znovu.
+    private var replacing: StoryKey? = null
+
+    fun replacingMedia(key: StoryKey) {
+        replacing = key
+    }
+
+    /** Návrat z editoru: příběh s vyměněným médiem se dočte od TDLib (nové soubory). */
+    fun reloadReplaced() {
+        val key = replacing ?: return
+        replacing = null
+        viewModelScope.launch {
+            val fresh = repository.story(key.posterChatId, key.storyId)
+            _state.update { state ->
+                if (key !in state.pages) state else state.copy(pages = state.pages + (key to fresh))
+            }
+        }
     }
 
     /** Nová viditelnost; přepne se hned a při chybě vrátí. */

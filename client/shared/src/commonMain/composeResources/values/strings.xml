@@ -3274,6 +3274,12 @@
     <string name="story_limit_premium">Posting stories from this account needs Telegram Premium.</string>
     <string name="story_post_not_allowed">You can’t post a story here.</string>
     <string name="story_post_live_active">You can’t post a story while your live stream is on.</string>
+    <string name="story_edit_title">Edit story</string>
+    <string name="story_edit_save">Save</string>
+    <string name="story_post_as">Post as</string>
+    <string name="story_post_as_me">Me</string>
+    <string name="story_chat_premium">Posting stories on behalf of a group or channel requires Telegram Premium.</string>
+    <string name="story_chat_boost">This chat needs more boosts before it can post stories.</string>
     <string name="story_compose_title">New story</string>
     <string name="story_post">Post</string>
     <string name="story_fill">Fill</string>
@@ -3292,6 +3298,7 @@
     <string name="story_audience_pick_someone">Choose who can see the story.</string>
     <string name="story_keep_on_profile">Keep on my profile</string>
     <string name="story_keep_on_profile_summary">Stays visible on your profile after 24 hours</string>
+    <string name="story_replace_media">Replace photo or video</string>
     <string name="story_edit_caption">Edit caption…</string>
     <string name="story_caption_save">Save</string>
     <string name="story_caption_saved">Caption saved</string>

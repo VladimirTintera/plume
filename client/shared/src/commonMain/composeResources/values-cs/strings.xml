@@ -3388,6 +3388,12 @@
     <string name="story_limit_premium">Zveřejňovat příběhy z tohoto účtu jde jen s Telegram Premium.</string>
     <string name="story_post_not_allowed">Tady příběh zveřejnit nejde.</string>
     <string name="story_post_live_active">Během živého vysílání příběh zveřejnit nejde.</string>
+    <string name="story_edit_title">Upravit příběh</string>
+    <string name="story_edit_save">Uložit</string>
+    <string name="story_post_as">Zveřejnit jako</string>
+    <string name="story_post_as_me">Já</string>
+    <string name="story_chat_premium">Příběhy za skupinu nebo kanál jde zveřejňovat jen s Telegram Premium.</string>
+    <string name="story_chat_boost">Chat potřebuje víc boostů, než bude moct zveřejňovat příběhy.</string>
     <string name="story_compose_title">Nový příběh</string>
     <string name="story_post">Zveřejnit</string>
     <string name="story_fill">Vyplnit</string>
@@ -3407,6 +3413,7 @@
     <string name="story_audience_pick_someone">Vyber, kdo příběh uvidí.</string>
     <string name="story_keep_on_profile">Ponechat v profilu</string>
     <string name="story_keep_on_profile_summary">Zůstane v profilu i po 24 hodinách</string>
+    <string name="story_replace_media">Vyměnit fotku nebo video</string>
     <string name="story_edit_caption">Upravit popisek…</string>
     <string name="story_caption_save">Uložit</string>
     <string name="story_caption_saved">Popisek uložen</string>
