@@ -155,6 +155,7 @@
     <string name="clear_history_title">Vymazat historii</string>
     <string name="clear_history_all">Celou historii</string>
     <string name="clear_history_all_text">Chat zůstane v seznamu, prázdný.</string>
+    <string name="clear_history_all_topic_text">Smaže všechny zprávy, které tu jsou.</string>
     <string name="clear_history_period">Vybrané dny</string>
     <string name="clear_history_period_pick">Vyber dny v kalendáři</string>
     <string name="clear_history_period_range">%1$s – %2$s</string>

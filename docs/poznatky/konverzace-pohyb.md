@@ -119,6 +119,13 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   každou zprávu zvlášť. Pruh zmizí hned, při selhání se seznam přečte znovu. Ověřeno na
   emulátoru (dvě připnuté zprávy bota v „Plume test moderace"): dialog „Odepnout 2 zprávy?",
   po potvrzení pruh pryč i po restartu aplikace. Téma skupiny ověřené NENÍ.
+  - **Ve vlákně přímých zpráv kanálu** `unpinAllDirectMessagesChatTopicMessages` (jen vlákno);
+    na zařízení neověřené (chybí druhý účet s přímými zprávami).
+  - **V tématu Uložených zpráv** zůstává `unpinAllChatMessages`: připnuté v Uložených jsou
+    společné všem tématům. Hledání připnutých s tématem Uložených TDLib nefiltruje
+    (`searchChatMessages` slibuje kombinace filtrů jen pro potřeby oficiální aplikace) — zpráva
+    připnutá v Mých poznámkách se ukázala v pruhu tématu Notifikator (ověřeno na emulátoru).
+    Odepínat „jen téma" po jedné by tak stejně odepnulo všechno, co pruh ukazuje.
 - **Pruh je plovoucí pilulka z mléčného skla** (`CircleShape`, stín, `glassStyle`), ne karta se
   svislým proužkem vlevo. Proužek (dílek na zprávu) byl jazyk M2 a v aplikaci už jednou ustoupil
   ploše (citace, náhled odkazu); pilulka mluví stejně jako plovoucí lišty konverzace. Fotka,
@@ -369,8 +376,13 @@ jako na citaci (`jumpToMessage`, okno v historii), hledání se zavře.
   novějšího není → hláška „Od toho dne v chatu nic není", hledání zůstane otevřené.
 - **Den je MÍSTNÍ**: kalendář počítá v milisekundách UTC, den se z něj přečte přes UTC a pak se
   vezme jeho místní půlnoc. Budoucí dny vybrat nejde.
-- **Jen v celém chatu** (`canJumpToDate`): ve vlákně komentářů a v tématu by
-  `getChatMessageByDate` trefil zprávu mimo něj, tam se kalendář nenabízí.
+- **Celý chat, téma Uložených zpráv a vlákno přímých zpráv kanálu** (`canJumpToDate`). Ta dvě
+  mají vlastní „zprávu podle data" (`getSavedMessagesTopicMessageByDate`,
+  `getDirectMessagesChatTopicMessageByDate`) a novější zprávy se berou z historie tématu
+  (`history` repository), ne celého chatu. Ve vlákně komentářů a v tématu skupiny by
+  `getChatMessageByDate` trefil zprávu mimo ně, tam se kalendář nenabízí. Ověřeno na emulátoru
+  v Mých poznámkách: 1. 1. 2025 → první poznámka od toho dne (17. ledna 2025, nad ní prosinec
+  2024). Vlákno přímých zpráv ověřené není.
 - **Kde cíl skončí**: s kotvou nahoře stojí po výměně okna zhruba v půlce obrazovky s předělem
   dne a nad ním je poslední zpráva před vybraným dnem — je vidět, kde den začíná. Ověřeno na
   emulátoru v kanálu se starou historií: 1. 1. 2021 → příspěvek ze 17. února 2021 (nic mezi

@@ -546,7 +546,13 @@ zůstane — od „Smazat chat" se liší právě tím. Plume dřív uměl jen s
 `ChatInfo.clearHistory` (`ClearHistoryRights`, `Chat.clearHistoryRights` v `TdlClearHistory.kt`).
 
 - **Kdy se nabízí, rozhoduje TDLib** (`Chat.canBeDeletedOnlyForSelf` / `canBeDeletedForAllUsers`).
-  Jen v celém chatu, ne ve vlákně ani tématu, a ne v Uložených zprávách.
+  V celém chatu (ne v Uložených zprávách jako celku), ne ve vlákně komentářů ani v tématu skupiny.
+- **Téma Uložených zpráv a vlákno přímých zpráv kanálu** mají vlastní mazání, celé i po dnech
+  (`deleteSavedMessagesTopicHistory` / `…MessagesByDate`, `deleteDirectMessagesChatTopicHistory`
+  / `…MessagesByDate`): `ClearHistoryRights(forAll = false, byDate = true)` z repository tématu.
+  Věta u celé historie je jiná („Smaže všechny zprávy, které tu jsou."): téma nezůstane
+  „prázdné v seznamu" jako chat. Ověřeno na emulátoru v Mých poznámkách: smazaný jen včerejšek
+  (tři testovací zprávy), starší poznámky zůstaly. Vlákno přímých zpráv ověřené není.
 - **Celá historie**: `deleteChatHistory(removeFromChatList = false)`. Zaškrtávátko „Smazat i pro
   …" (ve skupině „i ostatním členům") je jen tam, kde `canBeDeletedForAllUsers`. Vlastník
   supergroupy ho dostal taky.

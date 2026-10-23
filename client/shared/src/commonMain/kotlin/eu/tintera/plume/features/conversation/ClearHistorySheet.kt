@@ -61,6 +61,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -77,6 +78,8 @@ internal fun ClearHistorySheet(
     rights: ClearHistoryRights,
     /** Jméno protějšku v soukromém chatu; `null` ve skupině. */
     peerName: String?,
+    /** Co se stane s celou historií; téma a vlákno nezůstanou „prázdné v seznamu" jako chat. */
+    allText: StringResource = Res.string.clear_history_all_text,
     onConfirm: (from: Int?, to: Int?, forAll: Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -98,7 +101,7 @@ internal fun ClearHistorySheet(
             // Bez mazání po dnech není z čeho vybírat: jediná předvybraná volba by jen mátla.
             if (!rights.byDate) {
                 Text(
-                    stringResource(Res.string.clear_history_all_text),
+                    stringResource(allText),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 8.dp),
@@ -108,7 +111,7 @@ internal fun ClearHistorySheet(
                 ClearOption(
                     selected = !byDate,
                     title = stringResource(Res.string.clear_history_all),
-                    text = stringResource(Res.string.clear_history_all_text),
+                    text = stringResource(allText),
                     index = 0,
                     count = count,
                     onSelect = { byDate = false },

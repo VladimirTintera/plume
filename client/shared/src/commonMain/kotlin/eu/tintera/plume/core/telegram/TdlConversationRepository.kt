@@ -290,12 +290,20 @@ class TdlConversationRepository(
 
     /**
      * Skok na datum: `getChatMessageByDate` vrací POSLEDNÍ zprávu před okamžikem, ne první po
-     * něm. Cíl je proto zpráva hned za ní (`getChatHistory` o jednu novější). Když před
-     * okamžikem nic není (404 — den je starší než chat), vezme se nejstarší zpráva chatu:
-     * historie od nejmenšího id serveru směrem k novějším.
+     * něm. Cíl je proto zpráva hned za ní (historie o jednu novější). Když před okamžikem nic
+     * není (404 — den je starší než chat), vezme se nejstarší zpráva: historie od nejmenšího id
+     * serveru směrem k novějším. V tématu Uložených zpráv a ve vlákně přímých zpráv mají obojí
+     * vlastní volání (`getSavedMessagesTopicMessageByDate`, `getDirectMessagesChatTopicMessageByDate`)
+     * a historie ([history]) je jejich — v celém chatu by se trefila zpráva mimo ně.
      */
     override suspend fun firstMessageFrom(chatId: Long, epochSeconds: Int): Result<Long?> = runCatching {
-        val before = client.getChatMessageByDate(chatId = chatId, date = epochSeconds - 1).toResult()
+        val date = epochSeconds - 1
+        val byDate = when {
+            savedTopicId != null -> client.getSavedMessagesTopicMessageByDate(savedMessagesTopicId = savedTopicId, date = date)
+            directTopicId != null -> client.getDirectMessagesChatTopicMessageByDate(chatId = chatId, topicId = directTopicId, date = date)
+            else -> client.getChatMessageByDate(chatId = chatId, date = date)
+        }
+        val before = byDate.toResult()
             .map<Long?, Message> { it.id }
             .recoverCatching { failure -> if (failure is TdlThrowable && failure.code == NOT_FOUND) null else throw failure }
             .getOrThrow()
@@ -306,8 +314,12 @@ class TdlConversationRepository(
         // `getChatHistory`, dokud novější nepřijde.
         var target: Long? = null
         repeat(NEWER_ATTEMPTS) {
-            val ids = client.getChatHistory(chatId = chatId, fromMessageId = from, offset = -NEWER_WINDOW, limit = NEWER_WINDOW + 1, onlyLocal = false)
-                .toResult().getOrThrow().messages.filterNotNull().map { it.id }
+            val ids = if (savedTopicId != null || directTopicId != null) {
+                history(chatId = chatId, fromMessageId = from, limit = NEWER_WINDOW + 1, offset = -NEWER_WINDOW).getOrThrow().map { it.id }
+            } else {
+                client.getChatHistory(chatId = chatId, fromMessageId = from, offset = -NEWER_WINDOW, limit = NEWER_WINDOW + 1, onlyLocal = false)
+                    .toResult().getOrThrow().messages.filterNotNull().map { it.id }
+            }
             target = firstMessageAfter(before, ids)
             if (target != null) return@runCatching target
         }
@@ -543,13 +555,21 @@ class TdlConversationRepository(
     override suspend fun setDefaultSilent(chatId: Long, silent: Boolean): Result<Unit> =
         client.toggleChatDefaultDisableNotification(chatId = chatId, defaultDisableNotification = silent).toResult().map { }
 
-    override suspend fun clearHistory(chatId: Long, forAll: Boolean): Result<Unit> =
+    override suspend fun clearHistory(chatId: Long, forAll: Boolean): Result<Unit> = when {
+        // Téma Uložených zpráv a vlákno přímých zpráv mají vlastní volání; celý chat by smazal víc.
+        savedTopicId != null -> client.deleteSavedMessagesTopicHistory(savedMessagesTopicId = savedTopicId)
+        directTopicId != null -> client.deleteDirectMessagesChatTopicHistory(chatId = chatId, topicId = directTopicId)
         // Chat zůstane v seznamu: vyprázdnit, ne smazat (to je „Smazat chat").
-        client.deleteChatHistory(chatId = chatId, removeFromChatList = false, revoke = forAll).toResult().map { }
+        else -> client.deleteChatHistory(chatId = chatId, removeFromChatList = false, revoke = forAll)
+    }.toResult().map { }
 
-    override suspend fun clearHistoryBetween(chatId: Long, fromDate: Int, toDate: Int, forAll: Boolean): Result<Unit> =
-        client.deleteChatMessagesByDate(chatId = chatId, minDate = fromDate, maxDate = toDate, revoke = forAll)
-            .toResult().map { }
+    override suspend fun clearHistoryBetween(chatId: Long, fromDate: Int, toDate: Int, forAll: Boolean): Result<Unit> = when {
+        savedTopicId != null ->
+            client.deleteSavedMessagesTopicMessagesByDate(savedMessagesTopicId = savedTopicId, minDate = fromDate, maxDate = toDate)
+        directTopicId != null ->
+            client.deleteDirectMessagesChatTopicMessagesByDate(chatId = chatId, topicId = directTopicId, minDate = fromDate, maxDate = toDate)
+        else -> client.deleteChatMessagesByDate(chatId = chatId, minDate = fromDate, maxDate = toDate, revoke = forAll)
+    }.toResult().map { }
 
     override suspend fun showOriginalContent(chatId: Long, messageId: Long): Result<Unit> =
         client.deleteMessageEphemeralContent(chatId = chatId, messageId = messageId).toResult().map { }
@@ -1054,10 +1074,13 @@ class TdlConversationRepository(
         client.unpinChatMessage(chatId = chatId, messageId = messageId).toResult().map { }
 
     override suspend fun unpinAll(chatId: Long): Result<Unit> {
-        val result = if (forumTopicId != null) {
-            client.unpinAllForumTopicMessages(chatId = chatId, forumTopicId = forumTopicId)
-        } else {
-            client.unpinAllChatMessages(chatId = chatId)
+        // Téma Uložených zpráv vlastní „odepnout vše" nemá — a připnuté v Uložených jsou společné
+        // všem tématům (hledání připnutých s tématem TDLib nefiltruje, pruh v každém tématu ukáže
+        // tytéž), takže `unpinAllChatMessages` odepne právě to, co pruh ukazuje.
+        val result = when {
+            forumTopicId != null -> client.unpinAllForumTopicMessages(chatId = chatId, forumTopicId = forumTopicId)
+            directTopicId != null -> client.unpinAllDirectMessagesChatTopicMessages(chatId = chatId, topicId = directTopicId)
+            else -> client.unpinAllChatMessages(chatId = chatId)
         }
         return result.toResult().map { }
     }
@@ -2423,7 +2446,13 @@ class TdlConversationRepository(
                     draftLinkPreview = draft?.linkPreview,
                     verification = client.verificationOf(chat),
                     isSecret = chat.type is ChatTypeSecret,
-                    clearHistory = chat.clearHistoryRights(),
+                    // Téma Uložených zpráv a vlákno přímých zpráv: celé i po dnech, jen u sebe —
+                    // „i ostatním" tam nedává smysl (Uložené) nebo ho TDLib nemá (vlákno).
+                    clearHistory = if (savedTopicId != null || directTopicId != null) {
+                        ClearHistoryRights(forAll = false, byDate = true)
+                    } else {
+                        chat.clearHistoryRights()
+                    },
                     defaultSilent = chat.defaultDisableNotification,
                     avatarColorId = (chat.type as? ChatTypeSecret)?.userId ?: chat.id,
                     emojiStatus = chat.emojiStatus.statusEmojiId(),

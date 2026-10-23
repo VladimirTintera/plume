@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Box
+import eu.tintera.plume.resources.clear_history_all_topic_text
+import eu.tintera.plume.resources.clear_history_all_text
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.material3.Icon
@@ -91,8 +93,10 @@ internal fun ConversationMenu(
     var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var clearHistory by rememberSaveable { mutableStateOf(false) }
-    // Vyprázdnit chat jde jen celý, ne vlákno nebo téma — a jen kde to TDLib dovolí.
-    val clearRights = info?.clearHistory?.takeIf { wholeChat }
+    // Vyprázdnit jde celý chat (kde to TDLib dovolí), téma Uložených zpráv a vlákno přímých zpráv
+    // kanálu — ty mají vlastní mazání. Vlákno komentářů a téma skupiny ne.
+    val inOwnTopic = state.savedTopicId != null || state.directTopicId != null
+    val clearRights = info?.clearHistory?.takeIf { wholeChat || inOwnTopic }
 
     val groups = listOf(
         // Přepnutí je pohyb mezi chaty, ne práce s tímhle, proto skupina sama. Je tu hlavně kvůli
@@ -206,6 +210,7 @@ internal fun ConversationMenu(
         ClearHistorySheet(
             rights = clearRights,
             peerName = info.title.takeIf { isPrivate },
+            allText = if (inOwnTopic) Res.string.clear_history_all_topic_text else Res.string.clear_history_all_text,
             onConfirm = viewModel::clearHistory,
             onDismiss = { clearHistory = false },
         )

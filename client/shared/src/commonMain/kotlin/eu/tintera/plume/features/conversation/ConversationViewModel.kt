@@ -1399,11 +1399,11 @@ class ConversationViewModel(
     }
 
     /**
-     * Skok na datum jde jen v celém chatu: `getChatMessageByDate` zná celý chat, takže ve vlákně
-     * komentářů nebo v tématu by trefil zprávu mimo něj.
+     * Skok na datum: celý chat, téma Uložených zpráv a vlákno přímých zpráv kanálu — ty dvě mají
+     * vlastní „zprávu podle data" v TDLib. Vlákno komentářů a téma skupiny ji nemají
+     * a `getChatMessageByDate` celého chatu by trefil zprávu mimo ně.
      */
-    val canJumpToDate: Boolean get() =
-        threadRootId == null && forumTopicId == null && savedTopicId == null && directTopicId == null
+    val canJumpToDate: Boolean get() = threadRootId == null && forumTopicId == null
 
     /**
      * Stránka směrem k PŘÍTOMNOSTI — jen když je načtené okno v historii ([ConversationState.reachedEnd]
