@@ -179,6 +179,19 @@ val jniToolchainHome: Provider<String> = javaToolchains
  * **Bez sítě nebo na nepodporovaném systému (Intel Mac) build nespadne** — knihovna chybí
  * a hovory se na desktopu nenabídnou (`DesktopCallMedia.available`).
  */
+/** Klasifikátor nativních jarů JavaCPP (FFmpeg) pro systém, na kterém se staví; `null` = žádný. */
+val javacppPlatform: String? = run {
+    val os = System.getProperty("os.name").lowercase()
+    val arch = System.getProperty("os.arch").lowercase()
+    val arm = arch == "aarch64" || arch == "arm64"
+    when {
+        os.contains("mac") -> if (arm) "macosx-arm64" else "macosx-x86_64"
+        os.contains("win") && !arm -> "windows-x86_64"
+        os.contains("linux") -> if (arm) "linux-arm64" else "linux-x86_64"
+        else -> null
+    }
+}
+
 val ntgcallsVersion = libs.versions.ntgcalls.get()
 val downloadNtgcalls = tasks.register("downloadNtgcalls") {
     description = "Stáhne nativní ntgcalls pro hovory na desktopu do jvmMain resources."
@@ -525,6 +538,15 @@ kotlin {
             implementation(libs.jna)
             // Tmavý titulek okna na Windows (`WindowTitleBarAppearance`).
             implementation(libs.platformtools.darkmodedetector)
+            // Dekodér videa (GIFy, `core/video/Video.jvm.kt`): FFmpeg přes JavaCPP. Nativní
+            // knihovny jen pro systém, na kterém se staví — jako Skia a TDLib; jinde by v balíčku
+            // ležely navíc desítky MB. Na neznámém systému chybí a GIF zůstane náhledem.
+            implementation(libs.javacpp)
+            implementation(libs.ffmpeg)
+            javacppPlatform?.let { platform ->
+                implementation("org.bytedeco:javacpp:${libs.versions.javacpp.get()}:$platform")
+                implementation("org.bytedeco:ffmpeg:${libs.versions.ffmpeg.get()}:$platform")
+            }
         }
 
         commonTest.dependencies {

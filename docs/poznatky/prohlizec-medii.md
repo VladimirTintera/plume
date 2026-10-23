@@ -541,7 +541,8 @@ Hudba, která hraje dál po odchodu z konverzace, má nad seznamem chatů tentý
 ### GIFy
 
 GIF je v Telegramu **MP4 bez zvuku** (`MessageAnimation`), ne skutečný GIF — přehrává se proto
-týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
+týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`). Na desktopu je to
+FFmpeg, jen pro ztlumené video (`docs/poznatky/desktop.md`, „Video: GIFy a tichá kolečka").
 
 - **Hraje sám, dokud je vidět, ve smyčce a ztlumeně.** GIF, který se nehýbe, není GIF. Přehrávač
   žije s kompozicí bloku, takže odscrollovaný GIF dekodér vrátí. `LazyColumn` skládá i kousek za
