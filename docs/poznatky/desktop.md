@@ -761,9 +761,8 @@ plochy a `VideoSurface` je kreslí jako obrázky Skii.
   zrychleného dohánění.
 - **Ověřeno na Windows** testovacími MP4 z FFmpegu v balíčku (`ffmpeg.exe` leží v nativním jaru,
   kodér `libopenh264`): 60 snímků po 33 ms, skok, smyčka, pauza, konec, cesta s diakritikou,
-  barvy pruhů, vykreslení `VideoSurface` přes `ImageComposeScene`. Aplikace s tím naběhne
-  a přihlásí se; **GIF v konverzaci na obrazovce zatím ověřený není, macOS a Linux jen
-  přeložené.**
+  barvy pruhů, vykreslení `VideoSurface` přes `ImageComposeScene`; GIFy v konverzaci
+  ověřené v běžící aplikaci (23. 10. 2026). **macOS a Linux jen přeložené.**
 
 ## Co platforma (zatím) neumí
 
