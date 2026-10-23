@@ -800,7 +800,8 @@ class TdlConversationRepository(
                     canDeleteForSelf = properties.canBeDeletedOnlyForSelf,
                     canDeleteForAll = properties.canBeDeletedForAllUsers,
                     canEdit = properties.canBeEdited,
-                    canPin = properties.canBePinned,
+                    // V tématu Uložených zpráv se nepřipíná, viz [pinnedMessages].
+                    canPin = properties.canBePinned && savedTopicId == null,
                     canForward = properties.canBeForwarded,
                     canSave = properties.canBeSaved,
                     canReport = properties.canReportChat,
@@ -991,6 +992,14 @@ class TdlConversationRepository(
     }
 
     override suspend fun pinnedMessages(chatId: Long): Result<PinnedMessages> {
+        /*
+         * V tématu Uložených zpráv pruh připnutých NENÍ. Připnuté v Uložených patří celému chatu:
+         * server u hledání připnutých téma (`saved_peer_id`) ignoruje a TDLib výsledek nefiltruje,
+         * takže zpráva připnutá v Mých poznámkách vyskočila v pruhu každého tématu. Oficiální
+         * Android klient v tématu Uložených pruh nekreslí ani připnout nedovolí (`ChatActivity`,
+         * `chatMode == MODE_SAVED`). Připnuté jsou vidět v Uložených jako celku.
+         */
+        if (savedTopicId != null) return Result.success(PinnedMessages(messages = emptyList(), canUnpin = false))
         val isGroup = isGroup(chatId)
         val found = mutableListOf<Message>()
         var from = 0L
@@ -1074,9 +1083,7 @@ class TdlConversationRepository(
         client.unpinChatMessage(chatId = chatId, messageId = messageId).toResult().map { }
 
     override suspend fun unpinAll(chatId: Long): Result<Unit> {
-        // Téma Uložených zpráv vlastní „odepnout vše" nemá — a připnuté v Uložených jsou společné
-        // všem tématům (hledání připnutých s tématem TDLib nefiltruje, pruh v každém tématu ukáže
-        // tytéž), takže `unpinAllChatMessages` odepne právě to, co pruh ukazuje.
+        // V tématu Uložených zpráv se sem nedojde: pruh připnutých tam není (viz [pinnedMessages]).
         val result = when {
             forumTopicId != null -> client.unpinAllForumTopicMessages(chatId = chatId, forumTopicId = forumTopicId)
             directTopicId != null -> client.unpinAllDirectMessagesChatTopicMessages(chatId = chatId, topicId = directTopicId)
