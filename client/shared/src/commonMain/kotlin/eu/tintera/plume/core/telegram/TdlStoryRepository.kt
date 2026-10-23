@@ -240,6 +240,22 @@ class TdlStoryRepository(
             }
     }.onFailure { logger.w(it) { "getChatsToPostStories" } }
 
+    override suspend fun editCover(posterChatId: Long, storyId: Int, coverSeconds: Double): Result<Unit> =
+        client.editStoryCover(storyPosterChatId = posterChatId, storyId = storyId, coverFrameTimestamp = coverSeconds)
+            .toResult()
+            .onFailure { logger.w(it) { "editStoryCover $posterChatId/$storyId" } }
+            .map { }
+
+    /** Jako u zprávy: reakce, které chtějí Premium, jen s Premium (`getMe` je lokální). */
+    override suspend fun availableReactions(): Result<List<String>> =
+        client.getStoryAvailableReactions(rowSize = STORY_REACTION_ROW).toResult()
+            .map { available ->
+                val all = (available.topReactions + available.recentReactions + available.popularReactions).filterNotNull()
+                val premium = all.none { it.needsPremium } || client.getMe().toResult().getOrNull()?.isPremium == true
+                all.filter { premium || !it.needsPremium }.mapNotNull { it.type.toReactionKey() }.distinct()
+            }
+            .onFailure { logger.w(it) { "getStoryAvailableReactions" } }
+
     override suspend fun replaceMedia(posterChatId: Long, storyId: Int, media: StoryMedia, caption: String): Result<Unit> =
         client.editStory(
             storyPosterChatId = posterChatId,
@@ -547,6 +563,9 @@ private fun retryIn(seconds: Int): UiText {
 }
 
 private const val STORY_ACTIVE_PERIOD = 86_400
+
+/** Reakcí na řádek pro `getStoryAvailableReactions` (5–25); řadí se podle něj `topReactions`. */
+private const val STORY_REACTION_ROW = 8
 
 private const val MAX_LOAD_ROUNDS = 50
 

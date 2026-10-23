@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.stories
 
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import eu.tintera.plume.resources.story_cover_menu
+import eu.tintera.plume.resources.image_24dp
 import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import org.koin.compose.koinInject
@@ -150,6 +155,11 @@ fun StoriesScreen(
     val pickingPeople by viewModel.pickingPeople.collectAsStateWithLifecycle()
     val pinned by viewModel.pinned.collectAsStateWithLifecycle()
     val storyVideoSupported = koinInject<StoryVideo>().supported
+    // Nad prohlížečem je jiná obrazovka (editor příběhu): příběh pod ní stojí. Jinak dojel,
+    // prohlížeč se zavřel a po uložení nebylo kam se vrátit (ověřeno na emulátoru).
+    // collectAsState, ne …WithLifecycle: to by sběr při zastavení vypnulo a změnu nepoznalo.
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    val covered = !lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
     // Příběh, kterému se vybírá nové médium. **Po dobu výběru příběh stojí**: výběr fotek je
     // panel přes aplikaci, ne celá obrazovka, takže prohlížeč pod ním dál běží — příběh dojel,
     // prohlížeč se zavřel a vybraná fotka pak neměla kam dojít (ověřeno na emulátoru).
@@ -260,8 +270,17 @@ fun StoriesScreen(
             // Správa vlastního příběhu v ⋮: jen co TDLib u příběhu dovolí.
             val own = if (key != null && story != null && story.isOwn && story.isAvailable) {
                 val isPinned = key.storyId in pinned[key.posterChatId].orEmpty()
+                // Obálka jen u videa; editor potřebuje video stažené — dokud není, položka chybí.
+                val coverVideo = (story.content as? MessageMedia.Video)?.takeIf { story.canBeEdited }
+                val coverPath = coverVideo?.let { (rememberFileState(it.fileId) as? FileState.Ready)?.path }
                 OwnStoryMenu(
                     onEditCaption = { viewModel.openCaptionEdit(key) }.takeIf { story.canBeEdited },
+                    onEditCover = coverPath?.let { path ->
+                        {
+                            viewModel.replacingMedia(key)
+                            onReplaceMedia(StoryEditTarget(key.posterChatId, key.storyId, story.caption, coverOnly = true), path, true)
+                        }
+                    },
                     onReplaceMedia = {
                         replaceKey = key
                         replacePicker.pickMedia()
@@ -297,7 +316,7 @@ fun StoriesScreen(
                     active = active,
                     // Seznam diváků přes příběh — příběh pod ním stojí.
                     paused = dragging || viewers != null || reportWizard != null || albumsSheet != null ||
-                        audienceSheet != null || captionEdit != null || replaceKey != null,
+                        audienceSheet != null || captionEdit != null || replaceKey != null || covered,
                     restart = state.restart,
                     reactionChoices = reactionChoices,
                     onNext = viewModel::next,
@@ -781,6 +800,7 @@ private fun BoxScope.StoryHeader(
             val ownEdit = listOfNotNull(
                 own?.onEditCaption?.let { action(stringResource(Res.string.story_edit_caption), Res.drawable.edit_24dp, it) },
                 own?.onReplaceMedia?.let { action(stringResource(Res.string.story_replace_media), Res.drawable.add_photo_alternate_24dp, it) },
+                own?.onEditCover?.let { action(stringResource(Res.string.story_cover_menu), Res.drawable.image_24dp, it) },
                 own?.onAudience?.let { action(stringResource(Res.string.story_audience_menu), Res.drawable.visibility_24dp, it) },
             )
             val ownProfile = listOfNotNull(
@@ -854,6 +874,7 @@ private const val DISMISS_FADE = 2.5f
  */
 internal class OwnStoryMenu(
     val onEditCaption: (() -> Unit)?,
+    val onEditCover: (() -> Unit)?,
     val onReplaceMedia: (() -> Unit)?,
     val onAudience: (() -> Unit)?,
     val onToggleProfile: (() -> Unit)?,

@@ -392,6 +392,8 @@ data class StoryComposerRoute(
     val editPosterChatId: Long? = null,
     val editStoryId: Int? = null,
     val editCaption: String = "",
+    /** Jen obálka videa zveřejněného příběhu; [path] je stažené video toho příběhu. */
+    val editCoverOnly: Boolean = false,
 ) : Route
 
 /** [MediaRoute.startSeconds] bez času v médiu. */

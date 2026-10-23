@@ -68,8 +68,10 @@ data class StoryComposerState(
 /**
  * Úprava zveřejněného příběhu místo nového: editor vymění fotku nebo video příběhu
  * [storyId] autora [posterChatId] (`editStory`). [caption] je současný popisek, předvyplní se.
+ * S [coverOnly] je cesta editoru stažené video TOHO příběhu a mění se jen obálka
+ * (`editStoryCover`) — nic se nepřevádí ani nenahrává.
  */
-data class StoryEditTarget(val posterChatId: Long, val storyId: Int, val caption: String)
+data class StoryEditTarget(val posterChatId: Long, val storyId: Int, val caption: String, val coverOnly: Boolean = false)
 
 /**
  * Nový vlastní příběh z fotky nebo videa [path] (z výběru příloh; fotka už otočená podle EXIF).
@@ -133,6 +135,19 @@ class StoryComposerViewModel(
             delay(COVER_PREVIEW_DELAY_MS)
             runCatching { storyVideo.frame(path, coverMs) }
                 .onSuccess { frame -> _state.update { it.copy(previewPath = frame) } }
+        }
+    }
+
+    /** Jen obálka: snímek vybraný v pásu, čas od začátku videa (úsek se tu nevybírá). */
+    private fun saveCover(target: StoryEditTarget) {
+        val trim = video?.trim ?: return
+        _state.update { it.copy(posting = true) }
+        viewModelScope.launch {
+            repository.editCover(target.posterChatId, target.storyId, trim.coverMs / 1000.0)
+                .onSuccess { _state.update { it.copy(posting = false, posted = true) } }
+                .onFailure { failure ->
+                    _state.update { it.copy(posting = false, error = failure.userMessage(Res.string.story_post_failed)) }
+                }
         }
     }
 
@@ -217,6 +232,10 @@ class StoryComposerViewModel(
     fun post() {
         val current = _state.value
         if (current.posting) return
+        if (edit?.coverOnly == true) {
+            saveCover(edit)
+            return
+        }
         current.posterDenied?.let { reason ->
             _state.update { it.copy(error = reason) }
             return

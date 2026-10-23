@@ -3395,6 +3395,9 @@
     <string name="story_limit_premium">Zveřejňovat příběhy z tohoto účtu jde jen s Telegram Premium.</string>
     <string name="story_post_not_allowed">Tady příběh zveřejnit nejde.</string>
     <string name="story_post_live_active">Během živého vysílání příběh zveřejnit nejde.</string>
+    <string name="story_cover_menu">Změnit obálku</string>
+    <string name="story_cover_title">Obálka příběhu</string>
+    <string name="story_cover_hint">Obálka se ukazuje v řadě příběhů a v profilu. Vyber snímek na pásu nahoře.</string>
     <string name="story_edit_title">Upravit příběh</string>
     <string name="story_edit_save">Uložit</string>
     <string name="story_post_as">Zveřejnit jako</string>

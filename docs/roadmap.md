@@ -750,9 +750,9 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   a připnout, archiv vlastních prošlých příběhů~~ — hotovo (⋮ v prohlížeči, menu účtu → Moje
   příběhy; `docs/poznatky/pribehy.md`, „Správa vlastního příběhu"). ~~Výměna média
   (`editStory` s obsahem), výběr lidí ve viditelnosti, příběh za kanál (`getChatsToPostStories`)~~
-  — hotovo (tamtéž; „Příběh za kanál nebo skupinu"); výměna média i výběr lidí ověřené na emulátoru. Zbývá samotná obálka videa (`editStoryCover`), reakce podle
-  `getStoryAvailableReactions` a ťuknutí na místo v příběhu (`searchPublicStoriesByLocation`,
-  `…ByVenue`); skutečnou změnu viditelnosti ověřit.
+  — hotovo (tamtéž; „Příběh za kanál nebo skupinu"); výměna média i výběr lidí ověřené na emulátoru. ~~Obálka videa (`editStoryCover`), reakce podle
+  `getStoryAvailableReactions`~~ — hotovo (tamtéž, „Změnit obálku", „Reakce a odpověď").
+  Zbývá ťuknutí na místo v příběhu (`searchPublicStoriesByLocation`, `…ByVenue`).
 - **Drobnosti v nastavení a hledání:** ~~obnovit všechna nastavení upozornění
   (`resetAllNotificationSettings`), smazat všechny výjimky ukládání do galerie
   (`clearAutosaveSettingsExceptions`), vymazat celou historii hashtagů (`clearSearchedForTags`),
