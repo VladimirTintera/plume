@@ -121,11 +121,17 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   po potvrzení pruh pryč i po restartu aplikace. Téma skupiny ověřené NENÍ.
   - **Ve vlákně přímých zpráv kanálu** `unpinAllDirectMessagesChatTopicMessages` (jen vlákno);
     na zařízení neověřené (chybí druhý účet s přímými zprávami).
-  - **V tématu Uložených zpráv** zůstává `unpinAllChatMessages`: připnuté v Uložených jsou
-    společné všem tématům. Hledání připnutých s tématem Uložených TDLib nefiltruje
-    (`searchChatMessages` slibuje kombinace filtrů jen pro potřeby oficiální aplikace) — zpráva
-    připnutá v Mých poznámkách se ukázala v pruhu tématu Notifikator (ověřeno na emulátoru).
-    Odepínat „jen téma" po jedné by tak stejně odepnulo všechno, co pruh ukazuje.
+  - **V tématu Uložených zpráv pruh připnutých ani „Připnout / Odepnout" NENÍ**
+    (`TdlConversationRepository.pinnedMessages` vrátí prázdno, `canPin = false`). Připnuté
+    v Uložených patří celému chatu: TDLib hledání s tématem pošle serveru (`messages.search`
+    se `saved_peer_id`, zdroj `SearchMessagesQuery`) a výsledek nefiltruje — a server téma
+    u filtru připnutých ignoruje. Zpráva připnutá v Mých poznámkách proto vyskočila v pruhu
+    tématu Notifikator a „Odepnout vše" z tématu by odepnulo všechno v Uložených. Oficiální
+    Android klient to řeší stejně: v tématu Uložených (`ChatActivity`, `chatMode == MODE_SAVED`)
+    pruh nekreslí (`updatePinnedMessageView` hned skončí) a připnout nedovolí (`allowPin = false`).
+    Připnuté jsou vidět a spravují se v Uložených jako celku („Zobrazit jako zprávy").
+    Ověřeno na emulátoru: připnutá zpráva v celých Uložených má pruh, v Mých poznámkách
+    i v Notifikatoru pruh není a v „Další" chybí „Připnout".
 - **Pruh je plovoucí pilulka z mléčného skla** (`CircleShape`, stín, `glassStyle`), ne karta se
   svislým proužkem vlevo. Proužek (dílek na zprávu) byl jazyk M2 a v aplikaci už jednou ustoupil
   ploše (citace, náhled odkazu); pilulka mluví stejně jako plovoucí lišty konverzace. Fotka,
