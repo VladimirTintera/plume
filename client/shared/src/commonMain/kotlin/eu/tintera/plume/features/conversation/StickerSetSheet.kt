@@ -213,7 +213,6 @@ fun StickerSetSheet(
     val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    val motion = rememberSheetStickerMotion(sheetState)
     // Samolepka ve velkém náhledu (podržením), jako ve výběru.
     var previewSticker by remember { mutableStateOf<StickerItem?>(null) }
     // Hlášky patří DO sheetu: snackbar obrazovky pod ním by zakrylo jeho okno.
@@ -265,11 +264,8 @@ fun StickerSetSheet(
                                 haptics.toggle(on = sticker.sendFileId !in current.favoriteFileIds)
                                 viewModel.toggleFavorite(sticker)
                             },
-                            // Jedna sada na celý sheet — hraje celá, jako mřížka ve výběru,
-                            // a stejně až ve vysunutém sheetu (`SheetStickerMotion`).
+                            // Jedna sada na celý sheet — hraje celá, jako mřížka ve výběru.
                             playing = true,
-                            held = !motion.started,
-                            paused = !motion.settled,
                         )
                         StickerPreviewHost(
                             sticker = previewSticker,

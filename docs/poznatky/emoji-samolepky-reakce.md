@@ -108,8 +108,58 @@ testy `DiceMediaTest`).
   V konverzaci se jedna samolepka opakuje a při scrollu by se jinak rozbalovala a parsovala
   znovu. Klíčem je cesta, ne MD5 obsahu jako u `JsonString` — hash rozbaleného JSONu by stál víc,
   než cache ušetří. Kvůli cestě jako klíči se cache po odhlášení zahazuje (`forgetStickerAnimations`).
-- **Mimo obrazovku se animace zastavovat nemusí.** Položka `LazyColumn` mimo viewport vypadne
-  z kompozice i s hodinami animace.
+- **Samolepky `.tgs` se kreslí MIMO hlavní vlákno** (`RenderedSticker` v `core/ui`, platí pro
+  všechna `AnimatedSticker`: bublina, výběr, velké emoji, vlastní emoji, kostka, efekty).
+  Compottie kreslí Lottie vektorově a celý výpočet snímku (klíčové snímky, cesty, matice) je
+  Kotlin. Kreslený v kompozici přes `Image(rememberLottiePainter(…))` ho platilo hlavní vlákno:
+  mřížka výběru měla medián snímku 18 ms a `Record View#draw` 12,9 s za 30 s scénáře. Teď se painter
+  kreslí do bitmapy (`CanvasDrawScope` nad `Canvas(ImageBitmap)`) a hlavní vlákno bitmapu jen
+  položí (`drawWithContent` + vlastní `graphicsLayer`, nový snímek tedy nesloží znovu kompozici).
+  - **JEDNO vlákno pro všechny samolepky** (`Dispatchers.Default.limitedParallelism(1)`).
+    Compottie 2.3.1 kreslení z víc vláken nesnese: ořez cesty (`CompoundTrimPath.kt`) sdílí
+    globální `pathMeasure`, `tempPath` a `tempPath2`, na iOS a desktopu přechody sdílí `tmpMatrix`
+    (`PlatformShader.skiko.kt`) a hlavně **vrstvy animace jsou objekty kompozice**
+    (`CompositionLayer.compose` vrací `composition.animation.layers`), takže je sdílí každý painter
+    téže samolepky z cache. Se třemi vlákny aplikace během vteřiny spadla nativně (SIGSEGV
+    v `SkContourMeasureIter` pod `PathMeasure.setPath` z `applyTrimPath`). Proto jde přes to
+    vlákno i jednorázové přehrání a poslední snímek: painter kreslený zároveň na hlavním vlákně
+    by se se smyčkou potkal ve stejných globálech. Víc vláken by šlo jen s kompozicemi bez ořezu
+    cesty (`"ty":"tm"` v JSONu) a s pevným vláknem pro každou kompozici.
+  - **Další snímek až po vykreslení předchozího** (`StickerFrames.awaitDrawn`: kreslení zapíše
+    vykreslený `tick`, smyčka na něj čeká). Samolepka, která se nekreslí — položka přednačtená
+    mřížkou mimo viewport, aplikace na pozadí — po jednom snímku stojí a nepočítá nic. Hlídat
+    viewport nebo lifecycle zvlášť proto není potřeba; položka mimo viewport navíc vypadne
+    z kompozice i se smyčkou.
+  - **Tři bitmapy na střídačku**, jako u videosamolepek: do jedné se kreslí, druhou kreslí UI,
+    třetí může ještě nahrávat `RenderThread`. Vznikají líně — poslední snímek (kostka z historie)
+    potřebuje jednu.
+  - **Průběh se zapisuje uvnitř vlastního snímku stavu, který se zahodí** (`takeMutableSnapshot`
+    + `dispose`). Painter čte průběh přes `derivedStateOf` (`LottiePainterImpl.frame`), takže to
+    musí být stav — obyčejnou proměnnou by si odvozený stav zapamatoval napořád. Zápis do
+    globálního snímku z pozadí by po každém snímku plánoval rozesílání změn na hlavním vlákně.
+  - **Painter vzniká v kompozici** (`rememberLottiePainter` je jediná veřejná cesta, třída
+    `LottiePainterImpl` je `internal`) a chvíli po složení je prázdný: nepřipravený hlásí
+    `intrinsicSize` 1 × 1 a smyčka čeká, až bude skutečný. Jinak by místo náhledu na okamžik
+    probleskla prázdná bitmapa.
+  - **Čas běží podle hodin, ne podle snímků** (`StickerClip`): nestíhá-li vlákno, snímky se
+    přeskočí a animace se nezpomalí. Po čekání na vykreslení se už nepřidává pevná pauza: dřív
+    tam byly 4 ms a samolepka s 60 fps jela na 30, protože cyklus přesáhl jeden vsync.
+  - **Snímková frekvence nejvýš 60, v mřížce výběru, řádku návrhů a u emoji v textu 30**
+    (`REDUCED_STICKER_FRAME_RATE`), nikdy víc, než má animace sama — část `.tgs` má jen 30.
+  - **Nanejvýš dvě samolepky se parsují naráz** (`Semaphore` v `TgsSpec.load`). Nová mřížka
+    (přepnutá kategorie) jich chce desítky v jednom okamžiku a parsování JSONu alokuje megabajty:
+    GC uvolňoval po 100 MB a vlákna čekala na blokující GC (`WaitForGcToComplete blocked Alloc`
+    ~120 ms), hlavní vlákno taky. S omezením klesl nejdelší snímek z 400–600 ms na 100–170 ms.
+  - **Vlákno stíhá ~850 snímků/s** (emulátor Pixel 7 API 36, ne-debuggable build, buňka
+    168 × 168 px, ~0,9 ms na snímek): mřížka 25 samolepek po 30 fps ho vytíží na ~80 %. Na
+    slabším telefonu snímky ubydou (samolepky se hýbou trhaněji), UI zůstane plynulé.
+    V debug buildu je snímek ~2,5 ms — viz „Debug build zkresluje Kotlin" ve `vykon.md`.
+  - **V ustáleném stavu Compottie alokuje ~20 KB na snímek** (GC po 24 MB zhruba co 2 s při 600
+    snímcích za vteřinu). Pauzy jsou pod milisekundu; víc s tím bez zásahu do knihovny udělat nejde.
+  - **Změřeno Perfettem** (scénář: otevřít výběr v Notifikátoru, dvě kategorie, scroll, dvakrát;
+    jen tenhle emulátor, ne-debuggable build, `cmd package compile -m speed`): medián snímku hlavního
+    vlákna 18,2 → 3,7–4,1 ms, p90 27 → 5,5–6,0 ms, snímků nad 16 ms 816–861 → 30–40, nad 33 ms
+    36–40 → 4, `Record View#draw` 12,9 s → 0,5–0,7 s, čekání na blokující GC 400–613 → 152–230.
 - **`.webm` (videosamolepky) hrají na Androidu** (`VideoSticker` → `WebmSticker`), na iOS
   a desktopu zůstávají náhledem (`webmStickersSupported`; soubor se tam ani nestahuje).
   - **Průhlednost NENÍ v VP9, ale druhý VP9 stream v kontejneru**: stopa má `AlphaMode = 1`
@@ -410,28 +460,19 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   oblíbené), výsledky hledání i sheet sady. Na obrazovce je tak nejvýš pár desítek samolepek
   (buňka 76 dp, mřížka 320 dp: kolem pěti řádků po pěti) a `LazyVerticalGrid` skládá jen
   viditelné buňky. Dřív mřížka nehrála vůbec a hýbala se jen podržená samolepka.
-- **V pageru hraje jen USAZENÁ stránka** (`page == pagerState.settledPage`). Během swipu jsou
-  vidět dvě; přijíždějící sada by uprostřed tahu rozbalovala a parsovala desítky animací naráz.
-  Rozběhne se po dosednutí ze statického náhledu, který odpovídá prvnímu snímku, takže to není
-  skok. Odjíždějící stránka hraje, dokud nezmizí.
-- **Mřížka se rozhýbe až ve VYSUNUTÉM sheetu a při zasouvání zamrzne** (`SheetStickerMotion`,
-  `rememberSheetStickerMotion`; výběr i sheet sady). Usazená stránka pageru je usazená hned při
-  otevření, takže se dřív pár desítek `.tgs` rozbalovalo a parsovalo a pak každý snímek kreslilo
-  na hlavním vlákně právě ve chvíli, kdy sheet vyjížděl — a vytažení drhlo. Do prvního dojetí
-  (`currentValue == targetValue == Expanded`) stojí mřížka na statických náhledech a animace se
-  ani nenačítají. Jakmile sheet míří dolů (`targetValue` se přepne hned na začátku zasouvání:
-  ťuknutí vedle, tah přes práh, odeslání), samolepky ZAMRZNOU na snímku (`paused`), nevrací se
-  na náhled — výměna obsahu by uprostřed zasouvání byla zase práce navíc. Smyčka má
-  `restartOnPlay = false`, takže sheet vrácený tahem zpátky ji pustí odtamtud, kde stála.
-  - **Zadržení (`held`) drží TUTÉŽ skladbu jako hrající samolepka**, jen animaci nenačítá
-    (`AnimatedSticker(load = false)`). První verze přepínala `playing` a buňka tak po dojetí
-    přeskočila z větve s náhledem do větve s animací: náhled (`RemoteImage`) se složil znovu
-    jinde ve stromu, u všech buněk naráz. Totéž teď platí pro nedosednutou stránku pageru.
-  - **Změřeno Perfettem** (emulátor, debug build, sada s 25 samolepkami): původně měl snímek
-    během vyjíždění 110–117 ms (z toho 60–90 ms `Record View#draw()` hrajících samolepek)
-    a sheet vyjel na 6–7 snímcích, teď 23–25 ms a 23–33 snímků. **`gfxinfo` ukazoval opak**
-    (zaseknutých 17 % před, 30 % po): procenta se počítají z vykreslených snímků a původní
-    verze jich vykreslila zlomek. Plynulost se proto porovnává Perfettem, ne procenty z `gfxinfo`.
+- **Mřížka hraje hned, i během vyjíždění sheetu a swipu mezi sadami.** Dokud se samolepky
+  kreslily na hlavním vlákně, mřížka se rozhýbala až ve vysunutém sheetu, při zasouvání zamrzla
+  (`SheetStickerMotion`) a v pageru hrála jen usazená stránka. S kreslením mimo hlavní vlákno
+  (viz výš) to nic měřitelného nepřináší, a tak to zmizelo i s parametry `held`, `paused`
+  a `load`. Změřeno Perfettem (ne-debuggable build): třikrát otevřít a zavřít výběr — snímků nad
+  16 ms 61 se zadržením, 29 bez něj, nejdelší 75 → 33 ms; pět swipů mezi sadami — nad 33 ms
+  12 se zadržením, 7 a 13 bez něj. Zbylé drhnutí swipu je skládání nové stránky, ne Lottie.
+  - **Placeholder (statický náhled) zůstává na STEJNÉM místě stromu**, dokud není první snímek
+    animace (`RenderedSticker` ho kreslí jako obsah svého `Box`u), takže se po načtení animace
+    neskládá znovu jinde.
+  - **`gfxinfo` na plynulost nestačí**: procenta zaseknutých snímků se počítají z vykreslených
+    snímků a verze, která jich kvůli práci na hlavním vlákně vykreslí zlomek, vypadá lépe.
+    Porovnává se Perfettem.
 - **Řádek záložek je líný** (`StickerTabRow`: M3 `Tab`y v `LazyRow`), ne `PrimaryScrollableTabRow`.
   Ten skládá a měří záložky VŠECH sad naráz a záložka sady nese obálku (`RemoteImage`): s 32
   sadami to bylo ~106 ms jen skládání v prvním snímku sheetu, tedy zdržení, než se sheet pohne.
@@ -454,7 +495,9 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Kde je vedle sebe víc sad, samolepky dál NEHRAJÍ** (`StickerPreview(playing = false)`):
   obálky v řádku záložek a ukázky v trendech. Bere se nejlevnější podoba: rastrový náhled,
   statická `.webp`, a teprve bez nich první snímek `.tgs`.
-- **`useCompositionFrameRate` z Compottie NEPOUŽÍVAT** jako úsporu pro mřížku. Vypadá jako
+- **Snímkovou frekvenci řídí vlastní hodiny (`StickerClip`), ne Compottie.** Animační API
+  Compottie se nepoužívá vůbec; kdyby se k němu někdo vracel: **`useCompositionFrameRate`
+  NEPOUŽÍVAT** jako úsporu pro mřížku. Vypadá jako
   „hraj v rytmu samolepky, ne 120Hz displeje", ale Compottie 2.3.1
   (`LottieAnimatable.roundToCompositionFrameRate`) zaokrouhluje PRŮBĚH 0..1 na krok `1/fps` —
   tedy na šedesátiny celé animace, ne snímky za vteřinu. Třívteřinová samolepka by jela
