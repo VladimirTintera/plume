@@ -15,6 +15,8 @@ import eu.tintera.plume.core.telegram.ReportRequest
 import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.core.telegram.StoryAlbum
 import eu.tintera.plume.core.telegram.StoryRepository
+import eu.tintera.plume.core.telegram.pinnedAfter
+import eu.tintera.plume.core.telegram.StoryAudience
 import eu.tintera.plume.core.telegram.StoryViewer
 import eu.tintera.plume.core.telegram.StoryViewersPage
 import kotlinx.coroutines.flow.Flow
@@ -39,7 +41,12 @@ import kotlin.test.assertNull
 @OptIn(ExperimentalCoroutinesApi::class)
 class StoriesViewModelTest {
 
-    private class FakeStories(var failReaction: Boolean = false) : StoryRepository {
+    private class FakeStories(
+        var failReaction: Boolean = false,
+        /** Příběh je vlastní a dá se spravovat (popisek, viditelnost, profil). */
+        val own: Boolean = false,
+        var failManage: Boolean = false,
+    ) : StoryRepository {
         override val active: StateFlow<Map<Long, ActiveStories>> = MutableStateFlow(
             mapOf(
                 7L to ActiveStories(
@@ -67,8 +74,40 @@ class StoriesViewModelTest {
             isLive = false,
             isAvailable = true,
             viaMention = false,
-            canBeReplied = true,
+            canBeReplied = !own,
+            isOwn = own,
+            canBeEdited = own,
+            audience = StoryAudience.Contacts.takeIf { own },
+            canToggleOnProfile = own,
         )
+
+        val audiences = mutableListOf<StoryAudience>()
+        val onProfile = mutableListOf<Boolean>()
+        var pinnedIds = listOf(9)
+        val captions = mutableListOf<String>()
+
+        private fun manage(): Result<Unit> =
+            if (failManage) Result.failure(IllegalStateException("STORY_ERROR")) else Result.success(Unit)
+
+        override suspend fun setAudience(storyId: Int, audience: StoryAudience): Result<Unit> {
+            audiences += audience
+            return manage()
+        }
+
+        override suspend fun setOnProfile(posterChatId: Long, storyId: Int, onProfile: Boolean): Result<Unit> {
+            this.onProfile += onProfile
+            return manage()
+        }
+
+        override suspend fun pinnedStoryIds(chatId: Long): Result<List<Int>> = Result.success(pinnedIds)
+
+        override suspend fun setPinned(chatId: Long, storyId: Int, pinned: Boolean): Result<Unit> =
+            manage().onSuccess { pinnedIds = pinnedAfter(pinnedIds, storyId, pinned) }
+
+        override suspend fun editCaption(posterChatId: Long, storyId: Int, caption: String): Result<Unit> {
+            captions += caption
+            return manage()
+        }
 
         override suspend fun open(posterChatId: Long, storyId: Int) {
             opened += storyId
@@ -417,5 +456,105 @@ class StoriesViewModelTest {
         viewModel.reply(key, "   ") { result = false }
         advanceUntilIdle()
         assertEquals(listOf("ahoj"), repository.replies, "prázdná odpověď se neposílá")
+    }
+
+    @Test
+    fun ownStoryLoadsPinnedAndTogglesProfileAndPin() = runTest {
+        val repository = FakeStories(own = true)
+        val viewModel = viewModel(repository)
+        assertEquals(listOf(9), viewModel.pinned.value[7], "připnuté vlastního autora se načtou")
+
+        viewModel.setOnProfile(key, true)
+        assertEquals(true, viewModel.state.value.pages[key]?.isOnProfile, "přepne se hned")
+        advanceUntilIdle()
+        assertEquals(listOf(true), repository.onProfile)
+
+        viewModel.setPinned(key, true)
+        assertEquals(listOf(1, 9), viewModel.pinned.value[7], "nově připnutý je první")
+        advanceUntilIdle()
+        assertEquals(listOf(1, 9), repository.pinnedIds)
+
+        // Odebrání z profilu ho vyřadí i z připnutých.
+        viewModel.setOnProfile(key, false)
+        assertEquals(listOf(9), viewModel.pinned.value[7])
+    }
+
+    @Test
+    fun failedProfileToggleIsRevertedWithPins() = runTest {
+        val repository = FakeStories(own = true)
+        val viewModel = viewModel(repository)
+        viewModel.setOnProfile(key, true)
+        advanceUntilIdle()
+        viewModel.setPinned(key, true)
+        advanceUntilIdle()
+
+        repository.failManage = true
+        viewModel.setOnProfile(key, false)
+        advanceUntilIdle()
+        assertEquals(true, viewModel.state.value.pages[key]?.isOnProfile)
+        assertEquals(listOf(1, 9), viewModel.pinned.value[7])
+        assertNotNull(viewModel.notice.value)
+    }
+
+    @Test
+    fun audienceChangesAndRevertsOnFailure() = runTest {
+        val repository = FakeStories(own = true)
+        val viewModel = viewModel(repository)
+        viewModel.openAudience(key)
+        advanceUntilIdle()
+        assertEquals(StoryAudience.Contacts, viewModel.audience.value?.audience)
+        assertEquals(0, viewModel.audience.value?.closeFriends)
+
+        viewModel.setAudience(StoryAudience.Everyone)
+        assertNull(viewModel.audience.value, "výběr se zavře")
+        advanceUntilIdle()
+        assertEquals(StoryAudience.Everyone, viewModel.state.value.pages[key]?.audience)
+        assertEquals(listOf<StoryAudience>(StoryAudience.Everyone), repository.audiences)
+
+        repository.failManage = true
+        viewModel.openAudience(key)
+        viewModel.setAudience(StoryAudience.Contacts)
+        advanceUntilIdle()
+        assertEquals(StoryAudience.Everyone, viewModel.state.value.pages[key]?.audience)
+    }
+
+    /** Stejná volba nic neposílá. */
+    @Test
+    fun sameAudienceSendsNothing() = runTest {
+        val repository = FakeStories(own = true)
+        val viewModel = viewModel(repository)
+        viewModel.openAudience(key)
+        viewModel.setAudience(StoryAudience.Contacts)
+        advanceUntilIdle()
+        assertEquals(emptyList(), repository.audiences)
+    }
+
+    @Test
+    fun captionIsTrimmedSavedAndRevertedOnFailure() = runTest {
+        val repository = FakeStories(own = true)
+        val viewModel = viewModel(repository)
+        viewModel.openCaptionEdit(key)
+        viewModel.editCaption("  Na horách  ")
+        advanceUntilIdle()
+        assertEquals("Na horách", viewModel.state.value.pages[key]?.caption)
+        assertEquals(listOf("Na horách"), repository.captions)
+        assertNull(viewModel.captionEdit.value)
+
+        repository.failManage = true
+        viewModel.openCaptionEdit(key)
+        viewModel.editCaption("")
+        advanceUntilIdle()
+        assertEquals("Na horách", viewModel.state.value.pages[key]?.caption)
+    }
+
+    /** Cizí příběh spravovat nejde — dialogy se neotevřou. */
+    @Test
+    fun foreignStoryCannotBeManaged() = runTest {
+        val viewModel = viewModel(FakeStories())
+        viewModel.openCaptionEdit(key)
+        viewModel.openAudience(key)
+        assertNull(viewModel.captionEdit.value)
+        assertNull(viewModel.audience.value)
+        assertNull(viewModel.pinned.value[7])
     }
 }

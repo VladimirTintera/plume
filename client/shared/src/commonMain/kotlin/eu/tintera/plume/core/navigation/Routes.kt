@@ -163,6 +163,10 @@ data object ArchiveRoute : Route
 @Serializable
 data object CallsRoute : Route
 
+/** Moje příběhy (menu účtu): v profilu a archiv i vypršelých; prohlížeč přes celou plochu. */
+@Serializable
+data object MyStoriesRoute : Route
+
 /** Seznam stahovaných souborů (menu účtu → Stahování); zpráva se souborem jde vedle. */
 @Serializable
 data object DownloadsRoute : Route
@@ -584,6 +588,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(CallsRoute::class, CallsRoute.serializer())
             subclass(DownloadsRoute::class, DownloadsRoute.serializer())
+            subclass(MyStoriesRoute::class, MyStoriesRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
             subclass(ArchiveDirectTopicsRoute::class, ArchiveDirectTopicsRoute.serializer())

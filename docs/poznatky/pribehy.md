@@ -24,6 +24,8 @@ Skladba:
 | Příběhy v profilu (mřížka) | `features/profile/ProfileStories.kt`, záložka `ProfileTab.Stories`, stav `ProfileStories` v `ChatProfileViewModel` |
 | Seznam diváků | `features/stories/StoryViewersSheet.kt`, stav `StoryViewersState` ve `StoriesViewModel` |
 | Video 720 × 1280 H.265 | `core/ui/StoryVideo.kt` + `AndroidStoryVideo` (Media3 Transformer), `IosStoryVideo` (AVFoundation), desktop `UnsupportedStoryVideo` |
+| Správa vlastního příběhu (popisek, viditelnost, profil, připnutí) | `StoriesViewModel` (`setOnProfile`, `setPinned`, `setAudience`, `editCaption`), `features/stories/StoryManageSheets.kt`, `OwnStoryMenu` ve `StoriesScreen.kt` |
+| Moje příběhy (v profilu, archiv) | `features/stories/MyStoriesScreen.kt`, routa `MyStoriesRoute`, mřížka `ProfileStoriesGrid` |
 
 ## Odkud se ví, kdo má příběh
 
@@ -111,6 +113,51 @@ nahoře „Nové album" (`createStoryAlbum` rovnou s tímhle příběhem), u alb
 - **Chyba se ukazuje V PANELU, ne v pilulce prohlížeče.** Panel je samostatné okno
   (`ModalBottomSheet`) a pilulku pod sebou zakryje — v první verzi chyba nebyla vidět vůbec.
 
+## Správa vlastního příběhu
+
+⋮ u vlastního příběhu v prohlížeči: **Upravit popisek…**, **Kdo ho uvidí…**, **Ponechat
+v profilu / Odebrat z profilu**, **Připnout v profilu / Odepnout z profilu** a Alba… (testy
+ve `StoriesViewModelTest`, `StoryManageTest`). Nabízí se jen to, co TDLib u příběhu dovolí
+(`canBeEdited`, `canSetPrivacySettings`, `canToggleIsPostedToChatPage`); připnout jde jen
+příběh, který v profilu je.
+
+- **Všechno se přepne hned a při chybě vrátí** (jako reakce), výsledek hlásí pilulka nad lištou.
+- **Popisek** (`editStory` jen s `caption`, obsah zůstává): dialog s polem, prázdný popisek
+  popisek odebere. Výměna fotky nebo videa ve zveřejněném příběhu zatím není.
+- **Viditelnost** (`setStoryPrivacySettings`): tytéž volby jako u nového příběhu, `ChoiceListItem`
+  v panelu. **Výjimky („všichni kromě…") Plume nenastavuje ani neukazuje**, změna je zahodí.
+  **Blízcí přátelé jdou vybrat jen s neprázdným seznamem** (`closeFriends`) — jinak by příběh
+  neviděl nikdo; pod volbami je pak věta, že se seznam nastaví u nového příběhu. **„Vybraní
+  lidé" jen u příběhu, který je už má**, a seznam se nemění: výběr lidí přes celou obrazovku
+  by v prohlížeči zakryl příběh. Stejná volba nic neposílá.
+- **Ponechat v profilu** (`toggleStoryIsPostedToChatPage`). Příběh vzatý z profilu přestane být
+  připnutý (server ho z připnutých vyřadí); prohlížeč to promítne hned i do svého seznamu.
+- **Připnutí** (`setChatPinnedStories` s CELÝM seznamem): repository si napřed přečte připnuté
+  (vydá je jen první stránka `getChatPostedToChatPageStories`), nový jde na začátek a seznam se
+  zastropí `pinned_story_count_max` (`pinnedAfter`). Prohlížeč připnuté načte, až je vlastní
+  příběh vidět — podle nich nabídka píše „Připnout" / „Odepnout".
+- **Ověřeno na emulátoru** se sondou (necommitovaná): příběh viditelný jen mně
+  (`StoryPrivacySettingsSelectedUsers` bez lidí — TDLib ho vezme a příběh nikdo jiný nevidí).
+  Popisek „Sonda" → „Sonda upravena" (po novém otevření ze serveru), Ponechat v profilu →
+  v „Moje příběhy → V profilu" se špendlíkem po připnutí, odepnutí, odebrání z profilu, smazání.
+  Panel viditelnosti ukázal Všichni / Moje kontakty / Vybraní lidé (0 lidí) a větu o prázdném
+  seznamu blízkých přátel. **Skutečná změna viditelnosti ověřená NENÍ**: každá jiná volba by
+  příběh ukázala kontaktům; testy ji pokrývají.
+
+## Moje příběhy
+
+Menu účtu → **Moje příběhy** (`MyStoriesRoute`, `MyStoriesScreen`): přepínač **V profilu**
+(`getChatPostedToChatPageStories`) / **Archiv** (`getChatArchivedStories`, všechny vlastní
+i vypršelé) a tatáž mřížka jako záložka „Příběhy" v profilu (`ProfileStoriesGrid`, připnuté se
+špendlíkem). Ťuknutí otevře prohlížeč nad mřížkou a příběh se spravuje tam.
+
+- **Jediné místo, kde se k vypršelým vlastním příběhům dostat** — vlastní profil s příběhy
+  Plume nemá. Proto menu účtu (vedle Stahování), ne nabídka nového příběhu.
+- **Po návratu z prohlížeče se mřížka načte znovu** (`LifecycleResumeEffect`): odebraný z profilu
+  nebo nově připnutý příběh se má hned projevit.
+- **Přepínač je connected button group** (dvě vzájemně se vylučující volby), jako výběr sítě
+  u přenesených dat.
+
 ## Skrytí autora do archivu
 
 ⋮ v hlavičce prohlížeče → „Skrýt příběhy do archivu" / „Vrátit příběhy mezi ostatní"
@@ -165,7 +212,7 @@ zapisuje dvakrát.
   žádní další autoři. Nic z toho není „nezhlédnuté" a ⋮ se skrytím do archivu tu není
   (autor není v žádném seznamu). Jméno a fotku autora dočte `StoryRepository.author`, protože
   autor teď nemusí mít aktivní příběh; do té doby je prohlížeč prázdný, ne zavřený.
-- Vlastní profil (Uložené zprávy) záložku nemá; vlastní příběhy jsou v prohlížeči.
+- Vlastní profil (Uložené zprávy) záložku nemá; vlastní příběhy jsou v „Moje příběhy" (menu účtu, viz níž).
 - **Alba** (`getChatStoryAlbums`, `getStoryAlbumStories`): čipy „Vše" a názvy alb přes celou
   šířku nad mřížkou, jen když autor nějaké má. Výběr alba mřížku vyprázdní a načte jeho
   příběhy po stránkách (`offset` = počet načtených); odpověď na album, které uživatel mezitím

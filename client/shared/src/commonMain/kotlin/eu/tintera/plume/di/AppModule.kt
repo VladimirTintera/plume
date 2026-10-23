@@ -173,6 +173,7 @@ import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.links.ExternalLinkViewModel
 import eu.tintera.plume.features.calls.CallsViewModel
 import eu.tintera.plume.features.downloads.DownloadsViewModel
+import eu.tintera.plume.features.stories.MyStoriesViewModel
 import eu.tintera.plume.core.telegram.DownloadsRepository
 import eu.tintera.plume.core.telegram.TdlDownloadsRepository
 import eu.tintera.plume.features.settings.MyQrCodeViewModel
@@ -916,6 +917,7 @@ fun appModule() = module {
     viewModelOf(::ExternalLinkViewModel)
     viewModelOf(::CallsViewModel)
     viewModelOf(::DownloadsViewModel)
+    viewModelOf(::MyStoriesViewModel)
 
     // Druh a členové jdou z routy; indexem, `get()` by bral podle typu.
     viewModel { parameters ->

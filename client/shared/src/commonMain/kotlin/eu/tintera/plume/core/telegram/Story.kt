@@ -6,6 +6,11 @@ import dev.g000sha256.tdl.dto.StoryContentLive
 import dev.g000sha256.tdl.dto.StoryContentPhoto
 import dev.g000sha256.tdl.dto.StoryContentUnsupported
 import dev.g000sha256.tdl.dto.StoryContentVideo
+import dev.g000sha256.tdl.dto.StoryPrivacySettings
+import dev.g000sha256.tdl.dto.StoryPrivacySettingsCloseFriends
+import dev.g000sha256.tdl.dto.StoryPrivacySettingsContacts
+import dev.g000sha256.tdl.dto.StoryPrivacySettingsEveryone
+import dev.g000sha256.tdl.dto.StoryPrivacySettingsSelectedUsers
 import dev.g000sha256.tdl.dto.StoryVideo
 
 /**
@@ -43,7 +48,29 @@ internal suspend fun MessageStory.toMedia(
         albumIds = story?.albumIds?.toList().orEmpty(),
         canBeAddedToAlbum = story?.canBeAddedToAlbum == true,
         live = (content as? StoryContentLive)?.let { LiveStoryCall(it.groupCallId, it.isRtmpStream) },
+        canBeEdited = story?.canBeEdited == true,
+        audience = story?.takeIf { it.canSetPrivacySettings }?.privacySettings?.toAudience(),
+        canToggleOnProfile = story?.canToggleIsPostedToChatPage == true,
+        isOnProfile = story?.isPostedToChatPage == true,
     )
+}
+
+/**
+ * Viditelnost příběhu v doméně. Výjimky („všichni kromě…") Plume nenastavuje ani neukazuje;
+ * změna viditelnosti z Plume je zahodí, jako by je zahodila volba v oficiální aplikaci.
+ */
+internal fun StoryPrivacySettings.toAudience(): StoryAudience = when (this) {
+    is StoryPrivacySettingsEveryone -> StoryAudience.Everyone
+    is StoryPrivacySettingsContacts -> StoryAudience.Contacts
+    is StoryPrivacySettingsCloseFriends -> StoryAudience.CloseFriends
+    is StoryPrivacySettingsSelectedUsers -> StoryAudience.Selected(userIds.toList())
+}
+
+internal fun StoryAudience.toPrivacySettings(): StoryPrivacySettings = when (this) {
+    StoryAudience.Everyone -> StoryPrivacySettingsEveryone(exceptUserIds = longArrayOf())
+    StoryAudience.Contacts -> StoryPrivacySettingsContacts(exceptUserIds = longArrayOf())
+    StoryAudience.CloseFriends -> StoryPrivacySettingsCloseFriends()
+    is StoryAudience.Selected -> StoryPrivacySettingsSelectedUsers(userIds = userIds.toLongArray())
 }
 
 /**
