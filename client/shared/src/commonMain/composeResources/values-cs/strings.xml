@@ -2776,15 +2776,13 @@
     </plurals>
     <string name="verification_by_bot">Ověřeno botem</string>
     <string name="verification_by_bot_named">Ověřil %1$s</string>
-    <string name="chat_bar_share_phone_hint">Tenhle kontakt tvoje telefonní číslo nevidí.</string>
+    <string name="chat_bar_share_phone_hint">Tenhle kontakt tvoje číslo nevidí</string>
     <string name="chat_bar_share_phone">Sdílet moje číslo</string>
     <string name="chat_bar_share_phone_title">Sdílet číslo?</string>
     <string name="chat_bar_share_phone_text">%1$s uvidí tvoje telefonní číslo.</string>
     <string name="chat_bar_share_phone_confirm">Sdílet</string>
     <string name="chat_bar_phone_shared">Číslo je nasdílené</string>
-    <string name="chat_bar_join_request_group">Tuhle zprávu dostáváš jako odpověď na žádost o vstup do skupiny „%1$s“.</string>
-    <string name="chat_bar_join_request_channel">Tuhle zprávu dostáváš jako odpověď na žádost o vstup do kanálu „%1$s“.</string>
-    <string name="chat_bar_join_request_date">Žádost odeslána: %1$s</string>
+    <string name="chat_bar_join_request">Odpověď na tvou žádost o vstup</string>
     <string name="settings_default_auto_delete">Automatické mazání v nových chatech</string>
     <string name="settings_default_auto_delete_failed">Nepodařilo se změnit, zkus to znovu</string>
     <string name="settings_default_auto_delete_explanation">Zprávy v každém chatu, který odteď založíš, po zvolené době zmizí všem. Chaty, které už máš, se nezmění.</string>
@@ -2917,7 +2915,7 @@
     <string name="add_members_bot_admin_title">Přidat bota jako správce?</string>
     <string name="add_members_bot_admin_text">Do kanálu jde bot přidat jen jako správce. %1$s bude smět zveřejňovat, upravovat a mazat příspěvky — další práva jde změnit u člena kanálu.</string>
     <string name="add_members_bot_admin_confirm">Přidat jako správce</string>
-    <string name="chat_bar_invite_members_hint">Pozvi do nové skupiny lidi.</string>
+    <string name="chat_bar_invite_members_hint">Přidej do nové skupiny lidi</string>
     <string name="chat_bar_invite_members">Pozvat členy</string>
     <string name="share_contact_title">Poslat kontakt</string>
     <string name="share_contact_hidden_phone">Skrývá své číslo — poslat nejde</string>

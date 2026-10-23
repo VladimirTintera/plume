@@ -1,25 +1,8 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.core.ui.grouped
@@ -30,7 +13,6 @@ import eu.tintera.plume.resources.video_chat_live_scheduled
 import eu.tintera.plume.resources.video_chat_participants
 import eu.tintera.plume.resources.video_chat_scheduled
 import eu.tintera.plume.resources.videocam_24dp
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -63,56 +45,19 @@ internal fun VideoChatBar(
         ?.let { pluralStringResource(Res.plurals.video_chat_participants, it, it.grouped()) }
     val subtitle = listOfNotNull(info.title.takeIf { it.isNotBlank() }, count).joinToString(" · ")
 
-    Surface(
-        color = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = CircleShape,
-        shadowElevation = 3.dp,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Row(
-            Modifier
-                .clip(CircleShape)
-                .then(glass)
-                .clickable(onClick = onClick)
-                .heightIn(min = BAR_HEIGHT)
-                // Odznak soustředný se zaoblením pilulky, jako u připnutých.
-                .padding(start = BADGE_INSET, end = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(color = MaterialTheme.colorScheme.tertiaryContainer, shape = CircleShape, modifier = Modifier.size(BADGE_SIZE)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painterResource(Res.drawable.videocam_24dp),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-            }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (subtitle.isNotEmpty()) {
-                    Text(
-                        subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-    }
+    BarPill(
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+        glass = glass,
+        modifier = modifier,
+        titleColor = MaterialTheme.colorScheme.tertiary,
+        leading = {
+            BarBadge(
+                Res.drawable.videocam_24dp,
+                container = MaterialTheme.colorScheme.tertiaryContainer,
+                content = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        },
+    )
 }
-
-private val BAR_HEIGHT = 56.dp
-private val BADGE_SIZE = 40.dp
-private val BADGE_INSET = (BAR_HEIGHT - BADGE_SIZE) / 2

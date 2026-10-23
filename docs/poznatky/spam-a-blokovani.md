@@ -169,11 +169,22 @@ to má vědět předem.
   `SpamBar` (spam, blokování, kontakt), `SharePhoneBar` (vzájemný kontakt nevidí vlastní číslo
   → `sharePhoneNumber`, po potvrzení dialogem — odchází osobní údaj) a `JoinRequestBar`
   (správce skupiny nebo kanálu, kam uživatel žádal o vstup — jinak by zpráva od něj vypadala
-  jako spam). Nespamové pruhy kreslí `ChatNoticeBarCard` týmž tvarem; křížek je u všech
-  `removeChatActionBar`. `InviteMembersBar` (čerstvě založená skupina) vede na výběr lidí,
-  viz „Přidání členů".
+  jako spam). Křížek je u všech `removeChatActionBar`. `InviteMembersBar` (čerstvě založená
+  skupina) vede na výběr lidí, viz „Přidání členů".
+- **Nespamové pruhy jsou pilulka jako připnuté, ne karta** (`ChatNoticeBarCard` nad `BarPill`,
+  týž tvar mají videochat a žádosti o vstup): odznak s ikonou, nadpis v barvě akcentu, jeden
+  řádek textu, křížek. Akci nese ťuknutí na celý pruh a nadpis ji pojmenovává („Pozvat členy",
+  „Sdílet moje číslo"). Dřív to byla karta `ChatBarSurface` s větou a tónovým tlačítkem pod ní:
+  o dva řádky vyšší než ostatní pruhy, s plochou tlačítka na skle, a mezi pilulkami vypadala
+  jako cizí prvek (stížnost uživatele se snímkem). Karta zůstává jen spamu a reklamě u bota,
+  které mají víc tlačítek a řádků. **Pruh má jen jeden řádek textu**, takže věta o žádosti
+  o vstup se rozpadla na nadpis „Odpověď na tvou žádost o vstup" a „Název · Včera" pod ním.
 - **Den z `asDayLabel` nepatří doprostřed věty** — je nadpisový („Včera"). U žádosti o vstup
-  stojí proto na vlastním řádku za dvojtečkou („Žádost odeslána: Včera").
+  stojí proto za tečkou za názvem chatu.
+- **Pruh pozvání do skupiny nevydrží dlouho** — o hodinu později (mezitím do skupiny odešel
+  GIF) už na emulátoru nebyl; jestli ho zhasla zpráva, nebo křížek z jiného klienta, ověřené
+  není. Vzhled pruhů se proto ověřoval podstrčeným stavem (všechny tři varianty
+  pod sebou nad připnutou zprávou, emulátor, 23. 10. 2026); skutečné pruhy s novým vzhledem ne.
 - **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
   zbyla mezi textem a tlačítky mezera a pruh vypadal rozpadle.
 
