@@ -155,6 +155,7 @@
     <string name="clear_history_title">Clear history</string>
     <string name="clear_history_all">Entire history</string>
     <string name="clear_history_all_text">The chat stays in your list, empty.</string>
+    <string name="clear_history_all_topic_text">Deletes every message here.</string>
     <string name="clear_history_period">Selected days</string>
     <string name="clear_history_period_pick">Pick the days in the calendar</string>
     <string name="clear_history_period_range">%1$s – %2$s</string>

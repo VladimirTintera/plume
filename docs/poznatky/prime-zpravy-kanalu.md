@@ -71,6 +71,12 @@ vlákno je `DirectMessagesChatTopic` a zprávy v něm mají `MessageTopicDirectM
     by do nich napsal, na emulátoru není. Ověřeno jen, že u běžného příspěvku kanálu řádek
     nevznikne.
 
+- **Ve vlákně jde skočit na datum, vymazat historii (celou i po dnech) a odepnout všechno**
+  jen z vlákna (`getDirectMessagesChatTopicMessageByDate`, `deleteDirectMessagesChatTopic…`,
+  `unpinAllDirectMessagesChatTopicMessages`) — tatáž místa jako v tématu Uložených zpráv
+  (`docs/poznatky/konverzace-pohyb.md`, „Skok na datum", `konverzace-akce.md`, „Vymazání
+  historie"). **Na zařízení neověřené**: druhý účet s vláknem na emulátoru teď není.
+
 ## Ověřeno
 
 Na dvou emulátorech (2026-10-18): …029 jako vlastník „Plume test kanal" přímé zprávy zapnul,

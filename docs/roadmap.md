@@ -739,11 +739,10 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
 - ~~**Podobné kanály: oznámit otevření** (`openChatSimilarChat`) a podobní boti v profilu bota
   (`getBotSimilarBots`, `openBotSimilarBot`)~~ — hotovo (`docs/poznatky/profil-chatu.md`,
   „Záložka Podobné"). Zbývají náhledy mini aplikace v profilu bota (`getBotMediaPreviews`).
-- **Témata Uložených zpráv a vlákna přímých zpráv kanálu:** skok na datum
-  (`getSavedMessagesTopicMessageByDate`, `getDirectMessagesChatTopicMessageByDate`; dnes jde jen
-  v celém chatu), vymazání za vybrané dny (`deleteSavedMessagesTopicMessagesByDate`,
-  `deleteDirectMessagesChatTopicMessagesByDate`) a odepnout vše ve vlákně
-  (`unpinAllDirectMessagesChatTopicMessages`).
+- ~~**Témata Uložených zpráv a vlákna přímých zpráv kanálu:** skok na datum, vymazání (i za
+  vybrané dny) a odepnout vše ve vlákně~~ — hotovo (`docs/poznatky/konverzace-pohyb.md`, „Skok
+  na datum"; `konverzace-akce.md`, „Vymazání historie"). Ověřené v tématu Uložených zpráv,
+  vlákno přímých zpráv zbývá ověřit s druhým účtem.
 - **Příběhy — správa zveřejněného:** úprava (`editStory`, `editStoryCover`), změna viditelnosti
   (`setStoryPrivacySettings`), ponechat v profilu a připnout (`toggleStoryIsPostedToChatPage`,
   `setChatPinnedStories`), archiv vlastních prošlých příběhů (`getChatArchivedStories`),
