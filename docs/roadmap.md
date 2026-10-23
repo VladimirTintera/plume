@@ -758,8 +758,8 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   `prohlizec-medii.md`, `hledani-a-zakladani-chatu.md`, `profil-chatu.md`). Obnovení upozornění
   ověřené jen po potvrzovací dialog, číslo +888 neověřené. ~~Profilová fotka z emoji
   (`getDefaultProfilePhotoCustomEmojiStickers`)~~ — hotovo („Z emoji" v úpravě profilu
-  i chatu; `profil-chatu.md`, „Fotka z emoji"). Zbývá fotka z libovolného vlastního emoji nebo
-  samolepky a fotka z emoji už při zakládání skupiny.
+  i chatu; `profil-chatu.md`, „Fotka z emoji"). ~~Fotka z vlastního emoji nebo
+  samolepky z nainstalovaných sad a fotka z emoji už při zakládání skupiny~~ — hotovo (tamtéž).
 - **Prohlížeč odkazů podle Telegramu** (`getLinkWebBrowserType`, `changeWebBrowserSettings`,
   výjimky po adresách) — novinka TDLib, nastavení synchronizované přes účet. Plume má vlastní
   „Odkazy v aplikaci"; až se bude sahat na otevírání odkazů, zvážit převzetí.

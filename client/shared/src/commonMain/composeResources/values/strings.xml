@@ -1966,10 +1966,14 @@
     <string name="edit_profile_main_tab_failed">Couldn't change the main profile tab.</string>
     <string name="edit_profile_change_photo">Change photo</string>
     <string name="emoji_photo_open">From emoji</string>
-    <string name="emoji_photo_title">Photo from emoji</string>
+    <string name="emoji_photo_title">Photo from emoji or sticker</string>
     <string name="emoji_photo_background">Background %1$d</string>
     <string name="emoji_photo_set">Set photo</string>
     <string name="emoji_photo_failed">Couldn't load emoji for the photo.</string>
+    <string name="emoji_photo_source_emoji">Emoji</string>
+    <string name="emoji_photo_source_stickers">Stickers</string>
+    <string name="emoji_photo_suggested">Suggested</string>
+    <string name="emoji_photo_no_stickers">No sticker sets added yet. Add some from the sticker picker in a chat.</string>
     <string name="edit_profile_delete_photo">Remove photo</string>
     <string name="edit_profile_delete_photo_body">Your current profile photo will be deleted. If you had an earlier one, it will show instead.</string>
     <string name="edit_profile_delete_photo_confirm">Remove</string>

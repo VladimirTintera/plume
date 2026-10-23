@@ -2021,10 +2021,14 @@
     <string name="edit_profile_main_tab_failed">Hlavní záložku profilu se nepodařilo změnit.</string>
     <string name="edit_profile_change_photo">Změnit fotku</string>
     <string name="emoji_photo_open">Z emoji</string>
-    <string name="emoji_photo_title">Fotka z emoji</string>
+    <string name="emoji_photo_title">Fotka z emoji nebo samolepky</string>
     <string name="emoji_photo_background">Pozadí %1$d</string>
     <string name="emoji_photo_set">Nastavit fotku</string>
     <string name="emoji_photo_failed">Emoji na fotku se nepodařilo načíst.</string>
+    <string name="emoji_photo_source_emoji">Emoji</string>
+    <string name="emoji_photo_source_stickers">Samolepky</string>
+    <string name="emoji_photo_suggested">Nabídka</string>
+    <string name="emoji_photo_no_stickers">Zatím žádné sady samolepek. Přidat je jde z výběru samolepek v chatu.</string>
     <string name="edit_profile_delete_photo">Odebrat fotku</string>
     <string name="edit_profile_delete_photo_body">Současná profilová fotka se smaže. Jestli jsi měl(a) nějakou dřív, ukáže se místo ní.</string>
     <string name="edit_profile_delete_photo_confirm">Odebrat</string>
