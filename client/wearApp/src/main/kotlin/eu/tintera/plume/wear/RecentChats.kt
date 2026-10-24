@@ -42,8 +42,6 @@ data class RecentChat(
     val preview: String?,
     /** Cesta k miniatuře ([RecentChatsPublisher]), nebo `null` — pak iniciála. */
     val avatarPath: String?,
-    /** Uložené zprávy: dlaždice je ukáže svým jménem a záložkou, ne jménem a fotkou účtu. */
-    val savedMessages: Boolean = false,
 )
 
 /**
@@ -73,7 +71,6 @@ sealed interface RecentChatsState {
                             unread = item.getInt("unread"),
                             preview = item.optString("preview").takeIf { item.has("preview") },
                             avatarPath = item.optString("avatar").takeIf { item.has("avatar") },
-                            savedMessages = item.optBoolean("saved"),
                         )
                     },
                 )
@@ -94,7 +91,6 @@ sealed interface RecentChatsState {
                                 .put("unread", chat.unread)
                                 .apply { chat.preview?.let { put("preview", it) } }
                                 .apply { chat.avatarPath?.let { put("avatar", it) } }
-                                .put("saved", chat.savedMessages)
                         },
                     ),
                 )
@@ -128,22 +124,22 @@ class RecentChatsPublisher(
     @OptIn(FlowPreview::class)
     fun start(session: TelegramSession, chats: ChatRepository) {
         scope.launch {
-            combine(session.authStage, chats.chats(), chats.savedMessagesChatId) { stage, list, savedId ->
+            combine(session.authStage, chats.chats()) { stage, list ->
                 when {
-                    stage == AuthStage.Ready && list is ChatListState.Ready -> Input.Top(list.chats.take(MAX_CHATS), savedId)
+                    stage == AuthStage.Ready && list is ChatListState.Ready -> Input.Top(list.chats.take(MAX_CHATS))
                     stage.isLoggedOut() -> Input.LoggedOut
                     else -> null
                 }
             }
                 .filterNotNull()
                 // Seznam se mění s každou zprávou kdekoli; dlaždici zajímá jen to, co ukazuje.
-                .map { input -> input to (input as? Input.Top)?.let { top -> top.chats.map { it.tileKey() } + top.savedMessagesId } }
+                .map { input -> input to (input as? Input.Top)?.chats?.map { it.tileKey() } }
                 .distinctUntilChanged { old, new -> old.second == new.second && old.first::class == new.first::class }
                 .debounce(1.seconds)
                 .collect { (input, _) ->
                     val state = when (input) {
                         Input.LoggedOut -> RecentChatsState.LoggedOut
-                        is Input.Top -> RecentChatsState.Chats(input.chats.map { it.toRecent(saved = it.id == input.savedMessagesId) })
+                        is Input.Top -> RecentChatsState.Chats(input.chats.map { it.toRecent() })
                     }
                     RecentChatsState.write(context, state)
                     cleanUpAvatars(state)
@@ -156,15 +152,13 @@ class RecentChatsPublisher(
     /** Co z chatu dlaždice ukazuje; změna čehokoli jiného (online stav, koncept…) ji neobnoví. */
     private fun ChatSummary.tileKey() = listOf(id, title, unreadCount, lastMessagePreview, avatarFileId)
 
-    private suspend fun ChatSummary.toRecent(saved: Boolean) = RecentChat(
+    private suspend fun ChatSummary.toRecent() = RecentChat(
         id = id,
         title = title,
         unread = unreadCount,
         // Dlaždice má na náhled jeden řádek; zalomení z víceřádkové zprávy by ho uťalo hned za prvním.
         preview = lastMessagePreview?.resolveNow()?.replace(Regex("\\s+"), " ")?.trim(),
-        // Uložené zprávy mají záložku, fotka účtu se pro ně nestahuje.
-        avatarPath = avatarFileId?.takeUnless { saved }?.let { avatar(it) },
-        savedMessages = saved,
+        avatarPath = avatarFileId?.let { avatar(it) },
     )
 
     private suspend fun avatar(fileId: Int): String? {
@@ -193,7 +187,7 @@ class RecentChatsPublisher(
     private sealed interface Input {
         data object LoggedOut : Input
 
-        data class Top(val chats: List<ChatSummary>, val savedMessagesId: Long?) : Input
+        data class Top(val chats: List<ChatSummary>) : Input
     }
 
     private companion object {

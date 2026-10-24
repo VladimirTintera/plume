@@ -9,6 +9,7 @@ import eu.tintera.plume.core.calls.AndroidCallPointerDisplay
 import eu.tintera.plume.core.calls.CallPointerDisplay
 import eu.tintera.plume.core.calls.CallRinger
 import eu.tintera.plume.core.calls.CallServiceControls
+import eu.tintera.plume.features.videochat.VideoChatServiceControls
 import eu.tintera.plume.core.calls.TelecomCallBridge
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.calls.CallMedia
@@ -208,6 +209,10 @@ actual fun Module.platformModule() {
     // Služba v popředí po dobu hovoru — spouští se z popředí, jakmile hovor vytáčí nebo běží.
     single(createdAtStart = true) {
         CallServiceControls(context = androidContext(), calls = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+    }
+    // Služba v popředí po dobu videochatu — i se zavřenou obrazovkou a aplikací na pozadí.
+    single(createdAtStart = true) {
+        VideoChatServiceControls(context = androidContext(), session = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
     // Ukazovátko protistrany přes jiné aplikace, když sdílíme obrazovku.
     single<CallPointerDisplay> { AndroidCallPointerDisplay(androidContext()) }

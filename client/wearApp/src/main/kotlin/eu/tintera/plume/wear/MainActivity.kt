@@ -9,7 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 class MainActivity : ComponentActivity() {
 
     /**
-     * Chat, který se má otevřít (ťuknutí na chat v dlaždici nebo na notifikaci). Aktivita je `singleTop`: když už
+     * Chat, který se má otevřít (ťuknutí na chat v dlaždici). Aktivita je `singleTop`: když už
      * běží, systém ji jen přivede dopředu a nový intent dorazí do [onNewIntent] — jinak by
      * extra zůstalo nepřečtené a otevřel by se poslední stav.
      */
@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
         intent?.getLongExtra(EXTRA_CHAT_ID, 0L)?.takeIf { it != 0L }
 
     companion object {
-        /** Id chatu k otevření, `Long`; plní ho dlaždice s chaty (`RecentChatsTileService`) a notifikace (`WearNotifications`). */
+        /** Id chatu k otevření, `Long`; plní ho dlaždice s chaty (`RecentChatsTileService`). */
         const val EXTRA_CHAT_ID = "eu.tintera.plume.wear.CHAT_ID"
     }
 }

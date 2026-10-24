@@ -16,7 +16,6 @@ import androidx.wear.protolayout.material3.MaterialScope
 import androidx.wear.protolayout.material3.Typography
 import androidx.wear.protolayout.material3.avatarButton
 import androidx.wear.protolayout.material3.avatarImage
-import androidx.wear.protolayout.material3.icon
 import androidx.wear.protolayout.material3.materialScope
 import androidx.wear.protolayout.material3.primaryLayout
 import androidx.wear.protolayout.material3.text
@@ -34,7 +33,6 @@ import com.google.common.util.concurrent.ListenableFuture
 import eu.tintera.plume.core.ui.readPluralString
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.wear_chats_empty
 import eu.tintera.plume.resources.wear_chats_title
 import eu.tintera.plume.resources.wear_tile_all_chats
@@ -71,18 +69,7 @@ class RecentChatsTileService : TileService() {
     override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<Resources> =
         SuspendToFutureAdapter.launchFuture(Dispatchers.IO) {
             val resources = Resources.Builder().setVersion(requestParams.version)
-            val chats = (RecentChatsState.read(this@RecentChatsTileService) as? RecentChatsState.Chats)?.chats.orEmpty()
-            if (chats.any { it.savedMessages }) {
-                resources.addIdToImageMapping(
-                    SAVED_MESSAGES_ICON,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder().setResourceId(R.drawable.ic_saved_messages).build(),
-                        )
-                        .build(),
-                )
-            }
-            chats.forEach { chat ->
+            (RecentChatsState.read(this@RecentChatsTileService) as? RecentChatsState.Chats)?.chats?.forEach { chat ->
                 val path = chat.avatarPath ?: return@forEach
                 val bytes = runCatching { File(path).readBytes() }.getOrNull() ?: return@forEach
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -123,7 +110,7 @@ class RecentChatsTileService : TileService() {
         val elements = rows.flatMapIndexed { index, row ->
             val button = avatarButton(
                 onClick = clickable(open(row.chat.id), id = "chat-${row.chat.id}"),
-                labelContent = { text(row.title.layoutString, maxLines = 1) },
+                labelContent = { text(row.chat.title.layoutString, maxLines = 1) },
                 secondaryLabelContent = row.secondary?.let { line -> { text(line.layoutString, maxLines = 1) } },
                 avatarContent = { avatar(row.chat) },
             )
@@ -138,30 +125,24 @@ class RecentChatsTileService : TileService() {
     @Suppress("DEPRECATION") // Varianta s ImageResource chce ProtoLayoutScope, viz KDoc třídy.
     private fun MaterialScope.avatar(chat: RecentChat): LayoutElement {
         chat.avatarPath?.takeIf { File(it).exists() }?.let { return avatarImage(avatarId(it)) }
-        // Rozměr dává tlačítko (obal avataru), iniciála nebo záložka ho jen vyplní.
-        val content = if (chat.savedMessages) {
-            icon(SAVED_MESSAGES_ICON, tintColor = colorScheme.onPrimaryContainer)
-        } else {
-            val initial = chat.title.firstOrNull { it.isLetterOrDigit() }?.uppercase().orEmpty()
-            text(initial.layoutString, typography = Typography.LABEL_MEDIUM, color = colorScheme.onPrimaryContainer)
-        }
+        val initial = chat.title.firstOrNull { it.isLetterOrDigit() }?.uppercase().orEmpty()
+        // Rozměr dává tlačítko (obal avataru), iniciála ho jen vyplní.
         return box(
-            content,
+            text(initial.layoutString, typography = Typography.LABEL_MEDIUM, color = colorScheme.onPrimaryContainer),
             width = expand(),
             height = expand(),
             modifier = LayoutModifier.background(colorScheme.primaryContainer).clip(shapes.full),
         )
     }
 
-    private class Row(val chat: RecentChat, val title: String, val secondary: String?)
+    private class Row(val chat: RecentChat, val secondary: String?)
 
     /** Texty dlaždice; překládají se předem, rozvržení se skládá mimo Compose Resources. */
     private class TileContent(val title: String, val all: String, val rows: List<Row>, val message: String?)
 
     private suspend fun tileContent(state: RecentChatsState, maxRows: Int): TileContent {
-        val savedTitle = readString(Res.string.saved_messages)
         val rows = (state as? RecentChatsState.Chats)?.chats?.take(maxRows)?.map { chat ->
-            Row(chat, if (chat.savedMessages) savedTitle else chat.title, chat.unread.takeIf { it > 0 }?.let { readPluralString(Res.plurals.wear_tile_new_messages, it, it) } ?: chat.preview)
+            Row(chat, chat.unread.takeIf { it > 0 }?.let { readPluralString(Res.plurals.wear_tile_new_messages, it, it) } ?: chat.preview)
         }.orEmpty()
         val message = when (state) {
             RecentChatsState.Unknown -> readString(Res.string.wear_tile_unknown)
@@ -196,12 +177,8 @@ class RecentChatsTileService : TileService() {
         /** Jméno prostředku podle souboru (fileId): nová fotka chatu je nový prostředek. */
         fun avatarId(path: String) = "avatar-${File(path).nameWithoutExtension}"
 
-        /** Záložka Uložených zpráv mezi prostředky dlaždice (`R.drawable.ic_saved_messages`). */
-        const val SAVED_MESSAGES_ICON = "saved-messages"
-
         fun resourcesVersion(state: RecentChatsState): String =
-            (state as? RecentChatsState.Chats)?.chats
-                ?.mapNotNull { chat -> if (chat.savedMessages) SAVED_MESSAGES_ICON else chat.avatarPath?.let(::avatarId) }
+            (state as? RecentChatsState.Chats)?.chats?.mapNotNull { it.avatarPath?.let(::avatarId) }
                 ?.joinToString(",")?.hashCode()?.toString() ?: "0"
     }
 }

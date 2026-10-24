@@ -264,6 +264,11 @@
             android:name="eu.tintera.plume.core.calls.CallService"
             android:exported="false"
             android:foregroundServiceType="phoneCall|microphone|camera|mediaProjection" />
+        <!-- Videochat ve skupině na pozadí (VideoChatService v :client:shared); mikrofon jen s mluvením. -->
+        <service
+            android:name="eu.tintera.plume.features.videochat.VideoChatService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone" />
         <service
             android:name="eu.tintera.plume.core.location.LiveLocationService"
             android:exported="false"

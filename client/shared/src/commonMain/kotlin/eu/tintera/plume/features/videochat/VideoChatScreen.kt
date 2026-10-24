@@ -31,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -94,7 +95,8 @@ import org.jetbrains.compose.resources.stringResource
  * mřížka účastníků a dole mikrofon a odchod. Připojuje se ztlumeně; mluví se zapnutím
  * mikrofonu, a když mě správce ztlumil, zvednutím ruky.
  *
- * Odchod z obrazovky (zpět i Opustit) z hovoru odejde.
+ * Zpět z obrazovky z videochatu NEODCHÁZÍ — posluchač v něm zůstává s pruhem nad aplikací
+ * (`VideoChatSession`); odchází jen Opustit.
  */
 @Composable
 fun VideoChatScreen(viewModel: VideoChatViewModel, onBack: () -> Unit) {
@@ -103,6 +105,10 @@ fun VideoChatScreen(viewModel: VideoChatViewModel, onBack: () -> Unit) {
     val current = state
     val title = current?.title?.takeIf { it.isNotBlank() } ?: chatTitle.ifBlank { stringResource(Res.string.video_chat_active) }
     val notice by viewModel.notice.collectAsStateWithLifecycle()
+    DisposableEffect(viewModel) {
+        viewModel.screenVisible(true)
+        onDispose { viewModel.screenVisible(false) }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
     // Snackbar mimo tělo efektu: vynulování hlášky mění klíč a zrušilo by ho.

@@ -121,9 +121,8 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   konverzace, notifikace se dvěma akcemi a Přečteno, dlaždice, obnova po `am kill`. Podpis
   obou AAB týmž upload klíčem (`keytool -printcert -jarfile`).
 - **První vydání 2026-10-24** (`android-0.3.100-138`): workflow nahrál bundl hodinek na
-  `wear:internal` jako 100000138, „Dostupné interním testerům" na 82 zařízeních. Instalace z Play na
-  Pixel Watch pak prošla a aplikace na hodinkách funguje; zpřístupnění trvalo déle než u telefonu
-  a hodinky se v Play („instalovat na další zařízení") objevily až po delší době.
+  `wear:internal` jako 100000138, „Dostupné interním testerům" na 82 zařízeních. Instalace na
+  skutečné hodinky z Play zatím neověřená.
 
 ## Self-hosted runnery
 

@@ -112,6 +112,7 @@ import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.stories.StoriesViewModel
+import eu.tintera.plume.features.videochat.VideoChatSession
 import eu.tintera.plume.features.videochat.VideoChatViewModel
 import eu.tintera.plume.features.stories.StoryComposerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
@@ -709,13 +710,13 @@ fun appModule() = module {
     viewModelOf(::CallsViewModel)
     viewModelOf(::DownloadsViewModel)
     viewModelOf(::MyStoriesViewModel)
+    // Videochat žije s aplikací, ne s obrazovkou: posluchač v něm zůstává i mimo ni.
+    single { VideoChatSession(repository = get(), media = getOrNull(), appScope = get(named(APP_SCOPE))) }
     viewModel { parameters ->
         VideoChatViewModel(
             chatId = parameters.get(),
             groupCallId = parameters.values[1] as Int,
-            repository = get(),
-            appScope = get(named(APP_SCOPE)),
-            media = getOrNull(),
+            session = get(),
         )
     }
 

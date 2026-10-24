@@ -118,7 +118,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     val appScope = koinInject<CoroutineScope>(named(APP_SCOPE))
     val scope = rememberCoroutineScope()
     val listState by chats.chats().collectAsState()
-    val title = chatTitle(chatId, (listState as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }?.title.orEmpty(), savedMessagesChatId())
+    val title = (listState as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }?.title.orEmpty()
 
     var messages by remember(chatId) { mutableStateOf<List<ChatMessage>?>(null) }
     var failed by remember(chatId) { mutableStateOf(false) }

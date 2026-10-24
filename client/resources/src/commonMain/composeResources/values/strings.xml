@@ -1507,6 +1507,9 @@
     <string name="video_chat_hand_raised">Raised hand</string>
     <string name="video_chat_sends_video">Sharing video</string>
     <string name="video_chat_nobody">Nobody else is here yet.</string>
+    <string name="video_chat_bar_listening">Listening</string>
+    <string name="video_chat_bar_speaking">Speaking</string>
+    <string name="video_chat_notification_listening">You're in the video chat. Tap to open the group.</string>
     <string name="video_chat_unmute">Unmute</string>
     <string name="video_chat_mute">Mute</string>
     <string name="video_chat_raise_hand">Raise hand</string>
