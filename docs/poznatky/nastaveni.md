@@ -1199,7 +1199,7 @@ změně jazyka (`Locale.current`; proces změnu přežije).
 - **Android potřebuje `localeConfig`** (`res/xml/locales_config.xml` v `:client:androidApp`) —
   bez něj Plume v systémovém výběru jazyka aplikací vůbec nebyl, protože přeložené texty jsou
   v composeResources, ne v Android `values-*`.
-- **Seznam jazyků se generuje ze složek `values-*`** (`:client:shared:generateAppLanguages`):
+- **Seznam jazyků se generuje ze složek `values-*`** (`:client:resources:generateAppLanguages`):
   angličtina, jazyky, které píšeme sami (`completeLocales`), a komunitní jazyky přeložené aspoň
   z 80 % (`minLanguageCoverage`). Z něj vzniká `APP_LANGUAGES` (`GENERATED_APP_LANGUAGES`)
   i `locales_config.xml` (`generateLocaleConfig` v `:client:androidApp`, přidané jako
