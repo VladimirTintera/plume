@@ -672,7 +672,8 @@ private fun CodeForm(
     onQrLogin: () -> Unit,
     onChangeNumber: () -> Unit,
 ) {
-    val complete = code.digits == null || value.length == code.digits
+    val digits = code.digits
+    val complete = digits == null || value.length == digits
     /*
      * Kód jen do Telegramu a jinou cestu server nedá — našemu `api_id` je to pravidlo, ne
      * výjimka (`docs/poznatky/prihlaseni.md`, „Kód jinou cestou"). Kdo nemá přihlášenou jinou
@@ -685,7 +686,7 @@ private fun CodeForm(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        if (code.digits == null) {
+        if (digits == null) {
             // Slovo ani fráze se do políček na číslice nevejdou a chtějí písmenkovou klávesnici.
             AuthTextField(
                 value = value,
@@ -699,12 +700,12 @@ private fun CodeForm(
         } else {
             CodeField(
                 value = value,
-                digits = code.digits,
+                digits = digits,
                 isError = error != null,
                 onValueChange = onValueChange,
                 onSubmit = onSubmit,
             )
-            LaunchedEffect(value) { if (value.length == code.digits) onSubmit() }
+            LaunchedEffect(value) { if (value.length == digits) onSubmit() }
         }
 
         FormError(error)

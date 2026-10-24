@@ -800,18 +800,19 @@ private fun DocumentContent(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
+            val thumbnailFileId = document.thumbnailFileId
             when {
                 uploading -> UploadIndicator(fileId = document.fileId, onCancel = onCancelUpload)
                 // Citlivý náhled je rozostřený, bez štítku (na 48 dp se nevejde); ťuknutí na něj
                 // ho odkryje, ťuknutí na název soubor otevře.
-                document.thumbnailFileId != null -> SensitiveBox(
+                thumbnailFileId != null -> SensitiveBox(
                     messageId = messageId,
                     hidden = document.isSensitive,
                     label = false,
                     onLongClick = onRequestMenu,
                 ) { blur ->
                     DocumentThumbnail(
-                        thumbnailFileId = document.thumbnailFileId,
+                        thumbnailFileId = thumbnailFileId,
                         kind = kind,
                         progress = progress,
                         modifier = blur,

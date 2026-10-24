@@ -150,10 +150,11 @@ fun DeleteChatOptions(
 
     // Vlastník odchází: na koho chat přejde, má vědět dřív, než ťukne (vrátit to nejde).
     val heir = spam?.ownerAfterLeaving?.takeIf { !isPrivate }?.let { owner ->
+        val name = owner.name
         when {
-            owner.name == null -> stringResource(Res.string.chats_leave_owner_none)
-            owner.immediately -> stringResource(Res.string.chats_leave_owner_now, owner.name)
-            else -> stringResource(Res.string.chats_leave_owner_later, owner.name)
+            name == null -> stringResource(Res.string.chats_leave_owner_none)
+            owner.immediately -> stringResource(Res.string.chats_leave_owner_now, name)
+            else -> stringResource(Res.string.chats_leave_owner_later, name)
         }
     }
     val leaveBody = stringResource(if (isPrivate) Res.string.chats_delete_body else Res.string.chats_leave_body, title)

@@ -25,7 +25,7 @@ Rozpracovaný detail chatu má vlastní seznam:
 ```bash
 ./gradlew :client:androidApp:assembleDebug          # Android APK
 ./gradlew :client:shared:linkDebugFrameworkIosSimulatorArm64   # ověření iOS linku
-./gradlew :client:shared:testAndroidHostTest       # testy commonTest na JVM (sekundy, bez emulátoru)
+./gradlew :client:shared:testAndroidHostTest :client:core:testAndroidHostTest   # testy commonTest na JVM (sekundy, bez emulátoru)
 ./gradlew :client:desktopApp:run                    # desktop
 open iosApp/iosApp.xcodeproj                         # iOS se staví z Xcode
 ```
@@ -185,7 +185,9 @@ na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
 ```
 client/
   resources/   :client:resources  – KMP knihovna s composeResources (texty, ikony, fonty) a `Res`
-  shared/      :client:shared     – KMP knihovna klienta
+  core/        :client:core       – vrstva kolem TDLib (core/telegram a co potřebuje); jediná s TDLib
+  core-testing/ :client:core-testing – náhražky typů z core pro testy core i shared
+  shared/      :client:shared     – KMP knihovna klienta (features, UI, Koin, AppSettings, notifikace)
   androidApp/  :client:androidApp – com.android.application, jen vstupní bod
   desktopApp/  :client:desktopApp – Compose Desktop (kotlin-jvm), jen vstupní bod a balení
 iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:shared
@@ -208,9 +210,20 @@ v build skriptu: `plume.source-checks` (kontroly zdrojáků na `check`), `plume.
 **Každý vstupní bod, který přibalí TDLib, musí použít jeden z pluginů `plume.tdlib-*`** — jinak
 ho dárek bez pozadí shodí a hlídání po přihlášení to ohlásí až za běhu.
 
-**Vrstva `core` nesahá na `features` ani `app`, ani v testech** (`verifyCoreLayering`) — příprava
-na vyčlenění `:client:core`. Typ, který potřebují obě, patří do `core`; volá-li `core` kód
+**Vrstva `core` nesahá na `features` ani `app`, ani v testech** (`verifyCoreLayering`). Modul
+`:client:core` to má z principu, kontrola hlídá balíčky `core.*`, které zůstaly ve `shared`
+(`core/ui`, `core/notifications`…). Typ, který potřebují obě, patří do `core`; volá-li `core` kód
 z `features`, rozhraní je v `core` a implementace ve `features` (Koin), viz KDoc kontroly.
+
+**Balíčky `core.*` jsou rozdělené mezi `:client:core` a `:client:shared`** (např. `UiText`
+v `core`, komponenty `core/ui` ve `shared`). Patří-li soubor do `core`, rozhoduje to, jestli ho
+`core/telegram` potřebuje, ne jeho balíček. Dvě věci z toho plynou:
+- **Co `shared` z `core` používá, musí být veřejné** — `internal` platí jen v modulu. Typ
+  z TDLib ale do veřejného API `core` nepatří (mimo `core` by ho nikdo nepřeložil); takové
+  pomocníky nech `internal`.
+- **Smart cast na vlastnost třídy z `core` nefunguje** („public API property declared in
+  different module"): kompilátor u cizího modulu nezaručí, že se hodnota mezi kontrolou
+  a použitím nezmění. Hodnota do lokální proměnné (`val id = x.fileId; if (id != null) …`).
 
 ### Source-set hierarchie v `:client:shared`
 
@@ -220,7 +233,9 @@ z `features`, rozhraní je v `core` a implementace ve `features` (Koin), viz KDo
 
 ## Hranice kolem TDLib — nejdůležitější pravidlo projektu
 
-Balíček `core/telegram` je **jediné místo, kde smí být `import dev.g000sha256.tdl.*`**. Zbytek
+Modul `:client:core` (balíček `core/telegram`) je **jediné místo, kde smí být
+`import dev.g000sha256.tdl.*`** — a od jeho vyčlenění to hlídá kompilátor: wrapper je jeho
+`implementation` závislost, jinde se import nepřeloží. Zbytek
 aplikace vidí jen doménová rozhraní: `TelegramSession` (přihlášení), `ChatRepository` (seznam
 chatů), `ConversationRepository` (obsah konverzace), `FileRepository` (soubory a média). Klienta
 sdílí přes `TelegramClientHolder` — TDLib klient je jeden na proces.

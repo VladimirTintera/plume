@@ -222,7 +222,7 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 
 ## Rozdělení `:client:shared`: vrstva kolem TDLib do `:client:core`
 
-**Rozpracované** (od 24. 10. 2026, po dokončení hovorů), po krocích níž, každý vlastní PR.
+**Hotovo** (24. 10. 2026, kroky 1–3c níž, každý vlastní PR). Zbývá jen to, co potřebuje Wear OS.
 
 **Proč i bez Wear OS:** hranice kolem TDLib a wrapperu (nejdůležitější pravidlo projektu) dnes
 drží jen dohoda. Po rozdělení je wrapper závislost jen modulu `core` a `import dev.g000sha256.tdl.*`
@@ -278,19 +278,19 @@ bez Compose UI.
   s ntgcalls zůstává ve `shared` a zapojí se přes Koin (dnes už je to tak); Wear hovory nemá.
 - ~~**Notifikace**~~ — hotovo v kroku 3a: `NotificationPresenter` je v `core/notifications`
   ve `shared`. Rozhraní netřeba, `core` ho nevolá — je to konzument `NotificationRepository`.
-- **`internal`** přestane platit napříč moduly: ~40 jmen z budoucího `core` používá zbytek
-  aplikace (část falešné shody obecných slov), zbytek se při kroku 3c zveřejní podle chyb
-  překladu. Signatura s typem z TDLib by tím vyplavala jako chyba — to je správně.
+- ~~**`internal`**~~ — v kroku 3c se zveřejnilo 19 deklarací podle chyb překladu (formátování
+  dat, diakritika, platforma desktopu, `TdlCallRepository`, `TdlDownloadsRepository`); 16 míst
+  ve `shared` dostalo lokální proměnnou místo smart castu na vlastnost z cizího modulu.
 - ~~**Gradle a hook `TdlibJsonRepair`**~~ — hotovo: kontroly, jazyky a hook jsou konvenční
   pluginy v `build-logic/` (CLAUDE.md, „Struktura modulů"); `wearApp` si vezme
   `plume.tdlib-android`. Konvence pro cíle KMP zatím není — s jedním KMP modulem by neměla
   komu sloužit; přibude při vyčlenění `core`, až bude vidět, které cíle a binárky mu patří.
 - **iOS dál jeden framework** z UI modulu, `core` se do něj zabalí (dva frameworky = dva
   runtime). Pravidlo „jediný modul s KMP pluginem" v `CLAUDE.md` se přepíše.
-- **Koin:** `core` dodá svůj modul (eager repository s `createdAtStart` zůstávají v něm), UI zbytek.
-- **Testovací náhražky** typů z `core` (`Fake…`, `Unimplemented…`, `testMessage`) používají
-  hlavně testy `features` (~57 souborů), testy `core` jen třikrát — `:client:core-testing`
-  (náhražky v `commonMain`), na kterém visí testy obou modulů.
+- **Koin:** definice repository (i eager `createdAtStart`) zatím zůstávají v `AppModule` ve `shared`; vlastní `coreModule()` až pro `wearApp`.
+- ~~**Testovací náhražky**~~ — v `:client:core-testing` (9 souborů), na kterém visí testy obou
+  modulů. 115 testů přešlo do `core` (dva rozdělené testy z `features`), součet testů obou
+  modulů sedí na kus s tím před rozdělením.
 - **iOS:** všechno, co volá Swift (`IosPush`, `IosLinks`, AI od Applu, `MainViewController`),
   zůstává ve `shared` — framework `export` nepotřebuje.
 - **Mimo `core`/`features` zbývá:** `TdlTelegramSession` čte `BuildConfiguration` (buildConfig
@@ -307,11 +307,13 @@ bez Compose UI.
    - **3b** ~~`:client:resources`: všechny `composeResources`, `plume.translations`, seznam
      jazyků, `generateLocaleConfig`, `release_notes.py exempt`~~ — hotovo. Weblate se zakládá až
      s veřejným repem (sekce „Komunitní překlad"), maska tam už míří na nové místo.
-   - **3c** `:client:core`: `git mv` uzávěru (ať zůstane historie), `tdl-coroutines` jen tady
-     (`implementation`), `BuildConfiguration`, `coreModule()` v Koinu, `internal` → veřejné podle
-     chyb překladu, testy `core` a `:client:core-testing`, konvence pro cíle KMP, CLAUDE.md
-     (hranice TDLib vynucená modulem, pravidlo „jediný modul s KMP pluginem" padá).
-4. Pak případně `:client:wearApp` (MVP v sekci Wear OS).
+   - **3c** ~~`:client:core`: `git mv` uzávěru (202 souborů), `tdl-coroutines` jen tady,
+     `BuildConfiguration`, `internal` → veřejné, testy a `:client:core-testing`, CLAUDE.md~~ —
+     hotovo. **Vědomě odložené:** `coreModule()` v Koinu (definice repository zůstaly
+     v `AppModule` ve `shared`, který je kořenem skládání aplikace; vyčlenit, až je bude
+     potřebovat `wearApp`) a konvence pro cíle KMP v `build-logic` (tři moduly ji mají ručně,
+     jsou to čtyři řádky).
+4. Pak případně `:client:wearApp` (MVP v sekci Wear OS); napřed `coreModule()` v Koinu z `AppModule`.
 
 ## Wear OS
 

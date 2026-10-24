@@ -302,7 +302,7 @@ class MediaViewerViewModel(
             // odesílateli ukázal „vypršelo", i když příjemce médium ještě neviděl.
             if (ownSelfDestruct) return
 
-            if (!awaitSelfDestructMedia(initialMessage.media)) return
+            if (!awaitSelfDestructMedia(initialMessage.media ?: return)) return
 
             if (selfDestructType !is SelfDestructType.Timer) {
                 // Jednorázové zhlédnutí: TDLib po `openMessageContent` obsah hned zahodí i se

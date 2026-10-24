@@ -33,10 +33,11 @@ internal fun VideoChatBar(
     glass: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
+    val scheduledStart = info.scheduledStart
     val title = when {
-        info.scheduledStart != null -> stringResource(
+        scheduledStart != null -> stringResource(
             if (info.isLiveStream) Res.string.video_chat_live_scheduled else Res.string.video_chat_scheduled,
-            info.scheduledStart.toLong().asUpcomingTime(),
+            scheduledStart.toLong().asUpcomingTime(),
         )
         info.isLiveStream -> stringResource(Res.string.video_chat_live)
         else -> stringResource(Res.string.video_chat_active)
