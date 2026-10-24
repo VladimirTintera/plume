@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
 import eu.tintera.plume.di.MINI_APP_STORAGE
 import eu.tintera.plume.core.ui.StoryVideo
@@ -17,8 +18,6 @@ import org.koin.core.qualifier.named
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.calendar.CalendarEvents
-import eu.tintera.plume.core.connectivity.AppForeground
-import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.contacts.ContactSaver
 import eu.tintera.plume.core.currency.HomeRegion
 import eu.tintera.plume.core.files.FileOpener
@@ -33,11 +32,10 @@ import eu.tintera.plume.core.notifications.desktopNotifier
 import eu.tintera.plume.core.ocr.RecognizedText
 import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.platform.desktopDataDirectory
-import eu.tintera.plume.core.platform.desktopDebugBuild
 import eu.tintera.plume.core.secrets.AppLockStore
-import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.secrets.desktopSecretStore
+import eu.tintera.plume.core.secrets.secretService
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.calls.CALL_JOURNAL_DIRECTORY
 import eu.tintera.plume.core.calls.CallJournal
@@ -45,7 +43,6 @@ import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.snooze.SnoozeReminders
 import eu.tintera.plume.core.notifications.NotificationPresenter
-import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.DesktopSquarePhoto
 import eu.tintera.plume.core.ui.DesktopStoryPhoto
@@ -83,12 +80,6 @@ actual fun Module.platformModule() {
         single(createdAtStart = true) { DesktopCallShutdown(calls = get(), media = get()).also { it.install() } }
         // Vyzvánění příchozího hovoru a tón protistrany u odchozího.
         single(createdAtStart = true) { DesktopCallRinger(calls = get(), scope = get(named(APP_SCOPE))).also { it.start() } }
-    }
-    single { TelegramPaths() }
-    single<DatabaseKeyStore> {
-        object : DatabaseKeyStore, SecretStore by desktopSecretStore(
-            service = secretService("eu.tintera.plume.tdlib"), account = "database-key", logTag = "DatabaseKey",
-        ) {}
     }
     single<AppLockStore> {
         object : AppLockStore, SecretStore by desktopSecretStore(
@@ -128,8 +119,6 @@ actual fun Module.platformModule() {
             override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) = Unit
         }
     }
-    single { NetworkMonitor() }
-    single { AppForeground() }
     single { AppUpdates() }
     single { TextClipboard() }
     single { CalendarEvents() }
@@ -172,10 +161,3 @@ actual fun Module.platformModule() {
     single { createSettingsDataStore(File(desktopDataDirectory, SETTINGS_FILE_NAME).path) }
     single(named(MINI_APP_STORAGE)) { createSettingsDataStore(File(desktopDataDirectory, MINI_APP_STORAGE_FILE_NAME).path) }
 }
-
-/**
- * Ladicí běh má vlastní adresář dat (`plume.dataDir`), a proto i vlastní položky v Klíčence.
- * Se společnou položkou by odhlášení v jednom smazalo klíč k databázi i druhému a ten by o ni
- * přišel.
- */
-private fun secretService(name: String): String = if (desktopDebugBuild) "$name.debug" else name

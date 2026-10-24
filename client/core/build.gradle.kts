@@ -22,7 +22,7 @@ plugins {
  *   rozdělené mezi tenhle modul a `:client:shared`. Kotlinu to nevadí; co odsud chce zbytek
  *   aplikace, musí být veřejné — `internal` platí jen uvnitř modulu.
  * - Co sem patří, je změřené grafem závislostí od `core/telegram` (roadmapa, „Rozdělení
- *   `:client:shared`"). Koin zůstává ve `shared`, který je kořenem skládání aplikace.
+ *   `:client:shared`"). Definice pro Koin nese `coreModule()`; vstupní bod ho jen zahrne.
  */
 kotlin {
     jvmToolchain(17)
@@ -58,6 +58,9 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.kermit)
             implementation(libs.okio)
+            // `coreModule()`: definice vrstvy kolem TDLib pro Koin (client/core/…/di/CoreModule.kt).
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.core)
 
             // TDLib (Android, iOS, desktop). JEN tady — viz „Hranice kolem TDLib" v CLAUDE.md.
             implementation(libs.tdl.coroutines)
@@ -65,6 +68,8 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
+            // `androidContext()` v `corePlatformModule()`.
+            implementation(libs.koin.android)
         }
 
         commonTest.dependencies {

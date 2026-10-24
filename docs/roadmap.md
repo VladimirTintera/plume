@@ -287,7 +287,7 @@ bez Compose UI.
   komu sloužit; přibude při vyčlenění `core`, až bude vidět, které cíle a binárky mu patří.
 - **iOS dál jeden framework** z UI modulu, `core` se do něj zabalí (dva frameworky = dva
   runtime). Pravidlo „jediný modul s KMP pluginem" v `CLAUDE.md` se přepíše.
-- **Koin:** definice repository (i eager `createdAtStart`) zatím zůstávají v `AppModule` ve `shared`; vlastní `coreModule()` až pro `wearApp`.
+- ~~**Koin**~~ — `coreModule()` v `core` (48 definic: klient, přihlášení, repository a pomocníci i s eager definicemi, `APP_SCOPE`, platformní cesty, síť, popředí a klíč databáze i s úložišti tajemství); `appModule()` ho zahrne. Hovory (`CallMedia`…) dál registruje aplikace.
 - ~~**Testovací náhražky**~~ — v `:client:core-testing` (9 souborů), na kterém visí testy obou
   modulů. 115 testů přešlo do `core` (dva rozdělené testy z `features`), součet testů obou
   modulů sedí na kus s tím před rozdělením.
@@ -309,11 +309,9 @@ bez Compose UI.
      s veřejným repem (sekce „Komunitní překlad"), maska tam už míří na nové místo.
    - **3c** ~~`:client:core`: `git mv` uzávěru (202 souborů), `tdl-coroutines` jen tady,
      `BuildConfiguration`, `internal` → veřejné, testy a `:client:core-testing`, CLAUDE.md~~ —
-     hotovo. **Vědomě odložené:** `coreModule()` v Koinu (definice repository zůstaly
-     v `AppModule` ve `shared`, který je kořenem skládání aplikace; vyčlenit, až je bude
-     potřebovat `wearApp`) a konvence pro cíle KMP v `build-logic` (tři moduly ji mají ručně,
-     jsou to čtyři řádky).
-4. Pak případně `:client:wearApp` (MVP v sekci Wear OS); napřed `coreModule()` v Koinu z `AppModule`.
+     hotovo. `coreModule()` v Koinu přibyl hned potom. **Vědomě odložené:** konvence pro cíle
+     KMP v `build-logic` (tři moduly ji mají ručně, jsou to čtyři řádky).
+4. Pak případně `:client:wearApp` (MVP v sekci Wear OS) — vezme si `coreModule()`.
 
 ## Wear OS
 

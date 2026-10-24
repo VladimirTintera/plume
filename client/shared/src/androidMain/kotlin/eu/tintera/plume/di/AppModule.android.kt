@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
 import eu.tintera.plume.di.MINI_APP_STORAGE
 import eu.tintera.plume.core.ui.AndroidStoryVideo
@@ -58,10 +59,7 @@ import eu.tintera.plume.core.share.FileShareStore
 import eu.tintera.plume.core.ui.OUTGOING_DIRECTORY
 import okio.Path.Companion.toPath
 import java.io.File
-import eu.tintera.plume.core.connectivity.AppForeground
-import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
-import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.secrets.AppLockStore
 import eu.tintera.plume.core.secrets.KeystoreSecretStore
 import eu.tintera.plume.core.secrets.SecretStore
@@ -70,7 +68,6 @@ import eu.tintera.plume.core.calls.CALL_JOURNAL_DIRECTORY
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.notifications.NotificationPresenter
-import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.locale.AppLanguage
@@ -98,7 +95,6 @@ actual fun Module.platformModule() {
     // Zvlášť, protože ji potřebuje i úloha stahování (ModelDownloadWorker) — stav stahování,
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
     single { LiteRtOnDeviceAi(androidContext(), get()) }
-    single { TelegramPaths(androidContext()) }
     // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.
     // Zvuk hovoru vede systémový Telecom (most níž), náhradně Plume sám.
     single<CallMedia> { NtgCallMedia(androidContext(), routes = { get<TelecomCallBridge>().routes() }) }
@@ -109,11 +105,6 @@ actual fun Module.platformModule() {
     // Hovory přihlášené do systémového telefonu: souběh s GSM, auto, hodinky, výstup zvuku.
     single(createdAtStart = true) {
         TelecomCallBridge(context = androidContext(), calls = get(), chats = get(), scope = get(named(APP_SCOPE))).also { it.start() }
-    }
-    single<DatabaseKeyStore> {
-        object : DatabaseKeyStore, SecretStore by KeystoreSecretStore(
-            androidContext(), fileName = "tdlib-key", keyAlias = "plume_tdlib_database", logTag = "DatabaseKey",
-        ) {}
     }
     single<AppLockStore> {
         object : AppLockStore, SecretStore by KeystoreSecretStore(
@@ -139,8 +130,6 @@ actual fun Module.platformModule() {
     single<ShareStore> {
         FileShareStore(directory = File(androidContext().cacheDir, OUTGOING_DIRECTORY).absolutePath.toPath())
     }
-    single { NetworkMonitor(androidContext()) }
-    single { AppForeground(androidContext()) }
     single { AppUpdates(androidContext()) }
     single { TextClipboard(androidContext()) }
     single { CalendarEvents(androidContext()) }

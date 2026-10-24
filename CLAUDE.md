@@ -185,9 +185,11 @@ na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
 ```
 client/
   resources/   :client:resources  – KMP knihovna s composeResources (texty, ikony, fonty) a `Res`
-  core/        :client:core       – vrstva kolem TDLib (core/telegram a co potřebuje); jediná s TDLib
+  core/        :client:core       – vrstva kolem TDLib (core/telegram a co potřebuje); jediná s TDLib;
+                                    pro Koin `coreModule()` (klient, přihlášení, repository, APP_SCOPE)
   core-testing/ :client:core-testing – náhražky typů z core pro testy core i shared
-  shared/      :client:shared     – KMP knihovna klienta (features, UI, Koin, AppSettings, notifikace)
+  shared/      :client:shared     – KMP knihovna klienta (features, UI, AppSettings, notifikace);
+                                    `appModule()` zahrne `coreModule()` a přidá zbytek
   androidApp/  :client:androidApp – com.android.application, jen vstupní bod
   desktopApp/  :client:desktopApp – Compose Desktop (kotlin-jvm), jen vstupní bod a balení
 iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:shared
