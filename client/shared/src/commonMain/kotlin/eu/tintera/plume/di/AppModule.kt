@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.di.APP_SCOPE
+import eu.tintera.plume.core.di.coreModule
 import eu.tintera.plume.core.webapp.MiniAppStorage
 import eu.tintera.plume.core.webapp.DataStoreMiniAppStorage
 import eu.tintera.plume.features.stories.StoryEditTarget
@@ -41,46 +43,20 @@ import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
 import eu.tintera.plume.features.settings.OwnProfileMusicViewModel
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
-import eu.tintera.plume.core.telegram.TdlAccountRepository
-import eu.tintera.plume.core.telegram.TdlProxyRepository
-import eu.tintera.plume.core.telegram.ProxyRepository
-import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.features.profile.ChatAutosaveViewModel
 import eu.tintera.plume.features.forum.ForumTopicsViewModel
 import eu.tintera.plume.features.saved.SavedTopicsViewModel
 import eu.tintera.plume.features.webapp.WebAppViewModel
 import eu.tintera.plume.features.webapp.PreparedShareViewModel
-import eu.tintera.plume.core.telegram.WebAppRepository
-import eu.tintera.plume.core.telegram.TdlWebAppRepository
 import eu.tintera.plume.features.profile.EditChatViewModel
 import eu.tintera.plume.features.profile.MemberRightsViewModel
-import eu.tintera.plume.core.telegram.TdlProfileRepository
-import eu.tintera.plume.core.telegram.InviteLinkRepository
-import eu.tintera.plume.core.telegram.ChatFolderRepository
-import eu.tintera.plume.core.telegram.TdlChatFolderRepository
-import eu.tintera.plume.core.telegram.TdlInviteLinkRepository
-import eu.tintera.plume.core.telegram.ProfileRepository
-import eu.tintera.plume.core.telegram.DeviceRepository
-import eu.tintera.plume.core.telegram.PasswordRepository
-import eu.tintera.plume.core.telegram.TdlPasswordRepository
-import eu.tintera.plume.core.telegram.NotificationSettingsRepository
-import eu.tintera.plume.core.telegram.PrivacyRepository
-import eu.tintera.plume.core.telegram.SensitiveContentSettings
-import eu.tintera.plume.core.telegram.TdlPrivacyRepository
 import eu.tintera.plume.features.settings.AccountPrivacyViewModel
 import eu.tintera.plume.features.settings.PrivacySettingViewModel
-import eu.tintera.plume.core.telegram.DefaultAutoDeleteSettings
-import eu.tintera.plume.core.telegram.TdlDefaultAutoDeleteSettings
-import eu.tintera.plume.core.telegram.TdlSensitiveContentSettings
-import eu.tintera.plume.core.telegram.TdlNotificationSettingsRepository
-import eu.tintera.plume.core.telegram.TdlDeviceRepository
 import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.settings.StorageViewModel
 import eu.tintera.plume.core.storage.StorageCleaner
 import eu.tintera.plume.core.settings.AutoDownloadSync
-import eu.tintera.plume.core.telegram.StorageRepository
-import eu.tintera.plume.core.telegram.TdlStorageRepository
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.SponsoredLinkRequests
 import eu.tintera.plume.features.conversation.InlineQueryRequests
@@ -89,90 +65,28 @@ import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.LinkOpenRequests
-import eu.tintera.plume.core.telegram.InstantViewRepository
-import eu.tintera.plume.core.telegram.TdlInstantViewRepository
 import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.navigation.ChannelLimitRequests
-import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.features.channellimit.ChannelLimitViewModel
 import eu.tintera.plume.features.channellimit.PublicLinkLimitViewModel
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatFolder
-import eu.tintera.plume.core.telegram.ChatRepository
-import eu.tintera.plume.core.telegram.ConnectionController
-import eu.tintera.plume.core.calls.CallJournal
-import eu.tintera.plume.core.telegram.ConnectionRepository
-import eu.tintera.plume.core.telegram.TdlConnectionRepository
-import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.lock.AppLock
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.DataStoreAppSettings
-import eu.tintera.plume.core.telegram.EmojiRepository
-import eu.tintera.plume.core.telegram.StickerRepository
-import eu.tintera.plume.core.telegram.CustomEmojiRepository
-import eu.tintera.plume.core.telegram.TdlCustomEmojiRepository
-import eu.tintera.plume.core.telegram.GifRepository
-import eu.tintera.plume.core.telegram.PlaceRepository
-import eu.tintera.plume.core.telegram.TdlPlaceRepository
-import eu.tintera.plume.core.telegram.LiveLocationRepository
-import eu.tintera.plume.core.telegram.TdlLiveLocationRepository
-import eu.tintera.plume.core.telegram.TdlGifRepository
-import eu.tintera.plume.core.telegram.TdlEmojiRepository
-import eu.tintera.plume.core.telegram.QuickReaction
-import eu.tintera.plume.core.telegram.TdlQuickReaction
-import eu.tintera.plume.core.telegram.TdlTopicDrafts
-import eu.tintera.plume.core.telegram.TopicDrafts
-import eu.tintera.plume.core.telegram.AutoDownloadPresets
-import eu.tintera.plume.core.telegram.TdlAutoDownloadPresets
-import eu.tintera.plume.core.telegram.TdlStickerRepository
-import eu.tintera.plume.core.telegram.AiTextRepository
-import eu.tintera.plume.core.telegram.ContactSync
-import eu.tintera.plume.core.telegram.TdlContactSync
 import eu.tintera.plume.core.telegram.ConversationRepository
-import eu.tintera.plume.core.telegram.TdlAiTextRepository
-import eu.tintera.plume.core.telegram.TdlLiveUploads
-import eu.tintera.plume.core.telegram.LiveUploads
-import eu.tintera.plume.core.telegram.RevealedSpoilers
-import eu.tintera.plume.core.telegram.SelfDestructTimers
-import eu.tintera.plume.core.telegram.FileRepository
-import eu.tintera.plume.core.telegram.NotificationRepository
-import eu.tintera.plume.core.telegram.CallRepository
-import eu.tintera.plume.core.telegram.TdlCallRepository
-import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.LiveStreamMedia
-import eu.tintera.plume.core.connectivity.NetworkMonitor
-import eu.tintera.plume.core.calls.CallPointerDisplay
 import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.notifications.NotificationActions
-import eu.tintera.plume.core.telegram.TdlChatRepository
-import eu.tintera.plume.core.telegram.TdlConversationRepository
-import eu.tintera.plume.core.telegram.TdlForumRepository
-import eu.tintera.plume.core.telegram.TdlSavedTopicsRepository
-import eu.tintera.plume.core.telegram.SavedTopicsRepository
-import eu.tintera.plume.core.telegram.DirectTopicsRepository
-import eu.tintera.plume.core.telegram.TdlDirectTopicsRepository
 import eu.tintera.plume.features.direct.DirectTopicsViewModel
-import eu.tintera.plume.core.telegram.ForumRepository
-import eu.tintera.plume.core.telegram.TdlFileRepository
-import eu.tintera.plume.core.telegram.TdlNotificationRepository
-import eu.tintera.plume.core.telegram.TdlTelegramSession
-import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.notices.AccountNoticesViewModel
-import eu.tintera.plume.core.telegram.AccountNotices
-import eu.tintera.plume.core.telegram.TdlAccountNotices
-import eu.tintera.plume.core.telegram.StoryRepository
-import eu.tintera.plume.core.telegram.LiveStoryRepository
-import eu.tintera.plume.core.telegram.TdlLiveStoryRepository
-import eu.tintera.plume.core.telegram.TdlVideoChatRepository
-import eu.tintera.plume.core.telegram.VideoChatRepository
-import eu.tintera.plume.core.telegram.TdlStoryRepository
 import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
@@ -180,13 +94,9 @@ import eu.tintera.plume.features.links.ExternalLinkViewModel
 import eu.tintera.plume.features.calls.CallsViewModel
 import eu.tintera.plume.features.downloads.DownloadsViewModel
 import eu.tintera.plume.features.stories.MyStoriesViewModel
-import eu.tintera.plume.core.telegram.DownloadsRepository
-import eu.tintera.plume.core.telegram.TdlDownloadsRepository
 import eu.tintera.plume.features.settings.MyQrCodeViewModel
 import eu.tintera.plume.features.chats.NewContactViewModel
 import eu.tintera.plume.features.chats.CreateChatViewModel
-import eu.tintera.plume.core.telegram.ChatCreation
-import eu.tintera.plume.core.telegram.TdlChatCreation
 import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
@@ -211,10 +121,6 @@ import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
 import eu.tintera.plume.core.files.AutosaveWorker
 import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.autosavesToGallery
-import eu.tintera.plume.core.telegram.AutosaveRepository
-import eu.tintera.plume.core.telegram.NotificationSoundRepository
-import eu.tintera.plume.core.telegram.TdlNotificationSoundRepository
-import eu.tintera.plume.core.telegram.TdlAutosaveRepository
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.features.settings.ChatSwipeSettingsViewModel
 import eu.tintera.plume.features.settings.QuickReactionSettingsViewModel
@@ -251,36 +157,21 @@ import org.koin.dsl.module
 /** Platformní část grafu — na Androidu potřebuje Context, na iOS ne. */
 expect fun Module.platformModule()
 
-/**
- * Scope pro věci, které přežívají obrazovky (TDLib session, seznam chatů). Vědomě není vázaný
- * na `viewModelScope` — kdyby byl, seznam chatů by se rušil a znovu skládal při každé navigaci
- * a přišli bychom o živé updaty.
- */
-internal const val APP_SCOPE = "appScope"
 
 /** DataStore úložiště mini aplikací (`DeviceStorage`), vedle nastavení aplikace. */
 internal const val MINI_APP_STORAGE = "miniAppStorage"
 
 fun appModule() = module {
+    // Vrstva kolem TDLib (klient, přihlášení, repository, APP_SCOPE) — client/core, `coreModule()`.
+    includes(coreModule())
     platformModule()
 
-    single(named(APP_SCOPE)) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { KeyboardShortcuts() }
     single(createdAtStart = true) { AutoDownloadPolicy(settings = get(), network = get(), scope = get(named(APP_SCOPE))) }
 
-    // Jeden TDLib klient na proces; sdílí ho session i chat repository.
-    single { TelegramClientHolder() }
     // Ořez nové profilovky drží stav pro jednu obrazovku, proto factory.
     factory { ProfilePhotoCrop(squarePhoto = get(), profileVideo = get()) }
 
-    single<TelegramSession> {
-        TdlTelegramSession(
-            holder = get(),
-            paths = get(),
-            keys = get(),
-            scope = get(named(APP_SCOPE)),
-        )
-    }
 
     // Zámek aplikace musí znát stav dřív, než se složí první obrazovka, a sledovat popředí
     // i bez UI — proto eager. Klíč k databázi s ním nesouvisí, push jde dál bez ověření.
@@ -290,54 +181,7 @@ fun appModule() = module {
         }
     }
 
-    // `createdAtStart` je tu nutnost, ne optimalizace. Repository se v konstruktoru přihlašuje
-    // k odběru chat updatů; kdyby vznikla líně (až se poprvé složí obrazovka se seznamem),
-    // stihne to o stovky milisekund později než `AuthorizationStateReady` a první dávku
-    // `UpdateNewChat` by TDLib rozeslal do prázdna.
-    // Eagerně: styly psaní chodí jen updatem po přihlášení (viz `TdlAiTextRepository`).
-    single<ContactSync> { TdlContactSync(holder = get()) }
-    single<AiTextRepository>(createdAtStart = true) { TdlAiTextRepository(holder = get(), scope = get(named(APP_SCOPE))) }
-    // Eagerně: odběr `updateFileGenerationStart` musí běžet dřív než první nahrávání (viz `TdlLiveUploads`).
-    single<LiveUploads>(createdAtStart = true) { TdlLiveUploads(holder = get(), scope = get(named(APP_SCOPE))) }
-    single<ChatRepository>(createdAtStart = true) {
-        TdlChatRepository(
-            holder = get(),
-            session = get(),
-            scope = get(named(APP_SCOPE)),
-        )
-    }
-    // Eagerně: kdo má příběh, TDLib pošle spolu s chaty hned po přihlášení (viz `TdlStoryRepository`).
-    single<LiveStoryRepository> { TdlLiveStoryRepository(holder = get()) }
-    single<VideoChatRepository> { TdlVideoChatRepository(holder = get()) }
-    single<StoryRepository>(createdAtStart = true) {
-        TdlStoryRepository(holder = get(), session = get(), scope = get(named(APP_SCOPE)))
-    }
-    // Eager ze stejného důvodu: zmrazení účtu a podmínky služby TDLib pošle hned po startu
-    // a oznámení od služby jen jednou — odběr, který vznikne až s obrazovkou, by je minul.
-    single<AccountNotices>(createdAtStart = true) {
-        TdlAccountNotices(holder = get(), scope = get(named(APP_SCOPE)))
-    }
-    // Eager ze stejného důvodu: nové zprávy chodí updatem, ukládání do galerie je nesmí minout.
-    single<AutosaveRepository>(createdAtStart = true) {
-        TdlAutosaveRepository(holder = get(), scope = get(named(APP_SCOPE)))
-    }
-    single<NotificationSoundRepository> { TdlNotificationSoundRepository(holder = get()) }
-    single<DownloadsRepository> { TdlDownloadsRepository(holder = get()) }
-    // Eager: příchozí hovor chodí updatem a nesmí se minout. Mediální vrstva je jen tam,
-    // kde ji platformní modul zaregistruje (Android); jinde jsou hovory nedostupné.
     single { CallRequests() }
-    single<CallRepository>(createdAtStart = true) {
-        TdlCallRepository(
-            holder = get(),
-            media = getOrNull<CallMedia>(),
-            scope = get(named(APP_SCOPE)),
-            network = getOrNull<NetworkMonitor>()?.status,
-            pointerDisplay = getOrNull<CallPointerDisplay>(),
-            journal = getOrNull<CallJournal>(),
-            foreground = getOrNull<AppForeground>()?.isForeground,
-            applicationVersion = getOrNull<TelegramPaths>()?.applicationVersion.orEmpty(),
-        )
-    }
     if (autosavesToGallery) {
         single(createdAtStart = true) {
             val saver = get<MediaSaver>()
@@ -351,71 +195,16 @@ fun appModule() = module {
             ).also { it.start() }
         }
     }
-    // Eager ze stejného důvodu: `UpdateForumTopic` s konceptem chodí i bez otevřeného přehledu.
-    single<TopicDrafts>(createdAtStart = true) {
-        TdlTopicDrafts(holder = get(), chats = get(), scope = get(named(APP_SCOPE)))
-    }
 
-    // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
-    // drží ConversationViewModel.
-    single<ConversationRepository> { TdlConversationRepository(holder = get(), savedTopics = get(), directTopics = get()) }
-    single<ForumRepository> { TdlForumRepository(holder = get()) }
-    // Eagerně: témata Uložených zpráv chodí jen updaty, dotaz na seznam TDLib nemá.
-    single<SavedTopicsRepository>(createdAtStart = true) {
-        TdlSavedTopicsRepository(holder = get(), scope = get(named(APP_SCOPE)))
-    }
-    // Eagerně: vlákna přímých zpráv kanálu chodí taky jen updaty.
-    single<DirectTopicsRepository>(createdAtStart = true) {
-        TdlDirectTopicsRepository(holder = get(), scope = get(named(APP_SCOPE)))
-    }
-    single<WebAppRepository> { TdlWebAppRepository(holder = get()) }
 
     // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
     // dočkat se potvrzení, pak teprve přečíst), ne o další volání TDLib.
     single { NotificationActions(session = get(), conversations = get(), chats = get(), notifications = get()) }
 
-    // Eagerně: v konstruktoru se přihlašuje k `fileUpdates` a průběh stahování chodí pro všechny
-    // soubory. Při líné konstrukci by se ztratily updaty k souborům, jejichž stahování už běží.
-    single<FileRepository>(createdAtStart = true) {
-        TdlFileRepository(holder = get(), scope = get(named(APP_SCOPE)))
-    }
 
-    // Eagerně: v konstruktoru se odebírá `havePendingNotificationsUpdates`, který chodí jen na
-    // změnu. Presenter si ho sice vyžádá ze `startKoin` taky, ale na tom pořadí nemá co viset.
-    single<NotificationRepository>(createdAtStart = true) {
-        TdlNotificationRepository(holder = get(), scope = get(named(APP_SCOPE)))
-    }
 
-    // Eagerně ze stejného důvodu jako FileRepository: v konstruktoru se přihlašuje k odběru
-    // `connectionStateUpdates`. Kdyby vznikla až s první obrazovkou, prošvihla by přesně ty
-    // změny stavu, které se dějí při startu.
-    single<ConnectionRepository>(createdAtStart = true) {
-        TdlConnectionRepository(holder = get(), scope = get(named(APP_SCOPE)))
-    }
 
-    single {
-        ConnectionController(
-            connection = get(),
-            network = get(),
-            foreground = get(),
-            scope = get(named(APP_SCOPE)),
-        )
-    }
 
-    // Bezstavová — seznamy jsou toky nad updaty, drží se jen po dobu otevřeného výběru.
-    single<StickerRepository> { TdlStickerRepository(holder = get()) }
-    single<CustomEmojiRepository> { TdlCustomEmojiRepository(holder = get(), scope = get(named(APP_SCOPE))) }
-    single<GifRepository> { TdlGifRepository(holder = get()) }
-    single<PlaceRepository> { TdlPlaceRepository(holder = get()) }
-    // Eagerně: seznam živých poloh ke sdílení posílá TDLib jednou po startu (a pak na změnu).
-    single<LiveLocationRepository>(createdAtStart = true) {
-        TdlLiveLocationRepository(holder = get(), scope = get(named(APP_SCOPE)))
-    }
-    single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
-    // Eagerně: výchozí reakci i seznam emoji TDLib ohlásí jen updatem po přihlášení.
-    single<QuickReaction>(createdAtStart = true) {
-        TdlQuickReaction(holder = get(), scope = get(named(APP_SCOPE)))
-    }
 
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
     single<AppSettings>(createdAtStart = true) {
@@ -453,7 +242,6 @@ fun appModule() = module {
     single { ChatOpenRequests() }
     single { LinkOpenRequests() }
     single { InstantViewRequests() }
-    single<InstantViewRepository> { TdlInstantViewRepository(holder = get()) }
     single { BotStartRequests() }
     single { ContactOffers() }
     single { ChannelLimitRequests() }
@@ -478,21 +266,6 @@ fun appModule() = module {
     single { ConversationReplyRequests() }
     single { SponsoredLinkRequests() }
     single { InlineQueryRequests() }
-    single { RevealedSpoilers() }
-    single { SelfDestructTimers() }
-    single<ProfileRepository> { TdlProfileRepository(holder = get()) }
-    single<InviteLinkRepository> { TdlInviteLinkRepository(holder = get()) }
-    single<ChatFolderRepository> { TdlChatFolderRepository(holder = get()) }
-    single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
-    single<SensitiveContentSettings> { TdlSensitiveContentSettings(holder = get()) }
-    single<PrivacyRepository> { TdlPrivacyRepository(holder = get()) }
-    single<DefaultAutoDeleteSettings> { TdlDefaultAutoDeleteSettings(holder = get()) }
-    single<PasswordRepository> { TdlPasswordRepository(holder = get()) }
-    single<ChatCreation> { TdlChatCreation(holder = get()) }
-    single<AccountRepository> { TdlAccountRepository(holder = get()) }
-    single<ProxyRepository> { TdlProxyRepository(holder = get()) }
-    single<StorageRepository> { TdlStorageRepository(holder = get()) }
-    single<AutoDownloadPresets> { TdlAutoDownloadPresets(holder = get()) }
     single {
         AutoDownloadSync(
             settings = get(),
@@ -509,10 +282,6 @@ fun appModule() = module {
             foreground = get(),
             scope = get(named(APP_SCOPE)),
         )
-    }
-    // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
-    single<DeviceRepository>(createdAtStart = true) {
-        TdlDeviceRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
     // Na Androidu s úložištěm (`ShareStore`): sdílení na čipu přežije zabití procesu.
     single { ShareRequests(store = getOrNull(), scope = get(named(APP_SCOPE))) }

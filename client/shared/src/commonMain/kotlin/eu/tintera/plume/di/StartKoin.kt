@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.logging.configureLogging
 import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.core.storage.StorageCleaner

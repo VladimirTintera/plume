@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.secrets
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.platform.desktopDebugBuild
 import eu.tintera.plume.core.platform.DesktopOs
 import eu.tintera.plume.core.platform.desktopDataDirectory
 import eu.tintera.plume.core.platform.desktopOs
@@ -10,6 +11,13 @@ import java.nio.file.attribute.PosixFilePermissions
 import java.security.SecureRandom
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/**
+ * Ladicí běh má vlastní adresář dat (`plume.dataDir`), a proto i vlastní položky v Klíčence.
+ * Se společnou položkou by odhlášení v jednom smazalo klíč k databázi i druhému a ten by o ni
+ * přišel.
+ */
+fun secretService(name: String): String = if (desktopDebugBuild) "$name.debug" else name
 
 /**
  * Trezor tajemství na desktopu: na macOS Klíčenka, jinde soubor v datech aplikace.
