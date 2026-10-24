@@ -4121,4 +4121,16 @@
     <string name="wear_chats_title">Chats</string>
     <string name="wear_chats_empty">No chats yet</string>
     <string name="wear_conversation_empty">No messages yet</string>
+    <string name="wear_reply">Reply</string>
+    <string name="wear_reply_label">Your reply</string>
+    <string name="wear_quick_reply_1">👍</string>
+    <string name="wear_quick_reply_2">OK</string>
+    <string name="wear_quick_reply_3">Thanks!</string>
+    <string name="wear_quick_reply_4">On my way</string>
+    <string name="wear_quick_reply_5">I'll get back to you later</string>
+    <string name="wear_message_sending">Sending…</string>
+    <string name="wear_message_failed">Not sent</string>
+    <string name="wear_send_failed">Couldn't send the message.</string>
+    <string name="wear_reactions_title">Reactions</string>
+    <string name="wear_reactions_none">Reactions aren't available here.</string>
 </resources>
