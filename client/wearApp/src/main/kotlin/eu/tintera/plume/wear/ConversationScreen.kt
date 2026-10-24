@@ -34,7 +34,11 @@ import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -564,28 +568,57 @@ private fun MessageBubble(
 /**
  * Reakce a čas v JEDNOM řádku: reakce vlevo, čas vpravo, jako na telefonu. Dřív měl každý svůj
  * řádek a na malém displeji to bublinu zbytečně natahovalo (připomínka uživatele z Pixel Watch).
- * Delší řada reakcí se zalomí ve své části řádku, čas zůstane vpravo dole. Bez reakcí je čas
- * sám vpravo. [fill] = přes celou šířku bubliny; u samolepky a kolečka (bez bubliny) jen podle
- * obsahu, ať čas nestojí na opačném kraji displeje.
+ * Bez reakcí je čas sám vpravo. [fill] = přes celou šířku bubliny; u samolepky a kolečka (bez
+ * bubliny) jen podle obsahu, ať čas nestojí na opačném kraji displeje.
+ *
+ * Každá reakce je nedělitelná dvojice emoji + počet ([ReactionCount]) a řada se zalamuje po
+ * dvojicích (`FlowRow`): jako jeden text s mezerami se u kanálu s mnoha reakcemi zalomila mezi
+ * emoji a jeho počet, takže číslo viselo na začátku dalšího řádku u cizí reakce.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ReactionsAndStatus(reactions: List<MessageReaction>, status: String, statusColor: Color, fill: Boolean = true) {
-    val line = reactionsLine(reactions)
+    val shown = reactions.filter { customEmojiIdOf(it.emoji) == null }
     // S reakcemi kousek od obsahu: emoji jsou vyšší než čas a bez mezery se lepily na text.
-    val gap = if (line != null) Modifier.padding(top = 4.dp) else Modifier
+    val gap = if (shown.isNotEmpty()) Modifier.padding(top = 4.dp) else Modifier
     Row((if (fill) Modifier.fillMaxWidth() else Modifier).then(gap), verticalAlignment = Alignment.Bottom) {
-        if (line != null) {
-            Text(
-                line,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
+        if (shown.isNotEmpty()) {
+            FlowRow(
                 modifier = if (fill) Modifier.weight(1f) else Modifier.weight(1f, fill = false),
-            )
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                shown.forEach { ReactionCount(it) }
+            }
             Spacer(Modifier.width(6.dp))
         } else if (fill) {
             Spacer(Modifier.weight(1f))
         }
         Text(status, style = MaterialTheme.typography.labelSmall, color = statusColor, maxLines = 1)
+    }
+}
+
+/**
+ * Jedna reakce: emoji a hned za ním menší počet v tlumené barvě, jako čas. Počet stejně velký
+ * a stejně barevný jako emoji splýval s ním i se sousední reakcí. Vlastní reakce má počet tučně
+ * — barvou to nejde, akcent na tónované bublině kontrast nezaručuje (CLAUDE.md). Počet 1 se
+ * nepíše.
+ */
+@Composable
+private fun ReactionCount(reaction: MessageReaction) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(reaction.emoji, style = MaterialTheme.typography.labelMedium)
+        if (reaction.count > 1) {
+            Spacer(Modifier.width(2.dp))
+            Text(
+                reaction.count.toString(),
+                style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                fontWeight = if (reaction.isChosen) FontWeight.Bold else null,
+                color = if (reaction.isChosen) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -680,12 +713,6 @@ private fun CenteredNote(text: String, modifier: Modifier = Modifier) {
 }
 
 private const val BUBBLE_WIDTH = 0.85f
-
-/** Reakce pod zprávou jako „👍 2  ❤ 1"; vlastní emoji hodinky nevykreslí, vynechají se. */
-private fun reactionsLine(reactions: List<MessageReaction>): String? =
-    reactions.filter { customEmojiIdOf(it.emoji) == null }
-        .takeIf { it.isNotEmpty() }
-        ?.joinToString("  ") { if (it.count > 1) "${it.emoji} ${it.count}" else it.emoji }
 
 /**
  * Systémové zadávání hodinek: diktování, klávesnice a emoji, k tomu rychlé odpovědi jako volby.
