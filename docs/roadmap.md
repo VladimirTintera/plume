@@ -373,8 +373,8 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 
 1. ~~**Hlášení pádů (Crashlytics)**~~ — hotovo (`core/logging` přesunuté do `:client:core`,
    hodinky volají `configureLogging()`, release nahrává mapping soubor).
-2. **Odhlášení na hodinkách** — teď jde jen z telefonu (Zařízení → ukončit sezení); položka na
-   konci seznamu chatů s potvrzením.
+2. ~~**Odhlášení na hodinkách**~~ — hotovo (tlačítko na konci seznamu chatů s potvrzením;
+   samotné odhlášení na emulátoru nevyzkoušené, je na skutečném účtu).
 3. **Úklid úložiště** — mezipaměť TDLib roste s fotkami a hlasovkami, hodinky mají málo místa;
    `core` úklid umí (`TdlStorageRepository`), stačí limit a občasné spuštění.
 4. **Starší historie a citace** — konverzace jen posledních 30 zpráv, odpověď bez citované zprávy.

@@ -4303,6 +4303,9 @@
     </plurals>
     <string name="wear_complication_signed_out">Plume: nepřihlášeno</string>
     <string name="wear_tile_all_chats">Všechny chaty</string>
+    <string name="wear_logout">Odhlásit</string>
+    <string name="wear_logout_title">Odhlásit hodinky?</string>
+    <string name="wear_logout_text">Odhlásí se jen hodinky, telefon zůstane, jak je. Na hodinkách se pak znovu přihlásíš QR kódem.</string>
     <plurals name="wear_tile_new_messages">
         <item quantity="one">%1$d nová zpráva</item>
         <item quantity="few">%1$d nové zprávy</item>
