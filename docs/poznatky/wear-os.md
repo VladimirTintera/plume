@@ -118,7 +118,10 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   mění se oba. Bez souboru se hodinky přeloží, jen bez pushe.
 - **Notifikace kreslí `WearNotifications`** (telefonní presenter je ve `shared`): jedna na chat
   (`MessagingStyle`, id = `notificationGroupId`), stažená skupina (přečteno jinde) zmizí, ťuknutí
-  otevře aplikaci. Název konverzace jen ve skupině — v soukromém chatu je odesílatel totéž co
+  (na hodinkách „Open on watch") otevře rovnou konverzaci: `MainActivity.EXTRA_CHAT_ID` jako
+  u dlaždice s chaty, request code podle skupiny, aby se intenty chatů neslily. Ověřeno na
+  emulátoru s aplikací na pozadí i po `am kill` (notifikace zůstala, aktivita se obnovila
+  a konverzaci otevřela). Název konverzace jen ve skupině — v soukromém chatu je odesílatel totéž co
   název a titulek zněl „Notifikator: Notifikator".
 - **Akce Odpovědět a Přečteno** (`WearNotificationReceiver`, broadcast, `goAsync`) podle poučení
   telefonu (sekce „Akce z notifikace" v `notifikace.md`): `PendingIntent` odpovědi MUTABLE

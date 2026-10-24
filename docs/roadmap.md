@@ -358,8 +358,8 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
    zadávání notifikace na emulátoru neukazují, potvrzení přes ~9 s nemá úlohu jako telefon.
 
 **Po MVP:** ~~dlaždice a komplikace s počtem nepřečtených~~ — hotovo (bez náhledu dlaždice ve
-výběru); ~~dlaždice s posledními / připnutými chaty~~ — hotovo (ťuknutí otevře konverzaci;
-ťuknutí na notifikaci zatím otevírá jen aplikaci), ~~`localeConfig` pro jazyk aplikace na hodinkách~~ —
+výběru); ~~dlaždice s posledními / připnutými chaty~~ — hotovo (ťuknutí na chat i na notifikaci
+otevře konverzaci), ~~`localeConfig` pro jazyk aplikace na hodinkách~~ —
 hotovo (plugin `plume.locale-config`),
 ~~`units: wear` v poznámkách k vydání a release workflow~~ — hotovo (track `wear:internal`,
 `versionCode` + 100 000 000, minifikovaný release); Wear OS povolený v Play Console,
