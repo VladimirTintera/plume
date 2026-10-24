@@ -25,6 +25,11 @@
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
 
+        <!-- Hlášení pádů: placeholder z build typu (release true, jinak false), jako u telefonu. -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${crashlyticsCollectionEnabled}" />
+
         <service
             android:name=".WearMessagingService"
             android:exported="false">

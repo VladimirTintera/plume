@@ -3,6 +3,7 @@ package eu.tintera.plume.wear
 import android.app.Application
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
+import eu.tintera.plume.core.logging.configureLogging
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.FileRepository
@@ -23,6 +24,9 @@ class WearApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Kermit do logcatu a do Crashlytics (release), PŘED grafem závislostí: eager singletony
+        // a start TDLib logují už uvnitř `startKoin` (docs/poznatky/release.md, „Hlášení pádů").
+        configureLogging()
         val koin = startKoin {
             androidContext(this@WearApplication)
             modules(

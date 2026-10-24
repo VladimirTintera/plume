@@ -70,6 +70,10 @@ kotlin {
             implementation(libs.androidx.core.ktx)
             // `androidContext()` v `corePlatformModule()`.
             implementation(libs.koin.android)
+            // Hlásič pádů (core/logging) pro telefon i hodinky. Jediné místo v projektu, kde smí
+            // být Crashlytics na classpath. Bez `google-services.json` se knihovna jen neinicializuje.
+            implementation(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.crashlytics)
         }
 
         commonTest.dependencies {

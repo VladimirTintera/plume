@@ -309,6 +309,11 @@ rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
 
 - **`core/logging` je hranice**, stejně jako `core/telegram` kolem TDLib: `com.google.firebase.*`
   smí být importované jen tam, zbytek vidí rozhraní `CrashReporter`.
+- **Balíček leží v modulu `:client:core`** (od hlášení pádů na hodinkách), Crashlytics je
+  `androidMain` závislost `core`. Hodinky stojí jen na `core`, a ve `shared` by se k němu
+  nedostaly — druhá kopie mostu by se s první rozešla. Vstupní bod volá `configureLogging()`
+  (telefon v `startKoin` ve `shared`, hodinky v `WearApplication.onCreate`) a aplikuje plugin
+  `crashlytics` za `google-services`.
 - **Hranice závažnosti jsou dvě, ne jedna.** Od `Info` výš se log přikládá k pádu jako kontext
   (`d`/`v` ne — Crashlytics si ke hlášení drží nejvýš 64 kB logu a starší řádky zahazuje). Samostatný problém
   v konzoli zakládá až `e` **s výjimkou**. Důvod: `logger.w` je v projektu hlášení OČEKÁVANÉHO

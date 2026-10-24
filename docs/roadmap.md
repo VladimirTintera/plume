@@ -369,6 +369,19 @@ hotovo (plugin `plume.locale-config`),
 hodinky z testovacích účtů do záznamu (ručně, Play Listing je zatím neumí), pak přihlášení k distribuci pro Wear OS s kontrolou kvality od Googlu. Fotky v konverzaci hotovo (v bublině a přes
 celý displej); hovory, video, nastavení a správa skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpovědí jen ze systému.
 
+**Další kroky po prvním vydání (2026-10-24, v tomhle pořadí):**
+
+1. ~~**Hlášení pádů (Crashlytics)**~~ — hotovo (`core/logging` přesunuté do `:client:core`,
+   hodinky volají `configureLogging()`, release nahrává mapping soubor).
+2. **Odhlášení na hodinkách** — teď jde jen z telefonu (Zařízení → ukončit sezení); položka na
+   konci seznamu chatů s potvrzením.
+3. **Úklid úložiště** — mezipaměť TDLib roste s fotkami a hlasovkami, hodinky mají málo místa;
+   `core` úklid umí (`TdlStorageRepository`), stačí limit a občasné spuštění.
+4. **Starší historie a citace** — konverzace jen posledních 30 zpráv, odpověď bez citované zprávy.
+5. **Další média** — statické samolepky a náhledy videí (bez přehrávání); animované samolepky,
+   GIFy a video jsou na hodinkách drahé.
+6. **Snímky do Play** přes workflow Play Listing (`wearScreenshots`), ne ručně.
+
 **Rizika, ověřit napřed:**
 
 - ~~**Velikost APK.**~~ Vyřešené rozdělením: `wearApp` stojí jen na `:client:core`; debug APK
