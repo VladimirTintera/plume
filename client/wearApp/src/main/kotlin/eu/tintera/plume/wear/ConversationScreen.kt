@@ -1,5 +1,11 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.conversation_forwarded_from
+import eu.tintera.plume.resources.conversation_forwarded
+import eu.tintera.plume.resources.conversation_edited
+import eu.tintera.plume.core.ui.fileSizeText
+import androidx.compose.ui.text.font.FontStyle
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageEntity
 import androidx.compose.ui.text.style.TextDecoration
@@ -507,7 +513,10 @@ private fun MessageBubble(
     val status = when (message.sendState) {
         SendState.Sending -> stringResource(Res.string.wear_message_sending)
         SendState.Failed -> stringResource(Res.string.wear_message_failed)
-        SendState.Sent, null -> message.timestamp.asTimeOfDay()
+        // „upraveno" k času, jako na telefonu — u zprávy, kterou někdo přepsal, to mění význam.
+        SendState.Sent, null -> message.timestamp.asTimeOfDay().let { time ->
+            if (message.isEdited) "${stringResource(Res.string.conversation_edited)} $time" else time
+        }
     }
     Box(Modifier.fillMaxWidth(), contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart) {
         Column(
@@ -523,6 +532,18 @@ private fun MessageBubble(
             sender?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1)
             }
+            // Přeposláno od …: bez toho by přeposlaná zpráva vypadala jako vlastní slova odesílatele.
+            message.forwardOrigin?.let { origin ->
+                Text(
+                    origin.name?.let { stringResource(Res.string.conversation_forwarded_from, it) }
+                        ?: stringResource(Res.string.conversation_forwarded),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontStyle = FontStyle.Italic,
+                    color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             quote?.let { ReplyQuote(it, chatTitle, outgoing) }
             val photo = message.media?.shownPhoto()
             if (photo != null) {
@@ -531,6 +552,10 @@ private fun MessageBubble(
             val video = message.media?.shownVideo()
             if (video != null) {
                 MessageVideo(video, modifier = Modifier.padding(vertical = 4.dp))
+            }
+            val document = message.media as? MessageMedia.Document
+            if (document != null) {
+                MessageDocument(document, outgoing)
             }
             val poll = message.poll
             if (poll != null) {
@@ -557,7 +582,7 @@ private fun MessageBubble(
             // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se
             // jen případný popisek.
             // Anketa se kreslí celá — `text` u ní nese jen „Anketa: otázka".
-            if (poll == null && ((voice == null && photo == null && video == null) || message.text.isNotEmpty())) {
+            if (poll == null && ((voice == null && photo == null && video == null && document == null) || message.text.isNotEmpty())) {
                 val textColor = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                 // Odkaz na tónové bublině: akcent jen v příchozí, v odchozí barva popředí bubliny —
                 // `primary` na `primaryContainer` kontrast nezaručuje (CLAUDE.md). Odlišení nese
@@ -579,6 +604,23 @@ private fun MessageBubble(
                 color = if (message.sendState == SendState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.End),
             )
+        }
+    }
+}
+
+/**
+ * Soubor: ikona, jméno a velikost místo slova „Soubor". Otevřít ho na hodinkách nejde (prohlížeče
+ * dokumentů tam nejsou) — ťuknutí patří bublině; jméno aspoň řekne, co přišlo.
+ */
+@Composable
+private fun MessageDocument(document: MessageMedia.Document, outgoing: Boolean) {
+    val color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(painterResource(Res.drawable.description_24dp), contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(6.dp))
+        Column {
+            Text(document.fileName, style = MaterialTheme.typography.bodySmall, color = color, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(fileSizeText(document.sizeBytes), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
