@@ -4144,4 +4144,16 @@
     <string name="wear_notification_me">You</string>
     <string name="wear_notification_mark_read">Mark as read</string>
     <string name="wear_notification_not_sent">Not sent: %1$s</string>
+    <plurals name="wear_tile_unread_chats">
+        <item quantity="one">unread chat</item>
+        <item quantity="other">unread chats</item>
+    </plurals>
+    <string name="wear_tile_open">Open</string>
+    <string name="wear_tile_signed_out">Sign in to Plume to see unread chats</string>
+    <string name="wear_tile_unknown">Open Plume to load your chats</string>
+    <plurals name="wear_complication_unread">
+        <item quantity="one">%1$d unread chat</item>
+        <item quantity="other">%1$d unread chats</item>
+    </plurals>
+    <string name="wear_complication_signed_out">Plume: not signed in</string>
 </resources>

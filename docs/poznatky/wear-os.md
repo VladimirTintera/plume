@@ -144,6 +144,44 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   spárovaného telefonu) i server (odklad pushe, když je účet aktivní jinde) — ověří až skutečné
   hodinky. Zrcadlení z telefonu na emulátoru bez spárovaného telefonu ověřit nejde.
 
+## Dlaždice a komplikace
+
+- **Dlaždice** (`UnreadTileService`): název aplikace, uprostřed velký počet nepřečtených chatů
+  s popiskem z plurálu, dole `textEdgeButton` „Otevřít". Není to Compose: systém ji kreslí sám
+  z popisu rozvržení (ProtoLayout, `protolayout-material3`), `TileService` vrací
+  `ListenableFuture`, korutinu do ní převede `SuspendToFutureAdapter` (concurrent-futures).
+- **Komplikace** (`UnreadComplicationService`, `SuspendingComplicationDataSourceService`): jen `SHORT_TEXT` — ikona
+  „mark_chat_unread" (prostředek Androidu, ne composeResources: `Icon.createWithResource`) a číslo,
+  ťuknutí otevře aplikaci. Bez přihlášení pomlčka, ikona zůstává.
+- **Počet se drží v souboru** (`UnreadState`, SharedPreferences `wear_unread`): systém se na
+  dlaždici i komplikaci ptá kdykoli, i když proces neběží, a TDLib se za tu chvíli zeptat nedá.
+  Zapisuje ho `UnreadCountPublisher` (od startu procesu) a pak požádá o obnovu
+  (`TileService.getUpdater`, `ComplicationDataSourceUpdateRequester`) — **pravidelná obnova
+  žádná** (`UPDATE_PERIOD_SECONDS` 0, bez `freshnessInterval`).
+- **Počítá TDLib** (`mainUnread.unmutedChats`): nepřečtené chaty hlavního seznamu bez
+  ztlumených, jako záhlaví widgetu na telefonu. Součet nad seznamem chatů by vynechal chaty,
+  ke kterým se stránkování ještě nedostalo.
+- **Zapisuje se jen v jasných stavech** (přihlášeno a seznam načtený, nebo odhlášeno) a po vteřině
+  klidu: při studeném startu by jinak dlaždice problikla nulou, než TDLib počet ohlásí.
+- **Otevřená konverzace zprávy rovnou čte** (viz Konverzace), takže zpráva do chatu, který zůstal
+  otevřený pod ciferníkem, počet nezvedne. Při zkoušení se proto vrací do seznamu chatů.
+- **Na emulátoru se dlaždice přidá ladicím příkazem**: `am broadcast -a
+  com.google.android.wearable.app.DEBUG_SURFACE --es operation add-tile --ecn component
+  eu.tintera.plume/eu.tintera.plume.wear.UnreadTileService` (`remove-tile` ji odebere), pak tah
+  doleva z ciferníku. Komplikace `--es operation set-complication … --ecn watchface <ciferník>
+  --ei slot 0 --ei type 3`; výchozí ciferník Orbita má políčka vypnutá („Complication slot is not
+  enabled"), jde to na AnalogClassic (`set-watchface`).
+- **Jazyk aplikace (`set-app-locales`) na hodinkách nezabere** ani v aplikaci samotné: manifest
+  nemá `localeConfig` (telefon si ho generuje v `androidApp`). Hodinky jdou podle jazyka systému.
+  Dlaždice si texty čte při každém kreslení, po změně jazyka hodinek se ale překreslí až s další
+  změnou počtu.
+- Náhled dlaždice ve výběru (`androidx.wear.tiles.PREVIEW`) zatím není — obrázek by musel mít
+  i českou variantu.
+- **Ověřeno na emulátoru 2026-10-24** (anglicky): dlaždice s počtem, zpráva od Notifikátora ho
+  zvedla během pár vteřin (dlaždice i komplikace), přečtení v aplikaci snížilo, „Otevřít" i ťuknutí
+  na komplikaci otevřely aplikaci, po `am kill` se dlaždice nakreslila z nově spuštěného procesu.
+  Neověřené: stav bez přihlášení (vyžaduje odhlášení), čeština na hodinkách, skutečné hodinky.
+
 ## Emulátor
 
 - AVD **`Plume_Wear`** (`wearos_large_round`, obraz `system-images;android-34;android-wear;arm64-v8a`,

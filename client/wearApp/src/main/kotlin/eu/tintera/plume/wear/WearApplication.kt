@@ -3,6 +3,7 @@ package eu.tintera.plume.wear
 import android.app.Application
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -44,5 +45,7 @@ class WearApplication : Application() {
         koin.get<WearNotifications>().start(koin.get<NotificationRepository>())
         WearPushRegistrar(session, koin.get<NotificationRepository>(), appScope).start()
         PhoneBridging(this, appScope).start(session)
+        // Počet nepřečtených pro dlaždici a komplikaci (kreslí je systém i bez běžícího procesu).
+        UnreadCountPublisher(this, appScope).start(session, koin.get<ChatRepository>())
     }
 }
