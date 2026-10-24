@@ -214,6 +214,11 @@ git tag android-0.2.0-12-manual && git push origin android-0.2.0-12-manual
 
 Od téhle chvíle už stačí spouštět „Release — bump & tag".
 
+**5. Hodinky (Wear OS)** jdou z téhož tagu na track `wear:internal`, ale jen s repo proměnnou
+`WEAR_RELEASE = true` (Settings → Secrets and variables → Actions → Variables). Napřed v Play
+Console povol Wear OS (Nastavení → Rozšířená nastavení → Formáty) — bez toho track neexistuje
+a upload by shodil i vydání telefonu. Secrets jsou tytéž, hodinky podepisuje tentýž upload klíč.
+
 ### Lokální release build
 
 Podpisové hodnoty a api_id se berou v pořadí **gradle property → ENV → `local.properties`**,

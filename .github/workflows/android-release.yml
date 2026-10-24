@@ -10,6 +10,13 @@
 #      Play na **internal** track,
 #   4. založí GitHub Release s poznámkami a changelogem od předchozího android tagu.
 #
+# Hodinky (Wear OS, `client/wearApp`) vycházejí z TÉHOŽ tagu do téhož záznamu v Play, na track
+# **wear:internal**, s vlastními poznámkami (jen `units: wear`) a `versionCode` posunutým
+# o 100 000 000 (plugin `plume.android-release`) — stejné číslo by Play u druhého bundlu odmítl.
+# Zapíná je repo proměnná WEAR_RELEASE = true: dokud Wear OS není v Play Console povolený
+# (Nastavení → Rozšířená nastavení → Formáty), track wear:internal neexistuje a upload by shodil
+# i vydání telefonu.
+#
 # AAB se NIKAM nepřikládá — ani jako artefakt běhu, ani jako příloha releasu. Bundl má přes
 # 50 MB a artefakty se počítají do kvóty Actions (na free účtu 500 MB, tedy deset releasů).
 # Kopii drží Play a **build je z tagu reprodukovatelný** — verze se bere z něj, ne z commitu,
@@ -63,6 +70,7 @@ jobs:
             echo "versionName=$VERSION_NAME"
             echo "versionCode=$VERSION_CODE"
             echo "aab=plume-${VERSION_NAME}-${VERSION_CODE}.aab"
+            echo "wearAab=plume-wear-${VERSION_NAME}-${VERSION_CODE}.aab"
           } >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v7
@@ -167,6 +175,24 @@ jobs:
           mv client/androidApp/build/outputs/bundle/release/androidApp-release.aab \
              "${{ steps.tag.outputs.aab }}"
 
+      # Hodinky: týž upload klíč a týž tag, versionCode si posune plugin sám.
+      - name: Build Wear release bundle
+        if: vars.WEAR_RELEASE == 'true'
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          ./gradlew :client:wearApp:bundleRelease \
+            -PandroidVersionName=${{ steps.tag.outputs.versionName }} \
+            -PandroidVersionCode=${{ steps.tag.outputs.versionCode }}
+
+          mv client/wearApp/build/outputs/bundle/release/wearApp-release.aab \
+             "${{ steps.tag.outputs.wearAab }}"
+
       # Doběhne jen když runner přežil; při smrti VM se sem nedostane ani `if: always()`.
       - name: Resource diagnostics
         if: always() && runner.os == 'Linux'
@@ -187,6 +213,10 @@ jobs:
           echo "prev=$PREV" >> "$GITHUB_OUTPUT"
           echo "Poznámky od: ${PREV:-<žádný předchozí tag>}"
           python3 .github/scripts/release_notes.py play "$PREV" "$TAG" whatsnew
+          if [ "${{ vars.WEAR_RELEASE }}" = "true" ]; then
+            # Hodinky jen s poznámkami, které je jmenují (`units: wear`), jinak „Drobné opravy".
+            python3 .github/scripts/release_notes.py play "$PREV" "$TAG" whatsnew-wear wear
+          fi
 
       # POZOR: úplně první AAB musí do Play Console nahrát člověk ručně — dokud appka nemá žádný
       # release, androidpublisher API upload odmítne. Tenhle krok je až pro další verze.
@@ -203,6 +233,18 @@ jobs:
           # každý musí být v záznamu aplikace v Play Console
           whatsNewDirectory: whatsnew
 
+      # Track hodinek v témže záznamu: `wear:<track>`. Existuje až po povolení Wear OS v Play
+      # Console; první bundl hodinek API přijme, záznam aplikace už release má.
+      - name: Upload Wear to Google Play (wear:internal track)
+        if: vars.WEAR_RELEASE == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: eu.tintera.plume
+          releaseFiles: ${{ steps.tag.outputs.wearAab }}
+          tracks: wear:internal
+          whatsNewDirectory: whatsnew-wear
+
       - name: Generate changelog
         run: |
           TAG="${GITHUB_REF_NAME}"
@@ -211,6 +253,11 @@ jobs:
             echo "**Android** ${{ steps.tag.outputs.versionName }} (${{ steps.tag.outputs.versionCode }}) → Play internal track"
             echo
             python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" android
+            if [ "${{ vars.WEAR_RELEASE }}" = "true" ]; then
+              echo "**Wear OS** ${{ steps.tag.outputs.versionName }} ($((100000000 + ${{ steps.tag.outputs.versionCode }}))) → Play wear:internal track"
+              echo
+              python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" wear
+            fi
             bash .github/scripts/release-notes.sh "$PREV" "$TAG" "targetu"
           } > release-notes.md
 

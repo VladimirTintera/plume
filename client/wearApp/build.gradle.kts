@@ -6,6 +6,15 @@ plugins {
     id("plume.tdlib-android")
     // res/xml/locales_config.xml ze seznamu jazyků (build-logic, LocaleConfig.kt), jako telefon.
     id("plume.locale-config")
+    // Verze z tagu, podpis týmž upload klíčem jako telefon a verifyReleaseConfiguration
+    // (build-logic, AndroidRelease.kt).
+    id("plume.android-release")
+}
+
+// Hodinky jdou do téhož záznamu v Play jako telefon a z téhož tagu: stejné versionCode by
+// druhý upload odmítlo (viz AndroidReleaseExtension).
+plumeRelease {
+    versionCodeOffset = 100_000_000
 }
 
 /**
@@ -28,8 +37,6 @@ android {
         // Wear OS 3.
         minSdk = 30
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
 
         ndk {
             // Hodinky: arm64 a hodně z nich 32bitově (Wrapper TDLib balí oboje). x86 nepotřebují
@@ -40,7 +47,15 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 jako u telefonu: keep pravidla JNI hranice TDLib si nese wrapper sám. Chybějící
+            // pravidlo se projeví až za běhu — release se proto proklikává, ne jen překládá
+            // (docs/poznatky/wear-os.md, „Vydání").
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 

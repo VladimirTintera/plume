@@ -119,11 +119,14 @@ en: Search in the chat list
 `type` je `feat`, `fix`, nebo `internal` (dokumentace, CI, refaktoring — pak bez `cs`/`en`).
 Formát, ořez i skládání jsou v `.github/scripts/release_notes.py`.
 
-**Změna jen pro některé platformy přidá řádek `units:`** (`android`, `ios`, `desktop`; víc čárkou,
-zkratka `all`/`client` = všechny), třeba `units: android` u sdílení obrazovky v hovoru. Bez řádku
-platí poznámka pro všechny — tak vzniklo přes 600 starých poznámek a musí platit dál, proto je
-pole volitelné (v mlogu povinné). Podle něj se filtruje „Co je nového" v aplikaci (každý kanál
-vydání jen své), Play (jen `android`) i GitHub Release (workflow předá kanál `markdown`).
+**Změna jen pro některé platformy přidá řádek `units:`** (`android`, `ios`, `desktop`, `wear`; víc
+čárkou, zkratka `all`/`client` = android, ios a desktop), třeba `units: android` u sdílení
+obrazovky v hovoru. Bez řádku platí poznámka pro android, ios a desktop — tak vzniklo přes 600
+starých poznámek a musí platit dál, proto je pole volitelné (v mlogu povinné). **Hodinky se
+jmenují výslovně (`units: wear`)**: umí zlomek telefonu, takže poznámka, která o nich mlčí, do
+jejich „Co je nového" nepatří. Podle pole se filtruje „Co je nového" v aplikaci (každý kanál
+vydání jen své), Play (telefon `android`, hodinky `wear`) i GitHub Release (workflow předá kanál
+`markdown`).
 Neznámou platformu, prázdné `units:` a `units:` u `internal` zamítne `check`. Poznámka jen
 pro `ios` dnes nejde nikam: iOS se nevydává a ukazuje vydání Androidu.
 
@@ -210,7 +213,7 @@ prostředku a srazila by se s tou z `:client:resources` (stejné jméno třídy)
 **Co se opakuje mezi moduly, je konvenční plugin v `build-logic/`** (included build), ne kopie
 v build skriptu: `plume.source-checks` (kontroly zdrojáků na `check`), `plume.translations`
 (seznam jazyků a kontrola mutací), `plume.locale-config` (`locales_config.xml` pro vstupní body
-na Androidu), `plume.tdlib-android` / `plume.tdlib-desktop` (hook `TdlibJsonRepair`). Nová kontrola zdrojáků = podtřída `SourceCheckTask` a řádek v pluginu.
+na Androidu), `plume.android-release` (verze z tagu a podpis release pro Play), `plume.tdlib-android` / `plume.tdlib-desktop` (hook `TdlibJsonRepair`). Nová kontrola zdrojáků = podtřída `SourceCheckTask` a řádek v pluginu.
 **Každý vstupní bod, který přibalí TDLib, musí použít jeden z pluginů `plume.tdlib-*`** — jinak
 ho dárek bez pozadí shodí a hlídání po přihlášení to ohlásí až za běhu.
 

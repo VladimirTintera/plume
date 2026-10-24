@@ -11,24 +11,27 @@ Každý PR přidá do `release-notes/` jeden soubor (název podle větve, `/` �
 `type` je `feat` (novinka), `fix` (oprava) nebo `internal` (uživatel nic nepozná — dokumentace,
 CI, refaktoring). U `internal` se `cs`/`en` nepíšou.
 
-Volitelné `units:` říká, které platformy změnu vydají (`android`, `ios`, `desktop`, zkratky
-`all`/`client` = všechny; víc oddělit čárkou nebo mezerou):
+Volitelné `units:` říká, které platformy změnu vydají (`android`, `ios`, `desktop`, `wear`,
+zkratky `all`/`client` = android, ios a desktop; víc oddělit čárkou nebo mezerou):
 
     type: fix
     units: android
     cs: Sdílení obrazovky v hovoru
     en: Screen sharing in calls
 
-Bez `units:` platí poznámka pro všechny platformy — tak se psaly všechny poznámky před zavedením
-pole a tak zůstávají.
+Bez `units:` platí poznámka pro android, ios a desktop — tak se psaly všechny poznámky před
+zavedením pole a tak zůstávají. Hodinky (`wear`) se musí jmenovat výslovně: jejich aplikace umí
+zlomek telefonu, takže by do „Co je nového" na hodinkách nepatřila skoro žádná stará poznámka
+a ani nová, která o hodinkách mlčí.
 
 Release bere soubory PŘIDANÉ mezi předchozím a aktuálním tagem a čte je z tagu, takže jsou
 poznámky z tagu reprodukovatelné stejně jako verze.
 
     release_notes.py check <soubor>...                   – ověří formát a délku (PR check)
     release_notes.py exempt <změněný soubor>...          – 0, když PR mění jen komunitní překlady (bez poznámky)
-    release_notes.py play <prev-tag|""> <tag> <adresář>  – whatsnew-<locale> pro Google Play (PLAY_LANGS)
-    release_notes.py markdown <prev-tag|""> <tag> [kanál] – sekce do popisu GitHub Release
+    release_notes.py play <prev-tag|""> <tag> <adresář> [android|wear]
+                                                         – whatsnew-<locale> pro Google Play (PLAY_LANGS)
+    release_notes.py markdown <prev-tag|""> <tag> [kanál] – sekce do popisu GitHub Release (kanál i `wear`)
     release_notes.py bundle <soubor.kt>                  – historie vydání do aplikace (Co je nového)
 """
 
@@ -43,9 +46,14 @@ TYPES = ("feat", "fix", "internal")
 KEYS = ("type", "units", "cs", "en")
 
 # Platformy, které změnu vydávají. `android` a `desktop` jsou kanály vydání (`CHANNELS` níž),
-# `ios` se zatím nevydává — poznámka jen pro iOS proto dnes nejde nikam.
-UNITS = ("android", "ios", "desktop")
-UNIT_ALIASES = {"all": UNITS, "client": UNITS}
+# `ios` se zatím nevydává — poznámka jen pro iOS proto dnes nejde nikam. `wear` vychází s tagem
+# Androidu (vlastní track v Play), vlastní kanál nemá.
+UNITS = ("android", "ios", "desktop", "wear")
+# Plnohodnotné klienty: poznámka bez `units:` a zkratky. Hodinky v nich nejsou, viz docstring.
+CLIENT_UNITS = ("android", "ios", "desktop")
+UNIT_ALIASES = {"all": CLIENT_UNITS, "client": CLIENT_UNITS}
+# Platformy, které jdou do Play (`play`), a track pro každou — vychází se do obou z téhož tagu.
+PLAY_UNITS = ("android", "wear")
 MAX_NOTE = 100    # jedna věta; 4–5 poznámek se tak vejde do limitu Play
 PLAY_LIMIT = 500  # limit Play na text „Co je nového" v jednom jazyce
 
@@ -121,8 +129,8 @@ def parse(text, name):
         fields["units"] = ()
         return fields
 
-    # Bez pole = všechny platformy: přes 600 poznámek vzniklo dřív než pole a musí platit dál.
-    fields["units"] = parse_units(fields["units"], name) if "units" in fields else UNITS
+    # Bez pole = všechny klienty: přes 600 poznámek vzniklo dřív než pole a musí platit dál.
+    fields["units"] = parse_units(fields["units"], name) if "units" in fields else CLIENT_UNITS
     for lang in LOCALES:
         value = fields.get(lang, "")
         if not value:
@@ -152,7 +160,8 @@ def git(*args):
 def notes_between(prev, tag, unit=None):
     """Poznámky přidané v rozsahu, v pořadí přidání; novinky před opravami.
 
-    S `unit` jen ty, které ta platforma vydává (poznámka bez `units:` platí pro všechny).
+    S `unit` jen ty, které ta platforma vydává (poznámka bez `units:` platí pro všechny klienty
+    kromě hodinek).
     """
     if prev:
         log = git("log", "--reverse", "--diff-filter=A", "--format=", "--name-only",
@@ -317,9 +326,14 @@ def main(argv):
             return 0
         return 1
 
-    if command == "play" and len(argv) == 5:
-        # Play = Android: poznámka jen pro desktop nebo iOS tam nepatří.
-        notes = notes_between(argv[2], argv[3], "android")
+    if command == "play" and len(argv) in (5, 6):
+        # Play = Android a hodinky, každé zvlášť: poznámka jen pro desktop nebo iOS tam nepatří
+        # a do „Co je nového" na hodinkách jen ta, která je jmenuje.
+        unit = argv[5] if len(argv) == 6 else "android"
+        if unit not in PLAY_UNITS:
+            print(f"neznámá platforma pro Play „{unit}“ — čekám {', '.join(PLAY_UNITS)}", file=sys.stderr)
+            return 2
+        notes = notes_between(argv[2], argv[3], unit)
         out = Path(argv[4])
         out.mkdir(parents=True, exist_ok=True)
         for lang in PLAY_LANGS:
@@ -331,9 +345,10 @@ def main(argv):
 
     if command == "markdown" and len(argv) in (4, 5):
         # Kanál vydání (`android`, `desktop`) vybere poznámky jeho platformy; bez něj všechny.
+        # `wear` kanál nemá (vychází s tagem Androidu), ale do popisu release jde zvlášť.
         channel = argv[4] if len(argv) == 5 else None
-        if channel and channel not in CHANNELS:
-            print(f"neznámý kanál „{channel}“ — čekám {', '.join(CHANNELS)}", file=sys.stderr)
+        if channel and channel not in CHANNELS and channel not in PLAY_UNITS:
+            print(f"neznámý kanál „{channel}“ — čekám {', '.join(dict.fromkeys([*CHANNELS, *PLAY_UNITS]))}", file=sys.stderr)
             return 2
         notes = notes_between(argv[2], argv[3], channel)
         # Do GitHub Release jde celý seznam, bez ořezu na limit Play.
