@@ -259,12 +259,63 @@ skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpov�
 **Rizika, ověřit napřed:**
 
 - **Velikost APK.** `:client:shared` táhne Coil, Media3, Haze, adaptive a fonty; R8 nepoužitý
-  kód ořeže, prostředky ne. Kdyby to bylo moc, chtělo by to vyčlenit jádro bez UI do vlastního
-  modulu — velký refaktoring.
+  kód ořeže, prostředky ne. Řešení je vyčlenit jádro do `:client:core` (níž).
 - **Baterie a úložiště.** TDLib drží spojení a databázi; na hodinkách malá mezipaměť,
   žádné automatické stahování médií, spojení jen s pushem / při otevřené aplikaci.
 - **`minSdk`** Wear OS 3 je API 30; sdílené `androidMain` počítá s 26, takže by to mělo projít,
   ale věci jen pro telefon (Telecom, PiP, widget, Direct Share) se nesmí rozběhnout na hodinkách.
+
+### Rozdělení `:client:shared` (před Wear OS)
+
+Aby hodinky netahaly UI telefonu a jeho knihovny, vyčlenit vrstvu kolem TDLib do `:client:core`.
+Dělit po vrstvách, ne po funkcích: funkce mají mezi sebou cykly (chats ↔ conversation ↔ profile
+↔ settings ↔ stories) a pro Wear rozplétat je netřeba.
+
+```
+client/
+  core/        :client:core    – TDLib a doménová rozhraní, settings, secrets, connectivity,
+                                 logging, UiText a texty s překlady
+  shared/      :client:shared  – features, téma, navigace, komponenty; Haze, Coil, adaptive,
+                                 Media3, CameraX, ML Kit, LiteRT, Glance, Play, Crashlytics, ntgcalls
+  androidApp, desktopApp, iosApp – jako dnes, nad :client:shared
+  wearApp      :client:wearApp – jen :client:core a Compose for Wear OS
+```
+
+**Výchozí stav (říjen 2026):** shared má ~190 tisíc řádků (`features` 127 tisíc, `core` 61 tisíc,
+z toho `core/telegram` 36 tisíc). `core/telegram` z `features` neimportuje nic; z ostatního `core`
+bere `UiText` / `readString`, rozhraní hovorů, connectivity, settings, secrets, location, contacts
+a audio, z Compose jen `StringResource`. Z `core` do `features` míří dvě místa: `AppSettings`
+(`StoredTriageVerdict`, `StoredPhotoDescription`, `StoredTranscript`) a `WidgetChats` (`hasUnread`).
+
+**Přínos i mimo Wear:** hranici kolem TDLib hlídá kompilátor (wrapper je závislost jen `core`,
+import ve `features` se nepřeloží) a změna ve `features` nepřekládá vrstvu kolem TDLib.
+
+**Kde to drhne:**
+
+- **Texty.** `UiText` odkazuje do `Res`, který se generuje pro každý modul zvlášť. Texty
+  s překlady do `core` (cesty pro Weblate, `verifyTranslations`, generování iOS
+  `Localizable.strings`), `publicResClass = true`, ve `features` změnit import `Res` — mechanicky,
+  ve stovkách souborů. Ikony a fonty zůstanou v UI modulu. Největší riziko celého přesunu.
+- **Hovory.** `TdlCallRepository` mluví s `CallMedia` (za ním ntgcalls). Do `core` jen rozhraní,
+  implementace v UI modulu (nebo `:client:calls`) a zapojí se přes Koin; Wear hovory nemá.
+- **Notifikace.** `NotificationPresenter` staví notifikace pro telefon (Direct Share, zkratky);
+  hodinky chtějí vlastní, takže za rozhraní.
+- **Gradle.** `client/shared/build.gradle.kts` má 1118 řádků, většinou kontroly — z nich
+  konvenční pluginy v `build-logic`, jinak by se kopírovaly do každého modulu.
+- **`TdlibReceiveHookFactory`** (vložení `TdlibJsonRepair`) je dnes v `androidApp`; `wearApp`
+  ho potřebuje taky, jinak ho shodí dárek bez pozadí. Taky do konvenčního pluginu.
+- **iOS dál jeden framework** z UI modulu, `core` se do něj zabalí (dva frameworky = dva
+  runtime). Pravidlo „jediný modul s KMP pluginem" v `CLAUDE.md` se přepíše.
+- **Koin:** `core` dodá svůj modul (eager repository s `createdAtStart` zůstávají v něm), UI zbytek.
+
+**Pořadí, každý krok vlastní PR:**
+
+1. `build-logic` s konvenčními pluginy (kontroly, cíle KMP, hook pro `TdlibJsonRepair`), bez
+   změny chování.
+2. Rozpojit dvě místa, kde `core` sahá do `features`.
+3. Vyčlenit `:client:core`: `git mv` (ať zůstane historie), texty, Koin, rozhraní hovorů
+   a notifikací.
+4. Teprve pak `:client:wearApp` (MVP výš).
 
 ## Obrazovky a sekce, které nejsou
 
