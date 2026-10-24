@@ -704,6 +704,19 @@ jinde nezaregistruje a oba vstupy chybí.
     a „Zkusit znovu"; zároveň se model vyžádá hned (`ModuleInstallClient.installModules`).
     Ověřeno: po čerstvé instalaci na emulátoru první pokus hlášku dal, za minutu prošel.
   - **Beta** (`play-services-mlkit-subject-segmentation:16.0.0-beta1`) — jiná verze není.
+- **Bílý obrys** (přepínač „Bílý obrys" pod odstraněním pozadí, výchozí zapnutý; `outline`
+  v `StickerMaker.make`) jako u samolepek z oficiálního klienta. Nabízí se jen s odstraněným
+  pozadím — kolem celé fotky by to byl jen rámeček.
+  - **Objekt se zmenší tak, aby se i s obrysem vešel do 512 px**, a obrys se kreslí až
+    v hotové velikosti: má tak vždycky 16 px z 512 (`OUTLINE_WIDTH`), ať byla fotka jakkoli
+    velká. 12 px na emulátoru vypadalo vedle oficiálního klienta tence.
+  - **Obrys je rozšířená maska objektu**: maska (`extractAlpha`) se nakreslí bíle mnohokrát
+    posunutá po třech soustředných kružnicích a objekt přijde navrch. Jen jedna kružnice by
+    kolem tenkých výběžků (špička zobáku) nechala mezeru mezi objektem a obrysem.
+  - **Do masky jdou jen pixely nad prahem alfy** (jako u ořezu) — téměř průhledné zbytky po
+    segmentaci by jinak dostaly vlastní bílé skvrny.
+  - **ALPHA_8 se neplní z bufferu**: řádek takové bitmapy může být zarovnaný na víc bajtů než
+    šířka; maska se proto staví v ARGB a převede `extractAlpha`.
 - **Náhled je hotový soubor**, ne odhad: s každou změnou (úprava, pozadí) se samolepka vyrobí
   znovu a nahraje se přesně ta, kterou uživatel vidí. Šachovnice pod ní ukazuje průhlednost.
 - **Úprava fotky je editor příloh** (`PhotoMarkupEditor` + `PhotoMarkupRenderer`): ořez,
@@ -729,7 +742,9 @@ jinde nezaregistruje a oba vstupy chybí.
   ve výběru samolepek), znovu bez odstranění pozadí do existující sady, z Nastavení s fotkou
   z galerie (sada se objevila v Moje sady). **Neověřené**: úprava ořezem a kresbou před
   vytvořením, plná sada, odmítnutí serverem (`STICKER_PNG_DIMENSIONS` a spol.), iOS a desktop
-  (tam se nenabízí).
+  (tam se nenabízí). Obrys tamtéž: náhled s obrysem (hladký okraj, bez mezery u špičky zobáku),
+  vypnutí a zapnutí přepínače, samolepka s obrysem přidaná do sady „Plume obalka" (server ji
+  vzal). Jak obrys vypadá na tmavém pozadí konverzace, ověřené není.
 
 ## Úprava vlastní sady samolepek
 

@@ -10,9 +10,10 @@ interface StickerMaker {
 
     /**
      * Samolepka z fotky [path] (už upravené a oříznuté editorem). S [removeBackground] zůstane
-     * jen hlavní objekt a ořízne se těsně na něj. Výsledek je nový soubor v cache.
+     * jen hlavní objekt a ořízne se těsně na něj; s [outline] (jen spolu s ním) dostane bílý
+     * obrys po svém tvaru. Výsledek je nový soubor v cache.
      */
-    suspend fun make(path: String, removeBackground: Boolean): Result<MadeSticker>
+    suspend fun make(path: String, removeBackground: Boolean, outline: Boolean): Result<MadeSticker>
 
     /**
      * Obálka sady ze samolepky [path]: WebP přesně 100 × 100, samolepka vepsaná doprostřed

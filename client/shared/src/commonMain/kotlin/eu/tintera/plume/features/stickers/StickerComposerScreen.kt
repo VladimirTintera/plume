@@ -85,6 +85,8 @@ import eu.tintera.plume.resources.sticker_emoji
 import eu.tintera.plume.resources.sticker_emoji_hint
 import eu.tintera.plume.resources.sticker_emoji_other
 import eu.tintera.plume.resources.sticker_new_title
+import eu.tintera.plume.resources.sticker_outline
+import eu.tintera.plume.resources.sticker_outline_hint
 import eu.tintera.plume.resources.sticker_remove_background
 import eu.tintera.plume.resources.sticker_remove_background_hint
 import eu.tintera.plume.resources.sticker_retry
@@ -225,6 +227,20 @@ private fun StickerForm(
                             onValueChange = viewModel::setRemoveBackground,
                         ),
                     )
+                    // Obrys sedí jen kolem vyříznutého objektu; kolem celé fotky by byl jen rámeček.
+                    if (state.removeBackground) {
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            headlineContent = { Text(stringResource(Res.string.sticker_outline)) },
+                            supportingContent = { Text(stringResource(Res.string.sticker_outline_hint)) },
+                            trailingContent = { IconSwitch(checked = state.outline, onCheckedChange = null) },
+                            modifier = Modifier.toggleable(
+                                value = state.outline,
+                                role = Role.Switch,
+                                onValueChange = viewModel::setOutline,
+                            ),
+                        )
+                    }
                 }
             }
         }

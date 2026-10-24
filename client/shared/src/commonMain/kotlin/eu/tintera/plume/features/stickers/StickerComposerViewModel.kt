@@ -37,6 +37,8 @@ data class StickerComposerState(
     /** Úprava fotky (ořez, otočení, kresba); drží se k originálu, jako u přílohy. */
     val markup: PhotoMarkup = PhotoMarkup(),
     val removeBackground: Boolean = false,
+    /** Bílý obrys kolem vyříznutého objektu; bez odstranění pozadí se nekreslí. */
+    val outline: Boolean = true,
     val canRemoveBackground: Boolean = false,
     /** Hotová samolepka k nahrání — přesně to, co uživatel vidí v náhledu. */
     val preview: MadeSticker? = null,
@@ -138,6 +140,12 @@ class StickerComposerViewModel(
         prepare()
     }
 
+    fun setOutline(outline: Boolean) {
+        if (_state.value.outline == outline) return
+        _state.update { it.copy(outline = outline) }
+        if (_state.value.removeBackground) prepare()
+    }
+
     /** Znovu vyrobit samolepku (model odstranění pozadí se mezitím stáhl). */
     fun retry() = prepare()
 
@@ -173,8 +181,8 @@ class StickerComposerViewModel(
 
     private suspend fun make() {
         _state.update { it.copy(preparing = true, prepareError = null) }
-        val remove = _state.value.removeBackground
-        maker.make(editedPath, remove)
+        val current = _state.value
+        maker.make(editedPath, current.removeBackground, current.outline)
             .onSuccess { made -> _state.update { it.copy(preview = made, preparing = false) } }
             .onFailure { failure ->
                 val message = when (failure) {

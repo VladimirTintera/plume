@@ -102,7 +102,7 @@ class OwnedStickerSetViewModelTest {
     private class FakeMaker : StickerMaker {
         override val canRemoveBackground = true
         val covers = mutableListOf<String>()
-        override suspend fun make(path: String, removeBackground: Boolean): Result<MadeSticker> = error("make")
+        override suspend fun make(path: String, removeBackground: Boolean, outline: Boolean): Result<MadeSticker> = error("make")
         override suspend fun makeCover(path: String): Result<MadeSticker> {
             covers += path
             return Result.success(MadeSticker("$path.cover.webp", 100, 100))

@@ -22,13 +22,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.coroutines.resume
 import kotlin.math.roundToInt
 
 /**
  * [StickerMaker] na Androidu: dekódování zmenšené fotky, odstranění pozadí přes ML Kit Subject
  * Segmentation z Play služeb (popředí jako bitmapa s průhledností), ořez na neprůhlednou část,
- * zmenšení na 512 px a WebP.
+ * případně bílý obrys, zmenšení na 512 px a WebP.
  *
  * - **Model si stahují Play služby** (meta-data `subject_segment` v manifestu aplikace, jako
  *   u čtení textu). Než doběhne, segmentace selže s `UNAVAILABLE` — to je
@@ -48,11 +51,11 @@ class AndroidStickerMaker(context: Context) : StickerMaker {
         SubjectSegmentation.getClient(SubjectSegmenterOptions.Builder().enableForegroundBitmap().build())
     }
 
-    override suspend fun make(path: String, removeBackground: Boolean): Result<MadeSticker> = runCatching {
+    override suspend fun make(path: String, removeBackground: Boolean, outline: Boolean): Result<MadeSticker> = runCatching {
         val photo = withContext(Dispatchers.IO) { decode(path) } ?: error("Obrázek $path nejde přečíst.")
         val content = if (removeBackground) cutOut(photo) else photo
         withContext(Dispatchers.Default) {
-            val scaled = scaleToStickerSize(content)
+            val scaled = if (removeBackground && outline) withOutline(content) else scaleToStickerSize(content)
             val file = File(appContext.cacheDir, "stickers").apply { mkdirs() }
                 .resolve("sticker-${System.currentTimeMillis()}.webp")
             file.outputStream().use { out -> scaled.compress(webp(), WEBP_QUALITY, out) }
@@ -145,6 +148,49 @@ internal fun fitSize(width: Int, height: Int, side: Int): Pair<Int, Int> {
     return (width * scale).roundToInt().coerceIn(1, side) to (height * scale).roundToInt().coerceIn(1, side)
 }
 
+/**
+ * Vyříznutý objekt s bílým obrysem po svém tvaru, jako u samolepek z oficiálního klienta.
+ * Objekt se zmenší tak, aby se i s obrysem vešel do [STICKER_SIDE]: obrys má tak v hotové
+ * samolepce vždycky stejnou tloušťku ([OUTLINE_WIDTH]), ať byla fotka jakkoli velká.
+ *
+ * Obrys je rozšířená maska objektu: neprůhledná část se nakreslí bíle mnohokrát posunutá po
+ * soustředných kružnicích (tři poloměry, jinak by kolem tenkých částí zůstaly mezery) a objekt
+ * přijde navrch. Do masky jdou jen pixely nad [ALPHA_THRESHOLD] — téměř průhledné zbytky po
+ * segmentaci by jinak dostaly vlastní bílé skvrny.
+ */
+private fun withOutline(content: Bitmap): Bitmap {
+    val (width, height) = fitSize(content.width, content.height, STICKER_SIDE - 2 * OUTLINE_WIDTH)
+    val scaled = Bitmap.createScaledBitmap(content, width, height, true)
+    val mask = solidMask(scaled)
+    val result = Bitmap.createBitmap(width + 2 * OUTLINE_WIDTH, height + 2 * OUTLINE_WIDTH, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(result)
+    val white = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { color = android.graphics.Color.WHITE }
+    for ((radius, steps) in OUTLINE_RINGS) {
+        for (step in 0 until steps) {
+            val angle = 2 * PI * step / steps
+            val dx = OUTLINE_WIDTH + radius * OUTLINE_WIDTH * cos(angle).toFloat()
+            val dy = OUTLINE_WIDTH + radius * OUTLINE_WIDTH * sin(angle).toFloat()
+            canvas.drawBitmap(mask, dx, dy, white)
+        }
+    }
+    canvas.drawBitmap(scaled, OUTLINE_WIDTH.toFloat(), OUTLINE_WIDTH.toFloat(), null)
+    return result
+}
+
+/** Maska (`ALPHA_8`) jen z pixelů, které jsou opravdu vidět. */
+private fun solidMask(bitmap: Bitmap): Bitmap {
+    val width = bitmap.width
+    val height = bitmap.height
+    val pixels = IntArray(width * height)
+    bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+    for (index in pixels.indices) {
+        val a = pixels[index] ushr 24
+        pixels[index] = if (a > ALPHA_THRESHOLD) a shl 24 else 0
+    }
+    // `extractAlpha`, ne ALPHA_8 z bufferu: řádek ALPHA_8 bitmapy může být zarovnaný na víc bajtů.
+    return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888).extractAlpha()
+}
+
 private fun scaleToStickerSize(bitmap: Bitmap): Bitmap {
     val (width, height) = stickerSize(bitmap.width, bitmap.height)
     return Bitmap.createScaledBitmap(bitmap, width, height, true)
@@ -175,6 +221,12 @@ private fun opaqueBounds(bitmap: Bitmap): Rect? {
 }
 
 private const val STICKER_SIDE = 512
+
+/** Tloušťka bílého obrysu v hotové samolepce (px z 512). */
+private const val OUTLINE_WIDTH = 16
+
+/** Kružnice, po kterých se maska posouvá: poměr k [OUTLINE_WIDTH] a počet kroků. */
+private val OUTLINE_RINGS = listOf(1f to 48, 0.66f to 32, 0.33f to 16)
 
 /** Téměř průhledné okraje masky (vyhlazení) se do ořezu nepočítají. */
 private const val ALPHA_THRESHOLD = 16

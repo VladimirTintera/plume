@@ -37,8 +37,10 @@ class StickerComposerViewModelTest {
     private class FakeMaker(override val canRemoveBackground: Boolean = true) : StickerMaker {
         var notReady = false
         val calls = mutableListOf<Pair<String, Boolean>>()
-        override suspend fun make(path: String, removeBackground: Boolean): Result<MadeSticker> {
+        val outlines = mutableListOf<Boolean>()
+        override suspend fun make(path: String, removeBackground: Boolean, outline: Boolean): Result<MadeSticker> {
             calls += path to removeBackground
+            outlines += outline
             if (notReady && removeBackground) return Result.failure(StickerModelNotReadyException(IllegalStateException()))
             return Result.success(MadeSticker("$path.webp", 512, 480))
         }
@@ -118,6 +120,24 @@ class StickerComposerViewModelTest {
         vm.setRemoveBackground(false)
         advanceUntilIdle()
         assertEquals("photo.jpg" to false, maker.calls.last(), "bez odstranění pozadí celá fotka")
+    }
+
+    @Test
+    fun outlineIsOnByDefaultAndRemakesOnlyCutOutSticker() = runTest {
+        val maker = FakeMaker()
+        val vm = viewModel(FakeStickers(emptyList()), maker)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.outline)
+        assertEquals(listOf(true), maker.outlines, "výchozí samolepka má obrys")
+        vm.setOutline(false)
+        advanceUntilIdle()
+        assertEquals(listOf(true, false), maker.outlines, "vypnutý obrys = nová samolepka")
+        vm.setRemoveBackground(false)
+        advanceUntilIdle()
+        val made = maker.calls.size
+        vm.setOutline(true)
+        advanceUntilIdle()
+        assertEquals(made, maker.calls.size, "bez odstranění pozadí se kvůli obrysu nic nepřepočítává")
     }
 
     @Test
