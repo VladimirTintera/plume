@@ -358,7 +358,8 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
    zadávání notifikace na emulátoru neukazují, potvrzení přes ~9 s nemá úlohu jako telefon.
 
 **Po MVP:** ~~dlaždice a komplikace s počtem nepřečtených~~ — hotovo (bez náhledu dlaždice ve
-výběru); dlaždice s posledními / připnutými chaty, `localeConfig` pro jazyk aplikace na hodinkách,
+výběru); dlaždice s posledními / připnutými chaty, ~~`localeConfig` pro jazyk aplikace na hodinkách~~ —
+hotovo (plugin `plume.locale-config`),
 `units: wear` v poznámkách k vydání a release workflow, Wear OS ve stejném záznamu v Play
 (snímky pro hodinky, přísnější kontrola kvality od Googlu). Hovory, média, nastavení a správa
 skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpovědí jen ze systému.
