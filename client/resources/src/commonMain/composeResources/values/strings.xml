@@ -4161,6 +4161,10 @@
     <string name="wear_complication_signed_out">Plume: not signed in</string>
     <string name="wear_tile_all_chats">All chats</string>
     <string name="wear_logout">Sign out</string>
+    <string name="wear_clear_cache">Clear cache</string>
+    <string name="wear_clear_cache_hint">Downloaded photos and voice messages</string>
+    <string name="wear_clear_cache_running">Clearing…</string>
+    <string name="wear_clear_cache_done">Freed %1$s</string>
     <string name="wear_logout_title">Sign out of the watch?</string>
     <string name="wear_logout_text">Only the watch signs out, your phone stays as it is. To use the watch again, scan a QR code.</string>
     <plurals name="wear_tile_new_messages">
