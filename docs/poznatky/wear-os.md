@@ -62,6 +62,29 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   neotevírají, otevření je označí přečtené): historie, živá zpráva během otevřené konverzace,
   tah zpět, v seznamu pak místo počtu nepřečtených čas.
 
+## Odpověď a reakce
+
+- **Odpověď tlačítkem dole** (`EdgeButton` ve `ScreenScaffold`, vzor M3 Expressive pro hodinky):
+  systémové zadávání (`RemoteInput` přes `RemoteInputIntentHelper`) nabízí emoji, diktování
+  a klávesnici, pod nimi naše **rychlé odpovědi jako volby** (`setChoices`, texty
+  `wear_quick_reply_*`). Ťuknutí na volbu pošle zprávu rovnou, bez potvrzení.
+- **Odeslaná zpráva se ukáže hned** (dočasné id ze `send`), stav „Odesílání…" / „Neodesláno"
+  místo času; po potvrzení ji `sentMessageUpdates` vymění za tu se skutečným id — nahradit, ne
+  aktualizovat, TDLib id změní.
+- **Samotné emoji (i z rychlé odpovědi „👍") nemá text ani popis:** Telegram ho pošle jako
+  `MessageAnimatedEmoji`, `core` z něj udělá přílohu `MessageMedia.AnimatedEmoji` a text nechá
+  prázdný, aby se pod animací nekreslil dvakrát. Hodinky animace nekreslí, takže znak berou
+  z přílohy (i u `Dice`) a kreslí ho velkým písmem — bez toho byla odpověď prázdná bublina.
+- **Reakce:** ťuknutí na zprávu otevře výběr (vlastní cesta v navigaci, zpět tahem) s emoji, která
+  chat u zprávy dovoluje (`availableReactions`, nejvýš 12); daná je zvýrazněná a ťuknutí ji
+  odebere (`setReaction(add = false)`). Stav si výběr načte sám (`message(chatId, messageId)`).
+  Pod bublinou „👍 2  ❤", živě z `interactionUpdates`. **Vlastní emoji se vynechávají**
+  (`customEmojiIdOf`) — hodinky je nevykreslí a klíč reakce by se ukázal jako kód.
+- Reagovat jde jen na zprávu se skutečným id (ne odesílanou), servisní ne.
+- **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora: rychlá odpověď „👍" (odešla,
+  potvrzená, velké emoji), reakce ❤ přidaná a znovu odebraná. Diktování a klávesnice na emulátoru
+  nevyzkoušené (vracejí text stejnou cestou jako volba).
+
 ## Emulátor
 
 - AVD **`Plume_Wear`** (`wearos_large_round`, obraz `system-images;android-34;android-wear;arm64-v8a`,

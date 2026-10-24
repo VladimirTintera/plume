@@ -4262,4 +4262,16 @@
     <string name="wear_chats_title">Chaty</string>
     <string name="wear_chats_empty">Zatím žádné chaty</string>
     <string name="wear_conversation_empty">Zatím žádné zprávy</string>
+    <string name="wear_reply">Odpovědět</string>
+    <string name="wear_reply_label">Vaše odpověď</string>
+    <string name="wear_quick_reply_1">👍</string>
+    <string name="wear_quick_reply_2">OK</string>
+    <string name="wear_quick_reply_3">Díky!</string>
+    <string name="wear_quick_reply_4">Už jdu</string>
+    <string name="wear_quick_reply_5">Ozvu se později</string>
+    <string name="wear_message_sending">Odesílání…</string>
+    <string name="wear_message_failed">Neodesláno</string>
+    <string name="wear_send_failed">Zprávu se nepodařilo odeslat.</string>
+    <string name="wear_reactions_title">Reakce</string>
+    <string name="wear_reactions_none">Reakce tu nejdou.</string>
 </resources>
