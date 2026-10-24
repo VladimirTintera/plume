@@ -1,5 +1,10 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.resources.wear_message_you
+import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -95,11 +100,14 @@ private val logger = Logger.withTag("WearConversation")
 /** Kolik zpráv se načte při otevření — na hodinkách se dlouhá historie nečte. */
 private const val PAGE = 30
 
+/** Kolik položek od začátku seznamu (nadpis, indikátor) spustí dočtení starších zpráv. */
+private const val NEAR_TOP_ITEMS = 2
+
 private const val REPLY_KEY = "reply"
 
 /**
- * Konverzace: posledních [PAGE] zpráv, nové doplňuje živě, nejnovější je dole a na ni se seznam
- * postaví. Otevřený chat se TDLib ohlásí (`openChat`) a zobrazené zprávy se hlásí jako přečtené —
+ * Konverzace: posledních [PAGE] zpráv, u začátku seznamu dočítá starší, nové doplňuje živě,
+ * nejnovější je dole a na ni se seznam postaví. Odpověď má nad textem citaci. Otevřený chat se TDLib ohlásí (`openChat`) a zobrazené zprávy se hlásí jako přečtené —
  * jako na telefonu, kdo ji na hodinkách viděl, ten ji četl.
  *
  * - **Odpověď** tlačítkem dole (`EdgeButton`): systémové zadávání hodinek — diktování, klávesnice,
@@ -122,6 +130,11 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
 
     var messages by remember(chatId) { mutableStateOf<List<ChatMessage>?>(null) }
     var failed by remember(chatId) { mutableStateOf(false) }
+    // Dočítání starší historie: běží-li zrovna, a jestli už začátek chatu přišel.
+    var loadingOlder by remember(chatId) { mutableStateOf(false) }
+    var historyEnd by remember(chatId) { mutableStateOf(false) }
+    // Citované zprávy, které v načtené historii nejsou (dočtené z TDLib); null = zpráva neexistuje.
+    var quoted by remember(chatId) { mutableStateOf<Map<Long, ChatMessage?>>(emptyMap()) }
     // Poslední chyba odeslání nebo přehrání, jako poznámka pod konverzací.
     var problem by remember(chatId) { mutableStateOf<StringResource?>(null) }
     val playback = remember { VoicePlayback() }
@@ -181,6 +194,32 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
         }
     }
 
+    val loadOlder: () -> Unit = loadOlder@{
+        val oldest = messages?.firstOrNull { it.sendState == null }?.id ?: return@loadOlder
+        if (loadingOlder || historyEnd) return@loadOlder
+        loadingOlder = true
+        scope.launch {
+            loadHistory(conversations, chatId, fromMessageId = oldest)
+                .onSuccess { older ->
+                    if (older.isEmpty()) historyEnd = true
+                    messages = (older + messages.orEmpty()).distinctBy { it.id }.sortedBy { it.id }
+                }
+                .onFailure { logger.w(it) { "Starší historie chatu $chatId se na hodinkách nenačetla." } }
+            loadingOlder = false
+        }
+    }
+
+    // Citace odpovědi bere zprávu z načtené historie; co v ní není, dočte jednou z TDLib.
+    LaunchedEffect(chatId, messages) {
+        val loaded = messages.orEmpty()
+        val missing = loaded.mapNotNull { it.replyToMessageId }
+            .filter { id -> id !in quoted && loaded.none { it.id == id } }
+            .distinct()
+        if (missing.isEmpty()) return@LaunchedEffect
+        val fetched = missing.associateWith { id -> conversations.message(chatId, id).getOrNull() }
+        quoted = quoted + fetched
+    }
+
     val replyLabel = stringResource(Res.string.wear_reply_label)
     val quickReplies = listOf(
         stringResource(Res.string.wear_quick_reply_1),
@@ -237,7 +276,20 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     when {
         failed && current.isNullOrEmpty() -> MessageScreen(stringResource(Res.string.conversation_history_failed))
         current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
-        else -> MessageList(title, current, problem, playback.playingId, onReply, onReact, onRecord, onPlay, onOpenPhoto)
+        else -> MessageList(
+            title = title,
+            messages = current,
+            quoted = quoted,
+            loadingOlder = loadingOlder,
+            problem = problem,
+            playingId = playback.playingId,
+            onReply = onReply,
+            onReact = onReact,
+            onRecord = onRecord,
+            onPlay = onPlay,
+            onOpenPhoto = onOpenPhoto,
+            onNearTop = loadOlder,
+        )
     }
 }
 
@@ -245,6 +297,8 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
 private fun MessageList(
     title: String,
     messages: List<ChatMessage>,
+    quoted: Map<Long, ChatMessage?>,
+    loadingOlder: Boolean,
     problem: StringResource?,
     playingId: Long?,
     onReply: () -> Unit,
@@ -252,23 +306,39 @@ private fun MessageList(
     onRecord: () -> Unit,
     onPlay: (ChatMessage) -> Unit,
     onOpenPhoto: (Int) -> Unit,
+    onNearTop: () -> Unit,
 ) {
     val state = rememberTransformingLazyColumnState()
     // Na nejnovější zprávu (dole) při otevření i s každou další.
     LaunchedEffect(messages.lastOrNull()?.id) { state.scrollToItem(messages.size + 2) }
+    // U začátku seznamu dočíst starší zprávy. Zprávy mají klíče, takže vložené nahoře seznam
+    // neposunou — uživatel zůstane na zprávě, kterou četl.
+    LaunchedEffect(state) {
+        snapshotFlow { state.layoutInfo.visibleItems.firstOrNull()?.index }
+            .collect { first -> if (first != null && first <= NEAR_TOP_ITEMS) onNearTop() }
+    }
     ScreenScaffold(
         scrollState = state,
         edgeButton = { EdgeButton(onClick = onReply) { Text(stringResource(Res.string.wear_reply)) } },
     ) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
-            item { ListHeader { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+            item(key = "header") { ListHeader { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+            if (loadingOlder) {
+                item(key = "loading") {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
+            }
             if (messages.isEmpty()) {
                 item { CenteredNote(stringResource(Res.string.wear_conversation_empty)) }
             }
-            items(messages) { message ->
+            items(messages, key = { it.id }) { message ->
+                val replyTo = message.replyToMessageId
                 MessageBubble(
                     message,
                     chatTitle = title,
+                    quote = replyTo?.let { id -> messages.firstOrNull { it.id == id } ?: quoted[id] },
                     playing = message.id == playingId,
                     onPlay = { onPlay(message) },
                     onOpenPhoto = onOpenPhoto,
@@ -295,6 +365,7 @@ private fun MessageList(
 private fun MessageBubble(
     message: ChatMessage,
     chatTitle: String,
+    quote: ChatMessage?,
     playing: Boolean,
     onPlay: () -> Unit,
     onOpenPhoto: (Int) -> Unit,
@@ -331,6 +402,7 @@ private fun MessageBubble(
             sender?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1)
             }
+            quote?.let { ReplyQuote(it, chatTitle, outgoing) }
             val photo = message.media?.shownPhoto()
             if (photo != null) {
                 MessagePhoto(photo, onClick = { onOpenPhoto(photo.fileId) }, modifier = Modifier.padding(vertical = 4.dp))
@@ -375,6 +447,43 @@ private fun MessageBubble(
     }
 }
 
+/**
+ * Citace nad odpovědí: kdo a první řádek toho, na co se odpovídá, s proužkem vlevo jako na
+ * telefonu. Proužek se kreslí za obsahem (`drawBehind`), ne jako prvek s `fillMaxHeight` —
+ * výška by se musela měřit intrinsicky.
+ */
+@Composable
+private fun ReplyQuote(quote: ChatMessage, chatTitle: String, inOutgoing: Boolean) {
+    val accent = if (inOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+    // V soukromém chatu zpráva odesílatele nenese — je to protějšek, tedy název chatu.
+    val name = if (quote.isOutgoing) stringResource(Res.string.wear_message_you) else quote.senderName ?: chatTitle
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .drawBehind { drawRect(accent, size = Size(3.dp.toPx(), size.height)) }
+            .padding(start = 8.dp),
+    ) {
+        if (name.isNotBlank()) {
+            Text(name, style = MaterialTheme.typography.labelSmall, color = accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Text(
+            previewText(quote),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (inOutgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** Zpráva jedním řádkem: text, a když není, emoji z přílohy nebo popis obsahu („Fotka"). */
+@Composable
+private fun previewText(message: ChatMessage): String {
+    val emoji = (message.media as? MessageMedia.AnimatedEmoji)?.emoji ?: (message.media as? MessageMedia.Dice)?.emoji
+    return message.text.ifEmpty { emoji ?: message.description?.resolve().orEmpty() }
+}
+
 @Composable
 private fun CenteredNote(text: String, error: Boolean = false) {
     Text(
@@ -413,13 +522,13 @@ private fun replyInput(title: String, label: String, quickReplies: List<String>)
     }
 
 /**
- * Posledních [PAGE] zpráv. První `getChatHistory` vrací TDLib často jen to, co má v lokální
+ * [PAGE] zpráv starších než [fromMessageId] (0 = nejnovější). `getChatHistory` vrací TDLib často jen to, co má v lokální
  * databázi (klidně jednu zprávu), takže se dočítá od nejstarší, dokud stránka není plná nebo
  * historie neskončí.
  */
-private suspend fun loadHistory(conversations: ConversationRepository, chatId: Long): Result<List<ChatMessage>> = runCatching {
+private suspend fun loadHistory(conversations: ConversationRepository, chatId: Long, fromMessageId: Long = 0L): Result<List<ChatMessage>> = runCatching {
     val loaded = mutableListOf<ChatMessage>()
-    var from = 0L
+    var from = fromMessageId
     repeat(3) {
         if (loaded.size >= PAGE) return@runCatching loaded
         val page = conversations.history(chatId, fromMessageId = from, limit = PAGE - loaded.size).getOrThrow()
