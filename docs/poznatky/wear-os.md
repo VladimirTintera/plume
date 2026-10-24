@@ -160,6 +160,30 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   („✓ Možná"), víc odpovědí (dvě zaškrtnuté → obě 100 %), kvíz („✓ 4" 100 %). Omezení serveru
   (členství, země) a anketa s médii neověřené.
 
+## Tlačítka botů
+
+- **Klávesnice bota pod zprávou** (`MessageBotKeyboard`, `ChatMessage.keyboard`): všechna
+  tlačítka pod sebou přes šířku bubliny (na kulatém displeji se vedle sebe nevejdou), v pořadí
+  řádků; obrysová (`CompactButton`), ne tónová. **Žádné se neschovává** — i to, co hodinky
+  neumí, je vidět a ťuknutí řekne „Tohle tlačítko otevři v telefonu" (mini aplikace,
+  přihlášení na web, inline dotaz, kontakt, platba…).
+- **Zpětné volání** přes `pressBotButton` podle pozice (data do domény nejdou, viz `boti.md`),
+  naráz čeká jen jedno tlačítko (indikátor místo popisku). Odpověď bota: krátký text jako
+  poznámka pod konverzací, upozornění (`alert`) jako `AlertDialog` s fajfkou — **nadpis je název
+  chatu, text odpovědi v těle**: nadpis dialogu má málo řádků a delší upozornění uťal.
+- **Odkaz (tlačítko i odkaz v odpovědi) se otevře v telefonu** (`openOnPhone`,
+  `RemoteActivityHelper` z `wear-remote-interactions`). Potvrzení `OpenOnPhoneDialog`
+  („Otevřeno v telefonu") **jen po úspěchu**: na emulátoru bez spárovaného telefonu budoucnost
+  selže (`RemoteIntentException`) a dialog by lhal — místo něj „Telefon není dostupný".
+  `OpenOnPhoneDialogDefaults.curvedTextStyle` je composable, čte se před voláním dialogu.
+- **Zkoušení s testovacím botem**: bot neběží na serveru, stisk se mu musí doručit a odpovědět
+  ručně — `getUpdates` (bez `offset`, nic nepotvrzuje) a `answerCallbackQuery` (`show_alert` pro
+  upozornění). Notifikátor má v `allowed_updates` jen `message` a `stopped_message_generation`;
+  `callback_query` se na test přidá parametrem `allowed_updates` u `getUpdates` a **pak vrátí**.
+- **Ověřeno na emulátoru 2026-10-24**: tlačítka pod zprávou, „Odložit" → poznámka s odpovědí
+  bota, „Potvrdit" s `show_alert` → dialog, odkaz → „Telefon není dostupný" (bez telefonu).
+  Otevření odkazu v telefonu neověřené (emulátor nemá spárovaný telefon).
+
 ## Hlasovky
 
 - **Přehrávání vlastním tenkým přehrávačem** (`VoicePlayback`, systémový `MediaPlayer`): Ogg/Opus
