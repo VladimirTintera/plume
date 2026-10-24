@@ -79,10 +79,9 @@ internal data class TypingItem(
             inGroup = inGroup,
             modifier = Modifier
                 .animateItem()
-                .gathered(key, scope)
-                // Jede s plochou při odkrývání časů, jen bez času — jinak by stál, jako by se
-                // odkrývání zaseklo (stejně jako reklama).
-                .graphicsLayer { translationX = -scope.timeReveal() },
+                // Při odkrývání časů stojí jako příchozí zprávy (viz RevealAnchor): je krátký
+                // a u levého okraje, čas se vejde vedle.
+                .gathered(key, scope),
         )
     }
 }

@@ -23,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.telegram.MessageEntity
@@ -72,8 +71,8 @@ internal data class PendingReplyItem(
             Modifier
                 .animateItem()
                 .gathered(key, scope)
-                // Jede s plochou při odkrývání časů, jen bez času — jako „píše…".
-                .graphicsLayer { translationX = -scope.timeReveal() }
+                // Při odkrývání časů stojí jako příchozí zprávy (viz RevealAnchor): bublina má
+                // nejvýš MESSAGE_MAX_WIDTH_FRACTION šířky, takže se pruh časů vejde vedle ní.
                 .fillMaxWidth()
                 // Je to nový blok (bot odpovídá), takže vzduch jako mezi skupinami.
                 .padding(top = GROUP_SPACING),

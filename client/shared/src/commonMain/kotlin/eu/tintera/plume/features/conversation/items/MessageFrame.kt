@@ -255,14 +255,17 @@ internal interface MessageItem : ConversationItem {
         // Konfety výhry u kostky přesahují zprávu stejně jako efekt; položka se kvůli nim zvedne.
         var raised by remember { mutableStateOf(false) }
         val raise = remember { { up: Boolean -> raised = up } }
+        // Příchozí zpráva při odkrývání časů stojí, čas se vejde vedle ní (viz RevealAnchor).
+        val anchor = remember(frame.message.isOutgoing) { if (frame.message.isOutgoing) null else RevealAnchor() }
         RevealingTime(
             frame.message.timestamp,
             scope.timeReveal,
             // Animace přesahuje zprávu; starší zprávy se kreslí po ní a přikryly by ji.
             modifier.zIndex(if (effectPlayback.playing || raised) 1f else 0f),
+            anchor = anchor,
         ) {
             CompositionLocalProvider(LocalRaiseItem provides raise) {
-                MessageFrame(frame, scope, maxWidthFraction, effectPlayback) { Body() }
+                MessageFrame(frame, scope, maxWidthFraction, effectPlayback, anchor) { Body() }
             }
         }
     }
@@ -538,6 +541,7 @@ private fun MessageFrame(
     scope: ConversationItemScope,
     maxWidthFraction: Float,
     effectPlayback: EffectPlayback,
+    revealAnchor: RevealAnchor?,
     body: @Composable MessageBodyScope.() -> Unit,
 ) {
     val message = frame.message
@@ -741,7 +745,10 @@ private fun MessageFrame(
         Column(
             // Posun se čte až ve fázi layoutu (`offset { }`), ne v kompozici. Jinak by se celá
             // zpráva i s obsahem přeskládávala na každý snímek tahu.
-            Modifier.offset { IntOffset(drag.value.roundToInt(), 0) },
+            Modifier
+                // Před posunem tahu na odpověď: ukotvení měří, kde zpráva stojí v klidu.
+                .then(if (revealAnchor != null) Modifier.onPlaced { revealAnchor.content = it } else Modifier)
+                .offset { IntOffset(drag.value.roundToInt(), 0) },
             // Zpráva drží svou stranu, i když je něco pod ní širší než ona — „Neodesláno. Ťukni
             // a zkus to znovu." pod krátkou bublinou ji jinak odsunulo od pravého okraje.
             horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
