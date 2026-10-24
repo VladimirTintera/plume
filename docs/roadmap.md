@@ -401,7 +401,7 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 1. ~~**Ankety a kvízy s hlasováním**~~ — hotovo (jedna i víc odpovědí, kvíz se značkami).
 2. ~~**Tlačítka pod zprávou od botů**~~ — hotovo (zpětné volání, odpověď i upozornění, odkaz do
    telefonu; zbytek „otevři v telefonu").
-3. **Odkazy „otevřít v telefonu"** (`RemoteActivityHelper`) — web se na hodinkách neotevírá.
+3. ~~**Odkazy „otevřít v telefonu"**~~ — hotovo (odkazy v textu, e-mail i telefon).
 4. **Drobnosti pro kontext** — „Přeposláno od …", „upraveno", jméno a velikost souboru.
 5. **Video kolečka jako náhled** s délkou, jako videa (přehrávání drahé).
 

@@ -160,6 +160,21 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   („✓ Možná"), víc odpovědí (dvě zaškrtnuté → obě 100 %), kvíz („✓ 4" 100 %). Omezení serveru
   (členství, země) a anketa s médii neověřené.
 
+## Odkazy v textu
+
+- **Odkaz ve zprávě se otevře v telefonu** (`linkedText`: `LinkAnnotation.Clickable` nad entitami
+  `MessageEntityType.Link` — holá adresa, odkaz pod textem, e-mail i telefon). Stejná cesta jako
+  tlačítko bota (`openOnPhone`, potvrzení jen po úspěchu, jinak „Telefon není dostupný").
+  Ťuknutí na odkaz si vezme odkaz, ne bublinu (výběr reakce se neotevře).
+- **Barva**: v příchozí bublině `primary`, v odchozí barva popředí bubliny
+  (`onPrimaryContainer`) — `primary` na `primaryContainer` kontrast nezaručuje; odlišení nese
+  podtržení v obou.
+- **Zmínky, tagy, příkazy botů a formátování zůstávají obyčejným textem**: na hodinkách by neměly
+  kam vést a modrý text bez akce je horší než černý.
+- **Ověřeno na emulátoru 2026-10-24**: zpráva od bota s holou adresou a `<a href>` (oba podtržené),
+  ťuknutí na odkaz → „Telefon není dostupný" (emulátor bez telefonu). Otevření v telefonu
+  neověřené.
+
 ## Tlačítka botů
 
 - **Klávesnice bota pod zprávou** (`MessageBotKeyboard`, `ChatMessage.keyboard`): všechna
