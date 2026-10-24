@@ -1,4 +1,4 @@
 type: feat
 units: wear
-cs: Odhlášení přímo na hodinkách, na konci seznamu chatů
-en: Sign out right on the watch, at the end of the chat list
+cs: Nastavení na hodinkách s odhlášením, hned pod nadpisem seznamu chatů
+en: Watch settings with sign out, right below the chat list title

@@ -31,8 +31,11 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   Compose for Wear OS textové pole nemá. Klávesnice heslo nemaskuje — jiná cesta na hodinkách není.
 - **Ověřeno na emulátoru 2026-10-24:** sken telefonem (Nastavení → Zařízení → Připojit zařízení),
   `AuthorizationState -> Ready`, pak seznam chatů. Heslo nevyzkoušené (účet ho nechtěl).
-- **Odhlášení na konci seznamu chatů** (tlačítko „Odhlásit" a `AlertDialog` z Compose for Wear OS
-  s křížkem a fajfkou): hodinky nemají Nastavení a jinak by šly odhlásit jen z telefonu. Odhlásí
+- **Odhlášení je v Nastavení hodinek** (`SettingsScreen`, cesta `settings`): `CompactButton`
+  „Nastavení" hned pod nadpisem seznamu chatů, na obrazovce „Odhlásit" a `AlertDialog` z Compose
+  for Wear OS s křížkem a fajfkou. **Menu v liště Wear OS nemá** — vedlejší akce patří na začátek
+  nebo konec seznamu. Napřed bylo odhlášení na konci seznamu chatů, a ten je dlouhý: uživatele by
+  nenapadlo tam rolovat. Bez toho by hodinky šly odhlásit jen z telefonu. Odhlásí
   jen sezení hodinek (`TelegramSession.logOut` v `APP_SCOPE` — obrazovka po odhlášení zmizí);
   automat pak sám přejde k QR kódu, notifikace smaže `NotificationUpdate.Cleared`, dlaždice
   a komplikace dostanou stav odhlášeno a zrcadlení z telefonu se zase zapne.

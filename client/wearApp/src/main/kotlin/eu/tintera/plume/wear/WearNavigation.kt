@@ -13,10 +13,11 @@ private const val REACTIONS = "reactions"
 private const val MESSAGE_ID = "messageId"
 private const val RECORD = "record"
 private const val PHOTO = "photo"
+private const val SETTINGS = "settings"
 private const val FILE_ID = "fileId"
 
 /**
- * Seznam chatů, konverzace, výběr reakce, nahrání hlasovky a fotka přes celý displej; zpět tahem doprava jako všude na hodinkách.
+ * Seznam chatů, konverzace, výběr reakce, nahrání hlasovky, fotka přes celý displej a nastavení; zpět tahem doprava jako všude na hodinkách.
  * [openChat] (ťuknutí na chat v dlaždici nebo na notifikaci) otevře konverzaci nad seznamem chatů, takže tah zpět
  * vede do seznamu, ne pryč z aplikace.
  */
@@ -30,8 +31,12 @@ fun WearNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     }
     SwipeDismissableNavHost(navController = navController, startDestination = CHATS) {
         composable(CHATS) {
-            ChatListScreen(onOpen = { chatId -> navController.navigate("$CHAT/$chatId") })
+            ChatListScreen(
+                onOpen = { chatId -> navController.navigate("$CHAT/$chatId") },
+                onSettings = { navController.navigate(SETTINGS) },
+            )
         }
+        composable(SETTINGS) { SettingsScreen() }
         composable("$CHAT/{$CHAT_ID}") { entry ->
             val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable
             ConversationScreen(
