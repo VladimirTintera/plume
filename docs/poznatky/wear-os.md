@@ -160,6 +160,20 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   („✓ Možná"), víc odpovědí (dvě zaškrtnuté → obě 100 %), kvíz („✓ 4" 100 %). Omezení serveru
   (členství, země) a anketa s médii neověřené.
 
+## Kontext zprávy
+
+- **„Přeposláno od …"** nad textem (`ChatMessage.forwardOrigin`, kurzívou; bez jména
+  „Přeposlaná zpráva"), **„upraveno"** před časem (`isEdited`) a u **souboru** ikona, jméno
+  a velikost (`MessageMedia.Document`, `fileSizeText` z `core`) místo slova „Soubor". Texty jsou
+  telefonní (`conversation_forwarded_from`, `conversation_edited`). Soubor se na hodinkách
+  neotevírá — prohlížeče dokumentů tam nejsou.
+- **Úpravu od bota „upraveno" neukáže**: Bot API vrátí `edit_date`, ale TDLib u zpráv, jejichž
+  úpravu server skrývá (`edit_hide`, úpravy od botů), dá `editDate = 0` — telefon se chová stejně.
+  Značku tedy na testovacím botovi ověřit nejde.
+- **Ověřeno na emulátoru 2026-10-24** (Notifikátor): `forwardMessage` → „Forwarded from
+  Notifikator", `sendDocument` → ikona, „plume-test-soubor.txt", „27 B". „Upraveno" neověřené
+  (viz výš).
+
 ## Odkazy v textu
 
 - **Odkaz ve zprávě se otevře v telefonu** (`linkedText`: `LinkAnnotation.Clickable` nad entitami
