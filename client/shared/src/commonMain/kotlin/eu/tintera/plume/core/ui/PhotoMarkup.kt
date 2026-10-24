@@ -77,8 +77,9 @@ data class MarkedPhoto(val path: String, val width: Int, val height: Int)
  */
 interface PhotoMarkupRenderer {
     /**
-     * Platforma úpravu umí. Desktop renderer má jen jako zástupce (konverzace a sdílení ho berou
-     * povinně) a vrací `false` — editor se tam nenabízí, místo aby skončil hláškou o chybě.
+     * Platforma úpravu umí. Konverzace a sdílení berou renderer povinně, takže platforma bez
+     * úpravy by měla zástupce s `false` — editor se pak nenabízí, místo aby skončil hláškou
+     * o chybě. Dnes ho umí všechny tři.
      */
     val isAvailable: Boolean get() = true
 

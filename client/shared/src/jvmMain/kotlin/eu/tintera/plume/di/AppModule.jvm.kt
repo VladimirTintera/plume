@@ -47,8 +47,7 @@ import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.DesktopSquarePhoto
 import eu.tintera.plume.core.ui.DesktopStoryPhoto
 import eu.tintera.plume.core.ui.StoryPhoto
-import eu.tintera.plume.core.ui.MarkedPhoto
-import eu.tintera.plume.core.ui.PhotoMarkup
+import eu.tintera.plume.core.ui.DesktopPhotoMarkupRenderer
 import eu.tintera.plume.core.stickers.DesktopStickerMaker
 import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
@@ -137,14 +136,7 @@ actual fun Module.platformModule() {
             override fun cancel(chatId: Long) = Unit
         }
     }
-    single<PhotoMarkupRenderer> {
-        object : PhotoMarkupRenderer {
-            override val isAvailable = false
-
-            override suspend fun render(path: String, markup: PhotoMarkup): MarkedPhoto =
-                throw UnsupportedOperationException("Úprava fotky na desktopu zatím není.")
-        }
-    }
+    single<PhotoMarkupRenderer> { DesktopPhotoMarkupRenderer() }
     single<StickerMaker> { DesktopStickerMaker() }
     single<StoryVideo> { UnsupportedStoryVideo }
     single<ProfileVideo> {

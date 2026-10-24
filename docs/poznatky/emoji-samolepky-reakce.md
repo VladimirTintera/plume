@@ -787,12 +787,12 @@ odpadá i obrys (kolem celé fotky by byl rámeček).
 - **Skia je na desktopu jediná cesta k WebP**: `javax.imageio` WebP nezná vůbec. Kreslení
   a kódování proto leží v source setu `skiaMain` (iOS + JVM), ne v `nonDynamicThemeMain` —
   ten je o motivu, ne o obrázcích.
-- **Otočení podle EXIF dělá dekodér** (`Codec.encodedOrigin` + `EncodedOrigin.toMatrix`):
-  výběr souborů na desktopu fotku nepřevádí (soubor se nekopíruje), takže snímek
-  z fotoaparátu by bez toho skončil na boku. Test vkládá do JPEGu ručně segment EXIF
-  s orientací 6.
-- **„Upravit fotku" se na desktopu nenabízí** — editor fotky tam zatím není
-  (`PhotoMarkupRenderer.isAvailable = false`), viz `docs/poznatky/desktop.md`.
+- **Otočení podle EXIF dělá `Image.makeFromEncoded` samo** (ověřeno pokusem: JPEG 800 × 600
+  s orientací 6 dekóduje jako 600 × 800; `Codec` vrací surové rozměry a orientaci zvlášť).
+  Výběr souborů na desktopu fotku nepřevádí (soubor se nekopíruje), takže snímek
+  z fotoaparátu má orientaci jen v EXIF. Test vkládá do JPEGu ručně segment EXIF s orientací 6.
+- **„Upravit fotku" na desktopu je** (`DesktopPhotoMarkupRenderer`, viz
+  `docs/poznatky/desktop.md`, „Úprava fotky").
 - **Ověřeno v ladicí desktopové aplikaci 24. 10. 2026** (macOS, skutečný účet, sada „Plume test
   iOS"): výběr JPEGu přes `FileDialog`, náhled, přidání do sady (server WebP vzal), obálka
   z úpravy sady. Okno JVM jde ovládat jen přes celou obrazovku (`computer_batch`), na pozadí

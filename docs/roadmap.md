@@ -975,7 +975,7 @@ odstranění pozadí přes ML Kit / Vision (desktop bez něj), nová i vlastní 
 samolepky z fotky") a úprava vlastní sady (název, pořadí, emoji, odebrání samolepky, smazání
 sady, obálka; „Úprava vlastní sady samolepek") a bílý obrys kolem vyříznutého objektu.
 Zbývá: video a animované samolepky, odstranění pozadí na desktopu (chtělo by přibalit model),
-úprava fotky na desktopu (renderer ve Skie, `skiaMain`) a ověření iOS na skutečném iPhonu.
+a ověření iOS na skutečném iPhonu.
 
 **Vědomě mimo, dokud se nerozhodne jinak:**
 

@@ -753,6 +753,26 @@ plochy a `VideoSurface` je kreslí jako obrázky Skii.
   barvy pruhů, vykreslení `VideoSurface` přes `ImageComposeScene`; GIFy v konverzaci
   ověřené v běžící aplikaci (23. 10. 2026). **macOS a Linux jen přeložené.**
 
+## Úprava fotky
+
+Ořez, otočení a kresba do fotky (`DesktopPhotoMarkupRenderer`) ve Skie — tentýž editor jako na
+mobilech, stejné pořadí: tahy v souřadnicích originálu, pak otočení a ořez jednou transformací
+plátna (jako iOS), JPEG s `PHOTO_JPEG_QUALITY`.
+
+- **Skia otáčí podle EXIF sama, ImageIO ne.** `Image.makeFromEncoded` dekóduje JPEG 800 × 600
+  s orientací 6 jako 600 × 800, `ImageIO.read` jako 800 × 600 (ověřeno pokusem). Editor (Coil
+  na desktopu dekóduje přes `Image.makeFromEncoded`) tedy fotku ukazuje otočenou a tahy jsou
+  podíly téhle podoby — renderer proto čte originál týmž voláním.
+- **Rozměry přílohy se otáčejí podle EXIF** (`uprightSize` ve výběru příloh, `Codec` čte jen
+  hlavičku). Dřív je dávalo ImageIO bez otočení, takže snímek z fotoaparátu na výšku měl
+  prohozený poměr stran — v editoru i v bublině.
+- **Skia v projektu staví cesty přes `PathBuilder`** (skiko 0.150): `Path` už `moveTo`/`lineTo`
+  nemá a `Data.makeFromFileName` neexistuje (bajty přes `File.readBytes`).
+- **Ověřeno v ladicí aplikaci 24. 10. 2026** (macOS): v tvorbě samolepky pero, otočení a ořez —
+  vykreslená samolepka přesně odpovídá editoru. **Neověřené v aplikaci**: úprava přílohy
+  v konverzaci a ve sdílení (stejný renderer, testy `DesktopPhotoMarkupRendererTest`), fotka
+  s EXIF orientací (jen testem), zvýrazňovač a začernění, Windows a Linux.
+
 ## Co platforma (zatím) neumí
 
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
@@ -782,11 +802,6 @@ a tichá kolečka"), kamera pro kolečka je `null`
     z palety. Na GNOME nic nedělá.
   - **Vlastní titulek v Compose** (okno bez rámu) by šel všude, ale tahání, dvojklik,
     přichytávání a změnu velikosti by bylo nutné dodělat ručně — za tu cenu nestojí.
-- **Úprava fotky (ořez, otočení, kresba) na desktopu není.** Konverzace a sdílení berou
-  `PhotoMarkupRenderer` povinně, takže desktop má zástupce, který jen vyhazuje; dřív se ale
-  tlačítko „Upravit" ukázalo a úprava skončila hláškou o chybě. Zástupce teď hlásí
-  `isAvailable = false` a editor se nenabízí nikde (příloha, sdílení, tvorba samolepky).
-  Skutečný renderer by šel ve Skie jako výroba samolepek (`skiaMain`).
 - **Mini aplikace se hlásí jako `tdesktop`** (`webAppPlatform`), WebView ale není.
 - **Test `DocumentKindTest` tvrdil, že MP4 otevře prohlížeč na každé platformě.** Na desktopu
   to neplatí; commonTest teď běží i na JVM (`jvmTest`), takže takové „všude" předpoklady
