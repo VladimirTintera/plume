@@ -326,7 +326,8 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
 ## Vydání
 
 Postup a pasti jsou v `release.md`, „Hodinky (Wear OS)": track `wear:internal` z tagu Androidu,
-`versionCode` + 100 000 000, poznámky jen s `units: wear`, minifikovaný release.
+`versionCode` + 100 000 000, poznámky jen s `units: wear`, minifikovaný release; snímky do Play
+v `play/graphics/<locale>/wearScreenshots/` (`release.md`, záznam v obchodě).
 
 ## Emulátor
 

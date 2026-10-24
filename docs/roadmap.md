@@ -366,7 +366,7 @@ hotovo (plugin `plume.locale-config`),
 ~~`units: wear` v poznámkách k vydání a release workflow~~ — hotovo (track `wear:internal`,
 `versionCode` + 100 000 000, minifikovaný release); Wear OS povolený v Play Console,
 `WEAR_RELEASE` nastavená, první vydání (0.3.100) je v interním testu. **Zbývá:** snímky pro
-hodinky z testovacích účtů do záznamu (ručně, Play Listing je zatím neumí), pak přihlášení k distribuci pro Wear OS s kontrolou kvality od Googlu. Fotky v konverzaci hotovo (v bublině a přes
+hodinky z testovacích účtů do záznamu (přes Play Listing, viz bod 6 níž), pak přihlášení k distribuci pro Wear OS s kontrolou kvality od Googlu. Fotky v konverzaci hotovo (v bublině a přes
 celý displej); hovory, video, nastavení a správa skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpovědí jen ze systému.
 
 **Další kroky po prvním vydání (2026-10-24, v tomhle pořadí):**
@@ -381,7 +381,9 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 4. ~~**Starší historie a citace**~~ — hotovo (dočítání u začátku seznamu, citace nad odpovědí).
 5. ~~**Další média**~~ — hotovo (samolepky náhledem, videa náhledem s délkou, bez přehrávání);
    GIFy a přehrávání videa zůstávají na telefonu.
-6. **Snímky do Play** přes workflow Play Listing (`wearScreenshots`), ne ručně.
+6. ~~**Snímky do Play** přes workflow Play Listing~~ — workflow je umí (`wearScreenshots`,
+   kontrola rozměrů); **zbývá nafotit snímky z testovacích účtů** a dát je do
+   `play/graphics/<locale>/wearScreenshots/`.
 
 **Rizika, ověřit napřed:**
 

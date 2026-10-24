@@ -47,6 +47,13 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
 - **Záznam v obchodě je v `play/`, nahrává ho ruční workflow Play Listing**
   (`.github/scripts/play_listing.py`), ne release. Záznam je jeden pro všechny tracky a mění se
   jinak často než verze. Výchozí je `dry_run`: edit se jen ověří a zahodí.
+- **Snímky hodinek jdou do `play/graphics/<locale>/wearScreenshots/`** (typ API
+  `wearScreenshots`), pořadí podle jmen souborů jako u telefonu. Skript je kontroluje už lokálně
+  (čtverec, strany 384–3840 px), `play_listing.py --check` to udělá bez klíče a bez knihoven
+  Google — chyba by se jinak ukázala až v `edits:validate`. Snímek z emulátoru `Plume_Wear`
+  (`adb exec-out screencap -p`) má 454 × 454 a projde. **Dělají se z testovacích účtů**
+  (hodinky přihlášené QR kódem z testovacího telefonu), na hodinkách se skutečným účtem by
+  seznam chatů ukázal jména lidí. Bez QR kódu přihlášení (nese platný token).
 - **Nahrání obrázků do editu projde i bez práva ke správě obchodu, 403 přijde až
   na `edits:validate`.** Service account umí vydávat buildy, a přesto záznam měnit nesmí —
   potřebuje navíc oprávnění ke správě prezentace v obchodě. Chyba se tedy neukáže v prvním
