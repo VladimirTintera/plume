@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- NetworkMonitor (core/connectivity) hlásí TDLib druh sítě. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Nahrávání hlasovek mikrofonem hodinek; o oprávnění se žádá až na obrazovce nahrávání. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:name=".WearApplication"

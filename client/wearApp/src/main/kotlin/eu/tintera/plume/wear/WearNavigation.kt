@@ -10,8 +10,9 @@ private const val CHAT = "chat"
 private const val CHAT_ID = "chatId"
 private const val REACTIONS = "reactions"
 private const val MESSAGE_ID = "messageId"
+private const val RECORD = "record"
 
-/** Seznam chatů, konverzace a výběr reakce; zpět tahem doprava jako všude na hodinkách. */
+/** Seznam chatů, konverzace, výběr reakce a nahrání hlasovky; zpět tahem doprava jako všude na hodinkách. */
 @Composable
 fun WearNavigation() {
     val navController = rememberSwipeDismissableNavController()
@@ -24,7 +25,12 @@ fun WearNavigation() {
             ConversationScreen(
                 chatId = chatId,
                 onReact = { messageId -> navController.navigate("$REACTIONS/$chatId/$messageId") },
+                onRecord = { navController.navigate("$RECORD/$chatId") },
             )
+        }
+        composable("$RECORD/{$CHAT_ID}") { entry ->
+            val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable
+            RecordVoiceScreen(chatId = chatId, onDone = { navController.popBackStack() })
         }
         composable("$REACTIONS/{$CHAT_ID}/{$MESSAGE_ID}") { entry ->
             val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable

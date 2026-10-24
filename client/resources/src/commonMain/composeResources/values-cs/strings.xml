@@ -4274,4 +4274,11 @@
     <string name="wear_send_failed">Zprávu se nepodařilo odeslat.</string>
     <string name="wear_reactions_title">Reakce</string>
     <string name="wear_reactions_none">Reakce tu nejdou.</string>
+    <string name="wear_voice_record">Hlasovka</string>
+    <string name="wear_voice_tap_to_record">Ťukněte pro nahrávání</string>
+    <string name="wear_voice_tap_to_send">Ťukněte pro odeslání</string>
+    <string name="wear_voice_stop">Zastavit a odeslat</string>
+    <string name="wear_voice_no_permission">Bez přístupu k mikrofonu hlasovku nahrát nejde.</string>
+    <string name="wear_voice_too_short">Hlasovka je moc krátká.</string>
+    <string name="wear_voice_failed">Hlasovku se nepodařilo nahrát.</string>
 </resources>
