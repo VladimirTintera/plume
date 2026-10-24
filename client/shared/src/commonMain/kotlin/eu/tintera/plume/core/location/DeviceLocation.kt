@@ -2,9 +2,6 @@ package eu.tintera.plume.core.location
 
 import androidx.compose.runtime.Composable
 
-/** Bod na mapě. */
-data class GeoPoint(val latitude: Double, val longitude: Double)
-
 /**
  * Jednorázové zjištění polohy zařízení. Ve výchozím stavu PŘIBLIŽNÉ — jen tolik, kolik je potřeba
  * k hledání míst v okolí (inline bot míst bez polohy vrací místa u nějakého výchozího bodu, ne

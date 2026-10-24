@@ -13,7 +13,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.notifications.PendingReply
 import eu.tintera.plume.core.notifications.ReplyState
-import eu.tintera.plume.core.telegram.NotificationPresenter
+import eu.tintera.plume.core.notifications.NotificationPresenter
 import org.koin.core.context.GlobalContext
 import kotlin.time.Duration.Companion.seconds
 

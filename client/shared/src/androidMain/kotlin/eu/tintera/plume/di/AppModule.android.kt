@@ -69,7 +69,7 @@ import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.calls.CALL_JOURNAL_DIRECTORY
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.settings.createSettingsDataStore
-import eu.tintera.plume.core.telegram.NotificationPresenter
+import eu.tintera.plume.core.notifications.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
