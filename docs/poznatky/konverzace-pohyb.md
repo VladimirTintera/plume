@@ -488,13 +488,13 @@ kreslí tentýž prvek — pilulka `surfaceContainerHigh` s ikonou, polem a ✕ 
 
 ## Odkrývání časů tahem
 
-Tah doleva posune celou plochu zpráv a vpravo odkryje čas u každé z nich; po puštění se plocha
-vrátí. V bublině čas není (viz „Čas a stav doručení"), takže tohle je vedle předělu dne a plovoucího
+Tah doleva posune odchozí zprávy a vpravo odkryje čas u každé zprávy; příchozí stojí a čas se
+vysune vedle nich. Po puštění se všechno vrátí. V bublině čas není (viz „Čas a stav doručení"), takže tohle je vedle předělu dne a plovoucího
 data jediné místo, kde se dá přečíst. S myší ukáže čas u zprávy i najetí (viz „Akce po najetí myší"
 v `konverzace-akce.md`); na desktopu tah myší časy ani odpověď nedělá, patří výběru textu.
 
 - **Je to gesto nad SEZNAMEM, ne nad položkou.** Čas u jedné zprávy neřekne, kdy přišly ty okolo,
-  a u jediné bubliny by to vypadalo jako druhá polovina swipu na odpověď. Jede proto všechno
+  a u jediné bubliny by to vypadalo jako druhá polovina swipu na odpověď. Odkrývá se proto všechno
   najednou, včetně sponzorované karty — ta jen nemá co ukázat.
 - **Bublina si proto nesmí vzít každý vodorovný tah.** `draggable` je po slopu směrově agnostický:
   vezme si i tah doleva, nikam ho nepromítne (posun je `coerceIn(0f, maxDrag)`) a rodiči už ho
@@ -508,6 +508,15 @@ v `konverzace-akce.md`); na desktopu tah myší časy ani odpověď nedělá, pa
   **dvojnásobku touch slopu** (svislý scroll má práh kratší, takže šikmý tah si seznam vezme dřív)
   a jen když jde **aspoň 2× víc do strany než svisle** a doleva. Na emulátoru se to ověřuje
   `input swipe` se screencapem uprostřed tahu (`input swipe … 1500 & sleep 1; screencap`).
+- **Příchozí zprávy stojí, jede jen to, co je u pravého okraje** (`RevealAnchor`). Posouvala se
+  celá plocha, takže příchozím zprávám ujížděly začátky za levý okraj — přitom vpravo od nich je
+  místa dost (bublina má nejvýš `MESSAGE_MAX_WIDTH_FRACTION`, tj. 82 % šířky) a čas se tam vejde
+  bez posunu. Tak to dělají iMessage a WhatsApp. Příchozí zpráva se posune jen o to, o kolik by
+  ji čas překryl: měří se SKUTEČNÝ pravý okraj zprávy (`onPlaced` na sloupci v `MessageFrame`,
+  před posunem tahu na odpověď), ne podíl šířky — pod bublinou bývají tlačítka bota nebo
+  „Neodesláno…" a ty mohou být širší. Souřadnice se čtou až při kreslení, žádný stav.
+  „Píše…" a rozepsaná odpověď bota stojí taky (obojí je užší než 82 %); reklama jede dál
+  (je přes celou šířku). Ověřeno na emulátoru Fold (složený displej) v chatu s botem.
 - **Posun se čte až při kreslení** (`graphicsLayer { translationX = -reveal() }`, lambda, ne
   hodnota). Jinak by každý snímek gesta přeskládal celou konverzaci.
 - **Čas čeká za pravým okrajem** a přijíždí s posunem. Sloupec má pevnou šířku a posun se o ni

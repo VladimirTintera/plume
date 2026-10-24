@@ -27,6 +27,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -69,6 +71,9 @@ import org.jetbrains.compose.resources.stringResource
  * Obsah se posouvá vlevo a v uvolněném pruhu vpravo se ukáže čas zprávy. Předěly dne se
  * neposouvají — jsou to nadpisy nad blokem, ne zprávy, a čas u nich nedává smysl.
  *
+ * S [anchor] obsah stojí (příchozí zpráva u levého okraje): čas se vysune do volného místa vpravo
+ * od ní a zprávu odsune jen o tolik, o kolik by ji jinak překryl.
+ *
  * [reveal] je lambda, ne hodnota: posun se čte až při kreslení vrstvy, takže gesto překresluje
  * jen vrstvu s bublinou a nepřeskládává celou konverzaci.
  */
@@ -77,10 +82,16 @@ internal fun RevealingTime(
     timestamp: Int,
     reveal: () -> Float,
     modifier: Modifier = Modifier,
+    anchor: RevealAnchor? = null,
     content: @Composable () -> Unit,
 ) {
     Box(modifier.fillMaxWidth()) {
-        Box(Modifier.graphicsLayer { translationX = -reveal() }) { content() }
+        Box(
+            Modifier
+                .graphicsLayer { translationX = -(anchor?.shift(reveal()) ?: reveal()) }
+                // Za vrstvou: souřadnice obsahu vůči tomuhle boxu posun vrstvy nemění.
+                .then(if (anchor != null) Modifier.onPlaced { anchor.container = it } else Modifier),
+        ) { content() }
 
         /*
          * Čas čeká za pravým okrajem položky a přijíždí s posunem. Ořezává ho jeho vlastní pruh,
@@ -106,6 +117,34 @@ internal fun RevealingTime(
                     .graphicsLayer { translationX = TIME_COLUMN_WIDTH.toPx() - reveal() },
             )
         }
+    }
+}
+
+/**
+ * Ukotvení příchozí zprávy při odkrývání časů ([RevealingTime]).
+ *
+ * Posouvala se celá plocha, takže příchozí zprávy ujížděly začátkem za levý okraj — přitom vpravo
+ * od nich je místa dost (bublina má nejvýš [MESSAGE_MAX_WIDTH_FRACTION] šířky) a čas se tam
+ * vejde i bez posunu. Odchozí zprávy jedou dál: stojí u pravého okraje, kam čas přijíždí.
+ *
+ * Měří se skutečný pravý okraj zprávy, ne podíl šířky: pod bublinou bývají tlačítka bota nebo
+ * hláška o neodeslání a ty mohou být širší. Souřadnice se čtou až při kreslení, žádný stav —
+ * přeměření by jinak přeskládávalo položku.
+ */
+internal class RevealAnchor {
+    /** Obsah položky; vůči němu se měří [content]. */
+    var container: LayoutCoordinates? = null
+
+    /** Zpráva sama, bez tváře odesílatele a bez pruhu výběru přes celou šířku. */
+    var content: LayoutCoordinates? = null
+
+    /** O kolik se obsah posune při odkrytí [reveal]: jen o to, co se do volného místa nevejde. */
+    fun shift(reveal: Float): Float {
+        if (reveal <= 0f) return 0f
+        val outer = container?.takeIf { it.isAttached } ?: return reveal
+        val inner = content?.takeIf { it.isAttached } ?: return reveal
+        val free = outer.size.width - outer.localBoundingBoxOf(inner, clipBounds = false).right
+        return (reveal - free).coerceAtLeast(0f)
     }
 }
 
