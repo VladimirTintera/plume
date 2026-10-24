@@ -35,10 +35,32 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
 ## Seznam chatů
 
 - `ChatRepository.chats()` jako na telefonu; repository seznam po přihlášení načte sama.
-  Karta: název, náhled poslední zprávy (`UiText.resolve()`), počet nepřečtených v rohu.
+  Karta: fotka chatu a název, náhled poslední zprávy (`UiText.resolve()`), v rohu počet
+  nepřečtených, a když nic nečeká, čas poslední zprávy (dnes hodina, jinak datum).
+- **Fotka chatu** (`ChatAvatar`): malá varianta (`avatarFileId`), stažení spustí odběr
+  `FileRepository.file()` sám; dekóduje se mimo hlavní vlákno rovnou zmenšená (`inSampleSize`
+  mocninou dvou) na velikost avataru — hodinky mají málo paměti. Bez fotky iniciála.
 - **Položky seznamu BEZ klíče.** S `key = id` seznam po přihlášení začínal uprostřed: chaty
   přibývají postupně a lazy seznam drží první viditelnou položku, takže nové nahoře odjely nad
   displej i s nadpisem. Na hodinkách se má začínat nahoře.
+
+## Konverzace
+
+- **Jen pro čtení** (`ConversationScreen`): posledních 30 zpráv, nejnovější dole a seznam se na
+  ni postaví při otevření i s každou novou. Nové, upravené a smazané zprávy se odebírají DŘÍV
+  než historie, ať se mezi tím nic neztratí.
+- **První `history(…, fromMessageId = 0)` vrací TDLib často jen kus z lokální databáze**
+  (klidně jednu zprávu) — dočítá se od nejstarší, dokud stránka není plná nebo historie neskončí.
+- **Otevřený chat se TDLib ohlásí** (`openChat`, při odchodu `closeChat` v `APP_SCOPE`, scope
+  obrazovky v `onDispose` už je zrušený) a **zobrazené zprávy se hlásí jako přečtené** (`markRead`),
+  i ty, které přijdou, zatímco je konverzace otevřená. Kdo ji na hodinkách viděl, četl ji.
+- Bublina: `text`, a když je prázdný, `description` (fotka bez popisku, anketa…) jako na telefonu;
+  jméno odesílatele jen tam, kde se liší od názvu chatu (skupiny); servisní zprávy uprostřed.
+- **Navigace** `SwipeDismissableNavHost` (`compose-navigation`): zpět tahem doprava jako všude na
+  hodinkách. Konverzace dostane id chatu v cestě (`chat/{chatId}`).
+- **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora (skutečný účet — chaty lidí se
+  neotevírají, otevření je označí přečtené): historie, živá zpráva během otevřené konverzace,
+  tah zpět, v seznamu pak místo počtu nepřečtených čas.
 
 ## Emulátor
 

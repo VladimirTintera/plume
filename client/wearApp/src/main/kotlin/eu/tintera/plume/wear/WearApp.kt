@@ -26,7 +26,7 @@ fun WearApp() {
     MaterialTheme {
         AppScaffold {
             when (val current = stage) {
-                AuthStage.Ready -> ChatListScreen()
+                AuthStage.Ready -> WearNavigation()
                 is AuthStage.WaitQrConfirmation -> QrLoginScreen(link = current.link)
                 is AuthStage.WaitPassword -> PasswordScreen(stage = current)
                 // Telefonní číslo se na hodinkách nezadává: rovnou QR kód.

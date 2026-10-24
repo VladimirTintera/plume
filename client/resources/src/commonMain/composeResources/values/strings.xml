@@ -4120,4 +4120,5 @@
     <string name="wear_password_failed">The password didn't work. Try again.</string>
     <string name="wear_chats_title">Chats</string>
     <string name="wear_chats_empty">No chats yet</string>
+    <string name="wear_conversation_empty">No messages yet</string>
 </resources>
