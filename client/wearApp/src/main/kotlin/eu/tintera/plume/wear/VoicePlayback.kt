@@ -19,6 +19,21 @@ class VoicePlayback {
 
     private var player: MediaPlayer? = null
 
+    // `duration` a `currentPosition` před přípravou hlásí chybu stavu (a do logu `MediaPlayer`).
+    private var prepared = false
+
+    /**
+     * Kolik z hlasovky už dohrálo (0..1), a kolik vteřin. Čte se ve smyčce po snímcích, dokud
+     * hlasovka hraje — `MediaPlayer` průběh neohlašuje, jen se dá zjistit.
+     */
+    fun progress(): Float {
+        val current = player?.takeIf { prepared } ?: return 0f
+        val duration = current.duration.takeIf { it > 0 } ?: return 0f
+        return (current.currentPosition.toFloat() / duration).coerceIn(0f, 1f)
+    }
+
+    fun elapsedSeconds(): Int = player?.takeIf { prepared }?.currentPosition?.div(1000) ?: 0
+
     fun play(messageId: Long, path: String, onError: (Throwable?) -> Unit) {
         stop()
         playingId = messageId
@@ -31,7 +46,10 @@ class VoicePlayback {
                         .build(),
                 )
                 setDataSource(path)
-                setOnPreparedListener { it.start() }
+                setOnPreparedListener {
+                    prepared = true
+                    it.start()
+                }
                 // `this@VoicePlayback`: uvnitř `apply` by holé `stop()` bylo MediaPlayer.stop() —
                 // přehrávač by se zastavil, ale stav by zůstal na „hraje" (ověřeno na emulátoru).
                 setOnCompletionListener { this@VoicePlayback.stop() }
@@ -49,6 +67,7 @@ class VoicePlayback {
     }
 
     fun stop() {
+        prepared = false
         player?.release()
         player = null
         playingId = null

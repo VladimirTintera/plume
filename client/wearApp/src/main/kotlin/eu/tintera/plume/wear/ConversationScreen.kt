@@ -44,20 +44,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
-import androidx.wear.compose.material3.FilledTonalIconButton
 import androidx.wear.compose.material3.Icon
-import androidx.wear.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
-import eu.tintera.plume.resources.media_pause
-import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.conversation_delivery_read
 import eu.tintera.plume.resources.conversation_delivery_sent
-import eu.tintera.plume.resources.play_arrow_24dp
-import eu.tintera.plume.resources.stop_24dp
 import eu.tintera.plume.resources.wear_confirm_play_failed
 import eu.tintera.plume.resources.wear_voice_record
 import kotlinx.coroutines.flow.first
@@ -277,7 +271,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             quoted = model.quoted,
             lastReadOutboxId = model.lastReadOutboxId,
             loadingOlder = model.loadingOlder,
-            playingId = playback.playingId,
+            playback = playback,
             onReply = onReply,
             onReact = onReact,
             onRecord = onRecord,
@@ -334,7 +328,7 @@ private fun MessageList(
     quoted: Map<Long, ChatMessage?>,
     lastReadOutboxId: Long,
     loadingOlder: Boolean,
-    playingId: Long?,
+    playback: VoicePlayback,
     onReply: () -> Unit,
     onReact: (Long) -> Unit,
     onRecord: () -> Unit,
@@ -411,7 +405,8 @@ private fun MessageList(
                     delivery = message.delivery(lastReadOutboxId),
                     chatTitle = title,
                     quote = replyTo?.let { id -> messages.firstOrNull { it.id == id } ?: quoted[id] },
-                    playing = message.id == playingId,
+                    playing = message.id == playback.playingId,
+                    playback = playback,
                     onPlay = { onPlay(message) },
                     onOpenPhoto = onOpenPhoto,
                     onVote = { answers -> onVote(message.id, answers) },
@@ -465,6 +460,7 @@ private fun MessageBubble(
     chatTitle: String,
     quote: ChatMessage?,
     playing: Boolean,
+    playback: VoicePlayback,
     onPlay: () -> Unit,
     onOpenPhoto: (Int) -> Unit,
     onVote: (List<Int>) -> Unit,
@@ -568,22 +564,14 @@ private fun MessageBubble(
             }
             val voice = message.media as? MessageMedia.VoiceNote
             if (voice != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Tónová výplň má barvu příchozí bubliny a tlačítko by v ní zmizelo — tam plná.
-                    FilledTonalIconButton(
-                        onClick = onPlay,
-                        shapes = IconButtonDefaults.animatedShapes(),
-                        colors = if (outgoing) IconButtonDefaults.filledTonalIconButtonColors() else IconButtonDefaults.filledIconButtonColors(),
-                        modifier = Modifier.size(36.dp),
-                    ) {
-                        Icon(
-                            painterResource(if (playing) Res.drawable.stop_24dp else Res.drawable.play_arrow_24dp),
-                            contentDescription = stringResource(if (playing) Res.string.media_pause else Res.string.media_play),
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text(formatDuration(voice.durationSeconds), style = MaterialTheme.typography.bodyMedium)
-                }
+                VoiceNoteRow(
+                    voice,
+                    outgoing = outgoing,
+                    playing = playing,
+                    onPlay = onPlay,
+                    progress = playback::progress,
+                    elapsedSeconds = playback::elapsedSeconds,
+                )
             }
             // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se
             // jen případný popisek.
