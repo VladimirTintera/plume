@@ -1118,8 +1118,13 @@ ztlumil správce, zvednutím ruky (viz „Mluvení a zvednutá ruka" níž). Kam
   Shell proto dostane `padding(top = výška pruhu)` a stavovou lištu jako spotřebovanou
   (`consumeWindowInsets(WindowInsets.statusBars)`); pruh ji má nad sebou, jinak by byla mezera
   dvakrát. Je to kořen shellu, ne položka `NavDisplay`, takže měnící se hodnota uzel neodpojí
-  (Gotchas o insetech v CLAUDE.md). **Pruh hovoru ve dvou obsah pořád překrývá** — kandidát na
-  totéž.
+  (Gotchas o insetech v CLAUDE.md). **Totéž platí pro pruh zmenšeného hovoru ve dvou**
+  (`CallBar`): hlásí výšku přes `CallOverlay(onBarHeight)` a shell odsouvá o větší z obou
+  pruhů. Výška se měří PRVNÍ v řetězu modifikátorů (i s okraji a stavovou lištou) a při odchodu
+  pruhu z kompozice (rozbalení na celou obrazovku, okénko, konec hovoru) se vrátí na 0 —
+  `DisposableEffect`, ne stav hovoru: `AnimatedContent` drží pruh ještě během přechodu.
+  Ověřeno hovorem …029 → …527: šipka zpět v konverzaci jde ťuknout, seznam chatů je pod
+  pruhem celý, po zavěšení se obsah vrátí nahoru.
 - **Ověřeno na emulátorech 24. 10. 2026** (…029 posluchač, …527 vlastník, sonda zakládala
   videochat a za 10 minut ho ukončila): zpět z obrazovky → pruh nad konverzací s odsunutým
   obsahem, služba `isForeground`; mikrofon z pruhu a Domů → nahrávání na pozadí neumlčené,
