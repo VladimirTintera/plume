@@ -1,5 +1,6 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.resources.poll_vote_failed
 import eu.tintera.plume.resources.wear_message_you
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.geometry.Size
@@ -289,6 +290,16 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             onPlay = onPlay,
             onOpenPhoto = onOpenPhoto,
             onNearTop = loadOlder,
+            onVote = { messageId, answers ->
+                scope.launch {
+                    conversations.vote(chatId, messageId, answers)
+                        .onSuccess { problem = null }
+                        .onFailure {
+                            logger.w(it) { "Hlas v anketě z hodinek neodešel (chat $chatId)." }
+                            problem = Res.string.poll_vote_failed
+                        }
+                }
+            },
         )
     }
 }
@@ -307,6 +318,7 @@ private fun MessageList(
     onPlay: (ChatMessage) -> Unit,
     onOpenPhoto: (Int) -> Unit,
     onNearTop: () -> Unit,
+    onVote: (messageId: Long, answers: List<Int>) -> Unit,
 ) {
     val state = rememberTransformingLazyColumnState()
     // Na nejnovější zprávu (dole) při otevření i s každou další.
@@ -342,6 +354,7 @@ private fun MessageList(
                     playing = message.id == playingId,
                     onPlay = { onPlay(message) },
                     onOpenPhoto = onOpenPhoto,
+                    onVote = { answers -> onVote(message.id, answers) },
                     // Reagovat jde jen na zprávu, kterou server zná — dočasná ještě skutečné id nemá.
                     onClick = { onReact(message.id) }
                         .takeIf { !message.isService && (message.sendState == null || message.sendState == SendState.Sent) },
@@ -369,6 +382,7 @@ private fun MessageBubble(
     playing: Boolean,
     onPlay: () -> Unit,
     onOpenPhoto: (Int) -> Unit,
+    onVote: (List<Int>) -> Unit,
     onClick: (() -> Unit)?,
 ) {
     // Slovy kreslí `text`, a když je prázdný (fotka bez popisku, anketa…), popis obsahu.
@@ -428,6 +442,10 @@ private fun MessageBubble(
             if (video != null) {
                 MessageVideo(video, modifier = Modifier.padding(vertical = 4.dp))
             }
+            val poll = message.poll
+            if (poll != null) {
+                MessagePoll(poll, outgoing, onVote)
+            }
             val voice = message.media as? MessageMedia.VoiceNote
             if (voice != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -448,7 +466,8 @@ private fun MessageBubble(
             }
             // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se
             // jen případný popisek.
-            if ((voice == null && photo == null && video == null) || message.text.isNotEmpty()) {
+            // Anketa se kreslí celá — `text` u ní nese jen „Anketa: otázka".
+            if (poll == null && ((voice == null && photo == null && video == null) || message.text.isNotEmpty())) {
                 Text(
                     text,
                     style = if (emoji != null && message.text.isEmpty()) MaterialTheme.typography.displaySmall else MaterialTheme.typography.bodyMedium,
