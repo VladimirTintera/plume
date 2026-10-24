@@ -4133,4 +4133,11 @@
     <string name="wear_send_failed">Couldn't send the message.</string>
     <string name="wear_reactions_title">Reactions</string>
     <string name="wear_reactions_none">Reactions aren't available here.</string>
+    <string name="wear_voice_record">Voice message</string>
+    <string name="wear_voice_tap_to_record">Tap to record</string>
+    <string name="wear_voice_tap_to_send">Tap to send</string>
+    <string name="wear_voice_stop">Stop and send</string>
+    <string name="wear_voice_no_permission">Recording needs microphone access.</string>
+    <string name="wear_voice_too_short">The voice message is too short.</string>
+    <string name="wear_voice_failed">Couldn't record the voice message.</string>
 </resources>

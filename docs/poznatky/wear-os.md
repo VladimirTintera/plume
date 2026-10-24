@@ -85,6 +85,29 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   potvrzená, velké emoji), reakce ❤ přidaná a znovu odebraná. Diktování a klávesnice na emulátoru
   nevyzkoušené (vracejí text stejnou cestou jako volba).
 
+## Hlasovky
+
+- **Přehrávání vlastním tenkým přehrávačem** (`VoicePlayback`, systémový `MediaPlayer`): Ogg/Opus
+  přehraje Android sám od verze 10, Media3 z telefonu sem nejde. Nejvýš jedna naráz, poslech se
+  ohlásí TDLib (`openContent`) jako na telefonu. Stažení spustí odběr `FileRepository.file()`.
+- **Past: `stop()` uvnitř `MediaPlayer().apply { … }` je `MediaPlayer.stop()`**, ne metoda
+  obalu — příjemce `apply` ho zastíní. Po dohrání se zastavil jen přehrávač a tlačítko zůstalo
+  na „hraje" (`dumpsys audio` ukázal přehrávač `stopped`). Proto `this@VoicePlayback.stop()`.
+- **Nahrávání** (`VoiceRecorder`, `MediaRecorder`): Ogg/Opus mono 48 kHz, 32 kbit/s jako telefon;
+  úrovně pro waveform každých 50 ms ze `maxAmplitude` (odmocnina), zabalené `encodeWaveform`
+  z `core`. Kratší než vteřina se zahodí (`stop()` po krátkém nahrávání navíc vyhodí výjimku).
+  Ověřeno `file` nad nahrávkou z hodinek: „Ogg data, Opus audio, mono, 48000 Hz".
+- **O mikrofon se žádá až na obrazovce nahrávání**, ne při startu. Ťuknutí spustí, druhé zastaví
+  a pošle (`sendVoiceNote`); zahodit jde tahem zpět, nahrávka se při odchodu smaže.
+- Nahrané soubory zůstávají v `cacheDir` (`voice-*.ogg`): TDLib je nahrává z cesty na pozadí,
+  smazat je hned po odeslání by nahrávání utnulo. Úklid nechává na systému.
+- Tlačítko přehrát v příchozí bublině má plnou barvu: tónová výplň je stejná jako příchozí
+  bublina a tlačítko v ní zmizelo.
+- **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora: žádost o mikrofon („Only this time"),
+  nahrávka 0:03 odešla a potvrdila se, přehrání vlastní (z disku) i příchozí (soubor poslaný
+  botem přes `sendVoice`, stažení) — „Pause" během přehrávání, po dohrání zpět „Play". Mikrofon
+  emulátoru bez povolení hostitele nahrává ticho; skutečný zvuk a reproduktor hodinek neověřené.
+
 ## Emulátor
 
 - AVD **`Plume_Wear`** (`wearos_large_round`, obraz `system-images;android-34;android-wear;arm64-v8a`,

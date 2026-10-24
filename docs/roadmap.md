@@ -316,8 +316,8 @@ bez Compose UI.
 ## Wear OS
 
 **Rozpracované (od 24. 10. 2026):** modul `:client:wearApp` s přihlášením QR kódem, seznamem
-chatů s fotkami, konverzací, odpovědí a reakcemi běží na emulátoru (`docs/poznatky/wear-os.md`).
-Dál MVP od bodu 4.
+chatů s fotkami, konverzací, odpovědí, reakcemi a hlasovkami běží na emulátoru
+(`docs/poznatky/wear-os.md`). Z MVP zbývá bod 5 (vlastní push).
 
 Hodinky navíc dostávají notifikace zrcadlené z telefonu, a ty jsou na to připravené:
 `MessagingStyle`, odpověď (`SEMANTIC_ACTION_REPLY`) s navrženými odpověďmi, Přečteno, Ztlumit,
@@ -348,7 +348,8 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
    (dnes jen popis „Fotka"), starší historie scrollováním nahoru.
 3. ~~Odpověď: diktování, emoji, rychlé odpovědi ze systému; reakce~~ — hotovo (rychlé odpovědi
    jsou naše volby v systémovém zadávání; reakce bez vlastních emoji).
-4. Hlasovky: přehrávání a nahrávání mikrofonem hodinek.
+4. ~~Hlasovky: přehrávání a nahrávání mikrofonem hodinek~~ — hotovo (bez waveformu v bublině,
+   jen délka; přehrávání bez posuvníku).
 5. Vlastní push na hodinkách — a na telefonu přestat zrcadlit, když je Plume na hodinkách
    přihlášený (bridging tag / `setLocalOnly`), jinak přijde každá zpráva dvakrát.
 
