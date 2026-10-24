@@ -409,6 +409,20 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 z ciferníku, animované tvary ikonových tlačítek, potvrzovací dialogy). Barvy z ciferníku čekají
 na ověření na Wear OS 6 (emulátor je Wear OS 5).
 
+**Vizuální vylepšení na hodinkách (2026-10-24, podle užitku):**
+
+1. ~~**Předěly dní a seskupení bublin**~~ — hotovo („Dnes", „Včera", datum; po sobě jdoucí zprávy
+   téhož odesílatele těsněji, jméno ve skupině jen u první).
+2. ~~**Stav doručení u odeslaných zpráv**~~ — hotovo (fajfka odesláno, dvojitá přečteno).
+3. **Vlna u hlasovky** z dat zprávy, během přehrávání se vybarvuje (dnes jen délka).
+4. **Avatar chatu v hlavičce konverzace** vedle názvu.
+5. **Animace nové zprávy** (`animateItem`) místo skoku.
+6. ~~**Odznak nepřečtených v seznamu chatů**~~ — hotovo (vyplněné kolečko, u ztlumeného chatu
+   tlumené).
+7. **„Píše…" a ikona připnutí** v kartě chatu.
+8. **Prázdné a chybové stavy s ikonou** místo holého textu.
+9. **Přechod při otevření fotky** ze zmenšeniny v bublině na celý displej.
+
 Vědomě ne: GIFy a animace, přehrávání videa a hudby, mapy u polohy, Instant View, formátování
 textu — na malém displeji drahé na baterii a výkon, nebo skoro nic nepřidají.
 

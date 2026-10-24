@@ -82,8 +82,12 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
 ## Seznam chatů
 
 - `ChatRepository.chats()` jako na telefonu; repository seznam po přihlášení načte sama.
-  Karta: fotka chatu a název, náhled poslední zprávy (`UiText.resolve()`), v rohu počet
+  Karta: fotka chatu a název, náhled poslední zprávy (`UiText.resolve()`), v rohu odznak
   nepřečtených, a když nic nečeká, čas poslední zprávy (dnes hodina, jinak datum).
+- **Odznak nepřečtených** (`UnreadBadge`): vyplněná pilulka s počtem v `primary`, nad 99 „99+".
+  Holé číslo v rohu karty splývalo s časem u ostatních chatů a nepřečtený chat nebyl na první
+  pohled vidět. Ztlumený chat má odznak tlumený (`surfaceContainerHigh`), ručně označený jako
+  nepřečtený bez počtu jen tečku. Ověřeno na emulátoru 2026-10-24 (chat služby Telegram s 1).
 - **Fotka chatu** (`ChatAvatar`): malá varianta (`avatarFileId`), stažení spustí odběr
   `FileRepository.file()` sám; dekóduje se mimo hlavní vlákno rovnou zmenšená (`inSampleSize`
   mocninou dvou) na velikost avataru — hodinky mají málo paměti. Bez fotky iniciála.
@@ -131,6 +135,23 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   i ty, které přijdou, zatímco je konverzace otevřená. Kdo ji na hodinkách viděl, četl ji.
 - Bublina: `text`, a když je prázdný, `description` (fotka bez popisku, anketa…) jako na telefonu;
   jméno odesílatele jen tam, kde se liší od názvu chatu (skupiny); servisní zprávy uprostřed.
+- **Předěly dní a bloky** (`conversationEntries` v `ConversationEntries.kt`): nad první zprávou
+  dne „Dnes", „Včera", jinak datum (`asDayLabel` z `core`) — bubliny ukazují jen hodinu a u
+  starší historie nebylo poznat, ze kterého dne zpráva je. **Klíč předělu je číslo dne**, ne id
+  první zprávy: dočtením starší historie téhož dne by se první zpráva změnila a seznam by ztratil
+  kotvu. Den počítá `java.time` (hodinky jsou jen Android; `localDate()` z `core` vrací typ
+  kotlinx-datetime, který `wearApp` na classpath nemá). Po sobě jdoucí zprávy téhož odesílatele
+  a strany ve stejném dni bez pauzy nad 10 minut tvoří blok: odstup seznamu je 2 dp a začátek
+  bloku si přidá 2 dp navíc, roh na straně odesílatele se tam, kde zprávy navazují, stáhne na
+  4 dp a jméno ve skupině je jen u první. Ověřeno na emulátoru 2026-10-24 v chatu Notifikátora
+  („Today", „Yesterday", bloky zpráv bota).
+- **Stav doručení** za časem odchozí zprávy: fajfka odesláno, dvojitá přečteno (`DeliveryIcon`,
+  popis pro čtečku z `conversation_delivery_*`). Přečtení je posuvný ukazatel na chatu
+  (`ChatInfo.lastReadOutboxMessageId` při otevření, pak `readOutboxUpdates`), ne stav zprávy —
+  drží ho `ConversationViewModel.lastReadOutboxId` a jen roste, protože počáteční čtení a update
+  můžou přijít v libovolném pořadí. Odesílání a nezdar zůstávají slovy místo času. Fajfky
+  rozlišuje tvar, ne barva (akcent na odchozí bublině kontrast nezaručuje). U samolepky a kolečka
+  u spodního okraje fajfku ořízne kulatý displej — řádek končí u pravého kraje položky.
 - **Navigace** `SwipeDismissableNavHost` (`compose-navigation`): zpět tahem doprava jako všude na
   hodinkách. Konverzace dostane id chatu v cestě (`chat/{chatId}`).
 - **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora (skutečný účet — chaty lidí se
