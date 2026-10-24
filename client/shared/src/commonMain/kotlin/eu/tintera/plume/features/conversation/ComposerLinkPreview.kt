@@ -65,8 +65,10 @@ fun LinkPreviewOptions.forSending(shown: LinkPreview?): LinkPreviewOptions? = wh
  * jinak patřil něčemu, co zpráva už neobsahuje. Kontroluje se to i tady, ne jen v
  * [forPreview]: úprava odeslaná dřív, než dorazí náhled, by jinak nesla starou adresu.
  */
-fun LinkPreviewOptions.forEdit(text: String, shown: LinkPreview?): LinkPreviewOptions? =
-    (if (url != null && !text.contains(url)) copy(url = null) else this).forSending(shown)
+fun LinkPreviewOptions.forEdit(text: String, shown: LinkPreview?): LinkPreviewOptions? {
+    val url = url
+    return (if (url != null && !text.contains(url)) copy(url = null) else this).forSending(shown)
+}
 
 /**
  * Odkaz, ke kterému náhled právě patří: vybraný, jinak první v textu. Podle toho se v sheetu

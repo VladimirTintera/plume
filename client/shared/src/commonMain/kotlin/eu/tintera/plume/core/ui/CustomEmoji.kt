@@ -60,16 +60,18 @@ fun CustomEmojiImage(id: Long, fallback: String, modifier: Modifier = Modifier) 
             // Jednobarevné emoji se barví barvou textu — na odchozí bublině by jinak zmizelo.
             if (shown?.tinted == true) Modifier.tinted(tint) else Modifier,
         )
+        val animationFileId = shown?.animationFileId
+        val stillFileId = shown?.stillFileId
         when {
-            shown?.animationFileId != null -> AnimatedSticker(
-                fileId = shown.animationFileId,
+            animationFileId != null -> AnimatedSticker(
+                fileId = animationFileId,
                 contentDescription = shown.emoji,
                 modifier = image,
                 // Emoji v textu hrají po desítkách (zpráva, výběr emoji).
                 maxFrameRate = REDUCED_STICKER_FRAME_RATE,
-                placeholder = { shown.stillFileId?.let { StillEmoji(it, shown.emoji) } ?: placeholder() },
+                placeholder = { stillFileId?.let { StillEmoji(it, shown.emoji) } ?: placeholder() },
             )
-            shown?.stillFileId != null -> Box(image) { StillEmoji(shown.stillFileId, shown.emoji) }
+            stillFileId != null -> Box(image) { StillEmoji(stillFileId, shown.emoji) }
             else -> placeholder()
         }
     }

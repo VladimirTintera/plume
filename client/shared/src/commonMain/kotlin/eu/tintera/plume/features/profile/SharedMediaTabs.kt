@@ -294,8 +294,7 @@ internal fun sharedMediaTiles(messages: List<ChatMessage>): List<SharedMediaTile
         .filter { it.media is MessageMedia.Photo || it.media is MessageMedia.Video }
     when {
         article.isNotEmpty() -> article.map { SharedMediaTile(message, it.media, it.index) }
-        message.media != null -> listOf(SharedMediaTile(message, message.media, NO_ARTICLE_MEDIA))
-        else -> emptyList()
+        else -> listOfNotNull(message.media?.let { SharedMediaTile(message, it, NO_ARTICLE_MEDIA) })
     }
 }
 
@@ -744,11 +743,12 @@ private fun FileRow(
         },
         leadingContent = {
             Box(Modifier.size(FILE_ICON_SIZE), contentAlignment = Alignment.Center) {
+                val thumbnailFileId = document.thumbnailFileId
                 when {
                     // Průběh nahrazuje náhled, aby bylo hned vidět, že se něco děje.
                     progress != null -> CircularWavyProgressIndicator()
-                    document.thumbnailFileId != null -> RemoteImage(
-                        fileId = document.thumbnailFileId,
+                    thumbnailFileId != null -> RemoteImage(
+                        fileId = thumbnailFileId,
                         modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(FILE_ICON_CORNER)),
                     )
                     else -> Icon(painterResource(document.icon()), contentDescription = null)

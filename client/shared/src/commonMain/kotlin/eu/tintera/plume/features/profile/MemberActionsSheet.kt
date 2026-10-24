@@ -233,10 +233,11 @@ private fun MemberDetail.subtitle(): String? {
         isBot -> stringResource(Res.string.profile_bot)
         else -> null
     }
+    val until = restrictedUntil
     val restriction = when {
         !isRestricted -> null
-        restrictedUntil == null -> stringResource(Res.string.member_restricted_forever)
-        else -> stringResource(Res.string.member_restricted_until, restrictedUntil.toLong().asUpcomingTime())
+        until == null -> stringResource(Res.string.member_restricted_forever)
+        else -> stringResource(Res.string.member_restricted_until, until.toLong().asUpcomingTime())
     }
     return listOfNotNull(tag, roleLabel, restriction).joinToString(SUBTITLE_SEPARATOR).ifEmpty { null }
 }

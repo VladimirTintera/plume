@@ -219,8 +219,9 @@ internal fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Un
                     Modifier.size(ROW_THUMBNAIL).clip(RoundedCornerShape(CELL_CORNER)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (result.thumbnailFileId != null) {
-                        RemoteImage(fileId = result.thumbnailFileId, modifier = Modifier.fillMaxSize())
+                    val thumbnailFileId = result.thumbnailFileId
+                    if (thumbnailFileId != null) {
+                        RemoteImage(fileId = thumbnailFileId, modifier = Modifier.fillMaxSize())
                     } else {
                         Surface(
                             color = MaterialTheme.colorScheme.secondaryContainer,

@@ -201,8 +201,9 @@ private fun PreparedRow(result: InlineResult.Row) {
             Modifier.size(PREVIEW_THUMBNAIL).clip(ShapeDefaults.Medium),
             contentAlignment = Alignment.Center,
         ) {
-            if (result.thumbnailFileId != null) {
-                RemoteImage(fileId = result.thumbnailFileId, modifier = Modifier.fillMaxSize())
+            val thumbnailFileId = result.thumbnailFileId
+            if (thumbnailFileId != null) {
+                RemoteImage(fileId = thumbnailFileId, modifier = Modifier.fillMaxSize())
             } else {
                 Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f), modifier = Modifier.fillMaxSize()) {
                     Box(contentAlignment = Alignment.Center) { Icon(painterResource(result.kind.icon), contentDescription = null) }

@@ -171,11 +171,7 @@ object UrlCleaner {
 
         // Vyčistíme i cílové URL u explicitních hypertextových odkazů ([FormatSpan.url])
         val cleanedFormats = shiftedFormats.map { span ->
-            if (span.url != null) {
-                span.copy(url = cleanUrl(span.url))
-            } else {
-                span
-            }
+            span.url?.let { span.copy(url = cleanUrl(it)) } ?: span
         }
 
         return eu.tintera.plume.core.telegram.ComposedText(cleanedText, cleanedFormats)

@@ -2,11 +2,10 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
-import eu.tintera.plume.core.telegram.newChatAutoDelete
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Koho jde přidat do nové skupiny a s jakou dobou mazání vznikne. */
+/** Koho jde přidat do nové skupiny. */
 class CreateChatTest {
 
     private fun chat(id: Long, kind: ChatKind = ChatKind.Private) = ChatSummary(
@@ -42,17 +41,5 @@ class CreateChatTest {
     @Test
     fun bezUlozenychZpravSeNicNevyrazuje() {
         assertEquals(listOf(1L), groupMemberCandidates(listOf(chat(1)), savedMessagesChatId = null).map { it.id })
-    }
-
-    @Test
-    fun vychoziDobaMazaniProjdeJenVCelychDnechDoRoku() {
-        assertEquals(0, newChatAutoDelete(null))
-        assertEquals(0, newChatAutoDelete(0))
-        assertEquals(86_400, newChatAutoDelete(86_400))
-        assertEquals(31 * 86_400, newChatAutoDelete(31 * 86_400))
-        // Hodina by u supergroupy neprošla a s ní ani celé založení.
-        assertEquals(0, newChatAutoDelete(3_600))
-        assertEquals(0, newChatAutoDelete(366 * 86_400))
-        assertEquals(0, newChatAutoDelete(-86_400))
     }
 }

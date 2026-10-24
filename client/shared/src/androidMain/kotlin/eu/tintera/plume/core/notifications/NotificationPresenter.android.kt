@@ -34,7 +34,6 @@ import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.NotificationSoundChoice
 import eu.tintera.plume.core.telegram.NotificationUpdate
 import eu.tintera.plume.core.telegram.dismissUpTo
-import eu.tintera.plume.core.telegram.notificationImage
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_call_answer_elsewhere
