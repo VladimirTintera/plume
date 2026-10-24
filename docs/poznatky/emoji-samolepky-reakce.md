@@ -770,8 +770,12 @@ iOS kreslí Compose.
 - **Ověřeno**: testy v simulátoru (`IosStickerMakerTest`: WebP 512 px, obálka 100 × 100 do
   32 kB, obrys kolem kruhu); táž volání Vision Swift skriptem na Macu nad
   `/Library/User Pictures/Animals/Parrot.heic` a výřez přes iOS cestu obrysu — vypadá stejně
-  jako na Androidu. **Neověřené**: odstranění pozadí na skutečném iPhonu a celá cesta v aplikaci
-  (simulátor byl odhlášený).
+  jako na Androidu. V aplikaci v simulátoru: vstup z Nastavení, výběr fotky, náhled, úprava
+  fotky (tah perem se propsal do samolepky), výběr emoji a sady. **Neověřené**: odstranění
+  pozadí na skutečném iPhonu, samotné přidání do sady a obálka (simulátor byl přihlášený ke
+  skutečnému účtu) a vstup z prohlížeče fotky.
+- **Přihlášení QR kódem v simulátoru trvalo po naskenování déle než minutu**, než se obrazovka
+  přepnula; nevisí, jen čekat.
 
 ## Úprava vlastní sady samolepek
 
