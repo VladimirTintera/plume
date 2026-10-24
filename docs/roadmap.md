@@ -364,8 +364,7 @@ hotovo (plugin `plume.locale-config`),
 ~~`units: wear` v poznámkách k vydání a release workflow~~ — hotovo (track `wear:internal`,
 `versionCode` + 100 000 000, minifikovaný release); Wear OS povolený v Play Console,
 `WEAR_RELEASE` nastavená, první vydání (0.3.100) je v interním testu. **Zbývá:** snímky pro
-hodinky z testovacích účtů do záznamu (ručně, Play Listing je zatím neumí), instalace z Play na
-skutečné hodinky a pak přihlášení k distribuci pro Wear OS s kontrolou kvality od Googlu. Hovory, média, nastavení a správa
+hodinky z testovacích účtů do záznamu (ručně, Play Listing je zatím neumí), pak přihlášení k distribuci pro Wear OS s kontrolou kvality od Googlu. Hovory, média, nastavení a správa
 skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpovědí jen ze systému.
 
 **Rizika, ověřit napřed:**
