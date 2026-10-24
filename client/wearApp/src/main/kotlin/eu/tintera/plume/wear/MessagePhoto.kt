@@ -1,5 +1,6 @@
 package eu.tintera.plume.wear
 
+import androidx.compose.foundation.shape.CircleShape
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.Res
@@ -136,6 +137,41 @@ fun MessageSticker(sticker: MessageMedia.Sticker, modifier: Modifier = Modifier)
     }
 }
 
+/**
+ * Video kolečko jako kulatý náhled ([VIDEO_NOTE_SIZE]) s délkou dole — bez bubliny, jako na
+ * telefonu. Přehrávání na hodinkách není (stejně jako u videa); minináhled hned, náhled
+ * (`thumbnailFileId`) po stažení.
+ */
+@Composable
+fun MessageVideoNote(note: MessageMedia.VideoNote, modifier: Modifier = Modifier) {
+    val sizePx = with(LocalDensity.current) { VIDEO_NOTE_SIZE.roundToPx() }
+    val bitmap = note.thumbnailFileId?.let { rememberPhotoBitmap(it, sizePx) }
+    val preview = remember(note.minithumbnail) {
+        note.minithumbnail?.let { BitmapFactory.decodeByteArray(it.jpeg, 0, it.jpeg.size)?.asImageBitmap() }
+    }
+    Box(
+        modifier
+            .size(VIDEO_NOTE_SIZE)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        (bitmap ?: preview)?.let {
+            Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(VIDEO_NOTE_SIZE))
+        }
+        Row(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 10.dp)
+                .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(painterResource(Res.drawable.play_arrow_24dp), contentDescription = null, modifier = Modifier.size(14.dp))
+            Text(formatDuration(note.durationSeconds), style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
 /** Video, které hodinky ukážou náhledem; skryté (spoiler, citlivé, tajné, mizející) zůstává slovem. */
 fun MessageMedia.shownVideo(): MessageMedia.Video? =
     (this as? MessageMedia.Video)?.takeUnless {
@@ -170,3 +206,5 @@ fun decodeScaled(path: String, targetPx: Int): ImageBitmap? {
 private const val MAX_HEIGHT_RATIO = 1.25f
 
 private val STICKER_SIZE = 96.dp
+
+private val VIDEO_NOTE_SIZE = 120.dp

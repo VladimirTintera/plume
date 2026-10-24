@@ -403,7 +403,7 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
    telefonu; zbytek „otevři v telefonu").
 3. ~~**Odkazy „otevřít v telefonu"**~~ — hotovo (odkazy v textu, e-mail i telefon).
 4. ~~**Drobnosti pro kontext**~~ — hotovo („Přeposláno od", „upraveno", jméno a velikost souboru).
-5. **Video kolečka jako náhled** s délkou, jako videa (přehrávání drahé).
+5. ~~**Video kolečka jako náhled**~~ — hotovo (kulatý náhled s délkou, bez přehrávání).
 
 Vědomě ne: GIFy a animace, přehrávání videa a hudby, mapy u polohy, Instant View, formátování
 textu — na malém displeji drahé na baterii a výkon, nebo skoro nic nepřidají.

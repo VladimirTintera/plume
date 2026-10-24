@@ -135,6 +135,11 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   jako fotka (`MessageImage`), vlevo dole „▶ 0:04". **Přehrávání na hodinkách není** — dekodér,
   zvuk a stahování desítek megabajtů by vydaly za samostatnou funkci. Ťuknutí patří bublině
   (reakce). Skryté video (spoiler…) a video bez náhledu zůstávají slovem.
+- **Video kolečka bez bubliny** (`MessageVideoNote`, kulatý náhled 120 dp, „▶ 0:04" dole, čas
+  pod ním), minináhled hned a `thumbnailFileId` po stažení; pod ním hotový přepis řeči
+  (`SpeechTranscript.Done`), pokud ho server udělal — o přepis se na hodinkách nežádá. Bez
+  přehrávání, jako video. Ověřeno na emulátoru (čtvercové video ze `screenrecord` poslané
+  `sendVideoNote`).
 - **Samolepky bez bubliny** (`MessageSticker`, 96 dp, čas pod ní): statická (`fileId`, WebP)
   rovnou, animovaná (TGS) a videosamolepka (WebM) náhledem `thumbnailFileId` — animace by stála
   baterii. Bez staženého obrázku emoji samolepky. Citlivá samolepka zůstává slovem.
