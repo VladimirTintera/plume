@@ -731,6 +731,37 @@ jinde nezaregistruje a oba vstupy chybí.
   vytvořením, plná sada, odmítnutí serverem (`STICKER_PNG_DIMENSIONS` a spol.), iOS a desktop
   (tam se nenabízí).
 
+## Úprava vlastní sady samolepek
+
+Vlastní sada (`StickerSetDetail.isOwned`, z `StickerSet.isOwned`) má v Nastavení → Chaty →
+Sady samolepek → ⋮ položku „Upravit sadu" (`OwnedStickerSetScreen`,
+`OwnedStickerSetViewModel`): název, pořadí tažením za úchyt, změna emoji a odebrání samolepky
+(⋮ u řádku), „Přidat samolepku z fotky" s předvybranou touto sadou
+(`StickerComposerRoute.targetSetId`) a smazání celé sady. **Jen Android**, stejně jako tvorba.
+
+- **Samolepka se v sadě adresuje souborem**, ne id: `removeStickerFromSet`,
+  `setStickerPositionInSet` i `setStickerEmojis` berou `InputFile`, tedy
+  `InputFileId(sticker.sticker.id)` (`StickerItem.sendFileId`).
+- **Co server potvrdí, přijde updatem sady** (`stickerSetDetail`) — obrazovka si po změně nic
+  nepřepisuje sama. Výjimka je pořadí během tahu: drží ho ViewModel a serveru odejde až při
+  puštění úchytu, **jedním voláním za taženou samolepku** (`setStickerPositionInSet` bere jednu
+  samolepku a cílovou pozici, ne celé pořadí). Tah zpátky na původní místo server nevolá.
+- **Akce ve ViewModelu čtou zdroje, ne odvozený `state`.** `state` je `combine(…).stateIn`
+  a přepočítá se až po dispatchi; `saveTitle` hned po `setTitleDraft` by jinak četl starý
+  koncept (přišlo se na to testem, v UI mezi tím leží snímek).
+- **`deleteStickerSet` sadu ze seznamu nainstalovaných NEODEBERE.** Na serveru je pryč, ale
+  TDLib ji v paměti drží a v Moje sady visela do restartu aplikace (ověřeno na emulátoru).
+  `deleteSet` ji proto napřed odinstaluje (`changeStickerSet(isInstalled = false)`) a když
+  smazání selže, nainstaluje ji zpátky.
+- **Odkaz sady se změnit nedá** — přejmenování (`setStickerSetTitle`) mění jen název, pod
+  polem je vidět `t.me/addstickers/<name>`. Název má nejvýš 64 znaků.
+- **Ověřeno na emulátoru 24. 10. 2026** (`Plume_Barvy`, …527, česky): přejmenování, přesun
+  tažením (vydržel po návratu na obrazovku), dialog emoji s předvyplněným emoji, odebrání
+  samolepky, smazání sady (s opravou zmizí ze seznamu hned). **Neověřené**: samotná změna
+  emoji (emoji nejde napsat přes `adb input text`), předvýběr sady při přidání z úpravy, když
+  je vlastních sad víc (byla jedna), plná sada a obálka sady (`setStickerSetThumbnail`, zatím
+  není).
+
 ## Samolepky k emoji v poli
 
 Když je v poli jediné emoji a nic jiného, nad polem vyjede řádek samolepek k němu

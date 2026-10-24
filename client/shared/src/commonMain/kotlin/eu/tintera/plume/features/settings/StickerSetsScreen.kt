@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.sticker_set_edit
 import eu.tintera.plume.resources.sticker_create_from_photo
 import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.telegram.OutgoingAttachment
@@ -119,6 +121,8 @@ fun StickerSetsScreen(
     modifier: Modifier = Modifier,
     /** Samolepka z fotky z galerie; `null` = platforma ji vyrobit neumí (jen samolepky, ne emoji). */
     onCreateSticker: ((path: String, width: Int, height: Int) -> Unit)? = null,
+    /** Úprava vlastní sady; nabízí se jen u sad, které uživatel vytvořil. */
+    onEditSet: ((setId: Long) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -242,6 +246,7 @@ fun StickerSetsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             SetMenu(
                                 set = set,
+                                onEdit = onEditSet?.takeIf { set.isOwned }?.let { edit -> { edit(set.id) } },
                                 onArchive = { viewModel.archive(set) },
                                 onRemove = { viewModel.remove(set) },
                             )
@@ -337,10 +342,14 @@ private fun SetRow(
     )
 }
 
-/** Nabídka řádku: Archivovat, a ve vlastní skupině Odebrat (u oficiálních sad chybí). */
+/**
+ * Nabídka řádku: u vlastní sady Upravit, pak Archivovat, a ve vlastní skupině Odebrat
+ * (u oficiálních sad chybí).
+ */
 @Composable
 private fun SetMenu(
     set: StickerSetSummary,
+    onEdit: (() -> Unit)?,
     onArchive: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -353,7 +362,13 @@ private fun SetMenu(
             expanded = open,
             onDismiss = { open = false },
             groups = listOf(
-                listOf(
+                listOfNotNull(
+                    onEdit?.let { edit ->
+                        MenuAction(stringResource(Res.string.sticker_set_edit), Res.drawable.edit_24dp) {
+                            open = false
+                            edit()
+                        }
+                    },
                     MenuAction(stringResource(Res.string.sticker_sets_archive), Res.drawable.archive_24dp) {
                         open = false
                         onArchive()

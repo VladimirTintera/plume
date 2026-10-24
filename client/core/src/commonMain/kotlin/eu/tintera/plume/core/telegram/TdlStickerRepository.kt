@@ -134,6 +134,7 @@ class TdlStickerRepository(
                             isOfficial = set.isOfficial,
                             stickers = set.stickers.toItems(),
                             isCustomEmoji = set.stickerType is StickerTypeCustomEmoji,
+                            isOwned = set.isOwned,
                         )
                     }
                     .getOrElse { failure ->
@@ -591,6 +592,42 @@ class TdlStickerRepository(
         Unit
     }.onFailure { logger.w(it) { "Samolepku se nepodařilo přidat do sady ${set.name}." } }
 
+    override suspend fun renameSet(name: String, title: String): Result<Unit> =
+        client.setStickerSetTitle(name = name, title = title).toResult()
+            .onFailure { logger.w(it) { "Sadu $name se nepodařilo přejmenovat." } }
+            .map { }
+
+    override suspend fun removeFromSet(stickerFileId: Int): Result<Unit> =
+        client.removeStickerFromSet(sticker = InputFileId(id = stickerFileId)).toResult()
+            .onFailure { logger.w(it) { "Samolepku $stickerFileId se nepodařilo odebrat ze sady." } }
+            .map { }
+
+    override suspend fun moveInSet(stickerFileId: Int, position: Int): Result<Unit> =
+        client.setStickerPositionInSet(sticker = InputFileId(id = stickerFileId), position = position).toResult()
+            .onFailure { logger.w(it) { "Samolepku $stickerFileId se nepodařilo přesunout." } }
+            .map { }
+
+    override suspend fun setEmojis(stickerFileId: Int, emojis: String): Result<Unit> =
+        client.setStickerEmojis(sticker = InputFileId(id = stickerFileId), emojis = emojis).toResult()
+            .onFailure { logger.w(it) { "Emoji samolepky $stickerFileId se nepodařilo změnit." } }
+            .map { }
+
+    /**
+     * Napřed odinstalovat, pak smazat: `deleteStickerSet` sadu ze seznamu nainstalovaných
+     * neodebere (ověřeno na emulátoru — smazaná sada v něm visela dál, i po návratu na obrazovku).
+     * Když smazání selže, sada se nainstaluje zpátky.
+     */
+    override suspend fun deleteSet(setId: Long, name: String): Result<Unit> {
+        client.changeStickerSet(setId = setId, isInstalled = false, isArchived = false).toResult()
+            .onFailure { logger.w(it) { "Sadu $name se před smazáním nepodařilo odinstalovat." } }
+        return client.deleteStickerSet(name = name).toResult()
+            .onFailure {
+                logger.w(it) { "Sadu $name se nepodařilo smazat." }
+                client.changeStickerSet(setId = setId, isInstalled = true, isArchived = false)
+            }
+            .map { }
+    }
+
     private fun NewStickerFile.toNewSticker() = NewSticker(
         sticker = InputFileLocal(path = path),
         format = StickerFormatWebp(),
@@ -610,6 +647,7 @@ class TdlStickerRepository(
                 cover = set.covers.filterNotNull().firstOrNull()?.toMedia(),
                 size = set.size,
                 isOfficial = set.isOfficial,
+                isOwned = set.isOwned,
                 coverCustomEmojiId = (set.covers.filterNotNull().firstOrNull()?.fullType as? StickerFullTypeCustomEmoji)?.customEmojiId,
             )
         }

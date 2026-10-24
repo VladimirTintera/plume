@@ -77,6 +77,8 @@ class StickerComposerViewModel(
     private val stickers: StickerRepository,
     private val maker: StickerMaker,
     private val markupRenderer: PhotoMarkupRenderer?,
+    /** Sada, kterou předvybrat (z úpravy vlastní sady); `null` = první, kam se vejde. */
+    private val targetSetId: Long? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("StickerComposer")
@@ -104,7 +106,8 @@ class StickerComposerViewModel(
                 .onSuccess { sets ->
                     _state.update { current ->
                         // Výchozí cíl: první sada, kam se ještě vejde; jinak nová.
-                        val target = sets.firstOrNull { !it.isFull }?.let { StickerTarget.Existing(it) } ?: StickerTarget.NewSet
+                        val target = (sets.firstOrNull { it.id == targetSetId && !it.isFull } ?: sets.firstOrNull { !it.isFull })
+                            ?.let { StickerTarget.Existing(it) } ?: StickerTarget.NewSet
                         current.copy(sets = sets, target = target)
                     }
                 }
