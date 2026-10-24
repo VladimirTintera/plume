@@ -186,6 +186,11 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   na komplikaci otevřely aplikaci, po `am kill` se dlaždice nakreslila z nově spuštěného procesu.
   Neověřené: stav bez přihlášení (vyžaduje odhlášení), skutečné hodinky.
 
+## Vydání
+
+Postup a pasti jsou v `release.md`, „Hodinky (Wear OS)": track `wear:internal` z tagu Androidu,
+`versionCode` + 100 000 000, poznámky jen s `units: wear`, minifikovaný release.
+
 ## Emulátor
 
 - AVD **`Plume_Wear`** (`wearos_large_round`, obraz `system-images;android-34;android-wear;arm64-v8a`,

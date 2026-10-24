@@ -21,8 +21,10 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   adresáři. ENV se čte přes `providers`, ne `System.getenv` — jinak by hodnota nevstoupila do
   otisku konfigurační keše (`org.gradle.configuration-cache=true`) a build by po výměně secretu
   použil starý.
-- **`releaseKeystoreFile` musí být deklarovaný PŘED blokem `android { }`.** Top-level `val`
-  se v `.kts` inicializují v pořadí deklarace — stejná past jako u `NavSavedStateConfiguration`.
+- **Verze, podpis a `verifyReleaseConfiguration` dává plugin `plume.android-release`**
+  (telefon i hodinky, viz „Hodinky (Wear OS)" níž). Dřív byly v build skriptu telefonu, kde
+  cesta ke keystore musela stát před blokem `android { }` (top-level `val` v `.kts` se
+  inicializují v pořadí deklarace); plugin nastavuje hodnoty ve `finalizeDsl` a tu past nemá.
 - **Keystore na CI je absolutní cesta, lokálně relativní.** `ANDROID_KEYSTORE_PATH` míří do
   `RUNNER_TEMP`, `releaseStoreFile` do kořene projektu; proto se `isAbsolute` rozlišuje.
 - **`verifyReleaseConfiguration` visí na `bundleRelease`/`assembleRelease`.** Chybějící podpis
@@ -82,6 +84,33 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   a `languages.txt`), jako má `generateChangelog` rovnou `generated/changelog/kotlin`.
   Ověření bez podpisového klíče: `./gradlew :client:androidApp:bundleRelease -x
   :client:androidApp:verifyReleaseConfiguration`.
+
+### Hodinky (Wear OS)
+
+- **Z téhož tagu do téhož záznamu**, na track `wear:internal` (`android-release.yml`, kroky
+  „Wear"). Zapíná je repo proměnná `WEAR_RELEASE = true` — dokud Wear OS není v Play Console
+  povolený (Nastavení → Rozšířená nastavení → Formáty), track `wear:internal` neexistuje
+  a upload by shodil i vydání telefonu, který jde v témže běhu.
+- **`versionCode` hodinek = číslo z tagu + 100 000 000** (`plumeRelease { versionCodeOffset }`).
+  Play nevezme dva bundly se stejným číslem v jednom záznamu, ani pro jiný formát zařízení.
+  Vyšší číslo hodinek telefonu nic nezastíní: bundl hodinek má `uses-feature` watch a telefon
+  ho nedostane.
+- **Verze, podpis a `verifyReleaseConfiguration` jsou v pluginu `plume.android-release`**
+  (`build-logic/…/AndroidRelease.kt`) pro telefon i hodinky. Hodnoty se nastavují ve
+  `finalizeDsl`, tedy až po build skriptu modulu, aby platil jeho `plumeRelease { … }`.
+- **Poznámky jen s `units: wear`** (`release_notes.py play … wear`), jinak „Drobné opravy
+  a vylepšení". Poznámka bez `units:` platí jen pro plnohodnotné klienty.
+- **Release hodinek je minifikovaný** (R8, `isShrinkResources`): APK 93 → 40 MB, AAB 24 MB.
+  Hook `TdlibJsonRepair` v minifikovaném dexu R8 vloží přímo za `JsonClient.receive` (místo
+  volání `TdlibReceiveHook.afterReceive` je tam jeho tělo), `dexdump` proto jméno hooku
+  nenajde — zapojení hlídá kontrola po přihlášení.
+- **Zkouška release na emulátoru s `versionCode` z tagu vrací debug build jen downgradem**:
+  release `100000999` nad debugem `100000012`. `adb install -r -d` projde, protože emulátor
+  má `ro.debuggable=1`; přihlášení zůstane.
+- **Ověřeno na emulátoru 2026-10-24** (release přepodepsaný debug klíčem): seznam chatů,
+  konverzace, notifikace se dvěma akcemi a Přečteno, dlaždice, obnova po `am kill`. Podpis
+  obou AAB týmž upload klíčem (`keytool -printcert -jarfile`). **Upload do Play neověřený** —
+  čeká na povolení Wear OS v Play Console a `WEAR_RELEASE`.
 
 ## Self-hosted runnery
 
