@@ -153,7 +153,18 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
 - **Reakce:** ťuknutí na zprávu otevře výběr (vlastní cesta v navigaci, zpět tahem) s emoji, která
   chat u zprávy dovoluje (`availableReactions`, nejvýš 12); daná je zvýrazněná a ťuknutí ji
   odebere (`setReaction(add = false)`). Stav si výběr načte sám (`message(chatId, messageId)`).
-  Pod bublinou „👍 2  ❤", živě z `interactionUpdates`. **Vlastní emoji se vynechávají**
+  V bublině „👍 2  ❤" vlevo v jednom řádku s časem vpravo (`ReactionsAndStatus`), živě
+  z `interactionUpdates`. Dřív měly reakce i čas každý svůj řádek a bublina se zbytečně
+  natahovala (připomínka uživatele z Pixel Watch); delší řada reakcí se zalomí ve své části
+  řádku, čas zůstane vpravo dole. **Reakce je nedělitelná dvojice emoji + počet** (`FlowRow`
+  po dvojicích, `ReactionCount`): jako jeden text s mezerami se u kanálu s mnoha reakcemi
+  zalomila mezi emoji a počet a číslo viselo na začátku dalšího řádku u cizí reakce. Počet je
+  menší (`labelSmall`, tabulkové číslice) a tlumený jako čas — stejně velký a barevný jako emoji
+  s ním splýval; vlastní reakce má počet tučně (akcentní barva na tónové bublině kontrast
+  nezaručuje). S reakcemi má řádek nahoře 4 dp mezeru — emoji jsou vyšší
+  než čas a bez ní se lepily na obsah zprávy. U samolepky a kolečka (bez bubliny) totéž, jen podle obsahu,
+  ne přes celou šířku — čas by jinak stál na opačném kraji displeje. Ověřeno na emulátoru
+  2026-10-24 (hlasovka, textová bublina, kolečko). **Vlastní emoji se vynechávají**
   (`customEmojiIdOf`) — hodinky je nevykreslí a klíč reakce by se ukázal jako kód.
 - Reagovat jde jen na zprávu se skutečným id (ne odesílanou), servisní ne.
 - **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora: rychlá odpověď „👍" (odešla,
