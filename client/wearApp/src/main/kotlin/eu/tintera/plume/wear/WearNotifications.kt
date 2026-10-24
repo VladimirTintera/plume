@@ -152,10 +152,14 @@ class WearNotifications(private val context: Context, private val scope: Corouti
         }
         // Čte se po nejnovější zprávu NOTIFIKACE, ne chatu: co přišlo mezitím, uživatel neviděl.
         val newestMessageId = group.lines.lastOrNull { it.messageId != null }?.messageId ?: 0L
+        // Ťuknutí otevře konverzaci (jako chat v dlaždici). Request code podle skupiny, aby se
+        // intenty různých chatů neslily; běžící aktivitě (`singleTop`) id doručí `onNewIntent`.
         val open = PendingIntent.getActivity(
             context,
             groupId,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            Intent(context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra(MainActivity.EXTRA_CHAT_ID, group.chatId),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)

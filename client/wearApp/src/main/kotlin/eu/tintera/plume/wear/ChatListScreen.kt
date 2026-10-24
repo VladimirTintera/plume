@@ -53,27 +53,29 @@ fun ChatListScreen(onOpen: (Long) -> Unit) {
 @Composable
 private fun ChatList(chats: List<ChatSummary>, onOpen: (Long) -> Unit) {
     val state = rememberTransformingLazyColumnState()
+    val savedMessagesId = savedMessagesChatId()
     ScreenScaffold(scrollState = state) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
             item { ListHeader { Text(stringResource(Res.string.wear_chats_title)) } }
             // Bez klíče: chaty po přihlášení přibývají postupně a s klíčem by lazy seznam držel
             // první viditelný chat, takže by nové nahoře odjely nad displej (ověřeno na emulátoru).
-            items(chats) { chat -> ChatCard(chat, onClick = { onOpen(chat.id) }) }
+            items(chats) { chat -> ChatCard(chat, savedMessagesId, onClick = { onOpen(chat.id) }) }
         }
     }
 }
 
 @Composable
-private fun ChatCard(chat: ChatSummary, onClick: () -> Unit) {
+private fun ChatCard(chat: ChatSummary, savedMessagesId: Long?, onClick: () -> Unit) {
     // V rohu počet nepřečtených, a když nic nečeká, čas poslední zprávy (dnes hodina, jinak datum).
     val corner = chat.unreadCount.takeIf { it > 0 }?.toString()
         ?: chat.lastMessageTimestamp?.let { if (it.isSameDayAs(nowSeconds())) it.asTimeOfDay() else it.asDate() }
     TitleCard(
         onClick = onClick,
         title = {
-            ChatAvatar(fileId = chat.avatarFileId, title = chat.title, size = AVATAR_SIZE)
+            val title = chatTitle(chat.id, chat.title, savedMessagesId)
+            ChatAvatar(fileId = chat.avatarFileId, title = title, size = AVATAR_SIZE, savedMessages = chat.id == savedMessagesId)
             Spacer(Modifier.width(6.dp))
-            Text(chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         time = corner?.let { text -> { Text(text) } },
         modifier = Modifier.fillMaxWidth(),

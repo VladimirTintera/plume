@@ -15,7 +15,7 @@ private const val RECORD = "record"
 
 /**
  * Seznam chatů, konverzace, výběr reakce a nahrání hlasovky; zpět tahem doprava jako všude na hodinkách.
- * [openChat] (ťuknutí na chat v dlaždici) otevře konverzaci nad seznamem chatů, takže tah zpět
+ * [openChat] (ťuknutí na chat v dlaždici nebo na notifikaci) otevře konverzaci nad seznamem chatů, takže tah zpět
  * vede do seznamu, ne pryč z aplikace.
  */
 @Composable
