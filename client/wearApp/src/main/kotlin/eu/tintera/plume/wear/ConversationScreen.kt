@@ -1,5 +1,6 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.conversation_forwarded_from
 import eu.tintera.plume.resources.conversation_forwarded
@@ -491,16 +492,24 @@ private fun MessageBubble(
         return
     }
     val outgoing = message.isOutgoing
-    // Samolepka bez bubliny, jen s časem pod ní (jako na telefonu).
+    // Samolepka a kolečko bez bubliny, jen s časem pod nimi (jako na telefonu).
     val sticker = message.media?.shownSticker()
-    if (sticker != null) {
+    val videoNote = message.media as? MessageMedia.VideoNote
+    if (sticker != null || videoNote != null) {
         Column(
             Modifier
                 .fillMaxWidth()
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
             horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
         ) {
-            MessageSticker(sticker)
+            if (sticker != null) MessageSticker(sticker)
+            if (videoNote != null) {
+                MessageVideoNote(videoNote)
+                // Přepis řeči, když ho server udělal (o přepis se na hodinkách nežádá).
+                (videoNote.transcript as? SpeechTranscript.Done)?.text?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
             reactionsLine(message.reactions)?.let {
                 Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
             }
