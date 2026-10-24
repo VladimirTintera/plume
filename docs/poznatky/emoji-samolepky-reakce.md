@@ -771,9 +771,10 @@ iOS kreslí Compose.
   32 kB, obrys kolem kruhu); táž volání Vision Swift skriptem na Macu nad
   `/Library/User Pictures/Animals/Parrot.heic` a výřez přes iOS cestu obrysu — vypadá stejně
   jako na Androidu. V aplikaci v simulátoru: vstup z Nastavení, výběr fotky, náhled, úprava
-  fotky (tah perem se propsal do samolepky), výběr emoji a sady. **Neověřené**: odstranění
-  pozadí na skutečném iPhonu, samotné přidání do sady a obálka (simulátor byl přihlášený ke
-  skutečnému účtu) a vstup z prohlížeče fotky.
+  fotky (tah perem se propsal do samolepky), výběr emoji a sady, přidání do nové sady (server
+  WebP ze Skii vzal), druhá samolepka z úpravy sady s předvybranou sadou a obálka (sada po ní
+  v Moje sady zůstala). **Neověřené**: odstranění pozadí na skutečném iPhonu a vstup
+  z prohlížeče fotky.
 
 ## Úprava vlastní sady samolepek
 
