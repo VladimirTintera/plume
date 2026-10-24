@@ -4,6 +4,7 @@ import eu.tintera.plume.core.telegram.EmojiInteraction
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
+import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.features.conversation.items.EmojiBurst
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow

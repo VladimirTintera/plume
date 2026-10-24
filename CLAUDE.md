@@ -201,6 +201,10 @@ v build skriptu: `plume.source-checks` (kontroly zdrojáků na `check`), `plume.
 **Každý vstupní bod, který přibalí TDLib, musí použít jeden z pluginů `plume.tdlib-*`** — jinak
 ho dárek bez pozadí shodí a hlídání po přihlášení to ohlásí až za běhu.
 
+**Vrstva `core` nesahá na `features` ani `app`, ani v testech** (`verifyCoreLayering`) — příprava
+na vyčlenění `:client:core`. Typ, který potřebují obě, patří do `core`; volá-li `core` kód
+z `features`, rozhraní je v `core` a implementace ve `features` (Koin), viz KDoc kontroly.
+
 ### Source-set hierarchie v `:client:shared`
 
 - `commonMain` – `App.kt`, `di/`, `app/`, `core/`, `features/`

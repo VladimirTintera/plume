@@ -1,24 +1,14 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.StoredTranscript
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
-import kotlinx.serialization.Serializable
 import kotlin.time.Clock
-
-/** Hotový přepis z modelu v telefonu, uložený v [AppSettings]. [accountId] drží účty od sebe. */
-@Serializable
-data class StoredTranscript(
-    val accountId: Long,
-    val chatId: Long,
-    val messageId: Long,
-    val text: String,
-    val savedAt: Long,
-)
 
 /**
  * Přepisy hlasovek a koleček z modelu v telefonu. Server přepis ukládá do zprávy

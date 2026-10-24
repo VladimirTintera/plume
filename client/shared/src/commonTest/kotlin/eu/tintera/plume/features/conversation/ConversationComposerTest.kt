@@ -16,6 +16,7 @@ import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
+import eu.tintera.plume.core.telegram.testMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow

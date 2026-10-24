@@ -847,7 +847,10 @@ data class ChatSummary(
      * chatu. Patří POZICI ve složce, ne chatu — TDLib ho posílá jen v hlavním seznamu.
      */
     val sponsor: ChatSponsor? = null,
-)
+) {
+    /** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
+    val hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
+}
 
 /**
  * Cizí chat, který do hlavního seznamu dal někdo jiný než uživatel (TDLib `ChatSource`).

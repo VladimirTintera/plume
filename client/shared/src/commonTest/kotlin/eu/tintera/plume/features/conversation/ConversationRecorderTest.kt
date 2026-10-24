@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.LiveUploads
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
+import eu.tintera.plume.core.telegram.testMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel

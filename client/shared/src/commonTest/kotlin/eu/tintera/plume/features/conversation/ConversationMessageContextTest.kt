@@ -6,6 +6,7 @@ import eu.tintera.plume.core.currency.RateTable
 import eu.tintera.plume.core.location.mapsSearchUrl
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.MessageActions
+import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.wifi.WifiJoin
 import eu.tintera.plume.features.conversation.items.ContextVerb

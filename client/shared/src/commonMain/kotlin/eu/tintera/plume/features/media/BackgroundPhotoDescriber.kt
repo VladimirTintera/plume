@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.media
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.BackgroundPhotoDescription
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiException
 import eu.tintera.plume.core.settings.AppSettings
@@ -33,11 +34,13 @@ class BackgroundPhotoDescriber(
     private val files: FileRepository,
     private val ai: OnDeviceAi,
     private val descriptions: PhotoDescriptions,
-) {
+) : BackgroundPhotoDescription {
     private val logger = Logger.withTag("PhotoDescriptions")
 
+    override suspend fun describeBatch(): Int = describeBatch(BATCH)
+
     /** Popíše nejvýš [limit] dosud nepopsaných fotek; vrátí, kolik popsal. */
-    suspend fun describeBatch(limit: Int = BATCH): Int {
+    suspend fun describeBatch(limit: Int): Int {
         if (!settings.backgroundPhotoDescriptions.value || !settings.onDeviceAiEnabled.value) return 0
         val variant = settings.onDeviceAiVariant.value
         if (!runCatching { ai.canDescribeImage(variant) }.getOrDefault(false)) {

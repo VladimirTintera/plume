@@ -1,6 +1,6 @@
 package eu.tintera.plume.features.chats
 
-import eu.tintera.plume.features.media.StoredPhotoDescription
+import eu.tintera.plume.core.settings.StoredPhotoDescription
 import eu.tintera.plume.features.media.PhotoDescriptions
 import kotlinx.coroutines.flow.mapLatest
 import eu.tintera.plume.core.bookmarks.MessageBookmark
@@ -1249,9 +1249,6 @@ data class ArchiveChange(val chatIds: List<Long>, val archived: Boolean) {
 
 /** Protějšek chatu se zablokoval ([blocked]), nebo odblokoval. */
 data class BlockChange(val chatId: Long, val blocked: Boolean)
-
-/** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
-val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
 
 /** Klíč filtru v [SavedStateHandle] seznamu chatů. */
 

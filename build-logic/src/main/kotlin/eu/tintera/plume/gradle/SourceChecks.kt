@@ -17,22 +17,23 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin
 /**
  * Kontroly zdrojáků na `check`: pravidla z CLAUDE.md, která by se jinak hlídala jen čtením.
  *
- * Každá kontrola projde `.kt` soubory produkčních source setů modulu (`src/<jméno>Main/kotlin`)
- * a selže se seznamem nálezů `cesta:řádek: …`. Modul, kterému source set chybí (třeba `core` bez
+ * Každá kontrola projde `.kt` soubory produkčních source setů modulu (`src/<jméno>Main/kotlin`,
+ * [VerifyCoreLayering] i testových) a selže se seznamem nálezů `cesta:řádek: …`. Modul, kterému source set chybí (třeba `core` bez
  * UI), ho prostě nemá — kontrola bez nálezu projde.
  */
 class SourceChecksPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         project.pluginManager.apply(LifecycleBasePlugin::class.java)
-        val sources = project.layout.projectDirectory.dir("src").asFile
-            .listFiles { dir -> dir.isDirectory && dir.name.endsWith("Main") }
+        val sourceSets = project.layout.projectDirectory.dir("src").asFile
+            .listFiles { dir -> dir.isDirectory }
             .orEmpty()
             .sortedBy { it.name }
-            .map { File(it, "kotlin") }
+        val mainSources = sourceSets.filter { it.name.endsWith("Main") }.map { File(it, "kotlin") }
+        val allSources = sourceSets.map { File(it, "kotlin") }
 
-        fun register(name: String, type: Class<out SourceCheckTask>) {
+        fun register(name: String, type: Class<out SourceCheckTask>, withTests: Boolean = false) {
             val task = project.tasks.register(name, type) {
-                this.sources.from(sources)
+                this.sources.from(if (withTests) allSources else mainSources)
                 baseDirectory.set(project.layout.projectDirectory)
             }
             project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { dependsOn(task) }
@@ -46,6 +47,7 @@ class SourceChecksPlugin : Plugin<Project> {
         register("verifyButtonShapes", VerifyButtonShapes::class.java)
         register("verifyShapeTokens", VerifyShapeTokens::class.java)
         register("verifyMotionSpecs", VerifyMotionSpecs::class.java)
+        register("verifyCoreLayering", VerifyCoreLayering::class.java, withTests = true)
     }
 }
 
@@ -355,5 +357,35 @@ abstract class VerifyMotionSpecs : SourceCheckTask() {
     override fun offenders(file: File, path: String): List<String> {
         val text = file.readText()
         return bare.findAll(text).map { "$path:${lineOf(text, it.range.first)}: ${it.value}" }.toList()
+    }
+}
+
+/**
+ * Vrstva `core` nesahá na `features` ani `app` — ani v testech. Je to příprava na vyčlenění
+ * `:client:core` (roadmapa, „Rozdělení `:client:shared`"): tam by se takový odkaz nepřeložil,
+ * a dokud je všechno v jednom modulu, kompilátor ho pustí a nikdo si ho nevšimne.
+ *
+ * - **Typ, který potřebují obě vrstvy, patří do `core`** (uložené výsledky modelu v
+ *   `core/settings/StoredModelResults.kt`, `ChatSummary.hasUnread`).
+ * - **Volá-li `core` kód z `features`, rozhraní je v `core` a implementace ve `features`**
+ *   (`BackgroundPhotoDescription` ← `BackgroundPhotoDescriber`, zapojí ho Koin).
+ * - **Testovací náhražky typů z `core` leží v testech `core`** (`FakeChatRepository`,
+ *   `testMessage`), test funkce z `features` mezi testy `features`.
+ * - Odkaz v komentáři (KDoc „kdo tohle používá") nevadí — po rozdělení se jen nepropojí.
+ */
+abstract class VerifyCoreLayering : SourceCheckTask() {
+    init {
+        description = "Ověří, že vrstva core nesahá na features ani app (příprava na :client:core)."
+    }
+
+    override fun failureMessage() =
+        "Vrstva core nesahá na features ani app: sdílený typ patří do core, volání z core do features jde přes rozhraní v core."
+
+    private val upperLayer = Regex("""\beu\.tintera\.plume\.(?:features|app)\.""")
+
+    override fun offenders(file: File, path: String): List<String> {
+        if ("/eu/tintera/plume/core/" !in file.invariantSeparatorsPath) return emptyList()
+        return matchingLines(file, path, upperLayer, exempt = "", skipComments = true)
+            .filterNot { it.substringAfter(": ").trim().startsWith("/*") }
     }
 }

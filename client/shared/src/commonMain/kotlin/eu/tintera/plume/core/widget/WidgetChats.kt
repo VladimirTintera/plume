@@ -1,7 +1,6 @@
 package eu.tintera.plume.core.widget
 
 import eu.tintera.plume.core.telegram.ChatSummary
-import eu.tintera.plume.features.chats.hasUnread
 import kotlinx.serialization.Serializable
 
 /**

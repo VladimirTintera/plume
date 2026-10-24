@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.PendingBotMessage
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
+import eu.tintera.plume.core.telegram.testMessage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow

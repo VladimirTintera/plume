@@ -4,7 +4,7 @@ import eu.tintera.plume.core.telegram.BlockChange
 import eu.tintera.plume.core.telegram.BlockedSender
 import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.ChatKind
-import eu.tintera.plume.features.chats.FakeChatRepository
+import eu.tintera.plume.core.telegram.FakeChatRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow

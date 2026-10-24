@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
+import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.features.report.ReportFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi

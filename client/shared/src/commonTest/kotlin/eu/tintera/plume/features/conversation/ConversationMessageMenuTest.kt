@@ -17,6 +17,7 @@ import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import eu.tintera.plume.core.telegram.UnimplementedStickerRepository
+import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.conversation.items.ContextVerb
 import eu.tintera.plume.features.conversation.items.MessageMenuAction

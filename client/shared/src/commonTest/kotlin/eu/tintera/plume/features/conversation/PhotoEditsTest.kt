@@ -39,4 +39,12 @@ class PhotoEditsTest {
         val edits = mapOf("/a-edit.jpg" to edit).withEditedPhoto("/a-edit.jpg", reverted)
         assertTrue(edits.isEmpty())
     }
+
+    /** Galerie zná upravenou fotku pod původní cestou, ostatní přílohy pod jejich vlastní. */
+    @Test
+    fun galerieZnaPuvodniCestu() {
+        val state = ConversationState(photoEdits = mapOf("/edited.jpg" to PhotoEdit("/original.jpg", PhotoMarkup(), 100, 100)))
+        assertEquals("/original.jpg", state.galleryPath("/edited.jpg"))
+        assertEquals("/other.jpg", state.galleryPath("/other.jpg"))
+    }
 }

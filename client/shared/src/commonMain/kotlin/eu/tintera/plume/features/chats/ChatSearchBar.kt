@@ -14,7 +14,7 @@ import eu.tintera.plume.core.telegram.SearchContent
 import org.jetbrains.compose.resources.DrawableResource
 import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.resources.chats_search_section_photos
-import eu.tintera.plume.features.media.StoredPhotoDescription
+import eu.tintera.plume.core.settings.StoredPhotoDescription
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.ui.foldDiacritics
 import eu.tintera.plume.resources.profile_bookmarks

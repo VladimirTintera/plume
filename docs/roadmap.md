@@ -247,8 +247,8 @@ client/
 **Výchozí stav (říjen 2026):** shared má ~190 tisíc řádků (`features` 127 tisíc, `core` 61 tisíc,
 z toho `core/telegram` 36 tisíc). `core/telegram` z `features` neimportuje nic; z ostatního `core`
 bere `UiText` / `readString`, rozhraní hovorů, connectivity, settings, secrets, location, contacts
-a audio, z Compose jen `StringResource`. Z `core` do `features` míří dvě místa: `AppSettings`
-(`StoredTriageVerdict`, `StoredPhotoDescription`, `StoredTranscript`) a `WidgetChats` (`hasUnread`).
+a audio, z Compose jen `StringResource`. Z `core` do `features` mířila tři místa (`AppSettings`,
+`WidgetChats`, `PhotoDescriptionWorker`) a pět testů; rozpojené v kroku 2.
 
 **Další přínos:** změna ve `features` nepřekládá vrstvu kolem TDLib a testy `core` jedou
 bez Compose UI.
@@ -270,11 +270,18 @@ bez Compose UI.
 - **iOS dál jeden framework** z UI modulu, `core` se do něj zabalí (dva frameworky = dva
   runtime). Pravidlo „jediný modul s KMP pluginem" v `CLAUDE.md` se přepíše.
 - **Koin:** `core` dodá svůj modul (eager repository s `createdAtStart` zůstávají v něm), UI zbytek.
+- **Testovací náhražky.** Náhražky typů z `core` (`FakeChatRepository`, `testMessage`) leží
+  v testech `core`, ale používají je hlavně testy `features`. Testy jednoho KMP modulu druhý
+  nevidí, takže po rozdělení buď malý modul `:client:core-testing` (náhražky v `commonMain`),
+  nebo kopie — rozhodnout při kroku 3.
+- **Mimo `core`/`features` zbývá:** `TdlTelegramSession` čte `BuildConfiguration` (buildConfig
+  s api_id půjde s ním do `core`) a `core/ui/HideSystemBars.ios.kt` bere `StatusBarHost`
+  z kořenového balíčku (`core/ui` zůstává v UI modulu, takže nevadí).
 
 **Pořadí, každý krok vlastní PR:**
 
 1. ~~`build-logic` s konvenčními pluginy~~ — hotovo (kontroly, jazyky, hook).
-2. Rozpojit dvě místa, kde `core` sahá do `features`.
+2. ~~Rozpojit místa, kde `core` sahá do `features`~~ — hotovo, hlídá `verifyCoreLayering`.
 3. Vyčlenit `:client:core`: `git mv` (ať zůstane historie), texty (s nimi `plume.translations`
    a `generateLocaleConfig` v androidApp, který dnes čte cestu do `client/shared/build`), Koin,
    rozhraní hovorů a notifikací, konvence pro cíle KMP.

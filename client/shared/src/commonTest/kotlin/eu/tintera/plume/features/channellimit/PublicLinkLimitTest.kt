@@ -4,7 +4,7 @@ import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.PublicChat
 import eu.tintera.plume.core.ui.UiText
-import eu.tintera.plume.features.chats.FakeChatRepository
+import eu.tintera.plume.core.telegram.FakeChatRepository
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.public_limit_failed
 import eu.tintera.plume.resources.public_limit_release_failed

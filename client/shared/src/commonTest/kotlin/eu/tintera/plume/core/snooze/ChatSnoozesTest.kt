@@ -2,7 +2,7 @@ package eu.tintera.plume.core.snooze
 
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.settings.createSettingsDataStore
-import eu.tintera.plume.features.chats.FakeChatRepository
+import eu.tintera.plume.core.telegram.FakeChatRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
