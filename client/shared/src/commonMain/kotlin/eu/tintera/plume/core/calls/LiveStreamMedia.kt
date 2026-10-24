@@ -4,8 +4,9 @@ import eu.tintera.plume.core.telegram.LiveVideo
 import eu.tintera.plume.core.telegram.LiveVideoQuality
 
 /**
- * Přenos skupinového hovoru k posluchači (živý příběh, videochat) — jen příjem, nic se
- * neposílá. Jen Android (ntgcalls); jinde se nezaregistruje a obrazovka řekne, že to neumí.
+ * Přenos skupinového hovoru k posluchači (živý příběh, videochat) — příjem, a ve videochatu
+ * na požádání i vlastní hlas ([setMicrophone]). Jen Android (ntgcalls); jinde se
+ * nezaregistruje a obrazovka řekne, že to neumí.
  *
  * Všechno jde přes [host]: knihovna si řekne o připojení i o segmenty streamu a hostitel jí je
  * obstará z TDLib. Obraz se kreslí přes `CallVideo(CallVideoSource.Live)`.
@@ -18,6 +19,12 @@ interface LiveStreamMedia {
     fun addVideo(callId: Long, participantId: Long, video: LiveVideo)
 
     fun removeVideo(callId: Long, endpoint: String)
+
+    /**
+     * Zapne, nebo vypne vlastní mikrofon. Vypnutý mikrofon je mimo zdroje úplně, ne jen
+     * ztlumený — posluchač nemá mít rozsvícený indikátor mikrofonu. Oprávnění řeší volající.
+     */
+    fun setMicrophone(callId: Long, on: Boolean) = Unit
 
     fun stop(callId: Long)
 }

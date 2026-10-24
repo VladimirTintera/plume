@@ -17,19 +17,24 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,17 +46,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.calls.CallVideo
 import eu.tintera.plume.core.calls.CallVideoSource
+import eu.tintera.plume.core.calls.rememberCallMicrophonePermission
 import eu.tintera.plume.core.telegram.VideoChatParticipant
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.IntroEmptyState
-import eu.tintera.plume.core.ui.MediumButton
-import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.core.ui.resolveNow
+import eu.tintera.plume.features.calls.HangUpButton
+import eu.tintera.plume.features.calls.LabeledButton
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.front_hand_24dp
-import eu.tintera.plume.resources.logout_24dp
+import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.mic_off_24dp
 import eu.tintera.plume.resources.screen_share_24dp
 import eu.tintera.plume.resources.video_chat_active
@@ -60,9 +67,15 @@ import eu.tintera.plume.resources.video_chat_ended
 import eu.tintera.plume.resources.video_chat_ended_title
 import eu.tintera.plume.resources.video_chat_failed
 import eu.tintera.plume.resources.video_chat_hand_raised
+import eu.tintera.plume.resources.video_chat_hand_waiting
+import eu.tintera.plume.resources.video_chat_lower_hand
+import eu.tintera.plume.resources.video_chat_mute
+import eu.tintera.plume.resources.video_chat_muted_by_admin
+import eu.tintera.plume.resources.video_chat_raise_hand
+import eu.tintera.plume.resources.video_chat_unmute
+import eu.tintera.plume.resources.video_chat_watch_only
 import eu.tintera.plume.resources.video_chat_join_elsewhere
 import eu.tintera.plume.resources.video_chat_leave
-import eu.tintera.plume.resources.video_chat_listening
 import eu.tintera.plume.resources.video_chat_muted
 import eu.tintera.plume.resources.video_chat_nobody
 import eu.tintera.plume.resources.video_chat_participants
@@ -70,15 +83,16 @@ import eu.tintera.plume.resources.video_chat_sends_video
 import eu.tintera.plume.resources.video_chat_you
 import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.videocam_off_24dp
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Videochat skupiny na poslech: obraz toho, kdo ho posílá (sdílená obrazovka přednostně),
- * pod ním mřížka účastníků a dole Opustit. Mluvit zatím nejde — posluchač je ztlumený a věta
- * pod obrazem to říká, ať se nikdo nediví, proč ho ostatní neslyší.
+ * Videochat skupiny: obraz toho, kdo ho posílá (sdílená obrazovka přednostně), pod ním
+ * mřížka účastníků a dole mikrofon a odchod. Připojuje se ztlumeně; mluví se zapnutím
+ * mikrofonu, a když mě správce ztlumil, zvednutím ruky.
  *
  * Odchod z obrazovky (zpět i Opustit) z hovoru odejde.
  */
@@ -88,6 +102,15 @@ fun VideoChatScreen(viewModel: VideoChatViewModel, onBack: () -> Unit) {
     val chatTitle by viewModel.chatTitle.collectAsStateWithLifecycle()
     val current = state
     val title = current?.title?.takeIf { it.isNotBlank() } ?: chatTitle.ifBlank { stringResource(Res.string.video_chat_active) }
+    val notice by viewModel.notice.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
+    // Snackbar mimo tělo efektu: vynulování hlášky mění klíč a zrušilo by ho.
+    LaunchedEffect(notice) {
+        val text = notice ?: return@LaunchedEffect
+        viewModel.noticeShown()
+        snackbarScope.launch { snackbarHostState.showSnackbar(text.resolveNow()) }
+    }
 
     Scaffold(
         topBar = {
@@ -113,24 +136,19 @@ fun VideoChatScreen(viewModel: VideoChatViewModel, onBack: () -> Unit) {
         },
         bottomBar = {
             if (current != null && current.phase != VideoChatPhase.Ended && current.phase != VideoChatPhase.Failed) {
-                Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), contentAlignment = Alignment.Center) {
-                    MediumButton(
-                        onClick = {
-                            viewModel.leave()
-                            onBack()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError,
-                        ),
-                        modifier = Modifier.widthIn(max = ContentWidth.Form).fillMaxWidth(),
-                    ) {
-                        MediumButtonIcon(Res.drawable.logout_24dp)
-                        Text(stringResource(Res.string.video_chat_leave))
-                    }
-                }
+                VideoChatControls(
+                    state = current,
+                    onMuted = viewModel::setMuted,
+                    onHandRaised = viewModel::setHandRaised,
+                    onMicrophoneDenied = viewModel::microphoneDenied,
+                    onLeave = {
+                        viewModel.leave()
+                        onBack()
+                    },
+                )
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             when {
@@ -170,14 +188,23 @@ private fun VideoChatContent(state: VideoChatState, modifier: Modifier = Modifie
                 MainVideo(state)
             }
         }
-        item(key = "status", span = { GridItemSpan(maxLineSpan) }) {
-            Text(
-                stringResource(if (state.phase == VideoChatPhase.Connecting) Res.string.video_chat_connecting else Res.string.video_chat_listening),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            )
+        val status = when {
+            state.phase == VideoChatPhase.Connecting -> Res.string.video_chat_connecting
+            state.isRtmp -> Res.string.video_chat_watch_only
+            state.mutedByAdmin && state.me?.isHandRaised == true -> Res.string.video_chat_hand_waiting
+            state.mutedByAdmin -> Res.string.video_chat_muted_by_admin
+            else -> null
+        }
+        if (status != null) {
+            item(key = "status", span = { GridItemSpan(maxLineSpan) }) {
+                Text(
+                    stringResource(status),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                )
+            }
         }
         items(state.participants, key = { it.id }) { participant ->
             ParticipantTile(participant, isShown = participant.id == state.mainVideoOf)
@@ -193,6 +220,71 @@ private fun VideoChatContent(state: VideoChatState, modifier: Modifier = Modifie
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+        }
+    }
+}
+
+/**
+ * Ovládání dole, jako v hovoru ve dvou: mikrofon (nebo zvednutá ruka, když mě správce
+ * ztlumil) a odchod. Mikrofon se napřed zeptá na oprávnění; zamítnutí jen ohlásí.
+ */
+@Composable
+private fun VideoChatControls(
+    state: VideoChatState,
+    onMuted: (Boolean) -> Unit,
+    onHandRaised: (Boolean) -> Unit,
+    onMicrophoneDenied: () -> Unit,
+    onLeave: () -> Unit,
+) {
+    val microphone = rememberCallMicrophonePermission()
+    val me = state.me
+    Row(
+        Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+    ) {
+        when {
+            me == null || state.isRtmp -> Unit
+            state.mutedByAdmin -> LabeledButton(
+                stringResource(if (me.isHandRaised) Res.string.video_chat_lower_hand else Res.string.video_chat_raise_hand),
+                Modifier.weight(1f),
+            ) {
+                FilledIconToggleButton(
+                    checked = me.isHandRaised,
+                    onCheckedChange = onHandRaised,
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                    modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.front_hand_24dp),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                    )
+                }
+            }
+            else -> LabeledButton(
+                stringResource(if (state.micOn) Res.string.video_chat_mute else Res.string.video_chat_unmute),
+                Modifier.weight(1f),
+            ) {
+                FilledIconToggleButton(
+                    // Zaškrtnutý = ztlumený, jako v hovoru ve dvou.
+                    checked = !state.micOn,
+                    onCheckedChange = { muted ->
+                        if (muted) onMuted(true) else microphone.request { granted -> if (granted) onMuted(false) else onMicrophoneDenied() }
+                    },
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                    modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
+                ) {
+                    Icon(
+                        painterResource(if (state.micOn) Res.drawable.mic_24dp else Res.drawable.mic_off_24dp),
+                        contentDescription = null,
+                        modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                    )
+                }
+            }
+        }
+        val leave = stringResource(Res.string.video_chat_leave)
+        LabeledButton(leave, Modifier.weight(1f)) {
+            HangUpButton(leave, large = false, wide = true, onClick = onLeave)
         }
     }
 }

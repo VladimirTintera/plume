@@ -1061,14 +1061,19 @@ Videochat skupiny (a živé vysílání kanálu) jde z pruhu nad konverzací ote
 u živých příběhů — `NtgLiveStreamMedia`, skupinový hovor jen na příjem (`docs/poznatky/pribehy.md`,
 „Živé příběhy") —, liší se přihlášení (`joinVideoChat` místo `joinLiveStory`) a účastníci.
 **Jen Android**, kde je přenos; jinde ťuknutí na pruh řekne větou, že připojit se jde jen
-v oficiální aplikaci. Mluvit, zvednout ruku ani zapnout kameru zatím nejde: posluchač je
-ztlumený a obrazovka to říká.
+v oficiální aplikaci. Připojuje se ztlumeně; mluví se zapnutím mikrofonu, a když posluchače
+ztlumil správce, zvednutím ruky (viz „Mluvení a zvednutá ruka" níž). Kamera zatím ne.
 
 - **Účastníci chodí jen updaty** (`updateGroupCallParticipant`). Po připojení se dočtou
   (`loadGroupCallParticipants` po 100 — TDLib ho bere jen v připojeném hovoru, proto až
-  z `onJoined`); **prázdné `order` znamená odchod** a účastník ze seznamu zmizí. Řadí se
-  podle `order` jako text, sestupně. Ověřeno se dvěma posluchači: odchod jednoho (šipka zpět)
-  druhému ze seznamu zmizí hned.
+  z `onJoined`). Řadí se podle `order` jako text, sestupně. Ověřeno se dvěma posluchači:
+  odchod jednoho (šipka zpět) druhému ze seznamu zmizí hned.
+- **Prázdné `order` NENÍ jen odchod.** TDLib ho dá i tomu, kdo vypadl z dočtené části seznamu
+  — ověřeno: účastník ztlumený správcem dostal prázdné pořadí hned (u sebe i u ostatních)
+  a ze seznamu zmizel, přestože hlavička hlásila „2 účastníci". Proto se po prázdném pořadí
+  cizího účastníka seznam dočítá znovu (vrátí se, je-li ve videochatu) a **sebe ze seznamu
+  watch nevyhazuje nikdy** — bez sebe by zmizelo i tlačítko mikrofonu a ruky. Po konci
+  videochatu dočtení selže („Can't load group call participants"); je to jen varování.
 - **Zvuk mluvících přehrává knihovna sama.** `updateAudioSsrcMappings` (a `onRequestParticipants`)
   v ntgcalls 3.0.3 patří konferenčním hovorům: běžný videochat (RTC) i RTMP ho odmítnou
   výjimkou „Invalid call type" (ověřeno na obou). Přiřazovat zdroje zvuku účastníkům netřeba.
@@ -1084,7 +1089,37 @@ ztlumený a obrazovka to říká.
   jako u živého příběhu). Poslech na pozadí s pruhem nad aplikací zatím není. Zvuk po odchodu
   uvolní přehrávač (AAudio) a vrátí normální režim zvuku.
 - **Konec videochatu za poslechu** (`updateGroupCall`, `isActive = false`) zastaví přenos
-  a obrazovka řekne „Videochat skončil".
+  a obrazovka řekne „Videochat skončil" (ověřeno: konec od správce, zvuk se uvolní).
+
+### Mluvení a zvednutá ruka
+
+- **Mikrofon se do přenosu přidává až s odtlumením** (`setMicrophone`: `setStreamSources(CAPTURE,
+  mikrofon)` + `unmute`) a se ztlumením jde pryč úplně (`mute` + zdroje bez mikrofonu), ne jen
+  ztišený. Jinak by posluchači svítil indikátor mikrofonu po celou dobu poslechu. Ověřeno
+  `dumpsys audio`: `rec start` s odtlumením, `rec stop` se ztlumením. Připojení zůstává bez
+  mikrofonu (`isMuted = true` v `joinVideoChat`).
+- **Pořadí: napřed server, pak mikrofon** (`VideoChatWatch.setMuted`). Bez svolení serveru
+  (`toggleGroupCallParticipantIsMuted` s `false`) by hlas nikdo neslyšel; když server odmítne,
+  mikrofon vůbec nesvítí. Ztlumení obráceně — mikrofon pryč hned po ťuknutí.
+- **Ztlumený sám = `isMutedForAllUsers` a `canUnmuteSelf`**, ztlumený správcem = bez
+  `canUnmuteSelf`. Tak se pozná, jestli nabídnout mikrofon, nebo ruku. Hned po připojení
+  přijde vlastní účastník ztlumený sám.
+- **Ztlumí-li mě správce, mikrofon jde z přenosu sám** (update s `isMuted`). Ověřeno: ztlumení
+  sondou z účtu vlastníka doputovalo asi za 15 s a `rec stop` přišel v téže chvíli.
+- **Odtlumený od minula**: po přeinstalaci uprostřed hovoru (proces zemřel bez
+  `leaveGroupCall`) vedl server posluchače chvíli jako odtlumeného; ťuknutí mikrofon zapnulo
+  a další update se ztlumením ho hned vypnul. Chyba to není — rozhoduje stav od serveru.
+- **Ruka** `toggleGroupCallParticipantIsHandRaised` jen za sebe; ostatní vidí ikonu ruky
+  u účastníka (ověřeno na druhém účtu, i spuštění). Pod obrazem věta „Mluvit smí jen ten,
+  koho pustí správce…" a po zvednutí „Ruku máte zvednutou…".
+- **Oprávnění k mikrofonu** se ptá až s prvním odtlumením (`rememberCallMicrophonePermission`,
+  totéž co hovor ve dvou); zamítnutí jen ohlásí, poslouchat jde dál.
+- **Zvuk ověřený jen v systému, ne ušima**: emulátor s `-allow-host-audio` bere zvuk mikrofonu
+  Macu, druhý emulátor přehrává (AAudio), ale že hlas na druhé straně zní, ověřené není.
+  „Kdo mluví" (vlastní i cizí) se pořád neukazuje.
+- **Mluvení ověřené 24. 10. 2026** tamtéž: běžný videochat, odtlumení a ztlumení, ztlumení
+  správcem (sonda `toggleGroupCallParticipantIsMuted` z účtu vlastníka), zvednutí a spuštění
+  ruky, konec videochatu za poslechu.
 - **Ověřeno na emulátorech 23. 10. 2026** (`Plume_A11` …029 a `Plume_Barvy` …527, skupina
   „Plume test moderace"): videochat přes RTMP s obrazem z ffmpeg (`createVideoChat(isRtmpStream =
   true)` + `getVideoChatRtmpUrl` sondou na …527) — obraz, zvuk (AAudio ve stavu started),
