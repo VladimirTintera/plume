@@ -2,7 +2,8 @@ package eu.tintera.plume.core.stickers
 
 /**
  * Z fotky samolepka, jak ji chce Telegram: delší strana přesně 512 px, kratší nejvýš 512,
- * WebP s průhledností. Jen Android; jinde se nezaregistruje a tvorba samolepek se nenabízí.
+ * WebP s průhledností. Android a iOS; na desktopu se nezaregistruje a tvorba samolepek se
+ * nenabízí.
  */
 interface StickerMaker {
     /** Jde odstranit pozadí (ML Kit z Play služeb). Bez Play služeb samolepka zůstane s pozadím. */
