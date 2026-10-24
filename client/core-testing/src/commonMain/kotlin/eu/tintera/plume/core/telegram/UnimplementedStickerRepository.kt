@@ -36,6 +36,7 @@ open class UnimplementedStickerRepository : StickerRepository {
     override suspend fun moveInSet(stickerFileId: Int, position: Int) : Result<Unit> = error("moveInSet")
     override suspend fun setEmojis(stickerFileId: Int, emojis: String) : Result<Unit> = error("setEmojis")
     override suspend fun deleteSet(setId: Long, name: String): Result<Unit> = error("deleteSet")
+    override suspend fun setSetCover(setId: Long, name: String, path: String?): Result<Unit> = error("setSetCover")
     override suspend fun search(query: StickerQuery) : StickerSearchResult = error("search")
     override suspend fun categories() : List<StickerCategory> = error("categories")
     override suspend fun stickersForEmoji(emoji: String) : List<StickerItem> = error("stickersForEmoji")

@@ -13,6 +13,12 @@ interface StickerMaker {
      * jen hlavní objekt a ořízne se těsně na něj. Výsledek je nový soubor v cache.
      */
     suspend fun make(path: String, removeBackground: Boolean): Result<MadeSticker>
+
+    /**
+     * Obálka sady ze samolepky [path]: WebP přesně 100 × 100, samolepka vepsaná doprostřed
+     * s průhledným okrajem, nejvýš 32 kB (víc server u obálky nevezme).
+     */
+    suspend fun makeCover(path: String): Result<MadeSticker> = Result.failure(UnsupportedOperationException())
 }
 
 /** Hotová samolepka k nahrání: soubor a jeho rozměry. */

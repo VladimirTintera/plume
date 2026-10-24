@@ -239,6 +239,8 @@ import dev.g000sha256.tdl.dto.ThumbnailFormatJpeg
 import dev.g000sha256.tdl.dto.ThumbnailFormatMpeg4
 import dev.g000sha256.tdl.dto.ThumbnailFormatPng
 import dev.g000sha256.tdl.dto.ThumbnailFormatWebp
+import dev.g000sha256.tdl.dto.ThumbnailFormatWebm
+import dev.g000sha256.tdl.dto.ThumbnailFormatTgs
 import eu.tintera.plume.core.audio.decodeWaveform
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
@@ -1333,6 +1335,28 @@ internal fun Sticker.toMedia(): MessageMedia.Sticker {
         width = width,
         height = height,
         emoji = emoji,
+    )
+}
+
+/**
+ * Obálka sady (`thumbnail` u `StickerSet` / `StickerSetInfo`, 100 × 100) ke kreslení jako
+ * samolepka. Autor ji nastavit nemusí — pak je `null` a obálkou je první samolepka sady.
+ */
+internal fun Thumbnail.toSetCover(setId: Long): MessageMedia.Sticker? {
+    val format = format
+    if (format !is ThumbnailFormatWebp && format !is ThumbnailFormatPng &&
+        format !is ThumbnailFormatTgs && format !is ThumbnailFormatWebm
+    ) return null
+    return MessageMedia.Sticker(
+        stickerFileId = file.id,
+        setId = setId,
+        fileId = file.id.takeIf { format is ThumbnailFormatWebp || format is ThumbnailFormatPng },
+        animationFileId = file.id.takeIf { format is ThumbnailFormatTgs },
+        thumbnailFileId = null,
+        videoFileId = file.id.takeIf { format is ThumbnailFormatWebm },
+        width = width,
+        height = height,
+        emoji = "",
     )
 }
 

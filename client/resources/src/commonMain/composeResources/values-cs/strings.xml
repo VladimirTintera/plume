@@ -388,6 +388,13 @@
     <string name="sticker_set_delete_text">Sada zmizí všem, kdo si ji přidali. Vrátit to nejde.</string>
     <string name="sticker_set_delete_confirm">Smazat</string>
     <string name="sticker_set_edit_failed">Sadu se nepodařilo změnit.</string>
+    <string name="sticker_set_cover">Obálka sady</string>
+    <string name="sticker_set_cover_first">První samolepka v sadě</string>
+    <string name="sticker_set_cover_first_hint">První samolepka v sadě. Jinou vybereš v nabídce u samolepky.</string>
+    <string name="sticker_set_cover_custom">Vybraná samolepka</string>
+    <string name="sticker_set_cover_reset">Vrátit první samolepku</string>
+    <string name="sticker_set_set_cover">Nastavit jako obálku</string>
+    <string name="sticker_set_cover_failed">Obálku sady se nepodařilo změnit</string>
     <string name="sticker_set_delete_failed">Sadu se nepodařilo smazat.</string>
     <string name="sticker_retry">Zkusit znovu</string>
     <string name="sticker_added_title">Samolepka přidána</string>

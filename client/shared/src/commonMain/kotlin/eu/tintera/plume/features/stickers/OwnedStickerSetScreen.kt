@@ -58,6 +58,7 @@ import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.TextFieldSlot
+import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.ui.dragHandle
 import eu.tintera.plume.core.ui.draggedItem
 import eu.tintera.plume.core.ui.groupItemShape
@@ -72,11 +73,17 @@ import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.drag_indicator_24dp
+import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.more_vert_24dp
 import eu.tintera.plume.resources.sticker_24dp
 import eu.tintera.plume.resources.sticker_set_add_sticker
 import eu.tintera.plume.resources.sticker_set_change_emoji
+import eu.tintera.plume.resources.sticker_set_cover
+import eu.tintera.plume.resources.sticker_set_cover_custom
+import eu.tintera.plume.resources.sticker_set_cover_first
+import eu.tintera.plume.resources.sticker_set_cover_first_hint
+import eu.tintera.plume.resources.sticker_set_cover_reset
 import eu.tintera.plume.resources.sticker_set_delete
 import eu.tintera.plume.resources.sticker_set_delete_confirm
 import eu.tintera.plume.resources.sticker_set_delete_text
@@ -88,6 +95,7 @@ import eu.tintera.plume.resources.sticker_set_full
 import eu.tintera.plume.resources.sticker_set_reorder
 import eu.tintera.plume.resources.sticker_set_reorder_hint
 import eu.tintera.plume.resources.sticker_set_save_title
+import eu.tintera.plume.resources.sticker_set_set_cover
 import eu.tintera.plume.resources.sticker_set_sticker_menu
 import eu.tintera.plume.resources.sticker_set_sticker_remove
 import eu.tintera.plume.resources.sticker_set_sticker_remove_confirm
@@ -95,6 +103,7 @@ import eu.tintera.plume.resources.sticker_set_sticker_remove_text
 import eu.tintera.plume.resources.sticker_set_sticker_remove_title
 import eu.tintera.plume.resources.sticker_set_title
 import eu.tintera.plume.resources.sticker_emoji
+import eu.tintera.plume.resources.undo_24dp
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -102,7 +111,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Úprava vlastní sady samolepek: název, samolepky v pořadí (tažením za úchyt), u každé emoji
+ * Úprava vlastní sady samolepek: název, obálka, samolepky v pořadí (tažením za úchyt), u každé emoji
  * a odebrání, přidání další z fotky a smazání celé sady. Zavře se po smazání.
  *
  * [onAddSticker] dostane fotku z výběru a sadu, do které má nová samolepka jít; `null` =
@@ -193,6 +202,45 @@ fun OwnedStickerSetScreen(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     )
                 }
+                item(key = "cover") {
+                    val customCover = set.customCover != null
+                    ListItem(
+                        leadingContent = {
+                            Box(Modifier.size(COVER_SIZE), contentAlignment = Alignment.Center) {
+                                if (state.coverBusy) {
+                                    LoadingIndicator()
+                                } else {
+                                    state.cover?.let { StickerPreview(it, playing = false, modifier = Modifier.size(COVER_SIZE)) }
+                                }
+                            }
+                        },
+                        headlineContent = { Text(stringResource(Res.string.sticker_set_cover)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    when {
+                                        customCover -> Res.string.sticker_set_cover_custom
+                                        state.canSetCover -> Res.string.sticker_set_cover_first_hint
+                                        else -> Res.string.sticker_set_cover_first
+                                    },
+                                ),
+                            )
+                        },
+                        trailingContent = if (customCover) {
+                            {
+                                WithTooltip(stringResource(Res.string.sticker_set_cover_reset)) {
+                                    IconButton(onClick = viewModel::resetCover, enabled = !state.coverBusy, shapes = IconButtonDefaults.shapes()) {
+                                        Icon(painterResource(Res.drawable.undo_24dp), contentDescription = stringResource(Res.string.sticker_set_cover_reset))
+                                    }
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                        modifier = Modifier.padding(bottom = 16.dp).clip(groupItemShape(0, 1)),
+                    )
+                }
                 item(key = "hint") {
                     Text(
                         stringResource(Res.string.sticker_set_reorder_hint),
@@ -212,6 +260,11 @@ fun OwnedStickerSetScreen(
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 StickerMenu(
+                                    onSetCover = if (state.canSetCover && sticker.preview.fileId != null && !state.coverBusy) {
+                                        { viewModel.setCover(sticker) }
+                                    } else {
+                                        null
+                                    },
                                     onChangeEmoji = { editingEmoji = sticker },
                                     onRemove = { removing = sticker },
                                 )
@@ -293,7 +346,7 @@ fun OwnedStickerSetScreen(
 }
 
 @Composable
-private fun StickerMenu(onChangeEmoji: () -> Unit, onRemove: () -> Unit) {
+private fun StickerMenu(onSetCover: (() -> Unit)?, onChangeEmoji: () -> Unit, onRemove: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }, shapes = IconButtonDefaults.shapes()) {
@@ -303,7 +356,13 @@ private fun StickerMenu(onChangeEmoji: () -> Unit, onRemove: () -> Unit) {
             expanded = open,
             onDismiss = { open = false },
             groups = listOf(
-                listOf(
+                listOfNotNull(
+                    onSetCover?.let { setCover ->
+                        MenuAction(stringResource(Res.string.sticker_set_set_cover), Res.drawable.image_24dp) {
+                            open = false
+                            setCover()
+                        }
+                    },
                     MenuAction(stringResource(Res.string.sticker_set_change_emoji), Res.drawable.mood_24dp) {
                         open = false
                         onChangeEmoji()
@@ -351,3 +410,4 @@ private fun EmojiDialog(initial: String, onSave: (String) -> Unit, onDismiss: ()
 }
 
 private val STICKER_SIZE = 56.dp
+private val COVER_SIZE = 48.dp

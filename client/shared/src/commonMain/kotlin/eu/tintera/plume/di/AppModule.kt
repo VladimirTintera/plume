@@ -724,7 +724,9 @@ fun appModule() = module {
             targetSetId = parameters.values.getOrNull(3) as? Long,
         )
     }
-    viewModel { parameters -> OwnedStickerSetViewModel(setId = parameters.get(), stickers = get()) }
+    viewModel { parameters ->
+        OwnedStickerSetViewModel(setId = parameters.get(), stickers = get(), files = get(), maker = getOrNull())
+    }
     // Videochat žije s aplikací, ne s obrazovkou: posluchač v něm zůstává i mimo ni.
     single { VideoChatSession(repository = get(), media = getOrNull(), appScope = get(named(APP_SCOPE))) }
     viewModel { parameters ->

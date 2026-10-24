@@ -154,6 +154,12 @@ interface StickerRepository {
     /** Nová emoji samolepky ve vlastní sadě (1–20 emoji). */
     suspend fun setEmojis(stickerFileId: Int, emojis: String): Result<Unit> = Result.failure(UnsupportedOperationException())
 
+    /**
+     * Nová obálka vlastní sady [setId] / [name]: soubor [path] (WebP 100 × 100, viz
+     * `StickerMaker.makeCover`), `null` = bez vlastní obálky, obálkou je zase první samolepka.
+     */
+    suspend fun setSetCover(setId: Long, name: String, path: String?): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Smaže vlastní sadu [setId] / [name] úplně — zmizí i ostatním, kdo ji mají. */
     suspend fun deleteSet(setId: Long, name: String): Result<Unit> = Result.failure(UnsupportedOperationException())
 
@@ -243,6 +249,8 @@ data class StickerSetDetail(
     val isCustomEmoji: Boolean = false,
     /** Sadu vytvořil uživatel — jde ji upravovat. */
     val isOwned: Boolean = false,
+    /** Vlastní obálka sady; `null` = obálkou je první samolepka. */
+    val customCover: MessageMedia.Sticker? = null,
 )
 
 /**
