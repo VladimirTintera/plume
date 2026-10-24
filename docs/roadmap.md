@@ -954,11 +954,10 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
 
 ~~**Tvorba samolepek z fotky**~~ — hotovo na Androidu: z prohlížeče i z Nastavení, odstranění
 pozadí přes ML Kit, nová i vlastní sada (`docs/poznatky/emoji-samolepky-reakce.md`, „Tvorba
-samolepky z fotky"). Zbývá: správa vlastní sady (přejmenovat `setStickerSetTitle`, smazat
-samolepku `removeStickerFromSet`, pořadí `setStickerPositionInSet`, změna emoji
-`setStickerEmojis`, obálka `setStickerSetThumbnail`), bílý obrys kolem vyříznutého objektu
-jako v oficiálním klientu, video a animované samolepky, iOS (Vision má odstranění pozadí od
-iOS 17) a desktop.
+samolepky z fotky") a úprava vlastní sady (název, pořadí, emoji, odebrání samolepky, smazání
+sady; „Úprava vlastní sady samolepek"). Zbývá: obálka sady `setStickerSetThumbnail`, bílý
+obrys kolem vyříznutého objektu jako v oficiálním klientu, video a animované samolepky, iOS
+(Vision má odstranění pozadí od iOS 17) a desktop.
 
 **Vědomě mimo, dokud se nerozhodne jinak:**
 

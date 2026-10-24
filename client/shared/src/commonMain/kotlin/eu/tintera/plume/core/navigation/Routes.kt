@@ -408,7 +408,17 @@ data class StoryComposerRoute(
  * Přes celou plochu nad prohlížečem; po přidání do sady se zavře.
  */
 @Serializable
-data class StickerComposerRoute(val path: String, val width: Int, val height: Int) : Route
+data class StickerComposerRoute(
+    val path: String,
+    val width: Int,
+    val height: Int,
+    /** Sada, do které má samolepka jít (z úpravy vlastní sady); `null` = výběr jako obvykle. */
+    val targetSetId: Long? = null,
+) : Route
+
+/** Úprava vlastní sady samolepek [setId] (Nastavení → Sady samolepek → ⋮ → Upravit sadu). */
+@Serializable
+data class OwnedStickerSetRoute(val setId: Long) : Route
 
 /** [MediaRoute.startSeconds] bez času v médiu. */
 const val NO_START = -1
@@ -637,6 +647,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(StoriesRoute::class, StoriesRoute.serializer())
             subclass(StickerComposerRoute::class, StickerComposerRoute.serializer())
+            subclass(OwnedStickerSetRoute::class, OwnedStickerSetRoute.serializer())
             subclass(VideoChatRoute::class, VideoChatRoute.serializer())
             subclass(StoryComposerRoute::class, StoryComposerRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())

@@ -142,6 +142,21 @@ interface StickerRepository {
     suspend fun addToSet(set: OwnedStickerSet, sticker: NewStickerFile): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
+    /** Přejmenuje vlastní sadu [name] (jméno v odkazu zůstává). */
+    suspend fun renameSet(name: String, title: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Odebere samolepku (podle souboru [stickerFileId]) z vlastní sady. */
+    suspend fun removeFromSet(stickerFileId: Int): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Přesune samolepku ve vlastní sadě na [position] (od nuly). */
+    suspend fun moveInSet(stickerFileId: Int, position: Int): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Nová emoji samolepky ve vlastní sadě (1–20 emoji). */
+    suspend fun setEmojis(stickerFileId: Int, emojis: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Smaže vlastní sadu [setId] / [name] úplně — zmizí i ostatním, kdo ji mají. */
+    suspend fun deleteSet(setId: Long, name: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Sady samolepek nalepených na fotku nebo video [fileId] (`getAttachedStickerSets`). */
     suspend fun attachedStickerSets(fileId: Int): Result<List<StickerSetSummary>> =
         Result.failure(UnsupportedOperationException())
@@ -226,6 +241,8 @@ data class StickerSetDetail(
     val stickers: List<StickerItem>,
     /** Sada vlastních emoji, ne samolepek — jinak se počítá („N emoji") i kreslí. */
     val isCustomEmoji: Boolean = false,
+    /** Sadu vytvořil uživatel — jde ji upravovat. */
+    val isOwned: Boolean = false,
 )
 
 /**
@@ -299,6 +316,8 @@ data class StickerSetSummary(
     val size: Int = 0,
     /** Oficiální sady (od Telegramu) odebrat nejdou. */
     val isOfficial: Boolean = false,
+    /** Sadu vytvořil uživatel — jde ji upravovat. */
+    val isOwned: Boolean = false,
     /**
      * Obálka sady vlastních emoji jako id — kreslí se přes `CustomEmojiImage`, které umí
      * jednobarevné emoji obarvit. Jako samolepka ([cover]) by bylo bílé na světlém pozadí.

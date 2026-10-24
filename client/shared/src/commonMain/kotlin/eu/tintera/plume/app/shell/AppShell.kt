@@ -189,6 +189,7 @@ import eu.tintera.plume.core.navigation.ShareToChatRoute
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
+import eu.tintera.plume.core.navigation.OwnedStickerSetRoute
 import eu.tintera.plume.core.navigation.StickerComposerRoute
 import org.koin.compose.getKoin
 import eu.tintera.plume.core.stickers.StickerMaker
@@ -223,6 +224,7 @@ import eu.tintera.plume.features.share.SharedContentStrip
 import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.features.share.ShareToChatScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
+import eu.tintera.plume.features.stickers.OwnedStickerSetScreen
 import eu.tintera.plume.features.stickers.StickerComposerScreen
 import eu.tintera.plume.features.stories.StoriesScreen
 import eu.tintera.plume.features.videochat.VideoChatOverlay
@@ -1463,7 +1465,7 @@ private fun shellEntryProvider(
         StickerComposerScreen(
             viewModel = koinViewModel(
                 key = "sticker-composer-${route.path}",
-                parameters = { parametersOf(route.path, route.width, route.height) },
+                parameters = { parametersOf(route.path, route.width, route.height, route.targetSetId) },
             ),
             onBack = { chatsStack.pop(route) || settingsStack.pop(route) },
         )
@@ -1781,6 +1783,23 @@ private fun shellEntryProvider(
             // Jen kde samolepku z fotky jde vyrobit (Android).
             onCreateSticker = if (stickersCanBeMade) {
                 { path, width, height -> settingsStack.add(StickerComposerRoute(path, width, height)) }
+            } else {
+                null
+            },
+            onEditSet = { setId -> settingsStack.add(OwnedStickerSetRoute(setId)) },
+        )
+    }
+
+    // Úprava vlastní sady samolepek, nad seznamem sad.
+    entry<OwnedStickerSetRoute>(
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+    ) { route ->
+        val stickersCanBeMade = getKoin().getOrNull<StickerMaker>() != null
+        OwnedStickerSetScreen(
+            viewModel = koinViewModel(key = "owned-sticker-set-${route.setId}") { parametersOf(route.setId) },
+            onBack = { settingsStack.pop(route) },
+            onAddSticker = if (stickersCanBeMade) {
+                { path, width, height, setId -> settingsStack.add(StickerComposerRoute(path, width, height, targetSetId = setId)) }
             } else {
                 null
             },
