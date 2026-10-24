@@ -336,6 +336,11 @@ kotlin {
         val nonDynamicThemeMain by creating {
             dependsOn(commonMain.get())
         }
+        // Platformy, kde obrázky kreslí Skia přímo (Compose ji tam přibaluje): iOS a desktop.
+        // Výroba samolepek (`SkiaStickers`) — WebP tam umí zakódovat jen Skia.
+        val skiaMain by creating {
+            dependsOn(commonMain.get())
+        }
 
         commonMain {
             // „Co je nového" v Nastavení — poznámky z release-notes/ zapečené při buildu.
@@ -444,10 +449,12 @@ kotlin {
 
         iosMain {
             dependsOn(nonDynamicThemeMain)
+            dependsOn(skiaMain)
         }
 
         jvmMain {
             dependsOn(nonDynamicThemeMain)
+            dependsOn(skiaMain)
         }
 
         jvmMain {

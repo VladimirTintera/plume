@@ -348,7 +348,7 @@ internal class ConversationAttachments(
     }
 
     /** Nabízí se úprava fotky? */
-    val canMarkupPhotos: Boolean get() = photoMarkup != null
+    val canMarkupPhotos: Boolean get() = photoMarkup?.isAvailable == true
 
     /**
      * Uloží úpravu fotky nad polem: tahy, otočení a ořez se vykreslí do NOVÉ kopie originálu

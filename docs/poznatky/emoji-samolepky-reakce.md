@@ -687,10 +687,11 @@ i archiv každého druhu zvlášť, takže repository bere druh (`installedSets(
 Z fotky jde udělat samolepku a přidat ji do vlastní sady, nebo sadu založit
 (`StickerComposerScreen`, `StickerComposerViewModel`, `StickerMaker`). Vstupy jsou dva:
 ⋮ v prohlížeči fotky („Vytvořit samolepku") a Nastavení → Chaty → Sady samolepek →
-„Vytvořit samolepku z fotky" (systémový výběr fotek). **Android a iOS** (`AndroidStickerMaker`,
-`IosStickerMaker`); na desktopu se `StickerMaker` nezaregistruje a oba vstupy chybí. Rozměry,
-obrys, práh alfy a obálka jsou pro obě platformy v `StickerGeometry.kt` (commonMain), ať se
-nerozejdou.
+„Vytvořit samolepku z fotky" (systémový výběr fotek). **Všechny tři platformy**
+(`AndroidStickerMaker`, `IosStickerMaker`, `DesktopStickerMaker`), odstranění pozadí jen Android
+a iOS. Rozměry, obrys, práh alfy a obálka jsou pro všechny v `StickerGeometry.kt` (commonMain),
+ať se nerozejdou; kreslení a WebP ve Skie mají iOS a desktop společné v `SkiaStickers.kt`
+(source set `skiaMain`).
 
 - **Telegram chce delší stranu přesně 512 px a kratší nejvýš 512** (`stickerSize`),
   statickou samolepku do 512 kB. `uploadStickerFile` / `NewSticker` bere WebP i PNG, z PNG si
@@ -775,6 +776,28 @@ iOS kreslí Compose.
   WebP ze Skii vzal), druhá samolepka z úpravy sady s předvybranou sadou a obálka (sada po ní
   v Moje sady zůstala). **Neověřené**: odstranění pozadí na skutečném iPhonu a vstup
   z prohlížeče fotky.
+
+### Tvorba samolepky na desktopu
+
+`DesktopStickerMaker`: celá fotka zmenšená na 512 px, WebP ze Skii (`SkiaStickers.kt`, totéž
+co iOS). **Bez odstranění pozadí** — na desktopu není model segmentace (ML Kit je v Play
+službách, Vision na Apple platformách) a vlastní by aplikaci zvětšil o desítky MB. Bez pozadí
+odpadá i obrys (kolem celé fotky by byl rámeček).
+
+- **Skia je na desktopu jediná cesta k WebP**: `javax.imageio` WebP nezná vůbec. Kreslení
+  a kódování proto leží v source setu `skiaMain` (iOS + JVM), ne v `nonDynamicThemeMain` —
+  ten je o motivu, ne o obrázcích.
+- **Otočení podle EXIF dělá dekodér** (`Codec.encodedOrigin` + `EncodedOrigin.toMatrix`):
+  výběr souborů na desktopu fotku nepřevádí (soubor se nekopíruje), takže snímek
+  z fotoaparátu by bez toho skončil na boku. Test vkládá do JPEGu ručně segment EXIF
+  s orientací 6.
+- **„Upravit fotku" se na desktopu nenabízí** — editor fotky tam zatím není
+  (`PhotoMarkupRenderer.isAvailable = false`), viz `docs/poznatky/desktop.md`.
+- **Ověřeno v ladicí desktopové aplikaci 24. 10. 2026** (macOS, skutečný účet, sada „Plume test
+  iOS"): výběr JPEGu přes `FileDialog`, náhled, přidání do sady (server WebP vzal), obálka
+  z úpravy sady. Okno JVM jde ovládat jen přes celou obrazovku (`computer_batch`), na pozadí
+  klik skončí „Could not read which file this window is editing". **Neověřené**: Windows
+  a Linux, fotka s EXIF orientací v aplikaci (jen testem).
 
 ## Úprava vlastní sady samolepek
 
