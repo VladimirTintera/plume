@@ -60,13 +60,13 @@ LOCALES = {
 PLAY_LANGS = ("cs", "en")
 
 # Jazyky, které píšeme sami: změna v nich je změna aplikace a poznámku potřebuje. Zrcadlí
-# výchozí angličtinu a `completeLocales` v client/shared/build.gradle.kts — nový jazyk psaný
+# výchozí angličtinu a `completeLocales` v client/resources/build.gradle.kts — nový jazyk psaný
 # námi patří do obou míst.
 OWN_LOCALES = ("en", "cs")
 
 # Překlady, které posílá Weblate: texty aplikace (Compose resources) a iOS (Localizable.strings).
 TRANSLATION_FILES = (
-    re.compile(r"^client/shared/src/commonMain/composeResources/values-(?P<locale>[A-Za-z]+)(?:-r?[A-Za-z]+)?/strings\.xml$"),
+    re.compile(r"^client/resources/src/commonMain/composeResources/values-(?P<locale>[A-Za-z]+)(?:-r?[A-Za-z]+)?/strings\.xml$"),
     re.compile(r"^iosApp/(?:iosApp|ShareExtension)/(?P<locale>[A-Za-z]+)(?:-[A-Za-z]+)?\.lproj/Localizable\.strings$"),
 )
 

@@ -4,7 +4,7 @@ sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent))
 from icon import feather_mask, gradient
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 R=str(__import__("pathlib").Path(__file__).resolve().parents[2])
-F=R+"/client/shared/src/commonMain/composeResources/font/"
+F=R+"/client/resources/src/commonMain/composeResources/font/"
 texts={"cs-CZ":"Neoficiální klient pro Telegram","en-US":"An unofficial Telegram client"}
 for loc,tag in texts.items():
     W,H=2048,1000

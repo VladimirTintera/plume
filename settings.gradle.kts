@@ -37,6 +37,7 @@ plugins {
 
 // AGP 9 nepovolí `com.android.application` + KMP plugin v jednom modulu, proto je klient rozdělený
 // na jednu sdílenou KMP knihovnu a tenké vstupní body. Stejný princip jako v mlogu.
+include(":client:resources")
 include(":client:shared")
 include(":client:androidApp")
 include(":client:desktopApp")

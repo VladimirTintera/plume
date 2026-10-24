@@ -1,4 +1,3 @@
-import eu.tintera.plume.gradle.GenerateAppLanguages
 import java.net.URI
 import java.security.MessageDigest
 import java.util.Properties
@@ -11,9 +10,8 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.serialization)
     alias(libs.plugins.buildConfig)
-    // Kontroly zdrojáků a jazyků na `check` a seznam jazyků aplikace (build-logic/).
+    // Kontroly zdrojáků na `check` (build-logic/); jazyky hlídá :client:resources.
     id("plume.source-checks")
-    id("plume.translations")
 }
 
 /**
@@ -86,17 +84,6 @@ val generateChangelog = tasks.register("generateChangelog") {
             )
         }
     }
-}
-
-/**
- * Jazyky aplikace (`plume.translations`, build-logic/Translations.kt). `completeLocales` zrcadlí
- * `OWN_LOCALES` v `.github/scripts/release_notes.py`.
- */
-plumeTranslations {
-    // Jazyky, které píšeme sami: musí mít všechny klíče a do výběru jdou vždy.
-    completeLocales = setOf("cs")
-    // Podíl přeložených klíčů, od kterého jde komunitní jazyk do výběru.
-    minLanguageCoverage = 0.8
 }
 
 /**
@@ -355,8 +342,6 @@ kotlin {
         commonMain {
             // „Co je nového" v Nastavení — poznámky z release-notes/ zapečené při buildu.
             kotlin.srcDir(generateChangelog)
-            // Jazyky aplikace ze složek values-* (APP_LANGUAGES).
-            kotlin.srcDir(tasks.named<GenerateAppLanguages>("generateAppLanguages").flatMap { it.kotlinDirectory })
         }
 
         commonMain.dependencies {
@@ -365,6 +350,8 @@ kotlin {
             implementation(libs.compose.animation)
             implementation(libs.compose.ui)
             implementation(libs.compose.resources)
+            // Texty, ikony, fonty a `Res` (eu.tintera.plume.resources) — viz client/resources.
+            implementation(projects.client.resources)
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.compose.material3)
 
@@ -524,9 +511,10 @@ composeCompiler {
     }
 }
 
+// Prostředky a `Res` jsou v :client:resources. Vlastní `Res` by vznikla i bez prostředků (modul
+// závisí na knihovně prostředků) a srazila by se s tou z :client:resources.
 compose.resources {
-    packageOfResClass = "eu.tintera.plume.resources"
-    generateResClass = always
+    generateResClass = never
 }
 
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
