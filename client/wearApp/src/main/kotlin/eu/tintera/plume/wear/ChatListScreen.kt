@@ -6,6 +6,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Alignment
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.CompactButton
+import eu.tintera.plume.resources.settings_24dp
+import eu.tintera.plume.resources.settings_title
+import androidx.wear.compose.material3.Icon
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,7 +45,7 @@ import kotlin.time.Clock
  * obrazovka jen kreslí: název, náhled poslední zprávy a počet nepřečtených.
  */
 @Composable
-fun ChatListScreen(onOpen: (Long) -> Unit) {
+fun ChatListScreen(onOpen: (Long) -> Unit, onSettings: () -> Unit) {
     val chats = koinInject<ChatRepository>()
     val listState by chats.chats().collectAsState()
 
@@ -46,17 +54,29 @@ fun ChatListScreen(onOpen: (Long) -> Unit) {
         is ChatListState.Failed -> MessageScreen(stringResource(Res.string.chats_load_failed))
         is ChatListState.Ready ->
             if (current.chats.isEmpty()) MessageScreen(stringResource(Res.string.wear_chats_empty))
-            else ChatList(current.chats, onOpen)
+            else ChatList(current.chats, onOpen, onSettings)
     }
 }
 
 @Composable
-private fun ChatList(chats: List<ChatSummary>, onOpen: (Long) -> Unit) {
+private fun ChatList(chats: List<ChatSummary>, onOpen: (Long) -> Unit, onSettings: () -> Unit) {
     val state = rememberTransformingLazyColumnState()
     val savedMessagesId = savedMessagesChatId()
     ScreenScaffold(scrollState = state) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
             item { ListHeader { Text(stringResource(Res.string.wear_chats_title)) } }
+            // Nastavení (odhlášení, později další) hned pod nadpisem: hodinky nemají menu v liště
+            // a konec dlouhého seznamu chatů nikoho nenapadne hledat (připomínka uživatele).
+            item {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CompactButton(
+                        onClick = onSettings,
+                        icon = { Icon(painterResource(Res.drawable.settings_24dp), contentDescription = null) },
+                        label = { Text(stringResource(Res.string.settings_title)) },
+                        colors = ButtonDefaults.filledTonalButtonColors(),
+                    )
+                }
+            }
             // Bez klíče: chaty po přihlášení přibývají postupně a s klíčem by lazy seznam držel
             // první viditelný chat, takže by nové nahoře odjely nad displej (ověřeno na emulátoru).
             items(chats) { chat -> ChatCard(chat, savedMessagesId, onClick = { onOpen(chat.id) }) }
