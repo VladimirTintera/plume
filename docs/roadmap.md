@@ -317,7 +317,8 @@ bez Compose UI.
 
 **Rozpracované (od 24. 10. 2026):** modul `:client:wearApp` s přihlášením QR kódem, seznamem
 chatů s fotkami, konverzací, odpovědí, reakcemi a hlasovkami běží na emulátoru
-(`docs/poznatky/wear-os.md`). Z MVP zbývá bod 5 (vlastní push).
+(`docs/poznatky/wear-os.md`). Bod 5 (push) je napsaný, doručení pushu s ukončenou aplikací
+a vypnutí zrcadlení zbývá ověřit na skutečných hodinkách se spárovaným telefonem.
 
 Hodinky navíc dostávají notifikace zrcadlené z telefonu, a ty jsou na to připravené:
 `MessagingStyle`, odpověď (`SEMANTIC_ACTION_REPLY`) s navrženými odpověďmi, Přečteno, Ztlumit,
@@ -350,8 +351,10 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
    jsou naše volby v systémovém zadávání; reakce bez vlastních emoji).
 4. ~~Hlasovky: přehrávání a nahrávání mikrofonem hodinek~~ — hotovo (bez waveformu v bublině,
    jen délka; přehrávání bez posuvníku).
-5. Vlastní push na hodinkách — a na telefonu přestat zrcadlit, když je Plume na hodinkách
-   přihlášený (bridging tag / `setLocalOnly`), jinak přijde každá zpráva dvakrát.
+5. ~~Vlastní push na hodinkách a vypnutí zrcadlení z telefonu~~ — napsané (FCM, notifikace
+   `MessagingStyle`, `BridgingManager` jen při přihlášení). **Ověřit na skutečných hodinkách:**
+   push s ukončenou aplikací (na emulátoru FCM nedoručil) a že zrcadlené notifikace zmizí.
+   Odpověď z notifikace na hodinkách zatím není.
 
 **Po MVP:** dlaždice (tile) s posledními / připnutými chaty, komplikace s počtem nepřečtených,
 `units: wear` v poznámkách k vydání a release workflow, Wear OS ve stejném záznamu v Play

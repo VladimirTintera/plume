@@ -69,6 +69,23 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kermit)
+    implementation(libs.androidx.core.ktx)
+
+    // Vlastní push na hodinkách (FCM) a vypnutí zrcadlení notifikací telefonu, když jsou
+    // hodinky přihlášené (BridgingManager).
+    implementation(project.dependencies.platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+    implementation(libs.wear.phone.interactions)
     // QR kód pro přihlášení (jako telefon).
     implementation(libs.zxing.core)
+}
+
+// Push přes FCM: plugin `google-services` jen s `google-services.json`, jako u telefonu (bez něj
+// se aplikace přeloží, jen bez pushe). Soubor je KOPIE z `androidApp`: plugin ho čte jen
+// z adresáře modulu a hodinky mají stejné `applicationId`, takže platí tentýž. Změní-li se
+// projekt Firebase, mění se oba.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle("wearApp: google-services.json chybí — hodinky bez pushe.")
 }

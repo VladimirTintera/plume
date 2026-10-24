@@ -4,6 +4,7 @@ import android.app.Application
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
 import eu.tintera.plume.core.telegram.ConnectionController
+import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.TelegramSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -30,5 +31,12 @@ class WearApplication : Application() {
 
         // Hlášení sítě a popředí: spojení, které systém v pozadí zabil, se po návratu obnoví.
         koin.get<ConnectionController>().start()
+
+        // Vlastní push a notifikace hodinek, a zrcadlení z telefonu jen bez přihlášení.
+        val appScope = koin.get<CoroutineScope>(named(APP_SCOPE))
+        val session = koin.get<TelegramSession>()
+        WearNotifications(this, appScope).start(koin.get<NotificationRepository>())
+        WearPushRegistrar(session, koin.get<NotificationRepository>(), appScope).start()
+        PhoneBridging(this, appScope).start(session)
     }
 }

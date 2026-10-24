@@ -4281,4 +4281,6 @@
     <string name="wear_voice_no_permission">Bez přístupu k mikrofonu hlasovku nahrát nejde.</string>
     <string name="wear_voice_too_short">Hlasovka je moc krátká.</string>
     <string name="wear_voice_failed">Hlasovku se nepodařilo nahrát.</string>
+    <string name="wear_notification_channel">Zprávy</string>
+    <string name="wear_notification_me">Vy</string>
 </resources>
