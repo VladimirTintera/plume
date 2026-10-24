@@ -414,7 +414,7 @@ na ověření na Wear OS 6 (emulátor je Wear OS 5).
 1. ~~**Předěly dní a seskupení bublin**~~ — hotovo („Dnes", „Včera", datum; po sobě jdoucí zprávy
    téhož odesílatele těsněji, jméno ve skupině jen u první).
 2. ~~**Stav doručení u odeslaných zpráv**~~ — hotovo (fajfka odesláno, dvojitá přečteno).
-3. **Vlna u hlasovky** z dat zprávy, během přehrávání se vybarvuje (dnes jen délka).
+3. ~~**Vlna u hlasovky**~~ — hotovo (z dat zprávy, během přehrávání se vybarvuje a běží čas).
 4. **Avatar chatu v hlavičce konverzace** vedle názvu.
 5. **Animace nové zprávy** (`animateItem`) místo skoku.
 6. ~~**Odznak nepřečtených v seznamu chatů**~~ — hotovo (vyplněné kolečko, u ztlumeného chatu

@@ -315,6 +315,15 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   smazat je hned po odeslání by nahrávání utnulo. Úklid nechává na systému.
 - Tlačítko přehrát v příchozí bublině má plnou barvu: tónová výplň je stejná jako příchozí
   bublina a tlačítko v ní zmizelo.
+- **Vlna a průběh** (`VoiceNoteRow`): sloupce z `waveform` zprávy, kolik se jich do šířky vejde,
+  převzorkované `resampleWaveform` z `core` (totéž co telefon); bez dat rovná čára, ticho
+  nejnižším sloupcem. Během přehrávání se vlna zleva vybarvuje a místo délky běží uplynulý čas —
+  dřív byla jen délka a nebylo poznat, kolik zbývá. **`MediaPlayer` průběh neohlašuje**, čte se
+  po snímcích (`withFrameMillis`) jen u hrající hlasovky; `duration` a `currentPosition` až po
+  přípravě (`prepared` ve `VoicePlayback`), před ní hlásí chybu stavu. Barvy z popředí bubliny
+  (odchozí `onPrimaryContainer`, příchozí `primary`), nepřehraná část tatáž barva na 40 %.
+  Ověřeno na emulátoru 2026-10-24 (vlastní hlasovka: vybarvení a „0:01" během přehrávání,
+  po dohrání zpět délka); příchozí hlasovka s vlnou neověřená.
 - **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora: žádost o mikrofon („Only this time"),
   nahrávka 0:03 odešla a potvrdila se, přehrání vlastní (z disku) i příchozí (soubor poslaný
   botem přes `sendVoice`, stažení) — „Pause" během přehrávání, po dohrání zpět „Play". Mikrofon
