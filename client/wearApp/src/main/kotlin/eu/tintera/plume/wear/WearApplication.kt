@@ -33,7 +33,11 @@ class WearApplication : Application() {
                 coreModule(),
                 // Presenter notifikací je jeden na proces: kreslí ho kolektor a akce z notifikace
                 // (WearNotificationReceiver) do něj připisují odpověď.
-                module { single { WearNotifications(androidContext(), get(named(APP_SCOPE))) } },
+                module {
+                    single { WearNotifications(androidContext(), get(named(APP_SCOPE))) }
+                    // Jeden na proces: automatický úklid a tlačítko v Nastavení se nesmí potkat.
+                    single { WearStorageCleaner(androidContext(), get(), get(named(APP_SCOPE))) }
+                },
             )
         }.koin
 
@@ -53,5 +57,7 @@ class WearApplication : Application() {
         // Počet nepřečtených pro dlaždici a komplikaci (kreslí je systém i bez běžícího procesu).
         UnreadCountPublisher(this, appScope).start(session, koin.get<ChatRepository>())
         RecentChatsPublisher(this, appScope, koin.get<FileRepository>()).start(session, koin.get<ChatRepository>())
+        // Úklid stažených médií, hodinky mají místa málo.
+        koin.get<WearStorageCleaner>().start(session)
     }
 }

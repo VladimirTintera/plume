@@ -376,8 +376,8 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 2. ~~**Odhlášení na hodinkách**~~ — hotovo (Nastavení pod nadpisem seznamu chatů, v nich
    odhlášení s potvrzením;
    samotné odhlášení na emulátoru nevyzkoušené, je na skutečném účtu).
-3. **Úklid úložiště** — mezipaměť TDLib roste s fotkami a hlasovkami, hodinky mají málo místa;
-   `core` úklid umí (`TdlStorageRepository`), stačí limit a občasné spuštění.
+3. ~~**Úklid úložiště**~~ — hotovo (automaticky jednou denně: 3 dny, strop 100 MB; ruční
+   vyčištění v Nastavení).
 4. **Starší historie a citace** — konverzace jen posledních 30 zpráv, odpověď bez citované zprávy.
 5. **Další média** — statické samolepky a náhledy videí (bez přehrávání); animované samolepky,
    GIFy a video jsou na hodinkách drahé.

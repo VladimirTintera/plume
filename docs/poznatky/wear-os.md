@@ -256,6 +256,22 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   ze studeného startu i s aplikací na pozadí (jedna instance aktivity), tah zpět do seznamu.
   Neověřené: stav bez přihlášení, chat s nestaženou fotkou, skutečné hodinky.
 
+## Úložiště
+
+- **Automatický úklid** (`WearStorageCleaner`): po přihlášení, nejvýš jednou za 24 h, smaže
+  média, na která se nesáhlo 3 dny, a pak nejdéle nepoužitá nad 100 MB —
+  `StorageRepository.cleanUp` z `core` (`optimizeStorage` s mezemi vypsanými výslovně, ne
+  `use_storage_optimizer`; proč, viz `StorageCleaner` telefonu). Samolepky, avatary a náhledy
+  nechá být. **Pevné meze, ne volby**: hodinky nastavení úložiště nemají.
+- **Ruční vyčištění v Nastavení** („Vyčistit mezipaměť", pod ním „Uvolněno N") se stejným
+  výběrem jako výchozí dialog telefonu (`DEFAULT_CLEAR_CATEGORIES`: média ano, samolepky
+  a avatary ne). Bez potvrzení — soubory zůstávají na serveru a stáhnou se znovu. Úklid a ruční
+  vyčištění hlídá jeden `Mutex` (souběžné `optimizeStorage` TDLib ruší), proto je čistič v Koinu
+  jeden na proces.
+- **Ověřeno na emulátoru 2026-10-24**: po startu „Úklid úložiště hodinek uvolnil 0 B" (vše
+  mladší než 3 dny, pod stropem), ruční vyčištění „Freed 204 kB" (`files` 23 → 22 MB), fotka
+  v konverzaci Notifikátora se pak stáhla znovu.
+
 ## Hlášení pádů
 
 - **Crashlytics jako telefon** (`release.md`, „Hlášení pádů"): `configureLogging()` z `core`
