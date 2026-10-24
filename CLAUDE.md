@@ -184,7 +184,8 @@ na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
 
 ```
 client/
-  shared/      :client:shared     – KMP knihovna klienta (JEDINÝ modul s KMP pluginem)
+  resources/   :client:resources  – KMP knihovna s composeResources (texty, ikony, fonty) a `Res`
+  shared/      :client:shared     – KMP knihovna klienta
   androidApp/  :client:androidApp – com.android.application, jen vstupní bod
   desktopApp/  :client:desktopApp – Compose Desktop (kotlin-jvm), jen vstupní bod a balení
 iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:shared
@@ -193,6 +194,12 @@ iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:share
 **AGP 9 zakazuje `com.android.application` + KMP plugin v jednom modulu.** Proto je klient rozdělený
 na tenké vstupní body nad jednou sdílenou KMP knihovnou. Platformní `expect`/`actual` zůstávají
 v `:client:shared`, ne v app modulech.
+
+**Všechny prostředky jsou v `:client:resources` a `Res` jen tam** (`eu.tintera.plume.resources`,
+`publicResClass`). Přes jednu `Res` bere texty i ikony přes dvě stě souborů, takže se prostředky
+mezi moduly nedělí. **Každý další modul, který závisí na knihovně prostředků, musí mít
+`compose.resources { generateResClass = never }`** — vlastní `Res` by mu vznikla i bez jediného
+prostředku a srazila by se s tou z `:client:resources` (stejné jméno třídy).
 
 **Co se opakuje mezi moduly, je konvenční plugin v `build-logic/`** (included build), ne kopie
 v build skriptu: `plume.source-checks` (kontroly zdrojáků na `check`), `plume.translations`
@@ -802,7 +809,7 @@ obrazovku.
   „Unresolved reference" na symbol o desítky řádků níž a teprve pak „Unclosed comment" na konci
   souboru — hledat se přitom musí v komentáři, kterého si nikdo nevšimne. Glob se do komentáře
   proto nepíše.
-- **`androidResources { enable = true }`** v KMP modulu je povinné, jinak se composeResources nezabalí
+- **`androidResources { enable = true }`** v KMP modulu s prostředky (`:client:resources`) je povinné, jinak se composeResources nezabalí
   a čtení stringu spadne až za běhu na „No instrumentation registered!".
 - **iOS framework musí být `isStatic = true`** — TDLib je statická knihovna, jinak link padne na
   undefined symbols `_td_*`.

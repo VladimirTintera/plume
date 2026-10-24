@@ -240,7 +240,7 @@ tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.co
 
 /**
  * `res/xml/locales_config.xml` (systémový výběr jazyka aplikace, `LocaleManager`) ze seznamu, který
- * vyrobí `:client:shared:generateAppLanguages` ze složek `composeResources/values-*`. Ručně psaný
+ * vyrobí `:client:resources:generateAppLanguages` ze složek `composeResources/values-*`. Ručně psaný
  * soubor se s nimi rozcházel: nový jazyk z Weblate by v aplikaci byl, ale vybrat by nešel.
  */
 abstract class GenerateLocaleConfig : DefaultTask() {
@@ -268,8 +268,8 @@ abstract class GenerateLocaleConfig : DefaultTask() {
 }
 
 val generateLocaleConfig = tasks.register<GenerateLocaleConfig>("generateLocaleConfig") {
-    dependsOn(":client:shared:generateAppLanguages")
-    languages.set(rootProject.layout.projectDirectory.file("client/shared/build/generated/appLanguages/languages.txt"))
+    dependsOn(":client:resources:generateAppLanguages")
+    languages.set(rootProject.layout.projectDirectory.file("client/resources/build/generated/appLanguages/languages.txt"))
     outputDirectory.set(layout.buildDirectory.dir("generated/localeConfig/res"))
 }
 

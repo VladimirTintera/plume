@@ -109,7 +109,7 @@ payload rozšifruje — to je samostatný kus práce.
 
 ## Jazyky
 
-Aplikace je **anglicky s českou mutací**. Texty jsou v `client/shared/src/commonMain/composeResources`:
+Aplikace je **anglicky s českou mutací**. Texty jsou v `client/resources/src/commonMain/composeResources`:
 `values/strings.xml` je výchozí (anglický), `values-cs/strings.xml` česká verze. Jazyk se bere
 ze systému; přepnout jen aplikaci jde na Androidu 13+ v systémovém nastavení aplikace.
 

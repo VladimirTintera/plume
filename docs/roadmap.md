@@ -128,7 +128,7 @@ jazyků). Vlastní backend ani GitHub Pages potřeba nejsou. Záloha: Crowdin fo
 
 - **Formát „Compose Multiplatform resources"**, ne „Android string resources" (Weblate ≥ 5.12).
   Liší se escapováním: Android formát by psal `\'` a to Compose Multiplatform nerozbalí
-  (viz „Jazyky" v CLAUDE.md). Maska `client/shared/src/commonMain/composeResources/values-*/strings.xml`,
+  (viz „Jazyky" v CLAUDE.md). Maska `client/resources/src/commonMain/composeResources/values-*/strings.xml`,
   základ `values/strings.xml`.
 - **Schvalování**: hlasování o návrzích s prahem pro automatické přijetí, nebo vyhrazení
   schvalování recenzentům (u nových jazyků si vybrat rodilého mluvčího). Čeština zůstává
@@ -269,12 +269,11 @@ bez Compose UI.
 
 **Kde to drhne:**
 
-- **Texty a `Res`.** `Res` se generuje pro každý modul zvlášť a 219 souborů bere přes jeden
+- ~~**Texty a `Res`.**~~ `Res` se generuje pro každý modul zvlášť a 219 souborů bere přes jeden
   `Res` texty i ikony — texty v `core` a ikony ve `shared` by znamenaly dvě třídy `Res` (ve
   stejném balíčku to nejde) a aliasy importů. Proto všechny prostředky do `:client:resources`
   se stejným balíčkem `Res` (`eu.tintera.plume.resources`): ve `features` se nezmění import.
-  Riziko je za běhu — prostředky z jiného modulu se musí zabalit na Androidu, iOS i desktopu.
-  **Cestu v komponentě na Weblate přepsat ručně** (z repa nejde).
+  Hotovo v kroku 3b; ověřeno na Androidu (česky i anglicky), desktopu (jar) a iOS.
 - **Hovory.** `TdlCallRepository` mluví s `CallMedia` — rozhraní v `core/calls`, implementace
   s ntgcalls zůstává ve `shared` a zapojí se přes Koin (dnes už je to tak); Wear hovory nemá.
 - ~~**Notifikace**~~ — hotovo v kroku 3a: `NotificationPresenter` je v `core/notifications`
@@ -305,10 +304,9 @@ bez Compose UI.
 3. Vyčlenit `:client:core`, ve třech PR:
    - **3a** ~~`NotificationPresenter` ven z `core/telegram`, `GeoPoint` a `PhoneContact` do
      vlastních souborů~~ — hotovo; uzávěr `core/telegram` spadl z 325 souborů na ~200.
-   - **3b** `:client:resources`: všechny `composeResources`, `plume.translations`, seznam
-     jazyků, `generateLocaleConfig` v androidApp (dnes čte cestu do `client/shared/build`),
-     cesty pro Weblate a `release_notes.py exempt`. Ověřit na emulátoru, iOS i desktopu, že se
-     texty, ikony a fonty načtou.
+   - **3b** ~~`:client:resources`: všechny `composeResources`, `plume.translations`, seznam
+     jazyků, `generateLocaleConfig`, `release_notes.py exempt`~~ — hotovo. Weblate se zakládá až
+     s veřejným repem (sekce „Komunitní překlad"), maska tam už míří na nové místo.
    - **3c** `:client:core`: `git mv` uzávěru (ať zůstane historie), `tdl-coroutines` jen tady
      (`implementation`), `BuildConfiguration`, `coreModule()` v Koinu, `internal` → veřejné podle
      chyb překladu, testy `core` a `:client:core-testing`, konvence pro cíle KMP, CLAUDE.md

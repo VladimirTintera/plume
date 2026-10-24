@@ -73,6 +73,7 @@ abstract class TranslationsExtension {
  *   by bylo horší než ho nenabízet.
  * - Výstupem je Kotlin (`GENERATED_APP_LANGUAGES` pro `APP_LANGUAGES`) a `languages.txt`, ze
  *   kterého si `:client:androidApp` vyrobí `locales_config.xml`. Jedno místo pravidel pro oba.
+ *   Seznam je veřejný: vzniká v modulu s prostředky a čte ho `core/locale` v jiném modulu.
  * - Složka `values-pt-rBR` (kvalifikátor regionu) je jazyk `pt-BR`.
  * - Výstupy jmenovitě, NE celá složka `generated/appLanguages`: AGP hledá vedle každého
  *   zdrojového adresáře složku baselineProfiles (`generated/appLanguages/baselineProfiles` vedle
@@ -131,7 +132,7 @@ abstract class GenerateAppLanguages : DefaultTask() {
             |// Vygenerováno úlohou generateAppLanguages ze složek composeResources/values-*. Neupravovat.
             |package eu.tintera.plume.core.locale
             |
-            |internal val GENERATED_APP_LANGUAGES: List<String> = listOf(${languages.joinToString { "\"$it\"" }})
+            |val GENERATED_APP_LANGUAGES: List<String> = listOf(${languages.joinToString { "\"$it\"" }})
             |""".trimMargin(),
         )
     }
