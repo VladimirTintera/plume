@@ -774,8 +774,6 @@ iOS kreslí Compose.
   fotky (tah perem se propsal do samolepky), výběr emoji a sady. **Neověřené**: odstranění
   pozadí na skutečném iPhonu, samotné přidání do sady a obálka (simulátor byl přihlášený ke
   skutečnému účtu) a vstup z prohlížeče fotky.
-- **Přihlášení QR kódem v simulátoru trvalo po naskenování déle než minutu**, než se obrazovka
-  přepnula; nevisí, jen čekat.
 
 ## Úprava vlastní sady samolepek
 
