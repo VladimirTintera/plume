@@ -40,7 +40,7 @@ data class StickerComposerState(
     /** Bílý obrys kolem vyříznutého objektu; bez odstranění pozadí se nekreslí. */
     val outline: Boolean = true,
     val canRemoveBackground: Boolean = false,
-    /** Fotku jde před tvorbou upravit (na desktopu editor fotky zatím není). */
+    /** Fotku jde před tvorbou upravit (platforma má [PhotoMarkupRenderer]). */
     val canEditPhoto: Boolean = false,
     /** Hotová samolepka k nahrání — přesně to, co uživatel vidí v náhledu. */
     val preview: MadeSticker? = null,

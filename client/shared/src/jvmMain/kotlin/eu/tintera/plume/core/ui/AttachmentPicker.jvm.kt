@@ -18,6 +18,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.skia.Codec
+import org.jetbrains.skia.Data
 
 /**
  * Desktop: systémový dialog souborů (AWT `FileDialog`, na macOS nativní panel). Soubor se
@@ -78,10 +80,22 @@ internal fun prepareAttachment(file: File, media: Boolean): OutgoingAttachment {
     require(file.isFile) { "Není soubor: ${file.path}" }
     if (media && file.extension.lowercase() in PHOTO_EXTENSIONS) {
         val image = ImageIO.read(file)
-        if (image != null) return OutgoingAttachment.Photo(path = file.path, width = image.width, height = image.height)
+        if (image != null) {
+            val (width, height) = uprightSize(file, image.width, image.height)
+            return OutgoingAttachment.Photo(path = file.path, width = width, height = height)
+        }
     }
     return OutgoingAttachment.Document(path = file.path)
 }
+
+/**
+ * Rozměry fotky tak, jak ji ukazuje aplikace: Skia (Coil, editor fotky) ji otočí podle EXIF,
+ * ImageIO ne. Bez otočení by snímek z fotoaparátu na výšku měl prohozené rozměry a editor
+ * i bublina by ho kreslily do špatného poměru stran. `Codec` dekóduje jen hlavičku.
+ */
+internal fun uprightSize(file: File, width: Int, height: Int): Pair<Int, Int> = runCatching {
+    Codec.makeFromData(Data.makeFromBytes(file.readBytes())).encodedOrigin.swapsWidthHeight()
+}.getOrDefault(false).let { swaps -> if (swaps) height to width else width to height }
 
 internal val PHOTO_EXTENSIONS = setOf("jpg", "jpeg", "png", "bmp", "webp")
 private val MEDIA_EXTENSIONS = PHOTO_EXTENSIONS + setOf("gif", "mp4", "mov", "m4v", "webm", "mkv")
