@@ -314,8 +314,11 @@ fun AppShell(modifier: Modifier = Modifier) {
         navigation.openShareTo(chatId)
     }
 
-    // Výška pruhu videochatu i se stavovou lištou; 0 = pruh není.
+    // Výška pruhu hovoru / videochatu i se stavovou lištou; 0 = pruh není. Naráz je jen jeden
+    // (pruh videochatu hovoru ve dvou ustoupí), max je pojistka pro okamžik výměny.
+    var callBarHeight by remember { mutableIntStateOf(0) }
     var videoChatBarHeight by remember { mutableIntStateOf(0) }
+    val topBarHeight = maxOf(callBarHeight, videoChatBarHeight)
     val density = LocalDensity.current
     Box(modifier.fillMaxSize()) {
         ShellContent(
@@ -323,23 +326,24 @@ fun AppShell(modifier: Modifier = Modifier) {
             entryDecorators = entryDecorators,
             sharedContent = incomingShare?.takeIf { it.carried },
             shareRequests = shareRequests,
-            // Pruh videochatu obsah odsune, ne překryje: ležel by přes hlavičku konverzace
-            // i se šipkou zpět, a během videochatu se do skupiny píše. Stavovou lištu má
-            // pruh nad sebou, obsah ji proto dostane jako spotřebovanou (jinak dvojitá mezera).
+            // Pruh hovoru i videochatu obsah odsune, ne překryje: ležel by přes hlavičku
+            // obrazovky i se šipkou zpět a během hovoru by aplikace nešla ovládat. Stavovou
+            // lištu má pruh nad sebou, obsah ji proto dostane jako spotřebovanou (jinak
+            // dvojitá mezera).
             // Je to kořen shellu, ne položka NavDisplay — měnící se hodnota tu uzel neodpojí
             // (viz Gotchas o insetech v CLAUDE.md).
             modifier = Modifier.fillMaxSize().then(
-                if (videoChatBarHeight > 0) {
+                if (topBarHeight > 0) {
                     Modifier
                         .consumeWindowInsets(WindowInsets.statusBars)
-                        .padding(top = with(density) { videoChatBarHeight.toDp() })
+                        .padding(top = with(density) { topBarHeight.toDp() })
                 } else {
                     Modifier
                 },
             ),
         )
         // Probíhající hovor nad vším — přes celou obrazovku, nebo zmenšený do pruhu nahoře.
-        CallOverlay(Modifier.align(Alignment.TopCenter))
+        CallOverlay(Modifier.align(Alignment.TopCenter), onBarHeight = { callBarHeight = it })
         // Videochat, ze kterého uživatel odešel jen z obrazovky — pruh na stejném místě.
         VideoChatOverlay(
             onOpen = navigation::openVideoChat,

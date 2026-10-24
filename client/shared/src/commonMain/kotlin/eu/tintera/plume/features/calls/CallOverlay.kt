@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.calls
 
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.animation.AnimatedContent
 import eu.tintera.plume.resources.videocam_off_24dp
 import eu.tintera.plume.resources.mic_off_24dp
@@ -156,7 +158,14 @@ private val logger = Logger.withTag("CallOverlay")
  * a ťuknutí / celoobrazovkovou výzvu, která obrazovku hovoru znovu rozbalí.
  */
 @Composable
-fun CallOverlay(modifier: Modifier = Modifier) {
+fun CallOverlay(
+    modifier: Modifier = Modifier,
+    /**
+     * Výška zmenšeného pruhu i se stavovou lištou, 0 = pruh není (žádný hovor, celá obrazovka,
+     * okénko). Shell o ni obsah odsune, aby pruh neležel přes hlavičku a šipku zpět.
+     */
+    onBarHeight: (Int) -> Unit = {},
+) {
     val calls = koinInject<CallRepository>()
     val requests = koinInject<CallRequests>()
     val call by calls.active.collectAsStateWithLifecycle()
@@ -214,7 +223,7 @@ fun CallOverlay(modifier: Modifier = Modifier) {
         if (full) {
             CallScreen(current, calls, remoteAspect, onMinimize = { expanded = false }, onRemoteAspect = { remoteAspect = it })
         } else {
-            CallBar(current, calls, onExpand = { expanded = true })
+            CallBar(current, calls, onExpand = { expanded = true }, onHeight = onBarHeight)
         }
     }
 }
@@ -752,16 +761,22 @@ private const val CALL_BREATH_MS = 1400
 
 private const val CALL_BREATH_ROTATION = 30f
 
-/** Zmenšený hovor: pruh nahoře, ťuknutí ho rozbalí. */
+/**
+ * Zmenšený hovor: pruh nahoře, ťuknutí ho rozbalí. Svou výšku hlásí ([onHeight]) — i s okraji
+ * a stavovou lištou, proto se měří první v řetězu — a při odchodu z kompozice ji vrátí na 0.
+ */
 @Composable
-private fun CallBar(call: ActiveCall, calls: CallRepository, onExpand: () -> Unit) {
+private fun CallBar(call: ActiveCall, calls: CallRepository, onExpand: () -> Unit, onHeight: (Int) -> Unit) {
     val scope = rememberCoroutineScope()
     val (name, _) = rememberPeer(call.userId)
+    val height by rememberUpdatedState(onHeight)
+    DisposableEffect(Unit) { onDispose { height(0) } }
     Surface(
         onClick = onExpand,
         color = MaterialTheme.colorScheme.secondaryContainer,
         shape = MaterialTheme.shapes.extraLarge,
         modifier = Modifier
+            .onSizeChanged { height(it.height) }
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(horizontal = 12.dp, vertical = 8.dp),

@@ -1062,7 +1062,7 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      obrazovky účastníka a velký videochat po segmentech; ~~poslech na pozadí s pruhem nad
      aplikací~~ — hotovo (`docs/poznatky/hovory.md`, „Videochat na pozadí"); vlastní kamera,
      mřížka víc kamer, „kdo mluví", správa pro správce (ztlumit ostatní, pustit ke slovu),
-     desktop. Pruh hovoru ve dvou pořád překrývá obsah — přenést na něj odsunutí jako u videochatu.
+     desktop. ~~Pruh hovoru ve dvou překrýval obsah~~ — hotovo, odsouvá ho jako pruh videochatu.
    - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory s mluvením**.
    Původní plán sondy:
 
