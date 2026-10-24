@@ -4188,7 +4188,6 @@
     <string name="wear_quick_reply_5">I'll get back to you later</string>
     <string name="wear_message_sending">Sending…</string>
     <string name="wear_message_failed">Not sent</string>
-    <string name="wear_send_failed">Couldn't send the message.</string>
     <string name="wear_reactions_title">Reactions</string>
     <string name="wear_reactions_none">Reactions aren't available here.</string>
     <string name="wear_voice_record">Voice message</string>
@@ -4224,6 +4223,11 @@
     <string name="wear_clear_cache_hint">Downloaded photos and voice messages</string>
     <string name="wear_clear_cache_running">Clearing…</string>
     <string name="wear_clear_cache_done">Freed %1$s</string>
+    <string name="wear_confirm_cleared">Cleared</string>
+    <string name="wear_confirm_sent">Sent</string>
+    <string name="wear_confirm_not_sent">Not sent</string>
+    <string name="wear_confirm_vote_failed">Vote not sent</string>
+    <string name="wear_confirm_play_failed">Can't play</string>
     <string name="wear_logout_title">Sign out of the watch?</string>
     <string name="wear_logout_text">Only the watch signs out, your phone stays as it is. To use the watch again, scan a QR code.</string>
     <plurals name="wear_tile_new_messages">

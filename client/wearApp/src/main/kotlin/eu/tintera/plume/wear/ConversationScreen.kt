@@ -28,7 +28,7 @@ import androidx.wear.compose.material3.OpenOnPhoneDialog
 import androidx.wear.compose.material3.AlertDialogDefaults
 import androidx.wear.compose.material3.AlertDialog
 import androidx.compose.ui.platform.LocalContext
-import eu.tintera.plume.resources.poll_vote_failed
+import eu.tintera.plume.resources.wear_confirm_vote_failed
 import eu.tintera.plume.resources.wear_message_you
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.geometry.Size
@@ -50,7 +50,7 @@ import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.stop_24dp
-import eu.tintera.plume.resources.voice_playback_failed
+import eu.tintera.plume.resources.wear_confirm_play_failed
 import eu.tintera.plume.resources.wear_voice_record
 import kotlinx.coroutines.flow.first
 import org.jetbrains.compose.resources.StringResource
@@ -86,6 +86,9 @@ import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
@@ -117,7 +120,7 @@ import eu.tintera.plume.resources.wear_quick_reply_4
 import eu.tintera.plume.resources.wear_quick_reply_5
 import eu.tintera.plume.resources.wear_reply
 import eu.tintera.plume.resources.wear_reply_label
-import eu.tintera.plume.resources.wear_send_failed
+import eu.tintera.plume.resources.wear_confirm_not_sent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -164,8 +167,16 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     var botAlert by remember(chatId) { mutableStateOf<String?>(null) }
     var openedOnPhone by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    // Poslední chyba odeslání nebo přehrání, jako poznámka pod konverzací.
+    // Chyba odeslání, hlasování nebo přehrání jako potvrzovací dialog (FailureConfirmation).
+    // Dřív to byla poznámka na konci seznamu — při hlasování ve starší anketě nebo přehrávání
+    // starší hlasovky odrolovaná mimo displej, takže ji nikdo neviděl. Text zůstává i po skrytí,
+    // ať dialog nezmizí prázdný.
     var problem by remember(chatId) { mutableStateOf<StringResource?>(null) }
+    var problemShown by remember(chatId) { mutableStateOf(false) }
+    val fail: (StringResource) -> Unit = {
+        problem = it
+        problemShown = true
+    }
     val playback = remember { VoicePlayback() }
     // Přehrávání patří obrazovce: s odchodem z ní (i na výběr reakce) skončí.
     DisposableEffect(chatId) { onDispose { playback.stop() } }
@@ -216,13 +227,10 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
         if (!text.isNullOrEmpty()) {
             scope.launch {
                 conversations.send(chatId, text, replyToMessageId = null)
-                    .onSuccess {
-                        problem = null
-                        model.upsert(it)
-                    }
+                    .onSuccess { model.upsert(it) }
                     .onFailure {
                         logger.w(it) { "Odpověď z hodinek do chatu $chatId neodešla." }
-                        problem = Res.string.wear_send_failed
+                        fail(Res.string.wear_confirm_not_sent)
                     }
             }
         }
@@ -238,14 +246,13 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             scope.launch {
                 val file = files.file(voice.fileId).first { it is FileState.Ready || it is FileState.Failed }
                 if (file is FileState.Ready) {
-                    problem = null
                     playback.play(message.id, file.path) {
                         logger.w(it) { "Hlasovka ${message.id} se na hodinkách nepřehrála." }
-                        problem = Res.string.voice_playback_failed
+                        fail(Res.string.wear_confirm_play_failed)
                     }
                     conversations.openContent(chatId, message.id)
                 } else {
-                    problem = Res.string.voice_playback_failed
+                    fail(Res.string.wear_confirm_play_failed)
                 }
             }
         }
@@ -260,7 +267,6 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             messages = current,
             quoted = model.quoted,
             loadingOlder = model.loadingOlder,
-            problem = problem,
             playingId = playback.playingId,
             onReply = onReply,
             onReact = onReact,
@@ -277,10 +283,9 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             onVote = { messageId, answers ->
                 scope.launch {
                     conversations.vote(chatId, messageId, answers)
-                        .onSuccess { problem = null }
                         .onFailure {
                             logger.w(it) { "Hlas v anketě z hodinek neodešel (chat $chatId)." }
-                            problem = Res.string.poll_vote_failed
+                            fail(Res.string.wear_confirm_vote_failed)
                         }
                 }
             },
@@ -298,6 +303,11 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             dismissButton = {},
         )
     }
+    FailureConfirmation(
+        visible = problemShown,
+        text = problem?.let { stringResource(it) }.orEmpty(),
+        onDismiss = { problemShown = false },
+    )
     // Styl se čte v kompozici, slot zakřiveného textu už composable není.
     val curvedStyle = OpenOnPhoneDialogDefaults.curvedTextStyle
     OpenOnPhoneDialog(
@@ -313,7 +323,6 @@ private fun MessageList(
     messages: List<ChatMessage>,
     quoted: Map<Long, ChatMessage?>,
     loadingOlder: Boolean,
-    problem: StringResource?,
     playingId: Long?,
     onReply: () -> Unit,
     onReact: (Long) -> Unit,
@@ -330,6 +339,8 @@ private fun MessageList(
     onScrolledTo: (Long?) -> Unit,
 ) {
     val state = rememberTransformingLazyColumnState()
+    // Zprávy se u okraje displeje zmenšují jako karty v seznamu chatů (M3 Expressive).
+    val spec = rememberTransformationSpec()
     // Na nejnovější zprávu (dole) při otevření a s každou novou — ale ne po návratu z výběru
     // reakce, fotky nebo nahrávání: tam pozici drží uložený stav seznamu a sjet dolů by uživatele
     // odvezlo od zprávy, na kterou reagoval.
@@ -351,16 +362,21 @@ private fun MessageList(
         edgeButton = { EdgeButton(onClick = onReply) { Text(stringResource(Res.string.wear_reply)) } },
     ) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
-            item(key = "header") { ListHeader { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+            item(key = "header") {
+                ListHeader(
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
+                ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
             if (loadingOlder) {
                 item(key = "loading") {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().transformedItem(this, spec), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
                     }
                 }
             }
             if (messages.isEmpty()) {
-                item { CenteredNote(stringResource(Res.string.wear_conversation_empty)) }
+                item { CenteredNote(stringResource(Res.string.wear_conversation_empty), Modifier.transformedItem(this, spec)) }
             }
             items(messages, key = { it.id }) { message ->
                 val replyTo = message.replyToMessageId
@@ -378,17 +394,18 @@ private fun MessageList(
                     // Reagovat jde jen na zprávu, kterou server zná — dočasná ještě skutečné id nemá.
                     onClick = { onReact(message.id) }
                         .takeIf { !message.isService && (message.sendState == null || message.sendState == SendState.Sent) },
+                    modifier = Modifier.transformedItem(this, spec),
                 )
             }
-            problem?.let { item { CenteredNote(stringResource(it), error = true) } }
-            botNote?.let { item { CenteredNote(it) } }
+            botNote?.let { item { CenteredNote(it, Modifier.transformedItem(this, spec)) } }
             item {
                 Button(
                     onClick = onRecord,
                     icon = { Icon(painterResource(Res.drawable.mic_24dp), contentDescription = null) },
                     label = { Text(stringResource(Res.string.wear_voice_record)) },
                     colors = ButtonDefaults.filledTonalButtonColors(),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
                 )
             }
         }
@@ -408,6 +425,7 @@ private fun MessageBubble(
     onBotButton: (Int, Int, BotButton) -> Unit,
     onOpenLink: (String) -> Unit,
     onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
 ) {
     // Slovy kreslí `text`, a když je prázdný (fotka bez popisku, anketa…), popis obsahu.
     // Samotné emoji a hod kostkou nemají ani jedno: znak nese příloha, kterou telefon animuje
@@ -415,7 +433,7 @@ private fun MessageBubble(
     val emoji = (message.media as? MessageMedia.AnimatedEmoji)?.emoji ?: (message.media as? MessageMedia.Dice)?.emoji
     val text = message.text.ifEmpty { emoji ?: message.description?.resolve().orEmpty() }
     if (message.isService) {
-        CenteredNote(text)
+        CenteredNote(text, modifier)
         return
     }
     val outgoing = message.isOutgoing
@@ -424,7 +442,7 @@ private fun MessageBubble(
     val videoNote = message.media as? MessageMedia.VideoNote
     if (sticker != null || videoNote != null) {
         Column(
-            Modifier
+            modifier
                 .fillMaxWidth()
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
             horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
@@ -454,7 +472,7 @@ private fun MessageBubble(
             if (message.isEdited) "${stringResource(Res.string.conversation_edited)} $time" else time
         }
     }
-    Box(Modifier.fillMaxWidth(), contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart) {
+    Box(modifier.fillMaxWidth(), contentAlignment = if (outgoing) Alignment.CenterEnd else Alignment.CenterStart) {
         Column(
             Modifier
                 .fillMaxWidth(BUBBLE_WIDTH)
@@ -503,6 +521,7 @@ private fun MessageBubble(
                     // Tónová výplň má barvu příchozí bubliny a tlačítko by v ní zmizelo — tam plná.
                     FilledTonalIconButton(
                         onClick = onPlay,
+                        shapes = IconButtonDefaults.animatedShapes(),
                         colors = if (outgoing) IconButtonDefaults.filledTonalIconButtonColors() else IconButtonDefaults.filledIconButtonColors(),
                         modifier = Modifier.size(36.dp),
                     ) {
@@ -624,13 +643,13 @@ private fun previewText(message: ChatMessage): String {
 }
 
 @Composable
-private fun CenteredNote(text: String, error: Boolean = false) {
+private fun CenteredNote(text: String, modifier: Modifier = Modifier) {
     Text(
         text,
         style = MaterialTheme.typography.bodySmall,
-        color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp),
     )
 }
 

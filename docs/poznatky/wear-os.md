@@ -18,6 +18,43 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   nepotřebují. Debug APK má 83 MB.
 - **`minSdk` 30** (Wear OS 3), `com.google.android.wearable.standalone = true`.
 
+## Vzhled (M3 Expressive)
+
+Podle [Apply M3 Expressive](https://developer.android.com/design/ui/wear/guides/get-started/apply);
+dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
+
+- **Položky seznamů se u okraje displeje zmenšují a morfují** (`rememberTransformationSpec`):
+  komponenty s parametrem `transformation` (`TitleCard`, `Button`, `ListHeader`) dostanou
+  `SurfaceTransformation(spec)` a `Modifier.transformedHeight(this, spec)`, vlastní obsah
+  (bublina zprávy, poznámka, řádek s `CompactButton`) `Modifier.transformedItem` z
+  `ListTransformations.kt` — dvě vrstvy `graphicsLayer`, kontejner a obsah, protože na jedné by
+  průhlednost obsahu přepsala tu kontejneru. **Kontejner u okraje i ořízne bočními šikminami**:
+  bublina, která sahá ke kraji položky (odchozí vpravo), má v horní a dolní třetině displeje
+  zkosené rohy. Tak to knihovna dělá i kartám, chyba to není. **QR kód při přihlášení
+  se netransformuje** — zmenšený by ho čtečka nemusela přečíst.
+- **Barvy z ciferníku** (`dynamicColorScheme(context)`, Wear OS 6+; jinak výchozí `ColorScheme()`
+  Wear M3, vrací `null`). Vlastní výběr barvy jako na telefonu (`ThemeColor`) hodinky nemají —
+  barvu tam volí ciferník. Dlaždice ji mají samy: `materialScope` v ProtoLayout bere dynamické
+  barvy ve výchozím nastavení. **Neověřené**: emulátor `Plume_Wear` je Wear OS 5 (API 34),
+  `dynamicColorScheme` tam vrací `null`.
+- **Animované tvary jen u ikonových tlačítek** (`shapes = IconButtonDefaults.animatedShapes()`:
+  přehrát v bublině hlasovky, tlačítko nahrávání). `Button`, `CompactButton` ani karty ve Wear
+  M3 1.7 tvarové páry nemají (jen `shape`), animované tvary má ještě `TextButton`, který hodinky
+  nepoužívají.
+- **Potvrzovací dialogy** (`SuccessConfirmation` / `FailureConfirmation` v `Confirmations.kt`,
+  nad `SuccessConfirmationDialog` / `FailureConfirmationDialog`): velká ikona, pár slov po
+  obvodu, samy zmizí. Po vyčištění mezipaměti („Vyčištěno", kolik se uvolnilo zůstává pod
+  tlačítkem), po odeslání hlasovky („Odesláno" / „Neodesláno", po zmizení se obrazovka zavře —
+  dřív se zavřela hned a nezdar šel jen do logu) a při chybě v konverzaci (neodeslaná odpověď,
+  hlas v anketě, hlasovka, která nejde přehrát). **Chyba v konverzaci byla poznámka na konci
+  seznamu** — při hlasování ve starší anketě nebo přehrávání starší hlasovky odrolovaná mimo
+  displej, takže ji nikdo neviděl. **Text po obvodu musí být krátký** (vlastní řetězce
+  `wear_confirm_*`), dlouhá věta se do oblouku nevejde.
+- **Ověřeno na emulátoru 2026-10-24** (anglicky): zmenšování karet, tlačítek a bublin u horního
+  i dolního okraje, „Cleared" po vyčištění mezipaměti, stisk tlačítka nahrávání (kruh → zaoblený
+  čtverec, `input motionevent DOWN`), „Sent" po hlasovce do chatu Notifikátora. Dialog nezdaru
+  vyvolaný není (chyba se na emulátoru neudělá), čeština v oblouku nekontrolovaná.
+
 ## Přihlášení
 
 - **Telefonní číslo se na hodinkách přeskočí:** na `WaitPhoneNumber` se rovnou volá

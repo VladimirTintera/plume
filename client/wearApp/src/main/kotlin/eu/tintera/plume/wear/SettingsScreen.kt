@@ -16,6 +16,9 @@ import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import co.touchlab.kermit.Logger
@@ -27,6 +30,7 @@ import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.wear_clear_cache
 import eu.tintera.plume.resources.wear_clear_cache_done
 import eu.tintera.plume.resources.wear_clear_cache_hint
+import eu.tintera.plume.resources.wear_confirm_cleared
 import eu.tintera.plume.resources.wear_clear_cache_running
 import eu.tintera.plume.resources.logout_24dp
 import eu.tintera.plume.resources.settings_title
@@ -57,9 +61,16 @@ fun SettingsScreen() {
     val scope = rememberCoroutineScope()
     // null = ještě nečištěno, -1 = právě čistí, jinak uvolněné bajty.
     var freed by remember { mutableStateOf<Long?>(null) }
+    var cleared by remember { mutableStateOf(false) }
+    val spec = rememberTransformationSpec()
     ScreenScaffold(scrollState = state) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
-            item { ListHeader { Text(stringResource(Res.string.settings_title)) } }
+            item {
+                ListHeader(
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
+                ) { Text(stringResource(Res.string.settings_title)) }
+            }
             // Ruční vyčištění vedle automatického úklidu (WearStorageCleaner): soubory zůstávají
             // na serveru, potvrzení proto netřeba.
             item {
@@ -68,7 +79,10 @@ fun SettingsScreen() {
                     onClick = {
                         if (current == CLEARING) return@Button
                         freed = CLEARING
-                        scope.launch { freed = cleaner.clearNow().getOrDefault(0L) }
+                        scope.launch {
+                            freed = cleaner.clearNow().getOrDefault(0L)
+                            cleared = true
+                        }
                     },
                     icon = { Icon(painterResource(Res.drawable.delete_24dp), contentDescription = null) },
                     label = { Text(stringResource(Res.string.wear_clear_cache)) },
@@ -82,7 +96,8 @@ fun SettingsScreen() {
                         )
                     },
                     colors = ButtonDefaults.filledTonalButtonColors(),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
                 )
             }
             item {
@@ -91,12 +106,15 @@ fun SettingsScreen() {
                     icon = { Icon(painterResource(Res.drawable.logout_24dp), contentDescription = null) },
                     label = { Text(stringResource(Res.string.wear_logout)) },
                     colors = ButtonDefaults.filledTonalButtonColors(),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
                 )
             }
         }
     }
     LogoutDialog(visible = confirmLogout, onDismiss = { confirmLogout = false })
+    // Potvrzení po vyčištění; kolik se uvolnilo, zůstává pod tlačítkem.
+    SuccessConfirmation(visible = cleared, text = stringResource(Res.string.wear_confirm_cleared), onDismiss = { cleared = false })
 }
 
 /**

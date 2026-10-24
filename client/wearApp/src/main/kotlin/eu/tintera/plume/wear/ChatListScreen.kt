@@ -21,6 +21,9 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TitleCard
@@ -62,13 +65,20 @@ fun ChatListScreen(onOpen: (Long) -> Unit, onSettings: () -> Unit) {
 private fun ChatList(chats: List<ChatSummary>, onOpen: (Long) -> Unit, onSettings: () -> Unit) {
     val state = rememberTransformingLazyColumnState()
     val savedMessagesId = savedMessagesChatId()
+    // Položky se u okraje displeje zmenšují (M3 Expressive), viz transformedItem.
+    val spec = rememberTransformationSpec()
     ScreenScaffold(scrollState = state) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
-            item { ListHeader { Text(stringResource(Res.string.wear_chats_title)) } }
+            item {
+                ListHeader(
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
+                ) { Text(stringResource(Res.string.wear_chats_title)) }
+            }
             // Nastavení (odhlášení, později další) hned pod nadpisem: hodinky nemají menu v liště
             // a konec dlouhého seznamu chatů nikoho nenapadne hledat (připomínka uživatele).
             item {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().transformedItem(this, spec), contentAlignment = Alignment.Center) {
                     CompactButton(
                         onClick = onSettings,
                         icon = { Icon(painterResource(Res.drawable.settings_24dp), contentDescription = null) },
@@ -79,13 +89,27 @@ private fun ChatList(chats: List<ChatSummary>, onOpen: (Long) -> Unit, onSetting
             }
             // Bez klíče: chaty po přihlášení přibývají postupně a s klíčem by lazy seznam držel
             // první viditelný chat, takže by nové nahoře odjely nad displej (ověřeno na emulátoru).
-            items(chats) { chat -> ChatCard(chat, savedMessagesId, onClick = { onOpen(chat.id) }) }
+            items(chats) { chat ->
+                ChatCard(
+                    chat,
+                    savedMessagesId,
+                    onClick = { onOpen(chat.id) },
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ChatCard(chat: ChatSummary, savedMessagesId: Long?, onClick: () -> Unit) {
+private fun ChatCard(
+    chat: ChatSummary,
+    savedMessagesId: Long?,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    transformation: SurfaceTransformation,
+) {
     // V rohu počet nepřečtených, a když nic nečeká, čas poslední zprávy (dnes hodina, jinak datum).
     val corner = chat.unreadCount.takeIf { it > 0 }?.toString()
         ?: chat.lastMessageTimestamp?.let { if (it.isSameDayAs(nowSeconds())) it.asTimeOfDay() else it.asDate() }
@@ -98,7 +122,8 @@ private fun ChatCard(chat: ChatSummary, savedMessagesId: Long?, onClick: () -> U
             Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
         time = corner?.let { text -> { Text(text) } },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
+        transformation = transformation,
     ) {
         chat.lastMessagePreview?.let { preview ->
             Text(preview.resolve(), maxLines = 2, overflow = TextOverflow.Ellipsis)

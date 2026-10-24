@@ -405,6 +405,10 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 4. ~~**Drobnosti pro kontext**~~ — hotovo („Přeposláno od", „upraveno", jméno a velikost souboru).
 5. ~~**Video kolečka jako náhled**~~ — hotovo (kulatý náhled s délkou, bez přehrávání).
 
+~~**M3 Expressive na hodinkách**~~ — hotovo (zmenšování položek u okraje displeje, barvy
+z ciferníku, animované tvary ikonových tlačítek, potvrzovací dialogy). Barvy z ciferníku čekají
+na ověření na Wear OS 6 (emulátor je Wear OS 5).
+
 Vědomě ne: GIFy a animace, přehrávání videa a hudby, mapy u polohy, Instant View, formátování
 textu — na malém displeji drahé na baterii a výkon, nebo skoro nic nepřidají.
 
