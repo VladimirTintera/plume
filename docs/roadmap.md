@@ -263,21 +263,21 @@ bez Compose UI.
   implementace v UI modulu (nebo `:client:calls`) a zapojí se přes Koin; Wear hovory nemá.
 - **Notifikace.** `NotificationPresenter` staví notifikace pro telefon (Direct Share, zkratky);
   hodinky chtějí vlastní, takže za rozhraní.
-- **Gradle.** `client/shared/build.gradle.kts` má 1118 řádků, většinou kontroly — z nich
-  konvenční pluginy v `build-logic`, jinak by se kopírovaly do každého modulu.
-- **`TdlibReceiveHookFactory`** (vložení `TdlibJsonRepair`) je dnes v `androidApp`; `wearApp`
-  ho potřebuje taky, jinak ho shodí dárek bez pozadí. Taky do konvenčního pluginu.
+- ~~**Gradle a hook `TdlibJsonRepair`**~~ — hotovo: kontroly, jazyky a hook jsou konvenční
+  pluginy v `build-logic/` (CLAUDE.md, „Struktura modulů"); `wearApp` si vezme
+  `plume.tdlib-android`. Konvence pro cíle KMP zatím není — s jedním KMP modulem by neměla
+  komu sloužit; přibude při vyčlenění `core`, až bude vidět, které cíle a binárky mu patří.
 - **iOS dál jeden framework** z UI modulu, `core` se do něj zabalí (dva frameworky = dva
   runtime). Pravidlo „jediný modul s KMP pluginem" v `CLAUDE.md` se přepíše.
 - **Koin:** `core` dodá svůj modul (eager repository s `createdAtStart` zůstávají v něm), UI zbytek.
 
 **Pořadí, každý krok vlastní PR:**
 
-1. `build-logic` s konvenčními pluginy (kontroly, cíle KMP, hook pro `TdlibJsonRepair`), bez
-   změny chování.
+1. ~~`build-logic` s konvenčními pluginy~~ — hotovo (kontroly, jazyky, hook).
 2. Rozpojit dvě místa, kde `core` sahá do `features`.
-3. Vyčlenit `:client:core`: `git mv` (ať zůstane historie), texty, Koin, rozhraní hovorů
-   a notifikací.
+3. Vyčlenit `:client:core`: `git mv` (ať zůstane historie), texty (s nimi `plume.translations`
+   a `generateLocaleConfig` v androidApp, který dnes čte cestu do `client/shared/build`), Koin,
+   rozhraní hovorů a notifikací, konvence pro cíle KMP.
 4. Pak případně `:client:wearApp` (MVP v sekci Wear OS).
 
 ## Wear OS

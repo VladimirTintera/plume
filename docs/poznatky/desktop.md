@@ -18,8 +18,8 @@ Desktopová aplikace pro macOS, Windows a Linux: `jvm()` target v `:client:share
 `os.name`/`os.arch`, rozbalí ji do dočasného adresáře a nahraje. Vlastní build TDLib ani fork
 wrapperu tedy potřeba nejsou.
 
-- **Jar se při buildu přepisuje** (`TdlibJarTransform` v `client/desktopApp/build.gradle.kts`,
-  Gradle artifact transform na `runtimeClasspath`):
+- **Jar se při buildu přepisuje** (plugin `plume.tdlib-desktop`, `TdlibJarTransform`
+  v `build-logic/…/Tdlib.kt`, Gradle artifact transform na `runtimeClasspath`):
   1. **jen nativní knihovna tohoto systému a architektury** (jar spadne na ~55 MB; jpackage
      stejně cizí systém zabalit neumí),
   2. **hook `TdlibJsonRepair`** (viz níž).

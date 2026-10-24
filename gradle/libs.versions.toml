@@ -110,6 +110,9 @@ compose-runtime-tracing = "1.12.0"
 tracing-perfetto = "1.0.1"
 
 [libraries]
+# build-logic: API instrumentace AGP a ASM pro hook TdlibJsonRepair (viz build-logic/).
+android-gradleApi = { module = "com.android.tools.build:gradle-api", version.ref = "agp" }
+asm = { module = "org.ow2.asm:asm", version = "9.9.1" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 javacpp = { module = "org.bytedeco:javacpp", version.ref = "javacpp" }
 ffmpeg = { module = "org.bytedeco:ffmpeg", version.ref = "ffmpeg" }

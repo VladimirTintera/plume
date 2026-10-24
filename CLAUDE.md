@@ -194,6 +194,13 @@ iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:share
 na tenké vstupní body nad jednou sdílenou KMP knihovnou. Platformní `expect`/`actual` zůstávají
 v `:client:shared`, ne v app modulech.
 
+**Co se opakuje mezi moduly, je konvenční plugin v `build-logic/`** (included build), ne kopie
+v build skriptu: `plume.source-checks` (kontroly zdrojáků na `check`), `plume.translations`
+(seznam jazyků a kontrola mutací), `plume.tdlib-android` / `plume.tdlib-desktop` (hook
+`TdlibJsonRepair`). Nová kontrola zdrojáků = podtřída `SourceCheckTask` a řádek v pluginu.
+**Každý vstupní bod, který přibalí TDLib, musí použít jeden z pluginů `plume.tdlib-*`** — jinak
+ho dárek bez pozadí shodí a hlídání po přihlášení to ohlásí až za běhu.
+
 ### Source-set hierarchie v `:client:shared`
 
 - `commonMain` – `App.kt`, `di/`, `app/`, `core/`, `features/`
@@ -263,8 +270,9 @@ a nepřijde jediná další odpověď ani update. Spolknout ji proto nejde, mus�
   TDLib vynechal; aplikace `Gift.background` nečte, takže na hodnotě nezáleží. Odpověď bez
   známého typu se neparsuje (hledá se podřetězec `"@type":"gift"`), oprava nikdy nevyhodí.
   **Do tabulky patří jen pole ověřená pádem nebo zdrojem TDLib**, ne preventivně.
-- **Na Androidu ji zapojuje instrumentace bajtkódu** (`TdlibReceiveHookFactory`
-  v `client/androidApp/build.gradle.kts`, `AsmClassVisitorFactory`, `InstrumentationScope.ALL`):
+- **Na Androidu ji zapojuje instrumentace bajtkódu** (plugin `plume.tdlib-android`,
+  `TdlibReceiveHookFactory` v `build-logic/…/Tdlib.kt`, `AsmClassVisitorFactory`,
+  `InstrumentationScope.ALL`):
   za jediné volání `org.drinkless.tdlib.JsonClient.receive` uvnitř wrapperu vloží
   `TdlibReceiveHook.afterReceive`. Jiná cesta dovnitř není — smyčka i parser jsou interní
   a knihovna je obfuskovaná (`dev.g000sha256.tdl.a.mt0.D6` = `deserializeGift`); `JsonClient`
@@ -379,7 +387,7 @@ který uvidí uživatel.
   zmizela poslední stopa. Nese to totiž JMÉNO souboru, takže kdo zakládá třetí prompt, musí se
   o konvenci dozvědět od souboru vedle; jinak mu kontrola spadne na hlášku o composeResources,
   ze které důvod nepozná. Úplné zdůvodnění zůstává na jednom místě (komentář u kontroly
-  v `build.gradle.kts` a tenhle odstavec) — hlavička je ukazatel, ne druhá kopie pravidla.
+  v `build-logic/…/SourceChecks.kt` a tenhle odstavec) — hlavička je ukazatel, ne druhá kopie pravidla.
 - **Ověřuje se přepnutím jazyka aplikace**, ne celého systému:
   `adb shell cmd locale set-app-locales eu.tintera.plume --locales cs-CZ` (prázdná hodnota vrátí
   systémový). Restart aplikace stačí, emulátor rebootovat netřeba.
