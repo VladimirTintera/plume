@@ -5,4 +5,5 @@
     <!-- Jména dlaždice a komplikace ve výběru systému: manifest bere jen prostředky Androidu. -->
     <string name="tile_unread_label">Unread chats</string>
     <string name="complication_unread_label">Unread chats</string>
+    <string name="tile_chats_label">Chats</string>
 </resources>

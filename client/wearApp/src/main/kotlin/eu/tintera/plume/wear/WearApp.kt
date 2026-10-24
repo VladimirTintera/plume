@@ -23,9 +23,12 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-/** Rozcestník podle stavu přihlášení: na hodinkách jen QR kód (a heslo), pak seznam chatů. */
+/**
+ * Rozcestník podle stavu přihlášení: na hodinkách jen QR kód (a heslo), pak seznam chatů.
+ * [openChat] je chat k otevření zvenčí (dlaždice); otevře se až po přihlášení.
+ */
 @Composable
-fun WearApp() {
+fun WearApp(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     val session = koinInject<TelegramSession>()
     val stage by session.authStage.collectAsState()
     val scope = rememberCoroutineScope()
@@ -35,7 +38,7 @@ fun WearApp() {
             when (val current = stage) {
                 AuthStage.Ready -> {
                     NotificationPermissionRequest()
-                    WearNavigation()
+                    WearNavigation(openChat = openChat, onChatOpened = onChatOpened)
                 }
                 is AuthStage.WaitQrConfirmation -> QrLoginScreen(link = current.link)
                 is AuthStage.WaitPassword -> PasswordScreen(stage = current)

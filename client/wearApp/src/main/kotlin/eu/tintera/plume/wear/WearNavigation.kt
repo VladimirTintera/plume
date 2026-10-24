@@ -1,6 +1,7 @@
 package eu.tintera.plume.wear
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
@@ -12,10 +13,19 @@ private const val REACTIONS = "reactions"
 private const val MESSAGE_ID = "messageId"
 private const val RECORD = "record"
 
-/** Seznam chatů, konverzace, výběr reakce a nahrání hlasovky; zpět tahem doprava jako všude na hodinkách. */
+/**
+ * Seznam chatů, konverzace, výběr reakce a nahrání hlasovky; zpět tahem doprava jako všude na hodinkách.
+ * [openChat] (ťuknutí na chat v dlaždici) otevře konverzaci nad seznamem chatů, takže tah zpět
+ * vede do seznamu, ne pryč z aplikace.
+ */
 @Composable
-fun WearNavigation() {
+fun WearNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     val navController = rememberSwipeDismissableNavController()
+    LaunchedEffect(openChat) {
+        if (openChat == null) return@LaunchedEffect
+        navController.navigate("$CHAT/$openChat") { popUpTo(CHATS) }
+        onChatOpened()
+    }
     SwipeDismissableNavHost(navController = navController, startDestination = CHATS) {
         composable(CHATS) {
             ChatListScreen(onOpen = { chatId -> navController.navigate("$CHAT/$chatId") })

@@ -109,7 +109,7 @@ class UnreadCountPublisher(private val context: Context, private val scope: Coro
 }
 
 /** Přihlášení neběží: čeká se na QR kód, heslo, nebo se odhlašuje. */
-private fun AuthStage.isLoggedOut(): Boolean = when (this) {
+internal fun AuthStage.isLoggedOut(): Boolean = when (this) {
     AuthStage.Connecting, AuthStage.Ready, is AuthStage.Failed -> false
     else -> true
 }
