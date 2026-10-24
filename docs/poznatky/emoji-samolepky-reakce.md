@@ -759,8 +759,34 @@ Sady samolepek → ⋮ položku „Upravit sadu" (`OwnedStickerSetScreen`,
   tažením (vydržel po návratu na obrazovku), dialog emoji s předvyplněným emoji, odebrání
   samolepky, smazání sady (s opravou zmizí ze seznamu hned). **Neověřené**: samotná změna
   emoji (emoji nejde napsat přes `adb input text`), předvýběr sady při přidání z úpravy, když
-  je vlastních sad víc (byla jedna), plná sada a obálka sady (`setStickerSetThumbnail`, zatím
-  není).
+  je vlastních sad víc (byla jedna), plná sada.
+
+### Obálka sady
+
+Obálka je řádek pod názvem (náhled, „První samolepka v sadě" / „Vybraná samolepka", šipka
+zpět k první samolepce) a v nabídce ⋮ u samolepky „Nastavit jako obálku"
+(`OwnedStickerSetViewModel.setCover`, `StickerRepository.setSetCover`).
+
+- **Obálka je samostatný soubor, ne odkaz na samolepku.** `setStickerSetThumbnail` chce
+  WebP (nebo PNG) přesně 100 × 100 a nejvýš 32 kB. Samolepka se proto stáhne
+  (`FileRepository.file`), vepíše doprostřed průhledného čtverce a uloží
+  (`StickerMaker.makeCover`, jen Android); nad 32 kB se ubírá kvalita. Bez výrobce (iOS,
+  desktop) řádek obálku jen ukazuje.
+- **`null` místo souboru obálku zruší** — obálkou je zase první samolepka (`thumbnail`
+  u sady je pak `null`). `format` se v tom případě předává taky `null`.
+- **Změna obálky sadu vyřadí z nainstalovaných.** Po `setStickerSetThumbnail` sada zmizela
+  z Moje sady (i výběru samolepek), u nové obálky i u vrácení první samolepky; mezi vlastními
+  (`getOwnedStickerSets`) zůstala. Ověřeno na emulátoru dvakrát po sobě. Repository ji proto
+  hned nainstaluje znovu, stejně jako po založení sady a přidání samolepky.
+- **Aplikace obálku dřív vůbec nečetla** — jako obálka sady se všude kreslila první samolepka
+  (`covers`). Teď se bere `thumbnail` (`toSetCover`: WebP a PNG jako obrázek, TGS jako Lottie,
+  WEBM jako videosamolepka) a teprve bez něj první samolepka: seznam sad, záložky výběru
+  samolepek, sada skupiny, výběr sady při tvorbě. Platí i pro cizí sady, takže záložky teď
+  ukazují tytéž obálky jako oficiální klient. Sady emoji to nemění (obálka je tam vlastní emoji).
+- **Ověřeno na emulátoru 24. 10. 2026** (`Plume_Barvy`, …527, česky; testovací sada „Plume
+  obalka" zůstala na účtu): nastavení druhé samolepky jako obálky (řádek i seznam sad ji ukázaly
+  hned), vrácení první samolepky, sada po obojím zůstává v Moje sady. **Neověřené**: záložky ve
+  výběru samolepek v konverzaci, cizí sady s obálkou TGS nebo WEBM, obálka přes 32 kB.
 
 ## Samolepky k emoji v poli
 

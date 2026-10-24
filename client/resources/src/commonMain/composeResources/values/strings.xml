@@ -380,6 +380,13 @@
     <string name="sticker_set_delete_text">The set will disappear for everyone who added it. This can't be undone.</string>
     <string name="sticker_set_delete_confirm">Delete</string>
     <string name="sticker_set_edit_failed">Couldn't change the set.</string>
+    <string name="sticker_set_cover">Set cover</string>
+    <string name="sticker_set_cover_first">The first sticker in the set</string>
+    <string name="sticker_set_cover_first_hint">The first sticker in the set. Pick another one from a sticker’s menu.</string>
+    <string name="sticker_set_cover_custom">A sticker you picked</string>
+    <string name="sticker_set_cover_reset">Use the first sticker</string>
+    <string name="sticker_set_set_cover">Set as cover</string>
+    <string name="sticker_set_cover_failed">Couldn’t change the set cover</string>
     <string name="sticker_set_delete_failed">Couldn't delete the set.</string>
     <string name="sticker_retry">Try again</string>
     <string name="sticker_added_title">Sticker added</string>

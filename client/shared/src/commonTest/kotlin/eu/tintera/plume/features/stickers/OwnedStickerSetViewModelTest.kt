@@ -1,13 +1,19 @@
 package eu.tintera.plume.features.stickers
 
+import eu.tintera.plume.core.stickers.MadeSticker
+import eu.tintera.plume.core.stickers.StickerMaker
+import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerSetDetail
+import eu.tintera.plume.core.telegram.UnimplementedFileRepository
 import eu.tintera.plume.core.telegram.UnimplementedStickerRepository
+import eu.tintera.plume.core.ui.UiText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -63,6 +69,7 @@ class OwnedStickerSetViewModelTest {
         val renamed = mutableListOf<Pair<String, String>>()
         val deleted = mutableListOf<Pair<Long, String>>()
         var failDelete = false
+        val covers = mutableListOf<String?>()
 
         override fun stickerSetDetail(setId: Long): Flow<StickerSetDetail?> = detail
         override suspend fun moveInSet(stickerFileId: Int, position: Int): Result<Unit> {
@@ -73,6 +80,10 @@ class OwnedStickerSetViewModelTest {
             renamed += name to title
             return Result.success(Unit)
         }
+        override suspend fun setSetCover(setId: Long, name: String, path: String?): Result<Unit> {
+            covers += path
+            return Result.success(Unit)
+        }
         override suspend fun deleteSet(setId: Long, name: String): Result<Unit> {
             if (failDelete) return Result.failure(IllegalStateException("STICKERSET_INVALID"))
             deleted += setId to name
@@ -80,10 +91,78 @@ class OwnedStickerSetViewModelTest {
         }
     }
 
+    private class FakeFiles(private val state: FileState) : UnimplementedFileRepository() {
+        val requested = mutableListOf<Int>()
+        override fun file(fileId: Int): Flow<FileState> {
+            requested += fileId
+            return flowOf(FileState.Pending, state)
+        }
+    }
+
+    private class FakeMaker : StickerMaker {
+        override val canRemoveBackground = true
+        val covers = mutableListOf<String>()
+        override suspend fun make(path: String, removeBackground: Boolean): Result<MadeSticker> = error("make")
+        override suspend fun makeCover(path: String): Result<MadeSticker> {
+            covers += path
+            return Result.success(MadeSticker("$path.cover.webp", 100, 100))
+        }
+    }
+
+    private fun viewModel(
+        stickers: FakeStickers,
+        files: FakeFiles = FakeFiles(FileState.Ready("/tdlib/sticker.webp")),
+        maker: StickerMaker? = null,
+    ) = OwnedStickerSetViewModel(1, stickers, files, maker)
+
+    @Test
+    fun obalkaSeVyrobiZeStazeneSamolepkyANahraje() = runTest {
+        val stickers = FakeStickers(detail(1, 2))
+        val files = FakeFiles(FileState.Ready("/tdlib/2.webp"))
+        val maker = FakeMaker()
+        val vm = viewModel(stickers, files, maker)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.canSetCover)
+        assertEquals(1L, vm.state.value.cover?.fileId?.toLong(), "bez vlastní obálky je obálkou první samolepka")
+        vm.setCover(sticker(2))
+        advanceUntilIdle()
+        assertEquals(listOf(2), files.requested, "stahuje se soubor samolepky")
+        assertEquals(listOf("/tdlib/2.webp"), maker.covers)
+        assertEquals(listOf<String?>("/tdlib/2.webp.cover.webp"), stickers.covers)
+        assertFalse(vm.state.value.coverBusy)
+
+        vm.resetCover()
+        advanceUntilIdle()
+        assertEquals(listOf<String?>("/tdlib/2.webp.cover.webp", null), stickers.covers, "null = zpátky první samolepka")
+    }
+
+    @Test
+    fun nestazenaSamolepkaObalkuNezmeniAleOhlasiChybu() = runTest {
+        val stickers = FakeStickers(detail(1))
+        val vm = viewModel(stickers, FakeFiles(FileState.Failed(UiText.Raw("x"))), FakeMaker())
+        advanceUntilIdle()
+        vm.setCover(sticker(1))
+        advanceUntilIdle()
+        assertTrue(stickers.covers.isEmpty())
+        assertNotNull(vm.state.value.error)
+        assertFalse(vm.state.value.coverBusy)
+    }
+
+    @Test
+    fun bezVyrobceObalkaNejde() = runTest {
+        val stickers = FakeStickers(detail(1))
+        val vm = viewModel(stickers)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.canSetCover)
+        vm.setCover(sticker(1))
+        advanceUntilIdle()
+        assertTrue(stickers.covers.isEmpty())
+    }
+
     @Test
     fun tazenaSamolepkaOdejdeJednimVolanimNaNoveMisto() = runTest {
         val stickers = FakeStickers(detail(1, 2, 3, 4))
-        val vm = OwnedStickerSetViewModel(1, stickers)
+        val vm = viewModel(stickers)
         advanceUntilIdle()
         // Tah první samolepky přes dvě sousední: pořadí se mění místně krok po kroku.
         vm.move(1L, 2L)
@@ -99,7 +178,7 @@ class OwnedStickerSetViewModelTest {
     @Test
     fun tahZpatkyNaPuvodniMistoServerNevola() = runTest {
         val stickers = FakeStickers(detail(1, 2, 3))
-        val vm = OwnedStickerSetViewModel(1, stickers)
+        val vm = viewModel(stickers)
         advanceUntilIdle()
         vm.move(2L, 3L)
         vm.move(2L, 1L)
@@ -115,7 +194,7 @@ class OwnedStickerSetViewModelTest {
     @Test
     fun nazevJdeUlozitJenZmenenyANeprazdny() = runTest {
         val stickers = FakeStickers(detail(1))
-        val vm = OwnedStickerSetViewModel(1, stickers)
+        val vm = viewModel(stickers)
         advanceUntilIdle()
         assertFalse(vm.state.value.canSaveTitle)
         vm.setTitleDraft("Moje sada ")
@@ -136,7 +215,7 @@ class OwnedStickerSetViewModelTest {
     @Test
     fun smazaniZavreObrazovkuChybaJenOhlasi() = runTest {
         val stickers = FakeStickers(detail(1)).apply { failDelete = true }
-        val vm = OwnedStickerSetViewModel(1, stickers)
+        val vm = viewModel(stickers)
         advanceUntilIdle()
         vm.deleteSet()
         advanceUntilIdle()

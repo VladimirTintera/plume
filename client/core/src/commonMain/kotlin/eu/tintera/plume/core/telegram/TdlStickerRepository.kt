@@ -135,6 +135,7 @@ class TdlStickerRepository(
                             stickers = set.stickers.toItems(),
                             isCustomEmoji = set.stickerType is StickerTypeCustomEmoji,
                             isOwned = set.isOwned,
+                            customCover = set.thumbnail?.toSetCover(set.id),
                         )
                     }
                     .getOrElse { failure ->
@@ -264,7 +265,7 @@ class TdlStickerRepository(
             set = StickerSetSummary(
                 id = set.id,
                 title = set.title,
-                cover = set.stickers.filterNotNull().firstOrNull()?.toMedia(),
+                cover = set.thumbnail?.toSetCover(set.id) ?: set.stickers.filterNotNull().firstOrNull()?.toMedia(),
             ),
             chatId = chatId,
             chatTitle = chat.title,
@@ -551,7 +552,7 @@ class TdlStickerRepository(
                             name = set.name,
                             title = set.title,
                             size = set.size,
-                            cover = set.covers.filterNotNull().firstOrNull()?.toMedia(),
+                            cover = set.cover(set.covers.filterNotNull().firstOrNull()),
                         )
                     }
             }
@@ -613,6 +614,24 @@ class TdlStickerRepository(
             .map { }
 
     /**
+     * Po změně obálky TDLib sadu vyřadí z nainstalovaných — z Moje sady i z výběru samolepek
+     * zmizela, nová i vrácená obálka stejně (ověřeno na emulátoru). Proto se znovu nainstaluje,
+     * jako po založení sady a přidání samolepky.
+     */
+    override suspend fun setSetCover(setId: Long, name: String, path: String?): Result<Unit> = runCatching {
+        val me = client.getMe().toResult().getOrThrow().id
+        client.setStickerSetThumbnail(
+            userId = me,
+            name = name,
+            thumbnail = path?.let { InputFileLocal(path = it) },
+            format = path?.let { StickerFormatWebp() },
+        ).toResult().getOrThrow()
+        client.changeStickerSet(setId = setId, isInstalled = true, isArchived = false).toResult()
+            .onFailure { logger.w(it) { "Sadu $name se po změně obálky nepodařilo nainstalovat." } }
+        Unit
+    }.onFailure { logger.w(it) { "Obálku sady $name se nepodařilo změnit." } }
+
+    /**
      * Napřed odinstalovat, pak smazat: `deleteStickerSet` sadu ze seznamu nainstalovaných
      * neodebere (ověřeno na emulátoru — smazaná sada v něm visela dál, i po návratu na obrazovku).
      * Když smazání selže, sada se nainstaluje zpátky.
@@ -639,12 +658,19 @@ class TdlStickerRepository(
     private fun Sticker.toCustomEmojiItem(): CustomEmojiItem? =
         (fullType as? StickerFullTypeCustomEmoji)?.let { CustomEmojiItem(id = it.customEmojiId, emoji = emoji) }
 
+    /**
+     * Obálka sady: vlastní (`thumbnail`), a když ji autor nenastavil, [first] samolepka. Jen
+     * u samolepek — sady emoji mají obálku jako vlastní emoji (`coverCustomEmojiId`).
+     */
+    private fun StickerSetInfo.cover(first: Sticker?): MessageMedia.Sticker? =
+        thumbnail?.takeIf { stickerType is StickerTypeRegular }?.toSetCover(id) ?: first?.toMedia()
+
     private fun Array<StickerSetInfo>.toSummaries(): List<StickerSetSummary> =
         filterNotNull().map { set ->
             StickerSetSummary(
                 id = set.id,
                 title = set.title,
-                cover = set.covers.filterNotNull().firstOrNull()?.toMedia(),
+                cover = set.cover(set.covers.filterNotNull().firstOrNull()),
                 size = set.size,
                 isOfficial = set.isOfficial,
                 isOwned = set.isOwned,

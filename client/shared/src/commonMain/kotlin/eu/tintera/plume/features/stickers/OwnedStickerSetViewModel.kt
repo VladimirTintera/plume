@@ -2,18 +2,24 @@ package eu.tintera.plume.features.stickers
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tintera.plume.core.stickers.StickerMaker
+import eu.tintera.plume.core.telegram.FileRepository
+import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSetDetail
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.sticker_set_cover_failed
 import eu.tintera.plume.resources.sticker_set_delete_failed
 import eu.tintera.plume.resources.sticker_set_edit_failed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -28,7 +34,14 @@ data class OwnedStickerSetState(
     val error: UiText? = null,
     /** Sada je smazaná — obrazovka se zavře. */
     val deleted: Boolean = false,
+    /** Obálku jde vyrobit ze samolepky (jen Android, viz `StickerMaker.makeCover`). */
+    val canSetCover: Boolean = false,
+    /** Nová obálka se vyrábí a nahrává. */
+    val coverBusy: Boolean = false,
 ) {
+    /** Co se ukazuje jako obálka: vlastní, jinak první samolepka. */
+    val cover: MessageMedia.Sticker? get() = set?.customCover ?: stickers.firstOrNull()?.preview
+
     val title: String get() = titleDraft ?: set?.title.orEmpty()
 
     /** Název jde uložit: změnil se a není prázdný. */
@@ -36,8 +49,8 @@ data class OwnedStickerSetState(
 }
 
 /**
- * Úprava vlastní sady samolepek: název, pořadí tažením, emoji a odebrání samolepky, smazání
- * celé sady. Sada se čte živě (`stickerSetDetail`): co server potvrdí, přijde updatem, takže
+ * Úprava vlastní sady samolepek: název, obálka, pořadí tažením, emoji a odebrání samolepky,
+ * smazání celé sady. Sada se čte živě (`stickerSetDetail`): co server potvrdí, přijde updatem, takže
  * se po změně nic ručně nepřepisuje.
  *
  * - **Pořadí během tahu drží ViewModel** a serveru odejde až s puštěním úchytu, jedním
@@ -46,9 +59,11 @@ data class OwnedStickerSetState(
 class OwnedStickerSetViewModel(
     setId: Long,
     private val stickers: StickerRepository,
+    private val files: FileRepository,
+    private val maker: StickerMaker?,
 ) : ViewModel() {
 
-    private val local = MutableStateFlow(OwnedStickerSetState())
+    private val local = MutableStateFlow(OwnedStickerSetState(canSetCover = maker != null))
 
     /** Pořadí během tahu; `null` = podle serveru. */
     private val dragOrder = MutableStateFlow<List<StickerItem>?>(null)
@@ -119,6 +134,43 @@ class OwnedStickerSetViewModel(
 
     fun remove(sticker: StickerItem) {
         viewModelScope.launch { stickers.removeFromSet(sticker.sendFileId).onFailure(::failed) }
+    }
+
+    /**
+     * Samolepka [sticker] obálkou sady. Obálka je samostatný soubor 100 × 100, ne odkaz na
+     * samolepku: stáhne se, zmenší a nahraje. Jen statická (WebP) — animovanou vlastní sada
+     * z fotek nemá.
+     */
+    fun setCover(sticker: StickerItem) {
+        val set = detail.value ?: return
+        val maker = maker ?: return
+        val fileId = sticker.preview.fileId ?: return
+        if (local.value.coverBusy) return
+        local.update { it.copy(coverBusy = true) }
+        viewModelScope.launch {
+            runCatching {
+                val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
+                val path = (file as? FileState.Ready)?.path ?: error("Samolepku $fileId se nepodařilo stáhnout.")
+                val cover = maker.makeCover(path).getOrThrow()
+                stickers.setSetCover(set.id, set.name, cover.path).getOrThrow()
+            }.onFailure { failure ->
+                local.update { it.copy(error = failure.userMessage(Res.string.sticker_set_cover_failed)) }
+            }
+            local.update { it.copy(coverBusy = false) }
+        }
+    }
+
+    /** Zpátky bez vlastní obálky — obálkou bude první samolepka. */
+    fun resetCover() {
+        val set = detail.value ?: return
+        if (local.value.coverBusy) return
+        local.update { it.copy(coverBusy = true) }
+        viewModelScope.launch {
+            stickers.setSetCover(set.id, set.name, null).onFailure { failure ->
+                local.update { it.copy(error = failure.userMessage(Res.string.sticker_set_cover_failed)) }
+            }
+            local.update { it.copy(coverBusy = false) }
+        }
     }
 
     fun deleteSet() {

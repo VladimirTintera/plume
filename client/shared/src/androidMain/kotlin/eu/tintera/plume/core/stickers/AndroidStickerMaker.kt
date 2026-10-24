@@ -3,7 +3,10 @@ package eu.tintera.plume.core.stickers
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
 import android.os.Build
 import co.touchlab.kermit.Logger
 import com.google.android.gms.common.ConnectionResult
@@ -57,6 +60,31 @@ class AndroidStickerMaker(context: Context) : StickerMaker {
         }
     }.onFailure { logger.w(it) { "Samolepku z $path nejde vyrobit." } }
 
+    override suspend fun makeCover(path: String): Result<MadeSticker> = runCatching {
+        withContext(Dispatchers.Default) {
+            val sticker = BitmapFactory.decodeFile(path) ?: error("Samolepku $path nejde přečíst.")
+            val cover = Bitmap.createBitmap(COVER_SIDE, COVER_SIDE, Bitmap.Config.ARGB_8888)
+            val (width, height) = fitSize(sticker.width, sticker.height, COVER_SIDE)
+            val left = (COVER_SIDE - width) / 2f
+            val top = (COVER_SIDE - height) / 2f
+            Canvas(cover).drawBitmap(
+                sticker,
+                null,
+                RectF(left, top, left + width, top + height),
+                Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG),
+            )
+            val file = File(appContext.cacheDir, "stickers").apply { mkdirs() }
+                .resolve("cover-${System.currentTimeMillis()}.webp")
+            // Strop 32 kB: v 100 px ho WebP s kvalitou 90 přeleze jen výjimečně, pak se ubírá.
+            var quality = WEBP_QUALITY
+            do {
+                file.outputStream().use { out -> cover.compress(webp(), quality, out) }
+                quality -= COVER_QUALITY_STEP
+            } while (file.length() > COVER_MAX_BYTES && quality > 0)
+            MadeSticker(file.absolutePath, COVER_SIDE, COVER_SIDE)
+        }
+    }.onFailure { logger.w(it) { "Obálku sady z $path nejde vyrobit." } }
+
     /** Jen hlavní objekt, oříznutý těsně na neprůhlednou část. */
     private suspend fun cutOut(photo: Bitmap): Bitmap {
         val result = runCatching { segmenter.process(InputImage.fromBitmap(photo, 0)).await() }
@@ -102,13 +130,19 @@ class AndroidStickerMaker(context: Context) : StickerMaker {
         /** Dekóduje se zhruba na dvojnásobek samolepky: segmentaci víc nepomůže, jen ji zpomalí. */
         const val DECODE_SIDE = 1024
         const val WEBP_QUALITY = 90
+        const val COVER_SIDE = 100
+        const val COVER_MAX_BYTES = 32 * 1024
+        const val COVER_QUALITY_STEP = 15
     }
 }
 
 /** Delší strana přesně [STICKER_SIDE] (Telegram chce jednu stranu 512 a druhou nejvýš 512). */
-internal fun stickerSize(width: Int, height: Int): Pair<Int, Int> {
-    val scale = STICKER_SIDE.toFloat() / maxOf(width, height)
-    return (width * scale).roundToInt().coerceIn(1, STICKER_SIDE) to (height * scale).roundToInt().coerceIn(1, STICKER_SIDE)
+internal fun stickerSize(width: Int, height: Int): Pair<Int, Int> = fitSize(width, height, STICKER_SIDE)
+
+/** Rozměry vepsané do čtverce [side]: delší strana přesně [side], poměr stran zůstává. */
+internal fun fitSize(width: Int, height: Int, side: Int): Pair<Int, Int> {
+    val scale = side.toFloat() / maxOf(width, height)
+    return (width * scale).roundToInt().coerceIn(1, side) to (height * scale).roundToInt().coerceIn(1, side)
 }
 
 private fun scaleToStickerSize(bitmap: Bitmap): Bitmap {
