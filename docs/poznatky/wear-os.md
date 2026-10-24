@@ -130,7 +130,18 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   server.
 - **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora (fotky poslané botem přes `sendPhoto`,
   vygenerované přechody bez lidí): široká s popiskem, vysoká zastropovaná a zúžená, náhled přes
-  celý displej a zpět. Video, samolepky a GIFy zůstávají slovem.
+  celý displej a zpět. GIFy zůstávají slovem.
+- **Video jako náhled** (`MessageVideo`): `thumbnailFileId` (do 320 px) a minináhled stejnou cestou
+  jako fotka (`MessageImage`), vlevo dole „▶ 0:04". **Přehrávání na hodinkách není** — dekodér,
+  zvuk a stahování desítek megabajtů by vydaly za samostatnou funkci. Ťuknutí patří bublině
+  (reakce). Skryté video (spoiler…) a video bez náhledu zůstávají slovem.
+- **Samolepky bez bubliny** (`MessageSticker`, 96 dp, čas pod ní): statická (`fileId`, WebP)
+  rovnou, animovaná (TGS) a videosamolepka (WebM) náhledem `thumbnailFileId` — animace by stála
+  baterii. Bez staženého obrázku emoji samolepky. Citlivá samolepka zůstává slovem.
+- **Ověřeno na emulátoru 2026-10-24** (Notifikátor): video natočené `adb shell screenrecord`
+  a poslané `sendVideo` (náhled, „▶ 0:04", popisek), animovaná samolepka ze sady
+  `AnimatedEmojies` a videosamolepka z `PandaVideo` (`sendSticker`) náhledem. Statická samolepka
+  neověřená (dekóduje ji tentýž `BitmapFactory`, WebP umí).
 
 ## Hlasovky
 
