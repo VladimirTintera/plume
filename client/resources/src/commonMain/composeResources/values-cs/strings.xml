@@ -4353,6 +4353,9 @@
     <string name="wear_tile_all_chats">Všechny chaty</string>
     <string name="wear_logout">Odhlásit</string>
     <string name="wear_message_you">Vy</string>
+    <string name="wear_bot_button_phone_only">Tohle tlačítko otevři v telefonu</string>
+    <string name="wear_opened_on_phone">Otevřeno v telefonu</string>
+    <string name="wear_phone_unavailable">Telefon není dostupný</string>
     <string name="wear_clear_cache">Vyčistit mezipaměť</string>
     <string name="wear_clear_cache_hint">Stažené fotky a hlasovky</string>
     <string name="wear_clear_cache_running">Čistím…</string>

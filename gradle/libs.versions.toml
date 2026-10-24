@@ -48,6 +48,7 @@ zxing = "3.5.3"
 wear-compose = "1.7.1"
 wear-input = "1.2.0"
 wear-phone-interactions = "1.1.1"
+wear-remote-interactions = "1.2.0"
 # Dlaždice a komplikace hodinek (počet nepřečtených).
 wear-tiles = "1.6.2"
 wear-protolayout = "1.4.2"
@@ -182,6 +183,7 @@ wear-compose-foundation = { module = "androidx.wear.compose:compose-foundation",
 wear-compose-navigation = { module = "androidx.wear.compose:compose-navigation", version.ref = "wear-compose" }
 wear-input = { module = "androidx.wear:wear-input", version.ref = "wear-input" }
 wear-phone-interactions = { module = "androidx.wear:wear-phone-interactions", version.ref = "wear-phone-interactions" }
+wear-remote-interactions = { module = "androidx.wear:wear-remote-interactions", version.ref = "wear-remote-interactions" }
 wear-tiles = { module = "androidx.wear.tiles:tiles", version.ref = "wear-tiles" }
 wear-protolayout = { module = "androidx.wear.protolayout:protolayout", version.ref = "wear-protolayout" }
 wear-protolayout-material3 = { module = "androidx.wear.protolayout:protolayout-material3", version.ref = "wear-protolayout" }

@@ -1,5 +1,16 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.resources.wear_phone_unavailable
+import eu.tintera.plume.resources.wear_opened_on_phone
+import eu.tintera.plume.resources.wear_bot_button_phone_only
+import eu.tintera.plume.core.telegram.BotButtonKind
+import eu.tintera.plume.core.telegram.BotButton
+import androidx.wear.compose.material3.openOnPhoneDialogCurvedText
+import androidx.wear.compose.material3.OpenOnPhoneDialogDefaults
+import androidx.wear.compose.material3.OpenOnPhoneDialog
+import androidx.wear.compose.material3.AlertDialogDefaults
+import androidx.wear.compose.material3.AlertDialog
+import androidx.compose.ui.platform.LocalContext
 import eu.tintera.plume.resources.poll_vote_failed
 import eu.tintera.plume.resources.wear_message_you
 import androidx.wear.compose.material3.CircularProgressIndicator
@@ -134,6 +145,13 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     // Dočítání starší historie: běží-li zrovna, a jestli už začátek chatu přišel.
     var loadingOlder by remember(chatId) { mutableStateOf(false) }
     var historyEnd by remember(chatId) { mutableStateOf(false) }
+    // Tlačítko bota, u kterého se čeká na odpověď (zpráva, řádek, sloupec) — naráz jen jedno.
+    var pressing by remember(chatId) { mutableStateOf<Triple<Long, Int, Int>?>(null) }
+    // Odpověď bota jako poznámka pod konverzací; upozornění (alert) jako dialog k potvrzení.
+    var botNote by remember(chatId) { mutableStateOf<String?>(null) }
+    var botAlert by remember(chatId) { mutableStateOf<String?>(null) }
+    var openedOnPhone by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     // Citované zprávy, které v načtené historii nejsou (dočtené z TDLib); null = zpráva neexistuje.
     var quoted by remember(chatId) { mutableStateOf<Map<Long, ChatMessage?>>(emptyMap()) }
     // Poslední chyba odeslání nebo přehrání, jako poznámka pod konverzací.
@@ -221,6 +239,35 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
         quoted = quoted + fetched
     }
 
+    val phoneOnly = stringResource(Res.string.wear_bot_button_phone_only)
+    val openedOnPhoneText = stringResource(Res.string.wear_opened_on_phone)
+    val phoneUnavailable = stringResource(Res.string.wear_phone_unavailable)
+    val openLink: (String) -> Unit = { url ->
+        openOnPhone(context, url) { opened -> if (opened) openedOnPhone = true else botNote = phoneUnavailable }
+    }
+    val onBotButton: (ChatMessage, Int, Int, BotButton) -> Unit = { message, row, column, button ->
+        when (val kind = button.kind) {
+            BotButtonKind.Callback -> {
+                pressing = Triple(message.id, row, column)
+                scope.launch {
+                    conversations.pressBotButton(chatId, message.id, row, column, button.text)
+                        .onSuccess { answer ->
+                            when {
+                                answer.alert && answer.text.isNotBlank() -> botAlert = answer.text
+                                answer.text.isNotBlank() -> botNote = answer.text
+                            }
+                            if (answer.url.isNotBlank()) openLink(answer.url)
+                        }
+                        .onFailure { logger.w(it) { "Tlačítko bota v chatu $chatId neprošlo." } }
+                    pressing = null
+                }
+            }
+            is BotButtonKind.Url -> openLink(kind.url)
+            // Mini aplikace, přihlášení na web, inline dotaz, kontakt, platba… patří na telefon.
+            else -> botNote = phoneOnly
+        }
+    }
+
     val replyLabel = stringResource(Res.string.wear_reply_label)
     val quickReplies = listOf(
         stringResource(Res.string.wear_quick_reply_1),
@@ -290,6 +337,9 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             onPlay = onPlay,
             onOpenPhoto = onOpenPhoto,
             onNearTop = loadOlder,
+            pressing = pressing,
+            botNote = botNote,
+            onBotButton = onBotButton,
             onVote = { messageId, answers ->
                 scope.launch {
                     conversations.vote(chatId, messageId, answers)
@@ -302,6 +352,25 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             },
         )
     }
+    botAlert?.let { text ->
+        AlertDialog(
+            visible = true,
+            onDismissRequest = { botAlert = null },
+            // Nadpis dialogu má málo řádků a delší upozornění by uťal: nadpis je bot (název
+            // chatu), odpověď jde do těla.
+            title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            text = { Text(text) },
+            confirmButton = { AlertDialogDefaults.ConfirmButton(onClick = { botAlert = null }) },
+            dismissButton = {},
+        )
+    }
+    // Styl se čte v kompozici, slot zakřiveného textu už composable není.
+    val curvedStyle = OpenOnPhoneDialogDefaults.curvedTextStyle
+    OpenOnPhoneDialog(
+        visible = openedOnPhone,
+        onDismissRequest = { openedOnPhone = false },
+        curvedText = { openOnPhoneDialogCurvedText(text = openedOnPhoneText, style = curvedStyle) },
+    )
 }
 
 @Composable
@@ -318,6 +387,9 @@ private fun MessageList(
     onPlay: (ChatMessage) -> Unit,
     onOpenPhoto: (Int) -> Unit,
     onNearTop: () -> Unit,
+    pressing: Triple<Long, Int, Int>?,
+    botNote: String?,
+    onBotButton: (ChatMessage, Int, Int, BotButton) -> Unit,
     onVote: (messageId: Long, answers: List<Int>) -> Unit,
 ) {
     val state = rememberTransformingLazyColumnState()
@@ -355,12 +427,15 @@ private fun MessageList(
                     onPlay = { onPlay(message) },
                     onOpenPhoto = onOpenPhoto,
                     onVote = { answers -> onVote(message.id, answers) },
+                    pressing = pressing?.takeIf { it.first == message.id }?.let { it.second to it.third },
+                    onBotButton = { row, column, button -> onBotButton(message, row, column, button) },
                     // Reagovat jde jen na zprávu, kterou server zná — dočasná ještě skutečné id nemá.
                     onClick = { onReact(message.id) }
                         .takeIf { !message.isService && (message.sendState == null || message.sendState == SendState.Sent) },
                 )
             }
             problem?.let { item { CenteredNote(stringResource(it), error = true) } }
+            botNote?.let { item { CenteredNote(it) } }
             item {
                 Button(
                     onClick = onRecord,
@@ -383,6 +458,8 @@ private fun MessageBubble(
     onPlay: () -> Unit,
     onOpenPhoto: (Int) -> Unit,
     onVote: (List<Int>) -> Unit,
+    pressing: Pair<Int, Int>?,
+    onBotButton: (Int, Int, BotButton) -> Unit,
     onClick: (() -> Unit)?,
 ) {
     // Slovy kreslí `text`, a když je prázdný (fotka bez popisku, anketa…), popis obsahu.
@@ -474,6 +551,7 @@ private fun MessageBubble(
                     color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 )
             }
+            message.keyboard?.let { MessageBotKeyboard(it, pressing, onBotButton) }
             reactionsLine(message.reactions)?.let {
                 Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
             }

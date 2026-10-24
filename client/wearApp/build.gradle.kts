@@ -98,6 +98,8 @@ dependencies {
     implementation(project.dependencies.platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.wear.phone.interactions)
+    // Odkaz z tlačítka bota se otevře v telefonu (RemoteActivityHelper), web na hodinkách ne.
+    implementation(libs.wear.remote.interactions)
     // QR kód pro přihlášení (jako telefon).
     implementation(libs.zxing.core)
 

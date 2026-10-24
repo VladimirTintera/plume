@@ -399,8 +399,8 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 **Další obsah konverzací na hodinkách (2026-10-24, podle užitku):**
 
 1. ~~**Ankety a kvízy s hlasováním**~~ — hotovo (jedna i víc odpovědí, kvíz se značkami).
-2. **Tlačítka pod zprávou od botů** — boti s upozorněním a akcemi (potvrdit, odložit); hodinky
-   je neukazují vůbec.
+2. ~~**Tlačítka pod zprávou od botů**~~ — hotovo (zpětné volání, odpověď i upozornění, odkaz do
+   telefonu; zbytek „otevři v telefonu").
 3. **Odkazy „otevřít v telefonu"** (`RemoteActivityHelper`) — web se na hodinkách neotevírá.
 4. **Drobnosti pro kontext** — „Přeposláno od …", „upraveno", jméno a velikost souboru.
 5. **Video kolečka jako náhled** s délkou, jako videa (přehrávání drahé).
