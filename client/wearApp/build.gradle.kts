@@ -4,6 +4,8 @@ plugins {
     // Hook TdlibJsonRepair za JsonClient.receive uvnitř wrapperu (build-logic, Tdlib.kt). Povinný
     // pro každý vstupní bod, který přibalí TDLib — jinak ho dárek bez pozadí shodí.
     id("plume.tdlib-android")
+    // res/xml/locales_config.xml ze seznamu jazyků (build-logic, LocaleConfig.kt), jako telefon.
+    id("plume.locale-config")
 }
 
 /**

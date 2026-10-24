@@ -1202,8 +1202,9 @@ změně jazyka (`Locale.current`; proces změnu přežije).
 - **Seznam jazyků se generuje ze složek `values-*`** (`:client:resources:generateAppLanguages`):
   angličtina, jazyky, které píšeme sami (`completeLocales`), a komunitní jazyky přeložené aspoň
   z 80 % (`minLanguageCoverage`). Z něj vzniká `APP_LANGUAGES` (`GENERATED_APP_LANGUAGES`)
-  i `locales_config.xml` (`generateLocaleConfig` v `:client:androidApp`, přidané jako
-  generovaný zdroj prostředků přes `androidComponents`). Dřív se nový jazyk zapisoval ručně
+  i `locales_config.xml` (úloha `generateLocaleConfig` z pluginu `plume.locale-config`
+  v `build-logic`, přidaná jako generovaný zdroj prostředků přes `androidComponents`; používá ho
+  telefon i hodinky). Dřív se nový jazyk zapisoval ručně
   na čtyři místa a jazyk z Weblate (jen složka `values-<kód>`) by v aplikaci byl, ale vybrat
   by nešel. Složka `values-pt-rBR` je jazyk `pt-BR`.
   - **Rozpracovaný jazyk se nenabízí** — v aplikaci by střídal věty s angličtinou. Build to

@@ -23,6 +23,10 @@ gradlePlugin {
             id = "plume.tdlib-android"
             implementationClass = "eu.tintera.plume.gradle.TdlibAndroidPlugin"
         }
+        register("localeConfig") {
+            id = "plume.locale-config"
+            implementationClass = "eu.tintera.plume.gradle.LocaleConfigPlugin"
+        }
         register("tdlibDesktop") {
             id = "plume.tdlib-desktop"
             implementationClass = "eu.tintera.plume.gradle.TdlibDesktopPlugin"

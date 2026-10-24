@@ -171,16 +171,20 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   doleva z ciferníku. Komplikace `--es operation set-complication … --ecn watchface <ciferník>
   --ei slot 0 --ei type 3`; výchozí ciferník Orbita má políčka vypnutá („Complication slot is not
   enabled"), jde to na AnalogClassic (`set-watchface`).
-- **Jazyk aplikace (`set-app-locales`) na hodinkách nezabere** ani v aplikaci samotné: manifest
-  nemá `localeConfig` (telefon si ho generuje v `androidApp`). Hodinky jdou podle jazyka systému.
-  Dlaždice si texty čte při každém kreslení, po změně jazyka hodinek se ale překreslí až s další
-  změnou počtu.
+- **Jazyk aplikace potřebuje `localeConfig`** (`android:localeConfig` v manifestu, soubor
+  vyrábí plugin `plume.locale-config` stejně jako u telefonu). Bez něj `set-app-locales` nezabral
+  ani v aplikaci samotné, přestože ho systém uložil. **Projeví se až v novém procesu**: běžící
+  aplikace zůstala ve starém jazyce i po novém vytvoření aktivity, po `am kill` mluvila česky.
+  Dlaždice si texty čte při každém kreslení, po změně jazyka se ale překreslí až s další změnou
+  počtu.
 - Náhled dlaždice ve výběru (`androidx.wear.tiles.PREVIEW`) zatím není — obrázek by musel mít
   i českou variantu.
+- **Čeština ověřená na emulátoru 2026-10-24** přes jazyk aplikace: seznam „Chaty", dlaždice
+  „0 nepřečtených chatů" / „1 nepřečtený chat", „Otevřít".
 - **Ověřeno na emulátoru 2026-10-24** (anglicky): dlaždice s počtem, zpráva od Notifikátora ho
   zvedla během pár vteřin (dlaždice i komplikace), přečtení v aplikaci snížilo, „Otevřít" i ťuknutí
   na komplikaci otevřely aplikaci, po `am kill` se dlaždice nakreslila z nově spuštěného procesu.
-  Neověřené: stav bez přihlášení (vyžaduje odhlášení), čeština na hodinkách, skutečné hodinky.
+  Neověřené: stav bez přihlášení (vyžaduje odhlášení), skutečné hodinky.
 
 ## Emulátor
 

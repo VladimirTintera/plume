@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.composeCompiler)
     // Hook TdlibJsonRepair za JsonClient.receive uvnitř wrapperu (build-logic, Tdlib.kt).
     id("plume.tdlib-android")
+    // res/xml/locales_config.xml ze seznamu jazyků (build-logic, LocaleConfig.kt).
+    id("plume.locale-config")
 }
 
 // Kotlin/Android je v AGP 9 vestavěný — plugin org.jetbrains.kotlin.android se neaplikuje.
@@ -238,43 +240,3 @@ tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.co
     dependsOn(verifyReleaseConfiguration)
 }
 
-/**
- * `res/xml/locales_config.xml` (systémový výběr jazyka aplikace, `LocaleManager`) ze seznamu, který
- * vyrobí `:client:resources:generateAppLanguages` ze složek `composeResources/values-*`. Ručně psaný
- * soubor se s nimi rozcházel: nový jazyk z Weblate by v aplikaci byl, ale vybrat by nešel.
- */
-abstract class GenerateLocaleConfig : DefaultTask() {
-    @get:InputFile
-    abstract val languages: RegularFileProperty
-
-    @get:OutputDirectory
-    abstract val outputDirectory: DirectoryProperty
-
-    @TaskAction
-    fun generate() {
-        val locales = languages.get().asFile.readLines().filter { it.isNotBlank() }
-        val file = outputDirectory.get().file("xml/locales_config.xml").asFile
-        file.parentFile.mkdirs()
-        file.writeText(
-            buildString {
-                appendLine("""<?xml version="1.0" encoding="utf-8"?>""")
-                appendLine("<!-- Vygenerováno úlohou generateLocaleConfig ze složek composeResources/values-*. Neupravovat. -->")
-                appendLine("""<locale-config xmlns:android="http://schemas.android.com/apk/res/android">""")
-                locales.forEach { appendLine("""    <locale android:name="$it" />""") }
-                appendLine("</locale-config>")
-            },
-        )
-    }
-}
-
-val generateLocaleConfig = tasks.register<GenerateLocaleConfig>("generateLocaleConfig") {
-    dependsOn(":client:resources:generateAppLanguages")
-    languages.set(rootProject.layout.projectDirectory.file("client/resources/build/generated/appLanguages/languages.txt"))
-    outputDirectory.set(layout.buildDirectory.dir("generated/localeConfig/res"))
-}
-
-androidComponents {
-    onVariants { variant ->
-        variant.sources.res?.addGeneratedSourceDirectory(generateLocaleConfig, GenerateLocaleConfig::outputDirectory)
-    }
-}

@@ -209,8 +209,8 @@ prostředku a srazila by se s tou z `:client:resources` (stejné jméno třídy)
 
 **Co se opakuje mezi moduly, je konvenční plugin v `build-logic/`** (included build), ne kopie
 v build skriptu: `plume.source-checks` (kontroly zdrojáků na `check`), `plume.translations`
-(seznam jazyků a kontrola mutací), `plume.tdlib-android` / `plume.tdlib-desktop` (hook
-`TdlibJsonRepair`). Nová kontrola zdrojáků = podtřída `SourceCheckTask` a řádek v pluginu.
+(seznam jazyků a kontrola mutací), `plume.locale-config` (`locales_config.xml` pro vstupní body
+na Androidu), `plume.tdlib-android` / `plume.tdlib-desktop` (hook `TdlibJsonRepair`). Nová kontrola zdrojáků = podtřída `SourceCheckTask` a řádek v pluginu.
 **Každý vstupní bod, který přibalí TDLib, musí použít jeden z pluginů `plume.tdlib-*`** — jinak
 ho dárek bez pozadí shodí a hlídání po přihlášení to ohlásí až za běhu.
 
