@@ -190,6 +190,22 @@ class NtgLiveStreamMedia(
         }
     }
 
+    override fun setMicrophone(callId: Long, on: Boolean) {
+        worker.execute {
+            val instance = ntg?.takeIf { this.callId == callId } ?: return@execute
+            runCatching {
+                if (on) {
+                    // Do zdrojů až teď: připojuje se bez mikrofonu, ať posluchač nesvítí.
+                    instance.setStreamSources(callId, StreamMode.CAPTURE, MediaDescription(MICROPHONE, null, null, null))
+                    instance.unmute(callId)
+                } else {
+                    instance.mute(callId)
+                    instance.setStreamSources(callId, StreamMode.CAPTURE, MediaDescription(null, null, null, null))
+                }
+            }.onFailure { logger.w(it) { "Mikrofon nejde ${if (on) "zapnout" else "vypnout"}." } }
+        }
+    }
+
     override fun stop(callId: Long) {
         worker.execute { if (this.callId == callId) stopNow() }
     }
@@ -216,6 +232,9 @@ class NtgLiveStreamMedia(
     private companion object {
         /** Zařízení přehrávání, jak ho chce ntgcalls na Androidu (syntetický JSON, viz NtgCallMedia). */
         val SPEAKER = AudioDescription(MediaSource.DEVICE, 48_000, 2, "{\"is_microphone\":false}", true)
+
+        /** Vlastní hlas, jak ho chce ntgcalls na Androidu (viz NtgCallMedia). */
+        val MICROPHONE = AudioDescription(MediaSource.DEVICE, 48_000, 2, "{\"is_microphone\":true}", true)
 
         /** EXTERNAL = snímky jdou nám (`onFrames`); 0 = rozměr podle snímku. */
         val REMOTE_VIDEO = VideoDescription(MediaSource.EXTERNAL, 0, 0, 0, "", false)

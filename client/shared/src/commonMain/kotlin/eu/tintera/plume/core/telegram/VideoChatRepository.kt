@@ -30,6 +30,15 @@ interface VideoChatRepository {
     /** Segment streamu od [timeMs]: kanál 0 je zvuk, ostatní obraz účastníků. */
     suspend fun segment(groupCallId: Int, timeMs: Long, channelId: Int, quality: LiveVideoQuality?): Result<ByteArray>
 
+    /**
+     * Ztlumí, nebo odtlumí účastníka [participantId] pro všechny. Sebe odtlumit smí jen ten,
+     * komu to správce dovolil ([VideoChatParticipant.canUnmuteSelf]).
+     */
+    suspend fun setMuted(groupCallId: Int, participantId: Long, muted: Boolean): Result<Unit>
+
+    /** Zvedne, nebo spustí ruku — žádost o slovo, když mluvit nesmí. */
+    suspend fun setHandRaised(groupCallId: Int, participantId: Long, raised: Boolean): Result<Unit>
+
     /** Název chatu, kterému videochat patří — nadpis, když správce videochat nepojmenoval. */
     suspend fun chatTitle(chatId: Long): String?
 }
@@ -53,6 +62,8 @@ data class VideoChatParticipant(
     val screen: LiveVideo?,
     /** Ztlumený pro všechny — sám, nebo správcem. */
     val isMuted: Boolean,
+    /** Ztlumený, ale smí se odtlumit sám; `false` u ztlumeného = ztlumil ho správce. */
+    val canUnmuteSelf: Boolean,
     val isHandRaised: Boolean,
     val isCurrentUser: Boolean,
     /** Pořadí v seznamu; porovnává se jako text, větší výš. */

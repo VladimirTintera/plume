@@ -67,6 +67,24 @@ class TdlVideoChatRepository(private val holder: TelegramClientHolder) : VideoCh
     override suspend fun segment(groupCallId: Int, timeMs: Long, channelId: Int, quality: LiveVideoQuality?): Result<ByteArray> =
         client.groupCallSegment(groupCallId, timeMs, channelId, quality)
 
+    override suspend fun setMuted(groupCallId: Int, participantId: Long, muted: Boolean): Result<Unit> =
+        client.toggleGroupCallParticipantIsMuted(
+            groupCallId = groupCallId,
+            participantId = participantId.toMessageSender(),
+            isMuted = muted,
+        ).toResult()
+            .onFailure { logger.w(it) { "toggleGroupCallParticipantIsMuted $groupCallId/$participantId $muted" } }
+            .map { }
+
+    override suspend fun setHandRaised(groupCallId: Int, participantId: Long, raised: Boolean): Result<Unit> =
+        client.toggleGroupCallParticipantIsHandRaised(
+            groupCallId = groupCallId,
+            participantId = participantId.toMessageSender(),
+            isHandRaised = raised,
+        ).toResult()
+            .onFailure { logger.w(it) { "toggleGroupCallParticipantIsHandRaised $groupCallId/$participantId $raised" } }
+            .map { }
+
     override suspend fun chatTitle(chatId: Long): String? =
         client.getChat(chatId = chatId).toResult().getOrNull()?.title
 
@@ -79,6 +97,7 @@ class TdlVideoChatRepository(private val holder: TelegramClientHolder) : VideoCh
             camera = videoInfo?.toLiveVideo(),
             screen = screenSharingVideoInfo?.toLiveVideo(),
             isMuted = isMutedForAllUsers,
+            canUnmuteSelf = canUnmuteSelf,
             isHandRaised = isHandRaised,
             isCurrentUser = isCurrentUser,
             order = order,

@@ -34,18 +34,34 @@ data class VideoChatState(
     val hasVideo: Boolean = false,
     /** Vysílání přes RTMP: obraz posílá server, účastníci jsou jen posluchači. */
     val isRtmp: Boolean = false,
-)
+    /** Vlastní mikrofon je v přenosu zapnutý (mluvím). */
+    val micOn: Boolean = false,
+) {
+    /** Já mezi účastníky; dokud se seznam nedočte, `null`. */
+    val me: VideoChatParticipant? get() = participants.firstOrNull { it.isCurrentUser }
+
+    /** Mluvit jde (ne v RTMP vysílání) a správce mě neztlumil — stačí zapnout mikrofon. */
+    val canTalk: Boolean get() = !isRtmp && me?.let { !it.isMuted || it.canUnmuteSelf } == true
+
+    /** Ztlumil mě správce: zbývá zvednout ruku. */
+    val mutedByAdmin: Boolean get() = !isRtmp && me?.let { it.isMuted && !it.canUnmuteSelf } == true
+}
 
 /**
  * Poslech a sledování videochatu: připojení ztlumeně a bez kamery, účastníci, zvuk všech
  * a obraz jednoho z nich. Stejná cesta jako živý příběh (`LiveStoryWatch`), jen s účastníky:
  *
  * - **Účastníci chodí jen updaty** — po připojení se dočtou (`loadParticipants`), změny
- *   a odchody (prázdné pořadí) přijdou samy.
+ *   přijdou samy. Prázdné pořadí znamená odchod, ale i vypadnutí z dočtené části seznamu
+ *   (ověřeno: ztlumený správcem ho dostane hned); proto se po něm dočítá znovu a sebe
+ *   ze seznamu nevyhazuje nikdy — z videochatu odchází jen [stop].
  * - **Zvuk všech mluvících knihovna přehrává sama** — přiřazení zdrojů zvuku účastníkům
  *   (`updateAudioSsrcMappings`) běžný videochat ani RTMP nebere („Invalid call type", ověřeno),
  *   patří jen konferenčním hovorům.
  * - **Obraz se kreslí jeden** ([mainVideoFor]): sdílená obrazovka má přednost před kamerou.
+ * - **Mluví se jen s mikrofonem v přenosu** ([setMuted]): napřed svolení serveru
+ *   (`toggleGroupCallParticipantIsMuted`), pak mikrofon do přenosu. Ztlumí-li mě správce,
+ *   mikrofon jde z přenosu pryč sám.
  *
  * Odchod z hovoru jde přes [appScope], jako u živého příběhu: zavřená obrazovka už svůj
  * scope nemá a server by posluchače jinak počítal, dokud ho sám nevyhodí.
@@ -85,6 +101,11 @@ class VideoChatWatch(
                 repository.participantUpdates.filter { it.groupCallId == groupCallId }.collect { update ->
                     _state.update { it?.withParticipant(update.participant) }
                     participantsChanged()
+                    // Prázdné pořadí má i ten, kdo jen vypadl z dočtené části seznamu (ztlumený
+                    // přestal mluvit) — dočíst, ať nezmizí, kdo ve videochatu pořád je.
+                    if (update.participant.order.isEmpty() && !update.participant.isCurrentUser) {
+                        launch { repository.loadParticipants(groupCallId) }
+                    }
                 }
             }
             val call = repository.call(groupCallId).getOrNull()
@@ -116,10 +137,39 @@ class VideoChatWatch(
         watching?.let { media.stop(it.toLong()) }
     }
 
-    /** Výběr obrazu po každé změně seznamu. */
+    /**
+     * Zapne, nebo vypne mluvení. Zapnutí napřed u serveru (bez svolení by hlas nikdo neslyšel)
+     * a teprve pak mikrofon; vypnutí opačně, ať mikrofon nesvítí ani chvíli navíc.
+     */
+    suspend fun setMuted(muted: Boolean): Result<Unit> {
+        val id = watching ?: return Result.failure(IllegalStateException("No video chat"))
+        val me = _state.value?.me ?: return Result.failure(IllegalStateException("Not joined yet"))
+        if (muted) {
+            microphone(id, on = false)
+            return repository.setMuted(id, me.id, muted = true)
+        }
+        return repository.setMuted(id, me.id, muted = false).onSuccess {
+            if (watching == id) microphone(id, on = true)
+        }
+    }
+
+    suspend fun setHandRaised(raised: Boolean): Result<Unit> {
+        val id = watching ?: return Result.failure(IllegalStateException("No video chat"))
+        val me = _state.value?.me ?: return Result.failure(IllegalStateException("Not joined yet"))
+        return repository.setHandRaised(id, me.id, raised)
+    }
+
+    private fun microphone(id: Int, on: Boolean) {
+        if (_state.value?.micOn == on) return
+        _state.update { it?.copy(micOn = on) }
+        media.setMicrophone(id.toLong(), on)
+    }
+
+    /** Výběr obrazu po každé změně seznamu; ztlumí-li mě správce, mikrofon pryč. */
     private fun participantsChanged() {
         val id = watching ?: return
         val current = _state.value ?: return
+        if (current.micOn && current.me?.isMuted == true) microphone(id, on = false)
         val main = mainVideoFor(current.participants)
         if (main?.second?.endpoint != video?.endpoint) {
             video?.let { media.removeVideo(id.toLong(), it.endpoint) }
@@ -184,10 +234,13 @@ internal fun VideoChatState.withCall(call: VideoChatCall) = copy(
     isRtmp = call.isRtmp,
 )
 
-/** Účastník přibude, změní se, nebo (prázdné pořadí) odejde; seznam zůstane seřazený. */
+/**
+ * Účastník přibude, změní se, nebo (prázdné pořadí) odejde; seznam zůstane seřazený. Sebe
+ * ne: prázdné pořadí u sebe znamená jen, že nejsem v dočtené části seznamu.
+ */
 internal fun VideoChatState.withParticipant(participant: VideoChatParticipant): VideoChatState {
     val others = participants.filterNot { it.id == participant.id }
-    val next = if (participant.order.isEmpty()) others else others + participant
+    val next = if (participant.order.isEmpty() && !participant.isCurrentUser) others else others + participant
     return copy(participants = next.sortedByDescending { it.order })
 }
 

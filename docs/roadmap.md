@@ -1003,9 +1003,11 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      ovládání zvažované a odložené (důvody tamtéž).
    - **Videochat na poslech** — hotovo na Androidu: připojení ztlumeně z pruhu, účastníci,
      zvuk, jeden obraz (sdílená obrazovka přednostně), Opustit (`docs/poznatky/hovory.md`,
-     „Videochat na poslech"). Zbývá: ověřit s mluvícím účastníkem, kamerou a sdílením obrazovky
-     a velký videochat po segmentech; mluvení (odtlumení, zvednutí ruky), poslech na pozadí
-     s pruhem nad aplikací, mřížka víc kamer, „kdo mluví", desktop.
+     „Videochat na poslech"). ~~Mluvení (odtlumení, zvednutí ruky)~~ — hotovo (tamtéž, „Mluvení
+     a zvednutá ruka"). Zbývá: ověřit, že hlas na druhé straně zní (ušima), kamerou a sdílením
+     obrazovky účastníka a velký videochat po segmentech; poslech na pozadí s pruhem nad
+     aplikací (s mikrofonem chce službu v popředí typu `microphone`), vlastní kamera, mřížka
+     víc kamer, „kdo mluví", správa pro správce (ztlumit ostatní, pustit ke slovu), desktop.
    - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory s mluvením**.
    Původní plán sondy:
 
