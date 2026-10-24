@@ -1,6 +1,5 @@
 import java.net.URI
 import java.security.MessageDigest
-import java.util.Properties
 import java.util.zip.ZipFile
 
 plugins {
@@ -9,7 +8,6 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.serialization)
-    alias(libs.plugins.buildConfig)
     // Kontroly zdrojáků na `check` (build-logic/); jazyky hlídá :client:resources.
     id("plume.source-checks")
 }
@@ -327,8 +325,8 @@ kotlin {
     }
 
     // Desktop (macOS, Linux, Windows). Vstupní bod a balení je v :client:desktopApp, tady jen
-    // knihovna — stejné rozdělení jako u Androidu. TDLib dodává `tdl-coroutines-jvm` i s nativní
-    // knihovnou pro všechny tři systémy; macOS ji ale potřebuje opravit, viz desktopApp.
+    // knihovna — stejné rozdělení jako u Androidu. TDLib (`tdl-coroutines-jvm` i s nativní
+    // knihovnou pro všechny tři systémy) přichází přes :client:core.
     jvm()
 
     applyDefaultHierarchyTemplate()
@@ -352,6 +350,9 @@ kotlin {
             implementation(libs.compose.resources)
             // Texty, ikony, fonty a `Res` (eu.tintera.plume.resources) — viz client/resources.
             implementation(projects.client.resources)
+            // Vrstva kolem TDLib (client/core). `api`: její typy (repository, ChatMessage…) jsou
+            // v API shared a vstupní body je potřebují taky.
+            api(projects.client.core)
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.compose.material3)
 
@@ -386,9 +387,7 @@ kotlin {
             implementation(libs.haze.blur)
             implementation(libs.okio)
             implementation(libs.datastore.preferences.core)
-
-            // Jediné místo v projektu, kde smí být TDLib na classpath — viz core/telegram.
-            implementation(libs.tdl.coroutines)
+            // TDLib tu na classpath NENÍ — jen v :client:core (viz „Hranice kolem TDLib" v CLAUDE.md).
         }
 
         androidMain.dependencies {
@@ -486,6 +485,8 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            // Náhražky typů z :client:core (Fake…, Unimplemented…, testMessage).
+            implementation(projects.client.coreTesting)
         }
 
         jvmTest.dependencies {
@@ -515,37 +516,4 @@ composeCompiler {
 // závisí na knihovně prostředků) a srazila by se s tou z :client:resources.
 compose.resources {
     generateResClass = never
-}
-
-// api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
-// nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
-// od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).
-//
-// Na CI žádné local.properties není, takže se pár bere z ENV (`TELEGRAM_API_ID` / `TELEGRAM_API_HASH`).
-buildConfig {
-    packageName = "eu.tintera.plume"
-    className = "BuildConfiguration"
-    buildConfigField("Int", "TELEGRAM_API_ID", configValue("telegramApiId", "TELEGRAM_API_ID")?.toIntOrNull() ?: 0)
-    buildConfigField("String", "TELEGRAM_API_HASH", "\"${configValue("telegramApiHash", "TELEGRAM_API_HASH") ?: ""}\"")
-}
-
-/**
- * Hodnota konfigurace mimo git. Priorita: gradle property (`-Pklic=…`) > ENV (CI) > `local.properties`.
- *
- * ENV se čte přes [providers], ne přes `System.getenv` — jinak by se jeho hodnota nedostala do
- * otisku konfigurační keše a build s configuration-cache by po změně secretu použil starou.
- */
-fun configValue(gradleKey: String, envKey: String): String? =
-    (providers.gradleProperty(gradleKey).orNull
-        ?: providers.environmentVariable(envKey).orNull
-        ?: localProperty(gradleKey))
-        ?.takeIf { it.isNotBlank() }
-
-fun localProperty(name: String): String? {
-    val file = rootProject.file("local.properties")
-    if (!file.exists()) return null
-    return Properties()
-        .apply { file.inputStream().use { load(it) } }
-        .getProperty(name)
-        ?.takeIf { it.isNotBlank() }
 }

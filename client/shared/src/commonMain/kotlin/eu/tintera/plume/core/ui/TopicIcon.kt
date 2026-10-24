@@ -33,6 +33,7 @@ import org.jetbrains.compose.resources.painterResource
  */
 @Composable
 fun ForumTopicIcon(icon: TopicIcon, name: String, isGeneral: Boolean, size: Dp, modifier: Modifier = Modifier) {
+    val customEmojiId = icon.customEmojiId
     when {
         isGeneral -> Box(
             contentAlignment = Alignment.Center,
@@ -48,7 +49,7 @@ fun ForumTopicIcon(icon: TopicIcon, name: String, isGeneral: Boolean, size: Dp, 
                 modifier = Modifier.size(size * 0.55f),
             )
         }
-        icon.customEmojiId != null -> CustomEmojiIcon(icon.customEmojiId, size = size, modifier = modifier)
+        customEmojiId != null -> CustomEmojiIcon(customEmojiId, size = size, modifier = modifier)
         else -> {
             val background = Color(0xFF000000.toInt() or icon.color)
             Box(

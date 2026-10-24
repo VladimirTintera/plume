@@ -16,7 +16,7 @@ uložení), hlasovky (přehrávání i nahrávání), hledání v konverzaci, sa
 nedávná, odstíny pleti), profilovky ve skupinách, ankety a kvízy, sponzorované zprávy, stav doručení.
 
 Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonTest`,
-`./gradlew :client:shared:testAndroidHostTest`).
+`./gradlew :client:shared:testAndroidHostTest :client:core:testAndroidHostTest`).
 
 ## Doporučené pořadí dalších kroků
 
