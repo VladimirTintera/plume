@@ -16,6 +16,9 @@ import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
@@ -63,9 +66,15 @@ fun ReactionPickerScreen(chatId: Long, messageId: Long, onDone: () -> Unit) {
         current.isEmpty() -> MessageScreen(stringResource(Res.string.wear_reactions_none))
         else -> {
             val state = rememberTransformingLazyColumnState()
+            val spec = rememberTransformationSpec()
             ScreenScaffold(scrollState = state) { contentPadding ->
                 TransformingLazyColumn(state = state, contentPadding = contentPadding) {
-                    item { ListHeader { Text(stringResource(Res.string.wear_reactions_title)) } }
+                    item {
+                        ListHeader(
+                            modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                            transformation = SurfaceTransformation(spec),
+                        ) { Text(stringResource(Res.string.wear_reactions_title)) }
+                    }
                     items(current) { emoji ->
                         val isChosen = emoji in chosen
                         Button(
@@ -85,7 +94,8 @@ fun ReactionPickerScreen(chatId: Long, messageId: Long, onDone: () -> Unit) {
                                 )
                             },
                             colors = if (isChosen) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors(),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                            transformation = SurfaceTransformation(spec),
                         )
                     }
                 }

@@ -12,7 +12,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.remember
 import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.ColorScheme
+import androidx.wear.compose.material3.dynamicColorScheme
 import androidx.wear.compose.material3.MaterialTheme
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -32,8 +35,12 @@ fun WearApp(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     val session = koinInject<TelegramSession>()
     val stage by session.authStage.collectAsState()
     val scope = rememberCoroutineScope()
+    // Barvy z ciferníku (Wear OS 6+), jinak výchozí paleta Wear M3. Na hodinkách si barvu volí
+    // uživatel ciferníkem, vlastní výběr jako na telefonu (ThemeColor) tu nedává smysl.
+    val context = LocalContext.current
+    val colorScheme = remember(context) { dynamicColorScheme(context) ?: ColorScheme() }
 
-    MaterialTheme {
+    MaterialTheme(colorScheme = colorScheme) {
         AppScaffold {
             when (val current = stage) {
                 AuthStage.Ready -> {

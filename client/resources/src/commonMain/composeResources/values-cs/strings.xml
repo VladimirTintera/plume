@@ -4331,7 +4331,6 @@
     <string name="wear_quick_reply_5">Ozvu se později</string>
     <string name="wear_message_sending">Odesílání…</string>
     <string name="wear_message_failed">Neodesláno</string>
-    <string name="wear_send_failed">Zprávu se nepodařilo odeslat.</string>
     <string name="wear_reactions_title">Reakce</string>
     <string name="wear_reactions_none">Reakce tu nejdou.</string>
     <string name="wear_voice_record">Hlasovka</string>
@@ -4369,6 +4368,11 @@
     <string name="wear_clear_cache_hint">Stažené fotky a hlasovky</string>
     <string name="wear_clear_cache_running">Čistím…</string>
     <string name="wear_clear_cache_done">Uvolněno %1$s</string>
+    <string name="wear_confirm_cleared">Vyčištěno</string>
+    <string name="wear_confirm_sent">Odesláno</string>
+    <string name="wear_confirm_not_sent">Neodesláno</string>
+    <string name="wear_confirm_vote_failed">Hlas neodešel</string>
+    <string name="wear_confirm_play_failed">Nejde přehrát</string>
     <string name="wear_logout_title">Odhlásit hodinky?</string>
     <string name="wear_logout_text">Odhlásí se jen hodinky, telefon zůstane, jak je. Na hodinkách se pak znovu přihlásíš QR kódem.</string>
     <plurals name="wear_tile_new_messages">

@@ -25,6 +25,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.wear.compose.material3.FilledIconButton
+import androidx.wear.compose.material3.IconButtonDefaults
+import eu.tintera.plume.resources.wear_confirm_not_sent
+import eu.tintera.plume.resources.wear_confirm_sent
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
@@ -75,6 +78,9 @@ fun RecordVoiceScreen(chatId: Long, onDone: () -> Unit) {
     var recording by remember { mutableStateOf(false) }
     var elapsed by remember { mutableIntStateOf(0) }
     var problem by remember { mutableStateOf<StringResource?>(null) }
+    // Výsledek odeslání jako potvrzovací dialog; po jeho zmizení se obrazovka zavře. Dřív se
+    // zavřela hned a nezdar šel jen do logu — hlasovka zmizela beze stopy.
+    var sent by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) { if (!permitted) permission.launch(Manifest.permission.RECORD_AUDIO) }
     DisposableEffect(Unit) { onDispose { recorder.cancel() } }
@@ -112,14 +118,14 @@ fun RecordVoiceScreen(chatId: Long, onDone: () -> Unit) {
             return
         }
         scope.launch {
-            conversations.sendVoiceNote(
+            val result = conversations.sendVoiceNote(
                 chatId = chatId,
                 path = voice.path,
                 durationSeconds = voice.durationSeconds,
                 waveform = encodeWaveform(voice.levels),
                 replyToMessageId = null,
             ).onFailure { logger.w(it) { "Hlasovka z hodinek do chatu $chatId neodešla." } }
-            onDone()
+            sent = result.isSuccess
         }
     }
 
@@ -135,6 +141,9 @@ fun RecordVoiceScreen(chatId: Long, onDone: () -> Unit) {
             )
             FilledIconButton(
                 onClick = { if (permitted) toggle() else permission.launch(Manifest.permission.RECORD_AUDIO) },
+                shapes = IconButtonDefaults.animatedShapes(),
+                // Po odeslání (pod dialogem s výsledkem) už nic nespouštět.
+                enabled = sent == null,
                 modifier = Modifier.padding(vertical = 12.dp).size(72.dp),
             ) {
                 Icon(
@@ -151,6 +160,8 @@ fun RecordVoiceScreen(chatId: Long, onDone: () -> Unit) {
             )
         }
     }
+    SuccessConfirmation(visible = sent == true, text = stringResource(Res.string.wear_confirm_sent), onDismiss = onDone)
+    FailureConfirmation(visible = sent == false, text = stringResource(Res.string.wear_confirm_not_sent), onDismiss = onDone)
 }
 
 /** Délka „0:07"; číslice textem pro uživatele nejsou, překlad nepotřebují. */

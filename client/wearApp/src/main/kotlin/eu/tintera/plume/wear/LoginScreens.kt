@@ -33,6 +33,9 @@ import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.ListHeader
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.lazy.rememberTransformationSpec
+import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
@@ -83,8 +86,10 @@ fun QrLoginScreen(link: String) {
     val screen = minOf(configuration.screenWidthDp, configuration.screenHeightDp).dp
     val qrSize = screen * QR_SCREEN_FRACTION
     val centered = PaddingValues(top = (configuration.screenHeightDp.dp - qrSize) / 2, bottom = screen / 4)
+    val spec = rememberTransformationSpec()
     ScreenScaffold(scrollState = state) {
         TransformingLazyColumn(state = state, contentPadding = centered) {
+            // Kód se u okraje NEzmenšuje (ostatní položky ano): zmenšený by čtečka nemusela přečíst.
             item {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     // Bílý okraj kolem kódu: na černém pozadí hodinek by ho čtečka nenašla.
@@ -98,13 +103,18 @@ fun QrLoginScreen(link: String) {
                     )
                 }
             }
-            item { ListHeader { Text(stringResource(Res.string.wear_login_title)) } }
+            item {
+                ListHeader(
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
+                ) { Text(stringResource(Res.string.wear_login_title)) }
+            }
             item {
                 Text(
                     stringResource(Res.string.wear_login_qr_hint),
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                    modifier = Modifier.fillMaxWidth().transformedItem(this, spec).padding(horizontal = 12.dp),
                 )
             }
         }
@@ -135,20 +145,33 @@ fun PasswordScreen(stage: AuthStage.WaitPassword) {
         }
     }
     val state = rememberTransformingLazyColumnState()
+    val spec = rememberTransformationSpec()
     ScreenScaffold(scrollState = state) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
-            item { ListHeader { Text(stringResource(Res.string.wear_password_title)) } }
+            item {
+                ListHeader(
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
+                ) { Text(stringResource(Res.string.wear_password_title)) }
+            }
             stage.hint?.takeIf { it.isNotBlank() }?.let { hint ->
-                item { CenteredText(stringResource(Res.string.wear_password_hint, hint)) }
+                item { CenteredText(stringResource(Res.string.wear_password_hint, hint), Modifier.transformedItem(this, spec)) }
             }
             if (failed) {
-                item { CenteredText(stringResource(Res.string.wear_password_failed), color = MaterialTheme.colorScheme.error) }
+                item {
+                    CenteredText(
+                        stringResource(Res.string.wear_password_failed),
+                        Modifier.transformedItem(this, spec),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             item {
                 Button(
                     onClick = { launcher.launch(passwordInput(label)) },
                     label = { Text(label) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
                 )
             }
         }
@@ -159,14 +182,16 @@ fun PasswordScreen(stage: AuthStage.WaitPassword) {
 @Composable
 fun QrOnlyScreen(onShowQr: () -> Unit) {
     val state = rememberTransformingLazyColumnState()
+    val spec = rememberTransformationSpec()
     ScreenScaffold(scrollState = state) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
-            item { CenteredText(stringResource(Res.string.wear_login_qr_only)) }
+            item { CenteredText(stringResource(Res.string.wear_login_qr_only), Modifier.transformedItem(this, spec)) }
             item {
                 Button(
                     onClick = onShowQr,
                     label = { Text(stringResource(Res.string.wear_login_show_qr)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
                 )
             }
         }
@@ -197,12 +222,12 @@ fun MessageScreen(text: String) {
 }
 
 @Composable
-private fun CenteredText(text: String, color: Color = Color.Unspecified) {
+private fun CenteredText(text: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified) {
     Text(
         text,
         color = color,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp),
     )
 }
 
