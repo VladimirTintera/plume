@@ -1,18 +1,11 @@
-import com.android.build.api.instrumentation.AsmClassVisitorFactory
-import com.android.build.api.instrumentation.ClassContext
-import com.android.build.api.instrumentation.ClassData
-import com.android.build.api.instrumentation.FramesComputationMode
-import com.android.build.api.instrumentation.InstrumentationParameters
-import com.android.build.api.instrumentation.InstrumentationScope
 import java.util.Properties
-import org.objectweb.asm.ClassVisitor
-import org.objectweb.asm.MethodVisitor
-import org.objectweb.asm.Opcodes
 
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    // Hook TdlibJsonRepair za JsonClient.receive uvnitř wrapperu (build-logic, Tdlib.kt).
+    id("plume.tdlib-android")
 }
 
 // Kotlin/Android je v AGP 9 vestavěný — plugin org.jetbrains.kotlin.android se neaplikuje.
@@ -245,57 +238,6 @@ tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.co
     dependsOn(verifyReleaseConfiguration)
 }
 
-// Obcházka pádu `tdl-coroutines` (15.0.0, 16.0.0) na odpovědi TDLib, ve které chybí pole dokumentované
-// jako povinné (dárek bez `background`). Viz „Dárek" v docs/poznatky/typy-zprav.md.
-//
-// Za každé `JsonClient.receive` uvnitř wrapperu se vloží `TdlibReceiveHook.afterReceive`, takže
-// odpověď projde `TdlibJsonRepair` dřív, než ji wrapper rozebere. Jinou cestu dovnitř wrapper
-// nemá: přijímací smyčka i parser jsou interní a knihovna je obfuskovaná. `JsonClient` naopak
-// jméno mění nesmí (JNI), takže se na něj dá spolehnout i po bumpu. Že vložení zabralo, hlídá
-// `TdlTelegramSession` po přihlášení.
-abstract class TdlibReceiveHookFactory : AsmClassVisitorFactory<InstrumentationParameters.None> {
-
-    override fun isInstrumentable(classData: ClassData): Boolean =
-        classData.className.startsWith("dev.g000sha256.tdl.")
-
-    override fun createClassVisitor(classContext: ClassContext, nextClassVisitor: ClassVisitor): ClassVisitor =
-        object : ClassVisitor(Opcodes.ASM9, nextClassVisitor) {
-            override fun visitMethod(
-                access: Int,
-                name: String?,
-                descriptor: String?,
-                signature: String?,
-                exceptions: Array<out String>?,
-            ): MethodVisitor = object : MethodVisitor(
-                Opcodes.ASM9,
-                super.visitMethod(access, name, descriptor, signature, exceptions),
-            ) {
-                override fun visitMethodInsn(
-                    opcode: Int,
-                    owner: String?,
-                    name: String?,
-                    descriptor: String?,
-                    isInterface: Boolean,
-                ) {
-                    super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
-                    if (owner == "org/drinkless/tdlib/JsonClient" && name == "receive" &&
-                        descriptor == "(D)Ljava/lang/String;"
-                    ) {
-                        // Na zásobníku je String? z receive a po volání zase String? — rámce
-                        // se nemění, stačí COPY_FRAMES.
-                        super.visitMethodInsn(
-                            Opcodes.INVOKESTATIC,
-                            "eu/tintera/plume/core/telegram/TdlibReceiveHook",
-                            "afterReceive",
-                            "(Ljava/lang/String;)Ljava/lang/String;",
-                            false,
-                        )
-                    }
-                }
-            }
-        }
-}
-
 /**
  * `res/xml/locales_config.xml` (systémový výběr jazyka aplikace, `LocaleManager`) ze seznamu, který
  * vyrobí `:client:shared:generateAppLanguages` ze složek `composeResources/values-*`. Ručně psaný
@@ -334,10 +276,5 @@ val generateLocaleConfig = tasks.register<GenerateLocaleConfig>("generateLocaleC
 androidComponents {
     onVariants { variant ->
         variant.sources.res?.addGeneratedSourceDirectory(generateLocaleConfig, GenerateLocaleConfig::outputDirectory)
-        variant.instrumentation.transformClassesWith(
-            TdlibReceiveHookFactory::class.java,
-            InstrumentationScope.ALL,
-        ) {}
-        variant.instrumentation.setAsmFramesComputationMode(FramesComputationMode.COPY_FRAMES)
     }
 }

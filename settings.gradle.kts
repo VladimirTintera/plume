@@ -3,6 +3,8 @@ rootProject.name = "plume"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
+    // Konvenční pluginy (kontroly zdrojáků, jazyky, hook TdlibJsonRepair), viz build-logic/.
+    includeBuild("build-logic")
     repositories {
         google {
             mavenContent {
