@@ -378,7 +378,7 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
    samotné odhlášení na emulátoru nevyzkoušené, je na skutečném účtu).
 3. ~~**Úklid úložiště**~~ — hotovo (automaticky jednou denně: 3 dny, strop 100 MB; ruční
    vyčištění v Nastavení).
-4. **Starší historie a citace** — konverzace jen posledních 30 zpráv, odpověď bez citované zprávy.
+4. ~~**Starší historie a citace**~~ — hotovo (dočítání u začátku seznamu, citace nad odpovědí).
 5. **Další média** — statické samolepky a náhledy videí (bez přehrávání); animované samolepky,
    GIFy a video jsou na hodinkách drahé.
 6. **Snímky do Play** přes workflow Play Listing (`wearScreenshots`), ne ručně.

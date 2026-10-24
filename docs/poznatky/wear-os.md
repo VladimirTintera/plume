@@ -67,6 +67,18 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   než historie, ať se mezi tím nic neztratí.
 - **První `history(…, fromMessageId = 0)` vrací TDLib často jen kus z lokální databáze**
   (klidně jednu zprávu) — dočítá se od nejstarší, dokud stránka není plná nebo historie neskončí.
+- **Starší historie se dočítá u začátku seznamu** (první viditelná položka do 2, `snapshotFlow`
+  nad `layoutInfo.visibleItems`), po 30 zprávách od nejstarší načtené; prázdná stránka = začátek
+  chatu. **Zprávy mají v seznamu klíče (`id`)** — vložené nahoře tak seznam neposunou a uživatel
+  zůstane na zprávě, kterou četl. (Seznam CHATŮ je naopak bez klíčů, tam má začínat nahoře.)
+  Mezitím nahoře malý indikátor.
+- **Citace nad odpovědí** (`ReplyQuote`): jméno a první řádek citované zprávy s proužkem vlevo
+  (`drawBehind`, ne prvek přes celou výšku — ta by se měřila intrinsicky). Zpráva nese jen
+  `replyToMessageId`; bere se z načtené historie, chybějící se dočte jednou přes
+  `message(chatId, id)`. V soukromém chatu zpráva odesílatele nenese, jméno je pak název chatu.
+- **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora: odpověď bota s `reply_parameters`
+  ukázala citaci „Notifikator / Plume test hodinek: d…", dvojí dojetí nahoru dočetlo starší
+  zprávy (večerní z předchozích dnů).
 - **Otevřený chat se TDLib ohlásí** (`openChat`, při odchodu `closeChat` v `APP_SCOPE`, scope
   obrazovky v `onDispose` už je zrušený) a **zobrazené zprávy se hlásí jako přečtené** (`markRead`),
   i ty, které přijdou, zatímco je konverzace otevřená. Kdo ji na hodinkách viděl, četl ji.
