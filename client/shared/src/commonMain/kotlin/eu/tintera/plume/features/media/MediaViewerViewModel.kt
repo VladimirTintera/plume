@@ -42,6 +42,8 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.conversation.PendingDelete
 import eu.tintera.plume.features.conversation.toggled
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.sticker_prepare_failed
+import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.resources.media_attached_stickers_failed
 import eu.tintera.plume.resources.media_attached_stickers_none
 import eu.tintera.plume.core.telegram.StickerSetSummary
@@ -119,6 +121,8 @@ class MediaViewerViewModel(
     private val appScope: CoroutineScope,
     /** Text z fotky; bez něj se tlačítko nenabízí. */
     private val textRecognizer: TextRecognizer? = null,
+    /** Samolepka z fotky; bez ní (iOS, desktop) se „Vytvořit samolepku" nenabízí. */
+    private val stickerMaker: StickerMaker? = null,
     /** Text z fotky do schránky. */
     private val clipboard: TextClipboard? = null,
     /** Popis fotky modelem v telefonu; bez něj (nebo bez [settings]) se nenabízí. */
@@ -821,6 +825,20 @@ class MediaViewerViewModel(
     /** Umí platforma text z fotky — jinak tlačítko v liště nebude. */
     val canRecognizeText: Boolean get() = textRecognizer != null
 
+    val canMakeSticker: Boolean get() = stickerMaker != null
+
+    /** Fotku stáhne a předá tvorbě samolepky ([MediaViewerState.stickerSource]). */
+    fun makeSticker(messageId: Long) {
+        val photo = _state.value.items.firstOrNull { it.messageId == messageId }?.media as? MessageMedia.Photo ?: return
+        viewModelScope.launch {
+            val file = prepare(messageId, MediaTask.Sticker, failure = Res.string.sticker_prepare_failed) ?: return@launch
+            finish(messageId, null)
+            _state.update { it.copy(stickerSource = StickerSource(file.path, photo.width, photo.height)) }
+        }
+    }
+
+    fun stickerSourceHandled() = _state.update { it.copy(stickerSource = null) }
+
     /**
      * Text z fotky [messageId]: rozpozná ho v ostré verzi a zvýrazní na fotce
      * ([MediaViewerState.recognizedText]). Druhé ťuknutí zvýraznění schová.
@@ -1271,7 +1289,10 @@ internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
 }
 
 /** Co s médiem právě běží; podle toho se točí to tlačítko, na které uživatel ťukl. */
-enum class MediaTask { Gallery, Share, SaveAs, Text, Describe }
+enum class MediaTask { Gallery, Share, SaveAs, Text, Describe, Sticker }
+
+/** Stažená fotka, ze které se má udělat samolepka — obrazovka ji předá tvorbě samolepky. */
+data class StickerSource(val path: String, val width: Int, val height: Int)
 
 /**
  * Text rozpoznaný na fotce [messageId] — zvýrazní se jen na ní, jinde ne. [selected] jsou řádky
@@ -1314,6 +1335,8 @@ data class ViewerItem(
 data class MediaViewerState(
     /** Zpráva, na které se prohlížeč otevřel. Pager na ní startuje. */
     val initialMessageId: Long,
+    /** Fotka připravená pro tvorbu samolepky; obrazovka ji vyzvedne a otevře tvorbu. */
+    val stickerSource: StickerSource? = null,
     /** Načtený výřez fotek chatu, od nejstarší. Pager jde zleva doprava k novějším. */
     val items: List<ViewerItem> = emptyList(),
     /**

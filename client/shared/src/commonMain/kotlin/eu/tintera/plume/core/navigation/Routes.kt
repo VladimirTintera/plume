@@ -403,6 +403,13 @@ data class StoryComposerRoute(
     val editCoverOnly: Boolean = false,
 ) : Route
 
+/**
+ * Tvorba samolepky ze stažené fotky [path] ([width] × [height]) — z prohlížeče médií.
+ * Přes celou plochu nad prohlížečem; po přidání do sady se zavře.
+ */
+@Serializable
+data class StickerComposerRoute(val path: String, val width: Int, val height: Int) : Route
+
 /** [MediaRoute.startSeconds] bez času v médiu. */
 const val NO_START = -1
 
@@ -629,6 +636,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EventLogRoute::class, EventLogRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(StoriesRoute::class, StoriesRoute.serializer())
+            subclass(StickerComposerRoute::class, StickerComposerRoute.serializer())
             subclass(VideoChatRoute::class, VideoChatRoute.serializer())
             subclass(StoryComposerRoute::class, StoryComposerRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())

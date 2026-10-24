@@ -682,6 +682,55 @@ i archiv každého druhu zvlášť, takže repository bere druh (`installedSets(
 - **Ověřeno na emulátoru**: dvě sady (Duck a dočasně přidaná Crayons), přeřazení drželo po
   odchodu z obrazovky, detail sady s obarvenými emoji a „104 emoji", odebrání Crayons.
 
+## Tvorba samolepky z fotky
+
+Z fotky jde udělat samolepku a přidat ji do vlastní sady, nebo sadu založit
+(`StickerComposerScreen`, `StickerComposerViewModel`, `StickerMaker`). Vstupy jsou dva:
+⋮ v prohlížeči fotky („Vytvořit samolepku") a Nastavení → Chaty → Sady samolepek →
+„Vytvořit samolepku z fotky" (systémový výběr fotek). **Jen Android** — `StickerMaker` se
+jinde nezaregistruje a oba vstupy chybí.
+
+- **Telegram chce delší stranu přesně 512 px a kratší nejvýš 512** (`stickerSize`),
+  statickou samolepku do 512 kB. `uploadStickerFile` / `NewSticker` bere WebP i PNG, z PNG si
+  WebP udělá server. Ukládá se **ztrátové WebP s průhledností** (kvalita 90): PNG fotky
+  v 512 px tu hranici snadno přeleze.
+- **Pozadí odstraňuje ML Kit Subject Segmentation z Play služeb** (`AndroidStickerMaker`,
+  `enableForegroundBitmap`): popředí přijde jako bitmapa s průhledností a ořízne se na
+  neprůhlednou část (práh alfy 16, vyhlazené okraje masky se nepočítají). Bez Play služeb
+  se přepínač nenabízí a samolepka zůstane s pozadím.
+  - **Model se stahuje** jako u čtení textu: meta-data `subject_segment` vedle `ocr`
+    v manifestu (Play služby ho stáhnou po instalaci). Kdo zkusí samolepku dřív, dostane
+    `MlKitException.UNAVAILABLE` → `StickerModelNotReadyException`, věta „ještě se stahuje"
+    a „Zkusit znovu"; zároveň se model vyžádá hned (`ModuleInstallClient.installModules`).
+    Ověřeno: po čerstvé instalaci na emulátoru první pokus hlášku dal, za minutu prošel.
+  - **Beta** (`play-services-mlkit-subject-segmentation:16.0.0-beta1`) — jiná verze není.
+- **Náhled je hotový soubor**, ne odhad: s každou změnou (úprava, pozadí) se samolepka vyrobí
+  znovu a nahraje se přesně ta, kterou uživatel vidí. Šachovnice pod ní ukazuje průhlednost.
+- **Úprava fotky je editor příloh** (`PhotoMarkupEditor` + `PhotoMarkupRenderer`): ořez,
+  otočení, kresba. Úprava se drží k originálu, jako u přílohy, takže jde vzít zpátky.
+- **Jméno sady (odkaz `t.me/addstickers/…`) navrhne Telegram** (`getSuggestedStickerSetName`
+  z názvu) — ruční by mohlo kolidovat. Název zadává uživatel, výchozí žádný: text složený ve
+  ViewModelu by po změně jazyka zůstal ve starém.
+- **Nová sada se sama nenainstaluje.** Po `createNewStickerSet` se do výběru dostala jen do
+  restartu aplikace (update), pak v seznamu nainstalovaných chyběla — ověřeno na emulátoru.
+  Repository ji proto hned nainstaluje (`changeStickerSet(isInstalled = true)`), a totéž při
+  každém přidání do vlastní sady (mohla být odinstalovaná).
+- **Výchozí cíl je první vlastní sada, kam se vejde** (`getOwnedStickerSets`, jen běžné
+  samolepky, ne emoji); plná (120 samolepek) se nabízí s „Plná" a vybrat nejde. Bez vlastních
+  sad „Nová sada".
+- **Emoji**: řada šestnácti nejčastějších a pole „Jiné emoji" pro klávesnici; bez emoji
+  přidat nejde (`NewSticker.emojis` je povinné, 1–20 emoji).
+- **Fotka z chatu se zákazem ukládání samolepkou být nesmí** — nabídka se řídí stejným
+  `canSave` jako „Text z fotky" a popis fotky.
+- **Esc (klávesnice emulátoru) je zpět** a obrazovku zavře i s rozepsaným formulářem;
+  klávesnici zavírá „Hotovo" (`ImeAction.Done`).
+- **Ověřeno na emulátoru 24. 10. 2026** (`Plume_Barvy`, …527, česky; testovací fotka papouška
+  v Uložených): z prohlížeče s odstraněním pozadí do nové sady „Plume test" (sada se objevila
+  ve výběru samolepek), znovu bez odstranění pozadí do existující sady, z Nastavení s fotkou
+  z galerie (sada se objevila v Moje sady). **Neověřené**: úprava ořezem a kresbou před
+  vytvořením, plná sada, odmítnutí serverem (`STICKER_PNG_DIMENSIONS` a spol.), iOS a desktop
+  (tam se nenabízí).
+
 ## Samolepky k emoji v poli
 
 Když je v poli jediné emoji a nic jiného, nad polem vyjede řádek samolepek k němu

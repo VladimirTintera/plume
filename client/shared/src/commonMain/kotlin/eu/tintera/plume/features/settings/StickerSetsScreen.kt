@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.sticker_create_from_photo
+import eu.tintera.plume.core.ui.GroupedColumn
+import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.resources.sticker_24dp
 import eu.tintera.plume.core.ui.GroupEmptyRow
@@ -113,9 +117,20 @@ fun StickerSetsScreen(
     viewModel: StickerSetsViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Samolepka z fotky z galerie; `null` = platforma ji vyrobit neumí (jen samolepky, ne emoji). */
+    onCreateSticker: ((path: String, width: Int, height: Int) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    // Z výběru se bere první fotka; video samolepkou z fotky být nemůže.
+    val photoPicker = rememberAttachmentPicker(
+        onPicked = { picked ->
+            (picked.firstOrNull { it is OutgoingAttachment.Photo } as? OutgoingAttachment.Photo)?.let { photo ->
+                onCreateSticker?.invoke(photo.path, photo.width, photo.height)
+            }
+        },
+        onError = viewModel::showError,
+    )
     // Snackbar mimo tělo efektu: vynulování události mění klíč a zrušilo by ho (viz „Vrátit").
     val scope = rememberCoroutineScope()
     LaunchedEffect(state.error) {
@@ -193,6 +208,17 @@ fun StickerSetsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                 )
+            }
+            if (onCreateSticker != null && kind == StickerSetKind.Stickers) {
+                item(key = "create") {
+                    GroupedColumn(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                        SettingsActionRow(
+                            icon = Res.drawable.sticker_24dp,
+                            title = stringResource(Res.string.sticker_create_from_photo),
+                            onClick = photoPicker::pickMedia,
+                        )
+                    }
+                }
             }
             item(key = "mine-header") { SetsHeader(stringResource(Res.string.sticker_sets_mine)) }
             if (installed.isEmpty()) {

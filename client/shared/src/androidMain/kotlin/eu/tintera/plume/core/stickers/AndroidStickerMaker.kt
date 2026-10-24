@@ -1,0 +1,153 @@
+package eu.tintera.plume.core.stickers
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Rect
+import android.os.Build
+import co.touchlab.kermit.Logger
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.common.moduleinstall.ModuleInstall
+import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
+import com.google.android.gms.tasks.Task
+import com.google.mlkit.common.MlKitException
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import java.io.File
+import kotlin.coroutines.resume
+import kotlin.math.roundToInt
+
+/**
+ * [StickerMaker] na Androidu: dekódování zmenšené fotky, odstranění pozadí přes ML Kit Subject
+ * Segmentation z Play služeb (popředí jako bitmapa s průhledností), ořez na neprůhlednou část,
+ * zmenšení na 512 px a WebP.
+ *
+ * - **Model si stahují Play služby** (meta-data `subject_segment` v manifestu aplikace, jako
+ *   u čtení textu). Než doběhne, segmentace selže s `UNAVAILABLE` — to je
+ *   [StickerModelNotReadyException] a hláška „zkus to za chvíli", ne chyba.
+ * - **WebP, ne PNG**: PNG fotky v 512 px snadno přeleze 512 kB, které Telegram u statické
+ *   samolepky snese; ztrátové WebP s průhledností je zlomek a server ho bere rovnou.
+ */
+class AndroidStickerMaker(context: Context) : StickerMaker {
+    private val logger = Logger.withTag("StickerMaker")
+    private val appContext = context.applicationContext
+
+    override val canRemoveBackground: Boolean by lazy {
+        GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(appContext) == ConnectionResult.SUCCESS
+    }
+
+    private val segmenter by lazy {
+        SubjectSegmentation.getClient(SubjectSegmenterOptions.Builder().enableForegroundBitmap().build())
+    }
+
+    override suspend fun make(path: String, removeBackground: Boolean): Result<MadeSticker> = runCatching {
+        val photo = withContext(Dispatchers.IO) { decode(path) } ?: error("Obrázek $path nejde přečíst.")
+        val content = if (removeBackground) cutOut(photo) else photo
+        withContext(Dispatchers.Default) {
+            val scaled = scaleToStickerSize(content)
+            val file = File(appContext.cacheDir, "stickers").apply { mkdirs() }
+                .resolve("sticker-${System.currentTimeMillis()}.webp")
+            file.outputStream().use { out -> scaled.compress(webp(), WEBP_QUALITY, out) }
+            MadeSticker(file.absolutePath, scaled.width, scaled.height)
+        }
+    }.onFailure { logger.w(it) { "Samolepku z $path nejde vyrobit." } }
+
+    /** Jen hlavní objekt, oříznutý těsně na neprůhlednou část. */
+    private suspend fun cutOut(photo: Bitmap): Bitmap {
+        val result = runCatching { segmenter.process(InputImage.fromBitmap(photo, 0)).await() }
+            .getOrElse { failure ->
+                if (failure is MlKitException && failure.errorCode == MlKitException.UNAVAILABLE) {
+                    requestModel()
+                    throw StickerModelNotReadyException(failure)
+                }
+                throw failure
+            }
+        val foreground = result.foregroundBitmap ?: throw NoStickerSubjectException()
+        return withContext(Dispatchers.Default) {
+            val bounds = opaqueBounds(foreground) ?: throw NoStickerSubjectException()
+            Bitmap.createBitmap(foreground, bounds.left, bounds.top, bounds.width(), bounds.height())
+        }
+    }
+
+    /**
+     * Požádá Play služby o model hned. Meta-data v manifestu stahování spustí po instalaci,
+     * ale kdo samolepku zkusí dřív, než doběhne, by jinak čekal naslepo.
+     */
+    private fun requestModel() {
+        runCatching {
+            ModuleInstall.getClient(appContext)
+                .installModules(ModuleInstallRequest.newBuilder().addApi(segmenter).build())
+                .addOnFailureListener { logger.w(it) { "Model odstranění pozadí nejde vyžádat." } }
+        }
+    }
+
+    private fun decode(path: String): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= DECODE_SIDE) sample *= 2
+        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    }
+
+    private fun webp(): Bitmap.CompressFormat =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP
+
+    private companion object {
+        /** Dekóduje se zhruba na dvojnásobek samolepky: segmentaci víc nepomůže, jen ji zpomalí. */
+        const val DECODE_SIDE = 1024
+        const val WEBP_QUALITY = 90
+    }
+}
+
+/** Delší strana přesně [STICKER_SIDE] (Telegram chce jednu stranu 512 a druhou nejvýš 512). */
+internal fun stickerSize(width: Int, height: Int): Pair<Int, Int> {
+    val scale = STICKER_SIDE.toFloat() / maxOf(width, height)
+    return (width * scale).roundToInt().coerceIn(1, STICKER_SIDE) to (height * scale).roundToInt().coerceIn(1, STICKER_SIDE)
+}
+
+private fun scaleToStickerSize(bitmap: Bitmap): Bitmap {
+    val (width, height) = stickerSize(bitmap.width, bitmap.height)
+    return Bitmap.createScaledBitmap(bitmap, width, height, true)
+}
+
+/** Obdélník, kde je obrázek aspoň trochu neprůhledný; `null` = celý průhledný. */
+private fun opaqueBounds(bitmap: Bitmap): Rect? {
+    val width = bitmap.width
+    val height = bitmap.height
+    val pixels = IntArray(width * height)
+    bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+    var left = width
+    var top = height
+    var right = -1
+    var bottom = -1
+    for (y in 0 until height) {
+        val row = y * width
+        for (x in 0 until width) {
+            if ((pixels[row + x] ushr 24) > ALPHA_THRESHOLD) {
+                if (x < left) left = x
+                if (x > right) right = x
+                if (y < top) top = y
+                if (y > bottom) bottom = y
+            }
+        }
+    }
+    return if (right < 0) null else Rect(left, top, right + 1, bottom + 1)
+}
+
+private const val STICKER_SIDE = 512
+
+/** Téměř průhledné okraje masky (vyhlazení) se do ořezu nepočítají. */
+private const val ALPHA_THRESHOLD = 16
+
+/** Task API bez `coroutines-play-services`, jako u čtení textu. */
+private suspend fun <T> Task<T>.await(): T = suspendCancellableCoroutine { continuation ->
+    addOnSuccessListener { continuation.resume(it) }
+    addOnFailureListener { continuation.resumeWith(Result.failure(it)) }
+    addOnCanceledListener { continuation.cancel() }
+}

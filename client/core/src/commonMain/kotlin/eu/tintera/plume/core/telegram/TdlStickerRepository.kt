@@ -1,6 +1,9 @@
 package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
+import dev.g000sha256.tdl.dto.StickerFormatWebp
+import dev.g000sha256.tdl.dto.NewSticker
+import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.EmojiCategorySourceSearch
@@ -534,6 +537,68 @@ class TdlStickerRepository(
                 emptyList()
             }
 
+    override suspend fun ownedSets(): Result<List<OwnedStickerSet>> =
+        client.getOwnedStickerSets(offsetStickerSetId = 0, limit = OWNED_SETS_LIMIT).toResult()
+            .onFailure { logger.w(it) { "Vlastní sady se nepodařilo načíst." } }
+            .map { result ->
+                result.sets.filterNotNull()
+                    // Do vlastních sad emoji tvorba samolepek nepatří.
+                    .filter { it.stickerType is StickerTypeRegular }
+                    .map { set ->
+                        OwnedStickerSet(
+                            id = set.id,
+                            name = set.name,
+                            title = set.title,
+                            size = set.size,
+                            cover = set.covers.filterNotNull().firstOrNull()?.toMedia(),
+                        )
+                    }
+            }
+
+    override suspend fun createSet(title: String, sticker: NewStickerFile): Result<OwnedStickerSet> = runCatching {
+        // Jméno do odkazu navrhne Telegram (volné a platné); ruční by mohlo kolidovat.
+        val name = client.getSuggestedStickerSetName(title = title).toResult().getOrThrow().text
+        val me = client.getMe().toResult().getOrThrow().id
+        val set = client.createNewStickerSet(
+            userId = me,
+            title = title,
+            name = name,
+            stickerType = StickerTypeRegular(),
+            needsRepainting = false,
+            stickers = arrayOf(sticker.toNewSticker()),
+            source = "",
+        ).toResult().getOrThrow()
+        // Nová sada se sama nenainstaluje (ověřeno: po restartu aplikace v seznamu sad chyběla),
+        // a bez toho by ji autor neviděl ve výběru samolepek.
+        client.changeStickerSet(setId = set.id, isInstalled = true, isArchived = false).toResult()
+            .onFailure { logger.w(it) { "Novou sadu ${set.name} se nepodařilo nainstalovat." } }
+        OwnedStickerSet(
+            id = set.id,
+            name = set.name,
+            title = set.title,
+            size = set.stickers.size,
+            cover = set.stickers.filterNotNull().firstOrNull()?.toMedia(),
+        )
+    }.onFailure { logger.w(it) { "Sadu samolepek se nepodařilo založit." } }
+
+    override suspend fun addToSet(set: OwnedStickerSet, sticker: NewStickerFile): Result<Unit> = runCatching {
+        val me = client.getMe().toResult().getOrThrow().id
+        client.addStickerToSet(userId = me, name = set.name, sticker = sticker.toNewSticker()).toResult().getOrThrow()
+        // Vlastní sada může být odinstalovaná (nebo založená dřív, než se instalovalo samo);
+        // kdo do ní přidává, chce ji mít ve výběru.
+        client.changeStickerSet(setId = set.id, isInstalled = true, isArchived = false).toResult()
+            .onFailure { logger.w(it) { "Sadu ${set.name} se nepodařilo nainstalovat." } }
+        Unit
+    }.onFailure { logger.w(it) { "Samolepku se nepodařilo přidat do sady ${set.name}." } }
+
+    private fun NewStickerFile.toNewSticker() = NewSticker(
+        sticker = InputFileLocal(path = path),
+        format = StickerFormatWebp(),
+        emojis = emojis,
+        maskPosition = null,
+        keywords = emptyArray(),
+    )
+
     private fun Sticker.toCustomEmojiItem(): CustomEmojiItem? =
         (fullType as? StickerFullTypeCustomEmoji)?.let { CustomEmojiItem(id = it.customEmojiId, emoji = emoji) }
 
@@ -594,3 +659,6 @@ private fun StickerType.kind(): StickerSetKind? = when (this) {
     is StickerTypeCustomEmoji -> StickerSetKind.Emoji
     else -> null
 }
+
+/** Kolik vlastních sad načíst; víc TDLib najednou nedá a víc jich běžný uživatel nemá. */
+private const val OWNED_SETS_LIMIT = 100

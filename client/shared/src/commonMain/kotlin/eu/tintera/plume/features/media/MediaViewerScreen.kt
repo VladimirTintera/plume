@@ -141,6 +141,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.features.conversation.StickerSetSheet
 import eu.tintera.plume.resources.sticker_24dp
 import eu.tintera.plume.resources.media_attached_stickers
+import eu.tintera.plume.resources.media_make_sticker
 import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.media_profile_photo_report
 import eu.tintera.plume.resources.add_reaction_24dp
@@ -213,8 +214,16 @@ fun MediaViewerScreen(
      * a odkaz předá sem — otevírá ho konverzace pod ním.
      */
     onOpenSponsoredLink: (url: String) -> Unit = {},
+    /** Tvorba samolepky ze stažené fotky; `null` = tady se nenabízí. */
+    onMakeSticker: ((path: String, width: Int, height: Int) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val stickerSource = state.stickerSource
+    LaunchedEffect(stickerSource) {
+        val source = stickerSource ?: return@LaunchedEffect
+        viewModel.stickerSourceHandled()
+        onMakeSticker?.invoke(source.path, source.width, source.height)
+    }
     val videoAd by viewModel.videoAd.collectAsStateWithLifecycle()
     // Podklad je tmavý v obou motivech, takže i ikony lišt musí být světlé.
     DarkSystemBars()
@@ -298,6 +307,7 @@ fun MediaViewerScreen(
                 onAttachedStickers = viewModel::showAttachedStickers,
                 hasAttachedStickers = viewModel::hasAttachedStickers,
                 onRecognizeText = if (viewModel.canRecognizeText) viewModel::recognizeText else null,
+                onMakeSticker = if (viewModel.canMakeSticker && onMakeSticker != null) viewModel::makeSticker else null,
                 onToggleTextLine = viewModel::toggleTextLine,
                 onClearTextSelection = viewModel::clearTextSelection,
                 onCopyText = viewModel::copyRecognizedText,
@@ -426,6 +436,8 @@ private fun ViewerContent(
     hasAttachedStickers: (ViewerItem) -> Boolean,
     /** Text z fotky; `null` = platforma ho neumí. */
     onRecognizeText: ((messageId: Long) -> Unit)?,
+    /** Samolepka z fotky; `null` = platforma ji neumí, nebo není kam ji otevřít. */
+    onMakeSticker: ((messageId: Long) -> Unit)?,
     onToggleTextLine: (index: Int) -> Unit,
     onClearTextSelection: () -> Unit,
     onCopyText: () -> Unit,
@@ -806,6 +818,10 @@ private fun ViewerContent(
                     onRecognizeText = onRecognizeText
                         ?.takeIf { current.media is MessageMedia.Photo }
                         ?.let { recognize -> { recognize(current.messageId) } },
+                    // Totéž omezení: samolepka by fotku z chatu se zákazem ukládání vynesla ven.
+                    onMakeSticker = onMakeSticker
+                        ?.takeIf { current.media is MessageMedia.Photo }
+                        ?.let { make -> { make(current.messageId) } },
                     // Totéž omezení jako text z fotky: popis by obešel zákaz ukládání.
                     onDescribePhoto = onDescribePhoto
                         ?.takeIf { current.media is MessageMedia.Photo }
@@ -1023,6 +1039,7 @@ private fun TopBar(
     onDeleteProfilePhoto: () -> Unit,
     onReportProfilePhoto: () -> Unit,
     onRecognizeText: (() -> Unit)?,
+    onMakeSticker: (() -> Unit)?,
     onDescribePhoto: (() -> Unit)?,
     /** `null` = na médiu samolepky nejsou. */
     onAttachedStickers: (() -> Unit)? = null,
@@ -1102,6 +1119,7 @@ private fun TopBar(
         val recognizeText = onRecognizeText?.takeIf { canSave }
         val textShown = state.recognizedText?.messageId == item.messageId
         val describePhoto = onDescribePhoto?.takeIf { canSave }
+        val makeSticker = onMakeSticker?.takeIf { canSave }
         val descriptionShown = state.photoDescription?.messageId == item.messageId
         // Vlastní profilovky: starší jde nastavit zase jako hlavní (ta nejnovější hlavní je)
         // a každou smazat. Cizí profilovky a fotky skupin tohle nemají — TDLib to neumí.
@@ -1109,9 +1127,9 @@ private fun TopBar(
         val canSetMain = own && item.messageId != state.items.lastOrNull()?.messageId
         // Cizí profilovku jde nahlásit moderátorům, kde to TDLib dovolí.
         val reportable = item.messageId in state.reportablePhotos
-        if (canForward || canDelete || saveAs != null || own || reportable || recognizeText != null || describePhoto != null || onAttachedStickers != null) {
+        if (canForward || canDelete || saveAs != null || own || reportable || recognizeText != null || describePhoto != null || makeSticker != null || onAttachedStickers != null) {
             var menuOpen by remember { mutableStateOf(false) }
-            BusyOr(busy == MediaTask.SaveAs || busy == MediaTask.Text || busy == MediaTask.Describe) {
+            BusyOr(busy == MediaTask.SaveAs || busy == MediaTask.Text || busy == MediaTask.Describe || busy == MediaTask.Sticker) {
                 Box {
                     ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
                     ExpressiveMenu(
@@ -1135,6 +1153,9 @@ private fun TopBar(
                                 },
                                 onAttachedStickers?.let {
                                     MenuAction(stringResource(Res.string.media_attached_stickers), Res.drawable.sticker_24dp, onClick = it)
+                                },
+                                makeSticker?.let {
+                                    MenuAction(stringResource(Res.string.media_make_sticker), Res.drawable.sticker_24dp, onClick = it)
                                 },
                                 MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp, onClick = onForward).takeIf { canForward },
                                 saveAs?.let { MenuAction(stringResource(Res.string.media_save_as), Res.drawable.description_24dp, onClick = it) },

@@ -189,6 +189,9 @@ import eu.tintera.plume.core.navigation.ShareToChatRoute
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
+import eu.tintera.plume.core.navigation.StickerComposerRoute
+import org.koin.compose.getKoin
+import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.core.navigation.StoriesRoute
 import eu.tintera.plume.core.navigation.VideoChatRoute
 import eu.tintera.plume.core.navigation.StoryComposerRoute
@@ -220,6 +223,7 @@ import eu.tintera.plume.features.share.SharedContentStrip
 import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.features.share.ShareToChatScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
+import eu.tintera.plume.features.stickers.StickerComposerScreen
 import eu.tintera.plume.features.stories.StoriesScreen
 import eu.tintera.plume.features.videochat.VideoChatOverlay
 import eu.tintera.plume.features.videochat.VideoChatScreen
@@ -1402,6 +1406,11 @@ private fun shellEntryProvider(
                 onForward = { messageId ->
                     chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
                 },
+                // Samolepka z fotky: nad prohlížeč, zpět z ní vede k fotce.
+                onMakeSticker = { path, width, height ->
+                    val stack = if (chatsStack.lastOrNull() == route) chatsStack else settingsStack
+                    stack.add(StickerComposerRoute(path, width, height))
+                },
                 // Odpovědět jde jen tehdy, když prohlížeč leží přímo nad konverzací téhož chatu:
                 // z profilu (mřížka médií) nebo ankety by nebylo kam se vrátit.
                 onReply = conversationBelow(chatsStack, route)?.let { chatId ->
@@ -1447,6 +1456,16 @@ private fun shellEntryProvider(
                 parameters = { parametersOf(route.chatId, route.groupCallId) },
             ),
             onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<StickerComposerRoute> { route ->
+        StickerComposerScreen(
+            viewModel = koinViewModel(
+                key = "sticker-composer-${route.path}",
+                parameters = { parametersOf(route.path, route.width, route.height) },
+            ),
+            onBack = { chatsStack.pop(route) || settingsStack.pop(route) },
         )
     }
 
@@ -1754,10 +1773,17 @@ private fun shellEntryProvider(
     entry<StickerSetsRoute>(
         metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
+        val stickersCanBeMade = getKoin().getOrNull<StickerMaker>() != null
         StickerSetsScreen(
             kind = StickerSetKind.Stickers,
             viewModel = koinViewModel(key = "sticker-sets") { parametersOf(StickerSetKind.Stickers) },
             onBack = { settingsStack.pop(route) },
+            // Jen kde samolepku z fotky jde vyrobit (Android).
+            onCreateSticker = if (stickersCanBeMade) {
+                { path, width, height -> settingsStack.add(StickerComposerRoute(path, width, height)) }
+            } else {
+                null
+            },
         )
     }
 

@@ -432,6 +432,7 @@ kotlin {
             implementation(libs.play.code.scanner)
             // Text z fotky v prohlížeči médií — viz core/ocr.
             implementation(libs.play.text.recognition)
+            implementation(libs.play.subject.segmentation)
             // Překlad v telefonu — viz core/translation.
             implementation(libs.mlkit.translate)
             // Gemini Nano v zařízení. Jediné místo v projektu, kde smí být ML Kit GenAI — viz core/ai.

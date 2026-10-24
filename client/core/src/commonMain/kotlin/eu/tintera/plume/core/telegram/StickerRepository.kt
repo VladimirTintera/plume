@@ -128,6 +128,20 @@ interface StickerRepository {
     /** Obsah jedné sady. Načítá se až při otevření její záložky — sad bývá desítky. */
     suspend fun stickerSet(setId: Long): Result<List<StickerItem>>
 
+    /** Sady samolepek, které uživatel sám vytvořil — jen do nich jde přidávat. */
+    suspend fun ownedSets(): Result<List<OwnedStickerSet>> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Založí novou sadu [title] s první samolepkou. Jméno sady (odkaz `t.me/addstickers/…`)
+     * navrhne Telegram podle názvu.
+     */
+    suspend fun createSet(title: String, sticker: NewStickerFile): Result<OwnedStickerSet> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Přidá samolepku do vlastní sady (nejvýš [OwnedStickerSet.MAX_SIZE]). */
+    suspend fun addToSet(set: OwnedStickerSet, sticker: NewStickerFile): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     /** Sady samolepek nalepených na fotku nebo video [fileId] (`getAttachedStickerSets`). */
     suspend fun attachedStickerSets(fileId: Int): Result<List<StickerSetSummary>> =
         Result.failure(UnsupportedOperationException())
@@ -219,6 +233,30 @@ data class StickerSetDetail(
  * (`InternalLink.StickerSet`), takže kruh se uzavře i u příjemce s Plume.
  */
 fun stickerSetLink(name: String): String = "https://t.me/addstickers/$name"
+
+/** Vlastní sada samolepek (`getOwnedStickerSets`): sem jde přidávat. */
+data class OwnedStickerSet(
+    val id: Long,
+    /** Jméno v odkazu `t.me/addstickers/…`; podle něj se do sady přidává. */
+    val name: String,
+    val title: String,
+    val size: Int,
+    val cover: MessageMedia.Sticker?,
+) {
+    /** Sada je plná — další samolepku Telegram nepřijme. */
+    val isFull: Boolean get() = size >= MAX_SIZE
+
+    companion object {
+        /** Kolik běžných samolepek sada unese (`createNewStickerSet`: 1–120). */
+        const val MAX_SIZE = 120
+    }
+}
+
+/**
+ * Samolepka k nahrání: PNG nebo WebP, delší strana 512 px (WebP z PNG si udělá server),
+ * a 1–20 emoji, ke kterým se nabízí.
+ */
+data class NewStickerFile(val path: String, val emojis: String)
 
 /** Sada s ukázkou samolepek: v trendech a ve výsledcích hledání. */
 data class StickerSetSample(

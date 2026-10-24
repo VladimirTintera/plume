@@ -23,6 +23,8 @@ import eu.tintera.plume.core.translation.MlKitTranslator
 import eu.tintera.plume.core.translation.OnDeviceTranslator
 import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.ocr.MlKitTextRecognizer
+import eu.tintera.plume.core.stickers.AndroidStickerMaker
+import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.core.widget.ChatsWidgetUpdater
 import eu.tintera.plume.core.widget.AndroidHomeWidgets
 import eu.tintera.plume.core.widget.HomeWidgets
@@ -120,6 +122,8 @@ actual fun Module.platformModule() {
     single { WebFileDownloader(androidContext()) }
     single { MediaSaver(androidContext()) }
     single<TextRecognizer> { MlKitTextRecognizer() }
+    // Tvorba samolepky z fotky (odstranění pozadí přes ML Kit z Play služeb).
+    single<StickerMaker> { AndroidStickerMaker(androidContext()) }
     single<OnDeviceTranslator> { MlKitTranslator(androidContext()) }
     single<SpeechToText> { SystemSpeechToText(androidContext()) }
     single { MediaSharer(androidContext()) }
