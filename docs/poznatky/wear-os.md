@@ -108,6 +108,29 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   botem přes `sendVoice`, stažení) — „Pause" během přehrávání, po dohrání zpět „Play". Mikrofon
   emulátoru bez povolení hostitele nahrává ticho; skutečný zvuk a reproduktor hodinek neověřené.
 
+## Push a notifikace
+
+- **Vlastní push:** hodinky mají vlastní sezení, takže i vlastní FCM token (`WearPushRegistrar`
+  ho po přihlášení zaregistruje u TDLib) a vlastní službu (`WearMessagingService`: celý JSON do
+  `processPush`, počká na vydání). Hovory hodinky nemají.
+- **`google-services.json` je kopie z `androidApp`:** plugin ho čte jen z adresáře modulu a
+  hodinky mají stejné `applicationId`, takže platí tentýž soubor. Změní-li se projekt Firebase,
+  mění se oba. Bez souboru se hodinky přeloží, jen bez pushe.
+- **Notifikace kreslí `WearNotifications`** (telefonní presenter je ve `shared`): jedna na chat
+  (`MessagingStyle`, id = `notificationGroupId`), stažená skupina (přečteno jinde) zmizí, ťuknutí
+  otevře aplikaci. Název konverzace jen ve skupině — v soukromém chatu je odesílatel totéž co
+  název a titulek zněl „Notifikator: Notifikator". Odpověď z notifikace zatím není.
+- **O notifikace se Android 13+ ptá za běhu** — hodinky jednou, hned po přihlášení.
+- **Zrcadlení z telefonu** (`PhoneBridging`, `BridgingManager`): vypnuté, dokud jsou hodinky
+  přihlášené (jinak by každá zpráva přišla dvakrát), po odhlášení zase zapnuté.
+- **Ověřeno na emulátoru 2026-10-24:** FCM token a registrace u TDLib, přepnutí zrcadlení po
+  přihlášení, notifikace z TDLib s aplikací na pozadí (do 2 s).
+- **Neověřeno: doručení pushu s ukončeným procesem.** Po `am kill` (ne `force-stop`, ten FCM
+  zakáže) a zprávě od Notifikátora se FCM na emulátoru o doručení dvakrát ani nepokusil (150 s,
+  v logu žádné `c2dm`). Může to být emulátor (spojení Google Play služeb bez účtu a bez
+  spárovaného telefonu) i server (odklad pushe, když je účet aktivní jinde) — ověří až skutečné
+  hodinky. Zrcadlení z telefonu na emulátoru bez spárovaného telefonu ověřit nejde.
+
 ## Emulátor
 
 - AVD **`Plume_Wear`** (`wearos_large_round`, obraz `system-images;android-34;android-wear;arm64-v8a`,

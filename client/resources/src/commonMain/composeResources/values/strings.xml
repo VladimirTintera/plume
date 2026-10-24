@@ -4140,4 +4140,6 @@
     <string name="wear_voice_no_permission">Recording needs microphone access.</string>
     <string name="wear_voice_too_short">The voice message is too short.</string>
     <string name="wear_voice_failed">Couldn't record the voice message.</string>
+    <string name="wear_notification_channel">Messages</string>
+    <string name="wear_notification_me">You</string>
 </resources>

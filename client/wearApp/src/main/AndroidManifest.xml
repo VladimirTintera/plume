@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Nahrávání hlasovek mikrofonem hodinek; o oprávnění se žádá až na obrazovce nahrávání. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Vlastní notifikace z pushe (Android 13+ se na ně ptá za běhu, po přihlášení). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".WearApplication"
@@ -21,6 +23,14 @@
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
+
+        <service
+            android:name=".WearMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".MainActivity"
