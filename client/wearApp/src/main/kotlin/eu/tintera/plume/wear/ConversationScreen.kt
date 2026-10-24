@@ -1,5 +1,6 @@
 package eu.tintera.plume.wear
 
+import androidx.lifecycle.viewmodel.compose.viewModel
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.conversation_forwarded_from
@@ -125,16 +126,13 @@ import org.koin.core.qualifier.named
 
 private val logger = Logger.withTag("WearConversation")
 
-/** Kolik zpráv se načte při otevření — na hodinkách se dlouhá historie nečte. */
-private const val PAGE = 30
-
 /** Kolik položek od začátku seznamu (nadpis, indikátor) spustí dočtení starších zpráv. */
 private const val NEAR_TOP_ITEMS = 2
 
 private const val REPLY_KEY = "reply"
 
 /**
- * Konverzace: posledních [PAGE] zpráv, u začátku seznamu dočítá starší, nové doplňuje živě,
+ * Konverzace: posledních 30 zpráv, u začátku seznamu dočítá starší, nové doplňuje živě,
  * nejnovější je dole a na ni se seznam postaví. Odpověď má nad textem citaci. Otevřený chat se TDLib ohlásí (`openChat`) a zobrazené zprávy se hlásí jako přečtené —
  * jako na telefonu, kdo ji na hodinkách viděl, ten ji četl.
  *
@@ -156,11 +154,9 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     val listState by chats.chats().collectAsState()
     val title = chatTitle(chatId, (listState as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }?.title.orEmpty(), savedMessagesChatId())
 
-    var messages by remember(chatId) { mutableStateOf<List<ChatMessage>?>(null) }
-    var failed by remember(chatId) { mutableStateOf(false) }
-    // Dočítání starší historie: běží-li zrovna, a jestli už začátek chatu přišel.
-    var loadingOlder by remember(chatId) { mutableStateOf(false) }
-    var historyEnd by remember(chatId) { mutableStateOf(false) }
+    // Zprávy a odběry patří ViewModelu položky navigace: přežije výběr reakce, fotku i nahrávání
+    // (jinak se po návratu konverzace načetla znovu a sjela dolů), viz ConversationViewModel.
+    val model = viewModel(key = "conversation-$chatId") { ConversationViewModel(chatId, conversations, appScope) }
     // Tlačítko bota, u kterého se čeká na odpověď (zpráva, řádek, sloupec) — naráz jen jedno.
     var pressing by remember(chatId) { mutableStateOf<Triple<Long, Int, Int>?>(null) }
     // Odpověď bota jako poznámka pod konverzací; upozornění (alert) jako dialog k potvrzení.
@@ -168,92 +164,11 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     var botAlert by remember(chatId) { mutableStateOf<String?>(null) }
     var openedOnPhone by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    // Citované zprávy, které v načtené historii nejsou (dočtené z TDLib); null = zpráva neexistuje.
-    var quoted by remember(chatId) { mutableStateOf<Map<Long, ChatMessage?>>(emptyMap()) }
     // Poslední chyba odeslání nebo přehrání, jako poznámka pod konverzací.
     var problem by remember(chatId) { mutableStateOf<StringResource?>(null) }
     val playback = remember { VoicePlayback() }
-
-    fun upsert(message: ChatMessage) {
-        messages = (messages.orEmpty().filterNot { it.id == message.id } + message).sortedBy { it.id }
-    }
-
-    LaunchedEffect(chatId) {
-        conversations.openChat(chatId)
-        // Nové, upravené, smazané, potvrzené a reakce se odebírají DŘÍV než historie, ať se nic
-        // mezi tím neztratí.
-        launch {
-            conversations.newMessages(chatId).collect { message ->
-                upsert(message)
-                if (!message.isOutgoing) conversations.markRead(chatId, listOf(message.id))
-            }
-        }
-        launch {
-            conversations.editedMessages(chatId).collect { edited ->
-                messages = messages?.map { if (it.id == edited.id) edited else it }
-            }
-        }
-        launch {
-            conversations.deletedMessages(chatId).collect { ids -> messages = messages?.filterNot { it.id in ids } }
-        }
-        launch {
-            // TDLib po potvrzení zprávě změní id: dočasnou je potřeba nahradit, ne aktualizovat.
-            conversations.sentMessageUpdates(chatId).collect { update ->
-                val (oldId, message) = when (update) {
-                    is SentMessageUpdate.Succeeded -> update.oldMessageId to update.message
-                    is SentMessageUpdate.Failed -> update.oldMessageId to update.message
-                }
-                messages = (messages.orEmpty().filterNot { it.id == oldId || it.id == message.id } + message).sortedBy { it.id }
-            }
-        }
-        launch {
-            conversations.interactionUpdates(chatId).collect { change ->
-                messages = messages?.map { if (it.id == change.messageId) it.copy(reactions = change.reactions) else it }
-            }
-        }
-        loadHistory(conversations, chatId)
-            .onSuccess { loaded ->
-                messages = (loaded + messages.orEmpty()).distinctBy { it.id }.sortedBy { it.id }
-                if (loaded.isNotEmpty()) conversations.markRead(chatId, loaded.map { it.id })
-            }
-            .onFailure {
-                logger.w(it) { "Historie chatu $chatId se na hodinkách nenačetla." }
-                failed = true
-            }
-    }
-    // Zavření běží v aplikačním scope: scope obrazovky v onDispose už je zrušený.
-    DisposableEffect(chatId) {
-        onDispose {
-            playback.stop()
-            appScope.launch { conversations.closeChat(chatId) }
-        }
-    }
-
-    val loadOlder: () -> Unit = loadOlder@{
-        val oldest = messages?.firstOrNull { it.sendState == null }?.id ?: return@loadOlder
-        if (loadingOlder || historyEnd) return@loadOlder
-        loadingOlder = true
-        scope.launch {
-            loadHistory(conversations, chatId, fromMessageId = oldest)
-                .onSuccess { older ->
-                    if (older.isEmpty()) historyEnd = true
-                    messages = (older + messages.orEmpty()).distinctBy { it.id }.sortedBy { it.id }
-                }
-                .onFailure { logger.w(it) { "Starší historie chatu $chatId se na hodinkách nenačetla." } }
-            loadingOlder = false
-        }
-    }
-
-    // Citace odpovědi bere zprávu z načtené historie; co v ní není, dočte jednou z TDLib.
-    LaunchedEffect(chatId, messages) {
-        val loaded = messages.orEmpty()
-        val missing = loaded.mapNotNull { it.replyToMessageId }
-            .filter { id -> id !in quoted && loaded.none { it.id == id } }
-            .distinct()
-        if (missing.isEmpty()) return@LaunchedEffect
-        val fetched = missing.associateWith { id -> conversations.message(chatId, id).getOrNull() }
-        quoted = quoted + fetched
-    }
+    // Přehrávání patří obrazovce: s odchodem z ní (i na výběr reakce) skončí.
+    DisposableEffect(chatId) { onDispose { playback.stop() } }
 
     val phoneOnly = stringResource(Res.string.wear_bot_button_phone_only)
     val openedOnPhoneText = stringResource(Res.string.wear_opened_on_phone)
@@ -303,7 +218,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
                 conversations.send(chatId, text, replyToMessageId = null)
                     .onSuccess {
                         problem = null
-                        upsert(it)
+                        model.upsert(it)
                     }
                     .onFailure {
                         logger.w(it) { "Odpověď z hodinek do chatu $chatId neodešla." }
@@ -336,15 +251,15 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
         }
     }
 
-    val current = messages
+    val current = model.messages
     when {
-        failed && current.isNullOrEmpty() -> MessageScreen(stringResource(Res.string.conversation_history_failed))
+        model.failed && current.isNullOrEmpty() -> MessageScreen(stringResource(Res.string.conversation_history_failed))
         current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
         else -> MessageList(
             title = title,
             messages = current,
-            quoted = quoted,
-            loadingOlder = loadingOlder,
+            quoted = model.quoted,
+            loadingOlder = model.loadingOlder,
             problem = problem,
             playingId = playback.playingId,
             onReply = onReply,
@@ -352,7 +267,9 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             onRecord = onRecord,
             onPlay = onPlay,
             onOpenPhoto = onOpenPhoto,
-            onNearTop = loadOlder,
+            onNearTop = model::loadOlder,
+            scrolledToId = model.scrolledToId,
+            onScrolledTo = { model.scrolledToId = it },
             pressing = pressing,
             botNote = botNote,
             onBotButton = onBotButton,
@@ -409,10 +326,20 @@ private fun MessageList(
     onBotButton: (ChatMessage, Int, Int, BotButton) -> Unit,
     onOpenLink: (String) -> Unit,
     onVote: (messageId: Long, answers: List<Int>) -> Unit,
+    scrolledToId: Long?,
+    onScrolledTo: (Long?) -> Unit,
 ) {
     val state = rememberTransformingLazyColumnState()
-    // Na nejnovější zprávu (dole) při otevření i s každou další.
-    LaunchedEffect(messages.lastOrNull()?.id) { state.scrollToItem(messages.size + 2) }
+    // Na nejnovější zprávu (dole) při otevření a s každou novou — ale ne po návratu z výběru
+    // reakce, fotky nebo nahrávání: tam pozici drží uložený stav seznamu a sjet dolů by uživatele
+    // odvezlo od zprávy, na kterou reagoval.
+    val lastId = messages.lastOrNull()?.id
+    LaunchedEffect(lastId) {
+        if (lastId != scrolledToId) {
+            state.scrollToItem(messages.size + 2)
+            onScrolledTo(lastId)
+        }
+    }
     // U začátku seznamu dočíst starší zprávy. Zprávy mají klíče, takže vložené nahoře seznam
     // neposunou — uživatel zůstane na zprávě, kterou četl.
     LaunchedEffect(state) {
@@ -733,21 +660,3 @@ private fun replyInput(title: String, label: String, quickReplies: List<String>)
         RemoteInputIntentHelper.putTitleExtra(intent, title)
     }
 
-/**
- * [PAGE] zpráv starších než [fromMessageId] (0 = nejnovější). `getChatHistory` vrací TDLib často jen to, co má v lokální
- * databázi (klidně jednu zprávu), takže se dočítá od nejstarší, dokud stránka není plná nebo
- * historie neskončí.
- */
-private suspend fun loadHistory(conversations: ConversationRepository, chatId: Long, fromMessageId: Long = 0L): Result<List<ChatMessage>> = runCatching {
-    val loaded = mutableListOf<ChatMessage>()
-    var from = fromMessageId
-    repeat(3) {
-        if (loaded.size >= PAGE) return@runCatching loaded
-        val page = conversations.history(chatId, fromMessageId = from, limit = PAGE - loaded.size).getOrThrow()
-            .filterNot { message -> loaded.any { it.id == message.id } }
-        if (page.isEmpty()) return@runCatching loaded
-        loaded += page
-        from = loaded.minOf { it.id }
-    }
-    loaded
-}
