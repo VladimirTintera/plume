@@ -8,7 +8,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.notifications.ReplyState
-import eu.tintera.plume.core.telegram.NotificationPresenter
+import eu.tintera.plume.core.notifications.NotificationPresenter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

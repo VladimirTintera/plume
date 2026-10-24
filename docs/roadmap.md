@@ -222,8 +222,7 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 
 ## Rozdělení `:client:shared`: vrstva kolem TDLib do `:client:core`
 
-**Kdy: po dokončení hovorů.** Přesun sahá na `core/calls` a `TdlCallRepository`, na kterých
-se právě pracuje; souběžně by se to slévalo s bolestí.
+**Rozpracované** (od 24. 10. 2026, po dokončení hovorů), po krocích níž, každý vlastní PR.
 
 **Proč i bez Wear OS:** hranice kolem TDLib a wrapperu (nejdůležitější pravidlo projektu) dnes
 drží jen dohoda. Po rozdělení je wrapper závislost jen modulu `core` a `import dev.g000sha256.tdl.*`
@@ -236,13 +235,28 @@ Dělit po vrstvách, ne po funkcích: funkce mají mezi sebou cykly (chats ↔ c
 
 ```
 client/
-  core/        :client:core    – TDLib a doménová rozhraní, settings, secrets, connectivity,
-                                 logging, UiText a texty s překlady
-  shared/      :client:shared  – features, téma, navigace, komponenty; Haze, Coil, adaptive,
-                                 Media3, CameraX, ML Kit, LiteRT, Glance, Play, Crashlytics, ntgcalls
+  resources/   :client:resources – composeResources (texty, ikony, fonty), Res, plume.translations
+  core/        :client:core      – core/telegram a co táhne: rozhraní hovorů, connectivity, secrets,
+                                   formátování textů (UiText), BuildConfiguration; jediný s TDLib
+  core-testing/ :client:core-testing – náhražky typů z core (Fake…, Unimplemented…, testMessage)
+  shared/      :client:shared    – features, téma, navigace, komponenty, AppSettings, notifikace;
+                                   Haze, Coil, Media3, CameraX, ML Kit, LiteRT, Glance, Play, ntgcalls
   androidApp, desktopApp, iosApp – jako dnes, nad :client:shared
-  wearApp      :client:wearApp – jen :client:core a Compose for Wear OS
+  wearApp      :client:wearApp   – jen :client:core (+ resources) a Compose for Wear OS
 ```
+
+**Rozhodnuto (24. 10. 2026):** prostředky ve vlastním modulu, ne v `core` (hranice kolem TDLib by
+jinak nesla ikony a fonty aplikace); náhražky v `:client:core-testing`, ne kopie; **balíčky beze
+změny** — `core.ui`, `core.calls` a další budou rozdělené mezi dva moduly, Kotlin to unese
+a přejmenování by byly stovky importů bez užitku; `AppSettings` zůstává ve `shared`
+(repository ho nepotřebují).
+
+**Co do `core` patří, změřeno** (graf závislostí mezi soubory od `core/telegram`, s viditelností
+source setů a `expect`/`actual`): po kroku 3a ~200 souborů a ~39 tisíc řádků, z toho 36 tisíc
+`core/telegram`; žádné Compose UI, ML Kit, LiteRT, CameraX, Glance, Media3, Coil, Haze ani ntgcalls.
+Z `core/ui` jen formátování textů (`UiText`, `ResourceStrings`, `TimeFormat`, `Durations`,
+`Distances`, `NumberFormat`, `DateTimeText`, `FileSizeText`, `SearchHighlight`, štítky stavu
+a aktivity). `TimeFormat` → `KeyboardShortcuts` v grafu je falešná shoda jména `label`.
 
 **Výchozí stav (říjen 2026):** shared má ~190 tisíc řádků (`features` 127 tisíc, `core` 61 tisíc,
 z toho `core/telegram` 36 tisíc). `core/telegram` z `features` neimportuje nic; z ostatního `core`
@@ -255,14 +269,19 @@ bez Compose UI.
 
 **Kde to drhne:**
 
-- **Texty.** `UiText` odkazuje do `Res`, který se generuje pro každý modul zvlášť. Texty
-  s překlady do `core` (cesty pro Weblate, `verifyTranslations`, generování iOS
-  `Localizable.strings`), `publicResClass = true`, ve `features` změnit import `Res` — mechanicky,
-  ve stovkách souborů. Ikony a fonty zůstanou v UI modulu. Největší riziko celého přesunu.
-- **Hovory.** `TdlCallRepository` mluví s `CallMedia` (za ním ntgcalls). Do `core` jen rozhraní,
-  implementace v UI modulu (nebo `:client:calls`) a zapojí se přes Koin; Wear hovory nemá.
-- **Notifikace.** `NotificationPresenter` staví notifikace pro telefon (Direct Share, zkratky);
-  hodinky chtějí vlastní, takže za rozhraní.
+- **Texty a `Res`.** `Res` se generuje pro každý modul zvlášť a 219 souborů bere přes jeden
+  `Res` texty i ikony — texty v `core` a ikony ve `shared` by znamenaly dvě třídy `Res` (ve
+  stejném balíčku to nejde) a aliasy importů. Proto všechny prostředky do `:client:resources`
+  se stejným balíčkem `Res` (`eu.tintera.plume.resources`): ve `features` se nezmění import.
+  Riziko je za běhu — prostředky z jiného modulu se musí zabalit na Androidu, iOS i desktopu.
+  **Cestu v komponentě na Weblate přepsat ručně** (z repa nejde).
+- **Hovory.** `TdlCallRepository` mluví s `CallMedia` — rozhraní v `core/calls`, implementace
+  s ntgcalls zůstává ve `shared` a zapojí se přes Koin (dnes už je to tak); Wear hovory nemá.
+- ~~**Notifikace**~~ — hotovo v kroku 3a: `NotificationPresenter` je v `core/notifications`
+  ve `shared`. Rozhraní netřeba, `core` ho nevolá — je to konzument `NotificationRepository`.
+- **`internal`** přestane platit napříč moduly: ~40 jmen z budoucího `core` používá zbytek
+  aplikace (část falešné shody obecných slov), zbytek se při kroku 3c zveřejní podle chyb
+  překladu. Signatura s typem z TDLib by tím vyplavala jako chyba — to je správně.
 - ~~**Gradle a hook `TdlibJsonRepair`**~~ — hotovo: kontroly, jazyky a hook jsou konvenční
   pluginy v `build-logic/` (CLAUDE.md, „Struktura modulů"); `wearApp` si vezme
   `plume.tdlib-android`. Konvence pro cíle KMP zatím není — s jedním KMP modulem by neměla
@@ -270,10 +289,11 @@ bez Compose UI.
 - **iOS dál jeden framework** z UI modulu, `core` se do něj zabalí (dva frameworky = dva
   runtime). Pravidlo „jediný modul s KMP pluginem" v `CLAUDE.md` se přepíše.
 - **Koin:** `core` dodá svůj modul (eager repository s `createdAtStart` zůstávají v něm), UI zbytek.
-- **Testovací náhražky.** Náhražky typů z `core` (`FakeChatRepository`, `testMessage`) leží
-  v testech `core`, ale používají je hlavně testy `features`. Testy jednoho KMP modulu druhý
-  nevidí, takže po rozdělení buď malý modul `:client:core-testing` (náhražky v `commonMain`),
-  nebo kopie — rozhodnout při kroku 3.
+- **Testovací náhražky** typů z `core` (`Fake…`, `Unimplemented…`, `testMessage`) používají
+  hlavně testy `features` (~57 souborů), testy `core` jen třikrát — `:client:core-testing`
+  (náhražky v `commonMain`), na kterém visí testy obou modulů.
+- **iOS:** všechno, co volá Swift (`IosPush`, `IosLinks`, AI od Applu, `MainViewController`),
+  zůstává ve `shared` — framework `export` nepotřebuje.
 - **Mimo `core`/`features` zbývá:** `TdlTelegramSession` čte `BuildConfiguration` (buildConfig
   s api_id půjde s ním do `core`) a `core/ui/HideSystemBars.ios.kt` bere `StatusBarHost`
   z kořenového balíčku (`core/ui` zůstává v UI modulu, takže nevadí).
@@ -282,9 +302,17 @@ bez Compose UI.
 
 1. ~~`build-logic` s konvenčními pluginy~~ — hotovo (kontroly, jazyky, hook).
 2. ~~Rozpojit místa, kde `core` sahá do `features`~~ — hotovo, hlídá `verifyCoreLayering`.
-3. Vyčlenit `:client:core`: `git mv` (ať zůstane historie), texty (s nimi `plume.translations`
-   a `generateLocaleConfig` v androidApp, který dnes čte cestu do `client/shared/build`), Koin,
-   rozhraní hovorů a notifikací, konvence pro cíle KMP.
+3. Vyčlenit `:client:core`, ve třech PR:
+   - **3a** ~~`NotificationPresenter` ven z `core/telegram`, `GeoPoint` a `PhoneContact` do
+     vlastních souborů~~ — hotovo; uzávěr `core/telegram` spadl z 325 souborů na ~200.
+   - **3b** `:client:resources`: všechny `composeResources`, `plume.translations`, seznam
+     jazyků, `generateLocaleConfig` v androidApp (dnes čte cestu do `client/shared/build`),
+     cesty pro Weblate a `release_notes.py exempt`. Ověřit na emulátoru, iOS i desktopu, že se
+     texty, ikony a fonty načtou.
+   - **3c** `:client:core`: `git mv` uzávěru (ať zůstane historie), `tdl-coroutines` jen tady
+     (`implementation`), `BuildConfiguration`, `coreModule()` v Koinu, `internal` → veřejné podle
+     chyb překladu, testy `core` a `:client:core-testing`, konvence pro cíle KMP, CLAUDE.md
+     (hranice TDLib vynucená modulem, pravidlo „jediný modul s KMP pluginem" padá).
 4. Pak případně `:client:wearApp` (MVP v sekci Wear OS).
 
 ## Wear OS

@@ -44,7 +44,7 @@ import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.snooze.SnoozeReminders
-import eu.tintera.plume.core.telegram.NotificationPresenter
+import eu.tintera.plume.core.notifications.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.DesktopSquarePhoto

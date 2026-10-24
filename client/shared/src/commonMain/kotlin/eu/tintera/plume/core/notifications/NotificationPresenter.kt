@@ -1,4 +1,6 @@
-package eu.tintera.plume.core.telegram
+package eu.tintera.plume.core.notifications
+
+import eu.tintera.plume.core.telegram.NotificationRepository
 
 /**
  * Zobrazuje notifikace v systému.

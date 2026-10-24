@@ -1,19 +1,17 @@
-package eu.tintera.plume.core.telegram
+package eu.tintera.plume.core.notifications
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
-import eu.tintera.plume.core.notifications.CallButtons
-import eu.tintera.plume.core.notifications.DesktopNotification
-import eu.tintera.plume.core.notifications.DesktopNotifier
-import eu.tintera.plume.core.notifications.NotificationActions
-import eu.tintera.plume.core.notifications.NotificationButtons
-import eu.tintera.plume.core.notifications.ReplyState
-import eu.tintera.plume.core.notifications.ToastActivation
 import eu.tintera.plume.core.platform.DesktopTaskbar
 import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.snooze.ChatSnoozes
+import eu.tintera.plume.core.telegram.ChatNotification
+import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.IncomingCall
+import eu.tintera.plume.core.telegram.NotificationRepository
+import eu.tintera.plume.core.telegram.NotificationUpdate
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_answer

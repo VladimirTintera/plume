@@ -4,7 +4,7 @@ import eu.tintera.plume.core.logging.configureLogging
 import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.core.storage.StorageCleaner
 import eu.tintera.plume.core.telegram.ConnectionController
-import eu.tintera.plume.core.telegram.NotificationPresenter
+import eu.tintera.plume.core.notifications.NotificationPresenter
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.TelegramSession
 import kotlinx.coroutines.CoroutineScope

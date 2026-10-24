@@ -2,9 +2,6 @@ package eu.tintera.plume.core.contacts
 
 import androidx.compose.runtime.Composable
 
-/** Kontakt z adresáře telefonu: číslo, jak je v adresáři, a jméno ke spárování v Telegramu. */
-data class PhoneContact(val phoneNumber: String, val firstName: String, val lastName: String)
-
 /**
  * Adresář telefonu pro synchronizaci kontaktů (`ContactSyncer`). Jen tam, kde ho platforma
  * vydá (Android); jinde se nezaregistruje a synchronizace se nenabízí.

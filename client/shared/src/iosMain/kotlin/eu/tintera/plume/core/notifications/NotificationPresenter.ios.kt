@@ -1,8 +1,11 @@
-package eu.tintera.plume.core.telegram
+package eu.tintera.plume.core.notifications
 
-import eu.tintera.plume.core.snooze.SNOOZE_REMINDER_PREFIX
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.notifications.pushChatId
+import eu.tintera.plume.core.snooze.SNOOZE_REMINDER_PREFIX
+import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.ChatListState
+import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.NotificationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
