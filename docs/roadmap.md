@@ -230,8 +230,9 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
 **Jak by to bylo poskládané:**
 
 - **Tenký modul `:client:wearApp`** (`com.android.application`) vedle `androidApp`, nad
-  `:client:shared`: hranice kolem TDLib, repository, ViewModely, `UiText` i překlady se sdílí.
-  Rozdělení modulů kvůli AGP 9 tomu nahrává.
+  `:client:core` (viz „Rozdělení `:client:shared`" níž): hranice kolem TDLib, repository,
+  `UiText` i překlady se sdílí. ViewModely má vlastní — obrazovky jsou jiné a ty telefonní
+  leží ve `features`. Rozdělení modulů kvůli AGP 9 tomu nahrává.
 - **UI celé vlastní** v Compose for Wear OS (`androidx.wear.compose:compose-material3`,
   Expressive varianta): seznamy pro kulatý displej, `EdgeButton`, otočná korunka. Z `features/`
   se použije málo.
