@@ -455,10 +455,12 @@ private fun MessageBubble(
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
-            reactionsLine(message.reactions)?.let {
-                Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-            }
-            Text(message.timestamp.asTimeOfDay(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ReactionsAndStatus(
+                reactions = message.reactions,
+                status = message.timestamp.asTimeOfDay(),
+                statusColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                fill = false,
+            )
         }
         return
     }
@@ -550,16 +552,38 @@ private fun MessageBubble(
                 )
             }
             message.keyboard?.let { MessageBotKeyboard(it, pressing, onBotButton) }
-            reactionsLine(message.reactions)?.let {
-                Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-            }
-            Text(
-                status,
-                style = MaterialTheme.typography.labelSmall,
-                color = if (message.sendState == SendState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.End),
+            ReactionsAndStatus(
+                reactions = message.reactions,
+                status = status,
+                statusColor = if (message.sendState == SendState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+/**
+ * Reakce a čas v JEDNOM řádku: reakce vlevo, čas vpravo, jako na telefonu. Dřív měl každý svůj
+ * řádek a na malém displeji to bublinu zbytečně natahovalo (připomínka uživatele z Pixel Watch).
+ * Delší řada reakcí se zalomí ve své části řádku, čas zůstane vpravo dole. Bez reakcí je čas
+ * sám vpravo. [fill] = přes celou šířku bubliny; u samolepky a kolečka (bez bubliny) jen podle
+ * obsahu, ať čas nestojí na opačném kraji displeje.
+ */
+@Composable
+private fun ReactionsAndStatus(reactions: List<MessageReaction>, status: String, statusColor: Color, fill: Boolean = true) {
+    val line = reactionsLine(reactions)
+    Row(if (fill) Modifier.fillMaxWidth() else Modifier, verticalAlignment = Alignment.Bottom) {
+        if (line != null) {
+            Text(
+                line,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = if (fill) Modifier.weight(1f) else Modifier.weight(1f, fill = false),
+            )
+            Spacer(Modifier.width(6.dp))
+        } else if (fill) {
+            Spacer(Modifier.weight(1f))
+        }
+        Text(status, style = MaterialTheme.typography.labelSmall, color = statusColor, maxLines = 1)
     }
 }
 
