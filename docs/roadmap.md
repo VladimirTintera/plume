@@ -361,10 +361,10 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
 výběru); dlaždice s posledními / připnutými chaty, ~~`localeConfig` pro jazyk aplikace na hodinkách~~ —
 hotovo (plugin `plume.locale-config`),
 ~~`units: wear` v poznámkách k vydání a release workflow~~ — hotovo (track `wear:internal`,
-`versionCode` + 100 000 000, minifikovaný release). **Zbývá ručně:** povolit Wear OS v Play
-Console (Nastavení → Rozšířená nastavení → Formáty), nastavit repo proměnnou `WEAR_RELEASE =
-true` a nahrát snímky pro hodinky do záznamu (Play Listing je zatím neumí); pak přísnější
-kontrola kvality od Googlu. Hovory, média, nastavení a správa
+`versionCode` + 100 000 000, minifikovaný release); Wear OS povolený v Play Console,
+`WEAR_RELEASE` nastavená, první vydání (0.3.100) je v interním testu. **Zbývá:** snímky pro
+hodinky z testovacích účtů do záznamu (ručně, Play Listing je zatím neumí), instalace z Play na
+skutečné hodinky a pak přihlášení k distribuci pro Wear OS s kontrolou kvality od Googlu. Hovory, média, nastavení a správa
 skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpovědí jen ze systému.
 
 **Rizika, ověřit napřed:**

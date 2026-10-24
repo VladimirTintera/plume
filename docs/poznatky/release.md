@@ -94,7 +94,17 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
 - **`versionCode` hodinek = číslo z tagu + 100 000 000** (`plumeRelease { versionCodeOffset }`).
   Play nevezme dva bundly se stejným číslem v jednom záznamu, ani pro jiný formát zařízení.
   Vyšší číslo hodinek telefonu nic nezastíní: bundl hodinek má `uses-feature` watch a telefon
-  ho nedostane.
+  ho nedostane. **Posun už nejde zmenšit**: hodinky jsou v Play od verze 100000138 a každá další
+  musí mít vyšší číslo, jinak by se na hodinkách neaktualizovala.
+- **Kanál „Interní testování (Wear OS)" má vlastní seznam testerů** — ten z telefonu nepřebírá
+  a interní testery u něj je potřeba zaškrtnout zvlášť, jinak si aplikaci na hodinkách nikdo
+  nestáhne.
+- **Postup v Play Console** (Rozšířená nastavení → Typ zařízení → Wear OS) má tři kroky: snímky
+  obrazovky z Wear OS pro všechny záznamy v obchodě, vydání bundlu pro Wear OS v testovacím kanálu
+  a nakonec přihlášení k distribuci pro Wear OS se souhlasem se zásadami kontroly. Třetí krok se
+  odemkne až po prvních dvou a je potřeba až pro veřejné vydání; interní test na snímcích
+  nezávisí. **Snímky se dělají z testovacích účtů** (na hodinkách přihlášených QR kódem
+  z testovacího telefonu), ne ze skutečného — seznam chatů by ukázal jména kontaktů.
 - **Verze, podpis a `verifyReleaseConfiguration` jsou v pluginu `plume.android-release`**
   (`build-logic/…/AndroidRelease.kt`) pro telefon i hodinky. Hodnoty se nastavují ve
   `finalizeDsl`, tedy až po build skriptu modulu, aby platil jeho `plumeRelease { … }`.
@@ -109,8 +119,10 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   má `ro.debuggable=1`; přihlášení zůstane.
 - **Ověřeno na emulátoru 2026-10-24** (release přepodepsaný debug klíčem): seznam chatů,
   konverzace, notifikace se dvěma akcemi a Přečteno, dlaždice, obnova po `am kill`. Podpis
-  obou AAB týmž upload klíčem (`keytool -printcert -jarfile`). **Upload do Play neověřený** —
-  čeká na povolení Wear OS v Play Console a `WEAR_RELEASE`.
+  obou AAB týmž upload klíčem (`keytool -printcert -jarfile`).
+- **První vydání 2026-10-24** (`android-0.3.100-138`): workflow nahrál bundl hodinek na
+  `wear:internal` jako 100000138, „Dostupné interním testerům" na 82 zařízeních. Instalace na
+  skutečné hodinky z Play zatím neověřená.
 
 ## Self-hosted runnery
 
