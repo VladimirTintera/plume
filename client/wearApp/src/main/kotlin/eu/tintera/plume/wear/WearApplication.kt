@@ -5,6 +5,7 @@ import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionController
+import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.TelegramSession
 import kotlinx.coroutines.CoroutineScope
@@ -47,5 +48,6 @@ class WearApplication : Application() {
         PhoneBridging(this, appScope).start(session)
         // Počet nepřečtených pro dlaždici a komplikaci (kreslí je systém i bez běžícího procesu).
         UnreadCountPublisher(this, appScope).start(session, koin.get<ChatRepository>())
+        RecentChatsPublisher(this, appScope, koin.get<FileRepository>()).start(session, koin.get<ChatRepository>())
     }
 }

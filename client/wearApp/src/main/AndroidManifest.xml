@@ -49,6 +49,17 @@
             </intent-filter>
         </service>
 
+        <!-- Dlaždice s chaty ze začátku seznamu (RecentChatsTileService). -->
+        <service
+            android:name=".RecentChatsTileService"
+            android:exported="true"
+            android:label="@string/tile_chats_label"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
         <!-- Komplikace na ciferník; obnovu si vyžádá UnreadCountPublisher, pravidelná není. -->
         <service
             android:name=".UnreadComplicationService"
@@ -70,6 +81,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:taskAffinity="">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -4156,4 +4156,9 @@
         <item quantity="other">%1$d unread chats</item>
     </plurals>
     <string name="wear_complication_signed_out">Plume: not signed in</string>
+    <string name="wear_tile_all_chats">All chats</string>
+    <plurals name="wear_tile_new_messages">
+        <item quantity="one">%1$d new message</item>
+        <item quantity="other">%1$d new messages</item>
+    </plurals>
 </resources>

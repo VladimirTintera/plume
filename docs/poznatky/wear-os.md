@@ -186,6 +186,38 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   na komplikaci otevřely aplikaci, po `am kill` se dlaždice nakreslila z nově spuštěného procesu.
   Neověřené: stav bez přihlášení (vyžaduje odhlášení), skutečné hodinky.
 
+## Dlaždice s chaty
+
+- **`RecentChatsTileService`**: nadpis „Chaty", pod ním chaty ze začátku hlavního seznamu jako
+  `avatarButton` (fotka, název, pod ním „N nových zpráv", a když nic nečeká, náhled poslední
+  zprávy), dole `textEdgeButton` „Všechny chaty". Začátek seznamu = připnuté a pak podle poslední
+  zprávy, tedy totéž co nahoře v aplikaci.
+- **Dva řádky, tři až od výšky 260 dp.** Na emulátoru (227 dp) se třetí s tlačítkem dole nevešel.
+- **Podklady v souboru** (`RecentChatsState`, SharedPreferences `wear_recent_chats`, JSON), zapisuje
+  `RecentChatsPublisher` jako u počtu nepřečtených: jen v jasných stavech, po vteřině klidu,
+  a jen když se změní, co dlaždice ukazuje (id, název, počet, náhled, fotka) — seznam se mění
+  s každou zprávou kdekoli. Náhled je přeložený při zápisu a bez zalomení řádků (jeden řádek).
+- **Fotky jsou miniatury 96 px připravené při zápisu** (`filesDir/tile/avatars/<fileId>.png`,
+  čtverec ze středu, ořez do kruhu dělá `avatarImage`); na stažení se čeká nejvýš 5 s, pak
+  iniciála na `primaryContainer`. Nepoužívané se po zápisu smažou.
+- **Fotky dodává `onTileResourcesRequest`, ne automatická registrace** (`Material3TileService`,
+  `avatarImage(ImageResource)` s `ProtoLayoutScope`). S rendererem **1.300** (emulátor Wear OS 5)
+  prostředky ze scope do balíčku nedorazily: „Resource avatar-… is not defined in resources
+  bundle" v logu systému, místo fotky prázdno a knihovna sama nezalogovala nic. Klasická cesta:
+  verze prostředků = otisk jmen miniatur, obrázky jako `InlineImageResource` s komprimovaným PNG
+  (formát neurčený). Verzi rendereru ukáže `requestParams.deviceConfiguration.rendererSchemaVersion`.
+- **Sloupec tlačítek musí mít šířku `expand`.** `avatarButton` je `expand` a sloupec s výchozím
+  `wrap` renderer zahodil celý („Column set to wrap but contents are unmeasurable") — dlaždice
+  měla jen nadpis a tlačítko.
+- **Ťuknutí na chat otevře konverzaci** (`LaunchAction` s `AndroidLongExtra`
+  `MainActivity.EXTRA_CHAT_ID`), nad seznamem chatů, takže tah zpět vede do seznamu. **Aktivita je
+  `singleTop`**: když aplikace běží, systém ji jen přivede dopředu a bez `onNewIntent` by extra
+  zůstalo nepřečtené. Po obnově procesu (`savedInstanceState`) se nenaviguje podruhé.
+- **Ověřeno na emulátoru 2026-10-24** (anglicky): dlaždice s Notifikátorem (iniciála, „1 new
+  message") a kanálem s fotkou, obnova po zprávě od bota, ťuknutí otevřelo konverzaci Notifikátora
+  ze studeného startu i s aplikací na pozadí (jedna instance aktivity), tah zpět do seznamu.
+  Neověřené: stav bez přihlášení, chat s nestaženou fotkou, skutečné hodinky.
+
 ## Vydání
 
 Postup a pasti jsou v `release.md`, „Hodinky (Wear OS)": track `wear:internal` z tagu Androidu,
