@@ -88,6 +88,8 @@ dependencies {
     // Zadání hesla (dvoufázové ověření) systémovou klávesnicí hodinek — Wear Compose pole nemá.
     implementation(libs.wear.input)
     implementation(libs.androidx.activity.compose)
+    // Stav konverzace ve ViewModelu položky navigace (přežije výběr reakce a vrátí se na místo).
+    implementation(libs.androidx.lifecycle.viewmodelCompose)
 
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kermit)

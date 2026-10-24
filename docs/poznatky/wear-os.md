@@ -62,6 +62,16 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
 
 ## Konverzace
 
+- **Stav konverzace je ve ViewModelu položky navigace** (`ConversationViewModel`: zprávy, odběry,
+  dočítání historie, citace). Výběr reakce, fotka přes celý displej a nahrávání jsou samostatné
+  cesty a obrazovka konverzace při nich opustí kompozici; se stavem v `remember` se po návratu
+  načetla znovu a sjela na nejnovější zprávu — reakce na starší zprávu uživatele vždycky vrátila
+  dolů (nahlášeno z Pixel Watch). Pozici drží `rememberTransformingLazyColumnState` (je
+  `rememberSaveable`), dolů se sjíždí jen s opravdu novou zprávou (`scrolledToId` ve ViewModelu).
+  `openChat` při vzniku ViewModelu, `closeChat` až v `onCleared` — chat zůstává otevřený i během
+  výběru reakce. Přehrávání hlasovky patří obrazovce a s odchodem z ní skončí.
+  Ověřeno na emulátoru: reakce na starší zprávu i zavření fotky vrátí na totéž místo, nová zpráva
+  dolů sjede.
 - **Jen pro čtení** (`ConversationScreen`): posledních 30 zpráv, nejnovější dole a seznam se na
   ni postaví při otevření i s každou novou. Nové, upravené a smazané zprávy se odebírají DŘÍV
   než historie, ať se mezi tím nic neztratí.
