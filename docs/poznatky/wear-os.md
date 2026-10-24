@@ -143,6 +143,23 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   `AnimatedEmojies` a videosamolepka z `PandaVideo` (`sendSticker`) náhledem. Statická samolepka
   neověřená (dekóduje ji tentýž `BitmapFactory`, WebP umí).
 
+## Ankety a kvízy
+
+- **Hlasování v bublině** (`MessagePoll`, `ChatMessage.poll`): druh ankety, otázka, odpovědi,
+  počet hlasů. Jedna odpověď = ťuknutí rovnou hlasuje (`ConversationRepository.vote`), víc
+  odpovědí = `CheckboxButton` a pod nimi „Hlasovat". Po hlasování nebo skončení výsledky: pruh
+  s procenty za textem (`drawBehind`), vybraná s fajfkou, u kvízu správná `primary`, špatně
+  vybraná `error` (`quizMark` z `core`). Texty jsou telefonní (`poll_*`).
+- **Nový stav přijde jako upravená zpráva** (`editedMessages`), kterou konverzace už odebírá —
+  hodinky nic nepřepočítávají a neukazují optimisticky; mezitím `isVoting` s indikátorem.
+- **Odpovědi jsou obrysová tlačítka**, ne tónová: tónová výplň má barvu příchozí bubliny a na
+  emulátoru tlačítka zmizela (zbyl jen text) — stejná past jako přehrát u hlasovky.
+- Po hlasování se bublina zmenší (tlačítka → řádky výsledků) a seznam pod prstem poskočí; na
+  hodinkách to nevadilo, kdyby ano, pomohlo by držet výšku.
+- **Ověřeno na emulátoru 2026-10-24** v Notifikátoru (ankety přes `sendPoll`): jedna odpověď
+  („✓ Možná"), víc odpovědí (dvě zaškrtnuté → obě 100 %), kvíz („✓ 4" 100 %). Omezení serveru
+  (členství, země) a anketa s médii neověřené.
+
 ## Hlasovky
 
 - **Přehrávání vlastním tenkým přehrávačem** (`VoicePlayback`, systémový `MediaPlayer`): Ogg/Opus

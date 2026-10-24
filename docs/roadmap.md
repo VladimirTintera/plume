@@ -394,6 +394,18 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 - **Vydávání chybí:** release podpis, `units: wear` v poznámkách k vydání (dnes `check` zná jen
   android/ios/desktop), workflow a záznam v Play.
 
+**Další obsah konverzací na hodinkách (2026-10-24, podle užitku):**
+
+1. ~~**Ankety a kvízy s hlasováním**~~ — hotovo (jedna i víc odpovědí, kvíz se značkami).
+2. **Tlačítka pod zprávou od botů** — boti s upozorněním a akcemi (potvrdit, odložit); hodinky
+   je neukazují vůbec.
+3. **Odkazy „otevřít v telefonu"** (`RemoteActivityHelper`) — web se na hodinkách neotevírá.
+4. **Drobnosti pro kontext** — „Přeposláno od …", „upraveno", jméno a velikost souboru.
+5. **Video kolečka jako náhled** s délkou, jako videa (přehrávání drahé).
+
+Vědomě ne: GIFy a animace, přehrávání videa a hudby, mapy u polohy, Instant View, formátování
+textu — na malém displeji drahé na baterii a výkon, nebo skoro nic nepřidají.
+
 ## Obrazovky a sekce, které nejsou
 
 Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou). Routy: `ChatsRoute`, `SettingsRoute`,
