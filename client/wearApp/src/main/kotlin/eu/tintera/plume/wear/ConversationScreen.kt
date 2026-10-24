@@ -381,6 +381,23 @@ private fun MessageBubble(
         return
     }
     val outgoing = message.isOutgoing
+    // Samolepka bez bubliny, jen s časem pod ní (jako na telefonu).
+    val sticker = message.media?.shownSticker()
+    if (sticker != null) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
+        ) {
+            MessageSticker(sticker)
+            reactionsLine(message.reactions)?.let {
+                Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            }
+            Text(message.timestamp.asTimeOfDay(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
     // Jméno odesílatele jen tam, kde z chatu není jasné (skupiny) — v soukromém chatu je to název.
     val sender = message.senderName?.takeIf { !outgoing && it != chatTitle }
     val status = when (message.sendState) {
@@ -407,6 +424,10 @@ private fun MessageBubble(
             if (photo != null) {
                 MessagePhoto(photo, onClick = { onOpenPhoto(photo.fileId) }, modifier = Modifier.padding(vertical = 4.dp))
             }
+            val video = message.media?.shownVideo()
+            if (video != null) {
+                MessageVideo(video, modifier = Modifier.padding(vertical = 4.dp))
+            }
             val voice = message.media as? MessageMedia.VoiceNote
             if (voice != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -427,7 +448,7 @@ private fun MessageBubble(
             }
             // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se
             // jen případný popisek.
-            if ((voice == null && photo == null) || message.text.isNotEmpty()) {
+            if ((voice == null && photo == null && video == null) || message.text.isNotEmpty()) {
                 Text(
                     text,
                     style = if (emoji != null && message.text.isEmpty()) MaterialTheme.typography.displaySmall else MaterialTheme.typography.bodyMedium,

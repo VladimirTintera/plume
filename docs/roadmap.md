@@ -379,8 +379,8 @@ celý displej); hovory, video, nastavení a správa skupin zůstávají na telef
 3. ~~**Úklid úložiště**~~ — hotovo (automaticky jednou denně: 3 dny, strop 100 MB; ruční
    vyčištění v Nastavení).
 4. ~~**Starší historie a citace**~~ — hotovo (dočítání u začátku seznamu, citace nad odpovědí).
-5. **Další média** — statické samolepky a náhledy videí (bez přehrávání); animované samolepky,
-   GIFy a video jsou na hodinkách drahé.
+5. ~~**Další média**~~ — hotovo (samolepky náhledem, videa náhledem s délkou, bez přehrávání);
+   GIFy a přehrávání videa zůstávají na telefonu.
 6. **Snímky do Play** přes workflow Play Listing (`wearScreenshots`), ne ručně.
 
 **Rizika, ověřit napřed:**
