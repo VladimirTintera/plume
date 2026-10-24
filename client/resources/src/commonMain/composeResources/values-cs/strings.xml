@@ -351,6 +351,8 @@
     <string name="media_make_sticker">Vytvořit samolepku</string>
     <string name="sticker_new_title">Nová samolepka</string>
     <string name="sticker_edit_photo">Upravit fotku</string>
+    <string name="sticker_outline">Bílý obrys</string>
+    <string name="sticker_outline_hint">Obtáhne objekt bílým okrajem.</string>
     <string name="sticker_remove_background">Odstranit pozadí</string>
     <string name="sticker_remove_background_hint">Nechá jen hlavní objekt fotky.</string>
     <string name="sticker_emoji">Emoji</string>

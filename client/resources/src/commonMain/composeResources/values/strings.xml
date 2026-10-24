@@ -345,6 +345,8 @@
     <string name="media_make_sticker">Make a sticker</string>
     <string name="sticker_new_title">New sticker</string>
     <string name="sticker_edit_photo">Edit photo</string>
+    <string name="sticker_outline">White outline</string>
+    <string name="sticker_outline_hint">Draws a white border around the subject.</string>
     <string name="sticker_remove_background">Remove background</string>
     <string name="sticker_remove_background_hint">Keeps only the main subject of the photo.</string>
     <string name="sticker_emoji">Emoji</string>
