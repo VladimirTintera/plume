@@ -35,6 +35,16 @@ a odložené rušení prázdné notifikace.
 
 ### Poučení
 
+- **Notifikace nevznikne, když zprávu přečte jiný klient téhož účtu** — a vypadá to jako chyba
+  aplikace. Při jiném aktivním sezení TDLib notifikaci odloží (výš) a když se zpráva mezitím
+  přečte jinde, skupinu vůbec nepošle. 2026-10-24 tak „nechodily" notifikace od Notifikátora:
+  zpráva dorazila (triáž ji zpracovala), ale `UpdateNotificationGroup` nepřišel, a to i s buildem
+  z `main`. Účet měl přihlášenou spoustu klientů (emulátory, simulátor, desktop) a některý zprávy
+  Notifikátora četl hned; po odhlášení všech sezení notifikace chodily. **Jak to poznat:** log
+  „Skupina N (chat …)" z `TdlNotificationRepository` chybí (TDLib nic neposlal, presenter nemá co
+  kreslit), „Nevydané notifikace: odložené=true" přejde na `false` bez skupiny a v seznamu chatů
+  zpráva nemá odznak nepřečtených. **Na zkoušení notifikací:** jediný aktivní klient účtu, nebo
+  si napřed ověřit, že zpráva zůstala nepřečtená.
 - **Notifikační API TDLib je ve výchozím stavu VYPNUTÉ.** `notification_group_count_max` je 0,
   což znamená, že `UpdateNotificationGroup` vůbec nevzniká. Musí se zapnout přes `setOption`
   (rozsah 1–25) — viz `enableNotifications()`. Bez toho je celá notifikační vrstva mrtvá
