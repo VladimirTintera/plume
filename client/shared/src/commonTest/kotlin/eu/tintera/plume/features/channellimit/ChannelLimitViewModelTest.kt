@@ -4,7 +4,7 @@ import eu.tintera.plume.core.navigation.ChannelLimitRequests
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.UiText
-import eu.tintera.plume.features.chats.FakeChatRepository
+import eu.tintera.plume.core.telegram.FakeChatRepository
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.channel_limit_failed
 import eu.tintera.plume.resources.channel_limit_leave_failed

@@ -2,21 +2,11 @@ package eu.tintera.plume.features.media
 
 import androidx.compose.runtime.compositionLocalOf
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.StoredPhotoDescription
 import eu.tintera.plume.core.telegram.ChatRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.serialization.Serializable
 import kotlin.time.Clock
-
-/** Hotový popis fotky z modelu v telefonu, uložený v [AppSettings]. [accountId] drží účty od sebe. */
-@Serializable
-data class StoredPhotoDescription(
-    val accountId: Long,
-    val chatId: Long,
-    val messageId: Long,
-    val text: String,
-    val savedAt: Long,
-)
 
 /**
  * Popisy fotek z modelu v telefonu („Popsat fotku" v prohlížeči), aby nezmizely se zavřením

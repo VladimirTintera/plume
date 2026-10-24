@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.ReactionDetail
 import eu.tintera.plume.core.telegram.ReactionModeration
 import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
+import eu.tintera.plume.core.telegram.testMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow

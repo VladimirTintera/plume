@@ -1,8 +1,7 @@
-package eu.tintera.plume.core.calls
+package eu.tintera.plume.features.calls
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
-import eu.tintera.plume.features.calls.pointerOnFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

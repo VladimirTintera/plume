@@ -15,6 +15,7 @@ import eu.tintera.plume.features.settings.LoginEmailViewModel
 import eu.tintera.plume.features.chats.NaturalSearchModel
 import eu.tintera.plume.features.conversation.LocalTranscripts
 import eu.tintera.plume.features.media.PhotoDescriptions
+import eu.tintera.plume.core.ai.BackgroundPhotoDescription
 import eu.tintera.plume.features.media.BackgroundPhotoDescriber
 import eu.tintera.plume.features.conversation.ScamWarnings
 import eu.tintera.plume.features.chats.ChatTriage
@@ -462,7 +463,7 @@ fun appModule() = module {
     single { ConversationJumpRequests() }
     single { LocalTranscripts(settings = get(), chats = get()) }
     single { PhotoDescriptions(settings = get(), chats = get()) }
-    single { BackgroundPhotoDescriber(settings = get(), chats = get(), files = get(), ai = get(), descriptions = get()) }
+    single<BackgroundPhotoDescription> { BackgroundPhotoDescriber(settings = get(), chats = get(), files = get(), ai = get(), descriptions = get()) }
     factory { ReminderTimeModel(ai = get(), settings = get()) }
     factory { NaturalSearchModel(ai = get(), settings = get()) }
     single { ScamWarnings(ai = get(), settings = get(), appScope = get(named(APP_SCOPE))) }

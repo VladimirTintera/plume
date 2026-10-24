@@ -1,8 +1,5 @@
 package eu.tintera.plume.core.settings
 
-import eu.tintera.plume.features.chats.StoredTriageVerdict
-import eu.tintera.plume.features.media.StoredPhotoDescription
-import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.snooze.ChatSnooze

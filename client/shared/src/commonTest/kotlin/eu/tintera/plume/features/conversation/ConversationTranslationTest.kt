@@ -5,6 +5,7 @@ import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageBody
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import eu.tintera.plume.core.telegram.platformLanguageCode
+import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.core.translation.OnDeviceTranslator
 import eu.tintera.plume.core.translation.TranslationPack
 import eu.tintera.plume.core.ui.UiText

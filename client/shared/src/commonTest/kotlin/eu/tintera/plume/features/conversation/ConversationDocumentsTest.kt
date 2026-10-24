@@ -5,6 +5,7 @@ import eu.tintera.plume.core.telegram.FakeDownloads
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.UnimplementedFileRepository
+import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.document_download_failed

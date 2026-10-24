@@ -1,6 +1,5 @@
 package eu.tintera.plume.core.telegram
 
-import eu.tintera.plume.features.conversation.testMessage
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone

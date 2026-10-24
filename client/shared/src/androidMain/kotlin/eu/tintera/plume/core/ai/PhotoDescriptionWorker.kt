@@ -8,14 +8,13 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import eu.tintera.plume.core.settings.AppSettings
-import eu.tintera.plume.features.media.BackgroundPhotoDescriber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 import java.util.concurrent.TimeUnit
 
 /**
- * Popisy fotek na pozadí ([BackgroundPhotoDescriber]) jako periodická úloha WorkManageru:
+ * Popisy fotek na pozadí ([BackgroundPhotoDescription]) jako periodická úloha WorkManageru:
  * jen na nabíječce a s baterií, která není slabá. Gemma běží v procesu aplikace (LiteRT-LM),
  * takže jí pozadí nevadí; AICore (Gemini Nano) by inferenci na pozadí nepustil, a tu stejně
  * popisovač nepoužije.
@@ -23,7 +22,7 @@ import java.util.concurrent.TimeUnit
 class PhotoDescriptionWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val describer = GlobalContext.getOrNull()?.getOrNull<BackgroundPhotoDescriber>() ?: return Result.success()
+        val describer = GlobalContext.getOrNull()?.getOrNull<BackgroundPhotoDescription>() ?: return Result.success()
         describer.describeBatch()
         return Result.success()
     }

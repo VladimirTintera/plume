@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.ProxyConfig
 import eu.tintera.plume.core.telegram.ProxyKind
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
+import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.invite_request_sent

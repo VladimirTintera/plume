@@ -9,6 +9,7 @@ import eu.tintera.plume.core.ai.parseTriageVerdict
 import eu.tintera.plume.core.ai.triagePrompt
 import eu.tintera.plume.core.ai.triageVerdictOf
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.StoredTriageVerdict
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatSummary
@@ -24,7 +25,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 
 /**
@@ -49,20 +49,6 @@ fun isTriageCandidate(chat: ChatSummary, savedMessagesChatId: Long?): Boolean {
         ChatKind.Channel -> false
     }
 }
-
-/**
- * Uložený posudek triáže, aby se po restartu nepřečtené chaty neposuzovaly znovu.
- * [messageId] je zpráva, ke které posudek patří: u soukromého chatu poslední, u skupiny
- * nejnovější nepřečtená zmínka. [accountId] drží účty od sebe (id Uložených zpráv).
- */
-@Serializable
-data class StoredTriageVerdict(
-    val accountId: Long,
-    val chatId: Long,
-    val messageId: Long,
-    val waits: Boolean,
-    val savedAt: Long,
-)
 
 /**
  * Chaty na kartu „Čeká na tvou odpověď", v pořadí seznamu: nepřečtené, u kterých triáž řekla

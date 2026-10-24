@@ -10,7 +10,7 @@ import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.UiText
-import eu.tintera.plume.features.chats.FakeChatRepository
+import eu.tintera.plume.core.telegram.FakeChatRepository
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.calls_load_failed
 import kotlinx.coroutines.CompletableDeferred

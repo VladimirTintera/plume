@@ -1,8 +1,6 @@
 package eu.tintera.plume.core.settings
 
 import eu.tintera.plume.core.video.VideoPosition
-import eu.tintera.plume.features.chats.StoredTriageVerdict
-import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.snooze.ChatSnooze
@@ -81,9 +79,9 @@ open class UnimplementedAppSettings : AppSettings {
     override val storedTriageVerdicts: StateFlow<List<StoredTriageVerdict>> get() = error("storedTriageVerdicts")
     override fun setStoredTriageVerdicts(verdicts: List<StoredTriageVerdict>): Unit = error("setStoredTriageVerdicts")
     override fun setStoredTranscripts(transcripts: List<StoredTranscript>): Unit = error("setStoredTranscripts")
-    override val storedPhotoDescriptions: StateFlow<List<eu.tintera.plume.features.media.StoredPhotoDescription>>
+    override val storedPhotoDescriptions: StateFlow<List<StoredPhotoDescription>>
         get() = error("storedPhotoDescriptions")
-    override fun setStoredPhotoDescriptions(descriptions: List<eu.tintera.plume.features.media.StoredPhotoDescription>): Unit =
+    override fun setStoredPhotoDescriptions(descriptions: List<StoredPhotoDescription>): Unit =
         error("setStoredPhotoDescriptions")
     override val quietHours: StateFlow<QuietHours> get() = error("quietHours")
     override fun setQuietHours(quietHours: QuietHours): Unit = error("setQuietHours")

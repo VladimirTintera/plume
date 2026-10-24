@@ -8,6 +8,7 @@ import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.FakeChatRepository
 import eu.tintera.plume.core.telegram.FoundMessagesPage
 import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.telegram.SpamActions

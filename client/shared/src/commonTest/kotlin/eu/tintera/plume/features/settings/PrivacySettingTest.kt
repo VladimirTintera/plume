@@ -8,7 +8,7 @@ import eu.tintera.plume.core.telegram.PrivacyMember
 import eu.tintera.plume.core.telegram.PrivacyRepository
 import eu.tintera.plume.core.telegram.PrivacyRule
 import eu.tintera.plume.core.telegram.PrivacySetting
-import eu.tintera.plume.features.chats.FakeChatRepository
+import eu.tintera.plume.core.telegram.FakeChatRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow

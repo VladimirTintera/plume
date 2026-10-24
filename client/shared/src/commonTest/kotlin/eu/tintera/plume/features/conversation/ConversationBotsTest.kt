@@ -22,6 +22,7 @@ import eu.tintera.plume.core.telegram.SwitchInlineTarget
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import eu.tintera.plume.core.telegram.UnsupportedBotButton
+import eu.tintera.plume.core.telegram.testMessage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
