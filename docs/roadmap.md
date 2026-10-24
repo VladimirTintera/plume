@@ -220,6 +220,52 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   (`docs/poznatky/navigace.md`, „Klávesové zkratky"), pamatovaná velikost okna, ikona
   v oznamovací oblasti a jedna instance (`docs/poznatky/desktop.md`).
 
+## Wear OS
+
+Nic není. Hodinky dnes dostávají notifikace zrcadlené z telefonu, a ty jsou na to připravené:
+`MessagingStyle`, odpověď (`SEMANTIC_ACTION_REPLY`) s navrženými odpověďmi, Přečteno, Ztlumit,
+obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatky/notifikace.md`).
+Číst a odpovídat na hodinkách tedy jde už teď, pokud je Plume na telefonu.
+
+**Jak by to bylo poskládané:**
+
+- **Tenký modul `:client:wearApp`** (`com.android.application`) vedle `androidApp`, nad
+  `:client:shared`: hranice kolem TDLib, repository, ViewModely, `UiText` i překlady se sdílí.
+  Rozdělení modulů kvůli AGP 9 tomu nahrává.
+- **UI celé vlastní** v Compose for Wear OS (`androidx.wear.compose:compose-material3`,
+  Expressive varianta): seznamy pro kulatý displej, `EdgeButton`, otočná korunka. Z `features/`
+  se použije málo.
+- **Vlastní sezení TDLib na hodinkách**, ne proxy přes telefon (Google chce samostatné aplikace).
+  Wrapper balí i `armeabi-v7a` (~15 MB) — spousta hodinek jede 32bitově.
+- **Přihlášení QR kódem**: hodinky ukážou QR, telefon naskenuje (máme hotové). Pohodlnější:
+  Plume na telefonu nabídne „Přihlásit hodinky" a potvrdí to sám přes Wearable Data Layer
+  (`confirmQrCodeAuthentication`).
+
+**MVP:**
+
+1. Modul `:client:wearApp`, přihlášení QR kódem (i potvrzení z Plume na telefonu).
+2. Seznam chatů (bez složek a archivu), konverzace jen pro čtení: text, popisy médií,
+   servisní zprávy; obrázky jako malé náhledy, bez prohlížeče.
+3. Odpověď: diktování, emoji, rychlé odpovědi ze systému; reakce.
+4. Hlasovky: přehrávání a nahrávání mikrofonem hodinek.
+5. Vlastní push na hodinkách — a na telefonu přestat zrcadlit, když je Plume na hodinkách
+   přihlášený (bridging tag / `setLocalOnly`), jinak přijde každá zpráva dvakrát.
+
+**Po MVP:** dlaždice (tile) s posledními / připnutými chaty, komplikace s počtem nepřečtených,
+`units: wear` v poznámkách k vydání a release workflow, Wear OS ve stejném záznamu v Play
+(snímky pro hodinky, přísnější kontrola kvality od Googlu). Hovory, média, nastavení a správa
+skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpovědí jen ze systému.
+
+**Rizika, ověřit napřed:**
+
+- **Velikost APK.** `:client:shared` táhne Coil, Media3, Haze, adaptive a fonty; R8 nepoužitý
+  kód ořeže, prostředky ne. Kdyby to bylo moc, chtělo by to vyčlenit jádro bez UI do vlastního
+  modulu — velký refaktoring.
+- **Baterie a úložiště.** TDLib drží spojení a databázi; na hodinkách malá mezipaměť,
+  žádné automatické stahování médií, spojení jen s pushem / při otevřené aplikaci.
+- **`minSdk`** Wear OS 3 je API 30; sdílené `androidMain` počítá s 26, takže by to mělo projít,
+  ale věci jen pro telefon (Telecom, PiP, widget, Direct Share) se nesmí rozběhnout na hodinkách.
+
 ## Obrazovky a sekce, které nejsou
 
 Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou). Routy: `ChatsRoute`, `SettingsRoute`,
