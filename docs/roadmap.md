@@ -952,9 +952,13 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   boosty a hlavní záložka"). Skutečné vypnutí reklam neověřené (chce úroveň 50). Barvy, emoji
   status a sada emoji skupiny patří pod „Vzhled od Telegramu" (vědomě ne).
 
-**Tvorba samolepek** (`createNewStickerSet`, `uploadStickerFile`, `addStickerToSet`,
-`setStickerEmojis` a dalších 12) — oficiální klient má editor samolepek z fotky. Velký kus,
-navazuje na úpravu fotky před odesláním.
+~~**Tvorba samolepek z fotky**~~ — hotovo na Androidu: z prohlížeče i z Nastavení, odstranění
+pozadí přes ML Kit, nová i vlastní sada (`docs/poznatky/emoji-samolepky-reakce.md`, „Tvorba
+samolepky z fotky"). Zbývá: správa vlastní sady (přejmenovat `setStickerSetTitle`, smazat
+samolepku `removeStickerFromSet`, pořadí `setStickerPositionInSet`, změna emoji
+`setStickerEmojis`, obálka `setStickerSetThumbnail`), bílý obrys kolem vyříznutého objektu
+jako v oficiálním klientu, video a animované samolepky, iOS (Vision má odstranění pozadí od
+iOS 17) a desktop.
 
 **Vědomě mimo, dokud se nerozhodne jinak:**
 

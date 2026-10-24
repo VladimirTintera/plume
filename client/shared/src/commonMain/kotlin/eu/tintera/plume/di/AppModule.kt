@@ -115,6 +115,7 @@ import eu.tintera.plume.features.stories.StoriesViewModel
 import eu.tintera.plume.features.videochat.VideoChatSession
 import eu.tintera.plume.features.videochat.VideoChatViewModel
 import eu.tintera.plume.features.stories.StoryComposerViewModel
+import eu.tintera.plume.features.stickers.StickerComposerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.AutoDownloadViewModel
@@ -672,6 +673,7 @@ fun appModule() = module {
             timers = get(),
             appScope = get(named(APP_SCOPE)),
             textRecognizer = getOrNull(),
+            stickerMaker = getOrNull(),
             clipboard = get(),
             onDeviceAi = getOrNull(),
             settings = get(),
@@ -710,6 +712,16 @@ fun appModule() = module {
     viewModelOf(::CallsViewModel)
     viewModelOf(::DownloadsViewModel)
     viewModelOf(::MyStoriesViewModel)
+    viewModel { parameters ->
+        StickerComposerViewModel(
+            sourcePath = parameters.get(),
+            width = parameters.values[1] as Int,
+            height = parameters.values[2] as Int,
+            stickers = get(),
+            maker = get(),
+            markupRenderer = getOrNull(),
+        )
+    }
     // Videochat žije s aplikací, ne s obrazovkou: posluchač v něm zůstává i mimo ni.
     single { VideoChatSession(repository = get(), media = getOrNull(), appScope = get(named(APP_SCOPE))) }
     viewModel { parameters ->

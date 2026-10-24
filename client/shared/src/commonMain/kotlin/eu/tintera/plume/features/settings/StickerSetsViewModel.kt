@@ -191,6 +191,9 @@ class StickerSetsViewModel(
 
     fun consumeError() = local.update { it.copy(error = null) }
 
+    /** Chyba zvenčí obrazovky (fotku pro samolepku nejde připravit). */
+    fun showError(error: UiText) = local.update { it.copy(error = error) }
+
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
 
