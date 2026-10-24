@@ -22,11 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.coroutines.resume
-import kotlin.math.roundToInt
 
 /**
  * [StickerMaker] na Androidu: dekódování zmenšené fotky, odstranění pozadí přes ML Kit Subject
@@ -67,7 +63,7 @@ class AndroidStickerMaker(context: Context) : StickerMaker {
         withContext(Dispatchers.Default) {
             val sticker = BitmapFactory.decodeFile(path) ?: error("Samolepku $path nejde přečíst.")
             val cover = Bitmap.createBitmap(COVER_SIDE, COVER_SIDE, Bitmap.Config.ARGB_8888)
-            val (width, height) = fitSize(sticker.width, sticker.height, COVER_SIDE)
+            val (width, height) = fitInSquare(sticker.width, sticker.height, COVER_SIDE)
             val left = (COVER_SIDE - width) / 2f
             val top = (COVER_SIDE - height) / 2f
             Canvas(cover).drawBitmap(
@@ -132,20 +128,7 @@ class AndroidStickerMaker(context: Context) : StickerMaker {
     private companion object {
         /** Dekóduje se zhruba na dvojnásobek samolepky: segmentaci víc nepomůže, jen ji zpomalí. */
         const val DECODE_SIDE = 1024
-        const val WEBP_QUALITY = 90
-        const val COVER_SIDE = 100
-        const val COVER_MAX_BYTES = 32 * 1024
-        const val COVER_QUALITY_STEP = 15
     }
-}
-
-/** Delší strana přesně [STICKER_SIDE] (Telegram chce jednu stranu 512 a druhou nejvýš 512). */
-internal fun stickerSize(width: Int, height: Int): Pair<Int, Int> = fitSize(width, height, STICKER_SIDE)
-
-/** Rozměry vepsané do čtverce [side]: delší strana přesně [side], poměr stran zůstává. */
-internal fun fitSize(width: Int, height: Int, side: Int): Pair<Int, Int> {
-    val scale = side.toFloat() / maxOf(width, height)
-    return (width * scale).roundToInt().coerceIn(1, side) to (height * scale).roundToInt().coerceIn(1, side)
 }
 
 /**
@@ -159,20 +142,13 @@ internal fun fitSize(width: Int, height: Int, side: Int): Pair<Int, Int> {
  * segmentaci by jinak dostaly vlastní bílé skvrny.
  */
 private fun withOutline(content: Bitmap): Bitmap {
-    val (width, height) = fitSize(content.width, content.height, STICKER_SIDE - 2 * OUTLINE_WIDTH)
+    val (width, height) = fitInSquare(content.width, content.height, STICKER_SIDE - 2 * OUTLINE_WIDTH)
     val scaled = Bitmap.createScaledBitmap(content, width, height, true)
     val mask = solidMask(scaled)
     val result = Bitmap.createBitmap(width + 2 * OUTLINE_WIDTH, height + 2 * OUTLINE_WIDTH, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(result)
     val white = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply { color = android.graphics.Color.WHITE }
-    for ((radius, steps) in OUTLINE_RINGS) {
-        for (step in 0 until steps) {
-            val angle = 2 * PI * step / steps
-            val dx = OUTLINE_WIDTH + radius * OUTLINE_WIDTH * cos(angle).toFloat()
-            val dy = OUTLINE_WIDTH + radius * OUTLINE_WIDTH * sin(angle).toFloat()
-            canvas.drawBitmap(mask, dx, dy, white)
-        }
-    }
+    for ((dx, dy) in outlineOffsets()) canvas.drawBitmap(mask, dx, dy, white)
     canvas.drawBitmap(scaled, OUTLINE_WIDTH.toFloat(), OUTLINE_WIDTH.toFloat(), null)
     return result
 }
@@ -219,17 +195,6 @@ private fun opaqueBounds(bitmap: Bitmap): Rect? {
     }
     return if (right < 0) null else Rect(left, top, right + 1, bottom + 1)
 }
-
-private const val STICKER_SIDE = 512
-
-/** Tloušťka bílého obrysu v hotové samolepce (px z 512). */
-private const val OUTLINE_WIDTH = 16
-
-/** Kružnice, po kterých se maska posouvá: poměr k [OUTLINE_WIDTH] a počet kroků. */
-private val OUTLINE_RINGS = listOf(1f to 48, 0.66f to 32, 0.33f to 16)
-
-/** Téměř průhledné okraje masky (vyhlazení) se do ořezu nepočítají. */
-private const val ALPHA_THRESHOLD = 16
 
 /** Task API bez `coroutines-play-services`, jako u čtení textu. */
 private suspend fun <T> Task<T>.await(): T = suspendCancellableCoroutine { continuation ->

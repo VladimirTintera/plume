@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.stickers.IosStickerMaker
+import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
 import eu.tintera.plume.di.MINI_APP_STORAGE
@@ -98,6 +100,7 @@ actual fun Module.platformModule() {
     single<StoryPhoto> { IosStoryPhoto() }
     single<SnoozeReminders> { IosSnoozeReminders() }
     single<PhotoMarkupRenderer> { IosPhotoMarkupRenderer() }
+    single<StickerMaker> { IosStickerMaker() }
     single<StoryVideo> { IosStoryVideo(get()) }
     single<ProfileVideo> { IosProfileVideo() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.

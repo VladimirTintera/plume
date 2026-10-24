@@ -687,8 +687,10 @@ i archiv každého druhu zvlášť, takže repository bere druh (`installedSets(
 Z fotky jde udělat samolepku a přidat ji do vlastní sady, nebo sadu založit
 (`StickerComposerScreen`, `StickerComposerViewModel`, `StickerMaker`). Vstupy jsou dva:
 ⋮ v prohlížeči fotky („Vytvořit samolepku") a Nastavení → Chaty → Sady samolepek →
-„Vytvořit samolepku z fotky" (systémový výběr fotek). **Jen Android** — `StickerMaker` se
-jinde nezaregistruje a oba vstupy chybí.
+„Vytvořit samolepku z fotky" (systémový výběr fotek). **Android a iOS** (`AndroidStickerMaker`,
+`IosStickerMaker`); na desktopu se `StickerMaker` nezaregistruje a oba vstupy chybí. Rozměry,
+obrys, práh alfy a obálka jsou pro obě platformy v `StickerGeometry.kt` (commonMain), ať se
+nerozejdou.
 
 - **Telegram chce delší stranu přesně 512 px a kratší nejvýš 512** (`stickerSize`),
   statickou samolepku do 512 kB. `uploadStickerFile` / `NewSticker` bere WebP i PNG, z PNG si
@@ -746,13 +748,41 @@ jinde nezaregistruje a oba vstupy chybí.
   vypnutí a zapnutí přepínače, samolepka s obrysem přidaná do sady „Plume obalka" (server ji
   vzal). Jak obrys vypadá na tmavém pozadí konverzace, ověřené není.
 
+### Tvorba samolepky na iOS
+
+`IosStickerMaker`: pozadí odstraní Vision, zbytek (zmenšení, obrys, WebP) dělá Skia, kterou na
+iOS kreslí Compose.
+
+- **WebP umí zakódovat jen Skia** (`Image.encodeToData(EncodedImageFormat.WEBP, …)`). ImageIO
+  WebP jen čte: `CGImageDestinationCopyTypeIdentifiers` nabízí z obrázků jen PNG a HEIC. PNG
+  fotky v 512 px snadno přeleze 512 kB, které Telegram u statické samolepky snese.
+- **Odstranění pozadí je `VNGenerateForegroundInstanceMaskRequest`** (iOS 17; aplikace cílí na
+  18.2, takže je vždycky), výřez `generateMaskedImageOfInstances(allInstances, …,
+  croppedToInstancesExtent = true)` — vrací pixel buffer s průhledností oříznutý na objekty, přes
+  `CIContext` z něj je `CGImage` a z toho přes bitmapový kontext RGBA obrázek pro Skiu. Bez
+  objektu Vision nevrátí žádné pozorování → `NoStickerSubjectException`.
+- **V simulátoru maska nejde**: Vision skončí chybou „does not support
+  VNGenerateForegroundInstanceMaskRequestRevision1" (potřebuje Neural Engine). V simulátoru se
+  proto přepínač „Odstranit pozadí" nenabízí (`SIMULATOR_UDID` v prostředí). Každé zařízení
+  s iOS 18 Neural Engine má (A12 a novější).
+- **Fotka se napřed překreslí přes UIKit** (`UIGraphicsImageRenderer`, zároveň zmenšení na
+  1024 px): holý `CGImage` z fotky z fotoaparátu by ignoroval otočení podle EXIF.
+- **Ověřeno**: testy v simulátoru (`IosStickerMakerTest`: WebP 512 px, obálka 100 × 100 do
+  32 kB, obrys kolem kruhu); táž volání Vision Swift skriptem na Macu nad
+  `/Library/User Pictures/Animals/Parrot.heic` a výřez přes iOS cestu obrysu — vypadá stejně
+  jako na Androidu. V aplikaci v simulátoru: vstup z Nastavení, výběr fotky, náhled, úprava
+  fotky (tah perem se propsal do samolepky), výběr emoji a sady, přidání do nové sady (server
+  WebP ze Skii vzal), druhá samolepka z úpravy sady s předvybranou sadou a obálka (sada po ní
+  v Moje sady zůstala). **Neověřené**: odstranění pozadí na skutečném iPhonu a vstup
+  z prohlížeče fotky.
+
 ## Úprava vlastní sady samolepek
 
 Vlastní sada (`StickerSetDetail.isOwned`, z `StickerSet.isOwned`) má v Nastavení → Chaty →
 Sady samolepek → ⋮ položku „Upravit sadu" (`OwnedStickerSetScreen`,
 `OwnedStickerSetViewModel`): název, pořadí tažením za úchyt, změna emoji a odebrání samolepky
 (⋮ u řádku), „Přidat samolepku z fotky" s předvybranou touto sadou
-(`StickerComposerRoute.targetSetId`) a smazání celé sady. **Jen Android**, stejně jako tvorba.
+(`StickerComposerRoute.targetSetId`) a smazání celé sady. Android a iOS, stejně jako tvorba.
 
 - **Samolepka se v sadě adresuje souborem**, ne id: `removeStickerFromSet`,
   `setStickerPositionInSet` i `setStickerEmojis` berou `InputFile`, tedy
@@ -785,8 +815,8 @@ zpět k první samolepce) a v nabídce ⋮ u samolepky „Nastavit jako obálku"
 - **Obálka je samostatný soubor, ne odkaz na samolepku.** `setStickerSetThumbnail` chce
   WebP (nebo PNG) přesně 100 × 100 a nejvýš 32 kB. Samolepka se proto stáhne
   (`FileRepository.file`), vepíše doprostřed průhledného čtverce a uloží
-  (`StickerMaker.makeCover`, jen Android); nad 32 kB se ubírá kvalita. Bez výrobce (iOS,
-  desktop) řádek obálku jen ukazuje.
+  (`StickerMaker.makeCover`, Android a iOS); nad 32 kB se ubírá kvalita. Bez výrobce
+  (desktop) řádek obálku jen ukazuje.
 - **`null` místo souboru obálku zruší** — obálkou je zase první samolepka (`thumbnail`
   u sady je pak `null`). `format` se v tom případě předává taky `null`.
 - **Změna obálky sadu vyřadí z nainstalovaných.** Po `setStickerSetThumbnail` sada zmizela

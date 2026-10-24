@@ -34,7 +34,7 @@ data class OwnedStickerSetState(
     val error: UiText? = null,
     /** Sada je smazaná — obrazovka se zavře. */
     val deleted: Boolean = false,
-    /** Obálku jde vyrobit ze samolepky (jen Android, viz `StickerMaker.makeCover`). */
+    /** Obálku jde vyrobit ze samolepky (Android a iOS, viz `StickerMaker.makeCover`). */
     val canSetCover: Boolean = false,
     /** Nová obálka se vyrábí a nahrává. */
     val coverBusy: Boolean = false,
