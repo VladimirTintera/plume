@@ -40,6 +40,8 @@ data class StickerComposerState(
     /** Bílý obrys kolem vyříznutého objektu; bez odstranění pozadí se nekreslí. */
     val outline: Boolean = true,
     val canRemoveBackground: Boolean = false,
+    /** Fotku jde před tvorbou upravit (na desktopu editor fotky zatím není). */
+    val canEditPhoto: Boolean = false,
     /** Hotová samolepka k nahrání — přesně to, co uživatel vidí v náhledu. */
     val preview: MadeSticker? = null,
     val preparing: Boolean = true,
@@ -89,6 +91,7 @@ class StickerComposerViewModel(
         StickerComposerState(
             removeBackground = maker.canRemoveBackground,
             canRemoveBackground = maker.canRemoveBackground,
+            canEditPhoto = markupRenderer?.isAvailable == true,
         ),
     )
     val state: StateFlow<StickerComposerState> = _state.asStateFlow()

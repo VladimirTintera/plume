@@ -76,5 +76,11 @@ data class MarkedPhoto(val path: String, val width: Int, val height: Int)
  * výstupem JPEG velký jako výřez ([resultSize]).
  */
 interface PhotoMarkupRenderer {
+    /**
+     * Platforma úpravu umí. Desktop renderer má jen jako zástupce (konverzace a sdílení ho berou
+     * povinně) a vrací `false` — editor se tam nenabízí, místo aby skončil hláškou o chybě.
+     */
+    val isAvailable: Boolean get() = true
+
     suspend fun render(path: String, markup: PhotoMarkup): MarkedPhoto
 }

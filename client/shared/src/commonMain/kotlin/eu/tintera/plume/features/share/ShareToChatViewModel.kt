@@ -222,7 +222,7 @@ class ShareToChatViewModel(
     }
 
     /** Nabízí se úprava fotky? */
-    val canMarkupPhotos: Boolean get() = photoMarkup != null
+    val canMarkupPhotos: Boolean get() = photoMarkup?.isAvailable == true
 
     /**
      * Uloží úpravu fotky — stejně jako nad vstupním polem konverzace (`PhotoEdits`): vykreslí se

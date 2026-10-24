@@ -49,6 +49,8 @@ import eu.tintera.plume.core.ui.DesktopStoryPhoto
 import eu.tintera.plume.core.ui.StoryPhoto
 import eu.tintera.plume.core.ui.MarkedPhoto
 import eu.tintera.plume.core.ui.PhotoMarkup
+import eu.tintera.plume.core.stickers.DesktopStickerMaker
+import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
 import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.SquarePhoto
@@ -137,10 +139,13 @@ actual fun Module.platformModule() {
     }
     single<PhotoMarkupRenderer> {
         object : PhotoMarkupRenderer {
+            override val isAvailable = false
+
             override suspend fun render(path: String, markup: PhotoMarkup): MarkedPhoto =
                 throw UnsupportedOperationException("Úprava fotky na desktopu zatím není.")
         }
     }
+    single<StickerMaker> { DesktopStickerMaker() }
     single<StoryVideo> { UnsupportedStoryVideo }
     single<ProfileVideo> {
         object : ProfileVideo {

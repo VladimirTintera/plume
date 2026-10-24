@@ -966,12 +966,12 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   boosty a hlavní záložka"). Skutečné vypnutí reklam neověřené (chce úroveň 50). Barvy, emoji
   status a sada emoji skupiny patří pod „Vzhled od Telegramu" (vědomě ne).
 
-~~**Tvorba samolepek z fotky**~~ — hotovo na Androidu i iOS: z prohlížeče i z Nastavení,
-odstranění pozadí přes ML Kit / Vision, nová i vlastní sada (`docs/poznatky/emoji-samolepky-reakce.md`, „Tvorba
+~~**Tvorba samolepek z fotky**~~ — hotovo na Androidu, iOS i desktopu: z prohlížeče i z Nastavení,
+odstranění pozadí přes ML Kit / Vision (desktop bez něj), nová i vlastní sada (`docs/poznatky/emoji-samolepky-reakce.md`, „Tvorba
 samolepky z fotky") a úprava vlastní sady (název, pořadí, emoji, odebrání samolepky, smazání
 sady, obálka; „Úprava vlastní sady samolepek") a bílý obrys kolem vyříznutého objektu.
-Zbývá: video a animované samolepky, desktop
-(Skia jako na iOS by stačila, chybí jen odstranění pozadí) a ověření iOS na skutečném iPhonu.
+Zbývá: video a animované samolepky, odstranění pozadí na desktopu (chtělo by přibalit model),
+úprava fotky na desktopu (renderer ve Skie, `skiaMain`) a ověření iOS na skutečném iPhonu.
 
 **Vědomě mimo, dokud se nerozhodne jinak:**
 

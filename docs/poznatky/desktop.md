@@ -782,6 +782,11 @@ a tichá kolečka"), kamera pro kolečka je `null`
     z palety. Na GNOME nic nedělá.
   - **Vlastní titulek v Compose** (okno bez rámu) by šel všude, ale tahání, dvojklik,
     přichytávání a změnu velikosti by bylo nutné dodělat ručně — za tu cenu nestojí.
+- **Úprava fotky (ořez, otočení, kresba) na desktopu není.** Konverzace a sdílení berou
+  `PhotoMarkupRenderer` povinně, takže desktop má zástupce, který jen vyhazuje; dřív se ale
+  tlačítko „Upravit" ukázalo a úprava skončila hláškou o chybě. Zástupce teď hlásí
+  `isAvailable = false` a editor se nenabízí nikde (příloha, sdílení, tvorba samolepky).
+  Skutečný renderer by šel ve Skie jako výroba samolepek (`skiaMain`).
 - **Mini aplikace se hlásí jako `tdesktop`** (`webAppPlatform`), WebView ale není.
 - **Test `DocumentKindTest` tvrdil, že MP4 otevře prohlížeč na každé platformě.** Na desktopu
   to neplatí; commonTest teď běží i na JVM (`jvmTest`), takže takové „všude" předpoklady

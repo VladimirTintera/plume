@@ -206,10 +206,12 @@ private fun StickerForm(
                         Text(stringResource(Res.string.sticker_retry))
                     }
                 }
-                FilledTonalButton(onClick = onEdit, shapes = ButtonDefaults.shapes()) {
-                    Icon(painterResource(Res.drawable.edit_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                    Text(stringResource(Res.string.sticker_edit_photo))
+                if (state.canEditPhoto) {
+                    FilledTonalButton(onClick = onEdit, shapes = ButtonDefaults.shapes()) {
+                        Icon(painterResource(Res.drawable.edit_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(Res.string.sticker_edit_photo))
+                    }
                 }
             }
         }
