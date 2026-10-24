@@ -315,7 +315,10 @@ bez Compose UI.
 
 ## Wear OS
 
-Nic není. Hodinky dnes dostávají notifikace zrcadlené z telefonu, a ty jsou na to připravené:
+**Rozpracované (od 24. 10. 2026):** modul `:client:wearApp` s přihlášením QR kódem a seznamem
+chatů běží na emulátoru (`docs/poznatky/wear-os.md`). Dál MVP od bodu 2.
+
+Hodinky navíc dostávají notifikace zrcadlené z telefonu, a ty jsou na to připravené:
 `MessagingStyle`, odpověď (`SEMANTIC_ACTION_REPLY`) s navrženými odpověďmi, Přečteno, Ztlumit,
 obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatky/notifikace.md`).
 Číst a odpovídat na hodinkách tedy jde už teď, pokud je Plume na telefonu.
@@ -337,9 +340,11 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
 
 **MVP:**
 
-1. Modul `:client:wearApp`, přihlášení QR kódem (i potvrzení z Plume na telefonu).
-2. Seznam chatů (bez složek a archivu), konverzace jen pro čtení: text, popisy médií,
-   servisní zprávy; obrázky jako malé náhledy, bez prohlížeče.
+1. ~~Modul `:client:wearApp`, přihlášení QR kódem~~ — hotovo (i heslo dvoufázového ověření).
+   Zbývá potvrzení z Plume na telefonu přes Data Layer (`confirmQrCodeAuthentication`).
+2. ~~Seznam chatů (bez složek a archivu)~~ — hotovo (název, náhled, nepřečtené; bez fotek).
+   Zbývá konverzace jen pro čtení: text, popisy médií, servisní zprávy; obrázky jako malé
+   náhledy, bez prohlížeče. Fotky chatů v seznamu.
 3. Odpověď: diktování, emoji, rychlé odpovědi ze systému; reakce.
 4. Hlasovky: přehrávání a nahrávání mikrofonem hodinek.
 5. Vlastní push na hodinkách — a na telefonu přestat zrcadlit, když je Plume na hodinkách
@@ -352,12 +357,14 @@ skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpov�
 
 **Rizika, ověřit napřed:**
 
-- **Velikost APK.** `:client:shared` táhne Coil, Media3, Haze, adaptive a fonty; R8 nepoužitý
-  kód ořeže, prostředky ne. Řešení je vyčlenit jádro do `:client:core` (sekce výš).
+- ~~**Velikost APK.**~~ Vyřešené rozdělením: `wearApp` stojí jen na `:client:core`; debug APK
+  má 83 MB, z toho TDLib pro dvě ABI ~33 MB. Release s R8 zatím nikdo nezkoušel.
 - **Baterie a úložiště.** TDLib drží spojení a databázi; na hodinkách malá mezipaměť,
   žádné automatické stahování médií, spojení jen s pushem / při otevřené aplikaci.
-- **`minSdk`** Wear OS 3 je API 30; sdílené `androidMain` počítá s 26, takže by to mělo projít,
-  ale věci jen pro telefon (Telecom, PiP, widget, Direct Share) se nesmí rozběhnout na hodinkách.
+- ~~**`minSdk`**~~ — `wearApp` má 30 (Wear OS 3); věci jen pro telefon (Telecom, PiP, widget,
+  Direct Share) jsou ve `shared`, na kterém hodinky nestojí.
+- **Vydávání chybí:** release podpis, `units: wear` v poznámkách k vydání (dnes `check` zná jen
+  android/ios/desktop), workflow a záznam v Play.
 
 ## Obrazovky a sekce, které nejsou
 

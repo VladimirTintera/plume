@@ -4250,4 +4250,15 @@
     <string name="poll_delete_option_confirm">Smazat</string>
     <string name="poll_delete_option_failed">Odpověď se nepodařilo smazat.</string>
     <string name="poll_compose_allow_adding">Ostatní můžou přidávat odpovědi</string>
+    <!-- Wear OS (client/wearApp) -->
+    <string name="wear_login_title">Přihlášení</string>
+    <string name="wear_login_qr_hint">Naskenujte kód v Telegramu na telefonu: Nastavení → Zařízení → Připojit zařízení.</string>
+    <string name="wear_login_qr_only">Na hodinkách se dá přihlásit jen QR kódem.</string>
+    <string name="wear_login_show_qr">Zobrazit QR kód</string>
+    <string name="wear_password_title">Dvoufázové ověření</string>
+    <string name="wear_password_enter">Zadat heslo</string>
+    <string name="wear_password_hint">Nápověda: %1$s</string>
+    <string name="wear_password_failed">Heslo neprošlo, zkuste to znovu.</string>
+    <string name="wear_chats_title">Chaty</string>
+    <string name="wear_chats_empty">Zatím žádné chaty</string>
 </resources>

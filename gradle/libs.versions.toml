@@ -44,6 +44,9 @@ koin = "4.2.2"
 materialkolor = "4.1.1"
 kermit = "2.1.0"
 zxing = "3.5.3"
+# Wear OS (client/wearApp): Compose for Wear OS a výchozí knihovny hodinek.
+wear-compose = "1.7.1"
+wear-input = "1.2.0"
 coil = "3.5.0"
 # Nastavení aplikace. Preferences-core je multiplatformní (Android i iOS) a nepotřebuje Context.
 datastore = "1.2.1"
@@ -165,6 +168,9 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "materialkolor" }
 kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
+wear-compose-material3 = { module = "androidx.wear.compose:compose-material3", version.ref = "wear-compose" }
+wear-compose-foundation = { module = "androidx.wear.compose:compose-foundation", version.ref = "wear-compose" }
+wear-input = { module = "androidx.wear:wear-input", version.ref = "wear-input" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version.ref = "datastore" }
 compottie-lite = { module = "io.github.alexzhirkevich:compottie-lite", version.ref = "compottie" }
