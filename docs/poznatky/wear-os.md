@@ -91,6 +91,25 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   potvrzená, velké emoji), reakce ❤ přidaná a znovu odebraná. Diktování a klávesnice na emulátoru
   nevyzkoušené (vracejí text stejnou cestou jako volba).
 
+## Fotky
+
+- **Fotka v bublině** (`MessagePhoto`): přes šířku bubliny v poměru stran fotky, popisek pod ní;
+  slovo „Fotka" se pak nekreslí. Hned minináhled (`Minithumbnail`, malý JPEG přímo ve zprávě),
+  po stažení varianta pro bublinu (`fileId`) dekódovaná zmenšená na šířku (`decodeScaled`,
+  `inSampleSize` mocninou dvou). **Plná varianta (`fullFileId`) se na hodinkách nestahuje** —
+  displej má pár set pixelů a šly by megabajty.
+- **Vysoká fotka se zastropuje na 1,25 × šířky a zúží se s ní**, neořízne se (CLAUDE.md, „Výšku
+  obrázku nepočítej `aspectRatio`").
+- **Ťuknutí na fotku ji otevře přes celý displej** (`PhotoScreen`, cesta `photo/{fileId}`, zpět
+  tahem), zbytek bubliny dál otevírá výběr reakce. Tatáž varianta jako v bublině, jen dekódovaná
+  na velikost displeje — po bublině bývá stažená.
+- **Spoiler, citlivý obsah, tajný chat a mizející fotka zůstávají slovem** (`shownPhoto()`):
+  odkrývání ani časovač hodinky nemají a ukázat je rovnou by obešlo, co chtěl odesílatel nebo
+  server.
+- **Ověřeno na emulátoru 2026-10-24** v chatu Notifikátora (fotky poslané botem přes `sendPhoto`,
+  vygenerované přechody bez lidí): široká s popiskem, vysoká zastropovaná a zúžená, náhled přes
+  celý displej a zpět. Video, samolepky a GIFy zůstávají slovem.
+
 ## Hlasovky
 
 - **Přehrávání vlastním tenkým přehrávačem** (`VoicePlayback`, systémový `MediaPlayer`): Ogg/Opus
