@@ -571,7 +571,9 @@ private fun MessageBubble(
 @Composable
 private fun ReactionsAndStatus(reactions: List<MessageReaction>, status: String, statusColor: Color, fill: Boolean = true) {
     val line = reactionsLine(reactions)
-    Row(if (fill) Modifier.fillMaxWidth() else Modifier, verticalAlignment = Alignment.Bottom) {
+    // S reakcemi kousek od obsahu: emoji jsou vyšší než čas a bez mezery se lepily na text.
+    val gap = if (line != null) Modifier.padding(top = 4.dp) else Modifier
+    Row((if (fill) Modifier.fillMaxWidth() else Modifier).then(gap), verticalAlignment = Alignment.Bottom) {
         if (line != null) {
             Text(
                 line,
