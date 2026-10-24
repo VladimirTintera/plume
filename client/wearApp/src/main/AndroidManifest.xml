@@ -32,6 +32,11 @@
             </intent-filter>
         </service>
 
+        <!-- Akce z notifikace (Odpovědět, Přečteno). -->
+        <receiver
+            android:name=".WearNotificationReceiver"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

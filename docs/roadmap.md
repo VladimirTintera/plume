@@ -354,7 +354,8 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
 5. ~~Vlastní push na hodinkách a vypnutí zrcadlení z telefonu~~ — napsané (FCM, notifikace
    `MessagingStyle`, `BridgingManager` jen při přihlášení). **Ověřit na skutečných hodinkách:**
    push s ukončenou aplikací (na emulátoru FCM nedoručil) a že zrcadlené notifikace zmizí.
-   Odpověď z notifikace na hodinkách zatím není.
+   ~~Odpověď z notifikace~~ — hotovo (Odpovědět a Přečteno); rychlé odpovědi se ve vloženém
+   zadávání notifikace na emulátoru neukazují, potvrzení přes ~9 s nemá úlohu jako telefon.
 
 **Po MVP:** dlaždice (tile) s posledními / připnutými chaty, komplikace s počtem nepřečtených,
 `units: wear` v poznámkách k vydání a release workflow, Wear OS ve stejném záznamu v Play

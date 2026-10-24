@@ -119,12 +119,25 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
 - **Notifikace kreslí `WearNotifications`** (telefonní presenter je ve `shared`): jedna na chat
   (`MessagingStyle`, id = `notificationGroupId`), stažená skupina (přečteno jinde) zmizí, ťuknutí
   otevře aplikaci. Název konverzace jen ve skupině — v soukromém chatu je odesílatel totéž co
-  název a titulek zněl „Notifikator: Notifikator". Odpověď z notifikace zatím není.
+  název a titulek zněl „Notifikator: Notifikator".
+- **Akce Odpovědět a Přečteno** (`WearNotificationReceiver`, broadcast, `goAsync`) podle poučení
+  telefonu (sekce „Akce z notifikace" v `notifikace.md`): `PendingIntent` odpovědi MUTABLE
+  (systém do něj vkládá text), vlastní řádek do notifikace hned, **přečtení až po potvrzení od
+  serveru** a po nejnovější zprávu NOTIFIKACE (ne chatu), potvrzení dotazem na zprávu
+  (přečíslovaná dočasná = odesláno), notifikaci stáhne TDLib, vlastní řádky ji naživu nedrží.
+  Mrtvý proces probudí akce jako push a čeká se na `AuthStage.Ready`. Presenter je v Koinu jeden
+  na proces, aby do něj přijímač mohl připsat odpověď. Telefon má na pomalé potvrzení úlohu
+  WorkManageru, hodinky ne: co se nestihne do ~9 s (`goAsync`), zůstane odeslané, ale nepřečtené.
+- **Wear OS akci odpovědi vykreslí přímo v notifikaci** jako emoji / hlas / klávesnici;
+  **rychlé odpovědi (`setChoices`) se tam na emulátoru neukázaly** — v konverzaci (vlastní
+  `RemoteInput` aktivita) ano. Zadání emoji vloží znak do pole a odesílá se šipkou.
 - **O notifikace se Android 13+ ptá za běhu** — hodinky jednou, hned po přihlášení.
 - **Zrcadlení z telefonu** (`PhoneBridging`, `BridgingManager`): vypnuté, dokud jsou hodinky
   přihlášené (jinak by každá zpráva přišla dvakrát), po odhlášení zase zapnuté.
 - **Ověřeno na emulátoru 2026-10-24:** FCM token a registrace u TDLib, přepnutí zrcadlení po
-  přihlášení, notifikace z TDLib s aplikací na pozadí (do 2 s).
+  přihlášení, notifikace z TDLib s aplikací na pozadí (do 2 s); odpověď „👍" z notifikace
+  (v chatu se objevila, notifikace po potvrzení zmizela) a Přečteno (v seznamu chatů místo
+  počtu nepřečtených čas).
 - **Neověřeno: doručení pushu s ukončeným procesem.** Po `am kill` (ne `force-stop`, ten FCM
   zakáže) a zprávě od Notifikátora se FCM na emulátoru o doručení dvakrát ani nepokusil (150 s,
   v logu žádné `c2dm`). Může to být emulátor (spojení Google Play služeb bez účtu a bez
