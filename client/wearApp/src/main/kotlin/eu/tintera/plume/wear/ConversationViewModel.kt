@@ -51,6 +51,14 @@ class ConversationViewModel(
         private set
 
     /**
+     * Ukazatel „protějšek přečetl až sem" (`lastReadOutboxMessageId` z TDLib): odchozí zprávy
+     * s menším nebo rovným id jsou přečtené. Přečtení není ve zprávě, ale na chatu — proto
+     * zvlášť, ne v [messages].
+     */
+    var lastReadOutboxId by mutableStateOf(0L)
+        private set
+
+    /**
      * Nejnovější zpráva, na kterou už seznam sjel. Po návratu z vedlejší obrazovky se nesjíždí
      * znovu (pozici drží uložený stav seznamu), dolů jen s opravdu novou zprávou.
      */
@@ -84,6 +92,15 @@ class ConversationViewModel(
                     }
                     messages = (messages.orEmpty().filterNot { it.id == oldId || it.id == message.id } + message).sortedBy { it.id }
                 }
+            }
+            launch {
+                // Ukazatel jen roste; update i počáteční čtení můžou dorazit v libovolném pořadí.
+                conversations.readOutboxUpdates(chatId).collect { lastReadOutboxId = maxOf(lastReadOutboxId, it) }
+            }
+            launch {
+                conversations.chatInfo(chatId)
+                    .onSuccess { lastReadOutboxId = maxOf(lastReadOutboxId, it.lastReadOutboxMessageId) }
+                    .onFailure { logger.w(it) { "Stav přečtení chatu $chatId se na hodinkách nenačetl." } }
             }
             launch {
                 conversations.interactionUpdates(chatId).collect { change ->

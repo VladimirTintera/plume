@@ -52,6 +52,10 @@ import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.mic_24dp
+import eu.tintera.plume.resources.check_24dp
+import eu.tintera.plume.resources.done_all_24dp
+import eu.tintera.plume.resources.conversation_delivery_read
+import eu.tintera.plume.resources.conversation_delivery_sent
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.stop_24dp
 import eu.tintera.plume.resources.wear_confirm_play_failed
@@ -109,6 +113,7 @@ import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.customEmojiIdOf
+import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
@@ -270,6 +275,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             title = title,
             messages = current,
             quoted = model.quoted,
+            lastReadOutboxId = model.lastReadOutboxId,
             loadingOlder = model.loadingOlder,
             playingId = playback.playingId,
             onReply = onReply,
@@ -326,6 +332,7 @@ private fun MessageList(
     title: String,
     messages: List<ChatMessage>,
     quoted: Map<Long, ChatMessage?>,
+    lastReadOutboxId: Long,
     loadingOlder: Boolean,
     playingId: Long?,
     onReply: () -> Unit,
@@ -348,10 +355,12 @@ private fun MessageList(
     // Na nejnovější zprávu (dole) při otevření a s každou novou — ale ne po návratu z výběru
     // reakce, fotky nebo nahrávání: tam pozici drží uložený stav seznamu a sjet dolů by uživatele
     // odvezlo od zprávy, na kterou reagoval.
+    // Předěly dní a bloky zpráv téhož odesílatele (ConversationEntries).
+    val entries = remember(messages) { conversationEntries(messages) }
     val lastId = messages.lastOrNull()?.id
     LaunchedEffect(lastId) {
         if (lastId != scrolledToId) {
-            state.scrollToItem(messages.size + 2)
+            state.scrollToItem(entries.size + 2)
             onScrolledTo(lastId)
         }
     }
@@ -365,7 +374,13 @@ private fun MessageList(
         scrollState = state,
         edgeButton = { EdgeButton(onClick = onReply) { Text(stringResource(Res.string.wear_reply)) } },
     ) { contentPadding ->
-        TransformingLazyColumn(state = state, contentPadding = contentPadding) {
+        // Mezi bublinami jednoho bloku jen 2 dp; začátek bloku a předěl si přidají vlastní mezeru
+        // (GROUP_GAP), takže mezi bloky zůstane výchozí odstup seznamu.
+        TransformingLazyColumn(
+            state = state,
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Top),
+        ) {
             item(key = "header") {
                 ListHeader(
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
@@ -382,10 +397,18 @@ private fun MessageList(
             if (messages.isEmpty()) {
                 item { CenteredNote(stringResource(Res.string.wear_conversation_empty), Modifier.transformedItem(this, spec)) }
             }
-            items(messages, key = { it.id }) { message ->
+            items(entries, key = { it.key }) { entry ->
+                if (entry is ConversationEntry.Day) {
+                    DayDivider(entry.timestamp, Modifier.transformedItem(this, spec))
+                    return@items
+                }
+                val (message, joinsPrevious, joinsNext) = entry as ConversationEntry.Message
                 val replyTo = message.replyToMessageId
                 MessageBubble(
                     message,
+                    joinsPrevious = joinsPrevious,
+                    joinsNext = joinsNext,
+                    delivery = message.delivery(lastReadOutboxId),
                     chatTitle = title,
                     quote = replyTo?.let { id -> messages.firstOrNull { it.id == id } ?: quoted[id] },
                     playing = message.id == playingId,
@@ -398,7 +421,9 @@ private fun MessageList(
                     // Reagovat jde jen na zprávu, kterou server zná — dočasná ještě skutečné id nemá.
                     onClick = { onReact(message.id) }
                         .takeIf { !message.isService && (message.sendState == null || message.sendState == SendState.Sent) },
-                    modifier = Modifier.transformedItem(this, spec),
+                    modifier = Modifier
+                        .transformedItem(this, spec)
+                        .then(if (joinsPrevious) Modifier else Modifier.padding(top = GROUP_GAP)),
                 )
             }
             botNote?.let { item { CenteredNote(it, Modifier.transformedItem(this, spec)) } }
@@ -408,7 +433,7 @@ private fun MessageList(
                     icon = { Icon(painterResource(Res.drawable.mic_24dp), contentDescription = null) },
                     label = { Text(stringResource(Res.string.wear_voice_record)) },
                     colors = ButtonDefaults.filledTonalButtonColors(),
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec).padding(top = GROUP_GAP),
                     transformation = SurfaceTransformation(spec),
                 )
             }
@@ -416,9 +441,27 @@ private fun MessageList(
     }
 }
 
+/**
+ * Předěl dne nad první zprávou dne: „Dnes", „Včera", jinak datum. Bez něj ukazovaly bubliny jen
+ * hodinu a u starší historie nebylo poznat, jestli je zpráva z dneška, nebo z minulého týdne.
+ */
+@Composable
+private fun DayDivider(timestamp: Int, modifier: Modifier) {
+    Text(
+        timestamp.asDayLabel(),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = modifier.fillMaxWidth().padding(top = GROUP_GAP + 4.dp, bottom = 2.dp),
+    )
+}
+
 @Composable
 private fun MessageBubble(
     message: ChatMessage,
+    joinsPrevious: Boolean,
+    joinsNext: Boolean,
+    delivery: Delivery?,
     chatTitle: String,
     quote: ChatMessage?,
     playing: Boolean,
@@ -463,13 +506,15 @@ private fun MessageBubble(
                 reactions = message.reactions,
                 status = message.timestamp.asTimeOfDay(),
                 statusColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                delivery = delivery,
                 fill = false,
             )
         }
         return
     }
-    // Jméno odesílatele jen tam, kde z chatu není jasné (skupiny) — v soukromém chatu je to název.
-    val sender = message.senderName?.takeIf { !outgoing && it != chatTitle }
+    // Jméno odesílatele jen tam, kde z chatu není jasné (skupiny) — v soukromém chatu je to název —
+    // a jen u první zprávy bloku, další bubliny téhož člověka se pod ní řadí bez něj.
+    val sender = message.senderName?.takeIf { !outgoing && it != chatTitle && !joinsPrevious }
     val status = when (message.sendState) {
         SendState.Sending -> stringResource(Res.string.wear_message_sending)
         SendState.Failed -> stringResource(Res.string.wear_message_failed)
@@ -484,7 +529,7 @@ private fun MessageBubble(
                 .fillMaxWidth(BUBBLE_WIDTH)
                 .background(
                     if (outgoing) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-                    RoundedCornerShape(16.dp),
+                    bubbleShape(outgoing, joinsPrevious, joinsNext),
                 )
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -560,6 +605,7 @@ private fun MessageBubble(
                 reactions = message.reactions,
                 status = status,
                 statusColor = if (message.sendState == SendState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                delivery = delivery,
             )
         }
     }
@@ -577,7 +623,13 @@ private fun MessageBubble(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ReactionsAndStatus(reactions: List<MessageReaction>, status: String, statusColor: Color, fill: Boolean = true) {
+private fun ReactionsAndStatus(
+    reactions: List<MessageReaction>,
+    status: String,
+    statusColor: Color,
+    delivery: Delivery?,
+    fill: Boolean = true,
+) {
     val shown = reactions.filter { customEmojiIdOf(it.emoji) == null }
     // S reakcemi kousek od obsahu: emoji jsou vyšší než čas a bez mezery se lepily na text.
     val gap = if (shown.isNotEmpty()) Modifier.padding(top = 4.dp) else Modifier
@@ -596,7 +648,39 @@ private fun ReactionsAndStatus(reactions: List<MessageReaction>, status: String,
             Spacer(Modifier.weight(1f))
         }
         Text(status, style = MaterialTheme.typography.labelSmall, color = statusColor, maxLines = 1)
+        delivery?.let { DeliveryIcon(it, statusColor) }
     }
+}
+
+/** Stav odeslané zprávy, který už server zná; odesílání a nezdar nesou slova místo času. */
+private enum class Delivery { Sent, Read }
+
+/**
+ * Doručeno, nebo přečteno — jako na telefonu z posuvného ukazatele na chatu
+ * ([ConversationViewModel.lastReadOutboxId]), ne ze zprávy. Příchozí a dosud neodeslaná nic.
+ */
+private fun ChatMessage.delivery(lastReadOutboxId: Long): Delivery? = when {
+    !isOutgoing || isService -> null
+    sendState != null && sendState != SendState.Sent -> null
+    id <= lastReadOutboxId -> Delivery.Read
+    else -> Delivery.Sent
+}
+
+/**
+ * Fajfka za časem: jedna = odesláno, dvě = přečteno. Rozlišuje je tvar, ne barva — akcent na
+ * odchozí (tónové) bublině kontrast nezaručuje (CLAUDE.md), proto barva času.
+ */
+@Composable
+private fun DeliveryIcon(delivery: Delivery, color: Color) {
+    Spacer(Modifier.width(2.dp))
+    Icon(
+        painterResource(if (delivery == Delivery.Read) Res.drawable.done_all_24dp else Res.drawable.check_24dp),
+        contentDescription = stringResource(
+            if (delivery == Delivery.Read) Res.string.conversation_delivery_read else Res.string.conversation_delivery_sent,
+        ),
+        tint = color,
+        modifier = Modifier.size(14.dp),
+    )
 }
 
 /**
@@ -713,6 +797,26 @@ private fun CenteredNote(text: String, modifier: Modifier = Modifier) {
 }
 
 private const val BUBBLE_WIDTH = 0.85f
+
+/** Mezera nad začátkem bloku zpráv (a nad předělem); uvnitř bloku jen odstup seznamu 2 dp. */
+private val GROUP_GAP = 2.dp
+
+private val BUBBLE_CORNER = 16.dp
+private val JOINED_CORNER = 4.dp
+
+/**
+ * Bublina v bloku má na straně odesílatele stažený roh tam, kde na ni navazuje sousední zpráva
+ * — blok se čte jako jeden celek, jako na telefonu.
+ */
+private fun bubbleShape(outgoing: Boolean, joinsPrevious: Boolean, joinsNext: Boolean): RoundedCornerShape {
+    val top = if (joinsPrevious) JOINED_CORNER else BUBBLE_CORNER
+    val bottom = if (joinsNext) JOINED_CORNER else BUBBLE_CORNER
+    return if (outgoing) {
+        RoundedCornerShape(topStart = BUBBLE_CORNER, topEnd = top, bottomEnd = bottom, bottomStart = BUBBLE_CORNER)
+    } else {
+        RoundedCornerShape(topStart = top, topEnd = BUBBLE_CORNER, bottomEnd = BUBBLE_CORNER, bottomStart = bottom)
+    }
+}
 
 /**
  * Systémové zadávání hodinek: diktování, klávesnice a emoji, k tomu rychlé odpovědi jako volby.

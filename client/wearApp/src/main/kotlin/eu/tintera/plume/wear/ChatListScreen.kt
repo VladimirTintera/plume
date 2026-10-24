@@ -7,6 +7,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.wear.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CompactButton
@@ -110,9 +116,9 @@ private fun ChatCard(
     modifier: Modifier,
     transformation: SurfaceTransformation,
 ) {
-    // V rohu počet nepřečtených, a když nic nečeká, čas poslední zprávy (dnes hodina, jinak datum).
-    val corner = chat.unreadCount.takeIf { it > 0 }?.toString()
-        ?: chat.lastMessageTimestamp?.let { if (it.isSameDayAs(nowSeconds())) it.asTimeOfDay() else it.asDate() }
+    // V rohu odznak nepřečtených, a když nic nečeká, čas poslední zprávy (dnes hodina, jinak datum).
+    val time = chat.lastMessageTimestamp?.let { if (it.isSameDayAs(nowSeconds())) it.asTimeOfDay() else it.asDate() }
+    val unread = chat.unreadCount > 0 || chat.isMarkedAsUnread
     TitleCard(
         onClick = onClick,
         title = {
@@ -121,7 +127,11 @@ private fun ChatCard(
             Spacer(Modifier.width(6.dp))
             Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
-        time = corner?.let { text -> { Text(text) } },
+        time = when {
+            unread -> { { UnreadBadge(chat.unreadCount, muted = chat.isMuted) } }
+            time != null -> { { Text(time) } }
+            else -> null
+        },
         modifier = modifier,
         transformation = transformation,
     ) {
@@ -132,5 +142,39 @@ private fun ChatCard(
 }
 
 private val AVATAR_SIZE = 24.dp
+
+/**
+ * Odznak nepřečtených: vyplněná pilulka s počtem, jako na telefonu. Holé číslo v rohu karty
+ * splývalo s časem u ostatních chatů a nepřečtený chat nebyl na první pohled vidět. Ztlumený
+ * chat má odznak tlumený (notifikace nevydává, nemá ani křičet v seznamu). Ručně označený
+ * jako nepřečtený bez počtu je jen tečka.
+ */
+@Composable
+private fun UnreadBadge(count: Int, muted: Boolean) {
+    val container = if (muted) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.primary
+    val content = if (muted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
+    Box(
+        Modifier
+            .heightIn(min = BADGE_SIZE)
+            .widthIn(min = BADGE_SIZE)
+            .background(container, CircleShape)
+            .padding(horizontal = 5.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (count > 0) {
+            Text(
+                if (count > MAX_BADGE) "$MAX_BADGE+" else count.toString(),
+                style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                color = content,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+private val BADGE_SIZE = 18.dp
+
+/** Víc se do rohu karty nevejde a přesné číslo nad sto na hodinkách nikdo nečte. */
+private const val MAX_BADGE = 99
 
 internal fun nowSeconds(): Int = Clock.System.now().epochSeconds.toInt()
