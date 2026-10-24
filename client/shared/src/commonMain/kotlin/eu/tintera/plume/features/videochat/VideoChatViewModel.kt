@@ -2,8 +2,6 @@ package eu.tintera.plume.features.videochat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import eu.tintera.plume.core.calls.LiveStreamMedia
-import eu.tintera.plume.core.telegram.VideoChatRepository
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -11,39 +9,39 @@ import eu.tintera.plume.resources.video_chat_hand_failed
 import eu.tintera.plume.resources.video_chat_microphone_denied
 import eu.tintera.plume.resources.video_chat_mute_failed
 import eu.tintera.plume.resources.video_chat_unmute_failed
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Obrazovka videochatu: poslouchá se (a mluví), dokud je otevřená. Zavření (zpět
- * i Opustit) z hovoru odejde — poslech na pozadí s pruhem nad aplikací zatím není.
+ * Obrazovka videochatu nad [VideoChatSession]: otevření se k videochatu připojí (k běžícímu
+ * jen naváže), zavření z něj NEODEJDE — posluchač zůstává s pruhem nad aplikací. Odejde se
+ * jen [leave].
  */
 class VideoChatViewModel(
-    private val chatId: Long,
-    groupCallId: Int,
-    private val repository: VideoChatRepository,
-    appScope: CoroutineScope,
-    /** Přenos; `null` = platforma ho neumí (obrazovka to řekne větou). */
-    media: LiveStreamMedia?,
+    chatId: Long,
+    private val groupCallId: Int,
+    private val session: VideoChatSession,
 ) : ViewModel() {
 
-    private val watch = media?.let { VideoChatWatch(repository, it, viewModelScope, appScope) }
+    val supported: Boolean get() = session.supported
 
-    val supported: Boolean get() = watch != null
-
-    val state: StateFlow<VideoChatState?> = watch?.state ?: MutableStateFlow(null)
-
-    private val _chatTitle = MutableStateFlow("")
+    /** Jen tenhle videochat; když běží jiný (pruh z jiné skupiny), obrazovka ho nepřebírá. */
+    val state: StateFlow<VideoChatState?> = session.active
+        .map { active -> active?.takeIf { it.groupCallId == groupCallId }?.state }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Nadpis, když správce videochat nepojmenoval. */
-    val chatTitle: StateFlow<String> = _chatTitle.asStateFlow()
+    val chatTitle: StateFlow<String> = session.active
+        .map { active -> active?.takeIf { it.groupCallId == groupCallId }?.chatTitle.orEmpty() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     init {
-        watch?.watch(groupCallId)
-        viewModelScope.launch { repository.chatTitle(chatId)?.let { _chatTitle.value = it } }
+        session.join(chatId, groupCallId)
     }
 
     private val _notice = MutableStateFlow<UiText?>(null)
@@ -55,11 +53,13 @@ class VideoChatViewModel(
         _notice.value = null
     }
 
+    /** Obrazovka je vidět — pruh nad aplikací se schová. */
+    fun screenVisible(visible: Boolean) = session.screenVisible(visible)
+
     /** Mluvit, nebo ztlumit se. Oprávnění k mikrofonu má mít obrazovka vyřízené předem. */
     fun setMuted(muted: Boolean) {
-        val watch = watch ?: return
         viewModelScope.launch {
-            watch.setMuted(muted).onFailure { failure ->
+            session.setMuted(muted).onFailure { failure ->
                 _notice.value = failure.userMessage(
                     if (muted) Res.string.video_chat_mute_failed else Res.string.video_chat_unmute_failed,
                 )
@@ -68,9 +68,8 @@ class VideoChatViewModel(
     }
 
     fun setHandRaised(raised: Boolean) {
-        val watch = watch ?: return
         viewModelScope.launch {
-            watch.setHandRaised(raised).onFailure { failure ->
+            session.setHandRaised(raised).onFailure { failure ->
                 _notice.value = failure.userMessage(Res.string.video_chat_hand_failed)
             }
         }
@@ -81,11 +80,5 @@ class VideoChatViewModel(
         _notice.value = UiText(Res.string.video_chat_microphone_denied)
     }
 
-    fun leave() {
-        watch?.stop()
-    }
-
-    override fun onCleared() {
-        watch?.stop()
-    }
+    fun leave() = session.leave()
 }

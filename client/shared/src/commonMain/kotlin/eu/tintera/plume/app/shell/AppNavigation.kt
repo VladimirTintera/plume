@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
+import eu.tintera.plume.core.navigation.VideoChatRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.CreateChatRoute
@@ -171,6 +172,16 @@ class AppNavigation internal constructor(
         val chats = stack(ChatsRoute)
         if (topicId != null) chats.add(ForumTopicsRoute(chatId))
         chats.add(ConversationRoute(chatId, topicId = topicId))
+    }
+
+    /**
+     * Videochat z pruhu nad aplikací: obrazovka se položí nad to, co je otevřené, takže zpět
+     * vede tam, odkud se na pruh ťuklo. Je-li nahoře už on, nic.
+     */
+    fun openVideoChat(chatId: Long, groupCallId: Int) {
+        selected.value = ChatsRoute
+        val chats = stack(ChatsRoute)
+        if ((chats.lastOrNull() as? VideoChatRoute)?.groupCallId != groupCallId) chats.add(VideoChatRoute(chatId, groupCallId))
     }
 
     /**

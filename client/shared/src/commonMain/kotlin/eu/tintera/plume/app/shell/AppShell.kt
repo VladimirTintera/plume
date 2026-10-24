@@ -97,6 +97,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.Dp
@@ -215,6 +221,7 @@ import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.features.share.ShareToChatScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
 import eu.tintera.plume.features.stories.StoriesScreen
+import eu.tintera.plume.features.videochat.VideoChatOverlay
 import eu.tintera.plume.features.videochat.VideoChatScreen
 import eu.tintera.plume.features.stories.StoryComposerScreen
 import org.koin.core.parameter.parametersOf
@@ -307,16 +314,37 @@ fun AppShell(modifier: Modifier = Modifier) {
         navigation.openShareTo(chatId)
     }
 
+    // Výška pruhu videochatu i se stavovou lištou; 0 = pruh není.
+    var videoChatBarHeight by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
     Box(modifier.fillMaxSize()) {
         ShellContent(
             navigation = navigation,
             entryDecorators = entryDecorators,
             sharedContent = incomingShare?.takeIf { it.carried },
             shareRequests = shareRequests,
-            modifier = Modifier.fillMaxSize(),
+            // Pruh videochatu obsah odsune, ne překryje: ležel by přes hlavičku konverzace
+            // i se šipkou zpět, a během videochatu se do skupiny píše. Stavovou lištu má
+            // pruh nad sebou, obsah ji proto dostane jako spotřebovanou (jinak dvojitá mezera).
+            // Je to kořen shellu, ne položka NavDisplay — měnící se hodnota tu uzel neodpojí
+            // (viz Gotchas o insetech v CLAUDE.md).
+            modifier = Modifier.fillMaxSize().then(
+                if (videoChatBarHeight > 0) {
+                    Modifier
+                        .consumeWindowInsets(WindowInsets.statusBars)
+                        .padding(top = with(density) { videoChatBarHeight.toDp() })
+                } else {
+                    Modifier
+                },
+            ),
         )
         // Probíhající hovor nad vším — přes celou obrazovku, nebo zmenšený do pruhu nahoře.
         CallOverlay(Modifier.align(Alignment.TopCenter))
+        // Videochat, ze kterého uživatel odešel jen z obrazovky — pruh na stejném místě.
+        VideoChatOverlay(
+            onOpen = navigation::openVideoChat,
+            modifier = Modifier.align(Alignment.TopCenter).onSizeChanged { videoChatBarHeight = it.height },
+        )
         // Hodnocení po hovoru, o které server požádal; až obrazovka hovoru zmizí.
         CallRatingHost()
     }

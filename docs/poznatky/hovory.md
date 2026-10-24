@@ -1085,11 +1085,46 @@ ztlumil správce, zvednutím ruky (viz „Mluvení a zvednutá ruka" níž). Kam
 - **„Kdo mluví" Plume neukazuje.** `isSpeaking` v TDLib nastavuje jen klient sám
   (`setGroupCallParticipantIsSpeaking` z úrovní zvuku z tgcalls) a ntgcalls úrovně zvuku
   ostatních nevydává.
-- **Odchod z obrazovky = odchod z hovoru** (zpět i Opustit, `leaveGroupCall` přes `appScope`
-  jako u živého příběhu). Poslech na pozadí s pruhem nad aplikací zatím není. Zvuk po odchodu
-  uvolní přehrávač (AAudio) a vrátí normální režim zvuku.
+- **Zavření obrazovky z videochatu NEODCHÁZÍ** — posluchač zůstává s pruhem nad aplikací
+  a se službou v popředí (viz „Videochat na pozadí" níž). Odchází jen Opustit (na obrazovce,
+  v pruhu, „Zavěsit" v notifikaci); zvuk po odchodu uvolní přehrávač (AAudio) a vrátí normální
+  režim zvuku.
 - **Konec videochatu za poslechu** (`updateGroupCall`, `isActive = false`) zastaví přenos
   a obrazovka řekne „Videochat skončil" (ověřeno: konec od správce, zvuk se uvolní).
+
+### Videochat na pozadí
+
+- **Sezení patří aplikaci, ne obrazovce** (`VideoChatSession`, singleton v Koinu nad
+  `VideoChatWatch` s `APP_SCOPE`). ViewModel obrazovky se k němu jen připojí (`join`; tentýž
+  videochat podruhé nic neudělá, jiný ten předchozí opustí — naráz jde jen jeden) a při zániku
+  nic neukončuje. Skončený videochat ve stavu zůstává, dokud se neotevře jiný: obrazovka pak
+  řekne „skončil"; pruh i služba se řídí `ActiveVideoChat.running` a zmizí samy.
+- **Služba v popředí `VideoChatService`** (vlastní, ne `CallService` — ta je svázaná se stavem
+  hovoru ve dvou a s Telecomem): typ `phoneCall` (s `MANAGE_OWN_CALLS`, jako hovor ve dvou)
+  po celou dobu a `microphone` jen s mluvením. Mikrofonový typ se přidává `startForeground`
+  znovu s odtlumením — to je vždycky ťuknutí v aplikaci, tedy z popředí, jak to Android
+  u mikrofonu chce; s ním na pozadí mikrofon nahrává (`dumpsys audio`: `silenced:false`).
+  Spouští ji `VideoChatServiceControls` při každém novém běžícím videochatu.
+- **Notifikace `CallStyle`** v kanálu Hovory: název videochatu a „Zavěsit", které videochat
+  opustí (`ACTION_LEAVE` do služby). Ťuknutí otevře skupinu — nad ní je pruh, z něj obrazovka.
+  Na Androidu 11 ukáže systém místo našeho textu „Ongoing call" — `CallStyle` text přebíjí.
+- **Pruh nad aplikací** (`VideoChatOverlay` v kořeni shellu, na místě pruhu hovoru ve dvou):
+  název, „Posloucháte / Mluvíte · N účastníků", mikrofon (jen kdo smí mluvit) a Opustit;
+  ťuknutí otevře obrazovku videochatu nad tím, co je otevřené (`AppNavigation.openVideoChat`).
+  Schová se, dokud je obrazovka videochatu složená (`screenShown`, počítadlo, ne příznak —
+  obrazovky se při přechodu chvíli překrývají), a ustoupí hovoru ve dvou.
+- **Pruh obsah ODSUNE, ne překryje.** První verze ležela přes obsah jako pruh hovoru ve dvou
+  a zakrývala hlavičku konverzace i se šipkou zpět — a během videochatu se do skupiny píše.
+  Shell proto dostane `padding(top = výška pruhu)` a stavovou lištu jako spotřebovanou
+  (`consumeWindowInsets(WindowInsets.statusBars)`); pruh ji má nad sebou, jinak by byla mezera
+  dvakrát. Je to kořen shellu, ne položka `NavDisplay`, takže měnící se hodnota uzel neodpojí
+  (Gotchas o insetech v CLAUDE.md). **Pruh hovoru ve dvou obsah pořád překrývá** — kandidát na
+  totéž.
+- **Ověřeno na emulátorech 24. 10. 2026** (…029 posluchač, …527 vlastník, sonda zakládala
+  videochat a za 10 minut ho ukončila): zpět z obrazovky → pruh nad konverzací s odsunutým
+  obsahem, služba `isForeground`; mikrofon z pruhu a Domů → nahrávání na pozadí neumlčené,
+  přehrávání běží; „Hang Up" v notifikaci → služba, nahrávání, přehrávání i notifikace pryč,
+  pruh zmizel; konec videochatu s aplikací na pozadí → služba skončila sama.
 
 ### Mluvení a zvednutá ruka
 

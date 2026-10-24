@@ -53,6 +53,8 @@ Teď je prázdné.
     > call, and the service stops when the call ends.
   - [ ] **`FOREGROUND_SERVICE_PHONE_CALL`**: úloha pro probíhající hovor (VoIP). Video:
     přijatý hovor, odchod z aplikace, hovor běží dál s notifikací a jde zavěsit z ní.
+    Tentýž typ (a `MICROPHONE` s mluvením) má i videochat ve skupině (`VideoChatService`),
+    do videa tedy patří i odchod z videochatu na plochu a „Zavěsit" v jeho notifikaci.
     > Plume makes and receives Telegram voice and video calls (VoIP, registered with the system
     > Telecom framework through androidx.core.telecom). The foreground service runs for the whole call
     > so the call continues when the user leaves the app or locks the screen, and shows an
@@ -1057,9 +1059,10 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      zvuk, jeden obraz (sdílená obrazovka přednostně), Opustit (`docs/poznatky/hovory.md`,
      „Videochat na poslech"). ~~Mluvení (odtlumení, zvednutí ruky)~~ — hotovo (tamtéž, „Mluvení
      a zvednutá ruka"). Zbývá: ověřit, že hlas na druhé straně zní (ušima), kamerou a sdílením
-     obrazovky účastníka a velký videochat po segmentech; poslech na pozadí s pruhem nad
-     aplikací (s mikrofonem chce službu v popředí typu `microphone`), vlastní kamera, mřížka
-     víc kamer, „kdo mluví", správa pro správce (ztlumit ostatní, pustit ke slovu), desktop.
+     obrazovky účastníka a velký videochat po segmentech; ~~poslech na pozadí s pruhem nad
+     aplikací~~ — hotovo (`docs/poznatky/hovory.md`, „Videochat na pozadí"); vlastní kamera,
+     mřížka víc kamer, „kdo mluví", správa pro správce (ztlumit ostatní, pustit ke slovu),
+     desktop. Pruh hovoru ve dvou pořád překrývá obsah — přenést na něj odsunutí jako u videochatu.
    - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory s mluvením**.
    Původní plán sondy:
 

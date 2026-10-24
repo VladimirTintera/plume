@@ -1549,6 +1549,9 @@
     <string name="video_chat_hand_raised">Hlásí se</string>
     <string name="video_chat_sends_video">Posílá obraz</string>
     <string name="video_chat_nobody">Nikdo další tu zatím není.</string>
+    <string name="video_chat_bar_listening">Posloucháte</string>
+    <string name="video_chat_bar_speaking">Mluvíte</string>
+    <string name="video_chat_notification_listening">Jste ve videochatu. Ťuknutím otevřete skupinu.</string>
     <string name="video_chat_unmute">Zapnout mikrofon</string>
     <string name="video_chat_mute">Ztlumit</string>
     <string name="video_chat_raise_hand">Zvednout ruku</string>
