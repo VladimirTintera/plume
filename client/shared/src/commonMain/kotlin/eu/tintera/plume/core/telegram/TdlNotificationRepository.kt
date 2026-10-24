@@ -155,6 +155,9 @@ class TdlNotificationRepository(
         // Jeden update může naráz přidávat i odebírat; pořadí je podstatné, aby po přečtení
         // jinde nezůstala viset stará notifikace, kterou právě nahradila novější.
         val removed = update.removedNotificationIds.toList()
+        // Bez tohohle nejde poznat „TDLib nic neposlal" od „presenter nic neukázal" — viz
+        // „Notifikace nevznikne, když zprávu přečte jiný klient" v docs/poznatky/notifikace.md.
+        logger.d { "Skupina ${update.notificationGroupId} (chat ${update.chatId}): +${update.addedNotifications.size} −${removed.size}" }
         if (removed.isNotEmpty()) {
             emitTracked(NotificationUpdate.Removed(update.notificationGroupId, removed))
         }
