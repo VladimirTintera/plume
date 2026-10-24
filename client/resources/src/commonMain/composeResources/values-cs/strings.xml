@@ -4283,4 +4283,6 @@
     <string name="wear_voice_failed">Hlasovku se nepodařilo nahrát.</string>
     <string name="wear_notification_channel">Zprávy</string>
     <string name="wear_notification_me">Vy</string>
+    <string name="wear_notification_mark_read">Přečteno</string>
+    <string name="wear_notification_not_sent">Neodesláno: %1$s</string>
 </resources>
