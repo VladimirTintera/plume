@@ -111,7 +111,7 @@ private const val REPLY_KEY = "reply"
  *   (`interactionUpdates`). Vlastní emoji hodinky nevykreslí, vynechávají se.
  */
 @Composable
-fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecord: () -> Unit) {
+fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecord: () -> Unit, onOpenPhoto: (fileId: Int) -> Unit) {
     val conversations = koinInject<ConversationRepository>()
     val chats = koinInject<ChatRepository>()
     val files = koinInject<FileRepository>()
@@ -237,7 +237,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     when {
         failed && current.isNullOrEmpty() -> MessageScreen(stringResource(Res.string.conversation_history_failed))
         current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
-        else -> MessageList(title, current, problem, playback.playingId, onReply, onReact, onRecord, onPlay)
+        else -> MessageList(title, current, problem, playback.playingId, onReply, onReact, onRecord, onPlay, onOpenPhoto)
     }
 }
 
@@ -251,6 +251,7 @@ private fun MessageList(
     onReact: (Long) -> Unit,
     onRecord: () -> Unit,
     onPlay: (ChatMessage) -> Unit,
+    onOpenPhoto: (Int) -> Unit,
 ) {
     val state = rememberTransformingLazyColumnState()
     // Na nejnovější zprávu (dole) při otevření i s každou další.
@@ -270,6 +271,7 @@ private fun MessageList(
                     chatTitle = title,
                     playing = message.id == playingId,
                     onPlay = { onPlay(message) },
+                    onOpenPhoto = onOpenPhoto,
                     // Reagovat jde jen na zprávu, kterou server zná — dočasná ještě skutečné id nemá.
                     onClick = { onReact(message.id) }
                         .takeIf { !message.isService && (message.sendState == null || message.sendState == SendState.Sent) },
@@ -295,6 +297,7 @@ private fun MessageBubble(
     chatTitle: String,
     playing: Boolean,
     onPlay: () -> Unit,
+    onOpenPhoto: (Int) -> Unit,
     onClick: (() -> Unit)?,
 ) {
     // Slovy kreslí `text`, a když je prázdný (fotka bez popisku, anketa…), popis obsahu.
@@ -328,6 +331,10 @@ private fun MessageBubble(
             sender?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1)
             }
+            val photo = message.media?.shownPhoto()
+            if (photo != null) {
+                MessagePhoto(photo, onClick = { onOpenPhoto(photo.fileId) }, modifier = Modifier.padding(vertical = 4.dp))
+            }
             val voice = message.media as? MessageMedia.VoiceNote
             if (voice != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -346,8 +353,9 @@ private fun MessageBubble(
                     Text(formatDuration(voice.durationSeconds), style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            // U hlasovky je popis „Hlasová zpráva" zbytečný — kreslí se jen případný popisek.
-            if (voice == null || message.text.isNotEmpty()) {
+            // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se
+            // jen případný popisek.
+            if ((voice == null && photo == null) || message.text.isNotEmpty()) {
                 Text(
                     text,
                     style = if (emoji != null && message.text.isEmpty()) MaterialTheme.typography.displaySmall else MaterialTheme.typography.bodyMedium,
