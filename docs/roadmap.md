@@ -315,8 +315,9 @@ bez Compose UI.
 
 ## Wear OS
 
-**Rozpracované (od 24. 10. 2026):** modul `:client:wearApp` s přihlášením QR kódem a seznamem
-chatů běží na emulátoru (`docs/poznatky/wear-os.md`). Dál MVP od bodu 2.
+**Rozpracované (od 24. 10. 2026):** modul `:client:wearApp` s přihlášením QR kódem, seznamem
+chatů s fotkami a konverzací jen pro čtení běží na emulátoru (`docs/poznatky/wear-os.md`).
+Dál MVP od bodu 3.
 
 Hodinky navíc dostávají notifikace zrcadlené z telefonu, a ty jsou na to připravené:
 `MessagingStyle`, odpověď (`SEMANTIC_ACTION_REPLY`) s navrženými odpověďmi, Přečteno, Ztlumit,
@@ -342,9 +343,9 @@ obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatk
 
 1. ~~Modul `:client:wearApp`, přihlášení QR kódem~~ — hotovo (i heslo dvoufázového ověření).
    Zbývá potvrzení z Plume na telefonu přes Data Layer (`confirmQrCodeAuthentication`).
-2. ~~Seznam chatů (bez složek a archivu)~~ — hotovo (název, náhled, nepřečtené; bez fotek).
-   Zbývá konverzace jen pro čtení: text, popisy médií, servisní zprávy; obrázky jako malé
-   náhledy, bez prohlížeče. Fotky chatů v seznamu.
+2. ~~Seznam chatů (bez složek a archivu), konverzace jen pro čtení~~ — hotovo: fotky chatů,
+   text, popisy médií, servisní zprávy, živé zprávy, přečtení. Zbývá: obrázky jako malé náhledy
+   (dnes jen popis „Fotka"), starší historie scrollováním nahoru.
 3. Odpověď: diktování, emoji, rychlé odpovědi ze systému; reakce.
 4. Hlasovky: přehrávání a nahrávání mikrofonem hodinek.
 5. Vlastní push na hodinkách — a na telefonu přestat zrcadlit, když je Plume na hodinkách

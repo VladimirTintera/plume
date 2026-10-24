@@ -61,6 +61,8 @@ dependencies {
 
     implementation(libs.wear.compose.material3)
     implementation(libs.wear.compose.foundation)
+    // Navigace s gestem tahu zpět (SwipeDismissableNavHost), standard na hodinkách.
+    implementation(libs.wear.compose.navigation)
     // Zadání hesla (dvoufázové ověření) systémovou klávesnicí hodinek — Wear Compose pole nemá.
     implementation(libs.wear.input)
     implementation(libs.androidx.activity.compose)

@@ -4261,4 +4261,5 @@
     <string name="wear_password_failed">Heslo neprošlo, zkuste to znovu.</string>
     <string name="wear_chats_title">Chaty</string>
     <string name="wear_chats_empty">Zatím žádné chaty</string>
+    <string name="wear_conversation_empty">Zatím žádné zprávy</string>
 </resources>
