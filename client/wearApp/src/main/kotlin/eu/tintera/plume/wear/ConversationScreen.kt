@@ -1,5 +1,14 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.core.telegram.MessageEntityType
+import eu.tintera.plume.core.telegram.MessageEntity
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.Color
 import eu.tintera.plume.resources.wear_phone_unavailable
 import eu.tintera.plume.resources.wear_opened_on_phone
 import eu.tintera.plume.resources.wear_bot_button_phone_only
@@ -340,6 +349,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             pressing = pressing,
             botNote = botNote,
             onBotButton = onBotButton,
+            onOpenLink = openLink,
             onVote = { messageId, answers ->
                 scope.launch {
                     conversations.vote(chatId, messageId, answers)
@@ -390,6 +400,7 @@ private fun MessageList(
     pressing: Triple<Long, Int, Int>?,
     botNote: String?,
     onBotButton: (ChatMessage, Int, Int, BotButton) -> Unit,
+    onOpenLink: (String) -> Unit,
     onVote: (messageId: Long, answers: List<Int>) -> Unit,
 ) {
     val state = rememberTransformingLazyColumnState()
@@ -429,6 +440,7 @@ private fun MessageList(
                     onVote = { answers -> onVote(message.id, answers) },
                     pressing = pressing?.takeIf { it.first == message.id }?.let { it.second to it.third },
                     onBotButton = { row, column, button -> onBotButton(message, row, column, button) },
+                    onOpenLink = onOpenLink,
                     // Reagovat jde jen na zprávu, kterou server zná — dočasná ještě skutečné id nemá.
                     onClick = { onReact(message.id) }
                         .takeIf { !message.isService && (message.sendState == null || message.sendState == SendState.Sent) },
@@ -460,6 +472,7 @@ private fun MessageBubble(
     onVote: (List<Int>) -> Unit,
     pressing: Pair<Int, Int>?,
     onBotButton: (Int, Int, BotButton) -> Unit,
+    onOpenLink: (String) -> Unit,
     onClick: (() -> Unit)?,
 ) {
     // Slovy kreslí `text`, a když je prázdný (fotka bez popisku, anketa…), popis obsahu.
@@ -545,10 +558,15 @@ private fun MessageBubble(
             // jen případný popisek.
             // Anketa se kreslí celá — `text` u ní nese jen „Anketa: otázka".
             if (poll == null && ((voice == null && photo == null && video == null) || message.text.isNotEmpty())) {
+                val textColor = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                // Odkaz na tónové bublině: akcent jen v příchozí, v odchozí barva popředí bubliny —
+                // `primary` na `primaryContainer` kontrast nezaručuje (CLAUDE.md). Odlišení nese
+                // podtržení v obou.
+                val linkColor = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
                 Text(
-                    text,
+                    if (message.text.isNotEmpty()) linkedText(message.text, message.entities, linkColor, onOpenLink) else AnnotatedString(text),
                     style = if (emoji != null && message.text.isEmpty()) MaterialTheme.typography.displaySmall else MaterialTheme.typography.bodyMedium,
-                    color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                    color = textColor,
                 )
             }
             message.keyboard?.let { MessageBotKeyboard(it, pressing, onBotButton) }
@@ -594,6 +612,31 @@ private fun ReplyQuote(quote: ChatMessage, chatTitle: String, inOutgoing: Boolea
         )
     }
 }
+
+/**
+ * Text zprávy s klikatelnými odkazy (`MessageEntityType.Link`, i e-mail a telefon). Ťuknutí
+ * odkaz otevře v telefonu ([onOpenLink]) — web se na hodinkách neotevírá. Ostatní entity
+ * (zmínky, tagy, formátování) zůstávají obyčejným textem: zmínka ani tag by na hodinkách
+ * neměly kam vést a modrý text bez akce je horší než černý.
+ */
+private fun linkedText(text: String, entities: List<MessageEntity>, linkColor: Color, onOpenLink: (String) -> Unit): AnnotatedString =
+    buildAnnotatedString {
+        append(text)
+        entities.forEach { entity ->
+            val link = entity.type as? MessageEntityType.Link ?: return@forEach
+            val start = entity.offset.coerceIn(0, text.length)
+            val end = (entity.offset + entity.length).coerceIn(start, text.length)
+            if (start == end) return@forEach
+            addLink(
+                LinkAnnotation.Clickable(
+                    tag = link.url,
+                    styles = TextLinkStyles(SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)),
+                ) { onOpenLink(link.url) },
+                start,
+                end,
+            )
+        }
+    }
 
 /** Zpráva jedním řádkem: text, a když není, emoji z přílohy nebo popis obsahu („Fotka"). */
 @Composable
