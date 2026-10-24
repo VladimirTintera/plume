@@ -2,4 +2,7 @@
 <resources>
     <!-- Jméno aplikace v launcheru hodinek. Texty UI jsou v composeResources (client/resources). -->
     <string name="app_name">Plume</string>
+    <!-- Jména dlaždice a komplikace ve výběru systému: manifest bere jen prostředky Androidu. -->
+    <string name="tile_unread_label">Unread chats</string>
+    <string name="complication_unread_label">Unread chats</string>
 </resources>

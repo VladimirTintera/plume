@@ -4285,4 +4285,18 @@
     <string name="wear_notification_me">Vy</string>
     <string name="wear_notification_mark_read">Přečteno</string>
     <string name="wear_notification_not_sent">Neodesláno: %1$s</string>
+    <plurals name="wear_tile_unread_chats">
+        <item quantity="one">nepřečtený chat</item>
+        <item quantity="few">nepřečtené chaty</item>
+        <item quantity="other">nepřečtených chatů</item>
+    </plurals>
+    <string name="wear_tile_open">Otevřít</string>
+    <string name="wear_tile_signed_out">Přihlas se v Plume a uvidíš nepřečtené chaty</string>
+    <string name="wear_tile_unknown">Otevři Plume a načti chaty</string>
+    <plurals name="wear_complication_unread">
+        <item quantity="one">%1$d nepřečtený chat</item>
+        <item quantity="few">%1$d nepřečtené chaty</item>
+        <item quantity="other">%1$d nepřečtených chatů</item>
+    </plurals>
+    <string name="wear_complication_signed_out">Plume: nepřihlášeno</string>
 </resources>

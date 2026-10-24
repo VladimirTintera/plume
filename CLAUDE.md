@@ -74,7 +74,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Výkon a paměť](docs/poznatky/vykon.md) — reporty Compose kompilátoru, LeakCanary, heap dumpy, composition tracing, měření ne-debuggable buildu, start a plynulost
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků
 - [Hovory](docs/poznatky/hovory.md) — co dělá TDLib a co knihovna (ntgcalls), verze a servery, licence, obálka na Androidu (služba, Telecom, výstup zvuku), ticho a zablokování v knihovně, videohovory a obraz v obraze, sdílení obrazovky a ukazovátko, hovor z konverzace a chybové hlášky, historie hovorů a hodnocení, desktop (JNA, zvonění a okénko příchozího hovoru, video)
-- [Wear OS](docs/poznatky/wear-os.md) — skladba `wearApp` nad `:client:core`, přihlášení QR kódem na kulatém displeji a heslo přes `RemoteInput`, seznam chatů bez klíčů položek, emulátor `Plume_Wear`
+- [Wear OS](docs/poznatky/wear-os.md) — skladba `wearApp` nad `:client:core`, přihlášení QR kódem na kulatém displeji a heslo přes `RemoteInput`, seznam chatů bez klíčů položek, dlaždice a komplikace s počtem nepřečtených, emulátor `Plume_Wear`
 - [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (jen knihovna systému, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter), titulek okna v barvách motivu, vložení ze schránky a přetažení souborů, release MSI a DMG a ikony, bubliny z kořene kompozice, zubaté a rozmazané obrázky (dekodér Coilu, přiblížení), co desktop neumí
 
 ## Pracovní postup

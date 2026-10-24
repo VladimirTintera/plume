@@ -78,6 +78,15 @@ dependencies {
     implementation(libs.wear.phone.interactions)
     // QR kód pro přihlášení (jako telefon).
     implementation(libs.zxing.core)
+
+    // Dlaždice a komplikace s počtem nepřečtených: dlaždice se skládá z ProtoLayout (M3 pro
+    // dlaždice), ne z Compose; TileService vrací ListenableFuture, korutinu do ní převede
+    // concurrent-futures.
+    implementation(libs.wear.tiles)
+    implementation(libs.wear.protolayout)
+    implementation(libs.wear.protolayout.material3)
+    implementation(libs.wear.complications.data.source)
+    implementation(libs.androidx.concurrent.futures)
 }
 
 // Push přes FCM: plugin `google-services` jen s `google-services.json`, jako u telefonu (bez něj
