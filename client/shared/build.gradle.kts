@@ -400,10 +400,6 @@ kotlin {
             // Hovory (sonda): ntgcalls, viz docs/poznatky/hovory.md.
             implementation(libs.ntgcalls)
             implementation(libs.androidx.core.telecom)
-            // Hlásič pádů. Jediné místo v projektu, kde smí být Crashlytics na classpath —
-            // viz core/logging. Bez `google-services.json` se knihovna jen neinicializuje.
-            implementation(project.dependencies.platform(libs.firebase.bom))
-            implementation(libs.firebase.crashlytics)
             // QR kód přihlášení. Na iOS ho generuje CoreImage, tam závislost netřeba.
             implementation(libs.zxing.core)
             // Vestavěný výběr fotek (viz core/ui/EmbeddedMediaPicker). Kde ho systém nemá,

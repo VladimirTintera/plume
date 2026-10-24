@@ -246,6 +246,17 @@ Samostatná aplikace pro hodinky (`client/wearApp`). Plán a co zbývá: `docs/r
   ze studeného startu i s aplikací na pozadí (jedna instance aktivity), tah zpět do seznamu.
   Neověřené: stav bez přihlášení, chat s nestaženou fotkou, skutečné hodinky.
 
+## Hlášení pádů
+
+- **Crashlytics jako telefon** (`release.md`, „Hlášení pádů"): `configureLogging()` z `core`
+  na začátku `WearApplication.onCreate`, před `startKoin`; plugin `crashlytics` za
+  `google-services`, sběr jen v release (placeholder `crashlyticsCollectionEnabled`
+  v manifestu). Release build nahrává R8 mapping soubor (`uploadCrashlyticsMappingFileRelease`).
+- **Ověřeno na emulátoru 2026-10-24** release buildem přepodepsaným debug klíčem: `adb shell am
+  crash eu.tintera.plume` → „Handling uncaught exception … shell-induced crash" a „Crashlytics
+  report successfully enqueued to DataTransport". Podrobný log Crashlytics zapne `adb shell
+  setprop log.tag.FirebaseCrashlytics DEBUG`. Testovací pád má `versionCode` 100000999 (9.9.9).
+
 ## Vydání
 
 Postup a pasti jsou v `release.md`, „Hodinky (Wear OS)": track `wear:internal` z tagu Androidu,

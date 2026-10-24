@@ -38,6 +38,10 @@ android {
         minSdk = 30
         targetSdk = libs.versions.android.targetSdk.get().toInt()
 
+        // Sběr hlášení pádů jen v release (níž), jako u telefonu: pády z vývoje do konzole nepatří.
+        // Crashlytics příznak čte při inicializaci procesu, proto manifest, ne volání za běhu.
+        manifestPlaceholders["crashlyticsCollectionEnabled"] = "false"
+
         ndk {
             // Hodinky: arm64 a hodně z nich 32bitově (Wrapper TDLib balí oboje). x86 nepotřebují
             // a TDLib je na ABI přes 15 MB.
@@ -56,6 +60,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            manifestPlaceholders["crashlyticsCollectionEnabled"] = "true"
         }
     }
 
@@ -112,6 +117,10 @@ dependencies {
 // projekt Firebase, mění se oba.
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
+    // Hlášení pádů na témže souboru. AŽ ZA `google-services` (čte jeho konfiguraci); k buildu
+    // přidá build id a nahrání R8 mapping souboru — bez něj je stack trace z minifikovaného
+    // releasu nečitelný. Kermit → Crashlytics přemosťuje `configureLogging()` z `core`.
+    apply(plugin = "com.google.firebase.crashlytics")
 } else {
-    logger.lifecycle("wearApp: google-services.json chybí — hodinky bez pushe.")
+    logger.lifecycle("wearApp: google-services.json chybí — hodinky bez pushe a bez hlášení pádů.")
 }
