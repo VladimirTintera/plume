@@ -242,6 +242,25 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   systémové zadávání (`RemoteInput` přes `RemoteInputIntentHelper`) nabízí emoji, diktování
   a klávesnici, pod nimi naše **rychlé odpovědi jako volby** (`setChoices`, texty
   `wear_quick_reply_*`). Ťuknutí na volbu pošle zprávu rovnou, bez potvrzení.
+- **Poloha** (tlačítko „Poloha" pod Samolepkou, `SendLocationScreen`, cesta `location/{chatId}`):
+  jednorázově, živá zůstává na telefonu (baterie). Oprávnění `ACCESS_FINE_LOCATION` /
+  `ACCESS_COARSE_LOCATION` (stačí jedno), pak čerstvá poloha ze systému a **odejde až po
+  „Poslat polohu"** s přesností („Přesnost asi 12 m") — kam ukázat, kde je, rozhoduje člověk.
+  - **Systémový `LocationManager.getCurrentLocation`**, ne Play služby (kvůli jedné poloze netřeba
+    knihovna, `minSdk` 30 ho má). **Poskytovatelé po řadě**, `fused` (Wear OS 4+), GPS, síť,
+    dokud některý polohu nevrátí — `getCurrentLocation` vrací `null` hned, když poskytovatel
+    polohu dát neumí; dohromady nejvýš 30 s, pak poslední známá. GPS není povinná
+    (`uses-feature … required="false"`).
+  - **Zpráva s polohou má v bublině řádek** (ikona, „Poloha" / název místa / „Živá poloha",
+    adresa nebo souřadnice s tečkou v každém jazyce) a ťuknutí otevře mapu v telefonu. `core`
+    dává poloze prázdné tělo i popis (telefon ji kreslí mapou), takže byla bublina prázdná.
+  - **Emulátor: `adb emu geo fix` do GPS hodinek nedojde** (`last location=null` v `dumpsys
+    location`). Polohu dá testovací poskytovatel: `appops set com.android.shell
+    android:mock_location allow`, `cmd location providers add-test-provider gps`,
+    `set-test-provider-enabled gps true`, `set-test-provider-location gps --location 50.0875,14.4208
+    --accuracy 12`; po testu `remove-test-provider gps` a appop zpět na `default`.
+  - Ověřeno na emulátoru 2026-10-25: žádost o oprávnění, „Přesnost asi 12 m", poloha odešla do
+    chatu Notifikátora a v bublině je „Poloha" se souřadnicemi.
 - **Samolepka** (tlačítko „Samolepka" pod Hlasovou zprávou na konci konverzace,
   `StickerPickerScreen`, cesta `stickers/{chatId}`): oblíbené a nedávné (`favoriteStickers`,
   `recentStickers` — jsou na účtu, takže i ty poslané z telefonu), každý seznam nejvýš 18,

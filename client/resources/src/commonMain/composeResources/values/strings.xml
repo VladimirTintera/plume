@@ -4243,6 +4243,13 @@
     <string name="wear_tile_note_action">Dictate</string>
     <string name="wear_complication_note">Note</string>
     <string name="wear_voice_record">Voice message</string>
+    <string name="wear_location_button">Location</string>
+    <string name="wear_location_title">My location</string>
+    <string name="wear_location_finding">Finding your location…</string>
+    <string name="wear_location_send">Send location</string>
+    <string name="wear_location_accuracy">Accurate to about %1$d m</string>
+    <string name="wear_location_no_permission">Without location permission, the watch can't send it.</string>
+    <string name="wear_location_unavailable">Couldn't get your location. Try outside with a view of the sky.</string>
     <string name="wear_sticker_button">Sticker</string>
     <string name="wear_stickers_none">No stickers yet. Send one from your phone and it will show up here.</string>
     <string name="wear_voice_tap_to_record">Tap to record</string>

@@ -8,6 +8,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Nahrávání hlasovek mikrofonem hodinek; o oprávnění se žádá až na obrazovce nahrávání. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Jednorázové poslání polohy z konverzace (SendLocationScreen). GPS není nutná:
+         hodinky bez ní pošlou polohu ze sítě nebo z telefonu. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <!-- Vlastní notifikace z pushe (Android 13+ se na ně ptá za běhu, po přihlášení). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 

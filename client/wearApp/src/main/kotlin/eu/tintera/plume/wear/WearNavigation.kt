@@ -14,6 +14,7 @@ private const val MESSAGE = "message"
 private const val MESSAGE_ID = "messageId"
 private const val RECORD = "record"
 private const val STICKERS = "stickers"
+private const val LOCATION = "location"
 private const val SETTINGS = "settings"
 private const val CHAT_ACTIONS = "chatActions"
 private const val FOLDERS = "folders"
@@ -80,8 +81,13 @@ fun WearNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                     onReact = { messageId -> navController.navigate("$MESSAGE/$chatId/$messageId") },
                     onRecord = { navController.navigate("$RECORD/$chatId") },
                     onSticker = { navController.navigate("$STICKERS/$chatId") },
+                    onLocation = { navController.navigate("$LOCATION/$chatId") },
                 )
             }
+        }
+        composable("$LOCATION/{$CHAT_ID}") { entry ->
+            val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable
+            SendLocationScreen(chatId = chatId, onDone = { navController.popBackStack() })
         }
         composable("$STICKERS/{$CHAT_ID}") { entry ->
             val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable
