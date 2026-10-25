@@ -107,7 +107,7 @@ class StreamingSource(
  * Umí tahle platforma přehrát rozestavěný soubor?
  *
  * Android i iOS ano: vlastní zdroj nad souborem TDLib (`PartialFileDataSource` pro ExoPlayer,
- * `StreamingResourceLoader` pro AVPlayer). Desktop čte jen hotové soubory.
+ * `StreamingResourceLoader` pro AVPlayer). Desktop taky (`StreamingIo`, vlastní vstup FFmpegu).
  */
 expect val videoStreamingSupported: Boolean
 

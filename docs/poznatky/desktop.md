@@ -791,8 +791,7 @@ příběhy a video v prohlížeči médií; HEIC dál otevírá aplikace systém
   stisku pauzy byl slyšet.
 - **Kvality videa**: přepočítané od serveru jsou h264 a AV1; desktop nabízí h264 (FFmpeg ho
   dekóduje vždycky), AV1 jen s `libdav1d`, na který se z kompozice nedá zeptat bez nahrání
-  nativních knihoven. Streamovat neumí (chtělo by vlastní `AVIOContext`), prohlížeč tedy čeká na
-  celý soubor.
+  nativních knihoven. Streamuje (viz „Streamování rozestavěného souboru").
 - **Testy `DesktopVideoSoundTest`** ve skutečném čase nad `sound.mp4` / `silent.mp4`
   (`jvmTest/resources/video`, 2 s `testsrc` + sinus z `ffmpeg -f lavfi`): pozice po vteřině,
   konec, ztlumení, posun s rychlostí 2×, video bez zvukové stopy. Na stroji bez zvukového
@@ -805,6 +804,40 @@ příběhy a video v prohlížeči médií; HEIC dál otevírá aplikace systém
   přepne na zvuk (kruh průběhu, uplynulý čas) a po dohrání se vrátí do tiché smyčky.
   **Neověřené v aplikaci**: příběhy (tentýž přehrávač), dlouhé video a zahazování snímků,
   Windows a Linux.
+
+### Streamování rozestavěného souboru
+
+Video hraje, zatímco ho TDLib stahuje (`loadStreaming`): FFmpeg čte přes vlastní `AVIOContext`
+(`StreamingIo` v `FfmpegInput.kt`) s čtením a posunem nad souborem v `temp/`, ne cestou.
+
+- **Na data se čeká, mimo stažený úsek se stahování přesune k nim** (`requestFrom`). MP4
+  s indexem (`moov`) na konci se tak rozběhne: FFmpeg si řekne o konec, pak o začátek.
+- **Obraz a zvuk čtou každý svým vstupem**, takže si stahování přetahují — kdo čeká a stahování
+  jde jinde, řekne si o ně znovu až po vteřině (jako `StreamingReader` na iOS). Na 40MB videu
+  s indexem na konci se stahování přesunulo pětkrát (index a začátek pro obraz, pak pro zvuk).
+- **Soubor se čte přes `FileChannel`** (NIO), ne `RandomAccessFile`: dostažený soubor TDLib
+  přesune z `temp/` do `videos/` a otevřený soubor to přežije na macOS i Linuxu, na Windows jen
+  otevřený se `FILE_SHARE_DELETE` — ten dává NIO, `RandomAccessFile` ne. Na Windows neověřené.
+- **Čtení na data blokuje vlákno**, proto korutina rozestavěného souboru běží na `Dispatchers.IO`.
+  Zrušení korutiny nativní čekání nepřeruší: načtení nese `AtomicBoolean` (`cancelled`), který
+  přehrávač nastaví při odchodu (jiné video, uvolnění), a čekající čtení vrátí `AVERROR_EXIT`.
+  Po 30 s bez dat čtení selže (jako na Androidu) a přehrávač ohlásí chybu.
+- **FFmpeg krátké skoky vpřed nepřeskakuje, ale dočte** (`avio_seek`: velikost bufferu, tady
+  64 kB, a k tomu `short_seek_threshold` 32 kB): o index
+  kousek za koncem malého souboru ani o skok o pár kB dál si neřekne. Test proto stojí na 200kB
+  souboru (`stream.mp4`, 4 s, index na konci, klíčový snímek každou vteřinu — x264 je jinak
+  dává po 10 s a skok by se vrátil na začátek), na 15kB `sound.mp4` by nic neověřil.
+- **Fragmentované MP4** (přepočítané kvality od serveru) FFmpeg čte bez HLS seznamu
+  (`videoFragmentedStreamingSupported = true`, `…NeedsHls = false`).
+- **Testy `DesktopVideoStreamingTest`** nad falešným stahováním, které se chová jako TDLib
+  (řídký soubor plněný souvisle od místa, kam se stahování přesunulo): dekodér přečte všech 100
+  snímků a řekne si o index na konci, přehrávač rozestavěný soubor přehraje i se zvukem, skok
+  za stažený úsek přesune stahování k cíli, zrušené čekání skončí do vteřiny.
+- **Ověřeno v ladicí aplikaci 25. 10. 2026** (macOS, 90s video 720p, 40 MB, index na konci,
+  poslané testovacím botem s `supports_streaming`): video se rozběhlo do 3 s od puštění, hrálo
+  dál, zatímco se soubor dostahoval a přesouval do `videos/`, dohrálo a jde přehrát znovu.
+  **Neověřené v aplikaci**: skok za stažený úsek (tady se 40 MB stáhlo skoro hned; ověřuje ho
+  jen test), pomalá síť, přepočítané kvality, Windows a Linux.
 
 ### Obraz
 

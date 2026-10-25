@@ -3,6 +3,7 @@ package eu.tintera.plume.core.audio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.video.FfmpegInput
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
@@ -56,8 +57,11 @@ actual class AudioEngine {
     @Volatile private var anchorFrame = 0L
     @Volatile private var speed = 1f
 
-    actual suspend fun load(path: String, music: Boolean): Long = withContext(Dispatchers.IO) {
-        val opened = FfmpegAudioDecoder.open(path)
+    actual suspend fun load(path: String, music: Boolean): Long = load(FfmpegInput.File(path))
+
+    /** Zvuk z [input] — i rozestavěného souboru, ze kterého hraje video ([FfmpegInput.Streaming]). */
+    internal suspend fun load(input: FfmpegInput): Long = withContext(Dispatchers.IO) {
+        val opened = FfmpegAudioDecoder.open(input)
         try {
             val format = AudioFormat(FfmpegAudioDecoder.OUTPUT_RATE.toFloat(), 16, 2, true, false)
             val output = AudioSystem.getSourceDataLine(format)

@@ -202,8 +202,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   macOS, MPRIS na Linuxu) a nahrávání do Telegramu už během nahrávání (kóduje se až na konci).
 - **Video**: ~~ztlumené (GIFy, tichá smyčka kolečka)~~ i ~~se zvukem (prohlížeč, kolečko,
   příběhy)~~ — hotovo přes FFmpeg z JavaCPP a `javax.sound` (`docs/poznatky/desktop.md`,
-  „Video (FFmpeg)"). Zbývá streamování rozestavěného souboru (vlastní `AVIOContext`; dnes se
-  čeká na celý), AV1 kvality (`libdav1d`), obraz v obraze a Windows a Linux ověřit. Příběh
+  „Video (FFmpeg)"), ~~streamování rozestavěného souboru~~ — hotovo (`StreamingIo`). Zbývá
+  AV1 kvality (`libdav1d`), obraz v obraze a Windows a Linux ověřit (u streamování hlavně
+  přesun dostaženého souboru s otevřeným čtením na Windows) a streamování na pomalé síti. Příběh
   s videem ověřit v aplikaci (příběh z testovacího účtu, až budou telefony k dispozici).
 - **Trezor tajemství na Windows a Linuxu** (DPAPI, Secret Service / libsecret). Dnes soubor
   s právy jen pro vlastníka vedle databáze.

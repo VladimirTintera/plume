@@ -15,6 +15,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.audio.AudioEngine
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.math.min
@@ -72,6 +73,9 @@ actual class VideoPlayer internal constructor() {
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private val pendingSeek = AtomicLong(NO_SEEK)
 
+    /** Zrušení čtení rozestavěného souboru pro právě načtený zdroj ([FfmpegInput.Streaming]). */
+    @Volatile private var cancelInput = AtomicBoolean(false)
+
     @Volatile private var playWhenReady = false
     @Volatile private var speed = 1f
     @Volatile private var position = 0L
@@ -89,14 +93,11 @@ actual class VideoPlayer internal constructor() {
     /** Zvuk dohrál dřív než obraz (nebo skončil chybou); dál se časuje bez něj. */
     @Volatile private var audioEnded = false
 
-    actual fun load(path: String, loop: Boolean, muted: Boolean) = start(Source(path, loop, muted))
+    actual fun load(path: String, loop: Boolean, muted: Boolean) = start(Source(path, null, loop, muted))
 
-    /** Desktop rozestavěné soubory nečte ([videoStreamingSupported]), sem se nedostane. */
-    actual fun loadStreaming(source: StreamingSource, loop: Boolean, muted: Boolean) {
-        job?.cancel()
-        this.source = null
-        failed = true
-    }
+    /** Rozestavěný soubor čte FFmpeg přes vlastní vstup s čekáním na data ([StreamingIo]). */
+    actual fun loadStreaming(source: StreamingSource, loop: Boolean, muted: Boolean) =
+        start(Source(null, source, loop, muted))
 
     actual fun play() {
         // „Zkusí připravit znovu“: soubor mohl mezitím dorazit celý.
@@ -149,12 +150,16 @@ actual class VideoPlayer internal constructor() {
     /** Odchod z kompozice: zastaví dekodér a vrátí snímek. */
     internal fun release() {
         released = true
+        cancelInput.set(true)
         scope.cancel()
         replaceImage(null)
     }
 
     private fun start(next: Source) {
         job?.cancel()
+        // Čtení, které čeká na data předchozího souboru, skončí hned (korutinu ruší jen mezi kroky).
+        cancelInput.set(true)
+        cancelInput = AtomicBoolean(false)
         source = next
         generation++
         pendingSeek.set(NO_SEEK)
@@ -164,19 +169,21 @@ actual class VideoPlayer internal constructor() {
         failed = false
         replaceImage(null)
         val token = generation
-        job = scope.launch { decode(next, token) }
+        val input = next.input(cancelInput)
+        // Rozestavěný soubor blokuje vlákno čekáním na data — to patří do IO, ne do Default.
+        job = scope.launch(if (next.streaming != null) Dispatchers.IO else Dispatchers.Default) { decode(next, input, token) }
     }
 
-    private suspend fun decode(source: Source, token: Int) {
+    private suspend fun decode(source: Source, input: () -> FfmpegInput, token: Int) {
         val decoder = try {
-            FfmpegVideoDecoder.open(source.path)
+            FfmpegVideoDecoder.open(input())
         } catch (failure: Throwable) {
             // Mimo jiné UnsatisfiedLinkError na systému, pro který nativní FFmpeg v balíčku není.
             logger.w(failure) { "Video nejde otevřít" }
             failed = true
             return
         }
-        val sound = if (source.muted) null else openAudio(source.path)
+        val sound = if (source.muted) null else openAudio(input())
         try {
             duration = decoder.durationMs
             // Jako ExoPlayer: připravené video ukáže první snímek, i když ještě nehraje.
@@ -198,6 +205,8 @@ actual class VideoPlayer internal constructor() {
             while (true) {
                 val seek = pendingSeek.getAndSet(NO_SEEK)
                 if (seek != NO_SEEK) {
+                    // Čtení mohlo mezitím skončit (rozestavěný soubor) a ohlásit konec; skok ho ruší.
+                    ended = false
                     decoder.seek(seek)
                     if (sound != null) {
                         sound.seekTo(seek)
@@ -307,10 +316,10 @@ actual class VideoPlayer internal constructor() {
      * Zvuk [path] do reproduktoru, nebo `null`, když v souboru zvuková stopa není (GIF poslaný
      * jako video, němé video) nebo systém nemá zvukový výstup — obraz pak hraje sám.
      */
-    private suspend fun openAudio(path: String): AudioEngine? {
+    private suspend fun openAudio(input: FfmpegInput): AudioEngine? {
         val engine = AudioEngine()
         try {
-            engine.load(path, music = false)
+            engine.load(input)
         } catch (failure: Throwable) {
             // `load` mohl otevřít linku a pustit vlákno těsně před zrušením korutiny; uvolnění
             // je vrátí v obou případech.
@@ -355,7 +364,13 @@ actual class VideoPlayer internal constructor() {
         old?.close()
     }
 
-    private class Source(val path: String, val loop: Boolean, val muted: Boolean)
+    /** Hotový soubor ([path]), nebo rozestavěný ([streaming]). */
+    private class Source(val path: String?, val streaming: StreamingSource?, val loop: Boolean, val muted: Boolean) {
+        /** Vstup pro každý dekodér zvlášť (obraz, zvuk); u streamování se společným zrušením. */
+        fun input(cancelled: AtomicBoolean): () -> FfmpegInput = {
+            if (streaming != null) FfmpegInput.Streaming(streaming, cancelled) else FfmpegInput.File(checkNotNull(path))
+        }
+    }
 }
 
 @Composable
@@ -390,10 +405,11 @@ actual fun VideoSurface(player: VideoPlayer, modifier: Modifier) {
     )
 }
 
-/** Desktop čte jen hotové soubory; streamování by chtělo vlastní vstup pro FFmpeg (`AVIOContext`). */
-actual val videoStreamingSupported: Boolean = false
+/** Rozestavěný soubor čte FFmpeg přes vlastní `AVIOContext` ([StreamingIo]). */
+actual val videoStreamingSupported: Boolean = true
 
-actual val videoFragmentedStreamingSupported: Boolean = false
+/** Fragmentované MP4 (přepočítané kvality) FFmpeg přečte i rozestavěné, HLS nepotřebuje. */
+actual val videoFragmentedStreamingSupported: Boolean = true
 
 actual val videoFragmentedStreamingNeedsHls: Boolean = false
 

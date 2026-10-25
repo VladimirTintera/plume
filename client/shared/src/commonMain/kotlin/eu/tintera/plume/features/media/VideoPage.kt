@@ -362,7 +362,7 @@ internal fun VideoPage(
          * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Původní soubor
          * jen s `supportsStreaming` od serveru. Přepočítané kvality vyrábí server pro streamování
          * (fragmentované MP4), takže vždycky — kde je platforma umí
-         * ([videoFragmentedStreamingSupported]; iOS přes HLS, desktop ne).
+         * ([videoFragmentedStreamingSupported]; iOS přes HLS).
          */
         streamable = streaming && videoStreamingSupported &&
             if (chosen.isOriginal) video.supportsStreaming else videoFragmentedStreamingSupported,
