@@ -318,7 +318,7 @@ bez Compose UI.
 ## Wear OS
 
 **Stav (25. 10. 2026):** samostatná aplikace `:client:wearApp` nad `:client:core` je v interním
-testu v Play a běží na Pixel Watch. Umí přihlášení QR kódem (i heslo), seznam chatů, konverzaci
+testu v Play a běží na Pixel Watch. Umí přihlášení QR kódem (i heslo, nebo potvrzením z telefonu), seznam chatů, konverzaci
 (fotky, samolepky, videa a kolečka náhledem, hlasovky s vlnou, ankety, tlačítka botů, odkazy do
 telefonu, citace, předěly dní, stav doručení), odpověď, reakce, nahrávání hlasovek, vlastní push
 a notifikace s akcemi, dlaždice a komplikaci, Nastavení (vyčištění mezipaměti, odhlášení),
@@ -330,9 +330,7 @@ Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se z
 
 **Zbývá:**
 
-- **Přihlášení potvrzené z telefonu.** Plume na telefonu nabídne „Přihlásit hodinky" a potvrdí
-  QR kód sám přes Wearable Data Layer (`confirmQrCodeAuthentication`) — bez skenování.
-- **Ověřit na skutečných hodinkách se spárovaným telefonem:** push s ukončenou aplikací (na
+- **Ověřit na skutečných hodinkách se spárovaným telefonem:** přihlášení telefonem (Data Layer na emulátoru neověřený), push s ukončenou aplikací (na
   emulátoru FCM nedoručil), že zrcadlené notifikace po přihlášení zmizí, samotné odhlášení.
 - **Play:** snímky hodinek z testovacích účtů do `play/graphics/<locale>/wearScreenshots/`
   (workflow Play Listing je umí), pak přihlášení k distribuci pro Wear OS s kontrolou kvality.

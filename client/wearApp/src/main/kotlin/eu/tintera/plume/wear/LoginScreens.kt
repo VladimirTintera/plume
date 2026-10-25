@@ -56,6 +56,17 @@ import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_qr_content_description
 import eu.tintera.plume.resources.wear_login_qr_hint
+import eu.tintera.plume.resources.smartphone_24dp
+import eu.tintera.plume.resources.wear_login_phone_confirmed
+import eu.tintera.plume.resources.wear_login_phone_declined
+import eu.tintera.plume.resources.wear_login_phone_failed
+import eu.tintera.plume.resources.wear_login_phone_not_signed_in
+import eu.tintera.plume.resources.wear_login_phone_waiting
+import eu.tintera.plume.resources.wear_login_with_phone
+import eu.tintera.plume.core.wear.WatchLogin
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.wear.compose.material3.ButtonDefaults
 import eu.tintera.plume.resources.wear_login_qr_only
 import eu.tintera.plume.resources.wear_login_show_qr
 import eu.tintera.plume.resources.wear_login_title
@@ -94,6 +105,7 @@ fun QrLoginScreen(link: String) {
     val qrSize = screen * QR_SCREEN_FRACTION
     val centered = PaddingValues(top = (configuration.screenHeightDp.dp - qrSize) / 2, bottom = screen / 4)
     val spec = rememberTransformationSpec()
+    val phone = rememberPhoneLoginState(link)
     ScreenScaffold(scrollState = state) {
         TransformingLazyColumn(state = state, contentPadding = centered) {
             // Kód se u okraje NEzmenšuje (ostatní položky ano): zmenšený by čtečka nemusela přečíst.
@@ -116,6 +128,11 @@ fun QrLoginScreen(link: String) {
                     transformation = SurfaceTransformation(spec),
                 ) { Text(stringResource(Res.string.wear_login_title)) }
             }
+            // Přihlášení telefonem hned pod nadpisem, před delším návodem ke skenování: kdo má Plume
+            // na telefonu, nemusí nic skenovat.
+            if (phone.shown) {
+                item { PhoneLoginItem(phone, Modifier.transformedItem(this, spec)) }
+            }
             item {
                 Text(
                     stringResource(Res.string.wear_login_qr_hint),
@@ -123,6 +140,81 @@ fun QrLoginScreen(link: String) {
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().transformedItem(this, spec).padding(horizontal = 12.dp),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Stav přihlášení telefonem na obrazovce s QR kódem ([PhoneLogin]). Tlačítko je vidět, jen když
+ * je v dosahu telefon s Plume. Po ťuknutí se čeká na potvrzení v notifikaci na telefonu a každý
+ * nový odkaz (TDLib ho obnovuje zhruba po půl minutě) jde telefonu znovu — notifikace tak nese
+ * platný kód, ať ho uživatel potvrdí kdykoli.
+ */
+private class PhoneLoginState {
+    var available by mutableStateOf(false)
+    var waiting by mutableStateOf(false)
+    var result by mutableStateOf<WatchLogin.Result?>(null)
+    var start: () -> Unit = {}
+
+    val shown: Boolean get() = available || waiting || result != null
+}
+
+@Composable
+private fun rememberPhoneLoginState(link: String): PhoneLoginState {
+    val context = LocalContext.current
+    val login = remember { PhoneLogin(context.applicationContext) }
+    val state = remember { PhoneLoginState() }
+    state.start = {
+        state.result = null
+        state.waiting = true
+    }
+    LaunchedEffect(Unit) { state.available = login.phoneAvailable() }
+    LaunchedEffect(Unit) {
+        login.results().collect { result ->
+            state.result = result
+            // Po potvrzení se čeká dál: `Ready` přijde od TDLib a obrazovka zmizí sama.
+            if (result != WatchLogin.Result.Confirmed) state.waiting = false
+        }
+    }
+    LaunchedEffect(link, state.waiting) {
+        if (state.waiting && !login.send(link)) {
+            // Telefon mezitím zmizel z dosahu.
+            state.waiting = false
+            state.available = false
+            state.result = WatchLogin.Result.Failed
+        }
+    }
+    return state
+}
+
+@Composable
+private fun PhoneLoginItem(state: PhoneLoginState, modifier: Modifier) {
+    val result = state.result
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        when {
+            result == WatchLogin.Result.Confirmed -> CenteredText(stringResource(Res.string.wear_login_phone_confirmed))
+            state.waiting -> CenteredText(stringResource(Res.string.wear_login_phone_waiting))
+            else -> {
+                val problem = when (result) {
+                    WatchLogin.Result.Declined -> Res.string.wear_login_phone_declined
+                    WatchLogin.Result.NotSignedIn -> Res.string.wear_login_phone_not_signed_in
+                    WatchLogin.Result.Failed -> Res.string.wear_login_phone_failed
+                    else -> null
+                }
+                problem?.let {
+                    CenteredText(stringResource(it), color = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.height(4.dp))
+                }
+                if (state.available) {
+                    Button(
+                        onClick = state.start,
+                        icon = { Icon(painterResource(Res.drawable.smartphone_24dp), contentDescription = null) },
+                        label = { Text(stringResource(Res.string.wear_login_with_phone)) },
+                        colors = ButtonDefaults.filledTonalButtonColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }

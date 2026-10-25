@@ -39,6 +39,8 @@ dependencies {
     implementation(project.dependencies.platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.androidx.work.runtime)
+    // Přihlášení hodinek z telefonu: hodinky pošlou odkaz z QR kódu (WatchLoginService).
+    implementation(libs.play.services.wearable)
 }
 
 android {

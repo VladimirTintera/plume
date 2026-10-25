@@ -4172,6 +4172,21 @@
     <!-- Wear OS (client/wearApp) -->
     <string name="wear_login_title">Sign in</string>
     <string name="wear_login_qr_hint">Scan the code in Telegram on your phone: Settings → Devices → Link Desktop Device.</string>
+    <string name="wear_login_with_phone">Sign in with phone</string>
+    <string name="wear_login_phone_waiting">Confirm the sign-in in the notification on your phone.</string>
+    <string name="wear_login_phone_confirmed">Signing in…</string>
+    <string name="wear_login_phone_declined">The sign-in was declined on your phone.</string>
+    <string name="wear_login_phone_not_signed_in">Plume on your phone isn't signed in. Scan the code instead.</string>
+    <string name="wear_login_phone_failed">Your phone couldn't sign in the watch. Try again.</string>
+    <string name="notification_channel_watch_login">Watch sign-in</string>
+    <string name="notification_channel_watch_login_description">Confirming a sign-in requested by Plume on your watch</string>
+    <string name="watch_login_title">Sign in on your watch?</string>
+    <string name="watch_login_text">%1$s is asking to sign in to your account. Confirm only if the watch is with you.</string>
+    <string name="watch_login_text_unnamed">Your watch is asking to sign in to your account. Confirm only if it is with you.</string>
+    <string name="watch_login_confirm">Sign in</string>
+    <string name="watch_login_decline">Decline</string>
+    <string name="watch_login_done">Your watch is signed in</string>
+    <string name="watch_login_failed">Couldn't sign in the watch. Try again from the watch.</string>
     <string name="wear_login_qr_only">On the watch you can only sign in with a QR code.</string>
     <string name="wear_login_show_qr">Show QR code</string>
     <string name="wear_password_title">Two-step verification</string>

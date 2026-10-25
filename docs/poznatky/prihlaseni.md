@@ -5,6 +5,9 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 ## Přihlášení QR kódem
 
+- **Hodinky se dají přihlásit i bez skenování:** pošlou odkaz z QR kódu telefonu přes Wearable
+  Data Layer a ten ho po potvrzení v notifikaci potvrdí stejně jako naskenovaný
+  (`docs/poznatky/wear-os.md`, „Přihlášení telefonem").
 - **QR se generuje na platformě** (`encodeQrCode`): Android přes zxing, iOS přes CoreImage
   (`CIQRCodeGenerator`). Kodér v commonMain není. Platforma vrací jen mřížku modulů,
   kreslí se společně na `Canvas` — ostré v každé velikosti a nic se neškáluje z bitmapy.
