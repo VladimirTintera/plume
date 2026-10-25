@@ -391,10 +391,14 @@ z Profilogu. Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS a
   proces).
 - **dSYMy** se zatím nenahrávají samy — iOS se nevydává a release workflow nemá. Ruční nahrání
   po archivu: `"<DerivedData>/iosApp-…/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols" -gsp iosApp/iosApp/GoogleService-Info.plist -p ios <cesta k dSYMs>`.
-  Bez dSYMu je u pádu z Kotlinu v konzoli jen seznam adres. **Debug build má kód v
-  `Plume.debug.dylib`**, ne v `Plume` — dSYM pak má oba a nahrát se musí celý.
+  Bez dSYMu je u pádu z Kotlinu v konzoli jen seznam adres.
+- **Debug build má kód v `Plume.debug.dylib`** (Xcode „debug dylib", `ENABLE_DEBUG_DYLIB`),
+  `Plume` je jen spouštěč. Crashlytics pak chtěl dSYM k UUID té dylib a hlásil ho jako „Missing
+  (required)", přestože ho `upload-symbols` nahrál s „Successfully submitted" — u dylib ho
+  nezaevidoval. Release build dylib nemá; pro zkoušku v Debug se proto staví s
+  `ENABLE_DEBUG_DYLIB=NO` (kód i dSYM v jediné binárce, ~180 MB).
 - **Zkouška bez Release buildu** (ten kvůli LTO nad TDLib trvá 15+ minut): Debug přes
-  `xcodebuild … PLUME_CRASHLYTICS_COLLECTION_ENABLED=YES DEBUG_INFORMATION_FORMAT=dwarf-with-dsym`,
+  `xcodebuild … PLUME_CRASHLYTICS_COLLECTION_ENABLED=YES DEBUG_INFORMATION_FORMAT=dwarf-with-dsym ENABLE_DEBUG_DYLIB=NO`,
   nahrát dSYM, dočasný pád za proměnnou prostředí (`SIMCTL_CHILD_… xcrun simctl launch … -FIRDebugEnabled`),
   znovu spustit. Hlášení odejde při dalším startu přes `firebaselogging-pa.googleapis.com`;
   odeslané hlášení zmizí z `Library/Caches/com.crashlytics.data/…/v5/reports/prepared`.
