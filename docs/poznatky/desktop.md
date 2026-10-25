@@ -839,6 +839,30 @@ příběhy a video v prohlížeči médií; HEIC dál otevírá aplikace systém
   barvy pruhů, vykreslení `VideoSurface` přes `ImageComposeScene`; GIFy v konverzaci
   ověřené v běžící aplikaci (23. 10. 2026). **Linux jen přeložený.**
 
+## Celá obrazovka okna
+
+Video v prohlížeči umí okno přes celou obrazovku (tlačítko, F, dvojklik; viz
+`docs/poznatky/prohlizec-medii.md`, „Myš a klávesnice"). Sdílený kód o okně neví:
+`rememberWindowFullscreen()` (jen desktop, na mobilech `null`) posílá žádost přes
+`DesktopWindow.requestFullscreen` a vstupní bod přepne `WindowState.placement`.
+
+- **Compose celou obrazovku ruší JEN přechodem na Floating.** `ComposeWindow.placement = Maximized`
+  jen nastaví maximalizaci a okno nechá přes celou obrazovku (zdroj `ui-desktop` 1.12). Návrat
+  do maximalizovaného okna je proto Floating a po dojetí animace (na macOS vlastní plocha)
+  Maximized. Napoprvé to vypadalo, že Esc nefunguje: tlačítko se přepnulo, okno zůstalo.
+- **Stav se hlásí z okna** (`DesktopWindow.fullscreen`), takže i zelené tlačítko na macOS
+  prohlížeč pozná. Okno, které přes celou obrazovku dal uživatel sám, prohlížeč nevrací.
+- **Celá obrazovka se neukládá** jako maximalizované okno (`RememberWindowBounds` ji přeskočí):
+  příští spuštění by se jinak otevřelo přes celou obrazovku.
+- **Dvojklik nástroje pro ovládání počítače (computer-use) je pro Compose moc rychlý**:
+  `detectTapGestures` bere druhé ťuknutí jako dvojité až po 40 ms (`doubleTapMinTimeMillis`),
+  rychlejší vyhodnotí jako dvě jednoduchá. Zkouší se dvěma kliknutími po ~120 ms.
+- **Ověřeno v ladicí aplikaci 25. 10. 2026** (macOS, maximalizované okno): F, dvojklik, tlačítko
+  dovnitř i ven, Esc ukončí celou obrazovku a prohlížeč nechá otevřený, návrat do galerie okno
+  vrátí do maximalizovaného, mezerník po kliknutí na přehrát, šipka +5 s, M. **Neověřené**:
+  plovoucí okno, ukončení zeleným tlačítkem, Windows a Linux (Compose tam celou obrazovku dělá
+  bez vlastní plochy).
+
 ## Úprava fotky
 
 Ořez, otočení a kresba do fotky (`DesktopPhotoMarkupRenderer`) ve Skie — tentýž editor jako na

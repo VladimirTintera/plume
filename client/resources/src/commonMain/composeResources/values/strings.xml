@@ -487,6 +487,8 @@
     <string name="voice_playback_failed">Couldn't play the voice message.</string>
     <string name="media_mute">Mute</string>
     <string name="media_rotate_screen">Rotate screen</string>
+    <string name="media_fullscreen_enter">Full screen</string>
+    <string name="media_fullscreen_exit">Exit full screen</string>
     <string name="media_lock_controls">Lock controls</string>
     <string name="media_unlock_controls">Unlock controls</string>
     <string name="media_video_resumed">Resuming from %1$s</string>

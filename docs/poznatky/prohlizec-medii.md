@@ -284,11 +284,25 @@ dva prsty, takže myš měla jen dvojklik na 2,5×. Teď:
 - **Esc zavírá prohlížeč** jako Zpět — prohlížeč klávesu nespotřebuje a na desktopu ji převede
   Compose (`BackNavigationEventInput`), na Androidu `MainActivity`.
 - **Fokus si prohlížeč bere hned** (`focusRequester` + `focusable` na kořeni): v Compose dostane
-  klávesu jen zaostřený prvek a jeho předci; bez fokusu by šipky nedošly nikam.
+  klávesu jen zaostřený prvek a jeho předci; bez fokusu by šipky nedošly nikam. **A bere si ho
+  zpátky, když ho ztratí** (`onFocusChanged`): kliknuté tlačítko přehrát uprostřed videa si
+  fokus vzalo, schovalo se s ovládáním a fokus nezůstal nikde — klávesy pak nedošly nikam
+  a nic to nehlásilo (ověřeno v ladicí aplikaci, Esc chodil dál, protože ho bere kořen okna).
 - **Kroky z klávesnice jdou do stránky jako `Flow<ZoomStep>`**, bere si je jen stránka, na
   které pager stojí. Štípnutí, dvojité ťuknutí, kolečko i klávesy počítají posun ze stejné
   `CardGeometry.zoomedOffset` (bod pod kurzorem/prsty zůstane na místě) a `clamp`.
-- Platí jen pro fotky; video na desktopu prohlížeč nepřehrává (otevírá ho systémová aplikace).
+- **Klávesy u videa jako na YouTube** (`ViewerKey`, testy `ViewerKeyTest`): mezerník pauza
+  a přehrávání (v galerii video pustí jako ťuknutí), M ztlumení, F celá obrazovka okna. Písmena
+  podle klávesy, ne znaku. **Šipky posouvají o 5 s** tam, kde by se ani tahem nelistovalo
+  (hrající video na celé obrazovce, zamčené, okno přes celou obrazovku), doleva zpět i v RTL;
+  jinak listují. Povely jdou stránce jako `Flow<VideoCommand>` a bere si je jen vybraná stránka
+  na celé obrazovce, stejně jako kroky přiblížení.
+- **Celá obrazovka okna (desktop)**: tlačítko vedle zámku v horním rohu videa, F a dvojklik
+  (myší se dvojklikem neposouvá, skok o 10 s zůstává prstu na telefonu). Patří prohlížeči
+  (`windowFullscreenOn`), platí i pro další video. **Esc ji ukončí dřív, než zavře prohlížeč**
+  (`NavigationBackHandler`), návrat do galerie a zavření prohlížeče okno vrátí. Okno samo
+  přepíná vstupní bod (`DesktopWindow.requestFullscreen`), viz `docs/poznatky/desktop.md`,
+  „Celá obrazovka okna".
 - **Ověřeno na Windows 11** (ladicí běh, uživatel): listování šipkami a tlačítky, Ctrl+kolečko,
   +/−/0 a Esc. macOS, Android s myší a štípnutí na touchpadu ve Windows neověřené.
 - **Štípnutí a dvojité ťuknutí prstem po sloučení výpočtu ověřené na emulátoru** (skutečná

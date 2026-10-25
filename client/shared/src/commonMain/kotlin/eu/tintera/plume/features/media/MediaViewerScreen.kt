@@ -5,6 +5,7 @@ import androidx.compose.foundation.focusable
 import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -120,6 +121,10 @@ import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.LockScreenOrientation
 import eu.tintera.plume.core.ui.ScreenOrientation
 import eu.tintera.plume.core.ui.screenOrientationLockSupported
+import androidx.navigationevent.compose.rememberNavigationEventState
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.NavigationEventInfo
+import eu.tintera.plume.core.ui.rememberWindowFullscreen
 import androidx.compose.ui.platform.LocalWindowInfo
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.RemoteImage
@@ -542,10 +547,36 @@ private fun ViewerContent(
     // Čas reklam nad videem běží jen při přehrávání na celé obrazovce.
     LaunchedEffect(playingVideo, immersive) { videoAdActions.onPlaying(playingVideo?.takeIf { immersive }) }
     var forcedOrientation by rememberSaveable { mutableStateOf<ScreenOrientation?>(null) }
+    /*
+     * Celá obrazovka okna (desktop): tlačítko u videa, F a dvojklik. Patří prohlížeči jako zámek
+     * — platí i pro další video. Návrat do galerie, zavření prohlížeče i Esc vrátí okno, jak bylo
+     * (Esc ji ukončí dřív, než zavře prohlížeč). Ukončení tlačítkem okna (zelené na macOS) se
+     * pozná podle stavu okna; okno, které přes celou obrazovku dal uživatel sám, prohlížeč nevrací.
+     */
+    val windowFullscreen = rememberWindowFullscreen()
+    var windowFullscreenOn by remember { mutableStateOf(false) }
+    LaunchedEffect(windowFullscreen) {
+        snapshotFlow { windowFullscreen?.active == true }.collect { if (!it) windowFullscreenOn = false }
+    }
+    val setWindowFullscreen: ((Boolean) -> Unit)? = windowFullscreen?.let { window ->
+        { on: Boolean ->
+            windowFullscreenOn = on
+            if (on) immersive = true
+            window.set(on)
+        }
+    }
+    val leaveFullscreenOnClose by rememberUpdatedState(windowFullscreenOn)
+    DisposableEffect(windowFullscreen) { onDispose { if (leaveFullscreenOnClose) windowFullscreen?.set(false) } }
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = windowFullscreenOn,
+        onBackCompleted = { setWindowFullscreen?.invoke(false) },
+    )
     LaunchedEffect(immersive) {
         if (!immersive) {
             controlsLocked = false
             forcedOrientation = null
+            if (windowFullscreenOn) setWindowFullscreen?.invoke(false)
         }
     }
     LockScreenOrientation(forcedOrientation.takeIf { immersive })
@@ -562,6 +593,8 @@ private fun ViewerContent(
         locked = controlsLocked,
         onLockChange = { controlsLocked = it },
         onRotate = rotate,
+        window = windowFullscreenOn,
+        onWindowChange = setWindowFullscreen,
     )
     val enterImmersive = { immersive = true }
     val toggleImmersive = { if (!state.isSelfDestruct) immersive = !immersive }
@@ -603,6 +636,9 @@ private fun ViewerContent(
         if (pagerScroll && target in 0 until pagerState.pageCount) scope.launch { pagerState.animateScrollToPage(target) }
     }
     val zoomSteps = remember { MutableSharedFlow<ZoomStep>(extraBufferCapacity = 4) }
+    // Klávesy pro vybrané video (mezerník, šipky); vyřizuje je stránka, která má přehrávač.
+    val videoCommands = remember { MutableSharedFlow<VideoCommand>(extraBufferCapacity = 4) }
+    val currentIsVideo = current?.media is MessageMedia.Video
     val mouse = remember { MouseActivity() }
     val keyFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { keyFocus.requestFocus() }
@@ -621,6 +657,9 @@ private fun ViewerContent(
                     shift = event.isShiftPressed,
                     meta = event.isMetaPressed,
                     rtl = rtl,
+                    video = currentIsVideo,
+                    // Šipky posouvají tam, kde by se ani tahem nelistovalo.
+                    seekWithArrows = currentIsVideo && (windowFullscreenOn || !pagerScroll),
                 ) ?: return@onPreviewKeyEvent false
                 when (action) {
                     ViewerKey.Previous -> goToPage(pagerState.currentPage - 1)
@@ -628,9 +667,23 @@ private fun ViewerContent(
                     ViewerKey.ZoomIn -> zoomSteps.tryEmit(ZoomStep.In)
                     ViewerKey.ZoomOut -> zoomSteps.tryEmit(ZoomStep.Out)
                     ViewerKey.ZoomReset -> zoomSteps.tryEmit(ZoomStep.Reset)
+                    // V galerii video nehraje; mezerník ho pustí jako ťuknutí (na celou obrazovku).
+                    ViewerKey.PlayPause -> if (immersive) videoCommands.tryEmit(VideoCommand.PlayPause) else enterImmersive()
+                    ViewerKey.SeekBack -> videoCommands.tryEmit(VideoCommand.Seek(-KEY_SEEK_STEP_MS))
+                    ViewerKey.SeekForward -> videoCommands.tryEmit(VideoCommand.Seek(KEY_SEEK_STEP_MS))
+                    ViewerKey.ToggleMute -> videoMuted = !videoMuted
+                    ViewerKey.ToggleFullscreen -> {
+                        val set = setWindowFullscreen ?: return@onPreviewKeyEvent false
+                        set(!windowFullscreenOn)
+                    }
                 }
                 true
             }
+            /*
+             * Fokus se vrací: kliknuté tlačítko (přehrát uprostřed videa) si ho vezme, a když se
+             * pak s ovládáním schová, fokus nezůstane nikde a klávesy by do prohlížeče nedošly.
+             */
+            .onFocusChanged { focus -> if (!focus.hasFocus) runCatching { keyFocus.requestFocus() } }
             .focusRequester(keyFocus)
             .focusable()
             .trackMouse(mouse),
@@ -711,6 +764,7 @@ private fun ViewerContent(
                     qualityChoice = videoQuality,
                     onQualityChoice = { videoQuality = it },
                     fullscreen = videoFullscreen,
+                    commands = videoCommands,
                     onPlayingChange = { playing ->
                         if (playing) {
                             playingVideo = item.messageId
@@ -1427,6 +1481,9 @@ internal const val DISMISS_FADE = 2.5f
 
 /** Ztmavení pod systémovými lištami na celé obrazovce; přechod sahá kus pod lištu. */
 private const val BAR_SHADE_ALPHA = 0.45f
+
+/** Posun videa šipkou; jako YouTube (dvojí ťuknutí skáče o 10 s, šipka jemněji). */
+private const val KEY_SEEK_STEP_MS = 5_000L
 private val BAR_SHADE_EXTRA = 24.dp
 
 private val TOP_BAR_HEIGHT = 64.dp

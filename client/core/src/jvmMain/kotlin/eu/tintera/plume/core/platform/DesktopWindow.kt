@@ -50,6 +50,25 @@ object DesktopWindow {
         _shown.value = shown
     }
 
+    private val _fullscreen = MutableStateFlow(false)
+
+    /** Okno je přes celou obrazovku. Zapisuje vstupní bod podle `WindowState.placement`. */
+    val fullscreen: StateFlow<Boolean> = _fullscreen.asStateFlow()
+
+    fun setFullscreen(fullscreen: Boolean) {
+        _fullscreen.value = fullscreen
+    }
+
+    private val _fullscreenRequests =
+        MutableSharedFlow<Boolean>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /** Žádosti o celou obrazovku a návrat z ní (video v prohlížeči). Vyřizuje vstupní bod. */
+    val fullscreenRequests: SharedFlow<Boolean> = _fullscreenRequests.asSharedFlow()
+
+    fun requestFullscreen(on: Boolean) {
+        _fullscreenRequests.tryEmit(on)
+    }
+
     private val _activations = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     /** Žádosti o vytažení okna dopředu (klik na notifikaci). Vyřizuje vstupní bod. */
