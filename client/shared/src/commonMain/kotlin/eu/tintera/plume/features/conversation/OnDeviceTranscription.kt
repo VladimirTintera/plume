@@ -6,6 +6,8 @@ import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.speech.SpeechDownload
+import eu.tintera.plume.core.speech.SpeechLanguage
 import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
@@ -39,15 +41,31 @@ class OnDeviceTranscription(
     /**
      * Umí telefon přepisovat? Gemma (zapnutá AI, model se zvukem) nebo systém. Když ne, řekne
      * i co by pomohlo ([OnDeviceFix]) — uživatel s Gemini Nano jinak neměl jak poznat, že
-     * přepis umí jen Gemma.
+     * přepis umí jen Gemma, nebo systém se staženým jazykem.
      */
     suspend fun check(
         enabled: Boolean = settings.onDeviceAiEnabled.value,
         variant: ModelVariant = settings.onDeviceAiVariant.value,
-    ): OnDeviceCheck = if (gemmaTranscribes(enabled, variant) || systemTranscribes()) {
-        OnDeviceCheck(available = true)
-    } else {
-        OnDeviceCheck(available = false, fix = fix(enabled, variant))
+    ): OnDeviceCheck {
+        if (gemmaTranscribes(enabled, variant)) return OnDeviceCheck(available = true)
+        return when (speechLanguage()) {
+            SpeechLanguage.Installed -> OnDeviceCheck(available = true)
+            // Jazyk pro rozpoznávač má desítky MB, Gemma gigabajty — radí se napřed on.
+            SpeechLanguage.Downloadable -> OnDeviceCheck(available = false, fix = OnDeviceFix.DownloadSpeechLanguage)
+            SpeechLanguage.Downloading -> OnDeviceCheck(available = false, fix = OnDeviceFix.SpeechLanguageDownloading)
+            SpeechLanguage.Unsupported, null -> OnDeviceCheck(available = false, fix = gemmaFix(enabled, variant))
+        }
+    }
+
+    /**
+     * Požádá systém o stažení jazyka aplikace pro rozpoznávač ([OnDeviceFix.DownloadSpeechLanguage]).
+     * Stahuje systém a může se zeptat uživatele; vrátí, jak to dopadlo.
+     */
+    suspend fun downloadSpeechLanguage(): SpeechDownload {
+        val speech = speechToText ?: return SpeechDownload.Failed
+        return runCatching { speech.downloadLanguage(platformLanguageCode) }
+            .onFailure { logger.w(it) { "Stažení jazyka pro rozpoznávač se nepovedlo." } }
+            .getOrDefault(SpeechDownload.Failed)
     }
 
     /**
@@ -105,7 +123,7 @@ class OnDeviceTranscription(
      * Co zapnout, aby přepisovala Gemma; `null`, když ji zařízení neunese (iOS, desktop, slabý
      * telefon) — pak nepomůže nic v telefonu.
      */
-    private suspend fun fix(enabled: Boolean, variant: ModelVariant): OnDeviceFix? {
+    private suspend fun gemmaFix(enabled: Boolean, variant: ModelVariant): OnDeviceFix? {
         val ai = onDeviceAi ?: return null
         val gemma = ModelVariant(provider = AiProvider.Gemma, gemma = variant.gemma)
         val supported = runCatching { ai.status(gemma) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
@@ -118,14 +136,16 @@ class OnDeviceTranscription(
     }
 
     /**
-     * Přepíše systém telefonu ([SpeechToText])? Nezávisle na volbě AI v zařízení: není to jazykový
-     * model, nic se nestahuje a zvuk telefon neopouští — stejná povaha jako rozpoznání textu
-     * z fotky, které taky žádnou volbu nemá.
+     * Jak je na tom systém telefonu ([SpeechToText]) s jazykem aplikace; `null` bez rozpoznávače.
+     * Nezávisle na volbě AI v zařízení: není to jazykový model, zvuk telefon neopouští — stejná
+     * povaha jako rozpoznání textu z fotky, které taky žádnou volbu nemá.
      */
-    private suspend fun systemTranscribes(): Boolean {
-        val speech = speechToText ?: return false
-        return runCatching { speech.canTranscribe(platformLanguageCode) }.getOrDefault(false)
+    private suspend fun speechLanguage(): SpeechLanguage? {
+        val speech = speechToText ?: return null
+        return runCatching { speech.language(platformLanguageCode) }.getOrDefault(SpeechLanguage.Unsupported)
     }
+
+    private suspend fun systemTranscribes(): Boolean = speechLanguage() == SpeechLanguage.Installed
 }
 
 /** Výsledek [OnDeviceTranscription.check]: přepíše telefon, a když ne, co by pomohlo. */

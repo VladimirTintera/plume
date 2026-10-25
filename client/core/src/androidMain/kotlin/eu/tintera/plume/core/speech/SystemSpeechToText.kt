@@ -6,6 +6,7 @@ import android.media.AudioFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import android.speech.ModelDownloadListener
 import android.speech.RecognitionListener
 import android.speech.RecognitionSupport
 import android.speech.RecognitionSupportCallback
@@ -35,7 +36,8 @@ import kotlin.coroutines.resume
  *   s PCM) a dotaz na jazyky (`checkRecognitionSupport`) jsou z API 33. Starší telefon přepis
  *   systémem nemá.
  * - **Jen nainstalovaný jazyk** (`installedOnDeviceLanguages`): s podporovaným, ale nestaženým
- *   by rozpoznávání skončilo chybou — a kvůli přepisu se nic nestahuje.
+ *   by rozpoznávání skončilo chybou. Stáhne se jen na výslovné ťuknutí ([downloadLanguage]),
+ *   přepis sám nic nestahuje.
  * - **Zvuk jako pro Gemmu**: PCM 16 kHz mono 16 bitů z [AudioClips] (dekóduje systém, OGG/Opus
  *   i MP4). Do roury se píše celý; zápis zbrzdí plná roura, takže tempo udává rozpoznávač.
  * - **Segmentovaná relace** (`EXTRA_SEGMENTED_SESSION` = zdroj zvuku): rozpoznávač přepisuje
@@ -47,16 +49,24 @@ import kotlin.coroutines.resume
 class SystemSpeechToText(private val context: Context) : SpeechToText {
     private val logger = Logger.withTag("SystemSpeech")
 
-    override suspend fun canTranscribe(languageCode: String): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+    override suspend fun language(languageCode: String): SpeechLanguage {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return SpeechLanguage.Unsupported
         return withContext(Dispatchers.Main) {
             if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
                 logger.d { "Rozpoznávání v zařízení systém nemá" }
-                return@withContext false
+                return@withContext SpeechLanguage.Unsupported
             }
             val recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
             try {
-                withTimeoutOrNull(SUPPORT_TIMEOUT_MS) { installed(recognizer, languageCode) } ?: false
+                val support = withTimeoutOrNull(SUPPORT_TIMEOUT_MS) { support(recognizer, languageCode) }
+                    ?: return@withContext SpeechLanguage.Unsupported
+                fun List<String>.has() = any { it.startsWith(languageCode, ignoreCase = true) }
+                when {
+                    support.installedOnDeviceLanguages.has() -> SpeechLanguage.Installed
+                    support.pendingOnDeviceLanguages.has() -> SpeechLanguage.Downloading
+                    support.supportedOnDeviceLanguages.has() -> SpeechLanguage.Downloadable
+                    else -> SpeechLanguage.Unsupported
+                }
             } finally {
                 recognizer.destroy()
             }
@@ -64,7 +74,7 @@ class SystemSpeechToText(private val context: Context) : SpeechToText {
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private suspend fun installed(recognizer: SpeechRecognizer, languageCode: String): Boolean =
+    private suspend fun support(recognizer: SpeechRecognizer, languageCode: String): RecognitionSupport? =
         suspendCancellableCoroutine { continuation ->
             recognizer.checkRecognitionSupport(
                 intent(languageCode),
@@ -75,13 +85,62 @@ class SystemSpeechToText(private val context: Context) : SpeechToText {
                             "Jazyky: nainstalované ${support.installedOnDeviceLanguages}, " +
                                 "podporované ${support.supportedOnDeviceLanguages}, stahují se ${support.pendingOnDeviceLanguages}"
                         }
-                        val found = support.installedOnDeviceLanguages.any { it.startsWith(languageCode, ignoreCase = true) }
-                        if (continuation.isActive) continuation.resume(found)
+                        if (continuation.isActive) continuation.resume(support)
                     }
 
                     override fun onError(error: Int) {
                         logger.i { "Podporu jazyka $languageCode se nepodařilo zjistit (chyba $error)" }
-                        if (continuation.isActive) continuation.resume(false)
+                        if (continuation.isActive) continuation.resume(null)
+                    }
+                },
+            )
+        }
+
+    /**
+     * Stažení jazyka (`triggerModelDownload`). Od Androidu 14 se systém ozve, jak to dopadlo
+     * (`ModelDownloadListener`); na 13 jen stažení spustí a výsledek se pozná až z [language].
+     * Rozpoznávač se drží, dokud systém neodpoví — se zničeným by odpověď nepřišla.
+     */
+    override suspend fun downloadLanguage(languageCode: String): SpeechDownload {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return SpeechDownload.Failed
+        return withContext(Dispatchers.Main) {
+            if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) return@withContext SpeechDownload.Failed
+            val recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    withTimeoutOrNull(DOWNLOAD_TIMEOUT_MS) { awaitDownload(recognizer, languageCode) } ?: SpeechDownload.Started
+                } else {
+                    recognizer.triggerModelDownload(intent(languageCode))
+                    SpeechDownload.Started
+                }
+            } catch (e: Exception) {
+                logger.w(e) { "Stažení jazyka $languageCode se nepodařilo spustit" }
+                SpeechDownload.Failed
+            } finally {
+                recognizer.destroy()
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private suspend fun awaitDownload(recognizer: SpeechRecognizer, languageCode: String): SpeechDownload =
+        suspendCancellableCoroutine { continuation ->
+            fun finish(result: SpeechDownload) {
+                if (continuation.isActive) continuation.resume(result)
+            }
+            recognizer.triggerModelDownload(
+                intent(languageCode),
+                context.mainExecutor,
+                object : ModelDownloadListener {
+                    override fun onProgress(completedPercent: Int) = Unit
+
+                    override fun onSuccess() = finish(SpeechDownload.Done)
+
+                    override fun onScheduled() = finish(SpeechDownload.Started)
+
+                    override fun onError(error: Int) {
+                        logger.i { "Stažení jazyka $languageCode selhalo (chyba $error)" }
+                        finish(SpeechDownload.Failed)
                     }
                 },
             )
@@ -176,6 +235,9 @@ class SystemSpeechToText(private val context: Context) : SpeechToText {
 
     private companion object {
         const val SUPPORT_TIMEOUT_MS = 5_000L
+
+        /** Jak dlouho se čeká na dokončení stažení; pak ho systém dotáhne sám ([SpeechDownload.Started]). */
+        const val DOWNLOAD_TIMEOUT_MS = 5 * 60_000L
     }
 }
 

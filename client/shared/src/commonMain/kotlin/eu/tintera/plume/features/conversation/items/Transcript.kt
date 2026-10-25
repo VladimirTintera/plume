@@ -5,7 +5,11 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -13,6 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -30,11 +35,15 @@ import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.speech_to_text_24dp
+import eu.tintera.plume.resources.download_24dp
 import eu.tintera.plume.resources.transcript_device_too_long
 import eu.tintera.plume.resources.transcript_download_gemma
+import eu.tintera.plume.resources.transcript_download_language
+import eu.tintera.plume.resources.transcript_download_language_action
 import eu.tintera.plume.resources.transcript_enable_ai
 import eu.tintera.plume.resources.transcript_failed
 import eu.tintera.plume.resources.transcript_hide
+import eu.tintera.plume.resources.transcript_language_downloading
 import eu.tintera.plume.resources.transcript_pending
 import eu.tintera.plume.resources.transcript_premium_required
 import eu.tintera.plume.resources.transcript_show
@@ -58,6 +67,8 @@ internal class TranscriptState(
     val offer: TranscribeOffer,
     private val shownState: MutableState<Boolean>,
     private val onTranscribe: () -> Unit,
+    /** Stáhnout jazyk pro rozpoznávač ([OnDeviceFix.DownloadSpeechLanguage]). */
+    val onDownloadLanguage: () -> Unit = {},
 ) {
     val shown: Boolean get() = shownState.value
 
@@ -87,9 +98,10 @@ internal fun rememberTranscriptState(
     transcript: SpeechTranscript?,
     offer: TranscribeOffer,
     onTranscribe: () -> Unit,
+    onDownloadLanguage: () -> Unit = {},
 ): TranscriptState {
     val shown = rememberSaveable(key) { mutableStateOf(transcript != null) }
-    return TranscriptState(transcript, offer, shown, onTranscribe)
+    return TranscriptState(transcript, offer, shown, onTranscribe, onDownloadLanguage)
 }
 
 /**
@@ -170,6 +182,8 @@ internal fun TranscriptBody(state: TranscriptState, color: Color, modifier: Modi
                 stringResource(Res.string.transcript_device_too_long, formatDuration(offer.maxSeconds))
             is TranscribeOffer.Unavailable -> stringResource(
                 when (offer.fix) {
+                    OnDeviceFix.DownloadSpeechLanguage -> Res.string.transcript_download_language
+                    OnDeviceFix.SpeechLanguageDownloading -> Res.string.transcript_language_downloading
                     OnDeviceFix.EnableAi -> Res.string.transcript_enable_ai
                     OnDeviceFix.SwitchToGemma -> Res.string.transcript_switch_gemma
                     OnDeviceFix.DownloadGemma -> Res.string.transcript_download_gemma
@@ -180,7 +194,25 @@ internal fun TranscriptBody(state: TranscriptState, color: Color, modifier: Modi
             TranscribeOffer.Available, TranscribeOffer.OnDevice, TranscribeOffer.Hidden -> stringResource(Res.string.transcript_pending)
         } to muted
     }
-    Text(text = text, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
+    val offer = state.offer
+    if (state.transcript == null && offer is TranscribeOffer.Unavailable && offer.fix == OnDeviceFix.DownloadSpeechLanguage) {
+        // Rada „stáhni jazyk" má tlačítko přímo pod sebou: stahuje systém, do nastavení se nechodí.
+        Column(modifier) {
+            Text(text = text, color = textColor, style = MaterialTheme.typography.bodyMedium)
+            TextButton(
+                onClick = state.onDownloadLanguage,
+                shapes = ButtonDefaults.shapes(),
+                colors = ButtonDefaults.textButtonColors(contentColor = color),
+                contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
+            ) {
+                Icon(painterResource(Res.drawable.download_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(stringResource(Res.string.transcript_download_language_action))
+            }
+        }
+    } else {
+        Text(text = text, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
+    }
 }
 
 private val TRANSCRIBE_BUTTON_SIZE = 32.dp

@@ -3311,6 +3311,10 @@
     <string name="transcript_enable_ai">Bez Premium přepíše Gemma přímo v telefonu. Zapni ji v Nastavení → AI v zařízení.</string>
     <string name="transcript_switch_gemma">Bez Premium přepíše Gemma přímo v telefonu, Gemini Nano to neumí. Přepni model v Nastavení → AI v zařízení.</string>
     <string name="transcript_download_gemma">Bez Premium přepíše Gemma přímo v telefonu. Stáhni ji v Nastavení → AI v zařízení.</string>
+    <string name="transcript_download_language">Bez Premium přepíše řeč systém telefonu, jen mu chybí čeština pro rozpoznávání v zařízení.</string>
+    <string name="transcript_download_language_action">Stáhnout češtinu</string>
+    <string name="transcript_language_downloading">Čeština pro rozpoznávání řeči se stahuje. Až bude stažená, ťukni na přepis znovu.</string>
+    <string name="transcript_language_download_failed">Češtinu pro rozpoznávání řeči se nepodařilo stáhnout.</string>
     <string name="menu_summarize">Shrnout</string>
     <string name="menu_explain">Vysvětlit</string>
     <string name="server_summary_title">Shrnutí</string>
@@ -4334,6 +4338,8 @@
     <string name="wear_transcript_enable_ai">Přepíše Gemma v telefonu. V Plume na telefonu ji zapni v Nastavení → AI v zařízení.</string>
     <string name="wear_transcript_switch_gemma">Přepíše jen Gemma v telefonu, Gemini Nano ne. Přepni model v Plume na telefonu: Nastavení → AI v zařízení.</string>
     <string name="wear_transcript_download_gemma">Přepíše Gemma v telefonu. Stáhni ji v Plume na telefonu: Nastavení → AI v zařízení.</string>
+    <string name="wear_transcript_download_language">Přepíše telefon, jen mu chybí čeština pro rozpoznávání řeči. Otevři hlasovku v Plume na telefonu a ťukni na Stáhnout češtinu.</string>
+    <string name="wear_transcript_language_downloading">Telefon stahuje češtinu pro rozpoznávání řeči. Zkus to za chvíli.</string>
     <string name="wear_login_qr_hint">Naskenujte kód v Telegramu na telefonu: Nastavení → Zařízení → Připojit zařízení.</string>
     <string name="wear_login_with_phone">Přihlásit telefonem</string>
     <string name="wear_login_phone_waiting">Potvrďte přihlášení v notifikaci na telefonu.</string>

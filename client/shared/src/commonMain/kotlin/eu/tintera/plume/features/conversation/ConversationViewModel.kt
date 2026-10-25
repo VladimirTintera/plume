@@ -2094,6 +2094,7 @@ class ConversationViewModel(
             }
             MessageAction.CycleVoiceSpeed -> voicePlayer.cycleSpeed()
             MessageAction.Transcribe -> playback.transcribe(messageId)
+            MessageAction.DownloadSpeechLanguage -> playback.downloadSpeechLanguage(messageId)
             is MessageAction.SeekVoice -> playback.seekVoice(messageId, action.fraction)
             // Výměnu přílohy dovoluje server zprávu po zprávě; ví to jen nabídka, která se právě zavírá.
             MessageMenuAction.Edit -> composer.startEdit(

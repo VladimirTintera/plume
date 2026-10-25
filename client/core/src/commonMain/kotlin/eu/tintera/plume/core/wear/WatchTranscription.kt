@@ -84,6 +84,8 @@ object WatchTranscription {
 
     /** Názvy na drátě: přejmenování ve výčtu nesmí rozbít spojení se starší verzí na druhé straně. */
     private val FIX_WIRE = mapOf(
+        OnDeviceFix.DownloadSpeechLanguage to "download_speech_language",
+        OnDeviceFix.SpeechLanguageDownloading to "speech_language_downloading",
         OnDeviceFix.EnableAi to "enable_ai",
         OnDeviceFix.SwitchToGemma to "switch_to_gemma",
         OnDeviceFix.DownloadGemma to "download_gemma",

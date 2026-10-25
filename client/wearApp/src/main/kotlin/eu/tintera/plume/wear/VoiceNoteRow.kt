@@ -37,7 +37,9 @@ import eu.tintera.plume.resources.transcript_failed
 import eu.tintera.plume.resources.transcript_pending
 import eu.tintera.plume.resources.transcript_show
 import eu.tintera.plume.resources.wear_transcript_download_gemma
+import eu.tintera.plume.resources.wear_transcript_download_language
 import eu.tintera.plume.resources.wear_transcript_enable_ai
+import eu.tintera.plume.resources.wear_transcript_language_downloading
 import eu.tintera.plume.resources.wear_transcript_no_answer
 import eu.tintera.plume.resources.wear_transcript_no_phone
 import eu.tintera.plume.resources.wear_transcript_phone_unavailable
@@ -196,6 +198,8 @@ private fun TranscribeFailure?.message(): StringResource = when (this) {
     TranscribeFailure.NoAnswer -> Res.string.wear_transcript_no_answer
     TranscribeFailure.WrongAccount -> Res.string.wear_transcript_wrong_account
     is TranscribeFailure.PhoneCantTranscribe -> when (fix) {
+        OnDeviceFix.DownloadSpeechLanguage -> Res.string.wear_transcript_download_language
+        OnDeviceFix.SpeechLanguageDownloading -> Res.string.wear_transcript_language_downloading
         OnDeviceFix.EnableAi -> Res.string.wear_transcript_enable_ai
         OnDeviceFix.SwitchToGemma -> Res.string.wear_transcript_switch_gemma
         OnDeviceFix.DownloadGemma -> Res.string.wear_transcript_download_gemma
