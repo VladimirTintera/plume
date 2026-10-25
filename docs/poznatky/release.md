@@ -139,15 +139,28 @@ jsou registrované **k repu** `VladimirTintera/telegram`, ne k organizaci:
 
 | Runner | Stroj | Labely | Joby |
 |--------|-------|--------|------|
-| `plume-mac` | vývojářský MacBook Pro M3 Pro, 18 GB (`~/Develop/actions-runner-plume`) | `self-hosted, macOS, ARM64, plume` | Android release, desktop `version` / `macos` (DMG) / `release` |
+| `plume-mac` | vývojářský MacBook Pro M3 Pro, 18 GB (`~/Develop/actions-runner-plume`) | `self-hosted, macOS, ARM64, plume` | Android release, desktop `version` / `macos` (DMG) / `release`, tagger, kontrola poznámek na PR |
 | `HQDEV50-plume` | HQDEV50, vývojářský Windows (`C:\actions-runner-plume`) | `self-hosted, Windows, X64, plume-desktop` | desktop `windows` (MSI) |
 
-Na hostovaném zůstal tagger (`create-release-tag.yml` — release jde spustit i s vypnutým Macem),
-kontrola poznámek na PR a Play Listing; nic z toho nestaví.
+Na hostovaném zůstal jen Play Listing (spouští se ručně a zřídka). Tagger
+(`create-release-tag.yml`) a kontrola poznámek na PR (`release-notes-check.yml`) šly na Mac
+taky, přestože nic nestaví:
+
+- **Hostovaný runner účtuje KAŽDÝ job jako celou minutu, nahoru.** Kontrola poznámek trvá
+  kolem deseti vteřin, ale běží na každý push do PR: v říjnu 2026 to bylo 474 jobů, 70 minut
+  skutečného času a 475 účtovaných — víc než polovina měsíční spotřeby i v době, kdy release
+  buildy ještě jely na hostovaném. Tagger přidal dalších 46 minut za 9 skutečných.
+- **Tagger zůstával na hostovaném, aby release šel spustit i s vypnutým Macem.** To přestalo
+  platit, když na Mac přešel Android release i desktop job `version`: release spuštěný taggerem
+  by na Mac čekal stejně.
+- **Kontrola poznámek teď čeká za běžícím releasem.** Na Macu je jeden runner, takže push do
+  PR během Android releasu (desítky minut) nechá kontrolu ve frontě, dokud release nedoběhne.
+  Kdyby to začalo vadit, vrací se proměnnou níž, ne úpravou workflow.
 
 - **Návrat na hostovaný bez zásahu do workflow:** repo proměnné (Settings → Secrets and
   variables → Actions → Variables) `ANDROID_RUNS_ON = ["ubuntu-latest"]`,
-  `DESKTOP_MAC_RUNS_ON = ["macos-latest"]`, `DESKTOP_WINDOWS_RUNS_ON = ["windows-latest"]`.
+  `DESKTOP_MAC_RUNS_ON = ["macos-latest"]`, `DESKTOP_WINDOWS_RUNS_ON = ["windows-latest"]`,
+  `RELEASE_TAG_RUNS_ON = ["ubuntu-latest"]`, `RELEASE_NOTES_RUNS_ON = ["ubuntu-latest"]`.
   Workflowy kroky, které patří jen na jednu stranu, podmiňují `runner.environment`, takže
   fungují na obou.
 - **Vlastní label (`plume`, `plume-desktop`) je povinný.** Na obou strojích běží i runnery
