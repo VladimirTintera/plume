@@ -383,15 +383,23 @@ z Profilogu. Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS a
 - **Sběr jen z Release**: `FirebaseCrashlyticsCollectionEnabled` v `Info.plist` je build setting
   `PLUME_CRASHLYTICS_COLLECTION_ENABLED` (Debug `NO`, Release `YES`). Crashlytics bere i textové
   `YES`/`NO`. Archiv do TestFlightu je Release, build z Xcode na zařízení Debug.
-- **`GoogleService-Info.plist` patří do `iosApp/iosApp/`** a commituje se jako `google-services.json`
+- **`GoogleService-Info.plist` je v `iosApp/iosApp/`** a commituje se jako `google-services.json`
   (tajemství v něm nejsou, jde stejně v binárce). Složka je synchronizovaná skupina Xcode, do
-  bundlu se dostane sama. Získá se jednou: Firebase Console → `telegram-b9fff` → Project settings →
-  Add app → iOS, bundle `eu.tintera.plume` → stáhnout plist. **Bez něj aplikace běží dál, jen bez
-  hlášení**: `FirebaseCrashlyticsBridge.start()` vrátí `nil` (`FirebaseApp.configure()` by bez
-  plistu shodil proces).
+  bundlu se dostane sama. iOS aplikace ve Firebase je `1:737473989471:ios:f0c3…`, bundle
+  `eu.tintera.plume`. **Bez plistu aplikace běží dál, jen bez hlášení**:
+  `FirebaseCrashlyticsBridge.start()` vrátí `nil` (`FirebaseApp.configure()` by bez plistu shodil
+  proces).
 - **dSYMy** se zatím nenahrávají samy — iOS se nevydává a release workflow nemá. Ruční nahrání
   po archivu: `"<DerivedData>/iosApp-…/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols" -gsp iosApp/iosApp/GoogleService-Info.plist -p ios <cesta k dSYMs>`.
-  Bez dSYMu je u pádu z Kotlinu v konzoli jen seznam adres.
+  Bez dSYMu je u pádu z Kotlinu v konzoli jen seznam adres. **Debug build má kód v
+  `Plume.debug.dylib`**, ne v `Plume` — dSYM pak má oba a nahrát se musí celý.
+- **Zkouška bez Release buildu** (ten kvůli LTO nad TDLib trvá 15+ minut): Debug přes
+  `xcodebuild … PLUME_CRASHLYTICS_COLLECTION_ENABLED=YES DEBUG_INFORMATION_FORMAT=dwarf-with-dsym`,
+  nahrát dSYM, dočasný pád za proměnnou prostředí (`SIMCTL_CHILD_… xcrun simctl launch … -FIRDebugEnabled`),
+  znovu spustit. Hlášení odejde při dalším startu přes `firebaselogging-pa.googleapis.com`;
+  odeslané hlášení zmizí z `Library/Caches/com.crashlytics.data/…/v5/reports/prepared`.
+  Ověřeno tak 25. 10. 2026 v simulátoru (non-fatal přes `Logger.e` i nezachycená výjimka
+  s příčinou); dSYM obsahuje Kotlin symboly (`kfun:eu.tintera.plume…`).
 
 ## Aktualizace z obchodu
 

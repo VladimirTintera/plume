@@ -169,9 +169,8 @@ Android je napřed; tohle je, čím se to dorovnává.
   - **Vysvětlení před dotazem na oprávnění ověřit na čistém simulátoru** (na testovacím bylo
     oprávnění vyřízené dřív).
 - **Hlášení pádů** — napojené (Swift most do Crashlytics, `docs/poznatky/release.md`, „Hlášení
-  pádů na iOS"). Zbývá: **přidat iOS aplikaci do Firebase** (projekt `telegram-b9fff`, bundle
-  `eu.tintera.plume`) a commitnout `GoogleService-Info.plist`, ověřit pád z Release buildu
-  a nahrávání dSYMů (až bude iOS release workflow).
+  pádů na iOS"), hlášení z Debug buildu se zapnutým sběrem v simulátoru odchází. Zbývá ověřit
+  pád z Release buildu na zařízení a nahrávání dSYMů v CI (až bude iOS release workflow).
 - **Vydání: nejspíš App Store** (zatím nerozhodnuté, testování přes TestFlight). Chce placený
   Apple Developer Program (99 USD ročně, odpuštění jen pro neziskovky a školy). Tentýž účet dá
   i Developer ID a notarizaci pro DMG na macOS. Zvážené a odložené: alternativní obchody v EU
