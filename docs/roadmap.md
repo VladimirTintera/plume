@@ -562,15 +562,9 @@ kurzy měn; vše podmíněné volbou `can_use_ton_wallet`). Spadá pod „Hvězd
 ve „Vědomě mimo" níž — peněženka v aplikaci z Play je navíc rozhodnutí o zásadách Play
 pro kryptoměny, ne jen o fakturaci. Co z toho stojí za to i bez peněženky:
 
-- **Adresa TON v článku zmizí.** Nový `RichTextTonAddress` spadne v `RichMessageBody.kt`
-  do `else -> Unit` a v `plainText()` (`MessageContent.kt`) do `else -> ""` — text se nevykreslí
-  vůbec, ani v náhledu. Patří vedle `RichTextBankCardNumber` (`rich(richText.text)`); entita
-  `TextEntityTypeTonAddress` v obyčejné zprávě zůstane aspoň jako text.
-- **Převod z peněženky jako zpráva** (`MessageTonWalletTransfer`: částka, adresa protistrany,
-  komentář) a žádost dApp (`MessageTonConnectRequest`) dnes ukážou „neumíme zobrazit" a zapíšou
-  neznámý obsah do logu; notifikace (`PushMessageContentTonWalletTransfer`,
-  `…TonConnectRequest`) „Nová zpráva". Stačí popis ke čtení jako u sázkové kostky
-  (`describe`, „Převod 1,5 TON"), zašifrovaný komentář (`isCommentEncrypted`) nevypisovat.
+- ~~**Adresa TON v článku zmizí.**~~ — opraveno (`docs/poznatky/typy-zprav.md`, „Článek").
+- ~~**Převod z peněženky jako zpráva**~~ — hotovo, popis ve zprávě, seznamu i notifikaci
+  (`docs/poznatky/typy-zprav.md`, „Převod TON"); neověřeno na skutečném převodu.
 - **Odkazy na převod a TON Connect** (`InternalLinkTypeTonWalletTransfer`,
   `InternalLinkTypeTonConnect`) — ověřit, že skončí srozumitelně (neznámý odkaz), ne tichem.
 - **Drobnosti:** `MessageProperties.customEmojiIds` (vlastní emoji zprávy předem, bez procházení

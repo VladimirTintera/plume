@@ -122,6 +122,8 @@ import dev.g000sha256.tdl.dto.MessageStakeDice
 import dev.g000sha256.tdl.dto.MessageSticker
 import dev.g000sha256.tdl.dto.MessageStory
 import dev.g000sha256.tdl.dto.MessageText
+import dev.g000sha256.tdl.dto.MessageTonConnectRequest
+import dev.g000sha256.tdl.dto.MessageTonWalletTransfer
 import dev.g000sha256.tdl.dto.MessageUnsupported
 import dev.g000sha256.tdl.dto.MessageVenue
 import dev.g000sha256.tdl.dto.MessageVideo
@@ -178,6 +180,7 @@ import dev.g000sha256.tdl.dto.RichTextReferenceLink
 import dev.g000sha256.tdl.dto.RichTextStrikethrough
 import dev.g000sha256.tdl.dto.RichTextSubscript
 import dev.g000sha256.tdl.dto.RichTextSuperscript
+import dev.g000sha256.tdl.dto.RichTextTonAddress
 import dev.g000sha256.tdl.dto.RichTextUnderline
 import dev.g000sha256.tdl.dto.RichTextUrl
 import dev.g000sha256.tdl.dto.RichTexts
@@ -198,6 +201,8 @@ import dev.g000sha256.tdl.dto.PushMessageContentPoll
 import dev.g000sha256.tdl.dto.PushMessageContentSticker
 import dev.g000sha256.tdl.dto.PushMessageContentStory
 import dev.g000sha256.tdl.dto.PushMessageContentText
+import dev.g000sha256.tdl.dto.PushMessageContentTonConnectRequest
+import dev.g000sha256.tdl.dto.PushMessageContentTonWalletTransfer
 import dev.g000sha256.tdl.dto.PushMessageContentVideo
 import dev.g000sha256.tdl.dto.PushMessageContentVideoNote
 import dev.g000sha256.tdl.dto.PushMessageContentVoiceNote
@@ -253,6 +258,13 @@ import eu.tintera.plume.resources.content_rich_message
 import eu.tintera.plume.resources.content_stake_dice
 import eu.tintera.plume.resources.content_suggested_birthdate
 import eu.tintera.plume.resources.content_suggested_photo
+import eu.tintera.plume.resources.content_ton_connect_request
+import eu.tintera.plume.resources.content_ton_connect_request_named
+import eu.tintera.plume.resources.content_ton_received
+import eu.tintera.plume.resources.content_ton_received_comment
+import eu.tintera.plume.resources.content_ton_sent
+import eu.tintera.plume.resources.content_ton_sent_comment
+import eu.tintera.plume.resources.ton_amount
 import eu.tintera.plume.resources.content_checklist
 import eu.tintera.plume.resources.content_contact
 import eu.tintera.plume.resources.content_file
@@ -278,6 +290,7 @@ import eu.tintera.plume.resources.notification_pinned
 import eu.tintera.plume.resources.service_message_pinned
 import co.touchlab.kermit.Logger
 import kotlin.concurrent.Volatile
+import kotlin.math.abs
 
 /**
  * Textová podoba obsahu zprávy pro **náhled v seznamu chatů**.
@@ -446,8 +459,31 @@ private fun PushMessageContent.contentText(): UiText? = when (this) {
     is PushMessageContentGift, is PushMessageContentUpgradedGift, is PushMessageContentPremiumGiftCode ->
         UiText(Res.string.content_gift)
     is PushMessageContentGiveaway -> UiText(Res.string.content_giveaway)
+    // Push nese jen přijaté převody a částku jako text od serveru (TDLib `MESSAGE_GRAM_TRANSFER`
+    // ji předá beze změny). Jestli v ní jednotka je, z TDLib poznat nejde — přidá se jen, když chybí.
+    is PushMessageContentTonWalletTransfer -> tonTransferText(
+        amount = amount.trim().let { if (it.contains("TON", ignoreCase = true)) UiText.Raw(it) else UiText(Res.string.ton_amount, it) },
+        isOutgoing = false,
+        comment = comment,
+    )
+    is PushMessageContentTonConnectRequest -> tonConnectRequestText(dappName)
     else -> pushServiceText()
 }
+
+/** Převod TON slovy, stejně ve zprávě i v pushi: „Přijato 1,5 TON: Za pizzu". */
+private fun tonTransferText(amount: UiText, isOutgoing: Boolean, comment: String?): UiText {
+    val text = comment?.trim().orEmpty()
+    return when {
+        text.isEmpty() -> UiText(if (isOutgoing) Res.string.content_ton_sent else Res.string.content_ton_received, amount)
+        isOutgoing -> UiText(Res.string.content_ton_sent_comment, amount, text)
+        else -> UiText(Res.string.content_ton_received_comment, amount, text)
+    }
+}
+
+/** Žádost aplikace (dApp) přes TON Connect; jméno aplikace TDLib nemusí znát. */
+private fun tonConnectRequestText(dappName: String): UiText =
+    dappName.trim().ifEmpty { null }?.let { UiText(Res.string.content_ton_connect_request_named, it) }
+        ?: UiText(Res.string.content_ton_connect_request)
 
 /**
  * Servisní událost z pushe. Věta nemá podmět: řádek notifikace už nese jméno odesílatele
@@ -512,6 +548,14 @@ private fun MessageContent.describe(isChannelPost: Boolean): UiText? = when (thi
     // Sázková kostka (TDLib 15): jako `MessageDice`, ale s vkladem v TON. Hodnotu ani vklad
     // nevypisujeme — bez animace by z čísla nebylo poznat, že jde o hod.
     is MessageStakeDice -> UiText(Res.string.content_stake_dice)
+    // Převod z peněženky TON (TDLib 1.8.68). Peněženku Plume nemá, převod jen popíše; záporná
+    // částka je odchozí. Zašifrovaný komentář je nečitelný bez klíče peněženky, takže se vynechá.
+    is MessageTonWalletTransfer -> tonTransferText(
+        amount = UiText(Res.string.ton_amount, tonAmount(abs(amount))),
+        isOutgoing = amount < 0,
+        comment = comment.takeUnless { isCommentEncrypted },
+    )
+    is MessageTonConnectRequest -> tonConnectRequestText(dappName)
     is MessageInvoice -> UiText(Res.string.content_invoice, productInfo.title)
     is MessageStory -> UiText(Res.string.content_story)
     is MessagePaidMedia -> caption.text.orText(Res.string.content_paid)
@@ -594,6 +638,7 @@ internal fun RichText.plainText(): String = when (this) {
     is RichTextEmailAddress -> text.plainText()
     is RichTextPhoneNumber -> text.plainText()
     is RichTextBankCardNumber -> text.plainText()
+    is RichTextTonAddress -> text.plainText()
     is RichTextMention -> text.plainText()
     is RichTextMentionName -> text.plainText()
     is RichTextHashtag -> text.plainText()

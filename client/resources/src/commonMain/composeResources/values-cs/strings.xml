@@ -1261,6 +1261,13 @@
     <string name="content_suggested_birthdate">Návrh data narození</string>
     <string name="content_suggested_photo">Návrh profilové fotky</string>
     <string name="content_stake_dice">Kostka se sázkou</string>
+    <string name="ton_amount">%1$s TON</string>
+    <string name="content_ton_received">Přijato %1$s</string>
+    <string name="content_ton_sent">Odesláno %1$s</string>
+    <string name="content_ton_received_comment">Přijato %1$s: %2$s</string>
+    <string name="content_ton_sent_comment">Odesláno %1$s: %2$s</string>
+    <string name="content_ton_connect_request">Žádost přes TON Connect</string>
+    <string name="content_ton_connect_request_named">Žádost od %1$s přes TON Connect</string>
     <string name="service_boost">Chat dostal boost</string>
     <string name="service_checklist_tasks_added">Do seznamu přibyly úkoly</string>
     <string name="service_checklist_tasks_done">Úkoly v seznamu změnily stav</string>
