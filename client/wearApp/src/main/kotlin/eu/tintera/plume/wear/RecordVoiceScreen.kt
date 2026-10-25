@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.wear.compose.material3.FilledIconButton
 import androidx.wear.compose.material3.IconButtonDefaults
+import eu.tintera.plume.resources.mic_off_24dp
 import eu.tintera.plume.resources.wear_confirm_not_sent
 import eu.tintera.plume.resources.wear_confirm_sent
 import androidx.wear.compose.material3.Icon
@@ -93,7 +94,7 @@ fun RecordVoiceScreen(chatId: Long, onDone: () -> Unit) {
     }
 
     if (denied) {
-        MessageScreen(stringResource(Res.string.wear_voice_no_permission))
+        MessageScreen(stringResource(Res.string.wear_voice_no_permission), Res.drawable.mic_off_24dp)
         return
     }
 

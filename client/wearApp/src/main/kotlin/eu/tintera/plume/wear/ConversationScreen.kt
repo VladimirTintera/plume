@@ -48,6 +48,7 @@ import androidx.wear.compose.material3.Icon
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.resources.mic_24dp
+import eu.tintera.plume.resources.cloud_off_24dp
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.conversation_delivery_read
@@ -83,6 +84,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
@@ -158,7 +161,9 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     val appScope = koinInject<CoroutineScope>(named(APP_SCOPE))
     val scope = rememberCoroutineScope()
     val listState by chats.chats().collectAsState()
-    val title = chatTitle(chatId, (listState as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }?.title.orEmpty(), savedMessagesChatId())
+    val summary = (listState as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }
+    val savedMessagesId = savedMessagesChatId()
+    val title = chatTitle(chatId, summary?.title.orEmpty(), savedMessagesId)
 
     // Zprávy a odběry patří ViewModelu položky navigace: přežije výběr reakce, fotku i nahrávání
     // (jinak se po návratu konverzace načetla znovu a sjela dolů), viz ConversationViewModel.
@@ -263,10 +268,12 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
 
     val current = model.messages
     when {
-        model.failed && current.isNullOrEmpty() -> MessageScreen(stringResource(Res.string.conversation_history_failed))
+        model.failed && current.isNullOrEmpty() -> MessageScreen(stringResource(Res.string.conversation_history_failed), Res.drawable.cloud_off_24dp, error = true)
         current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
         else -> MessageList(
             title = title,
+            avatarFileId = summary?.avatarFileId,
+            savedMessages = chatId == savedMessagesId,
             messages = current,
             quoted = model.quoted,
             lastReadOutboxId = model.lastReadOutboxId,
@@ -324,6 +331,8 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
 @Composable
 private fun MessageList(
     title: String,
+    avatarFileId: Int?,
+    savedMessages: Boolean,
     messages: List<ChatMessage>,
     quoted: Map<Long, ChatMessage?>,
     lastReadOutboxId: Long,
@@ -346,6 +355,7 @@ private fun MessageList(
     val state = rememberTransformingLazyColumnState()
     // Zprávy se u okraje displeje zmenšují jako karty v seznamu chatů (M3 Expressive).
     val spec = rememberTransformationSpec()
+    val motion = rememberItemMotion()
     // Na nejnovější zprávu (dole) při otevření a s každou novou — ale ne po návratu z výběru
     // reakce, fotky nebo nahrávání: tam pozici drží uložený stav seznamu a sjet dolů by uživatele
     // odvezlo od zprávy, na kterou reagoval.
@@ -354,7 +364,9 @@ private fun MessageList(
     val lastId = messages.lastOrNull()?.id
     LaunchedEffect(lastId) {
         if (lastId != scrolledToId) {
-            state.scrollToItem(entries.size + 2)
+            // Při otevření skokem; s novou zprávou v otevřené konverzaci plynule — `scrollToItem`
+            // ruší animace položek, takže by nová zpráva naskočila bez prolnutí (ItemMotion).
+            if (scrolledToId == null) state.scrollToItem(entries.size + 2) else state.animateScrollToItem(entries.size + 2)
             onScrolledTo(lastId)
         }
     }
@@ -379,7 +391,12 @@ private fun MessageList(
                 ListHeader(
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
                     transformation = SurfaceTransformation(spec),
-                ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                ) {
+                    // Fotka chatu vedle názvu, jako v seznamu chatů: je hned jasné, kde jsi.
+                    ChatAvatar(fileId = avatarFileId, title = title, size = HEADER_AVATAR, savedMessages = savedMessages)
+                    Spacer(Modifier.width(6.dp))
+                    Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
             if (loadingOlder) {
                 item(key = "loading") {
@@ -393,7 +410,7 @@ private fun MessageList(
             }
             items(entries, key = { it.key }) { entry ->
                 if (entry is ConversationEntry.Day) {
-                    DayDivider(entry.timestamp, Modifier.transformedItem(this, spec))
+                    DayDivider(entry.timestamp, Modifier.transformedItem(this, spec).animateItem(motion.fadeIn, motion.placement, motion.fadeOut))
                     return@items
                 }
                 val (message, joinsPrevious, joinsNext) = entry as ConversationEntry.Message
@@ -418,6 +435,7 @@ private fun MessageList(
                         .takeIf { !message.isService && (message.sendState == null || message.sendState == SendState.Sent) },
                     modifier = Modifier
                         .transformedItem(this, spec)
+                        .animateItem(motion.fadeIn, motion.placement, motion.fadeOut)
                         .then(if (joinsPrevious) Modifier else Modifier.padding(top = GROUP_GAP)),
                 )
             }
@@ -433,6 +451,25 @@ private fun MessageList(
                 )
             }
         }
+    }
+}
+
+/**
+ * Animace položek konverzace: nová zpráva se objeví prolnutím a ostatní k ní plynule popojedou,
+ * místo aby seznam skočil. Specifikace z `MotionScheme` Wear M3; posun bez překmitu (effects, ne
+ * spatial) — pružina by při každé nové zprávě rozhoupala celou konverzaci.
+ */
+private class ItemMotion(
+    val fadeIn: FiniteAnimationSpec<Float>,
+    val placement: FiniteAnimationSpec<IntOffset>,
+    val fadeOut: FiniteAnimationSpec<Float>,
+)
+
+@Composable
+private fun rememberItemMotion(): ItemMotion {
+    val scheme = MaterialTheme.motionScheme
+    return remember(scheme) {
+        ItemMotion(scheme.defaultEffectsSpec(), scheme.defaultEffectsSpec(), scheme.fastEffectsSpec())
     }
 }
 
@@ -785,6 +822,8 @@ private fun CenteredNote(text: String, modifier: Modifier = Modifier) {
 }
 
 private const val BUBBLE_WIDTH = 0.85f
+
+private val HEADER_AVATAR = 20.dp
 
 /** Mezera nad začátkem bloku zpráv (a nad předělem); uvnitř bloku jen odstup seznamu 2 dp. */
 private val GROUP_GAP = 2.dp

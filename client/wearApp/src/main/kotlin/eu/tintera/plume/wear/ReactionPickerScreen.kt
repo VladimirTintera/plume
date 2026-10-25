@@ -26,6 +26,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.connection_connecting
 import eu.tintera.plume.resources.wear_reactions_none
 import eu.tintera.plume.resources.wear_reactions_title
@@ -63,7 +64,7 @@ fun ReactionPickerScreen(chatId: Long, messageId: Long, onDone: () -> Unit) {
     val current = choices
     when {
         current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
-        current.isEmpty() -> MessageScreen(stringResource(Res.string.wear_reactions_none))
+        current.isEmpty() -> MessageScreen(stringResource(Res.string.wear_reactions_none), Res.drawable.add_reaction_24dp)
         else -> {
             val state = rememberTransformingLazyColumnState()
             val spec = rememberTransformationSpec()

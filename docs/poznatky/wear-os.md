@@ -55,6 +55,10 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   čtverec, `input motionevent DOWN`), „Sent" po hlasovce do chatu Notifikátora. Dialog nezdaru
   vyvolaný není (chyba se na emulátoru neudělá), čeština v oblouku nekontrolovaná.
 
+- **Prázdné a chybové stavy s ikonou** (`MessageScreen(text, icon, error)`): ikona 32 dp nad
+  textem (prázdný seznam chatů, žádné reakce, chybějící mikrofon; chyba načtení a přihlášení
+  v chybové barvě). Holý text uprostřed vypadal jako nedodělek. Na emulátoru nevyvolané.
+
 ## Přihlášení
 
 - **Telefonní číslo se na hodinkách přeskočí:** na `WaitPhoneNumber` se rovnou volá
@@ -88,6 +92,12 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   Holé číslo v rohu karty splývalo s časem u ostatních chatů a nepřečtený chat nebyl na první
   pohled vidět. Ztlumený chat má odznak tlumený (`surfaceContainerHigh`), ručně označený jako
   nepřečtený bez počtu jen tečku. Ověřeno na emulátoru 2026-10-24 (chat služby Telegram s 1).
+- **„Píše…" a připnutí v kartě** (`ChatRepository.typing`, popisek `ChatActivity.label()`
+  z `core`): místo náhledu v barvě motivu, ve skupině bez jména (do řádku se nevejde). Odebírá ho
+  každá karta sama (`remember(chat.id)` + `collectAsState`) — lazy seznam drží jen viditelné
+  položky, odběr skončí s kartou. Připnutý chat má před časem / odznakem špendlík. Ověřeno na
+  emulátoru 2026-10-25: `sendChatAction typing` od Notifikátora → „typing…" v jeho kartě;
+  připnutý chat účet na emulátoru nemá, špendlík neověřený.
 - **Fotka chatu** (`ChatAvatar`): malá varianta (`avatarFileId`), stažení spustí odběr
   `FileRepository.file()` sám; dekóduje se mimo hlavní vlákno rovnou zmenšená (`inSampleSize`
   mocninou dvou) na velikost avataru — hodinky mají málo paměti. Bez fotky iniciála.
@@ -135,6 +145,14 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   i ty, které přijdou, zatímco je konverzace otevřená. Kdo ji na hodinkách viděl, četl ji.
 - Bublina: `text`, a když je prázdný, `description` (fotka bez popisku, anketa…) jako na telefonu;
   jméno odesílatele jen tam, kde se liší od názvu chatu (skupiny); servisní zprávy uprostřed.
+- **Hlavička konverzace s fotkou chatu** (`ChatAvatar` 20 dp v `ListHeader`, u Uložených zpráv
+  záložka): je hned jasné, kde jsi. Ověřeno na emulátoru (Notifikátor).
+- **Nová zpráva přijede plynule** (`animateItem` u zpráv a předělů, specifikace z `MotionScheme`
+  Wear M3; posun effects bez překmitu, pružina by rozhoupala celou konverzaci). **Pozor:
+  `scrollToItem` ruší animace položek** — nová zpráva v otevřené konverzaci proto sjíždí
+  `animateScrollToItem`, skokem jen při otevření. Ověřeno na emulátoru se zpomalenými animacemi
+  (`animator_duration_scale 10` NASTAVIT PŘED startem aplikace, za běhu se neprojeví): obsah
+  se během příjezdu posouvá.
 - **Předěly dní a bloky** (`conversationEntries` v `ConversationEntries.kt`): nad první zprávou
   dne „Dnes", „Včera", jinak datum (`asDayLabel` z `core`) — bubliny ukazují jen hodinu a u
   starší historie nebylo poznat, ze kterého dne zpráva je. **Klíč předělu je číslo dne**, ne id

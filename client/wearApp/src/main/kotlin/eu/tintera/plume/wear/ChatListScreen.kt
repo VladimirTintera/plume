@@ -36,6 +36,15 @@ import androidx.wear.compose.material3.TitleCard
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.ChatTyping
+import eu.tintera.plume.core.ui.label
+import eu.tintera.plume.resources.chats_section_pinned
+import eu.tintera.plume.resources.chat_bubble_24dp
+import eu.tintera.plume.resources.cloud_off_24dp
+import eu.tintera.plume.resources.push_pin_filled_24dp
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.remember
 import eu.tintera.plume.core.ui.asDate
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.isSameDayAs
@@ -60,15 +69,15 @@ fun ChatListScreen(onOpen: (Long) -> Unit, onSettings: () -> Unit) {
 
     when (val current = listState) {
         ChatListState.Loading -> LoadingScreen(stringResource(Res.string.connection_connecting))
-        is ChatListState.Failed -> MessageScreen(stringResource(Res.string.chats_load_failed))
+        is ChatListState.Failed -> MessageScreen(stringResource(Res.string.chats_load_failed), Res.drawable.cloud_off_24dp, error = true)
         is ChatListState.Ready ->
-            if (current.chats.isEmpty()) MessageScreen(stringResource(Res.string.wear_chats_empty))
-            else ChatList(current.chats, onOpen, onSettings)
+            if (current.chats.isEmpty()) MessageScreen(stringResource(Res.string.wear_chats_empty), Res.drawable.chat_bubble_24dp)
+            else ChatList(current.chats, chats, onOpen, onSettings)
     }
 }
 
 @Composable
-private fun ChatList(chats: List<ChatSummary>, onOpen: (Long) -> Unit, onSettings: () -> Unit) {
+private fun ChatList(chats: List<ChatSummary>, repository: ChatRepository, onOpen: (Long) -> Unit, onSettings: () -> Unit) {
     val state = rememberTransformingLazyColumnState()
     val savedMessagesId = savedMessagesChatId()
     // Položky se u okraje displeje zmenšují (M3 Expressive), viz transformedItem.
@@ -96,9 +105,13 @@ private fun ChatList(chats: List<ChatSummary>, onOpen: (Long) -> Unit, onSetting
             // Bez klíče: chaty po přihlášení přibývají postupně a s klíčem by lazy seznam držel
             // první viditelný chat, takže by nové nahoře odjely nad displej (ověřeno na emulátoru).
             items(chats) { chat ->
+                // „Píše…" odebírá každá viditelná karta sama: lazy seznam drží jen pár položek
+                // naráz a odběr skončí s kartou, která odjede z displeje.
+                val typing by remember(chat.id) { repository.typing(chat.id) }.collectAsState(null)
                 ChatCard(
                     chat,
                     savedMessagesId,
+                    typing = typing,
                     onClick = { onOpen(chat.id) },
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
                     transformation = SurfaceTransformation(spec),
@@ -112,6 +125,7 @@ private fun ChatList(chats: List<ChatSummary>, onOpen: (Long) -> Unit, onSetting
 private fun ChatCard(
     chat: ChatSummary,
     savedMessagesId: Long?,
+    typing: ChatTyping?,
     onClick: () -> Unit,
     modifier: Modifier,
     transformation: SurfaceTransformation,
@@ -127,16 +141,34 @@ private fun ChatCard(
             Spacer(Modifier.width(6.dp))
             Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
-        time = when {
-            unread -> { { UnreadBadge(chat.unreadCount, muted = chat.isMuted) } }
-            time != null -> { { Text(time) } }
-            else -> null
+        time = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Připnutý chat špendlíkem před časem / odznakem, jako na telefonu.
+                if (chat.isPinned) {
+                    Icon(
+                        painterResource(Res.drawable.push_pin_filled_24dp),
+                        contentDescription = stringResource(Res.string.chats_section_pinned),
+                        modifier = Modifier.size(PIN_SIZE),
+                    )
+                    Spacer(Modifier.width(2.dp))
+                }
+                when {
+                    unread -> UnreadBadge(chat.unreadCount, muted = chat.isMuted)
+                    time != null -> Text(time)
+                }
+            }
         },
         modifier = modifier,
         transformation = transformation,
     ) {
-        chat.lastMessagePreview?.let { preview ->
-            Text(preview.resolve(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        // „Píše…" místo náhledu, v barvě motivu: protějšek je zrovna u telefonu a odpověď se
+        // dá čekat. Ve skupině bez jména — na hodinkách se do řádku nevejde.
+        if (typing != null) {
+            Text(typing.activity.label(), color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        } else {
+            chat.lastMessagePreview?.let { preview ->
+                Text(preview.resolve(), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -173,6 +205,8 @@ private fun UnreadBadge(count: Int, muted: Boolean) {
 }
 
 private val BADGE_SIZE = 18.dp
+
+private val PIN_SIZE = 12.dp
 
 /** Víc se do rohu karty nevejde a přesné číslo nad sto na hodinkách nikdo nečte. */
 private const val MAX_BADGE = 99

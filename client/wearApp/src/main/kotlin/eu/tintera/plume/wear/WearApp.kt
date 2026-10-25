@@ -21,6 +21,7 @@ import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.connection_connecting
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -54,7 +55,7 @@ fun WearApp(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                     LaunchedEffect(Unit) { session.startQrLogin() }
                     LoadingScreen(stringResource(Res.string.connection_connecting))
                 }
-                is AuthStage.Failed -> MessageScreen(current.message.resolve())
+                is AuthStage.Failed -> MessageScreen(current.message.resolve(), Res.drawable.error_24dp, error = true)
                 AuthStage.Connecting, AuthStage.LoggingOut -> LoadingScreen(stringResource(Res.string.connection_connecting))
                 // Kód, e-mail a registrace: na hodinkách nepsat, vrátit se k QR kódu.
                 else -> QrOnlyScreen(onShowQr = { scope.launch { session.restartLogin() } })
