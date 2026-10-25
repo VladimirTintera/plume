@@ -24,8 +24,8 @@ interface CrashReporter {
 }
 
 /**
- * Hlásič, který nic nehlásí: iOS (Firebase v Xcode projektu zatím není) a Android build bez
- * `google-services.json`. Není to chybový stav — aplikace bez Firebase normálně funguje,
+ * Hlásič, který nic nehlásí: desktop, Android build bez `google-services.json` a iOS build bez
+ * `GoogleService-Info.plist`. Není to chybový stav — aplikace bez Firebase normálně funguje,
  * stejně jako funguje bez push notifikací.
  */
 object NoopCrashReporter : CrashReporter {

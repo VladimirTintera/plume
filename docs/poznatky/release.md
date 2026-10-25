@@ -356,11 +356,42 @@ rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
 - **Ověřit to jde jen skutečným pádem release buildu.** V debug buildu je sběr vypnutý, takže
   „projde to bez chyby" nic neznamená. Postup je stejný jako u R8: release APK se přepodepíše
   debug klíčem a nainstaluje přes `adb install -r`, takže se nepřijde o přihlášení.
-- **iOS hlásič pádů zatím nemá** (`NoopCrashReporter`). Firebase v Xcode projektu není — stejně
-  jako u notifikací. Až přibude, implementace musí přijít ze Swiftu: `FirebaseCrashlytics` je
-  ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace
-  (`getStackTraceAddresses()`), ne symboly. Vzor je `IosCrashlyticsLogger` v projektu
-  com.profilog.telemetry.android.
+
+### Hlášení pádů na iOS
+
+Převzaté z projektu mlog (`docs/crash-reporting.md` tam), tamtéž podle `IosCrashlyticsLogger`
+z Profilogu. Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS aplikace s bundlem
+**`eu.tintera.plume`**.
+
+- **Kotlin/Native knihovnu Firebase nevidí** (ObjC ze SPM, ne cinterop), proto most ze Swiftu:
+  `FirebaseCrashlyticsBridge.swift` v `iosApp` implementuje Kotlin rozhraní `CrashlyticsBridge`
+  (`:client:shared` iosMain, `core/logging`) a `iOSApp.swift` ho podá do `initKoin`. Kotlin ho
+  obalí do `IosCrashReporter` a vloží do `IosCrashReporting.reporter` v `:client:core` — **dřív
+  než `configureLogging`**, ze kterého si ho `createCrashReporter` vezme. Rozhraní je ve
+  `shared`, ne v `core`: framework `ComposeApp` nic neexportuje, takže Swift vidí jen typy ze
+  `shared`.
+- **Kotlin výjimka nese jen adresy stacku** (`getStackTraceAddresses()`); Swift z nich udělá rámce
+  `ExceptionModel` a Crashlytics je symbolizuje podle dSYM. `ComposeApp` je statický framework,
+  Kotlin kód je tedy v binárce aplikace a v jejím dSYM. Model nese jeden stack, řetěz `Caused by`
+  jde do `reason` (nejvýš 5 příčin, cyklus nezacyklí).
+- **Nezachycená Kotlin výjimka** končí `abort`em z runtime a Crashlytics by viděl jen ten — všechny
+  pády z Kotlinu by spadly do jednoho problému. `installUnhandledExceptionHook` ji proto před
+  ukončením pošle jako non-fatal a celý `stackTraceToString()` jako řádek logu. U pádu z Kotlinu
+  je tedy v konzoli **dvojice záznamů** (fatální abort + non-fatal s příčinou) — záměr.
+- **Firebase přes SPM** (`firebase-ios-sdk`, produkt `FirebaseCrashlytics`, do příští major) jen
+  v cíli `iosApp`; rozšíření (notifikace, sdílení) hlásič nemají.
+- **Sběr jen z Release**: `FirebaseCrashlyticsCollectionEnabled` v `Info.plist` je build setting
+  `PLUME_CRASHLYTICS_COLLECTION_ENABLED` (Debug `NO`, Release `YES`). Crashlytics bere i textové
+  `YES`/`NO`. Archiv do TestFlightu je Release, build z Xcode na zařízení Debug.
+- **`GoogleService-Info.plist` patří do `iosApp/iosApp/`** a commituje se jako `google-services.json`
+  (tajemství v něm nejsou, jde stejně v binárce). Složka je synchronizovaná skupina Xcode, do
+  bundlu se dostane sama. Získá se jednou: Firebase Console → `telegram-b9fff` → Project settings →
+  Add app → iOS, bundle `eu.tintera.plume` → stáhnout plist. **Bez něj aplikace běží dál, jen bez
+  hlášení**: `FirebaseCrashlyticsBridge.start()` vrátí `nil` (`FirebaseApp.configure()` by bez
+  plistu shodil proces).
+- **dSYMy** se zatím nenahrávají samy — iOS se nevydává a release workflow nemá. Ruční nahrání
+  po archivu: `"<DerivedData>/iosApp-…/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols" -gsp iosApp/iosApp/GoogleService-Info.plist -p ios <cesta k dSYMs>`.
+  Bez dSYMu je u pádu z Kotlinu v konzoli jen seznam adres.
 
 ## Aktualizace z obchodu
 
