@@ -121,6 +121,21 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   položky, odběr skončí s kartou. Připnutý chat má před časem / odznakem špendlík. Ověřeno na
   emulátoru 2026-10-25: `sendChatAction typing` od Notifikátora → „typing…" v jeho kartě;
   připnutý chat účet na emulátoru nemá, špendlík neověřený.
+- **Hledání a nová konverzace** (`SearchScreen`, cesta `search`, „Hledat" jako první tlačítko
+  pod nadpisem hlavního seznamu): rovnou diktování (`rememberReplyInput` bez rychlých odpovědí),
+  pak chaty podle názvu (`searchChats` lokálně i na serveru — i archivované a chaty mimo složky)
+  a kontakty, se kterými se ještě nepsalo (podtitul „Kontakt"; `contacts()` jim soukromý chat
+  zajistí, takže jde psát komukoli z adresáře). Zavření diktování bez textu ukáže kontakty podle
+  jména — cesta k nové konverzaci bez hledání. Hledat znovu `EdgeButton` dole.
+  - **Uložené zprávy se hledají podle přeloženého názvu zvlášť**: TDLib je najde jen pod jménem
+    účtu (`ChatRepository.searchChats`).
+  - **Kontakty se porovnávají bez diakritiky a velikosti písmen** (`Normalizer` NFD): diktování
+    i klávesnice hodinek háčky často vynechají.
+  - **Výsledek nahradí hledání v zásobníku** (`popUpTo(SEARCH) { inclusive = true }`): zpět
+    z konverzace vede do seznamu chatů. Výsledky nejsou `rememberSaveable`, návrat do hledání
+    by je neměl.
+  - Ověřeno na emulátoru 2026-10-25: „Notif" klávesnicí → Notifikátor → konverzace → zpět do
+    seznamu chatů; zavření diktování → seznam kontaktů. Kontakt mimo seznam chatů neověřený.
 - **Archiv a složky** (`FoldersScreen`, cesty `folders` a `folder/{id}` s `archive` pro archiv):
   pod Nastavením v hlavním seznamu „Archiv a složky", výběr ukáže složky Telegramu v pořadí účtu
   (`chatFolders`) a na konci Archiv, každou s počtem nepřečtených chatů (`folderUnread`,

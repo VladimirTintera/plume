@@ -4201,6 +4201,11 @@
     <string name="wear_password_hint">Hint: %1$s</string>
     <string name="wear_password_failed">The password didn't work. Try again.</string>
     <string name="wear_chats_title">Chats</string>
+    <string name="wear_search_button">Search</string>
+    <string name="wear_search_label">Search chats and contacts</string>
+    <string name="wear_search_contacts">Contacts</string>
+    <string name="wear_search_none">Nothing found for “%1$s”.</string>
+    <string name="wear_search_contact">Contact</string>
     <string name="wear_folders_button">Archive and folders</string>
     <string name="wear_folders_title">Folders</string>
     <plurals name="wear_folder_unread">

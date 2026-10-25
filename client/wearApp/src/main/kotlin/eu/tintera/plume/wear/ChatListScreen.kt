@@ -56,6 +56,8 @@ import eu.tintera.plume.resources.wear_chats_empty
 import eu.tintera.plume.resources.wear_chats_title
 import eu.tintera.plume.resources.wear_chat_actions
 import eu.tintera.plume.resources.wear_folders_button
+import eu.tintera.plume.resources.wear_search_button
+import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.folder_24dp
 import eu.tintera.plume.resources.chats_archive
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -71,14 +73,15 @@ import kotlin.time.Clock
  * z updatů TDLib; archiv a složky Telegramu se začnou načítat až otevřením (`loadMore`).
  * Obrazovka jen kreslí: název, náhled poslední zprávy a počet nepřečtených.
  *
- * Nastavení a vstup do složek ([onSettings], [onFolders]) má jen hlavní seznam — ve složce by
- * byly navíc a zpět do hlavního seznamu se jde tahem.
+ * Hledání, nastavení a vstup do složek ([onSearch], [onSettings], [onFolders]) má jen hlavní
+ * seznam — ve složce by byly navíc a zpět do hlavního seznamu se jde tahem.
  */
 @Composable
 fun ChatListScreen(
     onOpen: (Long) -> Unit,
     onActions: (Long) -> Unit,
     folder: ChatFolder = ChatFolder.Main,
+    onSearch: (() -> Unit)? = null,
     onSettings: (() -> Unit)? = null,
     onFolders: (() -> Unit)? = null,
 ) {
@@ -97,7 +100,7 @@ fun ChatListScreen(
         is ChatListState.Failed -> MessageScreen(stringResource(Res.string.chats_load_failed), Res.drawable.cloud_off_24dp, error = true)
         is ChatListState.Ready ->
             if (current.chats.isEmpty()) MessageScreen(stringResource(Res.string.wear_chats_empty), Res.drawable.chat_bubble_24dp)
-            else ChatList(title, current.chats, chats, onOpen, onActions, onSettings, onFolders)
+            else ChatList(title, current.chats, chats, onOpen, onActions, onSearch, onSettings, onFolders)
     }
 }
 
@@ -108,6 +111,7 @@ private fun ChatList(
     repository: ChatRepository,
     onOpen: (Long) -> Unit,
     onActions: (Long) -> Unit,
+    onSearch: (() -> Unit)?,
     onSettings: (() -> Unit)?,
     onFolders: (() -> Unit)?,
 ) {
@@ -123,8 +127,12 @@ private fun ChatList(
                     transformation = SurfaceTransformation(spec),
                 ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
-            // Nastavení a Archiv a složky hned pod nadpisem: hodinky nemají menu v liště a konec
-            // dlouhého seznamu chatů nikoho nenapadne hledat (připomínka uživatele).
+            // Hledat, Nastavení a Archiv a složky hned pod nadpisem: hodinky nemají menu v liště
+            // a konec dlouhého seznamu chatů nikoho nenapadne hledat (připomínka uživatele).
+            // Hledání první — dostat se k chatu mimo horní část seznamu je nejčastější.
+            onSearch?.let { open ->
+                item { HeaderButton(Res.drawable.search_24dp, Res.string.wear_search_button, open, Modifier.transformedItem(this, spec)) }
+            }
             onSettings?.let { open ->
                 item { HeaderButton(Res.drawable.settings_24dp, Res.string.settings_title, open, Modifier.transformedItem(this, spec)) }
             }
