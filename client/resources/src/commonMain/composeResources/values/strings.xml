@@ -4220,6 +4220,15 @@
     <string name="wear_message_delete_for_all">It will be deleted for everyone in the chat.</string>
     <string name="wear_message_delete_for_me">It will be deleted only for you.</string>
     <string name="wear_confirm_not_deleted">Not deleted</string>
+    <string name="wear_note_label">Note to Saved Messages</string>
+    <string name="wear_note_saving">Saving…</string>
+    <string name="wear_note_signed_out">Sign in to Plume on the watch first.</string>
+    <string name="wear_confirm_saved">Saved</string>
+    <string name="wear_confirm_not_saved">Not saved</string>
+    <string name="wear_tile_note_title">Note</string>
+    <string name="wear_tile_note_text">Dictate what you want to remember. It goes to Saved Messages.</string>
+    <string name="wear_tile_note_action">Dictate</string>
+    <string name="wear_complication_note">Note</string>
     <string name="wear_voice_record">Voice message</string>
     <string name="wear_voice_tap_to_record">Tap to record</string>
     <string name="wear_voice_tap_to_send">Tap to send</string>

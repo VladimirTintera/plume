@@ -83,6 +83,42 @@
                 android:value="0" />
         </service>
 
+        <!-- Rychlá poznámka do Uložených zpráv: dlaždice, komplikace a aktivita s diktováním.
+             Aktivita ve vlastní úloze a mimo nedávné: po uložení se vrací na ciferník / dlaždici,
+             ne do seznamu chatů. -->
+        <service
+            android:name=".QuickNoteTileService"
+            android:exported="true"
+            android:label="@string/tile_note_label"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".QuickNoteComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_quick_note"
+            android:label="@string/complication_note_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="MONOCHROMATIC_IMAGE,SHORT_TEXT" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+        <!-- Exportovaná: spouští ji dlaždice, kterou kreslí systém v jiném procesu. Nic citlivého
+             neumí — otevře diktování a uloží jen to, co uživatel sám nadiktuje. -->
+        <activity
+            android:name=".QuickNoteActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="eu.tintera.plume.quicknote" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
