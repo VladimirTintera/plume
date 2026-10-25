@@ -26,6 +26,7 @@ import eu.tintera.plume.core.ui.asDate
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.bug_report_24dp
 import eu.tintera.plume.resources.changelog_empty
+import eu.tintera.plume.resources.changelog_minor_changes
 import eu.tintera.plume.resources.changelog_note_feature
 import eu.tintera.plume.resources.changelog_note_fix
 import eu.tintera.plume.resources.changelog_note_language
@@ -40,7 +41,9 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Jen ke čtení a sama se nikde neukazuje — po aktualizaci nic nevyskakuje, novinky jsou tu, kdo
  * je hledá. Vydání je skupina, poznámka řádek; novinku od opravy odliší TVAR ikony (raketa,
- * brouk), ne barva.
+ * brouk), ne barva. Vydání bez poznámky pro tuhle platformu (tag Androidu vyšel kvůli hodinkám,
+ * desktopu nebo iOS) má jediný řádek „Drobné opravy a vylepšení", jako v Google Play — bez něj by
+ * seznam končil o pár verzí pod tou nainstalovanou a vypadal by rozbitý.
  *
  * Vydání se ukazuje po [PAGE] — sekce je sloupec, ne lazy seznam, a skládat naráz stovky řádků
  * za celou historii by zdrželo otevření kvůli něčemu, co skoro nikdo nedočte.
@@ -79,6 +82,14 @@ fun WhatsNewSettings() {
 @Composable
 private fun ReleaseGroup(release: ChangelogRelease, czech: Boolean) {
     SettingsGroup(stringResource(Res.string.changelog_release_title, release.version, release.date.asDate())) {
+        if (release.notes.isEmpty()) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                // Věta sama říká, co v řádku je; slovo „Oprava" navíc by čtečka jen zopakovala.
+                leadingContent = { Icon(painterResource(ChangelogNoteType.FIX.icon), contentDescription = null) },
+                headlineContent = { Text(stringResource(Res.string.changelog_minor_changes)) },
+            )
+        }
         release.notes.forEach { note ->
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),

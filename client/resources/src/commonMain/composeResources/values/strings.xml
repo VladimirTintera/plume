@@ -1743,6 +1743,8 @@
     <string name="changelog_note_feature">New</string>
     <string name="changelog_note_fix">Fix</string>
     <string name="changelog_show_older">Show older versions</string>
+    <!-- Vydání bez poznámky pro tuhle platformu; stejná věta jako v Google Play. -->
+    <string name="changelog_minor_changes">Minor fixes and improvements</string>
     <string name="changelog_empty">This build doesn't include the list of changes.</string>
     <!-- Jazyk poznámek k vydání (cs/en). Z prostředků, aby se poznámky ukázaly v témže
          jazyce, jaký Compose vybral pro zbytek obrazovky — i s jazykem nastaveným jen pro aplikaci. -->

@@ -11,7 +11,10 @@ data class ChangelogRelease(
     val version: String,
     /** Čas commitu, na kterém tag leží, v sekundách — jako časy zpráv, ať jde přes tentýž formát. */
     val date: Int,
-    /** Novinky před opravami, v pořadí, v jakém přibyly. */
+    /**
+     * Novinky před opravami, v pořadí, v jakém přibyly. Prázdné u vydání, které platformě nic
+     * nepřineslo (poznámky jen pro jiné platformy nebo `internal`) — ukazuje se jako drobné opravy.
+     */
     val notes: List<ChangelogNote>,
 )
 

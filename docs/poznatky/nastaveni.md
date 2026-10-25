@@ -818,7 +818,13 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z 
   překladu. Vygenerovaný soubor leží v `build/`, takže ho `verifyNoHardcodedText` nečte.
 - **Jen tagy `--merged HEAD`**: build ze starší větve nesmí ukazovat verze, které v něm nejsou.
   Release se staví z tagu, takže aktuální vydání v seznamu je; tagy se řadí podle verze a `-manual`
-  projde. Vydání jen s `internal` poznámkami se vynechá.
+  projde.
+- **Vydání bez poznámky pro platformu v seznamu ZŮSTÁVÁ** s řádkem „Drobné opravy a vylepšení"
+  (tatáž věta jako v Play; `notes` je prázdné). Dřív se vynechávalo, a když od `units: wear`
+  vyšly tagy Androidu 0.3.102 a 0.3.103 jen kvůli hodinkám, iOS a desktopu, končil seznam na
+  telefonu s 0.3.103 vydáním 0.3.101 — vypadalo to, že „Co je nového" po aktualizaci nefunguje.
+  Vynechávají se jen prázdná vydání PŘED prvním s poznámkou (Android 0.2.x, doba před
+  `release-notes/`): tam by „drobné opravy" lhaly.
 - **Každá platforma má vlastní kanál vydání** (`CHANNELS` ve skriptu, `changelogChannel` jako
   `expect`): Android jde po tazích `android-X.Y.Z-B`, desktop po `desktop-X.Y.Z`. Desktop se
   vydává v jiném rytmu a s jinými čísly, takže androidí seznam by mu lhal, ve které verzi co

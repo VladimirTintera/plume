@@ -246,8 +246,13 @@ def release_entries(channel):
         # patří vydáním Androidu, ne do první verze pro počítač.
         if not index:
             continue
+        # Vydání bez poznámek pro platformu zůstává (aplikace k němu napíše „Drobné opravy
+        # a vylepšení", jako Play): kdyby chybělo, seznam by na nainstalované verzi končil o pár
+        # vydání níž a vypadal by rozbitý. Od `units: wear` se to stává běžně — tag Androidu
+        # vychází i kvůli hodinkám, desktopu nebo iOS. Prázdná vydání PŘED prvním s poznámkou
+        # ale ne: to jsou verze z doby před `release-notes/` (Android 0.2.x), ne drobné opravy.
         notes = notes_between(tags[index - 1][0], tag, channel)
-        if not notes:
+        if not notes and not releases:
             continue
         seconds = git("log", "-1", "--format=%ct", tag).strip()
         items = ",\n".join(
@@ -256,11 +261,12 @@ def release_entries(channel):
             )
             for note in notes
         )
+        notes_kotlin = f"listOf(\n{items},\n            )" if notes else "emptyList()"
         releases.append(
             "        ChangelogRelease(\n"
             f"            version = {kotlin_string(version)},\n"
             f"            date = {seconds},\n"
-            f"            notes = listOf(\n{items},\n            ),\n"
+            f"            notes = {notes_kotlin},\n"
             "        ),"
         )
     return list(reversed(releases))  # nejnovější vydání první
@@ -270,7 +276,8 @@ def bundle(out_path):
     """Kotlin se seznamem vydání každého kanálu od nejnovějšího — „Co je nového" v Nastavení.
 
     Kotlin, ne resource: hodnota je dostupná synchronně na všech platformách a chyba v generátoru
-    spadne při překladu, ne za běhu. Vydání bez poznámek pro uživatele (jen `internal`) se vynechá.
+    spadne při překladu, ne za běhu. Vydání bez poznámek pro uživatele (jen `internal` nebo jiné
+    platformy) zůstává s prázdným seznamem.
     Do sestavy jdou všechny kanály naráz — `commonMain` je jeden, kanál si vybere platforma
     (`changelogChannel`).
     """
