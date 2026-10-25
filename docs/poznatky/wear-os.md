@@ -511,6 +511,26 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   ze studeného startu i s aplikací na pozadí (jedna instance aktivity), tah zpět do seznamu.
   Neověřené: stav bez přihlášení, chat s nestaženou fotkou, skutečné hodinky.
 
+## Rychlá poznámka do Uložených
+
+- **Dlaždice „Poznámka" a komplikace** (`QuickNoteTileService`, `QuickNoteComplicationService`,
+  ikona `ic_quick_note`) otevřou `QuickNoteActivity`: rovnou systémové zadávání bez rychlých
+  odpovědí (`rememberReplyInput(label, quickReplies = false, onCancel)`), text se pošle do
+  Uložených zpráv (`savedMessagesChatId`), „Uloženo" a aktivita se zavře. Zavření zadávání bez
+  textu ji zavře hned. Komplikace umí `MONOCHROMATIC_IMAGE` (jen ikona) i `SHORT_TEXT` („Pozn.").
+- **Vlastní aktivita, ne cesta v aplikaci**, ve vlastní úloze a mimo nedávné (`taskAffinity`,
+  `excludeFromRecents`): z dlaždice se nemá otevřít seznam chatů a po uložení se má uživatel
+  vrátit tam, odkud přišel. **Exportovaná** — `LaunchAction` dlaždice spouští systém z procesu
+  vykreslování dlaždic. Nic citlivého neumí, uloží jen to, co uživatel sám nadiktuje.
+- **Diktování se otevře hned, na TDLib se čeká až s hotovým textem** (15 s): po studeném startu
+  by čekání na spojení zdrželo právě chvíli, kdy si uživatel chce něco rychle zapsat. Odhlášené
+  hodinky to poznají předem, pokud už stav znají, a ukážou „Nejdřív se přihlaste".
+- **Téma a kostra jsou sdílené s aplikací** (`WearTheme` ve `WearApp.kt`: barvy z ciferníku,
+  `AppScaffold`).
+- Ověřeno na emulátoru 2026-10-25: dlaždice přidaná ladicím příkazem (viz „Dlaždice
+  a komplikace"), Nadiktovat → zadávání „Note to Saved Messages" → klávesnicí text → „Saved" →
+  zpátky na dlaždici, zpráva v Uložených. **Komplikace na ciferníku neověřená.**
+
 ## Úložiště
 
 - **Automatický úklid** (`WearStorageCleaner`): po přihlášení, nejvýš jednou za 24 h, smaže

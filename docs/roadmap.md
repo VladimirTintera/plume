@@ -347,7 +347,7 @@ Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se z
 4. **Akce nad chatem** podržením karty: přečteno, ztlumit, archivovat.
 5. **Hledání chatu diktováním a nová konverzace** s kontaktem mimo horní část seznamu.
 6. **Archiv a složky** (dnes jen hlavní seznam).
-7. **Rychlá poznámka do Uložených zpráv** z dlaždice nebo komplikace (nadiktovat a hotovo).
+7. ~~**Rychlá poznámka do Uložených zpráv**~~ — hotovo (dlaždice a komplikace, diktování rovnou).
 8. **Poslání polohy** z GPS hodinek, jednorázově (živá poloha by vybíjela baterii).
 
 Vědomě ne: hovory, správa skupin a nastavení účtu (zůstávají na telefonu), GIFy a animace,

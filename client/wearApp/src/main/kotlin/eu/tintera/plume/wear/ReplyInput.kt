@@ -17,6 +17,7 @@ import eu.tintera.plume.resources.wear_quick_reply_3
 import eu.tintera.plume.resources.wear_quick_reply_4
 import eu.tintera.plume.resources.wear_quick_reply_5
 import eu.tintera.plume.resources.wear_reply_label
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 private const val REPLY_KEY = "reply"
@@ -24,13 +25,19 @@ private const val REPLY_KEY = "reply"
 /**
  * Systémové zadávání odpovědi na hodinkách (diktování, klávesnice, emoji a naše rychlé odpovědi
  * jako volby). Vrací funkci, která ho otevře s nadpisem [title] — v konverzaci název chatu,
- * u odpovědi na zprávu její začátek. Napsaný text (oříznutý, neprázdný) dostane [onReply].
- * Sdílí ho tlačítko Odpovědět pod konverzací i nabídka nad zprávou.
+ * u odpovědi na zprávu její začátek. Napsaný text (oříznutý, neprázdný) dostane [onReply],
+ * zavření bez textu [onCancel]. Sdílí ho tlačítko Odpovědět pod konverzací, nabídka nad zprávou
+ * a rychlá poznámka — ta bez rychlých odpovědí ([quickReplies] = `false`) a s vlastním [label].
  */
 @Composable
-fun rememberReplyInput(onReply: (String) -> Unit): (title: String) -> Unit {
-    val label = stringResource(Res.string.wear_reply_label)
-    val quickReplies = listOf(
+fun rememberReplyInput(
+    label: StringResource = Res.string.wear_reply_label,
+    quickReplies: Boolean = true,
+    onCancel: () -> Unit = {},
+    onReply: (String) -> Unit,
+): (title: String) -> Unit {
+    val labelText = stringResource(label)
+    val choices = if (!quickReplies) emptyList() else listOf(
         stringResource(Res.string.wear_quick_reply_1),
         stringResource(Res.string.wear_quick_reply_2),
         stringResource(Res.string.wear_quick_reply_3),
@@ -38,15 +45,16 @@ fun rememberReplyInput(onReply: (String) -> Unit): (title: String) -> Unit {
         stringResource(Res.string.wear_quick_reply_5),
     )
     val currentOnReply by rememberUpdatedState(onReply)
+    val currentOnCancel by rememberUpdatedState(onCancel)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val text = result.data
             ?.let(RemoteInput::getResultsFromIntent)
             ?.getCharSequence(REPLY_KEY)
             ?.toString()
             ?.trim()
-        if (!text.isNullOrEmpty()) currentOnReply(text)
+        if (!text.isNullOrEmpty()) currentOnReply(text) else currentOnCancel()
     }
-    return { title -> launcher.launch(replyInput(title, label, quickReplies)) }
+    return { title -> launcher.launch(replyInput(title, labelText, choices)) }
 }
 
 /**
@@ -57,7 +65,7 @@ private fun replyInput(title: String, label: String, quickReplies: List<String>)
     RemoteInputIntentHelper.createActionRemoteInputIntent().also { intent ->
         val input = RemoteInput.Builder(REPLY_KEY)
             .setLabel(label)
-            .setChoices(quickReplies.toTypedArray())
+            .apply { if (quickReplies.isNotEmpty()) setChoices(quickReplies.toTypedArray()) }
             .wearableExtender {
                 setEmojisAllowed(true)
                 setInputActionType(EditorInfo.IME_ACTION_SEND)

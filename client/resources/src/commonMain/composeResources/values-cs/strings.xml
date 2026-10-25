@@ -4363,6 +4363,15 @@
     <string name="wear_message_delete_for_all">Zmizí i ostatním v chatu.</string>
     <string name="wear_message_delete_for_me">Zmizí jen u vás.</string>
     <string name="wear_confirm_not_deleted">Nesmazáno</string>
+    <string name="wear_note_label">Poznámka do Uložených</string>
+    <string name="wear_note_saving">Ukládám…</string>
+    <string name="wear_note_signed_out">Nejdřív se v Plume na hodinkách přihlaste.</string>
+    <string name="wear_confirm_saved">Uloženo</string>
+    <string name="wear_confirm_not_saved">Neuloženo</string>
+    <string name="wear_tile_note_title">Poznámka</string>
+    <string name="wear_tile_note_text">Nadiktujte, co si chcete zapamatovat. Uloží se do Uložených zpráv.</string>
+    <string name="wear_tile_note_action">Nadiktovat</string>
+    <string name="wear_complication_note">Pozn.</string>
     <string name="wear_voice_record">Hlasovka</string>
     <string name="wear_voice_tap_to_record">Ťukněte pro nahrávání</string>
     <string name="wear_voice_tap_to_send">Ťukněte pro odeslání</string>

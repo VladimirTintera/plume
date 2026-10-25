@@ -36,31 +36,39 @@ fun WearApp(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     val session = koinInject<TelegramSession>()
     val stage by session.authStage.collectAsState()
     val scope = rememberCoroutineScope()
-    // Barvy z ciferníku (Wear OS 6+), jinak výchozí paleta Wear M3. Na hodinkách si barvu volí
-    // uživatel ciferníkem, vlastní výběr jako na telefonu (ThemeColor) tu nedává smysl.
+
+    WearTheme {
+        when (val current = stage) {
+            AuthStage.Ready -> {
+                NotificationPermissionRequest()
+                WearNavigation(openChat = openChat, onChatOpened = onChatOpened)
+            }
+            is AuthStage.WaitQrConfirmation -> QrLoginScreen(link = current.link)
+            is AuthStage.WaitPassword -> PasswordScreen(stage = current)
+            // Telefonní číslo se na hodinkách nezadává: rovnou QR kód.
+            AuthStage.WaitPhoneNumber -> {
+                LaunchedEffect(Unit) { session.startQrLogin() }
+                LoadingScreen(stringResource(Res.string.connection_connecting))
+            }
+            is AuthStage.Failed -> MessageScreen(current.message.resolve(), Res.drawable.error_24dp, error = true)
+            AuthStage.Connecting, AuthStage.LoggingOut -> LoadingScreen(stringResource(Res.string.connection_connecting))
+            // Kód, e-mail a registrace: na hodinkách nepsat, vrátit se k QR kódu.
+            else -> QrOnlyScreen(onShowQr = { scope.launch { session.restartLogin() } })
+        }
+    }
+}
+
+/**
+ * Téma a kostra každé obrazovky hodinek (aplikace i rychlá poznámka z dlaždice). Barvy
+ * z ciferníku (Wear OS 6+), jinak výchozí paleta Wear M3. Na hodinkách si barvu volí uživatel
+ * ciferníkem, vlastní výběr jako na telefonu (ThemeColor) tu nedává smysl.
+ */
+@Composable
+fun WearTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val colorScheme = remember(context) { dynamicColorScheme(context) ?: ColorScheme() }
-
     MaterialTheme(colorScheme = colorScheme) {
-        AppScaffold {
-            when (val current = stage) {
-                AuthStage.Ready -> {
-                    NotificationPermissionRequest()
-                    WearNavigation(openChat = openChat, onChatOpened = onChatOpened)
-                }
-                is AuthStage.WaitQrConfirmation -> QrLoginScreen(link = current.link)
-                is AuthStage.WaitPassword -> PasswordScreen(stage = current)
-                // Telefonní číslo se na hodinkách nezadává: rovnou QR kód.
-                AuthStage.WaitPhoneNumber -> {
-                    LaunchedEffect(Unit) { session.startQrLogin() }
-                    LoadingScreen(stringResource(Res.string.connection_connecting))
-                }
-                is AuthStage.Failed -> MessageScreen(current.message.resolve(), Res.drawable.error_24dp, error = true)
-                AuthStage.Connecting, AuthStage.LoggingOut -> LoadingScreen(stringResource(Res.string.connection_connecting))
-                // Kód, e-mail a registrace: na hodinkách nepsat, vrátit se k QR kódu.
-                else -> QrOnlyScreen(onShowQr = { scope.launch { session.restartLogin() } })
-            }
-        }
+        AppScaffold { content() }
     }
 }
 

@@ -6,4 +6,6 @@
     <string name="tile_unread_label">Unread chats</string>
     <string name="complication_unread_label">Unread chats</string>
     <string name="tile_chats_label">Chats</string>
+    <string name="tile_note_label">Quick note</string>
+    <string name="complication_note_label">Quick note</string>
 </resources>
