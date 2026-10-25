@@ -374,10 +374,31 @@ z Profilogu. Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS a
   `ExceptionModel` a Crashlytics je symbolizuje podle dSYM. `ComposeApp` je statický framework,
   Kotlin kód je tedy v binárce aplikace a v jejím dSYM. Model nese jeden stack, řetěz `Caused by`
   jde do `reason` (nejvýš 5 příčin, cyklus nezacyklí).
+- **Zásobník začíná místem vzniku výjimky, ne konstruktorem** (`stackFromThrowSite`). Kotlin
+  výjimka nese adresy od `kotlin.Throwable#<init>` přes `Exception#<init>`… a Crashlytics podle
+  horního rámce pojmenuje a SESKUPÍ problém — první zachycená chyba v konzoli se jmenovala
+  `kfun:kotlin.Throwable#<init>(kotlin.String?){}` a pod tím by skončily všechny. Úvodní rámce
+  `#<init>(` se proto zahodí podle jmen z `getStackTrace()`; bez jmen (ořezaná binárka) zůstane
+  zásobník celý.
 - **Nezachycená Kotlin výjimka** končí `abort`em z runtime a Crashlytics by viděl jen ten — všechny
   pády z Kotlinu by spadly do jednoho problému. `installUnhandledExceptionHook` ji proto před
   ukončením pošle jako non-fatal a celý `stackTraceToString()` jako řádek logu. U pádu z Kotlinu
   je tedy v konzoli **dvojice záznamů** (fatální abort + non-fatal s příčinou) — záměr.
+  - **Bez chvilky času se záznam NEZAPÍŠE** (mlog má tutéž chybu): Crashlytics zápis dokončuje
+    přes hlavní frontu a `terminateWithUnhandledException` proces ukončí dřív. Ověřeno na disku
+    (`reports/active/<id>/custom_exception_a.clsrecord` chyběl, hook prokazatelně proběhl).
+    **`sleep` na hlavním vlákně nepomůže ani 3 s** — frontu blokuje; hook proto na hlavním
+    vlákně protočí run loop (`runUntilDate`, 0,5 s), na jiném vlákně spí. Pak záznam je
+    (pád z korutiny na Main i na Default).
+  - **Výjimka propadlá z Kotlin lambdy předané jako ObjC blok** (`dispatch_after`, completion
+    handler iOS API) jde přes `std::terminate`, kde ji první chytí terminate handler Crashlytics
+    (`FIRCLSTerminateHandler`), zapíše jako fatální C++ výjimku `ExceptionObjHolderImpl` a proces
+    označí za padající; náš hook se volá až po něm a další záznam Crashlytics nevezme. U takového
+    pádu je v konzoli jen `ExceptionObjHolderImpl` bez příčiny — z kódu se to opravit nedá.
+  - **Zkoumat záznamy jde bez konzole**: build se zapnutým sběrem, pád, a PŘED dalším spuštěním
+    číst `reports/active/<id>/` (jména a důvody jsou v JSON hexem); odinstalace aplikace
+    neodeslaná hlášení zahodí. **S vypnutým sběrem Crashlytics zachycené chyby ani logy
+    nezapisuje vůbec**, jen pády — zkouška s `NO` nic neříká.
 - **Firebase přes SPM** (`firebase-ios-sdk`, produkt `FirebaseCrashlytics`, do příští major) jen
   v cíli `iosApp`; rozšíření (notifikace, sdílení) hlásič nemají.
 - **Sběr jen z Release**: `FirebaseCrashlyticsCollectionEnabled` v `Info.plist` je build setting
@@ -402,8 +423,9 @@ z Profilogu. Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS a
   nahrát dSYM, dočasný pád za proměnnou prostředí (`SIMCTL_CHILD_… xcrun simctl launch … -FIRDebugEnabled`),
   znovu spustit. Hlášení odejde při dalším startu přes `firebaselogging-pa.googleapis.com`;
   odeslané hlášení zmizí z `Library/Caches/com.crashlytics.data/…/v5/reports/prepared`.
-  Ověřeno tak 25. 10. 2026 v simulátoru (non-fatal přes `Logger.e` i nezachycená výjimka
-  s příčinou); dSYM obsahuje Kotlin symboly (`kfun:eu.tintera.plume…`).
+  Ověřeno tak 25. 10. 2026 v simulátoru: zachycená chyba přes `Logger.e` v konzoli se
+  symbolizovaným zásobníkem, nezachycená výjimka z korutiny jako dvojice; dSYM obsahuje Kotlin
+  symboly (`kfun:eu.tintera.plume…`).
 
 ## Aktualizace z obchodu
 

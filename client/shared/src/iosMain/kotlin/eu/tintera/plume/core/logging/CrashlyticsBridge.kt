@@ -1,6 +1,11 @@
 package eu.tintera.plume.core.logging
 
 import kotlin.experimental.ExperimentalNativeApi
+import platform.Foundation.NSDate
+import platform.Foundation.NSRunLoop
+import platform.Foundation.NSThread
+import platform.Foundation.dateWithTimeIntervalSinceNow
+import platform.Foundation.runUntilDate
 
 /**
  * Most do Firebase Crashlytics, který implementuje **Swift** (`FirebaseCrashlyticsBridge` v `iosApp`)
@@ -26,7 +31,7 @@ internal class IosCrashReporter(private val bridge: CrashlyticsBridge) : CrashRe
         bridge.recordException(
             name = throwable::class.qualifiedName ?: "KotlinException",
             reason = throwable.reasonWithCauses(),
-            stackAddresses = throwable.getStackTraceAddresses(),
+            stackAddresses = throwable.stackFromThrowSite(),
         )
     }
 
@@ -42,10 +47,40 @@ internal class IosCrashReporter(private val bridge: CrashlyticsBridge) : CrashRe
         setUnhandledExceptionHook { throwable ->
             bridge.log("Unhandled exception: ${throwable.stackTraceToString()}")
             recordException(throwable)
+            // Crashlytics zápis záznamu dokončuje přes hlavní frontu. Bez chvilky času ukončení
+            // procesu zápis předběhne a k pádu zůstane jen abort bez příčiny; na hlavním vlákně
+            // nestačí ani `sleep` (frontu blokuje), proto se protočí run loop. Ověřeno
+            // v simulátoru, viz docs/poznatky/release.md, „Hlášení pádů na iOS".
+            if (NSThread.isMainThread) {
+                NSRunLoop.mainRunLoop.runUntilDate(NSDate.dateWithTimeIntervalSinceNow(UNHANDLED_FLUSH_SECONDS))
+            } else {
+                NSThread.sleepForTimeInterval(UNHANDLED_FLUSH_SECONDS)
+            }
             terminateWithUnhandledException(throwable)
         }
     }
 }
+
+/**
+ * Adresy zásobníku od místa, kde výjimka vznikla: bez úvodních rámců jejích konstruktorů
+ * (`kotlin.Throwable#<init>`, `Exception#<init>`… i vlastní výjimky). Crashlytics pojmenuje
+ * a seskupí problém podle horního rámce, a ten byl u každé Kotlin výjimky `Throwable#<init>` —
+ * všechny chyby by skončily pod jedním názvem. Jména rámců dává `getStackTrace()`; když je
+ * nemá (ořezaná binárka) nebo nesedí počet, vrátí se zásobník celý.
+ */
+@OptIn(ExperimentalNativeApi::class)
+internal fun Throwable.stackFromThrowSite(): List<Long> {
+    val addresses = getStackTraceAddresses()
+    val names = getStackTrace()
+    if (names.size != addresses.size) return addresses
+    val constructors = names.takeWhile { CONSTRUCTOR_FRAME in it }.size
+    return if (constructors in 1 until addresses.size) addresses.drop(constructors) else addresses
+}
+
+private const val CONSTRUCTOR_FRAME = "#<init>("
+
+/** Kolik vteřin dostane Crashlytics na zápis záznamu nezachycené výjimky před ukončením. */
+private const val UNHANDLED_FLUSH_SECONDS = 0.5
 
 /** Zpráva výjimky i s řetězem příčin — model výjimky v Crashlytics nese jen jeden stack. */
 internal fun Throwable.reasonWithCauses(): String = buildString {

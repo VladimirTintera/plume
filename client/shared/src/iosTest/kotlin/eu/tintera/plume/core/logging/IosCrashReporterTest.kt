@@ -30,6 +30,21 @@ class IosCrashReporterTest {
         assertTrue(stack.isNotEmpty(), "bez adres by Crashlytics nemělo co symbolizovat")
     }
 
+    private class AppFailure(message: String) : IllegalStateException(message)
+
+    @Test
+    @OptIn(kotlin.experimental.ExperimentalNativeApi::class)
+    fun stackStartsAtThrowSiteNotInConstructors() {
+        val failure = AppFailure("x")
+        val all = failure.getStackTraceAddresses()
+        val fromThrowSite = failure.stackFromThrowSite()
+        val names = failure.getStackTrace()
+        val constructors = names.takeWhile { "#<init>(" in it }.size
+        assertTrue(constructors >= 4, "Throwable, Exception, RuntimeException, IllegalState, AppFailure: ${names.take(6)}")
+        assertEquals(all.drop(constructors), fromThrowSite)
+        assertTrue("#<init>(" !in names[constructors], "nahoře je místo vzniku: ${names[constructors]}")
+    }
+
     @Test
     fun logLinesGoThroughUnchanged() {
         val bridge = RecordingBridge()
