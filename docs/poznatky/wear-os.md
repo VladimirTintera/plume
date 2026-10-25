@@ -481,7 +481,23 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
      balíčky zůstaly, telefon importy neměnil): `createOnDeviceSpeechRecognizer` se zvukem
      z roury, jen nainstalovaný jazyk, průběh se rovnou ukazuje.
   Přepis z hodinek drží ViewModel v paměti a přebíjí ten ze zprávy. Nepovedený nechá ikonu, jde
-  to zkusit znovu. **Ověřeno na emulátoru jen selhání celé řady** (2026-10-25, hlasovka od
+  to zkusit znovu.
+- **Nepovedený přepis říká PROČ** (`TranscribeFailure`, `PhoneResult` v `PhoneTranscription.kt`,
+  text v `VoiceNoteRow`): telefon mimo dosah, telefon neodpověděl, telefon na jiném účtu, nebo
+  co v telefonu zapnout (AI v zařízení, přepnout na Gemmu, stáhnout Gemmu). Dřív stálo jen
+  „Nepodařilo se přepsat" a uživatel s Gemini Nano v telefonu nepoznal, že přepis umí jen Gemma
+  — z hodinek se to zjistit nedá.
+  - **Co zapnout, posílá telefon** v textu odpovědi `Unavailable` (`Response.unavailable`,
+    `Response.fix`, názvy na drátě v `FIX_WIRE`, testy `WatchTranscriptionTest`). Starší telefon
+    pošle prázdný text, novější neznámou hodnotu — obojí je `null`, tedy obecná věta „bez Premium
+    přepíše jen telefon, a ten to neumí". Nový stav do výčtu `Status` by starší hodinky
+    nerozebraly a zahodily celou odpověď, proto text, ne stav.
+  - **Důvod z telefonu má přednost, jen když se s ním dá něco udělat.** Když se rozběhl přepis
+    na hodinkách a nepovedl se, „telefon není v dosahu" by mátlo — pak obecná hláška. Co zapnout
+    v telefonu nebo jiný účet se ukáže vždycky: přepis na hodinkách je jen záloha.
+  - Ověřeno na emulátoru 2026-10-25 bez spárovaného telefonu: „Couldn’t transcribe. Your phone
+    with Plume isn’t nearby." Rady z telefonu (Gemma) jen testem protokolu — telefon
+    s hodinkami spárovat na emulátorech nejde. **Ověřeno na emulátoru jen selhání celé řady** (2026-10-25, hlasovka od
   bota z `say -v Zuzana` převedená ffmpegem na Opus): server účet nenabídl (žádný zkušební přepis
   se nespotřeboval), telefon v dosahu nebyl, emulátor Wear OS 5 rozpoznávání v zařízení nemá
   („Rozpoznávání v zařízení systém nemá") → „Nepodařilo se přepsat" a ikona zůstala. **Úspěšné

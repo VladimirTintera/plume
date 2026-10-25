@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.wear
 
+import eu.tintera.plume.core.telegram.OnDeviceFix
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -22,6 +23,24 @@ class WatchTranscriptionTest {
     fun failedResponseHasNoText() {
         val response = WatchTranscription.Response(1, 2, WatchTranscription.Status.WrongAccount)
         assertEquals(response, WatchTranscription.Response.decode(response.encode()))
+    }
+
+    @Test
+    fun unavailableCarriesTheFix() {
+        OnDeviceFix.entries.forEach { fix ->
+            val decoded = WatchTranscription.Response.decode(WatchTranscription.Response.unavailable(1, 2, fix).encode())
+            assertEquals(WatchTranscription.Status.Unavailable, decoded?.status)
+            assertEquals(fix, decoded?.fix)
+        }
+        assertNull(WatchTranscription.Response.decode(WatchTranscription.Response.unavailable(1, 2, null).encode())?.fix)
+    }
+
+    /** Starší telefon pošle „unavailable" bez textu, novější hodnotu, kterou hodinky neznají. */
+    @Test
+    fun unknownFixIsNoFix() {
+        assertNull(WatchTranscription.Response.decode("1 2 unavailable\n".encodeToByteArray())?.fix)
+        assertNull(WatchTranscription.Response.decode("1 2 unavailable\nupdate_android".encodeToByteArray())?.fix)
+        assertNull(WatchTranscription.Response(1, 2, WatchTranscription.Status.Done, "enable_ai").fix)
     }
 
     @Test

@@ -85,6 +85,10 @@ class ConversationViewModel(
     var transcripts by mutableStateOf<Map<Long, SpeechTranscript>>(emptyMap())
         private set
 
+    /** Proč nevyšel nepovedený přepis v [transcripts]; hodinky ho ukážou místo obecné hlášky. */
+    var transcribeFailures by mutableStateOf<Map<Long, TranscribeFailure>>(emptyMap())
+        private set
+
     /**
      * Nejnovější zpráva, na kterou už seznam sjel. Po návratu z vedlejší obrazovky se nesjíždí
      * znovu (pozici drží uložený stav seznamu), dolů jen s opravdu novou zprávou.
@@ -161,10 +165,22 @@ class ConversationViewModel(
         if (transcripts[messageId] is SpeechTranscript.Pending) return
         setTranscript(messageId, SpeechTranscript.Pending(""))
         viewModelScope.launch {
-            val text = fromServer(messageId, voice.durationSeconds)
-                ?: fromPhone(messageId)
-                ?: onWatch(messageId, voice.fileId)
-            setTranscript(messageId, text?.let { SpeechTranscript.Done(it) } ?: SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
+            fromServer(messageId, voice.durationSeconds)?.let { return@launch setTranscript(messageId, SpeechTranscript.Done(it)) }
+            val phone = fromPhone(messageId)
+            if (phone is PhoneResult.Done) return@launch setTranscript(messageId, SpeechTranscript.Done(phone.text))
+            val watchTries = watchTranscribes()
+            if (watchTries) onWatch(messageId, voice.fileId)?.let { return@launch setTranscript(messageId, SpeechTranscript.Done(it)) }
+            // Co poradit: důvod z telefonu, když se dá něco udělat (zapnout Gemmu, přihlásit
+            // týž účet). Telefon mimo dosah s rozběhnutým přepisem na hodinkách ale znamená, že
+            // se nepovedl ten na hodinkách, a „telefon není v dosahu" by mátlo.
+            val reason = (phone as PhoneResult.Failed).reason
+            val shown = if (watchTries && reason !is TranscribeFailure.PhoneCantTranscribe && reason != TranscribeFailure.WrongAccount) {
+                TranscribeFailure.Other
+            } else {
+                reason
+            }
+            transcribeFailures = transcribeFailures + (messageId to shown)
+            setTranscript(messageId, SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
         }
     }
 
@@ -190,14 +206,16 @@ class ConversationViewModel(
     }
 
     /** Přepis v telefonu; účet hodinek jde s žádostí, telefon na jiném účtu nepřepisuje. */
-    private suspend fun fromPhone(messageId: Long): String? {
-        val account = chats.savedMessagesChatId.value ?: return null
+    private suspend fun fromPhone(messageId: Long): PhoneResult {
+        val account = chats.savedMessagesChatId.value ?: return PhoneResult.Failed(TranscribeFailure.Other)
         return phone.transcribe(account, chatId, messageId)
     }
 
-    /** Systémový rozpoznávač hodinek (Wear OS 4+, jen nainstalovaný jazyk), průběh rovnou ukazuje. */
+    /** Umí systémový rozpoznávač hodinek jazyk aplikace (Wear OS 4+, nainstalovaný jazyk)? */
+    private suspend fun watchTranscribes(): Boolean = runCatching { speech.canTranscribe(platformLanguageCode) }.getOrDefault(false)
+
+    /** Systémový rozpoznávač hodinek, průběh rovnou ukazuje. */
     private suspend fun onWatch(messageId: Long, fileId: Int): String? = runCatching {
-        if (!speech.canTranscribe(platformLanguageCode)) return null
         val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
         val path = (file as? FileState.Ready)?.path ?: return null
         var text = ""

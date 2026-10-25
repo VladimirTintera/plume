@@ -65,7 +65,9 @@ class WatchTranscriptionService : WearableListenerService() {
         val ready = withTimeoutOrNull(READY_TIMEOUT) { session.authStage.first { it == AuthStage.Ready } } != null
         val account = if (ready) withTimeoutOrNull(READY_TIMEOUT) { chats.savedMessagesChatId.filterNotNull().first() } else null
         if (account != request.accountId) return answer(WatchTranscription.Status.WrongAccount)
-        if (!transcription.available()) return answer(WatchTranscription.Status.Unavailable)
+        val check = transcription.check()
+        // Co zapnout, hodinky ukážou: na nich se to nastavit nedá a bez toho by viděly jen „nepovedlo se".
+        if (!check.available) return WatchTranscription.Response.unavailable(request.chatId, request.messageId, check.fix)
 
         val message = conversations.message(request.chatId, request.messageId).getOrNull()
             ?: return answer(WatchTranscription.Status.Failed)

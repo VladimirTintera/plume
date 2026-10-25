@@ -99,7 +99,7 @@ internal class ScreenItemScope(
     override fun voiceSpeed(): VoiceSpeed = voiceSpeed.value
 
     override fun transcribeOffer(durationSeconds: Int): TranscribeOffer = transcribeContext.value.let {
-        eu.tintera.plume.core.telegram.transcribeOffer(it.isPremium, it.trial, durationSeconds, it.onDevice)
+        eu.tintera.plume.core.telegram.transcribeOffer(it.isPremium, it.trial, durationSeconds, it.onDevice, it.onDeviceFix)
     }
 
     override fun localTranscript(messageId: Long): SpeechTranscript? = transcribeContext.value.local[messageId]

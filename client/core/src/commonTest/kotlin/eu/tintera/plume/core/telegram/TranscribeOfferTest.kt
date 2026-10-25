@@ -18,8 +18,12 @@ class TranscribeOfferTest {
     }
 
     @Test
-    fun bezZkusebnichPrepisuSeNenabizi() {
-        assertEquals(TranscribeOffer.Hidden, transcribeOffer(false, trial(weekly = 0, left = 0), 10))
+    fun bezZkusebnichPrepisuAniTelefonuSeVysvetli() {
+        assertEquals(TranscribeOffer.Unavailable(null), transcribeOffer(false, trial(weekly = 0, left = 0), 10))
+        assertEquals(
+            TranscribeOffer.Unavailable(OnDeviceFix.SwitchToGemma),
+            transcribeOffer(false, trial(weekly = 0, left = 0), 10, onDeviceFix = OnDeviceFix.SwitchToGemma),
+        )
     }
 
     @Test
@@ -47,9 +51,13 @@ class TranscribeOfferTest {
         assertEquals(TranscribeOffer.Available, transcribeOffer(false, trial(), 10, onDevice = true))
     }
 
-    /** Delší záznam než pět minut se v telefonu nepřepisuje — zůstane, co řekne server. */
+    /** Delší záznam než pět minut se v telefonu nepřepisuje — zůstane, co řekne server, a když nic, strop telefonu. */
     @Test
     fun dlouhyZaznamTelefonNebere() {
-        assertEquals(TranscribeOffer.Hidden, transcribeOffer(false, trial(weekly = 0, left = 0), MAX_ON_DEVICE_SECONDS + 1, onDevice = true))
+        assertEquals(
+            TranscribeOffer.TooLongOnDevice(MAX_ON_DEVICE_SECONDS),
+            transcribeOffer(false, trial(weekly = 0, left = 0), MAX_ON_DEVICE_SECONDS + 1, onDevice = true),
+        )
+        assertEquals(TranscribeOffer.UsedUp(0), transcribeOffer(false, trial(max = 0, left = 0), MAX_ON_DEVICE_SECONDS + 1, onDevice = true))
     }
 }

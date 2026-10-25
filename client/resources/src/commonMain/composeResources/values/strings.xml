@@ -3199,6 +3199,10 @@
     <string name="transcript_used_up_until">You’ve used this week’s free transcriptions. More: %1$s</string>
     <string name="transcribe_failed">Couldn’t start the transcription.</string>
     <string name="transcript_premium_required">Transcription needs Telegram Premium.</string>
+    <string name="transcript_device_too_long">Without Premium, only recordings up to %1$s can be transcribed on your phone.</string>
+    <string name="transcript_enable_ai">Without Premium, Gemma can transcribe right on your phone. Turn it on in Settings → On-device AI.</string>
+    <string name="transcript_switch_gemma">Without Premium, Gemma can transcribe right on your phone, Gemini Nano can’t. Switch the model in Settings → On-device AI.</string>
+    <string name="transcript_download_gemma">Without Premium, Gemma can transcribe right on your phone. Download it in Settings → On-device AI.</string>
     <string name="menu_summarize">Summarize</string>
     <string name="menu_explain">Explain</string>
     <string name="server_summary_title">Summary</string>
@@ -4178,6 +4182,13 @@
     <string name="poll_compose_allow_adding">Others can add answers</string>
     <!-- Wear OS (client/wearApp) -->
     <string name="wear_login_title">Sign in</string>
+    <string name="wear_transcript_no_phone">Couldn’t transcribe. Your phone with Plume isn’t nearby.</string>
+    <string name="wear_transcript_no_answer">Couldn’t transcribe. Your phone didn’t answer.</string>
+    <string name="wear_transcript_wrong_account">Couldn’t transcribe. Plume on your phone uses a different account.</string>
+    <string name="wear_transcript_phone_unavailable">Without Premium, only your phone can transcribe, and it can’t.</string>
+    <string name="wear_transcript_enable_ai">Gemma on your phone can transcribe. In Plume on your phone, turn it on in Settings → On-device AI.</string>
+    <string name="wear_transcript_switch_gemma">Only Gemma on your phone can transcribe, not Gemini Nano. Switch the model in Plume on your phone: Settings → On-device AI.</string>
+    <string name="wear_transcript_download_gemma">Gemma on your phone can transcribe. Download it in Plume on your phone: Settings → On-device AI.</string>
     <string name="wear_login_qr_hint">Scan the code in Telegram on your phone: Settings → Devices → Link Desktop Device.</string>
     <string name="wear_login_with_phone">Sign in with phone</string>
     <string name="wear_login_phone_waiting">Confirm the sign-in in the notification on your phone.</string>

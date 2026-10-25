@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.OnDeviceFix
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.ui.asUpcomingTime
@@ -29,11 +30,15 @@ import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.speech_to_text_24dp
+import eu.tintera.plume.resources.transcript_device_too_long
+import eu.tintera.plume.resources.transcript_download_gemma
+import eu.tintera.plume.resources.transcript_enable_ai
 import eu.tintera.plume.resources.transcript_failed
 import eu.tintera.plume.resources.transcript_hide
 import eu.tintera.plume.resources.transcript_pending
 import eu.tintera.plume.resources.transcript_premium_required
 import eu.tintera.plume.resources.transcript_show
+import eu.tintera.plume.resources.transcript_switch_gemma
 import eu.tintera.plume.resources.transcript_too_long
 import eu.tintera.plume.resources.transcript_trial_too_long
 import eu.tintera.plume.resources.transcript_used_up
@@ -68,8 +73,11 @@ internal class TranscriptState(
         }
         shownState.value = true
         // Přepis se pouští jen tam, kde ještě není; nepovedený jde zkusit znovu, moc dlouhý ne.
+        // Nedostupný taky: bublina radí, co v telefonu zapnout, a ťuknutí po zapnutí to ověří
+        // a rovnou přepíše (`ConversationPlayback.transcribe`).
         val retry = transcript == null || (transcript is SpeechTranscript.Failed && transcript.canRetry)
-        if (retry && (offer == TranscribeOffer.Available || offer == TranscribeOffer.OnDevice)) onTranscribe()
+        val starts = offer == TranscribeOffer.Available || offer == TranscribeOffer.OnDevice || offer is TranscribeOffer.Unavailable
+        if (retry && starts) onTranscribe()
     }
 }
 
@@ -158,6 +166,16 @@ internal fun TranscriptBody(state: TranscriptState, color: Color, modifier: Modi
             } else {
                 stringResource(Res.string.transcript_used_up)
             }
+            is TranscribeOffer.TooLongOnDevice ->
+                stringResource(Res.string.transcript_device_too_long, formatDuration(offer.maxSeconds))
+            is TranscribeOffer.Unavailable -> stringResource(
+                when (offer.fix) {
+                    OnDeviceFix.EnableAi -> Res.string.transcript_enable_ai
+                    OnDeviceFix.SwitchToGemma -> Res.string.transcript_switch_gemma
+                    OnDeviceFix.DownloadGemma -> Res.string.transcript_download_gemma
+                    null -> Res.string.transcript_premium_required
+                },
+            )
             // Přepis odešel a čeká se na první úpravu zprávy.
             TranscribeOffer.Available, TranscribeOffer.OnDevice, TranscribeOffer.Hidden -> stringResource(Res.string.transcript_pending)
         } to muted

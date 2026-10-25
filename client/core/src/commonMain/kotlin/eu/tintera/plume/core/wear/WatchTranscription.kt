@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.wear
 
+import eu.tintera.plume.core.telegram.OnDeviceFix
+
 /**
  * Přepis hlasovky pro hodinky v telefonu přes Wearable Data Layer: hodinky Gemmu nemají a server
  * přepis bez Premium nedá, telefon ho umí (Gemma nebo systémový rozpoznávač). Hodinky pošlou,
@@ -35,7 +37,10 @@ object WatchTranscription {
         /** Přepis se nepovedl (soubor se nestáhl, model nic nevrátil). */
         Failed("failed"),
 
-        /** Telefon přepisovat neumí (bez Gemmy a bez systémového rozpoznávače pro jazyk). */
+        /**
+         * Telefon přepisovat neumí (bez Gemmy a bez systémového rozpoznávače pro jazyk). Text
+         * odpovědi nese, co v telefonu zapnout ([Response.fix]); starší telefon ho nechá prázdný.
+         */
         Unavailable("unavailable"),
 
         /** Telefon je přihlášený k jinému účtu, nebo vůbec. */
@@ -47,9 +52,16 @@ object WatchTranscription {
         }
     }
 
-    /** Odpověď: první řádek „chat zpráva stav", zbytek je text přepisu (smí mít víc řádků). */
+    /**
+     * Odpověď: první řádek „chat zpráva stav", zbytek je text přepisu (smí mít víc řádků), u
+     * [Status.Unavailable] co v telefonu zapnout ([unavailable], [fix]).
+     */
     data class Response(val chatId: Long, val messageId: Long, val status: Status, val text: String = "") {
         fun encode(): ByteArray = "$chatId $messageId ${status.wire}\n$text".encodeToByteArray()
+
+        /** Co v telefonu zapnout, aby přepisoval; `null`, když nic nepomůže, nebo to telefon neřekl. */
+        val fix: OnDeviceFix?
+            get() = if (status == Status.Unavailable) FIX_WIRE.entries.firstOrNull { it.value == text.trim() }?.key else null
 
         companion object {
             fun decode(data: ByteArray): Response? {
@@ -63,6 +75,17 @@ object WatchTranscription {
                     text = raw.substringAfter('\n', ""),
                 )
             }
+
+            /** [Status.Unavailable] s tím, co v telefonu zapnout. */
+            fun unavailable(chatId: Long, messageId: Long, fix: OnDeviceFix?) =
+                Response(chatId, messageId, Status.Unavailable, fix?.let { FIX_WIRE.getValue(it) }.orEmpty())
         }
     }
+
+    /** Názvy na drátě: přejmenování ve výčtu nesmí rozbít spojení se starší verzí na druhé straně. */
+    private val FIX_WIRE = mapOf(
+        OnDeviceFix.EnableAi to "enable_ai",
+        OnDeviceFix.SwitchToGemma to "switch_to_gemma",
+        OnDeviceFix.DownloadGemma to "download_gemma",
+    )
 }

@@ -1,12 +1,15 @@
 package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.core.telegram.OnDeviceFix
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.platformLanguageCode
 import kotlinx.coroutines.CancellationException
@@ -33,11 +36,19 @@ class OnDeviceTranscription(
     private val speechToText: SpeechToText?,
 ) {
 
-    /** Umí telefon přepisovat? Gemma (zapnutá AI, model se zvukem) nebo systém. */
-    suspend fun available(
+    /**
+     * Umí telefon přepisovat? Gemma (zapnutá AI, model se zvukem) nebo systém. Když ne, řekne
+     * i co by pomohlo ([OnDeviceFix]) — uživatel s Gemini Nano jinak neměl jak poznat, že
+     * přepis umí jen Gemma.
+     */
+    suspend fun check(
         enabled: Boolean = settings.onDeviceAiEnabled.value,
         variant: ModelVariant = settings.onDeviceAiVariant.value,
-    ): Boolean = gemmaTranscribes(enabled, variant) || systemTranscribes()
+    ): OnDeviceCheck = if (gemmaTranscribes(enabled, variant) || systemTranscribes()) {
+        OnDeviceCheck(available = true)
+    } else {
+        OnDeviceCheck(available = false, fix = fix(enabled, variant))
+    }
 
     /**
      * Přepíše záznam [fileId] zprávy [messageId] a vrátí výsledek; průběh zapisuje do
@@ -91,6 +102,22 @@ class OnDeviceTranscription(
     }
 
     /**
+     * Co zapnout, aby přepisovala Gemma; `null`, když ji zařízení neunese (iOS, desktop, slabý
+     * telefon) — pak nepomůže nic v telefonu.
+     */
+    private suspend fun fix(enabled: Boolean, variant: ModelVariant): OnDeviceFix? {
+        val ai = onDeviceAi ?: return null
+        val gemma = ModelVariant(provider = AiProvider.Gemma, gemma = variant.gemma)
+        val supported = runCatching { ai.status(gemma) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
+        return when {
+            !supported -> null
+            !enabled -> OnDeviceFix.EnableAi
+            variant.provider != AiProvider.Gemma -> OnDeviceFix.SwitchToGemma
+            else -> OnDeviceFix.DownloadGemma
+        }
+    }
+
+    /**
      * Přepíše systém telefonu ([SpeechToText])? Nezávisle na volbě AI v zařízení: není to jazykový
      * model, nic se nestahuje a zvuk telefon neopouští — stejná povaha jako rozpoznání textu
      * z fotky, které taky žádnou volbu nemá.
@@ -100,3 +127,6 @@ class OnDeviceTranscription(
         return runCatching { speech.canTranscribe(platformLanguageCode) }.getOrDefault(false)
     }
 }
+
+/** Výsledek [OnDeviceTranscription.check]: přepíše telefon, a když ne, co by pomohlo. */
+data class OnDeviceCheck(val available: Boolean, val fix: OnDeviceFix? = null)

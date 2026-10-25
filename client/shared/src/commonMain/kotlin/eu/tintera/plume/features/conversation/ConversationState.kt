@@ -39,6 +39,7 @@ import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.telegram.BotIntro
 import eu.tintera.plume.core.telegram.BusinessIntro
+import eu.tintera.plume.core.telegram.OnDeviceFix
 import eu.tintera.plume.core.telegram.SpeechTrial
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -206,6 +207,8 @@ data class TranscribeContext(
     val trial: SpeechTrial? = null,
     /** Umí přepis model v telefonu (zapnutá AI a připravený model se zvukem). */
     val onDevice: Boolean = false,
+    /** Co by přepis v telefonu umožnilo, když [onDevice] není. */
+    val onDeviceFix: OnDeviceFix? = null,
     /** Přepisy z telefonu v tomhle chatu podle id zprávy. */
     val local: Map<Long, SpeechTranscript> = emptyMap(),
 )

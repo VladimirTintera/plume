@@ -1265,6 +1265,10 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   Android 13+), ale **neověřené na skutečném telefonu** — emulátor ho nemá. Zbývá iOS
   (`SFSpeechRecognizer` s `requiresOnDeviceRecognition`)
   a ověření kolečka. ~~Přepis přes restart aplikace~~ hotovo (uložený v nastavení po účtech).
+  ~~Bez přepisu tlačítko mizelo~~ — vysvětluje, co zapnout (Gemma). **Přepis i s Gemini Nano**:
+  ML Kit GenAI má vlastní Speech Recognition API (alpha; ověřit, na kterých telefonech běží
+  a jestli umí češtinu) — uživatel s Gemini Nano by nemusel stahovat gigabajty Gemmy jen kvůli
+  přepisu.
 - ~~**Extrakce textu z fotek (OCR / Live Text).**~~ — hotovo (⋮ → „Text z fotky" v prohlížeči:
   zvýraznění řádků na snímku, výběr řádků ťuknutím, panel s výběrem a „Kopírovat vše / výběr";
   `docs/poznatky/prohlizec-medii.md`, „Text z fotky"). Zbývá: iOS (Vision) ověřit na simulátoru

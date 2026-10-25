@@ -71,7 +71,7 @@ data class SpeechTrial(
 
 /** Co se stane po ťuknutí na „Přepsat". */
 sealed interface TranscribeOffer {
-    /** Přepis nabízet nemá smysl — účet bez Premium a bez zkušebních přepisů. */
+    /** Přepis tu nemá kontext (náhled, obrazovka bez konverzace); [transcribeOffer] ho nevrací. */
     data object Hidden : TranscribeOffer
 
     data object Available : TranscribeOffer
@@ -87,14 +87,38 @@ sealed interface TranscribeOffer {
 
     /** Bez Premium jde přepsat jen záznam do [maxSeconds]. */
     data class TooLong(val maxSeconds: Int) : TranscribeOffer
+
+    /** Server přepis nedá a v telefonu jde přepsat jen záznam do [maxSeconds]. */
+    data class TooLongOnDevice(val maxSeconds: Int) : TranscribeOffer
+
+    /**
+     * Přepis nedá server (bez Premium a zkušebních přepisů) ani telefon. [fix] říká, co v telefonu
+     * pomůže; `null`, když nic (zařízení Gemmu neunese) — pak jen Premium.
+     */
+    data class Unavailable(val fix: OnDeviceFix?) : TranscribeOffer
+}
+
+/**
+ * Co v telefonu zapnout, aby přepisoval sám. Přepisuje jen Gemma (Gemini Nano přes ML Kit zvuk
+ * nebere), tak všechny cesty vedou k ní.
+ */
+enum class OnDeviceFix {
+    /** AI v zařízení je vypnutá. */
+    EnableAi,
+
+    /** Zvolená je Gemini Nano. */
+    SwitchToGemma,
+
+    /** Zvolená je Gemma, ale není stažená. */
+    DownloadGemma,
 }
 
 /**
  * Jestli a jak nabídnout přepis záznamu dlouhého [durationSeconds].
  *
  * S Premium vždycky. Bez něj rozhodují zkušební přepisy; když o nich ještě nic nevíme
- * ([trial] `null`), nabídne se — rozhodne server. Došlé přepisy a příliš dlouhý záznam tlačítko
- * nechají, ale ťuknutí vysvětlí proč ne: zmizelé tlačítko by neřeklo nic.
+ * ([trial] `null`), nabídne se — rozhodne server. Kde přepis nejde, tlačítko zůstane a ťuknutí
+ * vysvětlí proč ne: zmizelé tlačítko by neřeklo nic.
  */
 fun transcribeOffer(
     isPremium: Boolean,
@@ -102,20 +126,24 @@ fun transcribeOffer(
     durationSeconds: Int,
     /** Umí přepis model v telefonu ([TranscribeOffer.OnDevice])? */
     onDevice: Boolean = false,
+    /** Co by přepis v telefonu umožnilo, když [onDevice] není. */
+    onDeviceFix: OnDeviceFix? = null,
 ): TranscribeOffer {
     val server = when {
         isPremium || trial == null -> TranscribeOffer.Available
-        trial.weeklyCount <= 0 -> TranscribeOffer.Hidden
+        trial.weeklyCount <= 0 -> null
         trial.maxMediaDurationSeconds in 1..<durationSeconds -> TranscribeOffer.TooLong(trial.maxMediaDurationSeconds)
         trial.leftCount <= 0 -> TranscribeOffer.UsedUp(trial.nextResetDate)
         else -> TranscribeOffer.Available
     }
+    if (server == TranscribeOffer.Available) return server
     // Server má přednost (přepisuje líp a rychleji); telefon jen tam, kde server odmítne.
     // Delší záznam by se v telefonu přepisoval minuty — nad [MAX_ON_DEVICE_SECONDS] se nenabízí.
-    return if (server != TranscribeOffer.Available && onDevice && durationSeconds <= MAX_ON_DEVICE_SECONDS) {
-        TranscribeOffer.OnDevice
-    } else {
-        server
+    if (onDevice && durationSeconds <= MAX_ON_DEVICE_SECONDS) return TranscribeOffer.OnDevice
+    return when {
+        server != null -> server
+        onDevice -> TranscribeOffer.TooLongOnDevice(MAX_ON_DEVICE_SECONDS)
+        else -> TranscribeOffer.Unavailable(onDeviceFix)
     }
 }
 
