@@ -200,13 +200,23 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   (`docs/poznatky/desktop.md`, „Zvuk"), ~~nahrávání hlasovek~~ — hotovo (`javax.sound`
   a `libopus` z FFmpegu). Zbývá přeskakování ticha, ovládání hudby ze systému (Now Playing na
   macOS, MPRIS na Linuxu) a nahrávání do Telegramu už během nahrávání (kóduje se až na konci).
-- **Video**: ~~ztlumené (GIFy, tichá smyčka kolečka)~~ i ~~se zvukem (prohlížeč, kolečko,
-  příběhy)~~ — hotovo přes FFmpeg z JavaCPP a `javax.sound` (`docs/poznatky/desktop.md`,
-  „Video (FFmpeg)"), ~~streamování rozestavěného souboru~~ — hotovo (`StreamingIo`). Zbývá
-  AV1 kvality (`libdav1d`) a Windows a Linux ověřit (~~obraz v obraze~~ — hotovo, okénko vždy
-  navrchu se změnou velikosti a návratem do prohlížeče) (u streamování hlavně
-  přesun dostaženého souboru s otevřeným čtením na Windows) a streamování na pomalé síti. Příběh
-  s videem ověřit v aplikaci (příběh z testovacího účtu, až budou telefony k dispozici).
+- **Video**: ~~ztlumené (GIFy, tichá smyčka kolečka)~~, ~~se zvukem (prohlížeč, kolečko,
+  příběhy)~~, ~~streamování rozestavěného souboru~~, ~~celá obrazovka a klávesy~~ a ~~obraz
+  v obraze~~ (okénko navrchu, změna velikosti, návrat do prohlížeče) — hotovo přes FFmpeg
+  z JavaCPP a `javax.sound` (`docs/poznatky/desktop.md`, „Video (FFmpeg)"). Zbývá:
+  - **Hlasitost**: posuvník v liště a šipky ↑/↓ (jako YouTube). Dnes je jen ztlumení.
+  - **Další klávesy**: J/L ±10 s, `,`/`.` po snímku u pozastaveného videa, 0–9 skok na
+    procenta, `<`/`>` rychlost.
+  - **Klávesy médií** (přehrát / pozastavit na klávesnici) pro video i hudbu — spolu
+    s ovládáním hudby ze systému (Now Playing, MPRIS) výš u Zvuku.
+  - **Pozice z okénka obrazu v obraze se neukládá**: pamatuje se místo, kde se odešlo
+    z prohlížeče, ne kde video v okénku skončilo.
+  - **Windows a Linux ověřit** — největší riziko: streamování (přesun dostaženého souboru
+    s otevřeným čtením na Windows), celá obrazovka bez vlastní plochy, okénko obrazu v obraze;
+    k tomu streamování na pomalé síti a přepočítané kvality.
+  - AV1 kvality (`libdav1d`).
+  - Příběh s videem ověřit v aplikaci (příběh z testovacího účtu, až budou telefony
+    k dispozici).
 - **Trezor tajemství na Windows a Linuxu** (DPAPI, Secret Service / libsecret). Dnes soubor
   s právy jen pro vlastníka vedle databáze.
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo

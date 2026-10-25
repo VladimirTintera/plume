@@ -27,7 +27,6 @@ import org.bytedeco.ffmpeg.global.avformat.av_read_frame
 import org.bytedeco.ffmpeg.global.avformat.av_seek_frame
 import org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info
 import org.bytedeco.ffmpeg.global.avutil.AVCOL_RANGE_JPEG
-import org.bytedeco.ffmpeg.global.avutil.AVCOL_SPC_BT709
 import org.bytedeco.ffmpeg.global.avutil.AVERROR_EOF
 import org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_VIDEO
 import org.bytedeco.ffmpeg.global.avutil.AV_LOG_ERROR
@@ -38,19 +37,12 @@ import org.bytedeco.ffmpeg.global.avutil.av_frame_free
 import org.bytedeco.ffmpeg.global.avutil.av_log_set_level
 import org.bytedeco.ffmpeg.global.avutil.av_strerror
 import org.bytedeco.ffmpeg.global.swscale.SWS_BILINEAR
-import org.bytedeco.ffmpeg.global.swscale.SWS_CS_DEFAULT
-import org.bytedeco.ffmpeg.global.swscale.SWS_CS_ITU709
+import org.bytedeco.ffmpeg.global.swscale.sws_alloc_context
 import org.bytedeco.ffmpeg.global.swscale.sws_freeContext
-import org.bytedeco.ffmpeg.global.swscale.sws_getCachedContext
-import org.bytedeco.ffmpeg.global.swscale.sws_getCoefficients
-import org.bytedeco.ffmpeg.global.swscale.sws_scale
-import org.bytedeco.ffmpeg.global.swscale.sws_setColorspaceDetails
+import org.bytedeco.ffmpeg.global.swscale.sws_scale_frame
 import org.bytedeco.ffmpeg.presets.avutil.AVERROR_EAGAIN
 import org.bytedeco.ffmpeg.swscale.SwsContext
-import org.bytedeco.ffmpeg.swscale.SwsFilter
 import org.bytedeco.javacpp.BytePointer
-import org.bytedeco.javacpp.DoublePointer
-import org.bytedeco.javacpp.IntPointer
 import org.bytedeco.javacpp.PointerPointer
 import org.jetbrains.skia.ColorAlphaType
 import org.jetbrains.skia.ColorType
@@ -73,6 +65,8 @@ internal class FfmpegVideoDecoder private constructor(
     private val startTs: Long,
     /** Délka v ms; `0`, když ji soubor neuvádí. */
     val durationMs: Long,
+    /** Vlákna dekodéru i převodu; `0` = podle jader. */
+    threads: Int,
 ) : AutoCloseable {
 
     private val format: AVFormatContext = input.format
@@ -84,12 +78,14 @@ internal class FfmpegVideoDecoder private constructor(
     private var inputEnded = false
     private var lastPtsMs = 0L
 
-    private var sws: SwsContext? = null
-    private var swsKey: List<Int> = emptyList()
+    /** Převod do BGRA, se stejným počtem vláken jako dekodér ([threads]). */
+    private val sws: SwsContext = sws_alloc_context().apply {
+        flags(SWS_BILINEAR)
+        threads(threads)
+    }
+    private val scaled: AVFrame = av_frame_alloc()
     private var output = BytePointer()
     private var outputBytes = ByteArray(0)
-    private var outputData = PointerPointer<BytePointer>(1L)
-    private val outputStride = IntPointer(1L)
 
     /**
      * Dekóduje další snímek; vrací jeho čas v ms od začátku videa, `null` na konci souboru.
@@ -137,46 +133,39 @@ internal class FfmpegVideoDecoder private constructor(
      * jinak převáděl a nahrával do GPU devětkrát víc pixelů, než je vidět.
      */
     fun toImage(target: IntSize): Image {
-        val sourceWidth = frame.width()
-        val sourceHeight = frame.height()
-        val (width, height) = fitSize(sourceWidth, sourceHeight, target)
-        val colorspace = if (frame.colorspace() == AVCOL_SPC_BT709) SWS_CS_ITU709 else SWS_CS_DEFAULT
-        val fullRange = if (frame.color_range() == AVCOL_RANGE_JPEG) 1 else 0
-        val key = listOf(sourceWidth, sourceHeight, frame.format(), width, height, colorspace, fullRange)
-        if (key != swsKey) {
-            sws = sws_getCachedContext(
-                sws, sourceWidth, sourceHeight, frame.format(), width, height, AV_PIX_FMT_BGRA,
-                SWS_BILINEAR, null as SwsFilter?, null as SwsFilter?, null as DoublePointer?,
-            ) ?: throw IllegalStateException("sws_getCachedContext ${frame.format()} $sourceWidth×$sourceHeight")
-            // Bez toho swscale počítá barvy vždy podle BT.601 v omezeném rozsahu; HD video
-            // (BT.709) by bylo do zelena.
-            sws_setColorspaceDetails(
-                sws, sws_getCoefficients(colorspace), fullRange,
-                sws_getCoefficients(SWS_CS_DEFAULT), 1, 0, 1 shl 16, 1 shl 16,
-            )
-            val size = width * height * 4
-            if (outputBytes.size != size) {
-                output.close()
-                outputData.close()
-                output = BytePointer(size.toLong())
-                outputData = PointerPointer<BytePointer>(1L).put(output)
-                outputBytes = ByteArray(size)
-            }
-            outputStride.put(0L, width * 4)
-            swsKey = key
+        val (width, height) = fitSize(frame.width(), frame.height(), target)
+        val size = width * height * 4
+        if (outputBytes.size != size) {
+            output.close()
+            output = BytePointer(size.toLong())
+            outputBytes = ByteArray(size)
         }
-        // AVFrame začíná polem `data`, takže ukazatel na snímek je zároveň `uint8_t**` rovin.
-        sws_scale(sws, PointerPointer<BytePointer>(frame), frame.linesize(), 0, sourceHeight, outputData, outputStride)
+        // Cíl je náš buffer (data[0] vyplněné = swscale si ho neuvolní ani nepřidělí znovu).
+        scaled.width(width)
+        scaled.height(height)
+        scaled.format(AV_PIX_FMT_BGRA)
+        scaled.color_range(AVCOL_RANGE_JPEG)
+        scaled.data(0, output)
+        scaled.linesize(0, width * 4)
+        /*
+         * `sws_scale_frame` (FFmpeg 8) si barevný prostor a rozsah bere ze snímku sám — BT.709
+         * u HD, jinak BT.601 — a kontext si při změně rozměrů nebo formátu přenastaví. Starý
+         * `sws_scale` počítal vždycky BT.601 v omezeném rozsahu, dokud se mu barvy nenastavily
+         * ručně (HD bylo do zelena). A jen nový umí převod rozdělit do vláken ([threads]).
+         */
+        val scaledOk = sws_scale_frame(sws, scaled, frame)
+        if (scaledOk < 0) throw IllegalStateException("sws_scale_frame: ${errorText(scaledOk)}")
         output.get(outputBytes)
         // `makeRaster` pixely kopíruje, buffer se smí přepsat dalším snímkem.
         return Image.makeRaster(ImageInfo(width, height, ColorType.BGRA_8888, ColorAlphaType.OPAQUE), outputBytes, width * 4)
     }
 
     override fun close() {
-        sws?.let(::sws_freeContext)
+        sws_freeContext(sws)
+        // Data cíle jsou naše (`output`), snímek se jich nesmí dotknout při uvolnění.
+        scaled.data(0, null as BytePointer?)
+        av_frame_free(scaled)
         output.close()
-        outputData.close()
-        outputStride.close()
         av_frame_free(frame)
         av_packet_free(packet)
         avcodec_free_context(codec)
@@ -191,10 +180,10 @@ internal class FfmpegVideoDecoder private constructor(
         private val logLevel by lazy { av_log_set_level(AV_LOG_ERROR) }
 
         /** Otevře [path]; vyhodí výjimku, když soubor nejde přečíst nebo v něm není video. */
-        fun open(path: String): FfmpegVideoDecoder = open(FfmpegInput.File(path))
+        fun open(path: String, threads: Int = 1): FfmpegVideoDecoder = open(FfmpegInput.File(path), threads)
 
         /** Otevře [source]; vyhodí výjimku, když nejde přečíst. */
-        fun open(source: FfmpegInput): FfmpegVideoDecoder {
+        fun open(source: FfmpegInput, threads: Int = 1): FfmpegVideoDecoder {
             logLevel
             val input = openInput(source, ::errorText)
             val format = input.format
@@ -208,9 +197,13 @@ internal class FfmpegVideoDecoder private constructor(
                     ?: throw IllegalStateException("avcodec_find_decoder: ${stream.codecpar().codec_id()}")
                 codec = avcodec_alloc_context3(decoder)
                 avcodec_parameters_to_context(codec, stream.codecpar()).checked("avcodec_parameters_to_context")
-                // Jedno vlákno na přehrávač: GIFů hraje v konverzaci víc naráz a každý
-                // s vlastní sadou vláken by jich vyrobil desítky.
-                codec.thread_count(1)
+                /*
+                 * GIF jedním vláknem (hraje jich v konverzaci víc naráz a každý s vlastní sadou
+                 * by jich vyrobil desítky), video v prohlížeči podle jader (`0`): 4K jedním
+                 * vláknem stálo 13 ms na snímek a 25 ms s převodem, přes jádra 2 a 5 ms
+                 * (M5, viz `docs/poznatky/desktop.md`, „Video (FFmpeg)").
+                 */
+                codec.thread_count(threads)
                 avcodec_open2(codec, decoder, null as AVDictionary?).checked("avcodec_open2")
 
                 val timeBase = stream.time_base()
@@ -222,7 +215,7 @@ internal class FfmpegVideoDecoder private constructor(
                     format.duration() != AV_NOPTS_VALUE && format.duration() > 0 -> format.duration() / 1000
                     else -> 0L
                 }
-                return FfmpegVideoDecoder(input, codec, streamIndex, num, den, start, durationMs)
+                return FfmpegVideoDecoder(input, codec, streamIndex, num, den, start, durationMs, threads)
             } catch (failure: Throwable) {
                 codec?.let(::avcodec_free_context)
                 input.close()

@@ -851,13 +851,34 @@ Video hraje, zatímco ho TDLib stahuje (`loadStreaming`): FFmpeg čte přes vlas
   `UnsatisfiedLinkError`, přehrávač nahlásí `isFailed` a zůstane náhled.
 - **Cesta jde FFmpegu v UTF-8 jako `BytePointer`**, ne `String`: JavaCPP by řetězec převedl
   kódováním systému (JDK 17 na českých Windows cp1250) a soubor s diakritikou v cestě by nenašel.
-- **Jedno vlákno dekodéru na přehrávač** (`thread_count = 1`): GIFů hraje víc naráz a výchozí
-  sada vláken pro každý by jich vyrobila desítky. Korutiny běží na `Dispatchers.Default`
-  a mezi snímky spí, takže vlákno drží jen po dobu dekódování.
+- **Dekódování a převod snímků: GIF jedním vláknem, video podle jader.** Tichá smyčka (GIF,
+  kolečko v bublině) má `thread_count = 1` — hraje jich víc naráz a výchozí sada vláken pro
+  každý by jich vyrobila desítky. Ostatní video (prohlížeč, kolečko se zvukem, příběh) má `0`
+  (podle jader) pro dekodér i převod. Naměřeno na M5 (10 jader), h264, 10 s se šumem, ms na
+  snímek bez převodu / s převodem do BGRA v cílové velikosti:
+
+  | | 1 vlákno | podle jader |
+  |---|---|---|
+  | 1080p, 8 Mbit/s | 3,2 / 4,1 | 0,6 / 0,9 |
+  | 4K, 25 Mbit/s | 13,1 / 24,9 | 2,2 / 5,2 |
+
+  Jedním vláknem by 4K při 60 snímcích (16,7 ms) nestíhalo ani tady a na slabším notebooku ani
+  30. Převod byl po rozdělení dekodéru úzkým hrdlem (11 ms ze 13 u 4K), proto i on jde přes
+  vlákna. V ladicí aplikaci 1080p30 drží proces na 15–20 % jednoho jádra.
+- **Převod přes `sws_scale_frame` (FFmpeg 8), ne `sws_scale`.** Jen nové rozhraní dělí převod do
+  vláken (`SwsContext.threads`) a barevný prostor i rozsah si bere ze snímku (BT.709 u HD, jinak
+  BT.601) a při změně rozměrů se přenastaví samo. Starý `sws_scale` počítal vždycky BT.601
+  v omezeném rozsahu, dokud se mu nenastavilo `sws_setColorspaceDetails` (HD bylo do zelena).
+  Cílem je vlastní buffer (`data[0]` vyplněné, swscale ho nepřiděluje); před `av_frame_free`
+  se ukazatel vynuluje, ať ho snímek neuvolní. Barvy hlídá `FfmpegVideoColorsTest` (pruhy
+  v BT.709 a BT.601, `bars709.mp4` / `bars601.mp4`).
+- **Hardwarové dekódování zatím ne.** FFmpeg v balíčku VideoToolbox (macOS) i Vulkan má
+  (`av_hwdevice_iterate_types`), jenže po rozdělení do vláken je dekódování nejlevnější krok
+  (2 ms u 4K) a snímek by se z GPU stejně stahoval kvůli převodu a Skii. Pomohlo by baterii,
+  ne plynulosti — až bude na čem měřit spotřebu.
 - **Snímek se zmenšuje už ve swscale na velikost plochy** (`fitSize`, testy `FitSizeTest`),
   nikdy nezvětšuje. GIF 1280 × 720 v bublině by jinak převáděl a nahrával devětkrát víc pixelů,
-  než je vidět. Barvy podle `colorspace` snímku (BT.709 u HD, jinak BT.601), jinak by HD bylo
-  do zelena.
+  než je vidět.
 - **Skia obrázek snímku se zavírá ručně, na hlavním vlákně**, hned po výměně za další.
   `makeRaster` drží pixely v nativní paměti a halda o nich neví: spoléhat na GC by u GIFu
   znamenalo desítky MB za vteřinu, než se uklidí. Kreslí se na hlavním vlákně, takže v tu chvíli
