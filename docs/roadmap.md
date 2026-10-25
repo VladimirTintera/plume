@@ -203,7 +203,8 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - **Video**: ~~ztlumené (GIFy, tichá smyčka kolečka)~~ i ~~se zvukem (prohlížeč, kolečko,
   příběhy)~~ — hotovo přes FFmpeg z JavaCPP a `javax.sound` (`docs/poznatky/desktop.md`,
   „Video (FFmpeg)"). Zbývá streamování rozestavěného souboru (vlastní `AVIOContext`; dnes se
-  čeká na celý), AV1 kvality (`libdav1d`), obraz v obraze a Windows a Linux ověřit.
+  čeká na celý), AV1 kvality (`libdav1d`), obraz v obraze a Windows a Linux ověřit. Příběh
+  s videem ověřit v aplikaci (příběh z testovacího účtu, až budou telefony k dispozici).
 - **Trezor tajemství na Windows a Linuxu** (DPAPI, Secret Service / libsecret). Dnes soubor
   s právy jen pro vlastníka vedle databáze.
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
