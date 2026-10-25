@@ -9,6 +9,7 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayerControl
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.speech.SpeechDownload
 import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -18,11 +19,14 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.SpeechTrial
 import eu.tintera.plume.core.telegram.MAX_ON_DEVICE_SECONDS
+import eu.tintera.plume.core.telegram.OnDeviceFix
 import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.telegram.transcribeOffer
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.transcribe_failed
+import eu.tintera.plume.resources.transcript_language_download_failed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -154,6 +158,9 @@ internal class ConversationPlayback(
      */
     private val onDeviceRecheck = MutableStateFlow(0)
 
+    /** Stahuje se jazyk pro rozpoznávač na žádost z bubliny ([downloadSpeechLanguage])? */
+    private val speechDownloading = MutableStateFlow(false)
+
     /**
      * Všechno, co rozhoduje o přepisu záznamu, v jednom toku: Premium, zkušební přepisy, jestli
      * přepíše telefon, a přepisy z telefonu v tomhle chatu. Jeden tok: bubliny ho čtou přes
@@ -163,8 +170,14 @@ internal class ConversationPlayback(
     val transcribeContext: StateFlow<TranscribeContext> = combine(
         chatRepository.isPremium,
         chatRepository.speechTrial,
-        combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant, onDeviceRecheck) { enabled, variant, _ -> enabled to variant }
-            .mapLatest { (enabled, variant) -> onDeviceTranscription?.check(enabled, variant) ?: OnDeviceCheck(available = false) },
+        combine(
+            combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant, onDeviceRecheck) { enabled, variant, _ -> enabled to variant }
+                .mapLatest { (enabled, variant) -> onDeviceTranscription?.check(enabled, variant) ?: OnDeviceCheck(available = false) },
+            speechDownloading,
+        ) { check, downloading ->
+            // Než systém stažení ohlásí, říká bublina „stahuje se" podle vlastní žádosti.
+            if (downloading && !check.available) check.copy(fix = OnDeviceFix.SpeechLanguageDownloading) else check
+        },
         localTranscripts?.state?.map { all -> all.filterKeys { it.first == chatId }.mapKeys { it.key.second } }
             ?: flowOf(emptyMap()),
     ) { premium, trial, onDevice, local -> TranscribeContext(premium, trial, onDevice.available, onDevice.fix, local) }
@@ -227,12 +240,7 @@ internal class ConversationPlayback(
             // Bublina vysvětluje, co zapnout; uživatel to mohl mezitím udělat (stáhnout Gemmu),
             // takže se to ověří znovu a rovnou přepíše.
             is TranscribeOffer.Unavailable -> {
-                val transcription = onDeviceTranscription ?: return
-                scope.launch {
-                    val check = transcription.check()
-                    onDeviceRecheck.update { it + 1 }
-                    if (check.available && duration <= MAX_ON_DEVICE_SECONDS) transcribeOnDevice(messageId, fileId)
-                }
+                scope.launch { recheckAndTranscribe(messageId, fileId, duration) }
                 return
             }
             else -> Unit
@@ -243,6 +251,42 @@ internal class ConversationPlayback(
                 state.update { it.copy(notice = failure.userMessage(Res.string.transcribe_failed)) }
             }
         }
+    }
+
+    /**
+     * Stáhne jazyk aplikace pro systémový rozpoznávač (tlačítko v bublině u
+     * [OnDeviceFix.DownloadSpeechLanguage]) a po stažení zprávu [messageId] rovnou přepíše.
+     * Běží v [appScope]: stahuje se desítky vteřin a odchod z chatu to nemá zahodit.
+     */
+    fun downloadSpeechLanguage(messageId: Long) {
+        val transcription = onDeviceTranscription ?: return
+        val media = state.value.messages.firstOrNull { it.id == messageId }?.media
+        val (fileId, duration) = when (media) {
+            is MessageMedia.VoiceNote -> media.fileId to media.durationSeconds
+            is MessageMedia.VideoNote -> media.fileId to media.durationSeconds
+            else -> return
+        }
+        appScope.launch {
+            // Napřed „stahuje se", ať tlačítko nejde ťuknout dvakrát a bublina neradí to, co už běží.
+            speechDownloading.value = true
+            val result = try {
+                transcription.downloadSpeechLanguage()
+            } finally {
+                speechDownloading.value = false
+            }
+            if (result == SpeechDownload.Failed) {
+                state.update { it.copy(notice = UiText(Res.string.transcript_language_download_failed)) }
+            }
+            recheckAndTranscribe(messageId, fileId, duration)
+        }
+    }
+
+    /** Ověří přepis v telefonu znovu (obrazovka se překreslí) a když už jde, rovnou přepíše. */
+    private suspend fun recheckAndTranscribe(messageId: Long, fileId: Int, duration: Int) {
+        val transcription = onDeviceTranscription ?: return
+        val check = transcription.check()
+        onDeviceRecheck.update { it + 1 }
+        if (check.available && duration <= MAX_ON_DEVICE_SECONDS) transcribeOnDevice(messageId, fileId)
     }
 
     /**

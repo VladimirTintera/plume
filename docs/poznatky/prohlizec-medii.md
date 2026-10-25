@@ -800,9 +800,23 @@ Gemma 4 se zvukovým vstupem (`OnDeviceAi.transcribe`, `LiteRtOnDeviceAi`). Tla�
   `TooLongOnDevice`; `OnDeviceTranscription.check`). Dřív bez Premium, bez zkušebních přepisů
   a bez přepisu v telefonu tlačítko zmizelo — a uživatel se zapnutou **Gemini Nano** (pro
   shrnutí a návrhy odpovědí funguje) nepoznal, že zvuk přepíše jen Gemma: ML Kit zvuk nebere
-  a systémový rozpoznávač neumí offline češtinu. Rada (`OnDeviceFix`) jde po pořadí: AI
-  vypnutá → zapnout, zvolená Gemini Nano → přepnout na Gemmu, Gemma nestažená → stáhnout.
-  Kde Gemmu zařízení neunese (iOS, desktop, slabý telefon), zbývá věta o Premium.
+  a systémový rozpoznávač neumí offline češtinu. Rada (`OnDeviceFix`) jde po pořadí: napřed
+  **jazyk pro systémový rozpoznávač** (desítky MB), pak Gemma (gigabajty) — AI vypnutá →
+  zapnout, zvolená Gemini Nano → přepnout na Gemmu, Gemma nestažená → stáhnout. Kde nejde ani
+  jedno (iOS, desktop, slabý telefon bez offline jazyka), zbývá věta o Premium.
+  - **Jazyk pro rozpoznávač stáhne tlačítko přímo v bublině** („Stáhnout češtinu",
+    `MessageAction.DownloadSpeechLanguage` → `ConversationPlayback.downloadSpeechLanguage`).
+    Stav jazyka bere `SpeechToText.language` z `checkRecognitionSupport`: nainstalovaný /
+    podporovaný (`supportedOnDeviceLanguages`) / stahuje se (`pendingOnDeviceLanguages`) /
+    žádný. Stahuje systém (`SpeechRecognizer.triggerModelDownload`, Android 13+) a může se
+    zeptat uživatele. **Od Androidu 14 se ozve, jak to dopadlo** (`ModelDownloadListener`:
+    hotovo → zpráva se rovnou přepíše; naplánováno → bublina říká „stahuje se, ťukni znovu");
+    na 13 jen stažení spustí. Rozpoznávač se drží, dokud systém neodpoví, se zničeným by
+    odpověď nepřišla. Než systém stažení ohlásí v `pendingOnDeviceLanguages`, ukazuje bublina
+    „stahuje se" podle vlastní žádosti (`speechDownloading`), ať tlačítko nejde ťuknout dvakrát.
+    **Neověřené na zařízení**: emulátor rozpoznávání v zařízení nemá (API 37 Fold;
+    Android 14 s Play má `com.google.android.as`, ale je odhlášený) a telefony nebyly připojené.
+    Testy výběru rady: `OnDeviceTranscriptionTest`.
   - **Ťuknutí na nedostupný přepis stav ověří znovu** (`onDeviceRecheck` v `ConversationPlayback`)
     a když už telefon přepíše, rovnou přepisuje. Stažení Gemmy nastavení nemění, takže by
     otevřená konverzace jinak dál radila „stáhni Gemmu". Ověřené jen vypnutí a zapnutí AI (to

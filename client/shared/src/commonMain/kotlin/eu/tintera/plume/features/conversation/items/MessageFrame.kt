@@ -1709,6 +1709,7 @@ internal fun MessageBodyScope.rememberTranscript(transcript: SpeechTranscript?, 
         transcript = transcript ?: items.localTranscript(message.id),
         offer = items.transcribeOffer(durationSeconds),
         onTranscribe = { act(MessageAction.Transcribe) },
+        onDownloadLanguage = { act(MessageAction.DownloadSpeechLanguage) },
     )
 
 /** Mřížka (nebo seznam) alba. [shape] je tvar mřížky bez bubliny; `null` uvnitř bubliny. */

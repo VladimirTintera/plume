@@ -99,10 +99,16 @@ sealed interface TranscribeOffer {
 }
 
 /**
- * Co v telefonu zapnout, aby přepisoval sám. Přepisuje jen Gemma (Gemini Nano přes ML Kit zvuk
- * nebere), tak všechny cesty vedou k ní.
+ * Co v telefonu zapnout, aby přepisoval sám: jazyk pro systémový rozpoznávač (desítky MB), nebo
+ * Gemmu (gigabajty) — Gemini Nano přes ML Kit zvuk nebere.
  */
 enum class OnDeviceFix {
+    /** Systémový rozpoznávač jazyk umí, ale stažený není; stáhne ho tlačítko v bublině. */
+    DownloadSpeechLanguage,
+
+    /** Systém jazyk pro rozpoznávač právě stahuje. */
+    SpeechLanguageDownloading,
+
     /** AI v zařízení je vypnutá. */
     EnableAi,
 

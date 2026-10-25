@@ -492,6 +492,9 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
     pošle prázdný text, novější neznámou hodnotu — obojí je `null`, tedy obecná věta „bez Premium
     přepíše jen telefon, a ten to neumí". Nový stav do výčtu `Status` by starší hodinky
     nerozebraly a zahodily celou odpověď, proto text, ne stav.
+  - **Stáhnout jazyk pro rozpoznávač z hodinek nejde** — stahuje systém telefonu a může se ptát
+    uživatele. Hodinky proto radí otevřít hlasovku v Plume na telefonu, kde je u ní tlačítko
+    „Stáhnout češtinu".
   - **Důvod z telefonu má přednost, jen když se s ním dá něco udělat.** Když se rozběhl přepis
     na hodinkách a nepovedl se, „telefon není v dosahu" by mátlo — pak obecná hláška. Co zapnout
     v telefonu nebo jiný účet se ukáže vždycky: přepis na hodinkách je jen záloha.

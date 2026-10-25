@@ -325,6 +325,9 @@ sealed interface MessageAction {
 
     /** Požádá server o přepis hlasovky nebo kolečka do textu. */
     data object Transcribe : MessageAction
+
+    /** Stáhne jazyk pro systémový rozpoznávač řeči a pak záznam přepíše (rada v bublině přepisu). */
+    data object DownloadSpeechLanguage : MessageAction
 }
 
 /**
