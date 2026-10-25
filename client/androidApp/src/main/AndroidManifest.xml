@@ -255,6 +255,20 @@
             android:name=".WatchLoginReceiver"
             android:exported="false" />
 
+        <!-- Přepis hlasovky pro hodinky (core/wear/WatchTranscription): hodinky pošlou, kterou
+             zprávu, telefon ji přepíše Gemmou nebo systémem a vrátí text. -->
+        <service
+            android:name=".WatchTranscriptionService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:host="*"
+                    android:path="/plume/watch-transcribe"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".NotificationActionReceiver"
             android:exported="false">

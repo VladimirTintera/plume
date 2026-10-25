@@ -10,10 +10,25 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.SentMessageUpdate
+import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.FileRepository
+import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SpeechTranscript
+import eu.tintera.plume.core.telegram.TranscribeOffer
+import eu.tintera.plume.core.telegram.platformLanguageCode
+import eu.tintera.plume.core.telegram.transcribeOffer
+import eu.tintera.plume.core.speech.SpeechToText
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 private val logger = Logger.withTag("WearConversation")
+
+/** Jak dlouho se čeká na přepis ze serveru, než přijde na řadu telefon. */
+private val SERVER_TIMEOUT = 60.seconds
 
 /** Kolik zpráv se načte při otevření a při každém dočtení — na hodinkách se dlouhá historie nečte. */
 private const val PAGE = 30
@@ -34,6 +49,10 @@ class ConversationViewModel(
     private val chatId: Long,
     private val conversations: ConversationRepository,
     private val appScope: CoroutineScope,
+    private val chats: ChatRepository,
+    private val files: FileRepository,
+    private val phone: PhoneTranscription,
+    private val speech: SpeechToText,
 ) : ViewModel() {
 
     var messages by mutableStateOf<List<ChatMessage>?>(null)
@@ -56,6 +75,14 @@ class ConversationViewModel(
      * zvlášť, ne v [messages].
      */
     var lastReadOutboxId by mutableStateOf(0L)
+        private set
+
+    /**
+     * Přepisy hlasovek vyžádané na hodinkách (z telefonu nebo z hodinek), podle id zprávy. Přepis
+     * ze serveru nese sama zpráva (`VoiceNote.transcript`); tady je, co server nedal. Jen v paměti
+     * konverzace — telefon si svůj přepis uloží sám (`LocalTranscripts`).
+     */
+    var transcripts by mutableStateOf<Map<Long, SpeechTranscript>>(emptyMap())
         private set
 
     /**
@@ -122,6 +149,64 @@ class ConversationViewModel(
                 }
         }
     }
+
+    /**
+     * Přepíše hlasovku: napřed server (Premium nebo zkušební přepisy — umí to nejlíp), pak telefon
+     * (Gemma nebo systémový rozpoznávač, [PhoneTranscription]), nakonec systémový rozpoznávač
+     * hodinek ([speech]). Každý krok, který nejde nebo selže, předá dalšímu; až když nevyjde
+     * žádný, je přepis nepovedený.
+     */
+    fun transcribe(messageId: Long) {
+        val voice = messages?.firstOrNull { it.id == messageId }?.media as? MessageMedia.VoiceNote ?: return
+        if (transcripts[messageId] is SpeechTranscript.Pending) return
+        setTranscript(messageId, SpeechTranscript.Pending(""))
+        viewModelScope.launch {
+            val text = fromServer(messageId, voice.durationSeconds)
+                ?: fromPhone(messageId)
+                ?: onWatch(messageId, voice.fileId)
+            setTranscript(messageId, text?.let { SpeechTranscript.Done(it) } ?: SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
+        }
+    }
+
+    private fun setTranscript(messageId: Long, transcript: SpeechTranscript) {
+        transcripts = transcripts + (messageId to transcript)
+    }
+
+    /**
+     * Přepis ze serveru, jestli ho server dá ([transcribeOffer]). Výsledek nevrací volání, přijde
+     * úpravou zprávy — čeká se na hotový nebo nepovedený přepis v obsahu zprávy.
+     */
+    private suspend fun fromServer(messageId: Long, durationSeconds: Int): String? {
+        if (transcribeOffer(chats.isPremium.value, chats.speechTrial.value, durationSeconds) != TranscribeOffer.Available) return null
+        conversations.recognizeSpeech(chatId, messageId).onFailure {
+            logger.i { "Server přepis zprávy $messageId nepřijal, zkusí se telefon." }
+            return null
+        }
+        val result = withTimeoutOrNull(SERVER_TIMEOUT) {
+            snapshotFlow { (messages?.firstOrNull { it.id == messageId }?.media as? MessageMedia.VoiceNote)?.transcript }
+                .first { it is SpeechTranscript.Done || it is SpeechTranscript.Failed }
+        }
+        return (result as? SpeechTranscript.Done)?.text
+    }
+
+    /** Přepis v telefonu; účet hodinek jde s žádostí, telefon na jiném účtu nepřepisuje. */
+    private suspend fun fromPhone(messageId: Long): String? {
+        val account = chats.savedMessagesChatId.value ?: return null
+        return phone.transcribe(account, chatId, messageId)
+    }
+
+    /** Systémový rozpoznávač hodinek (Wear OS 4+, jen nainstalovaný jazyk), průběh rovnou ukazuje. */
+    private suspend fun onWatch(messageId: Long, fileId: Int): String? = runCatching {
+        if (!speech.canTranscribe(platformLanguageCode)) return null
+        val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
+        val path = (file as? FileState.Ready)?.path ?: return null
+        var text = ""
+        speech.transcribe(path, platformLanguageCode).collect { chunk ->
+            text = chunk
+            setTranscript(messageId, SpeechTranscript.Pending(chunk))
+        }
+        text.trim().takeIf { it.isNotEmpty() }
+    }.onFailure { logger.w(it) { "Přepis zprávy $messageId na hodinkách se nepovedl." } }.getOrNull()
 
     /** Zpráva odeslaná z hodinek (dočasné id) nebo nově příchozí, na své místo podle id. */
     fun upsert(message: ChatMessage) {

@@ -16,6 +16,7 @@ import eu.tintera.plume.features.settings.DeleteAccountViewModel
 import eu.tintera.plume.features.settings.LoginEmailViewModel
 import eu.tintera.plume.features.chats.NaturalSearchModel
 import eu.tintera.plume.features.conversation.LocalTranscripts
+import eu.tintera.plume.features.conversation.OnDeviceTranscription
 import eu.tintera.plume.features.media.PhotoDescriptions
 import eu.tintera.plume.core.ai.BackgroundPhotoDescription
 import eu.tintera.plume.features.media.BackgroundPhotoDescriber
@@ -253,6 +254,8 @@ fun appModule() = module {
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
     single { LocalTranscripts(settings = get(), chats = get()) }
+    // Přepis v telefonu i pro hodinky (WatchTranscriptionService); AI a systémový přepis jen na Androidu.
+    single { OnDeviceTranscription(settings = get(), files = get(), local = get(), onDeviceAi = getOrNull(), speechToText = getOrNull()) }
     single { PhotoDescriptions(settings = get(), chats = get()) }
     single<BackgroundPhotoDescription> { BackgroundPhotoDescriber(settings = get(), chats = get(), files = get(), ai = get(), descriptions = get()) }
     factory { ReminderTimeModel(ai = get(), settings = get()) }

@@ -30,6 +30,13 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import eu.tintera.plume.core.audio.resampleWaveform
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SpeechTranscript
+import eu.tintera.plume.resources.speech_to_text_24dp
+import eu.tintera.plume.resources.transcript_failed
+import eu.tintera.plume.resources.transcript_pending
+import eu.tintera.plume.resources.transcript_show
+import androidx.compose.ui.text.font.FontStyle
+import androidx.wear.compose.material3.IconButton
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.media_play
@@ -62,6 +69,8 @@ fun VoiceNoteRow(
     onPlay: () -> Unit,
     progress: () -> Float,
     elapsedSeconds: () -> Int,
+    transcript: SpeechTranscript?,
+    onTranscribe: () -> Unit,
 ) {
     var played by remember { mutableFloatStateOf(0f) }
     var elapsed by remember { mutableIntStateOf(0) }
@@ -101,6 +110,46 @@ fun VoiceNoteRow(
                 color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        // Přepsat jen dokud přepis není nebo se nepovedl; rozpracovaný a hotový mají text pod řádkem.
+        if (transcript == null || transcript is SpeechTranscript.Failed) {
+            Spacer(Modifier.width(4.dp))
+            IconButton(onClick = onTranscribe, shapes = IconButtonDefaults.animatedShapes(), modifier = Modifier.size(TRANSCRIBE_SIZE)) {
+                Icon(
+                    painterResource(Res.drawable.speech_to_text_24dp),
+                    contentDescription = stringResource(Res.string.transcript_show),
+                    tint = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+    TranscriptText(transcript, outgoing)
+}
+
+private val TRANSCRIBE_SIZE = 32.dp
+
+/**
+ * Přepis pod hlasovkou: hotový text, rozpracovaný „Přepisuji…" s dosavadním textem, nepovedený
+ * hláška v chybové barvě (tlačítko Přepsat zůstává, jde to zkusit znovu).
+ */
+@Composable
+private fun TranscriptText(transcript: SpeechTranscript?, outgoing: Boolean) {
+    val color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val muted = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    when (transcript) {
+        null -> Unit
+        is SpeechTranscript.Done -> Text(transcript.text, style = MaterialTheme.typography.bodySmall, color = color)
+        is SpeechTranscript.Pending -> Text(
+            transcript.partial.ifBlank { stringResource(Res.string.transcript_pending) },
+            style = MaterialTheme.typography.bodySmall,
+            fontStyle = FontStyle.Italic,
+            color = muted,
+        )
+        is SpeechTranscript.Failed -> Text(
+            stringResource(Res.string.transcript_failed),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.error,
+        )
     }
 }
 

@@ -421,6 +421,28 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   smazat je hned po odeslání by nahrávání utnulo. Úklid nechává na systému.
 - Tlačítko přehrát v příchozí bublině má plnou barvu: tónová výplň je stejná jako příchozí
   bublina a tlačítko v ní zmizelo.
+- **Přepis hlasovky** (ikona `speech_to_text` vpravo v řádku hlasovky, text pod ním;
+  `ConversationViewModel.transcribe`) jde v pořadí **server → telefon → hodinky**, každý krok,
+  který nejde nebo selže, předá dalšímu:
+  1. **Server** (`recognizeSpeech`), jen když ho `transcribeOffer` z `core` nabídne (Premium,
+     zbývající zkušební přepisy). Výsledek přijde úpravou zprávy, čeká se na hotový obsah
+     (`VoiceNote.transcript`, nejvýš 60 s).
+  2. **Telefon** (`PhoneTranscription`, smlouva `WatchTranscription` v `core`, telefon
+     `WatchTranscriptionService`): hodinky pošlou účet, chat a zprávu, telefon zprávu sám stáhne
+     a přepíše Gemmou nebo systémem — **tentýž `OnDeviceTranscription` jako v konverzaci telefonu**
+     (vytažený z `ConversationPlayback`), takže si přepis nechá i v `LocalTranscripts`.
+     **Účet se ověřuje**: id zprávy platí jen v rámci účtu, telefon přihlášený jinam odpoví
+     `WrongAccount`. Bez potvrzení, přepis nic nemění. Hodinky čekají nejvýš 4 minuty.
+  3. **Hodinky** (`SystemSpeechToText`, přesunutý z `shared` do `core` i s `AudioClips` —
+     balíčky zůstaly, telefon importy neměnil): `createOnDeviceSpeechRecognizer` se zvukem
+     z roury, jen nainstalovaný jazyk, průběh se rovnou ukazuje.
+  Přepis z hodinek drží ViewModel v paměti a přebíjí ten ze zprávy. Nepovedený nechá ikonu, jde
+  to zkusit znovu. **Ověřeno na emulátoru jen selhání celé řady** (2026-10-25, hlasovka od
+  bota z `say -v Zuzana` převedená ffmpegem na Opus): server účet nenabídl (žádný zkušební přepis
+  se nespotřeboval), telefon v dosahu nebyl, emulátor Wear OS 5 rozpoznávání v zařízení nemá
+  („Rozpoznávání v zařízení systém nemá") → „Nepodařilo se přepsat" a ikona zůstala. **Úspěšné
+  cesty neověřené** — server s Premium, telefon na Pixel Watch se spárovaným telefonem (oba
+  z interního testu kvůli podpisu), rozpoznávač na skutečných hodinkách.
 - **Vlna a průběh** (`VoiceNoteRow`): sloupce z `waveform` zprávy, kolik se jich do šířky vejde,
   převzorkované `resampleWaveform` z `core` (totéž co telefon); bez dat rovná čára, ticho
   nejnižším sloupcem. Během přehrávání se vlna zleva vybarvuje a místo délky běží uplynulý čas —

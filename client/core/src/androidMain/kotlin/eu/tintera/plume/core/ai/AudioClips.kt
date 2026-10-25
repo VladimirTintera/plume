@@ -17,8 +17,10 @@ import java.nio.ByteOrder
  *   (Gemma tam stejně neběží, chce Android 12).
  * - **Převzorkování lineární interpolací** na 16 kHz a smíchání kanálů průměrem. Na řeč to stačí;
  *   kvalitní filtr by stál víc kódu, než kolik přepisu přidá.
+ *
+ * V `:client:core` (ne ve `shared`) kvůli hodinkám: systémový přepis ([pcm16k]) používají i ony.
  */
-internal object AudioClips {
+object AudioClips {
     const val SAMPLE_RATE = 16_000
     const val MAX_CLIP_SECONDS = 30
 

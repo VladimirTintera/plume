@@ -751,6 +751,10 @@ Gemma 4 se zvukovým vstupem (`OnDeviceAi.transcribe`, `LiteRtOnDeviceAi`). Tla�
   zvuk nebere (`canTranscribe` = `false`), takže telefon bez Gemmy přepíše systémem
   (`SpeechToText`, Android `SystemSpeechToText`) — i bez zapnuté AI v zařízení: není to jazykový
   model, nic se nestahuje a zvuk telefon neopouští (stejně jako text z fotky).
+- **Přepis v telefonu je samostatná třída `OnDeviceTranscription`** (Koin `single`), ne kód
+  v `ConversationPlayback`: používá ji i přepis na žádost hodinek (`WatchTranscriptionService`,
+  `docs/poznatky/wear-os.md`, „Přepis hlasovky"). Hotový přepis vrátí hned, rozpracovaný dočká.
+  `SpeechToText`, `SystemSpeechToText` a `AudioClips` jsou kvůli hodinkám v `:client:core`.
 - **Systémový přepis: `SpeechRecognizer.createOnDeviceSpeechRecognizer`** se zvukem z roury
   (`EXTRA_AUDIO_SOURCE`, PCM 16 kHz mono z `AudioClips.pcm16k`) a segmentovanou relací
   (`EXTRA_SEGMENTED_SESSION` = zdroj zvuku), aby nepřestal u první pauzy. Obojí i dotaz na
