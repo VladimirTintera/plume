@@ -4387,6 +4387,13 @@
     <string name="wear_tile_note_action">Nadiktovat</string>
     <string name="wear_complication_note">Pozn.</string>
     <string name="wear_voice_record">Hlasovka</string>
+    <string name="wear_location_button">Poloha</string>
+    <string name="wear_location_title">Moje poloha</string>
+    <string name="wear_location_finding">Zjišťuji polohu…</string>
+    <string name="wear_location_send">Poslat polohu</string>
+    <string name="wear_location_accuracy">Přesnost asi %1$d m</string>
+    <string name="wear_location_no_permission">Bez oprávnění k poloze ji hodinky nepošlou.</string>
+    <string name="wear_location_unavailable">Polohu se nepodařilo zjistit. Zkuste to venku s výhledem na oblohu.</string>
     <string name="wear_sticker_button">Samolepka</string>
     <string name="wear_stickers_none">Zatím žádné samolepky. Pošlete nějakou z telefonu a objeví se tady.</string>
     <string name="wear_voice_tap_to_record">Ťukněte pro nahrávání</string>

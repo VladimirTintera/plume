@@ -50,6 +50,11 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.resources.mic_24dp
 import eu.tintera.plume.resources.sticker_24dp
+import eu.tintera.plume.resources.location_on_24dp
+import eu.tintera.plume.resources.location_on_filled_24dp
+import eu.tintera.plume.resources.content_location
+import eu.tintera.plume.resources.content_live_location
+import eu.tintera.plume.resources.wear_location_button
 import eu.tintera.plume.resources.wear_sticker_button
 import eu.tintera.plume.resources.cloud_off_24dp
 import eu.tintera.plume.resources.check_24dp
@@ -142,7 +147,13 @@ private const val NEAR_TOP_ITEMS = 2
  *   (`interactionUpdates`). Vlastní emoji hodinky nevykreslí, vynechávají se.
  */
 @Composable
-fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecord: () -> Unit, onSticker: () -> Unit) {
+fun ConversationScreen(
+    chatId: Long,
+    onReact: (messageId: Long) -> Unit,
+    onRecord: () -> Unit,
+    onSticker: () -> Unit,
+    onLocation: () -> Unit,
+) {
     val conversations = koinInject<ConversationRepository>()
     val chats = koinInject<ChatRepository>()
     val files = koinInject<FileRepository>()
@@ -262,6 +273,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             onReact = onReact,
             onRecord = onRecord,
             onSticker = onSticker,
+            onLocation = onLocation,
             onPlay = onPlay,
             onNearTop = model::loadOlder,
             scrolledToId = model.scrolledToId,
@@ -323,6 +335,7 @@ private fun MessageList(
     onReact: (Long) -> Unit,
     onRecord: () -> Unit,
     onSticker: () -> Unit,
+    onLocation: () -> Unit,
     onPlay: (ChatMessage) -> Unit,
     onNearTop: () -> Unit,
     pressing: Triple<Long, Int, Int>?,
@@ -439,6 +452,17 @@ private fun MessageList(
                     onClick = onSticker,
                     icon = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
                     label = { Text(stringResource(Res.string.wear_sticker_button)) },
+                    colors = ButtonDefaults.filledTonalButtonColors(),
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
+                    transformation = SurfaceTransformation(spec),
+                )
+            }
+            // Jednorázová poloha z hodinek (SendLocationScreen), po potvrzení.
+            item {
+                Button(
+                    onClick = onLocation,
+                    icon = { Icon(painterResource(Res.drawable.location_on_24dp), contentDescription = null) },
+                    label = { Text(stringResource(Res.string.wear_location_button)) },
                     colors = ButtonDefaults.filledTonalButtonColors(),
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
                     transformation = SurfaceTransformation(spec),
@@ -590,6 +614,10 @@ private fun MessageBubble(
             if (document != null) {
                 MessageDocument(document, outgoing)
             }
+            val location = message.media as? MessageMedia.Location
+            if (location != null) {
+                MessageLocation(location, outgoing, onOpenLink)
+            }
             val poll = message.poll
             if (poll != null) {
                 MessagePoll(poll, outgoing, onVote)
@@ -610,7 +638,7 @@ private fun MessageBubble(
             // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se
             // jen případný popisek.
             // Anketa se kreslí celá — `text` u ní nese jen „Anketa: otázka".
-            if (poll == null && ((voice == null && photo == null && video == null && document == null) || message.text.isNotEmpty())) {
+            if (poll == null && ((voice == null && photo == null && video == null && document == null && location == null) || message.text.isNotEmpty())) {
                 val textColor = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                 // Odkaz na tónové bublině: akcent jen v příchozí, v odchozí barva popředí bubliny —
                 // `primary` na `primaryContainer` kontrast nezaručuje (CLAUDE.md). Odlišení nese
@@ -741,6 +769,36 @@ private fun MessageDocument(document: MessageMedia.Document, outgoing: Boolean) 
         Column {
             Text(document.fileName, style = MaterialTheme.typography.bodySmall, color = color, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(fileSizeText(document.sizeBytes), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * Poloha: ikona, název (místo, živá poloha, nebo „Poloha") a adresa, jinak souřadnice. Mapu
+ * hodinky nekreslí — `core` dává poloze prázdné tělo, protože telefon ji kreslí mapou, a bez
+ * tohoto řádku byla bublina prázdná. Ťuknutí otevře mapu v telefonu ([onOpenLink], jako odkazy).
+ */
+@Composable
+private fun MessageLocation(location: MessageMedia.Location, outgoing: Boolean, onOpenLink: (String) -> Unit) {
+    val color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val title = location.title?.takeIf { it.isNotBlank() }
+        ?: stringResource(if (location.isLive) Res.string.content_live_location else Res.string.content_location)
+    // Souřadnice s tečkou v každém jazyce: s českou desetinnou čárkou by „50,08750, 14,42080"
+    // nešlo přečíst, kde končí šířka.
+    val detail = location.address?.takeIf { it.isNotBlank() }
+        ?: "%.5f, %.5f".format(java.util.Locale.ROOT, location.latitude, location.longitude)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onOpenLink("https://maps.google.com/?q=${location.latitude},${location.longitude}") }
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(painterResource(Res.drawable.location_on_filled_24dp), contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(6.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.bodySmall, color = color, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
