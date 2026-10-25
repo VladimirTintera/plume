@@ -154,7 +154,7 @@ private const val REPLY_KEY = "reply"
  *   (`interactionUpdates`). Vlastní emoji hodinky nevykreslí, vynechávají se.
  */
 @Composable
-fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecord: () -> Unit, onOpenPhoto: (fileId: Int) -> Unit) {
+fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecord: () -> Unit) {
     val conversations = koinInject<ConversationRepository>()
     val chats = koinInject<ChatRepository>()
     val files = koinInject<FileRepository>()
@@ -283,7 +283,6 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             onReact = onReact,
             onRecord = onRecord,
             onPlay = onPlay,
-            onOpenPhoto = onOpenPhoto,
             onNearTop = model::loadOlder,
             scrolledToId = model.scrolledToId,
             onScrolledTo = { model.scrolledToId = it },
@@ -342,7 +341,6 @@ private fun MessageList(
     onReact: (Long) -> Unit,
     onRecord: () -> Unit,
     onPlay: (ChatMessage) -> Unit,
-    onOpenPhoto: (Int) -> Unit,
     onNearTop: () -> Unit,
     pressing: Triple<Long, Int, Int>?,
     botNote: String?,
@@ -425,7 +423,6 @@ private fun MessageList(
                     playing = message.id == playback.playingId,
                     playback = playback,
                     onPlay = { onPlay(message) },
-                    onOpenPhoto = onOpenPhoto,
                     onVote = { answers -> onVote(message.id, answers) },
                     pressing = pressing?.takeIf { it.first == message.id }?.let { it.second to it.third },
                     onBotButton = { row, column, button -> onBotButton(message, row, column, button) },
@@ -499,7 +496,6 @@ private fun MessageBubble(
     playing: Boolean,
     playback: VoicePlayback,
     onPlay: () -> Unit,
-    onOpenPhoto: (Int) -> Unit,
     onVote: (List<Int>) -> Unit,
     pressing: Pair<Int, Int>?,
     onBotButton: (Int, Int, BotButton) -> Unit,
@@ -585,7 +581,7 @@ private fun MessageBubble(
             quote?.let { ReplyQuote(it, chatTitle, outgoing) }
             val photo = message.media?.shownPhoto()
             if (photo != null) {
-                MessagePhoto(photo, onClick = { onOpenPhoto(photo.fileId) }, modifier = Modifier.padding(vertical = 4.dp))
+                MessagePhoto(photo, modifier = Modifier.padding(vertical = 4.dp))
             }
             val video = message.media?.shownVideo()
             if (video != null) {

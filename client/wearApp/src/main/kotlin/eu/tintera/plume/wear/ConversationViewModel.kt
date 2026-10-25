@@ -21,8 +21,8 @@ private const val PAGE = 30
 /**
  * Stav konverzace: zprávy, dočítání starší historie a citované zprávy, s odběry od TDLib.
  *
- * **Ve ViewModelu, ne v kompozici obrazovky.** Výběr reakce, fotka přes celý displej a nahrávání
- * hlasovky jsou samostatné cesty navigace; obrazovka konverzace při nich opustí kompozici. Se
+ * **Ve ViewModelu, ne v kompozici obrazovky.** Výběr reakce a nahrávání hlasovky jsou
+ * samostatné cesty navigace; obrazovka konverzace při nich opustí kompozici. Se
  * stavem v `remember` se po návratu sestavila znovu, načetla zprávy a sjela na nejnovější —
  * reakce na starší zprávu tak uživatele vždycky vrátila dolů (nahlášeno z Pixel Watch).
  * ViewModel patří položce navigace a žije, dokud je konverzace v zásobníku.
