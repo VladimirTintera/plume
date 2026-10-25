@@ -212,9 +212,23 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   `MessageAnimatedEmoji`, `core` z něj udělá přílohu `MessageMedia.AnimatedEmoji` a text nechá
   prázdný, aby se pod animací nekreslil dvakrát. Hodinky animace nekreslí, takže znak berou
   z přílohy (i u `Dice`) a kreslí ho velkým písmem — bez toho byla odpověď prázdná bublina.
-- **Reakce:** ťuknutí na zprávu otevře výběr (vlastní cesta v navigaci, zpět tahem) s emoji, která
-  chat u zprávy dovoluje (`availableReactions`, nejvýš 12); daná je zvýrazněná a ťuknutí ji
-  odebere (`setReaction(add = false)`). Stav si výběr načte sám (`message(chatId, messageId)`).
+- **Nabídka nad zprávou** (`MessageMenuScreen`, cesta `message/{chatId}/{messageId}`, zpět
+  tahem): ťuknutí na bublinu ukáže začátek zprávy, mřížku reakcí, „Odpovědět na zprávu" a u
+  vlastní zprávy „Smazat". Dřív otevíralo rovnou výběr reakce a odpovědět konkrétní zprávě (ve
+  skupině konkrétnímu člověku) nešlo. Co nabídnout, říká server (`messageActions`: `canReply`,
+  `canDeleteForAll` / `canDeleteForSelf`; bez příznaků `MessageActions.Fallback`, mazání pak
+  není). Po akci se nabídka zavře, nezdar hlásí potvrzovací dialog.
+  - **Odpověď s citací** otevře totéž systémové zadávání jako tlačítko pod konverzací
+    (`rememberReplyInput` v `ReplyInput.kt`) a pošle se s `replyToMessageId`; konverzace ji
+    uvidí z `newMessages` (obsahují i vlastní odeslané), ručně se nevkládá.
+  - **Smazání** po potvrzení (`AlertDialog`): pro všechny, když to jde (ve skupině vždycky),
+    jinak jen u sebe — dialog říká, které platí.
+  - **Reakce jako mřížka kulatých tlačítek po čtyřech** (`ReactionRow`), daná plná, ťuknutí ji
+    odebere (`setReaction(add = false)`). **Po řádcích, ne jedna položka:** mřížka jako jedna
+    položka seznamu se u okraje displeje transformovala celá a seřezávala rohová tlačítka.
+  - Ověřeno na emulátoru 2026-10-25 v chatu Notifikátora: odpověď s citací (rychlá odpověď 👍),
+    smazání vlastní odpovědi, reakce přidaná a odebraná.
+- **Reakce:** emoji, která chat u zprávy dovoluje (`availableReactions`, nejvýš 12).
   V bublině „👍 2  ❤" vlevo v jednom řádku s časem vpravo (`ReactionsAndStatus`), živě
   z `interactionUpdates`. Dřív měly reakce i čas každý svůj řádek a bublina se zbytečně
   natahovala (připomínka uživatele z Pixel Watch); delší řada reakcí se zalomí ve své části

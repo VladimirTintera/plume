@@ -9,13 +9,13 @@ import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 private const val CHATS = "chats"
 private const val CHAT = "chat"
 private const val CHAT_ID = "chatId"
-private const val REACTIONS = "reactions"
+private const val MESSAGE = "message"
 private const val MESSAGE_ID = "messageId"
 private const val RECORD = "record"
 private const val SETTINGS = "settings"
 
 /**
- * Seznam chatů, konverzace, výběr reakce, nahrání hlasovky a nastavení; zpět tahem doprava jako všude na hodinkách.
+ * Seznam chatů, konverzace, nabídka nad zprávou, nahrání hlasovky a nastavení; zpět tahem doprava jako všude na hodinkách.
  * Fotka přes celý displej není cesta, ale vrstva nad konverzací ([PhotoViewerHost]) — kvůli sdílenému přechodu.
  * [openChat] (ťuknutí na chat v dlaždici nebo na notifikaci) otevře konverzaci nad seznamem chatů, takže tah zpět
  * vede do seznamu, ne pryč z aplikace.
@@ -41,7 +41,7 @@ fun WearNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
             PhotoViewerHost {
                 ConversationScreen(
                     chatId = chatId,
-                    onReact = { messageId -> navController.navigate("$REACTIONS/$chatId/$messageId") },
+                    onReact = { messageId -> navController.navigate("$MESSAGE/$chatId/$messageId") },
                     onRecord = { navController.navigate("$RECORD/$chatId") },
                 )
             }
@@ -50,10 +50,10 @@ fun WearNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
             val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable
             RecordVoiceScreen(chatId = chatId, onDone = { navController.popBackStack() })
         }
-        composable("$REACTIONS/{$CHAT_ID}/{$MESSAGE_ID}") { entry ->
+        composable("$MESSAGE/{$CHAT_ID}/{$MESSAGE_ID}") { entry ->
             val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable
             val messageId = entry.arguments?.getString(MESSAGE_ID)?.toLongOrNull() ?: return@composable
-            ReactionPickerScreen(chatId = chatId, messageId = messageId, onDone = { navController.popBackStack() })
+            MessageMenuScreen(chatId = chatId, messageId = messageId, onDone = { navController.popBackStack() })
         }
     }
 }
