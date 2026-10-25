@@ -2,6 +2,7 @@ package eu.tintera.plume.wear
 
 import androidx.lifecycle.viewmodel.compose.viewModel
 import eu.tintera.plume.core.telegram.SpeechTranscript
+import eu.tintera.plume.core.speech.SystemSpeechToText
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.conversation_forwarded_from
 import eu.tintera.plume.resources.conversation_forwarded
@@ -153,7 +154,10 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
 
     // Zprávy a odběry patří ViewModelu položky navigace: přežije nabídku nad zprávou i nahrávání
     // (jinak se po návratu konverzace načetla znovu a sjela dolů), viz ConversationViewModel.
-    val model = viewModel(key = "conversation-$chatId") { ConversationViewModel(chatId, conversations, appScope) }
+    val appContext = LocalContext.current.applicationContext
+    val model = viewModel(key = "conversation-$chatId") {
+        ConversationViewModel(chatId, conversations, appScope, chats, files, PhoneTranscription(appContext), SystemSpeechToText(appContext))
+    }
     // Tlačítko bota, u kterého se čeká na odpověď (zpráva, řádek, sloupec) — naráz jen jedno.
     var pressing by remember(chatId) { mutableStateOf<Triple<Long, Int, Int>?>(null) }
     // Odpověď bota jako poznámka pod konverzací; upozornění (alert) jako dialog k potvrzení.
@@ -247,6 +251,8 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             savedMessages = chatId == savedMessagesId,
             messages = current,
             quoted = model.quoted,
+            transcripts = model.transcripts,
+            onTranscribe = model::transcribe,
             lastReadOutboxId = model.lastReadOutboxId,
             loadingOlder = model.loadingOlder,
             playback = playback,
@@ -305,6 +311,8 @@ private fun MessageList(
     savedMessages: Boolean,
     messages: List<ChatMessage>,
     quoted: Map<Long, ChatMessage?>,
+    transcripts: Map<Long, SpeechTranscript>,
+    onTranscribe: (Long) -> Unit,
     lastReadOutboxId: Long,
     loadingOlder: Boolean,
     playback: VoicePlayback,
@@ -393,6 +401,9 @@ private fun MessageList(
                     quote = replyTo?.let { id -> messages.firstOrNull { it.id == id } ?: quoted[id] },
                     playing = message.id == playback.playingId,
                     playback = playback,
+                    // Přepis z hodinek (telefon, hodinky) přebíjí ten ze serveru ve zprávě.
+                    transcript = transcripts[message.id] ?: (message.media as? MessageMedia.VoiceNote)?.transcript,
+                    onTranscribe = { onTranscribe(message.id) },
                     onPlay = { onPlay(message) },
                     onVote = { answers -> onVote(message.id, answers) },
                     pressing = pressing?.takeIf { it.first == message.id }?.let { it.second to it.third },
@@ -466,6 +477,8 @@ private fun MessageBubble(
     quote: ChatMessage?,
     playing: Boolean,
     playback: VoicePlayback,
+    transcript: SpeechTranscript?,
+    onTranscribe: () -> Unit,
     onPlay: () -> Unit,
     onVote: (List<Int>) -> Unit,
     pressing: Pair<Int, Int>?,
@@ -575,6 +588,8 @@ private fun MessageBubble(
                     onPlay = onPlay,
                     progress = playback::progress,
                     elapsedSeconds = playback::elapsedSeconds,
+                    transcript = transcript,
+                    onTranscribe = onTranscribe,
                 )
             }
             // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se

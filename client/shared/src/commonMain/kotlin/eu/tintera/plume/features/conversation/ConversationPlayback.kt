@@ -1,7 +1,6 @@
 package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.audio.MusicQueueControl
 import eu.tintera.plume.core.audio.NowPlaying
@@ -19,12 +18,10 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.SpeechTrial
 import eu.tintera.plume.core.telegram.TranscribeOffer
-import eu.tintera.plume.core.telegram.platformLanguageCode
 import eu.tintera.plume.core.telegram.transcribeOffer
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.transcribe_failed
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -145,6 +142,11 @@ internal class ConversationPlayback(
 
     val speechTrial: StateFlow<SpeechTrial?> = chatRepository.speechTrial
 
+    /** Přepis v telefonu (Gemma nebo systém), sdílený s přepisem pro hodinky. */
+    private val onDeviceTranscription = localTranscripts?.let {
+        OnDeviceTranscription(settings, fileRepository, it, onDeviceAi, speechToText)
+    }
+
     /**
      * Všechno, co rozhoduje o přepisu záznamu, v jednom toku: Premium, zkušební přepisy, jestli
      * přepíše telefon, a přepisy z telefonu v tomhle chatu. Jeden tok: bubliny ho čtou přes
@@ -155,7 +157,7 @@ internal class ConversationPlayback(
         chatRepository.isPremium,
         chatRepository.speechTrial,
         combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant) { enabled, variant -> enabled to variant }
-            .mapLatest { (enabled, variant) -> gemmaTranscribes(enabled, variant) || systemTranscribes() },
+            .mapLatest { (enabled, variant) -> onDeviceTranscription?.available(enabled, variant) ?: false },
         localTranscripts?.state?.map { all -> all.filterKeys { it.first == chatId }.mapKeys { it.key.second } }
             ?: flowOf(emptyMap()),
     ) { premium, trial, onDevice, local -> TranscribeContext(premium, trial, onDevice, local) }
@@ -223,63 +225,14 @@ internal class ConversationPlayback(
     }
 
     /**
-     * Přepis v telefonu (`OnDeviceAi.transcribe`): soubor se stáhne, model ho přepíše a výsledek
+     * Přepis v telefonu ([OnDeviceTranscription]): soubor se stáhne, model ho přepíše a výsledek
      * jde do [LocalTranscripts] — zprávu na serveru měnit nejde. Běží v [appScope]: přepis trvá
      * vteřiny až desítky vteřin a odchod z chatu ho nemá zahodit.
      */
     private fun transcribeOnDevice(messageId: Long, fileId: Int) {
-        val local = localTranscripts ?: return
-        if (local.get(chatId, messageId) is SpeechTranscript.Pending) return
-        local.set(chatId, messageId, SpeechTranscript.Pending(""))
-        appScope.launch {
-            try {
-                val file = fileRepository.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
-                val path = (file as? FileState.Ready)?.path ?: throw IllegalStateException("Soubor $fileId se nestáhl")
-                var text = ""
-                // Gemma má přednost (přepisuje i interpunkci a smysl), systém je záloha pro
-                // telefony bez ní — rozhoduje se až teď, stav se mohl od nabídky změnit.
-                val variant = settings.onDeviceAiVariant.value
-                val ai = onDeviceAi
-                val speech = speechToText
-                val chunks: Flow<String> = when {
-                    ai != null && gemmaTranscribes(settings.onDeviceAiEnabled.value, variant) ->
-                        ai.transcribe(variant, path, platformLanguageCode).map { it.text }
-                    speech != null && systemTranscribes() -> speech.transcribe(path, platformLanguageCode)
-                    else -> throw IllegalStateException("Přepis v telefonu už není k dispozici")
-                }
-                chunks.collect { chunk ->
-                    text = chunk
-                    local.set(chatId, messageId, SpeechTranscript.Pending(text))
-                }
-                local.set(
-                    chatId,
-                    messageId,
-                    if (text.isBlank()) SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other) else SpeechTranscript.Done(text.trim()),
-                )
-            } catch (e: CancellationException) {
-                local.set(chatId, messageId, SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
-                throw e
-            } catch (e: Exception) {
-                logger.w(e) { "Přepis zprávy $messageId v telefonu se nepovedl." }
-                local.set(chatId, messageId, SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
-            }
-        }
-    }
-
-    /** Přepíše Gemma (zapnutá AI, model se zvukovým vstupem připravený)? */
-    private suspend fun gemmaTranscribes(enabled: Boolean, variant: ModelVariant): Boolean {
-        val ai = onDeviceAi ?: return false
-        return enabled && runCatching { ai.canTranscribe(variant) }.getOrDefault(false)
-    }
-
-    /**
-     * Přepíše systém telefonu (`SpeechToText`)? Nezávisle na volbě AI v zařízení: není to jazykový
-     * model, nic se nestahuje a zvuk telefon neopouští — stejná povaha jako rozpoznání textu
-     * z fotky, které taky žádnou volbu nemá.
-     */
-    private suspend fun systemTranscribes(): Boolean {
-        val speech = speechToText ?: return false
-        return runCatching { speech.canTranscribe(platformLanguageCode) }.getOrDefault(false)
+        val transcription = onDeviceTranscription ?: return
+        if (localTranscripts?.get(chatId, messageId) is SpeechTranscript.Pending) return
+        appScope.launch { transcription.transcribe(chatId, messageId, fileId) }
     }
 
     /**
