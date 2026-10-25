@@ -15,7 +15,9 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Self-hosted Mac (viz docs/poznatky/release.md, „Self-hosted runnery“): job trvá vteřiny,
+    # ale hostovaný runner účtuje každý celou minutu a kontrola běží na každý push do PR.
+    runs-on: ${{ fromJSON(vars.RELEASE_NOTES_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
     timeout-minutes: 5
 
     steps:
