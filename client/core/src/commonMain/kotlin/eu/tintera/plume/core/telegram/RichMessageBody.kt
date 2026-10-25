@@ -54,6 +54,7 @@ import dev.g000sha256.tdl.dto.RichTextSpoiler
 import dev.g000sha256.tdl.dto.RichTextStrikethrough
 import dev.g000sha256.tdl.dto.RichTextSubscript
 import dev.g000sha256.tdl.dto.RichTextSuperscript
+import dev.g000sha256.tdl.dto.RichTextTonAddress
 import dev.g000sha256.tdl.dto.RichTexts
 import dev.g000sha256.tdl.dto.RichTextUnderline
 import dev.g000sha256.tdl.dto.RichTextUrl
@@ -418,6 +419,8 @@ private class RichWriter(
             is RichTextSuperscript -> rich(richText.text)
             is RichTextCashtag -> rich(richText.text)
             is RichTextBankCardNumber -> rich(richText.text)
+            // Adresa TON (TDLib 1.8.68). Bez větve spadla do `else` a z článku zmizela i s textem.
+            is RichTextTonAddress -> rich(richText.text)
             is RichTextAnchorLink -> rich(richText.text)
             is RichTextReference -> rich(richText.text)
             is RichTextReferenceLink -> rich(richText.text)

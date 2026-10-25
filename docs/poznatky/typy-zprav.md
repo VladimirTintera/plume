@@ -220,6 +220,12 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
   další `getUpdates` nezmění, a zprávy mezitím server zahodí — volat s
   `allowed_updates=["message","my_chat_member","callback_query"]`.
 
+- **Nový podtyp `RichText` musí dostat větev ve DVOU `when`** — `rich()` v `RichMessageBody.kt`
+  a `plainText()` v `MessageContent.kt`. Obě mají `else` bez textu (`Unit` / `""`), takže typ
+  z novější TDLib tiše zmizí i s textem, ne jen s formátováním. Tak dopadla adresa TON
+  (`RichTextTonAddress`, TDLib 1.8.68); test `TonContentTextTest`. Při bumpu wrapperu projít
+  nové `RichText*` v rozdílu zdrojových jarů.
+
 ### Instant View
 
 Odkaz, ke kterému Telegram umí Instant View, se otevře ve čtečce v aplikaci, ne v prohlížeči.
@@ -594,6 +600,22 @@ Seznam chatů, citace a notifikace dál píšou „Platba: …" / „Hra: …".
   platby Plume neumí. **Neověřeno**: jiná měna, „Zaplaceno", testovací faktura, hra (chce hru
   založenou v BotFatheru) a iOS (jen přeložené). Obrázek z `photo_url` vyšel měkký — jakou
   velikost server vydá, zjištěné není.
+
+### Převod TON
+
+Peněženku TON (TDLib 1.8.68, `can_use_ton_wallet`) Plume nemá — spadá pod vědomě vynechané
+platby (`docs/roadmap.md`, „Vědomě mimo"). Zprávy z ní ale chodí do běžných chatů, proto mají
+aspoň popis ke čtení (`describe` / `contentText` v `MessageContent.kt`, testy `TonContentTextTest`):
+„Přijato 1,5 TON: komentář", „Odesláno …" a „Žádost od <dApp> přes TON Connect".
+
+- **Záporná částka (`MessageTonWalletTransfer.amount`) je odchozí převod**, v nanotonech jako
+  u dárku v TON (`tonAmount`). Zašifrovaný komentář (`isCommentEncrypted`) se nevypisuje —
+  bez klíče peněženky je to šum.
+- **Push nese částku jako TEXT od serveru** (`MESSAGE_GRAM_TRANSFER` v TDLib
+  `NotificationType.cpp`, `split(arg, '\xFF')`, beze změny) a jen přijaté převody. Jestli text
+  jednotku obsahuje, ze zdroje TDLib poznat nejde, takže se „TON" přidá jen, když v něm chybí.
+- **Neověřeno na zařízení** — testovací účet peněženku nemá. Až přijde skutečný převod, ověřit
+  text v bublině, seznamu chatů a notifikaci (hlavně podobu částky z pushe).
 
 ### Soutěž
 

@@ -1239,6 +1239,13 @@
     <string name="content_suggested_birthdate">Suggested birthday</string>
     <string name="content_suggested_photo">Suggested profile photo</string>
     <string name="content_stake_dice">Dice with a stake</string>
+    <string name="ton_amount">%1$s TON</string>
+    <string name="content_ton_received">Received %1$s</string>
+    <string name="content_ton_sent">Sent %1$s</string>
+    <string name="content_ton_received_comment">Received %1$s: %2$s</string>
+    <string name="content_ton_sent_comment">Sent %1$s: %2$s</string>
+    <string name="content_ton_connect_request">TON Connect request</string>
+    <string name="content_ton_connect_request_named">TON Connect request from %1$s</string>
     <string name="service_boost">The chat was boosted</string>
     <string name="service_checklist_tasks_added">Tasks were added to the checklist</string>
     <string name="service_checklist_tasks_done">Checklist tasks were updated</string>
