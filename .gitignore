@@ -19,3 +19,6 @@ local.properties
 xcuserdata/
 iosApp/Pods/
 .desktop-data/
+
+# Záznamy pádu JVM (vznikají při ukončení ladicího desktopu, prázdné)
+hs_err_pid*.log
