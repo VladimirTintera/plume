@@ -317,114 +317,33 @@ bez Compose UI.
 
 ## Wear OS
 
-**Rozpracované (od 24. 10. 2026):** modul `:client:wearApp` s přihlášením QR kódem, seznamem
-chatů s fotkami, konverzací, odpovědí, reakcemi a hlasovkami běží na emulátoru
-(`docs/poznatky/wear-os.md`). Bod 5 (push) je napsaný, doručení pushu s ukončenou aplikací
-a vypnutí zrcadlení zbývá ověřit na skutečných hodinkách se spárovaným telefonem.
+**Stav (25. 10. 2026):** samostatná aplikace `:client:wearApp` nad `:client:core` je v interním
+testu v Play a běží na Pixel Watch. Umí přihlášení QR kódem (i heslo), seznam chatů, konverzaci
+(fotky, samolepky, videa a kolečka náhledem, hlasovky s vlnou, ankety, tlačítka botů, odkazy do
+telefonu, citace, předěly dní, stav doručení), odpověď, reakce, nahrávání hlasovek, vlastní push
+a notifikace s akcemi, dlaždice a komplikaci, Nastavení (vyčištění mezipaměti, odhlášení),
+hlášení pádů a M3 Expressive vzhled. Jak je to poskládané a co se při tom zjistilo:
+`docs/poznatky/wear-os.md`.
 
-Hodinky navíc dostávají notifikace zrcadlené z telefonu, a ty jsou na to připravené:
-`MessagingStyle`, odpověď (`SEMANTIC_ACTION_REPLY`) s navrženými odpověďmi, Přečteno, Ztlumit,
-obrázky povolené i čtečkám notifikací kvůli Wear companion (`docs/poznatky/notifikace.md`).
-Číst a odpovídat na hodinkách tedy jde už teď, pokud je Plume na telefonu.
+Hodinky navíc dostávají notifikace zrcadlené z telefonu (`MessagingStyle`, odpověď, Přečteno,
+Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se zrcadlení vypne.
 
-**Jak by to bylo poskládané:**
+**Zbývá:**
 
-- **Tenký modul `:client:wearApp`** (`com.android.application`) vedle `androidApp`, nad
-  `:client:core` (viz „Rozdělení `:client:shared`" výš): hranice kolem TDLib, repository,
-  `UiText` i překlady se sdílí. ViewModely má vlastní — obrazovky jsou jiné a ty telefonní
-  leží ve `features`. Rozdělení modulů kvůli AGP 9 tomu nahrává.
-- **UI celé vlastní** v Compose for Wear OS (`androidx.wear.compose:compose-material3`,
-  Expressive varianta): seznamy pro kulatý displej, `EdgeButton`, otočná korunka. Z `features/`
-  se použije málo.
-- **Vlastní sezení TDLib na hodinkách**, ne proxy přes telefon (Google chce samostatné aplikace).
-  Wrapper balí i `armeabi-v7a` (~15 MB) — spousta hodinek jede 32bitově.
-- **Přihlášení QR kódem**: hodinky ukážou QR, telefon naskenuje (máme hotové). Pohodlnější:
-  Plume na telefonu nabídne „Přihlásit hodinky" a potvrdí to sám přes Wearable Data Layer
-  (`confirmQrCodeAuthentication`).
+- **Přihlášení potvrzené z telefonu.** Plume na telefonu nabídne „Přihlásit hodinky" a potvrdí
+  QR kód sám přes Wearable Data Layer (`confirmQrCodeAuthentication`) — bez skenování.
+- **Ověřit na skutečných hodinkách se spárovaným telefonem:** push s ukončenou aplikací (na
+  emulátoru FCM nedoručil), že zrcadlené notifikace po přihlášení zmizí, samotné odhlášení.
+- **Play:** snímky hodinek z testovacích účtů do `play/graphics/<locale>/wearScreenshots/`
+  (workflow Play Listing je umí), pak přihlášení k distribuci pro Wear OS s kontrolou kvality.
+- **Přechod při otevření fotky** ze zmenšeniny v bublině na celý displej.
+- **Baterie a úložiště** sledovat v provozu: TDLib drží spojení a databázi; mezipaměť se uklízí
+  sama (3 dny, strop 100 MB), média se stahují jen zobrazená.
 
-**MVP:**
-
-1. ~~Modul `:client:wearApp`, přihlášení QR kódem~~ — hotovo (i heslo dvoufázového ověření).
-   Zbývá potvrzení z Plume na telefonu přes Data Layer (`confirmQrCodeAuthentication`).
-2. ~~Seznam chatů (bez složek a archivu), konverzace jen pro čtení~~ — hotovo: fotky chatů,
-   text, popisy médií, servisní zprávy, živé zprávy, přečtení. Zbývá: obrázky jako malé náhledy
-   (dnes jen popis „Fotka"), starší historie scrollováním nahoru.
-3. ~~Odpověď: diktování, emoji, rychlé odpovědi ze systému; reakce~~ — hotovo (rychlé odpovědi
-   jsou naše volby v systémovém zadávání; reakce bez vlastních emoji).
-4. ~~Hlasovky: přehrávání a nahrávání mikrofonem hodinek~~ — hotovo (bez waveformu v bublině,
-   jen délka; přehrávání bez posuvníku).
-5. ~~Vlastní push na hodinkách a vypnutí zrcadlení z telefonu~~ — napsané (FCM, notifikace
-   `MessagingStyle`, `BridgingManager` jen při přihlášení). **Ověřit na skutečných hodinkách:**
-   push s ukončenou aplikací (na emulátoru FCM nedoručil) a že zrcadlené notifikace zmizí.
-   ~~Odpověď z notifikace~~ — hotovo (Odpovědět a Přečteno); rychlé odpovědi se ve vloženém
-   zadávání notifikace na emulátoru neukazují, potvrzení přes ~9 s nemá úlohu jako telefon.
-
-**Po MVP:** ~~dlaždice a komplikace s počtem nepřečtených~~ — hotovo (bez náhledu dlaždice ve
-výběru); ~~dlaždice s posledními / připnutými chaty~~ — hotovo (ťuknutí na chat i na notifikaci
-otevře konverzaci), ~~`localeConfig` pro jazyk aplikace na hodinkách~~ —
-hotovo (plugin `plume.locale-config`),
-~~`units: wear` v poznámkách k vydání a release workflow~~ — hotovo (track `wear:internal`,
-`versionCode` + 100 000 000, minifikovaný release); Wear OS povolený v Play Console,
-`WEAR_RELEASE` nastavená, první vydání (0.3.100) je v interním testu. **Zbývá:** snímky pro
-hodinky z testovacích účtů do záznamu (přes Play Listing, viz bod 6 níž), pak přihlášení k distribuci pro Wear OS s kontrolou kvality od Googlu. Fotky v konverzaci hotovo (v bublině a přes
-celý displej); hovory, video, nastavení a správa skupin zůstávají na telefonu; Gemini Nano na hodinkách není, návrhy odpovědí jen ze systému.
-
-**Další kroky po prvním vydání (2026-10-24, v tomhle pořadí):**
-
-1. ~~**Hlášení pádů (Crashlytics)**~~ — hotovo (`core/logging` přesunuté do `:client:core`,
-   hodinky volají `configureLogging()`, release nahrává mapping soubor).
-2. ~~**Odhlášení na hodinkách**~~ — hotovo (Nastavení pod nadpisem seznamu chatů, v nich
-   odhlášení s potvrzením;
-   samotné odhlášení na emulátoru nevyzkoušené, je na skutečném účtu).
-3. ~~**Úklid úložiště**~~ — hotovo (automaticky jednou denně: 3 dny, strop 100 MB; ruční
-   vyčištění v Nastavení).
-4. ~~**Starší historie a citace**~~ — hotovo (dočítání u začátku seznamu, citace nad odpovědí).
-5. ~~**Další média**~~ — hotovo (samolepky náhledem, videa náhledem s délkou, bez přehrávání);
-   GIFy a přehrávání videa zůstávají na telefonu.
-6. ~~**Snímky do Play** přes workflow Play Listing~~ — workflow je umí (`wearScreenshots`,
-   kontrola rozměrů); **zbývá nafotit snímky z testovacích účtů** a dát je do
-   `play/graphics/<locale>/wearScreenshots/`.
-
-**Rizika, ověřit napřed:**
-
-- ~~**Velikost APK.**~~ Vyřešené rozdělením: `wearApp` stojí jen na `:client:core`; debug APK
-  má 83 MB, z toho TDLib pro dvě ABI ~33 MB. Release s R8 zatím nikdo nezkoušel.
-- **Baterie a úložiště.** TDLib drží spojení a databázi; na hodinkách malá mezipaměť,
-  žádné automatické stahování médií, spojení jen s pushem / při otevřené aplikaci.
-- ~~**`minSdk`**~~ — `wearApp` má 30 (Wear OS 3); věci jen pro telefon (Telecom, PiP, widget,
-  Direct Share) jsou ve `shared`, na kterém hodinky nestojí.
-- **Vydávání chybí:** release podpis, `units: wear` v poznámkách k vydání (dnes `check` zná jen
-  android/ios/desktop), workflow a záznam v Play.
-
-**Další obsah konverzací na hodinkách (2026-10-24, podle užitku):**
-
-1. ~~**Ankety a kvízy s hlasováním**~~ — hotovo (jedna i víc odpovědí, kvíz se značkami).
-2. ~~**Tlačítka pod zprávou od botů**~~ — hotovo (zpětné volání, odpověď i upozornění, odkaz do
-   telefonu; zbytek „otevři v telefonu").
-3. ~~**Odkazy „otevřít v telefonu"**~~ — hotovo (odkazy v textu, e-mail i telefon).
-4. ~~**Drobnosti pro kontext**~~ — hotovo („Přeposláno od", „upraveno", jméno a velikost souboru).
-5. ~~**Video kolečka jako náhled**~~ — hotovo (kulatý náhled s délkou, bez přehrávání).
-
-~~**M3 Expressive na hodinkách**~~ — hotovo (zmenšování položek u okraje displeje, barvy
-z ciferníku, animované tvary ikonových tlačítek, potvrzovací dialogy). Barvy z ciferníku čekají
-na ověření na Wear OS 6 (emulátor je Wear OS 5).
-
-**Vizuální vylepšení na hodinkách (2026-10-24, podle užitku):**
-
-1. ~~**Předěly dní a seskupení bublin**~~ — hotovo („Dnes", „Včera", datum; po sobě jdoucí zprávy
-   téhož odesílatele těsněji, jméno ve skupině jen u první).
-2. ~~**Stav doručení u odeslaných zpráv**~~ — hotovo (fajfka odesláno, dvojitá přečteno).
-3. ~~**Vlna u hlasovky**~~ — hotovo (z dat zprávy, během přehrávání se vybarvuje a běží čas).
-4. **Avatar chatu v hlavičce konverzace** vedle názvu.
-5. **Animace nové zprávy** (`animateItem`) místo skoku.
-6. ~~**Odznak nepřečtených v seznamu chatů**~~ — hotovo (vyplněné kolečko, u ztlumeného chatu
-   tlumené).
-7. **„Píše…" a ikona připnutí** v kartě chatu.
-8. **Prázdné a chybové stavy s ikonou** místo holého textu.
-9. **Přechod při otevření fotky** ze zmenšeniny v bublině na celý displej.
-
-Vědomě ne: GIFy a animace, přehrávání videa a hudby, mapy u polohy, Instant View, formátování
-textu — na malém displeji drahé na baterii a výkon, nebo skoro nic nepřidají.
+Vědomě ne: hovory, správa skupin a nastavení účtu (zůstávají na telefonu), GIFy a animace,
+přehrávání videa a hudby, mapy u polohy, Instant View, formátování textu — na malém displeji
+drahé na baterii a výkon, nebo skoro nic nepřidají. Gemini Nano na hodinkách není, návrhy
+odpovědí jsou jen ze systému.
 
 ## Obrazovky a sekce, které nejsou
 

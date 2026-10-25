@@ -8,6 +8,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.wear.compose.material3.Icon
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -212,10 +219,26 @@ fun LoadingScreen(text: String) {
     }
 }
 
+/**
+ * Celá obrazovka s jednou zprávou — prázdný seznam, chyba, chybějící oprávnění. Ikona nad textem
+ * říká, o co jde, dřív než se text dočte; holý text uprostřed vypadal jako nedodělek. [error]
+ * obarví ikonu chybovou barvou.
+ */
 @Composable
-fun MessageScreen(text: String) {
+fun MessageScreen(text: String, icon: DrawableResource, error: Boolean = false) {
     ScreenScaffold {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                painterResource(icon),
+                contentDescription = null,
+                tint = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(32.dp),
+            )
+            Spacer(Modifier.height(8.dp))
             CenteredText(text)
         }
     }
