@@ -53,6 +53,12 @@ import eu.tintera.plume.resources.sticker_24dp
 import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.location_on_filled_24dp
 import eu.tintera.plume.resources.content_location
+import eu.tintera.plume.resources.call_made_24dp
+import eu.tintera.plume.resources.call_missed_24dp
+import eu.tintera.plume.resources.call_received_24dp
+import eu.tintera.plume.core.telegram.CallOutcome
+import eu.tintera.plume.core.telegram.isFailure
+import eu.tintera.plume.core.telegram.title
 import eu.tintera.plume.resources.content_live_location
 import eu.tintera.plume.resources.wear_location_button
 import eu.tintera.plume.resources.wear_sticker_button
@@ -618,6 +624,14 @@ private fun MessageBubble(
             if (location != null) {
                 MessageLocation(location, outgoing, onOpenLink)
             }
+            val contact = message.media as? MessageMedia.Contact
+            if (contact != null) {
+                MessageContact(contact, outgoing)
+            }
+            val call = message.media as? MessageMedia.Call
+            if (call != null) {
+                MessageCall(call, outgoing)
+            }
             val poll = message.poll
             if (poll != null) {
                 MessagePoll(poll, outgoing, onVote)
@@ -638,7 +652,7 @@ private fun MessageBubble(
             // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se
             // jen případný popisek.
             // Anketa se kreslí celá — `text` u ní nese jen „Anketa: otázka".
-            if (poll == null && ((voice == null && photo == null && video == null && document == null && location == null) || message.text.isNotEmpty())) {
+            if (poll == null && ((voice == null && photo == null && video == null && document == null && location == null && contact == null && call == null) || message.text.isNotEmpty())) {
                 val textColor = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                 // Odkaz na tónové bublině: akcent jen v příchozí, v odchozí barva popředí bubliny —
                 // `primary` na `primaryContainer` kontrast nezaručuje (CLAUDE.md). Odlišení nese
@@ -799,6 +813,56 @@ private fun MessageLocation(location: MessageMedia.Location, outgoing: Boolean, 
         Column {
             Text(title, style = MaterialTheme.typography.bodySmall, color = color, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(detail, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/**
+ * Kontakt: fotka (nebo iniciála), jméno a číslo. `core` mu dává prázdné tělo, protože telefon
+ * ho kreslí kartou — bez řádku byla bublina na hodinkách prázdná (jako u polohy). Napsat nebo
+ * přidat do kontaktů jde na telefonu.
+ */
+@Composable
+private fun MessageContact(contact: MessageMedia.Contact, outgoing: Boolean) {
+    val color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        ChatAvatar(fileId = contact.photoFileId, title = contact.name, size = 28.dp)
+        Spacer(Modifier.width(6.dp))
+        Column {
+            Text(contact.name, style = MaterialTheme.typography.bodySmall, color = color, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (contact.phone.isNotBlank()) {
+                Text(contact.phone, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+        }
+    }
+}
+
+/**
+ * Záznam o hovoru: ikona podle směru (zmeškaný a odmítnutý v chybové barvě), popisek z `core`
+ * (`CallOutcome.title` — „Zmeškaný videohovor", tentýž jako na telefonu) a délka, když se mluvilo.
+ * Prázdné tělo z `core` jako u kontaktu a polohy.
+ */
+@Composable
+private fun MessageCall(call: MessageMedia.Call, outgoing: Boolean) {
+    val color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    val icon = when (call.outcome) {
+        CallOutcome.Outgoing, CallOutcome.Cancelled -> Res.drawable.call_made_24dp
+        CallOutcome.Incoming -> Res.drawable.call_received_24dp
+        CallOutcome.Missed, CallOutcome.Declined -> Res.drawable.call_missed_24dp
+    }
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(icon),
+            contentDescription = null,
+            tint = if (call.outcome.isFailure) MaterialTheme.colorScheme.error else color,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(6.dp))
+        Column {
+            Text(stringResource(call.outcome.title(call.isVideo, call.isGroup, call.isActive)), style = MaterialTheme.typography.bodySmall, color = color)
+            if (call.durationSeconds > 0) {
+                Text(formatDuration(call.durationSeconds), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

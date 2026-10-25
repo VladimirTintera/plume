@@ -350,8 +350,8 @@ Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se z
 6. ~~**Archiv a složky**~~ — hotovo (výběr složky s počty nepřečtených, archiv, vrácení z něj).
 7. ~~**Rychlá poznámka do Uložených zpráv**~~ — hotovo (dlaždice a komplikace, diktování rovnou).
 8. ~~**Poslání polohy**~~ — hotovo (jednorázově, po potvrzení; poloha v bublině s mapou v telefonu).
-9. **Kontakt a záznam hovoru jsou na hodinkách prázdná bublina**: `core` jim dává prázdné tělo
-   (telefon je kreslí kartou / řádkem), hodinky pro ně řádek nemají — stejně jako měla poloha.
+9. ~~**Kontakt a záznam hovoru jako prázdná bublina**~~ — opraveno (řádek se jménem a číslem,
+   u hovoru směr, popisek a délka).
 
 Vědomě ne: hovory, správa skupin a nastavení účtu (zůstávají na telefonu), GIFy a animace,
 přehrávání videa a hudby, mapy u polohy, Instant View, formátování textu — na malém displeji
