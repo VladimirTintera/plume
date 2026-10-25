@@ -344,7 +344,7 @@ Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se z
 1. ~~**Nabídka nad zprávou**~~ — hotovo (reakce v mřížce, odpověď s citací, smazání vlastní).
 2. **Přepis hlasovky na požádání** (`recognizeSpeech`; bez Premium jen omezený počet).
 3. **Poslání samolepky** z naposledy použitých.
-4. **Akce nad chatem** podržením karty: přečteno, ztlumit, archivovat.
+4. ~~**Akce nad chatem**~~ — hotovo (podržením karty: přečteno / nepřečteno, ztlumit, archivovat).
 5. **Hledání chatu diktováním a nová konverzace** s kontaktem mimo horní část seznamu.
 6. **Archiv a složky** (dnes jen hlavní seznam).
 7. ~~**Rychlá poznámka do Uložených zpráv**~~ — hotovo (dlaždice a komplikace, diktování rovnou).

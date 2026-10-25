@@ -121,6 +121,16 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   položky, odběr skončí s kartou. Připnutý chat má před časem / odznakem špendlík. Ověřeno na
   emulátoru 2026-10-25: `sendChatAction typing` od Notifikátora → „typing…" v jeho kartě;
   připnutý chat účet na emulátoru nemá, špendlík neověřený.
+- **Akce nad chatem podržením karty** (`TitleCard.onLongClick`, `ChatActionsScreen`, cesta
+  `chatActions/{chatId}`): přečteno / nepřečteno (`readChat`, `setMarkedAsUnread`), ztlumit /
+  zrušit ztlumení (`setMuted`), archivovat / vrátit (`setArchived`) — bez otevírání chatu. Z dvojice
+  se nabízí ta, která dává smysl teď (stav se bere živě ze seznamu). Uložené zprávy jen přečteno.
+  Po akci zpět do seznamu, ten se změní sám; nezdar hlásí potvrzovací dialog.
+  - **Zmizí-li chat ze seznamu, obrazovka nic nedělá** (ne `onDone()` v kompozici): po archivaci
+    chat zmizí, zatímco `popBackStack` z akce už běží, a druhé couvnutí by zavřelo i seznam.
+  - Ověřeno na emulátoru 2026-10-25 na Notifikátorovi: přečteno, nepřečteno (tečka), ztlumení
+    (tlumená tečka) a zpět. **Archivace na emulátoru nezkoušená** — archiv hodinky zatím
+    neukazují, chat by z nich nešel vrátit.
 - **Fotka chatu** (`ChatAvatar`): malá varianta (`avatarFileId`), stažení spustí odběr
   `FileRepository.file()` sám; dekóduje se mimo hlavní vlákno rovnou zmenšená (`inSampleSize`
   mocninou dvou) na velikost avataru — hodinky mají málo paměti. Bez fotky iniciála.

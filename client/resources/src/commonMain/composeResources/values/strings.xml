@@ -4220,6 +4220,8 @@
     <string name="wear_message_delete_for_all">It will be deleted for everyone in the chat.</string>
     <string name="wear_message_delete_for_me">It will be deleted only for you.</string>
     <string name="wear_confirm_not_deleted">Not deleted</string>
+    <string name="wear_chat_actions">Chat actions</string>
+    <string name="wear_confirm_failed">Didn't work</string>
     <string name="wear_note_label">Note to Saved Messages</string>
     <string name="wear_note_saving">Saving…</string>
     <string name="wear_note_signed_out">Sign in to Plume on the watch first.</string>

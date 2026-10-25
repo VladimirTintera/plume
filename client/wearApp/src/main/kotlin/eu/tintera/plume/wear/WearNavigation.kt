@@ -13,6 +13,7 @@ private const val MESSAGE = "message"
 private const val MESSAGE_ID = "messageId"
 private const val RECORD = "record"
 private const val SETTINGS = "settings"
+private const val CHAT_ACTIONS = "chatActions"
 
 /**
  * Seznam chatů, konverzace, nabídka nad zprávou, nahrání hlasovky a nastavení; zpět tahem doprava jako všude na hodinkách.
@@ -32,10 +33,15 @@ fun WearNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
         composable(CHATS) {
             ChatListScreen(
                 onOpen = { chatId -> navController.navigate("$CHAT/$chatId") },
+                onActions = { chatId -> navController.navigate("$CHAT_ACTIONS/$chatId") },
                 onSettings = { navController.navigate(SETTINGS) },
             )
         }
         composable(SETTINGS) { SettingsScreen() }
+        composable("$CHAT_ACTIONS/{$CHAT_ID}") { entry ->
+            val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable
+            ChatActionsScreen(chatId = chatId, onDone = { navController.popBackStack() })
+        }
         composable("$CHAT/{$CHAT_ID}") { entry ->
             val chatId = entry.arguments?.getString(CHAT_ID)?.toLongOrNull() ?: return@composable
             PhotoViewerHost {
