@@ -190,7 +190,8 @@ actual class VideoPlayer internal constructor() {
 
     private suspend fun decode(source: Source, input: () -> FfmpegInput, token: Int) {
         val decoder = try {
-            FfmpegVideoDecoder.open(input())
+            // GIF a tichá smyčka kolečka jedním vláknem (hraje jich víc naráz), video podle jader.
+            FfmpegVideoDecoder.open(input(), threads = if (source.loop && source.muted) 1 else 0)
         } catch (failure: Throwable) {
             // Mimo jiné UnsatisfiedLinkError na systému, pro který nativní FFmpeg v balíčku není.
             logger.w(failure) { "Video nejde otevřít" }
