@@ -440,6 +440,7 @@
     <string name="media_pause">Pozastavit</string>
     <string name="media_picture_in_picture">Obraz v obraze</string>
     <string name="media_picture_in_picture_close">Zavřít obraz v obraze</string>
+    <string name="media_picture_in_picture_return">Zpět do prohlížeče</string>
     <string name="media_replay">Přehrát znovu</string>
     <string name="media_spoiler">Spoiler</string>
     <string name="media_sensitive">Citlivý obsah</string>

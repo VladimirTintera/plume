@@ -27,6 +27,7 @@ import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.core.navigation.AccountPrivacyRoute
 import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.InstantViewRoute
+import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.navigation.DeleteAccountRoute
 import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
@@ -1422,6 +1423,14 @@ private fun shellEntryProvider(
                     }
                 },
                 startSeconds = route.startSeconds,
+                // Návrat z okénka obrazu v obraze (desktop): prohlížeč znovu, na téže zprávě v čase.
+                // Příběh a reklama ne — příběh má vlastní prohlížeč a reklamu otevírá jen konverzace.
+                onReopenAt = if (route.storyId == NO_STORY && !route.sponsored) {
+                    val stack = if (chatsStack.lastOrNull() == route) chatsStack else settingsStack
+                    { messageId: Long, seconds: Int -> stack.add(route.copy(messageId = messageId, startSeconds = seconds)) }
+                } else {
+                    null
+                },
                 // Video reklamy se otevírá jen z konverzace, takže je pod prohlížečem a odkaz otevře ona.
                 onOpenSponsoredLink = { url ->
                     sponsoredLinks.request(route.chatId, url)

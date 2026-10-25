@@ -36,6 +36,10 @@ interface PictureInPicture {
 /**
  * Obraz v obraze pro [player] s videem v poměru [aspectRatio] (šířka / výška). Platí, dokud je
  * v kompozici — prohlížeč ho skládá jen pro video, které se přehrává na celé obrazovce.
+ *
+ * [onReturn] otevře prohlížeč znovu na téže zprávě v daném čase (ms) — tlačítko „zpět" v okénku
+ * na desktopu, kde se prohlížeč při přechodu do okénka zavřel ([PictureInPicture.leavesViewer]).
+ * Android a iOS ho nepotřebují, prohlížeč tam zůstává.
  */
 @Composable
 expect fun rememberPictureInPicture(
@@ -43,4 +47,5 @@ expect fun rememberPictureInPicture(
     aspectRatio: Float,
     playing: Boolean,
     onTogglePlay: () -> Unit,
+    onReturn: ((positionMs: Long) -> Unit)? = null,
 ): PictureInPicture

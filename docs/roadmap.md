@@ -204,7 +204,7 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   příběhy)~~ — hotovo přes FFmpeg z JavaCPP a `javax.sound` (`docs/poznatky/desktop.md`,
   „Video (FFmpeg)"), ~~streamování rozestavěného souboru~~ — hotovo (`StreamingIo`). Zbývá
   AV1 kvality (`libdav1d`) a Windows a Linux ověřit (~~obraz v obraze~~ — hotovo, okénko vždy
-  navrchu; zbývá v něm měnit velikost a návrat do prohlížeče) (u streamování hlavně
+  navrchu se změnou velikosti a návratem do prohlížeče) (u streamování hlavně
   přesun dostaženého souboru s otevřeným čtením na Windows) a streamování na pomalé síti. Příběh
   s videem ověřit v aplikaci (příběh z testovacího účtu, až budou telefony k dispozici).
 - **Trezor tajemství na Windows a Linuxu** (DPAPI, Secret Service / libsecret). Dnes soubor

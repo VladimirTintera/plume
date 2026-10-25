@@ -888,8 +888,18 @@ dál, video hraje. Jako v Telegram Desktop.
   přehrávače by hrály přes sebe.
 - **Okno se skládá v `application {}`** (`DesktopPictureInPictureWindow` v `Main.kt`, jako okénko
   hovoru), protože musí přežít zavření prohlížeče. Bez rámu, `alwaysOnTop`, **nebere fokus**
-  (klávesy jdou dál do chatu), táhne se za obraz (`WindowDraggableArea`), velikost pevná
-  (delší strana 400 dp, `pipSize`). Ovládání (pauza, zavřít) při najetí myší.
+  (klávesy jdou dál do chatu), táhne se za obraz (`WindowDraggableArea`). Ovládání (pauza,
+  zpět do prohlížeče, zavřít) při najetí myší.
+- **Velikost tažením za roh** (`ResizeHandle`, výpočet `resizePip`): poměr stran zůstává, řídí
+  osa, po které se táhlo víc, protilehlý roh stojí; delší strana 240–960 dp. Okno bez rámu se
+  jinak zvětšit nedá. **Poloha myši se bere z obrazovky** (`MouseInfo`), ne z události: okno se
+  při tahu za levý nebo horní roh samo posouvá a souřadnice v něm by s ním ujížděly. Velikost
+  si `DesktopPip.longSide` pamatuje, dokud aplikace běží — další video se otevře stejně velké.
+- **Zpět do prohlížeče** (`DesktopPip.returnToViewer`): okénko se zavře a prohlížeč se otevře
+  znovu na téže zprávě v čase, kde video bylo (`MediaRoute.startSeconds`, jako čas v médiu
+  z odkazu, `onReopenAt` z `AppShell`), hlavní okno jde dopředu. Hraje tedy NOVÝ přehrávač od
+  celé vteřiny, ne ten z okénka — prohlížeč si přehrávač zakládá sám. U příběhu a reklamy
+  tlačítko není (příběh má vlastní prohlížeč, reklamu otevírá jen konverzace).
 - **Poloha z použitelné plochy obrazovky** (`getScreenInsets`), ne `WindowPosition.Aligned`:
   zarovnání bere celou obrazovku a okénko by leželo pod Dockem. Souřadnice AWT jsou logické
   body (dp okna). Pozor při ověřování: snímek obrazovky z nástroje pro ovládání počítače je
@@ -899,6 +909,9 @@ dál, video hraje. Jako v Telegram Desktop.
 - **Ověřeno v ladicí aplikaci 25. 10. 2026** (macOS): přechod do okénka s hrajícím videem
   (prohlížeč se zavře, video hraje dál), pauza a přehrání v okénku, přetažení, zavření křížkem,
   zavření okénka po novém puštění videa v prohlížeči. Testy `DesktopPictureInPictureTest`.
+  Tamtéž 25. 10. později: zvětšení tahem za levý horní roh (pravý dolní stál, poměr stran
+  zůstal), návrat do prohlížeče na 35 s (hrál dál od téhož místa, jedno vlákno `plume-audio`)
+  a další okénko ve zvětšené velikosti.
   **Neověřené**: Windows a Linux, víc monitorů, okénko při minimalizovaném hlavním okně.
 
 ## Celá obrazovka okna

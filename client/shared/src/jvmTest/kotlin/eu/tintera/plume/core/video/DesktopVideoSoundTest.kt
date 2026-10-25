@@ -27,8 +27,7 @@ class DesktopVideoSoundTest {
         if (!soundOutput()) return@play
         assertTrue(player.playsSound, "video se zvukem hraje bez zvuku")
         player.play()
-        delay(1000)
-        assertNear(1000, player.positionMs, 350, "pozice po vteřině")
+        assertAdvancesBySecond(player, "pozice po vteřině")
         awaitEnd(player, 2500)
     }
 
@@ -36,8 +35,7 @@ class DesktopVideoSoundTest {
     fun silentVideoPlaysByWallClock() = play("silent.mp4") { player ->
         assertEquals(false, player.playsSound, "video bez zvukové stopy")
         player.play()
-        delay(1000)
-        assertNear(1000, player.positionMs, 350, "pozice po vteřině")
+        assertAdvancesBySecond(player, "pozice po vteřině")
         awaitEnd(player, 2500)
     }
 
@@ -46,8 +44,7 @@ class DesktopVideoSoundTest {
         if (!soundOutput()) return@play
         player.setMuted(true)
         player.play()
-        delay(1000)
-        assertNear(1000, player.positionMs, 350, "pozice ztlumeného videa po vteřině")
+        assertAdvancesBySecond(player, "pozice ztlumeného videa po vteřině")
         awaitEnd(player, 2500)
     }
 
@@ -85,6 +82,18 @@ class DesktopVideoSoundTest {
         val supported = AudioSystem.isLineSupported(DataLine.Info(SourceDataLine::class.java, format))
         if (!supported) println("Přeskočeno: systém nemá zvukový výstup")
         return supported
+    }
+
+    /**
+     * Za vteřinu od rozběhu se pozice posune o vteřinu. Měří se od prvního posunu, ne od
+     * [VideoPlayer.play]: pod zátěží celé sady testů se zvuk rozbíhal o stovky ms později
+     * (pozice 600 ms po vteřině) a test padal, i když hodiny šly správně.
+     */
+    private suspend fun assertAdvancesBySecond(player: VideoPlayer, what: String) {
+        awaitUntil(3000, "rozběh přehrávání") { player.positionMs > 0 }
+        val from = player.positionMs
+        delay(1000)
+        assertNear(1000, player.positionMs - from, 350, what)
     }
 
     private suspend fun awaitEnd(player: VideoPlayer, timeoutMs: Long) =
