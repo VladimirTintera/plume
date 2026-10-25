@@ -515,7 +515,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 
 ## Mezery proti API TDLib
 
-Porovnání API ve wrapperu `tdl-coroutines` 15.0.0 s tím, co volá `core/telegram` (říjen 2026,
+Porovnání API ve wrapperu `tdl-coroutines` 15.0.0 (rozdíl k 16.0.0 níž) s tím, co volá `core/telegram` (říjen 2026,
 zopakované 18. a 19. 10.): **z 1022 funkcí se volá 400, ze 190 updatů se odebírá 89** (při
 prvním průchodu 294 a 70, 18. 10. 395 a 89). Většinu zbytku tvoří Bot API,
 Telegram Business, Passport a testovací volání, které klient nepotřebuje. Sem patří jen to, co
@@ -544,7 +544,7 @@ funkce, takže hranice jsou hrubé):
 | Hvězdy, platby, TON, affiliate | 0 / 59 | ne — rozhodnutí, ne mezera (viz níž) |
 | Dárky | 0 / 43 | jen karta dárku ve zprávě |
 | Telegram Business a rychlé odpovědi | 0 / 40 | ne (chce předplatné Business) |
-| Komunity | 0 / 3 | ne (novinka TDLib) |
+| Komunity | 0 / 6 | ne (novinka TDLib; 16.0.0 přidal fotku, práva členů a smazání) |
 | Passport | 1 / 12 | ne |
 | Jen pro boty, podporu Telegramu, oficiální aplikace, testy, logy | 7 / 129 | nepatří do klienta |
 
@@ -553,6 +553,35 @@ Porovnání se dá zopakovat: jména funkcí z `TdlClient.kt` ve zdrojovém jaru
 `grep -rl "dev.g000sha256.tdl" client` a hledání `\bjméno\(`. **Grep po jednom jménu přes celý
 kód trvá přes dvě minuty**; rychlé je načíst jména i spojený zdroj do Pythonu a porovnat množiny. Výsledek je hrubé síto:
 funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc může dělat jiné volání).
+
+**Co přinesl wrapper 16.0.0 (TDLib 1.8.68)** — rozdíl zdrojových jarů 15.0.0 a 16.0.0
+(25. 10. 2026): 1022 → 1065 funkcí, 76 nových typů, jeden ubyl (`ServiceUpdate`). Skoro celý
+přírůstek je **vestavěná peněženka TON** (38 funkcí: stav a založení peněženky, převody,
+transakce, NFT, záloha a tajná fráze, TON Connect pro dApps, nákup kryptoměny přes on-ramp,
+kurzy měn; vše podmíněné volbou `can_use_ton_wallet`). Spadá pod „Hvězdy, platby, dárky, TON"
+ve „Vědomě mimo" níž — peněženka v aplikaci z Play je navíc rozhodnutí o zásadách Play
+pro kryptoměny, ne jen o fakturaci. Co z toho stojí za to i bez peněženky:
+
+- **Adresa TON v článku zmizí.** Nový `RichTextTonAddress` spadne v `RichMessageBody.kt`
+  do `else -> Unit` a v `plainText()` (`MessageContent.kt`) do `else -> ""` — text se nevykreslí
+  vůbec, ani v náhledu. Patří vedle `RichTextBankCardNumber` (`rich(richText.text)`); entita
+  `TextEntityTypeTonAddress` v obyčejné zprávě zůstane aspoň jako text.
+- **Převod z peněženky jako zpráva** (`MessageTonWalletTransfer`: částka, adresa protistrany,
+  komentář) a žádost dApp (`MessageTonConnectRequest`) dnes ukážou „neumíme zobrazit" a zapíšou
+  neznámý obsah do logu; notifikace (`PushMessageContentTonWalletTransfer`,
+  `…TonConnectRequest`) „Nová zpráva". Stačí popis ke čtení jako u sázkové kostky
+  (`describe`, „Převod 1,5 TON"), zašifrovaný komentář (`isCommentEncrypted`) nevypisovat.
+- **Odkazy na převod a TON Connect** (`InternalLinkTypeTonWalletTransfer`,
+  `InternalLinkTypeTonConnect`) — ověřit, že skončí srozumitelně (neznámý odkaz), ne tichem.
+- **Drobnosti:** `MessageProperties.customEmojiIds` (vlastní emoji zprávy předem, bez procházení
+  entit — případně pro přednačtení), `AnimatedEmoji.isRegularEmoji`, druhé uživatelské jméno
+  bota pro vlastníky s Premium (`addBotSecondaryUsername`, `Usernames.secondaryUsername`;
+  Plume správu botů nemá). Komunity: `getCommunityFullInfo` nahradil `loadCommunityFullInfo`
+  (vrací data místo updatu), přibyly `setCommunityPhoto`, `setCommunityPermissions`
+  a `deleteCommunity` — API dozrává, oblast zůstává otevřená (viz „Novinky TDLib" níž).
+- Jen pro boty / oficiální aplikace, do klienta nepatří: `replyToCallbackQueryWithEphemeralMessage`
+  (náhrada `editCallbackQueryMessage`), `dismissWebToken`, `star_top_up_disabled`
+  u nákupu hvězd, `ThemeSettings.hasOutgoingMessageAccentColor` (motivy vědomě ne).
 
 **Co uživatele zablokuje nebo vypadá jako chyba** — přednostně:
 
