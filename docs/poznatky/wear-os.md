@@ -95,8 +95,8 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   Compose for Wear OS textové pole nemá. Klávesnice heslo nemaskuje — jiná cesta na hodinkách není.
 - **Ověřeno na emulátoru 2026-10-24:** sken telefonem (Nastavení → Zařízení → Připojit zařízení),
   `AuthorizationState -> Ready`, pak seznam chatů. Heslo nevyzkoušené (účet ho nechtěl).
-- **Odhlášení je v Nastavení hodinek** (`SettingsScreen`, cesta `settings`): `CompactButton`
-  „Nastavení" hned pod nadpisem seznamu chatů, na obrazovce „Odhlásit" a `AlertDialog` z Compose
+- **Odhlášení je v Nastavení hodinek** (`SettingsScreen`, cesta `settings`): ikona
+  ozubeného kola v řadě nad nadpisem seznamu chatů (viz „Začátek seznamu"), na obrazovce „Odhlásit" a `AlertDialog` z Compose
   for Wear OS s křížkem a fajfkou. **Menu v liště Wear OS nemá** — vedlejší akce patří na začátek
   nebo konec seznamu. Napřed bylo odhlášení na konci seznamu chatů, a ten je dlouhý: uživatele by
   nenapadlo tam rolovat. Bez toho by hodinky šly odhlásit jen z telefonu. Odhlásí
@@ -121,8 +121,14 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   položky, odběr skončí s kartou. Připnutý chat má před časem / odznakem špendlík. Ověřeno na
   emulátoru 2026-10-25: `sendChatAction typing` od Notifikátora → „typing…" v jeho kartě;
   připnutý chat účet na emulátoru nemá, špendlík neověřený.
-- **Hledání a nová konverzace** (`SearchScreen`, cesta `search`, „Hledat" jako první tlačítko
-  pod nadpisem hlavního seznamu): rovnou diktování (`rememberReplyInput` bez rychlých odpovědí),
+- **Začátek seznamu: řada ikon, pak nadpis „Chaty"** (`HeaderActions`): Hledat, Archiv a složky
+  a Nastavení jako kulaté tónové ikony v jedné řadě (popisek pro čtečku v `contentDescription`),
+  pod nimi nadpis a hned chaty. Dřív byl nadpis nahoře a pod ním tři tlačítka s popisky pod
+  sebou: zabrala celý první displej, první chat byl vidět až po odrolování a nadpis „Chaty"
+  pojmenovával tlačítka (připomínka uživatele). Ve složce a archivu ikony nejsou, nadpis je
+  nahoře. Ověřeno na emulátoru 2026-10-25: první chat vidět hned, ozubené kolo → Nastavení.
+- **Hledání a nová konverzace** (`SearchScreen`, cesta `search`, lupa jako první ikona v řadě
+  nad nadpisem hlavního seznamu): rovnou diktování (`rememberReplyInput` bez rychlých odpovědí),
   pak chaty podle názvu (`searchChats` lokálně i na serveru — i archivované a chaty mimo složky)
   a kontakty, se kterými se ještě nepsalo (podtitul „Kontakt"; `contacts()` jim soukromý chat
   zajistí, takže jde psát komukoli z adresáře). Zavření diktování bez textu ukáže kontakty podle
@@ -137,7 +143,7 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   - Ověřeno na emulátoru 2026-10-25: „Notif" klávesnicí → Notifikátor → konverzace → zpět do
     seznamu chatů; zavření diktování → seznam kontaktů. Kontakt mimo seznam chatů neověřený.
 - **Archiv a složky** (`FoldersScreen`, cesty `folders` a `folder/{id}` s `archive` pro archiv):
-  pod Nastavením v hlavním seznamu „Archiv a složky", výběr ukáže složky Telegramu v pořadí účtu
+  ikona složky v řadě nad nadpisem hlavního seznamu, výběr ukáže složky Telegramu v pořadí účtu
   (`chatFolders`) a na konci Archiv, každou s počtem nepřečtených chatů (`folderUnread`,
   `archiveUnread` — počítá TDLib, i pro neotevřenou složku). Seznam složky je tentýž
   `ChatListScreen` s `ChatFolder`; archiv a složky se začnou načítat až otevřením (`loadMore`),

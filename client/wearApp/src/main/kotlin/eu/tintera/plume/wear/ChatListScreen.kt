@@ -43,6 +43,9 @@ import eu.tintera.plume.resources.chat_bubble_24dp
 import eu.tintera.plume.resources.cloud_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.wear.compose.material3.FilledTonalIconButton
+import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.remember
 import eu.tintera.plume.core.ui.asDate
@@ -121,23 +124,23 @@ private fun ChatList(
     val spec = rememberTransformationSpec()
     ScreenScaffold(scrollState = state) { contentPadding ->
         TransformingLazyColumn(state = state, contentPadding = contentPadding) {
+            // Hledat, Archiv a složky a Nastavení jako řada ikon NAD nadpisem: hodinky nemají menu
+            // v liště a konec dlouhého seznamu nikoho nenapadne hledat (připomínka uživatele).
+            // Pod sebou s popisky zabraly celý první displej a první chat byl vidět až po
+            // odrolování; nadpis nad nimi navíc pojmenovával tlačítka, ne chaty.
+            val actions = listOfNotNull(
+                onSearch?.let { HeaderAction(Res.drawable.search_24dp, Res.string.wear_search_button, it) },
+                onFolders?.let { HeaderAction(Res.drawable.folder_24dp, Res.string.wear_folders_button, it) },
+                onSettings?.let { HeaderAction(Res.drawable.settings_24dp, Res.string.settings_title, it) },
+            )
+            if (actions.isNotEmpty()) {
+                item { HeaderActions(actions, Modifier.transformedItem(this, spec)) }
+            }
             item {
                 ListHeader(
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
                     transformation = SurfaceTransformation(spec),
                 ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-            }
-            // Hledat, Nastavení a Archiv a složky hned pod nadpisem: hodinky nemají menu v liště
-            // a konec dlouhého seznamu chatů nikoho nenapadne hledat (připomínka uživatele).
-            // Hledání první — dostat se k chatu mimo horní část seznamu je nejčastější.
-            onSearch?.let { open ->
-                item { HeaderButton(Res.drawable.search_24dp, Res.string.wear_search_button, open, Modifier.transformedItem(this, spec)) }
-            }
-            onSettings?.let { open ->
-                item { HeaderButton(Res.drawable.settings_24dp, Res.string.settings_title, open, Modifier.transformedItem(this, spec)) }
-            }
-            onFolders?.let { open ->
-                item { HeaderButton(Res.drawable.folder_24dp, Res.string.wear_folders_button, open, Modifier.transformedItem(this, spec)) }
             }
             // Bez klíče: chaty po přihlášení přibývají postupně a s klíčem by lazy seznam držel
             // první viditelný chat, takže by nové nahoře odjely nad displej (ověřeno na emulátoru).
@@ -217,16 +220,21 @@ private fun ChatCard(
 
 private val AVATAR_SIZE = 24.dp
 
-/** Malé tlačítko pod nadpisem seznamu (Nastavení, Archiv a složky). */
+private class HeaderAction(val icon: DrawableResource, val label: StringResource, val onClick: () -> Unit)
+
+/**
+ * Řada kulatých ikon nad seznamem (Hledat, Archiv a složky, Nastavení). Popisek nese čtečka
+ * obrazovky (`contentDescription`); ikony lupy, složky a ozubeného kola jsou na hodinkách
+ * srozumitelné i bez textu.
+ */
 @Composable
-private fun HeaderButton(icon: DrawableResource, label: StringResource, onClick: () -> Unit, modifier: Modifier) {
-    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        CompactButton(
-            onClick = onClick,
-            icon = { Icon(painterResource(icon), contentDescription = null) },
-            label = { Text(stringResource(label)) },
-            colors = ButtonDefaults.filledTonalButtonColors(),
-        )
+private fun HeaderActions(actions: List<HeaderAction>, modifier: Modifier) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+        actions.forEach { action ->
+            FilledTonalIconButton(onClick = action.onClick, shapes = IconButtonDefaults.animatedShapes()) {
+                Icon(painterResource(action.icon), contentDescription = stringResource(action.label))
+            }
+        }
     }
 }
 
