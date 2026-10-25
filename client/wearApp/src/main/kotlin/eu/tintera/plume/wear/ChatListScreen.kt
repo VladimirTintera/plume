@@ -129,12 +129,12 @@ private fun ChatList(
             // Pod sebou s popisky zabraly celý první displej a první chat byl vidět až po
             // odrolování; nadpis nad nimi navíc pojmenovával tlačítka, ne chaty.
             val actions = listOfNotNull(
-                onSearch?.let { HeaderAction(Res.drawable.search_24dp, Res.string.wear_search_button, it) },
-                onFolders?.let { HeaderAction(Res.drawable.folder_24dp, Res.string.wear_folders_button, it) },
-                onSettings?.let { HeaderAction(Res.drawable.settings_24dp, Res.string.settings_title, it) },
+                onSearch?.let { IconAction(Res.drawable.search_24dp, Res.string.wear_search_button, it) },
+                onFolders?.let { IconAction(Res.drawable.folder_24dp, Res.string.wear_folders_button, it) },
+                onSettings?.let { IconAction(Res.drawable.settings_24dp, Res.string.settings_title, it) },
             )
             if (actions.isNotEmpty()) {
-                item { HeaderActions(actions, Modifier.transformedItem(this, spec)) }
+                item { IconActionRow(actions, Modifier.transformedItem(this, spec)) }
             }
             item {
                 ListHeader(
@@ -219,24 +219,6 @@ private fun ChatCard(
 }
 
 private val AVATAR_SIZE = 24.dp
-
-private class HeaderAction(val icon: DrawableResource, val label: StringResource, val onClick: () -> Unit)
-
-/**
- * Řada kulatých ikon nad seznamem (Hledat, Archiv a složky, Nastavení). Popisek nese čtečka
- * obrazovky (`contentDescription`); ikony lupy, složky a ozubeného kola jsou na hodinkách
- * srozumitelné i bez textu.
- */
-@Composable
-private fun HeaderActions(actions: List<HeaderAction>, modifier: Modifier) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-        actions.forEach { action ->
-            FilledTonalIconButton(onClick = action.onClick, shapes = IconButtonDefaults.animatedShapes()) {
-                Icon(painterResource(action.icon), contentDescription = stringResource(action.label))
-            }
-        }
-    }
-}
 
 /**
  * Odznak nepřečtených: vyplněná pilulka s počtem, jako na telefonu. Holé číslo v rohu karty

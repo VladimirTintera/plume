@@ -121,7 +121,7 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   položky, odběr skončí s kartou. Připnutý chat má před časem / odznakem špendlík. Ověřeno na
   emulátoru 2026-10-25: `sendChatAction typing` od Notifikátora → „typing…" v jeho kartě;
   připnutý chat účet na emulátoru nemá, špendlík neověřený.
-- **Začátek seznamu: řada ikon, pak nadpis „Chaty"** (`HeaderActions`): Hledat, Archiv a složky
+- **Začátek seznamu: řada ikon, pak nadpis „Chaty"** (`IconActionRow`): Hledat, Archiv a složky
   a Nastavení jako kulaté tónové ikony v jedné řadě (popisek pro čtečku v `contentDescription`),
   pod nimi nadpis a hned chaty. Dřív byl nadpis nahoře a pod ním tři tlačítka s popisky pod
   sebou: zabrala celý první displej, první chat byl vidět až po odrolování a nadpis „Chaty"
@@ -248,7 +248,12 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   systémové zadávání (`RemoteInput` přes `RemoteInputIntentHelper`) nabízí emoji, diktování
   a klávesnici, pod nimi naše **rychlé odpovědi jako volby** (`setChoices`, texty
   `wear_quick_reply_*`). Ťuknutí na volbu pošle zprávu rovnou, bez potvrzení.
-- **Poloha** (tlačítko „Poloha" pod Samolepkou, `SendLocationScreen`, cesta `location/{chatId}`):
+- **Konec konverzace: řada ikon nad Odpovědět** (`IconActionRow`, sdílená se seznamem chatů):
+  mikrofon (hlasovka), samolepka, poloha. Tři tlačítka s popisky přes celou šířku zabrala spodek
+  displeje a nejnovější zpráva byla vidět jen kouskem. Odpovědět zůstává velkým `EdgeButton` —
+  je to hlavní akce. Ověřeno na emulátoru 2026-10-25: nejnovější zpráva vidět celá, ikona
+  samolepky → výběr.
+- **Poloha** (ikona špendlíku v řadě nad Odpovědět, `SendLocationScreen`, cesta `location/{chatId}`):
   jednorázově, živá zůstává na telefonu (baterie). Oprávnění `ACCESS_FINE_LOCATION` /
   `ACCESS_COARSE_LOCATION` (stačí jedno), pak čerstvá poloha ze systému a **odejde až po
   „Poslat polohu"** s přesností („Přesnost asi 12 m") — kam ukázat, kde je, rozhoduje člověk.
@@ -274,7 +279,7 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
     --accuracy 12`; po testu `remove-test-provider gps` a appop zpět na `default`.
   - Ověřeno na emulátoru 2026-10-25: žádost o oprávnění, „Přesnost asi 12 m", poloha odešla do
     chatu Notifikátora a v bublině je „Poloha" se souřadnicemi.
-- **Samolepka** (tlačítko „Samolepka" pod Hlasovou zprávou na konci konverzace,
+- **Samolepka** (ikona samolepky v řadě nad Odpovědět na konci konverzace,
   `StickerPickerScreen`, cesta `stickers/{chatId}`): oblíbené a nedávné (`favoriteStickers`,
   `recentStickers` — jsou na účtu, takže i ty poslané z telefonu), každý seznam nejvýš 18,
   oblíbená se mezi nedávnými neopakuje. Po třech v řádku, každý řádek vlastní položka (u okraje
