@@ -168,9 +168,9 @@ Android je napřed; tohle je, čím se to dorovnává.
     uklidí až s otevřením aplikace.
   - **Vysvětlení před dotazem na oprávnění ověřit na čistém simulátoru** (na testovacím bylo
     oprávnění vyřízené dřív).
-- **Hlášení pádů.** `NoopCrashReporter`. Implementace musí přijít ze Swiftu — `FirebaseCrashlytics`
-  je ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace.
-  Vzor je `IosCrashlyticsLogger` v projektu com.profilog.telemetry.android.
+- **Hlášení pádů** — napojené (Swift most do Crashlytics, `docs/poznatky/release.md`, „Hlášení
+  pádů na iOS"), hlášení z Debug buildu se zapnutým sběrem v simulátoru odchází. Zbývá ověřit
+  pád z Release buildu na zařízení a nahrávání dSYMů v CI (až bude iOS release workflow).
 - **Vydání: nejspíš App Store** (zatím nerozhodnuté, testování přes TestFlight). Chce placený
   Apple Developer Program (99 USD ročně, odpuštění jen pro neziskovky a školy). Tentýž účet dá
   i Developer ID a notarizaci pro DMG na macOS. Zvážené a odložené: alternativní obchody v EU

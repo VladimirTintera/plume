@@ -4,6 +4,11 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Hlášení pádů (Crashlytics) jen z Release buildu: hodnota je build setting
+	     PLUME_CRASHLYTICS_COLLECTION_ENABLED (Debug NO, Release YES v project.pbxproj).
+	     Crashlytics bere i textové YES/NO. -->
+	<key>FirebaseCrashlyticsCollectionEnabled</key>
+	<string>$(PLUME_CRASHLYTICS_COLLECTION_ENABLED)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

@@ -11,8 +11,9 @@ struct iOSApp: App {
         // Model v zařízení se předává Kotlinu dřív než Koin, který podle něj vybere `OnDeviceAi`.
         registerOnDeviceModel()
         // Koin musí běžet dřív, než se složí první obrazovka — MainViewController hned
-        // resolvuje AuthViewModel.
-        MainViewControllerKt.doInitKoin()
+        // resolvuje AuthViewModel. Firebase (Crashlytics) startuje ještě před ním: Kotlin si most
+        // podá dál ke Kermitu dřív, než vzniknou eager singletony.
+        MainViewControllerKt.doInitKoin(crashlytics: FirebaseCrashlyticsBridge.start())
     }
 
     var body: some Scene {

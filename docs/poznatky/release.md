@@ -369,11 +369,76 @@ rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
 - **Ověřit to jde jen skutečným pádem release buildu.** V debug buildu je sběr vypnutý, takže
   „projde to bez chyby" nic neznamená. Postup je stejný jako u R8: release APK se přepodepíše
   debug klíčem a nainstaluje přes `adb install -r`, takže se nepřijde o přihlášení.
-- **iOS hlásič pádů zatím nemá** (`NoopCrashReporter`). Firebase v Xcode projektu není — stejně
-  jako u notifikací. Až přibude, implementace musí přijít ze Swiftu: `FirebaseCrashlytics` je
-  ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace
-  (`getStackTraceAddresses()`), ne symboly. Vzor je `IosCrashlyticsLogger` v projektu
-  com.profilog.telemetry.android.
+
+### Hlášení pádů na iOS
+
+Převzaté z projektu mlog (`docs/crash-reporting.md` tam), tamtéž podle `IosCrashlyticsLogger`
+z Profilogu. Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS aplikace s bundlem
+**`eu.tintera.plume`**.
+
+- **Kotlin/Native knihovnu Firebase nevidí** (ObjC ze SPM, ne cinterop), proto most ze Swiftu:
+  `FirebaseCrashlyticsBridge.swift` v `iosApp` implementuje Kotlin rozhraní `CrashlyticsBridge`
+  (`:client:shared` iosMain, `core/logging`) a `iOSApp.swift` ho podá do `initKoin`. Kotlin ho
+  obalí do `IosCrashReporter` a vloží do `IosCrashReporting.reporter` v `:client:core` — **dřív
+  než `configureLogging`**, ze kterého si ho `createCrashReporter` vezme. Rozhraní je ve
+  `shared`, ne v `core`: framework `ComposeApp` nic neexportuje, takže Swift vidí jen typy ze
+  `shared`.
+- **Kotlin výjimka nese jen adresy stacku** (`getStackTraceAddresses()`); Swift z nich udělá rámce
+  `ExceptionModel` a Crashlytics je symbolizuje podle dSYM. `ComposeApp` je statický framework,
+  Kotlin kód je tedy v binárce aplikace a v jejím dSYM. Model nese jeden stack, řetěz `Caused by`
+  jde do `reason` (nejvýš 5 příčin, cyklus nezacyklí).
+- **Zásobník začíná místem vzniku výjimky, ne konstruktorem** (`stackFromThrowSite`). Kotlin
+  výjimka nese adresy od `kotlin.Throwable#<init>` přes `Exception#<init>`… a Crashlytics podle
+  horního rámce pojmenuje a SESKUPÍ problém — první zachycená chyba v konzoli se jmenovala
+  `kfun:kotlin.Throwable#<init>(kotlin.String?){}` a pod tím by skončily všechny. Úvodní rámce
+  `#<init>(` se proto zahodí podle jmen z `getStackTrace()`; bez jmen (ořezaná binárka) zůstane
+  zásobník celý.
+- **Nezachycená Kotlin výjimka** končí `abort`em z runtime a Crashlytics by viděl jen ten — všechny
+  pády z Kotlinu by spadly do jednoho problému. `installUnhandledExceptionHook` ji proto před
+  ukončením pošle jako non-fatal a celý `stackTraceToString()` jako řádek logu. U pádu z Kotlinu
+  je tedy v konzoli **dvojice záznamů** (fatální abort + non-fatal s příčinou) — záměr.
+  - **Bez chvilky času se záznam NEZAPÍŠE** (mlog má tutéž chybu): Crashlytics zápis dokončuje
+    přes hlavní frontu a `terminateWithUnhandledException` proces ukončí dřív. Ověřeno na disku
+    (`reports/active/<id>/custom_exception_a.clsrecord` chyběl, hook prokazatelně proběhl).
+    **`sleep` na hlavním vlákně nepomůže ani 3 s** — frontu blokuje; hook proto na hlavním
+    vlákně protočí run loop (`runUntilDate`, 0,5 s), na jiném vlákně spí. Pak záznam je
+    (pád z korutiny na Main i na Default).
+  - **Výjimka propadlá z Kotlin lambdy předané jako ObjC blok** (`dispatch_after`, completion
+    handler iOS API) jde přes `std::terminate`, kde ji první chytí terminate handler Crashlytics
+    (`FIRCLSTerminateHandler`), zapíše jako fatální C++ výjimku `ExceptionObjHolderImpl` a proces
+    označí za padající; náš hook se volá až po něm a další záznam Crashlytics nevezme. U takového
+    pádu je v konzoli jen `ExceptionObjHolderImpl` bez příčiny — z kódu se to opravit nedá.
+  - **Zkoumat záznamy jde bez konzole**: build se zapnutým sběrem, pád, a PŘED dalším spuštěním
+    číst `reports/active/<id>/` (jména a důvody jsou v JSON hexem); odinstalace aplikace
+    neodeslaná hlášení zahodí. **S vypnutým sběrem Crashlytics zachycené chyby ani logy
+    nezapisuje vůbec**, jen pády — zkouška s `NO` nic neříká.
+- **Firebase přes SPM** (`firebase-ios-sdk`, produkt `FirebaseCrashlytics`, do příští major) jen
+  v cíli `iosApp`; rozšíření (notifikace, sdílení) hlásič nemají.
+- **Sběr jen z Release**: `FirebaseCrashlyticsCollectionEnabled` v `Info.plist` je build setting
+  `PLUME_CRASHLYTICS_COLLECTION_ENABLED` (Debug `NO`, Release `YES`). Crashlytics bere i textové
+  `YES`/`NO`. Archiv do TestFlightu je Release, build z Xcode na zařízení Debug.
+- **`GoogleService-Info.plist` je v `iosApp/iosApp/`** a commituje se jako `google-services.json`
+  (tajemství v něm nejsou, jde stejně v binárce). Složka je synchronizovaná skupina Xcode, do
+  bundlu se dostane sama. iOS aplikace ve Firebase je `1:737473989471:ios:f0c3…`, bundle
+  `eu.tintera.plume`. **Bez plistu aplikace běží dál, jen bez hlášení**:
+  `FirebaseCrashlyticsBridge.start()` vrátí `nil` (`FirebaseApp.configure()` by bez plistu shodil
+  proces).
+- **dSYMy** se zatím nenahrávají samy — iOS se nevydává a release workflow nemá. Ruční nahrání
+  po archivu: `"<DerivedData>/iosApp-…/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols" -gsp iosApp/iosApp/GoogleService-Info.plist -p ios <cesta k dSYMs>`.
+  Bez dSYMu je u pádu z Kotlinu v konzoli jen seznam adres.
+- **Debug build má kód v `Plume.debug.dylib`** (Xcode „debug dylib", `ENABLE_DEBUG_DYLIB`),
+  `Plume` je jen spouštěč. Crashlytics pak chtěl dSYM k UUID té dylib a hlásil ho jako „Missing
+  (required)", přestože ho `upload-symbols` nahrál s „Successfully submitted" — u dylib ho
+  nezaevidoval. Release build dylib nemá; pro zkoušku v Debug se proto staví s
+  `ENABLE_DEBUG_DYLIB=NO` (kód i dSYM v jediné binárce, ~180 MB).
+- **Zkouška bez Release buildu** (ten kvůli LTO nad TDLib trvá 15+ minut): Debug přes
+  `xcodebuild … PLUME_CRASHLYTICS_COLLECTION_ENABLED=YES DEBUG_INFORMATION_FORMAT=dwarf-with-dsym ENABLE_DEBUG_DYLIB=NO`,
+  nahrát dSYM, dočasný pád za proměnnou prostředí (`SIMCTL_CHILD_… xcrun simctl launch … -FIRDebugEnabled`),
+  znovu spustit. Hlášení odejde při dalším startu přes `firebaselogging-pa.googleapis.com`;
+  odeslané hlášení zmizí z `Library/Caches/com.crashlytics.data/…/v5/reports/prepared`.
+  Ověřeno tak 25. 10. 2026 v simulátoru: zachycená chyba přes `Logger.e` v konzoli se
+  symbolizovaným zásobníkem, nezachycená výjimka z korutiny jako dvojice; dSYM obsahuje Kotlin
+  symboly (`kfun:eu.tintera.plume…`).
 
 ## Aktualizace z obchodu
 
