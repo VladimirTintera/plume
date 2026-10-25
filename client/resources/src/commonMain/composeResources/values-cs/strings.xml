@@ -496,6 +496,8 @@
     <string name="voice_playback_failed">Hlasovku se nepodařilo přehrát.</string>
     <string name="media_mute">Ztlumit</string>
     <string name="media_rotate_screen">Otočit obrazovku</string>
+    <string name="media_fullscreen_enter">Celá obrazovka</string>
+    <string name="media_fullscreen_exit">Ukončit celou obrazovku</string>
     <string name="media_lock_controls">Zamknout ovládání</string>
     <string name="media_unlock_controls">Odemknout ovládání</string>
     <string name="media_video_resumed">Pokračuje od %1$s</string>

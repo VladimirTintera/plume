@@ -6,6 +6,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.FlowPreview
 import eu.tintera.plume.core.platform.SavedWindowBounds
@@ -91,6 +93,11 @@ fun main(args: Array<String>) {
         )
         RememberWindowBounds(state, saved)
 
+        // Stav celé obrazovky se hlásí i po přepnutí tlačítkem okna (zelené na macOS).
+        LaunchedEffect(state) {
+            snapshotFlow { state.placement == WindowPlacement.Fullscreen }.collect(DesktopWindow::setFullscreen)
+        }
+
         // Ťuknutí na ikonu v Docku vrátí schované okno (viz `onCloseRequest`).
         LaunchedEffect(Unit) {
             if (mac && Desktop.isDesktopSupported()) {
@@ -125,6 +132,29 @@ fun main(args: Array<String>) {
             icon = icon,
             state = state,
         ) {
+            /*
+             * Celá obrazovka na žádost (video v prohlížeči). Po ukončení se okno vrátí, jak bylo,
+             * maximalizované zůstane maximalizované. Compose ji ale ruší JEN přechodem na Floating
+             * (`ComposeWindow.placement`: Maximized jen nastaví maximalizaci a celou obrazovku
+             * nechá) a návrat z ní je na macOS animace, takže maximalizace přijde až po ní.
+             */
+            LaunchedEffect(Unit) {
+                var before = state.placement
+                DesktopWindow.fullscreenRequests.collect { on ->
+                    if (on && state.placement != WindowPlacement.Fullscreen) {
+                        before = state.placement
+                        state.placement = WindowPlacement.Fullscreen
+                    } else if (!on && state.placement == WindowPlacement.Fullscreen) {
+                        state.placement = WindowPlacement.Floating
+                        if (before == WindowPlacement.Maximized) {
+                            withTimeoutOrNull(FULLSCREEN_EXIT_TIMEOUT_MS) {
+                                while (window.placement == WindowPlacement.Fullscreen) delay(FULLSCREEN_EXIT_POLL_MS)
+                            }
+                            state.placement = WindowPlacement.Maximized
+                        }
+                    }
+                }
+            }
             // Klik na oznámení: okno dopředu, i když bylo schované nebo minimalizované.
             LaunchedEffect(Unit) {
                 DesktopWindow.activations.collect {
@@ -162,7 +192,7 @@ fun main(args: Array<String>) {
 /**
  * Ukládá polohu a velikost okna po každé změně (s krátkým zpožděním — tah oknem jich pošle
  * desítky). U maximalizovaného okna se pamatuje i velikost PŘED maximalizací, ať se na ni po
- * dalším spuštění dá vrátit; minimalizované okno nemění nic.
+ * dalším spuštění dá vrátit; minimalizované okno a celá obrazovka nemění nic.
  */
 @OptIn(FlowPreview::class)
 @Composable
@@ -170,7 +200,8 @@ private fun RememberWindowBounds(state: WindowState, saved: SavedWindowBounds?) 
     LaunchedEffect(state) {
         var floating = saved
         snapshotFlow { Triple(state.placement, state.position, state.size) to state.isMinimized }
-            .filter { (_, minimized) -> !minimized }
+            // Celá obrazovka je chvilková (video), po dalším spuštění se do ní nevrací.
+            .filter { (window, minimized) -> !minimized && window.first != WindowPlacement.Fullscreen }
             .debounce(WINDOW_SAVE_DELAY_MS)
             .collect { (window, _) ->
                 val (placement, position, size) = window
@@ -192,6 +223,8 @@ private fun RememberWindowBounds(state: WindowState, saved: SavedWindowBounds?) 
 private const val DEFAULT_WIDTH = 1200
 private const val DEFAULT_HEIGHT = 800
 private const val WINDOW_SAVE_DELAY_MS = 500L
+private const val FULLSCREEN_EXIT_TIMEOUT_MS = 2_000L
+private const val FULLSCREEN_EXIT_POLL_MS = 50L
 
 /** Jméno aplikace, ne text k překladu — stejné v každém jazyce. */
 private const val APP_NAME = "Plume"

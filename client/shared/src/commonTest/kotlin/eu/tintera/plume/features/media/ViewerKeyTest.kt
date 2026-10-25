@@ -15,7 +15,9 @@ class ViewerKeyTest {
         shift: Boolean = false,
         meta: Boolean = false,
         rtl: Boolean = false,
-    ) = viewerKey(key, char, ctrl, alt, shift, meta, rtl)
+        video: Boolean = false,
+        seek: Boolean = false,
+    ) = viewerKey(key, char, ctrl, alt, shift, meta, rtl, video, seek)
 
     @Test
     fun sipkyListuji() {
@@ -71,5 +73,26 @@ class ViewerKeyTest {
         assertNull(key(Key.Spacebar, char = ' '))
         assertNull(key(Key.Equals, alt = true))
         assertNull(key(Key.Escape))
+    }
+
+    /** U videa jako na YouTube; písmena podle klávesy, takže i s jiným znakem (rozložení). */
+    @Test
+    fun klavesyVidea() {
+        assertEquals(ViewerKey.PlayPause, key(Key.Spacebar, char = ' ', video = true))
+        assertEquals(ViewerKey.ToggleFullscreen, key(Key.F, char = 'f', video = true))
+        assertEquals(ViewerKey.ToggleMute, key(Key.M, char = 'm', video = true))
+        assertNull(key(Key.F, char = 'f'))
+        assertNull(key(Key.F, ctrl = true, video = true))
+        assertNull(key(Key.Spacebar, meta = true, video = true))
+    }
+
+    /** Hrající video na celé obrazovce: šipky posouvají, doleva zpět i v RTL. */
+    @Test
+    fun sipkyPosouvajiVideo() {
+        assertEquals(ViewerKey.SeekBack, key(Key.DirectionLeft, video = true, seek = true))
+        assertEquals(ViewerKey.SeekForward, key(Key.DirectionRight, video = true, seek = true))
+        assertEquals(ViewerKey.SeekBack, key(Key.DirectionLeft, rtl = true, video = true, seek = true))
+        assertEquals(ViewerKey.Previous, key(Key.DirectionLeft, video = true))
+        assertNull(key(Key.DirectionLeft, alt = true, video = true, seek = true))
     }
 }

@@ -39,7 +39,11 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Co udělá klávesa v prohlížeči médií. */
-internal enum class ViewerKey { Previous, Next, ZoomIn, ZoomOut, ZoomReset }
+internal enum class ViewerKey {
+    Previous, Next, ZoomIn, ZoomOut, ZoomReset,
+    // Jen u videa:
+    PlayPause, SeekBack, SeekForward, ToggleMute, ToggleFullscreen,
+}
 
 /**
  * Klávesa v prohlížeči: ←/→ listují (v RTL obráceně, jako pager), +/−/0 přibližují. Esc tu není
@@ -49,13 +53,32 @@ internal enum class ViewerKey { Previous, Next, ZoomIn, ZoomOut, ZoomReset }
  * - **+/−/0 i s Ctrl** (Ctrl+= / Ctrl+− / Ctrl+0 jako v prohlížeči), ne s Alt ani ⌘.
  * - **Plus a minus i podle znaku** ([char]), ne jen podle klávesy: na české klávesnici je „+"
  *   na klávese, kde anglická má „1", a „=" jinde. Numerická klávesnice má kódy vlastní.
+ * - **U videa ([video]) jako na YouTube**: mezerník pauza a přehrávání, F celá obrazovka,
+ *   M ztlumení. Písmena podle klávesy, ne znaku — na každém rozložení jsou tam, kde je uživatel
+ *   čeká. Šipky posouvají ([seekWithArrows]), kde by tah nelistoval — hrající video na celé
+ *   obrazovce; doleva je zpět i v RTL, jako na časové ose přehrávače.
  */
-internal fun viewerKey(key: Key, char: Char?, ctrl: Boolean, alt: Boolean, shift: Boolean, meta: Boolean, rtl: Boolean): ViewerKey? {
+internal fun viewerKey(
+    key: Key,
+    char: Char?,
+    ctrl: Boolean,
+    alt: Boolean,
+    shift: Boolean,
+    meta: Boolean,
+    rtl: Boolean,
+    video: Boolean = false,
+    seekWithArrows: Boolean = false,
+): ViewerKey? {
     if (alt || meta) return null
     val plain = !ctrl && !shift
     return when {
+        plain && seekWithArrows && key == Key.DirectionLeft -> ViewerKey.SeekBack
+        plain && seekWithArrows && key == Key.DirectionRight -> ViewerKey.SeekForward
         plain && key == Key.DirectionLeft -> if (rtl) ViewerKey.Next else ViewerKey.Previous
         plain && key == Key.DirectionRight -> if (rtl) ViewerKey.Previous else ViewerKey.Next
+        plain && video && key == Key.Spacebar -> ViewerKey.PlayPause
+        plain && video && key == Key.F -> ViewerKey.ToggleFullscreen
+        plain && video && key == Key.M -> ViewerKey.ToggleMute
         key == Key.NumPadAdd || key == Key.Plus || char == '+' -> ViewerKey.ZoomIn
         key == Key.Equals && !shift || char == '=' -> ViewerKey.ZoomIn
         key == Key.NumPadSubtract || key == Key.Minus || char == '-' -> ViewerKey.ZoomOut

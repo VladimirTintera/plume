@@ -154,6 +154,11 @@ import eu.tintera.plume.resources.picture_in_picture_alt_24dp
 import eu.tintera.plume.resources.media_picture_in_picture
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
+import kotlinx.coroutines.flow.Flow
+import eu.tintera.plume.resources.media_fullscreen_exit
+import eu.tintera.plume.resources.media_fullscreen_enter
+import eu.tintera.plume.resources.fullscreen_exit_24dp
+import eu.tintera.plume.resources.fullscreen_24dp
 import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.media_replay
@@ -229,6 +234,7 @@ internal fun VideoPage(
     pictureInPicture: Boolean = false,
     /** Ovládání celé obrazovky jako v přehrávači (lišty, zámek, otočení); `null` = bez něj. */
     fullscreen: VideoFullscreen? = null,
+    commands: Flow<VideoCommand>? = null,
     /**
      * Pamatovat si, kde se přestalo sledovat ([VideoPositions]). Mizející médium ne (podruhé se
      * neotevře) a tajný chat ne — po tajném chatu nemá v zařízení zůstat stopa.
@@ -307,6 +313,7 @@ internal fun VideoPage(
         storyboard = video.storyboard,
         onProgress = positionKey?.let { key -> { position, duration -> positions.record(key, position, duration) } },
         fullscreen = fullscreen,
+        commands = commands,
         muted = muted,
         onToggleMute = onToggleMute,
         pictureInPicture = pictureInPicture,
@@ -457,6 +464,8 @@ internal fun VideoPage(
      * proti dotykům a ruční otočení. Jen v prohlížeči médií; `null` = bez toho (náhledy).
      */
     fullscreen: VideoFullscreen? = null,
+    /** Povely z klávesnice ([VideoCommand]); vyřizuje je jen vybraná stránka na celé obrazovce. */
+    commands: Flow<VideoCommand>? = null,
     /**
      * [startMs] je pamatovaná pozice, ne žádost: po rozběhnutí se na chvíli ukáže „Pokračuje od…"
      * s tlačítkem Od začátku. Bez něj by video hrálo uprostřed a nebylo by jasné proč.
@@ -763,6 +772,28 @@ internal fun VideoPage(
         ended = false
         pageHaptics.tick()
     }
+    LaunchedEffect(commands, active, loaded, locked) {
+        if (commands == null || !active || !loaded || locked) return@LaunchedEffect
+        commands.collect { command ->
+            when (command) {
+                VideoCommand.PlayPause -> {
+                    if (playing) player.pause() else player.play()
+                    playing = !playing
+                    // Pozastavené ukáže ovládání, ať je vidět, kde video stojí.
+                    if (!playing) controlsVisible = true
+                }
+                is VideoCommand.Seek -> if (!failed) seekBy(command.deltaMs)
+            }
+        }
+    }
+
+    /*
+     * Dvojklik přepíná celou obrazovku okna (desktop, jako YouTube) místo skoku o 10 s — myší se
+     * dvojklikem neposouvá, na to jsou šipky. Bere se aktuální stav, gesto se nezakládá znovu.
+     */
+    val toggleWindow: (() -> Unit)? = fullscreen?.onWindowChange?.let { change -> { change(!fullscreen.window) } }
+    val currentToggleWindow by rememberUpdatedState(toggleWindow)
+
     var boosting by remember { mutableStateOf(false) }
     fun startBoost() {
         if (!playing) return
@@ -875,7 +906,7 @@ internal fun VideoPage(
                     } while (event.changes.any { it.pressed })
                 }
             }
-            .pointerInput(hasSpoiler, revealed, playerGestures) {
+            .pointerInput(hasSpoiler, revealed, playerGestures, toggleWindow != null) {
                 val onTapPage: (Offset) -> Unit = {
                     if (hasSpoiler && !revealed) {
                         onReveal()
@@ -892,12 +923,20 @@ internal fun VideoPage(
                  * s dvojím ťuknutím čeká s jednoduchým, jestli nepřijde druhé — v galerii by tak
                  * přepnutí na celou obrazovku zbytečně zdrželo.
                  */
-                if (!playerGestures) {
+                if (!playerGestures && toggleWindow != null && !(hasSpoiler && !revealed)) {
+                    detectTapGestures(
+                        onTap = onTapPage,
+                        onDoubleTap = { if (!currentLocked) currentToggleWindow?.invoke() },
+                    )
+                } else if (!playerGestures) {
                     detectTapGestures(onTap = onTapPage)
                 } else {
                     detectTapGestures(
                         onTap = onTapPage,
-                        onDoubleTap = { offset -> seekBy(if (offset.x < size.width / 2) -SEEK_STEP_MS else SEEK_STEP_MS) },
+                        onDoubleTap = { offset ->
+                            val window = currentToggleWindow
+                            if (window != null) window() else seekBy(if (offset.x < size.width / 2) -SEEK_STEP_MS else SEEK_STEP_MS)
+                        },
                         onLongPress = { startBoost() },
                         onPress = {
                             tryAwaitRelease()
@@ -1136,6 +1175,8 @@ internal fun VideoPage(
                             if (!on) controlsVisible = true
                         },
                         onRotate = fullscreen.onRotate,
+                        window = fullscreen.window,
+                        onWindowChange = fullscreen.onWindowChange,
                     )
                 }
             }
@@ -1330,7 +1371,18 @@ internal class VideoFullscreen(
     val onLockChange: (Boolean) -> Unit,
     /** Otočí obrazovku do druhé orientace; `null`, kde ji platforma vynutit neumí. */
     val onRotate: (() -> Unit)?,
+    /** Okno je přes celou obrazovku na žádost prohlížeče (desktop). */
+    val window: Boolean = false,
+    /** Přepne okno přes celou obrazovku; `null`, kde to platforma nemá (telefon). */
+    val onWindowChange: ((Boolean) -> Unit)? = null,
 )
+
+/** Povel z klávesnice pro vybrané video; prohlížeč ho posílá stránce, která má přehrávač. */
+internal sealed interface VideoCommand {
+    data object PlayPause : VideoCommand
+
+    data class Seek(val deltaMs: Long) : VideoCommand
+}
 
 /**
  * Zámek a otočení v levém horním rohu stránky.
@@ -1351,6 +1403,8 @@ private fun BoxScope.VideoTopControls(
     locked: Boolean,
     onLockChange: (Boolean) -> Unit,
     onRotate: (() -> Unit)?,
+    window: Boolean,
+    onWindowChange: ((Boolean) -> Unit)?,
 ) {
     val density = LocalDensity.current
     val ltr = LocalLayoutDirection.current == LayoutDirection.Ltr
@@ -1420,6 +1474,18 @@ private fun BoxScope.VideoTopControls(
                     Icon(
                         painterResource(Res.drawable.screen_rotation_24dp),
                         contentDescription = stringResource(Res.string.media_rotate_screen),
+                    )
+                }
+            }
+            if (onWindowChange != null && !locked) {
+                IconButton(
+                    onClick = { onWindowChange(!window) },
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    Icon(
+                        painterResource(if (window) Res.drawable.fullscreen_exit_24dp else Res.drawable.fullscreen_24dp),
+                        contentDescription = stringResource(if (window) Res.string.media_fullscreen_exit else Res.string.media_fullscreen_enter),
                     )
                 }
             }
