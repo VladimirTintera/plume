@@ -49,6 +49,7 @@ actual fun rememberPictureInPicture(
     aspectRatio: Float,
     playing: Boolean,
     onTogglePlay: () -> Unit,
+    onReturn: ((positionMs: Long) -> Unit)?,
 ): PictureInPicture {
     val context = LocalContext.current
     val activity = LocalActivity.current as? ComponentActivity

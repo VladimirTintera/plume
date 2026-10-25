@@ -28,6 +28,7 @@ actual fun rememberPictureInPicture(
     aspectRatio: Float,
     playing: Boolean,
     onTogglePlay: () -> Unit,
+    onReturn: ((positionMs: Long) -> Unit)?,
 ): PictureInPicture {
     val state = remember(player) { IosPictureInPicture() }
     val layer = player.layer

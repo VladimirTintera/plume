@@ -232,6 +232,7 @@ internal fun VideoPage(
     onToggleMute: (() -> Unit)? = null,
     /** Smí video do obrazu v obraze (mizející médium ne — mělo by zůstat v aplikaci). */
     pictureInPicture: Boolean = false,
+    onReturnFromPip: ((positionMs: Long) -> Unit)? = null,
     /** Ovládání celé obrazovky jako v přehrávači (lišty, zámek, otočení); `null` = bez něj. */
     fullscreen: VideoFullscreen? = null,
     commands: Flow<VideoCommand>? = null,
@@ -317,6 +318,7 @@ internal fun VideoPage(
         muted = muted,
         onToggleMute = onToggleMute,
         pictureInPicture = pictureInPicture,
+        onReturnFromPip = onReturnFromPip,
         aspectRatio = aspectRatioOf(video.width, video.height),
         durationSeconds = video.durationSeconds,
         caption = caption,
@@ -459,6 +461,8 @@ internal fun VideoPage(
      * hraje. Jen v prohlížeči médií — náhled při sdílení a nad polem je chvilková kontrola.
      */
     pictureInPicture: Boolean = false,
+    /** Okénko obrazu v obraze se vrací do prohlížeče na téže zprávě v čase (ms); desktop. */
+    onReturnFromPip: ((positionMs: Long) -> Unit)? = null,
     /**
      * Celá obrazovka jako v přehrávači: systémové lišty se schovávají spolu s ovládáním, zámek
      * proti dotykům a ruční otočení. Jen v prohlížeči médií; `null` = bez toho (náhledy).
@@ -698,6 +702,7 @@ internal fun VideoPage(
                 if (player.isPlaying) player.pause() else player.play()
                 playing = !playing
             },
+            onReturn = onReturnFromPip,
         )
     } else {
         null

@@ -219,6 +219,11 @@ fun MediaViewerScreen(
      * a odkaz předá sem — otevírá ho konverzace pod ním.
      */
     onOpenSponsoredLink: (url: String) -> Unit = {},
+    /**
+     * Otevřít prohlížeč znovu na zprávě v čase (s) — návrat z okénka obrazu v obraze na
+     * desktopu, kde se prohlížeč při přechodu do okénka zavřel. `null` = návrat nejde.
+     */
+    onReopenAt: ((messageId: Long, seconds: Int) -> Unit)? = null,
     /** Tvorba samolepky ze stažené fotky; `null` = tady se nenabízí. */
     onMakeSticker: ((path: String, width: Int, height: Int) -> Unit)? = null,
 ) {
@@ -348,6 +353,7 @@ fun MediaViewerScreen(
                     )
                 },
                 startSeconds = startSeconds,
+                onReopenAt = onReopenAt,
             )
         } else {
             // Bez fotek (chyba, načítání) není co rozostřit; zůstává tmavá plocha a cesta ven.
@@ -459,6 +465,7 @@ private fun ViewerContent(
     videoAd: ViewerVideoAd?,
     videoAdActions: VideoAdActions,
     startSeconds: Int,
+    onReopenAt: ((messageId: Long, seconds: Int) -> Unit)?,
 ) {
     val items = state.items
     /*
@@ -742,6 +749,7 @@ private fun ViewerContent(
                     streaming = !state.isSelfDestruct,
                     // Mizející video v okénku nad jinými aplikacemi by obešlo FLAG_SECURE i odpočet.
                     pictureInPicture = !state.isSelfDestruct,
+                    onReturnFromPip = onReopenAt?.let { reopen -> { ms: Long -> reopen(item.messageId, (ms / 1000).toInt()) } },
                     caption = item.caption,
                     isCurrent = isCurrent,
                     immersive = immersive,
