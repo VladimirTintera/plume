@@ -25,9 +25,7 @@ import org.bytedeco.ffmpeg.global.avformat.AVSEEK_FLAG_BACKWARD
 import org.bytedeco.ffmpeg.global.avformat.av_find_best_stream
 import org.bytedeco.ffmpeg.global.avformat.av_read_frame
 import org.bytedeco.ffmpeg.global.avformat.av_seek_frame
-import org.bytedeco.ffmpeg.global.avformat.avformat_close_input
 import org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info
-import org.bytedeco.ffmpeg.global.avformat.avformat_open_input
 import org.bytedeco.ffmpeg.global.avutil.AVCOL_RANGE_JPEG
 import org.bytedeco.ffmpeg.global.avutil.AVCOL_SPC_BT709
 import org.bytedeco.ffmpeg.global.avutil.AVERROR_EOF
@@ -67,7 +65,7 @@ import org.jetbrains.skia.ImageInfo
  * desítky MB) — proto se smí volat jen mimo hlavní vlákno.
  */
 internal class FfmpegVideoDecoder private constructor(
-    private val format: AVFormatContext,
+    private val input: OpenedInput,
     private val codec: AVCodecContext,
     private val streamIndex: Int,
     private val timeBaseNum: Long,
@@ -76,6 +74,8 @@ internal class FfmpegVideoDecoder private constructor(
     /** Délka v ms; `0`, když ji soubor neuvádí. */
     val durationMs: Long,
 ) : AutoCloseable {
+
+    private val format: AVFormatContext = input.format
 
     private val packet: AVPacket = av_packet_alloc()
     private val frame: AVFrame = av_frame_alloc()
@@ -180,7 +180,7 @@ internal class FfmpegVideoDecoder private constructor(
         av_frame_free(frame)
         av_packet_free(packet)
         avcodec_free_context(codec)
-        avformat_close_input(format)
+        input.close()
     }
 
     private fun toMs(ts: Long): Long = ts * timeBaseNum * 1000 / timeBaseDen
@@ -191,15 +191,13 @@ internal class FfmpegVideoDecoder private constructor(
         private val logLevel by lazy { av_log_set_level(AV_LOG_ERROR) }
 
         /** Otevře [path]; vyhodí výjimku, když soubor nejde přečíst nebo v něm není video. */
-        fun open(path: String): FfmpegVideoDecoder {
+        fun open(path: String): FfmpegVideoDecoder = open(FfmpegInput.File(path))
+
+        /** Otevře [source]; vyhodí výjimku, když nejde přečíst. */
+        fun open(source: FfmpegInput): FfmpegVideoDecoder {
             logLevel
-            val format = AVFormatContext(null)
-            // Cesta v UTF-8, jak ji FFmpeg čeká (na Windows ji sám převede na UTF-16). JavaCPP
-            // by `String` převedl kódováním systému, na českých Windows cp1250.
-            val opened = BytePointer(path, "UTF-8").use { pathBytes ->
-                avformat_open_input(format, pathBytes, null as AVInputFormat?, null as AVDictionary?)
-            }
-            if (opened < 0) throw IllegalStateException("avformat_open_input: ${errorText(opened)}")
+            val input = openInput(source, ::errorText)
+            val format = input.format
             var codec: AVCodecContext? = null
             try {
                 avformat_find_stream_info(format, null as PointerPointer<*>?).checked("avformat_find_stream_info")
@@ -224,10 +222,10 @@ internal class FfmpegVideoDecoder private constructor(
                     format.duration() != AV_NOPTS_VALUE && format.duration() > 0 -> format.duration() / 1000
                     else -> 0L
                 }
-                return FfmpegVideoDecoder(format, codec, streamIndex, num, den, start, durationMs)
+                return FfmpegVideoDecoder(input, codec, streamIndex, num, den, start, durationMs)
             } catch (failure: Throwable) {
                 codec?.let(::avcodec_free_context)
-                avformat_close_input(format)
+                input.close()
                 throw failure
             }
         }

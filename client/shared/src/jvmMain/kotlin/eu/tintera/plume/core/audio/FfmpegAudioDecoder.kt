@@ -33,9 +33,7 @@ import org.bytedeco.ffmpeg.global.avformat.AVSEEK_FLAG_BACKWARD
 import org.bytedeco.ffmpeg.global.avformat.av_find_best_stream
 import org.bytedeco.ffmpeg.global.avformat.av_read_frame
 import org.bytedeco.ffmpeg.global.avformat.av_seek_frame
-import org.bytedeco.ffmpeg.global.avformat.avformat_close_input
 import org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info
-import org.bytedeco.ffmpeg.global.avformat.avformat_open_input
 import org.bytedeco.ffmpeg.global.avutil.AVERROR_EOF
 import org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_AUDIO
 import org.bytedeco.ffmpeg.global.avutil.AV_LOG_ERROR
@@ -48,6 +46,9 @@ import org.bytedeco.ffmpeg.global.avutil.av_get_sample_fmt_name
 import org.bytedeco.ffmpeg.global.avutil.av_log_set_level
 import org.bytedeco.ffmpeg.global.avutil.av_strerror
 import org.bytedeco.ffmpeg.presets.avutil.AVERROR_EAGAIN
+import eu.tintera.plume.core.video.FfmpegInput
+import eu.tintera.plume.core.video.OpenedInput
+import eu.tintera.plume.core.video.openInput
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.javacpp.PointerPointer
 
@@ -64,7 +65,7 @@ import org.bytedeco.javacpp.PointerPointer
  * Není vláknově bezpečný: volá ho jen vlákno přehrávače ([AudioEngine]).
  */
 internal class FfmpegAudioDecoder private constructor(
-    private val format: AVFormatContext,
+    private val input: OpenedInput,
     private val codec: AVCodecContext,
     private val streamIndex: Int,
     private val timeBaseNum: Long,
@@ -73,6 +74,8 @@ internal class FfmpegAudioDecoder private constructor(
     /** Délka v ms; `0`, když ji soubor neuvádí. */
     val durationMs: Long,
 ) : AutoCloseable {
+
+    private val format: AVFormatContext = input.format
 
     private val packet: AVPacket = av_packet_alloc()
     private val frame: AVFrame = av_frame_alloc()
@@ -241,7 +244,7 @@ internal class FfmpegAudioDecoder private constructor(
         av_frame_free(filtered)
         av_packet_free(packet)
         avcodec_free_context(codec)
-        avformat_close_input(format)
+        input.close()
     }
 
     companion object {
@@ -258,14 +261,13 @@ internal class FfmpegAudioDecoder private constructor(
         private val logLevel by lazy { av_log_set_level(AV_LOG_ERROR) }
 
         /** Otevře [path]; vyhodí výjimku, když soubor nejde přečíst nebo v něm není zvuk. */
-        fun open(path: String): FfmpegAudioDecoder {
+        fun open(path: String): FfmpegAudioDecoder = open(FfmpegInput.File(path))
+
+        /** Otevře [source]; vyhodí výjimku, když nejde přečíst. */
+        fun open(source: FfmpegInput): FfmpegAudioDecoder {
             logLevel
-            val format = AVFormatContext(null)
-            // Cesta v UTF-8, jak ji FFmpeg čeká (viz `FfmpegVideoDecoder.open`).
-            val opened = BytePointer(path, "UTF-8").use { pathBytes ->
-                avformat_open_input(format, pathBytes, null as AVInputFormat?, null as AVDictionary?)
-            }
-            if (opened < 0) throw IllegalStateException("avformat_open_input: ${errorText(opened)}")
+            val input = openInput(source, ::errorText)
+            val format = input.format
             var codec: AVCodecContext? = null
             try {
                 avformat_find_stream_info(format, null as PointerPointer<*>?).checked("avformat_find_stream_info")
@@ -288,10 +290,10 @@ internal class FfmpegAudioDecoder private constructor(
                     format.duration() != AV_NOPTS_VALUE && format.duration() > 0 -> format.duration() / 1000
                     else -> 0L
                 }
-                return FfmpegAudioDecoder(format, codec, streamIndex, num, den, start, durationMs)
+                return FfmpegAudioDecoder(input, codec, streamIndex, num, den, start, durationMs)
             } catch (failure: Throwable) {
                 codec?.let(::avcodec_free_context)
-                avformat_close_input(format)
+                input.close()
                 throw failure
             }
         }
