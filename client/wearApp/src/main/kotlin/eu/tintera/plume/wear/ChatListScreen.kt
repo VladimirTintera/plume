@@ -54,6 +54,7 @@ import eu.tintera.plume.resources.chats_load_failed
 import eu.tintera.plume.resources.connection_connecting
 import eu.tintera.plume.resources.wear_chats_empty
 import eu.tintera.plume.resources.wear_chats_title
+import eu.tintera.plume.resources.wear_chat_actions
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import kotlin.time.Clock
@@ -63,7 +64,7 @@ import kotlin.time.Clock
  * obrazovka jen kreslí: název, náhled poslední zprávy a počet nepřečtených.
  */
 @Composable
-fun ChatListScreen(onOpen: (Long) -> Unit, onSettings: () -> Unit) {
+fun ChatListScreen(onOpen: (Long) -> Unit, onActions: (Long) -> Unit, onSettings: () -> Unit) {
     val chats = koinInject<ChatRepository>()
     val listState by chats.chats().collectAsState()
 
@@ -72,12 +73,18 @@ fun ChatListScreen(onOpen: (Long) -> Unit, onSettings: () -> Unit) {
         is ChatListState.Failed -> MessageScreen(stringResource(Res.string.chats_load_failed), Res.drawable.cloud_off_24dp, error = true)
         is ChatListState.Ready ->
             if (current.chats.isEmpty()) MessageScreen(stringResource(Res.string.wear_chats_empty), Res.drawable.chat_bubble_24dp)
-            else ChatList(current.chats, chats, onOpen, onSettings)
+            else ChatList(current.chats, chats, onOpen, onActions, onSettings)
     }
 }
 
 @Composable
-private fun ChatList(chats: List<ChatSummary>, repository: ChatRepository, onOpen: (Long) -> Unit, onSettings: () -> Unit) {
+private fun ChatList(
+    chats: List<ChatSummary>,
+    repository: ChatRepository,
+    onOpen: (Long) -> Unit,
+    onActions: (Long) -> Unit,
+    onSettings: () -> Unit,
+) {
     val state = rememberTransformingLazyColumnState()
     val savedMessagesId = savedMessagesChatId()
     // Položky se u okraje displeje zmenšují (M3 Expressive), viz transformedItem.
@@ -113,6 +120,7 @@ private fun ChatList(chats: List<ChatSummary>, repository: ChatRepository, onOpe
                     savedMessagesId,
                     typing = typing,
                     onClick = { onOpen(chat.id) },
+                    onLongClick = { onActions(chat.id) },
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
                     transformation = SurfaceTransformation(spec),
                 )
@@ -127,6 +135,7 @@ private fun ChatCard(
     savedMessagesId: Long?,
     typing: ChatTyping?,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier,
     transformation: SurfaceTransformation,
 ) {
@@ -135,6 +144,9 @@ private fun ChatCard(
     val unread = chat.unreadCount > 0 || chat.isMarkedAsUnread
     TitleCard(
         onClick = onClick,
+        // Podržení: přečteno, ztlumit, archivovat bez otevírání chatu (ChatActionsScreen).
+        onLongClick = onLongClick,
+        onLongClickLabel = stringResource(Res.string.wear_chat_actions),
         title = {
             val title = chatTitle(chat.id, chat.title, savedMessagesId)
             ChatAvatar(fileId = chat.avatarFileId, title = title, size = AVATAR_SIZE, savedMessages = chat.id == savedMessagesId)
