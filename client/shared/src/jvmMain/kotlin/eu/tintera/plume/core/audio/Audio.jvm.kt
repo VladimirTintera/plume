@@ -3,16 +3,21 @@ package eu.tintera.plume.core.audio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import co.touchlab.kermit.Logger
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.UUID
 import javax.sound.sampled.AudioFormat
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.SourceDataLine
+import javax.sound.sampled.TargetDataLine
 import javax.swing.SwingUtilities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.log10
+import kotlin.math.sqrt
 
-// Přehrávání: FFmpeg dekóduje ([FfmpegAudioDecoder]), `javax.sound` hraje. Nahrávání zatím není:
-// mikrofon přes javax.sound by potřeboval vlastní kodér do Ogg/Opus, takže nahrávání selže tak,
-// jak to sdílený kód umí ohlásit — „nahrávání nejde spustit".
+// Přehrávání: FFmpeg dekóduje ([FfmpegAudioDecoder]), `javax.sound` hraje. Nahrávání: `javax.sound`
+// nahrává PCM, FFmpeg (`libopus`) ho zakóduje a [oggOpusFile] zabalí do Oggu ([AudioRecorder]).
 
 /**
  * Přehrávač zvuku na desktopu: hlasovky, hudba. Dekódování i zápis do reproduktoru jsou na
@@ -217,24 +222,129 @@ actual class AudioEngine {
 /** Přeskakování ticha desktop neumí (Android ho má z Media3). */
 actual val skipSilenceSupported: Boolean = false
 
+/**
+ * Nahrávání hlasovky na desktopu: PCM z mikrofonu (`TargetDataLine`, 48 kHz mono 16 bitů) do
+ * paměti, po skončení zakódování do Opusu ([FfmpegOpusEncoder]) a zabalení do Oggu
+ * ([oggOpusFile]) — jako na iOS. Minuta PCM je ~5,5 MB a kódování trvá zlomek délky nahrávky.
+ *
+ * - **Čte se na vlastním vlákně**; pozastavená linka (`stop()`) z `read` vrací rovnou nulu,
+ *   proto se pak chvíli čeká, ne točí naprázdno.
+ * - **Úroveň je průměrný výkon posledního kusu v dB převedený na 0..1** (−50 dB a níž je ticho),
+ *   stejně jako `averagePower` na iOS, ať vlna vypadá na obou platformách stejně.
+ * - **Povolení k mikrofonu dává na macOS systém** při prvním otevření linky (TCC); popis
+ *   v Info.plist a oprávnění `audio-input` má balíček kvůli hovorům. Spuštěné přes Gradle
+ *   ho dostává aplikace, ze které běží (terminál, IDE). Zamítnuté = linka nahrává ticho.
+ */
 actual class AudioRecorder : MediaCapture {
 
-    actual override fun start(): Unit =
-        throw UnsupportedOperationException("Nahrávání zvuku na desktopu zatím není.")
+    private var line: TargetDataLine? = null
+    private var thread: Thread? = null
+    private var pcm = ByteArrayOutputStream()
 
-    actual override val level: Float = 0f
+    @Volatile private var capturing = false
+    @Volatile private var lastLevel = 0f
 
-    actual override suspend fun stop(): String =
-        throw UnsupportedOperationException("Nahrávání zvuku na desktopu zatím není.")
+    actual override fun start() {
+        val format = AudioFormat(FfmpegOpusEncoder.SAMPLE_RATE.toFloat(), 16, 1, true, false)
+        val input = AudioSystem.getTargetDataLine(format)
+        input.open(format, CAPTURE_BUFFER_BYTES)
+        input.start()
+        pcm = ByteArrayOutputStream()
+        line = input
+        capturing = true
+        thread = Thread({ capture(input) }, "plume-record").apply {
+            isDaemon = true
+            start()
+        }
+    }
 
-    actual override fun cancel() = Unit
+    private fun capture(input: TargetDataLine) {
+        val buffer = ByteArray(CHUNK_BYTES)
+        while (capturing) {
+            val count = input.read(buffer, 0, buffer.size)
+            if (count <= 0) {
+                Thread.sleep(PAUSED_POLL_MS)
+                continue
+            }
+            synchronized(pcm) { pcm.write(buffer, 0, count) }
+            lastLevel = levelOf(buffer, count)
+        }
+    }
 
-    actual override fun pause() = Unit
+    actual override val level: Float
+        get() = lastLevel
 
-    actual override fun resume() = Unit
+    actual override suspend fun stop(): String {
+        val recorded = finishCapture() ?: error("Nic se nenahrává.")
+        return withContext(Dispatchers.Default) {
+            val encoded = FfmpegOpusEncoder.encode(recorded)
+            val ogg = oggOpusFile(
+                packets = encoded.packets,
+                channels = 1,
+                preSkip = encoded.preSkip,
+                samplesPerPacket = encoded.samplesPerPacket,
+            )
+            val directory = File(System.getProperty("java.io.tmpdir"), "plume-outgoing/${UUID.randomUUID()}").apply { mkdirs() }
+            File(directory, "voice.ogg").apply { writeBytes(ogg) }.absolutePath
+        }
+    }
+
+    actual override fun cancel() {
+        finishCapture()
+    }
+
+    actual override fun pause() {
+        line?.stop()
+        lastLevel = 0f
+    }
+
+    actual override fun resume() {
+        line?.start()
+    }
+
+    /** Zastaví mikrofon a vrátí nahrané PCM; `null`, když se nenahrávalo. */
+    private fun finishCapture(): ByteArray? {
+        val input = line ?: return null
+        line = null
+        capturing = false
+        input.stop()
+        input.close()
+        thread?.join(CAPTURE_JOIN_MS)
+        thread = null
+        lastLevel = 0f
+        return synchronized(pcm) { pcm.toByteArray() }
+    }
+
+    private companion object {
+        /** ~100 ms zvuku na jedno čtení: úroveň pro vlnu se obnovuje častěji, než ji UI čte. */
+        const val CHUNK_BYTES = 4800 * FfmpegOpusEncoder.BYTES_PER_SAMPLE
+        const val CAPTURE_BUFFER_BYTES = CHUNK_BYTES * 4
+        const val PAUSED_POLL_MS = 20L
+        const val CAPTURE_JOIN_MS = 1000L
+    }
 }
 
-/** Mikrofon žádné povolení nechce; nahrávání pak samo ohlásí, že nejde ([AudioRecorder.start]). */
+/** Průměrný výkon PCM (16 bitů LE) v dB převedený na 0..1; −50 dB a níž je ticho. */
+internal fun levelOf(buffer: ByteArray, count: Int): Float {
+    val samples = count / 2
+    if (samples == 0) return 0f
+    var sum = 0.0
+    for (i in 0 until samples) {
+        val sample = ((buffer[2 * i].toInt() and 0xFF) or (buffer[2 * i + 1].toInt() shl 8)).toShort().toDouble()
+        sum += sample * sample
+    }
+    val rms = sqrt(sum / samples) / Short.MAX_VALUE
+    if (rms <= 0.0) return 0f
+    val db = 20 * log10(rms)
+    return ((db + SILENCE_DB) / SILENCE_DB).toFloat().coerceIn(0f, 1f)
+}
+
+private const val SILENCE_DB = 50.0
+
+/**
+ * Povolení k mikrofonu si na macOS řekne systém sám při prvním otevření linky (TCC); Java
+ * dotaz předem položit neumí. Když mikrofon nejde otevřít, ohlásí to [AudioRecorder.start].
+ */
 @Composable
 actual fun rememberRecordPermission(): RecordPermission = remember {
     object : RecordPermission {

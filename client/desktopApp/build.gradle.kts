@@ -112,7 +112,7 @@ compose.desktop {
                         <key>NSCameraUsageDescription</key>
                         <string>Plume uses the camera for video calls.</string>
                         <key>NSMicrophoneUsageDescription</key>
-                        <string>Plume uses the microphone for calls.</string>
+                        <string>Plume uses the microphone for calls and voice messages.</string>
                     """.trimIndent()
                 }
             }
