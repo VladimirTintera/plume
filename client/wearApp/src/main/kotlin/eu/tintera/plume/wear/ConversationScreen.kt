@@ -442,36 +442,17 @@ private fun MessageList(
                 )
             }
             botNote?.let { item { CenteredNote(it, Modifier.transformedItem(this, spec)) } }
+            // Hlasovka, samolepka a poloha jako řada ikon nad Odpovědět (IconActionRow): tři
+            // tlačítka přes celou šířku zabrala spodek displeje a nejnovější zpráva byla vidět
+            // jen kouskem.
             item {
-                Button(
-                    onClick = onRecord,
-                    icon = { Icon(painterResource(Res.drawable.mic_24dp), contentDescription = null) },
-                    label = { Text(stringResource(Res.string.wear_voice_record)) },
-                    colors = ButtonDefaults.filledTonalButtonColors(),
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec).padding(top = GROUP_GAP),
-                    transformation = SurfaceTransformation(spec),
-                )
-            }
-            // Samolepka z oblíbených a nedávných (StickerPickerScreen) — rychlá odpověď jedním ťuknutím.
-            item {
-                Button(
-                    onClick = onSticker,
-                    icon = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
-                    label = { Text(stringResource(Res.string.wear_sticker_button)) },
-                    colors = ButtonDefaults.filledTonalButtonColors(),
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
-                    transformation = SurfaceTransformation(spec),
-                )
-            }
-            // Jednorázová poloha z hodinek (SendLocationScreen), po potvrzení.
-            item {
-                Button(
-                    onClick = onLocation,
-                    icon = { Icon(painterResource(Res.drawable.location_on_24dp), contentDescription = null) },
-                    label = { Text(stringResource(Res.string.wear_location_button)) },
-                    colors = ButtonDefaults.filledTonalButtonColors(),
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
-                    transformation = SurfaceTransformation(spec),
+                IconActionRow(
+                    listOf(
+                        IconAction(Res.drawable.mic_24dp, Res.string.wear_voice_record, onRecord),
+                        IconAction(Res.drawable.sticker_24dp, Res.string.wear_sticker_button, onSticker),
+                        IconAction(Res.drawable.location_on_24dp, Res.string.wear_location_button, onLocation),
+                    ),
+                    Modifier.transformedItem(this, spec).padding(top = GROUP_GAP),
                 )
             }
         }
