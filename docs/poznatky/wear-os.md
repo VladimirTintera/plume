@@ -254,6 +254,13 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   - **Zpráva s polohou má v bublině řádek** (ikona, „Poloha" / název místa / „Živá poloha",
     adresa nebo souřadnice s tečkou v každém jazyce) a ťuknutí otevře mapu v telefonu. `core`
     dává poloze prázdné tělo i popis (telefon ji kreslí mapou), takže byla bublina prázdná.
+  - **Totéž kontakt a záznam hovoru** (`MessageContact`, `MessageCall`): `core` jim dává prázdné
+    tělo (telefon je kreslí kartou a řádkem), takže byly prázdnou bublinou. Kontakt: fotka nebo
+    iniciála, jméno a číslo. Hovor: ikona podle směru (zmeškaný a odmítnutý chybovou barvou),
+    popisek z `core` (`CallOutcome.title`, tentýž jako na telefonu) a délka, když se mluvilo.
+    **Kdo přidává do `core` další typ s prázdným tělem, musí mu na hodinkách dát řádek** — jinak
+    tam bude prázdná bublina. Kontakt ověřený na emulátoru (bot přes `sendContact`), záznam
+    hovoru ne (bot ho vyrobit neumí, v testovacích chatech žádný není).
   - **Emulátor: `adb emu geo fix` do GPS hodinek nedojde** (`last location=null` v `dumpsys
     location`). Polohu dá testovací poskytovatel: `appops set com.android.shell
     android:mock_location allow`, `cmd location providers add-test-provider gps`,
