@@ -27,6 +27,7 @@ import androidx.wear.compose.material3.lazy.TransformationSpec
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.resources.Res
@@ -65,8 +66,11 @@ private val logger = Logger.withTag("WearChatActions")
 @Composable
 fun ChatActionsScreen(chatId: Long, onDone: () -> Unit) {
     val chats = koinInject<ChatRepository>()
-    val listState by chats.chats().collectAsState()
-    val chat = (listState as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }
+    // Každý chat je buď v hlavním seznamu, nebo v archivu (složky Telegramu jsou jen výběr
+    // z nich), takže stačí hledat v obou — podržení karty jde i v archivu a ve složce.
+    val main by chats.chats(ChatFolder.Main).collectAsState()
+    val archive by chats.chats(ChatFolder.Archive).collectAsState()
+    val chat = listOf(main, archive).firstNotNullOfOrNull { list -> (list as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId } }
     val savedMessagesId = savedMessagesChatId()
     val scope = rememberCoroutineScope()
     var failed by remember { mutableStateOf(false) }

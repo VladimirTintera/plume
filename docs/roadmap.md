@@ -346,7 +346,7 @@ Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se z
 3. **Poslání samolepky** z naposledy použitých.
 4. ~~**Akce nad chatem**~~ — hotovo (podržením karty: přečteno / nepřečteno, ztlumit, archivovat).
 5. **Hledání chatu diktováním a nová konverzace** s kontaktem mimo horní část seznamu.
-6. **Archiv a složky** (dnes jen hlavní seznam).
+6. ~~**Archiv a složky**~~ — hotovo (výběr složky s počty nepřečtených, archiv, vrácení z něj).
 7. ~~**Rychlá poznámka do Uložených zpráv**~~ — hotovo (dlaždice a komplikace, diktování rovnou).
 8. **Poslání polohy** z GPS hodinek, jednorázově (živá poloha by vybíjela baterii).
 

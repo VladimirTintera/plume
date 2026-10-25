@@ -94,7 +94,6 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.di.APP_SCOPE
-import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -146,10 +145,11 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     val files = koinInject<FileRepository>()
     val appScope = koinInject<CoroutineScope>(named(APP_SCOPE))
     val scope = rememberCoroutineScope()
-    val listState by chats.chats().collectAsState()
-    val summary = (listState as? ChatListState.Ready)?.chats?.firstOrNull { it.id == chatId }
+    // Název a fotka podle id, ne z hlavního seznamu: chat může být otevřený z archivu nebo
+    // ze složky Telegramu a v hlavním seznamu by chyběl.
+    val appearance by remember(chatId) { chats.appearance(chatId) }.collectAsState(null)
     val savedMessagesId = savedMessagesChatId()
-    val title = chatTitle(chatId, summary?.title.orEmpty(), savedMessagesId)
+    val title = chatTitle(chatId, appearance?.title.orEmpty(), savedMessagesId)
 
     // Zprávy a odběry patří ViewModelu položky navigace: přežije nabídku nad zprávou i nahrávání
     // (jinak se po návratu konverzace načetla znovu a sjela dolů), viz ConversationViewModel.
@@ -243,7 +243,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
         current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
         else -> MessageList(
             title = title,
-            avatarFileId = summary?.avatarFileId,
+            avatarFileId = appearance?.avatarFileId,
             savedMessages = chatId == savedMessagesId,
             messages = current,
             quoted = model.quoted,

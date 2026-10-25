@@ -121,6 +121,19 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   položky, odběr skončí s kartou. Připnutý chat má před časem / odznakem špendlík. Ověřeno na
   emulátoru 2026-10-25: `sendChatAction typing` od Notifikátora → „typing…" v jeho kartě;
   připnutý chat účet na emulátoru nemá, špendlík neověřený.
+- **Archiv a složky** (`FoldersScreen`, cesty `folders` a `folder/{id}` s `archive` pro archiv):
+  pod Nastavením v hlavním seznamu „Archiv a složky", výběr ukáže složky Telegramu v pořadí účtu
+  (`chatFolders`) a na konci Archiv, každou s počtem nepřečtených chatů (`folderUnread`,
+  `archiveUnread` — počítá TDLib, i pro neotevřenou složku). Seznam složky je tentýž
+  `ChatListScreen` s `ChatFolder`; archiv a složky se začnou načítat až otevřením (`loadMore`),
+  do té doby `Loading`. Nastavení a vstup do složek má jen hlavní seznam.
+  - **Konverzace bere název a fotku z `appearance(chatId)`**, ne z hlavního seznamu: chat
+    otevřený z archivu nebo složky by v hlavičce neměl název ani fotku.
+  - **Akce nad chatem hledají chat v hlavním seznamu i v archivu** — každý chat je v jednom
+    z nich (složky Telegramu jsou jen výběr), takže podržení funguje i v archivu a ve složce.
+  - Ověřeno na emulátoru 2026-10-25: složky účtu (Skupiny, Kanaly, Boti) a Archiv s počty
+    nepřečtených, archiv se ztlumenými chaty, Notifikátor archivovaný z hlavního seznamu,
+    v archivu „Přesunout do chatů" a zpátky v hlavním seznamu (a jen jeden krok zpět).
 - **Akce nad chatem podržením karty** (`TitleCard.onLongClick`, `ChatActionsScreen`, cesta
   `chatActions/{chatId}`): přečteno / nepřečteno (`readChat`, `setMarkedAsUnread`), ztlumit /
   zrušit ztlumení (`setMuted`), archivovat / vrátit (`setArchived`) — bez otevírání chatu. Z dvojice
@@ -129,8 +142,7 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   - **Zmizí-li chat ze seznamu, obrazovka nic nedělá** (ne `onDone()` v kompozici): po archivaci
     chat zmizí, zatímco `popBackStack` z akce už běží, a druhé couvnutí by zavřelo i seznam.
   - Ověřeno na emulátoru 2026-10-25 na Notifikátorovi: přečteno, nepřečteno (tečka), ztlumení
-    (tlumená tečka) a zpět. **Archivace na emulátoru nezkoušená** — archiv hodinky zatím
-    neukazují, chat by z nich nešel vrátit.
+    (tlumená tečka), archivace a vrácení z archivu (viz Archiv a složky).
 - **Fotka chatu** (`ChatAvatar`): malá varianta (`avatarFileId`), stažení spustí odběr
   `FileRepository.file()` sám; dekóduje se mimo hlavní vlákno rovnou zmenšená (`inSampleSize`
   mocninou dvou) na velikost avataru — hodinky mají málo paměti. Bez fotky iniciála.
