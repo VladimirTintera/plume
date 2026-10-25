@@ -711,6 +711,34 @@ v 3.6). Z každých pár pixelů se vezme jeden a zbytek zahodí.
 - **iOS jede přes týž kód Coilu** (`nonAndroidMain`), takže ho nejspíš potkává obojí. Tam to
   ověřené ani opravené není (`zoomLoadsFullResolution = false`, výchozí dekodér).
 
+## Zvuk: hlasovky a hudba (FFmpeg + javax.sound)
+
+`AudioEngine` na desktopu: `FfmpegAudioDecoder` dekóduje cokoli, co umí FFmpeg (Ogg/Opus
+hlasovky, MP3, AAC, FLAC…) a převede to na 48 kHz stereo 16 bitů, `SourceDataLine` z
+`javax.sound` to hraje. Přehrávač, dock a fronta hudby jsou společné, desktop dodává jen tohle.
+
+- **JVM sám Opus ani MP3 nedekóduje**; FFmpeg z JavaCPP už v projektu byl kvůli videu, takže
+  nová závislost nepřibyla. LGPL build má nativní dekodéry Opusu, MP3 i AAC.
+- **Rychlost (1,5×, 2×) dělá filtr `atempo`** v grafu `abuffer → atempo → aformat →
+  abuffersink`, ne převzorkování — hlas se zrychlí, ale nezvýší. Mění se za běhu příkazem
+  filtru (`avfilter_graph_send_command`), takže změna uprostřed nahrávky nic nezahodí.
+- **Pozice z odehraných vzorků** (`longFramePosition`), ne ze zapsaných: v lince leží ~85 ms,
+  které ještě nezazněly. Od posunu a změny rychlosti se počítá od kotvy (čas + pozice linky),
+  vzorek výstupu je při 1,5× o půl vzorku delší kus nahrávky.
+- **Do linky se píše jen tolik, kolik se vejde** (`available()`); zastavená linka by zápis
+  zablokovala a vlákno přehrávače by nevzalo další povel (posun, uvolnění).
+- **Posun je po rámcích** (Opus 20 ms, MP3 26 ms): FFmpeg skočí na paket před cílem, rámce
+  končící před ním se zahodí, filtr se postaví načisto.
+- **Dekodér i linku zavírá vlákno přehrávače**, ne `release()` z hlavního vlákna — to by mu je
+  mohlo vzít uprostřed čtení. `release()` jen zastaví a vyprázdní linku, ať zvuk hned utichne.
+- **Testy nad skutečnými soubory** (`FfmpegAudioDecoderTest`, `jvmTest/resources/audio`):
+  Opus i MP3 vyrobené `ffmpeg -f lavfi -i sine=…` (amplituda 1/8, špička ~4000).
+- **Ověřeno v ladicí aplikaci 25. 10. 2026** (macOS, hlasovka v Notifikátoru): přehrání do konce
+  (konec se ohlásí, přehrávač se vrátí do klidu), průběh a vlna, rychlost za chodu, pauza drží
+  pozici, pokračování. Rychlost se ukládá do nastavení — po zkoušce vrátit na 1×.
+  **Neověřené**: hudba a dock na skutečné skladbě, posun na delší nahrávce (jen testem),
+  Windows a Linux (`javax.sound` tam jde přes jiné ovladače), zvuk videa.
+
 ## Video: GIFy a tichá kolečka (FFmpeg)
 
 GIF je v Telegramu MP4 (H.264) a JVM vlastní dekodér nemá. `VideoPlayer` na desktopu proto
@@ -778,9 +806,8 @@ plátna (jako iOS), JPEG s `PHOTO_JPEG_QUALITY`.
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
 přepínání kamery; náhled kamery před spojením jen na macOS.
 
-Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání
-zvuku vyhodí výjimku („hlasovku se nepodařilo přehrát"), nahrávání taky („nahrávání nejde
-spustit"), video se zvukem má `isFailed = true` a otevírá se v aplikaci systému
+Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: nahrávání
+zvuku vyhodí výjimku („nahrávání nejde spustit"), video se zvukem má `isFailed = true` a otevírá se v aplikaci systému
 (`viewerUnsupportedFormats` obsahuje všechna videa a HEIC; ztlumené hraje, viz „Video: GIFy
 a tichá kolečka"), kamera pro kolečka je `null`
 (nenabídne se). Seznam chybějícího je v `docs/roadmap.md`, sekce Desktop.

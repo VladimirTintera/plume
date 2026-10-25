@@ -451,7 +451,7 @@ vypnuto): v hlasovkách i audiu se zkrátí pauzy, hlas se nezrychlí ani nezkre
     nesmí usnout (oprávnění `WAKE_LOCK` aplikace už má kvůli uchu).
 - **Volba je v Nastavení, ne u čipu rychlosti.** Volí se jednou a platí pro všechno, stejně jako
   rychlost; čip je jen u hrající hlasovky a druhý prvek vedle něj by bublinu přeplnil.
-- **Jen Android** (`skipSilenceSupported`): `AVAudioPlayer` na iOS to neumí a desktop zvuk nemá;
+- **Jen Android** (`skipSilenceSupported`): `AVAudioPlayer` na iOS to neumí a desktop (FFmpeg) zatím ne;
   řádek v Nastavení tam chybí.
 - **Posuvník při přeskakování poskakuje** — pozice je čas v nahrávce, ne čas poslechu, takže přes
   zkrácenou pauzu přeskočí. Je to správně: délka i pozice dál odpovídají souboru.
