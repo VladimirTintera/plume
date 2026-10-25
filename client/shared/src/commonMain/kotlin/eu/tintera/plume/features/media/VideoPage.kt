@@ -703,6 +703,8 @@ internal fun VideoPage(
         null
     }
     val inPip = pip?.active == true
+    // Desktop: video odešlo do vlastního okénka, prohlížeč se zavře a dá se psát dál.
+    LaunchedEffect(inPip) { if (inPip && pip?.leavesViewer == true) currentDismiss?.invoke() }
     // Zavřené okénko i odchod na pozadí bez okénka video pozastaví (proces pod ním žije dál).
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         player.pause()

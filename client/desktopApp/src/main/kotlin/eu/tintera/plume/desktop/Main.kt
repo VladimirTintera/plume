@@ -41,6 +41,7 @@ import eu.tintera.plume.core.ui.DesktopImageLoader
 import eu.tintera.plume.core.ui.rememberDesktopShortcutHandler
 import eu.tintera.plume.core.ui.DesktopMenuBar
 import eu.tintera.plume.di.startKoin
+import eu.tintera.plume.core.video.DesktopPictureInPictureWindow
 import eu.tintera.plume.features.calls.IncomingCallWindow
 import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
 import java.awt.Desktop
@@ -115,6 +116,9 @@ fun main(args: Array<String>) {
 
         // Příchozí hovor, když hlavní okno není vpředu: okénko navrchu s Přijmout / Odmítnout.
         IncomingCallWindow()
+
+        // Video v okénku obrazu v obraze; přežije zavření prohlížeče, ze kterého přišlo.
+        DesktopPictureInPictureWindow()
 
         // Klávesové zkratky (Ctrl/⌘+K, Alt+šipky…) dřív, než klávesu dostane zaostřený prvek.
         val shortcuts = rememberDesktopShortcutHandler()

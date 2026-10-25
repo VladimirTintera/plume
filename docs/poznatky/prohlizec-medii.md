@@ -1119,6 +1119,8 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   - **iOS** jde přes `AVPictureInPictureController` nad vrstvou přehrávače (`VideoPlayer.layer`,
     stav — povrch se skládá až po přehrávači) a `canStartPictureInPictureAutomaticallyFromInline`;
     na pozadí hraje díky `UIBackgroundModes: audio`. Jen přeložené.
+  - **Desktop** předá přehrávač vlastnímu okénku vždy navrchu a prohlížeč zavře
+    (`PictureInPicture.leavesViewer`), viz `docs/poznatky/desktop.md`, „Obraz v obraze".
   - **Při ověřování okénko odkryje aplikaci pod emulátorem** (v Androidu cokoli, co bylo v popředí
     předtím) — snímky obrazovky s PiP zachytí i cizí obsah. Stav se čte z `dumpsys activity
     activities` (`mode=pinned`), a na okénko se ťuká jen tam, kde okénko opravdu leží
