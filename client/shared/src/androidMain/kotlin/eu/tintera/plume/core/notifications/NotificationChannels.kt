@@ -32,6 +32,8 @@ import eu.tintera.plume.resources.notification_channel_private
 import eu.tintera.plume.resources.notification_channel_private_description
 import eu.tintera.plume.resources.notification_channel_silent
 import eu.tintera.plume.resources.notification_channel_snooze
+import eu.tintera.plume.resources.notification_channel_watch_login_description
+import eu.tintera.plume.resources.notification_channel_watch_login
 import eu.tintera.plume.resources.notification_channel_snooze_description
 import eu.tintera.plume.resources.notification_channel_with_sound
 import java.io.File
@@ -282,5 +284,23 @@ suspend fun createSnoozeChannel(context: Context) {
             readString(Res.string.notification_channel_snooze),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply { description = readString(Res.string.notification_channel_snooze_description) },
+    )
+}
+
+/** Potvrzení přihlášení hodinek (`WatchLoginService` v `androidApp`). Id se nesmí měnit. */
+const val WATCH_LOGIN_CHANNEL_ID = "watch-login"
+
+/**
+ * Kanál žádosti hodinek o přihlášení. Důležitý (`IMPORTANCE_HIGH`, vyskočí přes obrazovku):
+ * uživatel na odpověď čeká s hodinkami na ruce a přihlašovací kód po chvíli vyprší. Zakládá ho
+ * služba sama až s první žádostí — kdo hodinky nemá, kanál v nastavení neuvidí.
+ */
+suspend fun createWatchLoginChannel(context: Context) {
+    context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+        NotificationChannel(
+            WATCH_LOGIN_CHANNEL_ID,
+            readString(Res.string.notification_channel_watch_login),
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply { description = readString(Res.string.notification_channel_watch_login_description) },
     )
 }

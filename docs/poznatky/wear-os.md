@@ -68,6 +68,29 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   displeje se vejde čtverec o straně 1/√2 průměru; první verze (150 dp pod nadpisem) měla spodní
   roh i s pozičním čtvercem uříznutý a čtečka ho nemusela najít. Bílý okraj kolem kódu, na
   černém pozadí hodinek by ho čtečka nenašla. Odkaz po vypršení vymění TDLib sám.
+- **Přihlášení telefonem** (smlouva `WatchLogin` v `:client:core`, hodinky `PhoneLogin`, telefon
+  `WatchLoginService` v `androidApp`): pod nadpisem QR obrazovky „Přihlásit telefonem", jen když
+  je v dosahu telefon s Plume — telefon ohlašuje schopnost `plume_phone` (`res/values/wear.xml`,
+  `tools:keep`, jinak by ji zmenšení prostředků v release vyhodilo; Play služby ji čtou bez kódu).
+  Hodinky pošlou odkaz z QR kódu (`MessageClient`, cesta `/plume/watch-login`), telefon ukáže
+  notifikaci „Přihlásit hodinky?" s Přihlásit / Zamítnout a po potvrzení zavolá `confirmQrLogin`
+  — jako by kód naskenoval. Výsledek jde zpátky (`/plume/watch-login/result`: potvrzeno,
+  zamítnuto, telefon nepřihlášen, nezdar); `Ready` hodinkám přijde od TDLib samo.
+  - **Nikdy bez potvrzení na telefonu.** Data Layer doručí zprávu jen mezi aplikacemi se stejným
+    id a podpisem, ale přihlášení zařízení k účtu je citlivé.
+  - **Notifikace `setLocalOnly`:** nepřihlášené hodinky zrcadlí notifikace telefonu, takže by se
+    žádost ukázala i na nich a „Přihlásit" by šlo ťuknout přímo z hodinek.
+  - **Odkaz se obnovuje zhruba po půl minutě** — dokud hodinky čekají, posílají každý nový a
+    telefon notifikaci tiše přepíše (stejné id, `setOnlyAlertOnce`, akce `FLAG_UPDATE_CURRENT`).
+    Potvrzení tak míří na platný kód, ať uživatel ťukne kdykoli.
+  - **Probuzený proces telefonu:** zpráva umí spustit mrtvou aplikaci a TDLib se teprve rozbíhá;
+    služba i přijímač na stav přihlášení čekají (10 s). Odhrnutí notifikace = zamítnutí.
+  - **Task API bez `coroutines-play-services`** (`awaitResult` = `Tasks.await` na `Dispatchers.IO`),
+    stejná úvaha jako u Play In-App Updates.
+  - **Neověřené na zařízení**: spárovat emulátor hodinek s emulátorem telefonu chce aplikaci
+    Wear OS na telefonu s účtem Google, takže to čeká na Pixel Watch se spárovaným telefonem
+    (oba z interního testu — Data Layer vyžaduje stejný podpis). Přeložené obě aplikace, test
+    smlouvy (`WatchLoginTest`), hodinky se s novou závislostí spustí.
 - **Heslo dvoufázového ověření systémovou klávesnicí** (`RemoteInput` přes `androidx.wear:wear-input`):
   Compose for Wear OS textové pole nemá. Klávesnice heslo nemaskuje — jiná cesta na hodinkách není.
 - **Ověřeno na emulátoru 2026-10-24:** sken telefonem (Nastavení → Zařízení → Připojit zařízení),

@@ -104,6 +104,8 @@ dependencies {
     implementation(libs.wear.remote.interactions)
     // QR kód pro přihlášení (jako telefon).
     implementation(libs.zxing.core)
+    // Přihlášení potvrzené z telefonu: odkaz z QR kódu jde přes Wearable Data Layer.
+    implementation(libs.play.services.wearable)
 
     // Dlaždice a komplikace s počtem nepřečtených: dlaždice se skládá z ProtoLayout (M3 pro
     // dlaždice), ne z Compose; TileService vrací ListenableFuture, korutinu do ní převede

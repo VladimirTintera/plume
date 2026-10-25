@@ -4315,6 +4315,21 @@
     <!-- Wear OS (client/wearApp) -->
     <string name="wear_login_title">Přihlášení</string>
     <string name="wear_login_qr_hint">Naskenujte kód v Telegramu na telefonu: Nastavení → Zařízení → Připojit zařízení.</string>
+    <string name="wear_login_with_phone">Přihlásit telefonem</string>
+    <string name="wear_login_phone_waiting">Potvrďte přihlášení v notifikaci na telefonu.</string>
+    <string name="wear_login_phone_confirmed">Přihlašuji…</string>
+    <string name="wear_login_phone_declined">Přihlášení bylo v telefonu zamítnuto.</string>
+    <string name="wear_login_phone_not_signed_in">Plume na telefonu není přihlášené. Naskenujte raději kód.</string>
+    <string name="wear_login_phone_failed">Telefon hodinky nepřihlásil. Zkuste to znovu.</string>
+    <string name="notification_channel_watch_login">Přihlášení hodinek</string>
+    <string name="notification_channel_watch_login_description">Potvrzení přihlášení, o které žádá Plume na hodinkách</string>
+    <string name="watch_login_title">Přihlásit hodinky?</string>
+    <string name="watch_login_text">Zařízení %1$s žádá o přihlášení k vašemu účtu. Potvrďte, jen pokud máte hodinky u sebe.</string>
+    <string name="watch_login_text_unnamed">Hodinky žádají o přihlášení k vašemu účtu. Potvrďte, jen pokud je máte u sebe.</string>
+    <string name="watch_login_confirm">Přihlásit</string>
+    <string name="watch_login_decline">Zamítnout</string>
+    <string name="watch_login_done">Hodinky jsou přihlášené</string>
+    <string name="watch_login_failed">Hodinky se nepodařilo přihlásit. Zkuste to znovu z hodinek.</string>
     <string name="wear_login_qr_only">Na hodinkách se dá přihlásit jen QR kódem.</string>
     <string name="wear_login_show_qr">Zobrazit QR kód</string>
     <string name="wear_password_title">Dvoufázové ověření</string>

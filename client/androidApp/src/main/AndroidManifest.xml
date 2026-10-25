@@ -236,6 +236,25 @@
                 android:resource="@xml/chats_widget_info" />
         </receiver>
 
+        <!-- Přihlášení hodinek potvrzené z telefonu (core/wear/WatchLogin): hodinky pošlou odkaz
+             z QR kódu přes Wearable Data Layer, telefon se zeptá notifikací. Exportovaná kvůli
+             Play službám; zprávy doručí jen od aplikace se stejným id a podpisem. -->
+        <service
+            android:name=".WatchLoginService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:host="*"
+                    android:path="/plume/watch-login"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".WatchLoginReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".NotificationActionReceiver"
             android:exported="false">
