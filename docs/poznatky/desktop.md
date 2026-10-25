@@ -801,8 +801,10 @@ příběhy a video v prohlížeči médií; HEIC dál otevírá aplikace systém
   poslané jako soubor se otevře v prohlížeči místo systémové aplikace, hraje se zvukem, čas na
   obraze běží s pozicí, dohraje a jde pustit znovu, 2× zrychlí obraz i zvuk, ztlumení obraz
   nezastaví, pauza; pípnutí na poslech sedí na celé vteřiny počítadla. Video bez zvukové stopy
-  hraje podle hodin. **Neověřené v aplikaci**: kolečko
-  se zvukem a příběhy (tentýž přehrávač), dlouhé video a zahazování snímků, Windows a Linux.
+  hraje podle hodin. Kolečko (poslané testovacím botem přes `sendVideoNote`) se po ťuknutí
+  přepne na zvuk (kruh průběhu, uplynulý čas) a po dohrání se vrátí do tiché smyčky.
+  **Neověřené v aplikaci**: příběhy (tentýž přehrávač), dlouhé video a zahazování snímků,
+  Windows a Linux.
 
 ### Obraz
 
