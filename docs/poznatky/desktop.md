@@ -764,17 +764,47 @@ hlasovky, MP3, AAC, FLAC…) a převede to na 48 kHz stereo 16 bitů, `SourceDat
   **Neověřené**: hudba a dock na skutečné skladbě, posun na delší nahrávce (jen testem),
   Windows a Linux (`javax.sound` tam jde přes jiné ovladače), zvuk videa.
 
-## Video: GIFy a tichá kolečka (FFmpeg)
+## Video (FFmpeg)
 
 GIF je v Telegramu MP4 (H.264) a JVM vlastní dekodér nemá. `VideoPlayer` na desktopu proto
 dekóduje přes **FFmpeg z JavaCPP** (`org.bytedeco:ffmpeg`, LGPL build, dynamicky linkované
 knihovny): `FfmpegVideoDecoder` čte snímky, swscale je převede rovnou do BGRA ve velikosti
-plochy a `VideoSurface` je kreslí jako obrázky Skii.
+plochy a `VideoSurface` je kreslí jako obrázky Skii. Hraje GIF, kolečko (tiché i se zvukem),
+příběhy a video v prohlížeči médií; HEIC dál otevírá aplikace systému.
 
-- **Jen ztlumené video.** Zvukový výstup desktop nemá, takže `load(muted = false)` hlásí
-  `isFailed` jako dřív — video, které vypadá, že hraje, a mlčí, by bylo horší než náhled.
-  Hraje tedy GIF (bublina, výběr GIFů, náhled před odesláním) a tichá smyčka kolečka; kolečko
-  se zvukem, příběhy a prohlížeč videa zůstávají, jak byly (video otevírá aplikace systému).
+### Zvuk videa
+
+- **Zvuk hraje `AudioEngine`**, tentýž přehrávač jako hlasovky (`FfmpegAudioDecoder`
+  + `SourceDataLine`), nad druhým otevřením téhož souboru. Dvě čtení jednoho místního souboru
+  nic nestojí a obraz i zvuk si tak drží vlastní posun bez společného demuxeru.
+- **Obraz se řídí zvukem, ne naopak.** Snímek se ukáže, až pozice zvuku (odehrané vzorky linky)
+  dojde k jeho PTS; ucho posun o pár desítek ms pozná, oko zahozený snímek ne. Nestíhá-li obraz
+  o víc než 250 ms, snímky se zahazují bez převodu swscale (ten je dražší než dekódování),
+  aspoň jeden za 250 ms se ale ukáže.
+- **Bez zvuku se časuje podle hodin jako dřív**: ztlumené načtení (`load(muted = true)`, GIF),
+  video bez zvukové stopy (`av_find_best_stream` ji nenajde) a systém bez zvukového výstupu.
+  Když zvuk dohraje dřív než obraz, kotva se založí od snímku, na kterém skončil.
+- **Ztlumení za běhu (`setMuted`) píše do linky ticho**, nezastavuje ji: hodiny obrazu jdou ze
+  zvuku a zastavená linka by zastavila i obraz.
+- **Rychlost dělá `atempo` ve zvuku** (hlas se nezvýší) a obraz dělí čekání toutéž rychlostí.
+- **Pauza zastaví linku hned z hlavního vlákna**, ne až se probudí smyčka obrazu — dozvuk po
+  stisku pauzy byl slyšet.
+- **Kvality videa**: přepočítané od serveru jsou h264 a AV1; desktop nabízí h264 (FFmpeg ho
+  dekóduje vždycky), AV1 jen s `libdav1d`, na který se z kompozice nedá zeptat bez nahrání
+  nativních knihoven. Streamovat neumí (chtělo by vlastní `AVIOContext`), prohlížeč tedy čeká na
+  celý soubor.
+- **Testy `DesktopVideoSoundTest`** ve skutečném čase nad `sound.mp4` / `silent.mp4`
+  (`jvmTest/resources/video`, 2 s `testsrc` + sinus z `ffmpeg -f lavfi`): pozice po vteřině,
+  konec, ztlumení, posun s rychlostí 2×, video bez zvukové stopy. Na stroji bez zvukového
+  výstupu se testy se zvukem přeskočí.
+- **Ověřeno v ladicí aplikaci 25. 10. 2026** (macOS, prohlížeč médií v Notifikátoru): MP4
+  poslané jako soubor se otevře v prohlížeči místo systémové aplikace, hraje se zvukem, čas na
+  obraze běží s pozicí, dohraje a jde pustit znovu, 2× zrychlí obraz i zvuk, ztlumení obraz
+  nezastaví, pauza. Video bez zvukové stopy hraje podle hodin. **Neověřené v aplikaci**: kolečko
+  se zvukem a příběhy (tentýž přehrávač), dlouhé video a zahazování snímků, Windows a Linux.
+
+### Obraz
+
 - **Proč FFmpeg, ne JCodec.** JCodec je čistá Java a ~1 MB, ale pomalý (GIFů hraje v chatu víc
   naráz), od roku 2020 se nevyvíjí a pro plné video a zvuk by se FFmpeg stejně přidával. Cena:
   nativní knihovny pro jeden systém mají 20–30 MB (Windows 30 MB).
@@ -804,7 +834,7 @@ plochy a `VideoSurface` je kreslí jako obrázky Skii.
 - **Ověřeno na Windows** testovacími MP4 z FFmpegu v balíčku (`ffmpeg.exe` leží v nativním jaru,
   kodér `libopenh264`): 60 snímků po 33 ms, skok, smyčka, pauza, konec, cesta s diakritikou,
   barvy pruhů, vykreslení `VideoSurface` přes `ImageComposeScene`; GIFy v konverzaci
-  ověřené v běžící aplikaci (23. 10. 2026). **macOS a Linux jen přeložené.**
+  ověřené v běžící aplikaci (23. 10. 2026). **Linux jen přeložený.**
 
 ## Úprava fotky
 
@@ -831,10 +861,8 @@ plátna (jako iOS), JPEG s `PHOTO_JPEG_QUALITY`.
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
 přepínání kamery; náhled kamery před spojením jen na macOS.
 
-Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: video se zvukem má `isFailed = true` a otevírá se v aplikaci systému
-(`viewerUnsupportedFormats` obsahuje všechna videa a HEIC; ztlumené hraje, viz „Video: GIFy
-a tichá kolečka"), kamera pro kolečka je `null`
-(nenabídne se). Seznam chybějícího je v `docs/roadmap.md`, sekce Desktop.
+Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: HEIC se otevírá
+v aplikaci systému (`viewerUnsupportedFormats`), kamera pro kolečka je `null` (nenabídne se). Seznam chybějícího je v `docs/roadmap.md`, sekce Desktop.
 
 - **Výběr příloh je AWT `FileDialog`** (na macOS nativní panel). Soubor se nekopíruje — na
   rozdíl od mobilů tu žádný dočasný adresář výběru není. Fotka (co přečte ImageIO) jde jako

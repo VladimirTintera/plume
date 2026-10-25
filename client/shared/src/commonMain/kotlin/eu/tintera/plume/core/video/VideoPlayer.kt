@@ -107,7 +107,7 @@ class StreamingSource(
  * Umí tahle platforma přehrát rozestavěný soubor?
  *
  * Android i iOS ano: vlastní zdroj nad souborem TDLib (`PartialFileDataSource` pro ExoPlayer,
- * `StreamingResourceLoader` pro AVPlayer). Desktop video nepřehrává vůbec.
+ * `StreamingResourceLoader` pro AVPlayer). Desktop čte jen hotové soubory.
  */
 expect val videoStreamingSupported: Boolean
 
@@ -133,8 +133,8 @@ expect val videoFragmentedStreamingNeedsHls: Boolean
  *
  * Server přepočítává každou velikost do h264 i AV1; kvalitu, kterou telefon nepřehraje, nabízet
  * nemá, a softwarové dekódování (AV1 na telefonu bez podpory v čipu) pálí baterii. Na Androidu
- * se ptá `MediaCodecList`, na iOS je to pevná tabulka (AVPlayer se zeptat nedá) a desktop video
- * nepřehrává vůbec.
+ * se ptá `MediaCodecList`, na iOS je to pevná tabulka (AVPlayer se zeptat nedá) a desktop
+ * bere jen h264 (FFmpeg v softwaru).
  */
 expect fun videoDecoder(codec: String, width: Int, height: Int): VideoDecoder
 

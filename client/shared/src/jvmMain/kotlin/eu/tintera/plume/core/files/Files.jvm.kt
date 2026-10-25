@@ -13,9 +13,8 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Skia na desktopu HEIC nedekóduje a přehrávač videa zatím není; takové soubory otevře systém. */
-internal actual fun viewerUnsupportedFormats(): Set<DocumentFormat> =
-    DocumentFormat.entries.filter { it.kind == DocumentKind.Video }.toSet() + DocumentFormat.Heic
+/** Skia na desktopu HEIC nedekóduje; takové soubory otevře systém. Video přehraje FFmpeg. */
+internal actual fun viewerUnsupportedFormats(): Set<DocumentFormat> = setOf(DocumentFormat.Heic)
 
 /** Desktop: výchozí aplikace systému pro daný typ souboru. */
 actual class FileOpener {

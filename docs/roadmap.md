@@ -200,11 +200,10 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   (`docs/poznatky/desktop.md`, „Zvuk"), ~~nahrávání hlasovek~~ — hotovo (`javax.sound`
   a `libopus` z FFmpegu). Zbývá přeskakování ticha, ovládání hudby ze systému (Now Playing na
   macOS, MPRIS na Linuxu) a nahrávání do Telegramu už během nahrávání (kóduje se až na konci).
-- **Video**: ztlumené hraje (GIFy, tichá smyčka kolečka) přes FFmpeg z JavaCPP
-  (`docs/poznatky/desktop.md`, „Video: GIFy a tichá kolečka"). Zbývá zvuk videa (FFmpeg
-  dekóduje i zvuk, chybí výstup a synchronizace) — pak kolečko se zvukem, příběhy a prohlížeč
-  videa; dnes se video otevírá v aplikaci systému. Streamování rozestavěného souboru by chtělo
-  vlastní `AVIOContext`.
+- **Video**: ~~ztlumené (GIFy, tichá smyčka kolečka)~~ i ~~se zvukem (prohlížeč, kolečko,
+  příběhy)~~ — hotovo přes FFmpeg z JavaCPP a `javax.sound` (`docs/poznatky/desktop.md`,
+  „Video (FFmpeg)"). Zbývá streamování rozestavěného souboru (vlastní `AVIOContext`; dnes se
+  čeká na celý), AV1 kvality (`libdav1d`), obraz v obraze a Windows a Linux ověřit.
 - **Trezor tajemství na Windows a Linuxu** (DPAPI, Secret Service / libsecret). Dnes soubor
   s právy jen pro vlastníka vedle databáze.
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
