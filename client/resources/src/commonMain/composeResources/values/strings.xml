@@ -431,6 +431,7 @@
     <string name="media_play">Play</string>
     <string name="media_pause">Pause</string>
     <string name="media_picture_in_picture">Picture in picture</string>
+    <string name="media_picture_in_picture_close">Close picture in picture</string>
     <string name="media_replay">Play again</string>
     <string name="media_spoiler">Spoiler</string>
     <string name="media_sensitive">Sensitive content</string>

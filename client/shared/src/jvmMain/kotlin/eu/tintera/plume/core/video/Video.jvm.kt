@@ -65,6 +65,12 @@ actual class VideoPlayer internal constructor() {
     internal var image: Image? by mutableStateOf(null)
         private set
 
+    /** Hraje v okénku obrazu v obraze ([DesktopPip]); jen hlavní vlákno. */
+    internal var heldByPip = false
+
+    /** Stránka, která přehrávač založila, odešla z kompozice; uvolní ho okénko. */
+    internal var orphaned = false
+
     /** Velikost [VideoSurface] v pixelech; podle ní dekodér snímky zmenšuje. */
     @Volatile
     internal var surfaceSize: IntSize = IntSize.Zero
@@ -112,6 +118,14 @@ actual class VideoPlayer internal constructor() {
     }
 
     actual fun pause() {
+        // V okénku obrazu v obraze pauzu dává jen okénko; stránka prohlížeče, která se zrovna
+        // zavírá, video pozastaví (přestane být vybraná), a to by okénko zastavilo.
+        if (heldByPip) return
+        pauseFromPip()
+    }
+
+    /** Pauza bez ohledu na okénko — z okénka obrazu v obraze a při jeho zavření. */
+    internal fun pauseFromPip() {
         playWhenReady = false
         // Zvuk stojí hned, ne až se smyčka probudí: dozvuk po stisku pauzy je slyšet.
         audio?.pause()
@@ -376,7 +390,8 @@ actual class VideoPlayer internal constructor() {
 @Composable
 actual fun rememberVideoPlayer(): VideoPlayer {
     val player = remember { VideoPlayer() }
-    DisposableEffect(player) { onDispose { player.release() } }
+    // Přehrávač v okénku obrazu v obraze uvolní až okénko (DesktopPip).
+    DisposableEffect(player) { onDispose { if (player.heldByPip) player.orphaned = true else player.release() } }
     return player
 }
 
@@ -412,21 +427,6 @@ actual val videoStreamingSupported: Boolean = true
 actual val videoFragmentedStreamingSupported: Boolean = true
 
 actual val videoFragmentedStreamingNeedsHls: Boolean = false
-
-private object NoPictureInPicture : PictureInPicture {
-    override val supported = false
-    override val active = false
-
-    override fun enter() = Unit
-}
-
-@Composable
-actual fun rememberPictureInPicture(
-    player: VideoPlayer,
-    aspectRatio: Float,
-    playing: Boolean,
-    onTogglePlay: () -> Unit,
-): PictureInPicture = NoPictureInPicture
 
 /**
  * Přepočítané kvality od serveru jsou h264 a AV1; FFmpeg z JavaCPP dekóduje h264 vždycky, AV1

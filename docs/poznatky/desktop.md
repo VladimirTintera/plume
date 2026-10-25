@@ -872,6 +872,35 @@ Video hraje, zatímco ho TDLib stahuje (`loadStreaming`): FFmpeg čte přes vlas
   barvy pruhů, vykreslení `VideoSurface` přes `ImageComposeScene`; GIFy v konverzaci
   ověřené v běžící aplikaci (23. 10. 2026). **Linux jen přeložený.**
 
+## Obraz v obraze
+
+Tlačítko obrazu v obraze v liště videa (prohlížeč médií) pošle video do okénka vždy navrchu
+v pravém dolním rohu (`DesktopPictureInPicture.kt`) a prohlížeč zavře — v aplikaci se dá psát
+dál, video hraje. Jako v Telegram Desktop.
+
+- **Přehrávač se okénku PŘEDÁVÁ, nezakládá se nový** (`DesktopPip.show`): video jede dál bez
+  škobrtnutí, i se zvukem. Stránka prohlížeče pak odejde z kompozice, `rememberVideoPlayer` ale
+  přehrávač neuvolní (`heldByPip` → `orphaned`); uvolní ho až zavření okénka. Ověřeno
+  `jstack`: po zavření okénka nezůstalo žádné vlákno `plume-audio`.
+- **Pauzu dává jen okénko** (`pauseFromPip`). Zavírající se prohlížeč stránku pozastaví (přestane
+  být vybraná, `LaunchedEffect(loaded, active)`) a okénko by stálo dřív, než se ukáže.
+- **Okénko je jedno**: pustí-li prohlížeč jiné (nebo totéž) video, okénko se zavře — dva
+  přehrávače by hrály přes sebe.
+- **Okno se skládá v `application {}`** (`DesktopPictureInPictureWindow` v `Main.kt`, jako okénko
+  hovoru), protože musí přežít zavření prohlížeče. Bez rámu, `alwaysOnTop`, **nebere fokus**
+  (klávesy jdou dál do chatu), táhne se za obraz (`WindowDraggableArea`), velikost pevná
+  (delší strana 400 dp, `pipSize`). Ovládání (pauza, zavřít) při najetí myší.
+- **Poloha z použitelné plochy obrazovky** (`getScreenInsets`), ne `WindowPosition.Aligned`:
+  zarovnání bere celou obrazovku a okénko by leželo pod Dockem. Souřadnice AWT jsou logické
+  body (dp okna). Pozor při ověřování: snímek obrazovky z nástroje pro ovládání počítače je
+  zmenšený (obrazovka 1800 bodů, snímek 1372), poloha se tam odhaduje špatně.
+- **Pozice se neukládá** (`saveProgress` proběhne při zavření prohlížeče, ne v okénku), příště
+  video začne tam, kde se z prohlížeče odešlo.
+- **Ověřeno v ladicí aplikaci 25. 10. 2026** (macOS): přechod do okénka s hrajícím videem
+  (prohlížeč se zavře, video hraje dál), pauza a přehrání v okénku, přetažení, zavření křížkem,
+  zavření okénka po novém puštění videa v prohlížeči. Testy `DesktopPictureInPictureTest`.
+  **Neověřené**: Windows a Linux, víc monitorů, okénko při minimalizovaném hlavním okně.
+
 ## Celá obrazovka okna
 
 Video v prohlížeči umí okno přes celou obrazovku (tlačítko, F, dvojklik; viz

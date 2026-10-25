@@ -11,6 +11,7 @@ import androidx.compose.runtime.Stable
  *   obsluhuje [rememberPictureInPicture] přes `onTogglePlay`.
  * - **iOS** posílá do okénka jen vrstvu přehrávače (`AVPictureInPictureController`); aplikace
  *   zůstává, jak je.
+ * - **Desktop** předá přehrávač vlastnímu okénku vždy navrchu a prohlížeč zavře ([leavesViewer]).
  *
  * **Do okénka se jde samo při odchodu z aplikace, ale jen když video HRAJE** (`playing`) — jako
  * YouTube. Pozastavené video okénko nepotřebuje. Ručně tlačítkem v liště videa ([enter]).
@@ -22,6 +23,12 @@ interface PictureInPicture {
 
     /** Video právě hraje v okénku. */
     val active: Boolean
+
+    /**
+     * Po přechodu do okénka se má prohlížeč zavřít — desktop: okénko je samostatné okno
+     * a video v něm hraje dál, zatímco se v aplikaci píše. Android a iOS nechávají prohlížeč být.
+     */
+    val leavesViewer: Boolean get() = false
 
     fun enter()
 }
