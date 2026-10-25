@@ -49,6 +49,8 @@ import androidx.wear.compose.material3.Icon
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.resources.mic_24dp
+import eu.tintera.plume.resources.sticker_24dp
+import eu.tintera.plume.resources.wear_sticker_button
 import eu.tintera.plume.resources.cloud_off_24dp
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.done_all_24dp
@@ -140,7 +142,7 @@ private const val NEAR_TOP_ITEMS = 2
  *   (`interactionUpdates`). Vlastní emoji hodinky nevykreslí, vynechávají se.
  */
 @Composable
-fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecord: () -> Unit) {
+fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecord: () -> Unit, onSticker: () -> Unit) {
     val conversations = koinInject<ConversationRepository>()
     val chats = koinInject<ChatRepository>()
     val files = koinInject<FileRepository>()
@@ -259,6 +261,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
             onReply = onReply,
             onReact = onReact,
             onRecord = onRecord,
+            onSticker = onSticker,
             onPlay = onPlay,
             onNearTop = model::loadOlder,
             scrolledToId = model.scrolledToId,
@@ -319,6 +322,7 @@ private fun MessageList(
     onReply: () -> Unit,
     onReact: (Long) -> Unit,
     onRecord: () -> Unit,
+    onSticker: () -> Unit,
     onPlay: (ChatMessage) -> Unit,
     onNearTop: () -> Unit,
     pressing: Triple<Long, Int, Int>?,
@@ -426,6 +430,17 @@ private fun MessageList(
                     label = { Text(stringResource(Res.string.wear_voice_record)) },
                     colors = ButtonDefaults.filledTonalButtonColors(),
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, spec).padding(top = GROUP_GAP),
+                    transformation = SurfaceTransformation(spec),
+                )
+            }
+            // Samolepka z oblíbených a nedávných (StickerPickerScreen) — rychlá odpověď jedním ťuknutím.
+            item {
+                Button(
+                    onClick = onSticker,
+                    icon = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
+                    label = { Text(stringResource(Res.string.wear_sticker_button)) },
+                    colors = ButtonDefaults.filledTonalButtonColors(),
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
                     transformation = SurfaceTransformation(spec),
                 )
             }

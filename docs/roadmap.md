@@ -344,7 +344,7 @@ Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se z
 1. ~~**Nabídka nad zprávou**~~ — hotovo (reakce v mřížce, odpověď s citací, smazání vlastní).
 2. ~~**Přepis hlasovky na požádání**~~ — hotovo (server → telefon → hodinky); úspěšné cesty
    čekají na ověření na Pixel Watch se spárovaným telefonem.
-3. **Poslání samolepky** z naposledy použitých.
+3. ~~**Poslání samolepky**~~ — hotovo (oblíbené a nedávné).
 4. ~~**Akce nad chatem**~~ — hotovo (podržením karty: přečteno / nepřečteno, ztlumit, archivovat).
 5. ~~**Hledání chatu a nová konverzace**~~ — hotovo (diktováním, chaty i kontakty).
 6. ~~**Archiv a složky**~~ — hotovo (výběr složky s počty nepřečtených, archiv, vrácení z něj).
