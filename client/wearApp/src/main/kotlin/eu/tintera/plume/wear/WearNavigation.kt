@@ -1,5 +1,6 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.core.telegram.ChatFolder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
@@ -14,6 +15,12 @@ private const val MESSAGE_ID = "messageId"
 private const val RECORD = "record"
 private const val SETTINGS = "settings"
 private const val CHAT_ACTIONS = "chatActions"
+private const val FOLDERS = "folders"
+private const val FOLDER = "folder"
+private const val FOLDER_ID = "folderId"
+
+/** Archiv v cestě složky; složky Telegramu mají číselné id. */
+private const val ARCHIVE = "archive"
 
 /**
  * Seznam chatů, konverzace, nabídka nad zprávou, nahrání hlasovky a nastavení; zpět tahem doprava jako všude na hodinkách.
@@ -35,6 +42,22 @@ fun WearNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
                 onOpen = { chatId -> navController.navigate("$CHAT/$chatId") },
                 onActions = { chatId -> navController.navigate("$CHAT_ACTIONS/$chatId") },
                 onSettings = { navController.navigate(SETTINGS) },
+                onFolders = { navController.navigate(FOLDERS) },
+            )
+        }
+        composable(FOLDERS) {
+            FoldersScreen(onOpen = { folder ->
+                val id = if (folder is ChatFolder.Custom) folder.id.toString() else ARCHIVE
+                navController.navigate("$FOLDER/$id")
+            })
+        }
+        composable("$FOLDER/{$FOLDER_ID}") { entry ->
+            val id = entry.arguments?.getString(FOLDER_ID) ?: return@composable
+            val folder = if (id == ARCHIVE) ChatFolder.Archive else ChatFolder.Custom(id.toIntOrNull() ?: return@composable)
+            ChatListScreen(
+                onOpen = { chatId -> navController.navigate("$CHAT/$chatId") },
+                onActions = { chatId -> navController.navigate("$CHAT_ACTIONS/$chatId") },
+                folder = folder,
             )
         }
         composable(SETTINGS) { SettingsScreen() }

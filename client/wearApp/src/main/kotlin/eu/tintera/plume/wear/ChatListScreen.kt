@@ -55,35 +55,61 @@ import eu.tintera.plume.resources.connection_connecting
 import eu.tintera.plume.resources.wear_chats_empty
 import eu.tintera.plume.resources.wear_chats_title
 import eu.tintera.plume.resources.wear_chat_actions
+import eu.tintera.plume.resources.wear_folders_button
+import eu.tintera.plume.resources.folder_24dp
+import eu.tintera.plume.resources.chats_archive
+import eu.tintera.plume.core.telegram.ChatFolder
+import androidx.compose.runtime.LaunchedEffect
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import kotlin.time.Clock
 
 /**
- * Hlavní seznam chatů. Repository ho po přihlášení načítá sama a drží živý z updatů TDLib,
- * obrazovka jen kreslí: název, náhled poslední zprávy a počet nepřečtených.
+ * Seznam chatů jedné složky. Hlavní seznam repository po přihlášení načítá sama a drží živý
+ * z updatů TDLib; archiv a složky Telegramu se začnou načítat až otevřením (`loadMore`).
+ * Obrazovka jen kreslí: název, náhled poslední zprávy a počet nepřečtených.
+ *
+ * Nastavení a vstup do složek ([onSettings], [onFolders]) má jen hlavní seznam — ve složce by
+ * byly navíc a zpět do hlavního seznamu se jde tahem.
  */
 @Composable
-fun ChatListScreen(onOpen: (Long) -> Unit, onActions: (Long) -> Unit, onSettings: () -> Unit) {
+fun ChatListScreen(
+    onOpen: (Long) -> Unit,
+    onActions: (Long) -> Unit,
+    folder: ChatFolder = ChatFolder.Main,
+    onSettings: (() -> Unit)? = null,
+    onFolders: (() -> Unit)? = null,
+) {
     val chats = koinInject<ChatRepository>()
-    val listState by chats.chats().collectAsState()
+    val listState by remember(folder) { chats.chats(folder) }.collectAsState()
+    LaunchedEffect(folder) { if (folder != ChatFolder.Main) chats.loadMore(folder) }
+    val folders by chats.chatFolders.collectAsState()
+    val title = when (folder) {
+        ChatFolder.Main -> stringResource(Res.string.wear_chats_title)
+        ChatFolder.Archive -> stringResource(Res.string.chats_archive)
+        is ChatFolder.Custom -> folders.folders.firstOrNull { it.id == folder.id }?.title.orEmpty()
+    }
 
     when (val current = listState) {
         ChatListState.Loading -> LoadingScreen(stringResource(Res.string.connection_connecting))
         is ChatListState.Failed -> MessageScreen(stringResource(Res.string.chats_load_failed), Res.drawable.cloud_off_24dp, error = true)
         is ChatListState.Ready ->
             if (current.chats.isEmpty()) MessageScreen(stringResource(Res.string.wear_chats_empty), Res.drawable.chat_bubble_24dp)
-            else ChatList(current.chats, chats, onOpen, onActions, onSettings)
+            else ChatList(title, current.chats, chats, onOpen, onActions, onSettings, onFolders)
     }
 }
 
 @Composable
 private fun ChatList(
+    title: String,
     chats: List<ChatSummary>,
     repository: ChatRepository,
     onOpen: (Long) -> Unit,
     onActions: (Long) -> Unit,
-    onSettings: () -> Unit,
+    onSettings: (() -> Unit)?,
+    onFolders: (() -> Unit)?,
 ) {
     val state = rememberTransformingLazyColumnState()
     val savedMessagesId = savedMessagesChatId()
@@ -95,19 +121,15 @@ private fun ChatList(
                 ListHeader(
                     modifier = Modifier.fillMaxWidth().transformedHeight(this, spec),
                     transformation = SurfaceTransformation(spec),
-                ) { Text(stringResource(Res.string.wear_chats_title)) }
+                ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
-            // Nastavení (odhlášení, později další) hned pod nadpisem: hodinky nemají menu v liště
-            // a konec dlouhého seznamu chatů nikoho nenapadne hledat (připomínka uživatele).
-            item {
-                Box(Modifier.fillMaxWidth().transformedItem(this, spec), contentAlignment = Alignment.Center) {
-                    CompactButton(
-                        onClick = onSettings,
-                        icon = { Icon(painterResource(Res.drawable.settings_24dp), contentDescription = null) },
-                        label = { Text(stringResource(Res.string.settings_title)) },
-                        colors = ButtonDefaults.filledTonalButtonColors(),
-                    )
-                }
+            // Nastavení a Archiv a složky hned pod nadpisem: hodinky nemají menu v liště a konec
+            // dlouhého seznamu chatů nikoho nenapadne hledat (připomínka uživatele).
+            onSettings?.let { open ->
+                item { HeaderButton(Res.drawable.settings_24dp, Res.string.settings_title, open, Modifier.transformedItem(this, spec)) }
+            }
+            onFolders?.let { open ->
+                item { HeaderButton(Res.drawable.folder_24dp, Res.string.wear_folders_button, open, Modifier.transformedItem(this, spec)) }
             }
             // Bez klíče: chaty po přihlášení přibývají postupně a s klíčem by lazy seznam držel
             // první viditelný chat, takže by nové nahoře odjely nad displej (ověřeno na emulátoru).
@@ -186,6 +208,19 @@ private fun ChatCard(
 }
 
 private val AVATAR_SIZE = 24.dp
+
+/** Malé tlačítko pod nadpisem seznamu (Nastavení, Archiv a složky). */
+@Composable
+private fun HeaderButton(icon: DrawableResource, label: StringResource, onClick: () -> Unit, modifier: Modifier) {
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        CompactButton(
+            onClick = onClick,
+            icon = { Icon(painterResource(icon), contentDescription = null) },
+            label = { Text(stringResource(label)) },
+            colors = ButtonDefaults.filledTonalButtonColors(),
+        )
+    }
+}
 
 /**
  * Odznak nepřečtených: vyplněná pilulka s počtem, jako na telefonu. Holé číslo v rohu karty

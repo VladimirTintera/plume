@@ -4344,6 +4344,13 @@
     <string name="wear_password_hint">Nápověda: %1$s</string>
     <string name="wear_password_failed">Heslo neprošlo, zkuste to znovu.</string>
     <string name="wear_chats_title">Chaty</string>
+    <string name="wear_folders_button">Archiv a složky</string>
+    <string name="wear_folders_title">Složky</string>
+    <plurals name="wear_folder_unread">
+        <item quantity="one">%1$d nepřečtený chat</item>
+        <item quantity="few">%1$d nepřečtené chaty</item>
+        <item quantity="other">%1$d nepřečtených chatů</item>
+    </plurals>
     <string name="wear_chats_empty">Zatím žádné chaty</string>
     <string name="wear_conversation_empty">Zatím žádné zprávy</string>
     <string name="wear_reply">Odpovědět</string>
