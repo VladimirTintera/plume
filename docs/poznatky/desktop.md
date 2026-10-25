@@ -800,7 +800,8 @@ příběhy a video v prohlížeči médií; HEIC dál otevírá aplikace systém
 - **Ověřeno v ladicí aplikaci 25. 10. 2026** (macOS, prohlížeč médií v Notifikátoru): MP4
   poslané jako soubor se otevře v prohlížeči místo systémové aplikace, hraje se zvukem, čas na
   obraze běží s pozicí, dohraje a jde pustit znovu, 2× zrychlí obraz i zvuk, ztlumení obraz
-  nezastaví, pauza. Video bez zvukové stopy hraje podle hodin. **Neověřené v aplikaci**: kolečko
+  nezastaví, pauza; pípnutí na poslech sedí na celé vteřiny počítadla. Video bez zvukové stopy
+  hraje podle hodin. **Neověřené v aplikaci**: kolečko
   se zvukem a příběhy (tentýž přehrávač), dlouhé video a zahazování snímků, Windows a Linux.
 
 ### Obraz
