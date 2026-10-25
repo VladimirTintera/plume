@@ -42,6 +42,12 @@ actual class AudioEngine {
     @Volatile private var playing = false
     @Volatile private var released = false
 
+    /**
+     * Ztlumený zvuk se dál „hraje“ jako ticho: linka běží a pozice s ní, takže video, které se
+     * podle ní časuje ([eu.tintera.plume.core.video.VideoPlayer]), neztratí hodiny.
+     */
+    @Volatile internal var muted = false
+
     /** Povely pro vlákno přehrávače, pod [lock]. */
     private var pendingSeekMs: Long? = null
     private var pendingSpeed: Float? = null
@@ -186,6 +192,7 @@ actual class AudioEngine {
                     continue
                 }
                 val count = minOf(free, chunk.size - offset)
+                if (muted) chunk.fill(0, offset, offset + count)
                 output.write(chunk, offset, count)
                 offset += count
                 if (offset >= chunk.size) pending = null

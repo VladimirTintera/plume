@@ -14,9 +14,11 @@ import androidx.compose.ui.graphics.skiaCanvas
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.audio.AudioEngine
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,16 +37,17 @@ import org.jetbrains.skia.Rect
 
 /**
  * Přehrávač videa na desktopu: obraz dekóduje FFmpeg ([FfmpegVideoDecoder]) v korutině
- * přehrávače a snímky jako obrázky Skii kreslí [VideoSurface].
+ * přehrávače a snímky jako obrázky Skii kreslí [VideoSurface]. Zvuk hraje [AudioEngine] —
+ * tentýž přehrávač jako u hlasovek, nad druhým otevřením téhož souboru.
  *
- * **Jen ztlumené video** — GIF a tichá smyčka kolečka. Zvukový výstup desktop zatím nemá
- * (docs/roadmap.md, sekce Desktop), takže [load] se zvukem hlásí [isFailed] jako dřív:
- * video bez zvuku by vypadalo, že hraje, a přitom by mlčelo. Plné video proto dál otevírá
- * aplikace systému ([viewerUnsupportedFormats] v `core/files`).
- *
- * Časování: snímek se ukáže v čase podle svého PTS od „kotvy“ (snímek a okamžik, kdy se
- * pustil). Pauza, skok a změna rychlosti kotvu zahodí a další snímek ji založí znovu; smyčka
- * pokračuje na téže časové ose (`loopBase`), aby první snímek nepřeskočil délku posledního.
+ * Časování:
+ * - **Se zvukem jdou hodiny ze zvuku** ([AudioEngine.positionMs], tedy z odehraných vzorků):
+ *   snímek se ukáže, až zvuk dojde k jeho PTS. Ucho pozná posun o pár desítek ms, oko zahozený
+ *   snímek ne — proto se obraz řídí zvukem, ne naopak. Nestíhá-li obraz, snímky se zahazují.
+ * - **Bez zvuku** (ztlumené načtení, video bez zvukové stopy, zvuk dohrál dřív) se snímek
+ *   ukáže v čase podle svého PTS od „kotvy“ (snímek a okamžik, kdy se pustil). Pauza, skok
+ *   a změna rychlosti kotvu zahodí a další snímek ji založí znovu; smyčka pokračuje na téže
+ *   časové ose (`loopBase`), aby první snímek nepřeskočil délku posledního.
  */
 actual class VideoPlayer internal constructor() {
 
@@ -75,6 +78,16 @@ actual class VideoPlayer internal constructor() {
     @Volatile private var duration = 0L
     @Volatile private var ended = false
     @Volatile private var failed = false
+    @Volatile private var muted = false
+
+    /**
+     * Zvuk videa; `null` u ztlumeného načtení ([load] s `muted`) a u videa bez zvukové stopy.
+     * Zakládá, pouští a zavírá ho smyčka [decode]; odsud se jen ztlumí a zastaví.
+     */
+    @Volatile private var audio: AudioEngine? = null
+
+    /** Zvuk dohrál dřív než obraz (nebo skončil chybou); dál se časuje bez něj. */
+    @Volatile private var audioEnded = false
 
     actual fun load(path: String, loop: Boolean, muted: Boolean) = start(Source(path, loop, muted))
 
@@ -87,7 +100,7 @@ actual class VideoPlayer internal constructor() {
 
     actual fun play() {
         // „Zkusí připravit znovu“: soubor mohl mezitím dorazit celý.
-        val retry = source?.takeIf { failed && it.muted }
+        val retry = source?.takeIf { failed }
         if (retry != null) start(retry)
         if (ended) {
             pendingSeek.set(0)
@@ -99,6 +112,8 @@ actual class VideoPlayer internal constructor() {
 
     actual fun pause() {
         playWhenReady = false
+        // Zvuk stojí hned, ne až se smyčka probudí: dozvuk po stisku pauzy je slyšet.
+        audio?.pause()
         wake.trySend(Unit)
     }
 
@@ -113,8 +128,10 @@ actual class VideoPlayer internal constructor() {
         wake.trySend(Unit)
     }
 
-    /** Zvuk se nepřehrává vůbec (viz třída), takže není co ztlumit. */
-    actual fun setMuted(muted: Boolean) = Unit
+    actual fun setMuted(muted: Boolean) {
+        this.muted = muted
+        audio?.muted = muted
+    }
 
     actual val positionMs: Long get() = position
 
@@ -125,6 +142,9 @@ actual class VideoPlayer internal constructor() {
     actual val isEnded: Boolean get() = ended
 
     actual val isFailed: Boolean get() = failed
+
+    /** Hraje i zvuk (pro testy): načtené se zvukem, stopa v souboru a výstup v systému. */
+    internal val playsSound: Boolean get() = audio != null
 
     /** Odchod z kompozice: zastaví dekodér a vrátí snímek. */
     internal fun release() {
@@ -143,11 +163,6 @@ actual class VideoPlayer internal constructor() {
         ended = false
         failed = false
         replaceImage(null)
-        if (!next.muted) {
-            logger.i { "Video se zvukem desktop zatím nepřehrává" }
-            failed = true
-            return
-        }
         val token = generation
         job = scope.launch { decode(next, token) }
     }
@@ -161,6 +176,7 @@ actual class VideoPlayer internal constructor() {
             failed = true
             return
         }
+        val sound = if (source.muted) null else openAudio(source.path)
         try {
             duration = decoder.durationMs
             // Jako ExoPlayer: připravené video ukáže první snímek, i když ještě nehraje.
@@ -176,10 +192,18 @@ actual class VideoPlayer internal constructor() {
             var anchored = false
             var anchorNanos = 0L
             var anchorMs = 0L
+            var soundRunning = false
+            var soundSpeed = 1f
+            var shownNanos = System.nanoTime()
             while (true) {
                 val seek = pendingSeek.getAndSet(NO_SEEK)
                 if (seek != NO_SEEK) {
                     decoder.seek(seek)
+                    if (sound != null) {
+                        sound.seekTo(seek)
+                        audioEnded = false
+                        soundRunning = false
+                    }
                     var frame = decoder.decodeNext()
                     while (frame != null && frame < seek) {
                         yield()
@@ -192,9 +216,23 @@ actual class VideoPlayer internal constructor() {
                     continue
                 }
                 if (!playWhenReady || ended) {
+                    if (soundRunning) {
+                        sound?.pause()
+                        soundRunning = false
+                    }
                     anchored = false
                     wake.receive()
                     continue
+                }
+                if (sound != null) {
+                    if (speed != soundSpeed) {
+                        sound.setSpeed(speed)
+                        soundSpeed = speed
+                    }
+                    if (!soundRunning) {
+                        sound.start()
+                        soundRunning = true
+                    }
                 }
 
                 val frame = pending ?: decoder.decodeNext()
@@ -202,6 +240,11 @@ actual class VideoPlayer internal constructor() {
                     if (source.loop) {
                         loopBase += max(duration, position + 1)
                         decoder.seek(0)
+                        if (sound != null) {
+                            sound.seekTo(0)
+                            audioEnded = false
+                            soundRunning = false
+                        }
                     } else {
                         ended = true
                     }
@@ -209,14 +252,23 @@ actual class VideoPlayer internal constructor() {
                 }
                 pending = frame
 
-                val timeline = loopBase + frame
                 val now = System.nanoTime()
-                if (!anchored) {
-                    anchored = true
-                    anchorNanos = now
-                    anchorMs = timeline
+                // Pozice zvuku je čas v nahrávce, rychlost už v ní je; čekat se ale musí ve
+                // skutečném čase, proto dělení rychlostí.
+                val clock = sound?.takeIf { !audioEnded }?.positionMs
+                val dueMs = if (clock != null) {
+                    // Až zvuk skončí, kotva se založí od snímku, na kterém skončil.
+                    anchored = false
+                    ((frame - clock) / speed).toLong()
+                } else {
+                    val timeline = loopBase + frame
+                    if (!anchored) {
+                        anchored = true
+                        anchorNanos = now
+                        anchorMs = timeline
+                    }
+                    ((timeline - anchorMs) / speed).toLong() - (now - anchorNanos) / NANOS_PER_MS
                 }
-                val dueMs = ((timeline - anchorMs) / speed).toLong() - (now - anchorNanos) / NANOS_PER_MS
                 if (dueMs > 0) {
                     // Probuzení (pauza, skok, rychlost) se vyhodnotí znovu; snímek počká v `pending`.
                     if (withTimeoutOrNull(dueMs) { wake.receive() } != null) {
@@ -224,16 +276,54 @@ actual class VideoPlayer internal constructor() {
                         continue
                     }
                 } else if (dueMs < -RESYNC_MS) {
-                    // Dekodér nestíhá (nebo stál proces): dohánět by znamenalo přehrát zbytek
-                    // zrychleně, takže se čas srovná od tohohle snímku.
-                    anchored = false
+                    if (clock != null) {
+                        // Obraz nestíhá zvuk: snímek se zahodí bez převodu (ten je dražší než
+                        // dekódování), dokud obraz zvuk nedožene. Aspoň jeden za MAX_DROP_MS se
+                        // ale ukáže, jinak by pomalý dekodér obraz zastavil úplně.
+                        if (now - shownNanos < MAX_DROP_MS * NANOS_PER_MS) {
+                            pending = null
+                            continue
+                        }
+                    } else {
+                        // Dekodér nestíhá (nebo stál proces): dohánět by znamenalo přehrát zbytek
+                        // zrychleně, takže se čas srovná od tohohle snímku.
+                        anchored = false
+                    }
                 }
                 show(decoder, frame, token)
+                shownNanos = System.nanoTime()
                 pending = null
             }
         } finally {
             decoder.close()
+            if (sound != null) {
+                if (audio === sound) audio = null
+                sound.release()
+            }
         }
+    }
+
+    /**
+     * Zvuk [path] do reproduktoru, nebo `null`, když v souboru zvuková stopa není (GIF poslaný
+     * jako video, němé video) nebo systém nemá zvukový výstup — obraz pak hraje sám.
+     */
+    private suspend fun openAudio(path: String): AudioEngine? {
+        val engine = AudioEngine()
+        try {
+            engine.load(path, music = false)
+        } catch (failure: Throwable) {
+            // `load` mohl otevřít linku a pustit vlákno těsně před zrušením korutiny; uvolnění
+            // je vrátí v obou případech.
+            engine.release()
+            if (failure is CancellationException) throw failure
+            logger.i { "Video hraje bez zvuku: ${failure.message}" }
+            return null
+        }
+        engine.muted = muted
+        engine.onCompleted = { audioEnded = true }
+        audioEnded = false
+        audio = engine
+        return engine
     }
 
     /** Převede poslední dekódovaný snímek a vymění ho na ploše (na hlavním vlákně). */
@@ -322,11 +412,22 @@ actual fun rememberPictureInPicture(
     onTogglePlay: () -> Unit,
 ): PictureInPicture = NoPictureInPicture
 
-/** Kvalitu videa desktop nevybírá — plné video otevírá aplikace systému (viz [VideoPlayer]). */
-actual fun videoDecoder(codec: String, width: Int, height: Int): VideoDecoder = VideoDecoder.None
+/**
+ * Přepočítané kvality od serveru jsou h264 a AV1; FFmpeg z JavaCPP dekóduje h264 vždycky, AV1
+ * jen s `libdav1d`, o kterém se tu bez nahrání nativních knihoven nedá nic říct (volá se
+ * z kompozice). Nabízí se tedy h264 (a h265, kdyby přišel) a původní soubor.
+ */
+actual fun videoDecoder(codec: String, width: Int, height: Int): VideoDecoder =
+    when (codec) {
+        "h264", "avc", "h265", "hevc" -> VideoDecoder.Software
+        else -> VideoDecoder.None
+    }
 
 private const val NO_SEEK = -1L
 private const val NANOS_PER_MS = 1_000_000L
 
-/** O kolik smí snímek zaostat, než se časování srovná od něj. */
+/** O kolik smí snímek zaostat, než se časování srovná od něj (nebo se se zvukem zahodí). */
 private const val RESYNC_MS = 250L
+
+/** Se zvukem: nejdelší doba bez nového snímku, když obraz nestíhá a snímky se zahazují. */
+private const val MAX_DROP_MS = 250L
