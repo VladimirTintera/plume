@@ -4214,6 +4214,12 @@
     <string name="wear_message_failed">Not sent</string>
     <string name="wear_reactions_title">Reactions</string>
     <string name="wear_reactions_none">Reactions aren't available here.</string>
+    <string name="wear_message_reply">Reply to message</string>
+    <string name="wear_message_delete">Delete</string>
+    <string name="wear_message_delete_title">Delete message?</string>
+    <string name="wear_message_delete_for_all">It will be deleted for everyone in the chat.</string>
+    <string name="wear_message_delete_for_me">It will be deleted only for you.</string>
+    <string name="wear_confirm_not_deleted">Not deleted</string>
     <string name="wear_voice_record">Voice message</string>
     <string name="wear_voice_tap_to_record">Tap to record</string>
     <string name="wear_voice_tap_to_send">Tap to send</string>

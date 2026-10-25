@@ -58,11 +58,6 @@ import eu.tintera.plume.resources.wear_voice_record
 import kotlinx.coroutines.flow.first
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
-import android.app.RemoteInput
-import android.content.Intent
-import android.view.inputmethod.EditorInfo
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -97,8 +92,6 @@ import androidx.wear.compose.material3.lazy.transformedHeight
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
-import androidx.wear.input.RemoteInputIntentHelper
-import androidx.wear.input.wearableExtender
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.telegram.ChatListState
@@ -119,13 +112,7 @@ import eu.tintera.plume.resources.conversation_history_failed
 import eu.tintera.plume.resources.wear_conversation_empty
 import eu.tintera.plume.resources.wear_message_failed
 import eu.tintera.plume.resources.wear_message_sending
-import eu.tintera.plume.resources.wear_quick_reply_1
-import eu.tintera.plume.resources.wear_quick_reply_2
-import eu.tintera.plume.resources.wear_quick_reply_3
-import eu.tintera.plume.resources.wear_quick_reply_4
-import eu.tintera.plume.resources.wear_quick_reply_5
 import eu.tintera.plume.resources.wear_reply
-import eu.tintera.plume.resources.wear_reply_label
 import eu.tintera.plume.resources.wear_confirm_not_sent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -138,8 +125,6 @@ private val logger = Logger.withTag("WearConversation")
 /** Kolik položek od začátku seznamu (nadpis, indikátor) spustí dočtení starších zpráv. */
 private const val NEAR_TOP_ITEMS = 2
 
-private const val REPLY_KEY = "reply"
-
 /**
  * Konverzace: posledních 30 zpráv, u začátku seznamu dočítá starší, nové doplňuje živě,
  * nejnovější je dole a na ni se seznam postaví. Odpověď má nad textem citaci. Otevřený chat se TDLib ohlásí (`openChat`) a zobrazené zprávy se hlásí jako přečtené —
@@ -150,7 +135,8 @@ private const val REPLY_KEY = "reply"
  *   s dočasným id a po potvrzení se vymění za tu se skutečným ([SentMessageUpdate]).
  * - **Hlasovky**: v bublině přehrát/zastavit a délka ([VoicePlayback]); nahrát novou otevře
  *   [onRecord] (tlačítko na konci seznamu).
- * - **Reakce**: ťuknutí na zprávu otevře výběr ([onReact]), pod bublinou jsou živé
+ * - **Nabídka nad zprávou**: ťuknutí na zprávu otevře reakce, odpověď s citací a smazání
+ *   ([onReact], `MessageMenuScreen`); reakce pod bublinou jsou živé
  *   (`interactionUpdates`). Vlastní emoji hodinky nevykreslí, vynechávají se.
  */
 @Composable
@@ -165,7 +151,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
     val savedMessagesId = savedMessagesChatId()
     val title = chatTitle(chatId, summary?.title.orEmpty(), savedMessagesId)
 
-    // Zprávy a odběry patří ViewModelu položky navigace: přežije výběr reakce, fotku i nahrávání
+    // Zprávy a odběry patří ViewModelu položky navigace: přežije nabídku nad zprávou i nahrávání
     // (jinak se po návratu konverzace načetla znovu a sjela dolů), viz ConversationViewModel.
     val model = viewModel(key = "conversation-$chatId") { ConversationViewModel(chatId, conversations, appScope) }
     // Tlačítko bota, u kterého se čeká na odpověď (zpráva, řádek, sloupec) — naráz jen jedno.
@@ -186,7 +172,7 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
         problemShown = true
     }
     val playback = remember { VoicePlayback() }
-    // Přehrávání patří obrazovce: s odchodem z ní (i na výběr reakce) skončí.
+    // Přehrávání patří obrazovce: s odchodem z ní (i do nabídky nad zprávou) skončí.
     DisposableEffect(chatId) { onDispose { playback.stop() } }
 
     val phoneOnly = stringResource(Res.string.wear_bot_button_phone_only)
@@ -218,32 +204,17 @@ fun ConversationScreen(chatId: Long, onReact: (messageId: Long) -> Unit, onRecor
         }
     }
 
-    val replyLabel = stringResource(Res.string.wear_reply_label)
-    val quickReplies = listOf(
-        stringResource(Res.string.wear_quick_reply_1),
-        stringResource(Res.string.wear_quick_reply_2),
-        stringResource(Res.string.wear_quick_reply_3),
-        stringResource(Res.string.wear_quick_reply_4),
-        stringResource(Res.string.wear_quick_reply_5),
-    )
-    val replyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val text = result.data
-            ?.let(RemoteInput::getResultsFromIntent)
-            ?.getCharSequence(REPLY_KEY)
-            ?.toString()
-            ?.trim()
-        if (!text.isNullOrEmpty()) {
-            scope.launch {
-                conversations.send(chatId, text, replyToMessageId = null)
-                    .onSuccess { model.upsert(it) }
-                    .onFailure {
-                        logger.w(it) { "Odpověď z hodinek do chatu $chatId neodešla." }
-                        fail(Res.string.wear_confirm_not_sent)
-                    }
-            }
+    val openReply = rememberReplyInput { text ->
+        scope.launch {
+            conversations.send(chatId, text, replyToMessageId = null)
+                .onSuccess { model.upsert(it) }
+                .onFailure {
+                    logger.w(it) { "Odpověď z hodinek do chatu $chatId neodešla." }
+                    fail(Res.string.wear_confirm_not_sent)
+                }
         }
     }
-    val onReply = { replyLauncher.launch(replyInput(title, replyLabel, quickReplies)) }
+    val onReply = { openReply(title) }
 
     // Hlasovka: stažení spustí odběr souboru, poslech se ohlásí TDLib (`openContent`) jako na telefonu.
     val onPlay: (ChatMessage) -> Unit = { message ->
@@ -840,22 +811,4 @@ private fun bubbleShape(outgoing: Boolean, joinsPrevious: Boolean, joinsNext: Bo
         RoundedCornerShape(topStart = top, topEnd = BUBBLE_CORNER, bottomEnd = BUBBLE_CORNER, bottomStart = bottom)
     }
 }
-
-/**
- * Systémové zadávání hodinek: diktování, klávesnice a emoji, k tomu rychlé odpovědi jako volby.
- * Odeslání se potvrzuje akcí „odeslat" na klávesnici.
- */
-private fun replyInput(title: String, label: String, quickReplies: List<String>): Intent =
-    RemoteInputIntentHelper.createActionRemoteInputIntent().also { intent ->
-        val input = RemoteInput.Builder(REPLY_KEY)
-            .setLabel(label)
-            .setChoices(quickReplies.toTypedArray())
-            .wearableExtender {
-                setEmojisAllowed(true)
-                setInputActionType(EditorInfo.IME_ACTION_SEND)
-            }
-            .build()
-        RemoteInputIntentHelper.putRemoteInputsExtra(intent, listOf(input))
-        RemoteInputIntentHelper.putTitleExtra(intent, title)
-    }
 

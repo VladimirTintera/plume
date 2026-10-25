@@ -4357,6 +4357,12 @@
     <string name="wear_message_failed">Neodesláno</string>
     <string name="wear_reactions_title">Reakce</string>
     <string name="wear_reactions_none">Reakce tu nejdou.</string>
+    <string name="wear_message_reply">Odpovědět na zprávu</string>
+    <string name="wear_message_delete">Smazat</string>
+    <string name="wear_message_delete_title">Smazat zprávu?</string>
+    <string name="wear_message_delete_for_all">Zmizí i ostatním v chatu.</string>
+    <string name="wear_message_delete_for_me">Zmizí jen u vás.</string>
+    <string name="wear_confirm_not_deleted">Nesmazáno</string>
     <string name="wear_voice_record">Hlasovka</string>
     <string name="wear_voice_tap_to_record">Ťukněte pro nahrávání</string>
     <string name="wear_voice_tap_to_send">Ťukněte pro odeslání</string>

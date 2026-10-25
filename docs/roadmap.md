@@ -339,6 +339,17 @@ Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se z
 - **Baterie a úložiště** sledovat v provozu: TDLib drží spojení a databázi; mezipaměť se uklízí
   sama (3 dny, strop 100 MB), média se stahují jen zobrazená.
 
+**Další funkce na hodinkách (2026-10-25, podle užitku):**
+
+1. ~~**Nabídka nad zprávou**~~ — hotovo (reakce v mřížce, odpověď s citací, smazání vlastní).
+2. **Přepis hlasovky na požádání** (`recognizeSpeech`; bez Premium jen omezený počet).
+3. **Poslání samolepky** z naposledy použitých.
+4. **Akce nad chatem** podržením karty: přečteno, ztlumit, archivovat.
+5. **Hledání chatu diktováním a nová konverzace** s kontaktem mimo horní část seznamu.
+6. **Archiv a složky** (dnes jen hlavní seznam).
+7. **Rychlá poznámka do Uložených zpráv** z dlaždice nebo komplikace (nadiktovat a hotovo).
+8. **Poslání polohy** z GPS hodinek, jednorázově (živá poloha by vybíjela baterii).
+
 Vědomě ne: hovory, správa skupin a nastavení účtu (zůstávají na telefonu), GIFy a animace,
 přehrávání videa a hudby, mapy u polohy, Instant View, formátování textu — na malém displeji
 drahé na baterii a výkon, nebo skoro nic nepřidají. Gemini Nano na hodinkách není, návrhy
