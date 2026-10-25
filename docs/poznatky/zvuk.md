@@ -188,6 +188,8 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
     (`oggOpusFile`: OpusHead, OpusTags, stránky po 50 paketech s CRC a granule). Celý řetězec
     kódování → Ogg → čtení → dekódování ověřuje `OpusDecodeTest` na simulátoru, zápis Oggu
     i CRC (referenční vektor) `AudioFormatsTest`.
+  - **Desktop** nahrává PCM přes `javax.sound` a kóduje `libopus` z FFmpegu, pak týž
+    `oggOpusFile` (`docs/poznatky/desktop.md`, „Nahrávání hlasovek").
   - iOS relace při nahrávání je PlayAndRecord s `DefaultToSpeaker` — jinak by potom všechno
     hrálo do sluchátka u ucha. Přehrávání si kategorii přepne zpátky samo.
 - **Waveform se skládá z úrovní během nahrávání** (po 50 ms: Android `maxAmplitude`, iOS

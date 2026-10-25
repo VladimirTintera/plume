@@ -713,6 +713,31 @@ v 3.6). Z každých pár pixelů se vezme jeden a zbytek zahodí.
 
 ## Zvuk: hlasovky a hudba (FFmpeg + javax.sound)
 
+### Nahrávání hlasovek
+
+`AudioRecorder` na desktopu: `TargetDataLine` (48 kHz mono 16 bitů) do paměti, po skončení
+`FfmpegOpusEncoder` (`libopus` z FFmpegu — LGPL build ho má staticky v libavcodec, ověřeno
+`avcodec_find_encoder_by_name`) a zabalení do Oggu společným `oggOpusFile`, jako iOS. Gesto,
+zámek, náhled, navázání (`joinOggOpus`) i waveform jsou společné.
+
+- **Nastavení kodéru jako na mobilech**: 20ms rámce (`frame_duration`), režim `voip`,
+  32 kbit/s; `preSkip` z `initial_padding` kodéru. Poslední neúplný rámec se doplní tichem.
+- **Pozastavená linka (`stop()`) vrací z `read` nulu hned** — čtecí vlákno pak chvíli čeká,
+  jinak by točilo naprázdno.
+- **Úroveň = průměrný výkon v dB → 0..1** (−50 dB a níž ticho), stejně jako `averagePower` na
+  iOS. Sinus s amplitudou 0,7 je −6 dB, tedy ~0,88 (ne 1).
+- **Povolení k mikrofonu dává macOS při prvním otevření linky** (TCC); Java se předem zeptat
+  neumí. Balíček má kvůli hovorům `audio-input` a popis v Info.plist (teď „calls and voice
+  messages"); spuštěné přes Gradle dostane povolení aplikace, ze které běží.
+- **Testy** `DesktopVoiceRecordingTest`: sinus → `libopus` → Ogg → zpátky `FfmpegAudioDecoder`
+  (délka, signál), spojení dvou nahrávek, úroveň.
+- **Ověřeno v ladicí aplikaci 25. 10. 2026** (macOS, Uložené, nic neodesláno): podržení, tah
+  nahoru zamkne, úrovně kolísají podle mikrofonu, ■ zakóduje náhled (0:14 s vlnou), přehrání
+  náhledu, koš. **Neověřené**: odeslání (soubor přijatý serverem), navázání po náhledu, pauza,
+  Windows a Linux, zamítnuté povolení mikrofonu (linka pak nahrává ticho).
+
+### Přehrávání
+
 `AudioEngine` na desktopu: `FfmpegAudioDecoder` dekóduje cokoli, co umí FFmpeg (Ogg/Opus
 hlasovky, MP3, AAC, FLAC…) a převede to na 48 kHz stereo 16 bitů, `SourceDataLine` z
 `javax.sound` to hraje. Přehrávač, dock a fronta hudby jsou společné, desktop dodává jen tohle.
@@ -806,8 +831,7 @@ plátna (jako iOS), JPEG s `PHOTO_JPEG_QUALITY`.
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
 přepínání kamery; náhled kamery před spojením jen na macOS.
 
-Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: nahrávání
-zvuku vyhodí výjimku („nahrávání nejde spustit"), video se zvukem má `isFailed = true` a otevírá se v aplikaci systému
+Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: video se zvukem má `isFailed = true` a otevírá se v aplikaci systému
 (`viewerUnsupportedFormats` obsahuje všechna videa a HEIC; ztlumené hraje, viz „Video: GIFy
 a tichá kolečka"), kamera pro kolečka je `null`
 (nenabídne se). Seznam chybějícího je v `docs/roadmap.md`, sekce Desktop.

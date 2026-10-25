@@ -197,9 +197,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   a náhledem kamery (ntgcalls přes JNA, `docs/poznatky/hovory.md`, „Desktop"); Windows
   a Linux neověřené. Co zbývá, je v sekci Hovory.
 - **Zvuk**: ~~přehrávání hlasovek (Opus) a hudby~~ — hotovo přes FFmpeg a `javax.sound`
-  (`docs/poznatky/desktop.md`, „Zvuk"). Zbývá nahrávání hlasovek (mikrofon přes `javax.sound`,
-  kódování do Ogg/Opus FFmpegem), přeskakování ticha a ovládání hudby ze systému (Now Playing
-  na macOS, MPRIS na Linuxu).
+  (`docs/poznatky/desktop.md`, „Zvuk"), ~~nahrávání hlasovek~~ — hotovo (`javax.sound`
+  a `libopus` z FFmpegu). Zbývá přeskakování ticha, ovládání hudby ze systému (Now Playing na
+  macOS, MPRIS na Linuxu) a nahrávání do Telegramu už během nahrávání (kóduje se až na konci).
 - **Video**: ztlumené hraje (GIFy, tichá smyčka kolečka) přes FFmpeg z JavaCPP
   (`docs/poznatky/desktop.md`, „Video: GIFy a tichá kolečka"). Zbývá zvuk videa (FFmpeg
   dekóduje i zvuk, chybí výstup a synchronizace) — pak kolečko se zvukem, příběhy a prohlížeč
