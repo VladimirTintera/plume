@@ -4344,6 +4344,11 @@
     <string name="wear_password_hint">Nápověda: %1$s</string>
     <string name="wear_password_failed">Heslo neprošlo, zkuste to znovu.</string>
     <string name="wear_chats_title">Chaty</string>
+    <string name="wear_search_button">Hledat</string>
+    <string name="wear_search_label">Hledat chat nebo kontakt</string>
+    <string name="wear_search_contacts">Kontakty</string>
+    <string name="wear_search_none">Pro „%1$s“ se nic nenašlo.</string>
+    <string name="wear_search_contact">Kontakt</string>
     <string name="wear_folders_button">Archiv a složky</string>
     <string name="wear_folders_title">Složky</string>
     <plurals name="wear_folder_unread">

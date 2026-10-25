@@ -16,6 +16,7 @@ private const val RECORD = "record"
 private const val SETTINGS = "settings"
 private const val CHAT_ACTIONS = "chatActions"
 private const val FOLDERS = "folders"
+private const val SEARCH = "search"
 private const val FOLDER = "folder"
 private const val FOLDER_ID = "folderId"
 
@@ -41,9 +42,14 @@ fun WearNavigation(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
             ChatListScreen(
                 onOpen = { chatId -> navController.navigate("$CHAT/$chatId") },
                 onActions = { chatId -> navController.navigate("$CHAT_ACTIONS/$chatId") },
+                onSearch = { navController.navigate(SEARCH) },
                 onSettings = { navController.navigate(SETTINGS) },
                 onFolders = { navController.navigate(FOLDERS) },
             )
+        }
+        composable(SEARCH) {
+            // Chat z výsledku nahradí hledání: zpět z konverzace vede do seznamu chatů.
+            SearchScreen(onOpen = { chatId -> navController.navigate("$CHAT/$chatId") { popUpTo(SEARCH) { inclusive = true } } })
         }
         composable(FOLDERS) {
             FoldersScreen(onOpen = { folder ->
