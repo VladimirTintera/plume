@@ -1,6 +1,10 @@
 package eu.tintera.plume.wear
 
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.Res
@@ -57,8 +61,8 @@ fun MessageMedia.shownPhoto(): MessageMedia.Photo? =
  * „Výšku obrázku nepočítej `aspectRatio`" v CLAUDE.md.
  */
 @Composable
-fun MessagePhoto(photo: MessageMedia.Photo, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    MessageImage(photo.fileId, photo.minithumbnail, photo.width, photo.height, onClick, modifier)
+fun MessagePhoto(photo: MessageMedia.Photo, modifier: Modifier = Modifier) {
+    MessageImage(photo.fileId, photo.minithumbnail, photo.width, photo.height, onClick = null, modifier = modifier, opensViewer = true)
 }
 
 /**
@@ -93,6 +97,7 @@ private fun MessageImage(
     sourceHeight: Int,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    opensViewer: Boolean = false,
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -104,15 +109,24 @@ private fun MessageImage(
         val preview = remember(minithumbnail) {
             minithumbnail?.let { BitmapFactory.decodeByteArray(it.jpeg, 0, it.jpeg.size)?.asImageBitmap() }
         }
+        val image = bitmap ?: preview
+        // Fotka se otevírá přes celý displej sdíleným prvkem (PhotoViewerHost); bez hostitele
+        // (náhled videa, jiná obrazovka) je obrázek obyčejný.
+        val transition = LocalPhotoTransition.current?.takeIf { opensViewer && fileId != null }
+        val click = transition?.let { { it.open(OpenedPhoto(fileId!!, sourceWidth, sourceHeight, image)) } } ?: onClick
         Box(
             Modifier
                 .size(width, height)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(PHOTO_SHAPE)
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+                .then(if (click != null) Modifier.clickable(onClick = click) else Modifier),
         ) {
-            (bitmap ?: preview)?.let {
-                Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(width, height))
+            image?.let {
+                if (transition != null) {
+                    SharedPhoto(transition, fileId!!, it, Modifier.size(width, height))
+                } else {
+                    Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(width, height))
+                }
             }
             overlay()
         }
@@ -208,3 +222,36 @@ private const val MAX_HEIGHT_RATIO = 1.25f
 private val STICKER_SIZE = 96.dp
 
 private val VIDEO_NOTE_SIZE = 120.dp
+
+/**
+ * Obrázek v bublině jako jeden konec sdíleného prvku: dokud je fotka otevřená, bublina ho
+ * nekreslí (kreslí ho prohlížeč) a při zavření se do ní vrátí. Místo v bublině drží rámeček
+ * kolem, takže se konverzace pod prohlížečem nepohne.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun SharedPhoto(transition: PhotoTransition, fileId: Int, image: ImageBitmap, modifier: Modifier) {
+    val motion = MaterialTheme.motionScheme
+    with(transition.scope) {
+        AnimatedVisibility(
+            visible = transition.opened?.fileId != fileId,
+            enter = fadeIn(motion.defaultEffectsSpec()),
+            exit = fadeOut(motion.fastEffectsSpec()),
+        ) {
+            Image(
+                image,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                // Během přechodu se kreslí ve vrstvě nad vším, mimo ořez bubliny — zaoblení zvlášť,
+                // jinak měla fotka po dobu animace hranaté rohy.
+                modifier = modifier.sharedElement(
+                    rememberSharedContentState(photoElementKey(fileId)),
+                    this@AnimatedVisibility,
+                    clipInOverlayDuringTransition = OverlayClip(PHOTO_SHAPE),
+                ),
+            )
+        }
+    }
+}
+
+private val PHOTO_SHAPE = RoundedCornerShape(12.dp)

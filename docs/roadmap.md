@@ -336,7 +336,6 @@ Ztlumit — `docs/poznatky/notifikace.md`); po přihlášení na hodinkách se z
   emulátoru FCM nedoručil), že zrcadlené notifikace po přihlášení zmizí, samotné odhlášení.
 - **Play:** snímky hodinek z testovacích účtů do `play/graphics/<locale>/wearScreenshots/`
   (workflow Play Listing je umí), pak přihlášení k distribuci pro Wear OS s kontrolou kvality.
-- **Přechod při otevření fotky** ze zmenšeniny v bublině na celý displej.
 - **Baterie a úložiště** sledovat v provozu: TDLib drží spojení a databázi; mezipaměť se uklízí
   sama (3 dny, strop 100 MB), média se stahují jen zobrazená.
 

@@ -137,8 +137,8 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
 ## Konverzace
 
 - **Stav konverzace je ve ViewModelu položky navigace** (`ConversationViewModel`: zprávy, odběry,
-  dočítání historie, citace). Výběr reakce, fotka přes celý displej a nahrávání jsou samostatné
-  cesty a obrazovka konverzace při nich opustí kompozici; se stavem v `remember` se po návratu
+  dočítání historie, citace). Výběr reakce a nahrávání jsou samostatné
+  cesty a obrazovka konverzace při nich opustí kompozici (fotka dřív taky, teď je vrstvou nad ní); se stavem v `remember` se po návratu
   načetla znovu a sjela na nejnovější zprávu — reakce na starší zprávu uživatele vždycky vrátila
   dolů (nahlášeno z Pixel Watch). Pozici drží `rememberTransformingLazyColumnState` (je
   `rememberSaveable`), dolů se sjíždí jen s opravdu novou zprávou (`scrolledToId` ve ViewModelu).
@@ -242,9 +242,23 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   displej má pár set pixelů a šly by megabajty.
 - **Vysoká fotka se zastropuje na 1,25 × šířky a zúží se s ní**, neořízne se (CLAUDE.md, „Výšku
   obrázku nepočítej `aspectRatio`").
-- **Ťuknutí na fotku ji otevře přes celý displej** (`PhotoScreen`, cesta `photo/{fileId}`, zpět
-  tahem), zbytek bubliny dál otevírá výběr reakce. Tatáž varianta jako v bublině, jen dekódovaná
-  na velikost displeje — po bublině bývá stažená.
+- **Ťuknutí na fotku ji otevře přes celý displej** a fotka se ze zmenšeniny v bublině rozletí
+  sdíleným prvkem (`PhotoViewerHost`, `SharedPhoto`), zbytek bubliny dál otevírá výběr reakce.
+  Tatáž varianta jako v bublině, jen dekódovaná na velikost displeje; do té doby prohlížeč kreslí
+  bitmapu z bubliny (`OpenedPhoto.preview`), jinak by letěl prázdný obdélník. Velikost v poměru
+  stran fotky, ne `Fit` přes displej — let je mezi dvěma obdélníky téhož tvaru.
+  - **Vrstva nad konverzací, ne cesta navigace.** `SwipeDismissableNavHost` sdílené prvky neumí:
+    cíle nedostávají `AnimatedVisibilityScope`. Konverzace navíc zůstává pod fotkou celou dobu.
+  - **Zavírá se tahem doprava** (`SwipeToDismissBox` uvnitř vrstvy) i tlačítkem zpět
+    (`BackHandler`). **Zpáteční let jen po tlačítku:** sdílený prvek startuje z místa PŘED tahem,
+    takže po tahu fotka odjela doprava, pak se objevila zpátky přes celý displej a teprve se
+    smrskla. Po tahu proto prohlížeč sdílený prvek nemá a odchází bez animace
+    (`ExitTransition.None` — `SwipeToDismissBox` po zavření vrátí obsah doprostřed a při
+    doznívání by fotka probleskla), bublina fotku jen prolne.
+  - **Ořez během přechodu zvlášť** (`clipInOverlayDuringTransition = OverlayClip(...)`): sdílený
+    prvek se kreslí ve vrstvě nad vším, mimo ořez bubliny, a měl po dobu animace hranaté rohy.
+  - Ověřeno na emulátoru 2026-10-25 se zpomalenými animacemi (fotka od Notifikátora): otevření,
+    zavření tahem i tlačítkem zpět (`input keyevent 4`).
 - **Spoiler, citlivý obsah, tajný chat a mizející fotka zůstávají slovem** (`shownPhoto()`):
   odkrývání ani časovač hodinky nemají a ukázat je rovnou by obešlo, co chtěl odesílatel nebo
   server.
