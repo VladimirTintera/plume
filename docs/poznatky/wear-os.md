@@ -242,6 +242,13 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   systémové zadávání (`RemoteInput` přes `RemoteInputIntentHelper`) nabízí emoji, diktování
   a klávesnici, pod nimi naše **rychlé odpovědi jako volby** (`setChoices`, texty
   `wear_quick_reply_*`). Ťuknutí na volbu pošle zprávu rovnou, bez potvrzení.
+- **Samolepka** (tlačítko „Samolepka" pod Hlasovou zprávou na konci konverzace,
+  `StickerPickerScreen`, cesta `stickers/{chatId}`): oblíbené a nedávné (`favoriteStickers`,
+  `recentStickers` — jsou na účtu, takže i ty poslané z telefonu), každý seznam nejvýš 18,
+  oblíbená se mezi nedávnými neopakuje. Po třech v řádku, každý řádek vlastní položka (u okraje
+  displeje se zmenšuje zvlášť). Ťuknutí pošle (`sendSticker`) a vrátí do konverzace, která ji
+  uvidí z `newMessages`. Náhledy (`thumbnailFileId`) i u animovaných, jako v konverzaci. Celé
+  sady na hodinkách nejsou. Ověřeno na emulátoru 2026-10-25: samolepka do chatu Notifikátora.
 - **Odeslaná zpráva se ukáže hned** (dočasné id ze `send`), stav „Odesílání…" / „Neodesláno"
   místo času; po potvrzení ji `sentMessageUpdates` vymění za tu se skutečným id — nahradit, ne
   aktualizovat, TDLib id změní.
