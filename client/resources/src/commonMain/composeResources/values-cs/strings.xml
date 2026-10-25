@@ -3305,6 +3305,10 @@
     <string name="transcript_used_up_until">Bezplatné přepisy na tento týden došly. Další: %1$s</string>
     <string name="transcribe_failed">Přepis se nepodařilo spustit.</string>
     <string name="transcript_premium_required">Přepis do textu je v Telegramu jen s Premium.</string>
+    <string name="transcript_device_too_long">Bez Premium jde v telefonu přepsat jen záznam do %1$s.</string>
+    <string name="transcript_enable_ai">Bez Premium přepíše Gemma přímo v telefonu. Zapni ji v Nastavení → AI v zařízení.</string>
+    <string name="transcript_switch_gemma">Bez Premium přepíše Gemma přímo v telefonu, Gemini Nano to neumí. Přepni model v Nastavení → AI v zařízení.</string>
+    <string name="transcript_download_gemma">Bez Premium přepíše Gemma přímo v telefonu. Stáhni ji v Nastavení → AI v zařízení.</string>
     <string name="menu_summarize">Shrnout</string>
     <string name="menu_explain">Vysvětlit</string>
     <string name="server_summary_title">Shrnutí</string>
@@ -4321,6 +4325,13 @@
     <string name="poll_compose_allow_adding">Ostatní můžou přidávat odpovědi</string>
     <!-- Wear OS (client/wearApp) -->
     <string name="wear_login_title">Přihlášení</string>
+    <string name="wear_transcript_no_phone">Přepsat se to nepodařilo. Telefon s Plume není v dosahu.</string>
+    <string name="wear_transcript_no_answer">Přepsat se to nepodařilo. Telefon neodpověděl.</string>
+    <string name="wear_transcript_wrong_account">Přepsat se to nepodařilo. Plume v telefonu je přihlášené k jinému účtu.</string>
+    <string name="wear_transcript_phone_unavailable">Bez Premium přepíše jen telefon, a ten to neumí.</string>
+    <string name="wear_transcript_enable_ai">Přepíše Gemma v telefonu. V Plume na telefonu ji zapni v Nastavení → AI v zařízení.</string>
+    <string name="wear_transcript_switch_gemma">Přepíše jen Gemma v telefonu, Gemini Nano ne. Přepni model v Plume na telefonu: Nastavení → AI v zařízení.</string>
+    <string name="wear_transcript_download_gemma">Přepíše Gemma v telefonu. Stáhni ji v Plume na telefonu: Nastavení → AI v zařízení.</string>
     <string name="wear_login_qr_hint">Naskenujte kód v Telegramu na telefonu: Nastavení → Zařízení → Připojit zařízení.</string>
     <string name="wear_login_with_phone">Přihlásit telefonem</string>
     <string name="wear_login_phone_waiting">Potvrďte přihlášení v notifikaci na telefonu.</string>

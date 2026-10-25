@@ -17,6 +17,7 @@ import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.SpeechTrial
+import eu.tintera.plume.core.telegram.MAX_ON_DEVICE_SECONDS
 import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.telegram.transcribeOffer
 import eu.tintera.plume.core.telegram.userMessage
@@ -148,6 +149,12 @@ internal class ConversationPlayback(
     }
 
     /**
+     * Podnět k nové kontrole přepisu v telefonu: stažená Gemma nastavení nemění, takže by
+     * otevřená konverzace dál radila „stáhni Gemmu". Zvedne ho ťuknutí na nedostupný přepis.
+     */
+    private val onDeviceRecheck = MutableStateFlow(0)
+
+    /**
      * Všechno, co rozhoduje o přepisu záznamu, v jednom toku: Premium, zkušební přepisy, jestli
      * přepíše telefon, a přepisy z telefonu v tomhle chatu. Jeden tok: bubliny ho čtou přes
      * `ScreenItemScope` jedním odběrem, ne čtyřmi.
@@ -156,11 +163,11 @@ internal class ConversationPlayback(
     val transcribeContext: StateFlow<TranscribeContext> = combine(
         chatRepository.isPremium,
         chatRepository.speechTrial,
-        combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant) { enabled, variant -> enabled to variant }
-            .mapLatest { (enabled, variant) -> onDeviceTranscription?.available(enabled, variant) ?: false },
+        combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant, onDeviceRecheck) { enabled, variant, _ -> enabled to variant }
+            .mapLatest { (enabled, variant) -> onDeviceTranscription?.check(enabled, variant) ?: OnDeviceCheck(available = false) },
         localTranscripts?.state?.map { all -> all.filterKeys { it.first == chatId }.mapKeys { it.key.second } }
             ?: flowOf(emptyMap()),
-    ) { premium, trial, onDevice, local -> TranscribeContext(premium, trial, onDevice, local) }
+    ) { premium, trial, onDevice, local -> TranscribeContext(premium, trial, onDevice.available, onDevice.fix, local) }
         .stateIn(scope, SharingStarted.Eagerly, TranscribeContext(chatRepository.isPremium.value, chatRepository.speechTrial.value))
 
     /**
@@ -212,9 +219,23 @@ internal class ConversationPlayback(
             else -> return
         }
         val context = transcribeContext.value
-        if (transcribeOffer(context.isPremium, context.trial, duration, context.onDevice) == TranscribeOffer.OnDevice) {
-            transcribeOnDevice(messageId, fileId)
-            return
+        when (transcribeOffer(context.isPremium, context.trial, duration, context.onDevice, context.onDeviceFix)) {
+            TranscribeOffer.OnDevice -> {
+                transcribeOnDevice(messageId, fileId)
+                return
+            }
+            // Bublina vysvětluje, co zapnout; uživatel to mohl mezitím udělat (stáhnout Gemmu),
+            // takže se to ověří znovu a rovnou přepíše.
+            is TranscribeOffer.Unavailable -> {
+                val transcription = onDeviceTranscription ?: return
+                scope.launch {
+                    val check = transcription.check()
+                    onDeviceRecheck.update { it + 1 }
+                    if (check.available && duration <= MAX_ON_DEVICE_SECONDS) transcribeOnDevice(messageId, fileId)
+                }
+                return
+            }
+            else -> Unit
         }
         scope.launch {
             repository.recognizeSpeech(chatId, messageId).onFailure { failure ->

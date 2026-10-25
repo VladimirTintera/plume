@@ -271,6 +271,7 @@ fun ConversationScreen(
             messages = current,
             quoted = model.quoted,
             transcripts = model.transcripts,
+            transcribeFailures = model.transcribeFailures,
             onTranscribe = model::transcribe,
             lastReadOutboxId = model.lastReadOutboxId,
             loadingOlder = model.loadingOlder,
@@ -333,6 +334,7 @@ private fun MessageList(
     messages: List<ChatMessage>,
     quoted: Map<Long, ChatMessage?>,
     transcripts: Map<Long, SpeechTranscript>,
+    transcribeFailures: Map<Long, TranscribeFailure>,
     onTranscribe: (Long) -> Unit,
     lastReadOutboxId: Long,
     loadingOlder: Boolean,
@@ -426,6 +428,7 @@ private fun MessageList(
                     playback = playback,
                     // Přepis z hodinek (telefon, hodinky) přebíjí ten ze serveru ve zprávě.
                     transcript = transcripts[message.id] ?: (message.media as? MessageMedia.VoiceNote)?.transcript,
+                    transcribeFailure = transcribeFailures[message.id],
                     onTranscribe = { onTranscribe(message.id) },
                     onPlay = { onPlay(message) },
                     onVote = { answers -> onVote(message.id, answers) },
@@ -504,6 +507,7 @@ private fun MessageBubble(
     playing: Boolean,
     playback: VoicePlayback,
     transcript: SpeechTranscript?,
+    transcribeFailure: TranscribeFailure?,
     onTranscribe: () -> Unit,
     onPlay: () -> Unit,
     onVote: (List<Int>) -> Unit,
@@ -627,6 +631,7 @@ private fun MessageBubble(
                     progress = playback::progress,
                     elapsedSeconds = playback::elapsedSeconds,
                     transcript = transcript,
+                    failure = transcribeFailure,
                     onTranscribe = onTranscribe,
                 )
             }

@@ -30,11 +30,19 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import eu.tintera.plume.core.audio.resampleWaveform
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.OnDeviceFix
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.resources.speech_to_text_24dp
 import eu.tintera.plume.resources.transcript_failed
 import eu.tintera.plume.resources.transcript_pending
 import eu.tintera.plume.resources.transcript_show
+import eu.tintera.plume.resources.wear_transcript_download_gemma
+import eu.tintera.plume.resources.wear_transcript_enable_ai
+import eu.tintera.plume.resources.wear_transcript_no_answer
+import eu.tintera.plume.resources.wear_transcript_no_phone
+import eu.tintera.plume.resources.wear_transcript_phone_unavailable
+import eu.tintera.plume.resources.wear_transcript_switch_gemma
+import eu.tintera.plume.resources.wear_transcript_wrong_account
 import androidx.compose.ui.text.font.FontStyle
 import androidx.wear.compose.material3.IconButton
 import eu.tintera.plume.resources.Res
@@ -42,6 +50,7 @@ import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.stop_24dp
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -70,6 +79,7 @@ fun VoiceNoteRow(
     progress: () -> Float,
     elapsedSeconds: () -> Int,
     transcript: SpeechTranscript?,
+    failure: TranscribeFailure?,
     onTranscribe: () -> Unit,
 ) {
     var played by remember { mutableFloatStateOf(0f) }
@@ -123,17 +133,18 @@ fun VoiceNoteRow(
             }
         }
     }
-    TranscriptText(transcript, outgoing)
+    TranscriptText(transcript, failure, outgoing)
 }
 
 private val TRANSCRIBE_SIZE = 32.dp
 
 /**
  * Přepis pod hlasovkou: hotový text, rozpracovaný „Přepisuji…" s dosavadním textem, nepovedený
- * hláška v chybové barvě (tlačítko Přepsat zůstává, jde to zkusit znovu).
+ * hláška v chybové barvě — s důvodem ([failure]), když ho známe (tlačítko Přepsat zůstává, jde
+ * to zkusit znovu).
  */
 @Composable
-private fun TranscriptText(transcript: SpeechTranscript?, outgoing: Boolean) {
+private fun TranscriptText(transcript: SpeechTranscript?, failure: TranscribeFailure?, outgoing: Boolean) {
     val color = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
     val muted = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     when (transcript) {
@@ -146,7 +157,7 @@ private fun TranscriptText(transcript: SpeechTranscript?, outgoing: Boolean) {
             color = muted,
         )
         is SpeechTranscript.Failed -> Text(
-            stringResource(Res.string.transcript_failed),
+            stringResource(failure.message()),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.error,
         )
@@ -177,4 +188,18 @@ private fun Waveform(values: List<Int>, played: Float, playedColor: Color, restC
             )
         }
     }
+}
+
+/** Hláška k důvodu nezdaru; bez důvodu (přepis ze serveru) obecná. */
+private fun TranscribeFailure?.message(): StringResource = when (this) {
+    TranscribeFailure.NoPhone -> Res.string.wear_transcript_no_phone
+    TranscribeFailure.NoAnswer -> Res.string.wear_transcript_no_answer
+    TranscribeFailure.WrongAccount -> Res.string.wear_transcript_wrong_account
+    is TranscribeFailure.PhoneCantTranscribe -> when (fix) {
+        OnDeviceFix.EnableAi -> Res.string.wear_transcript_enable_ai
+        OnDeviceFix.SwitchToGemma -> Res.string.wear_transcript_switch_gemma
+        OnDeviceFix.DownloadGemma -> Res.string.wear_transcript_download_gemma
+        null -> Res.string.wear_transcript_phone_unavailable
+    }
+    TranscribeFailure.Other, null -> Res.string.transcript_failed
 }

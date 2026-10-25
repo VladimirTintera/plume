@@ -782,6 +782,20 @@ Gemma 4 se zvukovým vstupem (`OnDeviceAi.transcribe`, `LiteRtOnDeviceAi`). Tla�
   a zkušebními přepisy v jednom toku (`transcribeContext`) — `ConversationScreen` je v dexu na
   hraně a dvě `collectAsState` se tak změnila v jedno.
 - **Běží v `appScope`**, ne ve `viewModelScope`: odchod z chatu přepis nezruší.
+- **Kde přepis nejde, tlačítko zůstane a řekne proč** (`TranscribeOffer.Unavailable(fix)`,
+  `TooLongOnDevice`; `OnDeviceTranscription.check`). Dřív bez Premium, bez zkušebních přepisů
+  a bez přepisu v telefonu tlačítko zmizelo — a uživatel se zapnutou **Gemini Nano** (pro
+  shrnutí a návrhy odpovědí funguje) nepoznal, že zvuk přepíše jen Gemma: ML Kit zvuk nebere
+  a systémový rozpoznávač neumí offline češtinu. Rada (`OnDeviceFix`) jde po pořadí: AI
+  vypnutá → zapnout, zvolená Gemini Nano → přepnout na Gemmu, Gemma nestažená → stáhnout.
+  Kde Gemmu zařízení neunese (iOS, desktop, slabý telefon), zbývá věta o Premium.
+  - **Ťuknutí na nedostupný přepis stav ověří znovu** (`onDeviceRecheck` v `ConversationPlayback`)
+    a když už telefon přepíše, rovnou přepisuje. Stažení Gemmy nastavení nemění, takže by
+    otevřená konverzace jinak dál radila „stáhni Gemmu". Ověřené jen vypnutí a zapnutí AI (to
+    tok přepočítá sám); cesta přes stažení modelu neověřená.
+  - Ověřeno na emulátoru (Fold s Gemmou 4 E2B, kolečko v Notifikátoru): s vypnutou AI rada
+    „zapni ji v Nastavení → AI v zařízení", po zapnutí přepis Gemmou. Rady pro Gemini Nano
+    a nestaženou Gemmu jen testem (`TranscribeOfferTest`) — emulátor Gemini Nano nemá.
 - **Ověřeno na emulátoru s Gemmou 4 E2B na CPU** (Fold s 8 GB RAM): hlasovka od testovacího bota
   (`say -v Zuzana`, m4a, 7,5 s) přepsaná za 11 s včetně načtení zvukové části —
   „Ahoj, posílám ti hlasovku na zkoušku. Seideme se zítra v 10. hlavního nádraží a pak pujdeme
