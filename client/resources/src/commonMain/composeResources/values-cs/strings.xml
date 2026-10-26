@@ -4463,4 +4463,99 @@
         <item quantity="few">%1$d nové zprávy</item>
         <item quantity="other">%1$d nových zpráv</item>
     </plurals>
+    <!-- Statistiky kanálu, skupiny a příspěvku -->
+    <string name="statistics_title">Statistiky</string>
+    <string name="statistics_row_help">Růst, dosah a aktivita</string>
+    <string name="statistics_period">%1$s – %2$s</string>
+    <string name="statistics_failed">Statistiky se nepodařilo načíst.</string>
+    <string name="statistics_overview">Přehled</string>
+    <string name="statistics_subscribers">Odběratelé</string>
+    <string name="statistics_members">Členové</string>
+    <string name="statistics_notifications">Zapnutá upozornění</string>
+    <string name="statistics_mean_views">Zhlédnutí na příspěvek</string>
+    <string name="statistics_mean_shares">Sdílení na příspěvek</string>
+    <string name="statistics_mean_reactions">Reakce na příspěvek</string>
+    <string name="statistics_mean_story_views">Zhlédnutí na příběh</string>
+    <string name="statistics_mean_story_shares">Sdílení na příběh</string>
+    <string name="statistics_mean_story_reactions">Reakce na příběh</string>
+    <string name="statistics_messages">Zprávy</string>
+    <string name="statistics_viewers">Čtoucí členové</string>
+    <string name="statistics_senders">Píšící členové</string>
+    <string name="statistics_growth">%1$s (%2$s)</string>
+    <string name="statistics_percent">%1$s&#160;%</string>
+    <string name="statistics_other">Ostatní</string>
+    <string name="statistics_graph_members">Růst</string>
+    <string name="statistics_graph_joins">Příchody a odchody</string>
+    <string name="statistics_graph_mutes">Upozornění</string>
+    <string name="statistics_graph_views_by_hour">Zhlédnutí podle hodiny (UTC)</string>
+    <string name="statistics_graph_views_by_source">Zhlédnutí podle zdroje</string>
+    <string name="statistics_graph_joins_by_source">Noví členové podle zdroje</string>
+    <string name="statistics_graph_languages">Jazyky</string>
+    <string name="statistics_graph_interactions">Zhlédnutí a sdílení</string>
+    <string name="statistics_graph_reactions">Reakce</string>
+    <string name="statistics_graph_story_interactions">Zhlédnutí a sdílení příběhů</string>
+    <string name="statistics_graph_story_reactions">Reakce na příběhy</string>
+    <string name="statistics_graph_instant_view">Instant View</string>
+    <string name="statistics_graph_message_content">Zprávy podle druhu</string>
+    <string name="statistics_graph_actions">Akce členů</string>
+    <string name="statistics_graph_by_hour">Aktivita podle hodiny (UTC)</string>
+    <string name="statistics_graph_by_weekday">Aktivita podle dne v týdnu</string>
+    <string name="statistics_recent_posts">Nedávné příspěvky</string>
+    <string name="statistics_story">Příběh</string>
+    <string name="statistics_post_unavailable">Příspěvek není k dispozici</string>
+    <string name="statistics_top_senders">Nejaktivnější členové</string>
+    <string name="statistics_top_admins">Nejaktivnější správci</string>
+    <string name="statistics_top_inviters">Kdo nejvíc zval</string>
+    <plurals name="statistics_views_count">
+        <item quantity="one">%1$s zhlédnutí</item>
+        <item quantity="few">%1$s zhlédnutí</item>
+        <item quantity="other">%1$s zhlédnutí</item>
+    </plurals>
+    <plurals name="statistics_shares_count">
+        <item quantity="one">%1$s sdílení</item>
+        <item quantity="few">%1$s sdílení</item>
+        <item quantity="other">%1$s sdílení</item>
+    </plurals>
+    <plurals name="statistics_reactions_count">
+        <item quantity="one">%1$s reakce</item>
+        <item quantity="few">%1$s reakce</item>
+        <item quantity="other">%1$s reakcí</item>
+    </plurals>
+    <plurals name="statistics_sender_messages">
+        <item quantity="one">%1$d zpráva</item>
+        <item quantity="few">%1$d zprávy</item>
+        <item quantity="other">%1$d zpráv</item>
+    </plurals>
+    <plurals name="statistics_sender_characters">
+        <item quantity="one">průměrně %1$d znak</item>
+        <item quantity="few">průměrně %1$d znaky</item>
+        <item quantity="other">průměrně %1$d znaků</item>
+    </plurals>
+    <plurals name="statistics_admin_deleted">
+        <item quantity="one">%1$d smazaná zpráva</item>
+        <item quantity="few">%1$d smazané zprávy</item>
+        <item quantity="other">%1$d smazaných zpráv</item>
+    </plurals>
+    <plurals name="statistics_admin_banned">
+        <item quantity="one">%1$d vyhození</item>
+        <item quantity="few">%1$d vyhození</item>
+        <item quantity="other">%1$d vyhození</item>
+    </plurals>
+    <plurals name="statistics_admin_restricted">
+        <item quantity="one">%1$d omezení</item>
+        <item quantity="few">%1$d omezení</item>
+        <item quantity="other">%1$d omezení</item>
+    </plurals>
+    <plurals name="statistics_inviter_added">
+        <item quantity="one">%1$d nový člen</item>
+        <item quantity="few">%1$d noví členové</item>
+        <item quantity="other">%1$d nových členů</item>
+    </plurals>
+    <string name="post_statistics_title">Statistika příspěvku</string>
+    <string name="post_statistics_failed">Statistiku příspěvku se nepodařilo načíst.</string>
+    <string name="post_statistics_views">Zhlédnutí</string>
+    <string name="post_statistics_forwards">Přeposlání</string>
+    <string name="post_statistics_reactions">Reakce</string>
+    <string name="post_statistics_public_shares">Veřejná sdílení</string>
+    <string name="post_statistics_public_shares_failed">Veřejná sdílení se nepodařilo načíst.</string>
 </resources>

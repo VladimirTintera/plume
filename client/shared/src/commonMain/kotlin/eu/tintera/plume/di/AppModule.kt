@@ -6,6 +6,8 @@ import eu.tintera.plume.core.webapp.MiniAppStorage
 import eu.tintera.plume.core.webapp.DataStoreMiniAppStorage
 import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogViewModel
+import eu.tintera.plume.features.statistics.ChatStatisticsViewModel
+import eu.tintera.plume.features.statistics.PostStatisticsViewModel
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
 import eu.tintera.plume.features.instantview.InstantViewViewModel
 import eu.tintera.plume.features.settings.AutosaveViewModel
@@ -593,6 +595,18 @@ fun appModule() = module {
 
     viewModel { parameters ->
         EventLogViewModel(chatId = parameters.get(), repository = get())
+    }
+
+    viewModel { parameters ->
+        ChatStatisticsViewModel(chatId = parameters.get(), repository = get())
+    }
+
+    viewModel { parameters ->
+        PostStatisticsViewModel(
+            chatId = parameters.values[0] as Long,
+            messageId = parameters.values[1] as Long,
+            repository = get(),
+        )
     }
 
     viewModel { parameters ->

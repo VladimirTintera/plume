@@ -460,6 +460,11 @@ data class EditableChat(
     val canDeleteForAll: Boolean = false,
     /** Poslední akce ([ProfileRepository.eventLog]): supergroup a kanál, vlastník a správce. */
     val canViewEventLog: Boolean = false,
+    /**
+     * Statistiky ([StatisticsRepository.chatStatistics]): `SupergroupFullInfo.canGetStatistics`,
+     * tedy správce kanálu nebo skupiny, kterou server za dost velkou považuje.
+     */
+    val canGetStatistics: Boolean = false,
     /** Supergroup, ke které se dá zeptat na převod na gigaskupinu; `null` u kanálu a základní skupiny. */
     val supergroupId: Long? = null,
     /** Vlastník chatu — jen ten smí skupinu převést na gigaskupinu. */

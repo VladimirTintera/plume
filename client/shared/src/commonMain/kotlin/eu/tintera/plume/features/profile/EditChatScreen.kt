@@ -113,6 +113,9 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.rocket_launch_24dp
 import eu.tintera.plume.resources.boosts_row_help
 import eu.tintera.plume.resources.boosts_title
+import eu.tintera.plume.resources.bar_chart_24dp
+import eu.tintera.plume.resources.statistics_row_help
+import eu.tintera.plume.resources.statistics_title
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.edit_chat_delete_group_body
 import eu.tintera.plume.resources.edit_chat_delete_channel_body
@@ -171,6 +174,8 @@ fun EditChatScreen(
     onOpenRemoved: (banned: Boolean) -> Unit,
     /** Poslední akce ve skupině; nabízí se jen správcům ([EditableChat.canViewEventLog]). */
     onOpenEventLog: () -> Unit,
+    /** Statistiky kanálu nebo skupiny; nabízí se jen tam, kde je server vydá ([EditableChat.canGetStatistics]). */
+    onOpenStatistics: () -> Unit,
     /** Chat je smazaný pro všechny: zavřít všechno, co ho ukazuje. */
     onDeleted: () -> Unit,
     /** Základní skupina se převedla na supergroupu: (staré id, nové id). */
@@ -559,6 +564,19 @@ fun EditChatScreen(
                             supportingContent = { Text(stringResource(Res.string.welcome_messages_row_help)) },
                             leadingContent = { Icon(painterResource(Res.drawable.celebration_24dp), contentDescription = null) },
                             modifier = Modifier.clickable(onClick = viewModel::openWelcomeMessages),
+                        )
+                    }
+                }
+
+                // Statistiky: jen kde je server vydá (kanál zhruba od 500 odběratelů, větší skupina).
+                if (chat.canGetStatistics) {
+                    GroupedColumn(Modifier.fillMaxWidth()) {
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            headlineContent = { Text(stringResource(Res.string.statistics_title)) },
+                            supportingContent = { Text(stringResource(Res.string.statistics_row_help)) },
+                            leadingContent = { Icon(painterResource(Res.drawable.bar_chart_24dp), contentDescription = null) },
+                            modifier = Modifier.clickable(onClick = onOpenStatistics),
                         )
                     }
                 }

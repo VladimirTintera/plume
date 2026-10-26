@@ -443,6 +443,7 @@ internal fun ConversationDialogs(
             onCopyLink = viewModel::copyMessageLink,
             onDismiss = viewModel::dismissMessageInfo,
             onOpenAuthor = viewModel::openMessageAuthor,
+            onOpenStatistics = { viewModel.openPostStatistics(sheet.message.id) },
         )
     }
 

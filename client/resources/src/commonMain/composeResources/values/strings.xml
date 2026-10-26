@@ -4316,4 +4316,90 @@
         <item quantity="one">%1$d new message</item>
         <item quantity="other">%1$d new messages</item>
     </plurals>
+    <!-- Statistiky kanálu, skupiny a příspěvku -->
+    <string name="statistics_title">Statistics</string>
+    <string name="statistics_row_help">Growth, reach and activity</string>
+    <string name="statistics_period">%1$s – %2$s</string>
+    <string name="statistics_failed">Statistics could not be loaded.</string>
+    <string name="statistics_overview">Overview</string>
+    <string name="statistics_subscribers">Subscribers</string>
+    <string name="statistics_members">Members</string>
+    <string name="statistics_notifications">Notifications on</string>
+    <string name="statistics_mean_views">Views per post</string>
+    <string name="statistics_mean_shares">Shares per post</string>
+    <string name="statistics_mean_reactions">Reactions per post</string>
+    <string name="statistics_mean_story_views">Views per story</string>
+    <string name="statistics_mean_story_shares">Shares per story</string>
+    <string name="statistics_mean_story_reactions">Reactions per story</string>
+    <string name="statistics_messages">Messages</string>
+    <string name="statistics_viewers">Members reading</string>
+    <string name="statistics_senders">Members writing</string>
+    <string name="statistics_growth">%1$s (%2$s)</string>
+    <string name="statistics_percent">%1$s%</string>
+    <string name="statistics_other">Other</string>
+    <string name="statistics_graph_members">Growth</string>
+    <string name="statistics_graph_joins">Joined and left</string>
+    <string name="statistics_graph_mutes">Notifications</string>
+    <string name="statistics_graph_views_by_hour">Views by hour (UTC)</string>
+    <string name="statistics_graph_views_by_source">Views by source</string>
+    <string name="statistics_graph_joins_by_source">New members by source</string>
+    <string name="statistics_graph_languages">Languages</string>
+    <string name="statistics_graph_interactions">Views and shares</string>
+    <string name="statistics_graph_reactions">Reactions</string>
+    <string name="statistics_graph_story_interactions">Story views and shares</string>
+    <string name="statistics_graph_story_reactions">Story reactions</string>
+    <string name="statistics_graph_instant_view">Instant View</string>
+    <string name="statistics_graph_message_content">Messages by type</string>
+    <string name="statistics_graph_actions">Member actions</string>
+    <string name="statistics_graph_by_hour">Activity by hour (UTC)</string>
+    <string name="statistics_graph_by_weekday">Activity by day of the week</string>
+    <string name="statistics_recent_posts">Recent posts</string>
+    <string name="statistics_story">Story</string>
+    <string name="statistics_post_unavailable">Post not available</string>
+    <string name="statistics_top_senders">Most active members</string>
+    <string name="statistics_top_admins">Most active admins</string>
+    <string name="statistics_top_inviters">Invited the most</string>
+    <plurals name="statistics_views_count">
+        <item quantity="one">%1$s view</item>
+        <item quantity="other">%1$s views</item>
+    </plurals>
+    <plurals name="statistics_shares_count">
+        <item quantity="one">%1$s share</item>
+        <item quantity="other">%1$s shares</item>
+    </plurals>
+    <plurals name="statistics_reactions_count">
+        <item quantity="one">%1$s reaction</item>
+        <item quantity="other">%1$s reactions</item>
+    </plurals>
+    <plurals name="statistics_sender_messages">
+        <item quantity="one">%1$d message</item>
+        <item quantity="other">%1$d messages</item>
+    </plurals>
+    <plurals name="statistics_sender_characters">
+        <item quantity="one">%1$d character on average</item>
+        <item quantity="other">%1$d characters on average</item>
+    </plurals>
+    <plurals name="statistics_admin_deleted">
+        <item quantity="one">%1$d message deleted</item>
+        <item quantity="other">%1$d messages deleted</item>
+    </plurals>
+    <plurals name="statistics_admin_banned">
+        <item quantity="one">%1$d removed</item>
+        <item quantity="other">%1$d removed</item>
+    </plurals>
+    <plurals name="statistics_admin_restricted">
+        <item quantity="one">%1$d restricted</item>
+        <item quantity="other">%1$d restricted</item>
+    </plurals>
+    <plurals name="statistics_inviter_added">
+        <item quantity="one">%1$d new member</item>
+        <item quantity="other">%1$d new members</item>
+    </plurals>
+    <string name="post_statistics_title">Post statistics</string>
+    <string name="post_statistics_failed">Post statistics could not be loaded.</string>
+    <string name="post_statistics_views">Views</string>
+    <string name="post_statistics_forwards">Forwards</string>
+    <string name="post_statistics_reactions">Reactions</string>
+    <string name="post_statistics_public_shares">Public shares</string>
+    <string name="post_statistics_public_shares_failed">Public shares could not be loaded.</string>
 </resources>

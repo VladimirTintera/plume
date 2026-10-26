@@ -418,6 +418,7 @@ class TdlProfileRepository(
             canSetStickerSet = !isChannel && supergroupInfo?.canSetStickerSet == true,
             canDeleteForAll = chat.canBeDeletedForAllUsers,
             canViewEventLog = supergroup != null && (own is OwnMemberStatus.Admin || (own as? OwnMemberStatus.Creator)?.isMember == true),
+            canGetStatistics = supergroupInfo?.canGetStatistics == true,
             supergroupId = (chat.type as? ChatTypeSupergroup)?.supergroupId?.takeIf { !isChannel },
             isOwner = owner,
             isBroadcastGroup = supergroup?.isBroadcastGroup == true,

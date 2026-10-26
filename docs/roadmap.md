@@ -645,8 +645,12 @@ pro kryptoměny, ne jen o fakturaci. Co z toho stojí za to i bez peněženky:
 - ~~Smazat skupinu nebo kanál pro všechny (`deleteChat`)~~ — hotovo (konec úpravy skupiny).
 - ~~Záznam posledních akcí (`getChatEventLog`)~~ — hotovo (úprava skupiny → Poslední akce;
   `docs/poznatky/profil-chatu.md`). ~~Filtry a hledání v záznamu~~ — hotovo (tamtéž, „Hledání
-  a filtry záznamu"; filtr podle autora ověřit ve skupině s víc správci). Zbývají statistiky
-  kanálu a příspěvku (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
+  a filtry záznamu"; filtr podle autora ověřit ve skupině s víc správci). ~~Statistiky
+  kanálu, skupiny a příspěvku (`getChatStatistics`, `getStatisticalGraph`, `getMessageStatistics`,
+  `getMessagePublicForwards`)~~ — hotovo (úprava chatu → Statistiky, „Informace o zprávě" →
+  Statistika příspěvku; `docs/poznatky/profil-chatu.md`, „Statistiky"). Ověřené jen sondou
+  s podstrčenými daty — testovací účet nemá kanál ani skupinu, které by server statistiky
+  vydal. Zbytky v „Prověrka 26. 10. 2026" níž.
 - ~~Psaní jménem kanálu ve skupině (`getChatAvailableMessageSenders`, `setChatMessageSender`)~~ —
   hotovo (`docs/poznatky/konverzace-psani.md`, „Psaní jménem kanálu nebo skupiny"). Zbývá ověřit
   na zařízení s kanálem nebo anonymním správcem a prémiovou volbu.
@@ -725,8 +729,8 @@ pro kryptoměny, ne jen o fakturaci. Co z toho stojí za to i bez peněženky:
   Zbývá ověřit boty ve skupině (před členy).
 - ~~Ankety: smazat možnost (`deletePollOption`)~~ — hotovo i s přidáváním odpovědí ve formuláři
   (`docs/poznatky/ankety.md`). Statistika hlasů (`getPollVoteStatistics`) zbývá — vydá ji jen
-  server u větších anket a je to tentýž graf (`StatisticalGraph`) jako statistiky kanálu níž,
-  takže se má dělat s nimi.
+  server u větších anket (`MessageProperties.canGetPollVoteStatistics`). Graf už je
+  (`StatGraphCard` ze statistik kanálu), zbývá dotaz a místo v anketě.
 - ~~Označit celou složku jako přečtenou (`readChatList`)~~ — hotovo (podržení složky v liště,
   archiv ikonou v jeho liště).
 - ~~Odebrat jednu položku z nedávného hledání a z nejčastějších lidí (`removeRecentlyFoundChat`,
@@ -958,6 +962,42 @@ samolepky z fotky") a úprava vlastní sady (název, pořadí, emoji, odebrání
 sady, obálka; „Úprava vlastní sady samolepek") a bílý obrys kolem vyříznutého objektu.
 Zbývá: video a animované samolepky, odstranění pozadí na desktopu (chtělo by přibalit model),
 a ověření iOS na skutečném iPhonu.
+
+### Prověrka 26. 10. 2026: co z nevolaných stojí za to
+
+Wrapper 16.0.0 má 1 065 funkcí (bez updatů), aplikace volá asi 540. Ze zbylých ~520 spadá
+většina pod „Vědomě mimo" níž (hvězdy, platby, dárky a TON přes 150 funkcí, Business,
+Passport, volání jen pro boty, testy a logy) nebo pod Hovory (videochaty). Nevolaná funkce
+ještě neznamená chybějící funkci: hlavní pozvánku ruší `revokeChatInviteLink`, takže
+`replacePrimaryChatInviteLink` netřeba; `setUserNote` je vynechaná vědomě. Co zbylo a stojí
+za to, od nejužitečnějšího:
+
+- ~~**Statistiky kanálu, skupiny a příspěvku**~~ — hotovo (viz Správa skupin a kanálů výš).
+  Zbývá: přiblížení grafu po hodinách (`zoomToken` → `getStatisticalGraph` s `x`), statistika
+  příběhu (`getStoryStatistics`, `getStoryPublicForwards`; příběh v přehledu kanálu se dnes
+  neotevře), ťuknutí na člena v žebříčcích skupiny → profil, a hlavně **ověření se skutečným
+  kanálem** (statistiky vydá server kanálu zhruba od 500 odběratelů, `canGetStatistics`).
+  Názvy řad grafu („Views", „Joined") posílá server anglicky — ověřit, jestli je posílá
+  v jazyce účtu; když ne, zvážit vlastní názvy podle druhu grafu.
+- **Odkaz na téma** (`getForumTopicLink`, offline) — „Zkopírovat odkaz" u tématu ve skupině
+  dnes chybí; levné.
+- **Ikona tématu z emoji** (`getForumTopicDefaultIcons`) — `createForumTopic` /
+  `editForumTopic` posílají jen barvu (`customEmojiId = 0`); výběr z výchozích emoji, které
+  smí každý.
+- **Tvorba samolepek — doplňky:** návrh a kontrola krátkého jména sady
+  (`getStickerSetName`, `checkStickerSetName`) a klíčová slova samolepky (`setStickerKeywords`).
+- **„Poslední soubory" ve výběru příloh** (`searchOutgoingDocumentMessages`) — odeslané
+  dokumenty napříč chaty, bez hledání v úložišti zařízení.
+- **Samolepka na pozdrav v prázdném soukromém chatu** (`getGreetingStickers`) — NEJISTÉ:
+  dokumentace ji vede pro úvodní stránku firemního profilu; jestli ji oficiální klient bere
+  i pro prázdný chat, ověřit dřív, než se na ni sáhne.
+- **Funkce, které Premium jen odemyká** (štítky Uložených zpráv `getSavedMessagesTags` /
+  `setSavedMessagesTagLabel`, štítky složek `toggleChatFolderTags`, nastavení emoji statusu,
+  tajný režim příběhů `activateStoryStealthMode`) — Premium cizí klient neprodá, ale kdo ho
+  má z oficiální aplikace, tyhle funkce používá a v Plume mu chybí. Až bude účet s Premium,
+  na kterém se dají ověřit.
+- **Videochat s mluvením a kamerou, iOS** — viz Hovory; hlavní zbytek ze 40 nevolaných
+  funkcí skupinových hovorů.
 
 **Vědomě mimo, dokud se nerozhodne jinak:**
 

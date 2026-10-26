@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -33,6 +34,8 @@ import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.bar_chart_24dp
+import eu.tintera.plume.resources.post_statistics_title
 import eu.tintera.plume.resources.menu_sent_at
 import eu.tintera.plume.resources.message_info_auto_delete
 import eu.tintera.plume.resources.message_info_author
@@ -46,6 +49,7 @@ import eu.tintera.plume.resources.message_info_sent
 import eu.tintera.plume.resources.message_info_title
 import eu.tintera.plume.resources.message_info_unread
 import eu.tintera.plume.resources.message_info_viewers
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -65,6 +69,8 @@ fun MessageInfoSheet(
     onCopyLink: (String) -> Unit,
     onDismiss: () -> Unit,
     onOpenAuthor: (userId: Long) -> Unit = {},
+    /** Statistika příspěvku; řádek je jen u příspěvku, který ji má ([MessageInfo.canGetStatistics]). */
+    onOpenStatistics: () -> Unit = {},
 ) {
     // Modální sheet začíná skrytý a rozjede se sám. Náhrada za `rememberModalBottomSheetState`,
     // které je od Compose 1.12 zastaralé.
@@ -135,6 +141,9 @@ fun MessageInfoSheet(
                         onClick = { onCopyLink(link) },
                     )
                 }
+
+                // Správce kanálu odtud dojde ke statistice příspěvku — jinak by ji hledal přes úpravu kanálu.
+                if (info.canGetStatistics) StatisticsRow(onClick = onOpenStatistics)
             }
 
             if (info.viewers.isNotEmpty()) {
@@ -231,6 +240,30 @@ private fun AuthorRow(author: SenderInfo, onClick: () -> Unit) {
             )
         }
         Avatar(chatId = author.id, title = author.title, avatarFileId = author.avatarFileId, size = 36.dp)
+    }
+}
+
+/** Řádek, který otevře statistiku příspěvku: ikona a název, jako řádky v úpravě chatu. */
+@Composable
+private fun StatisticsRow(onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Icon(
+            painterResource(Res.drawable.bar_chart_24dp),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(Res.string.post_statistics_title),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

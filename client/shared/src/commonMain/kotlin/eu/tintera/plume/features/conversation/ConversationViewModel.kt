@@ -830,6 +830,14 @@ class ConversationViewModel(
     fun confirmBlockFromReplies(deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean) =
         messageActions.confirmBlockFromReplies(deleteMessage, deleteAll, reportSpam)
 
+    /** „Statistika příspěvku" z „Informace o zprávě": sheet se zavře a nad konverzací se otevře statistika. */
+    fun openPostStatistics(messageId: Long) {
+        menu.dismissMessageInfo()
+        _state.update { it.copy(openPostStatistics = messageId) }
+    }
+
+    fun consumeOpenPostStatistics() = _state.update { it.copy(openPostStatistics = null) }
+
     /** Odesílatel z „Informace o zprávě" (přímé zprávy kanálu): sheet se zavře a otevře se jeho profil. */
     fun openMessageAuthor(userId: Long) {
         menu.dismissMessageInfo()

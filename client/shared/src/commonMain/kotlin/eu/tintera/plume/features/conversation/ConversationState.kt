@@ -688,6 +688,8 @@ data class ConversationState(
     val switchInline: SwitchInlinePick? = null,
     /** Jednorázová událost: otevřít profil chatu (odesílatele ze skupiny). */
     val openProfile: Long? = null,
+    /** Jednorázová událost: otevřít statistiku příspěvku (id zprávy) z „Informace o zprávě". */
+    val openPostStatistics: Long? = null,
     /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */
     val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */
