@@ -212,6 +212,7 @@ import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.core.ui.QuoteBlockStyle
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.sharedNavElement
@@ -1569,7 +1570,7 @@ private fun ProfileInfo(
                         onLinkClick = onLinkClick,
                         // Bio i popis skupiny můžou nést citaci; řádek stojí na
                         // `surfaceContainerLowest`, takže blok musí být o stupeň výš.
-                        quoteBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        quote = QuoteBlockStyle(background = MaterialTheme.colorScheme.surfaceContainerHigh),
                     )
                 }
             }

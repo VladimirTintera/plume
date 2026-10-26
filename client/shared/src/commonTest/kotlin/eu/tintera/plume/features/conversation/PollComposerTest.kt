@@ -2,6 +2,8 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatPoll
+import eu.tintera.plume.core.telegram.DEFAULT_POLL_DESCRIPTION_MAX
+import eu.tintera.plume.core.telegram.PollLimits
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Place
 import eu.tintera.plume.core.telegram.PollDraftMedia
@@ -32,23 +34,44 @@ class PollComposerTest {
         explanation: String = "",
         max: Int = 10,
     ) = pollDraftOf(
-        question = question,
-        answers = answers,
-        anonymous = true,
-        multipleAnswers = multiple,
-        shuffle = false,
-        quiz = quiz,
-        correct = correct,
-        explanation = explanation,
-        maxAnswers = max,
+        PollForm(
+            question = question,
+            answers = answers,
+            anonymous = true,
+            multipleAnswers = multiple,
+            shuffle = false,
+            quiz = quiz,
+            correct = correct,
+            explanation = explanation,
+        ),
+        limits(maxAnswers = max),
     )
+
+    /** Běžná anketa „Kam?" se dvěma odpověďmi; testy přepíšou jen to, o co jim jde (`copy`). */
+    private val kam = PollForm(
+        question = "Kam?",
+        answers = listOf("A", "B"),
+        anonymous = true,
+        multipleAnswers = false,
+        shuffle = false,
+        quiz = false,
+        correct = emptySet(),
+        explanation = "",
+    )
+
+    /** Meze od serveru: deset odpovědí, bez stropu doby a zemí. */
+    private fun limits(
+        maxAnswers: Int = 10,
+        maxOpenPeriodSeconds: Int = 0,
+        maxDescription: Int = DEFAULT_POLL_DESCRIPTION_MAX,
+        maxCountries: Int = 0,
+    ) = PollLimits(maxAnswers, maxOpenPeriodSeconds, maxDescription, maxCountries)
 
     @Test
     fun pridavaniOdpovediJenUNeanonymniAnkety() {
         fun allow(anonymous: Boolean, quiz: Boolean) = pollDraftOf(
-            question = "Kam?", answers = listOf("A", "B"), anonymous = anonymous, multipleAnswers = false,
-            shuffle = false, quiz = quiz, correct = if (quiz) setOf(0) else emptySet(), explanation = "",
-            maxAnswers = 10, allowAddingOptions = true,
+            kam.copy(anonymous = anonymous, quiz = quiz, correct = if (quiz) setOf(0) else emptySet(), allowAddingOptions = true),
+            limits(),
         )?.allowAddingOptions
         assertEquals(true, allow(anonymous = false, quiz = false))
         // TDLib: „not supported … for anonymous polls"; kvíz volbu vůbec nemá.
@@ -156,12 +179,14 @@ class PollComposerTest {
 
     @Test
     fun vysledkyAzPoSkonceniJenSDobou() {
-        val bez = pollDraftOf("Kam?", listOf("A", "B"), true, false, false, false, emptySet(), "", 10, hideResultsUntilClose = true)
+        val bez = pollDraftOf(kam.copy(hideResultsUntilClose = true), limits())
         assertEquals(false, bez?.hideResultsUntilClose)
         val sDobou = pollDraftOf(
-            "Kam?", listOf("A", "B"), true, false, false, false, emptySet(), "", 10,
-            openPeriodSeconds = 3600,
-            hideResultsUntilClose = true,
+            kam.copy(
+                openPeriodSeconds = 3600,
+                hideResultsUntilClose = true,
+            ),
+            limits(),
         )
         assertEquals(3600, sDobou?.openPeriodSeconds)
         assertEquals(true, sDobou?.hideResultsUntilClose)
@@ -234,30 +259,19 @@ class PollComposerTest {
     private val month = 2_628_000
 
     private fun closing(closeDate: Long, openPeriod: Int = 0, hide: Boolean = false, maxOpen: Int = month) = pollDraftOf(
-        question = "Kam?",
-        answers = listOf("A", "B"),
-        anonymous = true,
-        multipleAnswers = false,
-        shuffle = false,
-        quiz = false,
-        correct = emptySet(),
-        explanation = "",
-        maxAnswers = 10,
-        openPeriodSeconds = openPeriod,
-        hideResultsUntilClose = hide,
-        closeDate = closeDate,
+        form = kam.copy(
+            openPeriodSeconds = openPeriod,
+            hideResultsUntilClose = hide,
+            closeDate = closeDate,
+        ),
+        limits = limits(maxOpenPeriodSeconds = maxOpen),
         now = now,
-        maxOpenPeriodSeconds = maxOpen,
     )
 
     @Test
     fun popisSeOrizneAHlidaSeJehoStrop() {
         val base = { description: String, max: Int ->
-            pollDraftOf(
-                question = "Kam?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
-                shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
-                description = description, maxDescription = max,
-            )
+            pollDraftOf(kam.copy(description = description), limits(maxDescription = max))
         }
         assertEquals("Na víkend.", base("  Na víkend. \n", 1024)?.description)
         assertNull(base("x".repeat(11), 10))
@@ -292,11 +306,7 @@ class PollComposerTest {
     @Test
     fun zemiNejviceKolikDovoliServer() {
         val base = { codes: List<String>, max: Int ->
-            pollDraftOf(
-                question = "Kam?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
-                shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
-                countryCodes = codes, maxCountries = max, membersOnly = true,
-            )
+            pollDraftOf(kam.copy(countryCodes = codes, membersOnly = true), limits(maxCountries = max))
         }
         assertEquals(listOf("CZ", "SK"), base(listOf("CZ", "SK", "CZ"), 3)?.countryCodes)
         assertTrue(base(emptyList(), 0)?.membersOnly == true)
@@ -336,9 +346,8 @@ class PollComposerTest {
         // Pole 1 je prázdné a vynechá se — příloha pole 2 patří druhé ODESLANÉ odpovědi.
         val draft = assertNotNull(
             pollDraftOf(
-                question = "Která?", answers = listOf("A", "", "C", ""), anonymous = true, multipleAnswers = false,
-                shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
-                media = photoA, answerMedia = mapOf(2 to photoB),
+                kam.copy(question = "Která?", answers = listOf("A", "", "C", ""), media = photoA, answerMedia = mapOf(2 to photoB)),
+                limits(),
             ),
         )
         assertEquals(listOf("A", "C"), draft.answers)
@@ -361,18 +370,10 @@ class PollComposerTest {
     @Test
     fun samolepkaAOdkazUOtazkyNeodejdou() {
         val link = PollDraftMedia.Link("https://example.com")
-        val withQuestionLink = pollDraftOf(
-            question = "Která?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
-            shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
-            media = link,
-        )
+        val withQuestionLink = pollDraftOf(kam.copy(question = "Která?", media = link), limits())
         assertNull(withQuestionLink)
         // U odpovědi je odkaz v pořádku.
-        val withAnswerLink = pollDraftOf(
-            question = "Která?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
-            shuffle = false, quiz = false, correct = emptySet(), explanation = "", maxAnswers = 10,
-            answerMedia = mapOf(1 to link),
-        )
+        val withAnswerLink = pollDraftOf(kam.copy(question = "Která?", answerMedia = mapOf(1 to link)), limits())
         assertEquals(listOf(null, link), withAnswerLink?.answerMedia)
         assertTrue(PollDraftMedia.Location(Place("Náměstí", "Praha", 50.0, 14.0)).allowedForQuestion)
     }
@@ -380,9 +381,8 @@ class PollComposerTest {
     @Test
     fun prilohaVysvetleniJenUKvizuABezOdkazu() {
         fun withExplanationMedia(quiz: Boolean, media: PollDraftMedia) = pollDraftOf(
-            question = "Která?", answers = listOf("A", "B"), anonymous = true, multipleAnswers = false,
-            shuffle = false, quiz = quiz, correct = setOf(0), explanation = "Protože.", maxAnswers = 10,
-            explanationMedia = media,
+            kam.copy(question = "Která?", quiz = quiz, correct = setOf(0), explanation = "Protože.", explanationMedia = media),
+            limits(),
         )
         assertEquals(photoA, withExplanationMedia(quiz = true, media = photoA)?.explanationMedia)
         // Mimo kvíz vysvětlení není, a s ním ani jeho příloha.

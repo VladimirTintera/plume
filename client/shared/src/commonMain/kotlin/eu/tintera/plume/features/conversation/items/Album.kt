@@ -81,10 +81,12 @@ internal fun AlbumContent(
                         messageId = member.id,
                         onOpen = { onOpen(member.id) },
                         onRequestMenu = { onRequestMenu(member.id) },
-                        uploading = member.sendState == SendState.Sending,
-                        onCancelUpload = { onCancelUpload(member.id) },
-                        documentProgress = documentProgress,
-                        onOpenDocument = { onOpenDocument(member.id) },
+                        file = FileTransfer(
+                            uploading = member.sendState == SendState.Sending,
+                            onCancelUpload = { onCancelUpload(member.id) },
+                            documentProgress = documentProgress,
+                            onOpenDocument = { onOpenDocument(member.id) },
+                        ),
                         accent = accent,
                     )
                 }
