@@ -174,6 +174,12 @@ internal fun BoxScope.ConversationContent(
                 title = stringResource(if (error != null) Res.string.empty_state_error_title else Res.string.conversation_empty),
                 text = error?.resolve() ?: stringResource(Res.string.conversation_empty_text),
                 modifier = Modifier.fillMaxSize(),
+                // Prázdný chat s člověkem nabídne samolepku na pozdrav, jako oficiální klienti.
+                action = if (showsGreetingSticker(state)) {
+                    { GreetingSticker(onSend = viewModel::sendSticker) }
+                } else {
+                    null
+                },
             )
         }
 

@@ -990,9 +990,9 @@ za to, od nejužitečnějšího:
   sady podle id a Plume ho nepotřebuje.
 - ~~**„Poslední soubory" ve výběru příloh** (`searchOutgoingDocumentMessages`)~~ — hotovo
   (sponka → Poslední soubory; `docs/poznatky/konverzace-psani.md`, „Poslední soubory").
-- **Samolepka na pozdrav v prázdném soukromém chatu** (`getGreetingStickers`) — NEJISTÉ:
-  dokumentace ji vede pro úvodní stránku firemního profilu; jestli ji oficiální klient bere
-  i pro prázdný chat, ověřit dřív, než se na ni sáhne.
+- ~~**Samolepka na pozdrav v prázdném soukromém chatu** (`getGreetingStickers`)~~ — hotovo;
+  oficiální Android bere tutéž sadu (`docs/poznatky/emoji-samolepky-reakce.md`, „Samolepka na
+  pozdrav v prázdném chatu"). Zbývá ověřit ve skutečném prázdném chatu s kontaktem.
 - **Funkce, které Premium jen odemyká** (štítky Uložených zpráv `getSavedMessagesTags` /
   `setSavedMessagesTagLabel`, štítky složek `toggleChatFolderTags`, nastavení emoji statusu,
   tajný režim příběhů `activateStoryStealthMode`) — Premium cizí klient neprodá, ale kdo ho

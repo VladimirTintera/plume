@@ -2528,6 +2528,7 @@ class TdlConversationRepository(
                     },
                     savedTopic = savedTopic?.header,
                     callUserId = calls?.first,
+                    isWithPerson = personUserId(chat) != null,
                     callSupportsVideo = calls?.second == true,
                     isForum = supergroup?.isForum == true,
                     directTopic = directTopic?.let { topic -> directTopics?.topic(chat.id, topic.id)?.header },
@@ -2546,6 +2547,15 @@ class TdlConversationRepository(
      * hovory přijímá. Nedostupné podrobnosti (bez sítě) hovor nezakazují — rozhodne server.
      */
     private suspend fun callTarget(chat: Chat): Pair<Long, Boolean>? {
+        val userId = personUserId(chat) ?: return null
+        val full = client.getUserFullInfo(userId = userId).toResult().getOrNull()
+        if (full?.canBeCalled == false) return null
+        return userId to (full?.supportsVideoCalls != false)
+    }
+
+
+    /** Protějšek soukromého nebo tajného chatu, když je to člověk (ne bot, ne vlastní účet); jinak `null`. */
+    private suspend fun personUserId(chat: Chat): Long? {
         val userId = when (val type = chat.type) {
             is ChatTypePrivate -> type.userId
             is ChatTypeSecret -> type.userId
@@ -2553,12 +2563,8 @@ class TdlConversationRepository(
         }
         if (userId == myId()) return null
         val user = client.getUser(userId = userId).toResult().getOrNull() ?: return null
-        if (user.type !is UserTypeRegular) return null
-        val full = client.getUserFullInfo(userId = userId).toResult().getOrNull()
-        if (full?.canBeCalled == false) return null
-        return userId to (full?.supportsVideoCalls != false)
+        return userId.takeIf { user.type is UserTypeRegular }
     }
-
 
     /** Koncept, jak ho čte konverzace: chat, téma i vlákno komentářů ho nesou stejně. */
     private fun DraftMessage.toSavedDraft(): SavedDraft? {

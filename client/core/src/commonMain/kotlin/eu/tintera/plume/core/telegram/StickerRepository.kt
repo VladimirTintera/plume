@@ -206,6 +206,12 @@ interface StickerRepository {
      * napsanému emoji by bylo dotěrné. Při chybě prázdný seznam.
      */
     suspend fun stickersForEmoji(emoji: String): List<StickerItem>
+
+    /**
+     * Samolepky na pozdrav do prázdného soukromého chatu (`getGreetingStickers` — TDLib tím hledá
+     * emoji „👋⭐️", stejnou sadu bere i oficiální klient). Při chybě prázdný seznam.
+     */
+    suspend fun greetingStickers(): List<StickerItem> = emptyList()
 }
 
 /** Co se hledá. Jestli jde o emoji, nebo o slovo, rozhoduje volající. */

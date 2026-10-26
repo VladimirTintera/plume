@@ -1493,6 +1493,11 @@ data class ChatInfo(
      * ne vlastní účet) a hovory od nás přijímá (`canBeCalled` — soukromí hovorů). Jinak `null`.
      */
     val callUserId: Long? = null,
+    /**
+     * Soukromý nebo tajný chat s ČLOVĚKEM — ne s botem ani se sebou. Na rozdíl od [callUserId]
+     * nezávisí na soukromí hovorů (prázdný chat s ním nabízí samolepku na pozdrav).
+     */
+    val isWithPerson: Boolean = false,
     /** Protějšek přijímá i videohovory (`supportsVideoCalls`). */
     val callSupportsVideo: Boolean = false,
     /** Skupina s tématy — celou skupinu otevřenou jako zprávy jde přepnout na seznam témat. */
