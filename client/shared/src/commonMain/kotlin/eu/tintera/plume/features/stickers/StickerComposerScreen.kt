@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,6 +85,16 @@ import eu.tintera.plume.resources.sticker_edit_photo
 import eu.tintera.plume.resources.sticker_emoji
 import eu.tintera.plume.resources.sticker_emoji_hint
 import eu.tintera.plume.resources.sticker_emoji_other
+import eu.tintera.plume.resources.sticker_keywords
+import eu.tintera.plume.resources.sticker_keywords_help
+import eu.tintera.plume.resources.sticker_keywords_too_long
+import eu.tintera.plume.resources.sticker_set_link
+import eu.tintera.plume.resources.sticker_set_link_checking
+import eu.tintera.plume.resources.sticker_set_link_empty
+import eu.tintera.plume.resources.sticker_set_link_invalid
+import eu.tintera.plume.resources.sticker_set_link_occupied
+import eu.tintera.plume.resources.sticker_set_link_ok
+import eu.tintera.plume.resources.sticker_set_link_unknown
 import eu.tintera.plume.resources.sticker_new_title
 import eu.tintera.plume.resources.sticker_outline
 import eu.tintera.plume.resources.sticker_outline_hint
@@ -270,6 +281,19 @@ private fun StickerForm(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // Klíčová slova pomáhají samolepku najít hledáním; nepovinná.
+                FormTextField(
+                    value = state.keywords,
+                    onValueChange = viewModel::setKeywords,
+                    singleLine = true,
+                    label = { Text(stringResource(Res.string.sticker_keywords)) },
+                    supportingText = {
+                        Text(stringResource(if (state.keywordsFit) Res.string.sticker_keywords_help else Res.string.sticker_keywords_too_long))
+                    },
+                    isError = !state.keywordsFit,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         item(key = "set") {
@@ -307,12 +331,52 @@ private fun StickerForm(
                             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        SetNameField(state, onChange = viewModel::setNewSetName)
                     }
                 }
             }
         }
     }
 }
+
+/**
+ * Jméno nové sady v odkazu `t.me/addstickers/…`: navržené z názvu, nebo vlastní. Pod polem
+ * celý odkaz a stav kontroly; obsazené nebo neplatné je chyba pole a založit nejde.
+ */
+@Composable
+private fun SetNameField(state: StickerComposerState, onChange: (String) -> Unit) {
+    val status = state.newSetNameStatus
+    val error = status == SetNameStatus.Invalid || status == SetNameStatus.Occupied
+    FormTextField(
+        value = state.newSetName,
+        onValueChange = onChange,
+        singleLine = true,
+        label = { Text(stringResource(Res.string.sticker_set_link)) },
+        supportingText = {
+            val text = when (status) {
+                SetNameStatus.Empty -> stringResource(Res.string.sticker_set_link_empty)
+                SetNameStatus.Checking -> stringResource(Res.string.sticker_set_link_checking)
+                SetNameStatus.Ok -> stringResource(Res.string.sticker_set_link_ok, STICKER_LINK_PREFIX + state.newSetName)
+                SetNameStatus.Invalid -> stringResource(Res.string.sticker_set_link_invalid)
+                SetNameStatus.Occupied -> stringResource(Res.string.sticker_set_link_occupied)
+                SetNameStatus.Unknown -> stringResource(Res.string.sticker_set_link_unknown)
+            }
+            Text(text)
+        },
+        isError = error,
+        // Jen anglická písmena a číslice: bez opravování a velkého písmene na začátku.
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.None,
+            autoCorrectEnabled = false,
+            keyboardType = KeyboardType.Ascii,
+            imeAction = ImeAction.Done,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** Začátek odkazu sady; jméno ho doplní. */
+private const val STICKER_LINK_PREFIX = "t.me/addstickers/"
 
 @Composable
 private fun setSupporting(set: OwnedStickerSet): String =

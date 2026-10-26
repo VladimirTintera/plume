@@ -132,10 +132,23 @@ interface StickerRepository {
     suspend fun ownedSets(): Result<List<OwnedStickerSet>> = Result.failure(UnsupportedOperationException())
 
     /**
-     * Založí novou sadu [title] s první samolepkou. Jméno sady (odkaz `t.me/addstickers/…`)
-     * navrhne Telegram podle názvu.
+     * Založí novou sadu [title] s první samolepkou. [name] je jméno v odkazu
+     * `t.me/addstickers/…`; prázdné = navrhne ho Telegram podle názvu.
      */
-    suspend fun createSet(title: String, sticker: NewStickerFile): Result<OwnedStickerSet> =
+    suspend fun createSet(title: String, sticker: NewStickerFile, name: String = ""): Result<OwnedStickerSet> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Volné a platné jméno sady pro název [title] (`getSuggestedStickerSetName`). */
+    suspend fun suggestSetName(title: String): Result<String> = Result.failure(UnsupportedOperationException())
+
+    /** Jde jméno [name] použít pro novou sadu? (`checkStickerSetName`) */
+    suspend fun checkSetName(name: String): Result<StickerSetNameCheck> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Nová klíčová slova samolepky ve vlastní sadě — NAHRADÍ dosavadní (TDLib je číst neumí,
+     * takže se předvyplnit nedají). Prázdný seznam je smaže.
+     */
+    suspend fun setKeywords(stickerFileId: Int, keywords: List<String>): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
     /** Přidá samolepku do vlastní sady (nejvýš [OwnedStickerSet.MAX_SIZE]). */
@@ -279,9 +292,50 @@ data class OwnedStickerSet(
 
 /**
  * Samolepka k nahrání: PNG nebo WebP, delší strana 512 px (WebP z PNG si udělá server),
- * a 1–20 emoji, ke kterým se nabízí.
+ * 1–20 emoji, ke kterým se nabízí, a nepovinná klíčová slova pro hledání ([stickerKeywords]).
  */
-data class NewStickerFile(val path: String, val emojis: String)
+data class NewStickerFile(val path: String, val emojis: String, val keywords: List<String> = emptyList())
+
+/** Výsledek kontroly jména nové sady. */
+enum class StickerSetNameCheck {
+    Ok,
+
+    /**
+     * Server jméno odmítl — mimo povolené znaky, nebo pravidla, která pole nehlídá: na začátku
+     * musí být písmeno (`1test` neprošlo, ověřeno na emulátoru).
+     */
+    Invalid,
+
+    /** Jméno už má jiná sada. */
+    Occupied,
+}
+
+/**
+ * Jméno sady, jak ho uživatel píše: jen znaky, které Telegram v odkazu sady přijme (anglická
+ * písmena, číslice, podtržítko), nejvýš [STICKER_SET_NAME_MAX]. Mezera se stane podtržítkem —
+ * kdo píše „moje sada", myslí `moje_sada`. Ostatní znaky (diakritika) vypadnou rovnou v poli,
+ * ať se nečeká na odmítnutí od serveru.
+ */
+fun stickerSetNameInput(text: String): String =
+    text.replace(' ', '_').filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '_' }
+        .take(STICKER_SET_NAME_MAX)
+
+const val STICKER_SET_NAME_MAX = 64
+
+/**
+ * Klíčová slova samolepky z pole: oddělená čárkou, bez okrajových mezer, prázdná a opakovaná
+ * (bez ohledu na velikost písmen) vynechaná. Jestli se vejdou do limitů, říká
+ * [stickerKeywordsFit] — oříznout je potichu by schovalo, co se neuloží.
+ */
+fun stickerKeywords(text: String): List<String> =
+    text.split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }
+
+/** Nejvýš [STICKER_KEYWORDS_MAX] slov s celkovou délkou nejvýš [STICKER_KEYWORDS_LENGTH] (TDLib `inputSticker`). */
+fun stickerKeywordsFit(keywords: List<String>): Boolean =
+    keywords.size <= STICKER_KEYWORDS_MAX && keywords.sumOf { it.length } <= STICKER_KEYWORDS_LENGTH
+
+const val STICKER_KEYWORDS_MAX = 20
+const val STICKER_KEYWORDS_LENGTH = 64
 
 /** Sada s ukázkou samolepek: v trendech a ve výsledcích hledání. */
 data class StickerSetSample(

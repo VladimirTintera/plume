@@ -11,7 +11,10 @@ import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSetDetail
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.telegram.stickerKeywords
+import eu.tintera.plume.core.telegram.stickerKeywordsFit
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.sticker_keywords_saved
 import eu.tintera.plume.resources.sticker_set_cover_failed
 import eu.tintera.plume.resources.sticker_set_delete_failed
 import eu.tintera.plume.resources.sticker_set_edit_failed
@@ -31,6 +34,10 @@ data class OwnedStickerSetState(
     val stickers: List<StickerItem> = emptyList(),
     /** Rozepsaný název; `null` = beze změny. */
     val titleDraft: String? = null,
+    /**
+     * Hláška pro snackbar: chyba, nebo potvrzení změny, která jinak není vidět (klíčová slova
+     * TDLib číst neumí, takže se v obrazovce nijak neprojeví).
+     */
     val error: UiText? = null,
     /** Sada je smazaná — obrazovka se zavře. */
     val deleted: Boolean = false,
@@ -130,6 +137,20 @@ class OwnedStickerSetViewModel(
         val trimmed = emojis.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch { stickers.setEmojis(sticker.sendFileId, trimmed).onFailure(::failed) }
+    }
+
+    /**
+     * Klíčová slova samolepky — nahradí dosavadní, prázdné pole je smaže. Co se nevejde do limitů
+     * ([stickerKeywordsFit]), dialog neodešle.
+     */
+    fun changeKeywords(sticker: StickerItem, text: String) {
+        val keywords = stickerKeywords(text)
+        if (!stickerKeywordsFit(keywords)) return
+        viewModelScope.launch {
+            stickers.setKeywords(sticker.sendFileId, keywords)
+                .onSuccess { local.update { it.copy(error = UiText(Res.string.sticker_keywords_saved)) } }
+                .onFailure(::failed)
+        }
     }
 
     fun remove(sticker: StickerItem) {

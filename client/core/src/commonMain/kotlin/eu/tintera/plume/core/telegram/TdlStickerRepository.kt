@@ -11,6 +11,9 @@ import dev.g000sha256.tdl.dto.EmojiCategoryTypeRegularStickers
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerSetInfo
+import dev.g000sha256.tdl.dto.CheckStickerSetNameResultNameInvalid
+import dev.g000sha256.tdl.dto.CheckStickerSetNameResultNameOccupied
+import dev.g000sha256.tdl.dto.CheckStickerSetNameResultOk
 import dev.g000sha256.tdl.dto.StickerFullTypeCustomEmoji
 import dev.g000sha256.tdl.dto.StickerFullTypeRegular
 import dev.g000sha256.tdl.dto.StickerSet
@@ -557,9 +560,9 @@ class TdlStickerRepository(
                     }
             }
 
-    override suspend fun createSet(title: String, sticker: NewStickerFile): Result<OwnedStickerSet> = runCatching {
-        // Jméno do odkazu navrhne Telegram (volné a platné); ruční by mohlo kolidovat.
-        val name = client.getSuggestedStickerSetName(title = title).toResult().getOrThrow().text
+    override suspend fun createSet(title: String, sticker: NewStickerFile, name: String): Result<OwnedStickerSet> = runCatching {
+        // Bez zvoleného jména ho navrhne Telegram (volné a platné).
+        val name = name.ifBlank { client.getSuggestedStickerSetName(title = title).toResult().getOrThrow().text }
         val me = client.getMe().toResult().getOrThrow().id
         val set = client.createNewStickerSet(
             userId = me,
@@ -582,6 +585,23 @@ class TdlStickerRepository(
             cover = set.stickers.filterNotNull().firstOrNull()?.toMedia(),
         )
     }.onFailure { logger.w(it) { "Sadu samolepek se nepodařilo založit." } }
+
+    override suspend fun suggestSetName(title: String): Result<String> =
+        client.getSuggestedStickerSetName(title = title).toResult().map { it.text }
+
+    override suspend fun checkSetName(name: String): Result<StickerSetNameCheck> =
+        client.checkStickerSetName(name = name).toResult().map { result ->
+            when (result) {
+                is CheckStickerSetNameResultOk -> StickerSetNameCheck.Ok
+                is CheckStickerSetNameResultNameInvalid -> StickerSetNameCheck.Invalid
+                is CheckStickerSetNameResultNameOccupied -> StickerSetNameCheck.Occupied
+            }
+        }
+
+    override suspend fun setKeywords(stickerFileId: Int, keywords: List<String>): Result<Unit> =
+        client.setStickerKeywords(sticker = InputFileId(id = stickerFileId), keywords = keywords.toTypedArray()).toResult()
+            .onFailure { logger.w(it) { "Klíčová slova samolepky $stickerFileId se nepodařilo změnit." } }
+            .map { }
 
     override suspend fun addToSet(set: OwnedStickerSet, sticker: NewStickerFile): Result<Unit> = runCatching {
         val me = client.getMe().toResult().getOrThrow().id
@@ -652,7 +672,7 @@ class TdlStickerRepository(
         format = StickerFormatWebp(),
         emojis = emojis,
         maskPosition = null,
-        keywords = emptyArray(),
+        keywords = keywords.toTypedArray(),
     )
 
     private fun Sticker.toCustomEmojiItem(): CustomEmojiItem? =
