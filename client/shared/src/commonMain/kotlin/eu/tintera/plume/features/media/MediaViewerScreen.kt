@@ -709,8 +709,16 @@ private fun ViewerContent(
             /*
              * Fokus se vrací: kliknuté tlačítko (přehrát uprostřed videa) si ho vezme, a když se
              * pak s ovládáním schová, fokus nezůstane nikde a klávesy by do prohlížeče nedošly.
+             *
+             * Až v korutině, ne hned: fokus ztrácí prohlížeč i při zavření, kdy Compose callback
+             * volá uprostřed odpojování (uzel je ještě `isAttached`). Okamžité vrácení fokusu
+             * nechalo aktivní uzel, který se vzápětí odpojil, a první ťuknutí do pole zprávy
+             * aplikaci shodilo („visitAncestors called on an unattached node"). Korutinu zavření
+             * zruší dřív, než se rozběhne.
              */
-            .onFocusChanged { focus -> if (!focus.hasFocus) runCatching { keyFocus.requestFocus() } }
+            .onFocusChanged { focus ->
+                if (!focus.hasFocus) scope.launch { runCatching { keyFocus.requestFocus() } }
+            }
             .focusRequester(keyFocus)
             .focusable()
             .trackMouse(mouse),

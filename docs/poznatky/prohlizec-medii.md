@@ -292,6 +292,15 @@ dva prsty, takže myš měla jen dvojklik na 2,5×. Teď:
   zpátky, když ho ztratí** (`onFocusChanged`): kliknuté tlačítko přehrát uprostřed videa si
   fokus vzalo, schovalo se s ovládáním a fokus nezůstal nikde — klávesy pak nedošly nikam
   a nic to nehlásilo (ověřeno v ladicí aplikaci, Esc chodil dál, protože ho bere kořen okna).
+- **Fokus se vrací AŽ V KORUTINĚ (`scope.launch`), nikdy přímo v `onFocusChanged`.** Fokus
+  ztrácí prohlížeč i při zavření: Compose ho při odpojování uzlu vymaže a callback zavolá,
+  dokud je uzel ještě `isAttached`. Okamžité `requestFocus()` ho tak vrátilo uzlu, který se
+  vzápětí odpojil, a ten zůstal aktivním fokusem. Další ťuknutí do pole zprávy pak aplikaci
+  shodilo uvnitř Compose (`IllegalStateException: visitAncestors called on an unattached node`
+  v `AndroidComposeView.onFocusChanged`, z naší aplikace nic na zásobníku). Postup: otevřít
+  fotku nebo video v chatu, zpět, ťuknout do pole; na Foldu padalo pokaždé. Korutinu zavření
+  zruší (konec kompozice) dřív, než se rozběhne. **Platí obecně:** `onFocusChanged`, který si
+  fokus bere zpátky, je past na každé obrazovce, která umí zmizet.
 - **Kroky z klávesnice jdou do stránky jako `Flow<ZoomStep>`**, bere si je jen stránka, na
   které pager stojí. Štípnutí, dvojité ťuknutí, kolečko i klávesy počítají posun ze stejné
   `CardGeometry.zoomedOffset` (bod pod kurzorem/prsty zůstane na místě) a `clamp`.
