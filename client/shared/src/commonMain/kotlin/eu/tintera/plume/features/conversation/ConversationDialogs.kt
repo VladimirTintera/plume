@@ -189,6 +189,19 @@ internal fun ConversationDialogs(
         )
     }
 
+    state.recentFiles?.let { sheet ->
+        RecentFilesPicker(
+            sheet = sheet,
+            onQueryChange = viewModel::searchRecentFiles,
+            onToggle = viewModel::toggleRecentFile,
+            onSend = {
+                haptics.confirm()
+                viewModel.sendRecentFiles()
+            },
+            onDismiss = viewModel::dismissRecentFiles,
+        )
+    }
+
     state.pendingContact?.let { contact ->
         ContactConfirmDialog(
             contact = contact,

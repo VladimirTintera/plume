@@ -95,6 +95,8 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun sendVoiceNote(chatId: Long, path: String, durationSeconds: Int, waveform: ByteArray, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions, uploadedFileId: Int?) : Result<ChatMessage> = error("sendVoiceNote")
     override suspend fun sendVideoNote(chatId: Long, videoNote: OutgoingVideoNote, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions) : Result<ChatMessage> = error("sendVideoNote")
     override suspend fun sendAttachments(chatId: Long, attachments: List<OutgoingAttachment>, caption: String, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions, mentions: List<NameMention>, formats: List<FormatSpan>) : Result<List<ChatMessage>> = error("sendAttachments")
+    override suspend fun recentFiles(query: String) : Result<List<RecentFile>> = error("recentFiles")
+    override suspend fun sendFiles(chatId: Long, fileIds: List<Int>, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions) : Result<List<ChatMessage>> = error("sendFiles")
     override suspend fun editText(chatId: Long, messageId: Long, text: String, linkPreview: LinkPreviewOptions?, formats: List<FormatSpan>) : Result<Unit> = error("editText")
     override suspend fun editCaption(chatId: Long, messageId: Long, caption: String, formats: List<FormatSpan>) : Result<Unit> = error("editCaption")
     override suspend fun editMedia(chatId: Long, messageId: Long, replacement: MediaReplacement, caption: String, formats: List<FormatSpan>) : Result<Unit> = error("editMedia")

@@ -647,6 +647,8 @@ internal fun ConversationBottomBar(
         onSendLocation = { sheets.locationPicker = true },
         // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
         onShareContact = viewModel::openContactPicker,
+        // Znovu poslaný soubor je soubor — jen kde chat soubory dovolí, jako „Soubor" v nabídce.
+        onPickRecentFiles = viewModel::openRecentFiles.takeIf { state.content.documents },
         onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
         menuApp = state.botMenuApp,
         onOpenMenuApp = viewModel::openBotMenuApp,

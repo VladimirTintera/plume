@@ -1625,6 +1625,16 @@
     <string name="conversation_open_stickers">Stickers</string>
     <string name="conversation_attach_media">Photo or video</string>
     <string name="conversation_attach_file">File</string>
+    <string name="recent_files_title">Recent files</string>
+    <string name="recent_files_search">Search your files</string>
+    <string name="recent_files_empty">Files you send in any chat will appear here.</string>
+    <string name="recent_files_none_found">No file matches.</string>
+    <string name="recent_files_pick">Pick files</string>
+    <string name="recent_files_failed">Couldn't load recent files.</string>
+    <plurals name="recent_files_send">
+        <item quantity="one">Send %1$d file</item>
+        <item quantity="other">Send %1$d files</item>
+    </plurals>
     <string name="conversation_placeholder_title">No chat open</string>
     <string name="conversation_pick_chat">Pick a chat on the left.</string>
     <string name="reactions_new_others">%1$s and %2$d more</string>

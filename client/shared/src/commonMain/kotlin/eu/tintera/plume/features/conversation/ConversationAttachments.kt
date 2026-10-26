@@ -29,6 +29,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_attachments_send_failed
+import eu.tintera.plume.resources.recent_files_failed
 import eu.tintera.plume.resources.conversation_contact_load_failed
 import eu.tintera.plume.resources.conversation_contact_no_phone
 import eu.tintera.plume.resources.conversation_contact_send_failed
@@ -48,6 +49,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -214,6 +217,81 @@ internal class ConversationAttachments(
 
     fun dismissContactPicker() {
         state.update { it.copy(contactPicker = null) }
+    }
+
+    private var recentFilesJob: Job? = null
+
+    /** Sheet nedávno odeslaných souborů (sponka → Poslední soubory). */
+    fun openRecentFiles() {
+        state.update { it.copy(recentFiles = RecentFilesSheet()) }
+        loadRecentFiles(query = "", debounce = false)
+    }
+
+    /** Hledá server (v názvu i popisku), chvíli po posledním písmenu; výběr zůstává. */
+    fun searchRecentFiles(query: String) {
+        state.update { current -> current.copy(recentFiles = current.recentFiles?.copy(query = query)) }
+        loadRecentFiles(query.trim(), debounce = true)
+    }
+
+    private fun loadRecentFiles(query: String, debounce: Boolean) {
+        recentFilesJob?.cancel()
+        recentFilesJob = scope.launch {
+            if (debounce) delay(RECENT_FILES_SEARCH_DELAY_MS)
+            repository.recentFiles(query)
+                .onSuccess { files ->
+                    state.update { current -> current.copy(recentFiles = current.recentFiles?.copy(files = files, error = null)) }
+                }
+                .onFailure { failure ->
+                    val error = failure.reported(logger, Res.string.recent_files_failed)
+                    state.update { current ->
+                        current.copy(recentFiles = current.recentFiles?.copy(files = current.recentFiles.files ?: emptyList(), error = error))
+                    }
+                }
+        }
+    }
+
+    fun toggleRecentFile(fileId: Int) {
+        state.update { current ->
+            val sheet = current.recentFiles ?: return@update current
+            val selected = when {
+                fileId in sheet.selected -> sheet.selected - fileId
+                sheet.canSelectMore -> sheet.selected + fileId
+                else -> sheet.selected
+            }
+            current.copy(recentFiles = sheet.copy(selected = selected))
+        }
+    }
+
+    fun dismissRecentFiles() {
+        recentFilesJob?.cancel()
+        state.update { it.copy(recentFiles = null) }
+    }
+
+    /**
+     * Vybrané soubory odejdou hned, ne přes pás příloh nad polem: ten stojí na místních
+     * souborech, kdežto tyhle server už má a posílají se podle id. Napsaný text v poli zůstane.
+     */
+    fun sendRecentFiles() {
+        val sheet = state.value.recentFiles ?: return
+        val fileIds = sheet.selected.takeIf { it.isNotEmpty() } ?: return
+        val replyTo = state.value.replyingTo?.id
+        val quote = state.value.replyQuote
+        composer.clearReply()
+        dismissRecentFiles()
+        scope.launch {
+            repository.sendFiles(chatId, fileIds, replyTo, quote)
+                .onSuccess { pending ->
+                    reportUsed(chatId)
+                    state.update { current ->
+                        // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
+                        val fresh = pending.filterNot { it.id in current.itemKeys.values }
+                        current.copy(messages = merge(current.messages, fresh))
+                    }
+                }
+                .onFailure { failure ->
+                    state.update { it.copy(error = failure.reported(logger, Res.string.conversation_attachments_send_failed)) }
+                }
+        }
     }
 
     /**
@@ -461,3 +539,6 @@ internal class ConversationAttachments(
         }
     }
 }
+
+/** Jak dlouho po posledním písmenu se nedávné soubory hledají. */
+private const val RECENT_FILES_SEARCH_DELAY_MS = 300L

@@ -283,6 +283,8 @@ internal fun MessageInput(
     /** Poslat polohu; `null`, kde nejde. */
     onSendLocation: (() -> Unit)?,
     onShareContact: (() -> Unit)?,
+    /** Nedávno odeslané soubory; `null`, kde soubory nejdou. */
+    onPickRecentFiles: (() -> Unit)? = null,
     /** Seznam příkazů botů; `null` v chatu bez botů s příkazy. */
     onToggleCommands: (() -> Unit)?,
     /** Tlačítko nabídky bota s mini aplikací; když je, stojí místo tlačítka příkazů. */
@@ -730,6 +732,7 @@ internal fun MessageInput(
                             onCreateChecklist = onCreateChecklist,
                             onSendLocation = onSendLocation,
                             onShareContact = onShareContact,
+                            onPickRecentFiles = onPickRecentFiles,
                             contentColor = attachColor,
                         )
                     }

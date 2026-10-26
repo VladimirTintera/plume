@@ -225,6 +225,31 @@ album. Bublina ukazuje průběh nahrávání.
   soubor z foťáku, kde index bývá na konci, takže `supportsStreaming = false`. Soubor
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
+
+### Poslední soubory
+
+Sponka → **Poslední soubory** (`RecentFilesPicker`, `ConversationAttachments.openRecentFiles`):
+soubory, které uživatel poslal do kteréhokoli chatu (`searchOutgoingDocumentMessages`, nejvýš
+sto, od nejnovějšího), s hledáním v názvu a popisku. Zaškrtnout jde nejvýš deset (album)
+a „Odeslat" je pošle hned. Nabízí se jen tam, kde chat dovolí soubory (`ContentAccess.documents`),
+stejně jako „Soubor". Testy v `ConversationAttachmentsTest`.
+
+- **Neposílají se přes pás příloh nad polem.** Pás i celé odesílání příloh stojí na MÍSTNÍ
+  cestě (`OutgoingAttachment.path`), kdežto nedávno odeslaný soubor na zařízení být nemusí.
+  Server ho ale má, takže `sendFiles` posílá `InputFileId` — bez kopie na disk a bez nového
+  nahrávání. Napsaný text v poli zůstane, odpověď (i citace) se spotřebuje jako u jiného odeslání.
+- **Pořadí v albu je pořadí ťuknutí** (`RecentFilesSheet.selected` je seznam, ne množina).
+- **Tentýž soubor poslaný víckrát je v seznamu jednou** (`distinctBy` podle id souboru, zůstane
+  poslední odeslání).
+- **Hledá server** (300 ms po posledním písmenu); vybrané soubory hledání přežijí, i když
+  zrovna nejsou vidět.
+- **Bez výběru tlačítko říká „Vyber soubory"**, ne „Odeslat 0 souborů".
+- **Ověřeno na emulátoru** (26. 10. 2026, Uložené zprávy): seznam s velikostí a datem, název
+  zkrácený uprostřed (přípona zůstane), `plume-test.txt` odeslaný znovu (server ho potvrdil hned,
+  bez průběhu nahrávání), hledání „build". **Neověřené:** album víc souborů, chat se zakázanými
+  soubory (položka se nemá nabídnout), téma a vlákno komentářů (odesílá se přes tentýž
+  `topicId` a `reply` jako přílohy), iOS a desktop.
+
 ## Úprava fotky před odesláním
 
 V náhledu připravené fotky (`StagedAttachmentPreview`) je tužka „Upravit fotku": editor

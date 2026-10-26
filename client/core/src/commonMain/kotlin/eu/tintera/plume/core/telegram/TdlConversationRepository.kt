@@ -1538,6 +1538,57 @@ class TdlConversationRepository(
             .map { sent -> sent.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
     }
 
+    override suspend fun recentFiles(query: String): Result<List<RecentFile>> =
+        client.searchOutgoingDocumentMessages(query = query, limit = RECENT_FILES_LIMIT).toResult().map { found ->
+            found.messages.filterNotNull()
+                .mapNotNull { message ->
+                    val document = (message.content as? MessageDocument)?.document ?: return@mapNotNull null
+                    RecentFile(
+                        fileId = document.document.id,
+                        name = document.fileName,
+                        size = document.document.size.takeIf { it > 0 } ?: document.document.expectedSize,
+                        sentAt = message.date,
+                    )
+                }
+                // Výsledky jsou od nejnovějšího, takže zůstane poslední odeslání.
+                .distinctBy { it.fileId }
+        }
+
+    override suspend fun sendFiles(
+        chatId: Long,
+        fileIds: List<Int>,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+        options: SendOptions,
+    ): Result<List<ChatMessage>> {
+        require(fileIds.isNotEmpty()) { "Není co poslat." }
+        val isGroup = isGroup(chatId)
+        val contents = fileIds.map { id ->
+            InputMessageDocument(
+                // Soubor zůstane souborem, jako při prvním odeslání (`disableContentTypeDetection`).
+                document = InputDocument(document = InputFileId(id = id), thumbnail = null, disableContentTypeDetection = true),
+                caption = null,
+            )
+        }
+        if (contents.size == 1) {
+            return client.sendMessage(
+                chatId = chatId,
+                topicId = topic,
+                replyTo = replyInput(chatId, replyToMessageId, quote),
+                options = options.toTdl(),
+                replyMarkup = null,
+                inputMessageContent = contents.single(),
+            ).toResult().map { listOf(it.toChatMessage(isGroup)) }
+        }
+        return client.sendMessageAlbum(
+            chatId = chatId,
+            topicId = topic,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = options.toTdl(),
+            inputMessageContents = contents.toTypedArray(),
+        ).toResult().map { sent -> sent.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
+    }
+
     /**
      * Příloha do ankety. Fotka a video se nahrávají podle cesty, jako u zprávy; GIF a samolepka
      * jsou soubory, které server už má (`InputFileId`). Popisek příloha ankety nemá — „without
@@ -4202,6 +4253,9 @@ private const val PENDING_MESSAGE_PERIOD_OPTION = "pending_text_message_period"
 
 /** Živých poloh v chatu na jeden dotaz — jedna na člověka, takže sto stačí i velké skupině. */
 private const val RECENT_LOCATIONS_LIMIT = 100
+
+/** Kolik nedávno odeslaných souborů se nabídne (`searchOutgoingDocumentMessages` víc nevydá). */
+private const val RECENT_FILES_LIMIT = 100
 
 /** Výsledků hledání v chatu na stránku; další se dotahují, až k nim uživatel došipkuje. */
 private const val IN_CHAT_SEARCH_PAGE = 50

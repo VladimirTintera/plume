@@ -1670,6 +1670,17 @@
     <string name="conversation_open_stickers">Samolepky</string>
     <string name="conversation_attach_media">Fotka nebo video</string>
     <string name="conversation_attach_file">Soubor</string>
+    <string name="recent_files_title">Poslední soubory</string>
+    <string name="recent_files_search">Hledat v souborech</string>
+    <string name="recent_files_empty">Tady se objeví soubory, které pošleš do kteréhokoli chatu.</string>
+    <string name="recent_files_none_found">Žádný soubor neodpovídá.</string>
+    <string name="recent_files_pick">Vyber soubory</string>
+    <string name="recent_files_failed">Poslední soubory se nepodařilo načíst.</string>
+    <plurals name="recent_files_send">
+        <item quantity="one">Odeslat %1$d soubor</item>
+        <item quantity="few">Odeslat %1$d soubory</item>
+        <item quantity="other">Odeslat %1$d souborů</item>
+    </plurals>
     <string name="conversation_placeholder_title">Žádný chat není otevřený</string>
     <string name="conversation_pick_chat">Vyber chat vlevo.</string>
     <string name="reactions_new_others">%1$s a %2$d další</string>

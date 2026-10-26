@@ -234,6 +234,14 @@ class ThreadConversationRepository(
     ): Result<List<ChatMessage>> =
         delegate.sendAttachments(chatId, attachments, caption, reply(replyToMessageId), quote, options, mentions, formats)
 
+    override suspend fun sendFiles(
+        chatId: Long,
+        fileIds: List<Int>,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+        options: SendOptions,
+    ): Result<List<ChatMessage>> = delegate.sendFiles(chatId, fileIds, reply(replyToMessageId), quote, options)
+
     override suspend fun sendPoll(
         chatId: Long,
         poll: PollDraft,

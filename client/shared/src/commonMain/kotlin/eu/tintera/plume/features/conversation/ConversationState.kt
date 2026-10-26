@@ -11,6 +11,7 @@ import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.currency.RateTable
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.RecentFile
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.FormatSpan
 import eu.tintera.plume.core.telegram.BotCommandItem
@@ -771,6 +772,8 @@ data class ConversationState(
     val loadingArticles: Set<Long> = emptySet(),
     /** Sheet výběru kontaktu ze sponky; `null` = zavřený. */
     val contactPicker: ContactPicker? = null,
+    /** Sheet nedávno odeslaných souborů ze sponky; `null` = zavřený. */
+    val recentFiles: RecentFilesSheet? = null,
     /** Dialog upozornění na blízkost u vlastní živé polohy; `null` = zavřený. */
     val proximityAlert: ProximityAlertPrompt? = null,
     /**
@@ -1009,6 +1012,23 @@ internal fun ConversationState.replyConsumedBy(sent: ReplyRequest): Boolean =
 
 
 /** Výběr kontaktu ke sdílení; filtruje se lokálně podle jména, kontaktů bývají desítky. */
+/**
+ * Nedávno odeslané soubory k novému odeslání. [selected] drží pořadí ťuknutí — tak odejde album.
+ */
+data class RecentFilesSheet(
+    /** `null` = načítá se. */
+    val files: List<RecentFile>? = null,
+    val query: String = "",
+    val selected: List<Int> = emptyList(),
+    val error: UiText? = null,
+) {
+    /** Album unese nejvýš deset souborů; další se vybrat nedá. */
+    val canSelectMore: Boolean get() = selected.size < MAX_RECENT_FILES
+}
+
+/** Kolik souborů jde poslat najednou — album (`sendMessageAlbum`) víc neunese. */
+const val MAX_RECENT_FILES = 10
+
 data class ContactPicker(
     val loading: Boolean = false,
     val contacts: List<ChatSummary> = emptyList(),
