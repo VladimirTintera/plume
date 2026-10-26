@@ -57,8 +57,8 @@ class RoutingOnDeviceAi(
 
     override suspend fun canDescribeImage(variant: ModelVariant): Boolean = route(variant) { canDescribeImage(it) }
 
-    override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String): Flow<Generated> =
-        route(variant) { describeImage(it, imagePath, languageCode) }
+    override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String, prompt: String): Flow<Generated> =
+        route(variant) { describeImage(it, imagePath, languageCode, prompt) }
 
     override suspend fun delete(variant: ModelVariant) = route(variant) { delete(it) }
 }

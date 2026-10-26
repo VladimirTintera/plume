@@ -91,11 +91,17 @@ interface OnDeviceAi {
     suspend fun canDescribeImage(variant: ModelVariant): Boolean = false
 
     /**
-     * Popíše fotku ze souboru [imagePath] několika větami v jazyce [languageCode] — pro toho,
-     * kdo ji nevidí. Vydává celý dosavadní text jako [generate]. Kde popis není
-     * ([canDescribeImage] `false`), selže.
+     * Popíše fotku ze souboru [imagePath] v jazyce [languageCode] podle pokynu [prompt] —
+     * výchozí je popis pro toho, kdo ji nevidí ([imageDescriptionPrompt]), návrh popisku k odeslání
+     * má vlastní ([photoCaptionPrompt]). Vydává celý dosavadní text jako [generate]. Kde popis
+     * není ([canDescribeImage] `false`), selže.
      */
-    fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String): Flow<Generated> =
+    fun describeImage(
+        variant: ModelVariant,
+        imagePath: String,
+        languageCode: String,
+        prompt: String = imageDescriptionPrompt(languageCode),
+    ): Flow<Generated> =
         flow { throw OnDeviceAiException(AiFailureReason.Unavailable, variant.provider) }
 
     /**

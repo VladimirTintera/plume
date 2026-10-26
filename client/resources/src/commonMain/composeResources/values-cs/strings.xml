@@ -3393,6 +3393,8 @@
     <string name="menu_summarize">Shrnout</string>
     <string name="menu_explain">Vysvětlit</string>
     <string name="menu_summarize_voice">Shrnout přepis</string>
+    <string name="caption_suggest">Navrhnout popisek</string>
+    <string name="caption_suggesting">Píšu popisek…</string>
     <string name="server_summary_title">Shrnutí</string>
     <string name="server_summary_failed">Zprávu se nepodařilo shrnout</string>
     <string name="server_summary_copy">Kopírovat shrnutí</string>

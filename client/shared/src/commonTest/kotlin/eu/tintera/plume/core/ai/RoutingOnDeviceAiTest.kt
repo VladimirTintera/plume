@@ -28,7 +28,7 @@ class RoutingOnDeviceAiTest {
         override suspend fun stopDownload(variant: ModelVariant) {
             seen += variant
         }
-        override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String): Flow<Generated> =
+        override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String, prompt: String): Flow<Generated> =
             flowOf(Generated("$imagePath $languageCode")).also { seen += variant }
     }
 

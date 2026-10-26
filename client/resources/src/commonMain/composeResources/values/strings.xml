@@ -3285,6 +3285,8 @@
     <string name="menu_summarize">Summarize</string>
     <string name="menu_explain">Explain</string>
     <string name="menu_summarize_voice">Summarize transcript</string>
+    <string name="caption_suggest">Suggest a caption</string>
+    <string name="caption_suggesting">Writing a caption…</string>
     <string name="server_summary_title">Summary</string>
     <string name="server_summary_failed">The message could not be summarized</string>
     <string name="server_summary_copy">Copy summary</string>

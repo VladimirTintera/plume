@@ -640,6 +640,8 @@ data class ConversationState(
     val selection: MessageSelection? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
     val attachments: List<OutgoingAttachment> = emptyList(),
+    /** Návrh popisku první fotky modelem v zařízení ([ConversationCaption]). */
+    val captionSuggestion: CaptionSuggestion = CaptionSuggestion.Hidden,
     /**
      * Upravené fotky nad polem podle SOUČASNÉ cesty: z čeho vznikly a jakými tahy. Další úprava
      * začíná z originálu s těmito tahy (viz [ConversationViewModel.applyPhotoMarkup]).
