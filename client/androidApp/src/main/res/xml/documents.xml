@@ -13,4 +13,8 @@
     <cache-path
         name="shared"
         path="shared/" />
+    <!-- Kopie pod čitelným jménem ve schránce (MediaSharer.copy). -->
+    <cache-path
+        name="clipboard"
+        path="clipboard/" />
 </paths>

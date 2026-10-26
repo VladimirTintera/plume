@@ -12,6 +12,8 @@ import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
 import platform.UIKit.UIActivityViewController
 import platform.UIKit.UIApplication
+import platform.UIKit.UIImage
+import platform.UIKit.UIPasteboard
 import platform.UIKit.UIViewController
 import platform.UIKit.popoverPresentationController
 
@@ -47,6 +49,22 @@ actual class MediaSharer {
 
     actual fun shareText(text: String): Boolean = present(listOf(text))
 
+    /**
+     * Jen obrázek, jako `UIImage` do obecné schránky — tak ho vloží Zprávy, Poznámky i Mail.
+     * Jméno souboru se ve schránce neuchová. Dekóduje se mimo hlavní vlákno, schránka se
+     * nastavuje na něm.
+     */
+    actual suspend fun copy(path: String, fileName: String, isImage: Boolean): Boolean {
+        if (!isImage) return false
+        val image = withContext(Dispatchers.Default) { UIImage.imageWithContentsOfFile(path) }
+        if (image == null) {
+            logger.w { "Obrázek $path se nepodařilo načíst do schránky." }
+            return false
+        }
+        withContext(Dispatchers.Main) { UIPasteboard.generalPasteboard.image = image }
+        return true
+    }
+
     private fun present(items: List<Any>): Boolean {
         val top = topViewController() ?: return false
         val controller = UIActivityViewController(activityItems = items, applicationActivities = null)
@@ -71,3 +89,7 @@ actual class MediaSharer {
 actual fun rememberSaveAs(): SaveAsLauncher? = null
 
 actual val saveAsSupported: Boolean = false
+
+actual val fileShareSupported: Boolean = true
+
+actual val copiesAnyFile: Boolean = false

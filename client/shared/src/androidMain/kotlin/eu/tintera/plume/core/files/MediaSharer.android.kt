@@ -3,6 +3,7 @@ package eu.tintera.plume.core.files
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -14,7 +15,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
+import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ui.readString
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.clipboard_label
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -84,10 +89,39 @@ actual class MediaSharer(private val context: Context) {
         }
     }
 
+    /**
+     * Obrázek jde do schránky jako `content://` z `FileProvider` (adresář `cache/clipboard`,
+     * vlastní, ať kopii ve schránce nesmaže další sdílení). Oprávnění ke čtení udělí systém
+     * sám tomu, kdo ze schránky vkládá; Android 13+ ukáže náhled obrázku v potvrzení.
+     */
+    actual suspend fun copy(path: String, fileName: String, isImage: Boolean): Boolean {
+        if (!isImage) return false
+        val manager = context.getSystemService<ClipboardManager>() ?: return false
+        val copy = withContext(Dispatchers.IO) {
+            runCatching {
+                val directory = File(context.cacheDir, CLIPBOARD_DIRECTORY)
+                // Předchozí kopie ve schránce už není; hromadit je by jen plnilo cache.
+                directory.deleteRecursively()
+                directory.mkdirs()
+                File(path).copyTo(File(directory, fileName), overwrite = true)
+            }.onFailure { logger.w(it) { "Soubor $path se nepodařilo připravit do schránky." } }.getOrNull()
+        } ?: return false
+        return runCatching {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.documents", copy)
+            manager.setPrimaryClip(ClipData.newUri(context.contentResolver, readString(Res.string.clipboard_label), uri))
+            true
+        }.onFailure { logger.w(it) { "Obrázek $path se nepodařilo zkopírovat do schránky." } }.getOrDefault(false)
+    }
+
     private companion object {
         const val SHARED_DIRECTORY = "shared"
+        const val CLIPBOARD_DIRECTORY = "clipboard"
     }
 }
+
+actual val fileShareSupported: Boolean = true
+
+actual val copiesAnyFile: Boolean = false
 
 /** `ACTION_CREATE_DOCUMENT` s typem podle souboru — vestavěný `CreateDocument` má typ napevno. */
 private class CreateDocument : ActivityResultContract<String, Uri?>() {

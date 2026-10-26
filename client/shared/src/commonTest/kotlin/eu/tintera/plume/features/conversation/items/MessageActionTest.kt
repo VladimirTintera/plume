@@ -8,6 +8,8 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
+import eu.tintera.plume.core.files.copiesAnyFile
+import eu.tintera.plume.core.files.fileShareSupported
 import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.features.conversation.MessageMenu
@@ -299,14 +301,30 @@ class MessageActionTest {
             thumbnailFileId = null,
         )
         val items = menuActions(message(text = "", media = document), isPinned = false)
-        assertTrue(MessageMenuAction.ShareFile in items)
+        // Sdílet jen se systémovým dialogem; desktop místo něj kopíruje do schránky.
+        assertEquals(fileShareSupported, MessageMenuAction.ShareFile in items)
+        assertEquals(copiesAnyFile, MessageMenuAction.CopyMedia(MessageMenuAction.CopyMedia.Kind.File) in items)
         // „Uložit jako…" jen tam, kde ho platforma má; na iOS ho nahrazuje sdílení.
         assertEquals(saveAsSupported, MessageMenuAction.SaveFileAs in items)
         // Ven jdou za přeposláním, před informacemi.
-        assertEquals(items.indexOf(MessageMenuAction.Forward) + 1, items.indexOf(MessageMenuAction.ShareFile))
+        val exports = listOf(MessageMenuAction.CopyMedia(MessageMenuAction.CopyMedia.Kind.File), MessageMenuAction.ShareFile)
+        assertTrue(items[items.indexOf(MessageMenuAction.Forward) + 1] in exports)
 
         assertFalse(MessageMenuAction.ShareFile in menuActions(message(), isPinned = false))
         assertFalse(MessageMenuAction.ShareFile in menuActions(message(text = "", media = photo), isPinned = false))
+    }
+
+    @Test
+    fun fotkaJdeDoSchranky() {
+        val items = menuActions(message(text = "", media = photo), isPinned = false)
+        assertTrue(MessageMenuAction.CopyMedia(MessageMenuAction.CopyMedia.Kind.Photo) in items)
+        // „Uložit jako…" u fotky jen bez dialogu sdílení (desktop); na telefonu je cesta ven z prohlížeče.
+        assertEquals(saveAsSupported && !fileShareSupported, MessageMenuAction.SaveFileAs in items)
+
+        val video = MessageMedia.Video(fileId = 3, thumbnailFileId = null, width = 10, height = 10, durationSeconds = 5)
+        val videoItems = menuActions(message(text = "", media = video), isPinned = false)
+        assertEquals(copiesAnyFile, MessageMenuAction.CopyMedia(MessageMenuAction.CopyMedia.Kind.Video) in videoItems)
+        assertFalse(videoItems.any { it is MessageMenuAction.CopyMedia && it.kind != MessageMenuAction.CopyMedia.Kind.Video })
     }
 
     @Test
@@ -320,7 +338,7 @@ class MessageActionTest {
             durationSeconds = 180,
             sizeBytes = 4096,
         )
-        assertTrue(MessageMenuAction.ShareFile in menuActions(message(text = "", media = audio), isPinned = false))
+        assertEquals(fileShareSupported, MessageMenuAction.ShareFile in menuActions(message(text = "", media = audio), isPinned = false))
         // Sdílení a uložení jdou cestou dokumentu — se jménem a typem souboru, ne názvem skladby.
         val document = audio.asDocument()
         assertEquals("pirko.mp3", document.fileName)
@@ -331,7 +349,11 @@ class MessageActionTest {
     @Test
     fun chranenySouborVenNesmi() {
         val protected = all.copy(canSave = false)
-        val items = listOf(MessageMenuAction.ShareFile, MessageMenuAction.SaveFileAs)
+        val items = listOf(
+            MessageMenuAction.ShareFile,
+            MessageMenuAction.SaveFileAs,
+            MessageMenuAction.CopyMedia(MessageMenuAction.CopyMedia.Kind.Photo),
+        )
         assertTrue(items.none { it.presentation(menu(items, actions = protected)) != null })
         assertTrue(items.all { it.presentation(menu(items)) != null })
     }

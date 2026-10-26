@@ -11,6 +11,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.files.DocumentKind
 import eu.tintera.plume.core.files.MediaSaver
+import eu.tintera.plume.core.files.autosavesToGallery
+import eu.tintera.plume.core.files.copiesAnyFile
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.savedFileName
 import eu.tintera.plume.core.files.documentKind
@@ -69,6 +71,9 @@ import eu.tintera.plume.resources.media_save_failed
 import eu.tintera.plume.resources.media_saved_as
 import eu.tintera.plume.resources.media_share_failed
 import eu.tintera.plume.resources.media_saved
+import eu.tintera.plume.resources.media_saved_downloads
+import eu.tintera.plume.resources.media_copied
+import eu.tintera.plume.resources.media_copy_failed
 import eu.tintera.plume.resources.media_unsupported
 import eu.tintera.plume.resources.story_unavailable
 import kotlinx.coroutines.CoroutineScope
@@ -759,7 +764,37 @@ class MediaViewerViewModel(
         viewModelScope.launch {
             val file = prepare(messageId, MediaTask.Gallery) ?: return@launch
             val saved = saver.save(file.path, file.fileName, file.isVideo)
-            finish(messageId, if (saved) Res.string.media_saved else Res.string.media_save_failed)
+            val done = if (autosavesToGallery) Res.string.media_saved else Res.string.media_saved_downloads
+            finish(messageId, if (saved) done else Res.string.media_save_failed)
+        }
+    }
+
+    /**
+     * Jde médium, na kterém uživatel stojí, zkopírovat do schránky? Fotka všude, video jen tam,
+     * kde schránka nese soubory ([copiesAnyFile], desktop).
+     */
+    fun canCopy(item: ViewerItem): Boolean = when (item.media) {
+        is MessageMedia.Photo -> true
+        is MessageMedia.Video -> copiesAnyFile
+        else -> false
+    }
+
+    /**
+     * Zkopíruje ostrou verzi média do schránky ([MediaSharer.copy]). Hláška jen tam, kde
+     * zkopírování nepotvrdí systém sám (`TextClipboard.confirmsCopy`, Android 13+ ukáže náhled).
+     */
+    fun copy(messageId: Long) {
+        viewModelScope.launch {
+            val file = prepare(messageId, MediaTask.Copy, failure = Res.string.media_copy_failed) ?: return@launch
+            val copied = sharer.copy(file.path, file.fileName, isImage = !file.isVideo)
+            finish(
+                messageId,
+                when {
+                    !copied -> Res.string.media_copy_failed
+                    clipboard?.confirmsCopy == true -> null
+                    else -> Res.string.media_copied
+                },
+            )
         }
     }
 
@@ -1292,7 +1327,7 @@ internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
 }
 
 /** Co s médiem právě běží; podle toho se točí to tlačítko, na které uživatel ťukl. */
-enum class MediaTask { Gallery, Share, SaveAs, Text, Describe, Sticker }
+enum class MediaTask { Gallery, Share, Copy, SaveAs, Text, Describe, Sticker }
 
 /** Stažená fotka, ze které se má udělat samolepka — obrazovka ji předá tvorbě samolepky. */
 data class StickerSource(val path: String, val width: Int, val height: Int)

@@ -43,6 +43,8 @@ internal enum class ViewerKey {
     Previous, Next, ZoomIn, ZoomOut, ZoomReset,
     // Jen u videa:
     PlayPause, SeekBack, SeekForward, ToggleMute, ToggleFullscreen,
+    /** Ctrl+C (⌘C): médium do schránky. */
+    Copy,
 }
 
 /**
@@ -57,6 +59,8 @@ internal enum class ViewerKey {
  *   M ztlumení. Písmena podle klávesy, ne znaku — na každém rozložení jsou tam, kde je uživatel
  *   čeká. Šipky posouvají ([seekWithArrows]), kde by tah nelistoval — hrající video na celé
  *   obrazovce; doleva je zpět i v RTL, jako na časové ose přehrávače.
+ * - **Ctrl+C i ⌘C kopírují** médium do schránky — podle klávesy, ne znaku (na azbuce je tam „с"),
+ *   a s ⌘ i s Ctrl, protože kopírování je jediná zkratka tady, kterou macOS bere přes ⌘.
  */
 internal fun viewerKey(
     key: Key,
@@ -69,6 +73,7 @@ internal fun viewerKey(
     video: Boolean = false,
     seekWithArrows: Boolean = false,
 ): ViewerKey? {
+    if (key == Key.C && (ctrl != meta) && !alt && !shift) return ViewerKey.Copy
     if (alt || meta) return null
     val plain = !ctrl && !shift
     return when {

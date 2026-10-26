@@ -22,7 +22,33 @@ expect class MediaSharer {
      * (Zprávy, e-mail) ho vloží do zprávy a sami z něj udělají klikatelný odkaz.
      */
     fun shareText(text: String): Boolean
+
+    /**
+     * Zkopíruje soubor do schránky, odkud ho jde vložit do jiné aplikace nebo do složky.
+     *
+     * Kopíruje se taky **kopie pod čitelným jménem** — vložená do Průzkumníka nebo Finderu by
+     * jinak nesla jméno z TDLib. Leží v dočasném adresáři, dokud ji nenahradí další kopírování:
+     * schránka odkazuje na soubor, smazat ji dřív nejde. [isImage] říká, že soubor je obrázek
+     * a má jít i jako obrázek (vložení do editoru, do zprávy); jinde než na desktopu se jinak
+     * nekopíruje nic ([copiesAnyFile]).
+     *
+     * `false`, když se zkopírovat nepodařilo; příčina jde do logu.
+     */
+    suspend fun copy(path: String, fileName: String, isImage: Boolean): Boolean
 }
+
+/**
+ * Jestli má platforma systémový dialog sdílení souboru. Desktop ho z JVM nedostane — místo
+ * „Sdílet" tam je kopírování do schránky ([MediaSharer.copy]) a „Uložit jako…".
+ */
+expect val fileShareSupported: Boolean
+
+/**
+ * Jestli jde do schránky jakýkoli soubor, nebo jen obrázek. Na desktopu se soubor vkládá do
+ * složky i do zprávy v jiné aplikaci; na telefonu schránka soubory nenese (Android ano jako
+ * URI, ale vložit ho skoro nic neumí) a obrázek je jediné, co dává smysl.
+ */
+expect val copiesAnyFile: Boolean
 
 /**
  * „Uložit jako…": systémový výběr umístění (Stažené, Disk, …) a kopie do něj.
