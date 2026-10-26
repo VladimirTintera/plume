@@ -12,6 +12,7 @@ import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageTopicForum
+import dev.g000sha256.tdl.dto.StickerFullTypeCustomEmoji
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
@@ -86,23 +87,31 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
         )
     }.distinctUntilChanged()
 
-    override suspend fun create(chatId: Long, name: String, color: Int): Result<Int> =
+    override suspend fun create(chatId: Long, name: String, color: Int, customEmojiId: Long?): Result<Int> =
         client.createForumTopic(
             chatId = chatId,
             name = name.trim().take(TOPIC_NAME_MAX),
             isNameImplicit = false,
-            icon = ForumTopicIcon(color = color, customEmojiId = 0L),
+            icon = ForumTopicIcon(color = color, customEmojiId = customEmojiId ?: NO_TOPIC_EMOJI),
         ).toResult().map { it.forumTopicId }
 
-    override suspend fun rename(chatId: Long, topicId: Int, name: String): Result<Unit> =
+    override suspend fun edit(chatId: Long, topicId: Int, name: String, iconCustomEmojiId: Long?): Result<Unit> =
         client.editForumTopic(
             chatId = chatId,
             forumTopicId = topicId,
             name = name.trim().take(TOPIC_NAME_MAX),
-            // Ikonu úprava nemění — `false` ji nechá, jak je.
-            editIconCustomEmoji = false,
-            iconCustomEmojiId = 0L,
+            // `false` ikonu nechá, jak je; `true` s nulou emoji odebere.
+            editIconCustomEmoji = iconCustomEmojiId != null,
+            iconCustomEmojiId = iconCustomEmojiId ?: NO_TOPIC_EMOJI,
         ).toResult().map { }
+
+    override suspend fun defaultIcons(): Result<List<Long>> =
+        client.getForumTopicDefaultIcons().toResult().map { found ->
+            found.stickers.filterNotNull().mapNotNull { (it.fullType as? StickerFullTypeCustomEmoji)?.customEmojiId }
+        }
+
+    override suspend fun link(chatId: Long, topicId: Int): Result<String> =
+        client.getForumTopicLink(chatId = chatId, forumTopicId = topicId).toResult().map { it.link }
 
     override suspend fun setClosed(chatId: Long, topicId: Int, closed: Boolean): Result<Unit> =
         client.toggleForumTopicIsClosed(chatId = chatId, forumTopicId = topicId, isClosed = closed).toResult().map { }

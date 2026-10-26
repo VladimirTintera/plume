@@ -14,6 +14,7 @@ import eu.tintera.plume.core.telegram.ForumTopicsOffset
 import eu.tintera.plume.core.telegram.InviteLinkRepository
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.NotificationSettingsRepository
+import eu.tintera.plume.core.telegram.NO_TOPIC_EMOJI
 import eu.tintera.plume.core.telegram.TOPIC_COLORS
 import eu.tintera.plume.core.telegram.TopicRights
 import eu.tintera.plume.core.telegram.userMessage
@@ -23,10 +24,13 @@ import eu.tintera.plume.core.telegram.withoutTopic
 import eu.tintera.plume.core.telegram.moved
 import eu.tintera.plume.core.telegram.pinnedTopics
 import eu.tintera.plume.core.telegram.sortedTopics
+import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.forum_topic_action_failed
 import eu.tintera.plume.resources.forum_topic_create_failed
+import eu.tintera.plume.resources.forum_topic_link_copied
+import eu.tintera.plume.resources.forum_topic_link_failed
 import eu.tintera.plume.resources.forum_topics_load_failed
 import eu.tintera.plume.resources.forum_view_mode_failed
 import eu.tintera.plume.resources.settings_notif_error
@@ -67,6 +71,11 @@ data class ForumTopicsState(
     val searchResults: List<ForumTopic>? = null,
     /** Otevřený formulář tématu; `null` = zavřený. */
     val editor: TopicEditor? = null,
+    /**
+     * Vlastní emoji, která smí jako ikonu tématu použít každý ([ForumRepository.defaultIcons]);
+     * načtou se s prvním otevřeným formulářem. Prázdné = zatím nenačtené, nebo nejsou.
+     */
+    val topicIcons: List<Long> = emptyList(),
     /** Běží akce nad tématem — tlačítka se nesmí zmáčknout podruhé. */
     val busy: Boolean = false,
     /** Jednorázová hláška pro snackbar. */
@@ -86,14 +95,29 @@ data class ForumTopicsState(
     val pinnedOrder: List<Int> = emptyList(),
 )
 
-/** Formulář tématu: nové ([topicId] `null`, s barvou), nebo přejmenování existujícího. */
+/**
+ * Formulář tématu: nové ([topicId] `null`, s barvou a ikonou), nebo úprava existujícího (název
+ * a ikona; barvu `editForumTopic` měnit neumí, u obecného tématu ani ikonu).
+ */
 data class TopicEditor(
     val topicId: Int? = null,
     val name: String = "",
     val color: Int = TOPIC_COLORS.first(),
+    /** Vlastní emoji ikony; `null` = bublina v barvě s písmenem. */
+    val customEmojiId: Long? = null,
+    /** Ikona při otevření úpravy — na server jde, jen když se změnila. */
+    val originalEmojiId: Long? = null,
+    val isGeneral: Boolean = false,
 ) {
     val isNew: Boolean get() = topicId == null
     val canSave: Boolean get() = name.isNotBlank()
+    val canChangeIcon: Boolean get() = !isGeneral
+
+    /** Co poslat do [ForumRepository.edit]: nová ikona, nebo `null` = nechat. */
+    val iconEdit: Long? get() = when {
+        isNew || customEmojiId == originalEmojiId -> null
+        else -> customEmojiId ?: NO_TOPIC_EMOJI
+    }
 }
 
 /**
@@ -114,6 +138,7 @@ class ForumTopicsViewModel(
     private val chats: ChatRepository,
     /** Jen kvůli pruhu s čekajícími žádostmi o vstup — skupina s tématy nemá jednu konverzaci. */
     inviteLinks: InviteLinkRepository,
+    private val clipboard: TextClipboard,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ForumTopics")
@@ -188,9 +213,54 @@ class ForumTopicsViewModel(
         }
     }
 
-    fun openCreate() = _state.update { it.copy(editor = TopicEditor()) }
+    fun openCreate() {
+        _state.update { it.copy(editor = TopicEditor()) }
+        loadIcons()
+    }
 
-    fun openRename(topic: ForumTopic) = _state.update { it.copy(editor = TopicEditor(topicId = topic.id, name = topic.name)) }
+    fun openEdit(topic: ForumTopic) {
+        _state.update {
+            it.copy(
+                editor = TopicEditor(
+                    topicId = topic.id,
+                    name = topic.name,
+                    color = topic.icon.color,
+                    customEmojiId = topic.icon.customEmojiId,
+                    originalEmojiId = topic.icon.customEmojiId,
+                    isGeneral = topic.isGeneral,
+                ),
+            )
+        }
+        if (!topic.isGeneral) loadIcons()
+    }
+
+    /**
+     * Výchozí ikony témat jednou za ViewModel. Selhání nevadí — formulář pak nabídne jen barvu,
+     * jako dřív, a zkusí to znovu s dalším otevřením.
+     */
+    private fun loadIcons() {
+        if (_state.value.topicIcons.isNotEmpty()) return
+        viewModelScope.launch {
+            forums.defaultIcons()
+                .onSuccess { icons -> _state.update { it.copy(topicIcons = icons) } }
+                .onFailure { logger.w(it) { "Výchozí ikony témat se nepodařilo načíst." } }
+        }
+    }
+
+    /** Odkaz na téma do schránky; hláška jen tam, kde zkopírování nepotvrdí systém. */
+    fun copyLink(topic: ForumTopic) {
+        viewModelScope.launch {
+            forums.link(chatId, topic.id)
+                .onSuccess { link ->
+                    clipboard.copy(link)
+                    if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.forum_topic_link_copied)) }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Odkaz na téma ${topic.id} ve skupině $chatId se nepodařilo vytvořit." }
+                    _state.update { it.copy(notice = failure.userMessage(Res.string.forum_topic_link_failed)) }
+                }
+        }
+    }
 
     fun updateEditor(editor: TopicEditor) = _state.update { it.copy(editor = editor) }
 
@@ -201,7 +271,7 @@ class ForumTopicsViewModel(
         act(if (editor.isNew) Res.string.forum_topic_create_failed else Res.string.forum_topic_action_failed) {
             val topicId = editor.topicId
             if (topicId == null) {
-                val created = forums.create(chatId, editor.name, editor.color)
+                val created = forums.create(chatId, editor.name, editor.color, editor.customEmojiId)
                 created.getOrNull()?.let { id ->
                     refresh(id)
                     // Nové téma se otevře, jako u oficiálních klientů — zakládá se, aby se do něj psalo.
@@ -209,7 +279,7 @@ class ForumTopicsViewModel(
                 }
                 created.map { }
             } else {
-                forums.rename(chatId, topicId, editor.name).also { result ->
+                forums.edit(chatId, topicId, editor.name, editor.iconEdit).also { result ->
                     if (result.isSuccess) {
                         _state.update { it.copy(editor = null) }
                         refresh(topicId)

@@ -508,6 +508,7 @@ fun appModule() = module {
             notifications = get(),
             chats = get(),
             inviteLinks = get(),
+            clipboard = get(),
         )
     }
 

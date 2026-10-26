@@ -113,10 +113,27 @@ interface ForumRepository {
      */
     fun rightsUpdates(chatId: Long): Flow<TopicRights> = flow { rights(chatId).onSuccess { emit(it) } }
 
-    /** Založí téma; vrací jeho id. [color] je jedna z [TOPIC_COLORS]. */
-    suspend fun create(chatId: Long, name: String, color: Int): Result<Int>
+    /**
+     * Založí téma; vrací jeho id. [color] je jedna z [TOPIC_COLORS] a nese ji bublina, když
+     * téma emoji nemá; [customEmojiId] je ikona z [defaultIcons] (`null` = bez emoji).
+     */
+    suspend fun create(chatId: Long, name: String, color: Int, customEmojiId: Long? = null): Result<Int>
 
-    suspend fun rename(chatId: Long, topicId: Int, name: String): Result<Unit>
+    /**
+     * Přejmenuje téma a s [iconCustomEmojiId] vymění i ikonu: id z [defaultIcons], nebo
+     * [NO_TOPIC_EMOJI] (bez emoji, zpátky bublina v barvě). `null` ikonu nechá — barvu úprava
+     * měnit neumí vůbec (`editForumTopic`). Ikonu obecného tématu měnit nejde.
+     */
+    suspend fun edit(chatId: Long, topicId: Int, name: String, iconCustomEmojiId: Long? = null): Result<Unit>
+
+    /**
+     * Vlastní emoji, která smí jako ikonu tématu použít KAŽDÝ (`getForumTopicDefaultIcons`).
+     * S Premium jde jakékoli vlastní emoji; to Plume nenabízí — ověřit by se nedalo.
+     */
+    suspend fun defaultIcons(): Result<List<Long>>
+
+    /** Odkaz na téma (`getForumTopicLink`, offline): veřejná skupina `t.me/jméno/id`, jinak `t.me/c/…`. */
+    suspend fun link(chatId: Long, topicId: Int): Result<String>
 
     suspend fun setClosed(chatId: Long, topicId: Int, closed: Boolean): Result<Unit>
 
@@ -145,6 +162,9 @@ val TOPIC_COLORS: List<Int> = listOf(0x6FB9F0, 0xFFD67E, 0xCB86DB, 0x8EEE98, 0xF
 
 /** Delší název TDLib nepřijme. */
 const val TOPIC_NAME_MAX = 128
+
+/** Ikona tématu bez vlastního emoji — TDLib v `editForumTopic` čte nulu jako „emoji pryč". */
+const val NO_TOPIC_EMOJI = 0L
 
 /** Co smí přihlášený účet s tématy skupiny. */
 data class TopicRights(

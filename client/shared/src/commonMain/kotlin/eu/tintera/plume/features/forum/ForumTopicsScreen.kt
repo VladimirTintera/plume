@@ -414,7 +414,8 @@ fun ForumTopicsScreen(
             onMute = { viewModel.setMuted(topic, it) },
             onNotifications = { viewModel.openNotifications(topic) },
             onReorder = viewModel::startReorder.takeIf { canReorderPinned(state.topics, state.rights) },
-            onRename = { viewModel.openRename(topic) },
+            onCopyLink = { viewModel.copyLink(topic) },
+            onEdit = { viewModel.openEdit(topic) },
             onClose = { viewModel.setClosed(topic, it) },
             onHideGeneral = { viewModel.setGeneralHidden(true) },
             onDelete = { deleteTarget = topic },
@@ -471,6 +472,7 @@ fun ForumTopicsScreen(
     state.editor?.let { editor ->
         TopicEditorSheet(
             editor = editor,
+            icons = state.topicIcons,
             busy = state.busy,
             onChange = viewModel::updateEditor,
             onSave = viewModel::saveEditor,

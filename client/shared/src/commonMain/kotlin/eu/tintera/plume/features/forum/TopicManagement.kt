@@ -7,7 +7,17 @@ import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.ColorSwatch
 import androidx.compose.foundation.selection.selectableGroup
 import eu.tintera.plume.core.ui.MediumButton
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,8 +69,13 @@ import eu.tintera.plume.resources.forum_topic_notifications
 import eu.tintera.plume.resources.forum_topic_name
 import eu.tintera.plume.resources.forum_topic_new
 import eu.tintera.plume.resources.forum_topic_pin
-import eu.tintera.plume.resources.forum_topic_rename
-import eu.tintera.plume.resources.forum_topic_rename_title
+import eu.tintera.plume.resources.forum_topic_copy_link
+import eu.tintera.plume.resources.forum_topic_edit
+import eu.tintera.plume.resources.forum_topic_edit_title
+import eu.tintera.plume.resources.forum_topic_icon
+import eu.tintera.plume.resources.forum_topic_icon_emoji
+import eu.tintera.plume.resources.forum_topic_icon_none
+import eu.tintera.plume.resources.link_24dp
 import eu.tintera.plume.resources.forum_topic_reopen
 import eu.tintera.plume.resources.forum_topic_unmute
 import eu.tintera.plume.resources.forum_topic_unpin
@@ -107,7 +122,8 @@ internal fun TopicActionsSheet(
     onNotifications: () -> Unit,
     /** Uspořádat připnutá — jen u připnutého tématu a když je co přeskládat; jinak `null`. */
     onReorder: (() -> Unit)?,
-    onRename: () -> Unit,
+    onCopyLink: () -> Unit,
+    onEdit: () -> Unit,
     onClose: (Boolean) -> Unit,
     onHideGeneral: () -> Unit,
     onDelete: () -> Unit,
@@ -133,7 +149,9 @@ internal fun TopicActionsSheet(
         if (topic.isPinned && onReorder != null) {
             add(TopicMenuItem(stringResource(Res.string.forum_topic_reorder), Res.drawable.drag_indicator_24dp, onClick = onReorder))
         }
-        if (actions.rename) add(TopicMenuItem(stringResource(Res.string.forum_topic_rename), Res.drawable.edit_24dp, onClick = onRename))
+        // Odkaz smí každý — vede členy do tématu; neveřejná skupina dá odkaz `t.me/c/…` jen pro ně.
+        add(TopicMenuItem(stringResource(Res.string.forum_topic_copy_link), Res.drawable.link_24dp, onClick = onCopyLink))
+        if (actions.rename) add(TopicMenuItem(stringResource(Res.string.forum_topic_edit), Res.drawable.edit_24dp, onClick = onEdit))
         if (actions.close) {
             add(
                 TopicMenuItem(
@@ -185,14 +203,17 @@ internal fun TopicActionsSheet(
 }
 
 /**
- * Formulář tématu: název, u nového i barva ikony. Barvy jsou jen ty, které TDLib přijme
- * ([TOPIC_COLORS]). Přejmenování barvu nemění — `editForumTopic` ji měnit neumí.
- * Náhled ikony nahoře ukazuje, jak bude téma v seznamu vypadat.
+ * Formulář tématu: název, u nového barva ikony a u nového i upravovaného ikona z emoji.
+ * Barvy jsou jen ty, které TDLib přijme ([TOPIC_COLORS]); úprava barvu nemění —
+ * `editForumTopic` ji měnit neumí. Emoji jsou jen výchozí ikony, které smí každý
+ * ([icons], `getForumTopicDefaultIcons`); první buňka je ikona bez emoji (bublina v barvě).
+ * Obecné téma ikonu měnit nemůže. Náhled ikony nahoře ukazuje, jak bude téma v seznamu vypadat.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TopicEditorSheet(
     editor: TopicEditor,
+    icons: List<Long>,
     busy: Boolean,
     onChange: (TopicEditor) -> Unit,
     onSave: () -> Unit,
@@ -209,15 +230,13 @@ internal fun TopicEditorSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (editor.isNew) {
-                    ForumTopicIcon(
-                        icon = TopicIcon(color = editor.color, customEmojiId = null),
-                        name = editor.name,
-                        isGeneral = false,
-                        size = 44.dp,
-                    )
-                }
-                SheetTitle(stringResource(if (editor.isNew) Res.string.forum_topic_new else Res.string.forum_topic_rename_title))
+                ForumTopicIcon(
+                    icon = TopicIcon(color = editor.color, customEmojiId = editor.customEmojiId),
+                    name = editor.name,
+                    isGeneral = editor.isGeneral,
+                    size = 44.dp,
+                )
+                SheetTitle(stringResource(if (editor.isNew) Res.string.forum_topic_new else Res.string.forum_topic_edit_title))
             }
             FormTextField(
                 value = editor.name,
@@ -240,6 +259,37 @@ internal fun TopicEditorSheet(
                             name = stringResource(COLOR_NAMES[index]),
                             selected = rgb == editor.color,
                         ) { onChange(editor.copy(color = rgb)) }
+                    }
+                }
+            }
+            // Bez načtených ikon se oddíl neukáže vůbec — barva funguje i bez nich.
+            if (editor.canChangeIcon && icons.isNotEmpty()) {
+                Text(
+                    stringResource(Res.string.forum_topic_icon),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(ICON_CELL),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = ICON_GRID_MAX_HEIGHT).selectableGroup(),
+                ) {
+                    item(key = "none") {
+                        IconCell(
+                            description = stringResource(Res.string.forum_topic_icon_none),
+                            selected = editor.customEmojiId == null,
+                            onClick = { onChange(editor.copy(customEmojiId = null)) },
+                        ) {
+                            ForumTopicIcon(TopicIcon(editor.color, customEmojiId = null), editor.name, isGeneral = false, size = ICON_SIZE)
+                        }
+                    }
+                    items(icons, key = { it }) { id ->
+                        IconCell(
+                            description = stringResource(Res.string.forum_topic_icon_emoji),
+                            selected = editor.customEmojiId == id,
+                            onClick = { onChange(editor.copy(customEmojiId = id)) },
+                        ) {
+                            ForumTopicIcon(TopicIcon(editor.color, customEmojiId = id), editor.name, isGeneral = false, size = ICON_SIZE)
+                        }
                     }
                 }
             }
@@ -269,6 +319,34 @@ private fun ColorChoice(rgb: Int, name: String, selected: Boolean, onClick: () -
         drawRect(color)
     }
 }
+
+/**
+ * Buňka mřížky ikon: vybraná má pod sebou tónový kruh, jako výběr emoji u fotky profilu.
+ * Kruh je ve vnějším boxu na střed: mřížka buňce vnutí šířku sloupce a `size` by ji
+ * přebít nemohl — podklad se roztáhl do oválu (viděno na emulátoru).
+ */
+@Composable
+private fun IconCell(description: String, selected: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(ICON_CELL)
+                .clip(CircleShape)
+                .then(if (selected) Modifier.background(MaterialTheme.colorScheme.secondaryContainer) else Modifier)
+                .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+                .semantics { contentDescription = description },
+            contentAlignment = Alignment.Center,
+        ) {
+            content()
+        }
+    }
+}
+
+private val ICON_CELL = 52.dp
+private val ICON_SIZE = 32.dp
+
+/** Strop mřížky ikon — výchozích je kolem stovky a tlačítko Uložit musí zůstat vidět. */
+private val ICON_GRID_MAX_HEIGHT = 216.dp
 
 /** Smazání tématu: nevratné a pro všechny, i se zprávami — to musí věta říct. */
 @Composable
