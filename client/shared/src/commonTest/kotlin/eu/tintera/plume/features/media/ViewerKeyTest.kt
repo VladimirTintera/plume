@@ -95,4 +95,16 @@ class ViewerKeyTest {
         assertEquals(ViewerKey.Previous, key(Key.DirectionLeft, video = true))
         assertNull(key(Key.DirectionLeft, alt = true, video = true, seek = true))
     }
+
+    /** Ctrl+C i ⌘C kopírují, podle klávesy; s Alt, Shift nebo oběma modifikátory nic. */
+    @Test
+    fun ctrlCKopiruje() {
+        assertEquals(ViewerKey.Copy, key(Key.C, char = 'c', ctrl = true))
+        assertEquals(ViewerKey.Copy, key(Key.C, char = 'c', meta = true))
+        assertEquals(ViewerKey.Copy, key(Key.C, char = 'с', ctrl = true))
+        assertNull(key(Key.C, char = 'c'))
+        assertNull(key(Key.C, ctrl = true, shift = true))
+        assertNull(key(Key.C, ctrl = true, alt = true))
+        assertNull(key(Key.C, ctrl = true, meta = true))
+    }
 }

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.key
 import eu.tintera.plume.core.telegram.PostStats
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.files.copiesAnyFile
+import eu.tintera.plume.core.files.fileShareSupported
 import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
@@ -309,9 +311,21 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean, customEmoji: B
     if (message.media is MessageMedia.Audio) add(MessageMenuAction.ToggleProfileAudio)
     // Soubor, který není obrázek ani video, se do prohlížeče nedostane; ven jde odsud. Skladba
     // je taky soubor — v bublině se jen přehrává.
+    //
+    // Desktop dialog sdílení nemá; ven tam vede schránka a „Uložit jako…", i u fotky a videa —
+    // pravé tlačítko nad fotkou je na počítači první, kam se sahá (Telegram Desktop to má stejně).
+    val copyKind = when (message.media) {
+        is MessageMedia.Photo -> MessageMenuAction.CopyMedia.Kind.Photo
+        is MessageMedia.Video -> MessageMenuAction.CopyMedia.Kind.Video.takeIf { copiesAnyFile }
+        is MessageMedia.Document, is MessageMedia.Audio -> MessageMenuAction.CopyMedia.Kind.File.takeIf { copiesAnyFile }
+        else -> null
+    }
+    if (copyKind != null) add(MessageMenuAction.CopyMedia(copyKind))
     if (message.media is MessageMedia.Document || message.media is MessageMedia.Audio) {
-        add(MessageMenuAction.ShareFile)
+        if (fileShareSupported) add(MessageMenuAction.ShareFile)
         if (saveAsSupported) add(MessageMenuAction.SaveFileAs)
+    } else if (message.media is MessageMedia.Photo || message.media is MessageMedia.Video) {
+        if (saveAsSupported && !fileShareSupported) add(MessageMenuAction.SaveFileAs)
     }
     if (poll?.canRetract == true) add(MessageMenuAction.RetractVote)
     if (poll != null && !poll.isClosed) add(MessageMenuAction.StopPoll)

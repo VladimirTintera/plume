@@ -113,6 +113,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.HazeBlurStyle
+import eu.tintera.plume.core.files.autosavesToGallery
+import eu.tintera.plume.core.files.fileShareSupported
 import eu.tintera.plume.core.files.rememberSaveAs
 import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -167,6 +169,10 @@ import eu.tintera.plume.resources.sponsored_recommended
 import eu.tintera.plume.resources.sponsored_sponsored
 import eu.tintera.plume.resources.media_save
 import eu.tintera.plume.resources.media_save_as
+import eu.tintera.plume.resources.media_save_downloads
+import eu.tintera.plume.resources.media_copy_photo
+import eu.tintera.plume.resources.media_copy_video
+import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.media_profile_photo_delete_text
 import eu.tintera.plume.resources.media_profile_photo_delete_title
 import eu.tintera.plume.resources.media_profile_photo_delete
@@ -301,6 +307,8 @@ fun MediaViewerScreen(
                     }
                 },
                 onShare = viewModel::share,
+                onCopy = viewModel::copy,
+                canCopy = viewModel::canCopy,
                 // Výběr umístění je aktivita systému, takže ho spouští obrazovka; ViewModel
                 // jen dodá stažený soubor. Na iOS „Uložit jako…" není — umí to sdílení.
                 onSaveAs = saveAs?.let { launcher ->
@@ -438,6 +446,9 @@ private fun ViewerContent(
     onReply: ((messageId: Long) -> Unit)?,
     onSave: (messageId: Long) -> Unit,
     onShare: (messageId: Long) -> Unit,
+    /** Do schránky; nabízí se jen u média, které jde zkopírovat ([canCopy]). */
+    onCopy: (messageId: Long) -> Unit,
+    canCopy: (ViewerItem) -> Boolean,
     onSaveAs: ((messageId: Long) -> Unit)?,
     onSetMainProfilePhoto: (photoId: Long) -> Unit,
     onDeleteProfilePhoto: (photoId: Long) -> Unit,
@@ -683,6 +694,15 @@ private fun ViewerContent(
                         val set = setWindowFullscreen ?: return@onPreviewKeyEvent false
                         set(!windowFullscreenOn)
                     }
+                    ViewerKey.Copy -> {
+                        // Nad textem z fotky a popisem patří Ctrl+C jejich výběru, ne fotce.
+                        val item = current?.takeIf {
+                            state.actions[it.messageId]?.canSave == true && canCopy(it) &&
+                                state.recognizedText?.messageId != it.messageId &&
+                                state.photoDescription?.messageId != it.messageId
+                        } ?: return@onPreviewKeyEvent false
+                        onCopy(item.messageId)
+                    }
                 }
                 true
             }
@@ -870,6 +890,7 @@ private fun ViewerContent(
                     onForward = { onForward(current.messageId) },
                     onSave = { onSave(current.messageId) },
                     onShare = { onShare(current.messageId) },
+                    onCopy = { onCopy(current.messageId) }.takeIf { canCopy(current) },
                     onSaveAs = onSaveAs?.let { saveAs -> { saveAs(current.messageId) } },
                     onSetMainProfilePhoto = { onSetMainProfilePhoto(current.messageId) },
                     onDeleteProfilePhoto = { onDeleteProfilePhoto(current.messageId) },
@@ -1096,6 +1117,8 @@ private fun TopBar(
     onForward: () -> Unit,
     onSave: () -> Unit,
     onShare: () -> Unit,
+    /** `null` = médium do schránky nejde ([MediaViewerViewModel.canCopy]). */
+    onCopy: (() -> Unit)?,
     onSaveAs: (() -> Unit)?,
     onSetMainProfilePhoto: () -> Unit,
     onDeleteProfilePhoto: () -> Unit,
@@ -1163,17 +1186,36 @@ private fun TopBar(
          *
          * Co se právě dělá, točí na místě svého tlačítka, aby lišta neposkočila — stahování
          * originálu může trvat. U „Uložit jako…" z nabídky točí ⋮.
+         *
+         * Desktop systémový dialog sdílení nemá ([fileShareSupported]); místo Sdílet je venku
+         * Kopírovat, které tam médium dostane do jiné aplikace nebo do složky. Na telefonu je
+         * kopírování fotky v nabídce — schránka tam vedle sdílení tolik neznamená. Galerii
+         * desktop taky nemá a ukládá do Stažených; tlačítko to musí říct.
          */
         val busy = state.busy[item.messageId]
         val canSave = actions?.canSave == true
+        val copyInBar = !fileShareSupported
+        val copy = onCopy?.takeIf { canSave }
+        val copyLabel = stringResource(if (item.media is MessageMedia.Video) Res.string.media_copy_video else Res.string.media_copy_photo)
         if (canSave) {
-            BusyOr(busy == MediaTask.Share) {
-                ChromeIcon(Res.drawable.share_24dp, stringResource(Res.string.media_share), onShare)
+            if (fileShareSupported) {
+                BusyOr(busy == MediaTask.Share) {
+                    ChromeIcon(Res.drawable.share_24dp, stringResource(Res.string.media_share), onShare)
+                }
+            } else if (copy != null) {
+                BusyOr(busy == MediaTask.Copy) {
+                    ChromeIcon(Res.drawable.content_copy_24dp, copyLabel, copy)
+                }
             }
             BusyOr(busy == MediaTask.Gallery) {
-                ChromeIcon(Res.drawable.download_24dp, stringResource(Res.string.media_save), onSave)
+                ChromeIcon(
+                    Res.drawable.download_24dp,
+                    stringResource(if (autosavesToGallery) Res.string.media_save else Res.string.media_save_downloads),
+                    onSave,
+                )
             }
         }
+        val copyInMenu = copy?.takeIf { !copyInBar }
 
         val canForward = actions?.canForward == true
         val canDelete = actions != null && (actions.canDeleteForSelf || actions.canDeleteForAll)
@@ -1189,9 +1231,9 @@ private fun TopBar(
         val canSetMain = own && item.messageId != state.items.lastOrNull()?.messageId
         // Cizí profilovku jde nahlásit moderátorům, kde to TDLib dovolí.
         val reportable = item.messageId in state.reportablePhotos
-        if (canForward || canDelete || saveAs != null || own || reportable || recognizeText != null || describePhoto != null || makeSticker != null || onAttachedStickers != null) {
+        if (canForward || canDelete || saveAs != null || copyInMenu != null || own || reportable || recognizeText != null || describePhoto != null || makeSticker != null || onAttachedStickers != null) {
             var menuOpen by remember { mutableStateOf(false) }
-            BusyOr(busy == MediaTask.SaveAs || busy == MediaTask.Text || busy == MediaTask.Describe || busy == MediaTask.Sticker) {
+            BusyOr(busy == MediaTask.SaveAs || (busy == MediaTask.Copy && !copyInBar) || busy == MediaTask.Text || busy == MediaTask.Describe || busy == MediaTask.Sticker) {
                 Box {
                     ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
                     ExpressiveMenu(
@@ -1220,6 +1262,7 @@ private fun TopBar(
                                     MenuAction(stringResource(Res.string.media_make_sticker), Res.drawable.sticker_24dp, onClick = it)
                                 },
                                 MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp, onClick = onForward).takeIf { canForward },
+                                copyInMenu?.let { MenuAction(copyLabel, Res.drawable.content_copy_24dp, onClick = it) },
                                 saveAs?.let { MenuAction(stringResource(Res.string.media_save_as), Res.drawable.description_24dp, onClick = it) },
                                 MenuAction(
                                     stringResource(Res.string.media_profile_photo_set_main),

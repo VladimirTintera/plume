@@ -51,6 +51,9 @@ import eu.tintera.plume.resources.music_note_24dp
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.media_copy_file
+import eu.tintera.plume.resources.media_copy_photo
+import eu.tintera.plume.resources.media_copy_video
 import eu.tintera.plume.resources.media_save_as
 import eu.tintera.plume.resources.media_share
 import eu.tintera.plume.resources.share_24dp
@@ -619,8 +622,26 @@ sealed interface MessageMenuAction : MessageAction {
     }
 
     /**
-     * Kandidát jen u souboru a jen tam, kde „Uložit jako…" platforma má ([saveAsSupported]);
-     * na iOS ho nahrazuje dialog sdílení. Výběr umístění spouští obrazovka, ne ViewModel.
+     * Médium zprávy do schránky (`MediaSharer.copy`). Kandidát u fotky všude, u videa a souboru
+     * jen tam, kde schránka nese soubory (`copiesAnyFile`, desktop). [kind] dává jen popisek —
+     * „Kopírovat" bez předmětu by se u fotky s popiskem pletlo s kopírováním textu.
+     */
+    data class CopyMedia(val kind: Kind) : MessageMenuAction {
+        enum class Kind(val label: StringResource) {
+            Photo(Res.string.media_copy_photo),
+            Video(Res.string.media_copy_video),
+            File(Res.string.media_copy_file),
+        }
+
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.content_copy_24dp, kind.label).takeIf { menu.actions.canSave }
+    }
+
+    /**
+     * Kandidát u souboru tam, kde „Uložit jako…" platforma má ([saveAsSupported]); na iOS ho
+     * nahrazuje dialog sdílení. U fotky a videa jen tam, kde sdílení není (desktop) — na
+     * telefonu je cesta ven z prohlížeče a nabídka zůstává krátká. Výběr umístění spouští
+     * obrazovka, ne ViewModel.
      */
     data object SaveFileAs : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
@@ -762,6 +783,7 @@ val MessageMenuAction.slot: MenuSlot
         MessageMenuAction.ToggleFavoriteSticker,
         MessageMenuAction.ToggleProfileAudio,
         MessageMenuAction.ShareFile,
+        is MessageMenuAction.CopyMedia,
         MessageMenuAction.SaveFileAs,
         -> MenuSlot.Primary
         MessageMenuAction.RetractVote, MessageMenuAction.StopPoll -> MenuSlot.Poll

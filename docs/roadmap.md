@@ -223,6 +223,10 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
   (`docs/poznatky/desktop.md`, „Vložení ze schránky a přetažení souborů"). Zbývá obrázek
   tažený z prohlížeče (přichází bez souboru).
+- ~~**Dostat přílohu z aplikace ven**~~ — hotovo kopírováním do schránky a „Uložit jako…"
+  (`docs/poznatky/desktop.md`, „Kopírování příloh do schránky a cesta ven"). Zbývá **přetažení
+  přílohy z okna ven** (do Průzkumníka, Finderu, jiné aplikace) a „Zobrazit ve složce" po uložení
+  do Stažených.
 - **Release pro Linux a Intel Mac** (Windows MSI a DMG pro Apple Silicon už jsou,
   `desktop-release.yml`): job na Ubuntu (DEB, glibc 2.38+) a na Intel runneru (`macos-15-intel`,
   DMG pro macOS 15+). Ani jedno zatím nikdo nezkoušel spustit.

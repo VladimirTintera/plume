@@ -662,6 +662,35 @@ soubory; soubory z Finderu či Průzkumníka jde pustit kamkoli do konverzace
   přepisuje schránku. **Přetažení z Finderu ověřené rukou není** — tah z jiné aplikace se z testu
   vyvolat nedá.
 
+## Kopírování příloh do schránky a cesta ven
+
+Desktop systémový dialog sdílení z JVM nedostane (`MediaSharer.share` vrací `false`), takže
+tlačítko Sdílet v prohlížeči jen hlásilo „Sdílení se nepodařilo" a soubory v nabídce nad zprávou
+taky. Ven teď vede schránka a „Uložit jako…" (`MediaSharer.copy`, `fileShareSupported`,
+`copiesAnyFile`):
+
+- **V prohlížeči je místo Sdílet Kopírovat**, i Ctrl+C / ⌘C (`ViewerKey.Copy`). Nad textem
+  z fotky a nad popisem fotky klávesu nechává jejich výběru. „Uložit do galerie" se na desktopu
+  jmenuje **„Uložit do Stažených"** — tam ukládá odjakživa (`MediaSaver`) a starý popisek
+  sliboval galerii, kterou desktop nemá (rozhoduje `autosavesToGallery`, tedy „má galerii").
+- **V nabídce nad zprávou (pravé tlačítko)** fotka, video, soubor i skladba nabízí „Kopírovat …"
+  a „Uložit jako…" — u fotky a videa jen tam, kde není dialog sdílení, na telefonu je cesta ven
+  z prohlížeče. Sdílet souboru se na desktopu nenabízí, stejně jako QR platby.
+- **Do schránky jde seznam s jedním souborem (`javaFileListFlavor`) a k obrázku i obrázek
+  (`imageFlavor`).** Průzkumník a Finder vloží soubor, Malování a Word obrázek, webové aplikace
+  si vyberou. Obrázek čte ImageIO; co nepřečte (HEIC, WebP), jde jen jako soubor.
+- **Kopíruje se kopie pod čitelným jménem** (`savedFileName`: soubor svoje, fotka
+  `Plume_20260918_233017.jpg`) v `%TEMP%/plume-clipboard` — vložený soubor by jinak nesl jméno
+  z TDLib. Další kopírování adresář vyprázdní; dřív to nejde, schránka na soubor odkazuje.
+- **Fotka z nabídky se stahuje v ostré verzi** (`fullFileId`, ne zmenšenina z bubliny), video
+  celé. Průběh bublina neukazuje (vede ho jen řádek souboru), stažení je vidět ve Stahování.
+- **Telefon kopíruje jen fotku**: Android jako `content://` z `FileProvider` (vlastní adresář
+  `cache/clipboard`, ať kopii ve schránce nesmaže další sdílení; čtení udělí systém tomu, kdo
+  vkládá), iOS jako `UIImage` do `UIPasteboard`. Soubor ve schránce telefonu vložit skoro nic
+  neumí. Na Androidu 13+ zkopírování potvrdí systém náhledem, vlastní hláška pak není.
+- **Ověřit na Windows a macOS rukou**: vložení do Průzkumníka/Finderu, do Malování/Náhledu
+  a do webové aplikace; Android vložení fotky do Zpráv. iOS je napsaný, ne přeložený.
+
 ## Pravé tlačítko myši = podržení
 
 Podržení (`onLongClick`) otevírá v aplikaci nabídky — zpráva, chat, složka, téma, samolepka,

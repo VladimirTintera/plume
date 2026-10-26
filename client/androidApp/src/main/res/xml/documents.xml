@@ -13,6 +13,10 @@
     <cache-path
         name="shared"
         path="shared/" />
+    <!-- Kopie pod čitelným jménem ve schránce (MediaSharer.copy). -->
+    <cache-path
+        name="clipboard"
+        path="clipboard/" />
     <!-- Fotky a videa z fotoaparátu (Vyfotit / Natočit video ve sponce). Zapisuje do nich jiná
          aplikace, proto přes provider; po přípravě přílohy se mažou (AttachmentPicker). -->
     <cache-path
