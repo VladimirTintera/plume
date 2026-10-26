@@ -18,6 +18,7 @@ import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.NameMention
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Place
+import eu.tintera.plume.core.telegram.RecentFile
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
@@ -88,6 +89,26 @@ class ConversationAttachmentsTest {
         ): Result<Unit> {
             drafts += text
             return Result.success(Unit)
+        }
+
+        var recent: List<RecentFile> = emptyList()
+        val recentQueries = mutableListOf<String>()
+        val sentFiles = mutableListOf<Pair<List<Int>, Long?>>()
+
+        override suspend fun recentFiles(query: String): Result<List<RecentFile>> {
+            recentQueries += query
+            return Result.success(recent.filter { query.isEmpty() || query in it.name })
+        }
+
+        override suspend fun sendFiles(
+            chatId: Long,
+            fileIds: List<Int>,
+            replyToMessageId: Long?,
+            quote: ReplyQuote?,
+            options: SendOptions,
+        ): Result<List<ChatMessage>> {
+            sentFiles += fileIds to replyToMessageId
+            return Result.success(listOf(testMessage(903, outgoing = true)))
         }
 
         override suspend fun linkPreview(text: String, url: String?) = Result.failure<Nothing>(IllegalStateException("bez náhledu"))
@@ -179,6 +200,62 @@ class ConversationAttachmentsTest {
 
     private fun stateIn(info: eu.tintera.plume.core.telegram.ChatInfo, vararg messages: ChatMessage) =
         MutableStateFlow(ConversationState(messages = messages.sortedByDescending { it.id }, info = info))
+
+    private fun recent(id: Int, name: String = "soubor$id.pdf") = RecentFile(fileId = id, name = name, size = 1_000L, sentAt = 1_700_000_000)
+
+    @Test
+    fun posledniSouboryOdejdouVPoradiTuknutiSOdpovedi() = runTest {
+        repository.recent = listOf(recent(1), recent(2), recent(3))
+        val reply = testMessage(50)
+        val state = stateIn(testChatInfo(), reply)
+        state.value = state.value.copy(replyingTo = reply)
+        val parts = parts(state)
+
+        parts.attachments.openRecentFiles()
+        advanceUntilIdle()
+        assertEquals(3, state.value.recentFiles?.files?.size)
+        parts.attachments.toggleRecentFile(3)
+        parts.attachments.toggleRecentFile(1)
+        parts.attachments.sendRecentFiles()
+        advanceUntilIdle()
+
+        assertEquals(listOf<Pair<List<Int>, Long?>>(listOf(3, 1) to 50L), repository.sentFiles, "album v pořadí ťuknutí, jako odpověď")
+        assertNull(state.value.recentFiles)
+        assertNull(state.value.replyingTo, "odpověď se odesláním spotřebuje")
+        assertEquals(listOf(TEST_CHAT), usedChats)
+    }
+
+    @Test
+    fun posledniSouboryNejvysDeset() = runTest {
+        repository.recent = (1..12).map { recent(it) }
+        val state = stateIn(testChatInfo())
+        val parts = parts(state)
+        parts.attachments.openRecentFiles()
+        advanceUntilIdle()
+
+        (1..12).forEach { parts.attachments.toggleRecentFile(it) }
+        assertEquals((1..MAX_RECENT_FILES).toList(), state.value.recentFiles?.selected)
+        parts.attachments.toggleRecentFile(2)
+        assertEquals(MAX_RECENT_FILES - 1, state.value.recentFiles?.selected?.size, "odznačit jde i v plném albu")
+    }
+
+    @Test
+    fun hledaniPoslednichSouboruPockaNaDopsani() = runTest {
+        repository.recent = listOf(recent(1, "faktura.pdf"), recent(2, "smlouva.docx"))
+        val state = stateIn(testChatInfo())
+        val parts = parts(state)
+        parts.attachments.openRecentFiles()
+        advanceUntilIdle()
+        parts.attachments.toggleRecentFile(1)
+
+        parts.attachments.searchRecentFiles("sm")
+        parts.attachments.searchRecentFiles("smlouva")
+        advanceUntilIdle()
+
+        assertEquals(listOf("", "smlouva"), repository.recentQueries)
+        assertEquals(listOf(2), state.value.recentFiles?.files?.map { it.fileId })
+        assertEquals(listOf(1), state.value.recentFiles?.selected, "výběr hledání přežije")
+    }
 
     @Test
     fun fotkyTamKdeNejsouDovoleneSeNepridajiAOhlasiSe() = runTest {

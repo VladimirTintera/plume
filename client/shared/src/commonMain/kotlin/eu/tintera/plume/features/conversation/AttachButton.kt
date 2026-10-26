@@ -23,6 +23,8 @@ import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.history_24dp
+import eu.tintera.plume.resources.recent_files_title
 import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.conversation_attach
 import eu.tintera.plume.resources.conversation_attach_file
@@ -73,6 +75,8 @@ internal fun AttachButton(
     onSendLocation: (() -> Unit)? = null,
     /** Poslat kontakt; `null`, kde nejde. */
     onShareContact: (() -> Unit)? = null,
+    /** Znovu poslat nedávno odeslaný soubor; `null`, kde soubory nejdou. */
+    onPickRecentFiles: (() -> Unit)? = null,
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -101,6 +105,9 @@ internal fun AttachButton(
                         .takeIf { canPickMedia },
                     MenuAction(stringResource(Res.string.conversation_attach_file), Res.drawable.description_24dp) { pick(onPickDocument) }
                         .takeIf { canPickDocument },
+                    onPickRecentFiles?.let { open ->
+                        MenuAction(stringResource(Res.string.recent_files_title), Res.drawable.history_24dp) { pick(open) }
+                    },
                     onCreatePoll?.let { create ->
                         MenuAction(stringResource(Res.string.conversation_attach_poll), Res.drawable.ballot_24dp) { pick(create) }
                     },

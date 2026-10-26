@@ -988,8 +988,8 @@ za to, od nejužitečnějšího:
   (`NewSticker.keywords`, `setStickerKeywords`)~~ — hotovo (`docs/poznatky/emoji-samolepky-reakce.md`,
   „Tvorba samolepky z fotky" a „Úprava vlastní sady"). `getStickerSetName` vrací jen jméno
   sady podle id a Plume ho nepotřebuje.
-- **„Poslední soubory" ve výběru příloh** (`searchOutgoingDocumentMessages`) — odeslané
-  dokumenty napříč chaty, bez hledání v úložišti zařízení.
+- ~~**„Poslední soubory" ve výběru příloh** (`searchOutgoingDocumentMessages`)~~ — hotovo
+  (sponka → Poslední soubory; `docs/poznatky/konverzace-psani.md`, „Poslední soubory").
 - **Samolepka na pozdrav v prázdném soukromém chatu** (`getGreetingStickers`) — NEJISTÉ:
   dokumentace ji vede pro úvodní stránku firemního profilu; jestli ji oficiální klient bere
   i pro prázdný chat, ověřit dřív, než se na ni sáhne.

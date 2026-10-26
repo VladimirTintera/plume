@@ -891,6 +891,24 @@ interface ConversationRepository {
     ): Result<List<ChatMessage>>
 
     /**
+     * Soubory, které uživatel nedávno poslal kamkoli (`searchOutgoingDocumentMessages`), od
+     * nejnovějšího; tentýž soubor poslaný víckrát jen jednou. [query] hledá v názvu a popisku.
+     */
+    suspend fun recentFiles(query: String = ""): Result<List<RecentFile>>
+
+    /**
+     * Pošle už nahrané soubory znovu ([RecentFile.fileId], `InputFileId`) — bez nového nahrávání
+     * a bez kopie na disku. Víc souborů jde albem (2–10).
+     */
+    suspend fun sendFiles(
+        chatId: Long,
+        fileIds: List<Int>,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
+    ): Result<List<ChatMessage>>
+
+    /**
      * Nahradí text odeslané zprávy.
      *
      * Výsledek se do konverzace dostane updatem (`editedMessages`), stejně jako cizí úpravy —
@@ -1309,6 +1327,16 @@ sealed interface OutgoingAttachment {
         fun asDocument(): Document = Document(path)
     }
 }
+
+/** Soubor z nedávno odeslaných ([ConversationRepository.recentFiles]). */
+data class RecentFile(
+    /** Soubor v TDLib — znovu se posílá podle něj, bez nahrávání. */
+    val fileId: Int,
+    val name: String,
+    val size: Long,
+    /** Kdy odešel naposledy (sekundy unixu). */
+    val sentAt: Int,
+)
 
 /**
  * GIF připravený na disku (GIF nebo MP4 bez zvuku). [durationSeconds] je u GIFu nula — délku zná
