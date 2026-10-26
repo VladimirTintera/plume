@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.voice_summary_title_video
+import eu.tintera.plume.resources.voice_summary_title
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.resources.decimal_number
 import eu.tintera.plume.resources.summary_details_elapsed
@@ -101,6 +104,9 @@ fun ChatSummarySheet(
                 SheetTitle(
                     text = if (it.explain) {
                         stringResource(Res.string.explain_title)
+                    } else if (it.voice) {
+                        val videoNote = it.messages.firstOrNull()?.media is MessageMedia.VideoNote
+                        stringResource(if (videoNote) Res.string.voice_summary_title_video else Res.string.voice_summary_title)
                     } else if (it.unread) {
                         pluralStringResource(Res.plurals.summary_title_unread, count, count)
                     } else {

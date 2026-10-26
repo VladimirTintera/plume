@@ -305,6 +305,33 @@ shrnutí počítal jiný model nad jinou konverzací.
   Gemma pod Nano s vlastním časem. Nadpis nad hlavním výsledkem při porovnání přibyl až potom
   a na emulátoru vidět nebyl (nevešel se další APK). Češtinu porovnat zbývá na Foldu.
 
+### Shrnutí hlasovky
+
+„Shrnout přepis" v nabídce nad dlouhou příchozí hlasovkou nebo kolečkem
+(`MessageMenuAction.SummarizeVoice`, `ChatSummaryViewModel.summarizeVoice`, prompt
+`VoiceSummaryPrompt.kt`): hotový přepis shrne do pár odrážek tentýž sheet jako shrnutí chatu.
+První úloha, kde se potkají dva modely — s Nano + Gemmou přepisuje Gemma a shrnuje Nano.
+
+- **Úloha je `AiTask.Summary`, ne přepis.** Přepis už je text; model se zvukem by tu jen
+  zbytečně načítal gigabajty. Kdo si v „Co čím počítat" dal shrnutí Gemmě, dostane ji i tady.
+- **Jen s HOTOVÝM přepisem** (`doneTranscript`): ze serveru ve zprávě (`media.transcript`),
+  jinak z telefonu (`LocalTranscripts` — zpráva ho nenese, nabídka ho dostává od
+  `ConversationPlayback`). Kvůli shrnutí se nepřepisuje: přepis je tlačítko v bublině
+  a uživatel ho tak vidí dřív, než ho model shrne.
+- **Od minuty a jen příchozí** (`VOICE_SUMMARY_MIN_SECONDS`), stejná úvaha jako u „Vysvětlit":
+  krátký přepis se přečte rychleji, než model odpoví, a vlastní hlasovku člověk zná.
+- **„Shrnout přepis", ne „Shrnout"** — tak se jmenuje shrnutí od serveru a obě by se mohly
+  potkat v jedné nabídce.
+- **Prompt počítá s chybami rozpoznávání**: nejasné úseky vynechat, ne domýšlet, a mluvčí
+  (jméno odesílatele, v soukromém chatu název chatu) je v instrukci jménem.
+- **Porovnání modelů i „Zkusit znovu" fungují stejně** jako u shrnutí — jdou se stejným
+  přepisem (testy `ChatSummaryCompareTest`).
+- **Položka je v nabídce pod „Další"** (skupina textu, `MenuSlot.Text`), vedle „Vysvětlit".
+- **Ověřeno na emulátoru se sondou** (falešný model místo obou runtime a dočasně povolený krátký
+  vlastní záznam): přepis kolečka falešnou Gemmou, „Shrnout přepis" pod „Další", sheet „Shrnutí
+  kolečka" s promptem nad přepisem a porovnání s Gemmou. **Na zařízení neověřené** — ani
+  kvalita shrnutí skutečného přepisu, ani dvě úlohy na dvou modelech za sebou.
+
 ### Apple Intelligence na iOS (Foundation Models)
 
 Na iOS 26+ počítá model v zařízení **Apple Intelligence** (`AiProvider.Apple`,

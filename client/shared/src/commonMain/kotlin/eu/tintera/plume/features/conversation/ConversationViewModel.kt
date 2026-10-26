@@ -827,6 +827,7 @@ class ConversationViewModel(
         messageContext = messageContext,
         translation = translation,
         logger = logger,
+        localTranscript = { messageId -> playback.transcribeContext.value.local[messageId] },
     )
     fun dismissTextSelection() = menu.dismissTextSelection()
     fun dismissMessageInfo() = menu.dismissMessageInfo()
@@ -2126,7 +2127,7 @@ class ConversationViewModel(
             MessageMenuAction.Translate -> translation.showTranslation(messageId)
             MessageMenuAction.Summarize -> translation.showSummary(messageId)
             // Vysvětlení pouští obrazovka (sheet shrnutí); tady se jen zavře nabídka.
-            MessageMenuAction.Explain -> _state.update { it.copy(messageMenu = null) }
+            MessageMenuAction.Explain, MessageMenuAction.SummarizeVoice -> _state.update { it.copy(messageMenu = null) }
             MessageMenuAction.ContextActions -> messageContext.openContextFromMenu(messageId)
             is MessageMenuAction.ContextItem -> messageContext.runContextItem(messageId, action)
             MessageMenuAction.SelectText -> menu.selectText(messageId)

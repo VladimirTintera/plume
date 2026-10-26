@@ -47,6 +47,7 @@ class ChatSummaryCompareTest {
     /** Každý model odpoví svým jménem; Gemma je nestažená, když [gemmaReady] není. */
     private class FakeAi(val gemmaReady: Boolean = true) : UnimplementedOnDeviceAi() {
         val generatedBy = mutableListOf<AiProvider>()
+        val prompts = mutableListOf<String>()
         override suspend fun status(variant: ModelVariant) = when {
             variant.provider == AiProvider.Gemma && !gemmaReady -> OnDeviceAiStatus.Downloadable
             else -> OnDeviceAiStatus.Ready
@@ -55,6 +56,7 @@ class ChatSummaryCompareTest {
         override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = null
         override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> {
             generatedBy += variant.provider
+            prompts += prompt
             return flowOf(Generated("- ${variant.provider.name}"))
         }
     }
@@ -133,6 +135,31 @@ class ChatSummaryCompareTest {
         assertEquals(AiProvider.Gemma, viewModel.comparison.value.single().provider)
 
         viewModel.summarizeOne()
+        assertEquals(emptyList(), viewModel.comparison.value)
+    }
+
+    /**
+     * Přepis hlasovky shrne model pro TEXT (Nano), ne ten na zvuk: přepis už je hotový. Sheet
+     * pozná hlasovku podle zdroje; porovnání i „Zkusit znovu" jdou se stejným přepisem.
+     */
+    @Test
+    fun prepisHlasovkyShrneTextovyModel() = runTest {
+        val ai = FakeAi()
+        val viewModel = ChatSummaryViewModel(ai, FakeSettings(both))
+
+        viewModel.summarizeVoice(message, transcript = "tak v pátek v šest u Kotvy", speaker = "Jana")
+        advanceUntilIdle()
+        assertEquals("- GeminiNano", (viewModel.state.value as ChatSummaryState.Text).text)
+        assertTrue(viewModel.source.value?.voice == true)
+        assertTrue("tak v pátek v šest u Kotvy" in ai.prompts.single() && "what Jana said" in ai.prompts.single())
+
+        viewModel.compare()
+        advanceUntilIdle()
+        assertEquals(AiProvider.Gemma, viewModel.comparison.value.single().provider)
+
+        viewModel.retry { error("shrnutí konverzace se pouštět nemá") }
+        advanceUntilIdle()
+        assertTrue("tak v pátek v šest u Kotvy" in ai.prompts.last())
         assertEquals(emptyList(), viewModel.comparison.value)
     }
 

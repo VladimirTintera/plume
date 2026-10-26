@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ai.VOICE_SUMMARY_MIN_SECONDS
 import eu.tintera.plume.core.ai.EXPLAIN_MIN_CHARS
 import eu.tintera.plume.features.conversation.firstUnreadId
 import androidx.compose.foundation.layout.Spacer
@@ -324,6 +325,9 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean, customEmoji: B
         // rychleji, než model odpoví.
         if (!message.isOutgoing && message.text.length >= EXPLAIN_MIN_CHARS) add(MessageMenuAction.Explain)
     }
+    // Shrnout jen DLOUHÝ CIZÍ záznam — vlastní člověk zná a krátký přepis přečte rychleji, než
+    // model odpoví. Jestli je přepis hotový (i ten z telefonu, který zpráva nenese), zjistí nabídka.
+    if (!message.isOutgoing && message.recordingSeconds() >= VOICE_SUMMARY_MIN_SECONDS) add(MessageMenuAction.SummarizeVoice)
     add(MessageMenuAction.Info)
     add(MessageMenuAction.ToggleBookmark)
     add(MessageMenuAction.Remind)
@@ -381,3 +385,10 @@ internal enum class SenderAvatar { None, Spacer, Shown }
  */
 internal fun PostStats.shownIn(isChannel: Boolean): PostStats? =
     (if (isChannel) this else copy(comments = null)).takeUnless { it.isEmpty }
+
+/** Délka hlasovky nebo kolečka; u jiné zprávy 0. */
+private fun ChatMessage.recordingSeconds(): Int = when (val media = media) {
+    is MessageMedia.VoiceNote -> media.durationSeconds
+    is MessageMedia.VideoNote -> media.durationSeconds
+    else -> 0
+}

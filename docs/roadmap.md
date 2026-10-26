@@ -1341,10 +1341,11 @@ po přepisu uvolní z paměti. Co z toho dál plyne:
   s dalšími modely" spočítá totéž ostatními zapnutými modely, po sobě, s časem v patičce
   (`docs/poznatky/ai-v-zarizeni.md`, „Porovnání modelů"). Zbývá **na Foldu porovnat češtinu
   Nano, E2B a E4B** na několika skutečných chatech a podle toho rozhodnout, co je výchozí.
-- **Shrnutí dlouhé hlasovky.** Gemma přepíše, Nano shrne do dvou, tří vět — první úloha, která
-  potřebuje oba modely za sebou (`AiTask.Transcription`, pak `AiTask.Summary` nad přepisem).
-  Nabízet od nějaké délky (minuta?) v bublině vedle přepisu; přepis se ukládá
-  (`LocalTranscripts`), takže shrnutí na něj jen naváže. Totéž pro kolečka.
+- ~~**Shrnutí dlouhé hlasovky.**~~ — hotovo: „Shrnout přepis" v nabídce nad příchozí hlasovkou
+  nebo kolečkem od minuty s hotovým přepisem (`docs/poznatky/ai-v-zarizeni.md`, „Shrnutí
+  hlasovky"). Zbývá ověřit na telefonu a zvážit tlačítko přímo pod dlouhým přepisem v bublině
+  — nabídka je o ťuknutí dál; a shrnutí bez přepisu napřed (přepsat a hned shrnout jedním
+  ťuknutím).
 - **Ohled na baterii a teplotu.** „Automaticky" by v úsporném režimu
   (`PowerManager.isPowerSaveMode`) nebo při přehřátí (`getCurrentThermalStatus` ≥ MODERATE)
   nebralo Gemmu na text a popisy fotek na pozadí by počkaly. Patří do `chooseProvider`

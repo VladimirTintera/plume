@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.voiceSummaryPrompt
 import kotlin.time.TimeSource
 import kotlin.time.TimeMark
 import kotlinx.coroutines.flow.update
@@ -74,6 +75,8 @@ data class SummarySource(
     val unread: Boolean,
     /** Vysvětluje se jedna zpráva (`ChatSummaryViewModel.explain`), ne shrnuje konverzace. */
     val explain: Boolean = false,
+    /** Shrnuje se přepis jedné hlasovky nebo kolečka (`ChatSummaryViewModel.summarizeVoice`). */
+    val voice: Boolean = false,
 )
 
 /**
@@ -260,10 +263,26 @@ class ChatSummaryViewModel(
         job = viewModelScope.launch { start(SummaryRequest.Explain(message)) }
     }
 
-    /** „Zkusit znovu": vysvětlení zopakuje vysvětlení, jinak [summarize] obrazovky. */
+    /**
+     * Shrnutí PŘEPISU dlouhé hlasovky nebo kolečka ([transcript], `MessageMenuAction.SummarizeVoice`).
+     * Přepis už je hotový (ze serveru nebo z telefonu), takže tu jde jen o text — u Nano + Gemmy
+     * přepisuje Gemma a shrnuje Nano, každý svou úlohou ([AiTask.Transcription], [AiTask.Summary]).
+     * Tentýž sheet i porovnání modelů jako u shrnutí konverzace; [speaker] je, kdo mluví.
+     */
+    fun summarizeVoice(message: ChatMessage, transcript: String, speaker: String) {
+        reset()
+        _source.value = SummarySource(listOf(message), unread = false, voice = true)
+        _state.value = ChatSummaryState.Preparing
+        job = viewModelScope.launch { start(SummaryRequest.Voice(message, transcript, speaker)) }
+    }
+
+    /** „Zkusit znovu": vysvětlení a hlasovka zopakují sebe, jinak [summarize] obrazovky. */
     fun retry(summarize: () -> Unit) {
-        val explaining = request as? SummaryRequest.Explain
-        if (explaining != null && _source.value?.explain == true) explain(explaining.message) else summarize()
+        when (val current = request) {
+            is SummaryRequest.Explain -> explain(current.message)
+            is SummaryRequest.Voice -> summarizeVoice(current.message, current.transcript, current.speaker)
+            else -> summarize()
+        }
     }
 
     /**
@@ -324,19 +343,24 @@ class ChatSummaryViewModel(
         }
         when (request) {
             is SummaryRequest.Summary -> runSummary(request, variant, started, out)
-            is SummaryRequest.Explain -> {
-                val info = ai.info(variant)
-                val prompt = explainPrompt(request.message.text, platformLanguageCode)
-                val details = SummaryDetails(
-                    modelName = info?.name,
-                    promptTokens = ai.countTokens(variant, prompt),
-                    tokenLimit = info?.tokenLimit,
-                    keptLines = 1,
-                    totalLines = 1,
-                )
-                generateInto(variant, prompt, details, started, out)
-            }
+            is SummaryRequest.Explain ->
+                runSingle(variant, explainPrompt(request.message.text, platformLanguageCode), started, out)
+            is SummaryRequest.Voice ->
+                runSingle(variant, voiceSummaryPrompt(request.transcript, request.speaker, platformLanguageCode), started, out)
         }
+    }
+
+    /** Jedna zpráva (vysvětlení, přepis hlasovky): vejde se celá, takže jeden prompt bez částí. */
+    private suspend fun runSingle(variant: ModelVariant, prompt: String, started: TimeMark, out: (ChatSummaryState) -> Unit) {
+        val info = ai.info(variant)
+        val details = SummaryDetails(
+            modelName = info?.name,
+            promptTokens = ai.countTokens(variant, prompt),
+            tokenLimit = info?.tokenLimit,
+            keptLines = 1,
+            totalLines = 1,
+        )
+        generateInto(variant, prompt, details, started, out)
     }
 
     private suspend fun runSummary(
@@ -515,6 +539,11 @@ private sealed interface SummaryRequest {
 
     data class Explain(val message: ChatMessage) : SummaryRequest {
         override val task get() = AiTask.Explain
+    }
+
+    /** Přepis je text jako každý jiný, proto úloha shrnutí — model pro zvuk tu potřeba není. */
+    data class Voice(val message: ChatMessage, val transcript: String, val speaker: String) : SummaryRequest {
+        override val task get() = AiTask.Summary
     }
 }
 

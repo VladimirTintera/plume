@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ai.VOICE_SUMMARY_MIN_SECONDS
+import eu.tintera.plume.resources.menu_summarize_voice
 import eu.tintera.plume.resources.menu_explain
 import eu.tintera.plume.features.conversation.ContextFinding
 import eu.tintera.plume.resources.event_24dp
@@ -488,6 +490,17 @@ sealed interface MessageMenuAction : MessageAction {
     }
 
     /**
+     * Shrnutí PŘEPISU dlouhé hlasovky nebo kolečka modelem v zařízení. Kandidát u příchozího
+     * záznamu od [VOICE_SUMMARY_MIN_SECONDS] ([menuActions]); nabízí se, jen když je přepis
+     * hotový a AI v zařízení zapnutá ([MessageMenu.voiceSummaryAvailable]) — kvůli shrnutí se
+     * nepřepisuje. Obsluhuje ho obrazovka (sheet shrnutí), ne ViewModel.
+     */
+    data object SummarizeVoice : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.auto_awesome_24dp, Res.string.menu_summarize_voice).takeIf { menu.voiceSummaryAvailable }
+    }
+
+    /**
      * Kandidát na akce z textu zprávy (termín, účet, zásilka…). ViewModel ho při otevření nabídky
      * ROZBALÍ na položky jednotlivých akcí ([ContextItem], [contextMenuItems]); sám se ukáže jen
      * jako „Akce ze zprávy…" za posledními z nich, když se všechny nevejdou. Nabízí se i s ikonkou
@@ -753,7 +766,8 @@ val MessageMenuAction.slot: MenuSlot
         -> MenuSlot.Primary
         MessageMenuAction.RetractVote, MessageMenuAction.StopPoll -> MenuSlot.Poll
         MessageMenuAction.ContextActions, is MessageMenuAction.ContextItem -> MenuSlot.Context
-        MessageMenuAction.SelectText, MessageMenuAction.Summarize, MessageMenuAction.Explain -> MenuSlot.Text
+        MessageMenuAction.SelectText, MessageMenuAction.Summarize, MessageMenuAction.Explain, MessageMenuAction.SummarizeVoice ->
+            MenuSlot.Text
         MessageMenuAction.ToggleBookmark, MessageMenuAction.Remind, MessageMenuAction.Pin, MessageMenuAction.Unpin -> MenuSlot.Later
         MessageMenuAction.Select -> MenuSlot.Selection
         MessageMenuAction.Report, MessageMenuAction.BlockFromReplies -> MenuSlot.Report

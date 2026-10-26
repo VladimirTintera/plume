@@ -2389,6 +2389,8 @@
     <string name="summary_disclaimer">Vytvořeno v zařízení. Může být nepřesné.</string>
     <string name="explain_title">O čem je zpráva</string>
     <string name="explain_preparing">Čtu zprávu…</string>
+    <string name="voice_summary_title">Shrnutí hlasovky</string>
+    <string name="voice_summary_title_video">Shrnutí kolečka</string>
     <string name="explain_failed">Zprávu se nepodařilo vysvětlit.</string>
     <string name="summary_truncated">Modelu došlo místo a přestal psát dřív, takže konec konverzace ve shrnutí chybí.</string>
     <string name="summary_retry">Zkusit znovu</string>
@@ -3369,6 +3371,7 @@
     <string name="transcript_language_download_failed">Češtinu pro rozpoznávání řeči se nepodařilo stáhnout.</string>
     <string name="menu_summarize">Shrnout</string>
     <string name="menu_explain">Vysvětlit</string>
+    <string name="menu_summarize_voice">Shrnout přepis</string>
     <string name="server_summary_title">Shrnutí</string>
     <string name="server_summary_failed">Zprávu se nepodařilo shrnout</string>
     <string name="server_summary_copy">Kopírovat shrnutí</string>

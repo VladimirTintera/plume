@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
@@ -66,6 +67,8 @@ internal class ConversationMessageMenu(
     /** „Přeložit" se nenabízí u zprávy, která už je v jazyce překladu. */
     private val translation: ConversationTranslation,
     private val logger: Logger,
+    /** Přepis z telefonu ke zprávě (`LocalTranscripts`) — zpráva nese jen ten od serveru. */
+    private val localTranscript: (Long) -> SpeechTranscript? = { null },
 ) {
     /**
      * Otevře text zprávy k výběru úryvku.
@@ -157,10 +160,10 @@ internal class ConversationMessageMenu(
      * Nabídnout „Vysvětlit"? Se zapnutou AI v zařízení a modelem, který telefon umí (stažený být
      * nemusí — sheet pak řekne, kde ho stáhnout, stejně jako u shrnutí konverzace).
      */
-    private suspend fun explainAvailable(): Boolean {
+    private suspend fun aiAvailable(task: AiTask): Boolean {
         val ai = onDeviceAi ?: return false
         if (!settings.onDeviceAiEnabled.value) return false
-        return runCatching { ai.status(ai.variantFor(AiTask.Explain, settings)) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
+        return runCatching { ai.status(ai.variantFor(task, settings)) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
     }
 
     /** Nabídka s kandidáty, které nabídl blok; co z nich server dovolí, se zjistí tady. */
@@ -213,7 +216,10 @@ internal class ConversationMessageMenu(
                 )
             }
 
-            val explainAvailable = MessageMenuAction.Explain in items && explainAvailable()
+            val explainAvailable = MessageMenuAction.Explain in items && aiAvailable(AiTask.Explain)
+            // Bez hotového přepisu se shrnutí nenabízí: přepisuje se tlačítkem v bublině, ne kvůli shrnutí.
+            val voiceSummaryAvailable = MessageMenuAction.SummarizeVoice in items &&
+                message.doneTranscript(localTranscript(messageId)) != null && aiAvailable(AiTask.Summary)
             val contextFindings = if (MessageMenuAction.ContextActions in items) messageContext.contextFindingsOf(message) else emptyList()
             // Kandidát na akce z textu se rozbalí na položky jednotlivých akcí.
             val shownItems = items.flatMap { item ->
@@ -239,6 +245,7 @@ internal class ConversationMessageMenu(
                         bubbleSelection = selection,
                         inTranslationLanguage = inTranslationLanguage,
                         explainAvailable = explainAvailable,
+                        voiceSummaryAvailable = voiceSummaryAvailable,
                         contextFindings = contextFindings,
                         resendable = failedGroup(it.messages, messageId).let { group ->
                             group.isNotEmpty() && group.all { m -> m.sendFailure?.canRetry == true }
