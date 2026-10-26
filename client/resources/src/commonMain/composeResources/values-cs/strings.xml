@@ -4530,7 +4530,7 @@
         <item quantity="other">%1$d nepřečtených chatů</item>
     </plurals>
     <string name="wear_complication_signed_out">Plume: nepřihlášeno</string>
-    <string name="wear_tile_all_chats">Všechny chaty</string>
+    <string name="wear_tile_all_chats">Všechny</string>
     <string name="wear_logout">Odhlásit</string>
     <string name="wear_message_you">Vy</string>
     <string name="wear_bot_button_phone_only">Tohle tlačítko otevři v telefonu</string>

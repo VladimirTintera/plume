@@ -632,6 +632,13 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   zprávy), dole `textEdgeButton` „Všechny chaty". Začátek seznamu = připnuté a pak podle poslední
   zprávy, tedy totéž co nahoře v aplikaci.
 - **Dva řádky, tři až od výšky 260 dp.** Na emulátoru (227 dp) se třetí s tlačítkem dole nevešel.
+- **Řádky si dělí výšku rovným dílem** (`height = weight(1f)`, sloupec `expand`). S výchozí
+  `wrap` se na emulátoru (227 dp) nevešel ani druhý: první měl 64 dp, druhý renderer zmáčkl na
+  52 dp a jeho avatar uřízl nahoře i dole. **Kolečko avataru je o 3 dp menší než slot**
+  (`AVATAR_INSET_DP`): slot měří knihovna z ŠÍŘKY displeje (19,6 % v `AvatarButtonStyle`),
+  kdežto výška řádku plyne z hlavního slotu, takže i stejně vysoké řádky kolečko trochu ořízly.
+- **„Všechny" místo „Všechny chaty"** v češtině: do `textEdgeButton` se celé nevešlo
+  („Všechny …"). Anglické „All chats" se vejde.
 - **Podklady v souboru** (`RecentChatsState`, SharedPreferences `wear_recent_chats`, JSON), zapisuje
   `RecentChatsPublisher` jako u počtu nepřečtených: jen v jasných stavech, po vteřině klidu,
   a jen když se změní, co dlaždice ukazuje (id, název, počet, náhled, fotka) — seznam se mění
@@ -656,6 +663,24 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   message") a kanálem s fotkou, obnova po zprávě od bota, ťuknutí otevřelo konverzaci Notifikátora
   ze studeného startu i s aplikací na pozadí (jedna instance aktivity), tah zpět do seznamu.
   Neověřené: stav bez přihlášení, chat s nestaženou fotkou, skutečné hodinky.
+
+## Náhledy dlaždic
+
+- **Výběr dlaždic (v hodinkách i v aplikaci Pixel Watch) ukazuje obrázek z manifestu**
+  (`<meta-data android:name="androidx.wear.tiles.PREVIEW" android:resource="@drawable/…">`
+  u služby). Bez něj tam byla jen ikona aplikace v černém kruhu.
+- **Obrázky jsou snímky z emulátoru `Plume_Wear`** (454 px, `drawable-nodpi`, česky
+  `drawable-cs-nodpi`), ne kresba: dlaždice se vykreslí přesně, jak vypadá. **S vymyšlenými daty**
+  — emulátor je na skutečném účtu a náhled jde veřejně do Play. Postup: dočasně
+  `RecentChatsState.read` a `UnreadState.read` vrátí ukázku (Anna Nováková 2 nové zprávy,
+  Výlet na hory / Hiking trip, 3 nepřečtené chaty), `am broadcast -a
+  com.google.android.wearable.app.DEBUG_SURFACE --es operation add-tile --ecn component
+  eu.tintera.plume/eu.tintera.plume.wear.<Služba>`, zobrazit `DEBUG_SYSUI … show-tile --ei index N`,
+  `screencap`; češtinu přepne `cmd locale set-app-locales eu.tintera.plume --locales cs-CZ`
+  a `force-stop` (dlaždice běží v procesu aplikace). Nakonec `remove-tile` a data zpátky.
+  **Změní-li se vzhled dlaždice, snímky se dělají znovu.**
+- **Ověřeno na emulátoru 2026-10-26** ve výběru dlaždic v hodinkách (podržet dlaždici → +):
+  všechny tři s náhledem. Aplikace Pixel Watch na telefonu neověřená (emulátor nemá párování).
 
 ## Rychlá poznámka do Uložených
 
