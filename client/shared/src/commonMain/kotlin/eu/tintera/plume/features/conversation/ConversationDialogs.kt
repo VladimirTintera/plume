@@ -426,11 +426,19 @@ internal fun ConversationDialogs(
     }
 
     if (summaryState != ChatSummaryState.Idle) {
+        // Porovnání modelů se čte až s otevřeným sheetem — bez něj nemá kde být vidět.
+        val comparison by summary.comparison.collectAsStateWithLifecycle()
+        val canCompare by summary.canCompare.collectAsStateWithLifecycle()
+        val mainProvider by summary.mainProvider.collectAsStateWithLifecycle()
         ChatSummarySheet(
             state = summaryState,
             source = summarySourceState,
             onRetry = { summary.retry(startSummary) },
             onDismiss = summary::dismiss,
+            comparison = comparison,
+            canCompare = canCompare,
+            onCompare = summary::compare,
+            mainProvider = mainProvider,
         )
     }
 

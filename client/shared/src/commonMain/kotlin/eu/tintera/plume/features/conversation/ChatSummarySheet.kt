@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.resources.decimal_number
+import eu.tintera.plume.resources.summary_details_elapsed
+import eu.tintera.plume.resources.summary_compare
+import eu.tintera.plume.features.settings.title
+import androidx.compose.material3.OutlinedButton
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.explain_failed
@@ -66,6 +72,13 @@ fun ChatSummarySheet(
     source: SummarySource?,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
+    /** Totéž z ostatních zapnutých modelů ([ChatSummaryViewModel.compare]); prázdné = neporovnává se. */
+    comparison: List<ComparedSummary> = emptyList(),
+    /** Nabídnout porovnání — jen s víc zapnutými modely ([ChatSummaryViewModel.canCompare]). */
+    canCompare: Boolean = false,
+    onCompare: () -> Unit = {},
+    /** Kdo počítal hlavní výsledek; nadpis nad ním jen při porovnání. */
+    mainProvider: AiProvider? = null,
 ) {
     val sheetState = rememberExpandedSheetState()
     // Vysvětlení jedné zprávy (`ChatSummaryViewModel.explain`) jde stejným sheetem, jen s vlastními větami.
@@ -96,57 +109,26 @@ fun ChatSummarySheet(
                 )
             }
 
-            when (state) {
-                ChatSummaryState.Idle -> Unit
-                ChatSummaryState.Preparing -> Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
-                    LoadingIndicator(Modifier.size(40.dp))
-                    Text(
-                        stringResource(if (explain) Res.string.explain_preparing else Res.string.summary_preparing),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            // Při porovnání nese i hlavní výsledek jméno modelu, jinak by nebylo poznat, čí je.
+            if (comparison.isNotEmpty()) mainProvider?.let { ProviderHeading(it) }
+            SummaryResult(state, explain, onRetry)
+
+            /*
+             * Porovnání až po HOTOVÉM výsledku: modely se počítají po sobě, ne souběžně (Gemma
+             * drží gigabajty a čas by se při souběhu nedal porovnat), a tlačítko během psaní by
+             * slibovalo něco, co hned nezačne.
+             */
+            val finished = (state as? ChatSummaryState.Text)?.done == true
+            if (canCompare && comparison.isEmpty() && finished) {
+                OutlinedButton(onClick = onCompare, shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(Res.string.summary_compare))
                 }
-                is ChatSummaryState.ReadingParts -> Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.heightIn(min = 48.dp),
-                ) {
-                    LoadingIndicator(Modifier.size(40.dp))
-                    Text(
-                        stringResource(Res.string.summary_reading_part, state.part, state.parts),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                is ChatSummaryState.Text -> {
-                    SelectionContainer {
-                        Text(state.text.trim(), style = MaterialTheme.typography.bodyLarge)
-                    }
-                    if (!state.done) LoadingIndicator(Modifier.size(32.dp))
-                    if (state.truncated) {
-                        Text(
-                            stringResource(Res.string.summary_truncated),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                    SummaryDetailsLine(state.details)
-                }
-                ChatSummaryState.ModelMissing -> SummaryNote(Res.string.summary_model_missing)
-                ChatSummaryState.NothingToSummarize -> SummaryNote(Res.string.summary_nothing)
-                is ChatSummaryState.Failed -> {
-                    SummaryNote(if (explain) Res.string.explain_failed else Res.string.summary_failed)
-                    // Proč — a kde to spravit, když je chyba v systému a opakování nepomůže.
-                    Text(
-                        state.reason.resolve(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    FilledTonalButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.summary_retry)) }
+            }
+            comparison.forEach { compared ->
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ProviderHeading(compared.provider)
+                    // Bez „Zkusit znovu": porovnání se pouští znovu otevřením sheetu.
+                    SummaryResult(compared.state, explain, onRetry = null)
                 }
             }
 
@@ -159,6 +141,77 @@ fun ChatSummarySheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ProviderHeading(provider: AiProvider) {
+    Text(
+        stringResource(provider.title),
+        style = MaterialTheme.typography.titleSmallEmphasized,
+        color = MaterialTheme.colorScheme.primary,
+    )
+}
+
+/** Stav jednoho výpočtu: čekání, části, text s patičkou, nebo proč nic. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SummaryResult(state: ChatSummaryState, explain: Boolean, onRetry: (() -> Unit)?) {
+    when (state) {
+        ChatSummaryState.Idle -> Unit
+        ChatSummaryState.Preparing -> Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            LoadingIndicator(Modifier.size(40.dp))
+            Text(
+                stringResource(if (explain) Res.string.explain_preparing else Res.string.summary_preparing),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        is ChatSummaryState.ReadingParts -> Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            LoadingIndicator(Modifier.size(40.dp))
+            Text(
+                stringResource(Res.string.summary_reading_part, state.part, state.parts),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        is ChatSummaryState.Text -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            SelectionContainer {
+                Text(state.text.trim(), style = MaterialTheme.typography.bodyLarge)
+            }
+            if (!state.done) LoadingIndicator(Modifier.size(32.dp))
+            if (state.truncated) {
+                Text(
+                    stringResource(Res.string.summary_truncated),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            SummaryDetailsLine(state.details, state.elapsedMs)
+        }
+        ChatSummaryState.ModelMissing -> SummaryNote(Res.string.summary_model_missing)
+        ChatSummaryState.NothingToSummarize -> SummaryNote(Res.string.summary_nothing)
+        is ChatSummaryState.Failed -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            SummaryNote(if (explain) Res.string.explain_failed else Res.string.summary_failed)
+            // Proč — a kde to spravit, když je chyba v systému a opakování nepomůže.
+            Text(
+                state.reason.resolve(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            onRetry?.let {
+                FilledTonalButton(onClick = it, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.summary_retry)) }
+            }
+        }
+    }
+}
+
 @Composable
 private fun SummaryNote(text: StringResource) {
     Text(stringResource(text), style = MaterialTheme.typography.bodyLarge)
@@ -166,9 +219,14 @@ private fun SummaryNote(text: StringResource) {
 
 /** Drobným písmem, který model psal a jak plný byl vstup — prototyp má ukázat, jak model funguje. */
 @Composable
-private fun SummaryDetailsLine(details: SummaryDetails) {
+private fun SummaryDetailsLine(details: SummaryDetails, elapsedMs: Long?) {
     val parts = buildList {
         details.modelName?.let { add(stringResource(Res.string.summary_details_model, it)) }
+        // Čas je to, co se při porovnání modelů vedle češtiny měří nejvíc.
+        elapsedMs?.let { ms ->
+            val seconds = stringResource(Res.string.decimal_number, (ms / 1000).toString(), ((ms % 1000) / 100).toString())
+            add(stringResource(Res.string.summary_details_elapsed, seconds))
+        }
         details.promptTokens?.let { tokens ->
             add(
                 details.tokenLimit

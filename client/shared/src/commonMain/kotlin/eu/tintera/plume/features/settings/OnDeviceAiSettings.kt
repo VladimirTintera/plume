@@ -837,7 +837,8 @@ private fun ModelChoiceRow(title: String, summary: String, selected: Boolean, on
     )
 }
 
-private val AiProvider.title: StringResource
+/** Jméno modelu pro člověka; bere ho i porovnání modelů v sheetu shrnutí. */
+internal val AiProvider.title: StringResource
     get() = when (this) {
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma
