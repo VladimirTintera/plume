@@ -1,5 +1,32 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.ai_task_photo_description
+import eu.tintera.plume.resources.ai_task_transcription
+import eu.tintera.plume.resources.ai_task_search
+import eu.tintera.plume.resources.ai_task_triage
+import eu.tintera.plume.resources.ai_task_scam
+import eu.tintera.plume.resources.ai_task_dates
+import eu.tintera.plume.resources.ai_task_rewrite
+import eu.tintera.plume.resources.ai_task_replies
+import eu.tintera.plume.resources.ai_task_explain
+import eu.tintera.plume.resources.ai_task_summary
+import eu.tintera.plume.resources.settings_ai_tasks_note
+import eu.tintera.plume.resources.settings_ai_task_not_ready
+import eu.tintera.plume.resources.settings_ai_task_auto_named
+import eu.tintera.plume.resources.settings_ai_task_auto
+import eu.tintera.plume.resources.settings_ai_tasks
+import eu.tintera.plume.resources.settings_ai_model
+import eu.tintera.plume.resources.settings_ai_models
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
+import eu.tintera.plume.core.ui.ChoiceRow
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.handles
+import eu.tintera.plume.core.ai.chooseProvider
+import eu.tintera.plume.core.ai.AiTask
+import eu.tintera.plume.core.ai.AiModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -121,16 +148,17 @@ sealed interface OnDeviceModelState {
 }
 
 /**
- * Volba „Shrnutí chatu", varianta modelu a jeho stažení.
+ * Volba „AI v zařízení", zapnuté modely, jejich stažení a co čím počítat.
  *
  * Sledování stahování běží v [appScope], ne ve `viewModelScope`: trvá minuty a odchod
  * z Nastavení ho nemá zrušit. Nová obrazovka se k běžícímu stahování připojí (`download()` ve
  * stavu `Downloading`), takže průběh ukáže znovu. Gemmu přitom stahuje úloha WorkManageru, ne
  * tahle korutina — přežije i zabití procesu (viz `ModelDownloadWorker`).
  *
- * Varianta je jiný model: po její změně se stav čte znovu a preview, rychlá varianta nebo
- * jiná Gemma se může chtít stáhnout zvlášť. Totéž platí o volbě poskytovatele (Gemini Nano /
- * Gemma) — je to jen další pole varianty a platí pro celou aplikaci.
+ * **Stav se vede pro každý model zvlášť** ([states]): zapnuté můžou být Gemini Nano i Gemma
+ * naráz a každá má vlastní stažení. Volba varianty (preview, rychlá, jiná Gemma) je jiný model,
+ * takže se stav toho modelu čte znovu. Stav se čte i u vypnutého modelu: stažená Gemma zabírá
+ * gigabajty, i když ji nic nepoužívá, a musí jít smazat.
  */
 class OnDeviceAiSettingsViewModel(
     private val settings: AppSettings,
@@ -141,10 +169,12 @@ class OnDeviceAiSettingsViewModel(
     private val logger = Logger.withTag("OnDeviceAi")
 
     val enabled: StateFlow<Boolean> = settings.onDeviceAiEnabled
-    val variant: StateFlow<ModelVariant> = settings.onDeviceAiVariant
+    val models: StateFlow<AiModels> = settings.onDeviceAiModels
 
-    private val _model = MutableStateFlow<OnDeviceModelState>(OnDeviceModelState.Checking)
-    val model: StateFlow<OnDeviceModelState> = _model.asStateFlow()
+    private val _states = MutableStateFlow<Map<AiProvider, OnDeviceModelState>>(emptyMap())
+
+    /** Stav každého modelu, který zařízení umí. Chybí-li model, ještě se zjišťuje. */
+    val states: StateFlow<Map<AiProvider, OnDeviceModelState>> = _states.asStateFlow()
 
     /** Preview varianta vrací tentýž model jako stabilní — přepínač tedy nic nezmění. */
     private val _previewIsStable = MutableStateFlow(false)
@@ -155,22 +185,38 @@ class OnDeviceAiSettingsViewModel(
      *
      * U Gemini Nano se ptá na VÝCHOZÍ variantu, ne na tu zvolenou: preview nebo rychlá může
      * chybět zvlášť, a kvůli tomu by celá sekce zmizela uživateli, který model má. Ze stejného
-     * důvodu je to samostatný tok a ne odvozenina z [model] — ten se při každé změně varianty
+     * důvodu je to samostatný tok a ne odvozenina z [states] — ten se při každé změně varianty
      * vrací na `Checking` a sekce by problikávala.
      */
     val availability: StateFlow<AiAvailability?> = ai.availability()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    private var download: Job? = null
+    /**
+     * Komu by úlohu dalo „Automaticky" — pro popisek řádku („Automaticky (Gemini Nano)"). Bez
+     * něj by volba nic neříkala: kdo nevidí, co automatika vybrala, nepozná, jestli ji měnit.
+     */
+    val automatic: StateFlow<Map<AiTask, AiProvider>> = combine(models, states) { models, states ->
+        val automatic = models.copy(assigned = emptyMap())
+        AiTask.entries.associateWith { task -> chooseProvider(task, automatic) { states[it].asStatus() } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    private val downloads = mutableMapOf<AiProvider, Job>()
 
     init {
-        // Změna varianty = jiný model; rozběhnuté čtení stavu pro tu předchozí se zahodí.
-        viewModelScope.launch { variant.collectLatest { refresh(it) } }
-        // Zvolený poskytovatel (nebo model Gemmy), který tu není, se vymění za dostupný —
-        // jinak by sekce ukazovala volbu, kterou zařízení nesplní, a funkce by se nenabídly.
+        viewModelScope.launch {
+            val providers = availability.filterNotNull().first().providers
+            // Změna varianty = jiný model; rozběhnuté čtení stavu pro tu předchozí se zahodí.
+            providers.forEach { provider ->
+                launch {
+                    models.map { it.variant(provider) }.distinctUntilChanged().collectLatest { refresh(it) }
+                }
+            }
+        }
+        // Zapnutý model (nebo model Gemmy), který tu není, se vymění za dostupný — jinak by
+        // sekce ukazovala volbu, kterou zařízení nesplní, a funkce by se nenabídly.
         viewModelScope.launch {
             availability.filterNotNull().collect { available ->
-                supportedVariant(variant.value, available)?.let(settings::setOnDeviceAiVariant)
+                supportedModels(models.value, available)?.let(settings::setOnDeviceAiModels)
             }
         }
     }
@@ -195,26 +241,48 @@ class OnDeviceAiSettingsViewModel(
 
     /**
      * Umí připravený model popsat fotku (dnes Gemma)? Jen pak má smysl volba popisů na pozadí.
-     * Počítá se znovu se změnou modelu — dostažený model ji zpřístupní.
+     * Počítá se znovu se změnou modelů i jejich stavu — dostažená Gemma ji zpřístupní.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val canDescribePhotos: StateFlow<Boolean> = combine(variant, model) { variant, _ -> variant }
-        .mapLatest { variant -> runCatching { ai.canDescribeImage(variant) }.getOrDefault(false) }
+    val canDescribePhotos: StateFlow<Boolean> = combine(models, states) { models, _ -> models }
+        .mapLatest { models ->
+            runCatching { ai.canDescribeImage(ai.variantFor(AiTask.PhotoDescription, models)) }.getOrDefault(false)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun setChatTriage(on: Boolean) = settings.setChatTriageEnabled(on)
 
-    fun setPreview(on: Boolean) = settings.setOnDeviceAiVariant(variant.value.copy(preview = on))
+    fun setPreview(on: Boolean) = settings.setOnDeviceAiModels(models.value.copy(preview = on))
 
-    fun setFast(on: Boolean) = settings.setOnDeviceAiVariant(variant.value.copy(fast = on))
+    fun setFast(on: Boolean) = settings.setOnDeviceAiModels(models.value.copy(fast = on))
 
-    fun setProvider(provider: AiProvider) = settings.setOnDeviceAiVariant(variant.value.copy(provider = provider))
+    fun setGemmaModel(model: GemmaModel) = settings.setOnDeviceAiModels(models.value.copy(gemma = model))
 
-    fun setGemmaModel(model: GemmaModel) = settings.setOnDeviceAiVariant(variant.value.copy(gemma = model))
+    /**
+     * Zapne nebo vypne model. **Poslední zapnutý vypnout nejde** (přepínač je pak neaktivní):
+     * vypnout AI celou je vypínač nahoře, tady se jen volí, čím počítat.
+     *
+     * Vypnutí rozběhnuté stahování zastaví (stažená část zůstane a jde zahodit) — jinak by úloha
+     * WorkManageru stahovala gigabajty modelu, o který uživatel právě řekl, že nestojí. Stažený
+     * model se NEMAŽE: zpátky zapnutý je hned připravený a smazat ho jde zvlášť.
+     */
+    fun setModelEnabled(provider: AiProvider, on: Boolean) {
+        val current = models.value
+        if (!on && current.enabled == setOf(provider)) return
+        settings.setOnDeviceAiModels(current.copy(enabled = if (on) current.enabled + provider else current.enabled - provider))
+        if (!on && states.value[provider] is OnDeviceModelState.Downloading) stopDownload(provider)
+    }
+
+    /** Přiřadí úlohu modelu; `null` = automaticky (výchozí, neukládá se). */
+    fun assign(task: AiTask, provider: AiProvider?) {
+        val current = models.value
+        val assigned = if (provider == null) current.assigned - task else current.assigned + (task to provider)
+        settings.setOnDeviceAiModels(current.copy(assigned = assigned))
+    }
 
     /** Smaže stažený model (jen u modelu, který stahuje aplikace). Gigabajty zpátky. */
-    fun delete() {
-        val target = variant.value
+    fun delete(provider: AiProvider) {
+        val target = models.value.variant(provider)
         appScope.launch {
             try {
                 ai.delete(target)
@@ -223,13 +291,13 @@ class OnDeviceAiSettingsViewModel(
             } catch (e: Exception) {
                 logger.w(e) { "Model se nepodařilo smazat ($target)" }
             }
-            if (variant.value == target) refresh(target)
+            if (isCurrent(target)) refresh(target)
         }
     }
 
     /** Zastaví stahování modelu, který stahuje aplikace. Stažená část zůstává. */
-    fun stopDownload() {
-        val target = variant.value
+    fun stopDownload(provider: AiProvider) {
+        val target = models.value.variant(provider)
         appScope.launch {
             try {
                 ai.stopDownload(target)
@@ -241,52 +309,60 @@ class OnDeviceAiSettingsViewModel(
         }
     }
 
-    fun download() {
-        if (download?.isActive == true) return
-        val target = variant.value
-        _model.value = OnDeviceModelState.Downloading(null)
-        download = appScope.launch {
+    fun download(provider: AiProvider) {
+        if (downloads[provider]?.isActive == true) return
+        val target = models.value.variant(provider)
+        setState(provider, OnDeviceModelState.Downloading(null))
+        downloads[provider] = appScope.launch {
             try {
                 ai.download(target).collect { progress ->
-                    if (variant.value == target) _model.value = OnDeviceModelState.Downloading(progress)
+                    if (isCurrent(target)) setState(provider, OnDeviceModelState.Downloading(progress))
                 }
-                if (variant.value == target) refresh(target)
+                if (isCurrent(target)) refresh(target)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: DownloadStoppedException) {
-                if (variant.value == target) _model.value = OnDeviceModelState.Paused
+                if (isCurrent(target)) setState(provider, OnDeviceModelState.Paused)
             } catch (e: NotEnoughSpaceException) {
                 logger.i(e) { "Na model není místo ($target)" }
-                if (variant.value == target) _model.value = OnDeviceModelState.NotEnoughSpace
+                if (isCurrent(target)) setState(provider, OnDeviceModelState.NotEnoughSpace)
             } catch (e: Exception) {
                 logger.w(e) { "Model se nepodařilo stáhnout ($target)" }
-                if (variant.value == target) _model.value = OnDeviceModelState.DownloadFailed
+                if (isCurrent(target)) setState(provider, OnDeviceModelState.DownloadFailed)
             }
         }
     }
 
+    /** Je [variant] pořád to, co je u jejího modelu zvolené? Jinak se její výsledek zahodí. */
+    private fun isCurrent(variant: ModelVariant) = models.value.variant(variant.provider) == variant
+
+    private fun setState(provider: AiProvider, state: OnDeviceModelState) {
+        _states.update { it + (provider to state) }
+    }
+
     private suspend fun refresh(variant: ModelVariant) {
-        _model.value = OnDeviceModelState.Checking
-        _model.value = when (ai.status(variant)) {
+        val provider = variant.provider
+        setState(provider, OnDeviceModelState.Checking)
+        val state = when (runCatching { ai.status(variant) }.getOrDefault(OnDeviceAiStatus.Unsupported)) {
             OnDeviceAiStatus.Unsupported -> OnDeviceModelState.Unsupported
             OnDeviceAiStatus.Downloadable -> OnDeviceModelState.Downloadable
             OnDeviceAiStatus.Paused -> OnDeviceModelState.Paused
             OnDeviceAiStatus.Downloading -> {
-                download()
+                download(provider)
                 return
             }
             OnDeviceAiStatus.Ready -> ai.info(variant).let { OnDeviceModelState.Ready(it?.name, it?.tokenLimit) }
         }
-        comparePreview(variant)
+        setState(provider, state)
+        if (provider == AiProvider.GeminiNano) comparePreview(variant, state)
     }
 
     /**
      * Porovná jméno modelu preview a stabilní varianty. Jen u připraveného modelu: u nestaženého
      * jméno stejně nikdo neřekne. Selhání se polyká — je to doplňková informace, ne funkce.
      */
-    private suspend fun comparePreview(variant: ModelVariant) {
-        // Preview je volba Gemini Nano; u Gemmy není co porovnávat.
-        if (_model.value !is OnDeviceModelState.Ready || variant.provider != AiProvider.GeminiNano) {
+    private suspend fun comparePreview(variant: ModelVariant, state: OnDeviceModelState) {
+        if (state !is OnDeviceModelState.Ready) {
             _previewIsStable.value = false
             return
         }
@@ -302,6 +378,17 @@ class OnDeviceAiSettingsViewModel(
             false
         }
     }
+}
+
+/**
+ * Stav z obrazovky pro výběr „Automaticky" ([chooseProvider]). Rozhoduje jen připravený model
+ * a model, který zařízení neumí; ostatní stavy (stahuje se, dá se stáhnout, ještě nevíme) jsou
+ * pro výběr totéž — model tu je, jen ještě ne připravený.
+ */
+private fun OnDeviceModelState?.asStatus(): OnDeviceAiStatus = when (this) {
+    is OnDeviceModelState.Ready -> OnDeviceAiStatus.Ready
+    OnDeviceModelState.Unsupported -> OnDeviceAiStatus.Unsupported
+    else -> OnDeviceAiStatus.Downloadable
 }
 
 /**
@@ -341,34 +428,37 @@ fun previewSameAsStable(previewName: String?, stableName: String?): Boolean =
 data class AiAvailability(val providers: List<AiProvider>, val gemmaModels: List<GemmaModel>)
 
 /**
- * Varianta opravená na to, co zařízení umí, nebo `null`, když je v pořádku.
+ * Modely opravené na to, co zařízení umí, nebo `null`, když jsou v pořádku.
  *
- * Zvolený poskytovatel, který tu není (telefon bez AICore, uložená volba z jiného zařízení),
- * se vymění za první dostupný; model Gemma, na který nestačí paměť, za první, na který ano.
- * Bez dostupného poskytovatele se nemění nic — sekce se pak vůbec nenabízí a opravovat není co.
+ * Zapnutý model, který tu není (telefon bez AICore, uložená volba z jiného zařízení, výchozí
+ * Gemini Nano na iOS), se vypustí; když tím nezbude žádný, zapne se první dostupný. Model Gemma,
+ * na který nestačí paměť, se vymění za první, na který ano. Ruční přiřazení se nechávají —
+ * přiřazení k nezapnutému modelu se nepočítá ([AiModels.assignment]), a kdyby se model vrátil
+ * (obnova zálohy), platí zase. Bez dostupného poskytovatele se nemění nic: sekce se pak vůbec
+ * nenabízí a opravovat není co.
  */
-fun supportedVariant(current: ModelVariant, available: AiAvailability): ModelVariant? {
-    val provider = current.provider.takeIf { it in available.providers }
-        ?: available.providers.firstOrNull()
-        ?: return null
+fun supportedModels(current: AiModels, available: AiAvailability): AiModels? {
+    val first = available.providers.firstOrNull() ?: return null
+    val enabled = current.enabled.filterTo(LinkedHashSet()) { it in available.providers }.ifEmpty { setOf(first) }
     val gemma = current.gemma.takeIf { it in available.gemmaModels }
         ?: available.gemmaModels.firstOrNull()
         ?: current.gemma
-    val fixed = current.copy(provider = provider, gemma = gemma)
+    val fixed = current.copy(enabled = enabled, gemma = gemma)
     return fixed.takeIf { it != current }
 }
 
 /**
- * Obsah sekce „AI v zařízení". Stav modelu se ukazuje, jen když je volba zapnutá —
- * kdo o funkci nestojí, nemá co řešit.
+ * Obsah sekce „AI v zařízení". Modely a co čím počítat se ukazují, jen když je volba
+ * zapnutá — kdo o funkci nestojí, nemá co řešit.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val haptics = LocalHapticFeedback.current
     val enabled by viewModel.enabled.collectAsStateWithLifecycle()
-    val model by viewModel.model.collectAsStateWithLifecycle()
-    val variant by viewModel.variant.collectAsStateWithLifecycle()
+    val models by viewModel.models.collectAsStateWithLifecycle()
+    val states by viewModel.states.collectAsStateWithLifecycle()
+    val automatic by viewModel.automatic.collectAsStateWithLifecycle()
     val previewIsStable by viewModel.previewIsStable.collectAsStateWithLifecycle()
     val replySuggestions by viewModel.replySuggestions.collectAsStateWithLifecycle()
     val scamWarnings by viewModel.scamWarnings.collectAsStateWithLifecycle()
@@ -453,182 +543,258 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     },
                 )
             }
-            /*
-             * Poskytovatel se nabízí, jen když je z čeho vybírat — na telefonu bez AICore je
-             * jediná možnost Gemma a volba s jednou položkou by byla jen šum. Platí pro celou
-             * aplikaci: shrnutí i návrhy odpovědí jedou přes zvoleného.
-             */
-            if (available.providers.size > 1) {
-                GroupBreak()
-                available.providers.forEach { provider ->
-                    ChoiceRow(
-                        title = stringResource(provider.title),
-                        summary = stringResource(provider.summary),
-                        selected = variant.provider == provider,
-                        onSelect = { viewModel.setProvider(provider) },
-                    )
-                }
+        }
+    }
+    if (!enabled) return
+
+    /*
+     * Modely. Přepínač u modelu je, jen když je z čeho vybírat — na telefonu bez AICore je
+     * jediná možnost Gemma a přepínač, který nejde vypnout, by byl jen šum. Zapnout jde víc
+     * modelů naráz: Nano na text a Gemmu na to, co Nano neumí (zvuk, obraz).
+     */
+    val choosable = available.providers.size > 1
+    SettingsGroup(if (choosable) Res.string.settings_ai_models else Res.string.settings_ai_model) {
+        available.providers.forEachIndexed { index, provider ->
+            if (index > 0) GroupBreak()
+            val on = provider in models.enabled
+            if (choosable) {
+                VariantSwitch(
+                    title = provider.title,
+                    summary = provider.summary,
+                    checked = on,
+                    onChange = { checked ->
+                        haptics.toggle(checked)
+                        viewModel.setModelEnabled(provider, checked)
+                    },
+                    // Poslední zapnutý vypnout nejde: vypnout AI je přepínač nahoře.
+                    enabled = !on || models.enabled.size > 1,
+                )
             }
-            when (variant.provider) {
-                AiProvider.GeminiNano -> {
-                    GroupBreak()
-                    VariantSwitch(
-                        title = Res.string.settings_on_device_ai_preview,
-                        summary = Res.string.settings_on_device_ai_preview_summary,
-                        checked = variant.preview,
-                        onChange = { on ->
-                            haptics.toggle(on)
-                            viewModel.setPreview(on)
-                        },
-                        note = Res.string.settings_on_device_ai_preview_same.takeIf { previewIsStable },
-                    )
-                    VariantSwitch(
-                        title = Res.string.settings_on_device_ai_fast,
-                        summary = Res.string.settings_on_device_ai_fast_summary,
-                        checked = variant.fast,
-                        onChange = { on ->
-                            haptics.toggle(on)
-                            viewModel.setFast(on)
-                        },
-                    )
-                }
-                // Větší model se nabídne jen tam, kde na něj stačí paměť.
-                AiProvider.Gemma -> if (available.gemmaModels.size > 1) {
-                    GroupBreak()
-                    available.gemmaModels.forEach { gemma ->
-                        ChoiceRow(
-                            title = gemma.displayName,
-                            summary = stringResource(gemma.summary, fileSizeText(gemma.sizeBytes)),
-                            selected = variant.gemma == gemma,
-                            onSelect = { viewModel.setGemmaModel(gemma) },
-                        )
-                    }
-                }
-                // Systémový model bez voleb: verzi i stahování řídí iOS.
-                AiProvider.Apple -> Unit
+            val state = states[provider] ?: OnDeviceModelState.Checking
+            if (on) {
+                ModelOptions(provider, models, available, previewIsStable, viewModel)
+                ModelStatus(models.variant(provider), state, viewModel)
+            } else if (provider.appManaged && (state is OnDeviceModelState.Ready || state == OnDeviceModelState.Paused)) {
+                // Vypnutá, ale stažená Gemma pořád zabírá gigabajty — musí jít smazat i teď.
+                ModelStatus(models.variant(provider), state, viewModel)
             }
-            GroupBreak()
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-            ) {
-                val status = when (val current = model) {
-                    OnDeviceModelState.Checking -> stringResource(Res.string.settings_on_device_ai_checking)
-                    OnDeviceModelState.Unsupported -> stringResource(Res.string.settings_on_device_ai_unsupported)
-                    /*
-                     * U modelu, který stahuje aplikace, se jmenuje CO a KOLIK. „Zabere gigabajty"
-                     * stačí u systémového modelu, jehož velikost nám nikdo neřekne; tady ji víme
-                     * a pod 2,4 GB se uživatel podepisuje, ne pod „nějaké gigabajty".
-                     */
-                    OnDeviceModelState.Downloadable -> if (variant.appManaged) {
-                        stringResource(
-                            Res.string.settings_on_device_ai_downloadable_named,
-                            variant.gemma.displayName,
-                            fileSizeText(variant.gemma.sizeBytes),
-                        )
-                    } else {
-                        stringResource(Res.string.settings_on_device_ai_downloadable)
-                    }
-                    is OnDeviceModelState.Downloading -> if (current.progress?.waitingForNetwork == true) {
-                        stringResource(Res.string.settings_on_device_ai_waiting_for_network)
-                    } else {
-                        stringResource(Res.string.settings_on_device_ai_downloading)
-                    }
-                    OnDeviceModelState.DownloadFailed -> stringResource(Res.string.settings_on_device_ai_download_failed)
-                    OnDeviceModelState.Paused -> stringResource(Res.string.settings_on_device_ai_paused)
-                    OnDeviceModelState.NotEnoughSpace -> stringResource(Res.string.settings_on_device_ai_not_enough_space)
-                    is OnDeviceModelState.Ready -> current.name
-                        ?.let { stringResource(Res.string.settings_on_device_ai_ready, it) }
-                        ?: stringResource(Res.string.settings_on_device_ai_ready_unnamed)
-                }
+        }
+    }
+
+    /*
+     * Co čím počítat — jen s víc zapnutými modely; s jedním není co přiřazovat. Řádek má jen
+     * úloha, kterou zvládne víc zapnutých modelů: přepis řeči a popis fotek umí jen Gemma
+     * a volba „Automaticky / Gemma" by nic nevolila. Řekne to věta pod řádky.
+     */
+    val enabledHere = available.providers.filter { it in models.enabled }
+    if (enabledHere.size > 1) {
+        SettingsGroup(Res.string.settings_ai_tasks) {
+            AiTask.entries.filter { task -> enabledHere.count { it.handles(task) } > 1 }.forEach { task ->
+                val options = listOf<AiProvider?>(null) + enabledHere.filter { it.handles(task) }
+                val chosen = models.assignment(task)
+                ChoiceRow(
+                    headline = stringResource(task.title),
+                    options = options,
+                    selected = chosen,
+                    label = { option ->
+                        if (option == null) {
+                            automatic[task]?.let { stringResource(Res.string.settings_ai_task_auto_named, stringResource(it.title)) }
+                                ?: stringResource(Res.string.settings_ai_task_auto)
+                        } else {
+                            // Ručně zvolený model, který ještě není připravený: funkce se bez něj
+                            // nenabídne, tak ať je u řádku vidět proč.
+                            val name = stringResource(option.title)
+                            if (states[option] is OnDeviceModelState.Ready) name
+                            else stringResource(Res.string.settings_ai_task_not_ready, name)
+                        }
+                    },
+                    onSelect = { viewModel.assign(task, it) },
+                )
+            }
+            if (AiProvider.Gemma in enabledHere) {
                 Text(
-                    status,
+                    stringResource(Res.string.settings_ai_tasks_note),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                 )
+            }
+        }
+    }
+}
+
+/** Volby zapnutého modelu: preview a rychlá varianta u Nano, velikost u Gemmy. */
+@Composable
+private fun ModelOptions(
+    provider: AiProvider,
+    models: AiModels,
+    available: AiAvailability,
+    previewIsStable: Boolean,
+    viewModel: OnDeviceAiSettingsViewModel,
+) {
+    val haptics = LocalHapticFeedback.current
+    when (provider) {
+        AiProvider.GeminiNano -> {
+            VariantSwitch(
+                title = Res.string.settings_on_device_ai_preview,
+                summary = Res.string.settings_on_device_ai_preview_summary,
+                checked = models.preview,
+                onChange = { on ->
+                    haptics.toggle(on)
+                    viewModel.setPreview(on)
+                },
+                note = Res.string.settings_on_device_ai_preview_same.takeIf { previewIsStable },
+            )
+            VariantSwitch(
+                title = Res.string.settings_on_device_ai_fast,
+                summary = Res.string.settings_on_device_ai_fast_summary,
+                checked = models.fast,
+                onChange = { on ->
+                    haptics.toggle(on)
+                    viewModel.setFast(on)
+                },
+            )
+        }
+        // Větší model se nabídne jen tam, kde na něj stačí paměť.
+        AiProvider.Gemma -> if (available.gemmaModels.size > 1) {
+            available.gemmaModels.forEach { gemma ->
+                ModelChoiceRow(
+                    title = gemma.displayName,
+                    summary = stringResource(gemma.summary, fileSizeText(gemma.sizeBytes)),
+                    selected = models.gemma == gemma,
+                    onSelect = { viewModel.setGemmaModel(gemma) },
+                )
+            }
+        }
+        // Systémový model bez voleb: verzi i stahování řídí iOS.
+        AiProvider.Apple -> Unit
+    }
+}
+
+/** Stav jednoho modelu, průběh stahování a tlačítka (stáhnout, zastavit, smazat). */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ModelStatus(variant: ModelVariant, model: OnDeviceModelState, viewModel: OnDeviceAiSettingsViewModel) {
+    val provider = variant.provider
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+    ) {
+        val status = when (model) {
+            OnDeviceModelState.Checking -> stringResource(Res.string.settings_on_device_ai_checking)
+            OnDeviceModelState.Unsupported -> stringResource(Res.string.settings_on_device_ai_unsupported)
+            /*
+             * U modelu, který stahuje aplikace, se jmenuje CO a KOLIK. „Zabere gigabajty"
+             * stačí u systémového modelu, jehož velikost nám nikdo neřekne; tady ji víme
+             * a pod 2,4 GB se uživatel podepisuje, ne pod „nějaké gigabajty".
+             */
+            OnDeviceModelState.Downloadable -> if (variant.appManaged) {
+                stringResource(
+                    Res.string.settings_on_device_ai_downloadable_named,
+                    variant.gemma.displayName,
+                    fileSizeText(variant.gemma.sizeBytes),
+                )
+            } else {
+                stringResource(Res.string.settings_on_device_ai_downloadable)
+            }
+            is OnDeviceModelState.Downloading -> if (model.progress?.waitingForNetwork == true) {
+                stringResource(Res.string.settings_on_device_ai_waiting_for_network)
+            } else {
+                stringResource(Res.string.settings_on_device_ai_downloading)
+            }
+            OnDeviceModelState.DownloadFailed -> stringResource(Res.string.settings_on_device_ai_download_failed)
+            OnDeviceModelState.Paused -> stringResource(Res.string.settings_on_device_ai_paused)
+            OnDeviceModelState.NotEnoughSpace -> stringResource(Res.string.settings_on_device_ai_not_enough_space)
+            is OnDeviceModelState.Ready -> model.name
+                ?.let { stringResource(Res.string.settings_on_device_ai_ready, it) }
+                ?: stringResource(Res.string.settings_on_device_ai_ready_unnamed)
+        }
+        Text(
+            status,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        /*
+         * Kolik už je staženo: u gigabajtů trvá stahování minuty a samotná vlnka neřekne,
+         * jestli to bude za chvíli, nebo za čtvrt hodiny.
+         */
+        val progress = (model as? OnDeviceModelState.Downloading)?.progress
+        val total = progress?.totalBytes
+        if (progress != null && total != null && total > 0) {
+            Text(
+                stringResource(
+                    Res.string.settings_on_device_ai_download_progress,
+                    fileSizeText(progress.downloadedBytes),
+                    fileSizeText(total),
+                ),
+                style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        (model as? OnDeviceModelState.Ready)?.tokenLimit?.let { limit ->
+            Text(
+                stringResource(Res.string.settings_on_device_ai_token_limit, limit.grouped()),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        when (model) {
+            is OnDeviceModelState.Downloading -> {
+                val fraction = model.progress?.fraction
+                if (fraction != null) {
+                    LinearWavyProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
+                } else {
+                    LinearWavyProgressIndicator(Modifier.fillMaxWidth())
+                }
                 /*
-                 * Kolik už je staženo: u gigabajtů trvá stahování minuty a samotná vlnka neřekne,
-                 * jestli to bude za chvíli, nebo za čtvrt hodiny.
+                 * Stahování Gemmy běží ve WorkManageru a přežije i zabití aplikace, takže
+                 * bez tlačítka by ho nešlo zastavit vůbec. Systémový model stahuje AICore
+                 * a ten zastavit nedovolí.
                  */
-                val progress = (model as? OnDeviceModelState.Downloading)?.progress
-                val total = progress?.totalBytes
-                if (progress != null && total != null && total > 0) {
+                if (variant.appManaged) {
+                    OutlinedButton(onClick = { viewModel.stopDownload(provider) }, shapes = ButtonDefaults.shapes()) {
+                        Text(stringResource(Res.string.settings_on_device_ai_stop))
+                    }
+                }
+            }
+            OnDeviceModelState.Downloadable, OnDeviceModelState.DownloadFailed, OnDeviceModelState.NotEnoughSpace,
+            OnDeviceModelState.Paused ->
+                FilledTonalButton(onClick = { viewModel.download(provider) }, shapes = ButtonDefaults.shapes()) {
+                    // Stažený kus se nezahazuje, takže po selhání i zastavení tlačítko slibuje navázání.
+                    val resumes = variant.appManaged &&
+                        (model == OnDeviceModelState.DownloadFailed || model == OnDeviceModelState.Paused)
                     Text(
                         stringResource(
-                            Res.string.settings_on_device_ai_download_progress,
-                            fileSizeText(progress.downloadedBytes),
-                            fileSizeText(total),
+                            if (resumes) Res.string.settings_on_device_ai_resume
+                            else Res.string.settings_on_device_ai_download,
                         ),
-                        style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                (model as? OnDeviceModelState.Ready)?.tokenLimit?.let { limit ->
-                    Text(
-                        stringResource(Res.string.settings_on_device_ai_token_limit, limit.grouped()),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            /*
+             * Smazat jde jen model, který si stáhla aplikace. Systémový (AICore) patří
+             * telefonu a sdílí ho s ostatními aplikacemi; gigabajty Gemmy zabírají místo
+             * jen kvůli nám, a kdo funkci přestane používat, musí mít jak je vrátit.
+             */
+            /*
+             * Obrysové, ne textové tlačítko: `TextButton` nemá plochu a jeho vnitřní
+             * odsazení odsunulo popisek od textu nad ním. Obrys lícuje s hranou jako
+             * „Stáhnout model" na témže místě a vedle tónovaného tlačítka ustupuje.
+             */
+            is OnDeviceModelState.Ready -> if (variant.appManaged) {
+                OutlinedButton(onClick = { viewModel.delete(provider) }, shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(Res.string.settings_on_device_ai_delete))
                 }
-
-                when (val current = model) {
-                    is OnDeviceModelState.Downloading -> {
-                        val fraction = current.progress?.fraction
-                        if (fraction != null) {
-                            LinearWavyProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
-                        } else {
-                            LinearWavyProgressIndicator(Modifier.fillMaxWidth())
-                        }
-                        /*
-                         * Stahování Gemmy běží ve WorkManageru a přežije i zabití aplikace, takže
-                         * bez tlačítka by ho nešlo zastavit vůbec. Systémový model stahuje AICore
-                         * a ten zastavit nedovolí.
-                         */
-                        if (variant.appManaged) {
-                            OutlinedButton(onClick = viewModel::stopDownload, shapes = ButtonDefaults.shapes()) {
-                                Text(stringResource(Res.string.settings_on_device_ai_stop))
-                            }
-                        }
-                    }
-                    OnDeviceModelState.Downloadable, OnDeviceModelState.DownloadFailed, OnDeviceModelState.NotEnoughSpace,
-                    OnDeviceModelState.Paused ->
-                        FilledTonalButton(onClick = viewModel::download, shapes = ButtonDefaults.shapes()) {
-                            // Stažený kus se nezahazuje, takže po selhání i zastavení tlačítko slibuje navázání.
-                            val resumes = variant.appManaged &&
-                                (model == OnDeviceModelState.DownloadFailed || model == OnDeviceModelState.Paused)
-                            Text(
-                                stringResource(
-                                    if (resumes) Res.string.settings_on_device_ai_resume
-                                    else Res.string.settings_on_device_ai_download,
-                                ),
-                            )
-                        }
-                    /*
-                     * Smazat jde jen model, který si stáhla aplikace. Systémový (AICore) patří
-                     * telefonu a sdílí ho s ostatními aplikacemi; gigabajty Gemmy zabírají místo
-                     * jen kvůli nám, a kdo funkci přestane používat, musí mít jak je vrátit.
-                     */
-                    /*
-                     * Obrysové, ne textové tlačítko: `TextButton` nemá plochu a jeho vnitřní
-                     * odsazení odsunulo popisek od textu nad ním. Obrys lícuje s hranou jako
-                     * „Stáhnout model" na témže místě a vedle tónovaného tlačítka ustupuje.
-                     */
-                    is OnDeviceModelState.Ready -> if (variant.appManaged) {
-                        OutlinedButton(onClick = viewModel::delete, shapes = ButtonDefaults.shapes()) {
-                            Text(stringResource(Res.string.settings_on_device_ai_delete))
-                        }
-                    }
-                    else -> Unit
-                }
-                /*
-                 * Zčásti stažený model jsou klidně gigabajty, a bez tohohle by šly z telefonu
-                 * dostat jen dokončením stahování a smazáním hotového modelu.
-                 */
-                if (model == OnDeviceModelState.Paused && variant.appManaged) {
-                    OutlinedButton(onClick = viewModel::delete, shapes = ButtonDefaults.shapes()) {
-                        Text(stringResource(Res.string.settings_on_device_ai_discard_part))
-                    }
-                }
+            }
+            else -> Unit
+        }
+        /*
+         * Zčásti stažený model jsou klidně gigabajty, a bez tohohle by šly z telefonu
+         * dostat jen dokončením stahování a smazáním hotového modelu.
+         */
+        if (model == OnDeviceModelState.Paused && variant.appManaged) {
+            OutlinedButton(onClick = { viewModel.delete(provider) }, shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(Res.string.settings_on_device_ai_discard_part))
             }
         }
     }
@@ -641,6 +807,7 @@ private fun VariantSwitch(
     checked: Boolean,
     onChange: (Boolean) -> Unit,
     note: StringResource? = null,
+    enabled: Boolean = true,
 ) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -653,14 +820,14 @@ private fun VariantSwitch(
                 note?.let { Text(stringResource(it), style = MaterialTheme.typography.labelLarge) }
             }
         },
-        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
+        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null, enabled = enabled) },
+        modifier = Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange),
     )
 }
 
-/** Jedna volba z několika (poskytovatel, model Gemma). Klikání nese celý řádek, jako u motivu. */
+/** Jedna volba z několika (model Gemma). Klikání nese celý řádek, jako u motivu. */
 @Composable
-private fun ChoiceRow(title: String, summary: String, selected: Boolean, onSelect: () -> Unit) {
+private fun ModelChoiceRow(title: String, summary: String, selected: Boolean, onSelect: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(title) },
@@ -688,4 +855,21 @@ private val GemmaModel.summary: StringResource
     get() = when (this) {
         GemmaModel.E2B -> Res.string.settings_gemma_e2b_summary
         GemmaModel.E4B -> Res.string.settings_gemma_e4b_summary
+    }
+
+/** Model stahuje a maže aplikace sama ([ModelVariant.appManaged]). */
+private val AiProvider.appManaged: Boolean get() = ModelVariant(provider = this).appManaged
+
+private val AiTask.title: StringResource
+    get() = when (this) {
+        AiTask.Summary -> Res.string.ai_task_summary
+        AiTask.Explain -> Res.string.ai_task_explain
+        AiTask.Replies -> Res.string.ai_task_replies
+        AiTask.Rewrite -> Res.string.ai_task_rewrite
+        AiTask.Dates -> Res.string.ai_task_dates
+        AiTask.Scam -> Res.string.ai_task_scam
+        AiTask.Triage -> Res.string.ai_task_triage
+        AiTask.Search -> Res.string.ai_task_search
+        AiTask.Transcription -> Res.string.ai_task_transcription
+        AiTask.PhotoDescription -> Res.string.ai_task_photo_description
     }

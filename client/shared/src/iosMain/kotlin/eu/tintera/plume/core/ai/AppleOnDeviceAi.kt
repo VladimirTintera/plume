@@ -74,7 +74,7 @@ object IosOnDeviceModel {
  *   teprve stahuje, se hlásí jako [OnDeviceAiStatus.Unsupported] — sekce AI se pak nenabídne
  *   (nastavení na ni nemá stav „zapni si ji v systému"; poznatek v `ai-v-zarizeni.md`).
  * - **Ostatní poskytovatelé tu nejsou**: Gemini Nano i Gemma hlásí [OnDeviceAiStatus.Unsupported],
- *   takže nastavení samo přepne volbu na Apple (`supportedVariant`).
+ *   takže nastavení samo přepne volbu na Apple (`supportedModels`).
  * - **Strukturovaný výstup, přepis řeči a popis obrázků zatím ne** (výchozí `false` rozhraní):
  *   Foundation Models je umí (`@Generable`), ale každý by chtěl vlastní Swift most.
  */

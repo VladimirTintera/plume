@@ -11,15 +11,15 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
 
 ### Dva poskytovatelé: Gemini Nano a Gemma
 
-Uživatel volí, KDO model počítá (`ModelVariant.provider`, `AiProvider`): **Gemini Nano** v AICore
-(ML Kit, `MlKitOnDeviceAi`), nebo **Gemma 4** přes LiteRT-LM (`LiteRtOnDeviceAi`), kterou si
-stáhne aplikace. Volba platí pro celou aplikaci — rozhoduje `RoutingOnDeviceAi` (testy
-`RoutingOnDeviceAiTest`) a každá funkce jen předá variantu z nastavení. Nová funkce s modelem
-tedy o poskytovatelích nemusí vědět nic.
+Zapnuté můžou být **Gemini Nano** v AICore (ML Kit, `MlKitOnDeviceAi`), **Gemma 4** přes
+LiteRT-LM (`LiteRtOnDeviceAi`), kterou si stáhne aplikace, nebo oba naráz (`AiModels.enabled`).
+Každá funkce se ptá na model PRO SVOU ÚLOHU (`ai.variantFor(AiTask.Summary, settings)`,
+`core/ai/AiTasks.kt`, testy `AiTasksTest`) a hotové volání pak předá `RoutingOnDeviceAi` (testy
+`RoutingOnDeviceAiTest`). Nová funkce s modelem si tedy přidá řádek do `AiTask` a o
+poskytovatelích nemusí vědět nic.
 
-- **Poskytovatel je pole varianty, ne druhé rozhraní.** Funkce už variantu z nastavení braly
-  (`onDeviceAiVariant`); kdyby byl poskytovatel samostatná volba, musela by každá funkce řešit
-  dvě věci a jedna by na to zapomněla.
+- **Poskytovatel je pole varianty, ne druhé rozhraní.** Funkce dostane hotovou variantu pro
+  svou úlohu; kdyby řešila poskytovatele sama, jedna by na to zapomněla.
 - **Router variantu NORMALIZUJE** (`forGeminiNano`, `forGemma`). ML Kit drží klienta na
   variantu v mapě, takže by jinak změna modelu Gemmy vyrobila druhého klienta téhož Nano.
 - **Katalog Gemmy (`GemmaModel`) je převzatý z Google AI Edge Gallery**
@@ -31,10 +31,9 @@ tedy o poskytovatelích nemusí vědět nic.
 - **Gemma se nenabízí pod Androidem 12, bez arm64 a pod `minMemoryGb`** (8 GB pro E2B, 12 GB
   pro E4B; `totalMem` s 15% rezervou, výrobce udává víc, než jádro nechá). Pod tím by systém
   aplikaci zabil při načítání modelu. Kde model nejde, je `Unsupported` a volba se vůbec neukáže.
-- **Uložená volba, kterou zařízení nesplní, se opraví** (`supportedVariant`, testy
-  `SupportedVariantTest`): Nano na telefonu bez AICore → Gemma, E4B s málo pamětí → E2B.
-  Chybějící uložený poskytovatel je Gemini Nano — tak se aplikace chovala dřív a kdo si ho
-  zapnul, nemá po aktualizaci stahovat gigabajty.
+- **Uložená volba, kterou zařízení nesplní, se opraví** (`supportedModels`, testy
+  `SupportedModelsTest`): Nano na telefonu bez AICore → Gemma, výchozí Nano na iOS → Apple,
+  E4B s málo pamětí → E2B. Z víc zapnutých se jen vypustí ten, který tu není.
 - **Stahuje se do `.part` a přejmenovává až hotový**, takže přítomnost souboru = kompletní model.
   Přerušené stahování navazuje (`Range`). Před stahováním se kontroluje volné místo (velikost
   + 500 MB) a nedostatek má vlastní hlášku (`NotEnoughSpaceException`) — u gigabajtů je to
@@ -239,6 +238,46 @@ tedy o poskytovatelích nemusí vědět nic.
   nespadne — viz „Návrhy odpovědí"), vzhled podstrčeným stavem a čisté funkce testy. Na zařízení
   zbývá kvalita výstupu, rychlost, limit tokenů a useknutí.
 
+
+### Víc modelů naráz a co čím počítat
+
+Nano zvuk ani obraz nebere, Gemma je umí, jenže drží gigabajty RAM. Kdo měl na všechno Gemmu
+kvůli přepisu hlasovek, platil pamětí i za každé shrnutí. Proto se modely ZAPÍNAJÍ (i oba)
+a úlohy se jim přiřazují.
+
+- **Úloha nese, co modelu dává** (`AiTask.input`: text, zvuk, obraz) a kdo ji zvládne, je
+  statické (`AiProvider.handles`): zvuk a obraz jen Gemma. Co runtime UMÍ, se neptá runtime —
+  jestli je připravený, říká `status`.
+- **„Automaticky" (výchozí) bere první PŘIPRAVENÝ model v pořadí Nano → Apple → Gemma**, jinak
+  první, který zařízení umí (funkce pak nabídne stažení). Systémový model nic nestojí, Gemma se
+  načte až kvůli úloze, kterou dostala, a po dvou minutách se uvolní — s Nano + Gemmou tedy
+  gigabajty v paměti jen chvíli po přepisu hlasovky nebo popisu fotky.
+- **Záloha jen podle stavu modelu, ne podle chyby jednoho volání.** `Busy` u Nano nemá kvůli
+  jedné odpovědi načíst Gemmu; stahující se Nano naopak text Gemmě předá (je připravená).
+- **Ruční přiřazení platí, i když model není připravený**: funkce řekne, že model chybí,
+  a řádek v Nastavení „Gemma · model zatím není připravený". Tiše vzít jiný model by udělalo
+  z volby dekoraci. **Přiřazení k VYPNUTÉMU modelu se nepočítá** (`AiModels.assignment`) — úloha
+  jede automaticky, ne nikam — a nemaže se, takže po opětovném zapnutí platí zase.
+- **Úloha bez kandidáta** (zvuk, Gemma vypnutá) dostane první zapnutý model. Ten úlohu neumí
+  (`canTranscribe` = `false`), takže se funkce nenabídne; volající nemusí řešit `null`.
+- **„Automaticky" se neukládá** (`on_device_ai_tasks` nese jen ruční výjimky jako
+  `Summary=Gemma`), aby šlo pravidlo zlepšit bez migrace.
+- **Dřívější jediný poskytovatel je výchozí seznam**: bez `on_device_ai_models` platí
+  `on_device_ai_provider`, bez něj Nano. Kdo měl Gemmu, nepřijde o ni; kdo měl Nano, nezačne
+  stahovat gigabajty. Druhý model se sám nezapne nikdy.
+- **Nastavení**: blok Modely má u každého modelu přepínač (jen když jich zařízení umí víc;
+  poslední zapnutý vypnout nejde, na to je hlavní vypínač), volby modelu a stav stažení. Blok
+  „Co čím počítat" je jen s víc zapnutými modely a má řádek jen pro úlohu, kterou zvládne víc
+  z nich — přepis a popis fotek umí jen Gemma, to říká věta pod řádky. „Automaticky (Gemini
+  Nano)" ukazuje, kam automatika úlohu poslala (`OnDeviceAiSettingsViewModel.automatic`).
+- **Stav se vede pro každý model zvlášť a i pro vypnutý**: stažená Gemma zabírá místo, i když
+  ji nic nepoužívá, takže vypnutá stažená (nebo zčásti stažená) má dál „Smazat model". Vypnutí
+  Gemmy během stahování stahování zastaví — úloha WorkManageru by jinak stahovala model, o který
+  uživatel právě řekl, že nestojí.
+- **Rada u hlasovky „přepni na Gemmu" je teď „zapni si k němu Gemmu"** (`OnDeviceFix.SwitchToGemma`
+  se nepřejmenoval: posílá se hodinkám jako `switch_to_gemma`).
+- **Na zařízení neověřené**: Nano a Gemma vedle sebe jdou jen na telefonu s AICore (Fold),
+  emulátor Nano nemá. Na emulátoru se ověří Gemma sama a vzhled Nastavení.
 
 ### Apple Intelligence na iOS (Foundation Models)
 

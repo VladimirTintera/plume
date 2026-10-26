@@ -171,8 +171,8 @@ internal class ConversationPlayback(
         chatRepository.isPremium,
         chatRepository.speechTrial,
         combine(
-            combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant, onDeviceRecheck) { enabled, variant, _ -> enabled to variant }
-                .mapLatest { (enabled, variant) -> onDeviceTranscription?.check(enabled, variant) ?: OnDeviceCheck(available = false) },
+            combine(settings.onDeviceAiEnabled, settings.onDeviceAiModels, onDeviceRecheck) { enabled, models, _ -> enabled to models }
+                .mapLatest { (enabled, models) -> onDeviceTranscription?.check(enabled, models) ?: OnDeviceCheck(available = false) },
             speechDownloading,
         ) { check, downloading ->
             // Než systém stažení ohlásí, říká bublina „stahuje se" podle vlastní žádosti.

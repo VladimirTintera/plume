@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.UnimplementedOnDeviceAi
@@ -52,7 +53,7 @@ class ConversationMessageMenuTest {
     private class FakeSettings : UnimplementedAppSettings() {
         override val translationLanguage = MutableStateFlow<String?>("cs")
         override val onDeviceAiEnabled = MutableStateFlow(true)
-        override val onDeviceAiVariant = MutableStateFlow(ModelVariant())
+        override val onDeviceAiModels = MutableStateFlow(AiModels())
         override val messageContextEnabled = MutableStateFlow(true)
         override val messageBookmarks = MutableStateFlow<List<MessageBookmark>>(emptyList())
 

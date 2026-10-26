@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.variantsFor
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
@@ -229,7 +232,7 @@ class DraftRewriteViewModel(
     /** Přepis modelem v zařízení: jen se zapnutou AI a na zařízení, které model má nebo mít může. */
     val available: StateFlow<Boolean> = combine(
         settings.onDeviceAiEnabled,
-        settings.onDeviceAiVariant.flatMapLatest { variant ->
+        ai.variantsFor(AiTask.Rewrite, settings).flatMapLatest { variant ->
             // Pojistka jako u shrnutí: nepodařilo se zjistit = nenabízet.
             flow { emit(ai.status(variant) != OnDeviceAiStatus.Unsupported) }.catch { emit(false) }
         },
@@ -257,7 +260,7 @@ class DraftRewriteViewModel(
         toneJob?.cancel()
         _tone.value = ToneState.Checking
         toneJob = viewModelScope.launch {
-            val variant = settings.onDeviceAiVariant.value
+            val variant = ai.variantFor(AiTask.Rewrite, settings)
             if (ai.status(variant) != OnDeviceAiStatus.Ready) {
                 _tone.value = ToneState.Unknown
                 return@launch
@@ -383,7 +386,7 @@ class DraftRewriteViewModel(
 
     private suspend fun rewriteLocally(text: String, choice: RewriteChoice.Local) {
         val style = choice.style
-        val variant = settings.onDeviceAiVariant.value
+        val variant = ai.variantFor(AiTask.Rewrite, settings)
         if (ai.status(variant) != OnDeviceAiStatus.Ready) {
             _state.value = RewriteState.ModelMissing
             return

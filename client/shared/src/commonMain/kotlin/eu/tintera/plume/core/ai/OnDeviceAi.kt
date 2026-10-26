@@ -12,8 +12,8 @@ import kotlinx.coroutines.flow.flow
  * Gemini Nano v AICore přes ML Kit Prompt API (`com.google.mlkit.genai.*`) a Gemma přes
  * LiteRT-LM (`com.google.ai.edge.litertlm.*`); obojí smí být importované jen v
  * `androidMain/core/ai`. Který se použije, určuje [ModelVariant.provider] a rozhoduje o tom
- * [RoutingOnDeviceAi] — volba platí pro celou aplikaci, každá funkce (shrnutí, návrhy
- * odpovědí) jen předá variantu z nastavení.
+ * [RoutingOnDeviceAi]. Variantu si funkce bere pro SVOU úlohu ([variantFor], [AiTask]): zapnuté
+ * mohou být oba modely a každá úloha jde jinému — Nano na text, Gemma na zvuk a obraz.
  *
  * Rozhraní, ne `expect class`: ViewModel se pak dá testovat s podstrčeným modelem.
  *
@@ -109,7 +109,7 @@ interface OnDeviceAi {
 /**
  * Kterou podobu modelu chceme. Volby jsou PŘÁNÍ — co opravdu běží, řekne [ModelInfo.name].
  *
- * @property provider který runtime model počítá. Platí pro celou aplikaci.
+ * @property provider který runtime model počítá. Vybírá ho [chooseProvider] podle úlohy.
  * @property preview (jen Gemini Nano) nejnovější verze v předběžném vydání místo stabilní.
  *   Bývá jen na novějších zařízeních a stahuje se zvlášť.
  * @property fast (jen Gemini Nano) rychlejší a méně přesná varianta místo plné.

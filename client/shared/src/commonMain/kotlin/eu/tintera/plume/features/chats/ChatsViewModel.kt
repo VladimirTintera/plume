@@ -230,7 +230,7 @@ class ChatsViewModel(
                     repository.savedMessagesChatId,
                     settings.chatTriageEnabled,
                     settings.onDeviceAiEnabled,
-                    settings.onDeviceAiVariant,
+                    settings.onDeviceAiModels,
                 ) { list, savedId, _, _, _ ->
                     (list as? ChatListState.Ready)?.chats.orEmpty() to savedId
                 }.collect { (chats, savedId) -> triage.check(chats, savedId) }

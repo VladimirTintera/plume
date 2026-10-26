@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ai.variantsFor
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ocr.RecognizedText
 import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.ui.TextClipboard
@@ -902,7 +905,7 @@ class MediaViewerViewModel(
         val ai = onDeviceAi ?: return
         val settings = settings ?: return
         viewModelScope.launch {
-            combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant) { enabled, variant ->
+            combine(settings.onDeviceAiEnabled, ai.variantsFor(AiTask.PhotoDescription, settings)) { enabled, variant ->
                 enabled && runCatching { ai.canDescribeImage(variant) }.getOrDefault(false)
             }.collect { can -> _state.update { it.copy(canDescribePhoto = can) } }
         }
@@ -938,7 +941,7 @@ class MediaViewerViewModel(
             _state.update { it.copy(photoDescription = PhotoDescription(messageId)) }
             try {
                 var text = ""
-                ai.describeImage(settings.onDeviceAiVariant.value, file.path, platformLanguageCode).collect { generated ->
+                ai.describeImage(ai.variantFor(AiTask.PhotoDescription, settings), file.path, platformLanguageCode).collect { generated ->
                     text = generated.text
                     updateDescription(messageId) { it.copy(text = text) }
                 }

@@ -5,9 +5,10 @@ import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.snooze.ChatSnooze
 import eu.tintera.plume.core.video.VideoPosition
 import eu.tintera.plume.core.chatcolor.StoredChatColor
+import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.GemmaModel
-import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
 import eu.tintera.plume.core.adaptive.ProfilePaneAnchor
@@ -323,13 +324,14 @@ interface AppSettings {
     fun setMessageContextEnabled(enabled: Boolean)
 
     /**
-     * Kdo model počítá (Gemini Nano / Gemma) a jeho varianta. Platí pro CELOU aplikaci — každá
-     * funkce s modelem bere tuhle hodnotu. Výchozí Gemini Nano, stabilní plná.
+     * Zapnuté modely v zařízení (Gemini Nano, Gemma, i oba), jejich volby a ruční přiřazení
+     * úloh. Funkce s modelem si z toho vybírá přes `variantFor(AiTask…)`, ne přímo. Výchozí
+     * Gemini Nano, stabilní plná, všechno automaticky.
      */
-    val onDeviceAiVariant: StateFlow<ModelVariant>
+    val onDeviceAiModels: StateFlow<AiModels>
 
-    /** Uloží variantu modelu. Neblokuje, jako [recordRecentEmoji]. */
-    fun setOnDeviceAiVariant(variant: ModelVariant)
+    /** Uloží modely a přiřazení. Neblokuje, jako [recordRecentEmoji]. */
+    fun setOnDeviceAiModels(models: AiModels)
 
     /**
      * Rychlost přehrávání hlasovek. Platí pro celou aplikaci, ne pro jednu hlasovku: kdo poslouchá
@@ -939,28 +941,46 @@ class DataStoreAppSettings(
     }
 
     /*
-     * Poskytovatel a model Gemmy se ukládají NÁZVEM (výčty, viz „Nastavení aplikace").
-     * Chybějící poskytovatel je Gemini Nano: tak se aplikace chovala před tím, než šlo vybírat,
-     * a kdo si Nano zapnul, nemá po aktualizaci najednou stahovat gigabajty.
+     * Modely a model Gemmy se ukládají NÁZVEM (výčty, viz „Nastavení aplikace"), seznam jako
+     * jeden řetězec oddělený mezerou, přiřazení jako „Úloha=Model". Neznámý název z novější
+     * verze se přeskočí.
+     *
+     * Bez uloženého seznamu platí poskytovatel z doby, kdy šel vybrat jen jeden
+     * (`on_device_ai_provider`), a bez něj Gemini Nano: kdo si Nano zapnul, nemá po aktualizaci
+     * najednou stahovat gigabajty, a kdo měl Gemmu, nemá o ni přijít.
      */
-    override val onDeviceAiVariant: StateFlow<ModelVariant> = value(ModelVariant()) { preferences ->
-        ModelVariant(
-            provider = AiProvider.entries.firstOrNull { it.name == preferences[ON_DEVICE_AI_PROVIDER] }
-                ?: AiProvider.GeminiNano,
+    override val onDeviceAiModels: StateFlow<AiModels> = value(AiModels()) { preferences ->
+        val legacy = AiProvider.entries.firstOrNull { it.name == preferences[ON_DEVICE_AI_PROVIDER] }
+            ?: AiProvider.GeminiNano
+        val enabled = preferences[ON_DEVICE_AI_MODELS]
+            ?.split(' ')
+            ?.mapNotNullTo(LinkedHashSet()) { name -> AiProvider.entries.firstOrNull { it.name == name } }
+            ?.takeIf { it.isNotEmpty() }
+            ?: setOf(legacy)
+        AiModels(
+            enabled = enabled,
             preview = preferences[ON_DEVICE_AI_PREVIEW] ?: false,
             fast = preferences[ON_DEVICE_AI_FAST] ?: false,
             gemma = GemmaModel.entries.firstOrNull { it.name == preferences[ON_DEVICE_AI_GEMMA] }
                 ?: GemmaModel.E2B,
+            assigned = preferences[ON_DEVICE_AI_TASKS].orEmpty().split(' ').mapNotNull { entry ->
+                val parts = entry.split('=', limit = 2)
+                val task = AiTask.entries.firstOrNull { it.name == parts.getOrNull(0) }
+                val provider = AiProvider.entries.firstOrNull { it.name == parts.getOrNull(1) }
+                if (task != null && provider != null) task to provider else null
+            }.toMap(),
         )
     }
 
-    override fun setOnDeviceAiVariant(variant: ModelVariant) {
+    override fun setOnDeviceAiModels(models: AiModels) {
         scope.launch {
             edit { preferences ->
-                preferences[ON_DEVICE_AI_PROVIDER] = variant.provider.name
-                preferences[ON_DEVICE_AI_PREVIEW] = variant.preview
-                preferences[ON_DEVICE_AI_FAST] = variant.fast
-                preferences[ON_DEVICE_AI_GEMMA] = variant.gemma.name
+                preferences[ON_DEVICE_AI_MODELS] = models.enabled.joinToString(" ") { it.name }
+                preferences[ON_DEVICE_AI_PREVIEW] = models.preview
+                preferences[ON_DEVICE_AI_FAST] = models.fast
+                preferences[ON_DEVICE_AI_GEMMA] = models.gemma.name
+                preferences[ON_DEVICE_AI_TASKS] =
+                    models.assigned.entries.joinToString(" ") { (task, provider) -> "${task.name}=${provider.name}" }
             }
         }
     }
@@ -1227,7 +1247,10 @@ class DataStoreAppSettings(
         val MESSAGE_CONTEXT_ENABLED = booleanPreferencesKey("message_context_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
         val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")
+        /** Jediný poskytovatel z doby před [ON_DEVICE_AI_MODELS]; čte se jen jako výchozí. */
         val ON_DEVICE_AI_PROVIDER = stringPreferencesKey("on_device_ai_provider")
+        val ON_DEVICE_AI_MODELS = stringPreferencesKey("on_device_ai_models")
+        val ON_DEVICE_AI_TASKS = stringPreferencesKey("on_device_ai_tasks")
         val ON_DEVICE_AI_GEMMA = stringPreferencesKey("on_device_ai_gemma")
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val VIDEO_SPEED = stringPreferencesKey("video_speed")

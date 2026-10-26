@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.reminderTimeOf
 import eu.tintera.plume.core.ai.generateAnswer
@@ -31,14 +33,14 @@ class ReminderTimeModel(private val ai: OnDeviceAi, private val settings: AppSet
     /** Stojí za to se ptát? Levné: stav modelu, nic se nepočítá. */
     suspend fun available(): Boolean =
         settings.onDeviceAiEnabled.value &&
-            runCatching { ai.status(settings.onDeviceAiVariant.value) == OnDeviceAiStatus.Ready }.getOrDefault(false)
+            runCatching { ai.status(ai.variantFor(AiTask.Dates, settings)) == OnDeviceAiStatus.Ready }.getOrDefault(false)
 
     suspend fun suggest(text: String, sentAt: LocalDateTime): LocalDateTime? {
         if (text.isBlank() || !available()) return null
         return try {
             withTimeoutOrNull(TIMEOUT_MS) {
                 ai.generateAnswer(
-                    settings.onDeviceAiVariant.value,
+                    ai.variantFor(AiTask.Dates, settings),
                     ReminderAnswer::class,
                     prompt = { structured -> reminderPrompt(text, sentAt, structured) },
                     fromStructured = { reminderTimeOf(it, sentAt) },

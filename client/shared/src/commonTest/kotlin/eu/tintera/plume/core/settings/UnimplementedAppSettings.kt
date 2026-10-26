@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.settings
 
+import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.video.VideoPosition
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
@@ -7,7 +8,6 @@ import eu.tintera.plume.core.snooze.ChatSnooze
 import eu.tintera.plume.core.chatcolor.StoredChatColor
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.GemmaModel
-import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
 import eu.tintera.plume.core.adaptive.ProfilePaneAnchor
@@ -99,8 +99,8 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setChatTriageEnabled(enabled: Boolean): Unit = error("setChatTriageEnabled")
     override val messageContextEnabled: StateFlow<Boolean> get() = error("messageContextEnabled")
     override fun setMessageContextEnabled(enabled: Boolean): Unit = error("setMessageContextEnabled")
-    override val onDeviceAiVariant: StateFlow<ModelVariant> get() = error("onDeviceAiVariant")
-    override fun setOnDeviceAiVariant(variant: ModelVariant): Unit = error("setOnDeviceAiVariant")
+    override val onDeviceAiModels: StateFlow<AiModels> get() = error("onDeviceAiModels")
+    override fun setOnDeviceAiModels(models: AiModels): Unit = error("setOnDeviceAiModels")
     override val voiceSpeed: StateFlow<VoiceSpeed> get() = error("voiceSpeed")
     override fun setVoiceSpeed(speed: VoiceSpeed): Unit = error("setVoiceSpeed")
     override val videoSpeed: StateFlow<VoiceSpeed> get() = error("videoSpeed")

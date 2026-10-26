@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
@@ -165,7 +167,7 @@ class ChatTriage(
             apply(request.chatId, request.lastMessageId, stored)
             return
         }
-        val variant = settings.onDeviceAiVariant.value
+        val variant = ai.variantFor(AiTask.Triage, settings)
         val ready = enabled() && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
         if (!ready) {
             // Model zatím není: chat se posoudí při další změně seznamu s hotovým modelem.

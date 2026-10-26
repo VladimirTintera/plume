@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.variantsFor
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -82,7 +85,7 @@ class ReplySuggestionsViewModel(
     /** Nabízet jen se zapnutou volbou a na zařízení, které model má. */
     val available: StateFlow<Boolean> = combine(
         settings.replySuggestionsEnabled,
-        settings.onDeviceAiVariant.flatMapLatest { variant ->
+        ai.variantsFor(AiTask.Replies, settings).flatMapLatest { variant ->
             // `catch` je pojistka, ne ozdoba: kdyby ze zjišťování stavu cokoli vyletělo,
             // shodilo by to celý `stateIn` scope, tedy ViewModel obrazovky — kvůli volitelné
             // funkci. Nepodařilo se zjistit = nenabízet.
@@ -108,7 +111,7 @@ class ReplySuggestionsViewModel(
         job = viewModelScope.launch {
             val lines = transcriptLines(replyContext(messages), chatTitle, me)
             if (lines.isEmpty()) return@launch
-            val variant = settings.onDeviceAiVariant.value
+            val variant = ai.variantFor(AiTask.Replies, settings)
             if (ai.status(variant) != OnDeviceAiStatus.Ready) return@launch
             try {
                 _suggestions.value = structuredSuggestions(variant, chatTitle, lines)

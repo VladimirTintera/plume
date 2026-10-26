@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiFailureReason
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.Generated
@@ -42,7 +43,7 @@ class ReplySuggestionsViewModelTest {
 
     private class FakeSettings : UnimplementedAppSettings() {
         override val replySuggestionsEnabled: StateFlow<Boolean> = MutableStateFlow(true)
-        override val onDeviceAiVariant: StateFlow<ModelVariant> = MutableStateFlow(ModelVariant())
+        override val onDeviceAiModels: StateFlow<AiModels> = MutableStateFlow(AiModels())
     }
 
     /**
