@@ -1359,9 +1359,10 @@ po přepisu uvolní z paměti. Co z toho dál plyne:
   hotový návrh k potvrzení — klasifikace, tedy silná stránka, a chyba je vidět dřív, než se
   něco uloží. Navazuje na doporučené složky od Telegramu (`getRecommendedChatFolders`) a sheet
   nové složky.
-- **Popisek fotky před odesláním.** Gemma navrhne popisek nebo alternativní text k fotce, kterou
-  uživatel posílá (`describeImage` nad vybraným souborem, kratší prompt). Je to psaní, ale
-  uživatel ho vidí a schválí, takže chyba je levná; pomůže i příjemci se čtečkou obrazovky.
+- ~~**Popisek fotky před odesláním.**~~ — hotovo: „Navrhnout popisek" pod fotkou nad polem vloží
+  krátkou větu od Gemmy do prázdného pole (`docs/poznatky/konverzace-psani.md`, „Návrh popisku
+  fotky"). Zbývá ověřit češtinu na telefonu; alternativní text pro čtečku Telegram jako zvláštní
+  pole nemá, takže zůstává jen popisek.
 
 ---
 

@@ -226,6 +226,27 @@ album. Bublina ukazuje průběh nahrávání.
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
 
+### Návrh popisku fotky
+
+Pod fotkou čekající nad polem je s modelem, který bere obraz (dnes Gemma), „Navrhnout popisek"
+(`ConversationCaption`, prompt `PhotoCaptionPrompt.kt`, testy `ConversationCaptionTest`,
+`PhotoCaptionPromptTest`). Model napíše jednu krátkou větu a ta se VLOŽÍ do pole — uživatel ji
+vidí a upraví dřív, než něco odejde.
+
+- **Jen do prázdného pole**: tlačítko se s napsaným textem schová a návrh jde přes
+  `InputFill(onlyIfEmpty = true)`, takže co uživatel mezitím napsal, nepřepíše.
+- **Popisuje se první příloha, a jen fotka** — u alba patří popisek první položce; video ani
+  soubor model nečte. Fotka odebraná nebo vyměněná během psaní návrh nedostane.
+- **Jiný pokyn než popis pro nevidomé** (`describeImage(…, prompt)`): jedna věta do 12 slov, bez
+  reklamního slohu, hashtagů, emoji a uvozovek. Uvozovky kolem věty model stejně přidává,
+  `cleanCaption` je odstraní spolu s odrážkou a dalšími řádky.
+- **Na ťuknutí, takže i pod úsporným režimem** (`variantFor`, ne `proactiveVariant`).
+- **Při psaní modelu tlačítko zůstává** (indikátor a „Píšu popisek…"), aby karta nad polem
+  neposkočila.
+- **Ověřeno na emulátoru se sondou** (falešný model místo Gemmy): tlačítko pod fotkou v kartě
+  nad polem, „Píšu popisek…" s indikátorem, vložení věty bez uvozovek, schování s napsaným
+  textem a návrat po jeho smazání. **Na zařízení neověřené** — ani čeština skutečné Gemmy.
+
 ### Poslední soubory
 
 Sponka → **Poslední soubory** (`RecentFilesPicker`, `ConversationAttachments.openRecentFiles`):
