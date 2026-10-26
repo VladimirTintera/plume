@@ -1625,6 +1625,7 @@
     <string name="clipboard_label">Message</string>
     <string name="conversation_fallback_title">Conversation</string>
     <string name="conversation_scroll_to_end">To the end of the conversation</string>
+    <string name="conversation_scroll_back">Back to the message</string>
     <string name="conversation_edited">edited</string>
     <string name="conversation_quote_expand">Show more</string>
     <string name="article_read_more">Read the whole article</string>

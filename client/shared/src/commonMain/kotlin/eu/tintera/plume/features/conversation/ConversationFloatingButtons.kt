@@ -64,6 +64,7 @@ import eu.tintera.plume.resources.conversation_new_messages
 import eu.tintera.plume.resources.conversation_read_all_mentions
 import eu.tintera.plume.resources.conversation_read_all_poll_votes
 import eu.tintera.plume.resources.conversation_read_all_reactions
+import eu.tintera.plume.resources.conversation_scroll_back
 import eu.tintera.plume.resources.conversation_scroll_to_end
 import eu.tintera.plume.resources.conversation_unread_mentions
 import eu.tintera.plume.resources.conversation_unread_poll_votes
@@ -86,6 +87,8 @@ internal fun ScrollToBottomButton(
     visible: Boolean,
     count: Int,
     onClick: () -> Unit,
+    /** Ťuknutí vrátí ke zprávě, ze které se skákalo na citaci, ne na konec (`JumpReturns.kt`). */
+    returning: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
@@ -111,7 +114,11 @@ internal fun ScrollToBottomButton(
             ) {
                 Icon(
                     painterResource(Res.drawable.arrow_downward_24dp),
-                    contentDescription = if (count > 0) null else stringResource(Res.string.conversation_scroll_to_end),
+                    contentDescription = when {
+                        returning -> stringResource(Res.string.conversation_scroll_back)
+                        count > 0 -> null
+                        else -> stringResource(Res.string.conversation_scroll_to_end)
+                    },
                     modifier = Modifier.size(18.dp),
                 )
 
@@ -401,8 +408,9 @@ internal fun ConversationFloatingButtons(
     )
     ScrollToBottomButton(
         // V okně v historii vede dolů i od spodní hrany — nejnovější zprávy nejsou načtené.
-        visible = farFromBottom || newMessages > 0 || !state.reachedEnd,
+        visible = farFromBottom || newMessages > 0 || !state.reachedEnd || state.returnPoints.isNotEmpty(),
         count = newMessages,
+        returning = state.returnPoints.isNotEmpty(),
         onClick = onScrollDown,
     )
     }

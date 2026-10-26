@@ -556,7 +556,10 @@ fun ConversationScreen(
                     farFromBottom = farFromBottom,
                     newMessages = pendingNewMessages,
                     onScrollDown = {
-                        if (state.reachedEnd) {
+                        if (state.returnPoints.isNotEmpty()) {
+                            // Napřed zpět ke zprávě, ze které se skákalo na citaci.
+                            viewModel.returnFromJump()
+                        } else if (state.reachedEnd) {
                             scope.launch {
                                 listState.animateScrollToBottom { index ->
                                     items.getOrNull(index)?.let { measuredSizes[it.key] }
