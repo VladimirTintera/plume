@@ -7,9 +7,14 @@ import eu.tintera.plume.core.ui.openInSystem
 import java.awt.Desktop
 import java.awt.FileDialog
 import java.awt.Frame
+import java.awt.Image
 import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
+import java.awt.datatransfer.Transferable
+import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.File
+import javax.imageio.ImageIO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -68,9 +73,12 @@ actual fun rememberSavePermission(): SavePermission = remember {
 
 /**
  * Systémový dialog sdílení desktop z JVM nedostane. Sdílení textu ho proto nahrazuje schránkou;
- * soubor se sdílet nedá — místo toho je „Uložit jako…" ([rememberSaveAs]).
+ * soubor se sdílet nedá — místo toho je kopírování do schránky ([copy]) a „Uložit jako…"
+ * ([rememberSaveAs]).
  */
 actual class MediaSharer {
+
+    private val logger = Logger.withTag("MediaSharer")
 
     actual suspend fun share(path: String, fileName: String): Boolean = false
 
@@ -78,7 +86,52 @@ actual class MediaSharer {
         Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
         true
     }.getOrDefault(false)
+
+    /**
+     * Do schránky jde **seznam souborů** (Průzkumník a Finder ho vloží jako soubor, Outlook
+     * a webové aplikace jako přílohu) a u obrázku navíc **obrázek** (Malování, Word, editor
+     * fotek). Obrázek se čte ImageIO; co nepřečte (HEIC, WebP), jde jen jako soubor.
+     */
+    actual suspend fun copy(path: String, fileName: String, isImage: Boolean): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val directory = File(System.getProperty("java.io.tmpdir"), CLIPBOARD_DIRECTORY)
+            // Předchozí kopie ve schránce už není; hromadit je by jen plnilo dočasný adresář.
+            directory.deleteRecursively()
+            directory.mkdirs()
+            val copy = File(path).copyTo(File(directory, fileName), overwrite = true)
+            val image = if (isImage) runCatching { ImageIO.read(copy) }.getOrNull() else null
+            Toolkit.getDefaultToolkit().systemClipboard.setContents(FileSelection(copy, image), null)
+            true
+        }.getOrElse {
+            logger.w(it) { "Soubor $path se nepodařilo zkopírovat do schránky." }
+            false
+        }
+    }
+
+    private companion object {
+        const val CLIPBOARD_DIRECTORY = "plume-clipboard"
+    }
 }
+
+/** Soubor ve schránce: seznam s jedním souborem a k obrázku i obrázek sám. */
+private class FileSelection(private val file: File, private val image: Image?) : Transferable {
+
+    private val flavors = listOfNotNull(DataFlavor.javaFileListFlavor, DataFlavor.imageFlavor.takeIf { image != null })
+
+    override fun getTransferDataFlavors(): Array<DataFlavor> = flavors.toTypedArray()
+
+    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavor in flavors
+
+    override fun getTransferData(flavor: DataFlavor): Any = when {
+        flavor == DataFlavor.javaFileListFlavor -> listOf(file)
+        flavor == DataFlavor.imageFlavor && image != null -> image
+        else -> throw UnsupportedFlavorException(flavor)
+    }
+}
+
+actual val fileShareSupported: Boolean = false
+
+actual val copiesAnyFile: Boolean = true
 
 @Composable
 actual fun rememberSaveAs(): SaveAsLauncher? = remember {

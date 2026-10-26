@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration.Companion.seconds
 import eu.tintera.plume.core.files.SaveAsLauncher
+import eu.tintera.plume.core.files.savedFileName
 import eu.tintera.plume.core.telegram.DownloadsRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
@@ -12,6 +13,8 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.document_download_failed
 import eu.tintera.plume.resources.document_open_failed
+import eu.tintera.plume.resources.media_copied
+import eu.tintera.plume.resources.media_copy_failed
 import eu.tintera.plume.resources.media_save_failed
 import eu.tintera.plume.resources.media_saved_as
 import eu.tintera.plume.resources.media_share_failed
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.datetime.TimeZone
 
 /**
  * Soubory ve zprávách a v článcích: stažení na pokyn s průběhem ve stavu, otevření v systému,
@@ -38,6 +42,10 @@ internal class ConversationDocuments(
     private val openFile: (path: String, mimeType: String) -> Boolean,
     /** Systémový dialog sdílení (`MediaSharer.share`); `false` = nepovedlo se. */
     private val share: suspend (path: String, fileName: String) -> Boolean,
+    /** Soubor do schránky (`MediaSharer.copy`); `false` = nepovedlo se. */
+    private val copy: suspend (path: String, fileName: String, isImage: Boolean) -> Boolean = { _, _, _ -> false },
+    /** Zkopírování potvrdí systém sám (`TextClipboard.confirmsCopy`) — pak bez hlášky. */
+    private val copyConfirmedBySystem: Boolean = false,
     /** Položka nabídky nad zprávou zavírá nabídku sama, než začne stahovat. */
     private val closeMenus: () -> Unit,
     private val logger: Logger,
@@ -79,9 +87,26 @@ internal class ConversationDocuments(
         shareDownloaded(messageId)
     }
 
-    private fun shareDownloaded(messageId: Long) = withDocument(messageId) { path, document ->
-        if (!share(path, document.fileName)) {
+    private fun shareDownloaded(messageId: Long) = withExported(messageId) { path, _, fileName ->
+        if (!share(path, fileName)) {
             state.update { it.copy(notice = UiText(Res.string.media_share_failed)) }
+        }
+    }
+
+    /**
+     * Stáhne soubor, fotku nebo video zprávy a zkopíruje ho do schránky. Fotka jde i jako
+     * obrázek, ostatní jen jako soubor (viz `MediaSharer.copy`).
+     */
+    fun copyToClipboard(messageId: Long) {
+        closeMenus()
+        withExported(messageId, media = true) { path, document, fileName ->
+            val isImage = document.mimeType.startsWith("image/")
+            val notice = when {
+                !copy(path, fileName, isImage) -> Res.string.media_copy_failed
+                copyConfirmedBySystem -> null
+                else -> Res.string.media_copied
+            }
+            if (notice != null) state.update { it.copy(notice = UiText(notice)) }
         }
     }
 
@@ -96,8 +121,8 @@ internal class ConversationDocuments(
         saveDownloadedAs(messageId, launcher)
     }
 
-    private fun saveDownloadedAs(messageId: Long, launcher: SaveAsLauncher) = withDocument(messageId) { path, document ->
-        launcher.launch(path, document.fileName) { saved ->
+    private fun saveDownloadedAs(messageId: Long, launcher: SaveAsLauncher) = withExported(messageId, media = true) { path, _, fileName ->
+        launcher.launch(path, fileName) { saved ->
             when (saved) {
                 true -> state.update { it.copy(notice = UiText(Res.string.media_saved_as)) }
                 false -> state.update { it.copy(notice = UiText(Res.string.media_save_failed)) }
@@ -114,6 +139,33 @@ internal class ConversationDocuments(
      * data za všechno, co kdo poslal. Průběh se drží ve stavu podle `fileId`, takže ho ukáže
      * i bublina alba.
      */
+    /**
+     * Totéž co [withDocument] pro cestu ven (sdílení, schránka, „Uložit jako…"), s jménem, pod
+     * kterým soubor odejde ([savedFileName]: soubor svoje, fotka a video podle času zprávy).
+     *
+     * S [media] i fotka (ostrá verze, ne zmenšenina z bubliny) a video — v nabídce nad zprávou na
+     * desktopu, kde prohlížeč není jediná cesta ven. Průběh stahování jim bublina neukazuje;
+     * stažení je vidět v seznamu Stahování.
+     */
+    private fun withExported(
+        messageId: Long,
+        media: Boolean = false,
+        use: suspend (path: String, document: MessageMedia.Document, fileName: String) -> Unit,
+    ) {
+        val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
+        val document = when (val content = message.media) {
+            is MessageMedia.Document -> content
+            is MessageMedia.Audio -> content.asDocument()
+            // Jméno fotka ani video nemají; dostanou ho až podle přípony staženého souboru.
+            is MessageMedia.Photo -> if (media) exportStandIn(content.fullFileId, "image/jpeg") else return
+            is MessageMedia.Video -> if (media) exportStandIn(content.fileId, "video/mp4") else return
+            else -> return
+        }
+        withDocument(document, messageId) { path, file ->
+            use(path, file, savedFileName(file.fileName, path, message.timestamp, TimeZone.currentSystemDefault()))
+        }
+    }
+
     private fun withDocument(
         messageId: Long,
         use: suspend (path: String, document: MessageMedia.Document) -> Unit,
@@ -185,6 +237,10 @@ internal class ConversationDocuments(
         }
     }
 }
+
+/** Fotka nebo video jako soubor bez jména — jen aby šly cestou souborů ([ConversationDocuments.withExported]). */
+private fun exportStandIn(fileId: Int, mimeType: String) =
+    MessageMedia.Document(fileId = fileId, fileName = "", mimeType = mimeType, sizeBytes = 0, thumbnailFileId = null)
 
 /** Jak dlouho se čeká, než se stahování souboru vůbec rozběhne. */
 private val DOWNLOAD_START_TIMEOUT = 30.seconds

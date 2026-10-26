@@ -414,6 +414,13 @@
     <string name="media_save_as">Save as…</string>
     <string name="media_saved_as">Saved</string>
     <string name="media_share_failed">Couldn't share</string>
+    <string name="media_save_downloads">Save to Downloads</string>
+    <string name="media_saved_downloads">Saved to Downloads</string>
+    <string name="media_copy_photo">Copy photo</string>
+    <string name="media_copy_video">Copy video</string>
+    <string name="media_copy_file">Copy file</string>
+    <string name="media_copied">Copied to clipboard</string>
+    <string name="media_copy_failed">Couldn't copy</string>
     <string name="media_photo_load_failed">Couldn't load the photo.</string>
     <string name="media_profile_photos_none">No profile photos</string>
     <string name="media_profile_photo_set_main">Set as profile photo</string>

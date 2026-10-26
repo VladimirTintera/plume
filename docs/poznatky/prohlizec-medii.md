@@ -281,6 +281,10 @@ dva prsty, takže myš měla jen dvojklik na 2,5×. Teď:
 - **+/−/0 přibližují kolem středu** (×1,5, zpět na 1×), i s Ctrl jako ve webovém prohlížeči.
   Plus a minus se poznají i podle znaku: na české klávesnici je „+" na klávese anglické „1".
   Pravidlo je čistá funkce `viewerKey` (testy `ViewerKeyTest`).
+- **Ctrl+C (⌘C) kopíruje médium do schránky** (`ViewerKey.Copy`), jen když ho jde uložit
+  (`canSave`) a nestojí nad ním text z fotky ani popis — tam Ctrl+C patří jejich výběru.
+  Klávesa se bere podle kódu, ne znaku (na azbuce je na ní „с"). Viz `docs/poznatky/desktop.md`,
+  „Kopírování příloh do schránky a cesta ven".
 - **Esc zavírá prohlížeč** jako Zpět — prohlížeč klávesu nespotřebuje a na desktopu ji převede
   Compose (`BackNavigationEventInput`), na Androidu `MainActivity`.
 - **Fokus si prohlížeč bere hned** (`focusRequester` + `focusable` na kořeni): v Compose dostane

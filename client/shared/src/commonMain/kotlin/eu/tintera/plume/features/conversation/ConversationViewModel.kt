@@ -51,6 +51,7 @@ import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.files.fileShareSupported
 import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
@@ -434,6 +435,8 @@ class ConversationViewModel(
         fileRepository = fileRepository,
         openFile = fileOpener::open,
         share = sharer::share,
+        copy = sharer::copy,
+        copyConfirmedBySystem = clipboard.confirmsCopy,
         closeMenus = { menu.closeMenus() },
         logger = logger,
         downloads = downloads,
@@ -476,7 +479,8 @@ class ConversationViewModel(
         saveNewContact = contactSaver?.let { it::save },
         joinWifiNetwork = wifiJoiner?.let { it::join },
         canJoinWifi = wifiJoiner?.canJoin == true,
-        shareFile = sharer::share,
+        // Desktop dialog sdílení nemá; QR platby tam nabízet jen kvůli hlášce o selhání nemá smysl.
+        shareFile = if (fileShareSupported) sharer::share else null,
         loadRates = exchangeRates?.let { it::table },
         homeCurrency = currency?.code,
         metricUnits = currency?.metric ?: true,
@@ -2151,6 +2155,7 @@ class ConversationViewModel(
             MessageMenuAction.BlockFromReplies -> messageActions.requestBlockFromReplies(messageId)
             MessageAction.ToggleSelection -> selection.toggleSelection(messageId)
             MessageMenuAction.ShareFile -> documents.shareDocument(messageId)
+            is MessageMenuAction.CopyMedia -> documents.copyToClipboard(messageId)
             MessageAction.OpenMedia, is MessageAction.OpenPollMedia, is MessageAction.OpenArticleMedia,
             is MessageAction.OpenStickerSet,
             is MessageAction.SearchHashtag,
