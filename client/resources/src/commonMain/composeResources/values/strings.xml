@@ -762,6 +762,8 @@
     <string name="activity_other">up to something…</string>
     <string name="conversation_empty">No messages yet</string>
     <string name="conversation_empty_text">Messages will show up here.</string>
+    <string name="conversation_greeting_hint">Tap the sticker to say hi</string>
+    <string name="conversation_greeting_send">Send the sticker</string>
     <string name="conversation_pinned_message">Pinned message</string>
     <string name="conversation_pinned_message_numbered">Pinned message %1$d of %2$d</string>
     <string name="conversation_all_pinned">All pinned messages</string>

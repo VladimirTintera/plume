@@ -778,6 +778,8 @@
     <string name="activity_other">něco chystá…</string>
     <string name="conversation_empty">Zatím žádné zprávy</string>
     <string name="conversation_empty_text">Zprávy se objeví tady.</string>
+    <string name="conversation_greeting_hint">Ťukni na samolepku a pozdrav</string>
+    <string name="conversation_greeting_send">Poslat samolepku</string>
     <string name="conversation_pinned_message">Připnutá zpráva</string>
     <string name="conversation_pinned_message_numbered">Připnutá zpráva %1$d z %2$d</string>
     <string name="conversation_all_pinned">Všechny připnuté zprávy</string>

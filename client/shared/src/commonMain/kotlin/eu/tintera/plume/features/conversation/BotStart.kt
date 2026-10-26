@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ChatInfo
+
 /**
  * Nabídnout místo vstupního pole tlačítko Start?
  *
@@ -33,6 +35,19 @@ internal fun showsBusinessIntro(state: ConversationState): Boolean =
 
 /** Stránka místo konverzace (bot, firma): hlavička pak schová avatar i hledání. */
 internal fun showsIntroPage(state: ConversationState): Boolean = showsBotIntro(state) || showsBusinessIntro(state)
+
+/**
+ * Nabídnout v prázdném chatu samolepku na pozdrav ([GreetingSticker])? Jen soukromý (i tajný)
+ * chat s ČLOVĚKEM ([ChatInfo.isWithPerson] — ne bot, ne Uložené zprávy), kam se smí psát
+ * i posílat samolepky, a jen tam, kde místo chatu nestojí stránka bota nebo firmy (firma má
+ * vlastní uvítací samolepku). Tentýž důkaz prázdnoty jako u bota; s chybou načítání ne —
+ * prázdný stav pak hlásí chybu.
+ */
+internal fun showsGreetingSticker(state: ConversationState): Boolean {
+    val info = state.info ?: return false
+    return info.isWithPerson && info.content.stickers && state.canWrite && state.error == null &&
+        state.botIntro == null && state.businessIntro == null && showsEmptyChat(state)
+}
 
 private fun showsEmptyChat(state: ConversationState): Boolean =
     state.messages.isEmpty() && state.reachedStart && !state.loading

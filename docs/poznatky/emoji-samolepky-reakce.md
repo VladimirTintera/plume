@@ -879,6 +879,34 @@ zpět k první samolepce) a v nabídce ⋮ u samolepky „Nastavit jako obálku"
   hned), vrácení první samolepky, sada po obojím zůstává v Moje sady. **Neověřené**: záložky ve
   výběru samolepek v konverzaci, cizí sady s obálkou TGS nebo WEBM, obálka přes 32 kB.
 
+## Samolepka na pozdrav v prázdném chatu
+
+Prázdný soukromý chat s člověkem nabídne pod „Zatím žádné zprávy" jednu samolepku na pozdrav
+(`GreetingSticker`, pravidlo `showsGreetingSticker` v `BotStart.kt`, testy `BotStartTest`);
+ťuknutí ji pošle jako běžnou samolepku. Tak to dělají oficiální klienti.
+
+- **Zdroj je `getGreetingStickers`** (`StickerRepository.greetingStickers`). V TDLib je to jen
+  `searchStickers` s emoji „👋⭐️" a limitem 100 (`Requests.cpp`), a oficiální Android se ptá
+  serveru stejně: `messages.getStickers` s emoji „👋⭐" (`MediaDataController`, typ
+  `TYPE_GREETINGS`; prázdný chat kreslí `ChatGreetingsView`). Dokumentace TDLib mluví
+  o úvodní stránce firemního účtu, sada je ale tatáž. Ověřeno ve zdrojích 26. 10. 2026.
+- **Jedna náhodná ze sady na otevření** (`remember` nad načteným seznamem), jako u oficiálního
+  klienta — ne s každou rekompozicí.
+- **Jen chat s ČLOVĚKEM** (`ChatInfo.isWithPerson`: soukromý nebo tajný, ne bot, ne vlastní
+  účet). `callUserId` na to nestačí — chybí i u člověka, který má zakázané hovory. Dál jen kde
+  jde psát i posílat samolepky (`canWrite`, `ContentAccess.stickers`; zablokovaný protějšek
+  ne) a ne místo stránky bota nebo firmy (firma má vlastní uvítací samolepku). Tentýž důkaz
+  prázdnoty jako u stránky bota (`reachedStart`), jinak by pozdrav u každého chatu bliknul.
+- **Sadu si komponenta čte sama** (`koinInject<StickerRepository>`), jen po dobu, co je
+  vidět; místo pro samolepku drží od začátku, ať prázdný stav po načtení neposkočí. Když
+  sada nepřijde, nekreslí nic.
+- **Ověřeno na emulátoru JEN SONDOU** (26. 10. 2026, necommituje se): vynucený prázdný stav
+  s pozdravem v Uložených zprávách — samolepka se načetla a animovala, ťuknutí ji poslalo
+  (vlk s mávající tlapou v Uložených zprávách zůstal). Skutečný prázdný chat s kontaktem
+  ověřený NENÍ: z hledání nejde poznat, který kontakt historii nemá, a otevřít naslepo cizí
+  chat s nepřečtenými zprávami by je přečetlo. Bez sondy se v Uložených zprávách pozdrav
+  neukázal.
+
 ## Samolepky k emoji v poli
 
 Když je v poli jediné emoji a nic jiného, nad polem vyjede řádek samolepek k němu

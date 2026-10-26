@@ -528,6 +528,14 @@ class TdlStickerRepository(
                 emptyList()
             }
 
+    override suspend fun greetingStickers(): List<StickerItem> =
+        client.getGreetingStickers().toResult()
+            .map { it.stickers.toItems() }
+            .getOrElse { failure ->
+                logger.w(failure) { "Samolepky na pozdrav se nepodařilo načíst." }
+                emptyList()
+            }
+
     override suspend fun stickersForEmoji(emoji: String): List<StickerItem> =
         client.getStickers(
             stickerType = StickerTypeRegular(),

@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.telegram.WriteAccess
+import eu.tintera.plume.core.telegram.ContentAccess
+import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.core.telegram.BotIntro
 import eu.tintera.plume.core.telegram.BusinessIntro
 import kotlin.test.Test
@@ -68,5 +73,26 @@ class BotStartTest {
         val botFirm = ConversationState(botIntro = bot, businessIntro = business, reachedStart = true)
         assertTrue(showsBotIntro(botFirm))
         assertFalse(showsBusinessIntro(botFirm))
+    }
+
+    private val person = testChatInfo().copy(isWithPerson = true)
+    private fun empty(info: ChatInfo = person) = ConversationState(info = info, reachedStart = true)
+
+    /** Samolepka na pozdrav: prázdný načtený chat s člověkem, kam se smí psát i posílat samolepky. */
+    @Test
+    fun pozdravJenVPrazdnemChatuSClovekem() {
+        assertTrue(showsGreetingSticker(empty()))
+        assertFalse(showsGreetingSticker(ConversationState(info = person)), "před načtením historie ne")
+        assertFalse(showsGreetingSticker(empty().copy(messages = listOf(testMessage(1)))), "chat se zprávami ne")
+        assertFalse(showsGreetingSticker(empty(testChatInfo())), "bot, Uložené zprávy, skupina ne")
+    }
+
+    @Test
+    fun pozdravUstoupiStranceBotaFirmyAZakazum() {
+        assertFalse(showsGreetingSticker(empty().copy(botIntro = bot)))
+        assertFalse(showsGreetingSticker(empty().copy(businessIntro = business)), "firma má vlastní samolepku")
+        assertFalse(showsGreetingSticker(empty(person.copy(content = ContentAccess.All.copy(stickers = false)))))
+        assertFalse(showsGreetingSticker(empty(person.copy(writeAccess = WriteAccess.entries.first { it != WriteAccess.Allowed }))))
+        assertFalse(showsGreetingSticker(empty().copy(error = UiText.Raw("chyba"))), "chybu hlásí prázdný stav")
     }
 }
