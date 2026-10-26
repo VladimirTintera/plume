@@ -1,9 +1,10 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceRecording
+import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.settings.RecordMode
 import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.BotMenuApp
@@ -13,6 +14,8 @@ import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.SendOptions
+import eu.tintera.plume.core.ui.KeyboardContent
+import eu.tintera.plume.core.ui.UiText
 
 /*
  * Skupiny parametrů [MessageInput]. Pole jich mělo skoro osmdesát vedle sebe; po skupinách
@@ -28,6 +31,40 @@ import eu.tintera.plume.core.telegram.SendOptions
  * by pole skládala pokaždé, i když se nic nezměnilo. Dřív šly tytéž hodnoty přímo a stejná
  * instance seznamu se identitou rovnala.
  */
+
+/** Textové pole: rozepsaný text, co se do něj vkládá zvenku, a co pole hlásí. */
+@Stable
+internal data class ComposerField(
+    /** Rozepsaný text i s formátováním; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
+    val draft: ComposerDraft,
+    /**
+     * Jen ruční úpravy textu a formátování — vyprázdnění po odeslání se nehlásí, o to se stará
+     * [SendControls.onSend].
+     */
+    val onDraftChanged: (ComposedText) -> Unit,
+    /** Text, který se má jednou vložit do pole (koncept, úprava). */
+    val fill: InputFill?,
+    val onFilled: (InputFill) -> Unit,
+    /** Počítadlo z `ConversationState.inputFocusRequest`; každá nová hodnota zaostří pole. */
+    val focusRequest: Int,
+    /** Nápověda do prázdného pole, kterou si přeje bot; `null` = výchozí. */
+    val placeholder: String? = null,
+    /** Šipka nahoru v prázdném poli: úprava poslední vlastní zprávy; `null` = nic. */
+    val onEditLast: (() -> Unit)? = null,
+)
+
+/** Tlačítko výběru samolepek, emoji a GIFů vpravo u pole. */
+internal data class ExpressionButton(
+    /** Ikona ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
+    val mode: ExpressionMode,
+    val onOpen: () -> Unit,
+)
+
+/** GIF, obrázek nebo soubor vložený z klávesnice (Gboard) nebo ze schránky, už zkopírovaný do cache. */
+internal data class KeyboardContentHandlers(
+    val onContent: (KeyboardContent) -> Unit = {},
+    val onFailed: (UiText) -> Unit = {},
+)
 
 /** Odpověď, která se píše: citovaná zpráva v horním pruhu karty. */
 @Immutable

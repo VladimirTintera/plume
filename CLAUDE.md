@@ -793,8 +793,8 @@ obrazovku.
 
 - **Parametry funkce se nepřidávají donekonečna — souvisejí-li, jdou do skupiny.** `MessageInput`
   dorostl na 79 parametrů, `VideoPage` na 38, `ViewerContent` na 33 a nikdo si toho nevšiml,
-  protože každý přidal „jen jeden". Kdo přidává parametr k funkci, která jich má přes ~15,
-  podívá se, ke které skupině patří: stav spolu se svými callbacky (`ReplyControls`,
+  protože každý přidal „jen jeden". Víc než 20 shodí `check` (`verifyParameterCount`); kdo
+  přidává parametr k funkci, která jich má přes ~15, podívá se dřív, ke které skupině patří: stav spolu se svými callbacky (`ReplyControls`,
   `RecordingControls`, `ChatListNavigation`, `PickerSelection`), volitelná funkce jako celek
   `null` místo tří nullable callbacků. Vzor a zdůvodnění `data class` (strong skipping, rovnost
   instancí) je v KDoc `ConversationNavigation`. **Skupina se seznamem, sealed typem nebo typem

@@ -515,7 +515,6 @@ internal fun ConversationBottomBar(
                 onCancel = viewModel::clearReply,
             )
         },
-        focusRequest = state.inputFocusRequest,
         flight = state.flight,
         send = SendControls(
             // Odeslání je potvrzení akce; dosud ho doprovázel jen let bubliny. Hlásí se
@@ -534,7 +533,15 @@ internal fun ConversationBottomBar(
             defaultSilent = state.info?.takeIf { it.isChannel && !state.narrowed }?.defaultSilent,
             onToggleDefaultSilent = viewModel::toggleDefaultSilent,
         ),
-        onDraftChanged = viewModel::onDraftChanged,
+        field = ComposerField(
+            draft = composer,
+            onDraftChanged = viewModel::onDraftChanged,
+            fill = state.inputFill,
+            onFilled = viewModel::consumeInputFill,
+            focusRequest = state.inputFocusRequest,
+            placeholder = state.inputPlaceholder,
+            onEditLast = viewModel::editLastMessage,
+        ),
         editing = state.editing?.let { message ->
             EditingControls(
                 message = message,
@@ -556,8 +563,6 @@ internal fun ConversationBottomBar(
                 },
             )
         },
-        onEditLast = viewModel::editLastMessage,
-        placeholder = state.inputPlaceholder,
         linkPreview = LinkPreviewControls(
             preview = composerLinkPreview(
                 preview = state.linkPreview,
@@ -569,9 +574,7 @@ internal fun ConversationBottomBar(
             options = state.linkPreviewOptions,
             onOptions = viewModel::setLinkPreviewOptions,
         ),
-        inputFill = state.inputFill,
-        onInputFilled = viewModel::consumeInputFill,
-        onOpenStickers = { sheets.stickerPicker = true },
+        expression = ExpressionButton(mode = expressionMode, onOpen = { sheets.stickerPicker = true }),
         recording = RecordingControls(
             isRecording = recording.isRecording,
             current = { recording.current() },
@@ -697,18 +700,18 @@ internal fun ConversationBottomBar(
             onSuggestCaption = viewModel::suggestCaption,
         ),
         content = state.content,
-        expressionMode = expressionMode,
-        composer = composer,
-        onKeyboardContent = { received ->
-            when (received) {
-                // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
-                is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
-                is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
-                is KeyboardContent.File -> viewModel.addAttachments(listOf(received.document))
-                is KeyboardContent.Attachments -> viewModel.addAttachments(received.attachments)
-            }
-        },
-        onKeyboardContentFailed = viewModel::reportError,
+        keyboardContent = KeyboardContentHandlers(
+            onContent = { received ->
+                when (received) {
+                    // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
+                    is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
+                    is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
+                    is KeyboardContent.File -> viewModel.addAttachments(listOf(received.document))
+                    is KeyboardContent.Attachments -> viewModel.addAttachments(received.attachments)
+                }
+            },
+            onFailed = viewModel::reportError,
+        ),
     )
     }
     }

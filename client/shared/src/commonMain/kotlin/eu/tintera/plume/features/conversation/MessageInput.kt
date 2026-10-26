@@ -232,26 +232,13 @@ internal fun MessageInput(
     serverAiAllowed: Boolean = true,
     /** Odpověď, která se píše; `null` = žádná. */
     reply: ReplyControls?,
-    /** Počítadlo z `ConversationState.inputFocusRequest`; každá nová hodnota zaostří pole. */
-    focusRequest: Int,
     flight: MessageFlight?,
     send: SendControls,
-    /**
-     * Jen ruční úpravy textu a formátování — vyprázdnění po odeslání se nehlásí, o to se stará
-     * [SendControls.onSend].
-     */
-    onDraftChanged: (ComposedText) -> Unit,
+    field: ComposerField,
     /** Upravovaná zpráva; `null` = píše se nová. */
     editing: EditingControls?,
-    /** Šipka nahoru v prázdném poli: úprava poslední vlastní zprávy; `null` = nic. */
-    onEditLast: (() -> Unit)? = null,
-    /** Nápověda do prázdného pole, kterou si přeje bot; `null` = výchozí. */
-    placeholder: String? = null,
     linkPreview: LinkPreviewControls = LinkPreviewControls(),
-    /** Text, který se má jednou vložit do pole (koncept, úprava). */
-    inputFill: InputFill?,
-    onInputFilled: (InputFill) -> Unit,
-    onOpenStickers: () -> Unit,
+    expression: ExpressionButton,
     attach: AttachActions,
     bot: BotControls = BotControls(),
     /**
@@ -265,22 +252,17 @@ internal fun MessageInput(
     /** Zastavené kolečko; `null` = žádné. */
     videoNotePreview: VideoNotePreviewControls? = null,
     attachments: ComposerAttachments,
-    /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
-    expressionMode: ExpressionMode,
-    /** Rozepsaný text i s formátováním; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
-    composer: ComposerDraft,
     /**
      * Které druhy obsahu chat přijme. Co se poslat nesmí, se nenabízí: sponka schová položku
      * (a bez jediné i sama sebe), mikrofon ustoupí odeslání, samolepky zůstanou na emoji.
      */
     content: ContentAccess = ContentAccess.All,
-    /** GIF nebo obrázek vložený z klávesnice (Gboard), už zkopírovaný do cache. */
-    onKeyboardContent: (KeyboardContent) -> Unit = {},
-    onKeyboardContentFailed: (UiText) -> Unit = {},
+    keyboardContent: KeyboardContentHandlers = KeyboardContentHandlers(),
     /** Nápovědy gest napoprvé; pole do nich hlásí, co právě dělá tlačítko odeslání. */
     gestureHints: GestureHints? = null,
     modifier: Modifier = Modifier,
 ) {
+    val composer = field.draft
     var draft by composer
     /*
      * Přepis konceptu modelem v zařízení („Přepsat…" v nabídce odeslání). Žije tady, ne
@@ -291,7 +273,7 @@ internal fun MessageInput(
     val rewrite = rememberDraftRewrite(serverAllowed = serverAiAllowed)
     DraftRewriteSheet(rewrite) { text ->
         composer.fill(text, emptyList())
-        onDraftChanged(composer.composed)
+        field.onDraftChanged(composer.composed)
     }
     // Gesto nahrávání (viz `holdToRecord` a `RecordGestureState`).
     var recordHeld by recording.gesture::held
@@ -315,7 +297,7 @@ internal fun MessageInput(
             current = composer.formats.codeBlockAt(start, end)?.language,
             onConfirm = { language ->
                 composer.setCodeLanguage(start, end, language)
-                onDraftChanged(composer.composed)
+                field.onDraftChanged(composer.composed)
                 languageTarget = null
             },
             onDismiss = { languageTarget = null },
@@ -327,7 +309,7 @@ internal fun MessageInput(
             current = composer.formats.linkAt(start, end),
             onConfirm = { url ->
                 composer.link(start, end, url)
-                onDraftChanged(composer.composed)
+                field.onDraftChanged(composer.composed)
                 linkTarget = null
             },
             onDismiss = { linkTarget = null },
@@ -350,10 +332,10 @@ internal fun MessageInput(
      * Vložení textu zvenku. Koncept z minula jde JEN do prázdného pole — než ho TDLib vydá, mohl
      * uživatel začít psát. Úprava zprávy pole přepisuje vždycky. Kurzor na konec, ať se píše dál.
      */
-    LaunchedEffect(inputFill) {
-        val fill = inputFill ?: return@LaunchedEffect
+    LaunchedEffect(field.fill) {
+        val fill = field.fill ?: return@LaunchedEffect
         if (!fill.onlyIfEmpty || draft.text.isEmpty()) composer.fill(fill.text, fill.formats)
-        onInputFilled(fill)
+        field.onFilled(fill)
     }
 
     // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
@@ -379,10 +361,10 @@ internal fun MessageInput(
      * NOVOU hodnotu počítadla — ta, se kterou se pole složilo (návrat do konverzace, otočení),
      * je vyřízená, jinak by klávesnice vyjela při každém návratu do chatu.
      */
-    var handledFocusRequest by rememberSaveable { mutableIntStateOf(focusRequest) }
-    LaunchedEffect(focusRequest) {
-        if (focusRequest == handledFocusRequest) return@LaunchedEffect
-        handledFocusRequest = focusRequest
+    var handledFocusRequest by rememberSaveable { mutableIntStateOf(field.focusRequest) }
+    LaunchedEffect(field.focusRequest) {
+        if (field.focusRequest == handledFocusRequest) return@LaunchedEffect
+        handledFocusRequest = field.focusRequest
         if (voiceActive) return@LaunchedEffect
         fieldFocus.requestFocus()
         keyboard?.show()
@@ -546,8 +528,8 @@ internal fun MessageInput(
                       active = fieldFocused && !voiceActive,
                       acceptAnimations = content.stickers,
                       acceptImages = content.photos,
-                      onContent = onKeyboardContent,
-                      onError = onKeyboardContentFailed,
+                      onContent = keyboardContent.onContent,
+                      onError = keyboardContent.onFailed,
                   ) { kind, pasteButton ->
                       ComposerHeader {
                           Text(
@@ -690,8 +672,8 @@ internal fun MessageInput(
                 acceptAnimations = editing == null && content.stickers,
                 acceptImages = editing == null && content.photos,
                 acceptFiles = editing == null && content.documents,
-                onContent = onKeyboardContent,
-                onError = onKeyboardContentFailed,
+                onContent = keyboardContent.onContent,
+                onError = keyboardContent.onFailed,
             ) {
                 BasicTextField(
                     value = draft,
@@ -699,7 +681,7 @@ internal fun MessageInput(
                         val changed = it.text != draft.text
                         draft = it
                         // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
-                        if (changed) onDraftChanged(composer.composed)
+                        if (changed) field.onDraftChanged(composer.composed)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -722,8 +704,8 @@ internal fun MessageInput(
                             when {
                                 event.key == Key.Escape && editing != null -> editing.onCancel()
                                 event.key == Key.Escape && reply != null -> reply.onCancel()
-                                event.key == Key.DirectionUp && onEditLast != null && editing == null &&
-                                    reply == null && draft.text.isEmpty() && !withAttachments -> onEditLast()
+                                event.key == Key.DirectionUp && field.onEditLast != null && editing == null &&
+                                    reply == null && draft.text.isEmpty() && !withAttachments -> field.onEditLast()
                                 else -> return@onPreviewKeyEvent false
                             }
                             true
@@ -784,7 +766,7 @@ internal fun MessageInput(
                                 Text(
                                     when {
                                         withAttachments -> stringResource(Res.string.conversation_input_caption)
-                                        placeholder != null && editing == null -> placeholder
+                                        field.placeholder != null && editing == null -> field.placeholder
                                         else -> stringResource(Res.string.conversation_input_message)
                                     },
                                     maxLines = 1,
@@ -870,7 +852,7 @@ internal fun MessageInput(
                 onClick = {
                     // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky; sheet je
                     // další okno, takže otevřený hned by klávesnici utrhl skokem.
-                    afterKeyboardHidden(onOpenStickers)
+                    afterKeyboardHidden(expression.onOpen)
                 },
                 colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                 modifier = Modifier.padding(end = 4.dp, bottom = 4.dp),
@@ -879,9 +861,9 @@ internal fun MessageInput(
                 // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                 // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
                 when {
-                    editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
+                    editing != null || !content.stickers || expression.mode == ExpressionMode.Emoji ->
                         Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
-                    expressionMode == ExpressionMode.Gifs ->
+                    expression.mode == ExpressionMode.Gifs ->
                         Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
                     else ->
                         Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
@@ -901,7 +883,7 @@ internal fun MessageInput(
                 ) {
                     FormattingBar(
                         composer = composer,
-                        onChanged = { onDraftChanged(composer.composed) },
+                        onChanged = { field.onDraftChanged(composer.composed) },
                         onLink = { draft.selection.let { linkTarget = listOf(it.min, it.max) } },
                         onCodeLanguage = { draft.selection.let { languageTarget = listOf(it.min, it.max) } },
                     )
