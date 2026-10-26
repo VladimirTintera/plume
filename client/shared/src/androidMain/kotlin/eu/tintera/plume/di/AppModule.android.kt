@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.ai.gemmaIdleUnloadMs
 import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.ai.AndroidDeviceLoad
 import eu.tintera.plume.core.di.APP_SCOPE
@@ -99,7 +101,14 @@ actual fun Module.platformModule() {
     single<OnDeviceAi> { RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), gemma = get<LiteRtOnDeviceAi>()) }
     // Zvlášť, protože ji potřebuje i úloha stahování (ModelDownloadWorker) — stav stahování,
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
-    single { LiteRtOnDeviceAi(androidContext(), get()) }
+    single {
+        LiteRtOnDeviceAi(
+            androidContext(),
+            get(),
+            // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
+            idleUnloadMs = { get<OnDeviceAi>().gemmaIdleUnloadMs(get<AppSettings>().onDeviceAiModels.value) },
+        )
+    }
     // Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá (`proactiveVariant`).
     single<DeviceLoad> { AndroidDeviceLoad(androidContext()) }
     // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.

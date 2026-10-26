@@ -55,10 +55,11 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   se minuty a proces aplikace v pozadí systém klidně zabije; úloha přežije i to a naváže
  *   na `.part`. Tahle třída drží jen stav pro obrazovku ([downloads]) — úloha běží v témže
  *   procesu a průběh do něj zapisuje přes [runDownload].
- * - **Engine je v paměti nejvýš jeden** a po [IDLE_UNLOAD_MS] bez použití se uvolní. Drží
- *   gigabajty RAM; nechat ho viset po jednom shrnutí by znamenalo, že systém dřív zabije
+ * - **Engine je v paměti nejvýš jeden** a po chvíli bez použití se uvolní ([idleUnloadMs]).
+ *   Drží gigabajty RAM; nechat ho viset po jednom shrnutí by znamenalo, že systém dřív zabije
  *   aplikaci v pozadí. Načtení trvá do deseti sekund (dokumentace LiteRT-LM), proto se neuvolňuje
- *   hned po odpovědi — návrhy odpovědí přicházejí často po sobě.
+ *   hned po odpovědi — návrhy odpovědí přicházejí často po sobě. Když Gemma dělá jen zvuk
+ *   a obraz a text počítá Nano, uvolní se dřív ([gemmaIdleUnloadMs]).
  * - **Generování je jedno po druhém** ([engineLock]). Shrnutí a návrh odpovědi se můžou
  *   potkat a dvě konverzace nad jedním enginem LiteRT-LM výslovně neslibuje.
  * - **Počítání tokenů LiteRT-LM v Kotlinu nemá** ([countTokens] = `null`), takže se délka
@@ -72,6 +73,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 class LiteRtOnDeviceAi(
     private val context: Context,
     private val networkMonitor: NetworkMonitor,
+    /**
+     * Za jak dlouho po poslední práci engine uvolnit. Čte se po každém použití, ne jednou:
+     * zapnutí Nano nebo jiné přiřazení úloh to mění za běhu.
+     */
+    private val idleUnloadMs: suspend () -> Long = { GEMMA_IDLE_TEXT_MS },
 ) : OnDeviceAi {
 
     private val logger = Logger.withTag("OnDeviceAi")
@@ -383,7 +389,7 @@ class LiteRtOnDeviceAi(
             block(engine)
         } finally {
             idleUnload = scope.launch {
-                delay(IDLE_UNLOAD_MS)
+                delay(runCatching { idleUnloadMs() }.getOrDefault(GEMMA_IDLE_TEXT_MS))
                 engineLock.withLock { unloadLocked() }
             }
         }
@@ -592,8 +598,6 @@ class LiteRtOnDeviceAi(
 
         /** Strop výstupu; zhruba stejně dlouhé shrnutí, jaké unese Gemini Nano (800 tokenů). */
         const val MAX_OUTPUT_CHARS = 4_000
-
-        const val IDLE_UNLOAD_MS = 120_000L
 
         /** Delší strana obrázku pro model. Kodér si ho zmenší sám; větší jen zdrží dekódování. */
         const val MAX_IMAGE_SIDE = 1_024

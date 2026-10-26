@@ -1351,10 +1351,10 @@ po přepisu uvolní z paměti. Co z toho dál plyne:
   pozadí), úlohy na ťuknutí jedou dál; platí i pro ručně přiřazenou Gemmu
   (`docs/poznatky/ai-v-zarizeni.md`, „Úsporný režim a přehřátí"). Zbývá ověřit na telefonu,
   jestli `MODERATE` není příliš brzy (Fold při nabíjení).
-- **Kratší držení Gemmy v paměti.** Engine se uvolní po dvou minutách nečinnosti, protože
-  návrhy odpovědí chodily po sobě (`LiteRtOnDeviceAi`). Když text počítá Nano a Gemma dostává
-  jen přepisy a fotky, stačí ji pustit dřív (30 s?). Prodleva by se odvodila z toho, jaké
-  úlohy Gemma má (`AiModels.candidates`); změřit, kolik stojí opětovné načtení na GPU.
+- ~~**Kratší držení Gemmy v paměti.**~~ — hotovo: s Nano na textu se Gemma uvolní po 30 s,
+  jinak po dvou minutách (`gemmaIdleUnloadMs`; `docs/poznatky/ai-v-zarizeni.md`, „Dva
+  poskytovatelé"). Zbývá **změřit na Foldu**, kolik stojí opětovné načtení na GPU a jestli
+  30 s nestačí málo na hlasovky přepisované za sebou.
 - ~~**Návrh složek.**~~ — hotovo: „Navrhnout složky" v Nastavení → Složky chatů rozřadí 40
   nejnovějších chatů do pevných kategorií a nabídne složky s „Přidat"
   (`docs/poznatky/seznam-chatu.md`, „Návrh složek modelem"). Zbývá ověřit kvalitu na
