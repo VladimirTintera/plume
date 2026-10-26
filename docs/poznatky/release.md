@@ -287,6 +287,10 @@ API, které aplikace z drtivé většiny nevolá.
     a Crashlytics ano (`google_app_id`, `gcm_defaultSenderId`, id mapping souboru), ale ty drží
     keep XML z jejich pluginů — v `build/outputs/mapping/release/resources.txt` je u nich
     „reachable from keep xml file". Tam se kontroluje, proč prostředek zůstal nebo zmizel.
+  - **Vlastní `tools:keep` jen v souboru v `res/raw`** (`client/androidApp/src/main/res/raw/plume_keep.xml`).
+    Na kořeni souboru ve `values/` ho shrinker nečte a prostředek tiše vyhodí — tak zmizela
+    schopnost hodinek `android_wear_capabilities` (viz `docs/poznatky/wear-os.md`, „Schopnost
+    telefonu v release").
   - **S ABI splity rozbíjí `bundleRelease`** („Multiple shrunk-resources files found",
     issuetracker 402800800): AGP zmenší prostředky pro každou ABI variantu zvlášť a bundle
     čeká jeden soubor. Splity se proto u úloh `bundle*` vypínají (`buildsBundle`
