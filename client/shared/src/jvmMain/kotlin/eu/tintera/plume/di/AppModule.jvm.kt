@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
 import eu.tintera.plume.di.MINI_APP_STORAGE
@@ -70,6 +72,8 @@ import org.koin.core.module.Module
  */
 actual fun Module.platformModule() {
     single<OnDeviceAi> { NoopOnDeviceAi }
+    // Gemma tu není, zátěž telefonu pro model v zařízení neřešíme.
+    single<DeviceLoad> { NoDeviceLoad }
     // Hovory jen se zvukem přes ntgcalls; bez přibalené knihovny (Intel Mac, build bez sítě)
     // se CallMedia neregistruje a hovory se nenabídnou (`CallRepository.supported`).
     if (DesktopCallMedia.available()) {

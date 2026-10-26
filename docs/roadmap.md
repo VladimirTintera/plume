@@ -1346,10 +1346,11 @@ po přepisu uvolní z paměti. Co z toho dál plyne:
   hlasovky"). Zbývá ověřit na telefonu a zvážit tlačítko přímo pod dlouhým přepisem v bublině
   — nabídka je o ťuknutí dál; a shrnutí bez přepisu napřed (přepsat a hned shrnout jedním
   ťuknutím).
-- **Ohled na baterii a teplotu.** „Automaticky" by v úsporném režimu
-  (`PowerManager.isPowerSaveMode`) nebo při přehřátí (`getCurrentThermalStatus` ≥ MODERATE)
-  nebralo Gemmu na text a popisy fotek na pozadí by počkaly. Patří do `chooseProvider`
-  (vstup navíc, ať zůstane čistá funkce s testy), žádné nové UI; ruční přiřazení platí dál.
+- ~~**Ohled na baterii a teplotu.**~~ — hotovo jinak, než se plánovalo: pod úsporným režimem
+  a přehřátím Gemma sama od sebe nic nepočítá (návrhy, podvod, triáž, termíny, popisy na
+  pozadí), úlohy na ťuknutí jedou dál; platí i pro ručně přiřazenou Gemmu
+  (`docs/poznatky/ai-v-zarizeni.md`, „Úsporný režim a přehřátí"). Zbývá ověřit na telefonu,
+  jestli `MODERATE` není příliš brzy (Fold při nabíjení).
 - **Kratší držení Gemmy v paměti.** Engine se uvolní po dvou minutách nečinnosti, protože
   návrhy odpovědí chodily po sobě (`LiteRtOnDeviceAi`). Když text počítá Nano a Gemma dostává
   jen přepisy a fotky, stačí ji pustit dřív (30 s?). Prodleva by se odvodila z toho, jaké

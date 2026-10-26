@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.media
 
-import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.proactiveVariant
+import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.BackgroundPhotoDescription
@@ -36,6 +38,8 @@ class BackgroundPhotoDescriber(
     private val files: FileRepository,
     private val ai: OnDeviceAi,
     private val descriptions: PhotoDescriptions,
+    /** Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá ([proactiveVariant]). */
+    private val load: DeviceLoad = NoDeviceLoad,
 ) : BackgroundPhotoDescription {
     private val logger = Logger.withTag("PhotoDescriptions")
 
@@ -44,7 +48,12 @@ class BackgroundPhotoDescriber(
     /** Popíše nejvýš [limit] dosud nepopsaných fotek; vrátí, kolik popsal. */
     suspend fun describeBatch(limit: Int): Int {
         if (!settings.backgroundPhotoDescriptions.value || !settings.onDeviceAiEnabled.value) return 0
-        val variant = ai.variantFor(AiTask.PhotoDescription, settings)
+        val variant = ai.proactiveVariant(AiTask.PhotoDescription, settings, load)
+        if (variant == null) {
+            // Úloha se pustí znovu s dalším nabíjením; přehřátý telefon na nabíječce je běžný.
+            logger.d { "Popisy na pozadí: telefon je pod zátěží, počká se." }
+            return 0
+        }
         if (!runCatching { ai.canDescribeImage(variant) }.getOrDefault(false)) {
             logger.d { "Popisy na pozadí: model obraz nebere, nic se nedělá." }
             return 0

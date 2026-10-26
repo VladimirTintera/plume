@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.settings_gemma_under_load
 import eu.tintera.plume.resources.ai_task_photo_description
 import eu.tintera.plume.resources.ai_task_transcription
 import eu.tintera.plume.resources.ai_task_search
@@ -656,15 +657,28 @@ private fun ModelOptions(
             )
         }
         // Větší model se nabídne jen tam, kde na něj stačí paměť.
-        AiProvider.Gemma -> if (available.gemmaModels.size > 1) {
-            available.gemmaModels.forEach { gemma ->
-                ModelChoiceRow(
-                    title = gemma.displayName,
-                    summary = stringResource(gemma.summary, fileSizeText(gemma.sizeBytes)),
-                    selected = models.gemma == gemma,
-                    onSelect = { viewModel.setGemmaModel(gemma) },
-                )
+        AiProvider.Gemma -> {
+            if (available.gemmaModels.size > 1) {
+                available.gemmaModels.forEach { gemma ->
+                    ModelChoiceRow(
+                        title = gemma.displayName,
+                        summary = stringResource(gemma.summary, fileSizeText(gemma.sizeBytes)),
+                        selected = models.gemma == gemma,
+                        onSelect = { viewModel.setGemmaModel(gemma) },
+                    )
+                }
             }
+            /*
+             * Pod úsporným režimem a přehřátím Gemma sama nic nepočítá (`proactiveVariant`).
+             * Bez téhle věty by uživatel s jedinou Gemmou nepoznal, proč návrhy a varování
+             * zmizely — vypadalo by to jako rozbitý model.
+             */
+            Text(
+                stringResource(Res.string.settings_gemma_under_load),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            )
         }
         // Systémový model bez voleb: verzi i stahování řídí iOS.
         AiProvider.Apple -> Unit

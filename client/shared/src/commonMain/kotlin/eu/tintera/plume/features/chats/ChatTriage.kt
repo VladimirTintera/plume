@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.chats
 
-import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.proactiveVariant
+import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.OnDeviceAi
@@ -90,6 +92,8 @@ class ChatTriage(
     private val settings: AppSettings,
     private val conversations: ConversationRepository,
     appScope: CoroutineScope,
+    /** Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá ([proactiveVariant]). */
+    private val load: DeviceLoad = NoDeviceLoad,
 ) {
     private val logger = Logger.withTag("ChatTriage")
 
@@ -167,11 +171,12 @@ class ChatTriage(
             apply(request.chatId, request.lastMessageId, stored)
             return
         }
-        val variant = ai.variantFor(AiTask.Triage, settings)
-        val ready = enabled() && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
-        if (!ready) {
-            // Model zatím není: chat se posoudí při další změně seznamu s hotovým modelem.
-            logger.d { "Model ${variant.provider} není připravený, chat ${request.chatId} počká" }
+        val variant = ai.proactiveVariant(AiTask.Triage, settings, load)
+        val ready = variant != null && enabled() && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
+        if (variant == null || !ready) {
+            // Model zatím není (nebo je telefon pod zátěží a model je Gemma): chat se posoudí
+            // při další změně seznamu.
+            logger.d { "Model ${variant?.provider ?: "pod zátěží"} není připravený, chat ${request.chatId} počká" }
             seen.update { it - key }
             return
         }

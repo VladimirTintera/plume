@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiFailureReason
 import eu.tintera.plume.core.ai.AiProvider
@@ -41,9 +42,13 @@ class ReplySuggestionsViewModelTest {
     @AfterTest
     fun tearDown() = Dispatchers.resetMain()
 
-    private class FakeSettings : UnimplementedAppSettings() {
+    private class FakeSettings(models: AiModels = AiModels()) : UnimplementedAppSettings() {
         override val replySuggestionsEnabled: StateFlow<Boolean> = MutableStateFlow(true)
-        override val onDeviceAiModels: StateFlow<AiModels> = MutableStateFlow(AiModels())
+        override val onDeviceAiModels: StateFlow<AiModels> = MutableStateFlow(models)
+    }
+
+    private object Strained : DeviceLoad {
+        override val strained = true
     }
 
     /**
@@ -104,6 +109,23 @@ class ReplySuggestionsViewModelTest {
         assertEquals(listOf("Jasně", "Nemůžu"), viewModel.suggestions.value)
         assertEquals(0, ai.textCalls, "s typy se text pouštět nemá")
         assertTrue(ai.prompts.single().contains("Dáš si kafe?"))
+    }
+
+    /** Návrhy se objevují samy: pod zátěží telefonu je Gemma nepočítá, Nano ano. */
+    @Test
+    fun podZatiziBezGemmy() = runTest {
+        val gemma = FakeAi(structured = null)
+        val onlyGemma = ReplySuggestionsViewModel(gemma, FakeSettings(AiModels(enabled = setOf(AiProvider.Gemma))), Strained)
+        onlyGemma.suggestForIncoming()
+        advanceUntilIdle()
+        assertEquals(emptyList(), onlyGemma.suggestions.value)
+        assertEquals(0, gemma.textCalls, "Gemma se pod zátěží pouštět nemá")
+
+        val nano = FakeAi(structured = null)
+        val withNano = ReplySuggestionsViewModel(nano, FakeSettings(), Strained)
+        withNano.suggestForIncoming()
+        advanceUntilIdle()
+        assertEquals(listOf("Z textu"), withNano.suggestions.value)
     }
 
     @Test

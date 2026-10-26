@@ -259,12 +259,12 @@ fun appModule() = module {
     // Přepis v telefonu i pro hodinky (WatchTranscriptionService); AI a systémový přepis jen na Androidu.
     single { OnDeviceTranscription(settings = get(), files = get(), local = get(), onDeviceAi = getOrNull(), speechToText = getOrNull()) }
     single { PhotoDescriptions(settings = get(), chats = get()) }
-    single<BackgroundPhotoDescription> { BackgroundPhotoDescriber(settings = get(), chats = get(), files = get(), ai = get(), descriptions = get()) }
+    single<BackgroundPhotoDescription> { BackgroundPhotoDescriber(settings = get(), chats = get(), files = get(), ai = get(), descriptions = get(), load = get()) }
     factory { ReminderTimeModel(ai = get(), settings = get()) }
     factory { NaturalSearchModel(ai = get(), settings = get()) }
-    single { ScamWarnings(ai = get(), settings = get(), appScope = get(named(APP_SCOPE))) }
-    single { ChatTriage(ai = get(), settings = get(), conversations = get(), appScope = get(named(APP_SCOPE))) }
-    single { MessageContexts(ai = get(), settings = get(), appScope = get(named(APP_SCOPE))) }
+    single { ScamWarnings(ai = get(), settings = get(), appScope = get(named(APP_SCOPE)), load = get()) }
+    single { ChatTriage(ai = get(), settings = get(), conversations = get(), appScope = get(named(APP_SCOPE)), load = get()) }
+    single { MessageContexts(ai = get(), settings = get(), appScope = get(named(APP_SCOPE)), load = get()) }
     single { ExchangeRates(TextDownloader()) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }

@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ai.DeviceLoad
+import eu.tintera.plume.core.ai.AndroidDeviceLoad
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
 import eu.tintera.plume.di.MINI_APP_STORAGE
@@ -98,6 +100,8 @@ actual fun Module.platformModule() {
     // Zvlášť, protože ji potřebuje i úloha stahování (ModelDownloadWorker) — stav stahování,
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
     single { LiteRtOnDeviceAi(androidContext(), get()) }
+    // Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá (`proactiveVariant`).
+    single<DeviceLoad> { AndroidDeviceLoad(androidContext()) }
     // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.
     // Zvuk hovoru vede systémový Telecom (most níž), náhradně Plume sám.
     single<CallMedia> { NtgCallMedia(androidContext(), routes = { get<TelecomCallBridge>().routes() }) }

@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
-import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.proactiveVariant
+import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.eventDetailsOf
@@ -38,6 +40,8 @@ class MessageContexts(
     private val ai: OnDeviceAi,
     private val settings: AppSettings,
     appScope: CoroutineScope,
+    /** Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá ([proactiveVariant]). */
+    private val load: DeviceLoad = NoDeviceLoad,
 ) {
     private val logger = Logger.withTag("MessageContexts")
 
@@ -88,9 +92,9 @@ class MessageContexts(
     val enabled: Boolean get() = settings.messageContextEnabled.value && settings.onDeviceAiEnabled.value
 
     private suspend fun judge(request: Request) {
-        val variant = ai.variantFor(AiTask.Dates, settings)
-        val ready = enabled && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
-        if (!ready) {
+        val variant = ai.proactiveVariant(AiTask.Dates, settings, load)
+        val ready = variant != null && enabled && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
+        if (variant == null || !ready) {
             // Model zatím není: termín nabídnou pravidla, posoudí se až s dalším otevřením chatu
             // ([reopen]). Odebrat klíč by znamenalo zařadit zprávu znovu s každou změnou stavu.
             _verdicts.update { it + (request.key to EventVerdict.Unavailable) }
