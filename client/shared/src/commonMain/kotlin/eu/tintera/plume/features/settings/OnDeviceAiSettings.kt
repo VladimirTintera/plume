@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.ai_task_folders
 import eu.tintera.plume.resources.settings_gemma_under_load
 import eu.tintera.plume.resources.ai_task_photo_description
 import eu.tintera.plume.resources.ai_task_transcription
@@ -885,6 +886,7 @@ private val AiTask.title: StringResource
         AiTask.Scam -> Res.string.ai_task_scam
         AiTask.Triage -> Res.string.ai_task_triage
         AiTask.Search -> Res.string.ai_task_search
+        AiTask.Folders -> Res.string.ai_task_folders
         AiTask.Transcription -> Res.string.ai_task_transcription
         AiTask.PhotoDescription -> Res.string.ai_task_photo_description
     }

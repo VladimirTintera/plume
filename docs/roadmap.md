@@ -1355,10 +1355,10 @@ po přepisu uvolní z paměti. Co z toho dál plyne:
   návrhy odpovědí chodily po sobě (`LiteRtOnDeviceAi`). Když text počítá Nano a Gemma dostává
   jen přepisy a fotky, stačí ji pustit dřív (30 s?). Prodleva by se odvodila z toho, jaké
   úlohy Gemma má (`AiModels.candidates`); změřit, kolik stojí opětovné načtení na GPU.
-- **Návrh složek.** Model rozřadí chaty do „Práce / Rodina / Zprávy z …" a nabídne složku jako
-  hotový návrh k potvrzení — klasifikace, tedy silná stránka, a chyba je vidět dřív, než se
-  něco uloží. Navazuje na doporučené složky od Telegramu (`getRecommendedChatFolders`) a sheet
-  nové složky.
+- ~~**Návrh složek.**~~ — hotovo: „Navrhnout složky" v Nastavení → Složky chatů rozřadí 40
+  nejnovějších chatů do pevných kategorií a nabídne složky s „Přidat"
+  (`docs/poznatky/seznam-chatu.md`, „Návrh složek modelem"). Zbývá ověřit kvalitu na
+  skutečných chatech v telefonu a zvážit úpravu návrhu před přidáním (odškrtnout chat).
 - **Popisek fotky před odesláním.** Gemma navrhne popisek nebo alternativní text k fotce, kterou
   uživatel posílá (`describeImage` nad vybraným souborem, kratší prompt). Je to psaní, ale
   uživatel ho vidí a schválí, takže chyba je levná; pomůže i příjemci se čtečkou obrazovky.

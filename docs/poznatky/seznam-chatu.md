@@ -302,6 +302,34 @@ Nastavení → Obecné → Složky chatů (`ChatFoldersScreen`, `ChatFolderEditS
   archivu se ukazuje se skutečnou hodnotou účtu; **zápis ověřený není** (mění nastavení účtu).
   **iOS jen přeložené.**
 
+#### Návrh složek modelem
+
+Pod doporučenými složkami je se zapnutou AI v zařízení blok „Návrh od AI v zařízení"
+(`FolderSuggestions`, `ChatFoldersViewModel.suggestWithAi`, prompt `FolderPrompt.kt`; testy
+`FolderSuggestionsTest`, `FolderPromptTest`). Model rozřadí 40 nejnovějších chatů hlavního
+seznamu do pevných kategorií a kategorie aspoň se dvěma chaty nabídne jako složky s „Přidat".
+
+- **Pevná sada kategorií** (Práce, Rodina, Přátelé, Škola, Nákupy, Zprávy, Koníčky; `OTHER` =
+  žádná), ne názvy od modelu: klasifikace je jeho silná stránka, psaní ne, a s pevnou sadou se
+  dá hlídat délka názvu (12 znaků) i duplicita. Odpověď je řádek „číslo: KATEGORIE" za chat
+  (`parseFolderCategories`, tolerantní k obalu; chat jmenovaný dvakrát má první odpověď).
+- **`OTHER` je výchozí při nejistotě**: chat ve špatné složce je horší než chat bez složky.
+- **Model se pouští až na ťuknutí** („Navrhnout složky") a nic se nezakládá samo. Pod navrženou
+  složkou jsou jména chatů (tři a „a další N"), takže uživatel vidí, co přidává. Přidaná zmizí,
+  upravit ji jde jako každou jinou.
+- **Kategorie, pro kterou už složka stejného jména je, se nenabízí** (bez ohledu na velikost
+  písmen); Uložené zprávy a sponzorovaný chat model nedostane.
+- **Chaty z paměti, nic se nedotahuje**: po startu jsou v hlavním seznamu první desítky, a to
+  na návrh stačí.
+- **Název se zkracuje na 12 znaků** (`CHAT_FOLDER_TITLE_MAX`) — komunitní překlad kategorie
+  by mohl být delší a server by složku odmítl.
+- **Model zvlášť v „Co čím počítat"** (`AiTask.Folders`), text, takže automaticky Nano.
+- **Ověřeno na emulátoru se sondou** (falešný model s pevnou odpovědí): blok pod doporučenými,
+  prompt nad skutečným seznamem (druhy chatů, náhledy bez nových řádků, bez Uložených zpráv),
+  složky se jmény a „a 1 další". „Přidat" ověřené není — založilo by složku na skutečném účtu;
+  zakládání je ale táž cesta jako u doporučených. **Na zařízení zbývá kvalita rozřazení
+  skutečných chatů v češtině.**
+
 #### Sdílené složky
 
 Odkaz `t.me/addlist/…` ve zprávě otevře náhled složky (`FolderInviteSheet`, `InternalLink.FolderInvite`

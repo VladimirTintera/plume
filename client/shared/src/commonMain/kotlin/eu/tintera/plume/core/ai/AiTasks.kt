@@ -38,6 +38,9 @@ enum class AiTask(val input: AiInput) {
     /** Hledání zpráv přirozeným jazykem. */
     Search(AiInput.Text),
 
+    /** Návrh složek podle obsahu chatů (Nastavení → Složky chatů). */
+    Folders(AiInput.Text),
+
     /** Přepis hlasovek a koleček. */
     Transcription(AiInput.Audio),
 
