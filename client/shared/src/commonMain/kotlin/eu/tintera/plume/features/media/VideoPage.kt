@@ -22,6 +22,7 @@ import eu.tintera.plume.resources.media_speed_boost
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.key
 import eu.tintera.plume.core.video.VideoPositions
 import eu.tintera.plume.resources.media_video_from_start
@@ -128,17 +129,14 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.blur.HazeBlurStyle
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
-import eu.tintera.plume.features.conversation.items.spoilerBlur
 import eu.tintera.plume.core.ui.photoKey
 import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -203,36 +201,21 @@ internal fun VideoPage(
     /** Čas v médiu: po načtení skočit sem (ms); nula = od začátku. */
     startMs: Long = 0L,
     caption: String,
-    isCurrent: Boolean,
-    immersive: Boolean,
-    immersion: () -> Float,
-    reservedTop: Dp,
-    reservedBottom: Dp,
+    placement: MediaPagePlacement,
     dismissDrag: Animatable<Float, *>,
-    onDismiss: () -> Unit,
-    /** Přepne galerii a celou obrazovku. */
-    onTap: () -> Unit,
-    /** Přepne na celou obrazovku (tlačítko přehrání v galerii). */
-    onEngage: () -> Unit,
+    gestures: MediaPageGestures,
     /**
      * Smí se přehrávat rozestavěný soubor. U mizejícího média ne: odpočet začíná až se staženým
      * souborem a video nesmí hrát dřív, než běží.
      */
     streaming: Boolean = true,
-    hasSpoiler: Boolean = false,
-    revealed: Boolean = true,
-    onReveal: () -> Unit = {},
-    spoilerStyle: HazeBlurStyle = HazeBlurStyle,
+    /** Spoiler přes video; `null` = nic nezakrývá. Citlivý obsah doplní stránka z videa. */
+    spoiler: MediaSpoiler? = null,
     modifier: Modifier = Modifier,
-    captionAlpha: () -> Float = { 1f },
-    cardBias: () -> Float = { 0f },
-    /** Ztlumení; drží ho prohlížeč, aby platilo pro všechna videa, dokud je otevřený. */
-    muted: Boolean = false,
-    /** Tlačítko ztlumení; `null` = bez něj. */
-    onToggleMute: (() -> Unit)? = null,
-    /** Smí video do obrazu v obraze (mizející médium ne — mělo by zůstat v aplikaci). */
-    pictureInPicture: Boolean = false,
-    onReturnFromPip: ((positionMs: Long) -> Unit)? = null,
+    /** Ztlumení; drží ho prohlížeč, aby platilo pro všechna videa, dokud je otevřený. `null` = bez tlačítka. */
+    mute: VideoMute? = null,
+    /** Obraz v obraze; `null` = nesmí (mizející médium — mělo by zůstat v aplikaci). */
+    pictureInPicture: VideoPictureInPicture? = null,
     /** Ovládání celé obrazovky jako v přehrávači (lišty, zámek, otočení); `null` = bez něj. */
     fullscreen: VideoFullscreen? = null,
     commands: Flow<VideoCommand>? = null,
@@ -241,15 +224,15 @@ internal fun VideoPage(
      * neotevře) a tajný chat ne — po tajném chatu nemá v zařízení zůstat stopa.
      */
     rememberPosition: Boolean = false,
-    /** Zvolená kvalita; drží ji prohlížeč, aby platila i pro další videa (jako ztlumení). */
-    qualityChoice: VideoQualityChoice = VideoQualityChoice.Auto,
     /** Volba kvality v liště; `null` = bez nabídky (hraje se, co vybere automatika). */
-    onQualityChoice: ((VideoQualityChoice) -> Unit)? = null,
+    quality: VideoQualitySelection? = null,
     /** Hraje-li vybraná stránka (viz druhé [VideoPage]); prohlížeč podle toho vypíná listování. */
     onPlayingChange: ((Boolean) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
+    val isCurrent = placement.isCurrent
+    val qualityChoice = quality?.choice ?: VideoQualityChoice.Auto
 
     /*
      * Kvalita: původní soubor, nebo kvalita, kterou server přepočítal (`alternativeVideos`).
@@ -305,80 +288,71 @@ internal fun VideoPage(
      */
     val resumed = resumeMs?.takeIf { startMs <= 0L }
     VideoPage(
-        startMs = when {
-            startMs > 0L -> startMs
-            resumed != null -> resumed
-            else -> video.startSeconds * 1000L
-        },
-        resumedFromMs = resumed,
+        progress = VideoProgress(
+            startMs = when {
+                startMs > 0L -> startMs
+                resumed != null -> resumed
+                else -> video.startSeconds * 1000L
+            },
+            resumedFromMs = resumed,
+            onProgress = positionKey?.let { key -> { position, duration -> positions.record(key, position, duration) } },
+        ),
         storyboard = video.storyboard,
-        onProgress = positionKey?.let { key -> { position, duration -> positions.record(key, position, duration) } },
         fullscreen = fullscreen,
         commands = commands,
-        muted = muted,
-        onToggleMute = onToggleMute,
+        mute = mute,
         pictureInPicture = pictureInPicture,
-        onReturnFromPip = onReturnFromPip,
         aspectRatio = aspectRatioOf(video.width, video.height),
         durationSeconds = video.durationSeconds,
         caption = caption,
-        isCurrent = isCurrent,
-        immersive = immersive,
-        immersion = immersion,
-        reservedTop = reservedTop,
-        reservedBottom = reservedBottom,
+        placement = placement,
         dismissDrag = dismissDrag,
-        onDismiss = onDismiss,
-        onTap = onTap,
-        onEngage = onEngage,
-        source = { started ->
-            /*
-             * `key`, ne jen klíč `produceState`: ten restartuje producenta, ale stav si pamatuje
-             * BEZ klíče, takže po výběru jiné kvality vracel ještě pár snímků stav STARÉHO souboru.
-             * Stránka pak založila zdroj streamu s cestou a velikostí starého souboru a se
-             * stahováním nového — přehrávač četl cizí soubor (ověřeno: nová kvalita se žádala na
-             * offsetu za koncem svého souboru, kde končil `mdat` původního).
-             */
-            key(chosenId) {
-                // HLS seznam se stahuje souběžně s videem: až bude stream čekat jen na něj, je už na disku.
-                if (started && playlistId != null) {
-                    LaunchedEffect(playlistId) { repository.file(playlistId).first { it is FileState.Ready || it is FileState.Failed } }
+        gestures = gestures,
+        source = VideoFileSource(
+            state = { started ->
+                /*
+                 * `key`, ne jen klíč `produceState`: ten restartuje producenta, ale stav si pamatuje
+                 * BEZ klíče, takže po výběru jiné kvality vracel ještě pár snímků stav STARÉHO souboru.
+                 * Stránka pak založila zdroj streamu s cestou a velikostí starého souboru a se
+                 * stahováním nového — přehrávač četl cizí soubor (ověřeno: nová kvalita se žádala na
+                 * offsetu za koncem svého souboru, kde končil `mdat` původního).
+                 */
+                key(chosenId) {
+                    // HLS seznam se stahuje souběžně s videem: až bude stream čekat jen na něj, je už na disku.
+                    if (started && playlistId != null) {
+                        LaunchedEffect(playlistId) { repository.file(playlistId).first { it is FileState.Ready || it is FileState.Failed } }
+                    }
+                    produceState<FileState>(FileState.Pending, chosenId, started) {
+                        if (started) repository.file(chosenId).collect { value = it }
+                    }.value
                 }
-                produceState<FileState>(FileState.Pending, chosenId, started) {
-                    if (started) repository.file(chosenId).collect { value = it }
-                }.value
-            }
-        },
-        sourceKey = chosenId,
+            },
+            key = chosenId,
+            /*
+             * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Původní soubor
+             * jen s `supportsStreaming` od serveru. Přepočítané kvality vyrábí server pro streamování
+             * (fragmentované MP4), takže vždycky — kde je platforma umí
+             * ([videoFragmentedStreamingSupported]; iOS přes HLS).
+             */
+            streamable = streaming && videoStreamingSupported &&
+                if (chosen.isOriginal) video.supportsStreaming else videoFragmentedStreamingSupported,
+            // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu stahování by na něj
+            // čekal marně. Lambda nese `fileId` té kvality, pro kterou zdroj vznikl.
+            requestFrom = { offset -> scope.launch { repository.downloadFrom(chosenId, offset) } },
+            hlsPlaylist = playlistId?.let { id -> suspend { repository.readText(id) } },
+        ),
         onPlayingChange = onPlayingChange,
-        quality = onQualityChoice?.takeIf { qualities.size > 1 }?.let { onChoose ->
+        quality = quality?.takeIf { qualities.size > 1 }?.let { selection ->
             VideoQualityMenu(
                 options = qualities,
-                choice = qualityChoice,
+                choice = selection.choice,
                 playing = chosen,
                 autoPick = autoPick,
-                onChoose = onChoose,
+                onChoose = selection.onChoose,
             )
         },
-        /*
-         * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Původní soubor
-         * jen s `supportsStreaming` od serveru. Přepočítané kvality vyrábí server pro streamování
-         * (fragmentované MP4), takže vždycky — kde je platforma umí
-         * ([videoFragmentedStreamingSupported]; iOS přes HLS).
-         */
-        streamable = streaming && videoStreamingSupported &&
-            if (chosen.isOriginal) video.supportsStreaming else videoFragmentedStreamingSupported,
-        // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu stahování by na něj
-        // čekal marně. Lambda nese `fileId` té kvality, pro kterou zdroj vznikl.
-        requestFrom = { offset -> scope.launch { repository.downloadFrom(chosenId, offset) } },
-        hlsPlaylist = playlistId?.let { id -> suspend { repository.readText(id) } },
-        hasSpoiler = hasSpoiler,
-        sensitive = video.isSensitive,
-        revealed = revealed,
-        onReveal = onReveal,
+        spoiler = spoiler?.copy(sensitive = video.isSensitive),
         modifier = modifier,
-        captionAlpha = captionAlpha,
-        cardBias = cardBias,
         thumbnail = {
             // Náhled drží místo, dokud se video nestáhne; se sdíleným prvkem z bubliny.
             video.thumbnailFileId?.let { thumbnail ->
@@ -392,10 +366,10 @@ internal fun VideoPage(
                         // Týž tvar jako karta kolem (viz níž); ta se během letu neuplatní.
                         .sharedNavElement(
                             photoKey(messageId),
-                            shape = RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion())),
+                            shape = RoundedCornerShape(MEDIA_CARD_CORNER * (1f - placement.immersion())),
                             besidePanes = true,
                         )
-                        .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
+                        .spoilerBlur(spoiler),
                 )
             }
         },
@@ -413,56 +387,26 @@ internal fun VideoPage(
     aspectRatio: Float,
     durationSeconds: Int,
     caption: String,
-    isCurrent: Boolean,
-    immersive: Boolean,
-    immersion: () -> Float,
-    reservedTop: Dp,
-    reservedBottom: Dp,
+    placement: MediaPagePlacement,
     dismissDrag: Animatable<Float, *>,
-    /** Svislý tah přes práh; `null` = svislý tah nic nedělá (viz [ZoomableMediaPage]). */
-    onDismiss: (() -> Unit)?,
-    onTap: () -> Unit,
-    onEngage: () -> Unit,
-    /** Stav souboru s videem; `started` říká, že se má začít stahovat. */
-    source: @Composable (started: Boolean) -> FileState,
-    /** Smí se přehrávat rozestavěný soubor ([FileState.Downloading]). */
-    streamable: Boolean,
-    /** Stahovat od daného bajtu — přehrávač chce index na konci souboru. */
-    requestFrom: (offset: Long) -> Unit,
-    /**
-     * Stáhne a přečte HLS seznam, bez kterého se rozestavěný soubor streamovat nedá
-     * ([videoFragmentedStreamingNeedsHls]); `null` = seznam není potřeba. Vrátí-li `null`, čeká
-     * se na celý soubor.
-     */
-    hlsPlaylist: (suspend () -> String?)? = null,
+    gestures: MediaPageGestures,
+    source: VideoFileSource,
     /** Náhled přes celou kartu, dokud se video nepřehrává. */
     thumbnail: @Composable () -> Unit,
-    hasSpoiler: Boolean = false,
-    /** Skryté kvůli citlivému obsahu — mění jen štítek (viz `SpoilerOverlay`). */
-    sensitive: Boolean = false,
-    revealed: Boolean = true,
-    onReveal: () -> Unit = {},
+    /** Spoiler přes video; `null` = nic nezakrývá. */
+    spoiler: MediaSpoiler? = null,
     modifier: Modifier = Modifier,
-    captionAlpha: () -> Float = { 1f },
-    cardBias: () -> Float = { 0f },
     /** Ovládání na kartě navíc (✕ a volba režimu ve sdílení); v galerii, na celé obrazovce ne. */
     overlay: @Composable BoxScope.() -> Unit = {},
-    /** Po načtení skočit sem (ms) — čas v médiu; nula = od začátku. */
-    startMs: Long = 0L,
-    /**
-     * Ztlumení za běhu. Drží ho volající (prohlížeč), ne stránka: ztlumené video by jinak po
-     * odlistování na další zase hrálo nahlas.
-     */
-    muted: Boolean = false,
-    /** Tlačítko ztlumení v liště; `null` = bez něj (náhledy při sdílení a nad polem). */
-    onToggleMute: (() -> Unit)? = null,
+    progress: VideoProgress = VideoProgress(),
+    /** Ztlumení za běhu; `null` = bez tlačítka a nahlas (náhledy při sdílení a nad polem). */
+    mute: VideoMute? = null,
     /**
      * Obraz v obraze: tlačítko v liště a samočinný přechod při odchodu z aplikace, dokud video
-     * hraje. Jen v prohlížeči médií — náhled při sdílení a nad polem je chvilková kontrola.
+     * hraje. Jen v prohlížeči médií (`null` = bez něj) — náhled při sdílení a nad polem je
+     * chvilková kontrola.
      */
-    pictureInPicture: Boolean = false,
-    /** Okénko obrazu v obraze se vrací do prohlížeče na téže zprávě v čase (ms); desktop. */
-    onReturnFromPip: ((positionMs: Long) -> Unit)? = null,
+    pictureInPicture: VideoPictureInPicture? = null,
     /**
      * Celá obrazovka jako v přehrávači: systémové lišty se schovávají spolu s ovládáním, zámek
      * proti dotykům a ruční otočení. Jen v prohlížeči médií; `null` = bez toho (náhledy).
@@ -470,24 +414,8 @@ internal fun VideoPage(
     fullscreen: VideoFullscreen? = null,
     /** Povely z klávesnice ([VideoCommand]); vyřizuje je jen vybraná stránka na celé obrazovce. */
     commands: Flow<VideoCommand>? = null,
-    /**
-     * [startMs] je pamatovaná pozice, ne žádost: po rozběhnutí se na chvíli ukáže „Pokračuje od…"
-     * s tlačítkem Od začátku. Bez něj by video hrálo uprostřed a nebylo by jasné proč.
-     */
-    resumedFromMs: Long? = null,
-    /**
-     * Kde se sledování zastavilo (pozice, délka v ms) — při pozastavení stránkou, odchodu,
-     * dohrání a průběžně během hraní. `null` = nepamatuje se.
-     */
-    onProgress: ((positionMs: Long, durationMs: Long) -> Unit)? = null,
     /** Náhledy snímků nad posuvníkem; `null` = bez nich (krátké video, sdílení). */
     storyboard: VideoStoryboard? = null,
-    /**
-     * Který soubor [source] právě dodává (u zprávy `fileId` zvolené kvality). Když se změní
-     * u načteného videa, přehrávač vymění zdroj **na téže pozici** a hraje dál — viz „Výměna
-     * kvality" níž.
-     */
-    sourceKey: Any? = null,
     /** Čip kvality v liště s nabídkou; `null` = bez něj (jediná kvalita, sdílení). */
     quality: VideoQualityMenu? = null,
     /**
@@ -501,17 +429,22 @@ internal fun VideoPage(
     val settings = koinInject<AppSettings>()
     // Rychlost je volba přes celou aplikaci (jako u hlasovek), jen zvlášť pro video.
     val speed by settings.videoSpeed.collectAsState()
-    val currentDismiss by rememberUpdatedState(onDismiss)
+    val isCurrent = placement.isCurrent
+    val immersive = placement.immersive
+    val immersion = placement.immersion
+    val sourceKey = source.key
+    val startMs = progress.startMs
+    val currentDismiss by rememberUpdatedState(gestures.onDismiss)
 
     // Hraje (a stahuje se) jen vybraná stránka na celé obrazovce.
     val active = isCurrent && immersive
-    val currentTap by rememberUpdatedState(onTap)
+    val currentTap by rememberUpdatedState(gestures.onTap)
     val currentImmersive by rememberUpdatedState(immersive)
 
     // Jednou spuštěné video stahuje dál, i když se odlistuje — rozstahované se nezahazuje.
     var started by remember { mutableStateOf(false) }
     LaunchedEffect(active) { if (active) started = true }
-    val file = source(started)
+    val file = source.state(started)
     val path = (file as? FileState.Ready)?.path
 
     val downloading = file as? FileState.Downloading
@@ -541,7 +474,7 @@ internal fun VideoPage(
         }
         else -> downloadedRange.value = LongRange.EMPTY
     }
-    val streamPath = downloading?.path?.takeIf { streamable }
+    val streamPath = downloading?.path?.takeIf { source.streamable }
     val streamTotal = downloading?.totalSize ?: 0L
 
     val player = rememberVideoPlayer()
@@ -557,7 +490,7 @@ internal fun VideoPage(
     var hasPlayed by remember { mutableStateOf(false) }
     // Během tažení posuvníku se ukazuje místo pod prstem, ne kde přehrávač zrovna je.
     var seekingFraction by remember { mutableStateOf<Float?>(null) }
-    // Který zdroj ([sourceKey]) přehrávač právě má; jiný = čeká se na výměnu kvality.
+    // Který zdroj ([VideoFileSource.key]) přehrávač právě má; jiný = čeká se na výměnu kvality.
     var loadedKey by remember { mutableStateOf<Any?>(null) }
     // Po výměně kvality hrající video čeká na data nového souboru: točí se průběh uprostřed.
     var swapping by remember { mutableStateOf(false) }
@@ -565,6 +498,7 @@ internal fun VideoPage(
     // `load` hlasitost i rychlost přenastaví, takže se obojí zapisuje až PO načtení — i po
     // výměně kvality (klíč `loadedKey`).
     LaunchedEffect(loaded, loadedKey, speed) { if (loaded) player.setSpeed(speed.rate) }
+    val muted = mute?.muted == true
     LaunchedEffect(loaded, loadedKey, muted) { if (loaded) player.setMuted(muted) }
 
     /*
@@ -584,13 +518,14 @@ internal fun VideoPage(
             // Streamovat se dá, teprve až je na disku začátek souboru s indexem.
             streamPath != null && streamTotal > 0 -> {
                 // Bez seznamu (nestáhl se) zbývá počkat na celý soubor: efekt se znovu spustí s `path`.
+                val hlsPlaylist = source.hlsPlaylist
                 val playlist = if (hlsPlaylist != null) hlsPlaylist() ?: return@LaunchedEffect else null
                 player.loadStreaming(
                     StreamingSource(
                         path = { currentPath.value },
                         totalSize = streamTotal,
                         downloaded = { downloadedRange.value },
-                        requestFrom = requestFrom,
+                        requestFrom = source.requestFrom,
                         hlsPlaylist = playlist,
                     ),
                 )
@@ -611,7 +546,7 @@ internal fun VideoPage(
      * puštění zapsalo nulu, a tím pamatovanou pozici smazalo. Čte se z posledního tiknutí
      * (`positionMs`), ne z přehrávače: při odchodu z kompozice už může být uvolněný.
      */
-    val currentProgress by rememberUpdatedState(onProgress)
+    val currentProgress by rememberUpdatedState(progress.onProgress)
     fun saveProgress(at: Long = positionMs) {
         if (hasPlayed) currentProgress?.invoke(at, durationMs)
     }
@@ -639,7 +574,7 @@ internal fun VideoPage(
     // „Pokračuje od…" po rozběhnutí na chvíli; pak už je jasné, co se děje.
     var resumeHint by remember { mutableStateOf(false) }
     LaunchedEffect(hasPlayed) {
-        if (hasPlayed && resumedFromMs != null) {
+        if (hasPlayed && progress.resumedFromMs != null) {
             resumeHint = true
             delay(RESUME_HINT_MS)
             resumeHint = false
@@ -693,7 +628,7 @@ internal fun VideoPage(
      * celou aktivitu, takže je smí nastavovat nejvýš jedna stránka. V okénku zůstane jen obraz —
      * ovládání v něm nejde ovládat prstem a zakrylo by půlku záběru.
      */
-    val pip = if (pictureInPicture && active && loaded) {
+    val pip = if (pictureInPicture != null && active && loaded) {
         rememberPictureInPicture(
             player = player,
             aspectRatio = aspectRatio,
@@ -702,7 +637,7 @@ internal fun VideoPage(
                 if (player.isPlaying) player.pause() else player.play()
                 playing = !playing
             },
-            onReturn = onReturnFromPip,
+            onReturn = pictureInPicture.onReturn,
         )
     } else {
         null
@@ -842,11 +777,11 @@ internal fun VideoPage(
     MediaPageLayout(
         aspectRatio = aspectRatio,
         caption = caption,
-        reservedTop = reservedTop,
-        reservedBottom = reservedBottom,
+        reservedTop = placement.reservedTop,
+        reservedBottom = placement.reservedBottom,
         immersion = immersion,
-        captionAlpha = captionAlpha,
-        cardBias = cardBias,
+        captionAlpha = placement.captionAlpha,
+        cardBias = placement.cardBias,
         modifier = modifier
             .pointerInput(Unit) {
                 // Jen svislý tah (zavírání); vodorovný se nekonzumuje a patří pageru.
@@ -913,10 +848,10 @@ internal fun VideoPage(
                     } while (event.changes.any { it.pressed })
                 }
             }
-            .pointerInput(hasSpoiler, revealed, playerGestures, toggleWindow != null) {
+            .pointerInput(spoiler.hidden, playerGestures, toggleWindow != null) {
                 val onTapPage: (Offset) -> Unit = {
-                    if (hasSpoiler && !revealed) {
-                        onReveal()
+                    if (spoiler.hidden) {
+                        spoiler?.onReveal?.invoke()
                     } else if (currentLocked) {
                         lockHint = !lockHint
                     } else if (currentImmersive && !controlsVisible) {
@@ -930,7 +865,7 @@ internal fun VideoPage(
                  * s dvojím ťuknutím čeká s jednoduchým, jestli nepřijde druhé — v galerii by tak
                  * přepnutí na celou obrazovku zbytečně zdrželo.
                  */
-                if (!playerGestures && toggleWindow != null && !(hasSpoiler && !revealed)) {
+                if (!playerGestures && toggleWindow != null && !spoiler.hidden) {
                     detectTapGestures(
                         onTap = onTapPage,
                         onDoubleTap = { if (!currentLocked) currentToggleWindow?.invoke() },
@@ -1115,7 +1050,7 @@ internal fun VideoPage(
                                     )
                                 }
                             }
-                            onToggleMute?.let { toggle ->
+                            mute?.onToggle?.let { toggle ->
                                 IconButton(
                                     onClick = {
                                         toggle()
@@ -1275,7 +1210,7 @@ internal fun VideoPage(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(Res.string.media_video_resumed, formatDuration(((resumedFromMs ?: 0L) / 1000).toInt())),
+                        text = stringResource(Res.string.media_video_resumed, formatDuration(((progress.resumedFromMs ?: 0L) / 1000).toInt())),
                         style = MaterialTheme.typography.labelLarge.tabularNumbers(),
                         color = Color.White,
                     )
@@ -1295,13 +1230,13 @@ internal fun VideoPage(
 
             // Tlačítko přehrání v galerii: jen přepne na celou obrazovku, video se spustí tam.
             AnimatedVisibility(
-                visible = !immersive && (!hasSpoiler || revealed),
+                visible = !immersive && !spoiler.hidden,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.Center),
             ) {
                 FilledIconButton(
-                    onClick = onEngage,
+                    onClick = gestures.onEngage,
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
                         contentColor = Color.White,
@@ -1318,11 +1253,11 @@ internal fun VideoPage(
                 }
             }
 
-            if (hasSpoiler) {
+            if (spoiler != null) {
                 SpoilerOverlay(
-                    visible = !revealed,
+                    visible = !spoiler.revealed,
                     modifier = Modifier.fillMaxSize(),
-                    sensitive = sensitive,
+                    sensitive = spoiler.sensitive,
                 )
             }
 
@@ -1382,6 +1317,73 @@ internal class VideoFullscreen(
     val window: Boolean = false,
     /** Přepne okno přes celou obrazovku; `null`, kde to platforma nemá (telefon). */
     val onWindowChange: ((Boolean) -> Unit)? = null,
+)
+
+/**
+ * Odkud se video přehrává: stav souboru a jak se z rozestavěného streamuje. U zprávy se
+ * stahuje z TDLib (i zvolená kvalita), u sdílení je soubor celý na disku.
+ *
+ * `@Immutable`: po vzniku se nic nemění, jen [key] je typu `Any?` a kompilátor by třídu vedl
+ * jako nestabilní — porovnávala by se identitou a stránka by se nepřeskočila nikdy.
+ */
+@Immutable
+internal data class VideoFileSource(
+    /** Stav souboru s videem; `started` říká, že se má začít stahovat. */
+    val state: @Composable (started: Boolean) -> FileState,
+    /** Smí se přehrávat rozestavěný soubor ([FileState.Downloading]). */
+    val streamable: Boolean,
+    /** Stahovat od daného bajtu — přehrávač chce index na konci souboru. */
+    val requestFrom: (offset: Long) -> Unit,
+    /**
+     * Stáhne a přečte HLS seznam, bez kterého se rozestavěný soubor streamovat nedá
+     * ([videoFragmentedStreamingNeedsHls]); `null` = seznam není potřeba. Vrátí-li `null`, čeká
+     * se na celý soubor.
+     */
+    val hlsPlaylist: (suspend () -> String?)? = null,
+    /**
+     * Který soubor [state] právě dodává (u zprávy `fileId` zvolené kvality). Když se změní
+     * u načteného videa, přehrávač vymění zdroj **na téže pozici** a hraje dál — viz „Výměna
+     * kvality" ve [VideoPage].
+     */
+    val key: Any? = null,
+)
+
+/** Odkud video začne a kam hlásí, kde se přestalo sledovat. */
+internal data class VideoProgress(
+    /** Po načtení skočit sem (ms) — čas v médiu; nula = od začátku. */
+    val startMs: Long = 0L,
+    /**
+     * [startMs] je pamatovaná pozice, ne žádost: po rozběhnutí se na chvíli ukáže „Pokračuje od…"
+     * s tlačítkem Od začátku. Bez něj by video hrálo uprostřed a nebylo by jasné proč.
+     */
+    val resumedFromMs: Long? = null,
+    /**
+     * Kde se sledování zastavilo (pozice, délka v ms) — při pozastavení stránkou, odchodu,
+     * dohrání a průběžně během hraní. `null` = nepamatuje se.
+     */
+    val onProgress: ((positionMs: Long, durationMs: Long) -> Unit)? = null,
+)
+
+/**
+ * Ztlumení za běhu a tlačítko v liště. Drží ho volající (prohlížeč), ne stránka: ztlumené video
+ * by jinak po odlistování na další zase hrálo nahlas.
+ */
+internal data class VideoMute(
+    val muted: Boolean,
+    val onToggle: () -> Unit,
+)
+
+/** Smí video do obrazu v obraze (tlačítko v liště, samočinný přechod při odchodu z aplikace). */
+internal data class VideoPictureInPicture(
+    /** Okénko obrazu v obraze se vrací do prohlížeče na téže zprávě v čase (ms); desktop. */
+    val onReturn: ((positionMs: Long) -> Unit)? = null,
+)
+
+/** Zvolená kvalita a její změna; drží je prohlížeč, aby platily i pro další videa (jako ztlumení). */
+@Immutable
+internal data class VideoQualitySelection(
+    val choice: VideoQualityChoice,
+    val onChoose: (VideoQualityChoice) -> Unit,
 )
 
 /** Povel z klávesnice pro vybrané video; prohlížeč ho posílá stránce, která má přehrávač. */

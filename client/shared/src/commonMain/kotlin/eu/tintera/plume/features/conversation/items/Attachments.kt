@@ -114,14 +114,9 @@ internal fun MessageAttachment(
     messageId: Long,
     onOpen: () -> Unit,
     onRequestMenu: () -> Unit,
-    /** Odesílaná zpráva: přes přílohu se kreslí průběh nahrávání. */
-    uploading: Boolean = false,
-    onCancelUpload: () -> Unit = {},
+    file: FileTransfer = FileTransfer.None,
     voice: VoiceHandlers = VoiceHandlers.None,
     videoNote: VideoNoteHandlers = VideoNoteHandlers.None,
-    /** Průběh stahování souboru, který uživatel otevírá; `null`, když se nestahuje. */
-    documentProgress: (fileId: Int) -> Float? = { null },
-    onOpenDocument: () -> Unit = {},
     /** Barva popředí bubliny — v odchozí `primary` bublině nesmí být `primary`. */
     accent: Color = Color.Unspecified,
     /**
@@ -131,21 +126,9 @@ internal fun MessageAttachment(
     mediaShape: Shape? = null,
     /** Fotka a video využijí celou nabízenou šířku (u fotky s popiskem, aby se popisek nelámal). */
     fillWidth: Boolean = false,
-    /** Hod kostkou proběhne před očima; jinak je vidět rovnou výsledek (viz [DiceImage]). */
-    diceThrow: Boolean = false,
-    /**
-     * Výhru hodu oslaví konfety — jen u VLASTNÍHO hodu, který proběhl před očima; server snímek
-     * výhry posílá právě kvůli odeslanému hodu (viz [DiceImage]).
-     */
-    diceCelebrate: Boolean = false,
-    /** Přepis hlasovky (tlačítko a text pod ní); `null` = bez přepisu (kopie v nabídce, náhledy). */
-    transcript: TranscriptState? = null,
+    emoji: EmojiPlay = EmojiPlay.None,
     /** Akce z karty s vlastními prvky (soutěž: kanály, výherci, podrobnosti). */
     onAction: (MessageAction) -> Unit = {},
-    /** Efekty animovaného emoji, které vidí obě strany; `null` = emoji na ťuknutí nereaguje. */
-    emojiBursts: EmojiBursts? = null,
-    /** Odchozí zpráva — efekt animovaného emoji letí od ní na druhou stranu. */
-    isOutgoing: Boolean = false,
 ) {
     val shape = ShapeDefaults.Medium
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -226,10 +209,10 @@ internal fun MessageAttachment(
                             SpoilerOverlay(visible = !revealed, sensitive = media.isSensitive)
                         }
 
-                        if (uploading) {
+                        if (file.uploading) {
                             UploadIndicator(
                                 fileId = media.fileId,
-                                onCancel = onCancelUpload,
+                                onCancel = file.onCancelUpload,
                                 modifier = Modifier.align(Alignment.Center),
                             )
                         }
@@ -249,10 +232,10 @@ internal fun MessageAttachment(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            val uploadingFile = media.fileId?.takeIf { uploading }
+            val uploadingFile = media.fileId?.takeIf { file.uploading }
             if (uploadingFile != null) {
                 // Místo náhledu průběh: u odesílaného souboru je to jediná informace, která se mění.
-                UploadIndicator(fileId = uploadingFile, onCancel = onCancelUpload)
+                UploadIndicator(fileId = uploadingFile, onCancel = file.onCancelUpload)
             } else {
                 media.thumbnailFileId?.let { thumbnail ->
                     RemoteImage(
@@ -309,11 +292,11 @@ internal fun MessageAttachment(
         is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(
             emoji = media,
             messageId = messageId,
-            bursts = emojiBursts,
-            isOutgoing = isOutgoing,
+            bursts = emoji.bursts,
+            isOutgoing = emoji.isOutgoing,
             onRequestMenu = onRequestMenu,
         )
-        is MessageMedia.Dice -> DiceImage(media, throwNow = diceThrow, celebrate = diceCelebrate, seed = messageId)
+        is MessageMedia.Dice -> DiceImage(media, throwNow = emoji.diceThrow, celebrate = emoji.diceCelebrate, seed = messageId)
         is MessageMedia.Location -> LocationMap(
             location = media,
             shape = pictureShape,
@@ -361,8 +344,8 @@ internal fun MessageAttachment(
                     VideoThumbnail(
                         video = media,
                         messageId = messageId,
-                        uploading = uploading,
-                        onCancelUpload = onCancelUpload,
+                        uploading = file.uploading,
+                        onCancelUpload = file.onCancelUpload,
                         revealed = revealed,
                         isSelfDestruct = isSelfDestruct,
                         shape = pictureShape,
@@ -392,10 +375,10 @@ internal fun MessageAttachment(
             LargeDocumentPreview(
                 document = media,
                 messageId = messageId,
-                progress = documentProgress(media.fileId),
-                uploading = uploading,
-                onCancelUpload = onCancelUpload,
-                onOpen = if (opensInViewer(media.fileName, media.mimeType)) onOpen else onOpenDocument,
+                progress = file.documentProgress(media.fileId),
+                uploading = file.uploading,
+                onCancelUpload = file.onCancelUpload,
+                onOpen = if (opensInViewer(media.fileName, media.mimeType)) onOpen else file.onOpenDocument,
                 onRequestMenu = onRequestMenu,
                 shape = pictureShape,
                 fillWidth = fillWidth,
@@ -403,11 +386,11 @@ internal fun MessageAttachment(
         } else DocumentContent(
             messageId = messageId,
             document = media,
-            progress = documentProgress(media.fileId),
-            uploading = uploading,
-            onCancelUpload = onCancelUpload,
+            progress = file.documentProgress(media.fileId),
+            uploading = file.uploading,
+            onCancelUpload = file.onCancelUpload,
             // Obrázek a video, které prohlížeč umí, se otevřou v něm; ostatní dostane systém.
-            onOpen = if (opensInViewer(media.fileName, media.mimeType)) onOpen else onOpenDocument,
+            onOpen = if (opensInViewer(media.fileName, media.mimeType)) onOpen else file.onOpenDocument,
             onRequestMenu = onRequestMenu,
             accent = accent,
         )
@@ -448,7 +431,7 @@ internal fun MessageAttachment(
             onCycleSpeed = voice.onCycleSpeed,
             accent = voice.accent,
             onAccent = voice.onAccent,
-            transcript = transcript,
+            transcript = voice.transcript,
         )
     }
 }
@@ -649,9 +632,47 @@ internal class VoiceHandlers(
     val onCycleSpeed: () -> Unit,
     val accent: Color,
     val onAccent: Color,
+    /** Přepis hlasovky (tlačítko a text pod ní); `null` = bez přepisu (kopie v nabídce, náhledy). */
+    val transcript: TranscriptState? = null,
 ) {
     companion object {
         val None = VoiceHandlers({ null }, { VoiceSpeed.Normal }, {}, {}, {}, Color.Unspecified, Color.Unspecified)
+    }
+}
+
+/**
+ * Přenos souboru přílohy: nahrávání odesílané zprávy (s jeho zrušením) a stahování dokumentu,
+ * který uživatel otevírá.
+ */
+internal data class FileTransfer(
+    /** Odesílaná zpráva: přes přílohu se kreslí průběh nahrávání. */
+    val uploading: Boolean = false,
+    val onCancelUpload: () -> Unit = {},
+    /** Průběh stahování souboru, který uživatel otevírá; `null`, když se nestahuje. */
+    val documentProgress: (fileId: Int) -> Float? = { null },
+    val onOpenDocument: () -> Unit = {},
+) {
+    companion object {
+        val None = FileTransfer()
+    }
+}
+
+/** Kostka a animované emoji: jestli se hází před očima a co z toho uvidí obě strany. */
+internal data class EmojiPlay(
+    /** Hod kostkou proběhne před očima; jinak je vidět rovnou výsledek (viz [DiceImage]). */
+    val diceThrow: Boolean = false,
+    /**
+     * Výhru hodu oslaví konfety — jen u VLASTNÍHO hodu, který proběhl před očima; server snímek
+     * výhry posílá právě kvůli odeslanému hodu (viz [DiceImage]).
+     */
+    val diceCelebrate: Boolean = false,
+    /** Efekty animovaného emoji, které vidí obě strany; `null` = emoji na ťuknutí nereaguje. */
+    val bursts: EmojiBursts? = null,
+    /** Odchozí zpráva — efekt animovaného emoji letí od ní na druhou stranu. */
+    val isOutgoing: Boolean = false,
+) {
+    companion object {
+        val None = EmojiPlay()
     }
 }
 

@@ -57,7 +57,11 @@ import eu.tintera.plume.features.conversation.items.SpoilerOverlay
 import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
 import eu.tintera.plume.features.conversation.items.spoilerBlur
 import eu.tintera.plume.features.media.DISMISS_FADE
+import eu.tintera.plume.features.media.MediaPageGestures
+import eu.tintera.plume.features.media.MediaPagePlacement
+import eu.tintera.plume.features.media.MediaSpoiler
 import eu.tintera.plume.features.media.SystemBarShades
+import eu.tintera.plume.features.media.VideoFileSource
 import eu.tintera.plume.features.media.VideoPage
 import eu.tintera.plume.features.media.ZoomableMediaPage
 import eu.tintera.plume.resources.Res
@@ -147,6 +151,20 @@ internal fun StagedAttachmentPreview(
     // Náhled nad vstupním polem sem vyletí a při zavření se do něj vrátí.
     val flight = Modifier.sharedFlight(attachmentKey(attachment.path), visible = isOpen)
     val toggleChrome = { chromeVisible = !chromeVisible }
+    val placement = MediaPagePlacement(
+        // Video hraje, dokud je náhled otevřený; zavření ho pozastaví.
+        isCurrent = isOpen,
+        immersive = true,
+        immersion = immersion,
+        reservedTop = reservedTop,
+        reservedBottom = reservedBottom,
+    )
+    val gestures = MediaPageGestures(
+        onDismiss = onDismiss,
+        onTap = toggleChrome,
+        // Přiblížení s lištami nedává smysl, fotka by rostla přes ně — jako v prohlížeči.
+        onEngage = { chromeVisible = false },
+    )
 
     Box(modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().then(fadeWithDismiss).background(Color.Black))
@@ -156,23 +174,12 @@ internal fun StagedAttachmentPreview(
                 aspectRatio = aspectRatioOf(attachment.width, attachment.height),
                 durationSeconds = attachment.durationSeconds,
                 caption = "",
-                // Video hraje, dokud je náhled otevřený; zavření ho pozastaví.
-                isCurrent = isOpen,
-                immersive = true,
-                immersion = immersion,
-                reservedTop = reservedTop,
-                reservedBottom = reservedBottom,
+                placement = placement,
                 dismissDrag = dismissDrag,
-                onDismiss = onDismiss,
-                onTap = toggleChrome,
-                onEngage = { chromeVisible = false },
+                gestures = gestures,
                 // Soubor je celý na disku, nic se nestahuje.
-                source = { FileState.Ready(attachment.path) },
-                streamable = false,
-                requestFrom = {},
-                hasSpoiler = attachment.hasSpoiler,
-                revealed = !hidden,
-                onReveal = toggleChrome,
+                source = VideoFileSource(state = { FileState.Ready(attachment.path) }, streamable = false, requestFrom = {}),
+                spoiler = MediaSpoiler(revealed = !hidden, onReveal = toggleChrome).takeIf { attachment.hasSpoiler },
                 modifier = Modifier.fillMaxSize(),
                 thumbnail = {
                     AsyncImage(
@@ -192,16 +199,9 @@ internal fun StagedAttachmentPreview(
                 aspectRatio = (attachment as? OutgoingAttachment.Photo)
                     ?.let { aspectRatioOf(it.width, it.height) } ?: 1f,
                 caption = "",
-                isCurrent = isOpen,
-                immersive = true,
-                immersion = immersion,
-                reservedTop = reservedTop,
-                reservedBottom = reservedBottom,
+                placement = placement,
                 dismissDrag = dismissDrag,
-                onDismiss = onDismiss,
-                onTap = toggleChrome,
-                // Přiblížení s lištami nedává smysl, fotka by rostla přes ně — jako v prohlížeči.
-                onEngage = { chromeVisible = false },
+                gestures = gestures,
                 modifier = Modifier.fillMaxSize(),
                 cardModifier = flight,
             ) {

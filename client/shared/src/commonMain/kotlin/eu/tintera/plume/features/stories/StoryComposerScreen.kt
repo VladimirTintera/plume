@@ -60,6 +60,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerSelection
 import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.GroupedColumn
@@ -408,9 +410,11 @@ internal fun StoryAudiencePicker(
     val contacts = PickerSection(key = "contacts", chats = groupMemberCandidates(state.contacts, state.savedMessagesChatId), title = stringResource(Res.string.new_chat_contacts))
     ChatPicker(
         title = title,
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.new_chat_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.new_chat_search),
+        ),
         loading = state.loading && state.contacts.isEmpty(),
         sections = if (contactsOnly) {
             listOf(contacts)
@@ -423,12 +427,14 @@ internal fun StoryAudiencePicker(
         },
         enabled = true,
         onPick = { chatId -> selected = if (chatId in selected) selected - chatId else selected + chatId },
-        selected = selected.toSet(),
-        // Soukromý chat má id uživatele, takže vybrané chaty jsou rovnou uživatelé.
-        onConfirm = { onDone(selected.toSet()) },
-        confirmLabel = Res.string.story_audience_done,
-        confirmIcon = Res.drawable.check_24dp,
-        confirmWhenEmpty = contactsOnly,
+        selection = PickerSelection(
+            selected = selected.toSet(),
+            // Soukromý chat má id uživatele, takže vybrané chaty jsou rovnou uživatelé.
+            onConfirm = { onDone(selected.toSet()) },
+            confirmLabel = Res.string.story_audience_done,
+            confirmIcon = Res.drawable.check_24dp,
+            confirmWhenEmpty = contactsOnly,
+        ),
         showPresence = true,
         onBack = onBack,
         modifier = modifier,

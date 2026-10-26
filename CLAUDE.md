@@ -791,6 +791,19 @@ obrazovku.
   přidává do obrazovky, ať aplikaci po změně otevře v chatu, ne jen přeloží; počet registrů
   ukáže `dexdump -d` nad APK (`registers` u `ConversationScreen(`).
 
+- **Parametry funkce se nepřidávají donekonečna — souvisejí-li, jdou do skupiny.** `MessageInput`
+  dorostl na 79 parametrů, `VideoPage` na 38, `ViewerContent` na 33 a nikdo si toho nevšiml,
+  protože každý přidal „jen jeden". Víc než 20 shodí `check` (`verifyParameterCount`); kdo
+  přidává parametr k funkci, která jich má přes ~15, podívá se dřív, ke které skupině patří: stav spolu se svými callbacky (`ReplyControls`,
+  `RecordingControls`, `ChatListNavigation`, `PickerSelection`), volitelná funkce jako celek
+  `null` místo tří nullable callbacků. Vzor a zdůvodnění `data class` (strong skipping, rovnost
+  instancí) je v KDoc `ConversationNavigation`. **Skupina se seznamem, sealed typem nebo typem
+  z `:client:core` potřebuje `@Immutable`** (s držákem stavu `@Stable`): bez anotace ji
+  kompilátor vede jako nestabilní, porovnává identitou a nová instance z každé rekompozice
+  funkci nedovolí přeskočit — tam, kde dřív stejná instance seznamu prošla. Proměnlivý objekt
+  (`Animatable`) do skupiny nepatří vůbec. Ověří se reportem (`-PcomposeReports`, viz
+  `docs/poznatky/vykon.md`): nová skupina má vyjít `stable`.
+
 - **`adb shell input text` do pole BEZ fokusu jde jako klávesnice do obrazovky a mezera
   (`keyevent 62`) „ťukne" na zaostřené tlačítko.** Formulář ankety se tak zavřel přes Zavřít,
   pak šipkou zpět odešla i konverzace a zbytek textu skončil v hledání seznamu chatů — bez

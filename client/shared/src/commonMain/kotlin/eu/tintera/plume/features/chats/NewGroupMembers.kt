@@ -10,6 +10,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerSelection
+import eu.tintera.plume.core.ui.PickerEmpty
+import eu.tintera.plume.core.ui.PickerError
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_forward_24dp
@@ -51,9 +55,11 @@ fun NewGroupMembersScreen(
 
     ChatPicker(
         title = stringResource(Res.string.new_group_members_title),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.new_chat_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.new_chat_search),
+        ),
         loading = state.loading && state.contacts.isEmpty(),
         sections = listOf(
             PickerSection(key = "contacts", chats = groupMemberCandidates(state.contacts, state.savedMessagesChatId), title = stringResource(Res.string.new_chat_contacts)),
@@ -62,18 +68,21 @@ fun NewGroupMembersScreen(
         ),
         enabled = true,
         onPick = { chatId -> selected = if (chatId in selected) selected - chatId else selected + chatId },
-        selected = selected.toSet(),
-        onConfirm = { onNext(selected) },
-        confirmLabel = Res.string.new_group_next,
-        confirmIcon = Res.drawable.arrow_forward_24dp,
-        confirmWhenEmpty = true,
+        selection = PickerSelection(
+            selected = selected.toSet(),
+            onConfirm = { onNext(selected) },
+            confirmLabel = Res.string.new_group_next,
+            confirmIcon = Res.drawable.arrow_forward_24dp,
+            confirmWhenEmpty = true,
+        ),
         showPresence = true,
-        emptyIcon = if (blankQuery) Res.drawable.person_24dp else Res.drawable.search_off_24dp,
-        emptyTitle = if (blankQuery) stringResource(Res.string.new_chat_empty) else null,
-        emptyText = if (blankQuery) stringResource(Res.string.new_chat_empty_text) else null,
+        empty = PickerEmpty(
+            icon = if (blankQuery) Res.drawable.person_24dp else Res.drawable.search_off_24dp,
+            title = if (blankQuery) stringResource(Res.string.new_chat_empty) else null,
+            text = if (blankQuery) stringResource(Res.string.new_chat_empty_text) else null,
+        ),
         onBack = onBack,
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         modifier = modifier,
     )
 }

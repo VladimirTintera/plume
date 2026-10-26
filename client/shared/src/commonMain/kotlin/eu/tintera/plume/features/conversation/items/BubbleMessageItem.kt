@@ -223,8 +223,10 @@ internal data class BubbleMessageItem(
                     messageId = message.id,
                     onOpen = { act(MessageAction.OpenArticleMedia(media.index)) },
                     onRequestMenu = ::requestMenu,
-                    documentProgress = items::documentProgress,
-                    onOpenDocument = { act(MessageAction.OpenArticleDocument(media.index)) },
+                    file = FileTransfer(
+                        documentProgress = items::documentProgress,
+                        onOpenDocument = { act(MessageAction.OpenArticleDocument(media.index)) },
+                    ),
                     // Zvuk a hlasovka v článku: tentýž přehrávač, klíč s pořadím v článku.
                     voice = VoiceHandlers(
                         playback = { items.voicePlayback(message.id, part = media.index) },

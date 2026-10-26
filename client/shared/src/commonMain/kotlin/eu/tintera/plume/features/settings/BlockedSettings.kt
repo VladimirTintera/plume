@@ -47,6 +47,9 @@ import eu.tintera.plume.core.telegram.BlockedSender
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerEmpty
+import eu.tintera.plume.core.ui.PickerError
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
@@ -389,21 +392,24 @@ fun BlockedSendersScreen(
     val blankQuery = state.query.isBlank()
     ChatPicker(
         title = stringResource(Res.string.settings_blocked),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.settings_blocked_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.settings_blocked_search),
+        ),
         loading = state.senders == null,
         sections = listOf(PickerSection(key = "blocked", chats = state.visible.map { it.toSummary(deleted) })),
         enabled = true,
         onPick = viewModel::openActions,
         onBack = onBack,
         snackbarHostState = snackbarHostState,
-        // Bez dotazu je prázdno „nikoho nemáš zablokovaného", s dotazem výchozí „nic nenalezeno".
-        emptyIcon = if (blankQuery) Res.drawable.block_24dp else Res.drawable.search_off_24dp,
-        emptyTitle = if (blankQuery) stringResource(Res.string.settings_blocked_none) else null,
-        emptyText = if (blankQuery) stringResource(Res.string.settings_blocked_summary) else null,
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        empty = PickerEmpty(
+            // Bez dotazu je prázdno „nikoho nemáš zablokovaného", s dotazem výchozí „nic nenalezeno".
+            icon = if (blankQuery) Res.drawable.block_24dp else Res.drawable.search_off_24dp,
+            title = if (blankQuery) stringResource(Res.string.settings_blocked_none) else null,
+            text = if (blankQuery) stringResource(Res.string.settings_blocked_summary) else null,
+        ),
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         header = { BlockUserRow(onClick = onBlockUser) },
         modifier = modifier,
     )
@@ -464,9 +470,11 @@ fun BlockSenderScreen(
     val blankQuery = state.query.isBlank()
     ChatPicker(
         title = stringResource(Res.string.settings_block_user),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.settings_block_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.settings_block_search),
+        ),
         loading = state.loading && state.contacts.isEmpty(),
         sections = listOf(
             PickerSection(key = "contacts", chats = state.contacts, title = stringResource(Res.string.new_chat_contacts)),
@@ -475,10 +483,11 @@ fun BlockSenderScreen(
         enabled = !state.blocking,
         onPick = viewModel::choose,
         onBack = onBack,
-        emptyIcon = if (blankQuery) Res.drawable.person_24dp else Res.drawable.search_off_24dp,
-        emptyTitle = if (blankQuery) stringResource(Res.string.new_chat_empty) else null,
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        empty = PickerEmpty(
+            icon = if (blankQuery) Res.drawable.person_24dp else Res.drawable.search_off_24dp,
+            title = if (blankQuery) stringResource(Res.string.new_chat_empty) else null,
+        ),
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         modifier = modifier,
     )
 

@@ -21,6 +21,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerSelection
+import eu.tintera.plume.core.ui.PickerError
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
@@ -49,22 +52,25 @@ fun ShareContactScreen(
 
     ChatPicker(
         title = stringResource(Res.string.share_contact_title),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.forward_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.forward_search),
+        ),
         loading = state.loading,
         sections = listOf(PickerSection(key = "chats", chats = state.chats)),
         enabled = sendable && !state.sending,
         onPick = viewModel::toggle,
-        selected = state.selected,
-        onConfirm = { viewModel.send(onSent) },
-        // Kontakt se neposílá dál, posílá se — „Přeposlat" by lhalo o tom, co se stane.
-        confirmLabel = Res.string.share_contact_send,
-        confirmIcon = Res.drawable.send_24dp,
+        selection = PickerSelection(
+            selected = state.selected,
+            onConfirm = { viewModel.send(onSent) },
+            // Kontakt se neposílá dál, posílá se — „Přeposlat" by lhalo o tom, co se stane.
+            confirmLabel = Res.string.share_contact_send,
+            confirmIcon = Res.drawable.send_24dp,
+        ),
         savedMessagesChatId = state.savedMessagesChatId,
         onBack = onBack,
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         header = { card?.let { ContactCard(it) } },
         modifier = modifier,
     )

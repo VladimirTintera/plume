@@ -193,14 +193,11 @@ internal fun ChatSearchBar(
     search: ChatSearchState,
     savedMessagesChatId: Long?,
     scrollBehavior: SearchBarScrollBehavior,
-    onQueryChange: (String) -> Unit,
-    onExpandedChange: (Boolean) -> Unit,
+    controls: ChatSearchControls,
     onChatClick: (Long) -> Unit,
     onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
-    onLoadMoreMessages: () -> Unit,
     /** Úklid návrhů pod prázdným dotazem: vymazat historii, odebrat jeden chat, odebrat člověka. */
     suggestionActions: SuggestionActions,
-    onFilterChange: (MessageSearchFilter) -> Unit,
     /** Sponzorované chaty ve výsledcích: zhlédnutí, otevření, nahlášení. */
     sponsoredActions: SponsoredActions,
     /**
@@ -218,12 +215,7 @@ internal fun ChatSearchBar(
      * není (vypnutá AI, nestažený model) a ikona se nenabízí.
      */
     aiSearch: (suspend (String) -> NaturalSearch?)? = null,
-    /** Záložky zpráv napříč chaty; ty, jejichž text sedí na dotaz, mají vlastní blok výsledků. */
-    bookmarks: List<MessageBookmark> = emptyList(),
-    /** Názvy chatů záložek i popsaných fotek. */
-    bookmarkTitles: Map<Long, String> = emptyMap(),
-    /** Fotky popsané modelem v zařízení; hledání je najde podle popisu. */
-    describedPhotos: List<StoredPhotoDescription> = emptyList(),
+    localSources: LocalSearchSources = LocalSearchSources(),
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
@@ -346,7 +338,7 @@ internal fun ChatSearchBar(
                                             } else {
                                                 // Napřed filtr, pak text: hledání se pustí jednou,
                                                 // s obojím (`ChatSearch` sbírá nejnovější).
-                                                onFilterChange(found.filter)
+                                                controls.onFilterChange(found.filter)
                                                 textFieldState.setTextAndPlaceCursorAtEnd(found.text)
                                             }
                                         }
@@ -376,10 +368,10 @@ internal fun ChatSearchBar(
         if (!expanded) {
             textFieldState.clearText()
             // Filtr patří k jednomu hledání, jako dotaz; příště se začíná bez něj.
-            onFilterChange(MessageSearchFilter())
+            controls.onFilterChange(MessageSearchFilter())
         }
         // Návrhy (nejčastější, historie) se načítají jen při otevřeném hledání.
-        onExpandedChange(expanded)
+        controls.onExpandedChange(expanded)
     }
 
     /*
@@ -395,7 +387,7 @@ internal fun ChatSearchBar(
         onRequestHandled()
     }
 
-    val onQueryChangeLatest by rememberUpdatedState(onQueryChange)
+    val onQueryChangeLatest by rememberUpdatedState(controls.onQueryChange)
     LaunchedEffect(textFieldState) {
         snapshotFlow { textFieldState.text.toString() }.collect { onQueryChangeLatest(it) }
     }
@@ -421,29 +413,28 @@ internal fun ChatSearchBar(
             query = textFieldState.text.toString(),
             search = search,
             savedMessagesChatId = savedMessagesChatId,
-            onPick = { chatId ->
-                collapse()
-                onChatClick(chatId)
-            },
-            onMessageClick = { chatId, messageId, topicId ->
-                collapse()
-                onMessageClick(chatId, messageId, topicId)
-            },
-            onLoadMoreMessages = onLoadMoreMessages,
-            // Hledaný hashtag z historie: hledá se znovu, jako by ho uživatel napsal.
-            onPickTag = { tag -> textFieldState.setTextAndPlaceCursorAtEnd(tag) },
+            clicks = SearchResultClicks(
+                onPick = { chatId ->
+                    collapse()
+                    onChatClick(chatId)
+                },
+                onMessageClick = { chatId, messageId, topicId ->
+                    collapse()
+                    onMessageClick(chatId, messageId, topicId)
+                },
+                // Hledaný hashtag z historie: hledá se znovu, jako by ho uživatel napsal.
+                onPickTag = { tag -> textFieldState.setTextAndPlaceCursorAtEnd(tag) },
+                onPickSponsored = { ad ->
+                    // Otevření se hlásí dřív, než se chat otevře (specifikace reklam).
+                    sponsoredActions.onOpen(ad.uniqueId)
+                    collapse()
+                    onChatClick(ad.chat.id)
+                },
+            ),
+            controls = controls,
             suggestionActions = suggestionActions,
-            onFilterChange = onFilterChange,
             sponsoredActions = sponsoredActions,
-            onPickSponsored = { ad ->
-                // Otevření se hlásí dřív, než se chat otevře (specifikace reklam).
-                sponsoredActions.onOpen(ad.uniqueId)
-                collapse()
-                onChatClick(ad.chat.id)
-            },
-            bookmarks = bookmarks,
-            bookmarkTitles = bookmarkTitles,
-            describedPhotos = describedPhotos,
+            localSources = localSources,
         )
         SnackbarHost(
             snackbarHostState,
@@ -517,26 +508,20 @@ private fun SearchResults(
     query: String,
     search: ChatSearchState,
     savedMessagesChatId: Long?,
-    onPick: (Long) -> Unit,
-    onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
-    onLoadMoreMessages: () -> Unit,
-    onPickTag: (String) -> Unit,
+    clicks: SearchResultClicks,
+    controls: ChatSearchControls,
     suggestionActions: SuggestionActions,
-    onFilterChange: (MessageSearchFilter) -> Unit,
     sponsoredActions: SponsoredActions,
-    onPickSponsored: (SponsoredSearchChat) -> Unit,
-    bookmarks: List<MessageBookmark>,
-    bookmarkTitles: Map<Long, String>,
-    describedPhotos: List<StoredPhotoDescription>,
+    localSources: LocalSearchSources,
 ) {
     val trimmed = query.trim()
-    val onPickLatest by rememberUpdatedState(onPick)
-    val onMessageClickLatest by rememberUpdatedState(onMessageClick)
-    val onLoadMoreLatest by rememberUpdatedState(onLoadMoreMessages)
+    val onPickLatest by rememberUpdatedState(clicks.onPick)
+    val onMessageClickLatest by rememberUpdatedState(clicks.onMessageClick)
+    val onLoadMoreLatest by rememberUpdatedState(controls.onLoadMoreMessages)
 
     // Prázdný dotaz s druhem obsahu (z hledání přirozeným jazykem) hledá zprávy, ne návrhy.
     if (trimmed.isEmpty() && search.filter.content == null) {
-        Suggestions(search, onPick = { onPickLatest(it) }, onPickTag = onPickTag, actions = suggestionActions)
+        Suggestions(search, onPick = { onPickLatest(it) }, onPickTag = clicks.onPickTag, actions = suggestionActions)
         return
     }
 
@@ -566,23 +551,23 @@ private fun SearchResults(
      * Filtry ne: období a druh obsahu míří na zprávy od serveru, záložka je vlastní poznámka
      * „tohle si chci najít", a pod filtrem by se ztratila bez vysvětlení. Hashtag hledá zprávy.
      */
-    val foundBookmarks = remember(bookmarks, trimmed, filter) {
+    val foundBookmarks = remember(localSources.bookmarks, trimmed, filter) {
         val key = foldDiacritics(trimmed).lowercase()
         if (key.isEmpty() || !filter.isEmpty || isHashtagQuery(trimmed)) {
             emptyList()
         } else {
-            bookmarks.filter { foldDiacritics(it.text).lowercase().contains(key) }
+            localSources.bookmarks.filter { foldDiacritics(it.text).lowercase().contains(key) }
         }
     }
     // Fotky podle popisu od modelu v zařízení — týmž lokálním hledáním jako záložky, nejnovější
     // popis první. Druh obsahu „Fotky" je nevypne: tam patří nejvíc.
-    val foundPhotos = remember(describedPhotos, trimmed, filter) {
+    val foundPhotos = remember(localSources.describedPhotos, trimmed, filter) {
         val key = foldDiacritics(trimmed).lowercase()
         val onlyPhotos = filter.copy(content = null).isEmpty && (filter.content == null || filter.content == SearchContent.Photos)
         if (key.isEmpty() || !onlyPhotos || isHashtagQuery(trimmed)) {
             emptyList()
         } else {
-            describedPhotos.filter { foldDiacritics(it.text).lowercase().contains(key) }.sortedByDescending { it.savedAt }
+            localSources.describedPhotos.filter { foldDiacritics(it.text).lowercase().contains(key) }.sortedByDescending { it.savedAt }
         }
     }
 
@@ -599,9 +584,9 @@ private fun SearchResults(
         // Hashtag hledá jen zprávy, druh chatu se tam nabízí taky; období dává smysl vždycky.
         // U hashtagu nejdřív odkud (vlastní chaty / veřejné příspěvky); veřejné příspěvky druh
         // chatu ani období neberou, takže s nimi filtry nejsou.
-        if (isHashtagQuery(trimmed)) HashtagSourceToggle(filter = search.filter, onChange = onFilterChange)
+        if (isHashtagQuery(trimmed)) HashtagSourceToggle(filter = search.filter, onChange = controls.onFilterChange)
         if (!searchesPublicPosts(trimmed, search.filter)) {
-            MessageSearchFilters(filter = search.filter, onChange = onFilterChange)
+            MessageSearchFilters(filter = search.filter, onChange = controls.onFilterChange)
         }
         if (nothing) {
             if (settled || emptyShown) {
@@ -735,7 +720,7 @@ private fun SearchResults(
                 itemsIndexed(sponsored, key = { _, ad -> sponsoredRowKey(ad.uniqueId) }) { index, ad ->
                     SponsoredResultRow(
                         ad = ad,
-                        onClick = { onPickSponsored(ad) },
+                        onClick = { clicks.onPickSponsored(ad) },
                         onReport = { sponsoredActions.onReport(ad) },
                         modifier = Modifier.animateItem().groupedItem(index, sponsored.size, rowColor),
                     )
@@ -772,7 +757,7 @@ private fun SearchResults(
                 }
                 val shownBookmarks = if (bookmarksExpanded || messages.isEmpty()) foundBookmarks else foundBookmarks.take(COLLAPSED_ROWS)
                 itemsIndexed(shownBookmarks, key = { _, bookmark -> "bookmark-${bookmark.chatId}-${bookmark.messageId}" }) { index, bookmark ->
-                    val title = bookmarkTitles[bookmark.chatId]
+                    val title = localSources.chatTitles[bookmark.chatId]
                     LocalResultRow(
                         title = title ?: bookmark.sender.orEmpty(),
                         // U kanálu je odesílatel tentýž jako název — dvakrát by byl šum.
@@ -797,7 +782,7 @@ private fun SearchResults(
                 val shownPhotos = if (photosExpanded || messages.isEmpty()) foundPhotos else foundPhotos.take(COLLAPSED_ROWS)
                 itemsIndexed(shownPhotos, key = { _, photo -> "photo-${photo.chatId}-${photo.messageId}" }) { index, photo ->
                     LocalResultRow(
-                        title = bookmarkTitles[photo.chatId].orEmpty(),
+                        title = localSources.chatTitles[photo.chatId].orEmpty(),
                         sender = null,
                         timestamp = null,
                         text = photo.text,
@@ -1188,7 +1173,6 @@ private fun ChatResultRow(
     )
 }
 
-/** Úklid návrhů pod prázdným dotazem; jeden objekt místo tří parametrů hledání. */
 /** Co jde se sponzorovaným chatem ve výsledcích hledání (viz `ChatsViewModel`). */
 class SponsoredActions(
     val onSeen: (uniqueId: Long) -> Unit,
@@ -1270,12 +1254,45 @@ private fun SponsoredResultMenu(onReport: () -> Unit) {
     }
 }
 
+/** Úklid návrhů pod prázdným dotazem; jeden objekt místo tří parametrů hledání. */
 class SuggestionActions(
     val onClear: () -> Unit,
     val onRemoveRecent: (chatId: Long) -> Unit,
     val onRemoveTop: (chatId: Long) -> Unit,
     val onRemoveTag: (tag: String) -> Unit = {},
     val onClearTags: () -> Unit = {},
+)
+
+/**
+ * Co pilulka a výsledky hlásí hledání ([ChatSearch]): dotaz, rozbalení, filtr a další stránku
+ * zpráv.
+ */
+internal data class ChatSearchControls(
+    val onQueryChange: (String) -> Unit,
+    /** Návrhy (nejčastější, historie) se načítají jen při otevřeném hledání. */
+    val onExpandedChange: (Boolean) -> Unit,
+    val onFilterChange: (MessageSearchFilter) -> Unit,
+    /** Další stránka zpráv, jakmile se ve výsledcích listuje ke konci. */
+    val onLoadMoreMessages: () -> Unit,
+)
+
+/** Co hledání prochází v zařízení, ne na serveru: záložky zpráv a fotky popsané modelem. */
+internal data class LocalSearchSources(
+    /** Záložky zpráv napříč chaty; ty, jejichž text sedí na dotaz, mají vlastní blok výsledků. */
+    val bookmarks: List<MessageBookmark> = emptyList(),
+    /** Názvy chatů záložek i popsaných fotek. */
+    val chatTitles: Map<Long, String> = emptyMap(),
+    /** Fotky popsané modelem v zařízení; hledání je najde podle popisu. */
+    val describedPhotos: List<StoredPhotoDescription> = emptyList(),
+)
+
+/** Co udělá ťuknutí na výsledek hledání; [ChatSearchBar] po něm hledání zavře. */
+private data class SearchResultClicks(
+    val onPick: (Long) -> Unit,
+    val onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
+    /** Hledaný hashtag z historie: hledá se znovu, jako by ho uživatel napsal. */
+    val onPickTag: (String) -> Unit,
+    val onPickSponsored: (SponsoredSearchChat) -> Unit,
 )
 
 private val TOP_CHAT_WIDTH = 76.dp
