@@ -77,6 +77,19 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   notifikaci „Přihlásit hodinky?" s Přihlásit / Zamítnout a po potvrzení zavolá `confirmQrLogin`
   — jako by kód naskenoval. Výsledek jde zpátky (`/plume/watch-login/result`: potvrzeno,
   zamítnuto, telefon nepřihlášen, nezdar); `Ready` hodinkám přijde od TDLib samo.
+  - **Čekání je přes celou obrazovku** (`PhoneLoginWaiting`): kruh po obvodu displeje
+    (neurčitý `CircularProgressIndicator` s `FullScreenPadding` a silnou čarou), uprostřed ikona
+    telefonu, co udělat, a Zrušit (i tahem zpět, `BackHandler`); po potvrzení v telefonu
+    „Přihlašování…" bez Zrušit. Dřív se věta jen vyměnila za tlačítko uvnitř seznamu s QR kódem
+    a se zmenšováním položek u okraje se překreslovala přes nápovědu pod sebou.
+  - **Konec hlásí potvrzovací dialog.** Fajfku „Přihlášeno" ukazuje `WearApp`, ne QR obrazovka:
+    ta s `Ready` zmizí i s dialogem. Ukáže se po průchodu `WaitQrConfirmation`/`WaitPassword`,
+    takže i po naskenování kódu, a ne při startu už přihlášené aplikace. Nezdar je křížek
+    („Zamítnuto", jinak „Nepovedlo se") a po něm zůstane pod nadpisem věta, proč, s tlačítkem
+    znovu. Odpověď telefonu na zrušené čekání se zahodí.
+  - Ověřeno na emulátoru 2026-10-26 dočasným buildem, který místo seznamu chatů prošel stavy
+    (fajfka, čekání, Přihlašování…, Zamítnuto, věta pod nadpisem) s napodobeným telefonem;
+    skutečný telefon na emulátoru spárovat nejde. Normální build fajfku při startu neukázal.
   - **Nikdy bez potvrzení na telefonu.** Data Layer doručí zprávu jen mezi aplikacemi se stejným
     id a podpisem, ale přihlášení zařízení k účtu je citlivé.
   - **Notifikace `setLocalOnly`:** nepřihlášené hodinky zrcadlí notifikace telefonu, takže by se
