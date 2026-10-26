@@ -16,6 +16,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerSelection
+import eu.tintera.plume.core.ui.PickerError
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
@@ -59,22 +62,25 @@ fun BotShareScreen(
 
     ChatPicker(
         title = title,
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.forward_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.forward_search),
+        ),
         loading = state.loading,
         sections = listOf(PickerSection(key = "candidates", chats = state.chats)),
         enabled = !state.busy,
         onPick = viewModel::pick,
         // Lidé se zaškrtávají, chat se potvrzuje dialogem.
-        selected = state.selected.takeIf { users != null },
-        onConfirm = { viewModel.share(onShared) },
-        confirmLabel = Res.string.bot_share_confirm_count,
-        confirmIcon = Res.drawable.send_24dp,
+        selection = PickerSelection(
+            selected = state.selected,
+            onConfirm = { viewModel.share(onShared) },
+            confirmLabel = Res.string.bot_share_confirm_count,
+            confirmIcon = Res.drawable.send_24dp,
+        ).takeIf { users != null },
         showPresence = users != null,
         onBack = onBack,
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         header = { BotShareCard(users, chat) },
         modifier = modifier,
     )

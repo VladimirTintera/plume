@@ -93,6 +93,48 @@ data class PickerSection(
     val title: String? = null,
 )
 
+/** Hledání nad výběrem: dotaz, jeho změna a nápověda v pilulce. */
+data class PickerSearch(
+    val query: String,
+    val onQueryChange: (String) -> Unit,
+    val placeholder: String,
+)
+
+/**
+ * Výběr víc cílů potvrzený tlačítkem: co je vybrané a jak tlačítko vypadá.
+ *
+ * Sdílení ze systému a nová konverzace zůstávají na jednom cíli (bez výběru): tam se po výběru
+ * pokračuje dál, takže „vyber a potvrď" by byl krok navíc před dalším krokem. Přeposílání
+ * vybírá, protože poslat totéž do víc chatů je jeho běžný případ.
+ */
+data class PickerSelection(
+    /** Vybrané cíle. */
+    val selected: Set<Long>,
+    val onConfirm: () -> Unit,
+    /**
+     * Tlačítko i bez vybraného — kde výběr upravuje existující množinu (chaty ve složce)
+     * a odznačit všechno je platná odpověď, nebo kde prázdný výběr dává smysl (nová skupina
+     * bez členů, pozvat jde i odkazem).
+     */
+    val confirmWhenEmpty: Boolean = false,
+    /** Popisek tlačítka odeslání s počtem cílů (`%1$d`) — „Přeposlat (2)", „Poslat (2)". */
+    val confirmLabel: StringResource = Res.string.forward_send,
+    val confirmIcon: DrawableResource = Res.drawable.forward_24dp,
+)
+
+/** Prázdný stav výběru; bez nadpisu a textu platí výchozí „nic nenalezeno". */
+data class PickerEmpty(
+    val icon: DrawableResource = Res.drawable.search_off_24dp,
+    val title: String? = null,
+    val text: String? = null,
+)
+
+/** Chyba, kterou výběr ohlásí snackbarem; po ohlášení zavolá [onShown]. */
+data class PickerError(
+    val text: UiText,
+    val onShown: () -> Unit,
+)
+
 /**
  * Výběr chatu: hledání a seznam chatů v blocích zaoblených řádků.
  *
@@ -109,9 +151,7 @@ data class PickerSection(
 @Composable
 fun ChatPicker(
     title: String,
-    query: String,
-    onQueryChange: (String) -> Unit,
-    searchPlaceholder: String,
+    search: PickerSearch,
     loading: Boolean,
     sections: List<PickerSection>,
     enabled: Boolean,
@@ -121,35 +161,16 @@ fun ChatPicker(
     /** ✕ místo šipky: zavření celé akce, ne návrat o krok (sdílení ze systému). */
     closeIcon: Boolean = false,
     savedMessagesChatId: Long? = null,
-    /**
-     * Vybrané cíle; `null` = jeden cíl a ťuknutí ho rovnou použije.
-     *
-     * Sdílení ze systému a nová konverzace zůstávají na jednom cíli: tam se po výběru pokračuje
-     * dál, takže „vyber a potvrď" by byl krok navíc před dalším krokem. Přeposílání vybírá,
-     * protože poslat totéž do víc chatů je jeho běžný případ.
-     */
-    selected: Set<Long>? = null,
-    onConfirm: () -> Unit = {},
-    /**
-     * Tlačítko i bez vybraného — kde výběr upravuje existující množinu (chaty ve složce)
-     * a odznačit všechno je platná odpověď, nebo kde prázdný výběr dává smysl (nová skupina
-     * bez členů, pozvat jde i odkazem).
-     */
-    confirmWhenEmpty: Boolean = false,
-    /** Popisek tlačítka odeslání s počtem cílů (`%1$d`) — „Přeposlat (2)", „Poslat (2)". */
-    confirmLabel: StringResource = Res.string.forward_send,
-    confirmIcon: DrawableResource = Res.drawable.forward_24dp,
+    /** Výběr víc cílů s potvrzením; `null` = jeden cíl a ťuknutí ho rovnou použije. */
+    selection: PickerSelection? = null,
     /**
      * Dostupnost protějšku pod jménem. Patří tam, kde se vybírá ČLOVĚK (nová konverzace), ne
      * kam se posílá obsah — u přeposílání by „naposledy před hodinou" o cíli nic neříkalo
      * a řádky by kvůli tomu byly vyšší.
      */
     showPresence: Boolean = false,
-    emptyIcon: DrawableResource = Res.drawable.search_off_24dp,
-    emptyTitle: String? = null,
-    emptyText: String? = null,
-    error: UiText? = null,
-    onErrorShown: () -> Unit = {},
+    empty: PickerEmpty = PickerEmpty(),
+    error: PickerError? = null,
     /**
      * Pod hledáním, nad seznamem: co obrazovka k výběru dodává — volby přeposlání, u sdílení
      * karta s tím, co se posílá.
@@ -172,11 +193,11 @@ fun ChatPicker(
      */
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
-    val errorText = error?.resolve()
+    val errorText = error?.text?.resolve()
     LaunchedEffect(errorText) {
         if (errorText != null) {
             snackbarHostState.showSnackbar(errorText)
-            onErrorShown()
+            error?.onShown()
         }
     }
 
@@ -210,17 +231,18 @@ fun ChatPicker(
         floatingActionButton = {
             // Bez vybraného cíle není co odeslat — tlačítko naskočí, až je kam.
             AnimatedVisibility(
-                visible = selected != null && (confirmWhenEmpty || selected.isNotEmpty()),
+                visible = selection != null && (selection.confirmWhenEmpty || selection.selected.isNotEmpty()),
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
                     scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec(), initialScale = 0.8f),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
                     scaleOut(MaterialTheme.motionScheme.defaultSpatialSpec(), targetScale = 0.8f),
             ) {
-                ExtendedFloatingActionButton(onClick = onConfirm) {
-                    Icon(painterResource(confirmIcon), contentDescription = null)
+                // Bez výběru je tlačítko skryté; za běhu obrazovky se výběr nevypíná.
+                if (selection != null) ExtendedFloatingActionButton(onClick = selection.onConfirm) {
+                    Icon(painterResource(selection.confirmIcon), contentDescription = null)
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = stringResource(confirmLabel, selected?.size ?: 0),
+                        text = stringResource(selection.confirmLabel, selection.selected.size),
                         style = LocalTextStyle.current.tabularNumbers(),
                         // Počet roste a klesá; bez animace by tlačítko poskakovalo. Animuje se
                         // POPISEK, ne tlačítko: `animateContentSize` ořezává na svoje hranice,
@@ -261,9 +283,9 @@ fun ChatPicker(
             // Tatáž pilulka jako v hlavičce seznamu chatů a při hledání v konverzaci — jeden
             // prvek pro hledání v celé aplikaci.
             SearchPill(
-                initialQuery = query,
-                onQueryChange = onQueryChange,
-                placeholder = searchPlaceholder,
+                initialQuery = search.query,
+                onQueryChange = search.onQueryChange,
+                placeholder = search.placeholder,
                 clearDescription = stringResource(Res.string.chats_search_clear),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = PICKER_HORIZONTAL, vertical = 8.dp),
             )
@@ -284,7 +306,7 @@ fun ChatPicker(
             }
 
             val savedTitle = stringResource(Res.string.saved_messages)
-            val showSaved = savedMessagesChatId != null && savedTitle.contains(query.trim(), ignoreCase = true)
+            val showSaved = savedMessagesChatId != null && savedTitle.contains(search.query.trim(), ignoreCase = true)
             // Uložené zprávy kreslí karta nahoře, takže mezi ostatními řádky být nesmí.
             val blocks = sections
                 .map { section -> section.copy(chats = section.chats.filter { it.id != savedMessagesChatId }) }
@@ -294,9 +316,9 @@ fun ChatPicker(
                 Box(Modifier.padding(horizontal = PICKER_HORIZONTAL)) { header() }
                 // Tentýž prázdný stav jako u hledání v chatech a prázdného archivu.
                 IntroEmptyState(
-                    icon = emptyIcon,
-                    title = emptyTitle ?: stringResource(Res.string.chats_search_empty),
-                    text = emptyText ?: stringResource(Res.string.forward_empty),
+                    icon = empty.icon,
+                    title = empty.title ?: stringResource(Res.string.chats_search_empty),
+                    text = empty.text ?: stringResource(Res.string.forward_empty),
                     containerColor = Color.Transparent,
                     // Bez toho by se prázdný stav vystředil do plochy pod lištou, tedy níž.
                     modifier = Modifier.fillMaxSize().padding(bottom = bottomInset),
@@ -311,7 +333,7 @@ fun ChatPicker(
                     top = 8.dp,
                     // Tlačítko leží na seznamu, takže poslední chat musí jít doscrollovat nad ně —
                     // jinak zůstane jeho zaškrtávátko schované pod tlačítkem.
-                    bottom = 8.dp + bottomInset + if (selected != null) FAB_CLEARANCE else 0.dp,
+                    bottom = 8.dp + bottomInset + if (selection != null) FAB_CLEARANCE else 0.dp,
                 ),
                 // Rozestup UVNITŘ bloku; mezeru mezi bloky si nese jejich první položka.
                 verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
@@ -329,18 +351,22 @@ fun ChatPicker(
                      */
                     item(key = savedMessagesChatId) {
                         PickerRow(
-                            avatarColorId = savedMessagesChatId,
+                            avatar = PickerAvatar(
+                                colorId = savedMessagesChatId,
+                                fileId = null,
+                                shape = CircleShape,
+                                isSavedMessages = true,
+                            ),
                             title = savedTitle,
                             subtitle = null,
-                            avatarFileId = null,
-                            avatarShape = CircleShape,
-                            isSavedMessages = true,
-                            checked = selected?.contains(savedMessagesChatId),
+                            checked = selection?.selected?.contains(savedMessagesChatId),
                             enabled = enabled,
                             shape = RoundedCornerShape(GROUP_CORNER),
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            mutedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            colors = PickerRowColors(
+                                container = MaterialTheme.colorScheme.primaryContainer,
+                                content = MaterialTheme.colorScheme.onPrimaryContainer,
+                                mutedContent = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ),
                             onClick = { onPick(savedMessagesChatId) },
                             modifier = Modifier.padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
                         )
@@ -357,35 +383,39 @@ fun ChatPicker(
                         }
                     }
                     itemsIndexed(section.chats, key = { _, chat -> "${section.key}-${chat.id}" }) { index, chat ->
-                        val isSelected = selected?.contains(chat.id) == true
+                        val isSelected = selection?.selected?.contains(chat.id) == true
                         PickerRow(
-                            avatarColorId = chat.avatarColorId,
+                            avatar = PickerAvatar(
+                                colorId = chat.avatarColorId,
+                                fileId = chat.avatarFileId,
+                                shape = chat.kind.avatarShape(),
+                                isSavedMessages = false,
+                            ),
                             title = chat.title,
                             secret = chat.isSecret,
                             subtitle = if (showPresence) chat.presence else null,
-                            avatarFileId = chat.avatarFileId,
-                            avatarShape = chat.kind.avatarShape(),
-                            isSavedMessages = false,
-                            checked = selected?.contains(chat.id),
+                            checked = selection?.selected?.contains(chat.id),
                             enabled = enabled,
                             // Krajní položky bloku nesou jeho zaoblení; vybraný cíl je zaoblený celý,
                             // takže se z bloku vyčlení i tvarem — jako vybraný chat v seznamu.
                             shape = groupItemShape(index, section.chats.size, selected = isSelected),
-                            containerColor = if (isSelected) {
-                                MaterialTheme.colorScheme.secondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainerLowest
-                            },
-                            contentColor = if (isSelected) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
-                            mutedContentColor = if (isSelected) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                            colors = PickerRowColors(
+                                container = if (isSelected) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerLowest
+                                },
+                                content = if (isSelected) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                mutedContent = if (isSelected) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            ),
                             onClick = { onPick(chat.id) },
                             // Mezeru nad blokem nese jeho první řádek jen tehdy, když blok nemá
                             // nadpis — jinak už ji nese ten.
@@ -415,6 +445,26 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
     }
 }
 
+/** Avatar řádku výběru: barva a fotka chatu, tvar podle druhu chatu, záložka Uložených zpráv. */
+private data class PickerAvatar(
+    val colorId: Long,
+    val fileId: Int?,
+    val shape: Shape,
+    val isSavedMessages: Boolean,
+)
+
+/** Barvy řádku výběru: plocha, popředí a ztlumené popředí podtitulu. */
+private data class PickerRowColors(
+    val container: Color,
+    val content: Color,
+    /**
+     * Popředí podtitulu. `onSurfaceVariant` je počítaná na `surface` role, takže na vybraném
+     * `secondaryContainer` i na kartě Uložených zpráv patří jejich vlastní `on*` — tatáž past
+     * jako u času a ikon u vybraného chatu v seznamu.
+     */
+    val mutedContent: Color,
+)
+
 /**
  * Řádek výběru: blok zaoblených řádků jako seznam chatů, ne holý `ListItem` na pozadí.
  *
@@ -427,27 +477,17 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
  */
 @Composable
 private fun PickerRow(
-    avatarColorId: Long,
+    avatar: PickerAvatar,
     title: String,
     /** Tajný chat — zámek před jménem, jinak by splynul s obyčejným chatem téhož člověka. */
     secret: Boolean = false,
     /** Dostupnost protějšku pod jménem; `null` = řádek je jen jméno. */
     subtitle: Presence?,
-    avatarFileId: Int?,
-    avatarShape: Shape,
-    isSavedMessages: Boolean,
     /** `null` = vybírá se jeden cíl a ťuknutí ho rovnou použije, takže políčko nemá co ukázat. */
     checked: Boolean?,
     enabled: Boolean,
     shape: Shape,
-    containerColor: Color,
-    contentColor: Color,
-    /**
-     * Popředí podtitulu. `onSurfaceVariant` je počítaná na `surface` role, takže na vybraném
-     * `secondaryContainer` i na kartě Uložených zpráv patří jejich vlastní `on*` — tatáž past
-     * jako u času a ikon u vybraného chatu v seznamu.
-     */
-    mutedContentColor: Color,
+    colors: PickerRowColors,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -455,8 +495,8 @@ private fun PickerRow(
         onClick = onClick,
         enabled = enabled,
         shape = shape,
-        color = containerColor,
-        contentColor = contentColor,
+        color = colors.container,
+        contentColor = colors.content,
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(
@@ -465,15 +505,15 @@ private fun PickerRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Avatar(
-                chatId = avatarColorId,
+                chatId = avatar.colorId,
                 title = title,
-                avatarFileId = avatarFileId,
+                avatarFileId = avatar.fileId,
                 size = AVATAR_SIZE,
-                shape = avatarShape,
-                isSavedMessages = isSavedMessages,
+                shape = avatar.shape,
+                isSavedMessages = avatar.isSavedMessages,
                 // Záložka Uložených zpráv je `primary`; na tónované kartě by s ní splynula,
                 // takže `Avatar` musí vědět, na čem leží.
-                backdrop = containerColor,
+                backdrop = colors.container,
             )
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -493,9 +533,9 @@ private fun PickerRow(
                         // tónované kartě je v paletě se zvýšeným kontrastem k nerozeznání,
                         // takže ustoupí ztlumenému popředí řádku.
                         color = if (presence is Presence.Online) {
-                            accentOn(containerColor, MaterialTheme.colorScheme.primary, mutedContentColor)
+                            accentOn(colors.container, MaterialTheme.colorScheme.primary, colors.mutedContent)
                         } else {
-                            mutedContentColor
+                            colors.mutedContent
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -510,9 +550,9 @@ private fun PickerRow(
                     // zvýšeným kontrastem je `primaryContainer` v tmavém režimu světlý jako
                     // `primary` a plné políčko by s kartou splynulo.
                     colors = CheckboxDefaults.colors(
-                        checkedColor = contentColor,
-                        checkmarkColor = containerColor,
-                        uncheckedColor = contentColor,
+                        checkedColor = colors.content,
+                        checkmarkColor = colors.container,
+                        uncheckedColor = colors.content,
                     ),
                 )
             }

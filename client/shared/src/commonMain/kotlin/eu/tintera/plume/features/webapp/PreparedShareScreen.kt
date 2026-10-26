@@ -34,6 +34,10 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.PreparedMessage
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerSelection
+import eu.tintera.plume.core.ui.PickerEmpty
+import eu.tintera.plume.core.ui.PickerError
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
@@ -147,24 +151,29 @@ fun PreparedShareScreen(
 
     ChatPicker(
         title = stringResource(Res.string.webapp_share_title),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.forward_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.forward_search),
+        ),
         loading = state.loading,
         sections = listOf(PickerSection(key = "chats", chats = state.shown)),
         enabled = !state.sending,
         onPick = viewModel::toggle,
         onBack = onBack,
         savedMessagesChatId = savedMessagesChatId.takeIf { message.targets.users },
-        selected = state.selected,
-        onConfirm = { viewModel.send(onSent) },
-        confirmLabel = Res.string.webapp_share_confirm_count,
-        confirmIcon = Res.drawable.send_24dp,
-        emptyIcon = Res.drawable.forum_24dp,
-        emptyTitle = stringResource(Res.string.bot_switch_inline_empty_title).takeIf { state.query.isBlank() },
-        emptyText = stringResource(Res.string.bot_switch_inline_empty_text).takeIf { state.query.isBlank() },
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        selection = PickerSelection(
+            selected = state.selected,
+            onConfirm = { viewModel.send(onSent) },
+            confirmLabel = Res.string.webapp_share_confirm_count,
+            confirmIcon = Res.drawable.send_24dp,
+        ),
+        empty = PickerEmpty(
+            icon = Res.drawable.forum_24dp,
+            title = stringResource(Res.string.bot_switch_inline_empty_title).takeIf { state.query.isBlank() },
+            text = stringResource(Res.string.bot_switch_inline_empty_text).takeIf { state.query.isBlank() },
+        ),
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         header = { PreparedMessageCard(message, bot) },
         modifier = modifier,
     )

@@ -118,8 +118,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ChatActionsSheet(
     chat: ChatSummary,
-    /** Co nabídnout proti spamu; `null`, dokud to nedorazí ze serveru — pak se nenabízí nic. */
-    spam: SpamActions?,
+    spam: SpamControls,
     onTogglePinned: () -> Unit,
     /**
      * Režim uspořádání připnutých; `null` = nenabízet (chat není připnutý, nebo není s čím ho
@@ -128,23 +127,13 @@ fun ChatActionsSheet(
     onReorderPinned: (() -> Unit)?,
     /** Výběr víc chatů, začne tímhle chatem. */
     onSelect: () -> Unit,
-    /** Ztlumení na dobu; `null` = navždy. */
-    onMute: (Duration?) -> Unit,
-    onUnmute: () -> Unit,
-    /** Konec odložení (ms od epochy), když chat právě spí; jinak `null`. */
-    snoozedUntil: Long?,
-    /** Odložení na dobu; `null` = nenabízet. */
-    onSnooze: ((SnoozeOption) -> Unit)?,
-    onUnsnooze: () -> Unit,
+    quiet: QuietActions,
     onToggleUnread: () -> Unit,
     /** `null` = chat archivovat nejde (Uložené zprávy), položka se nenabídne. */
     onToggleArchived: (() -> Unit)?,
     /** Složky, do kterých chat jde přidat nebo ve kterých je; prázdné = „Přidat do složky" není. */
     folders: List<FolderChoice>,
     onToggleFolder: (Int) -> Unit,
-    onSetBlocked: (Boolean) -> Unit,
-    /** Samostatné nahlášení (průvodce), bez mazání. */
-    onReport: () -> Unit,
     /** Smazání potvrzené v podmenu, s volbami proti spamu. */
     onDelete: (SpamCleanup) -> Unit,
     onDismiss: () -> Unit,
@@ -157,8 +146,8 @@ fun ChatActionsSheet(
         SponsoredChatSheet(
             chat = chat,
             sponsor = sponsor,
-            onMute = { onMute(null) },
-            onUnmute = onUnmute,
+            onMute = { quiet.onMute(null) },
+            onUnmute = quiet.onUnmute,
             onToggleUnread = onToggleUnread,
             onOpenProxySettings = {
                 onDismiss()
@@ -229,7 +218,7 @@ fun ChatActionsSheet(
                         icon = Res.drawable.notifications_24dp,
                         label = stringResource(Res.string.chats_action_unmute),
                         shape = ShapeDefaults.ExtraSmall,
-                        onClick = onUnmute,
+                        onClick = quiet.onUnmute,
                     )
                 } else {
                     /*
@@ -271,7 +260,7 @@ fun ChatActionsSheet(
                                     shape = ShapeDefaults.ExtraSmall,
                                     // Tónovaná plocha o stupeň níž: varianty patří k položce nad nimi.
                                     color = MaterialTheme.colorScheme.surfaceContainer,
-                                    onClick = { onMute(duration) },
+                                    onClick = { quiet.onMute(duration) },
                                 )
                             }
                         }
@@ -279,12 +268,14 @@ fun ChatActionsSheet(
                 }
 
                 // Hned pod ztlumením: obojí chat ztiší, odložení navíc jen na čas a s připomínkou.
+                val snoozedUntil = quiet.snoozedUntil
+                val onSnooze = quiet.onSnooze
                 if (snoozedUntil != null) {
                     SheetActionRow(
                         icon = Res.drawable.snooze_24dp,
                         label = stringResource(Res.string.chats_action_unsnooze),
                         shape = ShapeDefaults.ExtraSmall,
-                        onClick = onUnsnooze,
+                        onClick = quiet.onUnsnooze,
                         trailing = { SnoozeTime(snoozedUntil) },
                     )
                 } else if (onSnooze != null) {
@@ -319,12 +310,13 @@ fun ChatActionsSheet(
                  * dialog, který před vratnou akcí jen zdržuje. (V profilu chatu dialog zůstává — tam se
                  * do blokování chodí vědomě a snackbar s „Vrátit" tam není odkud ukázat.)
                  */
-                if (spam?.canBlock == true) {
+                val offer = spam.offer
+                if (offer?.canBlock == true) {
                     SheetActionRow(
                         icon = Res.drawable.block_24dp,
-                        label = stringResource(if (spam.isBlocked) Res.string.profile_unblock else Res.string.profile_block),
+                        label = stringResource(if (offer.isBlocked) Res.string.profile_unblock else Res.string.profile_block),
                         shape = ShapeDefaults.ExtraSmall,
-                        onClick = { onSetBlocked(!spam.isBlocked) },
+                        onClick = { spam.onSetBlocked(!offer.isBlocked) },
                     )
                 }
 
@@ -332,14 +324,14 @@ fun ChatActionsSheet(
                  * Nahlásit samostatně, bez mazání — hlavně pro skupiny a kanály, ze kterých se odejít
                  * nechce. Popisek říká dopředu, jestli se průvodce zeptá na důvod.
                  */
-                if (spam?.canReport == true) {
+                if (offer?.canReport == true) {
                     SheetActionRow(
                         icon = Res.drawable.flag_24dp,
                         label = stringResource(
-                            if (spam.reportsSpamDirectly) Res.string.chats_delete_report else Res.string.chats_action_report,
+                            if (offer.reportsSpamDirectly) Res.string.chats_delete_report else Res.string.chats_action_report,
                         ),
                         shape = ShapeDefaults.ExtraSmall,
-                        onClick = onReport,
+                        onClick = spam.onReport,
                     )
                 }
 
@@ -392,7 +384,7 @@ fun ChatActionsSheet(
                     DeleteChatOptions(
                         isPrivate = chat.isPrivate,
                         title = chatTitle(chat.id, chat.title),
-                        spam = spam,
+                        spam = offer,
                         onConfirm = onDelete,
                     )
                 }
@@ -524,6 +516,30 @@ internal fun SnoozeOption.label(): StringResource = when (this) {
     SnoozeOption.Morning -> Res.string.chats_snooze_morning
     SnoozeOption.TomorrowMorning -> Res.string.chats_snooze_tomorrow_morning
 }
+
+/**
+ * Ztišení v nabídce nad chatem: ztlumení a pod ním odložení. Obojí chat ztiší, odložení navíc
+ * jen na čas a s připomínkou.
+ */
+data class QuietActions(
+    /** Ztlumení na dobu; `null` = navždy. */
+    val onMute: (Duration?) -> Unit,
+    val onUnmute: () -> Unit,
+    /** Konec odložení (ms od epochy), když chat právě spí; jinak `null`. */
+    val snoozedUntil: Long?,
+    /** Odložení na dobu; `null` = nenabízet. */
+    val onSnooze: ((SnoozeOption) -> Unit)?,
+    val onUnsnooze: () -> Unit,
+)
+
+/** Zablokování a nahlášení v nabídce nad chatem: co z toho jde ([offer]) a co se pak stane. */
+data class SpamControls(
+    /** Co nabídnout proti spamu; `null`, dokud to nedorazí ze serveru — pak se nenabízí nic. */
+    val offer: SpamActions?,
+    val onSetBlocked: (Boolean) -> Unit,
+    /** Samostatné nahlášení (průvodce), bez mazání. */
+    val onReport: () -> Unit,
+)
 
 /** Složka v nabídce nad chatem: název a jestli v ní chat je. */
 data class FolderChoice(val id: Int, val title: String, val member: Boolean)

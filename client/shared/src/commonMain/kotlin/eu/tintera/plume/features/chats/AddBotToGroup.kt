@@ -13,6 +13,9 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerEmpty
+import eu.tintera.plume.core.ui.PickerError
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.foldDiacritics
@@ -135,22 +138,25 @@ fun AddBotToGroupScreen(
 
     ChatPicker(
         title = stringResource(Res.string.bot_add_group_title),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.bot_add_group_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.bot_add_group_search),
+        ),
         loading = state.loading,
         sections = listOf(PickerSection(key = "groups", chats = state.shown)),
         // Dokud přidávání běží, další ťuknutí by přidávalo podruhé.
         enabled = !state.adding,
         onPick = viewModel::pick,
         onBack = onBack,
-        emptyIcon = Res.drawable.group_24dp,
-        emptyTitle = stringResource(Res.string.bot_add_group_empty_title).takeIf { state.query.isBlank() },
-        emptyText = stringResource(
-            if (viewModel.asAdmin) Res.string.bot_add_group_empty_text_admin else Res.string.bot_add_group_empty_text,
-        ).takeIf { state.query.isBlank() },
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        empty = PickerEmpty(
+            icon = Res.drawable.group_24dp,
+            title = stringResource(Res.string.bot_add_group_empty_title).takeIf { state.query.isBlank() },
+            text = stringResource(
+                if (viewModel.asAdmin) Res.string.bot_add_group_empty_text_admin else Res.string.bot_add_group_empty_text,
+            ).takeIf { state.query.isBlank() },
+        ),
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         modifier = modifier,
     )
 

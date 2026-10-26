@@ -10,6 +10,8 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.SwitchInlineTarget
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerEmpty
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.core.ui.foldDiacritics
 import eu.tintera.plume.resources.Res
@@ -85,18 +87,22 @@ fun SwitchInlinePickerScreen(
 
     ChatPicker(
         title = stringResource(Res.string.bot_switch_inline_title, bot),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.bot_switch_inline_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.bot_switch_inline_search),
+        ),
         loading = state.loading,
         sections = listOf(PickerSection(key = "chats", chats = state.shown)),
         enabled = true,
         onPick = onPick,
         onBack = onBack,
         savedMessagesChatId = savedMessagesChatId.takeIf { viewModel.target.users },
-        emptyIcon = Res.drawable.forum_24dp,
-        emptyTitle = stringResource(Res.string.bot_switch_inline_empty_title).takeIf { state.query.isBlank() },
-        emptyText = stringResource(Res.string.bot_switch_inline_empty_text).takeIf { state.query.isBlank() },
+        empty = PickerEmpty(
+            icon = Res.drawable.forum_24dp,
+            title = stringResource(Res.string.bot_switch_inline_empty_title).takeIf { state.query.isBlank() },
+            text = stringResource(Res.string.bot_switch_inline_empty_text).takeIf { state.query.isBlank() },
+        ),
         modifier = modifier,
     )
 }

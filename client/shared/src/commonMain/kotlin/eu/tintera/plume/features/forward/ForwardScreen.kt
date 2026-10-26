@@ -25,6 +25,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ForwardCapabilities
 import eu.tintera.plume.core.telegram.ForwardOptions
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerSelection
+import eu.tintera.plume.core.ui.PickerError
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.PickerSection
@@ -55,22 +58,25 @@ fun ForwardScreen(
 
     ChatPicker(
         title = stringResource(Res.string.forward_title),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.forward_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.forward_search),
+        ),
         loading = state.loading,
         // Jeden blok bez nadpisu — cíle se nečlení, je to prostě seznam chatů.
         sections = listOf(PickerSection(key = "chats", chats = state.chats)),
         // Dokud odesílání běží, další ťuknutí by poslalo zprávu dvakrát.
         enabled = !state.sending,
         onPick = viewModel::toggle,
-        // Přeposílá se do víc chatů naráz, takže ťuknutí cíl VYBERE a odesílá se až tlačítkem.
-        selected = state.selected,
-        onConfirm = { viewModel.send(onForwarded) },
+        selection = PickerSelection(
+            // Přeposílá se do víc chatů naráz, takže ťuknutí cíl VYBERE a odesílá se až tlačítkem.
+            selected = state.selected,
+            onConfirm = { viewModel.send(onForwarded) },
+        ),
         savedMessagesChatId = state.savedMessagesChatId,
         onBack = onBack,
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         header = {
             ForwardOptionsRow(
                 capabilities = state.capabilities,

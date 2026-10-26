@@ -316,45 +316,14 @@ import org.jetbrains.compose.resources.stringResource
 fun ChatListScreen(
     viewModel: ChatsViewModel,
     selectedChatId: Long?,
-    onChatClick: (Long) -> Unit,
-    /** Skupina s tématy: otevře se seznam témat, ne konverzace. */
-    onForumClick: (Long) -> Unit,
-    /** Téma skupiny (koncept v něm z přehledu konceptů); bez něj se otevře seznam témat. */
-    onTopicClick: (chatId: Long, topicId: Int) -> Unit = { chatId, _ -> onForumClick(chatId) },
-    /** Nalezená zpráva: otevřít její chat a skočit na ni. */
-    onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
+    navigation: ChatListNavigation,
     /** Dotaz, se kterým otevřít hledání (hashtag z konverzace); po otevření [onSearchRequestHandled]. */
     searchRequest: String?,
     onSearchRequestHandled: () -> Unit,
-    onOpenArchive: () -> Unit,
-    /** Menu účtu → Hovory; `null` = položka není (platforma bez hovorů). */
-    onOpenCalls: (() -> Unit)? = null,
-    /** Menu účtu → Stahování. */
-    onOpenDownloads: () -> Unit = {},
-    onOpenMyStories: () -> Unit = {},
-    onNewChat: () -> Unit = {},
-    onNewGroup: () -> Unit = {},
-    onNewChannel: () -> Unit = {},
-    onChatArchived: ((ArchiveChange) -> Unit)? = null,
-    /** Menu účtu → Nastavení. Na telefonu jediný vstup, spodní lišta není. */
-    onOpenSettings: () -> Unit = {},
-    onOpenProxySettings: () -> Unit = {},
-    /** „+" v řádku složek → Nová složka; otevře editor složky v Nastavení. */
-    onCreateFolder: () -> Unit = {},
-    /** „+" v řádku složek → Spravovat složky. */
-    onManageFolders: () -> Unit = {},
-    /** Obrazovka aplikace z doporučené akce (dvoufázové ověření, úprava profilu). */
-    onOpenScreen: (AppScreen) -> Unit = {},
     /** Vedle seznamu je otevřená konverzace (dvoupanel) — hudbu pak ukazuje její dock. */
     conversationOpen: Boolean = false,
-    /** Hledání ze sbaleného sloupce; otevře se, až se seznam rozbalí (viz [CollapsedChatList]). */
-    onOpenSearch: () -> Unit = {},
     nowPlayingViewModel: NowPlayingViewModel = koinViewModel(),
     modifier: Modifier = Modifier,
-    /** Příběhy autora (kroužek u avataru, hromádka v pilulce). */
-    onOpenStories: (Long) -> Unit = {},
-    /** Nový příběh z vybrané fotky nebo videa (cesta, je to video?); `null` = položka v „+" není. */
-    onComposeStory: ((String, Boolean) -> Unit)? = null,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
     val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
@@ -364,17 +333,17 @@ fun ChatListScreen(
     val storyPicker = rememberAttachmentPicker(
         onPicked = { picked ->
             when (val first = picked.firstOrNull()) {
-                is OutgoingAttachment.Photo -> onComposeStory?.invoke(first.path, false)
+                is OutgoingAttachment.Photo -> navigation.onComposeStory?.invoke(first.path, false)
                 // Video převede jen platforma s kodérem (desktop ho nemá).
                 is OutgoingAttachment.Video ->
-                    if (storyVideoSupported) onComposeStory?.invoke(first.path, true) else viewModel.storyNeedsPhoto()
+                    if (storyVideoSupported) navigation.onComposeStory?.invoke(first.path, true) else viewModel.storyNeedsPhoto()
                 null -> Unit
                 else -> viewModel.storyNeedsPhoto()
             }
         },
         onError = viewModel::storyError,
     )
-    val onNewStory: (() -> Unit)? = onComposeStory
+    val onNewStory: (() -> Unit)? = navigation.onComposeStory
         ?.takeIf { viewModel.canComposeStory }
         ?.let { { viewModel.startStory(storyPicker::pickMedia) } }
     val naturalSearchAvailable by viewModel.naturalSearchAvailable.collectAsStateWithLifecycle()
@@ -476,8 +445,8 @@ fun ChatListScreen(
     ChatActionsHost(
         viewModel,
         snackbarHostState,
-        onArchived = onChatArchived,
-        onOpenProxySettings = onOpenProxySettings,
+        onArchived = navigation.onChatArchived,
+        onOpenProxySettings = navigation.onOpenProxySettings,
     )
     // Až s načtenými koncepty: obnovený sheet (po zániku procesu) by se jinak nad prázdným
     // seznamem hned zavřel.
@@ -491,9 +460,9 @@ fun ChatListScreen(
                 showDrafts = false
                 val topic = item.topic
                 when {
-                    topic != null -> onTopicClick(item.chat.id, topic.id)
-                    item.chat.opensAsTopics -> onForumClick(item.chat.id)
-                    else -> onChatClick(item.chat.id)
+                    topic != null -> navigation.onTopicClick(item.chat.id, topic.id)
+                    item.chat.opensAsTopics -> navigation.onForumClick(item.chat.id)
+                    else -> navigation.onChatClick(item.chat.id)
                 }
             },
             onDelete = viewModel::deleteDraft,
@@ -511,7 +480,7 @@ fun ChatListScreen(
             onOpen = { bookmark ->
                 showBookmarks = false
                 // Stejně jako nalezená zpráva v hledání: chat se otevře a skočí na ni.
-                onMessageClick(bookmark.chatId, bookmark.messageId, null)
+                navigation.onMessageClick(bookmark.chatId, bookmark.messageId, null)
             },
             onRemove = viewModel::removeBookmark,
             onDismiss = { showBookmarks = false },
@@ -536,11 +505,11 @@ fun ChatListScreen(
             },
             onCreate = {
                 viewModel.closeFolderSuggestions()
-                onCreateFolder()
+                navigation.onCreateFolder()
             },
             onManage = {
                 viewModel.closeFolderSuggestions()
-                onManageFolders()
+                navigation.onManageFolders()
             },
             onDismiss = viewModel::closeFolderSuggestions,
         )
@@ -563,17 +532,17 @@ fun ChatListScreen(
         AccountMenu(
             account = account,
             archiveUnread = archiveUnread,
-            onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
-            onArchive = onOpenArchive,
-            onCalls = onOpenCalls,
-            onDownloads = onOpenDownloads,
-            onMyStories = onOpenMyStories,
+            onSavedMessages = { viewModel.openSavedMessages(navigation.onChatClick) },
+            onArchive = navigation.onOpenArchive,
+            onCalls = navigation.onOpenCalls,
+            onDownloads = navigation.onOpenDownloads,
+            onMyStories = navigation.onOpenMyStories,
             draftCount = drafts?.size ?: 0,
             onDrafts = { showDrafts = true },
             bookmarkCount = bookmarks.size,
             onBookmarks = { showBookmarks = true },
             onMyQrCode = { showMyQrCode = true },
-            onSettings = onOpenSettings,
+            onSettings = navigation.onOpenSettings,
         )
     }
 
@@ -588,15 +557,15 @@ fun ChatListScreen(
             CollapsedChatList(
                 viewModel = viewModel,
                 selectedChatId = selectedChatId,
-                onChatClick = onChatClick,
-                onForumClick = onForumClick,
+                onChatClick = navigation.onChatClick,
+                onForumClick = navigation.onForumClick,
                 onSearch = {
                     expandListPane?.invoke()
-                    onOpenSearch()
+                    navigation.onOpenSearch()
                 },
-                onNewChat = onNewChat,
-                onNewGroup = onNewGroup,
-                onNewChannel = onNewChannel,
+                onNewChat = navigation.onNewChat,
+                onNewGroup = navigation.onNewGroup,
+                onNewChannel = navigation.onNewChannel,
                 onNewStory = onNewStory,
                 snackbarHostState = snackbarHostState,
                 account = accountMenu,
@@ -646,24 +615,26 @@ fun ChatListScreen(
                         search = search,
                         savedMessagesChatId = savedMessagesChatId,
                         scrollBehavior = scrollBehavior,
-                        onQueryChange = viewModel.search::setQuery,
-                        onExpandedChange = viewModel.search::setSuggestionsWanted,
+                        controls = remember(viewModel.search) {
+                            ChatSearchControls(
+                                onQueryChange = viewModel.search::setQuery,
+                                onExpandedChange = viewModel.search::setSuggestionsWanted,
+                                onFilterChange = viewModel.search::setFilter,
+                                onLoadMoreMessages = viewModel.search::loadMoreMessages,
+                            )
+                        },
                         onChatClick = { chatId ->
                             viewModel.search.recordFound(chatId)
                             scrollToChat = chatId
                             // Výsledky hledání jsou položky seznamu, takže vědí, jestli se chat otevírá tématy.
                             val forum = with(search) { results + top + recent + global + sponsored.map { it.chat } }
                                 .any { it.id == chatId && it.opensAsTopics }
-                            if (forum) onForumClick(chatId) else onChatClick(chatId)
+                            if (forum) navigation.onForumClick(chatId) else navigation.onChatClick(chatId)
                         },
                         onMessageClick = { chatId, messageId, topicId ->
                             scrollToChat = chatId
-                            onMessageClick(chatId, messageId, topicId)
+                            navigation.onMessageClick(chatId, messageId, topicId)
                         },
-                        onLoadMoreMessages = viewModel.search::loadMoreMessages,
-                        bookmarks = bookmarks,
-                        bookmarkTitles = bookmarkTitles,
-                        describedPhotos = describedPhotos,
                         suggestionActions = remember(viewModel.search) {
                             SuggestionActions(
                                 onClear = viewModel.search::clearRecent,
@@ -673,7 +644,6 @@ fun ChatListScreen(
                                 onClearTags = viewModel.search::clearTags,
                             )
                         },
-                        onFilterChange = viewModel.search::setFilter,
                         snackbarHostState = searchSnackbarHostState,
                         sponsoredActions = remember(viewModel) {
                             SponsoredActions(
@@ -685,12 +655,17 @@ fun ChatListScreen(
                         aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
                         request = searchRequest,
                         onRequestHandled = onSearchRequestHandled,
+                        localSources = LocalSearchSources(
+                            bookmarks = bookmarks,
+                            chatTitles = bookmarkTitles,
+                            describedPhotos = describedPhotos,
+                        ),
                         trailing = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 StoryStack(
                                     posters = storyStack,
                                     rim = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    onOpen = onOpenStories,
+                                    onOpen = navigation.onOpenStories,
                                 )
                                 accountMenu()
                             }
@@ -716,9 +691,9 @@ fun ChatListScreen(
                     ChatListContent(
                         viewModel = viewModel,
                         selectedChatId = selectedChatId,
-                        onChatClick = onChatClick,
-                        onForumClick = onForumClick,
-                        onOpenStories = onOpenStories,
+                        onChatClick = navigation.onChatClick,
+                        onForumClick = navigation.onForumClick,
+                        onOpenStories = navigation.onOpenStories,
                         padding = padding,
                         scrollToChat = scrollToChat,
                         onScrolledToChat = { scrollToChat = null },
@@ -785,7 +760,7 @@ fun ChatListScreen(
                             item(key = BIRTHDAYS_KEY, contentType = BIRTHDAYS_KEY) {
                                 BirthdaysCard(
                                     birthdays = birthdays,
-                                    onOpen = { userId -> viewModel.openPrivateChat(userId, onChatClick) },
+                                    onOpen = { userId -> viewModel.openPrivateChat(userId, navigation.onChatClick) },
                                     onHide = viewModel::hideBirthdays,
                                     modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
                                 )
@@ -798,7 +773,7 @@ fun ChatListScreen(
                                     chats = awaitingCard,
                                     onOpen = { chat ->
                                         viewModel.opened(chat.id)
-                                        if (chat.opensAsTopics) onForumClick(chat.id) else onChatClick(chat.id)
+                                        if (chat.opensAsTopics) navigation.onForumClick(chat.id) else navigation.onChatClick(chat.id)
                                     },
                                     onHide = viewModel::hideAwaitingReply,
                                     modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
@@ -815,9 +790,9 @@ fun ChatListScreen(
                                         when (action) {
                                             SuggestedAction.CheckPassword, SuggestedAction.CheckPhoneNumber ->
                                                 viewModel.hideSuggestion(action)
-                                            is SuggestedAction.SetPassword -> onOpenScreen(AppScreen.TwoStepVerification)
-                                            is SuggestedAction.SetLoginEmail -> onOpenScreen(AppScreen.LoginEmail)
-                                            SuggestedAction.SetProfilePhoto, SuggestedAction.SetBirthdate -> onOpenScreen(AppScreen.EditProfile)
+                                            is SuggestedAction.SetPassword -> navigation.onOpenScreen(AppScreen.TwoStepVerification)
+                                            is SuggestedAction.SetLoginEmail -> navigation.onOpenScreen(AppScreen.LoginEmail)
+                                            SuggestedAction.SetProfilePhoto, SuggestedAction.SetBirthdate -> navigation.onOpenScreen(AppScreen.EditProfile)
                                             SuggestedAction.ArchiveUnknownChats -> viewModel.enableArchiveUnknownChats(action)
                                             is SuggestedAction.Custom -> openNoticeLink(action.url)
                                         }
@@ -826,8 +801,8 @@ fun ChatListScreen(
                                         // „Zapomněl(a) jsem" vede k heslu (změna, obnova e-mailem), „Změnit" ke změně
                                         // čísla; jinde „Teď ne".
                                         when (action) {
-                                            SuggestedAction.CheckPassword -> onOpenScreen(AppScreen.TwoStepVerification)
-                                            SuggestedAction.CheckPhoneNumber -> onOpenScreen(AppScreen.ChangePhone)
+                                            SuggestedAction.CheckPassword -> navigation.onOpenScreen(AppScreen.TwoStepVerification)
+                                            SuggestedAction.CheckPhoneNumber -> navigation.onOpenScreen(AppScreen.ChangePhone)
                                             else -> viewModel.hideSuggestion(action)
                                         }
                                     },
@@ -929,9 +904,9 @@ fun ChatListScreen(
                     if (reorder == null && selection == null) NewChatFabMenu(
                         expanded = fabMenuExpanded,
                         onExpandedChange = { fabMenuExpanded = it },
-                        onNewChat = onNewChat,
-                        onNewGroup = onNewGroup,
-                        onNewChannel = onNewChannel,
+                        onNewChat = navigation.onNewChat,
+                        onNewGroup = navigation.onNewGroup,
+                        onNewChannel = navigation.onNewChannel,
                         onNewStory = onNewStory,
                         toolbar = if (folderTabs.isEmpty()) null else { fab ->
                             ChatFolderToolbar(
@@ -970,7 +945,7 @@ fun ChatListScreen(
                                 onToggle = nowPlayingViewModel::togglePlaying,
                                 onNext = nowPlayingViewModel::skipToNext,
                                 onStop = nowPlayingViewModel::stop,
-                                onShow = { onMessageClick(player.key.chatId, player.key.messageId, null) },
+                                onShow = { navigation.onMessageClick(player.key.chatId, player.key.messageId, null) },
                                 glass = Modifier.hazeBlur(
                                     input = HazeInput.Sources(listHaze),
                                     style = glassStyle(
@@ -1398,18 +1373,24 @@ internal fun ChatActionsHost(
         }
         ChatActionsSheet(
             chat = chat,
-            spam = actions.spam,
+            spam = SpamControls(
+                offer = actions.spam,
+                onSetBlocked = { blocked -> viewModel.setBlocked(chat, blocked) },
+                onReport = { viewModel.report(chat) },
+            ),
             onOpenProxySettings = onOpenProxySettings,
             onTogglePinned = { viewModel.togglePinned(chat) },
             onReorderPinned = viewModel::startReorder.takeIf { canReorderPinned(chats) },
             onSelect = { viewModel.startSelection(chat) },
-            onMute = { duration -> viewModel.mute(chat, duration) },
-            onUnmute = { viewModel.unmute(chat) },
-            snoozedUntil = snoozeState.sleeping[chat.id],
-            onSnooze = if (viewModel.canSnooze) {
-                { option -> viewModel.snooze(chat, option) }
-            } else null,
-            onUnsnooze = { viewModel.unsnooze(chat) },
+            quiet = QuietActions(
+                onMute = { duration -> viewModel.mute(chat, duration) },
+                onUnmute = { viewModel.unmute(chat) },
+                snoozedUntil = snoozeState.sleeping[chat.id],
+                onSnooze = if (viewModel.canSnooze) {
+                    { option -> viewModel.snooze(chat, option) }
+                } else null,
+                onUnsnooze = { viewModel.unsnooze(chat) },
+            ),
             onToggleUnread = { viewModel.toggleUnread(chat) },
             // Uložené zprávy a chat Telegramu archivovat nejdou — TDLib by to odmítl (`canBeArchived`).
             onToggleArchived = if (!chat.isArchived && !chat.canBeArchived(savedMessagesChatId)) null else {
@@ -1417,8 +1398,6 @@ internal fun ChatActionsHost(
             },
             folders = folderChoices,
             onToggleFolder = { id -> viewModel.toggleFolder(chat, id) },
-            onSetBlocked = { blocked -> viewModel.setBlocked(chat, blocked) },
-            onReport = { viewModel.report(chat) },
             onDelete = { cleanup -> viewModel.delete(chat, cleanup) },
             onDismiss = viewModel::hideActions,
         )
@@ -1672,18 +1651,30 @@ internal fun ChatListContent(
                             ChatRow(
                                 chat = chat,
                                 selected = highlighted,
-                                selectionMark = picked.takeIf { selecting && chat.isSelectable() },
-                                snooze = when {
-                                    chat.id in snoozes.due -> RowSnooze.Due
-                                    else -> snoozes.sleeping[chat.id]?.let(RowSnooze::Sleeping)
-                                },
+                                marks = ChatRowMarks(
+                                    selectionMark = picked.takeIf { selecting && chat.isSelectable() },
+                                    snooze = when {
+                                        chat.id in snoozes.due -> RowSnooze.Due
+                                        else -> snoozes.sleeping[chat.id]?.let(RowSnooze::Sleeping)
+                                    },
+                                    // Odznak patří poslední zprávě, nad kterou to model řekl; nová
+                                    // zpráva ho schová, dokud se neposoudí znovu.
+                                    awaitingReply = chat.unreadCount > 0 &&
+                                        chat.lastMessageId != null && awaitingReply[chat.id] == chat.lastMessageId,
+                                    stories = storyRings[chat.id]?.let {
+                                        // Skrytý autor se mimo archiv nehlásí: lem jen tenký a šedý,
+                                        // jako by bylo zhlédnuté — příběhy jdou otevřít, ale nevolají.
+                                        val quiet = it.isHidden && viewModel.folder != ChatFolder.Archive
+                                        StoryRingState(
+                                            total = it.stories.size,
+                                            unread = if (quiet) 0 else it.unreadCount,
+                                            closeFriends = !quiet && it.hasUnreadForCloseFriends,
+                                        )
+                                    },
+                                ),
                                 shape = shape,
                                 interactionSource = interaction,
                                 accent = chatColors[chat.id]?.let(chatAccents::get),
-                                // Odznak patří poslední zprávě, nad kterou to model řekl; nová
-                                // zpráva ho schová, dokud se neposoudí znovu.
-                                awaitingReply = chat.unreadCount > 0 &&
-                                    chat.lastMessageId != null && awaitingReply[chat.id] == chat.lastMessageId,
                                 onClick = {
                                     if (!selecting) viewModel.opened(chat.id)
                                     when {
@@ -1696,16 +1687,6 @@ internal fun ChatListContent(
                                 // by z výběru vytrhla.
                                 onLongClick = {
                                     if (selecting) viewModel.toggleSelected(chat) else viewModel.showActions(chat)
-                                },
-                                stories = storyRings[chat.id]?.let {
-                                    // Skrytý autor se mimo archiv nehlásí: lem jen tenký a šedý,
-                                    // jako by bylo zhlédnuté — příběhy jdou otevřít, ale nevolají.
-                                    val quiet = it.isHidden && viewModel.folder != ChatFolder.Archive
-                                    StoryRingState(
-                                        total = it.stories.size,
-                                        unread = if (quiet) 0 else it.unreadCount,
-                                        closeFriends = !quiet && it.hasUnreadForCloseFriends,
-                                    )
                                 },
                                 // Ve výběru avatar přepíná výběr jako zbytek řádku.
                                 onAvatarClick = onOpenStories
@@ -1965,28 +1946,36 @@ private enum class SwipeSide { None, Start, End }
  */
 private val SWIPE_THRESHOLD_MAX = 160.dp
 
+/**
+ * Co o chatu ví seznam navíc k [ChatSummary] a řádek to ukazuje značkou: výběr, odložení,
+ * čekání na odpověď a příběhy autora.
+ */
+private data class ChatRowMarks(
+    /** Značka výběru víc chatů; `null` = výběr neběží (nebo chat vybrat nejde). */
+    val selectionMark: Boolean?,
+    /** Odložení chatu; `null` = neodložený. */
+    val snooze: RowSnooze?,
+    /** Model v zařízení usoudil, že chat čeká na odpověď (`ChatTriage`). */
+    val awaitingReply: Boolean,
+    /** Kroužek příběhů kolem avataru; `null` = autor žádné nemá. */
+    val stories: StoryRingState? = null,
+)
+
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 private fun ChatRow(
     chat: ChatSummary,
     selected: Boolean,
-    /** Značka výběru víc chatů; `null` = výběr neběží (nebo chat vybrat nejde). */
-    selectionMark: Boolean?,
-    /** Odložení chatu; `null` = neodložený. */
-    snooze: RowSnooze?,
+    marks: ChatRowMarks,
     /** Tvar bloku — počítá ho [animatedGroupItemShape] vedle, protože ho potřebuje i podklad pod tahem. */
     shape: RoundedCornerShape,
     /** Stisk řádku; tvar bloku z něj počítá volající (stisknutý řádek se vyčlení). */
     interactionSource: MutableInteractionSource,
     /** Paleta z barvy konverzace (odznaky nepřečtených); `null` = barvy aplikace. */
     accent: ColorScheme?,
-    /** Model v zařízení usoudil, že chat čeká na odpověď (`ChatTriage`). */
-    awaitingReply: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    /** Kroužek příběhů kolem avataru; `null` = autor žádné nemá. */
-    stories: StoryRingState? = null,
     /** Ťuknutí na avatar otevře příběhy; zbytek řádku dál otevírá chat. */
     onAvatarClick: (() -> Unit)? = null,
 ) {
@@ -1995,7 +1984,7 @@ private fun ChatRow(
      * v neutrální barvě a místo náhledu věta, do kdy spí. Ze seznamu nezmizí — ztratit chat
      * z očí i z hledání pohledem by bylo víc, než si uživatel řekl.
      */
-    val sleeping = snooze is RowSnooze.Sleeping
+    val sleeping = marks.snooze is RowSnooze.Sleeping
     val showUnread = chat.hasUnread && !sleeping
     /*
      * Blok je SVĚTLEJŠÍ než pozadí, ne tmavší.
@@ -2045,7 +2034,7 @@ private fun ChatRow(
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
-            .then(if (selectionMark != null) Modifier.semantics { this.selected = selectionMark } else Modifier),
+            .then(if (marks.selectionMark != null) Modifier.semantics { this.selected = marks.selectionMark } else Modifier),
     ) {
         Row(
             containerSource.content.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
@@ -2057,9 +2046,9 @@ private fun ChatRow(
             Box(
                 Modifier
                     .storyRing(
-                        ring = stories,
+                        ring = marks.stories,
                         shape = avatarShape,
-                        unreadColor = if (stories?.closeFriends == true) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                        unreadColor = if (marks.stories?.closeFriends == true) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                         readColor = MaterialTheme.colorScheme.outlineVariant,
                     )
                     .then(
@@ -2090,9 +2079,9 @@ private fun ChatRow(
                 // Tečka sedí NA avataru, ne vedle jména: v seznamu se očima jede po levém
                 // sloupci, takže se dostupnost přečte spolu s tím, kdo to je.
                 // Ve výběru má roh avataru značka výběru; tečka dostupnosti by se s ní prala.
-                if (selectionMark != null) {
+                if (marks.selectionMark != null) {
                     SelectionMark(
-                        selected = selectionMark,
+                        selected = marks.selectionMark,
                         rim = containerColor,
                         contentColor = contentColor,
                         modifier = Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp),
@@ -2109,7 +2098,7 @@ private fun ChatRow(
                 ) {
                     // Vynořená připomínka: ikona na místě připínáčku a v akcentu, ať je poznat,
                     // proč chat stojí nahoře.
-                    if (snooze == RowSnooze.Due) {
+                    if (marks.snooze == RowSnooze.Due) {
                         Icon(
                             painterResource(Res.drawable.snooze_24dp),
                             contentDescription = stringResource(Res.string.chats_snooze_reminder),
@@ -2229,8 +2218,8 @@ private fun ChatRow(
                 val sender = chat.previewSender()
                 // Obrázek jen u náhledu poslední zprávy; činnost, koncept a odložení ho nemají.
                 val thumbnail = chat.lastMessageThumbnail
-                    ?.takeIf { snooze !is RowSnooze.Sleeping && chat.activity == null && chat.draft == null }
-                val sleepingUntil = (snooze as? RowSnooze.Sleeping)?.let { (it.until / 1000).asUpcomingTime() }
+                    ?.takeIf { marks.snooze !is RowSnooze.Sleeping && chat.activity == null && chat.draft == null }
+                val sleepingUntil = (marks.snooze as? RowSnooze.Sleeping)?.let { (it.until / 1000).asUpcomingTime() }
                 val subtitle: AnnotatedString? = sleepingUntil?.let { AnnotatedString(stringResource(Res.string.chats_snoozed_until, it)) }
                     ?: chat.activity?.let { AnnotatedString(it.label()) }
                     ?: chat.draft?.let { draft ->
@@ -2279,7 +2268,7 @@ private fun ChatRow(
                 }
             }
 
-            UnreadBadges(chat, quiet = sleeping, accent = accent, awaitingReply = awaitingReply)
+            UnreadBadges(chat, quiet = sleeping, accent = accent, awaitingReply = marks.awaitingReply)
         }
     }
 }
