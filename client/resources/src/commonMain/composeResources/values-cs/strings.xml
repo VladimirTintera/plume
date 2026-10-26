@@ -855,6 +855,10 @@
     <string name="media_video">Video</string>
     <string name="presence_online">online</string>
     <string name="attachment_prepare_failed">Některý soubor se nepodařilo načíst.</string>
+    <string name="attachment_camera_permission">Focení a natáčení potřebuje přístup k fotoaparátu.</string>
+    <string name="attachment_camera_unavailable">Fotoaparát nejde otevřít.</string>
+    <string name="conversation_attach_take_photo">Vyfotit</string>
+    <string name="conversation_attach_record_video">Natočit video</string>
     <string name="stickers_set_load_failed">Sadu se nepodařilo načíst.</string>
     <string name="stickers_add_set">Přidat sadu</string>
     <string name="stickers_remove_set">Odebrat sadu</string>
