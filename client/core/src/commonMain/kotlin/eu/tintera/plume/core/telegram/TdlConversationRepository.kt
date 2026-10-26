@@ -3891,6 +3891,7 @@ class TdlConversationRepository(
                 viewers = viewersAsync.await(),
                 link = linkAsync.await(),
                 author = authorAsync.await(),
+                canGetStatistics = properties?.canGetStatistics == true,
             ),
         )
     }

@@ -45,6 +45,7 @@ import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.telegram.SavedTopicsRepository
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.SensitiveContentSettings
+import eu.tintera.plume.core.telegram.StatisticsRepository
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StorageRepository
 import eu.tintera.plume.core.telegram.StoryRepository
@@ -85,6 +86,7 @@ import eu.tintera.plume.core.telegram.TdlProxyRepository
 import eu.tintera.plume.core.telegram.TdlQuickReaction
 import eu.tintera.plume.core.telegram.TdlSavedTopicsRepository
 import eu.tintera.plume.core.telegram.TdlSensitiveContentSettings
+import eu.tintera.plume.core.telegram.TdlStatisticsRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.TdlStorageRepository
 import eu.tintera.plume.core.telegram.TdlStoryRepository
@@ -280,6 +282,8 @@ fun coreModule(): Module = module {
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
 
     single<InviteLinkRepository> { TdlInviteLinkRepository(holder = get()) }
+
+    single<StatisticsRepository> { TdlStatisticsRepository(holder = get()) }
 
     single<ChatFolderRepository> { TdlChatFolderRepository(holder = get()) }
 

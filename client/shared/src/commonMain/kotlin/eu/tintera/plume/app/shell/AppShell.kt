@@ -2,7 +2,13 @@ package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogScreen
+import eu.tintera.plume.core.navigation.ArchiveChatStatisticsRoute
 import eu.tintera.plume.core.navigation.ArchiveEventLogRoute
+import eu.tintera.plume.core.navigation.ArchivePostStatisticsRoute
+import eu.tintera.plume.core.navigation.ChatStatisticsRoute
+import eu.tintera.plume.core.navigation.PostStatisticsRoute
+import eu.tintera.plume.features.statistics.ChatStatisticsScreen
+import eu.tintera.plume.features.statistics.PostStatisticsScreen
 import eu.tintera.plume.core.navigation.EventLogRoute
 import eu.tintera.plume.features.forward.ShareContactScreen
 import eu.tintera.plume.core.navigation.ShareContactRoute
@@ -218,6 +224,7 @@ import eu.tintera.plume.features.chats.NewContactScreen
 import eu.tintera.plume.features.chats.NewGroupMembersScreen
 import eu.tintera.plume.features.chats.CreateChatScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
+import eu.tintera.plume.features.conversation.ChatTarget
 import eu.tintera.plume.features.conversation.ConversationNavigation
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.features.forward.ForwardScreen
@@ -962,6 +969,7 @@ private fun shellEntryProvider(
                     onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
                     onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
+                    onOpenPostStatistics = { messageId -> chatsStack.addOnce(PostStatisticsRoute(route.chatId, messageId)) },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
                     onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(route.chatId, request)) },
                     onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
@@ -1147,6 +1155,7 @@ private fun shellEntryProvider(
             onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
             onOpenRemoved = { banned -> chatsStack.addOnce(RemovedMembersRoute(route.chatId, banned)) },
             onOpenEventLog = { chatsStack.addOnce(EventLogRoute(route.chatId)) },
+            onOpenStatistics = { chatsStack.addOnce(ChatStatisticsRoute(route.chatId)) },
             onDeleted = { chatsStack.closeChat(route.chatId) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
@@ -1160,6 +1169,7 @@ private fun shellEntryProvider(
             onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
             onOpenRemoved = { banned -> chatsStack.addOnce(ArchiveRemovedMembersRoute(route.chatId, banned)) },
             onOpenEventLog = { chatsStack.addOnce(ArchiveEventLogRoute(route.chatId)) },
+            onOpenStatistics = { chatsStack.addOnce(ArchiveChatStatisticsRoute(route.chatId)) },
             onDeleted = { chatsStack.closeChat(route.chatId) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
@@ -1205,6 +1215,45 @@ private fun shellEntryProvider(
         EventLogScreen(
             viewModel = koinViewModel(key = "event-log-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    // Statistiky se vrší nad úpravu, statistika příspěvku nad ně nebo nad konverzaci.
+    entry<ChatStatisticsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        ChatStatisticsScreen(
+            viewModel = koinViewModel(key = "chat-statistics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onOpenPost = { messageId -> chatsStack.addOnce(PostStatisticsRoute(route.chatId, messageId)) },
+        )
+    }
+
+    entry<ArchiveChatStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        ChatStatisticsScreen(
+            viewModel = koinViewModel(key = "chat-statistics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onOpenPost = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(route.chatId, messageId)) },
+        )
+    }
+
+    entry<PostStatisticsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        PostStatisticsScreen(
+            viewModel = koinViewModel(
+                key = "post-statistics-${route.chatId}-${route.messageId}",
+                parameters = { parametersOf(route.chatId, route.messageId) },
+            ),
+            onBack = { chatsStack.pop(route) },
+            onOpenMessage = { chatId, messageId -> chatsStack.openTarget(ChatTarget(chatId, messageId), archive = false) },
+        )
+    }
+
+    entry<ArchivePostStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        PostStatisticsScreen(
+            viewModel = koinViewModel(
+                key = "post-statistics-${route.chatId}-${route.messageId}",
+                parameters = { parametersOf(route.chatId, route.messageId) },
+            ),
+            onBack = { chatsStack.pop(route) },
+            onOpenMessage = { chatId, messageId -> chatsStack.openTarget(ChatTarget(chatId, messageId), archive = true) },
         )
     }
 
@@ -1299,6 +1348,7 @@ private fun shellEntryProvider(
                     onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
                     onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
+                    onOpenPostStatistics = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(route.chatId, messageId)) },
                     onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
                     onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(route.chatId, request)) },

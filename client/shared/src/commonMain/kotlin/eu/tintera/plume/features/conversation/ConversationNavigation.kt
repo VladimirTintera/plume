@@ -46,6 +46,8 @@ data class ConversationNavigation(
     val onOpenProfile: () -> Unit,
     /** Profil jiného chatu nad konverzací — odesílatel ze skupiny, na jehož tvář se ťuklo. */
     val onOpenUserProfile: (chatId: Long) -> Unit,
+    /** Statistika příspěvku v kanálu z „Informace o zprávě" (jen pro správce, `canGetStatistics`). */
+    val onOpenPostStatistics: (messageId: Long) -> Unit = {},
     /**
      * Chat se z pruhu vrátil z archivu mezi chaty. Jen konverzace otevřená Z ARCHIVU s tím
      * něco dělá (přestěhuje se do hlavního seznamu); jinde se nic měnit nemusí.
@@ -163,6 +165,11 @@ internal fun ConversationEvents(
         val target = state.openProfile ?: return@LaunchedEffect
         viewModel.consumeOpenProfile()
         nav.onOpenUserProfile(target)
+    }
+    LaunchedEffect(state.openPostStatistics) {
+        val messageId = state.openPostStatistics ?: return@LaunchedEffect
+        viewModel.consumeOpenPostStatistics()
+        nav.onOpenPostStatistics(messageId)
     }
 
     // Jednorázová událost od tlačítka bota. Navigace je synchronní, takže vynulování potom

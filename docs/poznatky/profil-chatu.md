@@ -753,6 +753,68 @@ zkopírování nebo sdílení — tím se o boost žádá členů.
     Vzhled řádků a „Načíst další" se sondou (dva podstrčené boosty, další stránka od serveru
     prázdná, tlačítko pak zmizelo). **Neověřené:** skutečné boosty a dárkové kódy.
 
+### Statistiky
+
+Úprava kanálu nebo skupiny má řádek **Statistiky** (`ChatStatisticsRoute`,
+`features/statistics/`), jen když je server vydá (`SupergroupFullInfo.canGetStatistics` →
+`EditableChat.canGetStatistics`): kanál zhruba od 500 odběratelů, větší skupina. Statistika
+jednoho příspěvku (`PostStatisticsRoute`) se otevře z přehledu kanálu (Nedávné příspěvky) nebo
+z „Informace o zprávě" v konverzaci (`MessageInfo.canGetStatistics` z `MessageProperties`).
+Doména je v `core/telegram/ChatStatistics.kt`, TDLib v `TdlStatisticsRepository`.
+
+- **Kanál a skupina mají jiná data** (`ChatStatisticsChannel` / `…Supergroup`): kanál přehled
+  odběratelů, průměrů na příspěvek a příběh a nedávné příspěvky, skupina zprávy, čtenáře,
+  pisatele a žebříčky členů, správců a těch, kdo zvali. Grafy mají oba, každý jiné.
+- **Graf je JSON ve formátu, který Telegram posílá všem klientům** (`StatisticalGraphData.json_data`:
+  sloupce `x`, `y0…`, `types`, `names`, příznaky `stacked`, `percentage`, `y_scaled`). Převádí
+  ho `parseStatChart` (testy `ChatStatisticsTest`), nikdy nevyhodí — formát patří serveru.
+  Barvy a formátovací funkce v JavaScriptu (`xTickFormatter`…) se vědomě nečtou.
+- **Část grafů server dopočítává** (`StatisticalGraphAsync` s tokenem). Obrazovka se na ně
+  nečeká: ukáže čekání v kartě a ViewModel je dočte souběžně (`getStatisticalGraph`).
+  `StatisticalGraphError` a nesrozumitelný JSON jsou `StatGraph.Failed` a karta se nekreslí,
+  stejně jako graf ze samých nul — chybový text od serveru na obrazovku nepatří.
+- **Graf kreslí vlastní Canvas** (`StatisticsChart.kt`, geometrie v `ChartGeometry.kt`,
+  testy `ChartGeometryTest`): čáry, schody, sloupce na sobě, plochy na sobě a podíl ze sta
+  procent. Ťuknutí nebo vodorovný tah vybere bod (svislý tah patří posunu obrazovky),
+  druhé ťuknutí výběr zruší.
+  - **Dvě měřítka (`y_scaled`) = dva grafy pod sebou**, ne dvě osy y v jednom: zhlédnutí
+    v tisících a sdílení v desítkách by se na společné ose nedala číst. Okraj s popisky osy y
+    je pro oba díly SPOLEČNÝ — s vlastním by „2,5 tis." a „20" posunuly začátek grafů a týž
+    den by nestál nad sebou (stalo se, viděno na emulátoru).
+  - **Popisky osy y mají vlastní okraj vlevo.** Uvnitř grafu je překrývaly čáry a sloupce.
+  - **Čára daleko od nuly má osu od své nejmenší hodnoty** (`axisMin`, když je minimum nad
+    polovinou maxima): růst odběratelů z 1 490 na 1 577 byl s osou od nuly vodorovná čára.
+    Sloupce a plochy začínají od nuly vždycky — jejich výška je hodnota.
+  - **Vybraný bod ukazuje přesné číslo** (`grouped`), ne zkrácené jako osa: `compactCount`
+    zaokrouhluje dolů a bod u 1 395 se četl jako „1,3 tis.".
+  - **Jediná řada má hodnotu pod datem vždycky** (bez výběru poslední bod) — řádek, který
+    naskočil až s výběrem, posunul graf pod prstem. U víc řad nesou hodnoty položky legendy
+    a ta se při výběru může o řádek prodloužit; zatím to tak zůstává.
+  - **Víc než osm řad se sečte do „Ostatní"** (`StatChart.folded`, nejmenší podle součtu) —
+    graf jazyků jich mívá přes deset a víc barev od sebe oko nerozezná.
+  - **Data a hodiny jsou v UTC**, jako je Telegram počítá; v pásmu na západ od Greenwiche by
+    půlnoc bodu spadla na předchozí den. Hodinové grafy to mají v nadpisu („(UTC)").
+- **Barvy řad jsou pevná paleta, ne odvozené z motivu** — vědomá výjimka z pravidla „barvy jen
+  z `colorScheme`". Odstíny po kruhu od `primary` (jako `senderColor`, HCT sytost 48)
+  propadly při změření validátorem palet: sousední barvy pro deuteranopa ΔE 2,8–3,6 při cíli 8
+  a čtyři z osmi pod prahem sytosti (četly se šedě). Paleta v `seriesColors` je referenční
+  paleta pro grafy ověřená na barvoslepost ve světlém i tmavém režimu (ΔE 9,1 / 8,4) a má
+  pevné pořadí, ať barva patří pořád téže řadě. **Graf s jedinou řadou je `primary`** —
+  barva tam nic nerozlišuje a má ladit s aplikací. Změna nebarví podle stavu (zelená nahoru,
+  červená dolů): směr nese znaménko a barvoslepý by zelenou s červenou nerozeznal.
+- **Názvy řad („Views", „Joined", jazyky) jsou od serveru** a v aplikaci se nepřekládají.
+  Nadpisy grafů jsou naše (`StatGraphKind.title`) — v JSONu žádný není.
+- **Veřejná sdílení příspěvku** (`getMessagePublicForwards`, stránky po 50) vedou do cizího
+  kanálu na tu zprávu (`openTarget`); sdílení do příběhu otevřít nejde, má jen štítek.
+  Soukromá přeposlání server vypisuje jen počtem.
+- **Ověřeno na emulátoru JEN SONDOU** (26. 10. 2026): testovací kanál má dva odběratele
+  a server mu statistiky nevydá, takže sonda (necommituje se) podstrčila data ve formátu od
+  serveru — čára, schody hodin, sloupce na sobě, podíl jazyků dočtený se zpožděním, graf se
+  dvěma měřítky, chybějící graf, příspěvek, příběh i nenačtená zpráva v přehledu, veřejná
+  sdílení. Viděné ve světlém i tmavém režimu, výběr bodu u čáry, sloupců i ploch, cesta
+  z „Informace o zprávě". **Neověřené:** skutečný kanál a skupina, žebříčky skupiny, statistika
+  příspěvku od serveru.
+
 ### Gigaskupina
 
 Úprava supergroupy nabízí vlastníkovi **Převést na gigaskupinu** (`toggleSupergroupIsBroadcastGroup`,

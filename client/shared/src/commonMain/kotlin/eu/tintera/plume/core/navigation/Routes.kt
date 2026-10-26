@@ -224,6 +224,14 @@ data class ArchiveRemovedMembersRoute(val chatId: Long, val banned: Boolean) : R
 @Serializable
 data class ArchiveEventLogRoute(val chatId: Long) : Route
 
+/** Statistiky otevřené z úpravy kanálu nebo skupiny v archivní větvi. */
+@Serializable
+data class ArchiveChatStatisticsRoute(val chatId: Long) : Route
+
+/** Statistika příspěvku otevřená v archivní větvi. */
+@Serializable
+data class ArchivePostStatisticsRoute(val chatId: Long, val messageId: Long) : Route
+
 /**
  * Konverzace. V list-detail rozvržení je to detail panel vedle seznamu.
  *
@@ -315,6 +323,17 @@ data class RemovedMembersRoute(val chatId: Long, val banned: Boolean) : Route
 /** Poslední akce ve skupině nebo kanálu. Vrší se nad úpravu, taky jako detailový panel. */
 @Serializable
 data class EventLogRoute(val chatId: Long) : Route
+
+/** Statistiky kanálu nebo skupiny. Vrší se nad úpravu, taky jako detailový panel. */
+@Serializable
+data class ChatStatisticsRoute(val chatId: Long) : Route
+
+/**
+ * Statistika příspěvku v kanálu — ze statistik kanálu, nebo z „Informace o zprávě" nad
+ * konverzací. Taky jako detailový panel.
+ */
+@Serializable
+data class PostStatisticsRoute(val chatId: Long, val messageId: Long) : Route
 
 /**
  * Prohlížeč média přes celou obrazovku.
@@ -635,6 +654,8 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveJoinRequestsRoute::class, ArchiveJoinRequestsRoute.serializer())
             subclass(ArchiveRemovedMembersRoute::class, ArchiveRemovedMembersRoute.serializer())
             subclass(ArchiveEventLogRoute::class, ArchiveEventLogRoute.serializer())
+            subclass(ArchiveChatStatisticsRoute::class, ArchiveChatStatisticsRoute.serializer())
+            subclass(ArchivePostStatisticsRoute::class, ArchivePostStatisticsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
             subclass(InstantViewRoute::class, InstantViewRoute.serializer())
@@ -644,6 +665,8 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(JoinRequestsRoute::class, JoinRequestsRoute.serializer())
             subclass(RemovedMembersRoute::class, RemovedMembersRoute.serializer())
             subclass(EventLogRoute::class, EventLogRoute.serializer())
+            subclass(ChatStatisticsRoute::class, ChatStatisticsRoute.serializer())
+            subclass(PostStatisticsRoute::class, PostStatisticsRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(StoriesRoute::class, StoriesRoute.serializer())
             subclass(StickerComposerRoute::class, StickerComposerRoute.serializer())

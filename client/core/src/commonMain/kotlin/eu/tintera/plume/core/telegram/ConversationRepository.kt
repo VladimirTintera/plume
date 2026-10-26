@@ -2312,6 +2312,8 @@ data class MessageInfo(
      * odpověď od kanálu a ostatní správci by jinak nepoznali, kdo z nich odpověděl.
      */
     val author: SenderInfo? = null,
+    /** Příspěvek v kanálu má statistiku (`canGetStatistics`) — jen pro jeho správce. */
+    val canGetStatistics: Boolean = false,
 )
 
 /** Kdo a kdy zprávu zhlédl. */
