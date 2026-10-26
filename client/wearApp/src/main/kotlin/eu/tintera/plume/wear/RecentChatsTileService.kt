@@ -5,6 +5,7 @@ import androidx.concurrent.futures.SuspendToFutureAdapter
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
 import androidx.wear.protolayout.DimensionBuilders.expand
+import androidx.wear.protolayout.DimensionBuilders.weight
 import androidx.wear.protolayout.LayoutElementBuilders.LayoutElement
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.ResourceBuilders.Resources
@@ -25,6 +26,7 @@ import androidx.wear.protolayout.modifiers.LayoutModifier
 import androidx.wear.protolayout.modifiers.background
 import androidx.wear.protolayout.modifiers.clickable
 import androidx.wear.protolayout.modifiers.clip
+import androidx.wear.protolayout.modifiers.padding
 import androidx.wear.protolayout.types.dp
 import androidx.wear.protolayout.types.layoutString
 import androidx.wear.tiles.RequestBuilders
@@ -126,31 +128,42 @@ class RecentChatsTileService : TileService() {
                 labelContent = { text(row.title.layoutString, maxLines = 1) },
                 secondaryLabelContent = row.secondary?.let { line -> { text(line.layoutString, maxLines = 1) } },
                 avatarContent = { avatar(row.chat) },
+                // Řádky si dělí výšku rovným dílem: s výchozí `wrap` se druhý nevešel a renderer
+                // ho zmáčkl (nižší než první, avatar useknutý).
+                height = weight(1f),
             )
             if (index == 0) listOf(button) else listOf(spacer(height = ROW_GAP_DP.dp), button)
         }
         // Tlačítka mají šířku `expand`: sloupec s výchozím `wrap` nejde změřit a renderer ho
         // zahodí celý („Column set to wrap but contents are unmeasurable").
-        return column(*elements.toTypedArray(), width = expand())
+        return column(*elements.toTypedArray(), width = expand(), height = expand())
     }
 
-    /** Miniatura z prostředků dlaždice, a když není (chat bez fotky, nestažená), iniciála na barvách motivu. */
+    /**
+     * Miniatura z prostředků dlaždice, a když není (chat bez fotky, nestažená), iniciála na barvách
+     * motivu. Kolečko je o [AVATAR_INSET_DP] menší než slot: slot měří knihovna z ŠÍŘKY displeje
+     * (19,6 %), kdežto řádky se dělí o výšku hlavního slotu, a na emulátoru (227 dp) z kolečka
+     * plného slotu tlačítko uřízlo vršek a spodek.
+     */
     @Suppress("DEPRECATION") // Varianta s ImageResource chce ProtoLayoutScope, viz KDoc třídy.
     private fun MaterialScope.avatar(chat: RecentChat): LayoutElement {
-        chat.avatarPath?.takeIf { File(it).exists() }?.let { return avatarImage(avatarId(it)) }
-        // Rozměr dává tlačítko (obal avataru), iniciála nebo záložka ho jen vyplní.
-        val content = if (chat.savedMessages) {
-            icon(SAVED_MESSAGES_ICON, tintColor = colorScheme.onPrimaryContainer)
-        } else {
-            val initial = chat.title.firstOrNull { it.isLetterOrDigit() }?.uppercase().orEmpty()
-            text(initial.layoutString, typography = Typography.LABEL_MEDIUM, color = colorScheme.onPrimaryContainer)
+        val photo = chat.avatarPath?.takeIf { File(it).exists() }?.let { avatarImage(avatarId(it)) }
+        val circle = photo ?: run {
+            // Rozměr dává tlačítko (obal avataru), iniciála nebo záložka ho jen vyplní.
+            val content = if (chat.savedMessages) {
+                icon(SAVED_MESSAGES_ICON, tintColor = colorScheme.onPrimaryContainer)
+            } else {
+                val initial = chat.title.firstOrNull { it.isLetterOrDigit() }?.uppercase().orEmpty()
+                text(initial.layoutString, typography = Typography.LABEL_MEDIUM, color = colorScheme.onPrimaryContainer)
+            }
+            box(
+                content,
+                width = expand(),
+                height = expand(),
+                modifier = LayoutModifier.background(colorScheme.primaryContainer).clip(shapes.full),
+            )
         }
-        return box(
-            content,
-            width = expand(),
-            height = expand(),
-            modifier = LayoutModifier.background(colorScheme.primaryContainer).clip(shapes.full),
-        )
+        return box(circle, width = expand(), height = expand(), modifier = LayoutModifier.padding(AVATAR_INSET_DP))
     }
 
     private class Row(val chat: RecentChat, val title: String, val secondary: String?)
@@ -191,6 +204,7 @@ class RecentChatsTileService : TileService() {
 
     private companion object {
         const val ROW_GAP_DP = 4f
+        const val AVATAR_INSET_DP = 3f
         const val LARGE_SCREEN_DP = 260
 
         /** Jméno prostředku podle souboru (fileId): nová fotka chatu je nový prostředek. */
