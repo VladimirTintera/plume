@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.stickers.IosStickerMaker
 import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.core.di.APP_SCOPE
@@ -65,6 +67,8 @@ actual fun Module.platformModule() {
     // Apple Intelligence (Foundation Models), kterou Swift zaregistruje před `initKoin`; bez ní
     // (iOS pod 26) model v zařízení na iOS není.
     single<OnDeviceAi> { IosOnDeviceModel.model?.let(::AppleOnDeviceAi) ?: NoopOnDeviceAi }
+    // Gemma tu není, zátěž telefonu pro model v zařízení neřešíme.
+    single<DeviceLoad> { NoDeviceLoad }
     single<AppLockStore> {
         object : AppLockStore, SecretStore by KeychainSecretStore(
             service = "eu.tintera.plume.applock", account = "pin", logTag = "AppLock",

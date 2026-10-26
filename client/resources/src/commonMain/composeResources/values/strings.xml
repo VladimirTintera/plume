@@ -2362,6 +2362,7 @@
     <string name="settings_ai_provider_gemma_summary">An open model the app downloads itself. It also transcribes voice messages and describes photos, but takes more memory.</string>
     <string name="settings_gemma_e2b_summary">Smaller and faster · %1$s</string>
     <string name="settings_gemma_e4b_summary">Larger and more accurate · %1$s, needs 12 GB of memory</string>
+    <string name="settings_gemma_under_load">In battery saver and when the phone is hot, Gemma doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
     <string name="settings_ai_models">Models</string>
     <string name="settings_ai_model">Model</string>
     <string name="settings_ai_tasks">What runs on which model</string>

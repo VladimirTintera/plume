@@ -332,6 +332,33 @@ První úloha, kde se potkají dva modely — s Nano + Gemmou přepisuje Gemma a
   kolečka" s promptem nad přepisem a porovnání s Gemmou. **Na zařízení neověřené** — ani
   kvalita shrnutí skutečného přepisu, ani dvě úlohy na dvou modelech za sebou.
 
+### Úsporný režim a přehřátí
+
+Pod úsporným režimem nebo od `THERMAL_STATUS_MODERATE` Gemma **sama od sebe** nic nepočítá
+(`proactiveVariant`, `DeviceLoad`, `AndroidDeviceLoad`; testy `DeviceLoadTest`). Týká se úloh,
+které běží bez ťuknutí: návrhy odpovědí, varování před podvodem, triáž, termíny ve zprávách
+a popisy fotek na pozadí.
+
+- **Úlohy na ťuknutí jedou dál** (shrnutí, vysvětlení, přepis hlasovky, přepis konceptu,
+  hledání, popis fotky v prohlížeči): o výsledek si uživatel právě řekl.
+- **Nano a Apple pod zátěží jedou** — počítá je systém, který si úsporu řídí sám, a aplikace
+  kvůli nim nic nenačítá. S oběma modely tak pod zátěží běží dál všechno, co dostalo Nano.
+- **I ručně přiřazená Gemma počká.** Úsporný režim je taky volba uživatele; úloha, kterou si
+  nevyžádal ťuknutím, se projeví s další změnou (nová zpráva, otevřený chat), až zátěž pomine.
+- **Proč ne ve `chooseProvider`**: ten vrací poskytovatele vždycky, a „pod zátěží jen Nano"
+  by u uživatele, který Nano nezapnul, Nano potichu pustilo. `null` z `proactiveVariant` znamená
+  „teď ne" a volající to obslouží stejnou větví jako nepřipravený model.
+- **Čte se při volání** (`isPowerSaveMode`, `currentThermalStatus`), bez naslouchání — úloha se
+  ptá těsně před tím, než by model pustila.
+- **Nastavení u Gemmy to říká větou** (`settings_gemma_under_load`): uživatel s jedinou Gemmou by
+  jinak nepoznal, proč návrhy a varování zmizely.
+- **Emulátor**: úsporný režim zapne `adb shell cmd power set-mode 1` (zpět `0`;
+  `settings put global low_power 1` na Androidu 17 nezabral), teplotu podstrčí
+  `adb shell cmd thermalservice override-status 2` (zpět `reset`). Ověřeno sondou, která
+  logovala `strained`: úspora i `MODERATE` → `true`, vypnuto i `LIGHT` (1) → `false`.
+  Samotné vynechání Gemmy v triáži na emulátoru vidět nebylo (žádný kandidát); pravidlo mají
+  testy (`DeviceLoadTest`, `ReplySuggestionsViewModelTest`).
+
 ### Apple Intelligence na iOS (Foundation Models)
 
 Na iOS 26+ počítá model v zařízení **Apple Intelligence** (`AiProvider.Apple`,

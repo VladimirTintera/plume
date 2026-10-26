@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
-import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.proactiveVariant
+import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.scamVerdictOf
@@ -71,6 +73,8 @@ class ScamWarnings(
     private val ai: OnDeviceAi,
     private val settings: AppSettings,
     appScope: CoroutineScope,
+    /** Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá ([proactiveVariant]). */
+    private val load: DeviceLoad = NoDeviceLoad,
 ) {
     private val logger = Logger.withTag("ScamWarnings")
 
@@ -116,10 +120,11 @@ class ScamWarnings(
 
     private suspend fun judge(request: Request) {
         val key = request.chatId to request.messageId
-        val variant = ai.variantFor(AiTask.Scam, settings)
-        val ready = enabled() && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
-        if (!ready) {
-            // Model zatím není: zpráva se posoudí, až se konverzace otevře znovu s hotovým modelem.
+        val variant = ai.proactiveVariant(AiTask.Scam, settings, load)
+        val ready = variant != null && enabled() && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
+        if (variant == null || !ready) {
+            // Model zatím není (nebo je telefon pod zátěží a model je Gemma): zpráva se posoudí,
+            // až se konverzace otevře znovu.
             seen.update { it - key }
             return
         }

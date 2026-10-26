@@ -1,7 +1,9 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.proactiveVariant
+import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.ai.variantsFor
-import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -78,6 +80,8 @@ fun replyContext(messages: List<ChatMessage>): List<ChatMessage> =
 class ReplySuggestionsViewModel(
     private val ai: OnDeviceAi,
     private val settings: AppSettings,
+    /** Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá ([proactiveVariant]). */
+    private val load: DeviceLoad = NoDeviceLoad,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ReplySuggestions")
@@ -111,7 +115,8 @@ class ReplySuggestionsViewModel(
         job = viewModelScope.launch {
             val lines = transcriptLines(replyContext(messages), chatTitle, me)
             if (lines.isEmpty()) return@launch
-            val variant = ai.variantFor(AiTask.Replies, settings)
+            // Návrhy se objevují samy, takže pod zátěží telefonu bez Gemmy.
+            val variant = ai.proactiveVariant(AiTask.Replies, settings, load) ?: return@launch
             if (ai.status(variant) != OnDeviceAiStatus.Ready) return@launch
             try {
                 _suggestions.value = structuredSuggestions(variant, chatTitle, lines)

@@ -2426,6 +2426,7 @@
     <string name="settings_ai_provider_gemma_summary">Otevřený model, který si stáhne aplikace. Přepíše i hlasovky a popíše fotky, ale bere víc paměti.</string>
     <string name="settings_gemma_e2b_summary">Menší a rychlejší · %1$s</string>
     <string name="settings_gemma_e4b_summary">Větší a přesnější · %1$s, potřebuje 12 GB paměti</string>
+    <string name="settings_gemma_under_load">V úsporném režimu a při přehřátí telefonu Gemma sama od sebe nic nepočítá: návrhy odpovědí, varování před podvodem a podobně počkají. Co si vyžádáš ťuknutím, funguje dál.</string>
     <string name="settings_ai_models">Modely</string>
     <string name="settings_ai_model">Model</string>
     <string name="settings_ai_tasks">Co čím počítat</string>
