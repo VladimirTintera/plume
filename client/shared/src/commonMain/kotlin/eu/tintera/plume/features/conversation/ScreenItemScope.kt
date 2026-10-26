@@ -217,6 +217,15 @@ internal class ScreenItemScope(
             state.value.messages.firstOrNull { it.id == messageId }?.let(summary::explain)
             viewModel.onAction(messageId, action)
         }
+        MessageMenuAction.SummarizeVoice -> {
+            state.value.messages.firstOrNull { it.id == messageId }?.let { message ->
+                val transcript = message.doneTranscript(localTranscript(messageId))
+                // Kdo mluví: v soukromém chatu jméno odesílatele TDLib nevyplňuje, pak název chatu.
+                val speaker = message.senderName ?: state.value.info?.title.orEmpty()
+                if (transcript != null) summary.summarizeVoice(message, transcript, speaker)
+            }
+            viewModel.onAction(messageId, action)
+        }
         is MessageAction.OpenSenderProfile -> {
             // Klíč letu musí stát dřív, než se profil otevře; chat se hledá asynchronně.
             profileFlight.value = messageId

@@ -360,6 +360,8 @@ data class MessageMenu(
     val inTranslationLanguage: Boolean = false,
     /** Umí telefon vysvětlit zprávu modelem (zapnutá AI, model zařízení podporuje)? */
     val explainAvailable: Boolean = false,
+    /** Shrnout hlasovku: přepis je hotový a AI v zařízení je k dispozici jako u [explainAvailable]. */
+    val voiceSummaryAvailable: Boolean = false,
     /** Co se v textu zprávy našlo pro akce (termín, účet, zásilka); prázdné = položka není. */
     val contextFindings: List<ContextFinding> = emptyList(),
     /** Zpráva (u alba všechny jeho neodeslané) neodešla a jde poslat znovu — „Poslat znovu". */

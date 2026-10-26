@@ -296,6 +296,19 @@ private val MessageMedia.carriesCaption: Boolean
  * Animované emoji má prázdný text (kreslí se jako příloha), ale zkopírovat se má pořád jeho znak —
  * dřív, když bylo textovou zprávou, to šlo. Hod kostkou totéž, i s výsledkem.
  */
+/**
+ * Hotový přepis hlasovky nebo kolečka: od serveru ve zprávě, jinak z telefonu ([local],
+ * `LocalTranscripts` — ten zpráva nenese). `null`, dokud hotový není, a u jiné zprávy.
+ */
+internal fun ChatMessage.doneTranscript(local: SpeechTranscript?): String? {
+    val server = when (val media = media) {
+        is MessageMedia.VoiceNote -> media.transcript
+        is MessageMedia.VideoNote -> media.transcript
+        else -> return null
+    }
+    return ((server as? SpeechTranscript.Done) ?: (local as? SpeechTranscript.Done))?.text?.takeIf { it.isNotBlank() }
+}
+
 internal fun ChatMessage.copyableText(): String = text.ifBlank {
     when (val media = media) {
         is MessageMedia.AnimatedEmoji -> media.emoji

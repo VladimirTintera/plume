@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.resources.menu_summarize_voice
+import eu.tintera.plume.core.ai.VOICE_SUMMARY_MIN_SECONDS
 import eu.tintera.plume.resources.menu_explain
 import eu.tintera.plume.core.ai.EXPLAIN_MIN_CHARS
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -135,6 +137,28 @@ class MessageActionTest {
         assertEquals(
             Res.string.menu_explain,
             MessageMenuAction.Explain.presentation(menu(items).copy(explainAvailable = true))?.label,
+        )
+    }
+
+    /** Shrnout přepis jen u DLOUHÉHO CIZÍHO záznamu, a ukáže se jen s hotovým přepisem a AI. */
+    @Test
+    fun shrnoutPrepisJenDlouhehoPrichozihoZaznamu() {
+        fun voice(seconds: Int) = MessageMedia.VoiceNote(fileId = 1, durationSeconds = seconds, waveform = emptyList(), isListened = true)
+        val long = message(text = "", media = voice(VOICE_SUMMARY_MIN_SECONDS), outgoing = false)
+        assertTrue(MessageMenuAction.SummarizeVoice in menuActions(long, isPinned = false))
+        assertFalse(MessageMenuAction.SummarizeVoice in menuActions(long.copy(isOutgoing = true), isPinned = false))
+        assertFalse(
+            MessageMenuAction.SummarizeVoice in
+                menuActions(message(text = "", media = voice(VOICE_SUMMARY_MIN_SECONDS - 1), outgoing = false), isPinned = false),
+        )
+        // Dlouhý TEXT kandidátem na shrnutí přepisu není — na ten je „Vysvětlit".
+        assertFalse(MessageMenuAction.SummarizeVoice in menuActions(message(text = "a".repeat(EXPLAIN_MIN_CHARS), outgoing = false), isPinned = false))
+
+        val items = listOf(MessageMenuAction.SummarizeVoice)
+        assertNull(MessageMenuAction.SummarizeVoice.presentation(menu(items)))
+        assertEquals(
+            Res.string.menu_summarize_voice,
+            MessageMenuAction.SummarizeVoice.presentation(menu(items).copy(voiceSummaryAvailable = true))?.label,
         )
     }
 
