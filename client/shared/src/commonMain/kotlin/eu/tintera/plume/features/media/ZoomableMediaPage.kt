@@ -34,7 +34,6 @@ import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
@@ -57,7 +56,7 @@ import kotlinx.coroutines.launch
  * Gesta jsou dvě a **každé má vlastní `pointerInput`**: tah a štípnutí, a ťuknutí (přepnutí
  * galerie a celé obrazovky, dvojité přiblížení). Obě sedí na celé stránce, ne na kartě —
  * štípnout jde i vedle úzké fotky. Štípnutí a dvojité ťuknutí přepnou na celou obrazovku
- * ([onEngage]); přiblížení v galerii nedává smysl, fotka by rostla přes lišty.
+ * ([MediaPageGestures.onEngage]); přiblížení v galerii nedává smysl, fotka by rostla přes lišty.
  *
  * Tah se nerozpoznává přes `detectTransformGestures`. Ten konzumuje pohyb v každém směru,
  * takže by fotka spolkla i vodorovný tah a pager nad ní by nešel posunout. Proto vlastní
@@ -81,23 +80,9 @@ import kotlinx.coroutines.launch
 internal fun ZoomableMediaPage(
     aspectRatio: Float,
     caption: String,
-    /** Stránka, na které pager stojí. Odlistovaná fotka se vrací do základní velikosti. */
-    isCurrent: Boolean,
-    /** Celá obrazovka; návrat do galerie vrací přiblížení na základní velikost. */
-    immersive: Boolean,
-    immersion: () -> Float,
-    reservedTop: Dp,
-    reservedBottom: Dp,
+    placement: MediaPagePlacement,
     dismissDrag: Animatable<Float, *>,
-    /**
-     * Svislý tah přes práh. Prohlížeč se jím zavírá, sdílení jím opouští celou obrazovku;
-     * `null` = svislý tah nic nedělá (sdílení v galerii — není kam odejít).
-     */
-    onDismiss: (() -> Unit)?,
-    /** Ťuknutí: přepne galerii a celou obrazovku, nebo odkryje spoiler — rozhodne volající. */
-    onTap: () -> Unit,
-    /** Přiblížení gestem — přepne na celou obrazovku. */
-    onEngage: () -> Unit,
+    gestures: MediaPageGestures,
     /** Přiblížit jde jen odkrytý snímek; zakrytý spoilerem dvojité ťuknutí jen ťukne. */
     zoomable: Boolean = true,
     /** Přiblížení z klávesnice (+/−/0); bere si ho jen stránka, na které pager stojí. */
@@ -105,8 +90,6 @@ internal fun ZoomableMediaPage(
     modifier: Modifier = Modifier,
     /** Modifikátor karty se snímkem, pod přiblížením (sdílený prvek z bubliny). */
     cardModifier: Modifier = Modifier,
-    captionAlpha: () -> Float = { 1f },
-    cardBias: () -> Float = { 0f },
     /** Ovládání na kartě, které se s fotkou nepřibližuje (✕ a volba režimu ve sdílení). */
     overlay: @Composable BoxScope.() -> Unit = {},
     /** Snímek; vyplní kartu a přibližuje se. */
@@ -117,9 +100,12 @@ internal fun ZoomableMediaPage(
     // Práh zavíracího tahu se ohlásí jednou za gesto. Pole, ne stav: čte se v obsluze gesta.
     var dismissArmed by remember { mutableStateOf(false) }
     val card = remember { CardGeometry() }
-    val currentEngage by rememberUpdatedState(onEngage)
-    val currentTap by rememberUpdatedState(onTap)
-    val currentDismiss by rememberUpdatedState(onDismiss)
+    val isCurrent = placement.isCurrent
+    val immersive = placement.immersive
+    val immersion = placement.immersion
+    val currentEngage by rememberUpdatedState(gestures.onEngage)
+    val currentTap by rememberUpdatedState(gestures.onTap)
+    val currentDismiss by rememberUpdatedState(gestures.onDismiss)
     val currentZoomable by rememberUpdatedState(zoomable)
 
     var scale by remember { mutableFloatStateOf(1f) }
@@ -184,11 +170,11 @@ internal fun ZoomableMediaPage(
     MediaPageLayout(
         aspectRatio = aspectRatio,
         caption = caption,
-        reservedTop = reservedTop,
-        reservedBottom = reservedBottom,
+        reservedTop = placement.reservedTop,
+        reservedBottom = placement.reservedBottom,
         immersion = immersion,
-        captionAlpha = captionAlpha,
-        cardBias = cardBias,
+        captionAlpha = placement.captionAlpha,
+        cardBias = placement.cardBias,
         modifier = modifier
             .onSizeChanged { card.page = it }
             // Kolečko myši: s Ctrl (⌘) přibližuje kolem kurzoru, bez něj posouvá přiblíženou fotku.
