@@ -4291,6 +4291,8 @@
     <string name="wear_login_phone_declined">The sign-in was declined on your phone.</string>
     <string name="wear_login_phone_not_signed_in">Plume on your phone isn't signed in. Scan the code instead.</string>
     <string name="wear_login_phone_failed">Your phone couldn't sign in the watch. Try again.</string>
+    <string name="wear_login_signed_in">Signed in</string>
+    <string name="wear_login_declined">Declined</string>
     <string name="notification_channel_watch_login">Watch sign-in</string>
     <string name="notification_channel_watch_login_description">Confirming a sign-in requested by Plume on your watch</string>
     <string name="watch_login_title">Sign in on your watch?</string>

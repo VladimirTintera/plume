@@ -4436,6 +4436,8 @@
     <string name="wear_login_phone_declined">Přihlášení bylo v telefonu zamítnuto.</string>
     <string name="wear_login_phone_not_signed_in">Plume na telefonu není přihlášené. Naskenujte raději kód.</string>
     <string name="wear_login_phone_failed">Telefon hodinky nepřihlásil. Zkuste to znovu.</string>
+    <string name="wear_login_signed_in">Přihlášeno</string>
+    <string name="wear_login_declined">Zamítnuto</string>
     <string name="notification_channel_watch_login">Přihlášení hodinek</string>
     <string name="notification_channel_watch_login_description">Potvrzení přihlášení, o které žádá Plume na hodinkách</string>
     <string name="watch_login_title">Přihlásit hodinky?</string>

@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -23,6 +25,7 @@ import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.connection_connecting
+import eu.tintera.plume.resources.wear_login_signed_in
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -36,8 +39,23 @@ fun WearApp(openChat: Long? = null, onChatOpened: () -> Unit = {}) {
     val session = koinInject<TelegramSession>()
     val stage by session.authStage.collectAsState()
     val scope = rememberCoroutineScope()
+    // Fajfka po přihlášení (QR kódem i telefonem): jen po průchodu přihlašováním, ne při startu
+    // už přihlášené aplikace. Patří sem, ne do QR obrazovky — ta s `Ready` zmizí i s dialogem.
+    var signingIn by remember { mutableStateOf(false) }
+    var signedIn by remember { mutableStateOf(false) }
+    LaunchedEffect(stage) {
+        when (stage) {
+            is AuthStage.WaitQrConfirmation, is AuthStage.WaitPassword -> signingIn = true
+            AuthStage.Ready -> if (signingIn) {
+                signingIn = false
+                signedIn = true
+            }
+            else -> {}
+        }
+    }
 
     WearTheme {
+        SuccessConfirmation(visible = signedIn, text = stringResource(Res.string.wear_login_signed_in), onDismiss = { signedIn = false })
         when (val current = stage) {
             AuthStage.Ready -> {
                 NotificationPermissionRequest()

@@ -1,6 +1,7 @@
 package eu.tintera.plume.wear
 
 import android.app.RemoteInput
+import androidx.activity.compose.BackHandler
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -39,6 +40,9 @@ import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.CircularProgressIndicatorDefaults
+import androidx.wear.compose.material3.FilledTonalIconButton
+import androidx.wear.compose.material3.IconButtonDefaults
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
@@ -55,6 +59,10 @@ import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_qr_content_description
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.wear_confirm_failed
+import eu.tintera.plume.resources.wear_login_declined
 import eu.tintera.plume.resources.wear_login_qr_hint
 import eu.tintera.plume.resources.smartphone_24dp
 import eu.tintera.plume.resources.wear_login_phone_confirmed
@@ -106,6 +114,15 @@ fun QrLoginScreen(link: String) {
     val centered = PaddingValues(top = (configuration.screenHeightDp.dp - qrSize) / 2, bottom = screen / 4)
     val spec = rememberTransformationSpec()
     val phone = rememberPhoneLoginState(link)
+    FailureConfirmation(
+        visible = phone.failureDialog,
+        text = stringResource(if (phone.result == WatchLogin.Result.Declined) Res.string.wear_login_declined else Res.string.wear_confirm_failed),
+        onDismiss = { phone.failureDialog = false },
+    )
+    if (phone.waiting) {
+        PhoneLoginWaiting(phone)
+        return
+    }
     ScreenScaffold(scrollState = state) {
         TransformingLazyColumn(state = state, contentPadding = centered) {
             // Kód se u okraje NEzmenšuje (ostatní položky ano): zmenšený by čtečka nemusela přečíst.
@@ -155,6 +172,9 @@ private class PhoneLoginState {
     var available by mutableStateOf(false)
     var waiting by mutableStateOf(false)
     var result by mutableStateOf<WatchLogin.Result?>(null)
+
+    /** Nezdar k ohlášení křížkem; po jeho zmizení zůstane pod nadpisem věta, proč. */
+    var failureDialog by mutableStateOf(false)
     var start: () -> Unit = {}
 
     val shown: Boolean get() = available || waiting || result != null
@@ -172,9 +192,15 @@ private fun rememberPhoneLoginState(link: String): PhoneLoginState {
     LaunchedEffect(Unit) { state.available = login.phoneAvailable() }
     LaunchedEffect(Unit) {
         login.results().collect { result ->
+            // Odpověď na zrušené čekání (zamítnuto v telefonu později) už nic neohlašuje.
+            if (!state.waiting) return@collect
             state.result = result
-            // Po potvrzení se čeká dál: `Ready` přijde od TDLib a obrazovka zmizí sama.
-            if (result != WatchLogin.Result.Confirmed) state.waiting = false
+            // Po potvrzení se čeká dál: `Ready` přijde od TDLib a obrazovka zmizí sama (fajfku
+            // ukáže `WearApp`, tahle obrazovka už v tu chvíli nebude).
+            if (result != WatchLogin.Result.Confirmed) {
+                state.waiting = false
+                state.failureDialog = true
+            }
         }
     }
     LaunchedEffect(link, state.waiting) {
@@ -183,37 +209,76 @@ private fun rememberPhoneLoginState(link: String): PhoneLoginState {
             state.waiting = false
             state.available = false
             state.result = WatchLogin.Result.Failed
+            state.failureDialog = true
         }
     }
     return state
 }
 
+/** Tlačítko pod nadpisem QR obrazovky; po nezdaru nad ním věta, proč to nevyšlo. */
 @Composable
 private fun PhoneLoginItem(state: PhoneLoginState, modifier: Modifier) {
-    val result = state.result
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        when {
-            result == WatchLogin.Result.Confirmed -> CenteredText(stringResource(Res.string.wear_login_phone_confirmed))
-            state.waiting -> CenteredText(stringResource(Res.string.wear_login_phone_waiting))
-            else -> {
-                val problem = when (result) {
-                    WatchLogin.Result.Declined -> Res.string.wear_login_phone_declined
-                    WatchLogin.Result.NotSignedIn -> Res.string.wear_login_phone_not_signed_in
-                    WatchLogin.Result.Failed -> Res.string.wear_login_phone_failed
-                    else -> null
-                }
-                problem?.let {
-                    CenteredText(stringResource(it), color = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.height(4.dp))
-                }
-                if (state.available) {
-                    Button(
-                        onClick = state.start,
-                        icon = { Icon(painterResource(Res.drawable.smartphone_24dp), contentDescription = null) },
-                        label = { Text(stringResource(Res.string.wear_login_with_phone)) },
-                        colors = ButtonDefaults.filledTonalButtonColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+        val problem = when (state.result) {
+            WatchLogin.Result.Declined -> Res.string.wear_login_phone_declined
+            WatchLogin.Result.NotSignedIn -> Res.string.wear_login_phone_not_signed_in
+            WatchLogin.Result.Failed -> Res.string.wear_login_phone_failed
+            else -> null
+        }
+        problem?.let {
+            CenteredText(stringResource(it), color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(4.dp))
+        }
+        if (state.available) {
+            Button(
+                onClick = state.start,
+                icon = { Icon(painterResource(Res.drawable.smartphone_24dp), contentDescription = null) },
+                label = { Text(stringResource(Res.string.wear_login_with_phone)) },
+                colors = ButtonDefaults.filledTonalButtonColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/**
+ * Čekání na potvrzení v telefonu přes celou obrazovku: kruh po obvodu displeje, uprostřed ikona
+ * telefonu a co udělat. Dřív se věta jen vyměnila za tlačítko uvnitř seznamu s QR kódem a s jeho
+ * zmenšováním u okraje se překreslovala přes nápovědu pod sebou. Po potvrzení v telefonu se
+ * čeká dál („Přihlašování…"), až TDLib ohlásí přihlášení; zrušit jde jen do té doby.
+ */
+@Composable
+private fun PhoneLoginWaiting(state: PhoneLoginState) {
+    val confirmed = state.result == WatchLogin.Result.Confirmed
+    val cancel = { state.waiting = false }
+    BackHandler(enabled = !confirmed, onBack = cancel)
+    ScreenScaffold {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                modifier = Modifier.fillMaxSize().padding(CircularProgressIndicatorDefaults.FullScreenPadding),
+                strokeWidth = CircularProgressIndicatorDefaults.largeStrokeWidth,
+            )
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(
+                    painterResource(Res.drawable.smartphone_24dp),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(if (confirmed) Res.string.wear_login_phone_confirmed else Res.string.wear_login_phone_waiting),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                )
+                if (!confirmed) {
+                    Spacer(Modifier.height(8.dp))
+                    FilledTonalIconButton(onClick = cancel, shapes = IconButtonDefaults.animatedShapes()) {
+                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_cancel))
+                    }
                 }
             }
         }
