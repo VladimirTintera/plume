@@ -695,7 +695,7 @@ AVFoundation na iOS.
     doběhnou (porovnání instance mezistavu, jako u hlasovky).
   - **Stav přehrávání drží obrazovka** (`VideoNotePreviewPlayback`), ne ViewModel: čtou ho dvě
     místa (kruh s přehrávačem a karta s tlačítkem a časem) a přehrávač žije v kompozici.
-  - **Po ■ je `recordingKind` pořád kolečko** (i bez běžícího nahrávání), jinak se odesílací
+  - **Po ■ je `RecordingControls.kind` pořád kolečko** (i bez běžícího nahrávání), jinak se odesílací
     tlačítko čtečce hlásilo jako „odeslat hlasovou zprávu".
   - **Odeslání i nabídka podržení jdou přes `sendRecording`**, takže naplánovat nebo poslat bez
     zvuku jde i zastavené kolečko. Koš a odchod z chatu smažou video i náhledový snímek.
