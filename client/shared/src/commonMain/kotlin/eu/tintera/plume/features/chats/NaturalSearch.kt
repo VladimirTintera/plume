@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ai.variantsFor
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import kotlinx.datetime.minus
 import kotlinx.datetime.DateTimeUnit
 import co.touchlab.kermit.Logger
@@ -185,7 +188,7 @@ class NaturalSearchModel(private val ai: OnDeviceAi, private val settings: AppSe
     private val logger = Logger.withTag("NaturalSearch")
 
     /** Nabídnout „Hledat s AI"? Mění se se zapnutím AI a se stažením modelu. */
-    val available: Flow<Boolean> = combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant) { enabled, variant ->
+    val available: Flow<Boolean> = combine(settings.onDeviceAiEnabled, ai.variantsFor(AiTask.Search, settings)) { enabled, variant ->
         enabled to variant
     }.let { input ->
         flow {
@@ -200,7 +203,7 @@ class NaturalSearchModel(private val ai: OnDeviceAi, private val settings: AppSe
         return try {
             withTimeoutOrNull(TIMEOUT_MS) {
                 val fields = ai.generateAnswer(
-                    settings.onDeviceAiVariant.value,
+                    ai.variantFor(AiTask.Search, settings),
                     SearchAnswer::class,
                     prompt = { structured -> searchPrompt(query, today, structured) },
                     fromStructured = ::searchFieldsOf,

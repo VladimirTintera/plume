@@ -112,10 +112,13 @@ enum class OnDeviceFix {
     /** AI v zařízení je vypnutá. */
     EnableAi,
 
-    /** Zvolená je Gemini Nano. */
+    /**
+     * Gemma není mezi zapnutými modely (je jen Gemini Nano). Jméno zůstává z doby, kdy šel
+     * zapnout jen jeden model: posílá se i hodinkám (`switch_to_gemma`), takže se nepřejmenovává.
+     */
     SwitchToGemma,
 
-    /** Zvolená je Gemma, ale není stažená. */
+    /** Gemma je zapnutá, ale není stažená. */
     DownloadGemma,
 }
 

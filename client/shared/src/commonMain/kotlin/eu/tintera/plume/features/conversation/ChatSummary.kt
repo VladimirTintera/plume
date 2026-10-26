@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.variantsFor
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.explainPrompt
 import eu.tintera.plume.core.ui.resolveNow
@@ -177,7 +180,7 @@ class ChatSummaryViewModel(
      */
     val available: StateFlow<Boolean> = combine(
         settings.onDeviceAiEnabled,
-        settings.onDeviceAiVariant.flatMapLatest { variant ->
+        ai.variantsFor(AiTask.Summary, settings).flatMapLatest { variant ->
             // `catch` je pojistka, ne ozdoba: kdyby ze zjišťování stavu cokoli vyletělo,
             // shodilo by to celý `stateIn` scope, tedy ViewModel obrazovky — kvůli volitelné
             // funkci. Nepodařilo se zjistit = nenabízet.
@@ -216,7 +219,7 @@ class ChatSummaryViewModel(
                 _state.value = ChatSummaryState.NothingToSummarize
                 return@launch
             }
-            val variant = settings.onDeviceAiVariant.value
+            val variant = ai.variantFor(AiTask.Summary, settings)
             if (ai.status(variant) != OnDeviceAiStatus.Ready) {
                 _state.value = ChatSummaryState.ModelMissing
                 return@launch
@@ -324,7 +327,7 @@ class ChatSummaryViewModel(
         _source.value = SummarySource(listOf(message), unread = false, explain = true)
         _state.value = ChatSummaryState.Preparing
         job = viewModelScope.launch {
-            val variant = settings.onDeviceAiVariant.value
+            val variant = ai.variantFor(AiTask.Explain, settings)
             if (ai.status(variant) != OnDeviceAiStatus.Ready) {
                 _state.value = ChatSummaryState.ModelMissing
                 return@launch

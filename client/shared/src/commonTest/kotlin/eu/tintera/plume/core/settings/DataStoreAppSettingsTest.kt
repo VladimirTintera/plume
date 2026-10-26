@@ -1,5 +1,9 @@
 package eu.tintera.plume.core.settings
 
+import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.ai.AiTask
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.AiModels
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
@@ -469,6 +473,45 @@ class DataStoreAppSettingsTest {
             } finally {
                 scope.cancel()
             }
+        }
+    }
+
+    @Test
+    fun modelyAPrirazeniUloh() = settingsTest { settings, _ ->
+        assertEquals(AiModels(), settings.onDeviceAiModels.value)
+        val models = AiModels(
+            enabled = setOf(AiProvider.GeminiNano, AiProvider.Gemma),
+            fast = true,
+            gemma = GemmaModel.E4B,
+            assigned = mapOf(AiTask.Summary to AiProvider.Gemma, AiTask.Replies to AiProvider.GeminiNano),
+        )
+        settings.setOnDeviceAiModels(models)
+        assertEquals(models, settings.onDeviceAiModels.awaitValue("uložené modely") { it == models })
+    }
+
+    /**
+     * Kdo si dřív vybral Gemmu (jediný poskytovatel), má po aktualizaci zapnutou Gemmu — ne
+     * výchozí Nano. Úloha nebo model z novější verze se přeskočí, zbytek platí.
+     */
+    @Test
+    fun drivejsiPoskytovatelANeznameNazvy() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val dataStore = createSettingsDataStore(tempPath())
+            withTimeout(WAIT_MS) { dataStore.edit { it[stringPreferencesKey("on_device_ai_provider")] = "Gemma" } }
+            val settings = DataStoreAppSettings(dataStore, scope)
+            settings.onDeviceAiModels.awaitValue("Gemma z dřívějška") { it.enabled == setOf(AiProvider.Gemma) }
+
+            withTimeout(WAIT_MS) {
+                dataStore.edit {
+                    it[stringPreferencesKey("on_device_ai_models")] = "Phi GeminiNano"
+                    it[stringPreferencesKey("on_device_ai_tasks")] = "Summary=Gemma Poetry=Gemma Search=Phi"
+                }
+            }
+            val read = settings.onDeviceAiModels.awaitValue("seznam bez neznámých") { it.enabled == setOf(AiProvider.GeminiNano) }
+            assertEquals(mapOf(AiTask.Summary to AiProvider.Gemma), read.assigned)
+        } finally {
+            scope.cancel()
         }
     }
 

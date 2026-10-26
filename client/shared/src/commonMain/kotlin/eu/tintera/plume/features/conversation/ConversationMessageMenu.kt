@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
@@ -158,7 +160,7 @@ internal class ConversationMessageMenu(
     private suspend fun explainAvailable(): Boolean {
         val ai = onDeviceAi ?: return false
         if (!settings.onDeviceAiEnabled.value) return false
-        return runCatching { ai.status(settings.onDeviceAiVariant.value) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
+        return runCatching { ai.status(ai.variantFor(AiTask.Explain, settings)) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
     }
 
     /** Nabídka s kandidáty, které nabídl blok; co z nich server dovolí, se zjistí tady. */

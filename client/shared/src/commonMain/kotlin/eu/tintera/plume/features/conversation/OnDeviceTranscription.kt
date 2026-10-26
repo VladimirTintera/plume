@@ -1,8 +1,10 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
+import eu.tintera.plume.core.ai.AiModels
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiProvider
-import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
@@ -45,15 +47,15 @@ class OnDeviceTranscription(
      */
     suspend fun check(
         enabled: Boolean = settings.onDeviceAiEnabled.value,
-        variant: ModelVariant = settings.onDeviceAiVariant.value,
+        models: AiModels = settings.onDeviceAiModels.value,
     ): OnDeviceCheck {
-        if (gemmaTranscribes(enabled, variant)) return OnDeviceCheck(available = true)
+        if (gemmaTranscribes(enabled, models)) return OnDeviceCheck(available = true)
         return when (speechLanguage()) {
             SpeechLanguage.Installed -> OnDeviceCheck(available = true)
             // Jazyk pro rozpoznávač má desítky MB, Gemma gigabajty — radí se napřed on.
             SpeechLanguage.Downloadable -> OnDeviceCheck(available = false, fix = OnDeviceFix.DownloadSpeechLanguage)
             SpeechLanguage.Downloading -> OnDeviceCheck(available = false, fix = OnDeviceFix.SpeechLanguageDownloading)
-            SpeechLanguage.Unsupported, null -> OnDeviceCheck(available = false, fix = gemmaFix(enabled, variant))
+            SpeechLanguage.Unsupported, null -> OnDeviceCheck(available = false, fix = gemmaFix(enabled, models))
         }
     }
 
@@ -88,12 +90,12 @@ class OnDeviceTranscription(
             var text = ""
             // Gemma má přednost (přepisuje i interpunkci a smysl), systém je záloha pro telefony
             // bez ní — rozhoduje se až teď, stav se mohl od nabídky změnit.
-            val variant = settings.onDeviceAiVariant.value
+            val models = settings.onDeviceAiModels.value
             val ai = onDeviceAi
             val speech = speechToText
             val chunks: Flow<String> = when {
-                ai != null && gemmaTranscribes(settings.onDeviceAiEnabled.value, variant) ->
-                    ai.transcribe(variant, path, platformLanguageCode).map { it.text }
+                ai != null && gemmaTranscribes(settings.onDeviceAiEnabled.value, models) ->
+                    ai.transcribe(ai.variantFor(AiTask.Transcription, models), path, platformLanguageCode).map { it.text }
                 speech != null && systemTranscribes() -> speech.transcribe(path, platformLanguageCode)
                 else -> throw IllegalStateException("Přepis v telefonu už není k dispozici")
             }
@@ -113,24 +115,25 @@ class OnDeviceTranscription(
         return result
     }
 
-    /** Přepíše Gemma (zapnutá AI, model se zvukovým vstupem připravený)? */
-    private suspend fun gemmaTranscribes(enabled: Boolean, variant: ModelVariant): Boolean {
+    /** Přepíše Gemma (zapnutá AI, model se zvukovým vstupem zapnutý a připravený)? */
+    private suspend fun gemmaTranscribes(enabled: Boolean, models: AiModels): Boolean {
         val ai = onDeviceAi ?: return false
-        return enabled && runCatching { ai.canTranscribe(variant) }.getOrDefault(false)
+        return enabled && runCatching { ai.canTranscribe(ai.variantFor(AiTask.Transcription, models)) }.getOrDefault(false)
     }
 
     /**
      * Co zapnout, aby přepisovala Gemma; `null`, když ji zařízení neunese (iOS, desktop, slabý
      * telefon) — pak nepomůže nic v telefonu.
      */
-    private suspend fun gemmaFix(enabled: Boolean, variant: ModelVariant): OnDeviceFix? {
+    private suspend fun gemmaFix(enabled: Boolean, models: AiModels): OnDeviceFix? {
         val ai = onDeviceAi ?: return null
-        val gemma = ModelVariant(provider = AiProvider.Gemma, gemma = variant.gemma)
-        val supported = runCatching { ai.status(gemma) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
+        val supported = runCatching { ai.status(models.variant(AiProvider.Gemma)) != OnDeviceAiStatus.Unsupported }
+            .getOrDefault(false)
         return when {
             !supported -> null
             !enabled -> OnDeviceFix.EnableAi
-            variant.provider != AiProvider.Gemma -> OnDeviceFix.SwitchToGemma
+            // Gemma jde zapnout VEDLE Nano: přepis dostane sama, text zůstane na Nano.
+            AiProvider.Gemma !in models.enabled -> OnDeviceFix.SwitchToGemma
             else -> OnDeviceFix.DownloadGemma
         }
     }

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.BackgroundPhotoDescription
 import eu.tintera.plume.core.ai.OnDeviceAi
@@ -42,7 +44,7 @@ class BackgroundPhotoDescriber(
     /** Popíše nejvýš [limit] dosud nepopsaných fotek; vrátí, kolik popsal. */
     suspend fun describeBatch(limit: Int): Int {
         if (!settings.backgroundPhotoDescriptions.value || !settings.onDeviceAiEnabled.value) return 0
-        val variant = settings.onDeviceAiVariant.value
+        val variant = ai.variantFor(AiTask.PhotoDescription, settings)
         if (!runCatching { ai.canDescribeImage(variant) }.getOrDefault(false)) {
             logger.d { "Popisy na pozadí: model obraz nebere, nic se nedělá." }
             return 0

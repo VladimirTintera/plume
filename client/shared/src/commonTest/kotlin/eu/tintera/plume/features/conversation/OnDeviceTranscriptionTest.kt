@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
@@ -44,7 +45,7 @@ class OnDeviceTranscriptionTest {
         speech: SpeechLanguage?,
         ai: OnDeviceAi = NoopOnDeviceAi,
         enabled: Boolean = true,
-        provider: AiProvider = AiProvider.GeminiNano,
+        models: Set<AiProvider> = setOf(AiProvider.GeminiNano),
     ) = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
@@ -56,7 +57,7 @@ class OnDeviceTranscriptionTest {
                 local = LocalTranscripts(settings, FakeChatRepository()),
                 onDeviceAi = ai,
                 speechToText = speech?.let(::FakeSpeech),
-            ).check(enabled, ModelVariant(provider = provider))
+            ).check(enabled, AiModels(enabled = models))
         } finally {
             scope.cancel()
         }
@@ -78,7 +79,12 @@ class OnDeviceTranscriptionTest {
     fun bezJazykaZbyvaGemma() {
         assertEquals(OnDeviceFix.SwitchToGemma, check(SpeechLanguage.Unsupported, GemmaDownloadable).fix)
         assertEquals(OnDeviceFix.EnableAi, check(null, GemmaDownloadable, enabled = false).fix)
-        assertEquals(OnDeviceFix.DownloadGemma, check(SpeechLanguage.Unsupported, GemmaDownloadable, provider = AiProvider.Gemma).fix)
+        assertEquals(OnDeviceFix.DownloadGemma, check(SpeechLanguage.Unsupported, GemmaDownloadable, models = setOf(AiProvider.Gemma)).fix)
+        // Gemma vedle Nano: přepis je její, i když text počítá Nano.
+        assertEquals(
+            OnDeviceFix.DownloadGemma,
+            check(SpeechLanguage.Unsupported, GemmaDownloadable, models = setOf(AiProvider.GeminiNano, AiProvider.Gemma)).fix,
+        )
     }
 
     /** Bez rozpoznávače i bez Gemmy nepomůže nic v telefonu — jen Premium. */

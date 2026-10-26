@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.scamVerdictOf
 import eu.tintera.plume.core.ai.generateAnswer
@@ -114,7 +116,7 @@ class ScamWarnings(
 
     private suspend fun judge(request: Request) {
         val key = request.chatId to request.messageId
-        val variant = settings.onDeviceAiVariant.value
+        val variant = ai.variantFor(AiTask.Scam, settings)
         val ready = enabled() && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
         if (!ready) {
             // Model zatím není: zpráva se posoudí, až se konverzace otevře znovu s hotovým modelem.

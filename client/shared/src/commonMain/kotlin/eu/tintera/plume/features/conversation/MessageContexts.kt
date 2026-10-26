@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.eventDetailsOf
 import eu.tintera.plume.core.ai.generateAnswer
@@ -86,7 +88,7 @@ class MessageContexts(
     val enabled: Boolean get() = settings.messageContextEnabled.value && settings.onDeviceAiEnabled.value
 
     private suspend fun judge(request: Request) {
-        val variant = settings.onDeviceAiVariant.value
+        val variant = ai.variantFor(AiTask.Dates, settings)
         val ready = enabled && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
         if (!ready) {
             // Model zatím není: termín nabídnou pravidla, posoudí se až s dalším otevřením chatu

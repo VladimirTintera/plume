@@ -1,6 +1,6 @@
 package eu.tintera.plume.features.conversation
 
-import eu.tintera.plume.core.ai.ModelVariant
+import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.audio.MusicQueueControl
 import eu.tintera.plume.core.audio.NowPlaying
 import eu.tintera.plume.core.audio.VoiceKey
@@ -119,7 +119,7 @@ class ConversationPlaybackTest {
     private class FakeSettings(discreet: Boolean) : UnimplementedAppSettings() {
         override val discreetReading: StateFlow<Boolean> = MutableStateFlow(discreet)
         override val onDeviceAiEnabled: StateFlow<Boolean> = MutableStateFlow(false)
-        override val onDeviceAiVariant: StateFlow<ModelVariant> = MutableStateFlow(ModelVariant())
+        override val onDeviceAiModels: StateFlow<AiModels> = MutableStateFlow(AiModels())
     }
 
     private val player = FakePlayer()
