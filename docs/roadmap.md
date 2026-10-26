@@ -1355,13 +1355,14 @@ po přepisu uvolní z paměti. Co z toho dál plyne:
   jinak po dvou minutách (`gemmaIdleUnloadMs`; `docs/poznatky/ai-v-zarizeni.md`, „Dva
   poskytovatelé"). Zbývá **změřit na Foldu**, kolik stojí opětovné načtení na GPU a jestli
   30 s nestačí málo na hlasovky přepisované za sebou.
-- **Návrh složek.** Model rozřadí chaty do „Práce / Rodina / Zprávy z …" a nabídne složku jako
-  hotový návrh k potvrzení — klasifikace, tedy silná stránka, a chyba je vidět dřív, než se
-  něco uloží. Navazuje na doporučené složky od Telegramu (`getRecommendedChatFolders`) a sheet
-  nové složky.
-- **Popisek fotky před odesláním.** Gemma navrhne popisek nebo alternativní text k fotce, kterou
-  uživatel posílá (`describeImage` nad vybraným souborem, kratší prompt). Je to psaní, ale
-  uživatel ho vidí a schválí, takže chyba je levná; pomůže i příjemci se čtečkou obrazovky.
+- ~~**Návrh složek.**~~ — hotovo: „Navrhnout složky" v Nastavení → Složky chatů rozřadí 40
+  nejnovějších chatů do pevných kategorií a nabídne složky s „Přidat"
+  (`docs/poznatky/seznam-chatu.md`, „Návrh složek modelem"). Zbývá ověřit kvalitu na
+  skutečných chatech v telefonu a zvážit úpravu návrhu před přidáním (odškrtnout chat).
+- ~~**Popisek fotky před odesláním.**~~ — hotovo: „Navrhnout popisek" pod fotkou nad polem vloží
+  krátkou větu od Gemmy do prázdného pole (`docs/poznatky/konverzace-psani.md`, „Návrh popisku
+  fotky"). Zbývá ověřit češtinu na telefonu; alternativní text pro čtečku Telegram jako zvláštní
+  pole nemá, takže zůstává jen popisek.
 
 ---
 

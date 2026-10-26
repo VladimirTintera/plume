@@ -2380,6 +2380,25 @@
     <string name="ai_task_search">Search in plain words</string>
     <string name="ai_task_transcription">Voice transcription</string>
     <string name="ai_task_photo_description">Photo descriptions</string>
+    <string name="ai_task_folders">Folder suggestions</string>
+    <string name="folder_category_work">Work</string>
+    <string name="folder_category_family">Family</string>
+    <string name="folder_category_friends">Friends</string>
+    <string name="folder_category_school">School</string>
+    <string name="folder_category_shopping">Shopping</string>
+    <string name="folder_category_news">News</string>
+    <string name="folder_category_hobbies">Hobbies</string>
+    <string name="chat_folders_ai">Suggested by on-device AI</string>
+    <string name="chat_folders_ai_suggest">Suggest folders</string>
+    <string name="chat_folders_ai_suggest_summary">The model on your phone sorts your 40 latest chats. Nothing leaves the device.</string>
+    <string name="chat_folders_ai_working">Sorting chats…</string>
+    <string name="chat_folders_ai_nothing">No folder to suggest: the chats could not be sorted sensibly.</string>
+    <string name="chat_folders_ai_model_missing">The on-device model isn’t ready yet. Download it in Settings → On-device AI.</string>
+    <string name="chat_folders_ai_failed">Folders could not be suggested.</string>
+    <plurals name="chat_folders_ai_more">
+        <item quantity="one">%1$s and %2$d more</item>
+        <item quantity="other">%1$s and %2$d more</item>
+    </plurals>
     <string name="settings_on_device_ai_delete">Delete model</string>
     <string name="settings_on_device_ai_downloadable_named">%1$s needs to be downloaded first (%2$s).</string>
     <string name="settings_on_device_ai_download_progress">%1$s of %2$s</string>
@@ -3266,6 +3285,8 @@
     <string name="menu_summarize">Summarize</string>
     <string name="menu_explain">Explain</string>
     <string name="menu_summarize_voice">Summarize transcript</string>
+    <string name="caption_suggest">Suggest a caption</string>
+    <string name="caption_suggesting">Writing a caption…</string>
     <string name="server_summary_title">Summary</string>
     <string name="server_summary_failed">The message could not be summarized</string>
     <string name="server_summary_copy">Copy summary</string>

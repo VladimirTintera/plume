@@ -2444,6 +2444,26 @@
     <string name="ai_task_search">Hledání větou</string>
     <string name="ai_task_transcription">Přepis hlasovek</string>
     <string name="ai_task_photo_description">Popis fotek</string>
+    <string name="ai_task_folders">Návrh složek</string>
+    <string name="folder_category_work">Práce</string>
+    <string name="folder_category_family">Rodina</string>
+    <string name="folder_category_friends">Přátelé</string>
+    <string name="folder_category_school">Škola</string>
+    <string name="folder_category_shopping">Nákupy</string>
+    <string name="folder_category_news">Zprávy</string>
+    <string name="folder_category_hobbies">Koníčky</string>
+    <string name="chat_folders_ai">Návrh od AI v zařízení</string>
+    <string name="chat_folders_ai_suggest">Navrhnout složky</string>
+    <string name="chat_folders_ai_suggest_summary">Model v telefonu rozřadí posledních 40 chatů. Nic se nikam neposílá.</string>
+    <string name="chat_folders_ai_working">Třídím chaty…</string>
+    <string name="chat_folders_ai_nothing">Žádná složka se nenabízí: chaty se nedaly rozumně rozřadit.</string>
+    <string name="chat_folders_ai_model_missing">Model v zařízení ještě není připravený. Stáhni ho v Nastavení → AI v zařízení.</string>
+    <string name="chat_folders_ai_failed">Složky se nepodařilo navrhnout.</string>
+    <plurals name="chat_folders_ai_more">
+        <item quantity="one">%1$s a %2$d další</item>
+        <item quantity="few">%1$s a %2$d další</item>
+        <item quantity="other">%1$s a %2$d dalších</item>
+    </plurals>
     <string name="settings_on_device_ai_delete">Smazat model</string>
     <string name="settings_on_device_ai_downloadable_named">%1$s je potřeba nejdřív stáhnout (%2$s).</string>
     <string name="settings_on_device_ai_download_progress">%1$s z %2$s</string>
@@ -3373,6 +3393,8 @@
     <string name="menu_summarize">Shrnout</string>
     <string name="menu_explain">Vysvětlit</string>
     <string name="menu_summarize_voice">Shrnout přepis</string>
+    <string name="caption_suggest">Navrhnout popisek</string>
+    <string name="caption_suggesting">Píšu popisek…</string>
     <string name="server_summary_title">Shrnutí</string>
     <string name="server_summary_failed">Zprávu se nepodařilo shrnout</string>
     <string name="server_summary_copy">Kopírovat shrnutí</string>

@@ -366,6 +366,19 @@ a popisy fotek na pozadí.
   Samotné vynechání Gemmy v triáži na emulátoru vidět nebylo (žádný kandidát); pravidlo mají
   testy (`DeviceLoadTest`, `ReplySuggestionsViewModelTest`).
 
+### Návrh popisku fotky
+
+Gemma navrhne popisek k fotce, která čeká nad polem na odeslání; podrobně v
+`konverzace-psani.md`, „Návrh popisku fotky". Pro tuhle oblast podstatné: `describeImage` bere
+volitelný `prompt` (výchozí `imageDescriptionPrompt`), takže popis pro nevidomé i návrh popisku
+jedou stejným enginem s obrazem — žádné druhé načtení.
+
+### Návrh složek
+
+Model rozřadí nejnovější chaty do pevných kategorií a navrhne složky; podrobně v
+`seznam-chatu.md`, „Návrh složek modelem". Pro tuhle oblast podstatné: je to klasifikace
+s výstupem „číslo: KATEGORIE" za chat a vlastní úloha `AiTask.Folders`.
+
 ### Apple Intelligence na iOS (Foundation Models)
 
 Na iOS 26+ počítá model v zařízení **Apple Intelligence** (`AiProvider.Apple`,

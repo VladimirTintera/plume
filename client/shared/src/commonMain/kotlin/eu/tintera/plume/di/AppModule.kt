@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.settings.FolderSuggestions
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
 import eu.tintera.plume.core.webapp.MiniAppStorage
@@ -371,6 +372,7 @@ fun appModule() = module {
     }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::BlockedSendersViewModel)
+    single { FolderSuggestions(ai = get(), settings = get()) }
     viewModelOf(::ChatFoldersViewModel)
     viewModel { parameters -> StickerSetsViewModel(kind = parameters.get(), repository = get()) }
     viewModelOf(::ProxySettingsViewModel)

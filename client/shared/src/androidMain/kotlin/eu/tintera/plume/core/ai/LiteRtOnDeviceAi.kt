@@ -306,7 +306,7 @@ class LiteRtOnDeviceAi(
      * konverzace. Engine musí mít obrazový backend (`visionBackend`), proto se načte s ním;
      * pak poslouží i textovým funkcím.
      */
-    override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String): Flow<Generated> = flow {
+    override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String, prompt: String): Flow<Generated> = flow {
         val image = withContext(Dispatchers.IO) { ImageInput.png(imagePath, MAX_IMAGE_SIDE) }
             ?: throw IOException("Image $imagePath cannot be decoded")
         withEngine(variant.gemma, vision = true) { engine ->
@@ -318,7 +318,7 @@ class LiteRtOnDeviceAi(
                 val text = StringBuilder()
                 try {
                     conversation.sendMessageAsync(
-                        Contents.of(Content.ImageBytes(image), Content.Text(imageDescriptionPrompt(languageCode))),
+                        Contents.of(Content.ImageBytes(image), Content.Text(prompt)),
                         extraContext = mapOf("enable_thinking" to false),
                     ).collect { message ->
                         text.append(message.toString())
