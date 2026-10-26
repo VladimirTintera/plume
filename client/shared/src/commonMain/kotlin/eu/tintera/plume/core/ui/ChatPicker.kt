@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.material3.IconButtonDefaults
 import org.jetbrains.compose.resources.StringResource
 import androidx.compose.animation.AnimatedVisibility
@@ -107,6 +108,7 @@ data class PickerSearch(
  * pokračuje dál, takže „vyber a potvrď" by byl krok navíc před dalším krokem. Přeposílání
  * vybírá, protože poslat totéž do víc chatů je jeho běžný případ.
  */
+@Immutable
 data class PickerSelection(
     /** Vybrané cíle. */
     val selected: Set<Long>,
@@ -130,6 +132,7 @@ data class PickerEmpty(
 )
 
 /** Chyba, kterou výběr ohlásí snackbarem; po ohlášení zavolá [onShown]. */
+@Immutable
 data class PickerError(
     val text: UiText,
     val onShown: () -> Unit,

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.runtime.Immutable
 import eu.tintera.plume.resources.history_toggle_off_24dp
 import eu.tintera.plume.resources.my_stories_title
 import eu.tintera.plume.resources.chats_bookmarks_count
@@ -1950,6 +1951,7 @@ private val SWIPE_THRESHOLD_MAX = 160.dp
  * Co o chatu ví seznam navíc k [ChatSummary] a řádek to ukazuje značkou: výběr, odložení,
  * čekání na odpověď a příběhy autora.
  */
+@Immutable
 private data class ChatRowMarks(
     /** Značka výběru víc chatů; `null` = výběr neběží (nebo chat vybrat nejde). */
     val selectionMark: Boolean?,

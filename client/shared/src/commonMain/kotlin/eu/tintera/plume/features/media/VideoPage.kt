@@ -1380,6 +1380,7 @@ internal data class VideoPictureInPicture(
 )
 
 /** Zvolená kvalita a její změna; drží je prohlížeč, aby platily i pro další videa (jako ztlumení). */
+@Immutable
 internal data class VideoQualitySelection(
     val choice: VideoQualityChoice,
     val onChoose: (VideoQualityChoice) -> Unit,

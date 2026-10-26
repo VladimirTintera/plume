@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.runtime.Immutable
 import eu.tintera.plume.resources.caption_suggesting
 import eu.tintera.plume.resources.caption_suggest
 import androidx.compose.foundation.layout.width
@@ -1557,7 +1558,8 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit, media: Edi
  * Výměna přílohy při úpravě: [replacement] je vybraná nová příloha (`null` = zatím žádná),
  * [onReplace] otevře výběr, [onKeep] výměnu zahodí. Jeden objekt místo tří parametrů pole.
  */
-class EditMediaControls(
+@Immutable
+data class EditMediaControls(
     val replacement: MediaReplacement?,
     val onReplace: () -> Unit,
     val onKeep: () -> Unit,

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.Immutable
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.settings.RecordMode
@@ -20,9 +22,15 @@ import eu.tintera.plume.core.telegram.SendOptions
  * `data class` ze stejného důvodu jako [ConversationNavigation]: volající je skládá při každé
  * rekompozici a lambdy si Compose pamatuje (strong skipping), takže dvě po sobě složené
  * instance jsou si rovné a pole se kvůli nim znovu neskládá.
+ *
+ * `@Immutable` / `@Stable` tam, kde skupina nese seznam nebo typ z `:client:core`: kompilátor
+ * by ji pak vedl jako nestabilní a porovnával IDENTITOU — a nová instance z každé rekompozice
+ * by pole skládala pokaždé, i když se nic nezměnilo. Dřív šly tytéž hodnoty přímo a stejná
+ * instance seznamu se identitou rovnala.
  */
 
 /** Odpověď, která se píše: citovaná zpráva v horním pruhu karty. */
+@Immutable
 internal data class ReplyControls(
     val message: ChatMessage,
     /** Citovaný úryvek [message], nebo `null` (odpověď na celou zprávu). */
@@ -32,6 +40,7 @@ internal data class ReplyControls(
 )
 
 /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
+@Immutable
 internal data class EditingControls(
     val message: ChatMessage,
     val onCancel: () -> Unit,
@@ -40,6 +49,7 @@ internal data class EditingControls(
 )
 
 /** Jak zpráva odchází: odeslání, nabídka nad odesílacím tlačítkem a tlačítka vedle pole. */
+@Immutable
 internal data class SendControls(
     val onSend: (ComposedText, SendOptions) -> Unit,
     /** Co nabídne podržení odesílacího tlačítka ([sendMenuOffer]). */
@@ -59,6 +69,7 @@ internal data class SendControls(
 )
 
 /** Náhled odkazu v rozepsaném textu a jeho volby. */
+@Immutable
 internal data class LinkPreviewControls(
     /** Náhled, pokud se má ukázat ([composerLinkPreview]). */
     val preview: LinkPreview? = null,
@@ -90,6 +101,7 @@ internal data class AttachActions(
 )
 
 /** Tlačítko bota vlevo u pole: mini aplikace z nabídky, nebo seznam příkazů. */
+@Immutable
 internal data class BotControls(
     /** Tlačítko nabídky bota s mini aplikací; když je, stojí místo tlačítka příkazů. */
     val menuApp: BotMenuApp? = null,
@@ -134,6 +146,7 @@ internal data class RecordingControls(
  * Zastavená hlasovka k poslechu před odesláním. Karta s ní vypadá jako při nahrávání (vlnka,
  * barva, odeslání hlasu), jen místo živých úrovní ukazuje celý waveform.
  */
+@Immutable
 internal data class VoicePreviewControls(
     val preview: VoicePreview,
     /** Přehrávání náhledu; čte se až v pruhu náhledu. */
@@ -145,6 +158,7 @@ internal data class VoicePreviewControls(
 )
 
 /** Zastavené kolečko; samo hraje v kruhu nad konverzací, karta ukazuje jen ovládání. */
+@Stable
 internal data class VideoNotePreviewControls(
     val preview: VideoNotePreview,
     val playback: VideoNotePreviewPlayback,
@@ -153,6 +167,7 @@ internal data class VideoNotePreviewControls(
 )
 
 /** Přílohy čekající nad polem na odeslání; text pole je pak jejich popisek. */
+@Immutable
 internal data class ComposerAttachments(
     val items: List<OutgoingAttachment>,
     /**

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.runtime.Immutable
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
@@ -533,6 +534,7 @@ data class QuietActions(
 )
 
 /** Zablokování a nahlášení v nabídce nad chatem: co z toho jde ([offer]) a co se pak stane. */
+@Immutable
 data class SpamControls(
     /** Co nabídnout proti spamu; `null`, dokud to nedorazí ze serveru — pak se nenabízí nic. */
     val offer: SpamActions?,
