@@ -70,8 +70,9 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   černém pozadí hodinek by ho čtečka nenašla. Odkaz po vypršení vymění TDLib sám.
 - **Přihlášení telefonem** (smlouva `WatchLogin` v `:client:core`, hodinky `PhoneLogin`, telefon
   `WatchLoginService` v `androidApp`): pod nadpisem QR obrazovky „Přihlásit telefonem", jen když
-  je v dosahu telefon s Plume — telefon ohlašuje schopnost `plume_phone` (`res/values/wear.xml`,
-  `tools:keep`, jinak by ji zmenšení prostředků v release vyhodilo; Play služby ji čtou bez kódu).
+  je v dosahu telefon s Plume — telefon ohlašuje schopnost `plume_phone` (`res/values/wear.xml`;
+  Play služby ji čtou bez kódu, takže ji před zmenšením prostředků v release drží
+  `res/raw/plume_keep.xml`, viz „Schopnost telefonu v release" níž).
   Hodinky pošlou odkaz z QR kódu (`MessageClient`, cesta `/plume/watch-login`), telefon ukáže
   notifikaci „Přihlásit hodinky?" s Přihlásit / Zamítnout a po potvrzení zavolá `confirmQrLogin`
   — jako by kód naskenoval. Výsledek jde zpátky (`/plume/watch-login/result`: potvrzeno,
@@ -91,6 +92,16 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
     Wear OS na telefonu s účtem Google, takže to čeká na Pixel Watch se spárovaným telefonem
     (oba z interního testu — Data Layer vyžaduje stejný podpis). Přeložené obě aplikace, test
     smlouvy (`WatchLoginTest`), hodinky se s novou závislostí spustí.
+- **Schopnost telefonu v release** (`android_wear_capabilities` v telefonní aplikaci): bez ní
+  hodinky telefon s Plume nenajdou — chybí „Přihlásit telefonem" a přepis hlasovky hlásí
+  „telefon s Plume není v dosahu", i když leží vedle. Tak to bylo v 0.3.106–0.3.108 z Play:
+  `tools:keep` stál na kořeni `res/values/wear.xml` a zmenšení prostředků (AGP 9, R8) ho tam
+  nečte, takže pole z APK zmizelo (`aapt2 dump resources` nad `base.apk` z telefonu: žádný typ
+  `array`). **`tools:keep` patří do souboru v `res/raw`** (`plume_keep.xml`, jako
+  `firebase_common_keep.xml` od Firebase). Ověří se v `build/outputs/mapping/release/resources.txt`
+  (u pole „reachable from keep xml file") nebo `aapt2 dump resources` nad APK.
+  - **Debug build to neodhalí** — prostředky nezmenšuje. Na emulátorech se hodinky s telefonem
+    spárovat nedají a obě aplikace z Play se poprvé potkaly až na skutečném páru.
 - **Heslo dvoufázového ověření systémovou klávesnicí** (`RemoteInput` přes `androidx.wear:wear-input`):
   Compose for Wear OS textové pole nemá. Klávesnice heslo nemaskuje — jiná cesta na hodinkách není.
 - **Ověřeno na emulátoru 2026-10-24:** sken telefonem (Nastavení → Zařízení → Připojit zařízení),
