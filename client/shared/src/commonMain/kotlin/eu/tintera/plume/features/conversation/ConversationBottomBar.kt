@@ -649,6 +649,12 @@ internal fun ConversationBottomBar(
         onShareContact = viewModel::openContactPicker,
         // Znovu poslaný soubor je soubor — jen kde chat soubory dovolí, jako „Soubor" v nabídce.
         onPickRecentFiles = viewModel::openRecentFiles.takeIf { state.content.documents },
+        // Fotka a video z fotoaparátu jdou stejnou cestou jako z galerie: nad pole, k popisku.
+        onCapture = if (attachmentPicker.canCapture) {
+            { video -> if (video) attachmentPicker.captureVideo() else attachmentPicker.capturePhoto() }
+        } else {
+            null
+        },
         onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
         menuApp = state.botMenuApp,
         onOpenMenuApp = viewModel::openBotMenuApp,

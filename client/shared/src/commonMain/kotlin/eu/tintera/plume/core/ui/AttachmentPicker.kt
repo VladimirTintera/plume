@@ -25,6 +25,21 @@ interface AttachmentPicker {
      * obyčejný výběr souboru — co není skladba, odmítne volající.
      */
     fun pickAudio() = pickDocument()
+
+    /**
+     * Zařízení má fotoaparát a platforma umí vyfotit nebo natočit rovnou do zprávy ([capturePhoto],
+     * [captureVideo]). Desktop ne; iOS simulátor kameru nemá, takže tam taky ne.
+     */
+    val canCapture: Boolean get() = false
+
+    /**
+     * Vyfotit systémovým fotoaparátem. Fotka přijde do `onPicked` stejně jako vybraná z galerie,
+     * takže čeká nad polem na popisek a jde upravit, odebrat nebo přidat k albu.
+     */
+    fun capturePhoto() {}
+
+    /** Natočit video systémovým fotoaparátem; přijde do `onPicked` jako vybrané video. */
+    fun captureVideo() {}
 }
 
 /**

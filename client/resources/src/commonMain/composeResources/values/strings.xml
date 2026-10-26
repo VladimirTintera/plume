@@ -832,6 +832,10 @@
     <string name="media_video">Video</string>
     <string name="presence_online">online</string>
     <string name="attachment_prepare_failed">Some of the files couldn't be loaded.</string>
+    <string name="attachment_camera_permission">Taking photos and videos needs access to the camera.</string>
+    <string name="attachment_camera_unavailable">The camera can't be opened.</string>
+    <string name="conversation_attach_take_photo">Take photo</string>
+    <string name="conversation_attach_record_video">Record video</string>
     <string name="stickers_set_load_failed">Couldn't load the set.</string>
     <string name="stickers_add_set">Add set</string>
     <string name="stickers_remove_set">Remove set</string>

@@ -226,6 +226,47 @@ album. Bublina ukazuje průběh nahrávání.
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
 
+### Fotoaparát ve sponce
+
+Sponka → „Vyfotit" / „Natočit video" otevře systémový fotoaparát a výsledek přijde do
+`onPicked` jako příloha z galerie: čeká nad polem na popisek, jde upravit, odebrat nebo přidat
+do alba (`AttachmentPicker.capturePhoto` / `captureVideo`, `canCapture`).
+
+- **Systémový fotoaparát, ne vlastní nad CameraX / AVFoundation.** Blesk, přiblížení, přepnutí
+  kamery, HDR i opakování snímku jsou zadarmo a v podobě, kterou uživatel zná. Vlastní kamera
+  (Telegram ji má s podržením pro video) by byla velký kus práce navíc; kolečka mají vlastní
+  kvůli tvaru a nahrávání během záznamu, tady takový důvod není.
+- **Dvě položky, ne jedna:** záměr fotoaparátu je buď fotka (`ACTION_IMAGE_CAPTURE`), nebo video
+  (`ACTION_VIDEO_CAPTURE`), přepnout mezi nimi uvnitř nejde. Každá se nabídne jen tam, kde chat
+  přijme ten druh (`ContentAccess.photos` / `videos`) — skupina smí povolit fotky a zakázat videa.
+- **Android: oprávnění CAMERA se musí vyžádat PŘEDEM.** Plume ho má v manifestu kvůli kolečkům,
+  a aplikace s deklarovaným, ale neuděleným CAMERA dostane u `ACTION_IMAGE_CAPTURE`
+  `SecurityException` (dokumentace `MediaStore.ACTION_IMAGE_CAPTURE`). Bez deklarace by šlo bez
+  dotazu; s ní se ptá jako kolečka.
+- **Fotoaparát zapisuje přes FileProvider** (`…documents`, cesta `camera/` v
+  `res/xml/documents.xml`), soubor se jmenuje jako ve fotoaparátu (`IMG_…jpg`, `VID_…mp4`) —
+  jméno videa TDLib posílá a přípona rozhoduje o typu, podle kterého se příloha připraví. Po
+  přípravě (zmenšení fotky, kopie videa do `outgoing`) se originál maže; zpět z fotoaparátu po
+  sobě nechá prázdný soubor, ten se maže taky.
+- **Cesta k souboru je v `rememberSaveable`.** Fotoaparát je jiná aplikace a systém mezitím smí
+  proces Plume ukončit; výsledek pak dorazí nově složené obrazovce, která by jinak nevěděla, kam
+  se fotka zapsala.
+- **`canCapture` = `FEATURE_CAMERA_ANY`.** Zařízení s kamerou, ale bez aplikace, která záměr
+  přijme (zakázaná, pracovní profil), dostane hlášku místo pádu (`ActivityNotFoundException`).
+- **iOS: `UIImagePickerController`** se zdrojem kamera; na přístup se ptá sám
+  (`NSCameraUsageDescription`, text doplněný o focení). Fotka přijde jako `UIImage` s otočením
+  v `imageOrientation` — kreslí se přes `preparePhotoImage`, takže JPEG vyjde natočený bez EXIF.
+  Video se z dočasného adresáře PŘESUNE do `outgoing` (mimo hlavní vlákno) a přebalí jako video
+  z knihovny. **Simulátor kameru nemá**, položky tam nejsou (`isSourceTypeAvailable`); na iOS je to
+  jen přeložené.
+- **Desktop fotoaparát nenabízí** (`canCapture` zůstává `false`).
+- **Ověřeno na emulátoru (Android 17, česky)** ve vlastní testovací skupině: obě položky ve
+  sponce, odmítnuté oprávnění → hláška, povolené → systémový fotoaparát (virtuální scéna),
+  fotka i video nad polem (video s délkou a náhledem), odeslání jako album, `cache/camera` po
+  přípravě prázdná. Zpět z fotoaparátu bez snímku a zabití procesu během focení ověřené nejsou.
+  Monkey s kategorií LAUNCHER otevře v debug buildu spouštěč LeakCanary — spouštět
+  `am start -n eu.tintera.plume/.MainActivity`.
+
 ### Návrh popisku fotky
 
 Pod fotkou čekající nad polem je s modelem, který bere obraz (dnes Gemma), „Navrhnout popisek"

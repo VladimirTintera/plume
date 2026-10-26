@@ -1,6 +1,9 @@
 package eu.tintera.plume.core.ui
 
+import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.provider.DocumentsContract
 import android.graphics.Bitmap
@@ -20,18 +23,28 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.OutgoingThumbnail
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.attachment_camera_permission
+import eu.tintera.plume.resources.attachment_camera_unavailable
 import eu.tintera.plume.resources.attachment_prepare_failed
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -85,7 +98,74 @@ actual fun rememberAttachmentPicker(
         uri?.let { prepare(listOf(it), ::prepareFile) }
     }
 
-    return remember(photoLauncher, documentLauncher, audioLauncher) {
+    /*
+     * Soubor, do kterého fotoaparát zapisuje. Fotoaparát je jiná aplikace a systém mezitím smí
+     * proces Plume ukončit; výsledek pak doručí nově složené obrazovce a cestu by bez
+     * `rememberSaveable` nikdo neznal — fotka by zůstala ležet v cache a do zprávy se nedostala.
+     */
+    var captureTarget by rememberSaveable { mutableStateOf<String?>(null) }
+
+    fun captured(success: Boolean) {
+        val file = captureTarget?.let(::File) ?: return
+        captureTarget = null
+        // Zpět z fotoaparátu nic nevyfotí, ale prázdný soubor po sobě nechá.
+        if (!success || file.length() == 0L) {
+            file.delete()
+            return
+        }
+        prepare(listOf(cameraUri(context, file))) { ctx, uri ->
+            // Zmenšená fotka a video jdou do `outgoing`; originál z fotoaparátu už není potřeba.
+            try {
+                prepareVisual(ctx, uri)
+            } finally {
+                file.delete()
+            }
+        }
+    }
+
+    val takePhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture(), ::captured)
+    val captureVideoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CaptureVideo(), ::captured)
+
+    /*
+     * Fotoaparát se spouští záměrem, ale aplikace, která má CAMERA v manifestu (kvůli kolečkům ji
+     * Plume má), ho bez uděleného oprávnění spustit nesmí — `ACTION_IMAGE_CAPTURE` skončí
+     * `SecurityException`. Napřed se proto ptá na oprávnění, jako u koleček.
+     */
+    var pendingCapture by rememberSaveable { mutableStateOf<Boolean?>(null) }
+
+    fun launchCapture(video: Boolean) {
+        val file = cameraFile(context, video)
+        captureTarget = file.absolutePath
+        val uri = cameraUri(context, file)
+        try {
+            if (video) captureVideoLauncher.launch(uri) else takePhotoLauncher.launch(uri)
+        } catch (e: ActivityNotFoundException) {
+            // Fotoaparát je, ale aplikace, která by záměr přijala, ne (zakázaná, firemní profil).
+            Logger.withTag("Attachments").w(e) { "Fotoaparát nejde otevřít." }
+            captureTarget = null
+            file.delete()
+            failed(UiText(Res.string.attachment_camera_unavailable))
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val video = pendingCapture ?: return@rememberLauncherForActivityResult
+        pendingCapture = null
+        if (granted) launchCapture(video) else failed(UiText(Res.string.attachment_camera_permission))
+    }
+
+    fun capture(video: Boolean) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCapture(video)
+        } else {
+            pendingCapture = video
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
+
+    return remember(photoLauncher, documentLauncher, audioLauncher, takePhotoLauncher, captureVideoLauncher, cameraPermissionLauncher) {
         object : AttachmentPicker {
             override fun pickMedia() =
                 photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
@@ -93,9 +173,37 @@ actual fun rememberAttachmentPicker(
             override fun pickDocument() = documentLauncher.launch(arrayOf("*/*"))
 
             override fun pickAudio() = audioLauncher.launch(arrayOf("audio/*"))
+
+            override val canCapture = hasCamera
+
+            override fun capturePhoto() = capture(video = false)
+
+            override fun captureVideo() = capture(video = true)
         }
     }
 }
+
+/**
+ * Soubor pro fotoaparát v `cache/camera`, pojmenovaný jako ve fotoaparátu (`IMG_20261026_141500.jpg`)
+ * — jméno videa TDLib posílá, a „VID_…" řekne příjemci víc než náhodné id. Přípona rozhoduje
+ * o typu obsahu, který FileProvider ohlásí, a podle něj se pak příloha připraví jako video.
+ */
+private fun cameraFile(context: Context, video: Boolean): File {
+    val directory = File(context.cacheDir, CAMERA_DIRECTORY).apply { mkdirs() }
+    val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ROOT).format(Date())
+    return File(directory, if (video) "VID_$stamp.mp4" else "IMG_$stamp.jpg")
+}
+
+/**
+ * URI, které smí fotoaparát (jiná aplikace) zapsat. Provider s dokumenty z chatu; cestu
+ * `camera/` má v `res/xml/documents.xml`. `TakePicture` / `CaptureVideo` přidají příznak zápisu
+ * do záměru samy (`ClipData` + `FLAG_GRANT_WRITE_URI_PERMISSION`).
+ */
+private fun cameraUri(context: Context, file: File): Uri =
+    FileProvider.getUriForFile(context, "${context.packageName}.documents", file)
+
+/** Podadresář cache, kam zapisuje fotoaparát; sedí s `res/xml/documents.xml` v aplikaci. */
+private const val CAMERA_DIRECTORY = "camera"
 
 /**
  * Výběr jedné skladby. S filtrem na zvukové typy ukazuje systémový výběr v úvodních „Nedávných"

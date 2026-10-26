@@ -35,13 +35,17 @@ import eu.tintera.plume.resources.conversation_attach_location
 import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.ballot_24dp
 import eu.tintera.plume.resources.conversation_attach_media
+import eu.tintera.plume.resources.conversation_attach_record_video
+import eu.tintera.plume.resources.conversation_attach_take_photo
+import eu.tintera.plume.resources.photo_camera_24dp
+import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.perm_media_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Tlačítko příloh s nabídkou Fotka / Soubor / Anketa / Poloha.
+ * Tlačítko příloh s nabídkou Fotka / Vyfotit / Natočit video / Soubor / Anketa / Poloha.
  *
  * Dvě položky, ne rovnou výběr: Photo Picker ukazuje jen fotky a výběr dokumentu nemá náhledy, takže
  * jeden systémový výběr pro obojí by byl horší v obou případech. Klávesnice se zavře, než se
@@ -77,6 +81,14 @@ internal fun AttachButton(
     onShareContact: (() -> Unit)? = null,
     /** Znovu poslat nedávno odeslaný soubor; `null`, kde soubory nejdou. */
     onPickRecentFiles: (() -> Unit)? = null,
+    /**
+     * Vyfotit (`video = false`) nebo natočit video systémovým fotoaparátem; `null`, kde zařízení
+     * fotoaparát nemá. Položka se nabídne, jen když chat přijme ten druh ([canPickMedia] nestačí,
+     * skupina smí povolit fotky a zakázat videa).
+     */
+    onCapture: ((video: Boolean) -> Unit)? = null,
+    canTakePhoto: Boolean = canPickMedia,
+    canRecordVideo: Boolean = canPickMedia,
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -103,6 +115,17 @@ internal fun AttachButton(
                 listOfNotNull(
                     MenuAction(stringResource(Res.string.conversation_attach_media), Res.drawable.perm_media_24dp) { pick(onPickMedia) }
                         .takeIf { canPickMedia },
+                    // Hned za galerií: je to tentýž druh přílohy, jen z jiného zdroje.
+                    onCapture?.let { capture ->
+                        MenuAction(stringResource(Res.string.conversation_attach_take_photo), Res.drawable.photo_camera_24dp) {
+                            pick { capture(false) }
+                        }.takeIf { canTakePhoto }
+                    },
+                    onCapture?.let { capture ->
+                        MenuAction(stringResource(Res.string.conversation_attach_record_video), Res.drawable.videocam_24dp) {
+                            pick { capture(true) }
+                        }.takeIf { canRecordVideo }
+                    },
                     MenuAction(stringResource(Res.string.conversation_attach_file), Res.drawable.description_24dp) { pick(onPickDocument) }
                         .takeIf { canPickDocument },
                     onPickRecentFiles?.let { open ->

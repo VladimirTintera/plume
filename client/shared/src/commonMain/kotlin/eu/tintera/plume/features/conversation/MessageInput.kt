@@ -292,6 +292,8 @@ internal fun MessageInput(
     onShareContact: (() -> Unit)?,
     /** Nedávno odeslané soubory; `null`, kde soubory nejdou. */
     onPickRecentFiles: (() -> Unit)? = null,
+    /** Vyfotit nebo natočit video do zprávy; `null`, kde zařízení fotoaparát nemá. */
+    onCapture: ((video: Boolean) -> Unit)? = null,
     /** Seznam příkazů botů; `null` v chatu bez botů s příkazy. */
     onToggleCommands: (() -> Unit)?,
     /** Tlačítko nabídky bota s mini aplikací; když je, stojí místo tlačítka příkazů. */
@@ -747,6 +749,9 @@ internal fun MessageInput(
                             onSendLocation = onSendLocation,
                             onShareContact = onShareContact,
                             onPickRecentFiles = onPickRecentFiles,
+                            onCapture = onCapture,
+                            canTakePhoto = content.photos,
+                            canRecordVideo = content.videos,
                             contentColor = attachColor,
                         )
                     }
