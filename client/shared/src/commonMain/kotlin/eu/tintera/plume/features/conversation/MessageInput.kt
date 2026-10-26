@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.caption_suggesting
+import eu.tintera.plume.resources.caption_suggest
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import eu.tintera.plume.resources.campaign_24dp
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.resources.suggested_post_send
@@ -341,6 +348,9 @@ internal fun MessageInput(
     onScheduleRecording: () -> Unit = {},
     /** Přílohy čekající na odeslání; text pole je pak jejich popisek. */
     attachments: List<OutgoingAttachment>,
+    /** Návrh popisku první fotky modelem ([ConversationCaption]); ukáže se jen u prázdného pole. */
+    captionSuggestion: CaptionSuggestion = CaptionSuggestion.Hidden,
+    onSuggestCaption: () -> Unit = {},
     /**
      * Vybrané přílohy se ještě kopírují (velké video trvá vteřiny). Bez ukazatele by se po
      * zavření galerie chvíli nedělo nic a vypadalo by to, že výběr nezabral.
@@ -576,6 +586,10 @@ internal fun MessageInput(
                       selfDestructAllowed = selfDestructAllowed,
                       previewAttachmentIndex = previewAttachmentIndex,
                   )
+                  // Návrh jen do PRÁZDNÉHO pole: napsaný popisek by model přepsal, a ten má přednost.
+                  if (captionSuggestion != CaptionSuggestion.Hidden && draft.text.isBlank()) {
+                      CaptionSuggestionButton(working = captionSuggestion == CaptionSuggestion.Working, onClick = onSuggestCaption)
+                  }
                   replyingTo?.let { target ->
                     // Citace je horní pruh karty, barevně oddělený — stejně jako na kartě zprávy,
                     // ne subkartička v kartě.
@@ -1664,5 +1678,29 @@ private fun MediaReplacement.replacementLabel(): String = when (this) {
         )
         is OutgoingAttachment.Document ->
             stringResource(Res.string.conversation_edit_new_file, attachment.path.substringAfterLast('/'))
+    }
+}
+
+/**
+ * „Navrhnout popisek" pod fotkou čekající na odeslání. Během psaní modelu místo ikony indikátor
+ * a „Píšu popisek…" — tlačítko zůstane na místě, aby karta nad polem neposkočila.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CaptionSuggestionButton(working: Boolean, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        enabled = !working,
+        shapes = ButtonDefaults.shapes(),
+        contentPadding = ButtonDefaults.TextButtonWithIconContentPadding,
+        modifier = Modifier.padding(start = 8.dp),
+    ) {
+        if (working) {
+            LoadingIndicator(Modifier.size(ButtonDefaults.IconSize))
+        } else {
+            Icon(painterResource(Res.drawable.auto_awesome_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        }
+        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        Text(stringResource(if (working) Res.string.caption_suggesting else Res.string.caption_suggest))
     }
 }

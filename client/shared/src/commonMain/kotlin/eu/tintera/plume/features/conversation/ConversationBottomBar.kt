@@ -653,6 +653,8 @@ internal fun ConversationBottomBar(
         menuApp = state.botMenuApp,
         onOpenMenuApp = viewModel::openBotMenuApp,
         attachments = state.attachments,
+        captionSuggestion = state.captionSuggestion,
+        onSuggestCaption = viewModel::suggestCaption,
         // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
         attachmentsPreparing = mediaSelection.preparing || state.markupBusy,
         onRemoveAttachment = viewModel::removeAttachment,

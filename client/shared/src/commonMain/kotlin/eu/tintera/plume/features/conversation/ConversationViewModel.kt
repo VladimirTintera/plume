@@ -781,6 +781,17 @@ class ConversationViewModel(
         suggestions = suggestions,
         logger = logger,
     )
+    private val caption = ConversationCaption(
+        state = _state,
+        scope = viewModelScope,
+        settings = settings,
+        ai = onDeviceAi,
+        logger = logger,
+    )
+
+    /** „Navrhnout popisek" nad fotkou čekající na odeslání. */
+    fun suggestCaption() = caption.suggest()
+
     val expressionMode: StateFlow<ExpressionMode> get() = attachments.expressionMode
     fun setExpressionMode(mode: ExpressionMode) = attachments.setExpressionMode(mode)
     fun sendSticker(sticker: StickerItem, options: SendOptions = SendOptions()) = attachments.sendSticker(sticker, options)
