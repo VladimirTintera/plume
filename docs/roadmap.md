@@ -1330,6 +1330,37 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   `docs/poznatky/prohlizec-medii.md`, „Text z fotky"). Zbývá: iOS (Vision) ověřit na simulátoru
   a release build s R8.
 
+### Navazuje na víc modelů naráz (říjen 2026)
+
+Gemini Nano a Gemma jdou zapnout zároveň a úlohy se jim přiřazují (`AiTask`, `variantFor`;
+`docs/poznatky/ai-v-zarizeni.md`, „Víc modelů naráz a co čím počítat"). **Na Foldu zbývá
+ověřit, že to vedle sebe opravdu běží**: shrnutí na Nano, přepis hlasovky na Gemmě a Gemma se
+po přepisu uvolní z paměti. Co z toho dál plyne:
+
+- ~~**Porovnání modelů vedle sebe**~~ — hotovo: v sheetu shrnutí a vysvětlení „Porovnat
+  s dalšími modely" spočítá totéž ostatními zapnutými modely, po sobě, s časem v patičce
+  (`docs/poznatky/ai-v-zarizeni.md`, „Porovnání modelů"). Zbývá **na Foldu porovnat češtinu
+  Nano, E2B a E4B** na několika skutečných chatech a podle toho rozhodnout, co je výchozí.
+- **Shrnutí dlouhé hlasovky.** Gemma přepíše, Nano shrne do dvou, tří vět — první úloha, která
+  potřebuje oba modely za sebou (`AiTask.Transcription`, pak `AiTask.Summary` nad přepisem).
+  Nabízet od nějaké délky (minuta?) v bublině vedle přepisu; přepis se ukládá
+  (`LocalTranscripts`), takže shrnutí na něj jen naváže. Totéž pro kolečka.
+- **Ohled na baterii a teplotu.** „Automaticky" by v úsporném režimu
+  (`PowerManager.isPowerSaveMode`) nebo při přehřátí (`getCurrentThermalStatus` ≥ MODERATE)
+  nebralo Gemmu na text a popisy fotek na pozadí by počkaly. Patří do `chooseProvider`
+  (vstup navíc, ať zůstane čistá funkce s testy), žádné nové UI; ruční přiřazení platí dál.
+- **Kratší držení Gemmy v paměti.** Engine se uvolní po dvou minutách nečinnosti, protože
+  návrhy odpovědí chodily po sobě (`LiteRtOnDeviceAi`). Když text počítá Nano a Gemma dostává
+  jen přepisy a fotky, stačí ji pustit dřív (30 s?). Prodleva by se odvodila z toho, jaké
+  úlohy Gemma má (`AiModels.candidates`); změřit, kolik stojí opětovné načtení na GPU.
+- **Návrh složek.** Model rozřadí chaty do „Práce / Rodina / Zprávy z …" a nabídne složku jako
+  hotový návrh k potvrzení — klasifikace, tedy silná stránka, a chyba je vidět dřív, než se
+  něco uloží. Navazuje na doporučené složky od Telegramu (`getRecommendedChatFolders`) a sheet
+  nové složky.
+- **Popisek fotky před odesláním.** Gemma navrhne popisek nebo alternativní text k fotce, kterou
+  uživatel posílá (`describeImage` nad vybraným souborem, kratší prompt). Je to psaní, ale
+  uživatel ho vidí a schválí, takže chyba je levná; pomůže i příjemci se čtečkou obrazovky.
+
 ---
 
 ## Výkon a paměť

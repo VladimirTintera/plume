@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.conversation
 
+import kotlin.time.TimeSource
+import kotlin.time.TimeMark
+import kotlinx.coroutines.flow.update
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.variantsFor
 import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
@@ -149,6 +153,8 @@ sealed interface ChatSummaryState {
         val done: Boolean,
         val details: SummaryDetails,
         val truncated: Boolean = false,
+        /** Jak dlouho model počítal, od dotazu na stav po poslední slovo; známé až u hotového. */
+        val elapsedMs: Long? = null,
     ) : ChatSummaryState
 
     /** Model v zařízení ještě není — stahuje se v Nastavení. */
@@ -196,10 +202,30 @@ class ChatSummaryViewModel(
     private val _source = MutableStateFlow<SummarySource?>(null)
     val source: StateFlow<SummarySource?> = _source.asStateFlow()
 
-    private var job: Job? = null
+    /**
+     * Nabídnout „Porovnat s dalšími modely"? Jen s víc zapnutými modely — s jedním není s čím.
+     * Text zvládne každý model, takže stačí počet; jestli je druhý připravený, řekne až jeho
+     * výsledek ([ChatSummaryState.ModelMissing]).
+     */
+    val canCompare: StateFlow<Boolean> = combine(settings.onDeviceAiEnabled, settings.onDeviceAiModels) { enabled, models ->
+        enabled && models.candidates(AiTask.Summary).size > 1
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    /** Zpráva posledního vysvětlení — kvůli „Zkusit znovu" ([retry]). */
-    private var explaining: ChatMessage? = null
+    private val _comparison = MutableStateFlow<List<ComparedSummary>>(emptyList())
+
+    /** Totéž shrnutí (vysvětlení) z ostatních zapnutých modelů, v pořadí, v jakém se počítají. */
+    val comparison: StateFlow<List<ComparedSummary>> = _comparison.asStateFlow()
+
+    private var job: Job? = null
+    private var compareJob: Job? = null
+
+    /** Co se naposledy počítalo a čím — kvůli porovnání ([compare]) a „Zkusit znovu" ([retry]). */
+    private var request: SummaryRequest? = null
+
+    private val _mainProvider = MutableStateFlow<AiProvider?>(null)
+
+    /** Kdo počítal hlavní výsledek — nadpis nad ním, když je pod ním porovnání. */
+    val mainProvider: StateFlow<AiProvider?> = _mainProvider.asStateFlow()
 
     /**
      * [source] je `suspend`, protože se kvůli shrnutí dotahuje historie (viz
@@ -207,8 +233,7 @@ class ChatSummaryViewModel(
      * kdyby se čekalo na zdroj, ťuknutí by chvíli nedělalo nic.
      */
     fun summarize(chatTitle: String, me: String, source: suspend () -> SummarySource) {
-        job?.cancel()
-        explaining = null
+        reset()
         _source.value = null
         _state.value = ChatSummaryState.Preparing
         job = viewModelScope.launch {
@@ -219,45 +244,140 @@ class ChatSummaryViewModel(
                 _state.value = ChatSummaryState.NothingToSummarize
                 return@launch
             }
-            val variant = ai.variantFor(AiTask.Summary, settings)
-            if (ai.status(variant) != OnDeviceAiStatus.Ready) {
-                _state.value = ChatSummaryState.ModelMissing
-                return@launch
-            }
-            val info = ai.info(variant)
-            val limit = info?.tokenLimit
-
-            /*
-             * Přepis se napřed odhadne podle limitu a pak se ověří počítáním tokenů. Když se
-             * nevejde, zkrátí se (zahazují se nejstarší zprávy) a počítá se znovu. Tři pokusy
-             * stačí: zmenšuje se úměrně přesahu. Když model tokeny spočítat neumí, jde se
-             * s odhadem a případný přesah ohlásí až generování.
-             */
-            var maxChars = transcriptCharsFor(limit)
-            var prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
-            var tokens = ai.countTokens(variant, prompt)
-            repeat(MAX_FIT_ATTEMPTS) {
-                val over = tokens
-                if (limit == null || over == null || over <= limit) return@repeat
-                maxChars = shrunkTranscriptChars(maxChars, over, limit)
-                prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
-                tokens = ai.countTokens(variant, prompt)
-            }
-            val kept = keptLineCount(lines, maxChars)
-            if (kept < lines.size) {
-                summarizeInParts(variant, chatTitle, lines, maxChars, info?.name, tokens, limit)
-                return@launch
-            }
-            val details = SummaryDetails(
-                modelName = info?.name,
-                promptTokens = tokens,
-                tokenLimit = limit,
-                keptLines = kept,
-                totalLines = lines.size,
-            )
-
-            generateInto(variant, prompt, details)
+            start(SummaryRequest.Summary(chatTitle, lines))
         }
+    }
+
+    /**
+     * Vysvětlení JEDNÉ dlouhé zprávy („o co jde", `MessageMenuAction.Explain`). Tentýž sheet
+     * a tentýž průběh jako shrnutí konverzace, jen jiný prompt ([explainPrompt]) a zdroj
+     * s příznakem [SummarySource.explain] — podle něj sheet ukáže jiný nadpis.
+     */
+    fun explain(message: ChatMessage) {
+        reset()
+        _source.value = SummarySource(listOf(message), unread = false, explain = true)
+        _state.value = ChatSummaryState.Preparing
+        job = viewModelScope.launch { start(SummaryRequest.Explain(message)) }
+    }
+
+    /** „Zkusit znovu": vysvětlení zopakuje vysvětlení, jinak [summarize] obrazovky. */
+    fun retry(summarize: () -> Unit) {
+        val explaining = request as? SummaryRequest.Explain
+        if (explaining != null && _source.value?.explain == true) explain(explaining.message) else summarize()
+    }
+
+    /**
+     * Spočítá totéž shrnutí (vysvětlení) ostatními zapnutými modely, jedním po druhém. Kvůli
+     * porovnání češtiny a rychlosti na SKUTEČNÉ konverzaci: dojem z jednotlivých chatů, kde
+     * každé shrnutí počítal jiný model, se porovnat nedá.
+     *
+     * **Po sobě, ne souběžně**: Gemma drží gigabajty a dva modely naráz by si braly paměť
+     * i procesor — naměřený čas by pak nic neříkal. Ze stejného důvodu se nabízí až po hotovém
+     * výsledku hlavního modelu (sheet tlačítko do té doby neukáže).
+     */
+    fun compare() {
+        val current = request ?: return
+        if (compareJob?.isActive == true) return
+        val models = settings.onDeviceAiModels.value
+        val others = models.candidates(current.task) - setOfNotNull(_mainProvider.value)
+        if (others.isEmpty()) return
+        _comparison.value = others.map { ComparedSummary(it, ChatSummaryState.Preparing) }
+        compareJob = viewModelScope.launch {
+            others.forEachIndexed { index, provider ->
+                run(current, models.variant(provider)) { state ->
+                    _comparison.update { list ->
+                        list.mapIndexed { i, compared -> if (i == index) compared.copy(state = state) else compared }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Hlavní výpočet: model podle úlohy (automaticky nebo ručně přiřazený v Nastavení). */
+    private suspend fun start(request: SummaryRequest) {
+        this.request = request
+        val variant = ai.variantFor(request.task, settings)
+        _mainProvider.value = variant.provider
+        run(request, variant) { _state.value = it }
+    }
+
+    /** Rozpracované shrnutí i porovnání se zahodí — nový dotaz nebo zavřený sheet. */
+    private fun reset() {
+        job?.cancel()
+        compareJob?.cancel()
+        job = null
+        compareJob = null
+        request = null
+        _mainProvider.value = null
+        _comparison.value = emptyList()
+    }
+
+    /**
+     * Celý výpočet jedním modelem [variant]; stavy jdou do [out]. Stejná cesta pro hlavní
+     * výsledek i pro porovnání, ať se porovnává totéž — přepis, zkrácení i části.
+     */
+    private suspend fun run(request: SummaryRequest, variant: ModelVariant, out: (ChatSummaryState) -> Unit) {
+        val started = TimeSource.Monotonic.markNow()
+        if (ai.status(variant) != OnDeviceAiStatus.Ready) {
+            out(ChatSummaryState.ModelMissing)
+            return
+        }
+        when (request) {
+            is SummaryRequest.Summary -> runSummary(request, variant, started, out)
+            is SummaryRequest.Explain -> {
+                val info = ai.info(variant)
+                val prompt = explainPrompt(request.message.text, platformLanguageCode)
+                val details = SummaryDetails(
+                    modelName = info?.name,
+                    promptTokens = ai.countTokens(variant, prompt),
+                    tokenLimit = info?.tokenLimit,
+                    keptLines = 1,
+                    totalLines = 1,
+                )
+                generateInto(variant, prompt, details, started, out)
+            }
+        }
+    }
+
+    private suspend fun runSummary(
+        request: SummaryRequest.Summary,
+        variant: ModelVariant,
+        started: TimeMark,
+        out: (ChatSummaryState) -> Unit,
+    ) {
+        val (chatTitle, lines) = request
+        val info = ai.info(variant)
+        val limit = info?.tokenLimit
+
+        /*
+         * Přepis se napřed odhadne podle limitu a pak se ověří počítáním tokenů. Když se
+         * nevejde, zkrátí se (zahazují se nejstarší zprávy) a počítá se znovu. Tři pokusy
+         * stačí: zmenšuje se úměrně přesahu. Když model tokeny spočítat neumí, jde se
+         * s odhadem a případný přesah ohlásí až generování.
+         */
+        var maxChars = transcriptCharsFor(limit)
+        var prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
+        var tokens = ai.countTokens(variant, prompt)
+        repeat(MAX_FIT_ATTEMPTS) {
+            val over = tokens
+            if (limit == null || over == null || over <= limit) return@repeat
+            maxChars = shrunkTranscriptChars(maxChars, over, limit)
+            prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
+            tokens = ai.countTokens(variant, prompt)
+        }
+        val kept = keptLineCount(lines, maxChars)
+        if (kept < lines.size) {
+            summarizeInParts(variant, chatTitle, lines, maxChars, info?.name, tokens, limit, started, out)
+            return
+        }
+        val details = SummaryDetails(
+            modelName = info?.name,
+            promptTokens = tokens,
+            tokenLimit = limit,
+            keptLines = kept,
+            totalLines = lines.size,
+        )
+        generateInto(variant, prompt, details, started, out)
     }
 
     /**
@@ -277,6 +397,8 @@ class ChatSummaryViewModel(
         modelName: String?,
         promptTokens: Int?,
         limit: Int?,
+        started: TimeMark,
+        out: (ChatSummaryState) -> Unit,
     ) {
         val parts = summaryParts(lines, maxChars)
         val details = SummaryDetails(
@@ -289,116 +411,91 @@ class ChatSummaryViewModel(
         )
         val notes = mutableListOf<String>()
         parts.forEachIndexed { index, part ->
-            _state.value = ChatSummaryState.ReadingParts(part = index + 1, parts = parts.size)
+            out(ChatSummaryState.ReadingParts(part = index + 1, parts = parts.size))
             val prompt = partSummaryPrompt(chatTitle, part, index + 1, parts.size, platformLanguageCode)
-            val note = runAi { ai.generate(variant, prompt).lastOrNull()?.text } ?: return
+            val note = runAi(out) { ai.generate(variant, prompt).lastOrNull()?.text } ?: return
             if (note.isNotBlank()) notes += note
         }
         if (notes.isEmpty()) {
             logger.w { "Model shrnutí nenapsal k žádné části nic" }
-            _state.value = ChatSummaryState.Failed(emptyOutputMessage)
+            out(ChatSummaryState.Failed(emptyOutputMessage))
             return
         }
-        generateInto(variant, combinedSummaryPrompt(chatTitle, notes, platformLanguageCode), details)
+        generateInto(variant, combinedSummaryPrompt(chatTitle, notes, platformLanguageCode), details, started, out)
     }
 
     /**
      * Generování části, s týmiž chybovými stavy jako [generateInto]. `null` = selhalo a stav
      * už je [ChatSummaryState.Failed] (prázdná poznámka je text `""`, ne `null`).
      */
-    private suspend fun runAi(block: suspend () -> String?): String? =
+    private suspend fun runAi(out: (ChatSummaryState) -> Unit, block: suspend () -> String?): String? =
         try {
             block().orEmpty()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            fail(e)
+            fail(e, out)
             null
         }
 
-    /**
-     * Vysvětlení JEDNÉ dlouhé zprávy („o co jde", `MessageMenuAction.Explain`). Tentýž sheet
-     * a tentýž průběh jako shrnutí konverzace, jen jiný prompt ([explainPrompt]) a zdroj
-     * s příznakem [SummarySource.explain] — podle něj sheet ukáže jiný nadpis.
-     */
-    fun explain(message: ChatMessage) {
-        job?.cancel()
-        explaining = message
-        _source.value = SummarySource(listOf(message), unread = false, explain = true)
-        _state.value = ChatSummaryState.Preparing
-        job = viewModelScope.launch {
-            val variant = ai.variantFor(AiTask.Explain, settings)
-            if (ai.status(variant) != OnDeviceAiStatus.Ready) {
-                _state.value = ChatSummaryState.ModelMissing
-                return@launch
-            }
-            val info = ai.info(variant)
-            val prompt = explainPrompt(message.text, platformLanguageCode)
-            val details = SummaryDetails(
-                modelName = info?.name,
-                promptTokens = ai.countTokens(variant, prompt),
-                tokenLimit = info?.tokenLimit,
-                keptLines = 1,
-                totalLines = 1,
-            )
-            generateInto(variant, prompt, details)
-        }
-    }
-
-    /** „Zkusit znovu": vysvětlení zopakuje vysvětlení, jinak [summarize] obrazovky. */
-    fun retry(summarize: () -> Unit) {
-        val message = explaining
-        if (message != null && _source.value?.explain == true) explain(message) else summarize()
-    }
-
-    /** Pustí model a průběžně zapisuje text do [state]; chyba skončí jako [ChatSummaryState.Failed]. */
-    private suspend fun generateInto(variant: ModelVariant, prompt: String, details: SummaryDetails) {
+    /** Pustí model a průběžně zapisuje text do [out]; chyba skončí jako [ChatSummaryState.Failed]. */
+    private suspend fun generateInto(
+        variant: ModelVariant,
+        prompt: String,
+        details: SummaryDetails,
+        started: TimeMark,
+        out: (ChatSummaryState) -> Unit,
+    ) {
         var last = Generated("")
         try {
             ai.generate(variant, prompt).collect { chunk ->
                 last = chunk
-                _state.value = ChatSummaryState.Text(
-                    text = chunk.text,
-                    done = false,
-                    details = details,
-                    truncated = chunk.truncated,
+                out(
+                    ChatSummaryState.Text(
+                        text = chunk.text,
+                        done = false,
+                        details = details,
+                        truncated = chunk.truncated,
+                    ),
                 )
             }
-            _state.value = if (last.text.isBlank()) {
-                logger.w { "Model shrnutí nenapsal žádný text" }
-                ChatSummaryState.Failed(emptyOutputMessage)
-            } else {
-                if (last.truncated) logger.i { "Model shrnutí nedopsal, došel mu strop výstupu" }
-                ChatSummaryState.Text(
-                    // Useknutá věta by vypadala jako chyba modelu; celé odrážky ne.
-                    text = if (last.truncated) completeLines(last.text) else last.text,
-                    done = true,
-                    details = details,
-                    truncated = last.truncated,
-                )
-            }
+            out(
+                if (last.text.isBlank()) {
+                    logger.w { "Model shrnutí nenapsal žádný text" }
+                    ChatSummaryState.Failed(emptyOutputMessage)
+                } else {
+                    if (last.truncated) logger.i { "Model shrnutí nedopsal, došel mu strop výstupu" }
+                    ChatSummaryState.Text(
+                        // Useknutá věta by vypadala jako chyba modelu; celé odrážky ne.
+                        text = if (last.truncated) completeLines(last.text) else last.text,
+                        done = true,
+                        details = details,
+                        truncated = last.truncated,
+                        elapsedMs = started.elapsedNow().inWholeMilliseconds,
+                    )
+                },
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            fail(e)
+            fail(e, out)
         }
     }
 
-    private fun fail(e: Exception) {
+    private fun fail(e: Exception, out: (ChatSummaryState) -> Unit) {
         if (e is OnDeviceAiException) {
             // Rozbitý model je problém pro Crashlytics (`e` s výjimkou), vytížený ne.
             if (e.isReportable) logger.e(e) { "Shrnutí se nepovedlo" } else logger.w(e) { "Shrnutí se nepovedlo" }
-            _state.value = ChatSummaryState.Failed(e.userMessage())
+            out(ChatSummaryState.Failed(e.userMessage()))
         } else {
             logger.e(e) { "Shrnutí se nepovedlo" }
-            _state.value = ChatSummaryState.Failed(UiText(Res.string.summary_failed))
+            out(ChatSummaryState.Failed(UiText(Res.string.summary_failed)))
         }
     }
 
     /** Zavření sheetu: rozpracované generování nemá kam dopsat, zahodí se. */
     fun dismiss() {
-        job?.cancel()
-        job = null
+        reset()
         _state.value = ChatSummaryState.Idle
         _source.value = null
     }
@@ -407,3 +504,19 @@ class ChatSummaryViewModel(
         const val MAX_FIT_ATTEMPTS = 3
     }
 }
+
+/** Co sheet počítá: shrnutí konverzace, nebo vysvětlení jedné zprávy. */
+private sealed interface SummaryRequest {
+    val task: AiTask
+
+    data class Summary(val chatTitle: String, val lines: List<TranscriptLine>) : SummaryRequest {
+        override val task get() = AiTask.Summary
+    }
+
+    data class Explain(val message: ChatMessage) : SummaryRequest {
+        override val task get() = AiTask.Explain
+    }
+}
+
+/** Výsledek téhož shrnutí z jiného modelu ([ChatSummaryViewModel.compare]). */
+data class ComparedSummary(val provider: AiProvider, val state: ChatSummaryState)

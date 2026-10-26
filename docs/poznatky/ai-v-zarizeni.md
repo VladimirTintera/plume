@@ -279,6 +279,32 @@ a úlohy se jim přiřazují.
 - **Na zařízení neověřené**: Nano a Gemma vedle sebe jdou jen na telefonu s AICore (Fold),
   emulátor Nano nemá. Na emulátoru se ověří Gemma sama a vzhled Nastavení.
 
+### Porovnání modelů
+
+V sheetu shrnutí i vysvětlení je s víc zapnutými modely „Porovnat s dalšími modely"
+(`ChatSummaryViewModel.compare`, testy `ChatSummaryCompareTest`): totéž spočítají ostatní
+zapnuté modely a výsledky jsou pod hlavním, každý s názvem modelu a časem v patičce. Kvůli tomu,
+že otázka „je E4B česky lepší než Nano" se dojmem z jednotlivých chatů rozhodnout nedá — každé
+shrnutí počítal jiný model nad jinou konverzací.
+
+- **V sheetu, ne na zvláštní obrazovce se vzorovým textem.** Porovnává se na SKUTEČNÉ
+  konverzaci, a to je jediné porovnání, které o češtině něco řekne. Nepotřebuje to ani novou
+  routu.
+- **Táž cesta jako hlavní výsledek** (`run` se stavem do `out`): přepis, zkrácení na limit
+  i shrnutí po částech. Kdyby porovnání mělo vlastní zkratku, porovnával by se jiný výpočet.
+  Pozor, že limit se počítá ZVLÁŠŤ pro každý model — Nano (8 192 tokenů) může shrnovat po
+  částech, kde Gemma vezme vše jedním promptem; patička to řekne („Shrnuto po 2 částech").
+- **Po sobě, ne souběžně, a až po hotovém hlavním výsledku.** Gemma drží gigabajty a dva
+  modely naráz by si braly paměť i procesor; naměřený čas by pak neznamenal nic.
+- **Čas je od dotazu na stav po poslední slovo** (`ChatSummaryState.Text.elapsedMs`), tedy
+  i s načtením enginu Gemmy. První dotaz po delší pauze je proto pomalejší než druhý —
+  porovnávat aspoň dvakrát.
+- **Nepřipravený model** (Gemma nestažená) řekne jen „model chybí" a nic nepočítá.
+- **Ověřeno testy a na emulátoru se sondou** (falešný model místo obou runtime; emulátor nemá
+  AICore a skutečný model na něm kvůli paměti nepočítá): tlačítko až po hotovém výsledku,
+  Gemma pod Nano s vlastním časem. Nadpis nad hlavním výsledkem při porovnání přibyl až potom
+  a na emulátoru vidět nebyl (nevešel se další APK). Češtinu porovnat zbývá na Foldu.
+
 ### Apple Intelligence na iOS (Foundation Models)
 
 Na iOS 26+ počítá model v zařízení **Apple Intelligence** (`AiProvider.Apple`,
