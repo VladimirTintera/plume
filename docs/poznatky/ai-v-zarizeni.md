@@ -366,6 +366,12 @@ Gemma navrhne popisek k fotce, která čeká nad polem na odeslání; podrobně 
 volitelný `prompt` (výchozí `imageDescriptionPrompt`), takže popis pro nevidomé i návrh popisku
 jedou stejným enginem s obrazem — žádné druhé načtení.
 
+### Návrh složek
+
+Model rozřadí nejnovější chaty do pevných kategorií a navrhne složky; podrobně v
+`seznam-chatu.md`, „Návrh složek modelem". Pro tuhle oblast podstatné: je to klasifikace
+s výstupem „číslo: KATEGORIE" za chat a vlastní úloha `AiTask.Folders`.
+
 ### Apple Intelligence na iOS (Foundation Models)
 
 Na iOS 26+ počítá model v zařízení **Apple Intelligence** (`AiProvider.Apple`,

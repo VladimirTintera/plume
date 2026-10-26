@@ -1,5 +1,15 @@
 package eu.tintera.plume.features.settings
 
+import org.jetbrains.compose.resources.pluralStringResource
+import eu.tintera.plume.resources.chat_folders_ai_more
+import eu.tintera.plume.resources.chat_folders_ai_failed
+import eu.tintera.plume.resources.chat_folders_ai_model_missing
+import eu.tintera.plume.resources.chat_folders_ai_nothing
+import eu.tintera.plume.resources.chat_folders_ai_working
+import eu.tintera.plume.resources.chat_folders_ai_suggest_summary
+import eu.tintera.plume.resources.chat_folders_ai_suggest
+import eu.tintera.plume.resources.chat_folders_ai
+import eu.tintera.plume.resources.auto_awesome_24dp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -222,6 +232,52 @@ fun ChatFoldersScreen(
                     )
                 }
             }
+
+            /*
+             * Návrh od modelu v zařízení: napřed jen řádek „Navrhnout složky" (model se pouští až
+             * na ťuknutí, rozřazení čtyřiceti chatů trvá i desítky vteřin), pak navržené složky
+             * se jmény chatů — uživatel vidí, co přidává, dřív než ťukne na „Přidat".
+             */
+            if (state.aiAvailable) {
+                item(key = "ai-header") {
+                    FoldersHeader(stringResource(Res.string.chat_folders_ai), Modifier.padding(top = 16.dp))
+                }
+                when (val ai = state.ai) {
+                    is AiFolders.Done -> if (ai.folders.isEmpty()) {
+                        item(key = "ai-nothing") { AiFoldersNote(stringResource(Res.string.chat_folders_ai_nothing)) }
+                    } else {
+                        itemsIndexed(ai.folders, key = { _, it -> it.addingKey }) { index, folder ->
+                            SuggestedFolderRow(
+                                folder = folder,
+                                adding = state.adding,
+                                onAdd = { viewModel.addSuggested(folder) },
+                                modifier = Modifier.animateItem().clip(groupItemShape(index, ai.folders.size)),
+                            )
+                        }
+                    }
+                    AiFolders.ModelMissing -> item(key = "ai-missing") { AiFoldersNote(stringResource(Res.string.chat_folders_ai_model_missing)) }
+                    AiFolders.Idle, AiFolders.Working, AiFolders.Failed -> item(key = "ai-suggest") {
+                        val working = ai == AiFolders.Working
+                        ListItem(
+                            headlineContent = {
+                                Text(stringResource(if (working) Res.string.chat_folders_ai_working else Res.string.chat_folders_ai_suggest))
+                            },
+                            supportingContent = {
+                                Text(stringResource(if (ai == AiFolders.Failed) Res.string.chat_folders_ai_failed else Res.string.chat_folders_ai_suggest_summary))
+                            },
+                            leadingContent = {
+                                if (working) LoadingIndicator(Modifier.size(40.dp)) else FolderIcon(Res.drawable.auto_awesome_24dp, accent = true)
+                            },
+                            colors = ListItemDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                headlineColor = MaterialTheme.colorScheme.primary,
+                            ),
+                            modifier = Modifier.animateItem().clip(groupItemShape(0, 1))
+                                .clickable(enabled = !working, onClick = viewModel::suggestWithAi),
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -235,3 +291,42 @@ private fun FoldersHeader(title: String, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxWidth().padding(start = 16.dp, bottom = 6.dp),
     )
 }
+
+/** Navržená složka: název kategorie, kterým chatům patří, a „Přidat". */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SuggestedFolderRow(folder: SuggestedFolder, adding: String?, onAdd: () -> Unit, modifier: Modifier = Modifier) {
+    val shown = folder.names.take(SUGGESTED_NAMES_SHOWN).joinToString(", ")
+    val more = folder.names.size - SUGGESTED_NAMES_SHOWN
+    ListItem(
+        headlineContent = { Text(folder.category.title?.let { stringResource(it) }.orEmpty()) },
+        supportingContent = {
+            Text(if (more > 0) pluralStringResource(Res.plurals.chat_folders_ai_more, more, shown, more) else shown)
+        },
+        leadingContent = { FolderIcon(Res.drawable.auto_awesome_24dp, accent = false) },
+        trailingContent = {
+            if (adding == folder.addingKey) {
+                LoadingIndicator(Modifier.size(40.dp))
+            } else {
+                FilledTonalButton(onClick = onAdd, enabled = adding == null, shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(Res.string.chat_folders_add))
+                }
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        modifier = modifier,
+    )
+}
+
+/** Věta místo návrhů (nic k navržení, model chybí) — v témže bloku jako řádky. */
+@Composable
+private fun AiFoldersNote(text: String) {
+    ListItem(
+        headlineContent = { Text(text, style = MaterialTheme.typography.bodyMedium) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        modifier = Modifier.clip(groupItemShape(0, 1)),
+    )
+}
+
+/** Kolik názvů chatů se pod navrženou složkou vypíše; zbytek je „a další N". */
+private const val SUGGESTED_NAMES_SHOWN = 3
