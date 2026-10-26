@@ -201,6 +201,14 @@ internal fun MessageAttachment(
                                     }
                                 },
                                 onLongClick = onRequestMenu,
+                            )
+                            // Myší ven do složky (desktop): ostrá verze, a není-li stažená, ta z bubliny.
+                            // Mizející a zakrytá fotka ne — tah by obešel, co skrytí chrání.
+                            .mediaDragOut(
+                                messageId = messageId,
+                                fileId = media.fullFileId,
+                                fallbackFileId = media.fileId,
+                                enabled = !isSelfDestruct && revealed && !uploading,
                             ),
                     ) {
                         RemoteImage(
@@ -381,7 +389,8 @@ internal fun MessageAttachment(
                                     }
                                 },
                                 onLongClick = onRequestMenu,
-                            ),
+                            )
+                            .mediaDragOut(messageId, media.fileId, enabled = !isSelfDestruct && revealed && !uploading),
                     )
                 }
             }
@@ -795,6 +804,7 @@ private fun DocumentContent(
                 onLongClick = onRequestMenu,
                 onClickLabel = stringResource(Res.string.document_open),
             )
+            .mediaDragOut(messageId, document.fileId, originalName = document.fileName, enabled = !uploading)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -876,7 +886,8 @@ private fun LargeDocumentPreview(
                     onClick = onOpen,
                     onLongClick = onRequestMenu,
                     onClickLabel = stringResource(Res.string.document_open),
-                ),
+                )
+                .mediaDragOut(messageId, document.fileId, originalName = document.fileName, enabled = !uploading),
             contentAlignment = Alignment.Center,
         ) {
             val original = document.loadsOriginalPreview(LocalAutoDownload.current.maxFileBytes)

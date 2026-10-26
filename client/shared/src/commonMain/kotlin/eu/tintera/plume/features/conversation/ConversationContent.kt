@@ -6,6 +6,9 @@ import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.empty_state_error_title
 import eu.tintera.plume.resources.conversation_empty_text
 import eu.tintera.plume.core.ui.bubbleTextSelectable
+import eu.tintera.plume.core.ui.fileDragSupported
+import eu.tintera.plume.features.conversation.items.LocalMediaDragOut
+import eu.tintera.plume.features.conversation.items.MediaDragOut
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -29,6 +32,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
@@ -224,7 +229,17 @@ internal fun BoxScope.ConversationContent(
                 },
         ) {
           // Popisy fotek z „Popsat fotku" dostane čtečka obrazovky místo slova „Fotka".
-          CompositionLocalProvider(LocalSharedElementClip provides listClip, LocalPhotoDescriptions provides photoDescriptions) {
+          // Přílohy jdou myší vytáhnout ven (desktop), jen z chatu, který obsah nechrání.
+          val currentMessages by rememberUpdatedState(state.messages)
+          val protectsContent = state.info?.protectsContent == true
+          val mediaDragOut = remember(protectsContent) {
+              if (!fileDragSupported || protectsContent) null else MediaDragOut { id -> currentMessages.firstOrNull { it.id == id }?.timestamp }
+          }
+          CompositionLocalProvider(
+              LocalSharedElementClip provides listClip,
+              LocalPhotoDescriptions provides photoDescriptions,
+              LocalMediaDragOut provides mediaDragOut,
+          ) {
           // Na široké ploše zprávy ve sloupci uprostřed; scroll zůstává přes celou plochu.
           ConversationColumn { inset ->
           LazyColumn(

@@ -113,8 +113,8 @@ actual class MediaSharer {
     }
 }
 
-/** Soubor ve schránce: seznam s jedním souborem a k obrázku i obrázek sám. */
-private class FileSelection(private val file: File, private val image: Image?) : Transferable {
+/** Soubor ve schránce nebo v tahu ven: seznam s jedním souborem a k obrázku i obrázek sám. */
+internal class FileSelection(private val file: File, private val image: Image? = null) : Transferable {
 
     private val flavors = listOfNotNull(DataFlavor.javaFileListFlavor, DataFlavor.imageFlavor.takeIf { image != null })
 
