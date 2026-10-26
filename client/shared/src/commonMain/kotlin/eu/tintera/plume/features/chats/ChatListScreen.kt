@@ -134,6 +134,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.appendInlineContent
+import eu.tintera.plume.features.conversation.items.DeliveryStateIcon
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -2175,7 +2177,8 @@ private fun ChatRow(
                     // u chatu nahoře stálo datum starší než u těch pod ním.
                     // Sponzorovaný chat má místo času důvod, proč v seznamu je: uživatel do něj
                     // nevstoupil a bez štítku by vypadal jako kanál, který si přidal a zapomněl.
-                    chat.sponsor?.let { sponsor ->
+                    val sponsor = chat.sponsor
+                    if (sponsor != null) {
                         Text(
                             text = stringResource(
                                 when (sponsor) {
@@ -2187,21 +2190,30 @@ private fun ChatRow(
                             color = secondaryColor,
                             maxLines = 1,
                         )
-                    } ?: listOfNotNull(chat.lastMessageTimestamp, chat.draft?.timestamp).maxOrNull()?.let { timestamp ->
-                        Text(
-                            text = timestamp.asRelativeTime(),
-                            // Časy stojí pod sebou u pravého okraje — stejně široké číslice
-                            // je drží v zákrytu.
-                            style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                            // U nepřečteného chatu je čas akcentem, stejně jako odznak pod ním —
-                            // oči jdou po pravém sloupci a hledají, kde se něco stalo.
-                            color = if (showUnread && !selected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                secondaryColor
-                            },
-                            maxLines = 1,
-                        )
+                    } else {
+                        // Stav doručení vlastní zprávy před časem, jako v ostatních klientech. Ne
+                        // u konceptu: čas pak patří jemu a fajfka by tvrdila, že odešel.
+                        if (chat.draft == null) {
+                            chat.previewDelivery()?.let { delivery ->
+                                DeliveryStateIcon(delivery, tint = secondaryColor)
+                            }
+                        }
+                        listOfNotNull(chat.lastMessageTimestamp, chat.draft?.timestamp).maxOrNull()?.let { timestamp ->
+                            Text(
+                                text = timestamp.asRelativeTime(),
+                                // Časy stojí pod sebou u pravého okraje — stejně široké číslice
+                                // je drží v zákrytu.
+                                style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                                // U nepřečteného chatu je čas akcentem, stejně jako odznak pod ním —
+                                // oči jdou po pravém sloupci a hledají, kde se něco stalo.
+                                color = if (showUnread && !selected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    secondaryColor
+                                },
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
                 /*
@@ -2214,6 +2226,10 @@ private fun ChatRow(
                 val draftLabelColor = accentOn(containerColor, MaterialTheme.colorScheme.tertiary, contentColor)
                 // Vlastní emoji v náhledu (a konceptu) jako obrázek, ne náhradní znak.
                 val customEmoji = mutableSetOf<Long>()
+                val sender = chat.previewSender()
+                // Obrázek jen u náhledu poslední zprávy; činnost, koncept a odložení ho nemají.
+                val thumbnail = chat.lastMessageThumbnail
+                    ?.takeIf { snooze !is RowSnooze.Sleeping && chat.activity == null && chat.draft == null }
                 val sleepingUntil = (snooze as? RowSnooze.Sleeping)?.let { (it.until / 1000).asUpcomingTime() }
                 val subtitle: AnnotatedString? = sleepingUntil?.let { AnnotatedString(stringResource(Res.string.chats_snoozed_until, it)) }
                     ?: chat.activity?.let { AnnotatedString(it.label()) }
@@ -2228,6 +2244,16 @@ private fun ChatRow(
                     }
                     ?: chat.lastMessagePreview?.resolve()?.let { preview ->
                         buildAnnotatedString {
+                            // Kdo psal, barvou popředí jako v hledání a u témat: jméno je pevný
+                            // bod, podle kterého oko řádek čte, i když je náhled přečtený.
+                            sender?.let {
+                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurface)) { append(it) }
+                                append(": ")
+                            }
+                            if (thumbnail != null) {
+                                appendInlineContent(PREVIEW_THUMBNAIL_KEY, alternateText = " ")
+                                append(' ')
+                            }
                             customEmoji += appendWithCustomEmoji(preview, chat.lastMessagePreviewEntities)
                         }
                     }
@@ -2235,7 +2261,7 @@ private fun ChatRow(
                 subtitle?.let {
                     Text(
                         text = it,
-                        inlineContent = customEmojiInlineContent(customEmoji),
+                        inlineContent = customEmojiInlineContent(customEmoji) + previewThumbnailInlineContent(thumbnail),
                         style = MaterialTheme.typography.bodyMedium,
                         // Nepřečtený náhled se odliší barvou, ne řezem: s polotučným názvem nad
                         // ním by byly na jednom řádku dvě úrovně tučnosti a blok by ztěžkl.

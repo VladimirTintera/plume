@@ -437,7 +437,12 @@ class TdlChatRepository(
             holder.updates { chatLastMessageUpdates }.collect { update ->
                 // Náhled se čte z prostředků (`suspend`), takže se připraví před `edit` —
                 // ten bere obyčejnou funkci, protože běží pod zámkem nad stavem seznamu.
-                val preview = update.lastMessage?.listPreview() ?: secretChatPreview(update.chatId)
+                val named = update.lastMessage?.namedMemberPreview()
+                val preview = named ?: update.lastMessage?.previewText() ?: secretChatPreview(update.chatId)
+                // Druh chatu kvůli jménu odesílatele. Neznámý chat si `edit` dočte celý
+                // a `fullSummary` jméno doplní sám.
+                val kind = mutex.withLock { known[update.chatId]?.kind }
+                val extras = update.lastMessage.listExtras(kind, named = named != null)
                 setPositions(update.chatId, update.positions)
                 edit(update.chatId, fetchUnknown = true) { current ->
                     current.copy(
@@ -446,8 +451,36 @@ class TdlChatRepository(
                         lastMessageTimestamp = update.lastMessage?.date,
                         lastMessageId = update.lastMessage?.id,
                         lastMessageOutgoing = update.lastMessage?.isOutgoing == true,
-                    )
+                    ).withExtras(extras)
                 }
+            }
+        }
+
+        /*
+         * Odeslaná zpráva dostane po potvrzení nové id a jiný stav (hodiny → fajfka, nebo
+         * vykřičník). Poslední zprávou chatu přitom zůstává, takže se na `UpdateChatLastMessage`
+         * spoléhat nedá; témata to řeší stejně (`TdlForumRepository`). Mění se jen položka, jejíž
+         * poslední zpráva je ta odesílaná — starší potvrzení náhled nepřepíše.
+         */
+        scope.launch {
+            merge(
+                holder.updates { messageSendSucceededUpdates }.map { it.oldMessageId to it.message },
+                holder.updates { messageSendFailedUpdates }.map { it.oldMessageId to it.message },
+            ).collect { (oldMessageId, message) ->
+                edit(message.chatId) { current ->
+                    if (current.lastMessageId != oldMessageId) {
+                        current
+                    } else {
+                        current.copy(lastMessageId = message.id, lastMessageSendState = message.sendingState.toSendState())
+                    }
+                }
+            }
+        }
+
+        // Protějšek přečetl vlastní zprávy — fajfka u poslední z nich zdvojí.
+        scope.launch {
+            holder.updates { chatReadOutboxUpdates }.collect { update ->
+                edit(update.chatId) { it.copy(lastReadOutboxMessageId = update.lastReadOutboxMessageId) }
             }
         }
 
@@ -2006,18 +2039,38 @@ class TdlChatRepository(
         (type as? ChatTypeSecret)?.let { secret -> mutex.withLock { secretPeers[id] = secret.userId } }
         val supergroup = (type as? ChatTypeSupergroup)
             ?.let { client.getSupergroup(supergroupId = it.supergroupId).toResult().getOrNull() }
+        val named = lastMessage?.namedMemberPreview()
         summary.copy(
             verification = client.verificationOf(this),
             isForum = supergroup?.isForum == true,
             isDirectMessages = supergroup?.isDirectMessagesGroup == true,
-            lastMessagePreview = lastMessage?.let { message -> message.namedMemberPreview() }
+            lastMessagePreview = named
                 ?: summary.lastMessagePreview
                 ?: secretChatPreview(type),
-        )
+        ).withExtras(lastMessage.listExtras(summary.kind, named = named != null))
     }
 
     /** Náhled poslední zprávy; zpráva o členech se jmény („Pixel 5 opustil(a) skupinu"). */
     private suspend fun Message.listPreview(): UiText = namedMemberPreview() ?: previewText()
+
+    /**
+     * Co k náhledu poslední zprávy patří kromě textu: kdo ji napsal, jak dopadlo odeslání
+     * a obrázek. [kind] `null` = chat ještě neznámý, jméno se nedohledává. [named] = náhled
+     * je oznámení se jménem ve větě, předponu „Jana:" by zdvojil.
+     */
+    private suspend fun Message?.listExtras(kind: ChatKind?, named: Boolean): LastMessageExtras {
+        val message = this ?: return LastMessageExtras.None
+        return LastMessageExtras(
+            sender = if (kind == ChatKind.Group && !message.isOutgoing && !named) {
+                client.previewSenderName(message.senderId, message.chatId)
+            } else {
+                null
+            },
+            showsSender = !named,
+            sendState = if (message.isOutgoing) message.sendingState.toSendState() else null,
+            thumbnail = message.listThumbnail(hidden = client.hidesSensitive(message)),
+        )
+    }
 
     private suspend fun Message.namedMemberPreview(): UiText? = namedServicePreview(client) { myUserId }
 
@@ -2175,6 +2228,9 @@ private suspend fun Chat.toSummary(): ChatSummary {
         lastMessageTimestamp = lastMessage?.date,
         lastMessageId = lastMessage?.id,
         lastMessageOutgoing = lastMessage?.isOutgoing == true,
+        // Jméno odesílatele a obrázek doplní `fullSummary` — potřebují dotaz na klienta.
+        lastMessageSendState = lastMessage?.takeIf { it.isOutgoing }?.let { it.sendingState.toSendState() },
+        lastReadOutboxMessageId = lastReadOutboxMessageId,
         // Dostupnost `Chat` nenese — dorazí updatem. Do té doby je `null`, což UI kreslí
         // prostě bez tečky.
         presence = null,

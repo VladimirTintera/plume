@@ -655,6 +655,39 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   „naposledy nedávno" a přesný čas nedostaneme. Proto je `Presence` několik pojmenovaných stupňů,
   ne čas — dopočítávat minutu, kterou neznáme, by bylo horší než neurčitost.
 
+#### Kdo psal, stav doručení a obrázek v náhledu
+
+Náhled poslední zprávy říká, kdo ji napsal („Jana: …", „Vy: …"), u vlastní zprávy je před
+časem stav doručení a fotka, video, GIF nebo kolečko mají v textu čtvereček s obrázkem
+(`ChatRowPreview.kt`, v core `ChatListPreview.kt`, testy `ChatListPreviewTest`).
+
+- **Pravidlo je totéž jako v hledání zpráv a u témat**, jinak by se tři řádky téhož druhu
+  rozešly: ve skupině křestní jméno (`previewSenderName`, sdílený s `TdlForumRepository`), u vlastní
+  zprávy „Vy" kromě kanálu a Uložených zpráv, oznámení se jménem ve větě („Jana se přidala")
+  předponu nedostane. „Vy" je i v soukromém chatu (jako v Google Messages), přestože tam stav
+  doručení vlastní zprávu prozradí taky.
+- **„Přečteno" se odvozuje, nenese ho zpráva**: `Chat.lastReadOutboxMessageId` chodí vlastním
+  updatem (`UpdateChatReadOutbox`), a dvojitá fajfka je „id poslední zprávy ≤ přečteno". Kanál
+  ukazuje jen hodiny a vykřičník — čtenářů je víc a „přečteno" tam nic neříká. U konceptu stav
+  není: čas v řádku pak patří konceptu.
+- **Potvrzení odeslání se odebírá zvlášť** (`messageSendSucceededUpdates` / `…Failed`): zpráva
+  dostane nové id a stav, ale poslední zprávou chatu zůstává, takže na `UpdateChatLastMessage` se
+  spoléhat nedá (témata to mají stejně). Mění se jen položka, jejíž poslední zpráva je ta odeslaná.
+- **Jméno se dohledává před zápisem**, ne v `edit` — ten běží pod zámkem a dotaz na klienta tam
+  nepatří. U chatu, který repository ještě nezná, se jméno nedohledává; `edit(fetchUnknown)` si chat
+  dočte celý a `fullSummary` ho doplní.
+- **Obrázek je inline obsah textu, ne prvek vedle něj** — stojí za jménem a zkracuje se s textem.
+  Bere se nejmenší varianta fotky, jejíž KRATŠÍ strana zaplní čtvereček (`listThumbnailSize`):
+  oříznutí na čtverec bere kratší stranu a varianta `s` má u fotky 16 : 9 jen 56 px.
+- **Mizející, tajné a omezené médium obrázek nemá**, spoiler a citlivý obsah jen rozmazaný
+  `minithumbnail` a nic se nestahuje — seznam je vidět bez otevření chatu. Stejné pravidlo jako
+  citace v konverzaci (`quoteThumbnail`). GIF, jehož náhled je MPEG-4 (Coil ho neotevře, viz
+  `picture()`), má proto jen rozmazaný čtvereček — bublina i citace to mají stejně.
+- **Ověřeno na emulátoru (česky, světlý motiv)**: „Vy:" s fajfkou v soukromém chatu i u emoji,
+  miniatury fotek v kanálech, „Plume test kanal: ▣ GIF" ve skupině, ztlumené kanály bez fajfky.
+  Dvojitou fajfku po přečtení protějškem, hodiny při odesílání a vykřičník ověřené nejsou
+  (pokrývá je jen test odvození `lastMessageRead`); tmavý motiv a iOS taky ne.
+
 ### Čeká na odpověď
 
 Nepřečtený soukromý chat (nebo skupina se zmínkou), ve kterém na uživatele čeká otázka nebo prosba, má vedle počtu

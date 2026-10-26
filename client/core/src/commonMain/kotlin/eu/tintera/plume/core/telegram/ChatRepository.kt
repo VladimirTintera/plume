@@ -796,6 +796,23 @@ data class ChatSummary(
     val lastMessageId: Long? = null,
     /** Poslední zprávu poslal uživatel sám — pak na odpověď nečeká nikdo jiný než on. */
     val lastMessageOutgoing: Boolean = false,
+    /**
+     * Kdo poslední zprávu ve SKUPINĚ napsal, jen křestní jméno („Jana: …" v náhledu). `null`
+     * u vlastní zprávy (tu řádek pozná z [lastMessageOutgoing]), v soukromém chatu a kanálu
+     * a u anonymního správce. Stejné pravidlo jako u témat (`TopicMessagePreview`).
+     */
+    val lastMessageSender: String? = null,
+    /** `false` u oznámení se jménem ve větě: předpona „Jana:" / „Vy:" by ho zdvojila. */
+    val lastMessageShowsSender: Boolean = true,
+    /** Jak dopadlo odeslání vlastní poslední zprávy; u cizí `null`. Přečtení viz [lastMessageRead]. */
+    val lastMessageSendState: SendState? = null,
+    /**
+     * Do které vlastní zprávy protějšek přečetl (`Chat.lastReadOutboxMessageId`). Chodí vlastním
+     * updatem, ne s poslední zprávou, takže se drží zvlášť a „přečteno" se z něj odvozuje.
+     */
+    val lastReadOutboxMessageId: Long = 0,
+    /** Obrázek k náhledu poslední zprávy (fotka, video, GIF, kolečko), nebo `null`. */
+    val lastMessageThumbnail: ChatPreviewThumbnail? = null,
     /** Dostupnost protějšku. `null` u skupin a kanálů — ty žádnou nemají. */
     val presence: Presence?,
     /**
@@ -850,7 +867,27 @@ data class ChatSummary(
 ) {
     /** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
     val hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
+
+    /** Vlastní poslední zprávu protějšek přečetl (dvojitá fajfka). */
+    val lastMessageRead: Boolean
+        get() = lastMessageOutgoing && lastMessageSendState == SendState.Sent &&
+            lastMessageId != null && lastMessageId <= lastReadOutboxMessageId
 }
+
+/**
+ * Obrázek vedle náhledu poslední zprávy v seznamu chatů, aby „Fotka" nebyla jen slovo.
+ *
+ * [fileId] je nejmenší varianta, která čtvereček ještě zaplní ostře — originál se kvůli seznamu
+ * stahovat nemá. [hidden] = spoiler nebo citlivý obsah: kreslí se JEN rozmazaný [placeholder]
+ * a nic se nestahuje, stejně jako u citace v konverzaci.
+ */
+data class ChatPreviewThumbnail(
+    val fileId: Int?,
+    val placeholder: Minithumbnail?,
+    val hidden: Boolean = false,
+    /** Video kolečko je i v náhledu kolečko. */
+    val round: Boolean = false,
+)
 
 /**
  * Cizí chat, který do hlavního seznamu dal někdo jiný než uživatel (TDLib `ChatSource`).
