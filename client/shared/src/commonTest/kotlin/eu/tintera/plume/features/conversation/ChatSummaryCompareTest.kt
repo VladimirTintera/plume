@@ -95,6 +95,8 @@ class ChatSummaryCompareTest {
         advanceUntilIdle()
         val main = viewModel.state.value as ChatSummaryState.Text
         assertEquals("- GeminiNano", main.text)
+        // Podpis uživatele („Já") jde do promptu, ať o něm model píše ve druhé osobě.
+        assertTrue("\"Já\" in the transcript is the user who reads this summary" in ai.prompts.first())
         assertTrue(main.done && main.elapsedMs != null, "hotový výsledek nese čas")
         assertTrue(viewModel.canCompare.value)
 
