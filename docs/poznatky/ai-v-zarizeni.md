@@ -88,8 +88,15 @@ poskytovatelích nemusí vědět nic.
     i z Nastavení, letový režim (čekání, zastavení úlohy, navázání), zahození části a smazání.
     **Release build (R8) s úlohou ověřený není** — workery drží keep pravidla WorkManageru,
     na kterých stojí i notifikační úlohy.
-- **Engine je v paměti nejvýš jeden a po dvou minutách nečinnosti se uvolní** — drží gigabajty
-  RAM. Načtení trvá až deset sekund, proto ne hned po odpovědi (návrhy chodí po sobě).
+- **Engine je v paměti nejvýš jeden a po chvíli nečinnosti se uvolní** — drží gigabajty RAM.
+  Načtení trvá až deset sekund, proto ne hned po odpovědi (návrhy chodí po sobě): **dvě minuty,
+  když Gemma počítá nějaký text, 30 s, když dělá jen zvuk a obraz** a text má Nano
+  (`gemmaIdleUnloadMs`, testy `GemmaIdleTest`). Přepisy a popisy fotek se pouštějí ťuknutím,
+  ne s každou zprávou; 30 s pokryje pár hlasovek za sebou. Prodleva se čte po každém použití
+  (zapnutí Nano nebo jiné přiřazení ji mění za běhu) a rozhoduje stejně jako funkce samy
+  (`variantFor`): Gemma, která převzala text, protože se Nano stahuje, drží dvě minuty.
+  **Kolik stojí opětovné načtení na GPU, změřené není** — na emulátoru (CPU, 8 GB) trvalo
+  načtení s přepisem ~11 s; jestli je 30 s na telefonu málo, ukáže až Fold.
   **Generování je jedno po druhém** (zámek): dvě konverzace nad jedním enginem LiteRT-LM neslibuje.
 - **GPU, a když nejde, CPU.** GPU backend potřebuje `libOpenCL.so` — `uses-native-library`
   v manifestu aplikace (`required=false`). Na emulátoru GPU selže na OpenGL (`GL_INVALID_ENUM`
@@ -250,8 +257,8 @@ a úlohy se jim přiřazují.
   jestli je připravený, říká `status`.
 - **„Automaticky" (výchozí) bere první PŘIPRAVENÝ model v pořadí Nano → Apple → Gemma**, jinak
   první, který zařízení umí (funkce pak nabídne stažení). Systémový model nic nestojí, Gemma se
-  načte až kvůli úloze, kterou dostala, a po dvou minutách se uvolní — s Nano + Gemmou tedy
-  gigabajty v paměti jen chvíli po přepisu hlasovky nebo popisu fotky.
+  načte až kvůli úloze, kterou dostala, a s Nano na textu se uvolní už po 30 s — gigabajty
+  v paměti jen chvíli po přepisu hlasovky nebo popisu fotky.
 - **Záloha jen podle stavu modelu, ne podle chyby jednoho volání.** `Busy` u Nano nemá kvůli
   jedné odpovědi načíst Gemmu; stahující se Nano naopak text Gemmě předá (je připravená).
 - **Ruční přiřazení platí, i když model není připravený**: funkce řekne, že model chybí,
