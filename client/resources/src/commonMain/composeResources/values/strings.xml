@@ -3090,7 +3090,10 @@
     <string name="join_requests_bar_more">%1$s and others</string>
     <string name="join_requests_bar_hide">Hide join requests</string>
     <string name="forum_topic_new">New topic</string>
-    <string name="forum_topic_rename_title">Rename topic</string>
+    <string name="forum_topic_edit_title">Edit topic</string>
+    <string name="forum_topic_icon">Icon</string>
+    <string name="forum_topic_icon_none">No emoji</string>
+    <string name="forum_topic_icon_emoji">Emoji</string>
     <string name="forum_topic_name">Name</string>
     <string name="forum_topic_color">Icon colour</string>
     <string name="forum_topic_create">Create</string>
@@ -3109,7 +3112,10 @@
     <string name="reorder_drag">Drag to reorder</string>
     <string name="reorder_move_up">Move up</string>
     <string name="reorder_move_down">Move down</string>
-    <string name="forum_topic_rename">Rename</string>
+    <string name="forum_topic_edit">Edit</string>
+    <string name="forum_topic_copy_link">Copy link</string>
+    <string name="forum_topic_link_copied">Topic link copied.</string>
+    <string name="forum_topic_link_failed">Couldn't get the topic link.</string>
     <string name="forum_topic_close">Close</string>
     <string name="forum_topic_reopen">Reopen</string>
     <string name="forum_topic_hide_general">Hide the General topic</string>

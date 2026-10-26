@@ -459,8 +459,24 @@ a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
   Proto stránka nese obecné téma zvlášť (`ForumTopicsPage.general`, i skryté) a vrací se z ⋮
   („Zobrazit obecné téma"). **Server skryté obecné téma zároveň UZAVŘE a při vrácení ho neotevře**
   — v seznamu pak má zámek; znovu otevřít jde z nabídky.
-- **Barvy nového tématu jsou jen ty, které TDLib přijme** (`TOPIC_COLORS`, šest). Přejmenování
-  barvu nemění — `editForumTopic` ji měnit neumí (jen vlastní emoji, a to až s Premium).
+- **Barvy nového tématu jsou jen ty, které TDLib přijme** (`TOPIC_COLORS`, šest). Úprava
+  barvu nemění — `editForumTopic` ji měnit neumí, jen ikonu z vlastního emoji.
+- **Ikona z emoji jde i bez Premium, ale jen z výchozích** (`getForumTopicDefaultIcons`, kolem
+  stovky; dřív tu stálo, že emoji chce Premium — to platí jen pro emoji MIMO výchozí). Formulář
+  tématu (`TopicEditorSheet`) je nabízí mřížkou při založení i úpravě; první buňka je ikona bez
+  emoji (bublina v barvě). Proto se položka nabídky jmenuje „Upravit", ne „Přejmenovat".
+  - **Ikona se při úpravě posílá, jen když se změnila** (`TopicEditor.iconEdit`, testy
+    `TopicEditorTest`): `editIconCustomEmoji = false` ji nechá, `true` s nulou
+    (`NO_TOPIC_EMOJI`) emoji odebere. Server o každé změně ikony pošle servisní zprávu
+    („Odebral(a) jsi ikonu tématu").
+  - **Obecné téma ikonu nemá** — úprava ho jen přejmenuje, mřížka se nenabídne.
+  - **Výchozí ikony se čtou jednou za ViewModel**, s prvním otevřeným formulářem; když se
+    nenačtou, oddíl se neukáže a téma jde založit jen s barvou jako dřív.
+  - **Mřížka vnutí buňce šířku sloupce** a `size` na buňce ji nepřebije: tónový kruh pod
+    vybranou ikonou se roztáhl do oválu. Kruh proto leží ve vnějším boxu na střed (`IconCell`).
+- **Odkaz na téma** („Kopírovat odkaz" v nabídce nad tématem, smí každý) je `getForumTopicLink`
+  — offline, veřejná skupina dá `t.me/jméno/id`, neveřejná `t.me/c/…/id` jen pro členy.
+  Hláška „Odkaz je ve schránce" jen bez systémového potvrzení (`confirmsCopy`).
 - **Nové téma se po vytvoření rovnou otevře** (`createdTopicId`), jako u oficiálních klientů.
 - **Ztlumení tématu se zapisuje celým objektem** jako ztlumení chatu (`withMuteFor`,
   `useDefaultMuteFor = false`), jinak by se přepsal zvuk a téma by jelo podle skupiny.
@@ -506,6 +522,10 @@ a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
 - **Ověřeno na emulátoru** v testovací skupině „Plume test pozvánek" (zapnutím témat): zapnutí,
   založení tématu se zelenou ikonou a jeho otevření, připnutí, uzavření, ztlumení, přejmenování,
   hledání, skrytí a vrácení obecného tématu, smazání s potvrzením, anglicky i česky.
+  **Ikona z emoji a odkaz ověřené** (26. 10. 2026, tamtéž): založení tématu s žárovkou, úprava na
+  ikonu bez emoji (servisní zpráva od serveru), obecné téma bez mřížky, odkaz `t.me/c/…/24`
+  ve schránce se systémovým okénkem a bez vlastní hlášky; testovací téma smazané a skupina
+  vrácená na „Zobrazit jako zprávy". **Neověřené:** veřejná skupina (odkaz se jménem), iOS.
   **Člen ověřený se dvěma účty** (12. 10. 2026): „Nové téma" jen s právem skupiny
   „Create topics", cizí téma nabízí jen ztlumení a upozornění. **Práva k tématům jsou živá**
   (`ForumRepository.rightsUpdates` nad `chatPermissionsUpdates` a `supergroupUpdates`): dřív se

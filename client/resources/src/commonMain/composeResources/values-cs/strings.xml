@@ -3194,7 +3194,10 @@
     <string name="join_requests_bar_more">%1$s a další</string>
     <string name="join_requests_bar_hide">Skrýt žádosti o vstup</string>
     <string name="forum_topic_new">Nové téma</string>
-    <string name="forum_topic_rename_title">Přejmenovat téma</string>
+    <string name="forum_topic_edit_title">Upravit téma</string>
+    <string name="forum_topic_icon">Ikona</string>
+    <string name="forum_topic_icon_none">Bez emoji</string>
+    <string name="forum_topic_icon_emoji">Emoji</string>
     <string name="forum_topic_name">Název</string>
     <string name="forum_topic_color">Barva ikony</string>
     <string name="forum_topic_create">Vytvořit</string>
@@ -3213,7 +3216,10 @@
     <string name="reorder_drag">Přetáhnout</string>
     <string name="reorder_move_up">Posunout nahoru</string>
     <string name="reorder_move_down">Posunout dolů</string>
-    <string name="forum_topic_rename">Přejmenovat</string>
+    <string name="forum_topic_edit">Upravit</string>
+    <string name="forum_topic_copy_link">Kopírovat odkaz</string>
+    <string name="forum_topic_link_copied">Odkaz na téma je ve schránce.</string>
+    <string name="forum_topic_link_failed">Odkaz na téma se nepodařilo získat.</string>
     <string name="forum_topic_close">Uzavřít</string>
     <string name="forum_topic_reopen">Znovu otevřít</string>
     <string name="forum_topic_hide_general">Skrýt obecné téma</string>

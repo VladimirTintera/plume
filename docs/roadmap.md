@@ -979,11 +979,10 @@ za to, od nejužitečnějšího:
   kanálem** (statistiky vydá server kanálu zhruba od 500 odběratelů, `canGetStatistics`).
   Názvy řad grafu („Views", „Joined") posílá server anglicky — ověřit, jestli je posílá
   v jazyce účtu; když ne, zvážit vlastní názvy podle druhu grafu.
-- **Odkaz na téma** (`getForumTopicLink`, offline) — „Zkopírovat odkaz" u tématu ve skupině
-  dnes chybí; levné.
-- **Ikona tématu z emoji** (`getForumTopicDefaultIcons`) — `createForumTopic` /
-  `editForumTopic` posílají jen barvu (`customEmojiId = 0`); výběr z výchozích emoji, které
-  smí každý.
+- ~~**Odkaz na téma** (`getForumTopicLink`)~~ a ~~**ikona tématu z emoji**
+  (`getForumTopicDefaultIcons`)~~ — hotovo (nabídka nad tématem → Kopírovat odkaz, formulář
+  tématu → Ikona; `docs/poznatky/typy-zprav.md`, „Správa témat"). Jakékoli vlastní emoji
+  (Premium) ne — ověřit by nebylo na čem.
 - **Tvorba samolepek — doplňky:** návrh a kontrola krátkého jména sady
   (`getStickerSetName`, `checkStickerSetName`) a klíčová slova samolepky (`setStickerKeywords`).
 - **„Poslední soubory" ve výběru příloh** (`searchOutgoingDocumentMessages`) — odeslané
