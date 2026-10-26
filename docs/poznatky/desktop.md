@@ -103,7 +103,8 @@ toasty WinRT (oddíl „Notifikace na Windows" níž), na Linuxu AWT `TrayIcon.d
 - **Jedna zpráva = jedno oznámení**, seskupené po chatech (`threadIdentifier`), id
   `g<groupId>-n<notificationId>` — podle něj se ruší přesně to, co TDLib stáhne. Z dávky (start,
   návrat spojení) se ukáže jen nejnovější zpráva chatu.
-- **Klik** vrátí v `userInfo` chat a téma, Kotlin dostane volání z vlákna `UserNotifications`
+- **Klik** vrátí v `userInfo` argumenty oznámení (`chat=…&topic=…`, viz „Tlačítka oznámení
+  na macOS" níž), Kotlin dostane volání z vlákna `UserNotifications`
   (`AttachCurrentThreadAsDaemon`), požádá `ChatOpenRequests` a `DesktopWindow.activate()`
   vytáhne okno — i schované nebo minimalizované.
 - **Příloha oznámení je KOPIE souboru**: systém soubor přílohy přesouvá do vlastního úložiště,
@@ -122,6 +123,44 @@ toasty WinRT (oddíl „Notifikace na Windows" níž), na Linuxu AWT `TrayIcon.d
   banner se ukázal, klik vytáhl okno a otevřel chat. Potlačení při aktivním okně ověřené logem.
   **Neověřeno**: Windows a Linux (AWT), odznak v Docku, zavření okna a návrat z Docku,
   stažení oznámení po přečtení jinde (jen nepřímo — viz „ukradne").
+
+### Tlačítka oznámení na macOS
+
+Oznámení chatu má tatáž tlačítka jako toast na Windows (oddíl „Tlačítka toastu" níž): pole
+„Odpovědět" s Odeslat, „Označit jako přečtené" a „Ztlumit na hodinu", podle
+`ChatNotification.canReply` / `canMute`. Co se po stisku děje, je sdílené s Windows — presenter,
+`NotificationActions` i rozbor `parseActivation`.
+
+- **Tlačítka nese KATEGORIE, ne oznámení.** `UNNotificationCategory` se registruje předem
+  a celá sada naráz (`setNotificationCategories` přepíše i kategorii hovoru), takže most
+  registruje všechno jedním voláním `nativeSetActions`. Tlačítka zprávy se liší podle práv,
+  proto čtyři kategorie (`message`, `message-reply`, `message-mute`, `message-reply-mute`)
+  a oznámení si vybere tu svou. Popisky jdou do kategorie (`readString` v okamžiku registrace);
+  presenter je posílá před každou dávkou a `MacNotifier` je přepíše, jen když se liší — tak se
+  změna jazyka projeví u dalšího oznámení.
+- **Tlačítko vrací jen svůj identifikátor**, kdežto tlačítko toastu nese vlastní argumenty.
+  Oznámení proto v `userInfo` nese všechno, co by kterékoli tlačítko potřebovalo, jedním
+  řetězcem ve formátu toastu (`notificationArguments`: `chat`, `topic`, `msg`, `quote`, `call`)
+  a Kotlin před něj přidá `action=<identifikátor>` (`parseNotificationResponse`). Identifikátory
+  tlačítek jsou proto TYTÉŽ jako hodnoty `action=` u toastu (`reply`, `read`, `mute`, `answer`,
+  `decline`). Most argumentům nerozumí, jen je vrátí.
+- **Oznámení ze starší verze** nesla `chatId`, `topicId` a `callId` zvlášť a v Centru oznámení
+  přežijí aktualizaci; most z nich argumenty složí sám (testy `macLegacyNotificationStillOpens`).
+- **Odpověď je `UNTextInputNotificationAction`**, text přichází v `UNTextInputNotificationResponse.userText`.
+  Žádné tlačítko zprávy nemá volbu `Foreground`, takže okno se nevytahuje; prázdná odpověď
+  se zahodí jako na Windows.
+- **Kliknutí na oznámení je `UNNotificationDefaultActionIdentifier`**, ne prázdný řetězec — most
+  ho převede na `null` (= otevřít chat). Zavření oznámení (`UNNotificationDismissActionIdentifier`)
+  by přišlo jen s `CustomDismissAction`, kterou Plume nedává; most ho přesto zahodí.
+- **Při testu zprávu „ukradne" i otevřený chat.** Kromě jiného klienta (viz výš) nevydá TDLib
+  oznámení ani tehdy, když je chat otevřený v Plume samotném, nebo když ho má telefon otevřený
+  na obrazovce — zpráva se rovnou přečte. Minimalizovat okno netřeba, stačí jiná aplikace
+  v popředí a chat zavřený všude. Ztlumený chat (třeba po testu „Ztlumit") oznámení nedává taky.
+- **Ověřeno na macOS 26.6** (`runDistributable -PdesktopDebug`, zprávy od Notifikátora):
+  odpověď z pole odešla a server ji potvrdil, oznámení se stáhlo; Označit jako přečtené
+  a Ztlumit na hodinu prošly (`přečten z toastu`, `ztlumen z toastu` v logu); klik na oznámení
+  dál otevírá chat a vytahuje okno. **Neověřeno**: tlačítka hovoru po přestavbě mostu
+  (Přijmout / Odmítnout), oznámení ze starší verze, „Neodesláno" a změna jazyka popisků.
 
 ### Notifikace na Windows
 

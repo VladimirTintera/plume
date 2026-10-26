@@ -176,4 +176,38 @@ class ToastXmlTest {
         assertFalse(parse(toastXml(notification())).documentElement.hasAttribute("scenario"))
         assertNull(parseActivation("action=answer&chat=42"))
     }
+
+    // Oznámení macOS: argumenty v userInfo, tlačítko jen identifikátorem z kategorie.
+
+    @Test
+    fun macButtonsRoundTrip() {
+        val arguments = notificationArguments(notification(topicId = 7, buttons = buttons(quote = 99)))
+        assertEquals(ToastActivation.Open(42, 7), parseNotificationResponse(arguments, action = null, reply = null))
+        assertEquals(ToastActivation.Reply(42, 7, quoteMessageId = 99, text = "ahoj"), parseNotificationResponse(arguments, "reply", " ahoj "))
+        assertEquals(ToastActivation.MarkRead(42, messageId = 99), parseNotificationResponse(arguments, "read", null))
+        assertEquals(ToastActivation.Mute(42), parseNotificationResponse(arguments, "mute", null))
+        assertNull(parseNotificationResponse(arguments, "reply", "  "))
+    }
+
+    @Test
+    fun macCallRoundTrip() {
+        val arguments = notificationArguments(notification(call = CallButtons(callId = 314, answer = "Přijmout", decline = "Odmítnout")))
+        assertEquals(ToastActivation.AnswerCall(42, 314), parseNotificationResponse(arguments, "answer", null))
+        assertEquals(ToastActivation.DeclineCall(42, 314), parseNotificationResponse(arguments, "decline", null))
+        assertEquals(ToastActivation.Open(42, null), parseNotificationResponse(arguments, null, null))
+    }
+
+    /** Oznámení ze starší verze v Centru oznámení: most z chatId / topicId / callId složí totéž. */
+    @Test
+    fun macLegacyNotificationStillOpens() {
+        assertEquals(ToastActivation.Open(42, 7), parseNotificationResponse("chat=42&topic=7&call=0", null, null))
+        assertEquals(ToastActivation.AnswerCall(42, 314), parseNotificationResponse("chat=42&topic=0&call=314", "answer", null))
+    }
+
+    @Test
+    fun macCategoryFollowsPermissions() {
+        assertEquals("message", MacNotificationCenter.messageCategory(canReply = false, canMute = false))
+        assertEquals("message-reply-mute", MacNotificationCenter.messageCategory(canReply = true, canMute = true))
+        assertEquals("message-mute", MacNotificationCenter.messageCategory(canReply = false, canMute = true))
+    }
 }

@@ -85,6 +85,24 @@ private fun StringBuilder.appendAction(label: String, arguments: String, inputId
 internal fun activationArguments(chatId: Long, topicId: Int?): String = "chat=$chatId&topic=${topicId ?: 0}"
 
 /**
+ * Argumenty oznámení na macOS: všechno, co jeho tlačítka potřebují, v jednom řetězci. Toast nese
+ * argumenty u každého tlačítka zvlášť, kdežto `UNNotificationCategory` jen identifikátor
+ * tlačítka — ten se přidá až při odpovědi ([parseNotificationResponse]).
+ */
+internal fun notificationArguments(notification: DesktopNotification): String = buildString {
+    append(activationArguments(notification.chatId, notification.topicId))
+    notification.buttons?.let { append("&msg=").append(it.messageId ?: 0).append("&quote=").append(it.quoteMessageId ?: 0) }
+    notification.call?.let { append("&call=").append(it.callId) }
+}
+
+/**
+ * Odpověď na oznámení macOS: [arguments] z [notificationArguments], [action] = identifikátor
+ * tlačítka (`null` = klik na oznámení), [reply] = text napsaný do pole odpovědi.
+ */
+internal fun parseNotificationResponse(arguments: String, action: String?, reply: String?): ToastActivation? =
+    parseActivation(if (action == null) arguments else "action=$action&$arguments", reply)
+
+/**
  * Co uživatel s toastem udělal, z argumentů kliknutí a textu pole odpovědi. `null`, když
  * v argumentech chat není — nebo u odpovědi bez textu (Odeslat jde stisknout i s prázdným polem).
  */

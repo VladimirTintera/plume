@@ -54,9 +54,9 @@ import kotlinx.datetime.toLocalDateTime
  * - **Odznak** je počet nepřečtených zpráv v neztlumených chatech hlavního seznamu, stejně jako
  *   na iOS: v Docku (macOS), na tlačítku okna (Windows). Viz [DesktopTaskbar].
  * - **Tlačítko okna na Windows blikne** u oznámení se zvukem, když okno není aktivní.
- * - **Tlačítka toastu na Windows** (odpovědět, přečíst, ztlumit na hodinu) dělají totéž co akce
- *   notifikace na Androidu, přes sdílené [NotificationActions]. Běží na pozadí, okno se
- *   nevytahuje; nepovedená odpověď se ohlásí dalším toastem.
+ * - **Tlačítka oznámení na macOS a toastu na Windows** (odpovědět, přečíst, ztlumit na hodinu)
+ *   dělají totéž co akce notifikace na Androidu, přes sdílené [NotificationActions]. Běží na
+ *   pozadí, okno se nevytahuje; nepovedená odpověď se ohlásí dalším oznámením.
  * - **Příchozí hovor, který tu jde přijmout** ([callsSupported]), má Přijmout a Odmítnout
  *   (macOS i Windows) a je tichý — zvoní `DesktopCallRinger` ve smyčce. Přijmout vytáhne okno
  *   a předá hovor obrazovce hovoru ([CallRequests]), ta se zeptá na mikrofon a přijme.
@@ -108,11 +108,8 @@ actual class NotificationPresenter internal constructor(
             }
         }
         if (!notifier.available) logger.i { "Systémová oznámení tu nejsou k dispozici (ladicí běh na macOS?)." }
-        if (answerable) {
-            scope.launch(dispatcher) {
-                val labels = callLabels()
-                notifier.prepareCalls(labels.answer, labels.decline)
-            }
+        if (answerable || actions != null) {
+            scope.launch(dispatcher) { prepareActions(if (actions != null) buttonLabels() else null) }
         }
 
         scope.launch(dispatcher) {
@@ -132,6 +129,8 @@ actual class NotificationPresenter internal constructor(
 
     private suspend fun add(notifications: List<ChatNotification>) {
         val labels = if (actions != null) buttonLabels() else null
+        // Popisky se mohly změnit s jazykem; na macOS jsou v kategoriích, ne v oznámení.
+        if (labels != null) prepareActions(labels)
         var attention = false
         notifications.groupBy { it.groupId }.forEach { (groupId, batch) ->
             val ids = known.getOrPut(groupId) { mutableSetOf() }
@@ -174,6 +173,15 @@ actual class NotificationPresenter internal constructor(
         }
         // Jednou za dávku, ne za každý chat.
         if (attention) DesktopTaskbar.requestAttention()
+    }
+
+    /**
+     * Popisky tlačítek dopředu (viz [DesktopNotifier.prepareActions]): hovoru, když ho tu jde
+     * přijmout, a zpráv podle [buttons]. Znovu před každým oznámením kvůli změně jazyka;
+     * notifier přepisuje, jen když se popisky liší.
+     */
+    private suspend fun prepareActions(buttons: NotificationButtons.Labels?) {
+        notifier.prepareActions(call = if (answerable) callLabels() else null, buttons = buttons)
     }
 
     private suspend fun buttonLabels() = NotificationButtons.Labels(
@@ -271,9 +279,8 @@ actual class NotificationPresenter internal constructor(
         calls += call.groupId
         val buttons = if (answerable) {
             incoming[call.callId] = call
-            val labels = callLabels()
-            notifier.prepareCalls(labels.answer, labels.decline)
-            labels.copy(callId = call.callId)
+            prepareActions(if (actions != null) buttonLabels() else null)
+            callLabels().copy(callId = call.callId)
         } else {
             null
         }

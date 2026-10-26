@@ -188,11 +188,12 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - **Ověřit Windows a Linux.** Přeložené a zabalitelné, ale nespuštěné. Linux chce glibc 2.34+.
 - **Ověřit macOS pod 26.** Od wrapperu 16.0.0 má balíček `minimumSystemVersion` 14.0 (Apple
   Silicon, kvůli ntgcalls), spuštěné je ale jen na macOS 26.
-- **Notifikace: ověřit Windows a Linux** (AWT `TrayIcon`, na Linuxu podle prostředí —
-  lepší by byl `org.freedesktop.Notifications` přes D-Bus), odznak v Docku a zavření okna
-  s návratem z Docku. Akce v oznámení (Odpovědět, Přečteno) zatím nejsou; na macOS by šly
-  přes `UNNotificationCategory`. Na Windows a Linuxu zavření okna aplikaci ukončí — chce
-  ikonu v oznamovací oblasti.
+- **Notifikace: ověřit Linux** (AWT `TrayIcon`, podle prostředí — lepší by byl
+  `org.freedesktop.Notifications` přes D-Bus), odznak v Docku a zavření okna s návratem
+  z Docku. ~~Akce v oznámení (Odpovědět, Přečteno, Ztlumit)~~ — hotovo na Windows i macOS
+  (`docs/poznatky/desktop.md`, „Tlačítka toastu", „Tlačítka oznámení na macOS"); na macOS
+  zbývá ověřit Přijmout / Odmítnout hovor po přestavbě mostu. Na Linuxu
+  tlačítka nejsou a zavření okna aplikaci ukončí — chce ikonu v oznamovací oblasti.
 - **Hovory**: na macOS hlasové i videohovory se zvoněním, okénkem příchozího hovoru
   a náhledem kamery (ntgcalls přes JNA, `docs/poznatky/hovory.md`, „Desktop"); Windows
   a Linux neověřené. Co zbývá, je v sekci Hovory.

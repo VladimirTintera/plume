@@ -27,7 +27,7 @@ internal data class DesktopNotification(
     val avatarPath: String?,
     /** Čas zprávy v sekundách; `null` = teď. */
     val timestamp: Long? = null,
-    /** Tlačítka u oznámení chatu (zatím jen toasty Windows); `null` = žádná. */
+    /** Tlačítka u oznámení chatu (macOS a toasty Windows); `null` = žádná. */
     val buttons: NotificationButtons? = null,
     /** Příchozí hovor, který jde přijmout tady: Přijmout a Odmítnout; `null` = není hovor. */
     val call: CallButtons? = null,
@@ -69,15 +69,15 @@ internal interface DesktopNotifier {
     fun removeAll()
 
     /**
-     * Popisky tlačítek hovoru. macOS je nese v kategorii oznámení, kterou systém registruje
-     * asynchronně — proto se nastavují dopředu, ne až s prvním hovorem.
+     * Popisky tlačítek hovoru a zpráv (`null` = ta tlačítka tu nejsou). macOS je nese
+     * v kategoriích oznámení, které systém registruje asynchronně — proto se nastavují dopředu,
+     * ne až s prvním oznámením. Toast na Windows je má v sobě a tohle nepotřebuje.
      */
-    fun prepareCalls(answer: String, decline: String) = Unit
+    fun prepareActions(call: CallButtons?, buttons: NotificationButtons.Labels?) = Unit
 
     /**
      * Klik na oznámení ([ToastActivation.Open]) nebo na jeho tlačítko (odpověď, přečtení,
-     * ztlumení — ta běží na pozadí). Tlačítka zpráv mají zatím jen toasty Windows, tlačítka
-     * hovoru i macOS.
+     * ztlumení — ta běží na pozadí). Tlačítka mají macOS a toasty Windows, AWT ne.
      */
     var onActivated: ((ToastActivation) -> Unit)?
 }
@@ -90,6 +90,8 @@ internal fun desktopNotifier(): DesktopNotifier = when {
 }
 
 private class MacNotifier : DesktopNotifier {
+
+    private val logger = Logger.withTag("MacNotifier")
 
     override val available: Boolean get() = MacNotificationCenter.available
 
@@ -109,21 +111,37 @@ private class MacNotifier : DesktopNotifier {
             title = notification.title,
             subtitle = notification.subtitle,
             body = notification.body,
-            chatId = notification.chatId,
-            topicId = notification.topicId ?: 0,
+            arguments = notificationArguments(notification),
+            category = category(notification),
             silent = notification.silent,
             attachmentPath = (notification.imagePath ?: notification.avatarPath)?.let(::attachmentCopy),
-            callId = notification.call?.callId ?: 0,
         )
     }
 
-    /** Naposledy registrované popisky; kategorie se přepisuje, jen když se změní (jazyk). */
-    private var callLabels: Pair<String, String>? = null
+    private fun category(notification: DesktopNotification): String? = when {
+        notification.call != null -> MacNotificationCenter.CATEGORY_CALL
+        else -> notification.buttons?.let { MacNotificationCenter.messageCategory(it.canReply, it.canMute) }
+    }
 
-    override fun prepareCalls(answer: String, decline: String) {
-        if (!available || callLabels == answer to decline) return
-        callLabels = answer to decline
-        MacNotificationCenter.nativeSetCallActions(answer, decline)
+    /**
+     * Naposledy registrované popisky; kategorie se přepisují, jen když se změní (jazyk). Volá
+     * se jen z dispečera presenteru.
+     */
+    private var actionLabels: Pair<CallButtons?, NotificationButtons.Labels?>? = null
+
+    override fun prepareActions(call: CallButtons?, buttons: NotificationButtons.Labels?) {
+        // Id hovoru v popiscích nehraje roli.
+        val labels = call?.copy(callId = 0) to buttons
+        if (!available || actionLabels == labels) return
+        actionLabels = labels
+        MacNotificationCenter.nativeSetActions(
+            answer = call?.answer,
+            decline = call?.decline,
+            reply = buttons?.reply,
+            send = buttons?.send,
+            markRead = buttons?.markRead,
+            mute = buttons?.mute,
+        )
     }
 
     override fun remove(ids: List<String>) {
@@ -137,13 +155,9 @@ private class MacNotifier : DesktopNotifier {
     override var onActivated: ((ToastActivation) -> Unit)? = null
         set(value) {
             field = value
-            MacNotificationCenter.onActivated = { chatId, topicId, action, callId ->
-                val activation = when (action) {
-                    MacNotificationCenter.ACTION_ANSWER -> ToastActivation.AnswerCall(chatId, callId)
-                    MacNotificationCenter.ACTION_DECLINE -> ToastActivation.DeclineCall(chatId, callId)
-                    else -> ToastActivation.Open(chatId, topicId.takeIf { it != 0 })
-                }
-                value?.invoke(activation)
+            MacNotificationCenter.onActivated = { arguments, action, text ->
+                val activation = parseNotificationResponse(arguments, action, text)
+                if (activation == null) logger.d { "Oznámení bez akce: $arguments, tlačítko $action." } else value?.invoke(activation)
             }
         }
 

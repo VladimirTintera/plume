@@ -12,18 +12,18 @@ import eu.tintera.plume.core.platform.MacNative
 internal object MacNotificationCenter {
 
     /**
-     * Klik na notifikaci nebo její tlačítko: chat, téma (0 = bez tématu), tlačítko
-     * ([ACTION_ANSWER], [ACTION_DECLINE], `null` = klik na oznámení) a hovor (0 = není hovor).
-     * Nastavuje presenter.
+     * Klik na notifikaci nebo její tlačítko: argumenty oznámení (tytéž jako u toastu na Windows,
+     * [notificationArguments]), tlačítko (`reply`, `read`, `mute`, `answer`, `decline`; `null` = klik na oznámení)
+     * a text napsaný do pole odpovědi. Nastavuje presenter.
      */
     @Volatile
-    var onActivated: ((chatId: Long, topicId: Int, action: String?, callId: Int) -> Unit)? = null
+    var onActivated: ((arguments: String, action: String?, text: String?) -> Unit)? = null
 
     val available: Boolean by lazy { MacNative.loaded && nativeInit() }
 
     @JvmStatic
-    fun onActivated(chatId: Long, topicId: Int, action: String?, callId: Int) {
-        onActivated?.invoke(chatId, topicId, action, callId)
+    fun onActivated(arguments: String, action: String?, text: String?) {
+        onActivated?.invoke(arguments, action, text)
     }
 
     @JvmStatic
@@ -43,17 +43,27 @@ internal object MacNotificationCenter {
         title: String,
         subtitle: String?,
         body: String,
-        chatId: Long,
-        topicId: Int,
+        /** Vrátí se v [onActivated]; most mu nerozumí. */
+        arguments: String,
+        /** Kategorie s tlačítky ([CATEGORY_CALL], [CATEGORY_MESSAGE]…); `null` = bez tlačítek. */
+        category: String?,
         silent: Boolean,
         attachmentPath: String?,
-        /** Příchozí hovor (0 = zpráva): oznámení dostane kategorii s Přijmout a Odmítnout. */
-        callId: Int,
     )
 
-    /** Kategorie oznámení hovoru s tlačítky; popisky jsou v ní, ne v jednotlivém oznámení. */
+    /**
+     * Kategorie oznámení s tlačítky; popisky jsou v nich, ne v jednotlivém oznámení. Registruje
+     * se celá sada naráz: `null` u hovoru nebo u zpráv tu skupinu vynechá.
+     */
     @JvmStatic
-    external fun nativeSetCallActions(answer: String, decline: String)
+    external fun nativeSetActions(
+        answer: String?,
+        decline: String?,
+        reply: String?,
+        send: String?,
+        markRead: String?,
+        mute: String?,
+    )
 
     @JvmStatic
     external fun nativeRemove(identifiers: Array<String>)
@@ -61,7 +71,15 @@ internal object MacNotificationCenter {
     @JvmStatic
     external fun nativeRemoveAll()
 
-    // Identifikátory tlačítek; tytéž jsou v PlumeNotifications.m.
-    const val ACTION_ANSWER = "answer"
-    const val ACTION_DECLINE = "decline"
+    // Kategorie; tytéž jsou v PlumeNotifications.m. Identifikátory tlačítek v ní jsou hodnoty
+    // `action=` z argumentů toastu (`reply`, `read`, `answer`…), takže je rozebere parseActivation.
+    const val CATEGORY_CALL = "call"
+    const val CATEGORY_MESSAGE = "message"
+
+    /** Kategorie zprávy podle tlačítek, která jí patří (`message`, `message-reply`, …). */
+    fun messageCategory(canReply: Boolean, canMute: Boolean): String = buildString {
+        append(CATEGORY_MESSAGE)
+        if (canReply) append("-reply")
+        if (canMute) append("-mute")
+    }
 }
