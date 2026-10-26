@@ -183,6 +183,16 @@ poskytovatelích nemusí vědět nic.
     že novější události mají přednost. Části se plní od nejnovějších, takže starší část bývá
     malá a nová velká — model se v ní ztrácí stejně jako v jednom dlouhém promptu. Jestli to
     E4B nebo Nano zvládnou líp, se ukáže až na telefonu.
+- **Shrnutí bez úvodu a o uživateli ve druhé osobě** (`NO_INTRO_INSTRUCTION`,
+  `readerInstruction`, `withoutIntro`; testy `SummaryPromptTest`). Porovnání na Foldu
+  (Nano fast i Gemma 4 E4B) ukázalo dvě chyby, které měly OBA modely: úvodní „Zde je shrnutí
+  konverzace:" a podpis uživatelových zpráv „Já" opsaný jako jméno v uvozovkách („Martin
+  Glasnák a "Já" se…"). Prompt shrnutí na rozdíl od vysvětlení pokyn „začni rovnou odrážkou"
+  neměl; přibyl do celku, částí i složení. O „Já" teď model ví, že je to čtenář, a píše
+  o něm ve druhé osobě, česky výslovně tykáním (aplikace tyká). **Úvod navíc odstraní kód**
+  (první řádek, který není odrážka a končí dvojtečkou, když po něm odrážky jsou) — i během
+  psaní a i u poznámek k částem. Vysvětlení zprávy pokyn mělo a podpis „Já" v něm není.
+  **Na Foldu po opravě neověřené.**
 - **Odrážka má nejvýš 20 slov a useknutý text končí poslední celou odrážkou**
   (`completeLines`). Bez délky v instrukci psal model u delšího přepisu odrážku skoro ke každé
   zprávě a narazil na strop uprostřed věty; useknutá věta vypadala jako chyba modelu. Že je

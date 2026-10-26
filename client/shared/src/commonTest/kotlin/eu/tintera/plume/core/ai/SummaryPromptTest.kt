@@ -2,6 +2,7 @@ package eu.tintera.plume.core.ai
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class SummaryPromptTest {
@@ -129,5 +130,45 @@ class SummaryPromptTest {
         assertEquals("- Jana přijde\n- Petr ne", completeLines("- Jana přijde\n- Petr ne\n- Karel ř"))
         // Bez celého řádku zůstane, co je.
         assertEquals("- Jana při", completeLines("- Jana při"))
+    }
+
+    /**
+     * Uživatel podepsaný „Já" je čtenář shrnutí: píše se o něm ve druhé osobě, česky tykáním.
+     * Všechny tři prompty shrnutí (celek, část, složení) to říkají stejně, a bez úvodu.
+     */
+    @Test
+    fun ctenarVeDruheOsobeABezUvodu() {
+        val lines = listOf(TranscriptLine("Martin", "Máš dopravu zdarma?"), TranscriptLine("Já", "Asi jo"))
+        val prompts = listOf(
+            summaryPrompt("Martin", lines, "cs", me = "Já"),
+            partSummaryPrompt("Martin", lines, 1, 2, "cs", me = "Já"),
+            combinedSummaryPrompt("Martin", listOf("- Martin se ptal"), "cs", me = "Já"),
+        )
+        for (prompt in prompts) {
+            assertTrue("\"Já\" in the transcript is the user who reads this summary" in prompt, prompt)
+            assertTrue("informal (ty)" in prompt, prompt)
+            assertTrue("never write \"Já\" as a name" in prompt, prompt)
+            assertTrue("start directly with the first bullet point, no introduction" in prompt, prompt)
+        }
+        assertTrue("the second person (you)" in summaryPrompt("Martin", lines, "en", me = "Me"))
+        // Bez podpisu (starší volající) se o čtenáři nic neříká, úvod se zakazuje i tak.
+        val anonymous = summaryPrompt("Martin", lines, "cs")
+        assertFalse("reads this summary" in anonymous)
+        assertTrue("no introduction" in anonymous)
+    }
+
+    @Test
+    fun uvodniRadekSeZahodi() {
+        assertEquals("- Martin se ptal\n- Ty jsi odpověděl", withoutIntro("Zde je shrnutí konverzace:\n\n- Martin se ptal\n- Ty jsi odpověděl"))
+        assertEquals("- A", withoutIntro("  \nHere is the summary:\n- A"))
+    }
+
+    /** Text bez úvodu, úvod bez odrážek a řádek bez dvojtečky zůstanou, jak jsou. */
+    @Test
+    fun bezUvoduSeNicNemeni() {
+        assertEquals("- A\n- B", withoutIntro("- A\n- B"))
+        assertEquals("Zde je shrnutí:", withoutIntro("Zde je shrnutí:"))
+        assertEquals("Martin se ptal na dopravu.\n- A", withoutIntro("Martin se ptal na dopravu.\n- A"))
+        assertEquals("Zde je shrnutí:\nMartin se ptal.", withoutIntro("Zde je shrnutí:\nMartin se ptal."))
     }
 }

@@ -39,13 +39,15 @@ const val MAX_LINE_CHARS = 600
  * Jazyk ODPOVĚDI se volí výslovně podle jazyka aplikace ([languageCode]); bez toho model odpovídá
  * jazykem instrukcí, ne konverzace.
  *
- * [lines] jsou chronologicky, nejstarší první.
+ * [lines] jsou chronologicky, nejstarší první. [me] je podpis uživatelových zpráv v přepisu
+ * („Já"), viz [readerInstruction].
  */
 fun summaryPrompt(
     chatTitle: String,
     lines: List<TranscriptLine>,
     languageCode: String,
     maxChars: Int = MAX_TRANSCRIPT_CHARS,
+    me: String? = null,
 ): String {
     val transcript = fitTranscript(lines, maxChars)
     return buildString {
@@ -56,8 +58,10 @@ fun summaryPrompt(
         appendLine("- 3 to 6 bullet points, each starting with \"- \"")
         appendLine("- $BULLET_LENGTH_INSTRUCTION")
         appendLine("- mention who said or decided what, using the names from the transcript")
+        me?.let { appendLine("- ${readerInstruction(it, languageCode)}") }
         appendLine("- only facts from the transcript, do not invent anything")
         appendLine("- ${languageInstruction(languageCode)}")
+        appendLine("- $NO_INTRO_INSTRUCTION")
         appendLine()
         appendLine("Transcript:")
         appendLine(transcript)
@@ -147,6 +151,7 @@ fun partSummaryPrompt(
     partNumber: Int,
     partCount: Int,
     languageCode: String,
+    me: String? = null,
 ): String = buildString {
     appendLine("You take notes on a long chat conversation from the messaging app Telegram.")
     appendLine("Chat name: $chatTitle")
@@ -156,8 +161,10 @@ fun partSummaryPrompt(
     appendLine("- at most 4 bullet points, each starting with \"- \"")
     appendLine("- $BULLET_LENGTH_INSTRUCTION")
     appendLine("- mention who said or decided what, using the names from the transcript")
+    me?.let { appendLine("- ${readerInstruction(it, languageCode)}") }
     appendLine("- only facts from the transcript, do not invent anything")
     appendLine("- ${languageInstruction(languageCode)}")
+    appendLine("- $NO_INTRO_INSTRUCTION")
     appendLine()
     appendLine("Transcript:")
     appendLine(fitTranscript(part, maxChars = Int.MAX_VALUE))
@@ -170,7 +177,7 @@ fun partSummaryPrompt(
  * tytéž jako u [summaryPrompt], jen místo přepisu dostane model poznámky — a novější části
  * mají přednost, jako když se přepis ořezává zezačátku.
  */
-fun combinedSummaryPrompt(chatTitle: String, notes: List<String>, languageCode: String): String = buildString {
+fun combinedSummaryPrompt(chatTitle: String, notes: List<String>, languageCode: String, me: String? = null): String = buildString {
     appendLine("You summarize a long chat conversation from the messaging app Telegram.")
     appendLine("Chat name: $chatTitle")
     appendLine("Below are notes on consecutive parts of the conversation, oldest part first.")
@@ -180,8 +187,10 @@ fun combinedSummaryPrompt(chatTitle: String, notes: List<String>, languageCode: 
     appendLine("- $BULLET_LENGTH_INSTRUCTION")
     appendLine("- recent events matter more than old ones")
     appendLine("- mention who said or decided what, using the names from the notes")
+    me?.let { appendLine("- ${readerInstruction(it, languageCode)}") }
     appendLine("- only facts from the notes, do not invent anything")
     appendLine("- ${languageInstruction(languageCode)}")
+    appendLine("- $NO_INTRO_INSTRUCTION")
     appendLine()
     notes.forEachIndexed { index, note ->
         appendLine("Notes on part ${index + 1}:")
@@ -200,6 +209,39 @@ fun combinedSummaryPrompt(chatTitle: String, notes: List<String>, languageCode: 
 fun completeLines(text: String): String {
     val end = text.trimEnd().lastIndexOf('\n')
     return if (end <= 0) text else text.substring(0, end).trimEnd()
+}
+
+/**
+ * Shrnutí bez úvodní věty. Bez pokynu psaly Gemini Nano i Gemma 4 E4B (na Foldu) před odrážky
+ * „Zde je shrnutí konverzace:" — vysvětlení a shrnutí hlasovky ten pokyn měly odjakživa.
+ */
+private const val NO_INTRO_INSTRUCTION = "start directly with the first bullet point, no introduction"
+
+/**
+ * Kdo je [me]: uživatel, který shrnutí čte. Bez toho modely podpis opisovaly jako jméno třetí
+ * osoby v uvozovkách („Martin Glasnák a "Já" se…", obě na Foldu). Ve druhé osobě se shrnutí
+ * čte přirozeně („Martin se ptal, jestli máš dopravu zdarma"); česky tykáním, jako celá
+ * aplikace — bez výslovného „ty" by model mohl vykat.
+ */
+internal fun readerInstruction(me: String, languageCode: String): String {
+    val person = if (languageCode == "cs") "the second person singular, informal (ty)" else "the second person (you)"
+    return "\"$me\" in the transcript is the user who reads this summary: write about them in $person, never write \"$me\" as a name"
+}
+
+/**
+ * Úvodní řádek, který model napsal i přes [NO_INTRO_INSTRUCTION] („Zde je shrnutí konverzace:"),
+ * se zahodí: první neprázdný řádek, který není odrážka a končí dvojtečkou, když po něm odrážky
+ * jsou. Jinak se text nemění — shrnutí bez odrážek je pořád lepší než prázdno.
+ */
+fun withoutIntro(text: String): String {
+    val lines = text.lines()
+    val first = lines.indexOfFirst { it.isNotBlank() }
+    if (first < 0) return text
+    val line = lines[first].trim()
+    if (line.startsWith("-") || line.startsWith("*") || line.startsWith("•") || !line.endsWith(":")) return text
+    val rest = lines.drop(first + 1).dropWhile { it.isBlank() }
+    if (rest.firstOrNull()?.trimStart()?.startsWith("-") != true) return text
+    return rest.joinToString("\n")
 }
 
 private fun languageInstruction(languageCode: String): String = when (languageCode) {

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.withoutIntro
 import eu.tintera.plume.core.ai.voiceSummaryPrompt
 import kotlin.time.TimeSource
 import kotlin.time.TimeMark
@@ -247,7 +248,7 @@ class ChatSummaryViewModel(
                 _state.value = ChatSummaryState.NothingToSummarize
                 return@launch
             }
-            start(SummaryRequest.Summary(chatTitle, lines))
+            start(SummaryRequest.Summary(chatTitle, lines, me))
         }
     }
 
@@ -369,7 +370,7 @@ class ChatSummaryViewModel(
         started: TimeMark,
         out: (ChatSummaryState) -> Unit,
     ) {
-        val (chatTitle, lines) = request
+        val (chatTitle, lines, me) = request
         val info = ai.info(variant)
         val limit = info?.tokenLimit
 
@@ -380,18 +381,18 @@ class ChatSummaryViewModel(
          * s odhadem a případný přesah ohlásí až generování.
          */
         var maxChars = transcriptCharsFor(limit)
-        var prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
+        var prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars, me = me)
         var tokens = ai.countTokens(variant, prompt)
         repeat(MAX_FIT_ATTEMPTS) {
             val over = tokens
             if (limit == null || over == null || over <= limit) return@repeat
             maxChars = shrunkTranscriptChars(maxChars, over, limit)
-            prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
+            prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars, me = me)
             tokens = ai.countTokens(variant, prompt)
         }
         val kept = keptLineCount(lines, maxChars)
         if (kept < lines.size) {
-            summarizeInParts(variant, chatTitle, lines, maxChars, info?.name, tokens, limit, started, out)
+            summarizeInParts(variant, chatTitle, me, lines, maxChars, info?.name, tokens, limit, started, out)
             return
         }
         val details = SummaryDetails(
@@ -416,6 +417,7 @@ class ChatSummaryViewModel(
     private suspend fun summarizeInParts(
         variant: ModelVariant,
         chatTitle: String,
+        me: String,
         lines: List<TranscriptLine>,
         maxChars: Int,
         modelName: String?,
@@ -436,16 +438,16 @@ class ChatSummaryViewModel(
         val notes = mutableListOf<String>()
         parts.forEachIndexed { index, part ->
             out(ChatSummaryState.ReadingParts(part = index + 1, parts = parts.size))
-            val prompt = partSummaryPrompt(chatTitle, part, index + 1, parts.size, platformLanguageCode)
+            val prompt = partSummaryPrompt(chatTitle, part, index + 1, parts.size, platformLanguageCode, me = me)
             val note = runAi(out) { ai.generate(variant, prompt).lastOrNull()?.text } ?: return
-            if (note.isNotBlank()) notes += note
+            if (note.isNotBlank()) notes += withoutIntro(note)
         }
         if (notes.isEmpty()) {
             logger.w { "Model shrnutí nenapsal k žádné části nic" }
             out(ChatSummaryState.Failed(emptyOutputMessage))
             return
         }
-        generateInto(variant, combinedSummaryPrompt(chatTitle, notes, platformLanguageCode), details, started, out)
+        generateInto(variant, combinedSummaryPrompt(chatTitle, notes, platformLanguageCode, me = me), details, started, out)
     }
 
     /**
@@ -476,7 +478,8 @@ class ChatSummaryViewModel(
                 last = chunk
                 out(
                     ChatSummaryState.Text(
-                        text = chunk.text,
+                        // Úvod („Zde je shrnutí…") zmizí, jakmile pod ním začne první odrážka.
+                        text = withoutIntro(chunk.text),
                         done = false,
                         details = details,
                         truncated = chunk.truncated,
@@ -491,7 +494,7 @@ class ChatSummaryViewModel(
                     if (last.truncated) logger.i { "Model shrnutí nedopsal, došel mu strop výstupu" }
                     ChatSummaryState.Text(
                         // Useknutá věta by vypadala jako chyba modelu; celé odrážky ne.
-                        text = if (last.truncated) completeLines(last.text) else last.text,
+                        text = withoutIntro(if (last.truncated) completeLines(last.text) else last.text),
                         done = true,
                         details = details,
                         truncated = last.truncated,
@@ -533,7 +536,8 @@ class ChatSummaryViewModel(
 private sealed interface SummaryRequest {
     val task: AiTask
 
-    data class Summary(val chatTitle: String, val lines: List<TranscriptLine>) : SummaryRequest {
+    /** [me] je podpis uživatelových zpráv v přepisu („Já"); model o něm píše ve druhé osobě. */
+    data class Summary(val chatTitle: String, val lines: List<TranscriptLine>, val me: String) : SummaryRequest {
         override val task get() = AiTask.Summary
     }
 
