@@ -4176,7 +4176,7 @@ internal fun MessageSendingStateFailed.toSendFailure(): SendFailure = SendFailur
     reason = errorText(error.message, Res.string.conversation_send_failed_unknown),
 )
 
-private fun MessageSendingState?.toSendState(): SendState = when (this) {
+internal fun MessageSendingState?.toSendState(): SendState = when (this) {
     is MessageSendingStatePending -> SendState.Sending
     is MessageSendingStateFailed -> SendState.Failed
     else -> SendState.Sent

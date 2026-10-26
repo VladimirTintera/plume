@@ -8,9 +8,6 @@ import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.ForumTopic as TdlForumTopic
 import dev.g000sha256.tdl.dto.ForumTopicIcon
 import dev.g000sha256.tdl.dto.Message
-import dev.g000sha256.tdl.dto.MessageSender
-import dev.g000sha256.tdl.dto.MessageSenderChat
-import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageTopicForum
 import dev.g000sha256.tdl.dto.StickerFullTypeCustomEmoji
 import kotlinx.coroutines.flow.Flow
@@ -194,24 +191,13 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
         return TopicMessagePreview(
             text = named ?: previewText(),
             entities = if (named != null) emptyList() else previewEntities(),
-            senderName = if (isOutgoing || named != null) null else senderName(senderId, chatId),
+            senderName = if (isOutgoing || named != null) null else client.previewSenderName(senderId, chatId),
             isOutgoing = isOutgoing,
             timestamp = date,
             showsSender = named == null,
         )
     }
 
-    /**
-     * Jméno odesílatele, jen křestní — řádek je krátký a jméno je tu jen proto, aby bylo poznat,
-     * kdo v tématu naposledy psal. Anonymní správce (odesílatel je skupina sama) jméno nemá.
-     */
-    private suspend fun senderName(sender: MessageSender, chatId: Long): String? = when (sender) {
-        is MessageSenderUser -> client.getUser(userId = sender.userId).toResult().getOrNull()
-            ?.let { user -> user.firstName.ifBlank { user.lastName } }
-            ?.takeIf { it.isNotBlank() }
-        is MessageSenderChat -> sender.chatId.takeIf { it != chatId }
-            ?.let { client.getChat(chatId = it).toResult().getOrNull()?.title }
-    }
 }
 
 /**
