@@ -983,8 +983,11 @@ za to, od nejužitečnějšího:
   (`getForumTopicDefaultIcons`)~~ — hotovo (nabídka nad tématem → Kopírovat odkaz, formulář
   tématu → Ikona; `docs/poznatky/typy-zprav.md`, „Správa témat"). Jakékoli vlastní emoji
   (Premium) ne — ověřit by nebylo na čem.
-- **Tvorba samolepek — doplňky:** návrh a kontrola krátkého jména sady
-  (`getStickerSetName`, `checkStickerSetName`) a klíčová slova samolepky (`setStickerKeywords`).
+- ~~**Tvorba samolepek — doplňky:** vlastní odkaz sady s kontrolou (`checkStickerSetName`;
+  návrh `getSuggestedStickerSetName` se volal už dřív) a klíčová slova samolepky
+  (`NewSticker.keywords`, `setStickerKeywords`)~~ — hotovo (`docs/poznatky/emoji-samolepky-reakce.md`,
+  „Tvorba samolepky z fotky" a „Úprava vlastní sady"). `getStickerSetName` vrací jen jméno
+  sady podle id a Plume ho nepotřebuje.
 - **„Poslední soubory" ve výběru příloh** (`searchOutgoingDocumentMessages`) — odeslané
   dokumenty napříč chaty, bez hledání v úložišti zařízení.
 - **Samolepka na pozdrav v prázdném soukromém chatu** (`getGreetingStickers`) — NEJISTÉ:

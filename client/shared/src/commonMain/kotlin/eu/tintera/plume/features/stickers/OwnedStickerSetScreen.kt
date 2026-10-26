@@ -67,7 +67,13 @@ import eu.tintera.plume.core.ui.rememberDragReorderState
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.features.conversation.StickerPreview
 import eu.tintera.plume.features.settings.SettingsActionRow
+import eu.tintera.plume.core.telegram.stickerKeywords
+import eu.tintera.plume.core.telegram.stickerKeywordsFit
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.search_24dp
+import eu.tintera.plume.resources.sticker_keywords
+import eu.tintera.plume.resources.sticker_keywords_replace
+import eu.tintera.plume.resources.sticker_keywords_too_long
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.common_back
@@ -127,6 +133,7 @@ fun OwnedStickerSetScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val snackbarScope = rememberCoroutineScope()
     var editingEmoji by remember { mutableStateOf<StickerItem?>(null) }
+    var editingKeywords by remember { mutableStateOf<StickerItem?>(null) }
     var removing by remember { mutableStateOf<StickerItem?>(null) }
     var deleting by remember { mutableStateOf(false) }
 
@@ -266,6 +273,7 @@ fun OwnedStickerSetScreen(
                                         null
                                     },
                                     onChangeEmoji = { editingEmoji = sticker },
+                                    onChangeKeywords = { editingKeywords = sticker },
                                     onRemove = { removing = sticker },
                                 )
                                 Box(Modifier.size(48.dp).dragHandle(dragState, sticker.id), contentAlignment = Alignment.Center) {
@@ -315,6 +323,15 @@ fun OwnedStickerSetScreen(
             onDismiss = { editingEmoji = null },
         )
     }
+    editingKeywords?.let { sticker ->
+        KeywordsDialog(
+            onSave = { text ->
+                editingKeywords = null
+                viewModel.changeKeywords(sticker, text)
+            },
+            onDismiss = { editingKeywords = null },
+        )
+    }
     removing?.let { sticker ->
         ConfirmDialog(
             title = stringResource(Res.string.sticker_set_sticker_remove_title),
@@ -346,7 +363,7 @@ fun OwnedStickerSetScreen(
 }
 
 @Composable
-private fun StickerMenu(onSetCover: (() -> Unit)?, onChangeEmoji: () -> Unit, onRemove: () -> Unit) {
+private fun StickerMenu(onSetCover: (() -> Unit)?, onChangeEmoji: () -> Unit, onChangeKeywords: () -> Unit, onRemove: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }, shapes = IconButtonDefaults.shapes()) {
@@ -366,6 +383,10 @@ private fun StickerMenu(onSetCover: (() -> Unit)?, onChangeEmoji: () -> Unit, on
                     MenuAction(stringResource(Res.string.sticker_set_change_emoji), Res.drawable.mood_24dp) {
                         open = false
                         onChangeEmoji()
+                    },
+                    MenuAction(stringResource(Res.string.sticker_keywords), Res.drawable.search_24dp) {
+                        open = false
+                        onChangeKeywords()
                     },
                 ),
                 listOf(
@@ -408,6 +429,46 @@ private fun EmojiDialog(initial: String, onSave: (String) -> Unit, onDismiss: ()
         },
     )
 }
+
+/**
+ * Klíčová slova samolepky. Pole začíná PRÁZDNÉ: TDLib dosavadní slova vydat neumí, takže věta
+ * pod polem říká, že uložení je nahradí.
+ */
+@Composable
+private fun KeywordsDialog(onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var value by remember { mutableStateOf("") }
+    val fits = stickerKeywordsFit(stickerKeywords(value))
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.sticker_keywords)) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it.take(KEYWORDS_FIELD_MAX) },
+                singleLine = true,
+                label = { Text(stringResource(Res.string.sticker_keywords)) },
+                supportingText = {
+                    Text(stringResource(if (fits) Res.string.sticker_keywords_replace else Res.string.sticker_keywords_too_long))
+                },
+                isError = !fits,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(value) }, enabled = fits, shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(Res.string.sticker_set_emoji_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(Res.string.sticker_set_emoji_cancel))
+            }
+        },
+    )
+}
+
+/** Strop pole klíčových slov — limit hlídá [stickerKeywordsFit], tohle jen brzdí vložený román. */
+private const val KEYWORDS_FIELD_MAX = 200
 
 private val STICKER_SIZE = 56.dp
 private val COVER_SIZE = 48.dp

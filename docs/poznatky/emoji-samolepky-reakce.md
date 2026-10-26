@@ -724,9 +724,27 @@ ať se nerozejdou; kreslení a WebP ve Skie mají iOS a desktop společné v `Sk
   znovu a nahraje se přesně ta, kterou uživatel vidí. Šachovnice pod ní ukazuje průhlednost.
 - **Úprava fotky je editor příloh** (`PhotoMarkupEditor` + `PhotoMarkupRenderer`): ořez,
   otočení, kresba. Úprava se drží k originálu, jako u přílohy, takže jde vzít zpátky.
-- **Jméno sady (odkaz `t.me/addstickers/…`) navrhne Telegram** (`getSuggestedStickerSetName`
-  z názvu) — ruční by mohlo kolidovat. Název zadává uživatel, výchozí žádný: text složený ve
-  ViewModelu by po změně jazyka zůstal ve starém.
+- **Jméno sady (odkaz `t.me/addstickers/…`) je pole „Odkaz sady"** pod názvem nové sady
+  (`SetNameField`, `StickerComposerViewModel.setNewSetName`, testy `StickerComposerViewModelTest`).
+  Název zadává uživatel, výchozí žádný: text složený ve ViewModelu by po změně jazyka zůstal
+  ve starém.
+  - **Dokud ho uživatel nezmění, navrhuje ho Telegram** podle názvu
+    (`getSuggestedStickerSetName`, 400 ms po posledním písmenu). Návrh je volný a platný, takže
+    se neověřuje; jakmile jméno uživatel upraví, návrh ho už nepřepíše.
+  - **Vlastní jméno ověřuje `checkStickerSetName`** (zase s prodlevou): volné, neplatné,
+    obsazené. Během ověřování a s neplatným či obsazeným jménem se sada nezaloží. Když ověření
+    selže (bez spojení), rozhodne server při založení.
+  - **Pole samo propustí jen znaky, které odkaz unese** (`stickerSetNameInput`: anglická
+    písmena, číslice, podtržítko; mezera se stane podtržítkem). Další pravidla — na začátku
+    písmeno — hlídá až server, proto hláška u neplatného jména říká obojí. „1test" server
+    odmítl, „animals" je obsazené (ověřeno na emulátoru).
+  - **Smazané pole zůstane prázdné**, nevrací se do něj návrh: naskočil by po chvíli do pole,
+    do kterého uživatel začíná psát. Prázdné jméno = Telegram ho vybere při založení
+    (`createSet` se prázdným jménem si návrh vyžádá sám).
+- **Klíčová slova** (pole pod emoji, nepovinné; `NewSticker.keywords`) pomáhají samolepku
+  najít hledáním. Oddělují se čárkou, opakovaná a prázdná vypadnou (`stickerKeywords`); limit
+  je 20 slov a 64 znaků DOHROMADY (`stickerKeywordsFit`) a co se nevejde, je chyba pole, ne
+  potichu oříznutý seznam.
 - **Nová sada se sama nenainstaluje.** Po `createNewStickerSet` se do výběru dostala jen do
   restartu aplikace (update), pak v seznamu nainstalovaných chyběla — ověřeno na emulátoru.
   Repository ji proto hned nainstaluje (`changeStickerSet(isInstalled = true)`), a totéž při
@@ -823,6 +841,11 @@ Sady samolepek → ⋮ položku „Upravit sadu" (`OwnedStickerSetScreen`,
   smazání selže, nainstaluje ji zpátky.
 - **Odkaz sady se změnit nedá** — přejmenování (`setStickerSetTitle`) mění jen název, pod
   polem je vidět `t.me/addstickers/<name>`. Název má nejvýš 64 znaků.
+- **Klíčová slova samolepky** (⋮ u samolepky → „Klíčová slova", `setStickerKeywords`)
+  NAHRADÍ dosavadní a prázdné pole je smaže. **TDLib je číst neumí**, takže dialog začíná
+  prázdný a věta pod polem to říká; po uložení přijde hláška, protože obrazovka změnu nijak
+  neukáže. Ověřeno na emulátoru (26. 10. 2026, testovací sada „Plume test iOS": „plume, test"
+  server přijal). **Neověřené:** že hledání samolepek tu samolepku podle slova najde.
 - **Ověřeno na emulátoru 24. 10. 2026** (`Plume_Barvy`, …527, česky): přejmenování, přesun
   tažením (vydržel po návratu na obrazovku), dialog emoji s předvyplněným emoji, odebrání
   samolepky, smazání sady (s opravou zmizí ze seznamu hned). **Neověřené**: samotná změna

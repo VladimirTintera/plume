@@ -5,6 +5,7 @@ import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.core.stickers.StickerModelNotReadyException
 import eu.tintera.plume.core.telegram.NewStickerFile
 import eu.tintera.plume.core.telegram.OwnedStickerSet
+import eu.tintera.plume.core.telegram.StickerSetNameCheck
 import eu.tintera.plume.core.telegram.UnimplementedStickerRepository
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -49,13 +50,26 @@ class StickerComposerViewModelTest {
     private class FakeStickers(private val owned: List<OwnedStickerSet>) : UnimplementedStickerRepository() {
         val added = mutableListOf<Pair<String, NewStickerFile>>()
         val created = mutableListOf<Pair<String, NewStickerFile>>()
+        val createdNames = mutableListOf<String>()
+        val suggested = mutableListOf<String>()
+        val checked = mutableListOf<String>()
+        var check: StickerSetNameCheck = StickerSetNameCheck.Ok
+        override suspend fun suggestSetName(title: String): Result<String> {
+            suggested += title
+            return Result.success(title.lowercase().replace(' ', '_') + "_by_plume")
+        }
+        override suspend fun checkSetName(name: String): Result<StickerSetNameCheck> {
+            checked += name
+            return Result.success(check)
+        }
         override suspend fun ownedSets() = Result.success(owned)
         override suspend fun addToSet(set: OwnedStickerSet, sticker: NewStickerFile): Result<Unit> {
             added += set.name to sticker
             return Result.success(Unit)
         }
-        override suspend fun createSet(title: String, sticker: NewStickerFile): Result<OwnedStickerSet> {
+        override suspend fun createSet(title: String, sticker: NewStickerFile, name: String): Result<OwnedStickerSet> {
             created += title to sticker
+            createdNames += name
             return Result.success(OwnedStickerSet(9, "new_set", title, 1, null))
         }
     }
@@ -103,6 +117,64 @@ class StickerComposerViewModelTest {
         vm.save()
         advanceUntilIdle()
         assertEquals(listOf("Moje" to NewStickerFile("photo.jpg.webp", "🔥")), stickers.created)
+    }
+
+    @Test
+    fun suggestedNameFollowsTitleUntilEdited() = runTest {
+        val stickers = FakeStickers(emptyList())
+        val vm = viewModel(stickers)
+        advanceUntilIdle()
+        vm.setEmoji("🔥")
+        vm.setNewSetTitle("Moje")
+        vm.setNewSetTitle("Moje sada")
+        advanceUntilIdle()
+        assertEquals(listOf("Moje sada"), stickers.suggested, "návrh až po dopsání, ne na každé písmeno")
+        assertEquals("moje_sada_by_plume", vm.state.value.newSetName)
+        assertEquals(SetNameStatus.Ok, vm.state.value.newSetNameStatus)
+        assertEquals(emptyList(), stickers.checked, "návrh od Telegramu se neověřuje")
+
+        vm.setNewSetName("vlastni jmeno")
+        advanceUntilIdle()
+        assertEquals("vlastni_jmeno", vm.state.value.newSetName)
+        assertEquals(listOf("vlastni_jmeno"), stickers.checked)
+        vm.setNewSetTitle("Jiný název")
+        advanceUntilIdle()
+        assertEquals("vlastni_jmeno", vm.state.value.newSetName, "upravené jméno návrh nepřepíše")
+
+        vm.save()
+        advanceUntilIdle()
+        assertEquals(listOf("vlastni_jmeno"), stickers.createdNames)
+    }
+
+    @Test
+    fun occupiedNameBlocksSave() = runTest {
+        val stickers = FakeStickers(emptyList()).apply { check = StickerSetNameCheck.Occupied }
+        val vm = viewModel(stickers)
+        advanceUntilIdle()
+        vm.setEmoji("🔥")
+        vm.setNewSetTitle("Moje")
+        vm.setNewSetName("obsazene")
+        assertFalse(vm.state.value.canSave, "během ověřování se nezakládá")
+        advanceUntilIdle()
+        assertEquals(SetNameStatus.Occupied, vm.state.value.newSetNameStatus)
+        assertFalse(vm.state.value.canSave)
+        vm.setNewSetName("")
+        assertEquals(SetNameStatus.Empty, vm.state.value.newSetNameStatus, "prázdné = vybere Telegram")
+        assertTrue(vm.state.value.canSave)
+    }
+
+    @Test
+    fun keywordsGoWithStickerAndLimitSave() = runTest {
+        val stickers = FakeStickers(listOf(set(2, 3)))
+        val vm = viewModel(stickers)
+        advanceUntilIdle()
+        vm.setEmoji("👍")
+        vm.setKeywords("a".repeat(65))
+        assertFalse(vm.state.value.canSave, "přes 64 znaků se neuloží")
+        vm.setKeywords("pes, štěně")
+        vm.save()
+        advanceUntilIdle()
+        assertEquals(listOf("pes", "štěně"), stickers.added.single().second.keywords)
     }
 
     @Test
