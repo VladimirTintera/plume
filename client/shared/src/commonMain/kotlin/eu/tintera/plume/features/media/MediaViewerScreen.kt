@@ -392,6 +392,7 @@ fun MediaViewerScreen(
                 },
                 startSeconds = startSeconds,
                 onReopenAt = onReopenAt,
+                onStripVisible = viewModel::onStripVisible,
             )
         } else {
             // Bez fotek (chyba, načítání) není co rozostřit; zůstává tmavá plocha a cesta ven.
@@ -483,6 +484,8 @@ private fun ViewerContent(
     videoAdActions: VideoAdActions,
     startSeconds: Int,
     onReopenAt: ((messageId: Long, seconds: Int) -> Unit)?,
+    /** Pruh náhledů ukazuje tyhle stránky; u okraje výřezu se dotáhne další ([Filmstrip]). */
+    onStripVisible: (first: Int, last: Int) -> Unit,
 ) {
     val items = state.items
     /*
@@ -639,6 +642,13 @@ private fun ViewerContent(
     val density = LocalDensity.current
     val topInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() } + TOP_BAR_HEIGHT
     val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() } + BOTTOM_BAR_HEIGHT
+    /*
+     * Pruh náhledů jen na velkém okně (desktop, tablet, rozložený Fold). Místo pro něj se drží,
+     * i když je v chatu jediná fotka nebo se sousedé teprve načítají: kdyby se rezervovalo až
+     * s pruhem, karta by se chvíli po otevření zmenšila.
+     */
+    val stripFits = with(density) { filmstripFits(windowSize.width.toDp(), windowSize.height.toDp()) }
+    val stripReserved = if (stripFits && !state.isSelfDestruct) FILMSTRIP_HEIGHT else 0.dp
 
     /*
      * Myš a klávesnice (desktop, Android s klávesnicí): ←/→ a šipky po stranách listují, +/−/0
@@ -824,7 +834,7 @@ private fun ViewerContent(
                 immersive = immersive,
                 immersion = immersion,
                 reservedTop = topInset + MEDIA_PAGE_VERTICAL_GAP,
-                reservedBottom = bottomInset + MEDIA_PAGE_VERTICAL_GAP,
+                reservedBottom = bottomInset + stripReserved + MEDIA_PAGE_VERTICAL_GAP,
                 captionAlpha = carouselPage.captionAlpha,
                 cardBias = carouselPage.cardBias,
             )
@@ -918,6 +928,26 @@ private fun ViewerContent(
 
         val chromeEnter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec())
         val chromeExit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
+
+        // Pruh náhledů pod kartou, nad lištou reakcí; panely textu a popisu fotky ho překryjí.
+        AnimatedVisibility(
+            visible = stripReserved > 0.dp && !immersive && items.size > 1 && state.sponsored == null,
+            enter = chromeEnter,
+            exit = chromeExit,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .then(fadeWithDismiss)
+                .navigationBarsPadding()
+                .padding(bottom = BOTTOM_BAR_HEIGHT),
+        ) {
+            Filmstrip(
+                items = items,
+                currentIndex = pagerState.currentPage,
+                revealed = revealedIds,
+                onSelect = { goToPage(it) },
+                onVisibleRange = onStripVisible,
+            )
+        }
 
         /*
          * Reklama nad videem: jen na celé obrazovce, kde video hraje, nahoře pod ovládáním

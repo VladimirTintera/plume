@@ -679,6 +679,17 @@ class MediaViewerViewModel(
     }
 
     /**
+     * Pruh náhledů ([Filmstrip]) ukazuje stránky [first]..[last]. U okraje načteného výřezu se
+     * dotáhne další, stejně jako při listování — jinak by pruh skončil po dvaceti fotkách.
+     */
+    fun onStripVisible(first: Int, last: Int) {
+        val items = _state.value.items
+        if (items.isEmpty()) return
+        if (first <= PRELOAD_DISTANCE) loadOlder()
+        if (last >= items.lastIndex - PRELOAD_DISTANCE) loadNewer()
+    }
+
+    /**
      * Nabízené reakce a práva ke zprávě, na které uživatel stojí. Obojí **současně** a jen
      * jednou za zprávu; selhání jednoho druhé nezahodí — bez reakcí jde pořád smazat a naopak.
      */

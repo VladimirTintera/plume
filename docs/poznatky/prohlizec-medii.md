@@ -106,6 +106,25 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   zůstalo prázdné. Telefon (na výšku i na šířku) vychází stejně jako dřív; rozložený Fold
   a tablet dostanou širší stránku a sousedé u okrajů vykukují méně. Širší poměr (16 : 9)
   odsunul sousedy k samému kraji i vedle fotky na výšku. Neověřeno na zařízení.
+- **Pruh náhledů (filmstrip) pod kartou v galerii** (`Filmstrip`, testy `FilmstripFitsTest`),
+  jen na okně aspoň 840 × 600 dp (`filmstripFits`): telefon na šířku je přes 840 dp široký,
+  ale tak nízký, že by pruh ukrojil z fotky další kus. Leží nad lištou reakcí a karta pro něj
+  má vyhrazené místo (`FILMSTRIP_HEIGHT` v `reservedBottom`) **i tehdy, když se pruh zrovna
+  nekreslí** (jediná fotka, sousedé se teprve načítají) — jinak by se karta chvíli po otevření
+  zmenšila. Na celé obrazovce, u mizejícího média a u reklamy pruh není; panely textu a popisu
+  fotky ho překryjí.
+  - **Aktuální náhled stojí uprostřed**: odsazení `LazyRow` je půl šířky minus půl náhledu,
+    takže posun na položku ji vycentruje i na krajích. Pruh jede za pagerem, klik na náhled
+    posune pager (`goToPage`, pager sám dlouhý skok zkrátí). Skok o víc než 12 náhledů se
+    neanimuje: při otevření má výřez jen otevřenou fotku a sousedé přibudou až pod ní, takže by
+    pruh při každém otevření projel celou délkou.
+  - **Ukazuje načtený výřez a u jeho okraje řekne o další** (`onStripVisible`, totéž pravidlo
+    jako `onPageChanged`), jinak by skončil po dvaceti fotkách. Prodloužení zleva pruhem nepohne,
+    `LazyRow` drží položku podle klíče.
+  - **Zakrytý náhled (spoiler, citlivý obsah) se nekreslí**, dokud se fotka neodkryje — jen
+    plocha s ikonou. `Modifier.blur` rozostřuje až od Androidu 12, pod ním by obsah ukázal.
+  - Kolečko myši pruhem posouvá do strany (`wheelScrollsHorizontally`), nad kartou dál listuje.
+  - **Ověřené jen testy a překladem**; na desktopu a rozloženém Foldu se musí projít rukou.
 - **Pozadí jezdí s pagerem**, neprolíná se. Kreslí se pozadí aktuální stránky i sousedů vedle
   sebe, posunutá o `currentPageOffsetFraction` (čteno až v `graphicsLayer`). Dokud se pozadí
   jen prolnulo podle `currentPage`, měnilo se skokem až po přeskočení na další stránku, zatímco
