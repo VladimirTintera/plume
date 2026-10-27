@@ -1670,6 +1670,7 @@
     <string name="clipboard_label">Zpráva</string>
     <string name="conversation_fallback_title">Konverzace</string>
     <string name="conversation_scroll_to_end">Na konec konverzace</string>
+    <string name="conversation_scroll_back">Zpět ke zprávě</string>
     <string name="conversation_edited">upraveno</string>
     <string name="conversation_quote_expand">Zobrazit víc</string>
     <string name="article_read_more">Číst celý článek</string>

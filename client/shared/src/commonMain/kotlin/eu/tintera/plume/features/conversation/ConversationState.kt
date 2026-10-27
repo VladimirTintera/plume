@@ -675,6 +675,11 @@ data class ConversationState(
     val highlightedMessageId: Long? = null,
     /** Skok na nenačtenou zprávu, která se právě načítá (viz [PendingJump]). */
     val pendingJump: PendingJump? = null,
+    /**
+     * Odkud se skákalo na citaci: zprávy, ke kterým tlačítko dolů vrátí dřív, než pojede na konec
+     * (poslední = nejčerstvější skok). Viz `JumpReturns.kt`.
+     */
+    val returnPoints: List<Long> = emptyList(),
     /** Hledání v chatu; `null` = zavřené (hlavička ukazuje chat, dole je vstupní pole). */
     val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
