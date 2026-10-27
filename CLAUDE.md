@@ -294,14 +294,16 @@ a nepřijde jediná další odpověď ani update. Spolknout ji proto nejde, mus�
   `StarGift::get_gift_object` (TDLib `StarGift.cpp`) nechá pozadí `nullptr`, když ho server
   k dárku nepošle. Týká se `getAvailableGifts` i zpráv `MessageGift` /
   `MessageRefundedUpgradedGift` — chat s takovým dárkem (i jako poslední zprávou v seznamu chatů)
-  by aplikaci shazoval pokaždé znovu. Ve wrapperu 16.0.0 (TDLib 1.8.68) opravené není; nahlášené
-  jako [g000sha256/tdl-coroutines#162](https://github.com/g000sha256/tdl-coroutines/issues/162)
-  (s kandidáty níž a návrhem, ať přijímací smyčka jednu vadnou odpověď přežije). Autor opravil
-  dokumentaci v TDLib 1.8.69 (tdlib/td#3761), pole tedy bude nullable od wrapperu 17.0.0.
+  by aplikaci shazoval pokaždé znovu. Wrapper 15.0.0 a 16.0.0 padal; nahlášené jako
+  [g000sha256/tdl-coroutines#162](https://github.com/g000sha256/tdl-coroutines/issues/162).
+  Autor opravil dokumentaci v TDLib 1.8.69 (tdlib/td#3761) a **od wrapperu 17.0.0 je pole
+  nullable** (`deserializeGift` čte `getObjectNullable`) — na všech platformách, i na iOS.
+  Řádek z tabulky obcházky proto zmizel; mechanismus zůstává pro další případ.
 - **Obcházka: odpověď se opraví dřív, než ji wrapper dostane** (`TdlibJsonRepair`, testy
-  `TdlibJsonRepairTest`). Tabulka „typ → chybějící pole → výchozí objekt" doplní pole, které
-  TDLib vynechal; aplikace `Gift.background` nečte, takže na hodnotě nezáleží. Odpověď bez
-  známého typu se neparsuje (hledá se podřetězec `"@type":"gift"`), oprava nikdy nevyhodí.
+  `TdlibJsonRepairTest` nad tabulkou s dřívějším řádkem `gift.background`). Tabulka „typ →
+  chybějící pole → výchozí objekt" doplní pole, které TDLib vynechal. **Dnes je prázdná**
+  a odpověď projde bez jediného hledání; s řádkem se odpověď bez známého typu neparsuje
+  (hledá se podřetězec `"@type":"<typ>"`), oprava nikdy nevyhodí.
   **Do tabulky patří jen pole ověřená pádem nebo zdrojem TDLib**, ne preventivně.
 - **Na Androidu ji zapojuje instrumentace bajtkódu** (plugin `plume.tdlib-android`,
   `TdlibReceiveHookFactory` v `build-logic/…/Tdlib.kt`, `AsmClassVisitorFactory`,
@@ -317,15 +319,16 @@ a nepřijde jediná další odpověď ani update. Spolknout ji proto nejde, mus�
 - **Desktop ji má taky**, jen ji vkládá přepis jaru wrapperu při buildu, ne AGP
   (`docs/poznatky/desktop.md`, „Hook TdlibJsonRepair na JVM").
 - **iOS obcházku NEMÁ** (`tdlibJsonRepairWired = false`): Kotlin/Native klib přepsat nejde.
-  Dárek bez pozadí tam aplikaci dál shodí, dokud to neopraví wrapper.
+  Další pole téhož druhu by tam aplikaci shazovalo, dokud ho neopraví wrapper (dárek bez
+  pozadí opravil 17.0.0).
 - **Kandidáti téhož druhu** (sken zdroje TDLib 1.8.67: `nullptr` do konstruktoru, dokumentace
   o null mlčí; za běhu neověřené, aplikace je nevolá): `product_info` u
-  `starTransactionTypeBotInvoicePurchase/Sale` a `…BotSubscriptionPurchase/Sale`.
-- **Při bumpu wrapperu**: napřed stav issue #162 výš, pak se podívat, jestli `deserializeGift`
-  čte `background` přes `getObjectNullable` (zdrojový jar
-  `tdl-coroutines-android-<ver>-sources.jar`, soubor `TdlDeserializer.kt`); když ano, řádek
-  z tabulky pryč. Instrumentace i kontrola po přihlášení
-  můžou zůstat — bez známých případů nestojí nic.
+  `starTransactionTypeBotInvoicePurchase/Sale` — u `…BotSubscriptionPurchase/Sale` je od
+  wrapperu 17.0.0 nullable.
+- **Při bumpu wrapperu**: u řádků v tabulce (a kandidátů výš) se podívat, jestli je
+  `TdlDeserializer.kt` ze zdrojového jaru (`tdl-coroutines-android-<ver>-sources.jar`) čte
+  přes `getObjectNullable`; když ano, řádek pryč. Instrumentace i kontrola po přihlášení
+  zůstávají — bez známých případů nestojí nic.
 
 ### Bump TDLib wrapperu
 

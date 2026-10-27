@@ -34,7 +34,7 @@ wrapperu tedy potřeba nejsou.
   **Při bumpu wrapperu ověřit `otool -L` nad knihovnou z jaru**: cokoli mimo `/usr/lib/`
   a `/System/` je návrat té chyby.
 
-### Další omezení binárek wrapperu (16.0.0)
+### Další omezení binárek wrapperu (16.0.0, beze změny v 17.0.0)
 
 - **macOS je `minos 12.0`** na arm64 i x64 (`vtool -show-build`; v 15.0.0 arm64 26.0, x64 15.0).
   Nejnižší podporovaný systém teď určují jiné knihovny, viz „macOS (DMG)".

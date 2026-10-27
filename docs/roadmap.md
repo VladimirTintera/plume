@@ -622,6 +622,27 @@ pro kryptoměny, ne jen o fakturaci. Co z toho stojí za to i bez peněženky:
   (náhrada `editCallbackQueryMessage`), `dismissWebToken`, `star_top_up_disabled`
   u nákupu hvězd, `ThemeSettings.hasOutgoingMessageAccentColor` (motivy vědomě ne).
 
+**Co přinesl wrapper 17.0.0 (TDLib 1.8.69)** — rozdíl zdrojových jarů 16.0.0 a 17.0.0
+(27. 10. 2026): 1065 → 1076 funkcí, 35 nových typů, jeden ubyl (`StoryAreaPosition` →
+`AreaPosition`). Opravený pád na dárku bez pozadí (g000sha256/tdl-coroutines#162, viz CLAUDE.md
+„Odpovědi TDLib, které wrapper nerozebere"). Při bumpu opravené: `getUserLink` má parametry pro
+odkaz „psaní zdarma" (volá se se všemi `false`, chování jako dřív), `InputTextQuote.richTexts`
+(citace z článku; posílá se prázdné), webová proxy se ohlásí jako nepodporovaná a servisní
+zpráva `MessageUnpaidMessagesAllowedByLink` má větu. Co zbývá:
+
+- **Webová proxy** (`ProxyTypeWeb`) — MTProto přes HTTPS přenosovou stránku ve skrytém WebView,
+  kterou hostí aplikace (`updateWebProxyCarrierOpened/Data/Closed`,
+  `processWebProxyCarrierMessage`, `reportWebProxyCarrierError`). Obchází blokace, kde běžná
+  proxy neprojde; dnes odkaz skončí hláškou „nepodporovaná proxy" a z `getProxies` se
+  vynechává.
+- **Odkaz na psaní zdarma** (`getUserLink(removeMessagesFee = true, …)`,
+  `UserLink.canGetPermanentLink`) — pro účet s placenými zprávami; patří k „Můj QR kód".
+- **Citace z článku** (`InputTextQuote.richTexts`) — citace v nabídce nad zprávou u článků
+  (`MessageRichMessage`) zatím není.
+- **Drobnosti:** smazání dárku (`deleteGift`, `MessageGift.canBeDeleted`), motiv sdílení
+  profilu (`setProfileShareTheme`), stažení a vklad sběratelského dárku do TON
+  (`withdrawUpgradedGift`, `getUpgradedGiftDepositInfo`; spadá pod „Vědomě mimo").
+
 **Co uživatele zablokuje nebo vypadá jako chyba** — přednostně:
 
 - ~~**Přihlášení s e-mailovým kódem.**~~ — hotovo (zadání adresy, kód, oprava adresy, reset

@@ -4233,7 +4233,12 @@ internal fun quoteInput(original: FormattedText, quote: ReplyQuote): InputTextQu
         val to = minOf(entity.offset + entity.length, end)
         if (!kept || from >= to) null else TextEntity(offset = from - start, length = to - from, type = entity.type)
     }
-    return InputTextQuote(text = FormattedText(text = quote.text, entities = entities.toTypedArray()), position = start)
+    // Citace z běžného textu, ne z článku (`richTexts` jen pro zprávy s bohatým obsahem).
+    return InputTextQuote(
+        text = FormattedText(text = quote.text, entities = entities.toTypedArray()),
+        richTexts = emptyArray(),
+        position = start,
+    )
 }
 
 /**

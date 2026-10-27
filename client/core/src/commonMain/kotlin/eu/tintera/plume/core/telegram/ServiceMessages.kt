@@ -39,6 +39,7 @@ import dev.g000sha256.tdl.dto.MessageInviteVideoChatParticipants
 import dev.g000sha256.tdl.dto.MessageManagedBotCreated
 import dev.g000sha256.tdl.dto.MessagePaidMessagePriceChanged
 import dev.g000sha256.tdl.dto.MessagePaidMessagesRefunded
+import dev.g000sha256.tdl.dto.MessageUnpaidMessagesAllowedByLink
 import dev.g000sha256.tdl.dto.MessagePassportDataSent
 import dev.g000sha256.tdl.dto.MessagePaymentRefunded
 import dev.g000sha256.tdl.dto.MessagePaymentSuccessful
@@ -104,6 +105,7 @@ import eu.tintera.plume.resources.service_gift_offer_rejected
 import eu.tintera.plume.resources.service_paid_message_price
 import eu.tintera.plume.resources.service_paid_messages_free
 import eu.tintera.plume.resources.service_paid_messages_refunded
+import eu.tintera.plume.resources.service_unpaid_messages_by_link
 import eu.tintera.plume.resources.service_passport_data
 import eu.tintera.plume.resources.service_payment_refunded
 import eu.tintera.plume.resources.service_protected_content_disable_expired
@@ -380,6 +382,8 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
         if (paidMessageStarCount <= 0) UiText(Res.string.service_paid_messages_free)
         else starSentence(Res.plurals.service_paid_message_price, paidMessageStarCount)
     is MessagePaidMessagesRefunded -> starSentence(Res.plurals.service_paid_messages_refunded, starCount)
+    // Odesílatel přišel přes odkaz, který psaní zdarma povoluje (TDLib 1.8.69, `getUserLink`).
+    is MessageUnpaidMessagesAllowedByLink -> UiText(Res.string.service_unpaid_messages_by_link)
 
     // Navržené příspěvky (TDLib 15). Cena ani komentář správce se nevypisují — oznámení nese
     // hlavně to, jak návrh dopadl, a na komentář se stejně nedá odpovědět.

@@ -1063,8 +1063,9 @@ class TdlChatRepository(
             is InternalLinkTypeMessageDraft ->
                 Result.success(type.text.text.takeIf { it.isNotBlank() }?.let { InternalLink.ShareText(it) })
 
-            // Bez proxy = druh, který tahle TDLib nezná; do prohlížeče by to nevedlo nikam.
-            is InternalLinkTypeProxy -> type.proxy?.let { Result.success(InternalLink.Proxy(it.toProxyConfig())) }
+            // Bez proxy = druh, který tahle TDLib nezná, `null` z převodu = webová proxy, kterou Plume
+            // neumí; do prohlížeče by to nevedlo nikam.
+            is InternalLinkTypeProxy -> type.proxy?.toProxyConfig()?.let { Result.success(InternalLink.Proxy(it)) }
                 ?: Result.failure(UnsupportedProxyException())
 
             is InternalLinkTypeSavedMessages -> {
