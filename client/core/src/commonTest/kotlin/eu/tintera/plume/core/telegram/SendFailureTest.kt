@@ -37,7 +37,9 @@ class SendFailureTest {
         val failure = failed().toSendFailure()
         assertTrue(failure.canRetry)
         assertEquals(UiText(Res.string.error_slowmode_wait_seconds, 30), failure.reason)
-        assertEquals(UiText(Res.string.error_slowmode_wait_minutes, 2), failed("SLOWMODE_WAIT_61").toSendFailure().reason)
+        // Pod dvě minuty sekundy (`slowModeWaitText`), nad nimi minuty nahoru.
+        assertEquals(UiText(Res.string.error_slowmode_wait_seconds, 61), failed("SLOWMODE_WAIT_61").toSendFailure().reason)
+        assertEquals(UiText(Res.string.error_slowmode_wait_minutes, 3), failed("SLOWMODE_WAIT_121").toSendFailure().reason)
     }
 
     @Test

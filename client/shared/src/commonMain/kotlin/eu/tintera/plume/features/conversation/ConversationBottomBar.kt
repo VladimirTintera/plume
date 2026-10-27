@@ -532,6 +532,8 @@ internal fun ConversationBottomBar(
             onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
             defaultSilent = state.info?.takeIf { it.isChannel && !state.narrowed }?.defaultSilent,
             onToggleDefaultSilent = viewModel::toggleDefaultSilent,
+            slowModeUntil = state.slowModeUntil,
+            onSlowModeWait = viewModel::explainSlowMode,
         ),
         field = ComposerField(
             draft = composer,
