@@ -47,6 +47,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -280,7 +282,7 @@ fun StoryComposerScreen(
                         stringResource(Res.string.story_post_as),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp).semantics { heading() },
                     )
                     Column(Modifier.selectableGroup()) {
                         val choices = listOf<StoryPoster?>(null) + state.posters
@@ -303,7 +305,7 @@ fun StoryComposerScreen(
                         stringResource(Res.string.story_audience_title),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp).semantics { heading() },
                     )
                     Column(Modifier.selectableGroup()) {
                         val selectedSummary = if (state.selected.isEmpty()) {

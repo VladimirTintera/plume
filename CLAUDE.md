@@ -530,7 +530,8 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   Dialogová tlačítka (`confirmButton` / `dismissButton`) zůstávají, jak je `AlertDialog` skládá.
 - **Přepínače mají v jezdci ikonu** (`IconSwitch` v `core/ui`): fajfka zapnutý, křížek
   vypnutý. **Řádek s přepínačem je `SwitchListItem`** (`core/ui/FormRows.kt`: role, haptika,
-  klikání celým řádkem), nadpis bloku `GroupTitle` / `TitledGroup` — ne vlastní kopie. Stav tak nese i tvar, ne jen barva — pozná ho barvoslepý i v paletě se zvýšeným
+  klikání celým řádkem), nadpis bloku `GroupTitle` / `TitledGroup` — ne vlastní kopie
+  (nese `heading()` pro čtečku obrazovky; kdo přesto kreslí nadpis ručně, přidá ho taky). Stav tak nese i tvar, ne jen barva — pozná ho barvoslepý i v paletě se zvýšeným
   kontrastem. **Holý `Switch` se nepoužívá**; kdo přidává přepínač, sáhne po `IconSwitch`,
   jinak bude vedle ostatních vypadat jako nedodělek. Barvu ikony podává přepínač sám
   (`checkedIconColor` / `uncheckedIconColor`), ikona je dekorace bez popisu — stav čte čtečka

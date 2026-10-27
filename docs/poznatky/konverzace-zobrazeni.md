@@ -1145,6 +1145,27 @@ a Reagovat (`MessageA11y.kt`, testy `MessageA11yTest` a headless `MessageA11ySem
   nejsou: ťuknutí tam vybírá.
 - **Odznak doručení pod bublinou je pro čtečku tichý** (kromě vykřičníku s „Poslat znovu"):
   stav už řekla bublina a odznak by ho zopakoval jako další položku.
+- **Předěl dne a „Nepřečtené zprávy" jsou nadpisy** (`heading()`), takže se mezi dny dá skákat
+  navigací po nadpisech. U ťukatelného předělu (kalendář) leží na nápisu samém, ne na obalu
+  `CenteredNote` — obal je pro čtečku prázdný uzel. Časový předěl uvnitř dne nadpis není, jen
+  čas.
+- **Příchozí zprávu ohlásí živá oblast** (`NewMessageAnnouncer`, testy `NewMessageAnnouncerTest`):
+  „Nová zpráva od Jana: ahoj". Bublina se do seznamu jen tiše vloží a TalkBack o ní neřekne nic.
+  - Jen zpráva, která opravdu přišla: novější než dosud nejnovější a seznam přitom končil
+    u přítomnosti (jako ukotvení dole, `rememberNewMessages`). Dotažená stránka, vlastní
+    a servisní zprávy ne; z dávky naráz (album) jen nejnovější.
+  - Ohlášení dělá ZMĚNA popisu uzlu s `liveRegion`. Uzel nese text 5 s a pak zůstane prázdný:
+    trvalý popis by čtečka při procházení obrazovky četla jako další položku.
+  - **Uzel nesmí být ZAKRYTÝ jiným uzlem.** Compose dává čtečce jen nezakryté uzly (podle
+    pořadí kreslení). První verze seděla v levém horním rohu plochy a volala se před seznamem:
+    logika proběhla (log), ale uzel ve stromu přístupnosti nebyl — přikryla ho horní lišta
+    a seznam. Volá se proto POSLEDNÍ v `ConversationContent` a sedí uprostřed (1 dp, nic
+    nekreslí).
+  - **Ověřeno na emulátoru bez TalkBacku**: po zprávě od Notifikátoru ukázal `uiautomator dump`
+    uzel s popisem „Nová zpráva od Notifikator: …" a po 6 s byl prázdný. Že ho TalkBack opravdu
+    přečte, ověřené není (viz další bod).
+  - Ohlašuje se i při čtení historie (bez posunu seznamu): je to jediná zpráva o tom, že přišlo
+    něco nového, odznak „N nových zpráv" na tlačítku dolů je vidět jen očima.
 - **TalkBack na emulátoru prakticky ověřit nejde**: injektované dotyky z `adb input` průzkum
   dotykem obchází (fokus se nepohne) a „zobrazit výstup řeči" je volba uvnitř TalkBacku, kterou
   bez roota nenastavíš. Sémantika je proto ověřená headless testem; skutečný TalkBack na telefonu

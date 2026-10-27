@@ -19,6 +19,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import eu.tintera.plume.resources.service_upgraded_open_old
 import eu.tintera.plume.resources.service_upgraded_open_new
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
@@ -171,6 +173,8 @@ internal fun UnreadDivider(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.secondaryContainer)
+                // Odsud se čte nepřečtené: čtečka sem skočí jako na nadpis.
+                .semantics { heading() }
                 .padding(horizontal = 12.dp, vertical = 4.dp),
         )
     }
@@ -417,6 +421,7 @@ internal fun DayDivider(
         modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
         onClick = onClick?.let { open -> { open(timestamp) } },
         onClickLabel = stringResource(Res.string.conversation_jump_to_date),
+        heading = true,
     )
 }
 
@@ -488,7 +493,11 @@ internal fun CenteredNote(
      */
     onClick: (() -> Unit)? = null,
     onClickLabel: String? = null,
+    /** Nadpis pro čtečku obrazovky (předěl dne): mezi nadpisy se dá skákat po dnech. */
+    heading: Boolean = false,
 ) {
+    // Na nápisu samém, ne na obalu: obal ťukatelného nápisu je pro čtečku prázdný uzel.
+    val headingSemantics = if (heading) Modifier.semantics { heading() } else Modifier
     if (onClick != null) {
         Box(modifier.fillMaxWidth().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
             Text(
@@ -499,6 +508,7 @@ internal fun CenteredNote(
                 modifier = Modifier
                     .clip(MaterialTheme.shapes.small)
                     .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
+                    .then(headingSemantics)
                     .padding(horizontal = NOTE_TOUCH_H, vertical = 4.dp),
             )
         }
@@ -511,6 +521,7 @@ internal fun CenteredNote(
         textAlign = TextAlign.Center,
         modifier = modifier
             .fillMaxWidth()
+            .then(headingSemantics)
             .padding(horizontal = 24.dp, vertical = 4.dp),
     )
 }

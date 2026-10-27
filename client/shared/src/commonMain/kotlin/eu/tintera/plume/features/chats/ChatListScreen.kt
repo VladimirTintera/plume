@@ -1156,7 +1156,7 @@ internal fun ChatListContent(
                                     top = if (index == 0 && groupIndex > 0) GROUP_SPACING
                                     else 0.dp,
                                 ),
-                        ) {
+                        ) { swipeActions ->
                             ChatRow(
                                 chat = chat,
                                 selected = highlighted,
@@ -1201,6 +1201,8 @@ internal fun ChatListContent(
                                 onAvatarClick = onOpenStories
                                     ?.takeIf { !selecting && chat.id in storyRings }
                                     ?.let { open -> { open(chat.id) } },
+                                // Akce tahu pro čtečku obrazovky — na uzel řádku, ne na obal.
+                                modifier = swipeActions,
                             )
                         }
                     }

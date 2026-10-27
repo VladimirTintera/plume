@@ -500,9 +500,9 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
   z jiného chatu Plume kreslí, poslat takovou neumí.
 - **Velikost písma štípnutím v konverzaci** (S–M), jako Google Messages. Dnes jen Nastavení →
   Vzhled (`MessageTextSizeSetting.kt`).
-- **Čtečka obrazovky: předěly dnů jako nadpisy a ohlášení nové zprávy** (S). `DayDivider`
-  a `UnreadDivider` nemají `heading()` a příchozí zpráva v otevřeném chatu se neohlásí —
-  živou oblast má jen „píše…".
+- ~~**Čtečka obrazovky: předěly dnů jako nadpisy a ohlášení nové zprávy**~~ — hotovo
+  (`docs/poznatky/konverzace-zobrazeni.md`, „Zpráva pro čtečku obrazovky"); se skutečným
+  TalkBackem neověřené.
 
 ---
 

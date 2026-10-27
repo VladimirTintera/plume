@@ -1868,6 +1868,8 @@
         <item quantity="few">%1$d nové hlasy v anketě</item>
         <item quantity="other">%1$d nových hlasů v anketě</item>
     </plurals>
+    <string name="conversation_new_message_from">Nová zpráva od %1$s: %2$s</string>
+    <string name="conversation_new_message_from_untitled">Nová zpráva: %1$s</string>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d nová zpráva</item>
         <item quantity="few">%1$d nové zprávy</item>

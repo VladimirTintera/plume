@@ -27,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -125,6 +127,7 @@ private fun CallRatingSheet(request: CallRatingRequest, calls: CallRepository) {
                     stringResource(Res.string.call_rating_problems),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.semantics { heading() },
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CallProblem.entries.filter { !it.videoOnly || request.isVideo }.forEach { problem ->

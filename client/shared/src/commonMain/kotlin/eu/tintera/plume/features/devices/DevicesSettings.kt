@@ -41,6 +41,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -489,7 +491,7 @@ private fun DeviceDetailSheet(
                     stringResource(Res.string.devices_accept),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 32.dp, top = 16.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(start = 32.dp, top = 16.dp, bottom = 8.dp).semantics { heading() },
                 )
                 GroupedColumn(Modifier.padding(horizontal = 16.dp)) {
                     SwitchListItem(stringResource(Res.string.devices_accept_calls), device.canAcceptCalls, enabled = !busy, onCheckedChange = onCanAcceptCalls)

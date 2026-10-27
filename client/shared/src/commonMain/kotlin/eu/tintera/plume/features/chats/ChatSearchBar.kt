@@ -31,6 +31,8 @@ import eu.tintera.plume.resources.auto_awesome_24dp
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import eu.tintera.plume.core.ui.TextFieldSlot
 import eu.tintera.plume.core.ui.reject
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -1073,7 +1075,7 @@ private fun SectionHeader(title: String, action: @Composable () -> Unit = {}) {
             title,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).semantics { heading() },
         )
         action()
     }

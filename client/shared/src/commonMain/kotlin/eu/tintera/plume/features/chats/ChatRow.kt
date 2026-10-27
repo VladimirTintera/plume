@@ -131,12 +131,24 @@ import eu.tintera.plume.resources.chats_muted
 import eu.tintera.plume.resources.chats_section_pinned
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import eu.tintera.plume.core.ui.avatarShape
 import org.jetbrains.compose.resources.DrawableResource
 import kotlinx.coroutines.launch
+import eu.tintera.plume.resources.chats_action_archive
+import eu.tintera.plume.resources.chats_action_unarchive
+import eu.tintera.plume.resources.chats_action_mark_read
+import eu.tintera.plume.resources.chats_action_mark_unread
+import eu.tintera.plume.resources.chats_action_mute
+import eu.tintera.plume.resources.chats_action_unmute
+import eu.tintera.plume.resources.chats_action_pin
+import eu.tintera.plume.resources.chats_action_unpin
+import eu.tintera.plume.resources.chats_action_snooze
+import eu.tintera.plume.resources.chats_action_unsnooze
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -153,6 +165,11 @@ import org.jetbrains.compose.resources.stringResource
  * ohledu na to, kam došel, a vypnout to zvenku nejde. Tady rozhoduje [detectHorizontalSwipe]
  * (výrazně vodorovný tah, dvojnásobek slopu) a [chatSwipeThreshold] (kus šířky řádku);
  * rychlost se nepočítá vůbec.
+ *
+ * **Čtečka obrazovky tah neudělá**, proto jsou obě akce i vlastními akcemi řádku
+ * (`customActions`, v TalkBacku „Akce"). [content] dostane modifikátor, který je nese, a musí ho
+ * dát uzlu s ťuknutím: akce patří ke chatu, na který čtečka ukazuje, a samostatný obal by byl
+ * pro ni prázdný uzel, na který se nedá zaměřit.
  */
 @Composable
 internal fun SwipeableChat(
@@ -161,7 +178,7 @@ internal fun SwipeableChat(
     shape: RoundedCornerShape,
     onSwipe: (ChatSwipeEffect) -> Unit,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    content: @Composable (swipeActions: Modifier) -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
@@ -327,9 +344,23 @@ internal fun SwipeableChat(
                 }
             }
         }
+        // Popisky z nabídky nad chatem: v seznamu akcí stojí samy, bez ikony a podkladu.
+        val labels = listOfNotNull(right, left).map { it to stringResource(it.actionLabel) }
+        val swipeActions = if (labels.isEmpty()) {
+            Modifier
+        } else {
+            Modifier.semantics {
+                customActions = labels.map { (effect, label) ->
+                    CustomAccessibilityAction(label) {
+                        currentOnSwipe(effect)
+                        true
+                    }
+                }
+            }
+        }
         // Posun se čte až v layoutu, takže tah nic nerekomponuje.
         Box(Modifier.offset { IntOffset(drag.value.roundToInt(), 0) }) {
-            content()
+            content(swipeActions)
         }
     }
 }
@@ -351,6 +382,24 @@ private val ChatSwipeEffect.label: StringResource
         ChatSwipeEffect.Unpin -> Res.string.chats_swipe_unpin
         ChatSwipeEffect.Snooze -> Res.string.chats_swipe_snooze
         ChatSwipeEffect.Unsnooze -> Res.string.chats_swipe_unsnooze
+    }
+
+/**
+ * Akce tahu pro čtečku obrazovky. Celá věta z nabídky nad chatem, ne krátký popisek z podkladu:
+ * „Přečteno" nebo „Vrátit" bez taženého řádku nic neřeknou.
+ */
+private val ChatSwipeEffect.actionLabel: StringResource
+    get() = when (this) {
+        ChatSwipeEffect.Archive -> Res.string.chats_action_archive
+        ChatSwipeEffect.Unarchive -> Res.string.chats_action_unarchive
+        ChatSwipeEffect.MarkRead -> Res.string.chats_action_mark_read
+        ChatSwipeEffect.MarkUnread -> Res.string.chats_action_mark_unread
+        ChatSwipeEffect.Mute -> Res.string.chats_action_mute
+        ChatSwipeEffect.Unmute -> Res.string.chats_action_unmute
+        ChatSwipeEffect.Pin -> Res.string.chats_action_pin
+        ChatSwipeEffect.Unpin -> Res.string.chats_action_unpin
+        ChatSwipeEffect.Snooze -> Res.string.chats_action_snooze
+        ChatSwipeEffect.Unsnooze -> Res.string.chats_action_unsnooze
     }
 
 /** Ikony z nabídky nad chatem, ať tah a nabídka mluví stejně. */

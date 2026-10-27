@@ -30,6 +30,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -116,7 +118,7 @@ fun FolderChatsSheet(
                     text = stringResource(Res.string.folder_invite_chats),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, start = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, start = 16.dp).semantics { heading() },
                 )
                 CheckableChatRows(chats = chats, selected = selected, onToggle = onToggle, enabled = !busy)
             }
