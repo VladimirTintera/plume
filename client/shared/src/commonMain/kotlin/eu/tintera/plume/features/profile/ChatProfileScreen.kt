@@ -152,6 +152,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import eu.tintera.plume.core.telegram.SharedMediaKind
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import org.koin.compose.koinInject
 import eu.tintera.plume.resources.profile_tab_files
 import eu.tintera.plume.resources.profile_tab_links
 import eu.tintera.plume.resources.profile_tab_media
@@ -750,6 +753,27 @@ private fun ProfileTabs(
             mainTabDone = true
         }
     }
+
+    /*
+     * Záložka vyžádaná zvenčí („Všechna média" v prohlížeči, `ProfileTabRequests`): přeskočí se
+     * na ni, jakmile v profilu je, a hlavička se sbalí, ať je obsah záložky vidět hned. Má přednost
+     * před hlavní záložkou. Nevyřízený požadavek (chat záložku nemá) se zahodí s profilem, jinak
+     * by přeskočil až při některém dalším otevření.
+     */
+    val tabRequests = koinInject<ProfileTabRequests>()
+    val requestedTab by tabRequests.target.collectAsState()
+    val chatId = viewModel.chatId
+    LaunchedEffect(requestedTab, tabs) {
+        val (requestedChat, kind) = requestedTab ?: return@LaunchedEffect
+        if (requestedChat != chatId) return@LaunchedEffect
+        val index = tabs.indexOf(ProfileTab.Shared(kind))
+        if (index < 0) return@LaunchedEffect
+        tabRequests.consume(chatId)
+        mainTabDone = true
+        pagerState.scrollToPage(index)
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
+    DisposableEffect(tabRequests, chatId) { onDispose { tabRequests.consume(chatId) } }
 
     // Stránky začínají pod záložkami a mají vzduch od okrajů, jako skupiny v seznamu chatů.
     val contentPadding = PaddingValues(
