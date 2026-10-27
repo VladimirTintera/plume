@@ -680,6 +680,11 @@ data class ConversationState(
      * (poslední = nejčerstvější skok). Viz `JumpReturns.kt`.
      */
     val returnPoints: List<Long> = emptyList(),
+    /**
+     * Pomalý režim: kdy (epoch ms) půjde poslat další zpráva; `null` = posílat jde hned. Čas po
+     * uplynutí v poli klidně zůstane — vstupní pole odpočítává samo a hotový odpočet nekreslí.
+     */
+    val slowModeUntil: Long? = null,
     /** Hledání v chatu; `null` = zavřené (hlavička ukazuje chat, dole je vstupní pole). */
     val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */

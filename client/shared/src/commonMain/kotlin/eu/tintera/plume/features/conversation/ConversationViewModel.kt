@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.slowModeWaitText
 import eu.tintera.plume.core.telegram.BusinessBotBar
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.features.media.PhotoDescriptions
@@ -1719,6 +1720,15 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Ťuknutí na odpočet pomalého režimu: kdy půjde psát. Stejná věta jako po odmítnutí
+     * serverem, jen dřív — místo zprávy, která by skončila chybou.
+     */
+    fun explainSlowMode() {
+        val seconds = secondsLeft(_state.value.slowModeUntil, Clock.System.now().toEpochMilliseconds())
+        if (seconds > 0) _state.update { it.copy(error = slowModeWaitText(seconds)) }
+    }
+
     /** Obrazovka hlásí, že skok proběhl. Bez toho by se opakoval při každé rekompozici. */
     fun consumeScrollTarget() {
         _state.update { it.copy(scrollTarget = null, pendingJump = null) }
@@ -1852,6 +1862,11 @@ class ConversationViewModel(
                     }
                 }
                 .collect { typing -> _state.update { it.copy(typing = typing) } }
+        }
+
+        viewModelScope.launch {
+            // Pomalý režim: kdy půjde poslat další zpráva. Odpočet kreslí vstupní pole.
+            repository.slowModeUpdates(chatId).collect { until -> _state.update { it.copy(slowModeUntil = until) } }
         }
 
         viewModelScope.launch {

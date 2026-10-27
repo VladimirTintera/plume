@@ -992,6 +992,7 @@ internal fun MessageInput(
                  * výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon místo odeslání.
                  * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
                  */
+                val slowModeLeft = rememberSlowModeSecondsLeft(send.slowModeUntil)
                 // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
                 val morphProgress = animateMorph(
                     kind == SendButtonKind.Mic || kind == SendButtonKind.Camera,
@@ -1066,124 +1067,130 @@ internal fun MessageInput(
                         pressedShape = IconButtonDefaults.mediumPressedShape,
                     )
                 }
-                FilledIconButton(
-                    onClick = {
-                        when {
-                            voiceActive -> recording.onSend(SendOptions())
-                            showMic -> {
-                                if (recording.canSwitchMode) {
-                                    haptics.toggle(on = recording.mode == RecordMode.Voice)
-                                    recording.onSwitchMode()
-                                }
-                                hintScope.launch { recordHint.show() }
-                            }
-                            else -> {
-                                send.onSend(composer.composed, SendOptions())
-                                draft = TextFieldValue()
-                            }
-                        }
-                    },
-                    // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
-                    // Náhled, který se ještě dokončuje, poslat nejde — soubor není hotový.
-                    enabled = (recording.isRecording || voicePreview?.preview?.voice != null || videoNotePreview?.preview?.note != null || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
-                        // Odeslání teď by poslalo zprávu bez videa, které se ještě kopíruje.
-                        !(kind == SendButtonKind.Send && attachments.preparing),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = containerColor,
-                        contentColor = contentColor,
-                    ),
-                    shapes = buttonShapes,
-                    modifier = Modifier
-                        // PRVNÍ v řetězu: tlačítko během gesta změní druh i modifikátory za tímhle.
-                        .holdToRecord(
-                            enabled = showMic,
-                            cancelDistance = RECORD_CANCEL_DISTANCE,
-                            lockDistance = RECORD_LOCK_DISTANCE,
-                            onHoldStart = {
-                                gestureHints?.used(GestureHint.HoldToRecord)
-                                recordHeld = true
-                                // Zamčení z minula (akce čtečky, která nakonec nenahrávala) neplatí.
-                                recordLocked = false
-                                recording.onStart(true)
-                            },
-                            onDrag = { recordDrag.value = it },
-                            onRelease = {
-                                recordHeld = false
-                                if (recording.isRecording) recording.onSend(SendOptions())
-                            },
-                            onCancel = {
-                                recordHeld = false
-                                if (recording.isRecording) recording.onCancel()
-                            },
-                            onLock = {
-                                recordHeld = false
-                                if (recording.isRecording) {
-                                    haptics.threshold()
-                                    recordLocked = true
-                                }
-                            },
-                        )
-                        // Čtečka obrazovky podržet neumí: nahrávání spustí akcí, rovnou zamčené.
-                        .semantics {
-                            if (showMic) {
-                                customActions = listOf(
-                                    CustomAccessibilityAction(recordActionLabel) {
-                                        recordLocked = true
-                                        recording.onStart(false)
-                                        true
-                                    },
-                                )
-                            }
-                        }
-                        .size(IconButtonDefaults.mediumContainerSize())
-                        // Klidový tvar; stisk ho na chvíli zhranatí, a to při letu fotky nehraje roli.
-                        .occludesSharedElements(buttonShapes.shape)
-                        // Podržení nabídne odeslat bez zvuku a naplánovat — u hotové zprávy
-                        // i u nahrávané hlasovky.
-                        .longPressInstead(enabled = sendOptionsOffered) {
-                            gestureHints?.used(GestureHint.SendOptions)
-                            voiceMenu = kind == SendButtonKind.SendVoice
-                            if (voiceMenu) recording.onMenu(true)
-                            sendMenuOpen = true
-                        },
-                ) {
-                    // Ikona jede stejnou pružinou jako tvar — rychlejší by se vyměnila dřív, než je
-                    // morf vůbec vidět.
-                    val iconScale = morphSpring<Float>()
-                    val iconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-                    AnimatedContent(
-                        targetState = kind,
-                        transitionSpec = {
-                            (scaleIn(iconScale, initialScale = 0.4f) + fadeIn(iconFade))
-                                .togetherWith(scaleOut(iconScale, targetScale = 0.4f) + fadeOut(iconFade))
-                        },
-                        label = "send-button-icon",
-                    ) { shown ->
-                        // Při úpravě fajfka: nic se neposílá, jen potvrzuje změna.
-                        Icon(
-                            painterResource(
-                                when (shown) {
-                                    SendButtonKind.Save -> Res.drawable.check_24dp
-                                    SendButtonKind.Mic -> Res.drawable.mic_24dp
-                                    SendButtonKind.Camera -> Res.drawable.videocam_24dp
-                                    SendButtonKind.Send, SendButtonKind.SendVoice -> Res.drawable.send_24dp
-                                },
-                            ),
-                            contentDescription = stringResource(
-                                when (shown) {
-                                    SendButtonKind.Save -> Res.string.conversation_save_edit
-                                    SendButtonKind.Mic -> Res.string.conversation_record_voice
-                                    SendButtonKind.Camera -> Res.string.conversation_record_video_note
-                                    SendButtonKind.SendVoice -> if (recording.kind == RecordMode.VideoNote) {
-                                        Res.string.conversation_send_video_note
-                                    } else {
-                                        Res.string.conversation_send_voice
+                // Pomalý režim: místo odeslání odpočet (`SlowModeCountdown.kt`). Úprava zprávy
+                // nic nového neposílá a rozjeté nahrávání se dokončí, jak bylo.
+                if (slowModeLeft > 0 && editing == null && !recording.isRecording) {
+                    SlowModeCountdownButton(slowModeLeft, onClick = send.onSlowModeWait)
+                } else {
+                    FilledIconButton(
+                        onClick = {
+                            when {
+                                voiceActive -> recording.onSend(SendOptions())
+                                showMic -> {
+                                    if (recording.canSwitchMode) {
+                                        haptics.toggle(on = recording.mode == RecordMode.Voice)
+                                        recording.onSwitchMode()
                                     }
-                                    SendButtonKind.Send -> Res.string.conversation_send
+                                    hintScope.launch { recordHint.show() }
+                                }
+                                else -> {
+                                    send.onSend(composer.composed, SendOptions())
+                                    draft = TextFieldValue()
+                                }
+                            }
+                        },
+                        // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
+                        // Náhled, který se ještě dokončuje, poslat nejde — soubor není hotový.
+                        enabled = (recording.isRecording || voicePreview?.preview?.voice != null || videoNotePreview?.preview?.note != null || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
+                            // Odeslání teď by poslalo zprávu bez videa, které se ještě kopíruje.
+                            !(kind == SendButtonKind.Send && attachments.preparing),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = containerColor,
+                            contentColor = contentColor,
+                        ),
+                        shapes = buttonShapes,
+                        modifier = Modifier
+                            // PRVNÍ v řetězu: tlačítko během gesta změní druh i modifikátory za tímhle.
+                            .holdToRecord(
+                                enabled = showMic,
+                                cancelDistance = RECORD_CANCEL_DISTANCE,
+                                lockDistance = RECORD_LOCK_DISTANCE,
+                                onHoldStart = {
+                                    gestureHints?.used(GestureHint.HoldToRecord)
+                                    recordHeld = true
+                                    // Zamčení z minula (akce čtečky, která nakonec nenahrávala) neplatí.
+                                    recordLocked = false
+                                    recording.onStart(true)
                                 },
-                            ),
-                            modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
-                        )
+                                onDrag = { recordDrag.value = it },
+                                onRelease = {
+                                    recordHeld = false
+                                    if (recording.isRecording) recording.onSend(SendOptions())
+                                },
+                                onCancel = {
+                                    recordHeld = false
+                                    if (recording.isRecording) recording.onCancel()
+                                },
+                                onLock = {
+                                    recordHeld = false
+                                    if (recording.isRecording) {
+                                        haptics.threshold()
+                                        recordLocked = true
+                                    }
+                                },
+                            )
+                            // Čtečka obrazovky podržet neumí: nahrávání spustí akcí, rovnou zamčené.
+                            .semantics {
+                                if (showMic) {
+                                    customActions = listOf(
+                                        CustomAccessibilityAction(recordActionLabel) {
+                                            recordLocked = true
+                                            recording.onStart(false)
+                                            true
+                                        },
+                                    )
+                                }
+                            }
+                            .size(IconButtonDefaults.mediumContainerSize())
+                            // Klidový tvar; stisk ho na chvíli zhranatí, a to při letu fotky nehraje roli.
+                            .occludesSharedElements(buttonShapes.shape)
+                            // Podržení nabídne odeslat bez zvuku a naplánovat — u hotové zprávy
+                            // i u nahrávané hlasovky.
+                            .longPressInstead(enabled = sendOptionsOffered) {
+                                gestureHints?.used(GestureHint.SendOptions)
+                                voiceMenu = kind == SendButtonKind.SendVoice
+                                if (voiceMenu) recording.onMenu(true)
+                                sendMenuOpen = true
+                            },
+                    ) {
+                        // Ikona jede stejnou pružinou jako tvar — rychlejší by se vyměnila dřív, než je
+                        // morf vůbec vidět.
+                        val iconScale = morphSpring<Float>()
+                        val iconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                        AnimatedContent(
+                            targetState = kind,
+                            transitionSpec = {
+                                (scaleIn(iconScale, initialScale = 0.4f) + fadeIn(iconFade))
+                                    .togetherWith(scaleOut(iconScale, targetScale = 0.4f) + fadeOut(iconFade))
+                            },
+                            label = "send-button-icon",
+                        ) { shown ->
+                            // Při úpravě fajfka: nic se neposílá, jen potvrzuje změna.
+                            Icon(
+                                painterResource(
+                                    when (shown) {
+                                        SendButtonKind.Save -> Res.drawable.check_24dp
+                                        SendButtonKind.Mic -> Res.drawable.mic_24dp
+                                        SendButtonKind.Camera -> Res.drawable.videocam_24dp
+                                        SendButtonKind.Send, SendButtonKind.SendVoice -> Res.drawable.send_24dp
+                                    },
+                                ),
+                                contentDescription = stringResource(
+                                    when (shown) {
+                                        SendButtonKind.Save -> Res.string.conversation_save_edit
+                                        SendButtonKind.Mic -> Res.string.conversation_record_voice
+                                        SendButtonKind.Camera -> Res.string.conversation_record_video_note
+                                        SendButtonKind.SendVoice -> if (recording.kind == RecordMode.VideoNote) {
+                                            Res.string.conversation_send_video_note
+                                        } else {
+                                            Res.string.conversation_send_voice
+                                        }
+                                        SendButtonKind.Send -> Res.string.conversation_send
+                                    },
+                                ),
+                                modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                            )
+                        }
                     }
                 }
                 }

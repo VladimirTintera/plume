@@ -512,6 +512,7 @@
     <string name="error_verification_failed">Telegram tohle pustí jen po ověření oficiální aplikace, a to Plume udělat nemůže. Zkus to v oficiální aplikaci Telegramu.</string>
     <string name="error_slowmode_wait_seconds">Ve skupině je pomalý režim. Další zprávu půjde poslat za %1$d s.</string>
     <string name="error_slowmode_wait_minutes">Ve skupině je pomalý režim. Další zprávu půjde poslat za %1$d min.</string>
+    <string name="conversation_slow_mode_wait">Pomalý režim. Další zprávu půjde poslat za %1$d s.</string>
     <string name="error_resend_too_early">Zprávu půjde poslat znovu až za chvíli.</string>
     <string name="error_you_blocked_user">Tohohle člověka máš zablokovaného.</string>
     <string name="error_recovery_unavailable">K účtu není nastavený obnovovací e-mail.</string>
