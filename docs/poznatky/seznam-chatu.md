@@ -1013,6 +1013,19 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 - **Nevratná akce má potvrzení a pojmenovává následek**, ne „opravdu?". `ChatActionsState` proto
   drží `target` (sheet) a `pendingDelete` (dialog) zvlášť — mezi zavřením nabídky a potvrzením
   nesmí zůstat viset obojí.
+- **„Vymazat historii…" je v nabídce taky, ne jen v ⋮ konverzace** — chat se vyprázdní a zůstane
+  v seznamu. Otevře TENTÝŽ `ClearHistorySheet` (celá historie nebo vybrané dny, „i pro
+  protějšek"), dvě podoby téhož kroku by se rozešly; pravidla jsou v `konverzace-akce.md`,
+  „Vymazání historie".
+  - **Práva se zjišťují až při otevření nabídky** (`ConversationRepository.clearHistoryRights`,
+    `getChat` → `Chat.canBeDeleted…`), jako blokování a složky: `ChatSummary` je nenese a ptát
+    se dopředu by znamenalo dotaz za každý chat. Dokud nedorazí, položka není.
+  - **Uložené zprávy ji nemají** — stejně jako v konverzaci se tam maže po tématech.
+  - Stojí hned nad „Smazat chat" a má jeho chybovou barvu: obojí je nevratné a liší se jen tím,
+    jestli chat v seznamu zůstane. Bez „Vrátit": historii odložit nejde tak, aby ji konverzace
+    mezitím neukazovala (zprávy by musela schovávat i otevřená konverzace).
+  - Ověřeno na emulátoru (chat s botem): položka v nabídce, sheet s volbami. Samotné vymazání
+    z nabídky na emulátoru NEPROBĚHLO (skutečný účet); volání je totéž jako v konverzaci.
 - **Smazání a opuštění mají „Vrátit" — smazání se proto ODKLÁDÁ** (`PendingChatDeletes`, testy
   `PendingChatDeletesTest`). Zpětně se vrátit nedá nic: z opuštěné skupiny se zpátky dostane
   jen pozvánkou a smazanou historii nic neobnoví. Chat po potvrzení hned zmizí ze seznamu

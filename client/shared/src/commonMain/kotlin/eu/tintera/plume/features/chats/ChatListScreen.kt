@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.features.conversation.ClearHistorySheet
 import eu.tintera.plume.core.ui.CountdownSnackbarHost
 import eu.tintera.plume.core.ui.showCountdownSnackbar
 import eu.tintera.plume.resources.chats_deleted
@@ -42,6 +43,7 @@ import eu.tintera.plume.core.ui.ReportDrawnWhen
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.chatTitle
+import eu.tintera.plume.core.telegram.isPrivate
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -769,6 +771,12 @@ internal fun ChatActionsHost(
         viewModel.dismissError()
     }
 
+    LaunchedEffect(actions.notice) {
+        val message = actions.notice ?: return@LaunchedEffect
+        viewModel.dismissNotice()
+        snackbarScope.launch { snackbarHostState.showSnackbar(message.resolveNow()) }
+    }
+
     LaunchedEffect(actions.archived) {
         val change = actions.archived ?: return@LaunchedEffect
         viewModel.consumeArchived()
@@ -882,8 +890,21 @@ internal fun ChatActionsHost(
             },
             folders = folderChoices,
             onToggleFolder = { id -> viewModel.toggleFolder(chat, id) },
+            onClearHistory = if (actions.clearHistory != null) {
+                { viewModel.startClearHistory(chat) }
+            } else null,
             onDelete = { cleanup -> viewModel.delete(chat, cleanup) },
             onDismiss = viewModel::hideActions,
+        )
+    }
+    // Tentýž sheet jako ⋮ v konverzaci — dvě podoby téhož kroku by se rozešly.
+    val clearing by viewModel.clearingHistory.collectAsStateWithLifecycle()
+    clearing?.let { target ->
+        ClearHistorySheet(
+            rights = target.rights,
+            peerName = chatTitle(target.chat.id, target.chat.title).takeIf { target.chat.isPrivate },
+            onConfirm = { from, to, forAll -> viewModel.clearHistory(target.chat, from, to, forAll) },
+            onDismiss = viewModel::cancelClearHistory,
         )
     }
 
