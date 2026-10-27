@@ -1,11 +1,27 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.ui.layout.Layout
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
+import eu.tintera.plume.features.conversation.collapsesLongText
+import eu.tintera.plume.core.ui.messageTextStyle
+import eu.tintera.plume.resources.conversation_read_less
+import eu.tintera.plume.resources.conversation_read_more
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
@@ -299,11 +315,7 @@ internal data class BubbleMessageItem(
             !message.hasOriginLabel && (continuesAbove || message.senderName == null)
         val collapses = remember(message.id, message.text, message.entities) { collapsesQuote(message) }
         if (!collapses) {
-            MessageText(
-                linkColor = accent,
-                bleedTop = if (atTop) MESSAGE_PADDING_V else QUOTE_EDGE_TIGHT,
-                bleedBottom = if (message.linkPreview == null && !message.isEdited) contentBottom else QUOTE_EDGE_TIGHT,
-            )
+            LongText(atTop)
             return
         }
 
@@ -358,6 +370,89 @@ internal data class BubbleMessageItem(
 }
 
 /**
+ * Kolik seznamu konverzace nahoře zakrývá lišta a pruhy nad ním (jeho horní `contentPadding`).
+ * Čte ho jen [LongText], aby místo ořezu po rozbalení neskončilo pod nimi.
+ */
+internal val LocalConversationTopInset = compositionLocalOf { 0.dp }
+
+/**
+ * Text zprávy, který se po [COLLAPSED_TEXT_LINES] řádcích sbalí s „Číst dál" pod sebou.
+ *
+ * Dlouhá zpráva (vložený článek, přepis, výpis z logu) zabrala i několik obrazovek a kdo ji
+ * číst nechtěl, musel přes ni rolovat — v obou směrech. Sbalená ukáže začátek a zbytek nabídne.
+ *
+ * - **Že se nevešla, říká layout** (`onOverflow`), ne počet znaků: záleží na šířce bubliny,
+ *   velikosti písma i zalomení. Rozbalená drží, co bylo — jinak by po rozbalení „Sbalit" zmizelo
+ *   (rozbalená se vejde vždycky). Sbalená bere POSLEDNÍ měření, viz sbalitelná citace.
+ * - **Rozbalení se dorovná, aby se dalo číst dál.** Seznam konverzace je obrácený a drží spodní
+ *   hranu: zpráva roste NAHORU, rozbalovač zůstane na místě a nad ním se objeví KONEC zprávy —
+ *   řádek, u kterého se čtení zastavilo, odjede nahoru z obrazovky. Proto se po rozbalení
+ *   požádá o zobrazení místa ořezu (`bringIntoViewRequester`); seznam ho dorolluje co nejméně,
+ *   takže když je vidět, nestane se nic.
+ * - **Nesbaluje se zpráva s nálezem hledání ani článek** ([collapsesLongText]).
+ */
+@Composable
+internal fun MessageBodyScope.LongText(atTop: Boolean) {
+    val collapsible = collapsesLongText(message, items.searchHighlight())
+    var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
+    var overflowed by remember(message.id) { mutableStateOf(false) }
+    val readMore = remember { BringIntoViewRequester() }
+    var collapsedHeight by remember(message.id) { mutableIntStateOf(0) }
+    val lineHeight = with(LocalDensity.current) { messageTextStyle().lineHeight.toPx() }
+    val obscuredTop = with(LocalDensity.current) { LocalConversationTopInset.current.toPx() }
+    val shown = !collapsible || expanded || !overflowed
+    LaunchedEffect(expanded) {
+        if (!expanded || collapsedHeight == 0) return@LaunchedEffect
+        // Až po přeměření: rozbalený text musí být v layoutu, jinak by se ukazovalo místo,
+        // které ještě neexistuje.
+        withFrameNanos { }
+        readMore.bringIntoView(
+            Rect(
+                left = 0f,
+                // Seznam zarovná obdélník k SVÉ hraně, a ta je pod lištou a pruhy; o jejich výšku
+                // výš, jinak by místo ořezu skončilo právě pod nimi.
+                top = collapsedHeight - READ_MORE_CONTEXT_LINES * lineHeight - obscuredTop,
+                right = 1f,
+                bottom = collapsedHeight + READ_MORE_CONTEXT_LINES * lineHeight,
+            ),
+        )
+    }
+    Box(
+        Modifier
+            .bringIntoViewRequester(readMore)
+            .onSizeChanged { if (!expanded) collapsedHeight = it.height },
+    ) {
+        MessageText(
+            linkColor = accent,
+            maxLines = if (collapsible && !expanded) COLLAPSED_TEXT_LINES else Int.MAX_VALUE,
+            /*
+             * Bez výpustky: Android ji na posledním řádku nad `maxLines` dělá ZÁMĚNOU znaku, i když
+             * se řádek vejde — „Řádek20" se ukázal jako „Řádek2…" a vypadal jako překlep.
+             * Pokračování ohlásí „Číst dál" pod textem.
+             */
+            overflow = TextOverflow.Clip,
+            bleedTop = if (atTop) MESSAGE_PADDING_V else QUOTE_EDGE_TIGHT,
+            // S rozbalovačem pod textem pás citace na okraj bubliny nesahá.
+            bleedBottom = if (shown && message.linkPreview == null && !message.isEdited) contentBottom else QUOTE_EDGE_TIGHT,
+            onOverflow = if (collapsible) {
+                { if (!expanded) overflowed = it }
+            } else {
+                null
+            },
+        )
+    }
+    if (collapsible && overflowed) {
+        QuoteExpander(
+            expanded = expanded,
+            onClick = { expanded = !expanded },
+            expandLabel = Res.string.conversation_read_more,
+            collapseLabel = Res.string.conversation_read_less,
+            topPadding = MESSAGE_PADDING_V,
+        )
+    }
+}
+
+/**
  * Citovaná zpráva nad odpovědí — horní díl karty [QuotedBubble]. Sdílí ji bublina i anketa.
  * Ťuknutí skočí na citovanou zprávu, dlouhý stisk otevře nabídku (citace má vlastní klikání).
  */
@@ -398,7 +493,14 @@ internal fun MessageBodyScope.ReplyQuote(quote: ChatMessage, partnerName: String
  * nad zprávou (tatáž past jako u citace a značky přeposlání).
  */
 @Composable
-private fun MessageBodyScope.QuoteExpander(expanded: Boolean, onClick: () -> Unit) {
+private fun MessageBodyScope.QuoteExpander(
+    expanded: Boolean,
+    onClick: () -> Unit,
+    expandLabel: StringResource = Res.string.conversation_quote_expand,
+    collapseLabel: StringResource = Res.string.conversation_quote_collapse,
+    /** U citace dvojnásobné (viz níž); pod obyčejným textem žádný pás není. */
+    topPadding: Dp = MESSAGE_PADDING_V * 2,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -411,7 +513,7 @@ private fun MessageBodyScope.QuoteExpander(expanded: Boolean, onClick: () -> Uni
              * Dotykové odsazení se od toho NEODEČÍTÁ: pod popiskem leží taky (a k němu ještě
              * spodní odsazení bubliny), takže se tím obě mezery srovnají na 12 dp.
              */
-            .padding(top = MESSAGE_PADDING_V * 2)
+            .padding(top = topPadding)
             // Dotyková plocha je větší než text, ale popisek musí zůstat v jeho sloupci.
             .offset(x = -EXPANDER_TOUCH_H)
             .clip(RoundedCornerShape(QUOTE_EXPANDER_CORNER))
@@ -420,7 +522,7 @@ private fun MessageBodyScope.QuoteExpander(expanded: Boolean, onClick: () -> Uni
     ) {
         Text(
             text = stringResource(
-                if (expanded) Res.string.conversation_quote_collapse else Res.string.conversation_quote_expand,
+                if (expanded) collapseLabel else expandLabel,
             ),
             /*
              * Zvýrazněný řez, ne jen barva: v ODCHOZÍ bublině je akcent barva bubliny, takže
@@ -456,6 +558,15 @@ private val EXPANDER_TOUCH_V = 4.dp
 private val EXPANDER_TOUCH_H = 6.dp
 
 private val QUOTE_EXPANDER_ICON = 18.dp
+
+/**
+ * Na kolik řádků se sbalí dlouhá zpráva. Zhruba polovina obrazovky telefonu: dost na to, aby
+ * se z ní dalo poznat, o čem je, a dost málo, aby nepřekryla všechno kolem.
+ */
+internal const val COLLAPSED_TEXT_LINES = 20
+
+/** Kolik řádků kolem místa ořezu se po rozbalení ukáže — aby bylo vidět, kde čtení navazuje. */
+private const val READ_MORE_CONTEXT_LINES = 2
 
 /** Mezera mezi médiem článku a textem nad ním a pod ním. */
 private val ARTICLE_MEDIA_GAP = 8.dp

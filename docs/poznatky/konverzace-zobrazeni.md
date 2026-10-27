@@ -1070,6 +1070,34 @@ se ukazují v místním pásmu a v jazyce aplikace: „středa 30. září 2026 
   Offsety jsou v UTF-16 — s ručně spočítaným offsetem nahradí entita i sousední znak. Ověřeno
   na emulátoru anglicky i česky. **iOS jen přeložené.**
 
+## Sbalení dlouhé zprávy
+
+Text zprávy delší než 20 řádků (`COLLAPSED_TEXT_LINES`) se sbalí a pod ním je „Číst dál",
+po rozbalení „Sbalit" (`LongText` v `items/BubbleMessageItem.kt`, pravidlo `collapsesLongText`,
+testy v `MessageRowsTest`). Rozbalovač je týž jako u sbalitelné citace (`QuoteExpander`),
+jen s vlastními popisky a bez dvojitého odsazení — pod textem žádný pás není.
+
+- **Že se nevešla, říká layout** (`onOverflow`), ne počet znaků — záleží na šířce bubliny,
+  velikosti písma a zalomení. Rozbalená drží, co bylo, a sbalená bere POSLEDNÍ měření (stejné
+  pasti jako u citace).
+- **Ořez bez výpustky** (`TextOverflow.Clip`, nový parametr `overflow` v `RichText`
+  a `MessageText`). Android výpustku na posledním řádku nad `maxLines` dělá ZÁMĚNOU znaku,
+  i když se řádek vejde: „Radek20" se ukázal jako „Radek2…" a vypadal jako překlep.
+  Pokračování ohlásí rozbalovač.
+- **Rozbalení se dorovná** (`bringIntoViewRequester`). Seznam je obrácený a drží spodní hranu,
+  takže zpráva roste NAHORU: rozbalovač zůstane na místě, nad ním se objeví konec zprávy a řádek,
+  u kterého čtení skončilo, odjede z obrazovky. Po rozbalení se proto požádá o místo ořezu (dva
+  řádky kolem); seznam dorolluje co nejméně, takže když je vidět, nestane se nic.
+  - **O horní `contentPadding` seznamu výš** (`LocalConversationTopInset` z `ConversationContent`):
+    seznam zarovná obdélník k SVÉ hraně, a ta leží pod lištou a pruhem připnutých. Bez toho
+    skončily řádky u ořezu právě pod nimi.
+- **Nesbaluje se článek** (má „Číst celý článek") **a zpráva s nálezem hledání** — nález by mohl
+  ležet ve schované části a skok na něj by ho neukázal.
+- **Ověřeno na emulátoru** v testovací skupině: zpráva o 30 a o 60 řádcích sbalená na 20
+  s „Číst dál", rozbalení té krátké bez posunu, té dlouhé s místem ořezu pod pruhem připnutých,
+  „Sbalit" na konci zprávu vrátí. Kratší zpráva (18 řádků) se nesbalí. Sbalení podpisu u fotky,
+  velké písmo zpráv a desktop ověřené nejsou.
+
 ## Profilovky ve skupině
 
 Ve skupině má cizí zpráva vlevo tvář odesílatele, aby se odesílatelé nerozlišovali jen jménem.

@@ -1635,6 +1635,8 @@
     <string name="article_read_more">Read the whole article</string>
     <string name="article_load_failed">Could not load the whole article.</string>
     <string name="conversation_quote_collapse">Show less</string>
+    <string name="conversation_read_more">Read more</string>
+    <string name="conversation_read_less">Show less</string>
     <string name="conversation_forwarded_from">Forwarded from %1$s</string>
     <string name="conversation_forwarded">Forwarded message</string>
     <string name="conversation_via_bot">via %1$s</string>
