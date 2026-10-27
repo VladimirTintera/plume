@@ -63,7 +63,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Co je nad konverzací otevřené po ťuknutí v obrazovce: výběry samolepek, galerie a místa,
  * plánování, efekty, náhled přílohy, seznam připnutých. Dialogy, které otevírá stav ViewModelu
- * (`state.translation`, `state.pendingDelete`…), sem nepatří — ty si řídí ViewModel sám.
+ * (`state.translation`, `state.dialog`…), sem nepatří — ty si řídí ViewModel sám.
  *
  * Jeden držák místo deseti proměnných v [ConversationScreen]: ta je v dexu na hraně registrů
  * a každá `var … by rememberSaveable` v ní stála registry navíc.
@@ -202,7 +202,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.pendingContact?.let { contact ->
+    state.dialog<ConversationDialog.ShareContact>()?.contact?.let { contact ->
         ContactConfirmDialog(
             contact = contact,
             onConfirm = {
@@ -235,7 +235,7 @@ internal fun ConversationDialogs(
 
     // Přesná: živá poloha se sleduje na mapě, kilometrová přesnost by z ní udělala šum.
     val liveLocation = rememberDeviceLocation(precise = true)
-    state.proximityAlert?.let { prompt ->
+    state.dialog<ConversationDialog.ProximityAlert>()?.prompt?.let { prompt ->
         ProximityAlertSheet(
             currentRadius = prompt.currentRadius,
             onPick = viewModel::setProximityAlert,
@@ -364,10 +364,10 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.loginRequest?.let { request ->
+    state.dialog<ConversationDialog.BotLogin>()?.request?.let { request ->
         LoginUrlDialog(prompt = request.prompt, onConfirm = viewModel::confirmLogin, onDismiss = viewModel::dismissLogin)
     }
-    state.externalLogin?.let { login ->
+    state.dialog<ConversationDialog.WebLogin>()?.login?.let { login ->
         LoginUrlDialog(
             prompt = login.prompt,
             onConfirm = viewModel::confirmExternalLogin,
@@ -375,35 +375,35 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.confirmLink?.let { url ->
+    state.dialog<ConversationDialog.ConfirmLink>()?.url?.let { url ->
         OpenLinkDialog(url = url, onOpen = viewModel::openConfirmedLink, onDismiss = viewModel::dismissLink)
     }
 
-    state.loginWarning?.let { kind ->
+    state.dialog<ConversationDialog.LoginWarning>()?.kind?.let { kind ->
         LoginLinkWarningDialog(kind = kind, onDismiss = viewModel::dismissLoginWarning)
     }
 
-    state.deepLinkInfo?.let { info ->
+    state.dialog<ConversationDialog.DeepLink>()?.info?.let { info ->
         DeepLinkInfoDialog(info = info, onLinkClick = viewModel::openDeepLinkInfoLink, onDismiss = viewModel::dismissDeepLinkInfo)
     }
 
-    if (state.decliningSuggestedPost != null) {
+    if (state.dialog is ConversationDialog.DeclineSuggestedPost) {
         DeclineSuggestedPostDialog(
             onConfirm = viewModel::declineSuggestedPost,
             onDismiss = viewModel::cancelDeclineSuggestedPost,
         )
     }
 
-    state.botAlert?.let { text ->
+    state.dialog<ConversationDialog.BotAlert>()?.text?.let { text ->
         BotAlertDialog(text = text, onDismiss = viewModel::dismissBotAlert)
     }
 
-    if (state.confirmSharePhone) {
+    if (state.dialog == ConversationDialog.SharePhone) {
         SharePhoneDialog(onShare = viewModel::sharePhone, onDismiss = viewModel::dismissSharePhone)
     }
     // Přesná: bot polohou volá taxi nebo kurýra, kilometrová přesnost tam nic neřekne.
     val keyboardLocation = rememberDeviceLocation(precise = true)
-    if (state.confirmShareLocation) {
+    if (state.dialog == ConversationDialog.ShareLocation) {
         ShareLocationDialog(
             onShare = {
                 viewModel.dismissShareLocation()
@@ -451,7 +451,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.pendingRepliesBlock?.let {
+    state.dialog<ConversationDialog.BlockFromReplies>()?.messageId?.let {
         RepliesBlockDialog(
             onConfirm = viewModel::confirmBlockFromReplies,
             onDismiss = viewModel::dismissBlockFromReplies,
@@ -494,7 +494,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    if (state.addingPollOption != null) {
+    if (state.dialog is ConversationDialog.AddPollOption) {
         AddPollOptionDialog(
             chatId = viewModel.chatId,
             places = viewModel.places,
@@ -504,9 +504,9 @@ internal fun ConversationDialogs(
         )
     }
 
-    if (state.addingChecklistTask != null) {
+    state.dialog<ConversationDialog.AddChecklistTask>()?.let { adding ->
         AddChecklistTaskDialog(
-            maxLength = state.checklistTaskMax,
+            maxLength = adding.maxLength,
             onConfirm = viewModel::addChecklistTask,
             onDismiss = viewModel::dismissAddChecklistTask,
         )
@@ -532,16 +532,16 @@ internal fun ConversationDialogs(
         }
     }
 
-    if (state.pendingStopPoll != null) {
+    if (state.dialog is ConversationDialog.StopPoll) {
         StopPollDialog(onConfirm = viewModel::confirmStopPoll, onDismiss = viewModel::cancelStopPoll)
     }
 
-    state.pendingDeletePollOption?.let { pending ->
+    state.dialog<ConversationDialog.DeletePollOption>()?.pending?.let { pending ->
         DeletePollOptionDialog(text = pending.text, onConfirm = viewModel::confirmDeletePollOption, onDismiss = viewModel::cancelDeletePollOption)
     }
 
 
-    state.pendingPin?.let { pending ->
+    state.dialog<ConversationDialog.Pin>()?.pending?.let { pending ->
         PinMessageDialog(
             pending = pending,
             partnerName = state.info?.title,
@@ -550,7 +550,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.pendingDelete?.let { pending ->
+    state.dialog<ConversationDialog.Delete>()?.pending?.let { pending ->
         MessageDeleteDialog(
             pending = pending,
             partnerName = state.info?.title,

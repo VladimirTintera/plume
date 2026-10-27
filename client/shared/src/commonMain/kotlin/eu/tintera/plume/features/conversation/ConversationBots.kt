@@ -113,7 +113,7 @@ internal class ConversationBots(
                         is LoginUrlPrompt.Open ->
                             if (prompt.skipConfirmation) openUrl(prompt.url) else links.openLink(prompt.url, confirmExternal = true)
                         is LoginUrlPrompt.Confirm ->
-                            state.update { it.copy(loginRequest = LoginRequest(messageId, button.buttonId, prompt)) }
+                            state.update { it.copy(dialog = ConversationDialog.BotLogin(LoginRequest(messageId, button.buttonId, prompt))) }
                     }
                 }
                 .onFailure { links.openLink(button.url, confirmExternal = true) }
@@ -122,8 +122,8 @@ internal class ConversationBots(
 
     /** Přihlášení potvrzené v dialogu; [allowWriteAccess] = bot smí uživateli psát. */
     fun confirmLogin(allowWriteAccess: Boolean) {
-        val request = state.value.loginRequest ?: return
-        state.update { it.copy(loginRequest = null) }
+        val request = state.value.dialog<ConversationDialog.BotLogin>()?.request ?: return
+        state.update { it.closing<ConversationDialog.BotLogin>() }
         scope.launch {
             repository.loginUrl(chatId, request.messageId, request.buttonId, allowWriteAccess)
                 .onSuccess(openUrl)
@@ -135,9 +135,9 @@ internal class ConversationBots(
         }
     }
 
-    fun dismissLogin() = state.update { it.copy(loginRequest = null) }
+    fun dismissLogin() = state.update { it.closing<ConversationDialog.BotLogin>() }
 
-    fun dismissBotAlert() = state.update { it.copy(botAlert = null) }
+    fun dismissBotAlert() = state.update { it.closing<ConversationDialog.BotAlert>() }
 
     /**
      * Tlačítko bota pod zprávou.
@@ -182,7 +182,7 @@ internal class ConversationBots(
                     state.update { current ->
                         when {
                             answer.text.isEmpty() -> current
-                            answer.alert -> current.copy(botAlert = answer.text)
+                            answer.alert -> current.copy(dialog = ConversationDialog.BotAlert(answer.text))
                             else -> current.copy(notice = UiText(Res.string.bot_answer, answer.text))
                         }
                     }
@@ -230,15 +230,17 @@ internal class ConversationBots(
         state.update {
             it.copy(
                 messageMenu = null,
-                pendingDeletePollOption = answer?.let { a -> PendingPollOptionDelete(messageId, a.id, a.text) },
+                // Odpověď, která mezitím zmizela, dialog neotevře (a starý o smazání odpovědi zavře).
+                dialog = answer?.let { a -> ConversationDialog.DeletePollOption(PendingPollOptionDelete(messageId, a.id, a.text)) }
+                    ?: it.closing<ConversationDialog.DeletePollOption>().dialog,
             )
         }
     }
 
     /** Smazaná odpověď zmizí sama — TDLib změní obsah zprávy, jako po přidání odpovědi. */
     fun confirmDeletePollOption() {
-        val pending = state.value.pendingDeletePollOption ?: return
-        state.update { it.copy(pendingDeletePollOption = null) }
+        val pending = state.value.dialog<ConversationDialog.DeletePollOption>()?.pending ?: return
+        state.update { it.closing<ConversationDialog.DeletePollOption>() }
         scope.launch {
             repository.deletePollOption(chatId, pending.messageId, pending.optionId).onFailure { failure ->
                 state.update { it.copy(error = failure.reported(logger, Res.string.poll_delete_option_failed)) }
@@ -247,17 +249,17 @@ internal class ConversationBots(
     }
 
     fun cancelDeletePollOption() {
-        state.update { it.copy(pendingDeletePollOption = null) }
+        state.update { it.closing<ConversationDialog.DeletePollOption>() }
     }
 
     fun cancelStopPoll() {
-        state.update { it.copy(pendingStopPoll = null) }
+        state.update { it.closing<ConversationDialog.StopPoll>() }
     }
 
     /** Uzavření ankety se ukáže samo — TDLib změní obsah zprávy a výsledky se odkryjí. */
     fun confirmStopPoll() {
-        val messageId = state.value.pendingStopPoll ?: return
-        state.update { it.copy(pendingStopPoll = null) }
+        val messageId = state.value.dialog<ConversationDialog.StopPoll>()?.messageId ?: return
+        state.update { it.closing<ConversationDialog.StopPoll>() }
         scope.launch {
             repository.stopPoll(chatId, messageId).onFailure { failure ->
                 state.update { it.copy(error = failure.reported(logger, Res.string.poll_stop_failed)) }
@@ -353,9 +355,9 @@ internal class ConversationBots(
                     }
             }
             // Číslo je údaj o uživateli; odejde až po potvrzení.
-            ReplyKeyboardButtonKind.PhoneNumber -> state.update { it.copy(confirmSharePhone = true) }
+            ReplyKeyboardButtonKind.PhoneNumber -> state.update { it.copy(dialog = ConversationDialog.SharePhone) }
             // Poloha taky; zjišťuje ji až obrazovka po potvrzení (oprávnění a GPS jsou její).
-            ReplyKeyboardButtonKind.Location -> state.update { it.copy(confirmShareLocation = true) }
+            ReplyKeyboardButtonKind.Location -> state.update { it.copy(dialog = ConversationDialog.ShareLocation) }
             // Výběr lidí a chatu je obrazovka nad konverzací; tlačítko patří zprávě s klávesnicí.
             is ReplyKeyboardButtonKind.Users ->
                 state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, users = kind.request)) }
@@ -409,7 +411,7 @@ internal class ConversationBots(
 
     fun sharePhone() {
         val keyboard = state.value.replyMarkup as? ChatReplyMarkup.Keyboard
-        state.update { it.copy(confirmSharePhone = false) }
+        state.update { it.closing<ConversationDialog.SharePhone>() }
         scope.launch {
             repository.shareOwnPhone(chatId, keyboard?.replyTarget())
                 .onSuccess { keyboard?.let(::keyboardUsed) }
@@ -419,9 +421,9 @@ internal class ConversationBots(
         }
     }
 
-    fun dismissSharePhone() = state.update { it.copy(confirmSharePhone = false) }
+    fun dismissSharePhone() = state.update { it.closing<ConversationDialog.SharePhone>() }
 
-    fun dismissShareLocation() = state.update { it.copy(confirmShareLocation = false) }
+    fun dismissShareLocation() = state.update { it.closing<ConversationDialog.ShareLocation>() }
 
     /**
      * Poloha z tlačítka klávesnice bota, už zjištěná obrazovkou. `null` = uživatel nedovolil
@@ -429,7 +431,7 @@ internal class ConversationBots(
      * neudělalo. Jako odpověď ve skupině, stejně jako text tlačítka.
      */
     fun sendKeyboardLocation(point: GeoPoint?) {
-        state.update { it.copy(confirmShareLocation = false) }
+        state.update { it.closing<ConversationDialog.ShareLocation>() }
         if (point == null) {
             state.update { it.copy(notice = UiText(Res.string.bot_location_unavailable)) }
             return
@@ -463,9 +465,9 @@ internal class ConversationBots(
 
     /** Přidá do ankety odpověď z dialogu. Nová odpověď přijde úpravou obsahu zprávy. */
     fun addPollOption(text: String, media: PollDraftMedia?) {
-        val messageId = state.value.addingPollOption ?: return
+        val messageId = state.value.dialog<ConversationDialog.AddPollOption>()?.messageId ?: return
         val trimmed = text.trim()
-        state.update { it.copy(addingPollOption = null) }
+        state.update { it.closing<ConversationDialog.AddPollOption>() }
         if (trimmed.isEmpty()) return
         scope.launch {
             repository.addPollOption(chatId, messageId, trimmed, media).onFailure { failure ->
@@ -475,7 +477,7 @@ internal class ConversationBots(
     }
 
     fun dismissAddPollOption() {
-        state.update { it.copy(addingPollOption = null) }
+        state.update { it.closing<ConversationDialog.AddPollOption>() }
     }
 }
 

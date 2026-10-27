@@ -417,7 +417,7 @@ class ConversationAttachmentsTest {
         parts.attachments.pickContact(5)
         advanceUntilIdle()
 
-        assertNull(state.value.pendingContact)
+        assertNull(state.value.dialog<ConversationDialog.ShareContact>()?.contact)
         assertNotNull(state.value.notice)
     }
 
@@ -429,12 +429,12 @@ class ConversationAttachmentsTest {
 
         parts.attachments.pickContact(5)
         advanceUntilIdle()
-        assertEquals(5L, state.value.pendingContact?.userId)
+        assertEquals(5L, state.value.dialog<ConversationDialog.ShareContact>()?.contact?.userId)
 
         parts.attachments.confirmContact()
         advanceUntilIdle()
         assertEquals(listOf(5L), repository.contacts)
-        assertNull(state.value.pendingContact)
+        assertNull(state.value.dialog<ConversationDialog.ShareContact>()?.contact)
     }
 
     @Test

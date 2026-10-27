@@ -132,12 +132,12 @@ class ConversationMessageActionsTest {
         val actions = actions(state)
 
         actions.requestBlockFromReplies(9)
-        assertEquals(9L, state.value.pendingRepliesBlock)
+        assertEquals(9L, state.value.dialog<ConversationDialog.BlockFromReplies>()?.messageId)
         actions.confirmBlockFromReplies(deleteMessage = true, deleteAll = false, reportSpam = true)
         advanceUntilIdle()
 
         assertEquals(listOf(listOf<Any>(9L, true, false, true)), repository.blocked)
-        assertNull(state.value.pendingRepliesBlock)
+        assertNull(state.value.dialog<ConversationDialog.BlockFromReplies>()?.messageId)
         assertNotNull(state.value.notice)
     }
 
@@ -189,7 +189,7 @@ class ConversationMessageActionsTest {
         advanceUntilIdle()
 
         assertEquals(listOf(Pinned(1, notify = false, onlyForSelf = false)), repository.pinned)
-        assertNull(state.value.pendingPin)
+        assertNull(state.value.dialog<ConversationDialog.Pin>()?.pending)
         assertEquals(1, menusClosed)
     }
 
@@ -199,12 +199,12 @@ class ConversationMessageActionsTest {
         val actions = actions(state)
 
         actions.requestPin(1)
-        assertEquals(PinScope.Group, state.value.pendingPin?.scope)
+        assertEquals(PinScope.Group, state.value.dialog<ConversationDialog.Pin>()?.pending?.scope)
         actions.confirmPin(option = true)
         advanceUntilIdle()
 
         assertEquals(listOf(Pinned(1, notify = true, onlyForSelf = false)), repository.pinned)
-        assertNull(state.value.pendingPin)
+        assertNull(state.value.dialog<ConversationDialog.Pin>()?.pending)
     }
 
     @Test
@@ -213,7 +213,7 @@ class ConversationMessageActionsTest {
         val actions = actions(state)
 
         actions.requestPin(1)
-        assertEquals(PinScope.Private, state.value.pendingPin?.scope)
+        assertEquals(PinScope.Private, state.value.dialog<ConversationDialog.Pin>()?.pending?.scope)
         actions.confirmPin(option = false)
         advanceUntilIdle()
 
@@ -252,7 +252,7 @@ class ConversationMessageActionsTest {
 
         actions.requestDelete(2)
 
-        val pending = assertNotNull(state.value.pendingDelete)
+        val pending = assertNotNull(state.value.dialog<ConversationDialog.Delete>()?.pending)
         assertEquals(setOf(1L, 2L), pending.messageIds.toSet())
         assertTrue(pending.canDeleteForSelf)
         assertEquals(false, pending.canDeleteForAll)
@@ -270,7 +270,7 @@ class ConversationMessageActionsTest {
         advanceUntilIdle()
 
         assertEquals(listOf(listOf(1L) to true), repository.deleted)
-        assertNull(state.value.pendingDelete)
+        assertNull(state.value.dialog<ConversationDialog.Delete>()?.pending)
     }
 
     @Test
@@ -370,7 +370,7 @@ class ConversationMessageActionsTest {
         actions.requestDelete(1)
         advanceUntilIdle()
 
-        assertEquals(spammer, state.value.pendingDelete?.moderation)
+        assertEquals(spammer, state.value.dialog<ConversationDialog.Delete>()?.pending?.moderation)
     }
 
     /** Smazat jde jen u sebe = vlastní zpráva nebo soukromý chat; na server se kvůli tomu neptá. */
@@ -384,7 +384,7 @@ class ConversationMessageActionsTest {
         actions.requestDelete(1)
         advanceUntilIdle()
 
-        assertNull(state.value.pendingDelete?.moderation)
+        assertNull(state.value.dialog<ConversationDialog.Delete>()?.pending?.moderation)
     }
 
     @Test

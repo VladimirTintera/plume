@@ -6,7 +6,6 @@ import eu.tintera.plume.core.telegram.MessageSenderChoice
 import eu.tintera.plume.core.telegram.MediaReplacement
 import eu.tintera.plume.core.telegram.SenderModeration
 import eu.tintera.plume.core.telegram.PendingChecklistMark
-import eu.tintera.plume.core.telegram.DEFAULT_CHECKLIST_TASK_TEXT_MAX
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.currency.RateTable
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
@@ -534,8 +533,11 @@ data class ConversationState(
     val savedTopicId: Long? = null,
     /** Vlákno přímých zpráv kanálu; `null` u běžné konverzace. */
     val directTopicId: Long? = null,
-    /** Navrhovaný příspěvek, jehož odmítnutí čeká na komentář v dialogu; `null` = dialog zavřený. */
-    val decliningSuggestedPost: Long? = null,
+    /**
+     * Otevřený potvrzovací nebo rozhodovací dialog (smazat, připnout, odkaz z tlačítka bota…);
+     * `null` = žádný. Nejvýš jeden — viz [ConversationDialog].
+     */
+    val dialog: ConversationDialog? = null,
     /**
      * Nepřečtené zmínky a reakce v chatu — tlačítka „@" a „❤" nad tlačítkem dolů. Ve vlákně
      * komentářů zůstávají nulové: počty patří celé diskusní skupině.
@@ -573,14 +575,8 @@ data class ConversationState(
      * nenahlášené; 0, když je volba vypnutá. Podle toho se ukáže „Označit jako přečtené".
      */
     val discreetUnread: Int = 0,
-    /** Zpráva čekající na potvrzení smazání. */
-    val pendingDelete: PendingDelete? = null,
-    /** Zpráva z chatu Odpovědi, u které se potvrzuje zablokování odesílatele. */
-    val pendingRepliesBlock: Long? = null,
     /** Sdílený export chatu z jiné aplikace čekající na potvrzení importu. */
     val chatImport: ChatImportOffer? = null,
-    /** Zpráva čekající na potvrzení připnutí. */
-    val pendingPin: PendingPin? = null,
     /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */
     val replyingTo: ChatMessage? = null,
     /**
@@ -693,10 +689,6 @@ data class ConversationState(
     val openScreen: AppScreen? = null,
     /** Jednorázová událost: otevřít příběh v prohlížeči (citace odpovědi, odkaz na příběh). */
     val openStory: StoryTarget? = null,
-    /** Přihlašovací odkaz, který se z ťuknutí neotevírá — jen upozornění; `null` = žádný. */
-    val loginWarning: LoginLinkKind? = null,
-    /** Vysvětlení neznámého `tg://` odkazu od serveru. */
-    val deepLinkInfo: InternalLink.DeepLinkInfo? = null,
     /** Jednorázová událost: odkaz `t.me/bot?startgroup=…` — otevřít výběr skupiny. */
     val addBotToGroup: InternalLink.BotStartInGroup? = null,
     /** Tlačítko bota s inline dotazem do jiného chatu: obrazovka otevře výběr chatu. */
@@ -731,18 +723,6 @@ data class ConversationState(
      * správce); `null` = výběr se u pole neukazuje. Viz [ConversationSendAs].
      */
     val messageSender: MessageSenderChoice? = null,
-    /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
-    val confirmSharePhone: Boolean = false,
-    /** Tlačítko bota chce polohu; po potvrzení ji zjistí obrazovka. */
-    val confirmShareLocation: Boolean = false,
-    /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */
-    val confirmLink: String? = null,
-    /** Webový odkaz, který nabízí přihlášení účtem Telegramu (`getExternalLinkInfo`). */
-    val externalLogin: ExternalLogin? = null,
-    /** Tlačítko bota chce uživatele přihlásit na web; čeká se na potvrzení v dialogu. */
-    val loginRequest: LoginRequest? = null,
-    /** Upozornění od bota, které se musí potvrdit (`showAlert`); `null` = žádné. */
-    val botAlert: String? = null,
     /** Tlačítko bota, na jehož odpověď se čeká; `null` = žádné. */
     val pressingBotButton: BotButtonRef? = null,
     /** Video kolečko, které hraje se zvukem; `null` = všechna hrají potichu (nebo vůbec). */
@@ -767,36 +747,22 @@ data class ConversationState(
     val pollVoters: Long? = null,
     /** Sheet se stavem účasti v soutěži; `null` = zavřený. */
     val giveaway: GiveawaySheet? = null,
-    /** Zpráva s anketou, do které se přidává odpověď (dialog); `null` = zavřený. */
-    val addingPollOption: Long? = null,
-    /** Zpráva se seznamem úkolů, do kterého se přidává úkol (dialog); `null` = zavřený. */
-    val addingChecklistTask: Long? = null,
-    /** Strop délky úkolu od serveru pro dialog „Přidat úkol". */
-    val checklistTaskMax: Int = DEFAULT_CHECKLIST_TASK_TEXT_MAX,
     /**
      * Odškrtnutí úkolů, která odešla a server je ještě nepotvrdil, podle id zprávy. Bublina je
      * kreslí hned; po odpovědi serveru (i po chybě) zmizí a platí stav ze zprávy.
      */
     val pendingChecklistMarks: Map<Long, List<PendingChecklistMark>> = emptyMap(),
-    /** Odpověď ankety, kterou uživatel chce smazat a čeká se na potvrzení; `null` = žádná. */
-    val pendingDeletePollOption: PendingPollOptionDelete? = null,
-    /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
-    val pendingStopPoll: Long? = null,
     /** Useknuté články, které se právě dočítají („Číst dál"). */
     val loadingArticles: Set<Long> = emptySet(),
     /** Sheet výběru kontaktu ze sponky; `null` = zavřený. */
     val contactPicker: ContactPicker? = null,
     /** Sheet nedávno odeslaných souborů ze sponky; `null` = zavřený. */
     val recentFiles: RecentFilesSheet? = null,
-    /** Dialog upozornění na blízkost u vlastní živé polohy; `null` = zavřený. */
-    val proximityAlert: ProximityAlertPrompt? = null,
     /**
      * Živé polohy, které se v chatu právě sdílí (vlastní napřed) — pro dock nad konverzací.
      * Nezávisí na načtené historii: zpráva s polohou může být dávno odscrollovaná nebo mimo okno.
      */
     val liveLocations: List<ChatMessage> = emptyList(),
-    /** Kontakt, který čeká na potvrzení odeslání (jméno a číslo); `null` = žádný. */
-    val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
     val openPollComposer: PollComposerMode? = null,
     /** Jednorázová událost: „Upravit" nad seznamem úkolů v téhle zprávě chce formulář. */

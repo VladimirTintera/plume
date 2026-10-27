@@ -115,7 +115,7 @@ class ConversationSelectionTest {
 
         selection.deleteSelection()
 
-        val pending = assertNotNull(state.value.pendingDelete)
+        val pending = assertNotNull(state.value.dialog<ConversationDialog.Delete>()?.pending)
         assertEquals(listOf(1L, 2L), pending.messageIds)
         assertTrue(pending.canDeleteForAll)
         assertNull(state.value.selection)

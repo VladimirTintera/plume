@@ -261,8 +261,8 @@ internal fun conversationHintContext(state: ConversationState, hints: GestureHin
         state.reactionDetails == null &&
         state.messageInfo == null &&
         state.translation == null &&
-        state.pendingDelete == null &&
-        state.pendingPin == null &&
+        // Nad jakýmkoli dialogem ne — dřív se to hlídalo jen u smazání a připnutí.
+        state.dialog == null &&
         state.scheduledMessages == null &&
         state.contactPicker == null &&
         state.inline == null &&

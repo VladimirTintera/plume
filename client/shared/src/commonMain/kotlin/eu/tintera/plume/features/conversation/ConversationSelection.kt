@@ -163,13 +163,13 @@ internal class ConversationSelection(
         state.update {
             it.copy(
                 selection = null,
-                pendingDelete = PendingDelete(
+                dialog = ConversationDialog.Delete(PendingDelete(
                     messageId = ids.first(),
                     messageIds = ids,
                     canDeleteForSelf = selection.canDeleteForSelf,
                     canDeleteForAll = selection.canDeleteForAll,
                     count = selection.count,
-                ),
+                )),
             )
         }
     }
