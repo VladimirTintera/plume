@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.CountdownSnackbarHost
+import eu.tintera.plume.core.ui.showCountdownSnackbar
+import eu.tintera.plume.resources.chats_deleted
+import eu.tintera.plume.resources.chats_left
+import eu.tintera.plume.resources.chats_deleted_many
+import eu.tintera.plume.resources.chats_left_many
 import androidx.compose.material3.Icon
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.layout.width
@@ -657,7 +663,7 @@ fun ChatListScreen(
                                 .union(WindowInsets.ime),
                         ),
                 ) {
-                    SnackbarHost(snackbarHostState, Modifier.fillMaxWidth())
+                    SnackbarHost(snackbarHostState, Modifier.fillMaxWidth()) { CountdownSnackbarHost(it) }
                     // Lišta výběru stojí MÍSTO FAB menu, uprostřed: zakládat nový chat uprostřed
                     // vybírání nedává smysl a obojí by se o spodek obrazovky přetahovalo.
                     ChatSelectionToolbar(
@@ -800,6 +806,35 @@ internal fun ChatActionsHost(
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoBlock(change)
+        }
+    }
+
+    /*
+     * Smazání a opuštění s „Vrátit": chat už ze seznamu zmizel, smazání čeká na konec lhůty
+     * (`PendingChatDeletes`). Běží mimo efekt ze stejného důvodu jako u archivace.
+     */
+    LaunchedEffect(actions.deleted) {
+        val change = actions.deleted ?: return@LaunchedEffect
+        viewModel.consumeDeleted()
+        snackbarScope.launch {
+            val count = change.chatIds.size
+            // Předchozí snackbar pryč: odpočet se rozběhne, až je tenhle vidět, a ve frontě za
+            // jiným by smazání doběhlo dřív, než by se „Vrátit" vůbec ukázalo.
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val result = snackbarHostState.showCountdownSnackbar(
+                message = when {
+                    count > 1 -> readPluralString(
+                        if (change.left) Res.plurals.chats_left_many else Res.plurals.chats_deleted_many,
+                        count,
+                        count,
+                    )
+                    change.left -> readString(Res.string.chats_left)
+                    else -> readString(Res.string.chats_deleted)
+                },
+                actionLabel = readString(Res.string.chats_undo),
+                durationMs = UNDO_COUNTDOWN_MS,
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete(change)
         }
     }
 

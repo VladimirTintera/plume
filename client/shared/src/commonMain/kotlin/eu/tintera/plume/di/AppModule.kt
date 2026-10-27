@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.chats.PendingChatDeletes
 import eu.tintera.plume.features.settings.FolderSuggestions
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
@@ -280,6 +281,8 @@ fun appModule() = module {
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
     single { CommentDrafts(settings = get(), chats = get(), threads = get()) }
+    // Smazání chatu s „Vrátit" doběhne i po zavření archivu, proto ve scope aplikace.
+    single { PendingChatDeletes(repository = get(), scope = get(named(APP_SCOPE))) }
     single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
     single { VideoPositions(settings = get()) }
     single { ChatColors(settings = get(), chats = get()) }
@@ -338,6 +341,7 @@ fun appModule() = module {
             bookmarks = get(),
             photoDescriptions = get(),
             stories = get(),
+            pendingDeletes = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)

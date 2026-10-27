@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.chat_folder_delete_failed
 import eu.tintera.plume.core.settings.StoredPhotoDescription
 import eu.tintera.plume.features.media.PhotoDescriptions
@@ -125,6 +126,8 @@ class ChatsViewModel(
     private val photoDescriptions: PhotoDescriptions? = null,
     /** Příběhy: kroužky kolem avatarů, hromádka v pilulce a nový příběh; bez nich nic z toho. */
     private val stories: StoryRepository? = null,
+    /** Smazání s „Vrátit" ([PendingChatDeletes]); bez něj se maže hned. */
+    private val pendingDeletes: PendingChatDeletes? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -170,8 +173,10 @@ class ChatsViewModel(
      * jestli obrazovka existuje. ViewModel tu nic nekešuje, jen přeposílá a spouští dotažení.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val state: StateFlow<ChatListState> = shownFolder
-        .flatMapLatest { repository.chats(it) }
+    val state: StateFlow<ChatListState> = combine(
+        shownFolder.flatMapLatest { repository.chats(it) },
+        pendingDeletes?.pending ?: flowOf(emptySet()),
+    ) { state, pending -> state.without(pending) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, repository.chats(shownFolder.value).value)
 
     /**
@@ -1177,6 +1182,11 @@ class ChatsViewModel(
     fun deleteSelected() {
         val (actions, selected) = selectionNow() ?: return
         if (!actions.canDelete) return
+        if (selected.isNotEmpty() && pendingDeletes != null) {
+            _selection.value = null
+            scheduleDelete(selected)
+            return
+        }
         runOnSelection(selected) { repository.deleteOrLeave(it.id) }
     }
 
@@ -1244,6 +1254,38 @@ class ChatsViewModel(
         repository.setBlocked(chat.id, blocked)
     }
 
+    /**
+     * Odloží smazání [chats] s „Vrátit" ([PendingChatDeletes]); `false` = odložit nejde (bez
+     * [pendingDeletes]) a volající maže hned.
+     */
+    private fun scheduleDelete(chats: List<ChatSummary>): Boolean {
+        val pending = pendingDeletes ?: return false
+        val ids = chats.map { it.id }
+        val batch = pending.schedule(ids)
+        _actions.update { it.copy(deleted = DeleteChange(batch, ids, left = chats.none { chat -> chat.isPrivate })) }
+        return true
+    }
+
+    fun consumeDeleted() {
+        _actions.update { it.copy(deleted = null) }
+    }
+
+    /** „Vrátit" ve snackbaru po smazání: chaty se vrátí do seznamu a nic se nesmaže. */
+    fun undoDelete(change: DeleteChange) {
+        pendingDeletes?.undo(change.batch, change.chatIds)
+    }
+
+    init {
+        // Smazání po lhůtě „Vrátit" běží mimo ViewModel; jeho selhání ohlásí seznam, který žije.
+        pendingDeletes?.let { pending ->
+            viewModelScope.launch {
+                pending.failures.collect { failure ->
+                    _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
+                }
+            }
+        }
+    }
+
     /** Snackbar s „Vrátit" už je vidět — nuluje se hned, jinak by se po otočení ukázal znovu. */
     fun consumeBlocked() {
         _actions.update { it.copy(blocked = null) }
@@ -1267,6 +1309,9 @@ class ChatsViewModel(
      */
     fun delete(chat: ChatSummary, cleanup: SpamCleanup = SpamCleanup()) {
         _actions.value = ChatActionsState()
+        // Bez spamu jde smazání vrátit: odloží se a nabídne se „Vrátit". Nahlášení a blokování
+        // vrátit nejde, tak u nich se maže hned po nich, jako dřív.
+        if (!cleanup.report && !cleanup.block && scheduleDelete(listOf(chat))) return
         reportFlow.thenAfterReport(cleanup.report, chat.id) {
             cleanUpSpam(
                 cleanup = cleanup,
@@ -1321,6 +1366,8 @@ data class ChatActionsState(
     val archived: ArchiveChange? = null,
     /** Jednorázová událost pro snackbar s „Vrátit" po zablokování nebo odblokování. */
     val blocked: BlockChange? = null,
+    /** Jednorázová událost pro snackbar s „Vrátit" po smazání / opuštění ([PendingChatDeletes]). */
+    val deleted: DeleteChange? = null,
     /** Co proti spamu nabídnout chatu v [target]; `null`, dokud to nedorazí ze serveru. */
     val spam: SpamActions? = null,
     /** Složky, ve kterých chat je a kam jde přidat; `null` = nenabízet (nezjištěno, žádné složky). */
@@ -1334,6 +1381,16 @@ data class ArchiveChange(val chatIds: List<Long>, val archived: Boolean) {
 
 /** Protějšek chatu se zablokoval ([blocked]), nebo odblokoval. */
 data class BlockChange(val chatId: Long, val blocked: Boolean)
+
+/**
+ * Chaty čekající na smazání s „Vrátit" ([PendingChatDeletes]); [batch] je dávka pro vrácení.
+ * [left] = jen skupiny a kanály (z nich se odchází), jinak se maže — podle toho zní snackbar.
+ */
+data class DeleteChange(val batch: Long, val chatIds: List<Long>, val left: Boolean)
+
+/** Seznam bez chatů, jejichž smazání čeká na „Vrátit". */
+internal fun ChatListState.without(hidden: Set<Long>): ChatListState =
+    if (hidden.isEmpty() || this !is ChatListState.Ready) this else copy(chats = chats.filterNot { it.id in hidden })
 
 /** Klíč filtru v [SavedStateHandle] seznamu chatů. */
 

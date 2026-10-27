@@ -221,6 +221,18 @@
     <string name="chats_selection_delete_groups">Ze skupin a kanálů odejdeš a přestaneš dostávat zprávy. Zpátky se dá jen novou pozvánkou.</string>
     <string name="chats_selection_delete_mixed">Soukromé chaty se smažou jen u tebe a ze skupin a kanálů odejdeš. Vrátit to nejde.</string>
     <string name="chats_undo">Vrátit</string>
+    <string name="chats_deleted">Chat smazán</string>
+    <string name="chats_left">Chat opuštěn</string>
+    <plurals name="chats_deleted_many">
+        <item quantity="one">%1$d chat smazán</item>
+        <item quantity="few">%1$d chaty smazány</item>
+        <item quantity="other">%1$d chatů smazáno</item>
+    </plurals>
+    <plurals name="chats_left_many">
+        <item quantity="one">%1$d chat opuštěn</item>
+        <item quantity="few">%1$d chaty opuštěny</item>
+        <item quantity="other">%1$d chatů opuštěno</item>
+    </plurals>
     <string name="chats_blocked">Zablokováno</string>
     <string name="chats_unblocked">Blokování zrušeno</string>
     <string name="chats_delete_block">Zablokovat taky</string>

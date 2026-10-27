@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.CountdownSnackbarHost
 import androidx.compose.foundation.background
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.contextClickable
@@ -333,7 +334,7 @@ private fun CollapsedSnackbar(state: SnackbarHostState) {
                     .padding(insets)
                     .padding(12.dp)
                     .widthIn(max = ContentWidth.Pane),
-            )
+            ) { CountdownSnackbarHost(it) }
         }
     }
 }

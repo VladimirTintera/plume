@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.CountdownSnackbarHost
 import eu.tintera.plume.resources.chats_archive_read_all
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.core.ui.WithTooltip
@@ -88,7 +89,7 @@ fun ArchiveScreen(
 
     Scaffold(
         modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) { CountdownSnackbarHost(it) } },
         // Lišta výběru víc chatů, stejná jako v hlavním seznamu. Ve slotu `bottomBar`, takže
         // snackbar stojí nad ní a seznam se o ni odsadí.
         bottomBar = {
