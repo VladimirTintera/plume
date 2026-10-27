@@ -669,6 +669,7 @@ internal fun StickerPickerSheet(
      * chvilkové prohlédnutí, ne stav výběru.
      */
     var previewSticker by remember { mutableStateOf<StickerItem?>(null) }
+    val previewSwipe = remember { StickerPreviewSwipe() }
 
     /** Sada otevřená z trendů. Sheet nad sheetem: výběr pod ní zůstává, zpátky se vrací zavřením. */
     var openSetId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -700,6 +701,7 @@ internal fun StickerPickerSheet(
         sendMenu = sendMenu,
         onPickWith = pickWith,
         playing = true,
+        previewSwipe = previewSwipe,
     )
 
     TrendingSetSheetHost(setId = openSetId, onClose = { openSetId = null }, pick = pick)
@@ -1174,6 +1176,8 @@ internal data class StickerCells(
      * a `LazyVerticalGrid` skládá jen viditelné buňky.
      */
     val playing: Boolean = false,
+    /** Přejíždění prstem mezi náhledy ([StickerPreviewSwipe]); `null` = jen podržení. */
+    val previewSwipe: StickerPreviewSwipe? = null,
 )
 
 /**
@@ -1222,6 +1226,12 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
             Modifier
                 .matchParentSize()
                 .clip(STICKER_TOUCH_SHAPE)
+                .stickerPreviewSwipe(
+                    swipe = cells.previewSwipe,
+                    sticker = sticker,
+                    previewOpen = { cells.activeStickerId != null },
+                    onPreview = cells.onPreview,
+                )
                 .contextClickable(
                     onClick = { cells.onPick(sticker) },
                     // Podržení samolepku neposílá — jen otevře náhled. Po puštění

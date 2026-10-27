@@ -431,8 +431,8 @@ sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdíle
 - **Vlastní emoji: zbytky** — ~~hledání vlastních emoji ve výběru, nedávná vlastní emoji~~
   (hotovo, `feat/vlastni-emoji-hledani-nedavne`), ~~úprava odeslané zprávy s vlastním emoji~~
   (hotovo, `feat/uprava-vlastnich-emoji`). Obrázky v rolujícím poli (víc než 6 řádků).
-- **Náhled bez puštění prstu** — v Telegramu se prstem po mřížce přejíždí mezi náhledy
-  a puštěním náhled zmizí. U nás náhled zůstává otevřený, protože nese tlačítka.
+- ~~**Náhled bez puštění prstu**~~ — hotovo: přejetím po mřížce se náhled vymění, po puštění
+  zůstane otevřený s tlačítky (`docs/poznatky/emoji-samolepky-reakce.md`, „Výběr samolepek").
 - **Samolepky `.webm` na iOS a vlastní emoji ve `.webm`** — viz „D) Otevření média" výš.
 
 - ~~**Dvě různé pleti u emoji s více osobami**~~ — hotovo (mřížka 5 × 5 u 13 emoji se dvěma
