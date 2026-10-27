@@ -26,6 +26,11 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConversationMessageActionsTest {
 
+    /** Navigace, kterou části poslaly (viz `ConversationNavEvent`). */
+    private val navigated = mutableListOf<ConversationNavEvent>()
+
+    private val lastForward: List<Long>? get() = navigated.filterIsInstance<ConversationNavEvent.Forward>().lastOrNull()?.messageIds
+
     private data class Pinned(val messageId: Long, val notify: Boolean, val onlyForSelf: Boolean)
 
     private data class Forwarded(val ids: List<Long>, val toChatId: Long, val options: ForwardOptions)
@@ -101,6 +106,7 @@ class ConversationMessageActionsTest {
         ConversationMessageActions(
             chatId = TEST_CHAT,
             state = state,
+            navigate = navigated::add,
             scope = this,
             repository = repository,
             chatRepository = chats,
@@ -294,7 +300,7 @@ class ConversationMessageActionsTest {
 
         actions.requestForward(1)
 
-        assertEquals(setOf(1L, 2L), state.value.forwardRequest?.toSet())
+        assertEquals(setOf(1L, 2L), lastForward?.toSet())
     }
 
     @Test

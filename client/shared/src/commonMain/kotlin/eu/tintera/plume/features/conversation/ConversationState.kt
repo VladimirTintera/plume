@@ -628,8 +628,6 @@ data class ConversationState(
     val readReceiptFor: Long? = null,
     /** Průběh stahování souborů, které uživatel právě otevírá (podle `fileId`). */
     val documentDownloads: Map<Int, Float> = emptyMap(),
-    /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */
-    val forwardRequest: List<Long>? = null,
     /** Zpráva, ke které se vybírá čas připomínky (`RemindSheet`); `null` = nic. */
     val remindRequest: RemindRequest? = null,
     /** Režim výběru víc zpráv; `null` = vypnutý (běžná konverzace). */
@@ -683,20 +681,6 @@ data class ConversationState(
     val slowModeUntil: Long? = null,
     /** Hledání v chatu; `null` = zavřené (hlavička ukazuje chat, dole je vstupní pole). */
     val search: InChatSearch? = null,
-    /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
-    val openChat: ChatTarget? = null,
-    /** Jednorázová událost: odkaz na obrazovku aplikace (`tg://settings/…`, `tg://newgroup`). */
-    val openScreen: AppScreen? = null,
-    /** Jednorázová událost: otevřít příběh v prohlížeči (citace odpovědi, odkaz na příběh). */
-    val openStory: StoryTarget? = null,
-    /** Jednorázová událost: odkaz `t.me/bot?startgroup=…` — otevřít výběr skupiny. */
-    val addBotToGroup: InternalLink.BotStartInGroup? = null,
-    /** Tlačítko bota s inline dotazem do jiného chatu: obrazovka otevře výběr chatu. */
-    val switchInline: SwitchInlinePick? = null,
-    /** Jednorázová událost: otevřít profil chatu (odesílatele ze skupiny). */
-    val openProfile: Long? = null,
-    /** Jednorázová událost: otevřít statistiku příspěvku (id zprávy) z „Informace o zprávě". */
-    val openPostStatistics: Long? = null,
     /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */
     val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */
@@ -729,8 +713,6 @@ data class ConversationState(
     val soundingVideoNote: Long? = null,
     /** Odkud kolečko se zvukem hraje (čas v médiu, viz [MessageAction.PlayMediaAt]); jinak nula. */
     val soundingVideoNoteFromMs: Long = 0L,
-    /** Video otevřít v prohlížeči od daného místa (čas v médiu); `null` = nic. */
-    val openMediaAt: MediaAt? = null,
     /** Popis bota; `null` = chat není s botem (a Start se nenabízí). */
     val botIntro: BotIntro? = null,
     /** Úvodní stránka firemního účtu do prázdného chatu ([BusinessIntroPage]); `null` = žádná. */
@@ -763,14 +745,6 @@ data class ConversationState(
      * Nezávisí na načtené historii: zpráva s polohou může být dávno odscrollovaná nebo mimo okno.
      */
     val liveLocations: List<ChatMessage> = emptyList(),
-    /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
-    val openPollComposer: PollComposerMode? = null,
-    /** Jednorázová událost: „Upravit" nad seznamem úkolů v téhle zprávě chce formulář. */
-    val openChecklistEditor: Long? = null,
-    /** Jednorázová událost: tlačítko bota chce výběr lidí nebo chatu. */
-    val openBotShare: BotShareRequest? = null,
-    /** Mini aplikace k otevření — obrazovka ji otevře a událost vynuluje. */
-    val openWebApp: WebAppRequest? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */

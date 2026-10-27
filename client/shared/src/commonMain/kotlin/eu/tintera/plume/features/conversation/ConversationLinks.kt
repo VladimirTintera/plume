@@ -61,6 +61,8 @@ internal class ConversationLinks(
     /** Téma Uložených zpráv: odkaz na zprávu otevře chat, ne skok. */
     private val savedTopicId: Long?,
     private val state: MutableStateFlow<ConversationState>,
+    /** Kam konverzace odchází (viz [ConversationNavEvent]); obrazovka to vyřídí. */
+    private val navigate: (ConversationNavEvent) -> Unit,
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
@@ -117,11 +119,11 @@ internal class ConversationLinks(
                         is InternalLink.Proxy -> openProxy(link.config)
                         is InternalLink.BotStart -> openBotStart(link)
                         // Skupinu vybírá obrazovka výběru; přidání se potvrzuje až tam.
-                        is InternalLink.BotStartInGroup -> state.update { it.copy(addBotToGroup = link) }
+                        is InternalLink.BotStartInGroup -> navigate(ConversationNavEvent.AddBotToGroup(link))
                         is InternalLink.MainWebApp -> requestWebApp(
                             WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
                         )
-                        is InternalLink.Screen -> state.update { it.copy(openScreen = link.screen) }
+                        is InternalLink.Screen -> navigate(ConversationNavEvent.OpenScreen(link.screen))
                         is InternalLink.LoginWarning -> state.update { it.copy(dialog = ConversationDialog.LoginWarning(link.kind)) }
                         is InternalLink.DeepLinkInfo -> state.update { it.copy(dialog = ConversationDialog.DeepLink(link)) }
                         is InternalLink.Story -> openStory(StoryTarget(link.posterChatId, link.storyId))
@@ -157,7 +159,7 @@ internal class ConversationLinks(
     private fun openChatLink(link: InternalLink.Chat) {
         if (link.offerContact) contactOffers.offer(link.chatId)
         if (link.openProfile) {
-            state.update { it.copy(openProfile = link.chatId) }
+            navigate(ConversationNavEvent.OpenProfile(link.chatId))
             return
         }
         link.draftText?.let { text ->
@@ -199,10 +201,9 @@ internal class ConversationLinks(
      * (`WebAppViewModel`) — vstupů je víc než konverzace.
      */
     fun requestWebApp(request: WebAppRequest) {
-        state.update { it.copy(openWebApp = request) }
+        navigate(ConversationNavEvent.OpenWebApp(request))
     }
 
-    fun consumeOpenWebApp() = state.update { it.copy(openWebApp = null) }
 
     /** Přidat se přes pozvánku z náhledu. Po přidání se chat otevře. */
     fun joinInvite() {
@@ -303,7 +304,7 @@ internal class ConversationLinks(
     }
 
     /**
-     * Zmínka v textu: najde chat a obrazovka ho otevře nad touhle konverzací ([ConversationState.openChat]).
+     * Zmínka v textu: najde chat a obrazovka ho otevře nad touhle konverzací ([ConversationNavEvent.OpenChat]).
      * Zmínka téhož chatu (sebe sama v Uložených zprávách, kanál ve vlastním příspěvku) nikam nevede.
      */
     fun openMentioned(resolve: suspend () -> Result<Long>) {
@@ -326,7 +327,7 @@ internal class ConversationLinks(
         scope.launch {
             val forum = target.messageId == null && target.threadId == null && target.topicId == null &&
                 chatRepository.opensAsTopics(target.chatId)
-            state.update { it.copy(openChat = target.copy(forum = forum)) }
+            navigate(ConversationNavEvent.OpenChat(target.copy(forum = forum)))
         }
     }
 
@@ -364,7 +365,7 @@ internal class ConversationLinks(
         scope.launch {
             repository.commentThread(chatId, messageId)
                 .onSuccess { thread ->
-                    state.update { it.copy(openChat = ChatTarget(thread.chatId, threadId = thread.rootMessageId)) }
+                    navigate(ConversationNavEvent.OpenChat(ChatTarget(thread.chatId, threadId = thread.rootMessageId)))
                 }
                 .onFailure { failure ->
                     state.update { it.copy(error = failure.reported(logger, Res.string.comments_unavailable)) }
@@ -442,33 +443,17 @@ internal class ConversationLinks(
     fun openSenderProfile(userId: Long) {
         scope.launch {
             chatRepository.privateChat(userId)
-                .onSuccess { target -> state.update { it.copy(openProfile = target) } }
+                .onSuccess { target -> navigate(ConversationNavEvent.OpenProfile(target)) }
                 .onFailure { failure ->
                     state.update { it.copy(error = failure.reported(logger, Res.string.conversation_mention_not_found)) }
                 }
         }
     }
 
-    /** Obrazovka profil otevřela; jednorázová událost jako [consumeOpenChat]. */
-    fun consumeOpenProfile() {
-        state.update { it.copy(openProfile = null) }
-    }
 
-    fun consumeOpenMediaAt() {
-        state.update { it.copy(openMediaAt = null) }
-    }
 
-    fun consumeOpenChat() {
-        state.update { it.copy(openChat = null) }
-    }
 
-    fun consumeOpenScreen() {
-        state.update { it.copy(openScreen = null) }
-    }
 
-    fun consumeOpenStory() {
-        state.update { it.copy(openStory = null) }
-    }
 
     /**
      * Příběh z citace odpovědi, z odkazu nebo ze zprávy: s fotkou či videem (a živý, kde ho
@@ -480,7 +465,7 @@ internal class ConversationLinks(
         scope.launch {
             val story = repository.story(target.posterChatId, target.storyId)
             when {
-                story.content != null || (story.live != null && liveStoriesSupported) -> state.update { it.copy(openStory = target) }
+                story.content != null || (story.live != null && liveStoriesSupported) -> navigate(ConversationNavEvent.OpenStory(target))
                 story.isLive -> state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
                 else -> state.update { it.copy(notice = UiText(Res.string.story_unavailable)) }
             }
@@ -491,11 +476,5 @@ internal class ConversationLinks(
 
     fun dismissDeepLinkInfo() = state.update { it.closing<ConversationDialog.DeepLink>() }
 
-    fun consumeAddBotToGroup() {
-        state.update { it.copy(addBotToGroup = null) }
-    }
 
-    fun consumeSwitchInline() {
-        state.update { it.copy(switchInline = null) }
-    }
 }

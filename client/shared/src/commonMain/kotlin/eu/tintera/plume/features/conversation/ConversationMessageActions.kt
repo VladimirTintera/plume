@@ -56,6 +56,8 @@ import kotlinx.datetime.toLocalDateTime
 internal class ConversationMessageActions(
     private val chatId: Long,
     private val state: MutableStateFlow<ConversationState>,
+    /** Kam konverzace odchází (viz [ConversationNavEvent]); obrazovka to vyřídí. */
+    private val navigate: (ConversationNavEvent) -> Unit,
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
@@ -362,7 +364,9 @@ internal class ConversationMessageActions(
      * zapamatuje, co se přeposílá — u alba celé album, jako u mazání.
      */
     fun requestForward(messageId: Long) {
-        state.update { it.copy(messageMenu = null, forwardRequest = it.albumMemberIds(messageId)) }
+        val ids = state.value.albumMemberIds(messageId)
+        state.update { it.copy(messageMenu = null) }
+        navigate(ConversationNavEvent.Forward(ids))
     }
 
     /**
@@ -420,9 +424,6 @@ internal class ConversationMessageActions(
         }
     }
 
-    fun consumeForwardRequest() {
-        state.update { it.copy(forwardRequest = null) }
-    }
 
     fun cancelDelete() {
         state.update { it.closing<ConversationDialog.Delete>() }

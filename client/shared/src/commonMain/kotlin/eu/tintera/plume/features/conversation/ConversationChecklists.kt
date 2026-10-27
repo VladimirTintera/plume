@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 internal class ConversationChecklists(
     private val chatId: Long,
     private val state: MutableStateFlow<ConversationState>,
+    /** Kam konverzace odchází (viz [ConversationNavEvent]); obrazovka to vyřídí. */
+    private val navigate: (ConversationNavEvent) -> Unit,
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
     /** Má účet Premium — čte se v okamžiku ťuknutí, ne při založení. */
@@ -97,12 +99,9 @@ internal class ConversationChecklists(
             state.update { it.copy(notice = UiText(Res.string.checklist_edit_premium)) }
             return
         }
-        state.update { it.copy(openChecklistEditor = messageId) }
+        navigate(ConversationNavEvent.EditChecklist(messageId))
     }
 
-    fun consumeOpenEditor() {
-        state.update { it.copy(openChecklistEditor = null) }
-    }
 
     fun dismissAddTask() {
         state.update { it.closing<ConversationDialog.AddChecklistTask>() }

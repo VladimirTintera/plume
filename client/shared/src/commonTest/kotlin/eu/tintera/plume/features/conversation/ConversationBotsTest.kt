@@ -41,6 +41,9 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConversationBotsTest {
 
+    /** Navigace, kterou části poslaly (viz `ConversationNavEvent`). */
+    private val navigated = mutableListOf<ConversationNavEvent>()
+
     private class FakeRepository : UnimplementedConversationRepository() {
         var startResult: Result<ChatMessage> = Result.success(testMessage(700))
         var answer: Result<BotAnswer> = Result.success(BotAnswer(text = "", alert = false, url = ""))
@@ -112,6 +115,7 @@ class ConversationBotsTest {
             forumTopicId = null,
             savedTopicId = null,
             state = state,
+            navigate = navigated::add,
             scope = this,
             repository = repository,
             chatRepository = NoInternalLinks(),
@@ -144,6 +148,7 @@ class ConversationBotsTest {
         return ConversationBots(
             chatId = TEST_CHAT,
             state = state,
+            navigate = navigated::add,
             scope = this,
             repository = repository,
             chatRepository = NoInternalLinks(),

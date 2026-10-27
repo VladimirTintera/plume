@@ -38,6 +38,15 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConversationLinksTest {
 
+    /** Navigace, kterou části poslaly (viz `ConversationNavEvent`). */
+    private val navigated = mutableListOf<ConversationNavEvent>()
+
+    private val lastOpenChat: ChatTarget? get() = navigated.filterIsInstance<ConversationNavEvent.OpenChat>().lastOrNull()?.target
+
+    private val lastOpenProfile: Long? get() = navigated.filterIsInstance<ConversationNavEvent.OpenProfile>().lastOrNull()?.chatId
+
+    private val lastOpenWebApp: WebAppRequest? get() = navigated.filterIsInstance<ConversationNavEvent.OpenWebApp>().lastOrNull()?.request
+
     private class FakeChats(
         private val links: Map<String, Result<InternalLink?>>,
         private val join: Result<JoinResult> = Result.success(JoinResult.Joined(OTHER)),
@@ -92,6 +101,7 @@ class ConversationLinksTest {
         forumTopicId = forumTopicId,
         savedTopicId = null,
         state = state,
+        navigate = navigated::add,
         scope = this,
         repository = repository,
         chatRepository = chats,
@@ -137,7 +147,7 @@ class ConversationLinksTest {
         advanceUntilIdle()
 
         assertEquals(listOf(5L), jumper.jumps)
-        assertNull(state.value.openChat)
+        assertNull(lastOpenChat)
     }
 
     @Test
@@ -146,7 +156,7 @@ class ConversationLinksTest {
         links(state, links("t.me/c/2/5", InternalLink.Message(OTHER, 5))).openLink("t.me/c/2/5")
         advanceUntilIdle()
 
-        assertEquals(ChatTarget(OTHER, 5), state.value.openChat)
+        assertEquals(ChatTarget(OTHER, 5), lastOpenChat)
         assertTrue(jumper.jumps.isEmpty())
     }
 
@@ -158,7 +168,7 @@ class ConversationLinksTest {
         advanceUntilIdle()
 
         assertTrue(jumper.jumps.isEmpty(), "zpráva z jiného tématu v téhle historii není")
-        assertEquals(ChatTarget(TEST_CHAT, 5, topicId = 8), state.value.openChat)
+        assertEquals(ChatTarget(TEST_CHAT, 5, topicId = 8), lastOpenChat)
     }
 
     @Test
@@ -170,7 +180,7 @@ class ConversationLinksTest {
         val shared = assertNotNull(shares.incoming.first())
         assertEquals("ahoj", shared.text)
         assertEquals(OTHER, shared.targetChatId)
-        assertEquals(ChatTarget(OTHER), state.value.openChat)
+        assertEquals(ChatTarget(OTHER), lastOpenChat)
     }
 
     @Test
@@ -179,8 +189,8 @@ class ConversationLinksTest {
         links(state, links("t.me/eva", InternalLink.Chat(OTHER, openProfile = true))).openLink("t.me/eva")
         advanceUntilIdle()
 
-        assertEquals(OTHER, state.value.openProfile)
-        assertNull(state.value.openChat)
+        assertEquals(OTHER, lastOpenProfile)
+        assertNull(lastOpenChat)
     }
 
     @Test
@@ -190,8 +200,8 @@ class ConversationLinksTest {
         links(state, links(url, InternalLink.Chat(OTHER, openProfile = true, offerContact = true))).openLink(url)
         advanceUntilIdle()
 
-        assertEquals(OTHER, state.value.openProfile)
-        assertNull(state.value.openChat)
+        assertEquals(OTHER, lastOpenProfile)
+        assertNull(lastOpenChat)
         assertTrue(contactOffers.consume(OTHER), "profil si nabídku vyzvedne")
         assertFalse(contactOffers.consume(OTHER), "a jen jednou")
     }
@@ -203,7 +213,7 @@ class ConversationLinksTest {
         links(state, links(url, InternalLink.Chat(OTHER))).openLink(url)
         advanceUntilIdle()
 
-        assertEquals(ChatTarget(OTHER), state.value.openChat)
+        assertEquals(ChatTarget(OTHER), lastOpenChat)
         assertFalse(contactOffers.consume(OTHER))
     }
 
@@ -220,7 +230,7 @@ class ConversationLinksTest {
         links.joinInvite()
         advanceUntilIdle()
         assertNull(state.value.invite)
-        assertEquals(ChatTarget(OTHER), state.value.openChat)
+        assertEquals(ChatTarget(OTHER), lastOpenChat)
     }
 
     @Test
@@ -239,7 +249,7 @@ class ConversationLinksTest {
 
         assertNull(state.value.invite)
         assertNotNull(state.value.notice)
-        assertNull(state.value.openChat)
+        assertNull(lastOpenChat)
     }
 
     private fun TestScope.guardedInvite(state: MutableStateFlow<ConversationState>): Pair<ConversationLinks, FakeChats> {
@@ -261,13 +271,13 @@ class ConversationLinksTest {
         val (_, chats) = guardedInvite(state)
 
         assertNull(state.value.invite)
-        assertEquals(WebAppRequest(BOT, url = "", launch = false, guardQueryId = QUERY), state.value.openWebApp)
+        assertEquals(WebAppRequest(BOT, url = "", launch = false, guardQueryId = QUERY), lastOpenWebApp)
         assertEquals(listOf(QUERY), chats.awaitedQueries)
-        assertNull(state.value.openChat)
+        assertNull(lastOpenChat)
 
         chats.guardDecision.complete(GuardDecision.Approved(OTHER))
         advanceUntilIdle()
-        assertEquals(ChatTarget(OTHER), state.value.openChat)
+        assertEquals(ChatTarget(OTHER), lastOpenChat)
     }
 
     @Test
@@ -278,7 +288,7 @@ class ConversationLinksTest {
         chats.guardDecision.complete(GuardDecision.Declined)
         advanceUntilIdle()
         assertEquals(UiText(Res.string.join_guard_declined), state.value.error)
-        assertNull(state.value.openChat)
+        assertNull(lastOpenChat)
     }
 
     @Test
@@ -289,7 +299,7 @@ class ConversationLinksTest {
         chats.guardDecision.complete(GuardDecision.Queued)
         advanceUntilIdle()
         assertEquals(UiText(Res.string.invite_request_sent), state.value.notice)
-        assertNull(state.value.openChat)
+        assertNull(lastOpenChat)
     }
 
     @Test
@@ -337,7 +347,7 @@ class ConversationLinksTest {
 
         assertEquals("x", botStarts.parameter(OTHER).first())
         assertTrue(repository.startedBots.isEmpty())
-        assertEquals(ChatTarget(OTHER), state.value.openChat)
+        assertEquals(ChatTarget(OTHER), lastOpenChat)
     }
 
     @Test
@@ -347,7 +357,7 @@ class ConversationLinksTest {
         advanceUntilIdle()
 
         assertEquals(listOf(TEST_CHAT to "x"), repository.startedBots)
-        assertNull(state.value.openChat, "bot je tenhle chat, není kam odcházet")
+        assertNull(lastOpenChat, "bot je tenhle chat, není kam odcházet")
     }
 
     @Test
@@ -371,7 +381,7 @@ class ConversationLinksTest {
 
         links.openForwardOrigin(ForwardOrigin.Chat(OTHER, 4, name = null))
         advanceUntilIdle()
-        assertEquals(ChatTarget(OTHER, 4), state.value.openChat)
+        assertEquals(ChatTarget(OTHER, 4), lastOpenChat)
     }
 
     @Test
@@ -380,7 +390,7 @@ class ConversationLinksTest {
         links(state, FakeChats(emptyMap())).openForwardOrigin(ForwardOrigin.User(5, name = "Eva"))
         advanceUntilIdle()
 
-        assertEquals(ChatTarget(1005), state.value.openChat)
+        assertEquals(ChatTarget(1005), lastOpenChat)
     }
 
     @Test
@@ -389,7 +399,7 @@ class ConversationLinksTest {
         links(state, FakeChats(emptyMap())).openComments(9)
         advanceUntilIdle()
 
-        val target = assertIs<ChatTarget>(state.value.openChat)
+        val target = assertIs<ChatTarget>(lastOpenChat)
         assertEquals(300L, target.chatId)
         assertEquals(9L, target.threadId)
     }
@@ -402,7 +412,7 @@ class ConversationLinksTest {
         advanceUntilIdle()
 
         assertNotNull(state.value.error)
-        assertNull(state.value.openChat)
+        assertNull(lastOpenChat)
     }
 
     private fun invitePreview() = InvitePreview(
