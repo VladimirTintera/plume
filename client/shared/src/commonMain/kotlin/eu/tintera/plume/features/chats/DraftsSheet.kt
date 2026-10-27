@@ -6,6 +6,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.tag_24dp
+import eu.tintera.plume.resources.mode_comment_24dp
+import eu.tintera.plume.resources.drafts_comment_on
+import eu.tintera.plume.resources.drafts_comments
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.accentOn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.BottomSheetDefaults
@@ -326,6 +331,22 @@ private fun DraftRow(
                     Icon(painterResource(Res.drawable.tag_24dp), contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
                     Text(
                         topic.name,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = color,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            // Koncept komentáře: pod diskusní skupinou příspěvek, ke kterému se komentuje — název
+            // skupiny sám neřekne, pod kterým příspěvkem koncept leží.
+            item.thread?.let { thread ->
+                val surface = containerColor
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val color = accentOn(surface, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface)
+                    Icon(painterResource(Res.drawable.mode_comment_24dp), contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
+                    Text(
+                        (thread.post?.let { UiText(Res.string.drafts_comment_on, it) } ?: UiText(Res.string.drafts_comments)).resolve(),
                         style = MaterialTheme.typography.labelLarge,
                         color = color,
                         maxLines = 1,

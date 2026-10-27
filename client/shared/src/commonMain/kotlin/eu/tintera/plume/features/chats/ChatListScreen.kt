@@ -295,6 +295,8 @@ fun ChatListScreen(
     // Až s načtenými koncepty: obnovený sheet (po zániku procesu) by se jinak nad prázdným
     // seznamem hned zavřel.
     val loadedDrafts = drafts
+    // Koncepty ve vláknech TDLib nehlásí — při otevření přehledu se ověří znovu.
+    LaunchedEffect(showDrafts) { if (showDrafts) viewModel.refreshCommentDrafts() }
     if (showDrafts && loadedDrafts != null) {
         val draftDeleted by viewModel.draftDeleted.collectAsStateWithLifecycle()
         DraftsSheet(
@@ -303,7 +305,9 @@ fun ChatListScreen(
             onOpen = { item ->
                 showDrafts = false
                 val topic = item.topic
+                val thread = item.thread
                 when {
+                    thread != null -> navigation.onThreadClick(item.chat.id, thread.id)
                     topic != null -> navigation.onTopicClick(item.chat.id, topic.id)
                     item.chat.opensAsTopics -> navigation.onForumClick(item.chat.id)
                     else -> navigation.onChatClick(item.chat.id)

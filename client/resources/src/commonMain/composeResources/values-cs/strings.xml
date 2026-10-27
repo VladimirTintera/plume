@@ -244,6 +244,8 @@
     <string name="spam_report_confirm">Nahlásit</string>
     <string name="chats_draft_delete">Smazat koncept</string>
     <string name="chats_draft_deleted">Koncept smazán</string>
+    <string name="drafts_comments">Komentáře</string>
+    <string name="drafts_comment_on">Komentář k: %1$s</string>
     <string name="chats_drafts">Koncepty</string>
     <string name="chats_drafts_delete_all">Smazat vše</string>
     <string name="chats_drafts_delete_all_title">Smazat všechny koncepty?</string>

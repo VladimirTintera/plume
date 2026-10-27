@@ -267,6 +267,15 @@ internal fun MutableList<NavKey>.openFoundMessage(chatId: Long, messageId: Long?
     add(ConversationRoute(chatId, messageId, topicId = topicId))
 }
 
+/**
+ * Vlákno komentářů z přehledu konceptů: nahradí otevřenou konverzaci jako výběr chatu. Kanál
+ * pod ním není — zpět vede do seznamu chatů, odkud uživatel přišel, ne do kanálu, který neotevřel.
+ */
+internal fun MutableList<NavKey>.openCommentThread(chatId: Long, threadId: Long) {
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
+    add(ConversationRoute(chatId, threadId = threadId))
+}
+
 private fun conversation(archive: Boolean, chatId: Long, messageId: Long? = null, threadId: Long? = null, topicId: Int? = null): NavKey =
     if (archive) {
         ArchiveConversationRoute(chatId, messageId, threadId = threadId, topicId = topicId)

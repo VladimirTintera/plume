@@ -91,7 +91,9 @@ import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.TdlStorageRepository
 import eu.tintera.plume.core.telegram.TdlStoryRepository
 import eu.tintera.plume.core.telegram.TdlTelegramSession
+import eu.tintera.plume.core.telegram.TdlThreadDrafts
 import eu.tintera.plume.core.telegram.TdlTopicDrafts
+import eu.tintera.plume.core.telegram.ThreadDrafts
 import eu.tintera.plume.core.telegram.TdlVideoChatRepository
 import eu.tintera.plume.core.telegram.TdlWebAppRepository
 import eu.tintera.plume.core.telegram.TelegramClientHolder
@@ -205,6 +207,8 @@ fun coreModule(): Module = module {
     single<TopicDrafts>(createdAtStart = true) {
         TdlTopicDrafts(holder = get(), chats = get(), scope = get(named(APP_SCOPE)))
     }
+    // Koncepty ve vláknech komentářů updatem nechodí, takže eager být nemusí.
+    single<ThreadDrafts> { TdlThreadDrafts(holder = get()) }
 
     // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
     // drží ConversationViewModel.

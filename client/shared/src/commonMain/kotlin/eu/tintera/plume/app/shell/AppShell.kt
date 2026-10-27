@@ -759,6 +759,7 @@ private fun shellEntryProvider(
                 onForumClick = { chatId -> chatsStack.openForum(chatId) },
                 // Koncept v tématu z přehledu konceptů: téma a pod ním seznam témat, jako u nalezené zprávy.
                 onTopicClick = { chatId, topicId -> chatsStack.openFoundMessage(chatId, messageId = null, topicId = topicId) },
+                onThreadClick = { chatId, threadId -> chatsStack.openCommentThread(chatId, threadId) },
                 onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(chatId, messageId, topicId) },
                 onOpenArchive = {
                     if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)

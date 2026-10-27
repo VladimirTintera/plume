@@ -16,6 +16,8 @@ data class ChatListNavigation(
     val onForumClick: (Long) -> Unit,
     /** Téma skupiny (koncept v něm z přehledu konceptů); bez něj se otevře seznam témat. */
     val onTopicClick: (chatId: Long, topicId: Int) -> Unit = { chatId, _ -> onForumClick(chatId) },
+    /** Vlákno komentářů v diskusní skupině (koncept v něm z přehledu konceptů). */
+    val onThreadClick: (chatId: Long, threadId: Long) -> Unit = { chatId, _ -> onChatClick(chatId) },
     /** Nalezená zpráva: otevřít její chat a skočit na ni. */
     val onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
     val onOpenArchive: () -> Unit,
