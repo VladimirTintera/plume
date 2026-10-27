@@ -21,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -95,7 +97,7 @@ fun PublicLinkLimitSheet(
                 text = stringResource(Res.string.public_limit_chats),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 16.dp, start = 16.dp),
+                modifier = Modifier.padding(top = 16.dp, start = 16.dp).semantics { heading() },
             )
             val chats = state.chats
             when {

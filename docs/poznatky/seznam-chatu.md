@@ -995,6 +995,16 @@ v archivu i ve složkách — všechny jsou `ChatListContent`.
 - **Popisky na podkladu jsou krátké** („Přečteno", „Odtlumit", „Vrátit"), ne věty z nabídky.
   Podklad je u prahu odkrytý jen ze 40 %, a „Označit jako nepřečtené" tam zůstalo z půlky pod
   řádkem (ověřeno na emulátoru).
+- **Čtečka obrazovky tah neudělá, proto jsou obě akce i vlastními akcemi řádku** (`customActions`,
+  v TalkBacku „Akce" / tah nahoru a doprava). Popisky jsou věty z nabídky nad chatem („Označit
+  jako přečtené", „Vrátit mezi chaty") — krátký popisek z podkladu bez taženého řádku nic neřekne.
+  - **Akce musí sedět na uzlu s ťuknutím** (`ChatRow`, jeho `contextClickable`), ne na obalu
+    tahu: obal je pro čtečku prázdný uzel, na který se nedá zaměřit, takže by akce nikdo
+    nenabídl. `SwipeableChat` proto předá obsahu modifikátor (`content(swipeActions)`)
+    a `ChatListContent` ho dá řádku. Ve výběru víc chatů akce nejsou, stejně jako tah.
+  - Ověřeno headless testem (`SwipeActionsSemanticsTest`: popisky na uzlu řádku, akce volá
+    tah); se skutečným TalkBackem neověřené (viz „Zpráva pro čtečku obrazovky"
+    v `konverzace-zobrazeni.md`, proč na emulátoru nejde).
 - **Strana s „Nic" tah nebere** (`SwipeDirection.Left` / `Right`), takže si šikmý tah vezme
   seznam a dlouhý stisk zůstane nabídce.
 - **Ověřeno na emulátoru (česky):** nastavení obou stran, připnutí a odepnutí tahem, „Nic"

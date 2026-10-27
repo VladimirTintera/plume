@@ -51,6 +51,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -325,6 +327,7 @@ private fun Members(count: Int, names: List<String>) {
             pluralStringResource(Res.plurals.invite_members, count, count.grouped()),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.semantics { heading() },
         )
         if (names.isNotEmpty()) {
             Text(

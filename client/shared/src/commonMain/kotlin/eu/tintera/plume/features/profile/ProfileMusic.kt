@@ -26,6 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,7 +85,7 @@ internal fun ProfileMusic(
             stringResource(Res.string.profile_music),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp),
+            modifier = Modifier.padding(start = 16.dp).semantics { heading() },
         )
         Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
             shown.forEachIndexed { index, audio ->

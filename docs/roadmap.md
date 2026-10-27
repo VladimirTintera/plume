@@ -1731,10 +1731,12 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 **Přístupnost přes celou aplikaci**
 
-- **Nadpisy pro čtečku obrazovky** (S). `heading()` se v aplikaci nepoužívá nikde — ani
-  u nadpisů bloků (`GroupTitle`), ani u předělů dnů v konverzaci; čtečka mezi nimi neskáče.
-- **Akce tahu v seznamu chatů pro čtečku** (S). `ChatRow` / tah nemají `customActions`
-  (jiné prvky je mají: `ReorderRow`, bublina zprávy); TalkBack na seznamu chatů ověřený není.
+- ~~**Nadpisy pro čtečku obrazovky**~~ — hotovo: `GroupTitle`, `SheetTitle`, 24 ručně
+  kreslených nadpisů bloků a předěly dnů a nepřečtených v konverzaci nesou `heading()`.
+  Nadpisy horních lišt (`TopAppBar`) zatím ne.
+- ~~**Akce tahu v seznamu chatů pro čtečku**~~ — hotovo (`customActions` na řádku,
+  `docs/poznatky/seznam-chatu.md`, „Akce tahem"). Se skutečným TalkBackem na telefonu ověřené
+  není nic z toho, jen headless testy.
 
 ---
 

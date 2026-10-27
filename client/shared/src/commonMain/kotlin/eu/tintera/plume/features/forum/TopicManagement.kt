@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
@@ -251,6 +252,7 @@ internal fun TopicEditorSheet(
                     stringResource(Res.string.forum_topic_color),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.semantics { heading() },
                 )
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().selectableGroup()) {
                     TOPIC_COLORS.forEachIndexed { index, rgb ->
@@ -268,6 +270,7 @@ internal fun TopicEditorSheet(
                     stringResource(Res.string.forum_topic_icon),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.semantics { heading() },
                 )
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(ICON_CELL),

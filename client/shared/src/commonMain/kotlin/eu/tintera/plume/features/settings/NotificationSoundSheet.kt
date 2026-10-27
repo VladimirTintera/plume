@@ -38,6 +38,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -153,7 +155,7 @@ internal fun NotificationSoundSheet(
                     stringResource(Res.string.notif_sound_tones),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 32.dp, top = 20.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(start = 32.dp, top = 20.dp, bottom = 8.dp).semantics { heading() },
                 )
                 Column(Modifier.selectableGroup()) {
                     tones.forEachIndexed { index, tone ->

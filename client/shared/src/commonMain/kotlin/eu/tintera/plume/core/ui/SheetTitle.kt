@@ -3,6 +3,8 @@ package eu.tintera.plume.core.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 
@@ -28,6 +30,7 @@ fun SheetTitle(
         style = MaterialTheme.typography.titleLargeEmphasized,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
-        modifier = modifier,
+        // Čtečka obrazovky mezi nadpisy skáče — ve sheetu je to nejrychlejší cesta na jeho začátek.
+        modifier = modifier.semantics { heading() },
     )
 }

@@ -18,6 +18,7 @@ import eu.tintera.plume.resources.birthdate_suggest
 import eu.tintera.plume.features.settings.BirthdatePickerDialog
 import eu.tintera.plume.resources.profile_tab_voice
 import eu.tintera.plume.resources.mic_24dp
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.layout.Layout
 import androidx.compose.foundation.horizontalScroll
@@ -1763,7 +1764,7 @@ private fun ProfileInfo(
             stringResource(Res.string.profile_info),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp),
+            modifier = Modifier.padding(start = 16.dp).semantics { heading() },
         )
         Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
             rows.forEachIndexed { index, row -> row(groupItemShape(index, rows.size)) }

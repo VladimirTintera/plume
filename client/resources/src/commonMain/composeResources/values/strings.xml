@@ -1811,6 +1811,8 @@
         <item quantity="one">%1$d new poll vote</item>
         <item quantity="other">%1$d new poll votes</item>
     </plurals>
+    <string name="conversation_new_message_from">New message from %1$s: %2$s</string>
+    <string name="conversation_new_message_from_untitled">New message: %1$s</string>
     <plurals name="conversation_new_messages">
         <item quantity="one">%1$d new message</item>
         <item quantity="other">%1$d new messages</item>

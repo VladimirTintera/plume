@@ -344,6 +344,10 @@ internal fun BoxScope.ConversationContent(
             onDismiss = { itemScope.datePickerDay.value = null },
         )
     }
+
+    // Příchozí zprávu ohlásí čtečce obrazovky — bublina se do seznamu jen tiše vloží. Až
+    // na konci plochy: uzel zakrytý seznamem nebo lištou by Compose čtečce vůbec nedal.
+    NewMessageAnnouncer(messages = state.messages, live = state.reachedEnd, chatTitle = state.info?.title)
 }
 
 /** Plovoucí datum: popisek a začátek dne, na kterém po ťuknutí otevře kalendář. */
