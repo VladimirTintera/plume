@@ -148,13 +148,34 @@ class WebAppBridgeTest {
         )
     }
 
-    /** Zabezpečené úložiště Plume nemá: každý jeho požadavek dostane chybu, jinak by stránka visela. */
     @Test
-    fun zabezpeceneUlozisteOdmitne() {
-        assertEquals(WebAppEvent.SecureStorage("s1"), parseWebAppEvent("web_app_secure_storage_get_key", """{"req_id":"s1","key":"t"}"""))
+    fun zabezpeceneUloziste() {
         assertEquals(
-            WebAppOutgoing("secure_storage_failed", """{"req_id":"s1","error":"UNSUPPORTED"}"""),
-            WebAppEvents.secureStorageFailed("s1"),
+            WebAppEvent.SecureStorageSave("s1", "token", "abc"),
+            parseWebAppEvent("web_app_secure_storage_save_key", """{"req_id":"s1","key":"token","value":"abc"}"""),
+        )
+        assertEquals(
+            WebAppEvent.SecureStorageSave("s2", "token", null),
+            parseWebAppEvent("web_app_secure_storage_save_key", """{"req_id":"s2","key":"token","value":null}"""),
+        )
+        assertEquals(
+            WebAppEvent.SecureStorageGet("s3", "token"),
+            parseWebAppEvent("web_app_secure_storage_get_key", """{"req_id":"s3","key":"token"}"""),
+        )
+        assertEquals(
+            WebAppEvent.SecureStorageRestore("s4"),
+            parseWebAppEvent("web_app_secure_storage_restore_key", """{"req_id":"s4","key":"token"}"""),
+        )
+        assertEquals(WebAppEvent.SecureStorageClear("s5"), parseWebAppEvent("web_app_secure_storage_clear", """{"req_id":"s5"}"""))
+        // Bez klíče je požadavek neplatný; neznámá událost ho aspoň zaloguje.
+        assertEquals(WebAppEvent.Unknown("web_app_secure_storage_get_key"), parseWebAppEvent("web_app_secure_storage_get_key", """{"req_id":"s6"}"""))
+        assertEquals(
+            WebAppOutgoing("secure_storage_key_received", """{"req_id":"s3","value":"abc","can_restore":false}"""),
+            WebAppEvents.secureStorageReceived("s3", "abc"),
+        )
+        assertEquals(
+            WebAppOutgoing("secure_storage_failed", """{"req_id":"s4","error":"RESTORE_UNAVAILABLE"}"""),
+            WebAppEvents.secureStorageFailed("s4", WebAppErrors.RESTORE_UNAVAILABLE),
         )
     }
 

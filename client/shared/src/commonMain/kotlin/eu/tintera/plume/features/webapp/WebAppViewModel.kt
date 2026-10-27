@@ -2,6 +2,7 @@ package eu.tintera.plume.features.webapp
 
 import eu.tintera.plume.core.webapp.MiniAppStorage
 import eu.tintera.plume.core.webapp.MiniAppStorageFull
+import eu.tintera.plume.core.webapp.MiniAppSecureStorage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -131,6 +132,8 @@ class WebAppViewModel(
     private val downloader: WebFileDownloader,
     private val appScope: CoroutineScope,
     private val storage: MiniAppStorage,
+    /** `SecureStorage` mini aplikací; `null` = platforma trezor nedodá, odpovídá se `UNSUPPORTED`. */
+    private val secureStorage: MiniAppSecureStorage? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("WebApp")
@@ -285,7 +288,20 @@ class WebAppViewModel(
                 storage.clear(account, botUserId)
                 WebAppEvents.deviceStorageCleared(event.requestId)
             }
-            is WebAppEvent.SecureStorage -> post(WebAppEvents.secureStorageFailed(event.requestId))
+            is WebAppEvent.SecureStorageSave -> secureStorage(event.requestId) { storage, account ->
+                storage.set(account, botUserId, event.key, event.value)
+                WebAppEvents.secureStorageSaved(event.requestId)
+            }
+            is WebAppEvent.SecureStorageGet -> secureStorage(event.requestId) { storage, account ->
+                WebAppEvents.secureStorageReceived(event.requestId, storage.get(account, botUserId, event.key))
+            }
+            is WebAppEvent.SecureStorageClear -> secureStorage(event.requestId) { storage, account ->
+                storage.clear(account, botUserId)
+                WebAppEvents.secureStorageCleared(event.requestId)
+            }
+            // Zálohu z jiného zařízení Plume nevede (`canRestore` je vždycky `false`).
+            is WebAppEvent.SecureStorageRestore ->
+                post(WebAppEvents.secureStorageFailed(event.requestId, WebAppErrors.RESTORE_UNAVAILABLE))
             WebAppEvent.CheckLocation -> checkLocation()
             WebAppEvent.RequestLocation -> requestLocation()
             // Vlastní nastavení polohy pro boty Plume nemá; souhlas se mění u dalšího dotazu.
@@ -318,6 +334,32 @@ class WebAppViewModel(
                 runCatching { action(account) }.getOrElse { failure ->
                     logger.w(failure) { "DeviceStorage mini aplikace selhalo." }
                     WebAppEvents.deviceStorageFailed(
+                        requestId,
+                        if (failure is MiniAppStorageFull) WebAppErrors.QUOTA_EXCEEDED else WebAppErrors.UNKNOWN_ERROR,
+                    )
+                }
+            }
+            post(reply)
+        }
+    }
+
+    /**
+     * Zabezpečené úložiště pro účet a bota, stejně jako [deviceStorage]: každý požadavek dostane
+     * odpověď, i chybovou. Bez trezoru (platforma ho nedodá) `UNSUPPORTED`.
+     */
+    private fun secureStorage(
+        requestId: String,
+        action: suspend (storage: MiniAppSecureStorage, account: Long) -> WebAppOutgoing,
+    ) {
+        viewModelScope.launch {
+            val storage = secureStorage
+            val account = chats.savedMessagesChatId.value
+            val reply = when {
+                storage == null -> WebAppEvents.secureStorageFailed(requestId, WebAppErrors.UNSUPPORTED)
+                account == null -> WebAppEvents.secureStorageFailed(requestId, WebAppErrors.UNKNOWN_ERROR)
+                else -> runCatching { action(storage, account) }.getOrElse { failure ->
+                    logger.w(failure) { "SecureStorage mini aplikace selhalo." }
+                    WebAppEvents.secureStorageFailed(
                         requestId,
                         if (failure is MiniAppStorageFull) WebAppErrors.QUOTA_EXCEEDED else WebAppErrors.UNKNOWN_ERROR,
                     )

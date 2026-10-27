@@ -566,9 +566,20 @@ a z oficiálních klientů (Telegram Desktop `attach_bot_webview.cpp`) — dokum
   účtem by táž mini aplikace jinak viděla data předchozího. Strop 5 MB na bota jako u
   oficiálních klientů; přes strop `device_storage_failed` s `QUOTA_EXCEEDED`, stará data zůstanou.
   Každý požadavek dostane odpověď, i chybovou — stránka na ni jinak čeká navždy.
-- **`SecureStorage` Plume nemá**: na každý požadavek `secure_storage_failed` s `UNSUPPORTED`.
-  Šifrované úložiště by chtělo vlastní šifrování hodnot (klíč v Keystore / Keychainu,
-  `SecretStore` drží jen jeden klíč) — zatím ne.
+- **`SecureStorage`** (`web_app_secure_storage_*`, `MiniAppSecureStorage` v `core/webapp`, testy
+  `MiniAppSecureStorageTest`): klíč → text jako `DeviceStorage`, jen zašifrovaně v trezoru
+  platformy — třetí `SecretStore` vedle klíče databáze a zámku (`MiniAppSecretStore`: Android
+  Keystore soubor `mini-app-secure-storage`, iOS Keychain a desktop služba
+  `eu.tintera.plume.miniapps`).
+  - **Všechno je JEDEN záznam** (JSON „účet:bot:klíč → hodnota"), ne záznam na klíč: trezor
+    drží jedno tajemství na instanci a položek je málo. Změny jdou pod zámkem (čtení, úprava,
+    zápis celku), prázdné úložiště záznam z trezoru smaže.
+  - **Nejvýš 10 položek na bota** jako u oficiálních klientů; další klíč → `QUOTA_EXCEEDED`,
+    přepsání existujícího projde.
+  - **Obnova ze zálohy jiného zařízení není**: `can_restore` je vždycky `false` (knihovna
+    Telegramu z něj udělá `null`, `true` jen při pravdě) a `restoreItem` → `RESTORE_UNAVAILABLE`.
+  - **Nečitelný záznam je prázdné úložiště** — Keystore klíč se ztrácí při obnově zařízení
+    a data mini aplikací nejsou nenahraditelná.
 - **Poloha** (`web_app_check_location` / `request_location`): bot ji dostane jen se souhlasem;
   poprvé (a po odmítnutí znovu) se ptá dialog a odpověď se pamatuje pro účet a bota. Poloha je
   přesná (`rememberDeviceLocation(precise = true)`), systémové oprávnění se žádá až teď.
@@ -583,7 +594,10 @@ a z oficiálních klientů (Telegram Desktop `attach_bot_webview.cpp`) — dokum
   v Plume — tudy vede i odkaz zvenčí (souhlas, hlavní mini aplikace). Stav `added` / `missing`
   podle připnutých zástupců; bot bez uživatelského jména a iOS / desktop → `unsupported`.
 - **Ověřeno na emulátoru** v Durger Kingu přes CDP (`Telegram.WebApp.*` z konzole WebView):
-  DeviceStorage zápis, čtení, smazání (pak `null`); SecureStorage → `UNSUPPORTED`; celá plocha
+  DeviceStorage zápis, čtení, smazání (pak `null`); SecureStorage (říjen 2026) zápis, čtení,
+  chybějící klíč `null`, `restoreItem` → `RESTORE_UNAVAILABLE`, desátá položka projde a další
+  `QUOTA_EXCEEDED`, přepsání i smazání, hodnoty přežijí zabití procesu, soubor v `files/`
+  hodnoty ani klíče čitelně nenese a `clear` ho smaže; celá plocha
   `isFullscreen=true`, `contentSafeAreaInset.top=56`, hlavička pryč a zpět; poloha → dialog,
   po odmítnutí `null`; zástupce `missing` → dialog launcheru → `added`, a ťuknutí na zástupce
   otevřelo mini aplikaci i ze studeného startu. Sdílení polohy se schválením se nezkoušelo

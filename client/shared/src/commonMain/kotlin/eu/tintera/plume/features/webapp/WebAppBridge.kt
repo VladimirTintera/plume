@@ -67,8 +67,12 @@ sealed interface WebAppEvent {
     data class DeviceStorageSave(val requestId: String, val key: String, val value: String?) : WebAppEvent
     data class DeviceStorageGet(val requestId: String, val key: String) : WebAppEvent
     data class DeviceStorageClear(val requestId: String) : WebAppEvent
-    /** Cokoli ze `SecureStorage` — Plume ho nemá, odpovídá se chybou. */
-    data class SecureStorage(val requestId: String) : WebAppEvent
+    /** `SecureStorage.setItem` / `removeItem` ([value] `null`). */
+    data class SecureStorageSave(val requestId: String, val key: String, val value: String?) : WebAppEvent
+    data class SecureStorageGet(val requestId: String, val key: String) : WebAppEvent
+    /** `SecureStorage.restoreItem` — obnova ze zálohy jiného zařízení; Plume žádnou nemá. */
+    data class SecureStorageRestore(val requestId: String) : WebAppEvent
+    data class SecureStorageClear(val requestId: String) : WebAppEvent
     data object CheckLocation : WebAppEvent
     data object RequestLocation : WebAppEvent
     data object OpenLocationSettings : WebAppEvent
@@ -215,9 +219,22 @@ fun parseWebAppEvent(type: String, data: String?): WebAppEvent {
             if (requestId == null || key == null) WebAppEvent.Unknown(type) else WebAppEvent.DeviceStorageGet(requestId, key)
         }
         "web_app_device_storage_clear" -> string("req_id")?.let(WebAppEvent::DeviceStorageClear) ?: WebAppEvent.Unknown(type)
-        "web_app_secure_storage_save_key", "web_app_secure_storage_get_key",
-        "web_app_secure_storage_restore_key", "web_app_secure_storage_clear",
-        -> string("req_id")?.let(WebAppEvent::SecureStorage) ?: WebAppEvent.Unknown(type)
+        "web_app_secure_storage_save_key" -> {
+            val requestId = string("req_id")
+            val key = string("key")
+            if (requestId == null || key == null) {
+                WebAppEvent.Unknown(type)
+            } else {
+                WebAppEvent.SecureStorageSave(requestId, key, (body["value"] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.contentOrNull)
+            }
+        }
+        "web_app_secure_storage_get_key" -> {
+            val requestId = string("req_id")
+            val key = string("key")
+            if (requestId == null || key == null) WebAppEvent.Unknown(type) else WebAppEvent.SecureStorageGet(requestId, key)
+        }
+        "web_app_secure_storage_restore_key" -> string("req_id")?.let(WebAppEvent::SecureStorageRestore) ?: WebAppEvent.Unknown(type)
+        "web_app_secure_storage_clear" -> string("req_id")?.let(WebAppEvent::SecureStorageClear) ?: WebAppEvent.Unknown(type)
         "web_app_check_location" -> WebAppEvent.CheckLocation
         "web_app_request_location" -> WebAppEvent.RequestLocation
         "web_app_open_location_settings" -> WebAppEvent.OpenLocationSettings
@@ -236,6 +253,8 @@ object WebAppErrors {
     const val UNSUPPORTED = "UNSUPPORTED"
     const val UNKNOWN_ERROR = "UNKNOWN_ERROR"
     const val QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
+    /** `SecureStorage.restoreItem` bez zálohy, ze které by šlo obnovit. */
+    const val RESTORE_UNAVAILABLE = "RESTORE_UNAVAILABLE"
 }
 
 /** Událost pro stránku: typ a JSON data (objekt), jak je čeká `Telegram.WebView.receiveEvent`. */
@@ -392,11 +411,31 @@ object WebAppEvents {
         }.toString(),
     )
 
-    fun secureStorageFailed(requestId: String) = WebAppOutgoing(
+    fun secureStorageSaved(requestId: String) = WebAppOutgoing(
+        "secure_storage_key_saved",
+        buildJsonObject { put("req_id", requestId) }.toString(),
+    )
+
+    /** Hodnota klíče; chybějící je `null`. Obnova ze zálohy jiného zařízení není nikdy k mání. */
+    fun secureStorageReceived(requestId: String, value: String?) = WebAppOutgoing(
+        "secure_storage_key_received",
+        buildJsonObject {
+            put("req_id", requestId)
+            put("value", value?.let(::JsonPrimitive) ?: JsonNull)
+            put("can_restore", false)
+        }.toString(),
+    )
+
+    fun secureStorageCleared(requestId: String) = WebAppOutgoing(
+        "secure_storage_cleared",
+        buildJsonObject { put("req_id", requestId) }.toString(),
+    )
+
+    fun secureStorageFailed(requestId: String, error: String) = WebAppOutgoing(
         "secure_storage_failed",
         buildJsonObject {
             put("req_id", requestId)
-            put("error", WebAppErrors.UNSUPPORTED)
+            put("error", error)
         }.toString(),
     )
 

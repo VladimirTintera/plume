@@ -41,6 +41,7 @@ import eu.tintera.plume.core.share.ShareTargetPublisher
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.secrets.AppLockStore
+import eu.tintera.plume.core.secrets.MiniAppSecretStore
 import eu.tintera.plume.core.secrets.KeychainSecretStore
 import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
@@ -72,6 +73,11 @@ actual fun Module.platformModule() {
     single<AppLockStore> {
         object : AppLockStore, SecretStore by KeychainSecretStore(
             service = "eu.tintera.plume.applock", account = "pin", logTag = "AppLock",
+        ) {}
+    }
+    single<MiniAppSecretStore> {
+        object : MiniAppSecretStore, SecretStore by KeychainSecretStore(
+            service = "eu.tintera.plume.miniapps", account = "secure-storage", logTag = "WebApp",
         ) {}
     }
     single { NotificationPermission() }
