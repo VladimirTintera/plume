@@ -32,7 +32,10 @@ actual class MediaSaver(private val context: Context) {
 
     private val logger = Logger.withTag("MediaSaver")
 
-    actual suspend fun save(path: String, fileName: String, isVideo: Boolean): Boolean = withContext(Dispatchers.IO) {
+    actual suspend fun save(path: String, fileName: String, isVideo: Boolean): SavedMedia? =
+        if (saveToMediaStore(path, fileName, isVideo)) SavedMedia() else null
+
+    private suspend fun saveToMediaStore(path: String, fileName: String, isVideo: Boolean): Boolean = withContext(Dispatchers.IO) {
         val source = File(path)
         val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(File(fileName).extension.lowercase())
             ?: if (isVideo) "video/mp4" else "image/jpeg"
@@ -125,3 +128,5 @@ actual fun rememberSavePermission(): SavePermission {
 }
 
 actual val autosavesToGallery: Boolean = true
+
+actual fun revealInFolder(path: String): Boolean = false

@@ -3,6 +3,8 @@ package eu.tintera.plume.core.files
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.platform.DesktopOs
+import eu.tintera.plume.core.platform.desktopOs
 import eu.tintera.plume.core.ui.openInSystem
 import java.awt.Desktop
 import java.awt.FileDialog
@@ -44,14 +46,13 @@ actual class MediaSaver {
 
     private val logger = Logger.withTag("MediaSaver")
 
-    actual suspend fun save(path: String, fileName: String, isVideo: Boolean): Boolean = withContext(Dispatchers.IO) {
+    actual suspend fun save(path: String, fileName: String, isVideo: Boolean): SavedMedia? = withContext(Dispatchers.IO) {
         runCatching {
             val directory = File(System.getProperty("user.home"), "Downloads").apply { mkdirs() }
-            File(path).copyTo(uniqueFile(directory, fileName))
-            true
+            SavedMedia(file = File(path).copyTo(uniqueFile(directory, fileName)).path)
         }.getOrElse {
             logger.w(it) { "Soubor se nepodařilo uložit: $path" }
-            false
+            null
         }
     }
 }
@@ -149,3 +150,24 @@ actual fun rememberSaveAs(): SaveAsLauncher? = remember {
 actual val saveAsSupported: Boolean = true
 
 actual val autosavesToGallery: Boolean = false
+
+/**
+ * Windows `explorer /select,<soubor>`, macOS `open -R` — obojí otevře složku se souborem
+ * vybraným. Jinde (Linux) jen složka: `Desktop.browseFileDirectory` umí jen některá prostředí.
+ */
+actual fun revealInFolder(path: String): Boolean = runCatching {
+    val file = File(path)
+    when (desktopOs) {
+        DesktopOs.Windows -> ProcessBuilder("explorer.exe", "/select,${file.absolutePath}").start()
+        DesktopOs.MacOs -> ProcessBuilder("open", "-R", file.absolutePath).start()
+        else -> {
+            val desktop = Desktop.getDesktop().takeIf { Desktop.isDesktopSupported() }
+            if (desktop?.isSupported(Desktop.Action.BROWSE_FILE_DIR) == true) desktop.browseFileDirectory(file)
+            else openInSystem(file.parentFile.toURI())
+        }
+    }
+    true
+}.getOrElse {
+    Logger.withTag("MediaSaver").w(it) { "Složku se souborem $path nejde otevřít." }
+    false
+}

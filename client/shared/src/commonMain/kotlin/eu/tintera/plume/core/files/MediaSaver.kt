@@ -16,11 +16,24 @@ import okio.Path.Companion.toPath
  */
 expect class MediaSaver {
     /**
-     * [fileName] je jméno v galerii (viz [savedFileName]). Vrací `false`, když se uložit
+     * [fileName] je jméno v galerii (viz [savedFileName]). Vrací `null`, když se uložit
      * nepodařilo; příčina jde do logu.
      */
-    suspend fun save(path: String, fileName: String, isVideo: Boolean): Boolean
+    suspend fun save(path: String, fileName: String, isVideo: Boolean): SavedMedia?
 }
+
+/**
+ * Uložené médium. [file] je cesta k uloženému souboru tam, kde je to obyčejný soubor, který jde
+ * ukázat ve složce ([revealInFolder]) — desktop ukládá do Stažených. Galerie telefonu žádnou
+ * takovou cestu nemá (`null`).
+ */
+data class SavedMedia(val file: String? = null)
+
+/**
+ * Otevře správce souborů se složkou souboru [path] a soubor v ní vybere (Průzkumník, Finder).
+ * `false`, když to nejde; na telefonu nikdy nic.
+ */
+expect fun revealInFolder(path: String): Boolean
 
 /**
  * Má platforma galerii, do které se dá ukládat automaticky? Android a iOS ano; desktop ne —

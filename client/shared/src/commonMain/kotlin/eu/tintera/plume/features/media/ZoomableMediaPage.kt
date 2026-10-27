@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.runtime.derivedStateOf
+import eu.tintera.plume.core.ui.fileDragSupported
+import eu.tintera.plume.core.ui.fileDragSource
+import eu.tintera.plume.core.ui.DraggedFile
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -92,6 +97,11 @@ internal fun ZoomableMediaPage(
     cardModifier: Modifier = Modifier,
     /** Ovládání na kartě, které se s fotkou nepřibližuje (✕ a volba režimu ve sdílení). */
     overlay: @Composable BoxScope.() -> Unit = {},
+    /**
+     * Tah myší vytáhne snímek z okna ven (`fileDragSource`, desktop); `null` = nejde (sdílení,
+     * zakrytý nebo chráněný snímek). Jen u nepřiblížené fotky — přiblíženou tah myší posouvá.
+     */
+    dragOut: (() -> DraggedFile?)? = null,
     /** Snímek; vyplní kartu a přibližuje se. */
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -107,10 +117,14 @@ internal fun ZoomableMediaPage(
     val currentTap by rememberUpdatedState(gestures.onTap)
     val currentDismiss by rememberUpdatedState(gestures.onDismiss)
     val currentZoomable by rememberUpdatedState(zoomable)
+    val draggable = dragOut != null && fileDragSupported
+    val currentDraggable by rememberUpdatedState(draggable)
 
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
+    // Tah ven jen u nepřiblížené fotky; přes `derivedStateOf`, ať přiblížení nerekomponuje každý snímek.
+    val unzoomed by remember { derivedStateOf { scale == 1f } }
 
     // Sousední stránka zůstává složená; kdyby si přiblížení nechala, vrátil by se uživatel
     // k fotce v půlce výřezu a nešlo by z ní listovat dál.
@@ -219,7 +233,9 @@ internal fun ZoomableMediaPage(
             }
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    // Myš nad nepřiblíženou fotkou táhne snímek ven; zavírá se Esc a ✕.
+                    if (down.type == PointerType.Mouse && currentDraggable && scale == 1f) return@awaitEachGesture
                     var gesture = Gesture.Undecided
                     var travel = Offset.Zero
 
@@ -333,6 +349,7 @@ internal fun ZoomableMediaPage(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(cardModifier)
+                    .then(if (draggable && unzoomed && dragOut != null) Modifier.fileDragSource(dragOut) else Modifier)
                     .graphicsLayer {
                         scaleX = scale
                         scaleY = scale
