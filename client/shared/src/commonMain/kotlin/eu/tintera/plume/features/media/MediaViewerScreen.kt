@@ -179,6 +179,8 @@ import eu.tintera.plume.resources.media_save_as
 import eu.tintera.plume.resources.media_save_downloads
 import eu.tintera.plume.resources.media_show_in_folder
 import eu.tintera.plume.resources.media_show_in_chat
+import eu.tintera.plume.resources.media_all_media
+import eu.tintera.plume.resources.perm_media_24dp
 import eu.tintera.plume.resources.chat_24dp
 import eu.tintera.plume.resources.media_copy_photo
 import eu.tintera.plume.resources.media_copy_video
@@ -251,6 +253,11 @@ fun MediaViewerScreen(
      * `null` = stránky nejsou zprávy chatu (profilovky, příběh, reklama, anketa, článek).
      */
     onShowInChat: ((messageId: Long) -> Unit)? = null,
+    /**
+     * Všechna média chatu v mřížce: prohlížeč se zavře a profil chatu se otevře na záložce
+     * Média. `null` = stránky nejsou média ze zpráv chatu (stejně jako [onShowInChat]).
+     */
+    onShowAllMedia: (() -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val stickerSource = state.stickerSource
@@ -334,6 +341,12 @@ fun MediaViewerScreen(
                         { messageId: Long ->
                             viewModel.onDismiss()
                             show(messageId)
+                        }
+                    },
+                    onShowAllMedia = onShowAllMedia?.let { show ->
+                        {
+                            viewModel.onDismiss()
+                            show()
                         }
                     },
                     onDelete = viewModel::requestDelete,
@@ -1400,6 +1413,9 @@ private fun viewerMenuGroups(
             itemActions.onShowInChat?.let { show ->
                 MenuAction(stringResource(Res.string.media_show_in_chat), Res.drawable.chat_24dp) { show(messageId) }
             },
+            itemActions.onShowAllMedia?.let { show ->
+                MenuAction(stringResource(Res.string.media_all_media), Res.drawable.perm_media_24dp, onClick = show)
+            },
             MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp) { itemActions.onForward(messageId) }.takeIf { canForward },
             copyInMenu,
             itemActions.onSaveAs?.takeIf { canSave }?.let { saveAs ->
@@ -1699,6 +1715,8 @@ internal data class ViewerItemActions(
     val onForward: (messageId: Long) -> Unit,
     /** `null` = stránky nejsou zprávy chatu, není kam skočit. */
     val onShowInChat: ((messageId: Long) -> Unit)?,
+    /** Mřížka všech médií chatu v profilu; `null` = stránky nejsou média ze zpráv chatu. */
+    val onShowAllMedia: (() -> Unit)?,
     val onDelete: (messageId: Long) -> Unit,
     val onSave: (messageId: Long) -> Unit,
     val onSaveAs: ((messageId: Long) -> Unit)?,

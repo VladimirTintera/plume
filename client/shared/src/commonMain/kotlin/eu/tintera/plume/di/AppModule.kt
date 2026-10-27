@@ -30,6 +30,7 @@ import eu.tintera.plume.core.currency.ExchangeRates
 import eu.tintera.plume.core.currency.TextDownloader
 import eu.tintera.plume.features.conversation.ReminderTimeModel
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
+import eu.tintera.plume.features.profile.ProfileTabRequests
 import eu.tintera.plume.features.conversation.ChatSwitcher
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
@@ -257,6 +258,7 @@ fun appModule() = module {
     viewModelOf(::PublicLinkLimitViewModel)
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
+    single { ProfileTabRequests() }
     single { LocalTranscripts(settings = get(), chats = get()) }
     // Přepis v telefonu i pro hodinky (WatchTranscriptionService); AI a systémový přepis jen na Androidu.
     single { OnDeviceTranscription(settings = get(), files = get(), local = get(), onDeviceAi = getOrNull(), speechToText = getOrNull()) }

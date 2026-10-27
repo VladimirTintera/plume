@@ -416,6 +416,12 @@ Karta má navíc tři volby (stejná `groupSettingsOffer`, testy `ChannelBoostSe
     dokud uživatel sám nepřepnul (`mainTabDone`), jinak by záložka uskočila pod rukou.
     Hlavní záložka, kterou chat nemá (bez GIFů, bez příběhů), se nepoužije.
   - „Příspěvky" (`profileTabPosts`) jsou v Plume záložka Příběhy.
+- **Záložka vyžádaná zvenčí** (`ProfileTabRequests`, „Všechna média" v prohlížeči médií):
+  profil na ni přeskočí, jakmile ji má, a sbalí hlavičku, ať je obsah záložky vidět hned. Má
+  přednost před hlavní záložkou. **Je to stav, ne pole routy**: `ChatProfileRoute` se porovnává
+  celá (otevřený profil, profil vedle konverzace, `followProfile`) a pole navíc by ty rovnosti
+  rozbilo. Nevyřízený požadavek (chat záložku nemá) se zahodí s profilem, jinak by přeskočil
+  až při některém dalším otevření.
 - **Ověřeno na emulátoru** („Plume test kanal", vlastník; „Plume test zalozeni", diskuse kanálu):
   sponzorované zprávy zamčené s větou „od úrovně 50, kanál má úroveň 0"; hlavní záložka Příběhy
   a pak GIFy drží server (po novém otevření úpravy), „Automaticky" po první volbě zmizelo a profil

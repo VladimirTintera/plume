@@ -228,6 +228,14 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   nejsou a přílohy ankety a článku nesou id té jedné zprávy, ze které se otevřely. Na rozdíl
   od odpovědi se nabízí i z profilu, kde pod prohlížečem konverzace není — právě tam je
   nejužitečnější. **Na zařízení neověřené.**
+- **„Všechna média" (⋮ i nabídka u kurzoru) ukáže mřížku médií chatu** (`showAllMedia`
+  v `AppShell`, testy `ShowAllMediaTest`): prohlížeč se zavře a profil chatu se ukáže na
+  záložce Média. Otevřel-li se prohlížeč z mřížky v profilu, profil pod ním už je a jen se na
+  záložku přepne; jinak se nad konverzaci přidá (na široké ploše jako panel vedle ní), nad
+  archivní konverzací archivní. Záložku nese požadavek `ProfileTabRequests`, ne routa — viz
+  `docs/poznatky/profil-chatu.md`, „Záložka vyžádaná zvenčí". Nabízí se tam, kde „Zobrazit
+  v chatu" (`showsChatMessages`). Je to položka nabídky, ne ťuknutí na počítadlo „N z M":
+  ťukací text v liště by nikdo nehledal. **Na zařízení neověřené.**
 - **Reakce, přeposlání a smazání jsou přímo v prohlížeči.** Nabízené reakce a práva
   (`messageActions`) se načítají **pro stránku, na které uživatel stojí**, jednou za zprávu —
   stejný důvod jako u nabídky v konverzaci. Dokud nedorazí, akce se nekreslí. Smaže se jen
