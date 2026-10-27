@@ -55,6 +55,8 @@ import org.jetbrains.compose.resources.StringResource
 internal class ConversationBots(
     private val chatId: Long,
     private val state: MutableStateFlow<ConversationState>,
+    /** Kam konverzace odchází (viz [ConversationNavEvent]); obrazovka to vyřídí. */
+    private val navigate: (ConversationNavEvent) -> Unit,
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
@@ -167,7 +169,7 @@ internal class ConversationBots(
             is BotButtonKind.SwitchInline -> when (val target = kind.target) {
                 SwitchInlineTarget.Current -> suggestions.useInlineBot(kind.bot, kind.query)
                 is SwitchInlineTarget.Chosen ->
-                    state.update { it.copy(switchInline = SwitchInlinePick(kind.bot, kind.query, target)) }
+                    navigate(ConversationNavEvent.SwitchInline(SwitchInlinePick(kind.bot, kind.query, target)))
             }
             is BotButtonKind.Unsupported -> state.update { it.copy(notice = UiText(kind.feature.explanation())) }
         }
@@ -270,11 +272,7 @@ internal class ConversationBots(
     /** Bot, kterému zpráva s tlačítkem patří: odesílatel (kladné id = uživatel), jinak chat s botem. */
     private fun botOf(message: ChatMessage?): Long = message?.senderId?.takeIf { it > 0 } ?: chatId
 
-    fun consumeOpenBotShare() = state.update { it.copy(openBotShare = null) }
 
-    fun consumeOpenPollComposer() {
-        state.update { it.copy(openPollComposer = null) }
-    }
 
     fun dismissPollVoters() {
         state.update { it.copy(pollVoters = null) }
@@ -360,11 +358,11 @@ internal class ConversationBots(
             ReplyKeyboardButtonKind.Location -> state.update { it.copy(dialog = ConversationDialog.ShareLocation) }
             // Výběr lidí a chatu je obrazovka nad konverzací; tlačítko patří zprávě s klávesnicí.
             is ReplyKeyboardButtonKind.Users ->
-                state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, users = kind.request)) }
+                navigate(ConversationNavEvent.OpenBotShare(BotShareRequest(keyboard.messageId, users = kind.request)))
             is ReplyKeyboardButtonKind.Chat ->
-                state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, chat = kind.request)) }
+                navigate(ConversationNavEvent.OpenBotShare(BotShareRequest(keyboard.messageId, chat = kind.request)))
             // Formulář je obrazovka nad konverzací; otevírá ho obrazovka, ViewModel jen řekne jaký.
-            is ReplyKeyboardButtonKind.Poll -> state.update { it.copy(openPollComposer = kind.mode) }
+            is ReplyKeyboardButtonKind.Poll -> navigate(ConversationNavEvent.CreatePoll(kind.mode))
             is ReplyKeyboardButtonKind.WebApp -> {
                 val owner = state.value.messages.firstOrNull { it.id == keyboard.messageId }
                 links.requestWebApp(

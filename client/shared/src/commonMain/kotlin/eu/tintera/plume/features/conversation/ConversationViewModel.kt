@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.channels.Channel
 import eu.tintera.plume.core.telegram.slowModeWaitText
 import eu.tintera.plume.core.telegram.BusinessBotBar
 import kotlinx.coroutines.flow.flowOf
@@ -319,6 +322,17 @@ class ConversationViewModel(
         ))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
+    /**
+     * Kam konverzace odchází — otevřít chat, obrazovku, příběh… (viz [ConversationNavEvent]).
+     * Kanál: událost, která přijde, když obrazovka zrovna neodebírá, počká a doručí se jednou.
+     */
+    private val navigationEvents = Channel<ConversationNavEvent>(Channel.BUFFERED)
+    val navigation: Flow<ConversationNavEvent> = navigationEvents.receiveAsFlow()
+
+    private fun navigate(event: ConversationNavEvent) {
+        navigationEvents.trySend(event)
+    }
+
     /** Popisy fotek v tomhle chatu podle id zprávy (viz [PhotoDescriptions]). */
     val photoDescriptions: StateFlow<Map<Long, String>> = (photoDescriptions?.forChat(chatId) ?: flowOf(emptyMap()))
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
@@ -394,6 +408,7 @@ class ConversationViewModel(
     private val playback: ConversationPlayback = ConversationPlayback(
         chatId = chatId,
         state = _state,
+        navigate = ::navigate,
         scope = viewModelScope,
         appScope = appScope,
         repository = repository,
@@ -614,6 +629,7 @@ class ConversationViewModel(
         // Uložených zpráv: odkaz otevře celý chat místo skoku.
         savedTopicId = savedTopicId ?: directTopicId,
         state = _state,
+        navigate = ::navigate,
         scope = viewModelScope,
         repository = repository,
         chatRepository = chatRepository,
@@ -631,18 +647,12 @@ class ConversationViewModel(
     fun dismissLink() = links.dismissLink()
     fun confirmExternalLogin(allowWriteAccess: Boolean) = links.confirmExternalLogin(allowWriteAccess)
     fun dismissExternalLogin() = links.dismissExternalLogin()
-    fun consumeOpenWebApp() = links.consumeOpenWebApp()
     fun joinInvite() = links.joinInvite()
     fun dismissInvite() = links.dismissInvite()
     fun toggleFolderInviteChat(chatId: Long) = links.toggleFolderInviteChat(chatId)
     fun addFolderInvite() = links.addFolderInvite()
     fun dismissFolderInvite() = links.dismissFolderInvite()
     fun consumeOpenStickerSet() = links.consumeOpenStickerSet()
-    fun consumeOpenProfile() = links.consumeOpenProfile()
-    fun consumeOpenMediaAt() = links.consumeOpenMediaAt()
-    fun consumeOpenChat() = links.consumeOpenChat()
-    fun consumeOpenScreen() = links.consumeOpenScreen()
-    fun consumeOpenStory() = links.consumeOpenStory()
     fun dismissLoginWarning() = links.dismissLoginWarning()
 
     fun dismissDeepLinkInfo() = links.dismissDeepLinkInfo()
@@ -652,13 +662,12 @@ class ConversationViewModel(
         links.dismissDeepLinkInfo()
         links.openLink(url)
     }
-    fun consumeAddBotToGroup() = links.consumeAddBotToGroup()
-    fun consumeSwitchInline() = links.consumeSwitchInline()
 
     /** Boti: tlačítka, klávesnice, příkazy, ankety, přihlášení — viz [ConversationBots]. */
     private val bots: ConversationBots = ConversationBots(
         chatId = chatId,
         state = _state,
+        navigate = ::navigate,
         scope = viewModelScope,
         repository = repository,
         chatRepository = chatRepository,
@@ -679,8 +688,6 @@ class ConversationViewModel(
     fun dismissBotAlert() = bots.dismissBotAlert()
     fun cancelStopPoll() = bots.cancelStopPoll()
     fun confirmStopPoll() = bots.confirmStopPoll()
-    fun consumeOpenBotShare() = bots.consumeOpenBotShare()
-    fun consumeOpenPollComposer() = bots.consumeOpenPollComposer()
     fun dismissPollVoters() = bots.dismissPollVoters()
     fun dismissGiveaway() = bots.dismissGiveaway()
     fun copyGiftCode(code: String) = bots.copyGiftCode(code)
@@ -703,6 +710,7 @@ class ConversationViewModel(
     private val checklists: ConversationChecklists = ConversationChecklists(
         chatId = chatId,
         state = _state,
+        navigate = ::navigate,
         scope = viewModelScope,
         repository = repository,
         isPremium = { chatRepository.isPremium.value },
@@ -710,7 +718,6 @@ class ConversationViewModel(
     )
 
     fun addChecklistTask(text: String) = checklists.addTask(text)
-    fun consumeOpenChecklistEditor() = checklists.consumeOpenEditor()
     fun dismissAddChecklistTask() = checklists.dismissAddTask()
 
     /** Kým se do skupiny píše — viz [ConversationSendAs]. */
@@ -860,10 +867,8 @@ class ConversationViewModel(
     /** „Statistika příspěvku" z „Informace o zprávě": sheet se zavře a nad konverzací se otevře statistika. */
     fun openPostStatistics(messageId: Long) {
         menu.dismissMessageInfo()
-        _state.update { it.copy(openPostStatistics = messageId) }
+        navigate(ConversationNavEvent.OpenPostStatistics(messageId))
     }
-
-    fun consumeOpenPostStatistics() = _state.update { it.copy(openPostStatistics = null) }
 
     /** Odesílatel z „Informace o zprávě" (přímé zprávy kanálu): sheet se zavře a otevře se jeho profil. */
     fun openMessageAuthor(userId: Long) {
@@ -902,6 +907,7 @@ class ConversationViewModel(
     private val messageActions: ConversationMessageActions = ConversationMessageActions(
         chatId = chatId,
         state = _state,
+        navigate = ::navigate,
         scope = viewModelScope,
         repository = repository,
         chatRepository = chatRepository,
@@ -920,7 +926,6 @@ class ConversationViewModel(
     fun consumeAddedContact() = messageActions.consumeAddedContact()
     fun closeRemind() = messageActions.closeRemind()
     fun remind(messageId: Long, at: Long) = messageActions.remind(messageId, at)
-    fun consumeForwardRequest() = messageActions.consumeForwardRequest()
     fun cancelDelete() = messageActions.cancelDelete()
     fun confirmDelete(revoke: Boolean, choice: ModerationChoice) = messageActions.confirmDelete(revoke, choice)
 
@@ -928,6 +933,7 @@ class ConversationViewModel(
     private val selection: ConversationSelection = ConversationSelection(
         chatId = chatId,
         state = _state,
+        navigate = ::navigate,
         scope = viewModelScope,
         repository = repository,
         copyToClipboard = clipboard::copy,

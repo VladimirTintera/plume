@@ -55,6 +55,8 @@ import kotlinx.coroutines.launch
 internal class ConversationPlayback(
     private val chatId: Long,
     private val state: MutableStateFlow<ConversationState>,
+    /** Kam konverzace odchází (viz [ConversationNavEvent]); obrazovka to vyřídí. */
+    private val navigate: (ConversationNavEvent) -> Unit,
     private val scope: CoroutineScope,
     /** Přepis v telefonu trvá a odchod z chatu ho nemá zahodit. */
     private val appScope: CoroutineScope,
@@ -404,7 +406,7 @@ internal class ConversationPlayback(
     /**
      * Čas v médiu („1:23"). Médium je v téže zprávě, nebo ve zprávě, na kterou odpovídá
      * (`hasTimestampedMedia`) — tak to definuje TDLib. Video se otevře v prohlížeči od toho
-     * místa (navigace je věc obrazovky, proto stav [ConversationState.openMediaAt]); hlasovka,
+     * místa (navigace je věc obrazovky, proto událost [ConversationNavEvent.OpenMediaAt]); hlasovka,
      * skladba a kolečko hrají v chatu, jako po ťuknutí na ně; video z náhledu odkazu se otevře na
      * webu od toho místa.
      */
@@ -414,7 +416,7 @@ internal class ConversationPlayback(
         val target = timestampTarget(message, current.messages, current.quotes) ?: return
         val startMs = seconds * 1000L
         when (val media = target.media) {
-            is MessageMedia.Video -> state.update { it.copy(openMediaAt = MediaAt(target.id, seconds)) }
+            is MessageMedia.Video -> navigate(ConversationNavEvent.OpenMediaAt(MediaAt(target.id, seconds)))
             is MessageMedia.VoiceNote -> {
                 state.update { it.copy(soundingVideoNote = null) }
                 voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs, resumeKey = resumeKey(target.id, media.fileKey)) {

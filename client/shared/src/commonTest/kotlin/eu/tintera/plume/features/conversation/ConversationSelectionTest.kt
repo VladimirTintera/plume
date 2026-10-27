@@ -17,6 +17,9 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConversationSelectionTest {
 
+    /** Navigace, kterou části poslaly (viz `ConversationNavEvent`). */
+    private val navigated = mutableListOf<ConversationNavEvent>()
+
     private val deletable = MessageActions.Fallback.copy(canDeleteForSelf = true, canDeleteForAll = true)
 
     private class FakeRepository(private val actions: MessageActions) : UnimplementedConversationRepository() {
@@ -34,6 +37,7 @@ class ConversationSelectionTest {
         ConversationSelection(
             chatId = TEST_CHAT,
             state = state,
+            navigate = navigated::add,
             scope = scope,
             repository = repository,
             copyToClipboard = { copied += it },

@@ -158,8 +158,25 @@ všechny nad sebou; dva modální dialogy naráz nedávají smysl a typ to teď 
 - **Nápovědy gest mlčí nad jakýmkoli dialogem** (`dialog == null`), dřív jen nad smazáním
   a připnutím.
 - **Mimo zůstalo**, co je jiný druh věci, každé na vlastní převod: sheety s vlastními daty
-  a načítáním (překlad, pozvánka, detail reakcí, výherci soutěže), nabídka nad zprávou
-  (`messageMenu`) a jednorázové požadavky na navigaci (`openChat`, `openScreen`…).
+  a načítáním (překlad, pozvánka, detail reakcí, výherci soutěže) a nabídka nad zprávou
+  (`messageMenu`). Navigace mimo obrazovku jde událostmi (viz níž).
+
+### Navigace jako události (`ConversationNavEvent`)
+
+Kam konverzace odchází (otevřít chat, obrazovku, příběh, profil, výběr pro přeposlání, mini
+aplikaci, formulář ankety…), posílají části ViewModelu jako UDÁLOST
+(`ConversationViewModel.navigation`, `ConversationNavEvent`), ne jako pole stavu. Dřív to bylo
+třináct polí `ConversationState`, každé s funkcí `consume…`, kterou obrazovka po vyzvednutí
+volala; stav ale říká, co JE, a zapomenuté vynulování by po otočení otevřelo chat znovu.
+
+- **Kanál (`Channel.BUFFERED`), ne `SharedFlow`**: událost, která přijde, když obrazovka
+  zrovna neodebírá (přechod, otočení), počká ve frontě a doručí se právě jednou.
+- **Části ViewModelu dostávají `navigate` jako POVINNÝ parametr** konstruktoru. Výchozí „nic"
+  by navigaci v produkci tiše zahodilo; testy si místo něj předají seznam a čtou z něj.
+- **Odběr je jeden `LaunchedEffect` v `ConversationEvents`** a čte navigaci i stav přes
+  `rememberUpdatedState` — anketa od tlačítka bota bere odpověď, která je v poli TEĎ.
+- **Sheety uvnitř obrazovky zůstávají stavem** (`remindRequest`, `callRequest`,
+  `openStickerSet`): nejsou navigace, otevírá je obrazovka sama a stav nese i jejich data.
 
 ## Bloky seznamu
 
@@ -1003,7 +1020,7 @@ všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme 
   sdíleného textu: připojí se za rozepsaný koncept, a to až po jeho obnovení. Vlastní „request"
   holder by zdvojil přesně tu logiku. Shell sdílení s vybraným chatem nikam nenaviguje, takže
   chat otevírá dál konverzace (`openTarget`); odkaz na TENTÝŽ chat vloží text rovnou.
-- **`?profile` otevře profil nad konverzací** (`ConversationState.openProfile`), text z odkazu
+- **`?profile` otevře profil nad konverzací** (`ConversationNavEvent.OpenProfile`), text z odkazu
   se pak zahodí — patří chatu, ne profilu.
 - **`t.me/share/url?url=…&text=…` je sdílení bez vybraného chatu** (`shareRequests.start`): shell
   otevře výběr chatu sám, jako u sdílení ze systému. Adresu i text TDLib složí do jednoho textu.

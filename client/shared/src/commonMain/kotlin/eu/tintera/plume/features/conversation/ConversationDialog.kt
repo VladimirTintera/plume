@@ -17,8 +17,8 @@ import eu.tintera.plume.core.telegram.MessageMedia
  *   dialog TOHO druhu: odpověď, která dorazí se zpožděním (upozornění od bota, přihlášení
  *   z tlačítka), mohla mezitím otevřít jiný, a zavření starého ho smazat nesmí.
  * - **Co sem nepatří:** sheety s vlastními daty a načítáním (překlad, pozvánka, detail reakcí),
- *   nabídka nad zprávou a jednorázové požadavky na navigaci (`openChat`, `openScreen`…) — jiný
- *   druh věci se stejnou úvahou, každý na vlastní převod.
+ *   nabídka nad zprávou — jiný druh věci se stejnou úvahou, každý na vlastní převod — a navigace
+ *   mimo obrazovku, ta jde událostmi ([ConversationNavEvent]).
  */
 sealed interface ConversationDialog {
 

@@ -97,11 +97,12 @@ data class ConversationNavigation(
 )
 
 /**
- * Jednorázové události ze stavu, které vedou mimo obrazovku: ViewModel řekne „otevři chat",
- * navigace je věc shellu. Událost se nuluje hned, jinak by se po otočení otevřela znovu.
+ * Jednorázové události, které vedou mimo obrazovku: ViewModel řekne „otevři chat"
+ * ([ConversationViewModel.navigation], [ConversationNavEvent]), navigace je věc shellu.
  *
- * Navigace se čte přes [rememberUpdatedState]: efekt se restartuje jen novou událostí, ne
- * novou instancí [ConversationNavigation], a přitom volá vždycky tu aktuální.
+ * Navigace se čte přes [rememberUpdatedState]: odběr běží po celou dobu obrazovky a volá
+ * vždycky aktuální [ConversationNavigation] (a u ankety aktuální odpověď v poli), ne tu
+ * z okamžiku spuštění.
  */
 @Composable
 internal fun ConversationEvents(
@@ -110,15 +111,7 @@ internal fun ConversationEvents(
     navigation: ConversationNavigation,
 ) {
     val nav by rememberUpdatedState(navigation)
-
-    // Výběr cílového chatu je vlastní obrazovka, takže požadavek z nabídky se předá navigaci.
-    val forwardRequest = state.forwardRequest
-    LaunchedEffect(forwardRequest) {
-        if (forwardRequest != null) {
-            nav.onForward(forwardRequest)
-            viewModel.consumeForwardRequest()
-        }
-    }
+    val current by rememberUpdatedState(state)
 
     // Spravované přímé zprávy kanálu se čtou po vláknech; celý chat by psaní stejně odmítl.
     val directAdmin = state.info?.isDirectMessagesAdmin == true && state.directTopicId == null
@@ -130,73 +123,28 @@ internal fun ConversationEvents(
     val unarchived by viewModel.unarchived.collectAsStateWithLifecycle()
     LaunchedEffect(unarchived) { if (unarchived) nav.onUnarchived() }
 
-    // Chat ze zmínky nebo odkazu: ViewModel ho najde, navigace je věc obrazovky.
-    LaunchedEffect(state.openMediaAt) {
-        val target = state.openMediaAt ?: return@LaunchedEffect
-        viewModel.consumeOpenMediaAt()
-        nav.onOpenMediaAt(target.messageId, target.seconds)
-    }
-    LaunchedEffect(state.openChat) {
-        val target = state.openChat ?: return@LaunchedEffect
-        viewModel.consumeOpenChat()
-        nav.onOpenChat(target)
-    }
-    LaunchedEffect(state.openScreen) {
-        val screen = state.openScreen ?: return@LaunchedEffect
-        viewModel.consumeOpenScreen()
-        nav.onOpenScreen(screen)
-    }
-    LaunchedEffect(state.openStory) {
-        val story = state.openStory ?: return@LaunchedEffect
-        viewModel.consumeOpenStory()
-        nav.onOpenStory(story)
-    }
-    LaunchedEffect(state.addBotToGroup) {
-        val link = state.addBotToGroup ?: return@LaunchedEffect
-        viewModel.consumeAddBotToGroup()
-        nav.onAddBotToGroup(link)
-    }
-    LaunchedEffect(state.switchInline) {
-        val pick = state.switchInline ?: return@LaunchedEffect
-        viewModel.consumeSwitchInline()
-        nav.onSwitchInline(pick)
-    }
-    LaunchedEffect(state.openProfile) {
-        val target = state.openProfile ?: return@LaunchedEffect
-        viewModel.consumeOpenProfile()
-        nav.onOpenUserProfile(target)
-    }
-    LaunchedEffect(state.openPostStatistics) {
-        val messageId = state.openPostStatistics ?: return@LaunchedEffect
-        viewModel.consumeOpenPostStatistics()
-        nav.onOpenPostStatistics(messageId)
-    }
-
-    // Jednorázová událost od tlačítka bota. Navigace je synchronní, takže vynulování potom
-    // efekt nezruší uprostřed (past „Vrátit" v docs/poznatky/konverzace-pohyb.md se týká práce, která teprve běží).
-    state.openPollComposer?.let { mode ->
-        LaunchedEffect(mode) {
-            nav.onCreatePoll(PollComposerRequest(mode, state.replyingTo?.id, state.replyQuote))
-            viewModel.consumeOpenPollComposer()
-        }
-    }
-    // „Upravit" nad seznamem úkolů: týž formulář jako nový seznam, předvyplněný.
-    state.openChecklistEditor?.let { messageId ->
-        LaunchedEffect(messageId) {
-            nav.onCreateChecklist(ChecklistComposerRequest(replyToMessageId = null, quote = null, editMessageId = messageId))
-            viewModel.consumeOpenChecklistEditor()
-        }
-    }
-    state.openBotShare?.let { request ->
-        LaunchedEffect(request) {
-            viewModel.consumeOpenBotShare()
-            nav.onOpenBotShare(request)
-        }
-    }
-    state.openWebApp?.let { request ->
-        LaunchedEffect(request) {
-            viewModel.consumeOpenWebApp()
-            nav.onOpenWebApp(request)
+    LaunchedEffect(viewModel) {
+        viewModel.navigation.collect { event ->
+            when (event) {
+                // Výběr cílového chatu je vlastní obrazovka.
+                is ConversationNavEvent.Forward -> nav.onForward(event.messageIds)
+                is ConversationNavEvent.OpenMediaAt -> nav.onOpenMediaAt(event.target.messageId, event.target.seconds)
+                is ConversationNavEvent.OpenChat -> nav.onOpenChat(event.target)
+                is ConversationNavEvent.OpenScreen -> nav.onOpenScreen(event.screen)
+                is ConversationNavEvent.OpenStory -> nav.onOpenStory(event.target)
+                is ConversationNavEvent.AddBotToGroup -> nav.onAddBotToGroup(event.link)
+                is ConversationNavEvent.SwitchInline -> nav.onSwitchInline(event.pick)
+                is ConversationNavEvent.OpenProfile -> nav.onOpenUserProfile(event.chatId)
+                is ConversationNavEvent.OpenPostStatistics -> nav.onOpenPostStatistics(event.messageId)
+                // Anketa od tlačítka bota jde jako odpověď na to, na co se v poli právě odpovídá.
+                is ConversationNavEvent.CreatePoll ->
+                    nav.onCreatePoll(PollComposerRequest(event.mode, current.replyingTo?.id, current.replyQuote))
+                // „Upravit" nad seznamem úkolů: týž formulář jako nový seznam, předvyplněný.
+                is ConversationNavEvent.EditChecklist ->
+                    nav.onCreateChecklist(ChecklistComposerRequest(replyToMessageId = null, quote = null, editMessageId = event.messageId))
+                is ConversationNavEvent.OpenBotShare -> nav.onOpenBotShare(event.request)
+                is ConversationNavEvent.OpenWebApp -> nav.onOpenWebApp(event.request)
+            }
         }
     }
 }

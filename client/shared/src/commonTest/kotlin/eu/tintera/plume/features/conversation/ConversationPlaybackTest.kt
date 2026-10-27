@@ -32,6 +32,11 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConversationPlaybackTest {
 
+    /** Navigace, kterou části poslaly (viz `ConversationNavEvent`). */
+    private val navigated = mutableListOf<ConversationNavEvent>()
+
+    private val lastOpenMediaAt: MediaAt? get() = navigated.filterIsInstance<ConversationNavEvent.OpenMediaAt>().lastOrNull()?.target
+
     /** Přehrávač, který si jen zapisuje, co po něm konverzace chtěla. */
     private class FakePlayer : VoicePlayerControl {
         override val state = MutableStateFlow<VoicePlayback?>(null)
@@ -134,6 +139,7 @@ class ConversationPlaybackTest {
     ) = ConversationPlayback(
         chatId = TEST_CHAT,
         state = state,
+        navigate = navigated::add,
         scope = detachedScope(),
         appScope = detachedScope(),
         repository = repository,
@@ -352,7 +358,7 @@ class ConversationPlaybackTest {
         val state = testState(video)
         playback(state).playMediaAt(1, seconds = 30)
 
-        assertEquals(MediaAt(1, 30), state.value.openMediaAt)
+        assertEquals(MediaAt(1, 30), lastOpenMediaAt)
         assertTrue(player.calls.isEmpty())
     }
 

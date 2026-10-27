@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 internal class ConversationSelection(
     private val chatId: Long,
     private val state: MutableStateFlow<ConversationState>,
+    /** Kam konverzace odchází (viz [ConversationNavEvent]); obrazovka to vyřídí. */
+    private val navigate: (ConversationNavEvent) -> Unit,
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
     /** Zápis do schránky (`TextClipboard.copy`); funkce, aby šla v testu nahradit. */
@@ -139,7 +141,8 @@ internal class ConversationSelection(
     fun forwardSelection() {
         val ids = state.value.selectedMessageIds()
         if (ids.isEmpty()) return
-        state.update { it.copy(selection = null, forwardRequest = ids) }
+        state.update { it.copy(selection = null) }
+        navigate(ConversationNavEvent.Forward(ids))
     }
 
     /**
