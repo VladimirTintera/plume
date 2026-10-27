@@ -83,6 +83,7 @@ class MessageActionTest {
         items: List<MessageMenuAction>,
         actions: MessageActions = all,
         favoriteSticker: Boolean? = null,
+        savedGif: Boolean? = null,
     ) = MessageMenu(
         messageId = 1L,
         timestamp = 0,
@@ -92,6 +93,7 @@ class MessageActionTest {
         actions = actions,
         items = items,
         favoriteSticker = favoriteSticker,
+        savedGif = savedGif,
     )
 
     /** Podržená fotka uprostřed alba: odpověď míří na ni, ne na zprávu s popiskem, které patří blok. */
@@ -289,6 +291,23 @@ class MessageActionTest {
     fun samolepkaJdeDoOblibenych() {
         assertTrue(MessageMenuAction.ToggleFavoriteSticker in menuActions(message(text = "", media = sticker), isPinned = false))
         assertFalse(MessageMenuAction.ToggleFavoriteSticker in menuActions(message(), isPinned = false))
+    }
+
+    @Test
+    fun gifJdeUlozitDoGifu() {
+        val gif = MessageMedia.Animation(fileId = 5, thumbnailFileId = null, width = 320, height = 240, sizeBytes = 1000)
+        assertTrue(MessageMenuAction.ToggleSavedGif in menuActions(message(text = "", media = gif), isPinned = false))
+        assertFalse(MessageMenuAction.ToggleSavedGif in menuActions(message(), isPinned = false))
+    }
+
+    @Test
+    fun ulozenostGifuRozhodujePopisek() {
+        val action = MessageMenuAction.ToggleSavedGif
+        // Nezjištěno (nebo tajný chat) = nenabízí se; jinak „uložit" a „odebrat" jsou dvě různé.
+        assertNull(action.presentation(menu(listOf(action), savedGif = null)))
+        val add = action.presentation(menu(listOf(action), savedGif = false))?.label
+        val remove = action.presentation(menu(listOf(action), savedGif = true))?.label
+        assertTrue(add != null && remove != null && add != remove)
     }
 
     @Test

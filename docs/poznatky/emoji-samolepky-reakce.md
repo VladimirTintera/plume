@@ -991,6 +991,12 @@ ním mřížka. Bez dotazu nahoře uložené GIFy, pod nimi populární. Ťuknut
   uložený a nalezený GIF. Po odeslání `addSavedAnimation`, ať je nahoře (jako `addRecentSticker`).
 - **Uložené jsou živý tok** (`UpdateSavedAnimations` → znovu `getSavedAnimations`). GIF poslaný
   z klávesnice se mezi ně dostane sám.
+- **GIF od někoho jiného se uloží z nabídky nad zprávou** („Uložit do GIFů" / „Odebrat
+  z uložených GIFů", `MessageMenuAction.ToggleSavedGif`, `ConversationMessageMenu.toggleSavedGif`)
+  — dřív uložené plnilo jen vlastní odeslání. Stav se zjistí při otevření nabídky
+  (`MessageMenu.savedGif`, porovnání souboru s uloženými), výsledek ohlásí snackbar, jako
+  hvězdička samolepky. **V tajném chatu se nenabízí**: jeho soubor na serveru k uložení není
+  (stejně jako hudba do profilu).
 - **Podržení otevře velký náhled** (`GifPreviewDialog`), jako u samolepek: GIF v plném poměru
   stran (extrémní poměry oříznuté na 0,75–2,5, jinak by náhled přerostl obrazovku) a pod ním
   Poslat, záložka uložení a volby odeslání. Dřív podržení ukázalo v rozích buňky 28dp tlačítka

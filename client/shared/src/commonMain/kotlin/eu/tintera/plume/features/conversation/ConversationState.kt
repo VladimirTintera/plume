@@ -330,6 +330,11 @@ data class MessageMenu(
      * nenabízí vůbec.
      */
     val favoriteSticker: Boolean?,
+    /**
+     * Je GIF zprávy mezi uloženými GIFy? `null`, když zpráva GIF není (nebo uložit nejde: tajný
+     * chat) — pak se položka nenabízí.
+     */
+    val savedGif: Boolean? = null,
     /** Je zpráva v záložkách (`MessageBookmarks`)? `null` = záložky nejsou k dispozici, položka se nenabízí. */
     val bookmarked: Boolean? = null,
     /**

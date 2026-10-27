@@ -307,6 +307,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean, customEmoji: B
         }
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
+    if (message.media is MessageMedia.Animation) add(MessageMenuAction.ToggleSavedGif)
     // Skladba jde do hudby ve vlastním profilu — v tajném chatu ne, soubor je jen tam.
     if (message.media is MessageMedia.Audio) add(MessageMenuAction.ToggleProfileAudio)
     // Soubor, který není obrázek ani video, se do prohlížeče nedostane; ven jde odsud. Skladba

@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.resources.menu_saved_gif_remove
+import eu.tintera.plume.resources.menu_saved_gif_add
+import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.core.ai.VOICE_SUMMARY_MIN_SECONDS
 import eu.tintera.plume.resources.menu_summarize_voice
 import eu.tintera.plume.resources.menu_explain
@@ -564,6 +567,19 @@ sealed interface MessageMenuAction : MessageAction {
     }
 
     /**
+     * GIF ze zprávy mezi uložené GIFy (`addSavedAnimation`), nebo z nich ven. Jinak se GIF od
+     * někoho jiného uložit nedal — uložené plnilo jen vlastní odeslání. Kandidát jen u GIFu;
+     * jestli už uložený je, se zjistí při otevření nabídky ([MessageMenu.savedGif]).
+     */
+    data object ToggleSavedGif : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) = when (menu.savedGif) {
+            true -> MenuPresentation(Res.drawable.gif_box_24dp, Res.string.menu_saved_gif_remove)
+            false -> MenuPresentation(Res.drawable.gif_box_24dp, Res.string.menu_saved_gif_add)
+            null -> null
+        }
+    }
+
+    /**
      * Skladba do hudby ve vlastním profilu, nebo z ní ven (`addProfileAudio` / `removeProfileAudio`).
      * Kandidát jen u skladby; jestli už v profilu je, se zjistí při otevření nabídky
      * ([MessageMenu.profileAudio]).
@@ -791,6 +807,7 @@ val MessageMenuAction.slot: MenuSlot
         MessageMenuAction.Forward,
         MessageMenuAction.Translate,
         MessageMenuAction.ToggleFavoriteSticker,
+        MessageMenuAction.ToggleSavedGif,
         MessageMenuAction.ToggleProfileAudio,
         MessageMenuAction.ShareFile,
         is MessageMenuAction.CopyMedia,
