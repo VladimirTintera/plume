@@ -1677,9 +1677,8 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 **Seznam chatů a složky**
 
-- **Výběr víc chatů: smazat / opustit, připnout, přidat do složky, vybrat vše** (M). Lišta
-  výběru umí jen archivovat, ztlumit a přečteno (`ChatSelectionBars.kt`); úklid víc chatů
-  znamená otevírat nabídku každého zvlášť.
+- ~~**Výběr víc chatů: smazat / opustit, připnout, přidat do složky, vybrat vše**~~ — hotovo,
+  i s bublinami s popisem u všech akcí (`docs/poznatky/seznam-chatu.md`, „Výběr víc chatů").
 - **Nabídka nad záložkou složky a prázdná složka** (S). Podržení záložky nabízí jen „Označit vše
   jako přečtené" (`ChatFolderToolbar.kt`); chybí Upravit, Přidat chaty, Ztlumit vše a Smazat.
   Prázdná vlastní složka je slepá ulička bez tlačítka „Přidat chaty" (`ChatListScreen.kt`,

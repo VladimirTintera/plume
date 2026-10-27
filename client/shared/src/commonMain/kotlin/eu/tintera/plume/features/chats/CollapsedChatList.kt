@@ -238,9 +238,8 @@ internal fun CollapsedChatList(
                     }
                     ChatSelectionToolbar(
                         actions = selectionActions,
-                        onArchive = viewModel::archiveSelected,
-                        onMute = viewModel::muteSelected,
-                        onRead = viewModel::readSelected,
+                        callbacks = viewModel.selectionCallbacks,
+                        count = selection?.count ?: 0,
                         vertical = true,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)

@@ -205,6 +205,21 @@
         <item quantity="other">%1$d vybraných</item>
     </plurals>
     <string name="chats_selection_close">Ukončit výběr</string>
+    <string name="chats_selection_all">Vybrat vše</string>
+    <string name="chats_selection_delete">Smazat</string>
+    <plurals name="chats_selection_delete_title">
+        <item quantity="one">Smazat %1$d chat?</item>
+        <item quantity="few">Smazat %1$d chaty?</item>
+        <item quantity="other">Smazat %1$d chatů?</item>
+    </plurals>
+    <plurals name="chats_selection_leave_title">
+        <item quantity="one">Opustit %1$d chat?</item>
+        <item quantity="few">Opustit %1$d chaty?</item>
+        <item quantity="other">Opustit %1$d chatů?</item>
+    </plurals>
+    <string name="chats_selection_delete_private">Chaty se smažou jen u tebe, protějšku zůstanou. Vrátit to nejde.</string>
+    <string name="chats_selection_delete_groups">Ze skupin a kanálů odejdeš a přestaneš dostávat zprávy. Zpátky se dá jen novou pozvánkou.</string>
+    <string name="chats_selection_delete_mixed">Soukromé chaty se smažou jen u tebe a ze skupin a kanálů odejdeš. Vrátit to nejde.</string>
     <string name="chats_undo">Vrátit</string>
     <string name="chats_blocked">Zablokováno</string>
     <string name="chats_unblocked">Blokování zrušeno</string>

@@ -67,6 +67,7 @@ fun ArchiveScreen(
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
     val selection by viewModel.selection.collectAsStateWithLifecycle()
     val selectionActions by viewModel.selectionActions.collectAsStateWithLifecycle()
+    val allSelected by viewModel.allSelected.collectAsStateWithLifecycle()
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
 
     ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
@@ -94,9 +95,8 @@ fun ArchiveScreen(
             Box(Modifier.fillMaxWidth().navigationBarsPadding(), contentAlignment = Alignment.Center) {
                 ChatSelectionToolbar(
                     actions = selectionActions,
-                    onArchive = viewModel::archiveSelected,
-                    onMute = viewModel::muteSelected,
-                    onRead = viewModel::readSelected,
+                    callbacks = viewModel.selectionCallbacks,
+                    count = selection?.count ?: 0,
                 )
             }
         },
@@ -111,7 +111,12 @@ fun ArchiveScreen(
                 return@Scaffold
             }
             selection?.let { current ->
-                ChatSelectionTopBar(count = current.count, onClose = viewModel::closeSelection)
+                ChatSelectionTopBar(
+                    count = current.count,
+                    allSelected = allSelected,
+                    onSelectAll = viewModel::selectAll,
+                    onClose = viewModel::closeSelection,
+                )
                 return@Scaffold
             }
             // Obyčejný bar bez scroll behavior: nemění barvu, takže nevznikne tónovaný pruh

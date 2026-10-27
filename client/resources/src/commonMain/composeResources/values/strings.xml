@@ -202,6 +202,19 @@
         <item quantity="other">%1$d selected</item>
     </plurals>
     <string name="chats_selection_close">Leave selection</string>
+    <string name="chats_selection_all">Select all</string>
+    <string name="chats_selection_delete">Delete</string>
+    <plurals name="chats_selection_delete_title">
+        <item quantity="one">Delete %1$d chat?</item>
+        <item quantity="other">Delete %1$d chats?</item>
+    </plurals>
+    <plurals name="chats_selection_leave_title">
+        <item quantity="one">Leave %1$d chat?</item>
+        <item quantity="other">Leave %1$d chats?</item>
+    </plurals>
+    <string name="chats_selection_delete_private">The chats will be deleted for you only; the other person keeps them. This can't be undone.</string>
+    <string name="chats_selection_delete_groups">You'll leave the groups and channels and stop getting their messages. You can only come back with a new invite.</string>
+    <string name="chats_selection_delete_mixed">Private chats will be deleted for you only, and you'll leave the groups and channels. This can't be undone.</string>
     <string name="chats_undo">Undo</string>
     <string name="chats_blocked">Blocked</string>
     <string name="chats_unblocked">Unblocked</string>
