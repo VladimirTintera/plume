@@ -85,7 +85,7 @@ internal class ConversationTranslation(
      * pak překládá do nového.
      */
     fun changeTranslationLanguage(code: String) {
-        val open = state.value.translation ?: return
+        val open = state.value.sheet<TranslationSheet>() ?: return
         settings.setTranslationLanguage(code.takeUnless { it == normalizedLanguageCode(platformLanguageCode) })
         translate(open.message, code, open.summary, open.canCopy)
     }
@@ -102,7 +102,7 @@ internal class ConversationTranslation(
         val onDevice = translator != null && settings.translateOnDevice.value && !forceServer
         state.update {
             it.copy(
-                translation = TranslationSheet(
+                sheet = TranslationSheet(
                     message,
                     language,
                     summary = summary,
@@ -126,11 +126,11 @@ internal class ConversationTranslation(
             }
             state.update { current ->
                 // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo vybrat jiný jazyk.
-                val open = current.translation
+                val open = current.sheet<TranslationSheet>()
                     ?.takeIf { it.message.id == message.id && it.languageCode == language && it.summary == summary && it.onDevice != true }
                     ?: return@update current
                 current.copy(
-                    translation = result.fold(
+                    sheet = result.fold(
                         onSuccess = { open.copy(body = it) },
                         onFailure = { failure ->
                             logger.w(failure) { if (summary) "Zprávu se nepodařilo shrnout." else "Zprávu se nepodařilo přeložit." }
@@ -147,7 +147,7 @@ internal class ConversationTranslation(
     }
 
     fun dismissTranslation() {
-        state.update { it.copy(translation = null) }
+        state.update { it.closingSheet<TranslationSheet>() }
     }
 
     /**
@@ -156,9 +156,9 @@ internal class ConversationTranslation(
      */
     fun setTranslateOnDevice(onDevice: Boolean) {
         settings.setTranslateOnDevice(onDevice)
-        val open = state.value.translation ?: return
+        val open = state.value.sheet<TranslationSheet>() ?: return
         if (onDevice) {
-            state.update { it.copy(translation = open.copy(body = null, error = null, onDevice = true, needsDownload = false)) }
+            state.update { it.updatingSheet<TranslationSheet> { sheet -> sheet.copy(body = null, error = null, onDevice = true, needsDownload = false) } }
             translateOnDevice(open.message, open.languageCode, download = false)
         } else {
             translate(open.message, open.languageCode, open.summary, open.canCopy, forceServer = true)
@@ -167,13 +167,13 @@ internal class ConversationTranslation(
 
     /** Uživatel potvrdil stažení jazykových balíčků. */
     fun downloadTranslationModels() {
-        val open = state.value.translation?.takeIf { it.needsDownload } ?: return
+        val open = state.value.sheet<TranslationSheet>()?.takeIf { it.needsDownload } ?: return
         translateOnDevice(open.message, open.languageCode, download = true)
     }
 
     /** Překlad v telefonu nejde (neznámý jazyk, nepodporovaný pár) — jednou přes server. */
     fun translateOnServer() {
-        val open = state.value.translation ?: return
+        val open = state.value.sheet<TranslationSheet>() ?: return
         translate(open.message, open.languageCode, open.summary, open.canCopy, forceServer = true)
     }
 
@@ -185,10 +185,10 @@ internal class ConversationTranslation(
     private fun translateOnDevice(message: ChatMessage, language: String, download: Boolean) {
         val translator = onDeviceTranslator ?: return
         fun update(change: (TranslationSheet) -> TranslationSheet) = state.update { current ->
-            val open = current.translation
+            val open = current.sheet<TranslationSheet>()
                 ?.takeIf { it.message.id == message.id && it.languageCode == language && it.onDevice == true }
                 ?: return@update current
-            current.copy(translation = change(open))
+            current.copy(sheet = change(open))
         }
         update { it.copy(body = null, error = null, needsDownload = false, downloading = download) }
 
@@ -232,10 +232,10 @@ internal class ConversationTranslation(
      * sheetem by vidět nebylo (stejně jako u odkazu v „Informace").
      */
     fun copyTranslation() {
-        val open = state.value.translation?.takeIf { it.canCopy } ?: return
+        val open = state.value.sheet<TranslationSheet>()?.takeIf { it.canCopy } ?: return
         val text = open.body?.text ?: return
         scope.launch { copyToClipboard(text) }
         val notice = if (open.summary) Res.string.server_summary_copied else Res.string.translation_copied
-        state.update { it.copy(translation = null, notice = if (clipboardConfirmsCopy) it.notice else UiText(notice)) }
+        state.update { it.closingSheet<TranslationSheet>().copy(notice = if (clipboardConfirmsCopy) it.notice else UiText(notice)) }
     }
 }

@@ -34,12 +34,12 @@ internal class ConversationScheduled(
      */
     /** Otevře seznam naplánovaných zpráv. */
     fun openScheduled() {
-        state.update { it.copy(scheduledMessages = it.scheduledMessages ?: emptyList()) }
+        state.update { it.copy(sheet = it.sheet<ScheduledSheet>() ?: ScheduledSheet(emptyList())) }
         loadScheduled()
     }
 
     fun closeScheduled() {
-        state.update { it.copy(scheduledMessages = null) }
+        state.update { it.closingSheet<ScheduledSheet>() }
     }
 
     fun loadScheduled() {
@@ -48,8 +48,7 @@ internal class ConversationScheduled(
                 .onSuccess { list ->
                     // Zavřený mezitím zůstane zavřený; prázdný se zavře sám.
                     state.update { current ->
-                        if (current.scheduledMessages == null) current
-                        else current.copy(scheduledMessages = list.takeIf { it.isNotEmpty() })
+                        current.updatingSheet<ScheduledSheet> { list.takeIf { it.isNotEmpty() }?.let(::ScheduledSheet) }
                     }
                 }
                 .onFailure { failure ->

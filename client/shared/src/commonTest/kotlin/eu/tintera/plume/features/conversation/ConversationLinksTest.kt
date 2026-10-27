@@ -225,11 +225,11 @@ class ConversationLinksTest {
 
         links.openLink("t.me/+abc")
         advanceUntilIdle()
-        assertEquals("t.me/+abc", state.value.invite?.link)
+        assertEquals("t.me/+abc", state.value.sheet<InviteSheetState>()?.link)
 
         links.joinInvite()
         advanceUntilIdle()
-        assertNull(state.value.invite)
+        assertNull(state.value.sheet<InviteSheetState>())
         assertEquals(ChatTarget(OTHER), lastOpenChat)
     }
 
@@ -247,7 +247,7 @@ class ConversationLinksTest {
         links.joinInvite()
         advanceUntilIdle()
 
-        assertNull(state.value.invite)
+        assertNull(state.value.sheet<InviteSheetState>())
         assertNotNull(state.value.notice)
         assertNull(lastOpenChat)
     }
@@ -270,7 +270,7 @@ class ConversationLinksTest {
         val state = testState()
         val (_, chats) = guardedInvite(state)
 
-        assertNull(state.value.invite)
+        assertNull(state.value.sheet<InviteSheetState>())
         assertEquals(WebAppRequest(BOT, url = "", launch = false, guardQueryId = QUERY), lastOpenWebApp)
         assertEquals(listOf(QUERY), chats.awaitedQueries)
         assertNull(lastOpenChat)
@@ -315,7 +315,7 @@ class ConversationLinksTest {
 
         links.joinInvite()
         advanceUntilIdle()
-        assertNull(state.value.invite)
+        assertNull(state.value.sheet<InviteSheetState>())
         assertEquals(UiText(Res.string.join_guard_declined), state.value.error)
     }
 

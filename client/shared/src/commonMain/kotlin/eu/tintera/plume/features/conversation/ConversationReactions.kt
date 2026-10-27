@@ -109,13 +109,13 @@ internal class ConversationReactions(
      */
     fun showReactionDetails(messageId: Long) {
         val counts = state.value.messages.firstOrNull { it.id == messageId }?.reactions.orEmpty()
-        state.update { it.copy(reactionDetails = ReactionDetails(messageId = messageId, counts = counts)) }
+        state.update { it.copy(sheet = ReactionDetails(messageId = messageId, counts = counts)) }
         loadReactionDetails(messageId, filter = null)
         scope.launch {
             val moderation = repository.reactionModeration(chatId, messageId)
             state.update { current ->
-                val open = current.reactionDetails?.takeIf { it.messageId == messageId } ?: return@update current
-                current.copy(reactionDetails = open.copy(moderation = moderation))
+                val open = current.sheet<ReactionDetails>()?.takeIf { it.messageId == messageId } ?: return@update current
+                current.copy(sheet = open.copy(moderation = moderation))
             }
         }
     }
@@ -125,7 +125,7 @@ internal class ConversationReactions(
      * znovu; čipy pod zprávou srovná update reakcí od serveru.
      */
     fun deleteReactionsFrom(senderId: Long) {
-        val open = state.value.reactionDetails ?: return
+        val open = state.value.sheet<ReactionDetails>() ?: return
         scope.launch {
             repository.deleteReactionsFrom(chatId, open.messageId, senderId)
                 .onSuccess {
@@ -135,10 +135,8 @@ internal class ConversationReactions(
                     val close = remaining.isEmpty() && open.filter == null
                     val filter = open.filter.takeIf { remaining.isNotEmpty() }
                     state.update {
-                        it.copy(
-                            notice = UiText(Res.string.reactions_deleted),
-                            reactionDetails = it.reactionDetails?.takeUnless { close }?.copy(items = remaining, filter = filter),
-                        )
+                        it.updatingSheet<ReactionDetails> { details -> details.takeUnless { close }?.copy(items = remaining, filter = filter) }
+                            .copy(notice = UiText(Res.string.reactions_deleted))
                     }
                     if (!close) loadReactionDetails(open.messageId, filter)
                 }
@@ -148,7 +146,7 @@ internal class ConversationReactions(
 
     /** Nahlásí reakce člena [senderId] moderátorům Telegramu (bez průvodce — server důvod nechce). */
     fun reportReactionsFrom(senderId: Long) {
-        val open = state.value.reactionDetails ?: return
+        val open = state.value.sheet<ReactionDetails>() ?: return
         scope.launch {
             repository.reportReactionsFrom(chatId, open.messageId, senderId)
                 .onSuccess { state.update { it.copy(notice = UiText(Res.string.report_done)) } }
@@ -161,9 +159,9 @@ internal class ConversationReactions(
      * nedorazí nový — výměna za indikátor by sheet pod prstem smrštila a zase natáhla.
      */
     fun filterReactionDetails(emoji: String?) {
-        val open = state.value.reactionDetails ?: return
+        val open = state.value.sheet<ReactionDetails>() ?: return
         if (open.filter == emoji) return
-        state.update { it.copy(reactionDetails = open.copy(filter = emoji)) }
+        state.update { it.updatingSheet<ReactionDetails> { details -> details.copy(filter = emoji) } }
         loadReactionDetails(open.messageId, emoji)
     }
 
@@ -173,24 +171,21 @@ internal class ConversationReactions(
                 .onSuccess { details ->
                     state.update { current ->
                         // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo přepnout filtr.
-                        val open = current.reactionDetails?.takeIf { it.messageId == messageId && it.filter == filter }
+                        val open = current.sheet<ReactionDetails>()?.takeIf { it.messageId == messageId && it.filter == filter }
                             ?: return@update current
-                        current.copy(reactionDetails = open.copy(loading = false, items = details))
+                        current.copy(sheet = open.copy(loading = false, items = details))
                     }
                 }
                 .onFailure { failure ->
                     state.update {
-                        it.copy(
-                            reactionDetails = null,
-                            error = failure.reported(logger, Res.string.conversation_reaction_failed),
-                        )
+                        it.closingSheet<ReactionDetails>().copy(error = failure.reported(logger, Res.string.conversation_reaction_failed))
                     }
                 }
         }
     }
 
     fun dismissReactionDetails() {
-        state.update { it.copy(reactionDetails = null) }
+        state.update { it.closingSheet<ReactionDetails>() }
     }
 
     private fun applyReactions(messageId: Long, reactions: List<MessageReaction>) {

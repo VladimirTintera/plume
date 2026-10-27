@@ -88,7 +88,7 @@ internal class ConversationLinks(
      * - chat (`t.me/jméno`) se otevře nad touhle konverzací, jako zmínka;
      * - odkaz na zprávu v TOMHLE chatu na ni skočí na místě (dojetím nebo přejezdem, se
      *   zvýrazněním), v jiném chatu ho otevře se skokem na zprávu;
-     * - pozvánka ukáže náhled chatu ([ConversationState.invite]) — přidává se až na potvrzení;
+     * - pozvánka ukáže náhled chatu ([ConversationState.sheet<InviteSheetState>()]) — přidává se až na potvrzení;
      * - sada samolepek otevře svůj sheet.
      *
      * Rozpoznání je lokální volání TDLib, takže běžný webový odkaz jde do prohlížeče bez prodlevy.
@@ -111,9 +111,9 @@ internal class ConversationLinks(
                                 link.messageId?.let { jumper.jumpToMessage(it, fromSearch = true) }
                             else -> openTarget(ChatTarget(link.chatId, link.messageId, topicId = link.topicId))
                         }
-                        is InternalLink.Invite -> state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
+                        is InternalLink.Invite -> state.update { it.copy(sheet = InviteSheetState(link.link, link.preview)) }
                         is InternalLink.FolderInvite -> state.update {
-                            it.copy(folderInvite = FolderInviteSheetState(link.link, link.preview))
+                            it.copy(sheet = FolderInviteSheetState(link.link, link.preview))
                         }
                         is InternalLink.StickerSet -> state.update { it.copy(openStickerSet = link.setId) }
                         is InternalLink.Proxy -> openProxy(link.config)
@@ -207,40 +207,40 @@ internal class ConversationLinks(
 
     /** Přidat se přes pozvánku z náhledu. Po přidání se chat otevře. */
     fun joinInvite() {
-        val invite = state.value.invite?.takeUnless { it.joining } ?: return
-        state.update { it.copy(invite = invite.copy(joining = true)) }
+        val invite = state.value.sheet<InviteSheetState>()?.takeUnless { it.joining } ?: return
+        state.update { it.updatingSheet<InviteSheetState> { open -> open.copy(joining = true) } }
         scope.launch {
             chatRepository.joinByInvite(invite.link)
                 .onSuccess { result ->
                     when (result) {
                         is JoinResult.Joined -> {
-                            state.update { it.copy(invite = null) }
+                            state.update { it.closingSheet<InviteSheetState>() }
                             openTarget(ChatTarget(result.chatId))
                         }
                         JoinResult.Requested ->
-                            state.update { it.copy(invite = null, notice = UiText(Res.string.invite_request_sent)) }
+                            state.update { it.closingSheet<InviteSheetState>().copy(notice = UiText(Res.string.invite_request_sent)) }
                         JoinResult.Declined ->
-                            state.update { it.copy(invite = null, error = UiText(Res.string.join_guard_declined)) }
+                            state.update { it.closingSheet<InviteSheetState>().copy(error = UiText(Res.string.join_guard_declined)) }
                         is JoinResult.GuardBot -> {
-                            state.update { it.copy(invite = null) }
+                            state.update { it.closingSheet<InviteSheetState>() }
                             awaitGuardBot(result)
                         }
                     }
                 }
                 .onFailure { failure ->
                     if (failure.isChannelLimit()) {
-                        state.update { it.copy(invite = null) }
+                        state.update { it.closingSheet<InviteSheetState>() }
                         onChannelLimit()
                         return@onFailure
                     }
                     val message = failure.reported(logger, Res.string.conversation_join_failed)
-                    state.update { it.copy(invite = it.invite?.copy(joining = false), error = message) }
+                    state.update { it.updatingSheet<InviteSheetState> { open -> open.copy(joining = false) }.copy(error = message) }
                 }
         }
     }
 
     fun dismissInvite() {
-        state.update { it.copy(invite = null) }
+        state.update { it.closingSheet<InviteSheetState>() }
     }
 
     /**
@@ -262,9 +262,9 @@ internal class ConversationLinks(
 
     fun toggleFolderInviteChat(chatId: Long) {
         state.update { current ->
-            val invite = current.folderInvite?.takeUnless { it.adding } ?: return@update current
+            val invite = current.sheet<FolderInviteSheetState>()?.takeUnless { it.adding } ?: return@update current
             val selected = if (chatId in invite.selected) invite.selected - chatId else invite.selected + chatId
-            current.copy(folderInvite = invite.copy(selected = selected))
+            current.copy(sheet = invite.copy(selected = selected))
         }
     }
 
@@ -274,28 +274,28 @@ internal class ConversationLinks(
      * (`UpdateChatFolders`), takže se nikam nenaviguje — stačí hláška.
      */
     fun addFolderInvite() {
-        val invite = state.value.folderInvite?.takeUnless { it.adding || !it.canAdd } ?: return
-        state.update { it.copy(folderInvite = invite.copy(adding = true)) }
+        val invite = state.value.sheet<FolderInviteSheetState>()?.takeUnless { it.adding || !it.canAdd } ?: return
+        state.update { it.updatingSheet<FolderInviteSheetState> { open -> open.copy(adding = true) } }
         scope.launch {
             chatRepository.addFolderByInvite(invite.link, invite.preview.missingChats.map { it.id }.filter { it in invite.selected })
                 .onSuccess {
                     val done = if (invite.preview.folderId == 0) Res.string.folder_invite_added else Res.string.folder_invite_joined
-                    state.update { it.copy(folderInvite = null, notice = UiText(done, invite.preview.title)) }
+                    state.update { it.closingSheet<FolderInviteSheetState>().copy(notice = UiText(done, invite.preview.title)) }
                 }
                 .onFailure { failure ->
                     if (failure.isChannelLimit()) {
-                        state.update { it.copy(folderInvite = null) }
+                        state.update { it.closingSheet<FolderInviteSheetState>() }
                         onChannelLimit()
                         return@onFailure
                     }
                     val message = failure.reported(logger, Res.string.folder_invite_failed)
-                    state.update { it.copy(folderInvite = it.folderInvite?.copy(adding = false), error = message) }
+                    state.update { it.updatingSheet<FolderInviteSheetState> { open -> open.copy(adding = false) }.copy(error = message) }
                 }
         }
     }
 
     fun dismissFolderInvite() {
-        state.update { it.copy(folderInvite = null) }
+        state.update { it.closingSheet<FolderInviteSheetState>() }
     }
 
     /** Obrazovka sheet sady otevřela. */

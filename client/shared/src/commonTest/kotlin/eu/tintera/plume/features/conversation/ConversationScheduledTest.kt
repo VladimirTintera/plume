@@ -48,10 +48,10 @@ class ConversationScheduledTest {
         val scheduled = scheduled(this, FakeRepository(listOf(testMessage(5), testMessage(6))))
 
         scheduled.openScheduled()
-        assertEquals(emptyList(), state.value.scheduledMessages)
+        assertEquals(emptyList(), state.value.sheet<ScheduledSheet>()?.messages)
         advanceUntilIdle()
 
-        assertEquals(listOf(5L, 6L), state.value.scheduledMessages?.map { it.id })
+        assertEquals(listOf(5L, 6L), state.value.sheet<ScheduledSheet>()?.messages?.map { it.id })
     }
 
     @Test
@@ -61,7 +61,7 @@ class ConversationScheduledTest {
         scheduled.openScheduled()
         advanceUntilIdle()
 
-        assertNull(state.value.scheduledMessages)
+        assertNull(state.value.sheet<ScheduledSheet>()?.messages)
     }
 
     @Test
@@ -72,7 +72,7 @@ class ConversationScheduledTest {
         scheduled.closeScheduled()
         advanceUntilIdle()
 
-        assertNull(state.value.scheduledMessages)
+        assertNull(state.value.sheet<ScheduledSheet>()?.messages)
     }
 
     @Test
@@ -86,7 +86,7 @@ class ConversationScheduledTest {
         advanceUntilIdle()
 
         assertEquals(listOf<Pair<Long, MessageSchedule?>>(5L to null), repository.rescheduled)
-        assertEquals(listOf(6L), state.value.scheduledMessages?.map { it.id })
+        assertEquals(listOf(6L), state.value.sheet<ScheduledSheet>()?.messages?.map { it.id })
     }
 
     @Test
@@ -100,7 +100,7 @@ class ConversationScheduledTest {
         advanceUntilIdle()
 
         assertEquals(listOf(listOf(5L)), repository.deleted)
-        assertNull(state.value.scheduledMessages)
+        assertNull(state.value.sheet<ScheduledSheet>()?.messages)
     }
 
     @Test
@@ -114,6 +114,6 @@ class ConversationScheduledTest {
         advanceUntilIdle()
 
         assertNotNull(state.value.error)
-        assertEquals(listOf(5L), state.value.scheduledMessages?.map { it.id })
+        assertEquals(listOf(5L), state.value.sheet<ScheduledSheet>()?.messages?.map { it.id })
     }
 }

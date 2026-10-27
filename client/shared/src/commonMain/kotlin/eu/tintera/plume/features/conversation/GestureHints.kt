@@ -257,14 +257,9 @@ internal fun conversationHintContext(state: ConversationState, hints: GestureHin
         state.selection == null &&
         state.search == null &&
         state.editing == null &&
-        state.selectingText == null &&
-        state.reactionDetails == null &&
-        state.messageInfo == null &&
-        state.translation == null &&
-        // Nad jakýmkoli dialogem ne — dřív se to hlídalo jen u smazání a připnutí.
+        // Nad jakýmkoli dialogem ani sheetem ne — dřív se hlídal jen výčet některých.
         state.dialog == null &&
-        state.scheduledMessages == null &&
-        state.contactPicker == null &&
+        state.sheet == null &&
         state.inline == null &&
         state.mentionSuggestions == null &&
         state.hashtagSuggestions == null &&

@@ -178,13 +178,13 @@ class ConversationReactionsTest {
 
         reactions.showReactionDetails(1)
         advanceUntilIdle()
-        assertEquals(ReactionModeration(canDelete = true), state.value.reactionDetails?.moderation)
+        assertEquals(ReactionModeration(canDelete = true), state.value.sheet<ReactionDetails>()?.moderation)
 
         reactions.deleteReactionsFrom(10)
         advanceUntilIdle()
 
         assertEquals(listOf(10L), repository.deletedFrom)
-        assertEquals(listOf(detail(20, "👍")), state.value.reactionDetails?.items)
+        assertEquals(listOf(detail(20, "👍")), state.value.sheet<ReactionDetails>()?.items)
         assertNotNull(state.value.notice)
     }
 
@@ -199,7 +199,7 @@ class ConversationReactionsTest {
         reactions.deleteReactionsFrom(10)
         advanceUntilIdle()
 
-        assertNull(state.value.reactionDetails)
+        assertNull(state.value.sheet<ReactionDetails>())
     }
 
     @Test
@@ -215,7 +215,7 @@ class ConversationReactionsTest {
         reactions.deleteReactionsFrom(10)
         advanceUntilIdle()
 
-        val open = assertNotNull(state.value.reactionDetails)
+        val open = assertNotNull(state.value.sheet<ReactionDetails>())
         assertNull(open.filter)
         assertEquals(listOf(detail(20, "👍")), open.items)
     }

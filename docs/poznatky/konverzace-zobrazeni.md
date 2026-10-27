@@ -157,9 +157,29 @@ všechny nad sebou; dva modální dialogy naráz nedávají smysl a typ to teď 
   (číslo a poloha) ťuknutá za sebou dřív čekala na potvrzení obě, teď jen to druhé.
 - **Nápovědy gest mlčí nad jakýmkoli dialogem** (`dialog == null`), dřív jen nad smazáním
   a připnutím.
-- **Mimo zůstalo**, co je jiný druh věci, každé na vlastní převod: sheety s vlastními daty
-  a načítáním (překlad, pozvánka, detail reakcí, výherci soutěže) a nabídka nad zprávou
-  (`messageMenu`). Navigace mimo obrazovku jde událostmi (viz níž).
+- **Mimo zůstala nabídka nad zprávou** (`messageMenu`). Sheety mají vlastní pole (viz „Jeden sheet
+  ve stavu"), navigace mimo obrazovku jde událostmi (viz níž).
+
+### Jeden sheet ve stavu (`ConversationSheet`)
+
+Sheety nad konverzací (překlad, informace o zprávě, kdo reagoval, pozvánka a pozvánka do
+složky, soutěž, hlasující, kontakty a poslední soubory ze sponky, naplánované zprávy,
+připomenutí, import chatu, výběr textu) nesou jedno pole `ConversationState.sheet`, sealed typ
+`ConversationSheet`. Dřív jich bylo třináct polí a mohlo jich být otevřených víc naráz.
+
+- **Datové třídy sheetů typ implementují samy** (`TranslationSheet`, `ReactionDetails`,
+  `InviteSheetState`…), takže se do nich sahá napřímo; obálka je jen tam, kde byla hodnota holá
+  (`PollVotersSheet`, `ScheduledSheet`, `SelectTextSheet`).
+- **Na rozdíl od dialogu se do sheetu dotahují data** (lidé, kteří reagovali; výsledek
+  překladu; stav soutěže). Mění se proto `updatingSheet<Druh> { … }` (vrací nový, `null` =
+  zavřít), který se týká jen sheetu TOHO druhu: data, která dorazí pozdě, nesmí přepsat sheet,
+  který mezitím uživatel otevřel jinde. Platí i pro změnu hned po přečtení `state.value`
+  (`joining`, `importing`, filtr reakcí) — mezi čtením a zápisem se sheet mohl vyměnit.
+  Testy `ConversationSheetTest`.
+- **Dialog a sheet se nevylučují**: potvrzení může vyskočit nad otevřeným sheetem.
+- **Nápovědy gest mlčí nad jakýmkoli sheetem** (`sheet == null`), dřív nad výčtem pěti.
+- **Mimo zůstalo, co není sheet se stavem:** `callRequest` a `openStickerSet` jsou požadavky,
+  které obrazovka vyzvedne a vynuluje (blíž událostem), `memberPicker` patří k hledání.
 
 ### Navigace jako události (`ConversationNavEvent`)
 

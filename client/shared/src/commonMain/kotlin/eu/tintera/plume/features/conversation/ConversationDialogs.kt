@@ -63,7 +63,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Co je nad konverzací otevřené po ťuknutí v obrazovce: výběry samolepek, galerie a místa,
  * plánování, efekty, náhled přílohy, seznam připnutých. Dialogy, které otevírá stav ViewModelu
- * (`state.translation`, `state.dialog`…), sem nepatří — ty si řídí ViewModel sám.
+ * (`state.sheet`, `state.dialog`…), sem nepatří — ty si řídí ViewModel sám.
  *
  * Jeden držák místo deseti proměnných v [ConversationScreen]: ta je v dexu na hraně registrů
  * a každá `var … by rememberSaveable` v ní stála registry navíc.
@@ -180,7 +180,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.contactPicker?.let { picker ->
+    state.sheet<ContactPicker>()?.let { picker ->
         ContactPickerSheet(
             picker = picker,
             onQueryChange = viewModel::searchContacts,
@@ -189,7 +189,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.recentFiles?.let { sheet ->
+    state.sheet<RecentFilesSheet>()?.let { sheet ->
         RecentFilesPicker(
             sheet = sheet,
             onQueryChange = viewModel::searchRecentFiles,
@@ -351,11 +351,11 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.invite?.let { invite ->
+    state.sheet<InviteSheetState>()?.let { invite ->
         InviteSheet(invite = invite, onJoin = viewModel::joinInvite, onDismiss = viewModel::dismissInvite)
     }
 
-    state.folderInvite?.let { invite ->
+    state.sheet<FolderInviteSheetState>()?.let { invite ->
         FolderInviteSheet(
             invite = invite,
             onToggle = viewModel::toggleFolderInviteChat,
@@ -442,7 +442,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.chatImport?.let { offer ->
+    state.sheet<ChatImportOffer>()?.let { offer ->
         ChatImportDialog(
             offer,
             onConfirm = viewModel::confirmChatImport,
@@ -458,7 +458,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.messageInfo?.let { sheet ->
+    state.sheet<MessageInfoSheet>()?.let { sheet ->
         MessageInfoSheet(
             sheet = sheet,
             onCopyLink = viewModel::copyMessageLink,
@@ -468,7 +468,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.translation?.let { sheet ->
+    state.sheet<TranslationSheet>()?.let { sheet ->
         TranslationSheet(
             sheet = sheet,
             onCopy = viewModel::copyTranslation,
@@ -480,11 +480,11 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.selectingText?.let { message ->
+    state.sheet<SelectTextSheet>()?.message?.let { message ->
         SelectTextSheet(message = message, onDismiss = viewModel::dismissTextSelection)
     }
 
-    state.reactionDetails?.let { details ->
+    state.sheet<ReactionDetails>()?.let { details ->
         ReactionDetailsSheet(
             details = details,
             onFilter = viewModel::filterReactionDetails,
@@ -512,7 +512,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.giveaway?.let { sheet ->
+    state.sheet<GiveawaySheet>()?.let { sheet ->
         GiveawayStatusSheet(
             sheet = sheet,
             onCopyCode = viewModel::copyGiftCode,
@@ -520,7 +520,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.pollVoters?.let { messageId ->
+    state.sheet<PollVotersSheet>()?.messageId?.let { messageId ->
         state.messages.firstOrNull { it.id == messageId }?.poll?.let { poll ->
             PollVotersSheet(
                 chatId = viewModel.chatId,
@@ -559,7 +559,7 @@ internal fun ConversationDialogs(
         )
     }
 
-    state.scheduledMessages?.let { scheduled ->
+    state.sheet<ScheduledSheet>()?.messages?.let { scheduled ->
         ScheduledMessagesSheet(
             messages = scheduled,
             onSendNow = { message -> viewModel.reschedule(message.id, null) },
@@ -570,7 +570,7 @@ internal fun ConversationDialogs(
     }
 
 
-    state.remindRequest?.let { request ->
+    state.sheet<RemindRequest>()?.let { request ->
         val messageId = request.messageId
         RemindSheet(
             suggested = request.suggestedAt,

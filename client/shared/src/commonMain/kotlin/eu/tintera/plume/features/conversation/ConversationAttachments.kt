@@ -190,7 +190,7 @@ internal class ConversationAttachments(
      * otevírá jednou za čas a seznam by jinak ležel v paměti každé konverzace.
      */
     fun openContactPicker() {
-        state.update { it.copy(contactPicker = ContactPicker(loading = true)) }
+        state.update { it.copy(sheet = ContactPicker(loading = true)) }
         scope.launch {
             // Vlastní účet: Uložené zprávy jsou chat s ním, id chatu je id uživatele. Kdo nemá
             // číslo vidět (nikdy by nemělo nastat), řádek nedostane.
@@ -200,36 +200,36 @@ internal class ConversationAttachments(
             chatRepository.contacts()
                 .onSuccess { contacts ->
                     state.update { current ->
-                        current.copy(contactPicker = current.contactPicker?.copy(loading = false, contacts = contacts, me = me))
+                        current.updatingSheet<ContactPicker> { open -> open.copy(loading = false, contacts = contacts, me = me) }
                     }
                 }
                 .onFailure { failure ->
                     state.update {
-                        it.copy(contactPicker = null, error = failure.reported(logger, Res.string.conversation_contact_load_failed))
+                        it.closingSheet<ContactPicker>().copy(error = failure.reported(logger, Res.string.conversation_contact_load_failed))
                     }
                 }
         }
     }
 
     fun searchContacts(query: String) {
-        state.update { current -> current.copy(contactPicker = current.contactPicker?.copy(query = query)) }
+        state.update { current -> current.updatingSheet<ContactPicker> { open -> open.copy(query = query) } }
     }
 
     fun dismissContactPicker() {
-        state.update { it.copy(contactPicker = null) }
+        state.update { it.closingSheet<ContactPicker>() }
     }
 
     private var recentFilesJob: Job? = null
 
     /** Sheet nedávno odeslaných souborů (sponka → Poslední soubory). */
     fun openRecentFiles() {
-        state.update { it.copy(recentFiles = RecentFilesSheet()) }
+        state.update { it.copy(sheet = RecentFilesSheet()) }
         loadRecentFiles(query = "", debounce = false)
     }
 
     /** Hledá server (v názvu i popisku), chvíli po posledním písmenu; výběr zůstává. */
     fun searchRecentFiles(query: String) {
-        state.update { current -> current.copy(recentFiles = current.recentFiles?.copy(query = query)) }
+        state.update { current -> current.updatingSheet<RecentFilesSheet> { open -> open.copy(query = query) } }
         loadRecentFiles(query.trim(), debounce = true)
     }
 
@@ -239,12 +239,12 @@ internal class ConversationAttachments(
             if (debounce) delay(RECENT_FILES_SEARCH_DELAY_MS)
             repository.recentFiles(query)
                 .onSuccess { files ->
-                    state.update { current -> current.copy(recentFiles = current.recentFiles?.copy(files = files, error = null)) }
+                    state.update { current -> current.updatingSheet<RecentFilesSheet> { open -> open.copy(files = files, error = null) } }
                 }
                 .onFailure { failure ->
                     val error = failure.reported(logger, Res.string.recent_files_failed)
                     state.update { current ->
-                        current.copy(recentFiles = current.recentFiles?.copy(files = current.recentFiles.files ?: emptyList(), error = error))
+                        current.updatingSheet<RecentFilesSheet> { open -> open.copy(files = open.files ?: emptyList(), error = error) }
                     }
                 }
         }
@@ -252,19 +252,19 @@ internal class ConversationAttachments(
 
     fun toggleRecentFile(fileId: Int) {
         state.update { current ->
-            val sheet = current.recentFiles ?: return@update current
+            val sheet = current.sheet<RecentFilesSheet>() ?: return@update current
             val selected = when {
                 fileId in sheet.selected -> sheet.selected - fileId
                 sheet.canSelectMore -> sheet.selected + fileId
                 else -> sheet.selected
             }
-            current.copy(recentFiles = sheet.copy(selected = selected))
+            current.copy(sheet = sheet.copy(selected = selected))
         }
     }
 
     fun dismissRecentFiles() {
         recentFilesJob?.cancel()
-        state.update { it.copy(recentFiles = null) }
+        state.update { it.closingSheet<RecentFilesSheet>() }
     }
 
     /**
@@ -272,7 +272,7 @@ internal class ConversationAttachments(
      * souborech, kdežto tyhle server už má a posílají se podle id. Napsaný text v poli zůstane.
      */
     fun sendRecentFiles() {
-        val sheet = state.value.recentFiles ?: return
+        val sheet = state.value.sheet<RecentFilesSheet>() ?: return
         val fileIds = sheet.selected.takeIf { it.isNotEmpty() } ?: return
         val replyTo = state.value.replyingTo?.id
         val quote = state.value.replyQuote
@@ -299,7 +299,7 @@ internal class ConversationAttachments(
      * telefonní číslo a uživatel má vidět přesně co. Kontakt se skrytým číslem poslat nejde.
      */
     fun pickContact(userId: Long) {
-        state.update { it.copy(contactPicker = null) }
+        state.update { it.closingSheet<ContactPicker>() }
         scope.launch {
             repository.contactCard(userId)
                 .onSuccess { card ->

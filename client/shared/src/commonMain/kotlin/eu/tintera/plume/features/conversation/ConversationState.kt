@@ -165,7 +165,7 @@ data class ChatTarget(
 data class MediaAt(val messageId: Long, val seconds: Int)
 
 /** Otevřený náhled pozvánky; [joining] = přidávání běží a tlačítko je neaktivní. */
-data class InviteSheetState(val link: String, val preview: InvitePreview, val joining: Boolean = false)
+data class InviteSheetState(val link: String, val preview: InvitePreview, val joining: Boolean = false) : ConversationSheet
 
 /**
  * Náhled sdílené složky. Vybrané jsou zpočátku všechny chaty, ke kterým se dá připojit — tak to
@@ -176,7 +176,7 @@ data class FolderInviteSheetState(
     val preview: FolderInvitePreview,
     val selected: Set<Long> = preview.missingChats.mapTo(LinkedHashSet()) { it.id },
     val adding: Boolean = false,
-) {
+) : ConversationSheet {
     /**
      * Novou složku jde přidat i bez připojení k chatům, když v některých už uživatel je (složka
      * nebude prázdná). Do složky, kterou už má, se přidává jen to, co vybral.
@@ -198,7 +198,7 @@ data class PendingJump(val messageId: Long, val older: Boolean)
 data class MessageInfoSheet(
     val message: ChatMessage,
     val info: MessageInfo? = null,
-)
+) : ConversationSheet
 
 /** Připomínka zprávy [messageId]; [suggestedAt] = termín ze zprávy (sekundy od epochy), `null` = žádný. */
 /** Co rozhoduje o přepisu záznamu — viz [ConversationViewModel.transcribeContext]. */
@@ -247,7 +247,7 @@ data class RemindRequest(
     val suggesting: Boolean = false,
     /** [suggestedAt] je odhad modelu, ne pravidel — sheet to řekne ikonou. */
     val fromModel: Boolean = false,
-)
+) : ConversationSheet
 
 /**
  * Otevřený překlad zprávy do jazyka [languageCode]. [body] je `null`, dokud překlad nedorazí;
@@ -272,7 +272,7 @@ data class TranslationSheet(
     val needsDownload: Boolean = false,
     /** Stahují se jazykové balíčky (trvá to déle než překlad, sheet to říká). */
     val downloading: Boolean = false,
-)
+) : ConversationSheet
 
 /**
  * Otevřený detail reakcí: kdo a čím reagoval.
@@ -291,7 +291,7 @@ data class ReactionDetails(
     val filter: String? = null,
     /** Co smí správce s cizími reakcemi; zjišťuje se jednou při otevření. */
     val moderation: ReactionModeration = ReactionModeration(),
-)
+) : ConversationSheet
 
 /**
  * Otevřená nabídka nad zprávou.
@@ -543,8 +543,11 @@ data class ConversationState(
      * komentářů zůstávají nulové: počty patří celé diskusní skupině.
      */
     val unreadMarks: UnreadMarks = UnreadMarks(),
-    /** Zpráva otevřená k výběru úryvku textu; `null` = sheet je zavřený. */
-    val selectingText: ChatMessage? = null,
+    /**
+     * Otevřený sheet nad konverzací (překlad, informace o zprávě, kdo reagoval, pozvánka…);
+     * `null` = žádný. Nejvýš jeden — viz [ConversationSheet].
+     */
+    val sheet: ConversationSheet? = null,
     /** Dostupnost protějšku pro podtitul hlavičky. `null` u skupin a kanálů. */
     val presence: Presence? = null,
     /** Počet členů (odběratelů) a kolik je online, pro podtitul hlavičky skupiny a kanálu. */
@@ -575,8 +578,6 @@ data class ConversationState(
      * nenahlášené; 0, když je volba vypnutá. Podle toho se ukáže „Označit jako přečtené".
      */
     val discreetUnread: Int = 0,
-    /** Sdílený export chatu z jiné aplikace čekající na potvrzení importu. */
-    val chatImport: ChatImportOffer? = null,
     /** Zpráva, na kterou se právě chystá odpověď. Zobrazuje se nad vstupním polem. */
     val replyingTo: ChatMessage? = null,
     /**
@@ -613,12 +614,6 @@ data class ConversationState(
     val pinned: List<ChatMessage> = emptyList(),
     /** Smí uživatel připnuté zprávy odepínat. */
     val canUnpin: Boolean = false,
-    /** Otevřený detail reakcí; `null`, když je zavřený. */
-    val reactionDetails: ReactionDetails? = null,
-    /** Otevřené informace o zprávě; `null`, když je sheet zavřený. */
-    val messageInfo: MessageInfoSheet? = null,
-    /** Otevřený překlad zprávy; `null`, když je sheet zavřený. */
-    val translation: TranslationSheet? = null,
     /**
      * Zpráva, u které si uživatel ťuknutím vyžádal odznak přečtení; `null`, když žádná.
      *
@@ -628,8 +623,6 @@ data class ConversationState(
     val readReceiptFor: Long? = null,
     /** Průběh stahování souborů, které uživatel právě otevírá (podle `fileId`). */
     val documentDownloads: Map<Int, Float> = emptyMap(),
-    /** Zpráva, ke které se vybírá čas připomínky (`RemindSheet`); `null` = nic. */
-    val remindRequest: RemindRequest? = null,
     /** Režim výběru víc zpráv; `null` = vypnutý (běžná konverzace). */
     val selection: MessageSelection? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
@@ -683,10 +676,6 @@ data class ConversationState(
     val search: InChatSearch? = null,
     /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */
     val memberPicker: MemberPicker? = null,
-    /** Náhled chatu z pozvánky; `null` = zavřený. */
-    val invite: InviteSheetState? = null,
-    /** Náhled sdílené složky z odkazu `t.me/addlist/…`; `null` = zavřený. */
-    val folderInvite: FolderInviteSheetState? = null,
     /** Vlastní klávesnice bota nebo vynucená odpověď v chatu; `null` = žádná. */
     val replyMarkup: ChatReplyMarkup? = null,
     /** Příkazy botů v chatu — napovídání po „/" a seznam z tlačítka u pole; prázdné = žádní boti. */
@@ -723,12 +712,6 @@ data class ConversationState(
     val startingBot: Boolean = false,
     /** Má chat naplánované zprávy? Pak je u pole hodiny, které otevřou jejich seznam. */
     val hasScheduledMessages: Boolean = false,
-    /** Otevřený seznam naplánovaných zpráv; `null` = zavřený. */
-    val scheduledMessages: List<ChatMessage>? = null,
-    /** Zpráva s anketou, jejíž hlasující ukazuje sheet; `null` = zavřený. */
-    val pollVoters: Long? = null,
-    /** Sheet se stavem účasti v soutěži; `null` = zavřený. */
-    val giveaway: GiveawaySheet? = null,
     /**
      * Odškrtnutí úkolů, která odešla a server je ještě nepotvrdil, podle id zprávy. Bublina je
      * kreslí hned; po odpovědi serveru (i po chybě) zmizí a platí stav ze zprávy.
@@ -736,10 +719,6 @@ data class ConversationState(
     val pendingChecklistMarks: Map<Long, List<PendingChecklistMark>> = emptyMap(),
     /** Useknuté články, které se právě dočítají („Číst dál"). */
     val loadingArticles: Set<Long> = emptySet(),
-    /** Sheet výběru kontaktu ze sponky; `null` = zavřený. */
-    val contactPicker: ContactPicker? = null,
-    /** Sheet nedávno odeslaných souborů ze sponky; `null` = zavřený. */
-    val recentFiles: RecentFilesSheet? = null,
     /**
      * Živé polohy, které se v chatu právě sdílí (vlastní napřed) — pro dock nad konverzací.
      * Nezávisí na načtené historii: zpráva s polohou může být dávno odscrollovaná nebo mimo okno.
@@ -975,7 +954,7 @@ data class RecentFilesSheet(
     val query: String = "",
     val selected: List<Int> = emptyList(),
     val error: UiText? = null,
-) {
+) : ConversationSheet {
     /** Album unese nejvýš deset souborů; další se vybrat nedá. */
     val canSelectMore: Boolean get() = selected.size < MAX_RECENT_FILES
 }
@@ -989,7 +968,7 @@ data class ContactPicker(
     val query: String = "",
     /** Vlastní účet — řádek „Můj kontakt" nad kontakty; `null`, dokud se nenačte. */
     val me: MessageMedia.Contact? = null,
-) {
+) : ConversationSheet {
     /** Vlastní kontakt se nabízí jen bez dotazu: hledá se v kontaktech, ne v sobě. */
     val showsMe: Boolean get() = me != null && query.isBlank()
 
@@ -1032,7 +1011,7 @@ data class GiveawaySheet(
     val status: GiveawayStatus? = null,
     val failed: Boolean = false,
     val codeCopied: Boolean = false,
-)
+) : ConversationSheet
 
 /** Příběh, který se má otevřít v prohlížeči: kdo ho zveřejnil a jeho id. */
 data class StoryTarget(val posterChatId: Long, val storyId: Int)

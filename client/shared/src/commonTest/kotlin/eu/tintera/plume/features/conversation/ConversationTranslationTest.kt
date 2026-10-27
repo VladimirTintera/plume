@@ -139,12 +139,12 @@ class ConversationTranslationTest {
         state.value = state.value.copy(messageMenu = menu(1, canCopy = true))
         translation(state).showTranslation(1)
         assertNull(state.value.messageMenu)
-        assertNull(state.value.translation?.body, "sheet se otevře hned, s načítáním")
-        assertNull(state.value.translation?.onDevice, "bez překladače v telefonu se přepínač nekreslí")
+        assertNull(state.value.sheet<TranslationSheet>()?.body, "sheet se otevře hned, s načítáním")
+        assertNull(state.value.sheet<TranslationSheet>()?.onDevice, "bez překladače v telefonu se přepínač nekreslí")
 
         advanceUntilIdle()
         assertEquals(listOf(1L to "cs"), repository.translated)
-        assertEquals(MessageBody("[cs] text"), state.value.translation?.body)
+        assertEquals(MessageBody("[cs] text"), state.value.sheet<TranslationSheet>()?.body)
     }
 
     @Test
@@ -153,7 +153,7 @@ class ConversationTranslationTest {
         repository.failure = IllegalStateException("Have no access to the chat")
         translation(state).showTranslation(1)
         advanceUntilIdle()
-        assertEquals(UiText(Res.string.translation_failed), state.value.translation?.error)
+        assertEquals(UiText(Res.string.translation_failed), state.value.sheet<TranslationSheet>()?.error)
         assertNull(state.value.notice, "pod modálním sheetem by snackbar vidět nebyl")
     }
 
@@ -168,12 +168,12 @@ class ConversationTranslationTest {
 
         translation.changeTranslationLanguage("en")
         advanceUntilIdle()
-        assertEquals(MessageBody("[en] text"), state.value.translation?.body)
+        assertEquals(MessageBody("[en] text"), state.value.sheet<TranslationSheet>()?.body)
 
         cs.complete(Result.success(MessageBody("[cs] pozdě")))
         advanceUntilIdle()
-        assertEquals("en", state.value.translation?.languageCode)
-        assertEquals(MessageBody("[en] text"), state.value.translation?.body)
+        assertEquals("en", state.value.sheet<TranslationSheet>()?.languageCode)
+        assertEquals(MessageBody("[en] text"), state.value.sheet<TranslationSheet>()?.body)
     }
 
     @Test
@@ -188,7 +188,7 @@ class ConversationTranslationTest {
 
         cs.complete(Result.success(MessageBody("[cs] pozdě")))
         advanceUntilIdle()
-        assertNull(state.value.translation)
+        assertNull(state.value.sheet<TranslationSheet>())
     }
 
     @Test
@@ -217,7 +217,7 @@ class ConversationTranslationTest {
         advanceUntilIdle()
 
         assertEquals(listOf<Pair<Long, String?>>(1L to null), repository.summarized)
-        val sheet = state.value.translation
+        val sheet = state.value.sheet<TranslationSheet>()
         assertTrue(sheet?.summary == true)
         assertFalse(sheet?.canCopy ?: true, "chráněný obsah nesmí do schránky ani převyprávěný")
         assertNull(sheet?.onDevice, "shrnutí dělá jen server")
@@ -233,7 +233,7 @@ class ConversationTranslationTest {
         translation.copyTranslation()
         advanceUntilIdle()
         assertEquals(listOf("[cs] text"), copied)
-        assertNull(state.value.translation)
+        assertNull(state.value.sheet<TranslationSheet>())
         assertEquals(UiText(Res.string.translation_copied), state.value.notice)
     }
 
@@ -262,7 +262,7 @@ class ConversationTranslationTest {
         translation.copyTranslation()
         advanceUntilIdle()
         assertTrue(copied.isEmpty())
-        assertTrue(state.value.translation != null, "sheet zůstane otevřený")
+        assertTrue(state.value.sheet<TranslationSheet>() != null, "sheet zůstane otevřený")
     }
 
     @Test
@@ -272,15 +272,15 @@ class ConversationTranslationTest {
         val translation = translation(state, FakeSettings(language = "cs", onDevice = true), translator)
         translation.showTranslation(1)
         advanceUntilIdle()
-        assertTrue(state.value.translation?.needsDownload == true)
+        assertTrue(state.value.sheet<TranslationSheet>()?.needsDownload == true)
         assertTrue(translator.downloads.isEmpty())
         assertTrue(repository.translated.isEmpty(), "obsah zprávy neodešel na server")
 
         translation.downloadTranslationModels()
         advanceUntilIdle()
         assertEquals(listOf("de" to "cs"), translator.downloads)
-        assertEquals(MessageBody("de→cs: Hallo"), state.value.translation?.body)
-        assertFalse(state.value.translation?.downloading ?: true)
+        assertEquals(MessageBody("de→cs: Hallo"), state.value.sheet<TranslationSheet>()?.body)
+        assertFalse(state.value.sheet<TranslationSheet>()?.downloading ?: true)
     }
 
     @Test
@@ -290,12 +290,12 @@ class ConversationTranslationTest {
         val translation = translation(state, settings, FakeTranslator(), detected = null)
         translation.showTranslation(1)
         advanceUntilIdle()
-        assertEquals(UiText(Res.string.translation_device_unknown), state.value.translation?.error)
+        assertEquals(UiText(Res.string.translation_device_unknown), state.value.sheet<TranslationSheet>()?.error)
 
         translation.translateOnServer()
         advanceUntilIdle()
         assertEquals(listOf(1L to "cs"), repository.translated)
-        assertEquals(false, state.value.translation?.onDevice)
+        assertEquals(false, state.value.sheet<TranslationSheet>()?.onDevice)
         assertTrue(settings.translateOnDevice.value, "jednorázový překlad na serveru volbu nemění")
     }
 
@@ -305,7 +305,7 @@ class ConversationTranslationTest {
         val translator = FakeTranslator()
         translation(state, FakeSettings(language = "cs", onDevice = true), translator, detected = "cs").showTranslation(1)
         advanceUntilIdle()
-        assertEquals(UiText(Res.string.translation_device_same), state.value.translation?.error)
+        assertEquals(UiText(Res.string.translation_device_same), state.value.sheet<TranslationSheet>()?.error)
         assertTrue(translator.translations.isEmpty())
     }
 
@@ -317,17 +317,17 @@ class ConversationTranslationTest {
         val translation = translation(state, settings, translator)
         translation.showTranslation(1)
         advanceUntilIdle()
-        assertEquals(false, state.value.translation?.onDevice)
+        assertEquals(false, state.value.sheet<TranslationSheet>()?.onDevice)
 
         translation.setTranslateOnDevice(true)
         advanceUntilIdle()
         assertTrue(settings.translateOnDevice.value)
-        assertEquals(MessageBody("de→cs: Hallo"), state.value.translation?.body)
+        assertEquals(MessageBody("de→cs: Hallo"), state.value.sheet<TranslationSheet>()?.body)
 
         translation.setTranslateOnDevice(false)
         advanceUntilIdle()
         assertFalse(settings.translateOnDevice.value)
         assertEquals(2, repository.translated.size)
-        assertEquals(MessageBody("[cs] text"), state.value.translation?.body)
+        assertEquals(MessageBody("[cs] text"), state.value.sheet<TranslationSheet>()?.body)
     }
 }
