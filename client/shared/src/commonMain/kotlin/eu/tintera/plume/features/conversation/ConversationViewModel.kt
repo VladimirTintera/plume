@@ -278,6 +278,8 @@ class ConversationViewModel(
     private val downloads: DownloadsRepository? = null,
     /** Hlasovka se nahrává do Telegramu už během nahrávání; bez toho se posílá až hotová. */
     private val liveUploads: LiveUploads? = null,
+    /** Přílohy nad polem přečkají odchod z chatu; bez úložiště zmizí s konverzací. */
+    private val stagedAttachments: StagedAttachmentsStore? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -974,7 +976,16 @@ class ConversationViewModel(
         if (!jumped) markRead(held)
     }
 
+    /** Kde čekají přílohy nad polem, když konverzace není otevřená (viz [StagedAttachmentsStore]). */
+    private val stagedKey = StagedAttachmentsKey(chatId, threadRootId, forumTopicId, savedTopicId, directTopicId)
+
     init {
+        // Přílohy, které tu uživatel nechal při odchodu z chatu. Popisek k nim se vrátí sám —
+        // je to koncept v TDLib, ten se načítá s chatem.
+        stagedAttachments?.take(stagedKey)?.let { staged ->
+            _state.update { it.copy(attachments = staged.attachments, photoEdits = staged.photoEdits) }
+        }
+
         // Vlastní emoji v úpravě zprávy: smí se jen tam, kde se smí poslat (lokální dotaz).
         viewModelScope.launch {
             val allowed = runCatching { stickerRepository.canUseCustomEmoji(chatId) }.getOrDefault(false)
@@ -1975,6 +1986,13 @@ class ConversationViewModel(
         voicePlayer.stop(chatId, keepMusic = true)
         recorder.clear()
         composer.saveOnLeave()
+        // Přílohy nad polem počkají na návrat, i se záznamy úprav těch, které tam pořád jsou.
+        // Prázdné záznam smažou, takže odeslané se nevrátí.
+        stagedAttachments?.let { store ->
+            val current = _state.value
+            val paths = current.attachments.mapTo(HashSet()) { it.path }
+            store.put(stagedKey, StagedAttachmentsEntry(current.attachments, current.photoEdits.filterKeys { it in paths }))
+        }
     }
 
     /**

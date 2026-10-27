@@ -76,6 +76,7 @@ import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.features.channellimit.ChannelLimitViewModel
 import eu.tintera.plume.features.channellimit.PublicLinkLimitViewModel
 import eu.tintera.plume.core.share.ShareRequests
+import eu.tintera.plume.features.conversation.StagedAttachmentsStore
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.lock.AppLock
@@ -294,6 +295,8 @@ fun appModule() = module {
     }
     // Na Androidu s úložištěm (`ShareStore`): sdílení na čipu přežije zabití procesu.
     single { ShareRequests(store = getOrNull(), scope = get(named(APP_SCOPE))) }
+    // Přílohy nad polem mezi odchodem z chatu a návratem; jedno úložiště na proces.
+    single { StagedAttachmentsStore() }
     // Eager: po přihlášení zaregistruje Uložené zprávy jako cíl sdílení (viz init).
     single(createdAtStart = true) {
         ShareTargets(repository = get(), chats = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
@@ -498,6 +501,7 @@ fun appModule() = module {
             instantViewRequests = get(),
             downloads = get(),
             liveUploads = get(),
+            stagedAttachments = get(),
             liveStoriesSupported = getOrNull<LiveStreamMedia>() != null,
         )
     }
