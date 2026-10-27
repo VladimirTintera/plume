@@ -215,6 +215,23 @@ album. Bublina ukazuje průběh nahrávání.
   a video se jen ukázalo náhledem; rozcházel se s prohlížečem při každém doladění. Spoiler je
   zakrytý jen s lištami, na celé obrazovce se dá zkontrolovat, co pod ním je.
 - **Při úpravě zprávy sponka není.**
+- **Přílohy nad polem přečkají odchod z chatu** (`StagedAttachmentsStore`, Koin `single`, testy
+  `StagedAttachmentsStoreTest`). Popisek přežil vždycky — je to koncept v TDLib — ale přílohy
+  žily jen ve stavu ViewModelu: kdo si k fotce psal popisek a odskočil do jiného chatu, našel po
+  návratu popisek bez fotky. Konverzace je při `onCleared` uloží a při vzniku vyzvedne.
+  - **Klíč je místo psaní**, ne jen chat: vlákno komentářů a téma mají vlastní
+    (`StagedAttachmentsKey`), jinak by přílohy chystané do tématu vyskočily v celé skupině.
+  - **S přílohami jdou záznamy úprav fotek** (jen těch, které nad polem pořád jsou), aby
+    vestavěná galerie upravenou fotku poznala jako vybranou.
+  - **Vyzvednutím záznam zmizí** a odchod s prázdným polem ho smaže, takže odeslané přílohy se
+    nevrátí. Tentýž chat dvakrát v zásobníku: přílohy dostane ta konverzace, která vznikla
+    jako první po uložení; vyhraje pozdější odchod.
+  - **Jen v paměti procesu.** Zabití procesu je nepřežije (kopie v `cache/outgoing` zůstanou
+    jako dřív). Na disk je ukládat šlo by jako sdílení (`ShareStore`), jen by se musel ukládat
+    i režim (spoiler, mizení) a úpravy fotek.
+  - **Ověřeno na emulátoru** v testovací skupině: fotka z fotoaparátu s popiskem, zpět do
+    seznamu („Koncept: Popisek k fotce"), znovu otevřít → fotka i popisek nad polem.
+    Náhled nahrávky hlasovky (`recorder.clear()` v `onCleared`) se při odchodu dál zahazuje.
 - **Video se nepřekódovává.** Server video nerozebírá, takže rozměry, délku a náhled (první
   snímek, JPEG do 320 px — víc TDLib nepřijme) čte platforma: Android `MediaMetadataRetriever`,
   iOS `AVURLAsset` + `AVAssetImageGenerator`. **Rozměry po otočení** — video na výšku je uložené
