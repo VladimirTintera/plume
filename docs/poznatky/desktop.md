@@ -445,8 +445,10 @@ v oznamovací oblasti, nabídka v liště macOS).
   `DiceStakeLabelTest` čekal anglické „Stake 1.5 TON" a na Macu v češtině padal (kreslilo se
   „Vsazeno 1,5 TON") i na čistém `main`. Test, který porovnává vykreslený text, si jazyk
   nastaví sám (`Locale.setDefault` v `@BeforeTest`, v `@AfterTest` vrátit — testy běží v jednom
-  JVM), nebo očekávaný text přečte přes `readString`. `ActionMenuTest` naopak dodnes čeká
-  češtinu („Smazat") a na anglickém stroji by padal.
+  JVM), nebo očekávaný text přečte přes `readString` (`ActionMenuTest` u „Další"; české
+  popisky položek mu předává sám test, takže prochází v obou jazycích). Ověří se během celého
+  testu v angličtině: `JAVA_TOOL_OPTIONS="-Duser.language=en -Duser.country=US"` před
+  `./gradlew … --rerun`.
 
 ## Spouštění po přihlášení (Windows)
 
