@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.chat_folder_delete_failed
 import eu.tintera.plume.core.settings.StoredPhotoDescription
@@ -135,6 +136,8 @@ class ChatsViewModel(
     private val pendingDeletes: PendingChatDeletes? = null,
     /** „Vymazat historii" v nabídce nad chatem; bez něj se nenabízí. */
     private val history: ConversationRepository? = null,
+    /** „Přidat na plochu" v nabídce nad chatem; bez něj (a mimo Android) se nenabízí. */
+    private val shareTargets: ShareTargets? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -983,6 +986,15 @@ class ChatsViewModel(
         val rights = _actions.value.clearHistory?.takeIf { _actions.value.target?.id == chat.id } ?: return
         hideActions()
         _clearingHistory.value = ClearHistoryTarget(chat, rights)
+    }
+
+    /** Jde chat připnout na plochu (Android s launcherem, který to dovolí). */
+    val canAddToHomeScreen: Boolean get() = shareTargets?.canPinToHomeScreen == true
+
+    /** „Přidat na plochu": nabídka se zavře a potvrzení převezme dialog launcheru. */
+    fun addToHomeScreen(chat: ChatSummary) {
+        hideActions()
+        shareTargets?.pinToHomeScreen(chat.id)
     }
 
     fun cancelClearHistory() {

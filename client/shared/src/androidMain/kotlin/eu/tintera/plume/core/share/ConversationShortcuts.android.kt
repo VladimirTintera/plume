@@ -125,17 +125,32 @@ const val SHARE_CATEGORY = "eu.tintera.plume.category.SHARE_TARGET"
 
 private const val SHORTCUT_PREFIX = "chat_"
 
-/** Android: chat jako zkratka konverzace s kategorií ke sdílení. */
+/**
+ * Android: chat jako zkratka konverzace s kategorií ke sdílení — a táž zkratka připnutá na
+ * plochu ([pin]). Sdílené id znamená, že launcher připnutou zkratku aktualizuje spolu s tou
+ * ve sdílení (název, fotka) a že notifikace i plocha otevírají tentýž chat stejnou cestou.
+ */
 class AndroidShareTargetPublisher(private val context: Context) : ShareTargetPublisher {
     override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) {
-        if (isSavedMessages) {
-            conversationShortcut(context, chatId, title, bookmarkIcon(context))?.let { pushConversationShortcut(context, it) }
-            return
-        }
+        shortcut(chatId, title, avatarPath, isSavedMessages)?.let { pushConversationShortcut(context, it) }
+    }
+
+    override val canPin: Boolean get() = ShortcutManagerCompat.isRequestPinShortcutSupported(context)
+
+    override fun pin(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): Boolean {
+        if (!canPin) return false
+        val shortcut = shortcut(chatId, title, avatarPath, isSavedMessages) ?: return false
+        return runCatching { ShortcutManagerCompat.requestPinShortcut(context, shortcut, null) }
+            .onFailure { Logger.withTag("Shortcuts").w(it) { "Zástupce chatu $chatId se nepodařilo připnout." } }
+            .getOrDefault(false)
+    }
+
+    private fun shortcut(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): ShortcutInfoCompat? {
+        if (isSavedMessages) return conversationShortcut(context, chatId, title, bookmarkIcon(context))
         // Kulatý ořez jako u notifikací — Android zkratky kreslí v kruhu.
         val icon = avatarPath
             ?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() }
             ?.let(IconCompat::createWithAdaptiveBitmap)
-        conversationShortcut(context, chatId, title, icon)?.let { pushConversationShortcut(context, it) }
+        return conversationShortcut(context, chatId, title, icon)
     }
 }

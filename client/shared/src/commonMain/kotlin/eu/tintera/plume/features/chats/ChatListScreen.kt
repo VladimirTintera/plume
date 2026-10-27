@@ -890,6 +890,9 @@ internal fun ChatActionsHost(
             },
             folders = folderChoices,
             onToggleFolder = { id -> viewModel.toggleFolder(chat, id) },
+            onAddToHomeScreen = if (viewModel.canAddToHomeScreen) {
+                { viewModel.addToHomeScreen(chat) }
+            } else null,
             onClearHistory = if (actions.clearHistory != null) {
                 { viewModel.startClearHistory(chat) }
             } else null,

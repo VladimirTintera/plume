@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.CollectibleInfo
 import eu.tintera.plume.core.telegram.CollectibleItem
 import eu.tintera.plume.core.telegram.StoryAlbum
@@ -141,7 +142,17 @@ class ChatProfileViewModel(
     private val photoCrop: ProfilePhotoCrop? = null,
     /** Příběhy: lem kolem avataru a záložka „Příběhy"; bez nich obojí chybí. */
     private val stories: StoryRepository? = null,
+    /** „Přidat na plochu" v nabídce ⋮; bez něj (a mimo Android) se nenabízí. */
+    private val shareTargets: ShareTargets? = null,
 ) : ViewModel() {
+
+    /** Jde chat připnout na plochu (Android s launcherem, který to dovolí). */
+    val canAddToHomeScreen: Boolean get() = shareTargets?.canPinToHomeScreen == true
+
+    /** Požádá launcher o zástupce chatu; potvrzení je dialog launcheru. */
+    fun addToHomeScreen() {
+        shareTargets?.pinToHomeScreen(chatId)
+    }
 
     /** Barva, kterou uživatel konverzaci dal; `null` = barvy aplikace. */
     val chatColor: StateFlow<ThemeColor?> = (chatColors?.colors ?: flowOf(emptyMap()))

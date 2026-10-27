@@ -152,6 +152,7 @@
     <string name="chats_action_mark_unread">Označit jako nepřečtené</string>
     <string name="chats_action_delete">Smazat chat</string>
     <string name="clear_history">Vymazat historii…</string>
+    <string name="chat_add_to_home_screen">Přidat na plochu</string>
     <string name="clear_history_title">Vymazat historii</string>
     <string name="clear_history_all">Celou historii</string>
     <string name="clear_history_all_text">Chat zůstane v seznamu, prázdný.</string>
