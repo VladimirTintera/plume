@@ -35,6 +35,7 @@ import eu.tintera.plume.core.ocr.RecognizedText
 import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.platform.desktopDataDirectory
 import eu.tintera.plume.core.secrets.AppLockStore
+import eu.tintera.plume.core.secrets.MiniAppSecretStore
 import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.secrets.desktopSecretStore
 import eu.tintera.plume.core.secrets.secretService
@@ -89,6 +90,11 @@ actual fun Module.platformModule() {
     single<AppLockStore> {
         object : AppLockStore, SecretStore by desktopSecretStore(
             service = secretService("eu.tintera.plume.applock"), account = "pin", logTag = "AppLock",
+        ) {}
+    }
+    single<MiniAppSecretStore> {
+        object : MiniAppSecretStore, SecretStore by desktopSecretStore(
+            service = secretService("eu.tintera.plume.miniapps"), account = "secure-storage", logTag = "WebApp",
         ) {}
     }
     single<DesktopNotifier> { desktopNotifier() }

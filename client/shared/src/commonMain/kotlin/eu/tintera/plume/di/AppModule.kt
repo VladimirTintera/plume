@@ -5,6 +5,9 @@ import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
 import eu.tintera.plume.core.webapp.MiniAppStorage
 import eu.tintera.plume.core.webapp.DataStoreMiniAppStorage
+import eu.tintera.plume.core.webapp.MiniAppSecureStorage
+import eu.tintera.plume.core.webapp.SecretMiniAppSecureStorage
+import eu.tintera.plume.core.secrets.MiniAppSecretStore
 import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogViewModel
 import eu.tintera.plume.features.statistics.ChatStatisticsViewModel
@@ -224,6 +227,8 @@ fun appModule() = module {
     single<MiniAppStorage> {
         DataStoreMiniAppStorage(get(named(MINI_APP_STORAGE)))
     }
+    // Trezor dodává platforma (`MiniAppSecretStore` v platformním modulu).
+    single<MiniAppSecureStorage> { SecretMiniAppSecureStorage(store = get<MiniAppSecretStore>()) }
 
     // Jeden přehrávač hlasovek na aplikaci: hraje nejvýš jedna. Na hlavním vlákně, protože
     // systémové přehrávače se ovládají z něj.
@@ -556,6 +561,7 @@ fun appModule() = module {
             downloader = get(),
             appScope = get(named(APP_SCOPE)),
             storage = get(),
+            secureStorage = get(),
         )
     }
 

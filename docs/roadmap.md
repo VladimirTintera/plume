@@ -936,8 +936,9 @@ hovory) nebo je zapsaná výš. Tohle v roadmapách nebylo:
   `downloadFile`~~ — hotovo (`docs/poznatky/boti.md`, „Požadavky mini aplikace"); skutečnou
   připravenou zprávu a tlačítko ověřit s botem, který je vyrobí přes Bot API. ~~`DeviceStorage`,
   poloha, celá obrazovka a zástupce na ploše (Android)~~ — hotovo (tamtéž, „Úložiště, poloha,
-  celá plocha a zástupce na ploše"). Zbývá `SecureStorage` (odpovídá „nepodporováno"),
-  zástupce na iOS a desktopu; emoji status z mini aplikace chce Premium.
+  celá plocha a zástupce na ploše"). ~~`SecureStorage`~~ — hotovo (šifrovaně v trezoru
+  platformy, bez obnovy ze zálohy; tamtéž). Zbývá zástupce na iOS a desktopu; emoji status
+  z mini aplikace chce Premium.
 - ~~**Podobné kanály: oznámit otevření** (`openChatSimilarChat`) a podobní boti v profilu bota
   (`getBotSimilarBots`, `openBotSimilarBot`)~~ — hotovo (`docs/poznatky/profil-chatu.md`,
   „Záložka Podobné"). ~~Náhledy mini aplikace v profilu bota (`getBotMediaPreviews`)~~ — hotovo (tamtéž,

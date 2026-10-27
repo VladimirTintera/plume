@@ -34,3 +34,10 @@ const val SECRET_SIZE: Int = 32
  * `AppLock`). Samostatné rozhraní jen kvůli Koinu, aby se nezaměnil s [DatabaseKeyStore].
  */
 interface AppLockStore : SecretStore
+
+/**
+ * Zabezpečené úložiště mini aplikací (`SecureStorage` z Bot API): všechny klíče všech botů jako
+ * jeden zašifrovaný záznam (`MiniAppSecureStorage` ve `shared`). Samostatné rozhraní ze stejného
+ * důvodu jako [AppLockStore].
+ */
+interface MiniAppSecretStore : SecretStore

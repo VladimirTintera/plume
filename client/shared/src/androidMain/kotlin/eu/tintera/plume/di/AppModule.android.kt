@@ -69,6 +69,7 @@ import java.io.File
 import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.secrets.AppLockStore
 import eu.tintera.plume.core.secrets.KeystoreSecretStore
+import eu.tintera.plume.core.secrets.MiniAppSecretStore
 import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.calls.CALL_JOURNAL_DIRECTORY
@@ -125,6 +126,11 @@ actual fun Module.platformModule() {
     single<AppLockStore> {
         object : AppLockStore, SecretStore by KeystoreSecretStore(
             androidContext(), fileName = "app-lock", keyAlias = "plume_app_lock", logTag = "AppLock",
+        ) {}
+    }
+    single<MiniAppSecretStore> {
+        object : MiniAppSecretStore, SecretStore by KeystoreSecretStore(
+            androidContext(), fileName = "mini-app-secure-storage", keyAlias = "plume_mini_app_secure", logTag = "WebApp",
         ) {}
     }
     single { NotificationPermission(androidContext()) }

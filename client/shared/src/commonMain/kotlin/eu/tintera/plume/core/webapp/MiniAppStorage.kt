@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.first
 /**
  * Úložiště mini aplikací v zařízení (`DeviceStorage` z Bot API 9.0): klíč → text, zvlášť pro
  * každý účet a bota. Nesynchronizuje se (od toho je `CloudStorage` na serveru) a nešifruje —
- * zabezpečené úložiště (`SecureStorage`) Plume nemá.
+ * na to je [MiniAppSecureStorage] (`SecureStorage`).
  *
  * - **Odděleně po účtu**: po odhlášení a přihlášení jiným účtem by jinak táž mini aplikace
  *   viděla data předchozího uživatele.
