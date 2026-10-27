@@ -122,8 +122,8 @@ internal class ConversationLinks(
                             WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
                         )
                         is InternalLink.Screen -> state.update { it.copy(openScreen = link.screen) }
-                        is InternalLink.LoginWarning -> state.update { it.copy(loginWarning = link.kind) }
-                        is InternalLink.DeepLinkInfo -> state.update { it.copy(deepLinkInfo = link) }
+                        is InternalLink.LoginWarning -> state.update { it.copy(dialog = ConversationDialog.LoginWarning(link.kind)) }
+                        is InternalLink.DeepLinkInfo -> state.update { it.copy(dialog = ConversationDialog.DeepLink(link)) }
                         is InternalLink.Story -> openStory(StoryTarget(link.posterChatId, link.storyId))
                         is InternalLink.WebApp -> requestWebApp(
                             WebAppRequest(
@@ -186,12 +186,12 @@ internal class ConversationLinks(
 
     /** Odkaz z tlačítka bota potvrzený v dialogu. */
     fun openConfirmedLink() {
-        val url = state.value.confirmLink ?: return
-        state.update { it.copy(confirmLink = null) }
+        val url = state.value.dialog<ConversationDialog.ConfirmLink>()?.url ?: return
+        state.update { it.closing<ConversationDialog.ConfirmLink>() }
         openUrl(url)
     }
 
-    fun dismissLink() = state.update { it.copy(confirmLink = null) }
+    fun dismissLink() = state.update { it.closing<ConversationDialog.ConfirmLink>() }
 
     /** Obrazovka formulář ankety otevřela. */
     /**
@@ -392,14 +392,14 @@ internal class ConversationLinks(
      */
     private suspend fun openExternal(url: String, confirmExternal: Boolean) {
         val plain: (String) -> Unit = { target ->
-            if (confirmExternal) state.update { it.copy(confirmLink = target) } else openUrl(target)
+            if (confirmExternal) state.update { it.copy(dialog = ConversationDialog.ConfirmLink(target)) } else openUrl(target)
         }
         if (state.value.info?.isSecret == true) return plain(url)
         chatRepository.externalLinkInfo(url)
             .onSuccess { prompt ->
                 when (prompt) {
                     is LoginUrlPrompt.Open -> if (prompt.skipConfirmation) openUrl(prompt.url) else plain(prompt.url)
-                    is LoginUrlPrompt.Confirm -> state.update { it.copy(externalLogin = ExternalLogin(url, prompt)) }
+                    is LoginUrlPrompt.Confirm -> state.update { it.copy(dialog = ConversationDialog.WebLogin(ExternalLogin(url, prompt))) }
                 }
             }
             .onFailure { plain(url) }
@@ -407,8 +407,8 @@ internal class ConversationLinks(
 
     /** Přihlášení z odkazu potvrzené v dialogu; [allowWriteAccess] = bot webu smí psát. */
     fun confirmExternalLogin(allowWriteAccess: Boolean) {
-        val login = state.value.externalLogin ?: return
-        state.update { it.copy(externalLogin = null) }
+        val login = state.value.dialog<ConversationDialog.WebLogin>()?.login ?: return
+        state.update { it.closing<ConversationDialog.WebLogin>() }
         scope.launch {
             chatRepository.externalLoginUrl(login.link, allowWriteAccess)
                 .onSuccess { target ->
@@ -430,8 +430,8 @@ internal class ConversationLinks(
 
     /** Dialog zavřený bez přihlášení: odkaz se otevře obyčejně, chtěl ho uživatel. */
     fun dismissExternalLogin() {
-        val login = state.value.externalLogin ?: return
-        state.update { it.copy(externalLogin = null) }
+        val login = state.value.dialog<ConversationDialog.WebLogin>()?.login ?: return
+        state.update { it.closing<ConversationDialog.WebLogin>() }
         openUrl(login.link)
     }
 
@@ -487,9 +487,9 @@ internal class ConversationLinks(
         }
     }
 
-    fun dismissLoginWarning() = state.update { it.copy(loginWarning = null) }
+    fun dismissLoginWarning() = state.update { it.closing<ConversationDialog.LoginWarning>() }
 
-    fun dismissDeepLinkInfo() = state.update { it.copy(deepLinkInfo = null) }
+    fun dismissDeepLinkInfo() = state.update { it.closing<ConversationDialog.DeepLink>() }
 
     fun consumeAddBotToGroup() {
         state.update { it.copy(addBotToGroup = null) }

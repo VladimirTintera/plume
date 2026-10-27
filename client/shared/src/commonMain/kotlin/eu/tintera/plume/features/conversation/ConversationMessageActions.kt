@@ -85,26 +85,26 @@ internal class ConversationMessageActions(
         state.update {
             it.copy(
                 messageMenu = null,
-                pendingPin = PendingPin(
+                dialog = ConversationDialog.Pin(PendingPin(
                     messageId = messageId,
                     scope = when {
                         info.isChannel -> PinScope.Channel
                         info.isGroup -> PinScope.Group
                         else -> PinScope.Private
                     },
-                ),
+                )),
             )
         }
     }
 
     fun cancelPin() {
-        state.update { it.copy(pendingPin = null) }
+        state.update { it.closing<ConversationDialog.Pin>() }
     }
 
     /** [option] je zaškrtávátko dialogu: upozornit členy, nebo v soukromém chatu připnout i protějšku. */
     fun confirmPin(option: Boolean) {
-        val pending = state.value.pendingPin ?: return
-        state.update { it.copy(pendingPin = null) }
+        val pending = state.value.dialog<ConversationDialog.Pin>()?.pending ?: return
+        state.update { it.closing<ConversationDialog.Pin>() }
 
         when (pending.scope) {
             // Připnutí v soukromém chatu nikoho neupozorňuje — oznámení o něm by bylo jen šum
@@ -146,13 +146,13 @@ internal class ConversationMessageActions(
     }
 
     /** „Odmítnout" otevře dialog s komentářem; odmítá se až jeho potvrzením. */
-    fun askDeclineSuggestedPost(messageId: Long) = state.update { it.copy(decliningSuggestedPost = messageId) }
+    fun askDeclineSuggestedPost(messageId: Long) = state.update { it.copy(dialog = ConversationDialog.DeclineSuggestedPost(messageId)) }
 
-    fun cancelDeclineSuggestedPost() = state.update { it.copy(decliningSuggestedPost = null) }
+    fun cancelDeclineSuggestedPost() = state.update { it.closing<ConversationDialog.DeclineSuggestedPost>() }
 
     fun declineSuggestedPost(comment: String) {
-        val messageId = state.value.decliningSuggestedPost ?: return
-        state.update { it.copy(decliningSuggestedPost = null) }
+        val messageId = state.value.dialog<ConversationDialog.DeclineSuggestedPost>()?.messageId ?: return
+        state.update { it.closing<ConversationDialog.DeclineSuggestedPost>() }
         scope.launch {
             repository.declineSuggestedPost(chatId, messageId, comment).onFailure { failure ->
                 state.update { it.copy(error = failure.reported(logger, Res.string.suggested_post_action_failed)) }
@@ -199,13 +199,13 @@ internal class ConversationMessageActions(
         state.update {
             it.copy(
                 messageMenu = null,
-                pendingDelete = PendingDelete(
+                dialog = ConversationDialog.Delete(PendingDelete(
                     messageId = messageId,
                     // Nabídka nad albem maže celé album — v bublině je to jedna věc.
                     messageIds = it.albumMemberIds(messageId),
                     canDeleteForAll = menu.actions.canDeleteForAll,
                     canDeleteForSelf = menu.actions.canDeleteForSelf,
-                ),
+                )),
             )
         }
         loadSenderModeration()
@@ -217,15 +217,15 @@ internal class ConversationMessageActions(
      * zprávy ve skupině, kde je uživatel správce, a dotaz by byl zbytečný.
      */
     fun loadSenderModeration() {
-        val pending = state.value.pendingDelete?.takeIf { it.canDeleteForAll } ?: return
+        val pending = state.value.dialog<ConversationDialog.Delete>()?.pending?.takeIf { it.canDeleteForAll } ?: return
         scope.launch {
             val found = repository.senderModeration(chatId, pending.messageIds)
                 .onFailure { logger.w(it) { "Moderování autora zpráv ${pending.messageIds} se nepodařilo zjistit." } }
                 .getOrNull() ?: return@launch
             state.update { current ->
                 // Dialog mezitím mohl zmizet, nebo se otevřít nad jinými zprávami.
-                val open = current.pendingDelete?.takeIf { it.messageIds == pending.messageIds } ?: return@update current
-                current.copy(pendingDelete = open.copy(moderation = found))
+                val open = current.dialog<ConversationDialog.Delete>()?.pending?.takeIf { it.messageIds == pending.messageIds } ?: return@update current
+                current.copy(dialog = ConversationDialog.Delete(open.copy(moderation = found)))
             }
         }
     }
@@ -237,15 +237,15 @@ internal class ConversationMessageActions(
     /** „Zablokovat odesílatele" v chatu Odpovědi: nejdřív potvrzení s volbami. */
     fun requestBlockFromReplies(messageId: Long) {
         closeMenus()
-        state.update { it.copy(pendingRepliesBlock = messageId) }
+        state.update { it.copy(dialog = ConversationDialog.BlockFromReplies(messageId)) }
     }
 
-    fun dismissBlockFromReplies() = state.update { it.copy(pendingRepliesBlock = null) }
+    fun dismissBlockFromReplies() = state.update { it.closing<ConversationDialog.BlockFromReplies>() }
 
     /** Zablokuje odesílatele zprávy z chatu Odpovědi. Smazané zprávy zmizí updatem. */
     fun confirmBlockFromReplies(deleteMessage: Boolean, deleteAll: Boolean, reportSpam: Boolean) {
-        val messageId = state.value.pendingRepliesBlock ?: return
-        state.update { it.copy(pendingRepliesBlock = null) }
+        val messageId = state.value.dialog<ConversationDialog.BlockFromReplies>()?.messageId ?: return
+        state.update { it.closing<ConversationDialog.BlockFromReplies>() }
         scope.launch {
             repository.blockFromReplies(messageId, deleteMessage, deleteAll, reportSpam)
                 .onSuccess { state.update { it.copy(notice = UiText(Res.string.replies_block_done)) } }
@@ -425,7 +425,7 @@ internal class ConversationMessageActions(
     }
 
     fun cancelDelete() {
-        state.update { it.copy(pendingDelete = null) }
+        state.update { it.closing<ConversationDialog.Delete>() }
     }
 
     /**
@@ -436,8 +436,8 @@ internal class ConversationMessageActions(
      * a na serveru zůstane.
      */
     fun confirmDelete(revoke: Boolean, choice: ModerationChoice = ModerationChoice()) {
-        val pending = state.value.pendingDelete ?: return
-        state.update { it.copy(pendingDelete = null) }
+        val pending = state.value.dialog<ConversationDialog.Delete>()?.pending ?: return
+        state.update { it.closing<ConversationDialog.Delete>() }
         val moderation = pending.moderation?.takeIf { choice.any }
 
         scope.launch {

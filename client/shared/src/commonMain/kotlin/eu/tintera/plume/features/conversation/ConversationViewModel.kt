@@ -2118,11 +2118,11 @@ class ConversationViewModel(
             is MessageAction.DeleteNotice -> _state.update {
                 it.copy(
                     noticeMenu = null,
-                    pendingDelete = PendingDelete(
+                    dialog = ConversationDialog.Delete(PendingDelete(
                         messageId = messageId,
                         canDeleteForAll = action.canDeleteForAll,
                         canDeleteForSelf = action.canDeleteForSelf,
-                    ),
+                    )),
                 )
             }
             is MessageAction.React -> reactions.toggleReaction(messageId, action.emoji)
@@ -2137,14 +2137,14 @@ class ConversationViewModel(
             is MessageAction.PressBotButton -> bots.pressBotButton(messageId, action.row, action.column)
             is MessageAction.Vote -> bots.vote(messageId, action.answerIndexes)
             MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }
-            MessageAction.AddPollOption -> _state.update { it.copy(addingPollOption = messageId) }
+            MessageAction.AddPollOption -> _state.update { it.copy(dialog = ConversationDialog.AddPollOption(messageId)) }
             is MessageAction.MarkChecklistTask -> checklists.mark(messageId, action.taskId, action.done)
             MessageAction.AddChecklistTask -> checklists.openAddTask(messageId)
             MessageMenuAction.RetractVote -> {
                 menu.closeMenus()
                 bots.vote(messageId, emptyList())
             }
-            MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
+            MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, dialog = ConversationDialog.StopPoll(messageId)) }
             MessageMenuAction.DeletePollOption -> bots.requestDeletePollOption(messageId)
             MessageMenuAction.EditChecklist -> {
                 menu.closeMenus()

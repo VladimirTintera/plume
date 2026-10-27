@@ -142,6 +142,25 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   část přehrávání — a v testu nešly sestavit. Odkazům z něj zbylo jen video z náhledu odkazu,
   které přehrávání otevře přes `openLink`.
 
+### Jeden dialog ve stavu (`ConversationDialog`)
+
+Potvrzovací a rozhodovací dialogy (smazat, připnout, odkaz z tlačítka bota, upozornění od bota,
+ukončit anketu, sdílet číslo a polohu…) nesou jedno pole `ConversationState.dialog`, sealed typ
+`ConversationDialog`. Dřív mělo každý z osmnácti vlastní pole a `ConversationDialogs` je kreslil
+všechny nad sebou; dva modální dialogy naráz nedávají smysl a typ to teď říká sám.
+
+- **Otevírá se `copy(dialog = …)`, čte `dialog<Druh>()`, zavírá `closing<Druh>()`**, ne
+  `copy(dialog = null)`. Zavírá se jen dialog TOHO druhu: odpověď, která přijde pozdě
+  (upozornění od bota, přihlášení z tlačítka), mohla mezitím otevřít jiný a zavření starého
+  ho smazat nesmí (test `ConversationDialogTest`).
+- **Nový dialog starý nahradí.** Jediná viditelná změna proti dřívějšku: dvě tlačítka bota
+  (číslo a poloha) ťuknutá za sebou dřív čekala na potvrzení obě, teď jen to druhé.
+- **Nápovědy gest mlčí nad jakýmkoli dialogem** (`dialog == null`), dřív jen nad smazáním
+  a připnutím.
+- **Mimo zůstalo**, co je jiný druh věci, každé na vlastní převod: sheety s vlastními daty
+  a načítáním (překlad, pozvánka, detail reakcí, výherci soutěže), nabídka nad zprávou
+  (`messageMenu`) a jednorázové požadavky na navigaci (`openChat`, `openScreen`…).
+
 ## Bloky seznamu
 
 Seznam zpráv se skládá z **bloků** (`ConversationItem`), které nesou svoje data a **samy se

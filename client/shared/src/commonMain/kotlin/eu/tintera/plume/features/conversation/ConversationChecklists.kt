@@ -73,15 +73,15 @@ internal class ConversationChecklists(
         scope.launch {
             // Strop délky úkolu posílá server; dialog ho potřebuje hned, takže se čte před ním.
             val limits = repository.checklistLimits()
-            state.update { it.copy(addingChecklistTask = messageId, checklistTaskMax = limits.maxTaskText) }
+            state.update { it.copy(dialog = ConversationDialog.AddChecklistTask(messageId, maxLength = limits.maxTaskText)) }
         }
     }
 
     /** Doplní úkol z dialogu. Nový úkol přijde úpravou obsahu zprávy. */
     fun addTask(text: String) {
-        val messageId = state.value.addingChecklistTask ?: return
+        val messageId = state.value.dialog<ConversationDialog.AddChecklistTask>()?.messageId ?: return
         val trimmed = text.trim()
-        state.update { it.copy(addingChecklistTask = null) }
+        state.update { it.closing<ConversationDialog.AddChecklistTask>() }
         if (trimmed.isEmpty()) return
         scope.launch {
             repository.addChecklistTasks(chatId, messageId, listOf(trimmed)).onFailure { failure ->
@@ -105,7 +105,7 @@ internal class ConversationChecklists(
     }
 
     fun dismissAddTask() {
-        state.update { it.copy(addingChecklistTask = null) }
+        state.update { it.closing<ConversationDialog.AddChecklistTask>() }
     }
 }
 

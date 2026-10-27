@@ -164,11 +164,11 @@ internal class ConversationAttachments(
         val message = state.value.messages.firstOrNull { it.id == messageId }
             ?: state.value.liveLocations.firstOrNull { it.id == messageId }
         val radius = (message?.media as? MessageMedia.Location)?.proximityAlertRadius ?: return
-        state.update { it.copy(proximityAlert = ProximityAlertPrompt(messageId, radius)) }
+        state.update { it.copy(dialog = ConversationDialog.ProximityAlert(ProximityAlertPrompt(messageId, radius))) }
     }
 
     fun dismissProximityAlert() {
-        state.update { it.copy(proximityAlert = null) }
+        state.update { it.closing<ConversationDialog.ProximityAlert>() }
     }
 
     /**
@@ -176,8 +176,8 @@ internal class ConversationAttachments(
      * jako každý posun polohy, takže se tady nic lokálně nepřepisuje.
      */
     fun setProximityAlert(radiusMeters: Int) {
-        val prompt = state.value.proximityAlert ?: return
-        state.update { it.copy(proximityAlert = null) }
+        val prompt = state.value.dialog<ConversationDialog.ProximityAlert>()?.prompt ?: return
+        state.update { it.closing<ConversationDialog.ProximityAlert>() }
         scope.launch {
             liveLocations.setProximityAlert(chatId, prompt.messageId, radiusMeters).onFailure { failure ->
                 state.update { it.copy(error = failure.reported(logger, Res.string.location_proximity_failed)) }
@@ -307,7 +307,7 @@ internal class ConversationAttachments(
                         if (card.phone.isBlank()) {
                             it.copy(notice = UiText(Res.string.conversation_contact_no_phone))
                         } else {
-                            it.copy(pendingContact = card)
+                            it.copy(dialog = ConversationDialog.ShareContact(card))
                         }
                     }
                 }
@@ -318,13 +318,13 @@ internal class ConversationAttachments(
     }
 
     fun cancelContact() {
-        state.update { it.copy(pendingContact = null) }
+        state.update { it.closing<ConversationDialog.ShareContact>() }
     }
 
     /** Kontakt odchází hned, jako poloha: citaci spotřebuje, rozepsaný text nechá. */
     fun confirmContact() {
-        val userId = state.value.pendingContact?.userId ?: return
-        state.update { it.copy(pendingContact = null) }
+        val userId = state.value.dialog<ConversationDialog.ShareContact>()?.contact?.userId ?: return
+        state.update { it.closing<ConversationDialog.ShareContact>() }
         if (!state.value.canWrite || state.value.editing != null) return
         composer.sendMedia(Res.string.conversation_contact_send_failed) { replyTo, quote ->
             repository.sendContact(chatId, userId, replyTo, quote)

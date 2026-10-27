@@ -122,12 +122,12 @@ class ConversationLinksTest {
 
         links.openLink("https://example.com", confirmExternal = true)
         advanceUntilIdle()
-        assertEquals("https://example.com", state.value.confirmLink)
+        assertEquals("https://example.com", state.value.dialog<ConversationDialog.ConfirmLink>()?.url)
         assertTrue(opened.isEmpty())
 
         links.openConfirmedLink()
         assertEquals(listOf("https://example.com"), opened)
-        assertNull(state.value.confirmLink)
+        assertNull(state.value.dialog<ConversationDialog.ConfirmLink>()?.url)
     }
 
     @Test

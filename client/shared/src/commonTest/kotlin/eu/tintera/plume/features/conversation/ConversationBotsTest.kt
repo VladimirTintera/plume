@@ -207,12 +207,12 @@ class ConversationBotsTest {
         bots.pressBotButton(1, 0, 0)
         advanceUntilIdle()
         assertNotNull(state.value.notice)
-        assertNull(state.value.botAlert)
+        assertNull(state.value.dialog<ConversationDialog.BotAlert>()?.text)
 
         repository.answer = Result.success(BotAnswer(text = "Pozor!", alert = true, url = ""))
         bots.pressBotButton(1, 0, 0)
         advanceUntilIdle()
-        assertEquals("Pozor!", state.value.botAlert)
+        assertEquals("Pozor!", state.value.dialog<ConversationDialog.BotAlert>()?.text)
         assertNull(state.value.pressingBotButton)
     }
 
@@ -235,7 +235,7 @@ class ConversationBotsTest {
         bots(state).pressBotButton(1, 0, 0)
         advanceUntilIdle()
 
-        assertEquals("https://bot.example/hra", state.value.confirmLink)
+        assertEquals("https://bot.example/hra", state.value.dialog<ConversationDialog.ConfirmLink>()?.url)
         assertTrue(opened.isEmpty())
     }
 
@@ -245,7 +245,7 @@ class ConversationBotsTest {
         bots(state).pressBotButton(1, 0, 0)
         advanceUntilIdle()
 
-        assertEquals("https://example.com", state.value.confirmLink)
+        assertEquals("https://example.com", state.value.dialog<ConversationDialog.ConfirmLink>()?.url)
     }
 
     @Test
@@ -335,20 +335,20 @@ class ConversationBotsTest {
         val bots = bots(state)
 
         bots.pressReplyKeyboardButton(0, 0)
+        assertEquals(ConversationDialog.SharePhone, state.value.dialog)
+        // Dialog je nejvýš jeden (`ConversationDialog`): druhé tlačítko první potvrzení nahradí.
         bots.pressReplyKeyboardButton(0, 1)
-
-        assertTrue(state.value.confirmSharePhone)
-        assertTrue(state.value.confirmShareLocation)
+        assertEquals(ConversationDialog.ShareLocation, state.value.dialog)
         assertTrue(repository.keyboardTexts.isEmpty())
     }
 
     @Test
     fun polohaBotoviBezZjistenePolohySeOhlasi() = runTest {
         val state = stateWith()
-        state.value = state.value.copy(confirmShareLocation = true)
+        state.value = state.value.copy(dialog = ConversationDialog.ShareLocation)
         bots(state).sendKeyboardLocation(point = null)
 
-        assertFalse(state.value.confirmShareLocation)
+        assertNull(state.value.dialog)
         assertNotNull(state.value.notice)
     }
 
@@ -385,14 +385,14 @@ class ConversationBotsTest {
         val state = stateWith(testMessage(1))
         val bots = bots(state)
 
-        state.value = state.value.copy(addingPollOption = 1)
+        state.value = state.value.copy(dialog = ConversationDialog.AddPollOption(1))
         bots.addPollOption("  Možná  ", media = null)
-        state.value = state.value.copy(addingPollOption = 1)
+        state.value = state.value.copy(dialog = ConversationDialog.AddPollOption(1))
         bots.addPollOption("   ", media = null)
         advanceUntilIdle()
 
         assertEquals(listOf("Možná"), repository.pollOptions)
-        assertNull(state.value.addingPollOption)
+        assertNull(state.value.dialog)
     }
 
     private fun keyboard(messageId: Long, oneTime: Boolean, vararg kinds: ReplyKeyboardButtonKind) = ChatReplyMarkup.Keyboard(
