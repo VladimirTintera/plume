@@ -10,6 +10,7 @@ import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.OutgoingThumbnail
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.attachment_camera_unavailable
 import eu.tintera.plume.resources.attachment_prepare_failed
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -76,6 +77,12 @@ import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIGraphicsImageRendererFormat
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
+import platform.UIKit.UIImagePickerController
+import platform.UIKit.UIImagePickerControllerDelegateProtocol
+import platform.UIKit.UIImagePickerControllerMediaURL
+import platform.UIKit.UIImagePickerControllerOriginalImage
+import platform.UIKit.UIImagePickerControllerSourceType
+import platform.UIKit.UINavigationControllerDelegateProtocol
 import platform.UIKit.UIViewController
 import platform.UniformTypeIdentifiers.UTTypeImage
 import platform.UniformTypeIdentifiers.UTTypeItem
@@ -167,6 +174,50 @@ private class IosAttachmentPicker(
 
     override fun pickDocument() = pickFiles(UTTypeItem)
 
+    override val canCapture: Boolean
+        get() = UIImagePickerController.isSourceTypeAvailable(UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera)
+
+    /*
+     * Systémový fotoaparát (`UIImagePickerController`), ne vlastní nad AVFoundation: umí blesk,
+     * přiblížení, přepnutí kamery i opakování snímku a o přístup ke kameře se zeptá sám
+     * (`NSCameraUsageDescription`). Fotka přijde jako `UIImage`, video jako soubor v dočasném
+     * adresáři, o který se má postarat aplikace — přesune se do `outgoing` (mimo hlavní vlákno,
+     * video bývá velké), takže nikde nezůstane druhá kopie.
+     */
+    private val cameraDelegate = object : NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {
+        override fun imagePickerController(picker: UIImagePickerController, didFinishPickingMediaWithInfo: Map<Any?, *>) {
+            picker.dismissViewControllerAnimated(true, null)
+            val movie = didFinishPickingMediaWithInfo[UIImagePickerControllerMediaURL] as? NSURL
+            val image = didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage
+            when {
+                movie != null -> prepare(listOf(movie)) { url ->
+                    prepareVideoAt(moveToOutgoing(url) ?: error("Video z fotoaparátu nejde přesunout."))
+                }
+                image != null -> prepare(listOf(image)) { preparePhotoImage(it) }
+            }
+        }
+
+        override fun imagePickerControllerDidCancel(picker: UIImagePickerController) {
+            picker.dismissViewControllerAnimated(true, null)
+        }
+    }
+
+    override fun capturePhoto() = capture(video = false)
+
+    override fun captureVideo() = capture(video = true)
+
+    private fun capture(video: Boolean) {
+        if (!canCapture) {
+            onError(UiText(Res.string.attachment_camera_unavailable))
+            return
+        }
+        val picker = UIImagePickerController()
+        picker.sourceType = UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera
+        picker.mediaTypes = listOf(if (video) UTTypeMovie.identifier else UTTypeImage.identifier)
+        picker.delegate = cameraDelegate
+        present(picker)
+    }
+
     override fun pickAudio() = pickFiles(UTTypeAudio)
 
     private fun pickFiles(type: UTType) {
@@ -210,9 +261,16 @@ private suspend fun preparePhoto(result: PHPickerResult): OutgoingAttachment.Pho
  * Fotka z dat obrázku — z výběru i ze sdílení (rozšíření předá soubor, viz `IosShareInbox`).
  * Zmenší se a uloží jako JPEG, viz [preparePhoto].
  */
+internal fun preparePhotoData(data: NSData): OutgoingAttachment.Photo =
+    preparePhotoImage(UIImage.imageWithData(data) ?: error("Obrázek nejde dekódovat."))
+
+/**
+ * Fotka z hotového obrázku — z dat ([preparePhotoData]) i rovnou z fotoaparátu. Obrázek
+ * z fotoaparátu nese otočení v `imageOrientation` a `drawInRect` ho použije, takže JPEG vyjde
+ * natočený správně bez EXIF.
+ */
 @OptIn(ExperimentalForeignApi::class)
-internal fun preparePhotoData(data: NSData): OutgoingAttachment.Photo {
-    val image = UIImage.imageWithData(data) ?: error("Obrázek nejde dekódovat.")
+private fun preparePhotoImage(image: UIImage): OutgoingAttachment.Photo {
     // `size` je v bodech a už po započtení orientace; skutečné pixely jsou body × scale.
     val (sourceWidth, sourceHeight) = image.size.useContents { width * image.scale to height * image.scale }
     val longest = max(sourceWidth, sourceHeight)
@@ -436,6 +494,13 @@ private fun coverThumbnail(data: NSData, directory: String): OutgoingThumbnail? 
     val target = "$directory/cover.jpg"
     if (!jpeg.writeToFile(target, atomically = true)) return null
     return OutgoingThumbnail(path = target, width = (width * scale).roundToInt(), height = (height * scale).roundToInt())
+}
+
+/** Přesune soubor do `outgoing` pod původním jménem; `null`, když přesun selže. */
+@OptIn(ExperimentalForeignApi::class)
+private fun moveToOutgoing(source: NSURL): String? {
+    val path = outgoingPath(source.lastPathComponent?.takeIf { it.isNotBlank() } ?: "video.mov")
+    return path.takeIf { NSFileManager.defaultManager.moveItemAtURL(source, toURL = NSURL.fileURLWithPath(it), error = null) }
 }
 
 /** Cesta v dočasném adresáři aplikace, každá příloha ve vlastním podadresáři (jména se nepřepíšou). */

@@ -48,6 +48,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlin.time.TimeSource
 import org.jetbrains.compose.resources.stringResource
@@ -430,6 +432,34 @@ internal fun ConversationViewReporting(
         }
             .debounce(READ_DEBOUNCE_MS)
             .collect { (keys, _) -> viewModel.markRead(keys) }
+    }
+
+    /*
+     * Body návratu po skoku na citaci (`JumpReturns.kt`): které zprávy, ke kterým by tlačítko
+     * dolů vracelo, uživatel znovu vidí nebo minul. Jen MIMO skok — v okamžiku ťuknutí na citaci
+     * je zdrojová zpráva vidět vždycky a během jízdy jí seznam projíždí; bod by zmizel dřív, než
+     * by se kamkoli jelo. `scrollTarget` se maže až po doskočení (`consumeScrollTarget`).
+     */
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val state = stateHolder.value
+            if (state.returnPoints.isEmpty() || state.scrollTarget != null || state.pendingJump != null) {
+                null
+            } else {
+                // Vidět = aspoň kus mimo odsazení seznamu. Pod vstupním polem a lištou je položka
+                // pro seznam „viditelná", ale uživatel ji nevidí — jako u metrik zobrazení.
+                val info = listState.layoutInfo
+                val start = info.viewportStartOffset + info.beforeContentPadding
+                val end = info.viewportEndOffset - info.afterContentPadding
+                info.visibleItemsInfo
+                    .filter { it.offset + it.size > start && it.offset < end }
+                    .mapNotNull { it.key as? Long }
+                    .maxOrNull()
+            }
+        }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .collect(viewModel::passReturnPoints)
     }
 
     ConversationViewMetrics(listState, viewModel)

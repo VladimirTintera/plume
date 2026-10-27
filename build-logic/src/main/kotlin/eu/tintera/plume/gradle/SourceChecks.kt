@@ -48,6 +48,7 @@ class SourceChecksPlugin : Plugin<Project> {
         register("verifyShapeTokens", VerifyShapeTokens::class.java)
         register("verifyMotionSpecs", VerifyMotionSpecs::class.java)
         register("verifyCoreLayering", VerifyCoreLayering::class.java, withTests = true)
+        register("verifyParameterCount", VerifyParameterCount::class.java)
     }
 }
 
@@ -387,5 +388,102 @@ abstract class VerifyCoreLayering : SourceCheckTask() {
         if ("/eu/tintera/plume/core/" !in file.invariantSeparatorsPath) return emptyList()
         return matchingLines(file, path, upperLayer, exempt = "", skipComments = true)
             .filterNot { it.substringAfter(": ").trim().startsWith("/*") }
+    }
+}
+
+/**
+ * Funkce nemá víc než [MAX_PARAMETERS] parametrů; co jde nad to, patří do skupin (pravidlo
+ * „Parametry funkce se nepřidávají donekonečna" v CLAUDE.md).
+ *
+ * `MessageInput` dorostl na 79 parametrů, `VideoPage` na 38, `ViewerContent` na 33 — každý
+ * přidal „jen jeden" a nikdo si toho nevšiml, dokud se to nemuselo uklízet naráz (#1069). Práh
+ * je o kus nad tím, co mají komponenty M3 (`OutlinedTextField` a obal `FormTextField` kolem
+ * něj 19), takže obal komponenty projde a seznam callbacků obrazovky ne.
+ *
+ * Počítají se parametry deklarace, ne volání: komentáře (KDoc u parametru bývá s čárkami)
+ * a řetězce se před počítáním vymažou, čárka uvnitř typu (`Map<Int, String>`, `(Int, Int) -> Unit`)
+ * ani výchozí hodnoty (`{ _, _ -> }`) se nepočítá.
+ */
+abstract class VerifyParameterCount : SourceCheckTask() {
+    init {
+        description = "Ověří, že žádná funkce nemá víc než $MAX_PARAMETERS parametrů."
+    }
+
+    override fun failureMessage() =
+        "Funkce má víc než $MAX_PARAMETERS parametrů: související seskup do data class (stav se svými callbacky, " +
+            "vzor ConversationNavigation; viz „Parametry funkce se nepřidávají donekonečna\" v CLAUDE.md):"
+
+    private val declaration = Regex("""\bfun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?(\w+)\s*\(""")
+
+    override fun offenders(file: File, path: String): List<String> {
+        val text = codeOnly(file.readText())
+        return declaration.findAll(text).mapNotNull { match ->
+            val open = match.range.last
+            val count = parameterCount(text.substring(open + 1, argumentsEnd(text, open) - 1))
+            "$path:${lineOf(text, match.range.first)}: ${match.groupValues[1]} má $count parametrů"
+                .takeIf { count > MAX_PARAMETERS }
+        }.toList()
+    }
+
+    /** Počet parametrů v textu mezi závorkami: čárky na nejvyšší úrovni, bez čárky za posledním. */
+    private fun parameterCount(parameters: String): Int {
+        var depth = 0
+        var count = 0
+        var pending = false
+        parameters.forEachIndexed { index, char ->
+            when {
+                char == '(' || char == '[' || char == '{' -> depth++
+                char == ')' || char == ']' || char == '}' -> depth--
+                // Typový argument (`List<`) začíná hned za jménem; `a < b` ve výchozí hodnotě ne.
+                char == '<' && index > 0 && parameters[index - 1].isLetterOrDigit() -> depth++
+                // `->` šipku funkčního typu nezavírá.
+                char == '>' && parameters.getOrNull(index - 1) != '-' && depth > 0 -> depth--
+                char == ',' && depth == 0 -> {
+                    if (pending) count++
+                    pending = false
+                    return@forEachIndexed
+                }
+            }
+            if (!char.isWhitespace()) pending = true
+        }
+        return if (pending) count + 1 else count
+    }
+
+    /** Text bez komentářů a obsahu řetězců; délka i konce řádků zůstávají, aby seděla čísla řádků. */
+    private fun codeOnly(text: String): String {
+        val out = StringBuilder(text.length)
+        var i = 0
+        var blockDepth = 0
+        while (i < text.length) {
+            val char = text[i]
+            val next = text.getOrNull(i + 1)
+            when {
+                // Blokové komentáře se v Kotlinu vnořují.
+                blockDepth > 0 && char == '*' && next == '/' -> { blockDepth--; out.append("  "); i += 2 }
+                char == '/' && next == '*' -> { blockDepth++; out.append("  "); i += 2 }
+                blockDepth > 0 -> { out.append(if (char == '\n') '\n' else ' '); i++ }
+                char == '/' && next == '/' -> {
+                    while (i < text.length && text[i] != '\n') { out.append(' '); i++ }
+                }
+                text.startsWith("\"\"\"", i) -> {
+                    val end = text.indexOf("\"\"\"", i + 3).let { if (it < 0) text.length else it + 3 }
+                    text.substring(i, end).forEach { out.append(if (it == '\n') '\n' else ' ') }
+                    i = end
+                }
+                char == '"' || char == '\'' -> {
+                    var j = i + 1
+                    while (j < text.length && text[j] != char && text[j] != '\n') j += if (text[j] == '\\') 2 else 1
+                    val end = minOf(j + 1, text.length)
+                    repeat(end - i) { out.append(' ') }
+                    i = end
+                }
+                else -> { out.append(char); i++ }
+            }
+        }
+        return out.toString()
+    }
+
+    private companion object {
+        const val MAX_PARAMETERS = 20
     }
 }

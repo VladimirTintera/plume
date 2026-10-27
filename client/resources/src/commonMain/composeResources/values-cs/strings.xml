@@ -858,6 +858,10 @@
     <string name="media_video">Video</string>
     <string name="presence_online">online</string>
     <string name="attachment_prepare_failed">Některý soubor se nepodařilo načíst.</string>
+    <string name="attachment_camera_permission">Focení a natáčení potřebuje přístup k fotoaparátu.</string>
+    <string name="attachment_camera_unavailable">Fotoaparát nejde otevřít.</string>
+    <string name="conversation_attach_take_photo">Vyfotit</string>
+    <string name="conversation_attach_record_video">Natočit video</string>
     <string name="stickers_set_load_failed">Sadu se nepodařilo načíst.</string>
     <string name="stickers_add_set">Přidat sadu</string>
     <string name="stickers_remove_set">Odebrat sadu</string>
@@ -1669,6 +1673,7 @@
     <string name="clipboard_label">Zpráva</string>
     <string name="conversation_fallback_title">Konverzace</string>
     <string name="conversation_scroll_to_end">Na konec konverzace</string>
+    <string name="conversation_scroll_back">Zpět ke zprávě</string>
     <string name="conversation_edited">upraveno</string>
     <string name="conversation_quote_expand">Zobrazit víc</string>
     <string name="article_read_more">Číst celý článek</string>
@@ -4435,6 +4440,8 @@
     <string name="wear_login_phone_declined">Přihlášení bylo v telefonu zamítnuto.</string>
     <string name="wear_login_phone_not_signed_in">Plume na telefonu není přihlášené. Naskenujte raději kód.</string>
     <string name="wear_login_phone_failed">Telefon hodinky nepřihlásil. Zkuste to znovu.</string>
+    <string name="wear_login_signed_in">Přihlášeno</string>
+    <string name="wear_login_declined">Zamítnuto</string>
     <string name="notification_channel_watch_login">Přihlášení hodinek</string>
     <string name="notification_channel_watch_login_description">Potvrzení přihlášení, o které žádá Plume na hodinkách</string>
     <string name="watch_login_title">Přihlásit hodinky?</string>
@@ -4527,7 +4534,7 @@
         <item quantity="other">%1$d nepřečtených chatů</item>
     </plurals>
     <string name="wear_complication_signed_out">Plume: nepřihlášeno</string>
-    <string name="wear_tile_all_chats">Všechny chaty</string>
+    <string name="wear_tile_all_chats">Všechny</string>
     <string name="wear_logout">Odhlásit</string>
     <string name="wear_message_you">Vy</string>
     <string name="wear_bot_button_phone_only">Tohle tlačítko otevři v telefonu</string>

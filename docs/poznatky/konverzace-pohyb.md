@@ -217,6 +217,32 @@ se ukáže i bez nových zpráv, jakmile je uživatel o kus výš.
 - **Zpráva, kterou okno neobsahuje, byla smazaná** — hláška „už není k dispozici" (u citace
   i u výsledku hledání vlastní věta). „Moc hluboko" už nenastane.
 
+### Návrat po skoku na citaci
+
+Tlačítko dolů po skoku na citaci vrátí napřed ke zprávě, ze které se skákalo, a teprve další
+ťuknutí jede na konec (`ConversationState.returnPoints`, `JumpReturns.kt`, testy
+`JumpReturnsTest`). Čtečka ho v tu chvíli ohlásí jako „Zpět ke zprávě".
+
+- **Bod návratu vzniká jen u `MessageAction.JumpTo`** — citace v bublině, oznámení o připnutí,
+  výsledky soutěže: tam je zdrojová zpráva, ke které se dá vracet. Pruh připnutých, hledání
+  a „@" / „❤" body nepřidávají, uživatel tam neodešel „ze zprávy".
+- **Skoky se řetězí** (citace v citované zprávě) a vrací se od posledního; zpráva, ze které se
+  skáče znovu, se v zásobníku přesune nahoru. Strop 20.
+- **Bod zmizí, když je zdrojová zpráva (nebo cokoli novějšího) zase VIDĚT** — uživatel k ní
+  dojel sám, vracet ho by bylo proti směru čtení. „Vidět" = aspoň kus mimo odsazení seznamu,
+  jako u metrik zobrazení: pod vstupním polem je položka pro `LazyColumn` viditelná, ale ne pro
+  člověka. Na konci chatu (`jumpToLatest`) mizí všechny.
+- **Odebírá se jen MIMO skok** (`scrollTarget` i `pendingJump` prázdné). V okamžiku ťuknutí na
+  citaci je zdrojová zpráva vidět vždycky a během jízdy jí seznam projíždí — bod by zmizel dřív,
+  než by se kamkoli jelo. Proto se bod přidává ve STEJNÉ změně stavu jako `scrollTarget`
+  a `consumeScrollTarget` přichází až po doskočení (i po dojetí `animateToAnchor`).
+- **Tlačítko je při bodu návratu vidět i u spodní hrany** — skok na blízkou citaci nemusí
+  odjet o `SCROLL_DOWN_THRESHOLD_ITEMS` a cesta zpátky by jinak nebyla.
+- **Ověřeno na emulátoru** v testovací skupině: citace → skok na GIF, tlačítko „Zpět ke
+  zprávě", ťuknutí vrátí na odpověď se zvýrazněním a tlačítko zmizí; po druhém skoku a ručním
+  odrolování k odpovědi se tlačítko přepne na „Na konec konverzace". Řetěz víc skoků a návrat
+  k nenačtené zprávě (okno v historii) ověřené nejsou, jen testy zásobníku.
+
 ## Nepřečtené zmínky, reakce a hlasy v anketě
 
 Nad tlačítkem dolů jsou tlačítka „@" (nepřečtené zmínky a odpovědi), „❤" (nepřečtené reakce na

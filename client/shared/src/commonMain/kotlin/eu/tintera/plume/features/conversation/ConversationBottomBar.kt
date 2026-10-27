@@ -507,174 +507,211 @@ internal fun ConversationBottomBar(
                 fallbackAlpha = INPUT_SCRIM_ALPHA,
             ),
         ),
-        replyingTo = state.replyingTo,
-        replyQuote = state.replyQuote?.text,
-        focusRequest = state.inputFocusRequest,
-        partnerName = state.info?.title,
-        flight = state.flight,
-        onCancelReply = viewModel::clearReply,
-        // Odeslání je potvrzení akce; dosud ho doprovázel jen let bubliny. Hlásí se
-        // v okamžiku ťuknutí, ne po odpovědi serveru — odezva patří ke gestu.
-        onSend = { text, options ->
-            haptics.confirm()
-            viewModel.send(text, options)
-        },
-        sendMenu = sendMenuOffer(state),
-        onSchedule = { sheets.scheduleTarget = ScheduleTarget.Draft },
-        onPickEffect = {
-            viewModel.loadEffects()
-            sheets.effectPicker = true
-        },
-        onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
-        defaultSilent = state.info?.takeIf { it.isChannel && !state.narrowed }?.defaultSilent,
-        onToggleDefaultSilent = viewModel::toggleDefaultSilent,
-        onDraftChanged = viewModel::onDraftChanged,
-        editing = state.editing,
-        onCancelEdit = viewModel::cancelEdit,
-        onEditLast = viewModel::editLastMessage,
-        editMedia = state.editReplace?.let { replace ->
-            EditMediaControls(
-                replacement = state.editReplacement,
-                onReplace = {
-                    when (replace) {
-                        // Fotka a video jdou z téže galerie v sheetu jako přílohy, kde je.
-                        ReplaceMedia.Visual ->
-                            if (embeddedMediaPicker) sheets.replacementPicker = true else replacementPicker.pickMedia()
-                        ReplaceMedia.File -> replacementPicker.pickDocument()
-                        ReplaceMedia.Gif -> sheets.gifReplacement = true
-                    }
-                },
-                onKeep = viewModel::keepEditMedia,
+        reply = state.replyingTo?.let { target ->
+            ReplyControls(
+                message = target,
+                quote = state.replyQuote?.text,
+                partnerName = state.info?.title,
+                onCancel = viewModel::clearReply,
             )
         },
-        placeholder = state.inputPlaceholder,
-        linkPreview = composerLinkPreview(
-            preview = state.linkPreview,
-            options = state.linkPreviewOptions,
-            editingCaption = state.editing?.editKind() == ComposerEdit.Caption,
-            hasAttachments = state.attachments.isNotEmpty(),
+        flight = state.flight,
+        send = SendControls(
+            // Odeslání je potvrzení akce; dosud ho doprovázel jen let bubliny. Hlásí se
+            // v okamžiku ťuknutí, ne po odpovědi serveru — odezva patří ke gestu.
+            onSend = { text, options ->
+                haptics.confirm()
+                viewModel.send(text, options)
+            },
+            menu = sendMenuOffer(state),
+            onSchedule = { sheets.scheduleTarget = ScheduleTarget.Draft },
+            onPickEffect = {
+                viewModel.loadEffects()
+                sheets.effectPicker = true
+            },
+            onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
+            defaultSilent = state.info?.takeIf { it.isChannel && !state.narrowed }?.defaultSilent,
+            onToggleDefaultSilent = viewModel::toggleDefaultSilent,
         ),
-        linkPreviewLinks = state.linkPreviewLinks,
-        linkPreviewOptions = state.linkPreviewOptions,
-        onLinkPreviewOptions = viewModel::setLinkPreviewOptions,
-        inputFill = state.inputFill,
-        onInputFilled = viewModel::consumeInputFill,
-        onOpenStickers = { sheets.stickerPicker = true },
-        onPickMedia = { if (embeddedMediaPicker) sheets.mediaPicker = true else attachmentPicker.pickMedia() },
-        isRecording = recording.isRecording,
-        recording = { recording.current() },
-        recordMode = recordMode,
-        canSwitchRecordMode = canSwitchRecordMode(state.content.voiceNotes, recording.videoNotesAllowed(state.content)),
-        onSwitchRecordMode = {
-            viewModel.setRecordMode(if (recordMode == RecordMode.VideoNote) RecordMode.Voice else RecordMode.VideoNote)
+        field = ComposerField(
+            draft = composer,
+            onDraftChanged = viewModel::onDraftChanged,
+            fill = state.inputFill,
+            onFilled = viewModel::consumeInputFill,
+            focusRequest = state.inputFocusRequest,
+            placeholder = state.inputPlaceholder,
+            onEditLast = viewModel::editLastMessage,
+        ),
+        editing = state.editing?.let { message ->
+            EditingControls(
+                message = message,
+                onCancel = viewModel::cancelEdit,
+                media = state.editReplace?.let { replace ->
+                    EditMediaControls(
+                        replacement = state.editReplacement,
+                        onReplace = {
+                            when (replace) {
+                                // Fotka a video jdou z téže galerie v sheetu jako přílohy, kde je.
+                                ReplaceMedia.Visual ->
+                                    if (embeddedMediaPicker) sheets.replacementPicker = true else replacementPicker.pickMedia()
+                                ReplaceMedia.File -> replacementPicker.pickDocument()
+                                ReplaceMedia.Gif -> sheets.gifReplacement = true
+                            }
+                        },
+                        onKeep = viewModel::keepEditMedia,
+                    )
+                },
+            )
         },
-        // Zastavené kolečko je pořád kolečko: odeslání se tak jmenuje i v náhledu.
-        recordingKind = if (recording.isVideoRecording || recording.videoNotePreview != null) RecordMode.VideoNote else RecordMode.Voice,
-        recordGesture = recording.gesture,
-        onStartRecording = { held ->
-            val video = recordMode == RecordMode.VideoNote
-            // Odpověď bez dialogu přijde hned, uvnitř `request`; z dialogu až potom.
-            var immediate = true
-            (if (video) recording.videoNotePermission else recording.recordPermission).request { granted ->
-                when {
-                    !granted -> {
-                        haptics.reject()
-                        viewModel.reportError(
-                            UiText(if (video) Res.string.conversation_camera_permission else Res.string.conversation_microphone_permission),
-                        )
-                    }
-                    // Oprávnění přišlo až z dialogu: prst mezitím tlačítko pustil, a nahrávat
-                    // bez něj by bylo nahrávání, o kterém uživatel neví. Podrží znovu.
-                    held && !immediate -> Unit
-                    else -> {
-                        // Nahrávání běží, dokud ho uživatel neukončí — přepnutý stav, ne
-                        // hotová akce. Odepřené oprávnění je naopak odmítnutí.
-                        haptics.toggle(on = true)
-                        if (video) viewModel.startVideoRecording() else viewModel.startRecording()
+        linkPreview = LinkPreviewControls(
+            preview = composerLinkPreview(
+                preview = state.linkPreview,
+                options = state.linkPreviewOptions,
+                editingCaption = state.editing?.editKind() == ComposerEdit.Caption,
+                hasAttachments = state.attachments.isNotEmpty(),
+            ),
+            links = state.linkPreviewLinks,
+            options = state.linkPreviewOptions,
+            onOptions = viewModel::setLinkPreviewOptions,
+        ),
+        expression = ExpressionButton(mode = expressionMode, onOpen = { sheets.stickerPicker = true }),
+        recording = RecordingControls(
+            isRecording = recording.isRecording,
+            current = { recording.current() },
+            mode = recordMode,
+            canSwitchMode = canSwitchRecordMode(state.content.voiceNotes, recording.videoNotesAllowed(state.content)),
+            onSwitchMode = {
+                viewModel.setRecordMode(if (recordMode == RecordMode.VideoNote) RecordMode.Voice else RecordMode.VideoNote)
+            },
+            // Zastavené kolečko je pořád kolečko: odeslání se tak jmenuje i v náhledu.
+            kind = if (recording.isVideoRecording || recording.videoNotePreview != null) RecordMode.VideoNote else RecordMode.Voice,
+            gesture = recording.gesture,
+            onStart = { held ->
+                val video = recordMode == RecordMode.VideoNote
+                // Odpověď bez dialogu přijde hned, uvnitř `request`; z dialogu až potom.
+                var immediate = true
+                (if (video) recording.videoNotePermission else recording.recordPermission).request { granted ->
+                    when {
+                        !granted -> {
+                            haptics.reject()
+                            viewModel.reportError(
+                                UiText(if (video) Res.string.conversation_camera_permission else Res.string.conversation_microphone_permission),
+                            )
+                        }
+                        // Oprávnění přišlo až z dialogu: prst mezitím tlačítko pustil, a nahrávat
+                        // bez něj by bylo nahrávání, o kterém uživatel neví. Podrží znovu.
+                        held && !immediate -> Unit
+                        else -> {
+                            // Nahrávání běží, dokud ho uživatel neukončí — přepnutý stav, ne
+                            // hotová akce. Odepřené oprávnění je naopak odmítnutí.
+                            haptics.toggle(on = true)
+                            if (video) viewModel.startVideoRecording() else viewModel.startRecording()
+                        }
                     }
                 }
-            }
-            immediate = false
+                immediate = false
+            },
+            onCancel = {
+                haptics.reject()
+                viewModel.cancelRecording()
+            },
+            onStop = {
+                // Mikrofon se zavírá — přepnutý stav, jako při spuštění.
+                haptics.toggle(on = false)
+                viewModel.stopRecordingForPreview()
+            },
+            onSend = { options ->
+                haptics.confirm()
+                viewModel.sendRecording(options)
+            },
+            // Nabídka nad hlasovkou nahrávání pozastaví, zavření bez volby ho obnoví.
+            onMenu = { open -> if (open) viewModel.pauseRecording() else viewModel.resumeRecording() },
+            onSchedule = { sheets.scheduleTarget = ScheduleTarget.Voice },
+        ),
+        voicePreview = recording.voicePreview?.let { preview ->
+            VoicePreviewControls(
+                preview = preview,
+                playback = { voicePlayback.value?.takeIf { it.key.isVoicePreview } },
+                onToggle = viewModel::toggleVoicePreview,
+                onSeek = viewModel::seekVoicePreview,
+                onDiscard = {
+                    haptics.reject()
+                    viewModel.discardVoicePreview()
+                },
+                onContinue = {
+                    haptics.toggle(on = true)
+                    viewModel.continueVoicePreview()
+                },
+            )
         },
-        onCancelRecording = {
-            haptics.reject()
-            viewModel.cancelRecording()
+        videoNotePreview = recording.videoNotePreview?.let { preview ->
+            VideoNotePreviewControls(
+                preview = preview,
+                playback = videoNotePlayback,
+                onDiscard = {
+                    haptics.reject()
+                    viewModel.discardVideoNotePreview()
+                },
+                onContinue = {
+                    haptics.toggle(on = true)
+                    viewModel.continueVideoNotePreview()
+                },
+            )
         },
-        voicePreview = recording.voicePreview,
-        voicePreviewPlayback = { voicePlayback.value?.takeIf { it.key.isVoicePreview } },
-        onStopRecording = {
-            // Mikrofon se zavírá — přepnutý stav, jako při spuštění.
-            haptics.toggle(on = false)
-            viewModel.stopRecordingForPreview()
-        },
-        onToggleVoicePreview = viewModel::toggleVoicePreview,
-        onSeekVoicePreview = viewModel::seekVoicePreview,
-        onContinueVoicePreview = {
-            haptics.toggle(on = true)
-            viewModel.continueVoicePreview()
-        },
-        onDiscardVoicePreview = {
-            haptics.reject()
-            viewModel.discardVoicePreview()
-        },
-        videoNotePreview = recording.videoNotePreview,
-        videoNotePlayback = videoNotePlayback,
-        onDiscardVideoNotePreview = {
-            haptics.reject()
-            viewModel.discardVideoNotePreview()
-        },
-        onContinueVideoNotePreview = {
-            haptics.toggle(on = true)
-            viewModel.continueVideoNotePreview()
-        },
-        onSendRecording = { options ->
-            haptics.confirm()
-            viewModel.sendRecording(options)
-        },
-        // Nabídka nad hlasovkou nahrávání pozastaví, zavření bez volby ho obnoví.
-        onVoiceMenu = { open -> if (open) viewModel.pauseRecording() else viewModel.resumeRecording() },
-        onScheduleRecording = { sheets.scheduleTarget = ScheduleTarget.Voice },
-        onPickDocument = attachmentPicker::pickDocument,
-        // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
-        onCreatePoll = {
-            navigation.onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
-        }.takeIf { state.content.polls },
-        // Seznam úkolů jde tam, kde to dovolí právo i druh chatu (`ContentAccess.checklists`), a jen s Premium.
-        onCreateChecklist = {
-            navigation.onCreateChecklist(ChecklistComposerRequest(state.replyingTo?.id, state.replyQuote))
-        }.takeIf { state.content.checklists && isPremium },
-        // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
-        onSendLocation = { sheets.locationPicker = true },
-        // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
-        onShareContact = viewModel::openContactPicker,
-        // Znovu poslaný soubor je soubor — jen kde chat soubory dovolí, jako „Soubor" v nabídce.
-        onPickRecentFiles = viewModel::openRecentFiles.takeIf { state.content.documents },
-        onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
-        menuApp = state.botMenuApp,
-        onOpenMenuApp = viewModel::openBotMenuApp,
-        attachments = state.attachments,
-        captionSuggestion = state.captionSuggestion,
-        onSuggestCaption = viewModel::suggestCaption,
-        // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
-        attachmentsPreparing = mediaSelection.preparing || state.markupBusy,
-        onRemoveAttachment = viewModel::removeAttachment,
-        onOpenAttachment = { index -> sheets.previewAttachmentIndex = index },
-        onSetAttachmentMode = viewModel::setAttachmentMode,
+        attach = AttachActions(
+            onPickMedia = { if (embeddedMediaPicker) sheets.mediaPicker = true else attachmentPicker.pickMedia() },
+            onPickDocument = attachmentPicker::pickDocument,
+            // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
+            onCreatePoll = {
+                navigation.onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
+            }.takeIf { state.content.polls },
+            // Seznam úkolů jde tam, kde to dovolí právo i druh chatu (`ContentAccess.checklists`), a jen s Premium.
+            onCreateChecklist = {
+                navigation.onCreateChecklist(ChecklistComposerRequest(state.replyingTo?.id, state.replyQuote))
+            }.takeIf { state.content.checklists && isPremium },
+            // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
+            onSendLocation = { sheets.locationPicker = true },
+            // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
+            onShareContact = viewModel::openContactPicker,
+            // Znovu poslaný soubor je soubor — jen kde chat soubory dovolí, jako „Soubor" v nabídce.
+            onPickRecentFiles = viewModel::openRecentFiles.takeIf { state.content.documents },
+            // Fotka a video z fotoaparátu jdou stejnou cestou jako z galerie: nad pole, k popisku.
+            onCapture = if (attachmentPicker.canCapture) {
+                { video -> if (video) attachmentPicker.captureVideo() else attachmentPicker.capturePhoto() }
+            } else {
+                null
+            },
+        ),
+        bot = BotControls(
+            menuApp = state.botMenuApp,
+            onOpenMenuApp = viewModel::openBotMenuApp,
+            onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
+        ),
+        attachments = ComposerAttachments(
+            items = state.attachments,
+            // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
+            preparing = mediaSelection.preparing || state.markupBusy,
+            onRemove = viewModel::removeAttachment,
+            onOpen = { index -> sheets.previewAttachmentIndex = index },
+            onSetMode = viewModel::setAttachmentMode,
+            selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
+            previewIndex = sheets.previewAttachmentIndex,
+            captionSuggestion = state.captionSuggestion,
+            onSuggestCaption = viewModel::suggestCaption,
+        ),
         content = state.content,
-        selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
-        previewAttachmentIndex = sheets.previewAttachmentIndex,
-        expressionMode = expressionMode,
-        composer = composer,
-        onKeyboardContent = { received ->
-            when (received) {
-                // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
-                is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
-                is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
-                is KeyboardContent.File -> viewModel.addAttachments(listOf(received.document))
-                is KeyboardContent.Attachments -> viewModel.addAttachments(received.attachments)
-            }
-        },
-        onKeyboardContentFailed = viewModel::reportError,
+        keyboardContent = KeyboardContentHandlers(
+            onContent = { received ->
+                when (received) {
+                    // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
+                    is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
+                    is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
+                    is KeyboardContent.File -> viewModel.addAttachments(listOf(received.document))
+                    is KeyboardContent.Attachments -> viewModel.addAttachments(received.attachments)
+                }
+            },
+            onFailed = viewModel::reportError,
+        ),
     )
     }
     }

@@ -265,29 +265,39 @@ fun ConversationScreen(
         model.failed && current.isNullOrEmpty() -> MessageScreen(stringResource(Res.string.conversation_history_failed), Res.drawable.cloud_off_24dp, error = true)
         current == null -> LoadingScreen(stringResource(Res.string.connection_connecting))
         else -> MessageList(
-            title = title,
-            avatarFileId = appearance?.avatarFileId,
-            savedMessages = chatId == savedMessagesId,
+            header = ChatHeader(
+                title = title,
+                avatarFileId = appearance?.avatarFileId,
+                savedMessages = chatId == savedMessagesId,
+            ),
             messages = current,
             quoted = model.quoted,
-            transcripts = model.transcripts,
-            transcribeFailures = model.transcribeFailures,
-            onTranscribe = model::transcribe,
             lastReadOutboxId = model.lastReadOutboxId,
-            loadingOlder = model.loadingOlder,
-            playback = playback,
-            onReply = onReply,
+            history = HistoryScroll(
+                loadingOlder = model.loadingOlder,
+                onNearTop = model::loadOlder,
+                scrolledToId = model.scrolledToId,
+                onScrolledTo = { model.scrolledToId = it },
+            ),
+            voice = VoiceNotes(
+                playback = playback,
+                transcripts = model.transcripts,
+                transcribeFailures = model.transcribeFailures,
+                onPlay = onPlay,
+                onTranscribe = model::transcribe,
+            ),
+            replies = ReplyActions(
+                onReply = onReply,
+                onRecord = onRecord,
+                onSticker = onSticker,
+                onLocation = onLocation,
+            ),
+            bot = BotKeyboardState(
+                pressing = pressing,
+                note = botNote,
+                onPress = onBotButton,
+            ),
             onReact = onReact,
-            onRecord = onRecord,
-            onSticker = onSticker,
-            onLocation = onLocation,
-            onPlay = onPlay,
-            onNearTop = model::loadOlder,
-            scrolledToId = model.scrolledToId,
-            onScrolledTo = { model.scrolledToId = it },
-            pressing = pressing,
-            botNote = botNote,
-            onBotButton = onBotButton,
             onOpenLink = openLink,
             onVote = { messageId, answers ->
                 scope.launch {
@@ -326,34 +336,78 @@ fun ConversationScreen(
     )
 }
 
+/** Hlavička konverzace: název a fotka chatu, jako v seznamu chatů. */
+private data class ChatHeader(
+    val title: String,
+    val avatarFileId: Int?,
+    /** Uložené zprávy — místo fotky jejich ikona. */
+    val savedMessages: Boolean,
+)
+
+/** Pohyb v historii: dočítání starších zpráv a na kterou zprávu už seznam sjel. */
+private data class HistoryScroll(
+    /** Dočítání starší historie právě běží. */
+    val loadingOlder: Boolean,
+    /** Seznam je u začátku — dočíst starší zprávy. */
+    val onNearTop: () -> Unit,
+    /** Nejnovější zpráva, na kterou už seznam sjel; `null` = ještě nikam (otevření konverzace). */
+    val scrolledToId: Long?,
+    val onScrolledTo: (Long?) -> Unit,
+)
+
+/** Hlasovky v konverzaci: přehrávač, přepisy z hodinek a co s nimi jde udělat. */
+private data class VoiceNotes(
+    val playback: VoicePlayback,
+    /** Přepisy z hodinek (telefon, hodinky) podle id zprávy; přebíjí ten ze serveru ve zprávě. */
+    val transcripts: Map<Long, SpeechTranscript>,
+    /** Proč nevyšel nepovedený přepis v [transcripts]. */
+    val transcribeFailures: Map<Long, TranscribeFailure>,
+    val onPlay: (ChatMessage) -> Unit,
+    val onTranscribe: (messageId: Long) -> Unit,
+)
+
+/** Hlasovka jedné zprávy v bublině: hraje-li, její přepis a co s ní jde udělat. */
+private data class VoiceNoteState(
+    val playing: Boolean,
+    val playback: VoicePlayback,
+    val transcript: SpeechTranscript?,
+    val transcribeFailure: TranscribeFailure?,
+    val onPlay: () -> Unit,
+    val onTranscribe: () -> Unit,
+)
+
+/** Čím na konverzaci odpovědět: text (tlačítko dole), hlasovka, samolepka a poloha. */
+private data class ReplyActions(
+    val onReply: () -> Unit,
+    val onRecord: () -> Unit,
+    val onSticker: () -> Unit,
+    val onLocation: () -> Unit,
+)
+
+/** Tlačítka bota pod zprávami: které čeká na odpověď, co bot odpověděl a ťuknutí na ně. */
+private data class BotKeyboardState(
+    /** Tlačítko, u kterého se čeká na odpověď (zpráva, řádek, sloupec) — naráz jen jedno. */
+    val pressing: Triple<Long, Int, Int>?,
+    /** Odpověď bota jako poznámka pod konverzací. */
+    val note: String?,
+    val onPress: (ChatMessage, row: Int, column: Int, BotButton) -> Unit,
+)
+
 @Composable
 private fun MessageList(
-    title: String,
-    avatarFileId: Int?,
-    savedMessages: Boolean,
+    header: ChatHeader,
     messages: List<ChatMessage>,
     quoted: Map<Long, ChatMessage?>,
-    transcripts: Map<Long, SpeechTranscript>,
-    transcribeFailures: Map<Long, TranscribeFailure>,
-    onTranscribe: (Long) -> Unit,
     lastReadOutboxId: Long,
-    loadingOlder: Boolean,
-    playback: VoicePlayback,
-    onReply: () -> Unit,
+    history: HistoryScroll,
+    voice: VoiceNotes,
+    replies: ReplyActions,
+    bot: BotKeyboardState,
     onReact: (Long) -> Unit,
-    onRecord: () -> Unit,
-    onSticker: () -> Unit,
-    onLocation: () -> Unit,
-    onPlay: (ChatMessage) -> Unit,
-    onNearTop: () -> Unit,
-    pressing: Triple<Long, Int, Int>?,
-    botNote: String?,
-    onBotButton: (ChatMessage, Int, Int, BotButton) -> Unit,
     onOpenLink: (String) -> Unit,
     onVote: (messageId: Long, answers: List<Int>) -> Unit,
-    scrolledToId: Long?,
-    onScrolledTo: (Long?) -> Unit,
 ) {
+    val title = header.title
     val state = rememberTransformingLazyColumnState()
     // Zprávy se u okraje displeje zmenšují jako karty v seznamu chatů (M3 Expressive).
     val spec = rememberTransformationSpec()
@@ -365,22 +419,22 @@ private fun MessageList(
     val entries = remember(messages) { conversationEntries(messages) }
     val lastId = messages.lastOrNull()?.id
     LaunchedEffect(lastId) {
-        if (lastId != scrolledToId) {
+        if (lastId != history.scrolledToId) {
             // Při otevření skokem; s novou zprávou v otevřené konverzaci plynule — `scrollToItem`
             // ruší animace položek, takže by nová zpráva naskočila bez prolnutí (ItemMotion).
-            if (scrolledToId == null) state.scrollToItem(entries.size + 2) else state.animateScrollToItem(entries.size + 2)
-            onScrolledTo(lastId)
+            if (history.scrolledToId == null) state.scrollToItem(entries.size + 2) else state.animateScrollToItem(entries.size + 2)
+            history.onScrolledTo(lastId)
         }
     }
     // U začátku seznamu dočíst starší zprávy. Zprávy mají klíče, takže vložené nahoře seznam
     // neposunou — uživatel zůstane na zprávě, kterou četl.
     LaunchedEffect(state) {
         snapshotFlow { state.layoutInfo.visibleItems.firstOrNull()?.index }
-            .collect { first -> if (first != null && first <= NEAR_TOP_ITEMS) onNearTop() }
+            .collect { first -> if (first != null && first <= NEAR_TOP_ITEMS) history.onNearTop() }
     }
     ScreenScaffold(
         scrollState = state,
-        edgeButton = { EdgeButton(onClick = onReply) { Text(stringResource(Res.string.wear_reply)) } },
+        edgeButton = { EdgeButton(onClick = replies.onReply) { Text(stringResource(Res.string.wear_reply)) } },
     ) { contentPadding ->
         // Mezi bublinami jednoho bloku jen 2 dp; začátek bloku a předěl si přidají vlastní mezeru
         // (GROUP_GAP), takže mezi bloky zůstane výchozí odstup seznamu.
@@ -395,12 +449,12 @@ private fun MessageList(
                     transformation = SurfaceTransformation(spec),
                 ) {
                     // Fotka chatu vedle názvu, jako v seznamu chatů: je hned jasné, kde jsi.
-                    ChatAvatar(fileId = avatarFileId, title = title, size = HEADER_AVATAR, savedMessages = savedMessages)
+                    ChatAvatar(fileId = header.avatarFileId, title = title, size = HEADER_AVATAR, savedMessages = header.savedMessages)
                     Spacer(Modifier.width(6.dp))
                     Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            if (loadingOlder) {
+            if (history.loadingOlder) {
                 item(key = "loading") {
                     Box(Modifier.fillMaxWidth().transformedItem(this, spec), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -424,16 +478,18 @@ private fun MessageList(
                     delivery = message.delivery(lastReadOutboxId),
                     chatTitle = title,
                     quote = replyTo?.let { id -> messages.firstOrNull { it.id == id } ?: quoted[id] },
-                    playing = message.id == playback.playingId,
-                    playback = playback,
-                    // Přepis z hodinek (telefon, hodinky) přebíjí ten ze serveru ve zprávě.
-                    transcript = transcripts[message.id] ?: (message.media as? MessageMedia.VoiceNote)?.transcript,
-                    transcribeFailure = transcribeFailures[message.id],
-                    onTranscribe = { onTranscribe(message.id) },
-                    onPlay = { onPlay(message) },
+                    voice = VoiceNoteState(
+                        playing = message.id == voice.playback.playingId,
+                        playback = voice.playback,
+                        // Přepis z hodinek (telefon, hodinky) přebíjí ten ze serveru ve zprávě.
+                        transcript = voice.transcripts[message.id] ?: (message.media as? MessageMedia.VoiceNote)?.transcript,
+                        transcribeFailure = voice.transcribeFailures[message.id],
+                        onPlay = { voice.onPlay(message) },
+                        onTranscribe = { voice.onTranscribe(message.id) },
+                    ),
                     onVote = { answers -> onVote(message.id, answers) },
-                    pressing = pressing?.takeIf { it.first == message.id }?.let { it.second to it.third },
-                    onBotButton = { row, column, button -> onBotButton(message, row, column, button) },
+                    pressing = bot.pressing?.takeIf { it.first == message.id }?.let { it.second to it.third },
+                    onBotButton = { row, column, button -> bot.onPress(message, row, column, button) },
                     onOpenLink = onOpenLink,
                     // Reagovat jde jen na zprávu, kterou server zná — dočasná ještě skutečné id nemá.
                     onClick = { onReact(message.id) }
@@ -444,16 +500,16 @@ private fun MessageList(
                         .then(if (joinsPrevious) Modifier else Modifier.padding(top = GROUP_GAP)),
                 )
             }
-            botNote?.let { item { CenteredNote(it, Modifier.transformedItem(this, spec)) } }
+            bot.note?.let { item { CenteredNote(it, Modifier.transformedItem(this, spec)) } }
             // Hlasovka, samolepka a poloha jako řada ikon nad Odpovědět (IconActionRow): tři
             // tlačítka přes celou šířku zabrala spodek displeje a nejnovější zpráva byla vidět
             // jen kouskem.
             item {
                 IconActionRow(
                     listOf(
-                        IconAction(Res.drawable.mic_24dp, Res.string.wear_voice_record, onRecord),
-                        IconAction(Res.drawable.sticker_24dp, Res.string.wear_sticker_button, onSticker),
-                        IconAction(Res.drawable.location_on_24dp, Res.string.wear_location_button, onLocation),
+                        IconAction(Res.drawable.mic_24dp, Res.string.wear_voice_record, replies.onRecord),
+                        IconAction(Res.drawable.sticker_24dp, Res.string.wear_sticker_button, replies.onSticker),
+                        IconAction(Res.drawable.location_on_24dp, Res.string.wear_location_button, replies.onLocation),
                     ),
                     Modifier.transformedItem(this, spec).padding(top = GROUP_GAP),
                 )
@@ -504,12 +560,7 @@ private fun MessageBubble(
     delivery: Delivery?,
     chatTitle: String,
     quote: ChatMessage?,
-    playing: Boolean,
-    playback: VoicePlayback,
-    transcript: SpeechTranscript?,
-    transcribeFailure: TranscribeFailure?,
-    onTranscribe: () -> Unit,
-    onPlay: () -> Unit,
+    voice: VoiceNoteState,
     onVote: (List<Int>) -> Unit,
     pressing: Pair<Int, Int>?,
     onBotButton: (Int, Int, BotButton) -> Unit,
@@ -621,24 +672,24 @@ private fun MessageBubble(
             if (poll != null) {
                 MessagePoll(poll, outgoing, onVote)
             }
-            val voice = message.media as? MessageMedia.VoiceNote
-            if (voice != null) {
+            val voiceNote = message.media as? MessageMedia.VoiceNote
+            if (voiceNote != null) {
                 VoiceNoteRow(
-                    voice,
+                    voiceNote,
                     outgoing = outgoing,
-                    playing = playing,
-                    onPlay = onPlay,
-                    progress = playback::progress,
-                    elapsedSeconds = playback::elapsedSeconds,
-                    transcript = transcript,
-                    failure = transcribeFailure,
-                    onTranscribe = onTranscribe,
+                    playing = voice.playing,
+                    onPlay = voice.onPlay,
+                    progress = voice.playback::progress,
+                    elapsedSeconds = voice.playback::elapsedSeconds,
+                    transcript = voice.transcript,
+                    failure = voice.transcribeFailure,
+                    onTranscribe = voice.onTranscribe,
                 )
             }
             // U hlasovky a ukázané fotky je popis („Hlasová zpráva", „Fotka") zbytečný — kreslí se
             // jen případný popisek.
             // Anketa se kreslí celá — `text` u ní nese jen „Anketa: otázka".
-            if (poll == null && ((voice == null && photo == null && video == null && document == null && location == null && contact == null && call == null) || message.text.isNotEmpty())) {
+            if (poll == null && ((voiceNote == null && photo == null && video == null && document == null && location == null && contact == null && call == null) || message.text.isNotEmpty())) {
                 val textColor = if (outgoing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                 // Odkaz na tónové bublině: akcent jen v příchozí, v odchozí barva popředí bubliny —
                 // `primary` na `primaryContainer` kontrast nezaručuje (CLAUDE.md). Odlišení nese

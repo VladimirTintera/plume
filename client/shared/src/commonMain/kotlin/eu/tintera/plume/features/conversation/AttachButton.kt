@@ -35,13 +35,17 @@ import eu.tintera.plume.resources.conversation_attach_location
 import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.ballot_24dp
 import eu.tintera.plume.resources.conversation_attach_media
+import eu.tintera.plume.resources.conversation_attach_record_video
+import eu.tintera.plume.resources.conversation_attach_take_photo
+import eu.tintera.plume.resources.photo_camera_24dp
+import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.perm_media_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Tlačítko příloh s nabídkou Fotka / Soubor / Anketa / Poloha.
+ * Tlačítko příloh s nabídkou Fotka / Vyfotit / Natočit video / Soubor / Anketa / Poloha.
  *
  * Dvě položky, ne rovnou výběr: Photo Picker ukazuje jen fotky a výběr dokumentu nemá náhledy, takže
  * jeden systémový výběr pro obojí by byl horší v obou případech. Klávesnice se zavře, než se
@@ -62,21 +66,16 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun AttachButton(
-    onPickMedia: () -> Unit,
-    onPickDocument: () -> Unit,
+    actions: AttachActions,
     /** Skupina smí zakázat jen některé druhy; zakázaná položka se nenabízí. */
     canPickMedia: Boolean = true,
     canPickDocument: Boolean = true,
-    /** Založit anketu; `null`, kde anketa nejde (soukromý chat s člověkem, zakázané právo). */
-    onCreatePoll: (() -> Unit)? = null,
-    /** Založit seznam úkolů; `null`, kde nejde (kanál, tajný chat, účet bez Premium). */
-    onCreateChecklist: (() -> Unit)? = null,
-    /** Poslat polohu; `null`, kde nejde. */
-    onSendLocation: (() -> Unit)? = null,
-    /** Poslat kontakt; `null`, kde nejde. */
-    onShareContact: (() -> Unit)? = null,
-    /** Znovu poslat nedávno odeslaný soubor; `null`, kde soubory nejdou. */
-    onPickRecentFiles: (() -> Unit)? = null,
+    /**
+     * Fotoaparát ([AttachActions.onCapture]) se nabídne, jen když chat přijme ten druh
+     * ([canPickMedia] nestačí, skupina smí povolit fotky a zakázat videa).
+     */
+    canTakePhoto: Boolean = canPickMedia,
+    canRecordVideo: Boolean = canPickMedia,
     contentColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -101,23 +100,34 @@ internal fun AttachButton(
             popupPositionProvider = remember { MenuAbovePositionProvider(alignEnd = false) },
             groups = listOf(
                 listOfNotNull(
-                    MenuAction(stringResource(Res.string.conversation_attach_media), Res.drawable.perm_media_24dp) { pick(onPickMedia) }
+                    MenuAction(stringResource(Res.string.conversation_attach_media), Res.drawable.perm_media_24dp) { pick(actions.onPickMedia) }
                         .takeIf { canPickMedia },
-                    MenuAction(stringResource(Res.string.conversation_attach_file), Res.drawable.description_24dp) { pick(onPickDocument) }
+                    // Hned za galerií: je to tentýž druh přílohy, jen z jiného zdroje.
+                    actions.onCapture?.let { capture ->
+                        MenuAction(stringResource(Res.string.conversation_attach_take_photo), Res.drawable.photo_camera_24dp) {
+                            pick { capture(false) }
+                        }.takeIf { canTakePhoto }
+                    },
+                    actions.onCapture?.let { capture ->
+                        MenuAction(stringResource(Res.string.conversation_attach_record_video), Res.drawable.videocam_24dp) {
+                            pick { capture(true) }
+                        }.takeIf { canRecordVideo }
+                    },
+                    MenuAction(stringResource(Res.string.conversation_attach_file), Res.drawable.description_24dp) { pick(actions.onPickDocument) }
                         .takeIf { canPickDocument },
-                    onPickRecentFiles?.let { open ->
+                    actions.onPickRecentFiles?.let { open ->
                         MenuAction(stringResource(Res.string.recent_files_title), Res.drawable.history_24dp) { pick(open) }
                     },
-                    onCreatePoll?.let { create ->
+                    actions.onCreatePoll?.let { create ->
                         MenuAction(stringResource(Res.string.conversation_attach_poll), Res.drawable.ballot_24dp) { pick(create) }
                     },
-                    onCreateChecklist?.let { create ->
+                    actions.onCreateChecklist?.let { create ->
                         MenuAction(stringResource(Res.string.conversation_attach_checklist), Res.drawable.checklist_24dp) { pick(create) }
                     },
-                    onSendLocation?.let { send ->
+                    actions.onSendLocation?.let { send ->
                         MenuAction(stringResource(Res.string.conversation_attach_location), Res.drawable.location_on_24dp) { pick(send) }
                     },
-                    onShareContact?.let { share ->
+                    actions.onShareContact?.let { share ->
                         MenuAction(stringResource(Res.string.conversation_attach_contact), Res.drawable.contact_page_24dp) { pick(share) }
                     },
                 ),

@@ -842,6 +842,10 @@
     <string name="media_video">Video</string>
     <string name="presence_online">online</string>
     <string name="attachment_prepare_failed">Some of the files couldn't be loaded.</string>
+    <string name="attachment_camera_permission">Taking photos and videos needs access to the camera.</string>
+    <string name="attachment_camera_unavailable">The camera can't be opened.</string>
+    <string name="conversation_attach_take_photo">Take photo</string>
+    <string name="conversation_attach_record_video">Record video</string>
     <string name="stickers_set_load_failed">Couldn't load the set.</string>
     <string name="stickers_add_set">Add set</string>
     <string name="stickers_remove_set">Remove set</string>
@@ -1624,6 +1628,7 @@
     <string name="clipboard_label">Message</string>
     <string name="conversation_fallback_title">Conversation</string>
     <string name="conversation_scroll_to_end">To the end of the conversation</string>
+    <string name="conversation_scroll_back">Back to the message</string>
     <string name="conversation_edited">edited</string>
     <string name="conversation_quote_expand">Show more</string>
     <string name="article_read_more">Read the whole article</string>
@@ -4290,6 +4295,8 @@
     <string name="wear_login_phone_declined">The sign-in was declined on your phone.</string>
     <string name="wear_login_phone_not_signed_in">Plume on your phone isn't signed in. Scan the code instead.</string>
     <string name="wear_login_phone_failed">Your phone couldn't sign in the watch. Try again.</string>
+    <string name="wear_login_signed_in">Signed in</string>
+    <string name="wear_login_declined">Declined</string>
     <string name="notification_channel_watch_login">Watch sign-in</string>
     <string name="notification_channel_watch_login_description">Confirming a sign-in requested by Plume on your watch</string>
     <string name="watch_login_title">Sign in on your watch?</string>

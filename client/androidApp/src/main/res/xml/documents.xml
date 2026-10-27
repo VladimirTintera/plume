@@ -17,4 +17,9 @@
     <cache-path
         name="clipboard"
         path="clipboard/" />
+    <!-- Fotky a videa z fotoaparátu (Vyfotit / Natočit video ve sponce). Zapisuje do nich jiná
+         aplikace, proto přes provider; po přípravě přílohy se mažou (AttachmentPicker). -->
+    <cache-path
+        name="camera"
+        path="camera/" />
 </paths>

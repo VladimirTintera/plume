@@ -112,7 +112,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.HazeInput
-import dev.chrisbanes.haze.blur.HazeBlurStyle
 import eu.tintera.plume.core.files.autosavesToGallery
 import eu.tintera.plume.core.files.fileShareSupported
 import eu.tintera.plume.core.files.rememberSaveAs
@@ -133,7 +132,6 @@ import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.zoomLoadsFullResolution
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
 import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
-import eu.tintera.plume.features.conversation.items.spoilerBlur
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.photoKey
@@ -292,47 +290,55 @@ fun MediaViewerScreen(
                 state = state,
                 dismissDrag = dismissDrag,
                 onPageChanged = viewModel::onPageChanged,
-                onReact = viewModel::toggleReaction,
-                onDelete = viewModel::requestDelete,
-                onForward = onForward,
-                onReply = onReply?.let { reply ->
-                    { messageId: Long ->
-                        viewModel.onDismiss()
-                        reply(messageId)
-                    }
-                },
-                onSave = { messageId ->
-                    savePermission.request { granted ->
-                        if (granted) viewModel.save(messageId) else viewModel.onSaveDenied()
-                    }
-                },
-                onShare = viewModel::share,
-                onCopy = viewModel::copy,
-                canCopy = viewModel::canCopy,
-                // Výběr umístění je aktivita systému, takže ho spouští obrazovka; ViewModel
-                // jen dodá stažený soubor. Na iOS „Uložit jako…" není — umí to sdílení.
-                onSaveAs = saveAs?.let { launcher ->
-                    { messageId: Long ->
-                        scope.launch {
-                            val file = viewModel.prepareSaveAs(messageId) ?: return@launch
-                            launcher.launch(file.path, file.fileName) { saved -> viewModel.onSavedAs(messageId, saved) }
+                actions = ViewerItemActions(
+                    onReact = viewModel::toggleReaction,
+                    onReply = onReply?.let { reply ->
+                        { messageId: Long ->
+                            viewModel.onDismiss()
+                            reply(messageId)
                         }
-                    }
-                },
-                onSetMainProfilePhoto = viewModel::setMainProfilePhoto,
-                onDeleteProfilePhoto = viewModel::requestDeleteProfilePhoto,
-                onReportProfilePhoto = viewModel::requestReportProfilePhoto,
-                onAttachedStickers = viewModel::showAttachedStickers,
-                hasAttachedStickers = viewModel::hasAttachedStickers,
-                onRecognizeText = if (viewModel.canRecognizeText) viewModel::recognizeText else null,
-                onMakeSticker = if (viewModel.canMakeSticker && onMakeSticker != null) viewModel::makeSticker else null,
-                onToggleTextLine = viewModel::toggleTextLine,
-                onClearTextSelection = viewModel::clearTextSelection,
-                onCopyText = viewModel::copyRecognizedText,
-                onCloseText = viewModel::closeRecognizedText,
-                onDescribePhoto = if (state.canDescribePhoto) viewModel::describePhoto else null,
-                onCopyDescription = viewModel::copyPhotoDescription,
-                onCloseDescription = viewModel::closePhotoDescription,
+                    },
+                    onForward = onForward,
+                    onDelete = viewModel::requestDelete,
+                    onSave = { messageId ->
+                        savePermission.request { granted ->
+                            if (granted) viewModel.save(messageId) else viewModel.onSaveDenied()
+                        }
+                    },
+                    // Výběr umístění je aktivita systému, takže ho spouští obrazovka; ViewModel
+                    // jen dodá stažený soubor. Na iOS „Uložit jako…" není — umí to sdílení.
+                    onSaveAs = saveAs?.let { launcher ->
+                        { messageId: Long ->
+                            scope.launch {
+                                val file = viewModel.prepareSaveAs(messageId) ?: return@launch
+                                launcher.launch(file.path, file.fileName) { saved -> viewModel.onSavedAs(messageId, saved) }
+                            }
+                        }
+                    },
+                    onShare = viewModel::share,
+                    onCopy = viewModel::copy,
+                    canCopy = viewModel::canCopy,
+                    onAttachedStickers = viewModel::showAttachedStickers,
+                    hasAttachedStickers = viewModel::hasAttachedStickers,
+                    onMakeSticker = if (viewModel.canMakeSticker && onMakeSticker != null) viewModel::makeSticker else null,
+                ),
+                profilePhotoActions = ProfilePhotoActions(
+                    onSetMain = viewModel::setMainProfilePhoto,
+                    onDelete = viewModel::requestDeleteProfilePhoto,
+                    onReport = viewModel::requestReportProfilePhoto,
+                ),
+                photoTextActions = PhotoTextActions(
+                    onRecognize = if (viewModel.canRecognizeText) viewModel::recognizeText else null,
+                    onToggleLine = viewModel::toggleTextLine,
+                    onClearSelection = viewModel::clearTextSelection,
+                    onCopy = viewModel::copyRecognizedText,
+                    onClose = viewModel::closeRecognizedText,
+                ),
+                photoDescriptionActions = PhotoDescriptionActions(
+                    onDescribe = if (state.canDescribePhoto) viewModel::describePhoto else null,
+                    onCopy = viewModel::copyPhotoDescription,
+                    onClose = viewModel::closePhotoDescription,
+                ),
                 onFocusShown = viewModel::focusShown,
                 onDismiss = {
                     viewModel.onDismiss()
@@ -440,34 +446,10 @@ private fun ViewerContent(
     state: MediaViewerState,
     dismissDrag: Animatable<Float, *>,
     onPageChanged: (Int) -> Unit,
-    onReact: (messageId: Long, emoji: String) -> Unit,
-    onDelete: (messageId: Long) -> Unit,
-    onForward: (messageId: Long) -> Unit,
-    onReply: ((messageId: Long) -> Unit)?,
-    onSave: (messageId: Long) -> Unit,
-    onShare: (messageId: Long) -> Unit,
-    /** Do schránky; nabízí se jen u média, které jde zkopírovat ([canCopy]). */
-    onCopy: (messageId: Long) -> Unit,
-    canCopy: (ViewerItem) -> Boolean,
-    onSaveAs: ((messageId: Long) -> Unit)?,
-    onSetMainProfilePhoto: (photoId: Long) -> Unit,
-    onDeleteProfilePhoto: (photoId: Long) -> Unit,
-    onReportProfilePhoto: (photoId: Long) -> Unit,
-    /** „Samolepky na fotce" u stránky, která je má ([hasAttachedStickers]). */
-    onAttachedStickers: (messageId: Long) -> Unit,
-    hasAttachedStickers: (ViewerItem) -> Boolean,
-    /** Text z fotky; `null` = platforma ho neumí. */
-    onRecognizeText: ((messageId: Long) -> Unit)?,
-    /** Samolepka z fotky; `null` = platforma ji neumí, nebo není kam ji otevřít. */
-    onMakeSticker: ((messageId: Long) -> Unit)?,
-    onToggleTextLine: (index: Int) -> Unit,
-    onClearTextSelection: () -> Unit,
-    onCopyText: () -> Unit,
-    onCloseText: () -> Unit,
-    /** Popis fotky modelem v telefonu; `null` = AI v zařízení vypnutá nebo model obraz nebere. */
-    onDescribePhoto: ((messageId: Long) -> Unit)?,
-    onCopyDescription: () -> Unit,
-    onCloseDescription: () -> Unit,
+    actions: ViewerItemActions,
+    profilePhotoActions: ProfilePhotoActions,
+    photoTextActions: PhotoTextActions,
+    photoDescriptionActions: PhotoDescriptionActions,
     onFocusShown: () -> Unit,
     onDismiss: () -> Unit,
     /** Tlačítko reklamy pod snímkem; kreslí se jen u reklamy ([MediaViewerState.sponsored]). */
@@ -697,11 +679,11 @@ private fun ViewerContent(
                     ViewerKey.Copy -> {
                         // Nad textem z fotky a popisem patří Ctrl+C jejich výběru, ne fotce.
                         val item = current?.takeIf {
-                            state.actions[it.messageId]?.canSave == true && canCopy(it) &&
+                            state.actions[it.messageId]?.canSave == true && actions.canCopy(it) &&
                                 state.recognizedText?.messageId != it.messageId &&
                                 state.photoDescription?.messageId != it.messageId
                         } ?: return@onPreviewKeyEvent false
-                        onCopy(item.messageId)
+                        actions.onCopy(item.messageId)
                     }
                 }
                 true
@@ -709,8 +691,16 @@ private fun ViewerContent(
             /*
              * Fokus se vrací: kliknuté tlačítko (přehrát uprostřed videa) si ho vezme, a když se
              * pak s ovládáním schová, fokus nezůstane nikde a klávesy by do prohlížeče nedošly.
+             *
+             * Až v korutině, ne hned: fokus ztrácí prohlížeč i při zavření, kdy Compose callback
+             * volá uprostřed odpojování (uzel je ještě `isAttached`). Okamžité vrácení fokusu
+             * nechalo aktivní uzel, který se vzápětí odpojil, a první ťuknutí do pole zprávy
+             * aplikaci shodilo („visitAncestors called on an unattached node"). Korutinu zavření
+             * zruší dřív, než se rozběhne.
              */
-            .onFocusChanged { focus -> if (!focus.hasFocus) runCatching { keyFocus.requestFocus() } }
+            .onFocusChanged { focus ->
+                if (!focus.hasFocus) scope.launch { runCatching { keyFocus.requestFocus() } }
+            }
             .focusRequester(keyFocus)
             .focusable()
             .trackMouse(mouse),
@@ -752,15 +742,28 @@ private fun ViewerContent(
                 is MessageMedia.Video -> m.hasSpoiler
                 else -> false
             }
-            val revealed = !hasSpoiler || item.messageId in revealedIds
-            val onReveal = { revealedSpoilers.reveal(item.messageId) }
+            val spoiler = if (hasSpoiler) {
+                MediaSpoiler(
+                    revealed = item.messageId in revealedIds,
+                    onReveal = { revealedSpoilers.reveal(item.messageId) },
+                    style = spoilerStyle,
+                )
+            } else {
+                null
+            }
             // Karta leží mezi lištami; stránka sama jde přes celou výšku, aby přiblížená fotka
             // měla kam růst.
-            val captionAlpha = carouselPage.captionAlpha
-            val cardBias = carouselPage.cardBias
+            val placement = MediaPagePlacement(
+                isCurrent = isCurrent,
+                immersive = immersive,
+                immersion = immersion,
+                reservedTop = topInset + MEDIA_PAGE_VERTICAL_GAP,
+                reservedBottom = bottomInset + MEDIA_PAGE_VERTICAL_GAP,
+                captionAlpha = carouselPage.captionAlpha,
+                cardBias = carouselPage.cardBias,
+            )
+            val gestures = MediaPageGestures(onDismiss = onDismiss, onTap = toggleImmersive, onEngage = enterImmersive)
             val pageModifier = Modifier.fillMaxSize()
-            val reservedTop = topInset + MEDIA_PAGE_VERTICAL_GAP
-            val reservedBottom = bottomInset + MEDIA_PAGE_VERTICAL_GAP
             when (val media = item.media) {
                 is MessageMedia.Video -> VideoPage(
                     video = media,
@@ -768,29 +771,17 @@ private fun ViewerContent(
                     startMs = if (item.messageId == state.initialMessageId && startSeconds != NO_START) startSeconds * 1000L else 0L,
                     streaming = !state.isSelfDestruct,
                     // Mizející video v okénku nad jinými aplikacemi by obešlo FLAG_SECURE i odpočet.
-                    pictureInPicture = !state.isSelfDestruct,
-                    onReturnFromPip = onReopenAt?.let { reopen -> { ms: Long -> reopen(item.messageId, (ms / 1000).toInt()) } },
+                    pictureInPicture = VideoPictureInPicture(
+                        onReturn = onReopenAt?.let { reopen -> { ms: Long -> reopen(item.messageId, (ms / 1000).toInt()) } },
+                    ).takeIf { !state.isSelfDestruct },
                     caption = item.caption,
-                    isCurrent = isCurrent,
-                    immersive = immersive,
-                    immersion = immersion,
-                    reservedTop = reservedTop,
-                    reservedBottom = reservedBottom,
+                    placement = placement,
                     dismissDrag = dismissDrag,
-                    onDismiss = onDismiss,
-                    onTap = toggleImmersive,
-                    onEngage = enterImmersive,
-                    hasSpoiler = hasSpoiler,
-                    revealed = revealed,
-                    onReveal = onReveal,
-                    spoilerStyle = spoilerStyle,
+                    gestures = gestures,
+                    spoiler = spoiler,
                     modifier = pageModifier,
-                    captionAlpha = captionAlpha,
-                    cardBias = cardBias,
-                    muted = videoMuted,
-                    onToggleMute = { videoMuted = !videoMuted },
-                    qualityChoice = videoQuality,
-                    onQualityChoice = { videoQuality = it },
+                    mute = VideoMute(muted = videoMuted, onToggle = { videoMuted = !videoMuted }),
+                    quality = VideoQualitySelection(choice = videoQuality, onChoose = { videoQuality = it }),
                     fullscreen = videoFullscreen,
                     commands = videoCommands,
                     onPlayingChange = { playing ->
@@ -807,24 +798,13 @@ private fun ViewerContent(
                     photo = media,
                     messageId = item.messageId,
                     photoText = state.recognizedText?.takeIf { it.messageId == item.messageId },
-                    onToggleTextLine = onToggleTextLine,
+                    onToggleTextLine = photoTextActions.onToggleLine,
                     caption = item.caption,
-                    isCurrent = isCurrent,
-                    immersive = immersive,
-                    immersion = immersion,
-                    reservedTop = reservedTop,
-                    reservedBottom = reservedBottom,
+                    placement = placement,
                     dismissDrag = dismissDrag,
-                    onDismiss = onDismiss,
-                    onTap = toggleImmersive,
-                    onEngage = enterImmersive,
-                    hasSpoiler = hasSpoiler,
-                    revealed = revealed,
-                    onReveal = onReveal,
-                    spoilerStyle = spoilerStyle,
+                    gestures = gestures,
+                    spoiler = spoiler,
                     modifier = pageModifier,
-                    captionAlpha = captionAlpha,
-                    cardBias = cardBias,
                     zoomSteps = zoomSteps,
                 )
 
@@ -886,29 +866,10 @@ private fun ViewerContent(
                     state = state,
                     pagerState = pagerState,
                     onClose = onDismiss,
-                    onDelete = { onDelete(current.messageId) },
-                    onForward = { onForward(current.messageId) },
-                    onSave = { onSave(current.messageId) },
-                    onShare = { onShare(current.messageId) },
-                    onCopy = { onCopy(current.messageId) }.takeIf { canCopy(current) },
-                    onSaveAs = onSaveAs?.let { saveAs -> { saveAs(current.messageId) } },
-                    onSetMainProfilePhoto = { onSetMainProfilePhoto(current.messageId) },
-                    onDeleteProfilePhoto = { onDeleteProfilePhoto(current.messageId) },
-                    onReportProfilePhoto = { onReportProfilePhoto(current.messageId) },
-                    onAttachedStickers = { onAttachedStickers(current.messageId) }.takeIf { hasAttachedStickers(current) },
-                    // Jen fotka, a jen když jde uložit: u chatu se zakázaným ukládáním by text
-                    // z fotky obešel tutéž ochranu jako snímek obrazovky.
-                    onRecognizeText = onRecognizeText
-                        ?.takeIf { current.media is MessageMedia.Photo }
-                        ?.let { recognize -> { recognize(current.messageId) } },
-                    // Totéž omezení: samolepka by fotku z chatu se zákazem ukládání vynesla ven.
-                    onMakeSticker = onMakeSticker
-                        ?.takeIf { current.media is MessageMedia.Photo }
-                        ?.let { make -> { make(current.messageId) } },
-                    // Totéž omezení jako text z fotky: popis by obešel zákaz ukládání.
-                    onDescribePhoto = onDescribePhoto
-                        ?.takeIf { current.media is MessageMedia.Photo }
-                        ?.let { describe -> { describe(current.messageId) } },
+                    itemActions = actions,
+                    profilePhotoActions = profilePhotoActions,
+                    onRecognizeText = photoTextActions.onRecognize,
+                    onDescribePhoto = photoDescriptionActions.onDescribe,
                 )
             }
         }
@@ -943,6 +904,7 @@ private fun ViewerContent(
         }
         val emoji = current?.let { state.availableReactions[it.messageId] }.orEmpty()
         // Odpovědět jde, jen když je kam (konverzace pod prohlížečem) a server to u zprávy dovolí.
+        val onReply = actions.onReply
         val canReply = onReply != null && current != null && state.actions[current.messageId]?.canReply == true
         val photoText = state.recognizedText?.takeIf { it.messageId == current?.messageId }
         val photoDescription = state.photoDescription?.takeIf { it.messageId == current?.messageId }
@@ -965,7 +927,7 @@ private fun ViewerContent(
                 ReactionBar(
                     item = current,
                     emoji = emoji,
-                    onReact = { onReact(current.messageId, it) },
+                    onReact = { actions.onReact(current.messageId, it) },
                     onReply = if (canReply && onReply != null) {
                         { onReply(current.messageId) }
                     } else {
@@ -999,7 +961,12 @@ private fun ViewerContent(
             modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
         ) {
             lastPhotoText?.let { shown ->
-                PhotoTextPanel(text = shown, onCopy = onCopyText, onClearSelection = onClearTextSelection, onClose = onCloseText)
+                PhotoTextPanel(
+                    text = shown,
+                    onCopy = photoTextActions.onCopy,
+                    onClearSelection = photoTextActions.onClearSelection,
+                    onClose = photoTextActions.onClose,
+                )
             }
         }
 
@@ -1013,7 +980,7 @@ private fun ViewerContent(
             modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
         ) {
             lastDescription?.let { shown ->
-                PhotoDescriptionPanel(description = shown, onCopy = onCopyDescription, onClose = onCloseDescription)
+                PhotoDescriptionPanel(description = shown, onCopy = photoDescriptionActions.onCopy, onClose = photoDescriptionActions.onClose)
             }
         }
     }
@@ -1113,22 +1080,34 @@ private fun TopBar(
     state: MediaViewerState,
     pagerState: PagerState,
     onClose: () -> Unit,
-    onDelete: () -> Unit,
-    onForward: () -> Unit,
-    onSave: () -> Unit,
-    onShare: () -> Unit,
-    /** `null` = médium do schránky nejde ([MediaViewerViewModel.canCopy]). */
-    onCopy: (() -> Unit)?,
-    onSaveAs: (() -> Unit)?,
-    onSetMainProfilePhoto: () -> Unit,
-    onDeleteProfilePhoto: () -> Unit,
-    onReportProfilePhoto: () -> Unit,
-    onRecognizeText: (() -> Unit)?,
-    onMakeSticker: (() -> Unit)?,
-    onDescribePhoto: (() -> Unit)?,
-    /** `null` = na médiu samolepky nejsou. */
-    onAttachedStickers: (() -> Unit)? = null,
+    itemActions: ViewerItemActions,
+    profilePhotoActions: ProfilePhotoActions,
+    /** Text z fotky ([PhotoTextActions.onRecognize]); `null` = platforma ho neumí. */
+    onRecognizeText: ((messageId: Long) -> Unit)?,
+    /** Popis fotky ([PhotoDescriptionActions.onDescribe]); `null` = nejde. */
+    onDescribePhoto: ((messageId: Long) -> Unit)?,
 ) {
+    val messageId = item.messageId
+    val onDelete = { itemActions.onDelete(messageId) }
+    val onForward = { itemActions.onForward(messageId) }
+    val onSave = { itemActions.onSave(messageId) }
+    val onShare = { itemActions.onShare(messageId) }
+    // `null` = médium do schránky nejde ([MediaViewerViewModel.canCopy]).
+    val onCopy = { itemActions.onCopy(messageId) }.takeIf { itemActions.canCopy(item) }
+    val onSaveAs = itemActions.onSaveAs?.let { saveAs -> { saveAs(messageId) } }
+    val onSetMainProfilePhoto = { profilePhotoActions.onSetMain(messageId) }
+    val onDeleteProfilePhoto = { profilePhotoActions.onDelete(messageId) }
+    val onReportProfilePhoto = { profilePhotoActions.onReport(messageId) }
+    // `null` = na médiu samolepky nejsou.
+    val onAttachedStickers = { itemActions.onAttachedStickers(messageId) }.takeIf { itemActions.hasAttachedStickers(item) }
+    val isPhoto = item.media is MessageMedia.Photo
+    // Jen fotka, a jen když jde uložit: u chatu se zakázaným ukládáním by text
+    // z fotky obešel tutéž ochranu jako snímek obrazovky.
+    val recognizeTextOnPhoto = onRecognizeText?.takeIf { isPhoto }?.let { recognize -> { recognize(messageId) } }
+    // Totéž omezení: samolepka by fotku z chatu se zákazem ukládání vynesla ven.
+    val makeStickerOnPhoto = itemActions.onMakeSticker?.takeIf { isPhoto }?.let { make -> { make(messageId) } }
+    // Totéž omezení jako text z fotky: popis by obešel zákaz ukládání.
+    val describePhotoOnPhoto = onDescribePhoto?.takeIf { isPhoto }?.let { describe -> { describe(messageId) } }
     val actions = state.actions[item.messageId]
 
     Row(
@@ -1220,10 +1199,10 @@ private fun TopBar(
         val canForward = actions?.canForward == true
         val canDelete = actions != null && (actions.canDeleteForSelf || actions.canDeleteForAll)
         val saveAs = onSaveAs?.takeIf { canSave }
-        val recognizeText = onRecognizeText?.takeIf { canSave }
+        val recognizeText = recognizeTextOnPhoto?.takeIf { canSave }
         val textShown = state.recognizedText?.messageId == item.messageId
-        val describePhoto = onDescribePhoto?.takeIf { canSave }
-        val makeSticker = onMakeSticker?.takeIf { canSave }
+        val describePhoto = describePhotoOnPhoto?.takeIf { canSave }
+        val makeSticker = makeStickerOnPhoto?.takeIf { canSave }
         val descriptionShown = state.photoDescription?.messageId == item.messageId
         // Vlastní profilovky: starší jde nastavit zase jako hlavní (ta nejnovější hlavní je)
         // a každou smazat. Cizí profilovky a fotky skupin tohle nemají — TDLib to neumí.
@@ -1438,44 +1417,26 @@ private fun ZoomableImage(
     photoText: PhotoText?,
     onToggleTextLine: (index: Int) -> Unit,
     caption: String,
-    isCurrent: Boolean,
-    immersive: Boolean,
-    immersion: () -> Float,
-    reservedTop: Dp,
-    reservedBottom: Dp,
+    placement: MediaPagePlacement,
     dismissDrag: Animatable<Float, *>,
-    onDismiss: () -> Unit,
-    onTap: () -> Unit,
-    onEngage: () -> Unit,
-    hasSpoiler: Boolean = false,
-    revealed: Boolean = true,
-    onReveal: () -> Unit = {},
-    spoilerStyle: HazeBlurStyle = HazeBlurStyle,
+    gestures: MediaPageGestures,
+    /** Spoiler přes fotku; `null` = nic nezakrývá. */
+    spoiler: MediaSpoiler? = null,
     modifier: Modifier = Modifier,
-    captionAlpha: () -> Float = { 1f },
-    cardBias: () -> Float = { 0f },
     /** Přiblížení z klávesnice (+/−/0), viz [ZoomableMediaPage]. */
     zoomSteps: Flow<ZoomStep>? = null,
 ) {
-    val hidden = hasSpoiler && !revealed
+    val hidden = spoiler.hidden
     ZoomableMediaPage(
         aspectRatio = aspectRatioOf(photo.width, photo.height),
         caption = caption,
-        isCurrent = isCurrent,
-        immersive = immersive,
-        immersion = immersion,
-        reservedTop = reservedTop,
-        reservedBottom = reservedBottom,
+        placement = placement,
         dismissDrag = dismissDrag,
-        onDismiss = onDismiss,
-        onTap = { if (hidden) onReveal() else onTap() },
-        onEngage = onEngage,
+        gestures = gestures.copy(onTap = { if (hidden) spoiler?.onReveal?.invoke() else gestures.onTap() }),
         zoomable = !hidden,
         zoomSteps = zoomSteps,
         modifier = modifier,
         cardModifier = Modifier.sharedNavElement(photoKey(messageId), besidePanes = true),
-        captionAlpha = captionAlpha,
-        cardBias = cardBias,
     ) {
         RemoteImage(
             // Ostrá verze; zmenšenina z bubliny slouží jako okamžitý náhled, než se dotáhne.
@@ -1491,12 +1452,12 @@ private fun ZoomableImage(
             fullResolution = zoomLoadsFullResolution,
             modifier = Modifier
                 .fillMaxSize()
-                .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
+                .spoilerBlur(spoiler),
         )
 
-        if (hasSpoiler) {
+        if (spoiler != null) {
             SpoilerOverlay(
-                visible = !revealed,
+                visible = !spoiler.revealed,
                 modifier = Modifier.fillMaxSize(),
                 sensitive = photo.isSensitive,
             )
@@ -1549,6 +1510,54 @@ private const val CHOSEN_ALPHA = 0.22f
 
 /** Datum pod jménem je druhotné. */
 private const val SECONDARY_ALPHA = 0.75f
+
+/**
+ * Co jde udělat s položkou prohlížeče — v liště nahoře, v nabídce ⋮ a v pruhu reakcí. Akce
+ * dostane id zprávy; kterou položku se týká, dosadí prohlížeč podle stránky, na které stojí.
+ */
+internal data class ViewerItemActions(
+    val onReact: (messageId: Long, emoji: String) -> Unit,
+    /** `null` = není kam odpovědět. */
+    val onReply: ((messageId: Long) -> Unit)?,
+    val onForward: (messageId: Long) -> Unit,
+    val onDelete: (messageId: Long) -> Unit,
+    val onSave: (messageId: Long) -> Unit,
+    val onSaveAs: ((messageId: Long) -> Unit)?,
+    val onShare: (messageId: Long) -> Unit,
+    /** Do schránky; nabízí se jen u média, které jde zkopírovat ([canCopy]). */
+    val onCopy: (messageId: Long) -> Unit,
+    val canCopy: (ViewerItem) -> Boolean,
+    /** „Samolepky na fotce" u stránky, která je má ([hasAttachedStickers]). */
+    val onAttachedStickers: (messageId: Long) -> Unit,
+    val hasAttachedStickers: (ViewerItem) -> Boolean,
+    /** Samolepka z fotky; `null` = platforma ji neumí, nebo není kam ji otevřít. */
+    val onMakeSticker: ((messageId: Long) -> Unit)?,
+)
+
+/** Správa profilových fotek v nabídce ⋮ (vlastní nastavit jako hlavní a smazat, cizí nahlásit). */
+internal data class ProfilePhotoActions(
+    val onSetMain: (photoId: Long) -> Unit,
+    val onDelete: (photoId: Long) -> Unit,
+    val onReport: (photoId: Long) -> Unit,
+)
+
+/** Text z fotky: rozpoznání z nabídky ⋮ a panel s rozpoznaným textem. */
+internal data class PhotoTextActions(
+    /** Text z fotky; `null` = platforma ho neumí. */
+    val onRecognize: ((messageId: Long) -> Unit)?,
+    val onToggleLine: (index: Int) -> Unit,
+    val onClearSelection: () -> Unit,
+    val onCopy: () -> Unit,
+    val onClose: () -> Unit,
+)
+
+/** Popis fotky modelem v telefonu: z nabídky ⋮ a panel s popisem. */
+internal data class PhotoDescriptionActions(
+    /** `null` = AI v zařízení vypnutá nebo model obraz nebere. */
+    val onDescribe: ((messageId: Long) -> Unit)?,
+    val onCopy: () -> Unit,
+    val onClose: () -> Unit,
+)
 
 /** Co jde s reklamou nad videem (viz [ViewerVideoAds]). */
 internal class VideoAdActions(

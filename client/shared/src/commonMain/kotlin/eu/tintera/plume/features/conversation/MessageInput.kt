@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.runtime.Immutable
 import eu.tintera.plume.resources.caption_suggesting
 import eu.tintera.plume.resources.caption_suggest
 import androidx.compose.foundation.layout.width
@@ -57,7 +58,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.core.ui.longPress
-import eu.tintera.plume.core.telegram.BotMenuApp
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.resources.conversation_send_silent
@@ -75,7 +75,6 @@ import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.notifications_24dp
-import eu.tintera.plume.core.telegram.AttachmentMode
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.ime
@@ -175,8 +174,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import eu.tintera.plume.core.audio.VoicePlayback
-import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.settings.GestureHint
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -187,7 +184,6 @@ import eu.tintera.plume.resources.link_preview_remove
 import eu.tintera.plume.resources.link_preview_options
 import eu.tintera.plume.resources.tune_24dp
 import eu.tintera.plume.resources.link_24dp
-import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.accentOn
@@ -234,150 +230,39 @@ internal fun MessageInput(
     glass: Modifier,
     /** Smí koncept na server Telegramu k AI úpravám? Ne v tajném chatu. */
     serverAiAllowed: Boolean = true,
-    replyingTo: ChatMessage?,
-    /** Citovaný úryvek [replyingTo], nebo `null` (odpověď na celou zprávu). */
-    replyQuote: String?,
-    /** Počítadlo z `ConversationState.inputFocusRequest`; každá nová hodnota zaostří pole. */
-    focusRequest: Int,
-    partnerName: String?,
+    /** Odpověď, která se píše; `null` = žádná. */
+    reply: ReplyControls?,
     flight: MessageFlight?,
-    onCancelReply: () -> Unit,
-    onSend: (ComposedText, SendOptions) -> Unit,
-    /** Co nabídne podržení odesílacího tlačítka ([sendMenuOffer]). */
-    sendMenu: SendMenuOffer = SendMenuOffer(silent = false, schedule = false, whenOnline = false),
-    /** „Naplánovat…" z nabídky; výběr času i odeslání řeší obrazovka, která drží text. */
-    onSchedule: () -> Unit = {},
-    /** Podržení → „Odeslat s efektem…": otevře výběr efektu. */
-    onPickEffect: () -> Unit = {},
-    /** Otevře seznam naplánovaných zpráv; `null`, když chat žádné nemá. */
-    onOpenScheduled: (() -> Unit)? = null,
-    /**
-     * Zvoneček výchozího odesílání bez zvuku (`true` = ticho); `null` = zvoneček se nekreslí.
-     * Jen v kanálu, kam uživatel píše — tam ticho dává smysl jako stav, ne jednorázová volba.
-     */
-    defaultSilent: Boolean? = null,
-    onToggleDefaultSilent: () -> Unit = {},
-    /**
-     * Jen ruční úpravy textu a formátování — vyprázdnění po odeslání se nehlásí, o to se stará
-     * `onSend`.
-     */
-    onDraftChanged: (ComposedText) -> Unit,
-    /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
-    editing: ChatMessage?,
-    onCancelEdit: () -> Unit,
-    /** Šipka nahoru v prázdném poli: úprava poslední vlastní zprávy; `null` = nic. */
-    onEditLast: (() -> Unit)? = null,
-    /** Výměna přílohy při úpravě; `null` = nenabízí se (viz `replaceableMedia`). */
-    editMedia: EditMediaControls? = null,
-    /** Nápověda do prázdného pole, kterou si přeje bot; `null` = výchozí. */
-    placeholder: String? = null,
-    /** Náhled odkazu v rozepsaném textu, pokud se má ukázat ([composerLinkPreview]). */
-    linkPreview: LinkPreview? = null,
-    /** Odkazy v rozepsaném textu; s víc než jedním nabídne sheet, ke kterému náhled patří. */
-    linkPreviewLinks: List<String> = emptyList(),
-    linkPreviewOptions: LinkPreviewOptions = LinkPreviewOptions(),
-    onLinkPreviewOptions: (LinkPreviewOptions) -> Unit = {},
-    /** Text, který se má jednou vložit do pole (koncept, úprava). */
-    inputFill: InputFill?,
-    onInputFilled: (InputFill) -> Unit,
-    onOpenStickers: () -> Unit,
-    onPickMedia: () -> Unit,
-    onPickDocument: () -> Unit,
-    /** Založit anketu; `null`, kde anketa nejde. */
-    onCreatePoll: (() -> Unit)?,
-    /** Založit seznam úkolů; `null`, kde nejde. */
-    onCreateChecklist: (() -> Unit)?,
-    /** Poslat polohu; `null`, kde nejde. */
-    onSendLocation: (() -> Unit)?,
-    onShareContact: (() -> Unit)?,
-    /** Nedávno odeslané soubory; `null`, kde soubory nejdou. */
-    onPickRecentFiles: (() -> Unit)? = null,
-    /** Seznam příkazů botů; `null` v chatu bez botů s příkazy. */
-    onToggleCommands: (() -> Unit)?,
-    /** Tlačítko nabídky bota s mini aplikací; když je, stojí místo tlačítka příkazů. */
-    menuApp: BotMenuApp? = null,
+    send: SendControls,
+    field: ComposerField,
+    /** Upravovaná zpráva; `null` = píše se nová. */
+    editing: EditingControls?,
+    linkPreview: LinkPreviewControls = LinkPreviewControls(),
+    expression: ExpressionButton,
+    attach: AttachActions,
+    bot: BotControls = BotControls(),
     /**
      * Avatar toho, kým se do skupiny píše ([SendAsButton]), úplně vlevo; `null` = nic. Slot,
      * ne data: výběr i jeho sheet žijí v `SendAsPicker.kt`, pole jen drží místo.
      */
     senderSlot: (@Composable (Modifier) -> Unit)? = null,
-    onOpenMenuApp: () -> Unit = {},
-    isRecording: Boolean,
-    /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
-    recording: () -> VoiceRecording?,
-    /**
-     * Co nahraje podržení tlačítka v prázdném poli ([recordModeFor]); `null` = nic, tlačítko
-     * je pak odeslání.
-     */
-    recordMode: RecordMode?,
-    /** Ťuknutí na tlačítko přepne hlasovku ↔ kolečko ([canSwitchRecordMode]). */
-    canSwitchRecordMode: Boolean,
-    onSwitchRecordMode: () -> Unit,
-    /** Co se právě nahrává — podle toho popis tlačítka odeslání. */
-    recordingKind: RecordMode,
-    /** Gesto nahrávání; drží ho obrazovka, protože zámek nad tlačítkem kreslí ona. */
-    recordGesture: RecordGestureState,
-    /**
-     * Začne nahrávat. [held] = prst drží tlačítko; když se oprávnění teprve žádá, nahrávat se
-     * potom nesmí (prst mezitím tlačítko pustil). Bez prstu (čtečka obrazovky) se začne zamčené.
-     */
-    onStartRecording: (held: Boolean) -> Unit,
-    onCancelRecording: () -> Unit,
-    /**
-     * Zastavená hlasovka k poslechu před odesláním; `null` = žádná. Karta s ní vypadá jako při
-     * nahrávání (vlnka, barva, odeslání hlasu), jen místo živých úrovní ukazuje celý waveform.
-     */
-    voicePreview: VoicePreview? = null,
-    /** Přehrávání náhledu; čte se až v pruhu náhledu. */
-    voicePreviewPlayback: () -> VoicePlayback? = { null },
-    /** ■ u zamčené hlasovky: ukončí nahrávání a místo odeslání ukáže náhled. */
-    onStopRecording: () -> Unit = {},
-    onToggleVoicePreview: () -> Unit = {},
-    onSeekVoicePreview: (Float) -> Unit = {},
-    onDiscardVoicePreview: () -> Unit = {},
-    onContinueVoicePreview: () -> Unit = {},
-    /** Zastavené kolečko; samo hraje v kruhu nad konverzací, karta ukazuje jen ovládání. */
-    videoNotePreview: VideoNotePreview? = null,
-    videoNotePlayback: VideoNotePreviewPlayback? = null,
-    onDiscardVideoNotePreview: () -> Unit = {},
-    onContinueVideoNotePreview: () -> Unit = {},
-    onSendRecording: (SendOptions) -> Unit,
-    /** Nabídka odeslání nad hlasovkou se otevřela (`true`) nebo zavřela bez volby (`false`). */
-    onVoiceMenu: (open: Boolean) -> Unit = {},
-    /** „Naplánovat…" nad hlasovkou; výběr času řeší obrazovka, nahrávání je mezitím pozastavené. */
-    onScheduleRecording: () -> Unit = {},
-    /** Přílohy čekající na odeslání; text pole je pak jejich popisek. */
-    attachments: List<OutgoingAttachment>,
-    /** Návrh popisku první fotky modelem ([ConversationCaption]); ukáže se jen u prázdného pole. */
-    captionSuggestion: CaptionSuggestion = CaptionSuggestion.Hidden,
-    onSuggestCaption: () -> Unit = {},
-    /**
-     * Vybrané přílohy se ještě kopírují (velké video trvá vteřiny). Bez ukazatele by se po
-     * zavření galerie chvíli nedělo nic a vypadalo by to, že výběr nezabral.
-     */
-    attachmentsPreparing: Boolean = false,
-    onRemoveAttachment: (Int) -> Unit,
-    onOpenAttachment: (Int) -> Unit = {},
-    onSetAttachmentMode: (Int, AttachmentMode) -> Unit = { _, _ -> },
-    /** Soukromý chat, kde se u jedné přílohy smí nabídnout mizení (`canSelfDestruct`). */
-    selfDestructAllowed: Boolean = false,
-    previewAttachmentIndex: Int? = null,
-    /** Ikona tlačítka výběru ukazuje, čím se výběr otevře — emoji, nebo samolepkami. */
-    expressionMode: ExpressionMode,
-    /** Rozepsaný text i s formátováním; drží ho obrazovka, protože do něj vkládá i výběr emoji. */
-    composer: ComposerDraft,
+    recording: RecordingControls,
+    /** Zastavená hlasovka k poslechu před odesláním; `null` = žádná. */
+    voicePreview: VoicePreviewControls? = null,
+    /** Zastavené kolečko; `null` = žádné. */
+    videoNotePreview: VideoNotePreviewControls? = null,
+    attachments: ComposerAttachments,
     /**
      * Které druhy obsahu chat přijme. Co se poslat nesmí, se nenabízí: sponka schová položku
      * (a bez jediné i sama sebe), mikrofon ustoupí odeslání, samolepky zůstanou na emoji.
      */
     content: ContentAccess = ContentAccess.All,
-    /** GIF nebo obrázek vložený z klávesnice (Gboard), už zkopírovaný do cache. */
-    onKeyboardContent: (KeyboardContent) -> Unit = {},
-    onKeyboardContentFailed: (UiText) -> Unit = {},
+    keyboardContent: KeyboardContentHandlers = KeyboardContentHandlers(),
     /** Nápovědy gest napoprvé; pole do nich hlásí, co právě dělá tlačítko odeslání. */
     gestureHints: GestureHints? = null,
     modifier: Modifier = Modifier,
 ) {
+    val composer = field.draft
     var draft by composer
     /*
      * Přepis konceptu modelem v zařízení („Přepsat…" v nabídce odeslání). Žije tady, ne
@@ -388,17 +273,17 @@ internal fun MessageInput(
     val rewrite = rememberDraftRewrite(serverAllowed = serverAiAllowed)
     DraftRewriteSheet(rewrite) { text ->
         composer.fill(text, emptyList())
-        onDraftChanged(composer.composed)
+        field.onDraftChanged(composer.composed)
     }
     // Gesto nahrávání (viz `holdToRecord` a `RecordGestureState`).
-    var recordHeld by recordGesture::held
-    var recordLocked by recordGesture::locked
-    val recordDrag = recordGesture.drag
-    LaunchedEffect(isRecording) { if (!isRecording) recordLocked = false }
-    val recordHolding = isRecording && recordHeld && !recordLocked
+    var recordHeld by recording.gesture::held
+    var recordLocked by recording.gesture::locked
+    val recordDrag = recording.gesture.drag
+    LaunchedEffect(recording.isRecording) { if (!recording.isRecording) recordLocked = false }
+    val recordHolding = recording.isRecording && recordHeld && !recordLocked
     // Hlas ve vstupní kartě: nahrává se, nebo je nahrávka zastavená k poslechu. Karta i tlačítko
     // se v obou stavech chovají stejně; liší se jen pruh a to, že náhled nedýchá (nic neběží).
-    val voiceActive = isRecording || voicePreview != null || videoNotePreview != null
+    val voiceActive = recording.isRecording || voicePreview != null || videoNotePreview != null
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     /*
@@ -412,7 +297,7 @@ internal fun MessageInput(
             current = composer.formats.codeBlockAt(start, end)?.language,
             onConfirm = { language ->
                 composer.setCodeLanguage(start, end, language)
-                onDraftChanged(composer.composed)
+                field.onDraftChanged(composer.composed)
                 languageTarget = null
             },
             onDismiss = { languageTarget = null },
@@ -424,7 +309,7 @@ internal fun MessageInput(
             current = composer.formats.linkAt(start, end),
             onConfirm = { url ->
                 composer.link(start, end, url)
-                onDraftChanged(composer.composed)
+                field.onDraftChanged(composer.composed)
                 linkTarget = null
             },
             onDismiss = { linkTarget = null },
@@ -447,14 +332,14 @@ internal fun MessageInput(
      * Vložení textu zvenku. Koncept z minula jde JEN do prázdného pole — než ho TDLib vydá, mohl
      * uživatel začít psát. Úprava zprávy pole přepisuje vždycky. Kurzor na konec, ať se píše dál.
      */
-    LaunchedEffect(inputFill) {
-        val fill = inputFill ?: return@LaunchedEffect
+    LaunchedEffect(field.fill) {
+        val fill = field.fill ?: return@LaunchedEffect
         if (!fill.onlyIfEmpty || draft.text.isEmpty()) composer.fill(fill.text, fill.formats)
-        onInputFilled(fill)
+        field.onFilled(fill)
     }
 
     // Úprava zprávy přílohy schová — odeslání by je stejně neposlalo.
-    val withAttachments = attachments.isNotEmpty() && editing == null
+    val withAttachments = attachments.items.isNotEmpty() && editing == null
     val keyboard = LocalSoftwareKeyboardController.current
     val afterKeyboardHidden = rememberAfterKeyboardHidden()
     // Nahoře, ne u pole: podle fokusu se ukazuje i návrh vložení ze schránky nad polem.
@@ -476,10 +361,10 @@ internal fun MessageInput(
      * NOVOU hodnotu počítadla — ta, se kterou se pole složilo (návrat do konverzace, otočení),
      * je vyřízená, jinak by klávesnice vyjela při každém návratu do chatu.
      */
-    var handledFocusRequest by rememberSaveable { mutableIntStateOf(focusRequest) }
-    LaunchedEffect(focusRequest) {
-        if (focusRequest == handledFocusRequest) return@LaunchedEffect
-        handledFocusRequest = focusRequest
+    var handledFocusRequest by rememberSaveable { mutableIntStateOf(field.focusRequest) }
+    LaunchedEffect(field.focusRequest) {
+        if (field.focusRequest == handledFocusRequest) return@LaunchedEffect
+        handledFocusRequest = field.focusRequest
         if (voiceActive) return@LaunchedEffect
         fieldFocus.requestFocus()
         keyboard?.show()
@@ -487,12 +372,13 @@ internal fun MessageInput(
 
     var linkOptionsOpen by rememberSaveable { mutableStateOf(false) }
     // Náhled, který zmizel (smazaný odkaz, odeslaná zpráva), si sheet nenechá otevřený.
-    if (linkOptionsOpen && linkPreview != null) {
+    val shownPreview = linkPreview.preview
+    if (linkOptionsOpen && shownPreview != null) {
         LinkPreviewOptionsSheet(
-            preview = linkPreview,
-            links = linkPreviewLinks,
-            options = linkPreviewOptions,
-            onChange = onLinkPreviewOptions,
+            preview = shownPreview,
+            links = linkPreview.links,
+            options = linkPreview.options,
+            onChange = linkPreview.onOptions,
             onDismiss = { linkOptionsOpen = false },
         )
     }
@@ -569,40 +455,40 @@ internal fun MessageInput(
               Column {
                 // Úprava má přednost před citací: odpověď se při ní neruší, jen se na chvíli schová.
                 if (editing != null) {
-                    EditingHeader(message = editing, onCancel = onCancelEdit, media = editMedia)
+                    EditingHeader(message = editing.message, onCancel = editing.onCancel, media = editing.media)
                 } else {
                   AnimatedVisibility(
-                      visible = attachmentsPreparing,
+                      visible = attachments.preparing,
                       enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
                       exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
                   ) {
                       AttachmentsPreparing()
                   }
                   StagedAttachmentsStrip(
-                      attachments = attachments,
-                      onRemove = onRemoveAttachment,
-                      onOpen = onOpenAttachment,
-                      onSetMode = onSetAttachmentMode,
-                      selfDestructAllowed = selfDestructAllowed,
-                      previewAttachmentIndex = previewAttachmentIndex,
+                      attachments = attachments.items,
+                      onRemove = attachments.onRemove,
+                      onOpen = attachments.onOpen,
+                      onSetMode = attachments.onSetMode,
+                      selfDestructAllowed = attachments.selfDestructAllowed,
+                      previewAttachmentIndex = attachments.previewIndex,
                   )
                   // Návrh jen do PRÁZDNÉHO pole: napsaný popisek by model přepsal, a ten má přednost.
-                  if (captionSuggestion != CaptionSuggestion.Hidden && draft.text.isBlank()) {
-                      CaptionSuggestionButton(working = captionSuggestion == CaptionSuggestion.Working, onClick = onSuggestCaption)
+                  if (attachments.captionSuggestion != CaptionSuggestion.Hidden && draft.text.isBlank()) {
+                      CaptionSuggestionButton(working = attachments.captionSuggestion == CaptionSuggestion.Working, onClick = attachments.onSuggestCaption)
                   }
-                  replyingTo?.let { target ->
+                  reply?.let { target ->
                     // Citace je horní pruh karty, barevně oddělený — stejně jako na kartě zprávy,
                     // ne subkartička v kartě.
                     ComposerHeader {
                         QuotedMessage(
-                            message = target,
-                            partnerName = partnerName,
+                            message = target.message,
+                            partnerName = target.partnerName,
                             accent = composerHeaderAccent(),
                             contained = false,
-                            quoteText = replyQuote,
+                            quoteText = target.quote,
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = onCancelReply, shapes = IconButtonDefaults.shapes()) {
+                        IconButton(onClick = target.onCancel, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.close_24dp),
                                 contentDescription = stringResource(Res.string.conversation_cancel_reply),
@@ -617,18 +503,18 @@ internal fun MessageInput(
                    * pod prstem posunul. Patří i k úpravě textu: upravená zpráva odejde s ním.
                    */
                   AnimatedVisibility(
-                      visible = linkPreview != null,
+                      visible = shownPreview != null,
                       enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
                       exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
                   ) {
                       // Při odjezdu je náhled už `null`; dobíhá se s posledním.
-                      var shown by remember { mutableStateOf(linkPreview) }
-                      if (linkPreview != null) shown = linkPreview
+                      var shown by remember { mutableStateOf(shownPreview) }
+                      if (shownPreview != null) shown = shownPreview
                       shown?.let { preview ->
                           LinkPreviewHeader(
                               preview = preview,
                               onOpenOptions = { linkOptionsOpen = true },
-                              onDismiss = { onLinkPreviewOptions(linkPreviewOptions.copy(disabled = true)) },
+                              onDismiss = { linkPreview.onOptions(linkPreview.options.copy(disabled = true)) },
                           )
                       }
                   }
@@ -642,8 +528,8 @@ internal fun MessageInput(
                       active = fieldFocused && !voiceActive,
                       acceptAnimations = content.stickers,
                       acceptImages = content.photos,
-                      onContent = onKeyboardContent,
-                      onError = onKeyboardContentFailed,
+                      onContent = keyboardContent.onContent,
+                      onError = keyboardContent.onFailed,
                   ) { kind, pasteButton ->
                       ComposerHeader {
                           Text(
@@ -662,38 +548,38 @@ internal fun MessageInput(
                 }
 
                 // Při nahrávání místo pole pruh s časem; citace nad ním zůstává, hlasovka na ni odpoví.
-                if (videoNotePreview != null && videoNotePlayback != null) {
+                if (videoNotePreview != null) {
                     VideoNotePreviewBar(
-                        preview = videoNotePreview,
-                        playback = videoNotePlayback,
-                        onDiscard = onDiscardVideoNotePreview,
+                        preview = videoNotePreview.preview,
+                        playback = videoNotePreview.playback,
+                        onDiscard = videoNotePreview.onDiscard,
                         // Jako u hlasovky: ťuknutím, takže nahrávání je rovnou zamčené.
                         onContinue = {
                             recordLocked = true
-                            onContinueVideoNotePreview()
+                            videoNotePreview.onContinue()
                         },
                     )
                 } else if (voicePreview != null) {
                     VoicePreviewBar(
-                        preview = voicePreview,
-                        playback = voicePreviewPlayback,
-                        onToggle = onToggleVoicePreview,
-                        onSeek = onSeekVoicePreview,
-                        onDiscard = onDiscardVoicePreview,
+                        preview = voicePreview.preview,
+                        playback = voicePreview.playback,
+                        onToggle = voicePreview.onToggle,
+                        onSeek = voicePreview.onSeek,
+                        onDiscard = voicePreview.onDiscard,
                         // Spouští se ťuknutím, ne podržením: nahrávání je rovnou zamčené.
                         onContinue = {
                             recordLocked = true
-                            onContinueVoicePreview()
+                            voicePreview.onContinue()
                         },
                     )
-                } else if (isRecording) {
+                } else if (recording.isRecording) {
                     RecordingBar(
-                        recording = recording,
-                        onCancel = onCancelRecording,
+                        recording = recording.current,
+                        onCancel = recording.onCancel,
                         holding = recordHolding,
                         cancelProgress = { cancelProgress(recordDrag.value.x, with(density) { RECORD_CANCEL_DISTANCE.toPx() }) },
-                        onStop = onStopRecording,
-                        video = recordingKind == RecordMode.VideoNote,
+                        onStop = recording.onStop,
+                        video = recording.kind == RecordMode.VideoNote,
                     )
                 } else Row(verticalAlignment = Alignment.Bottom) {
             /*
@@ -709,18 +595,18 @@ internal fun MessageInput(
             // Kým se píše, při úpravě ne — upravená zpráva odesílatele nemění.
             val sender = senderSlot?.takeIf { editing == null }
             sender?.invoke(Modifier.padding(start = 4.dp, bottom = 4.dp))
-            val botButton = editing == null && (menuApp != null || onToggleCommands != null)
-            if (editing == null && menuApp != null) {
+            val botButton = editing == null && (bot.menuApp != null || bot.onToggleCommands != null)
+            if (editing == null && bot.menuApp != null) {
                 BotMenuAppButton(
-                    text = menuApp.text,
-                    compact = draft.text.isNotBlank() || attachments.isNotEmpty(),
+                    text = bot.menuApp.text,
+                    compact = draft.text.isNotBlank() || attachments.items.isNotEmpty(),
                     iconColor = inputIconColor(),
-                    onClick = onOpenMenuApp,
+                    onClick = bot.onOpenMenuApp,
                     modifier = Modifier.padding(start = if (sender != null) 0.dp else 4.dp, bottom = 4.dp),
                 )
-            } else if (editing == null && onToggleCommands != null) {
+            } else if (editing == null && bot.onToggleCommands != null) {
                 IconButton(
-                    onClick = onToggleCommands,
+                    onClick = bot.onToggleCommands,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                     modifier = Modifier.padding(start = if (sender != null) 0.dp else 4.dp, bottom = 4.dp),
                     shapes = IconButtonDefaults.shapes(),
@@ -734,19 +620,15 @@ internal fun MessageInput(
             // Sponka, nebo „Aa" — viz ComposerStartSlot. Smajlík má místo vpravo vždycky.
             val attachColor = inputIconColor()
             ComposerStartSlot(
-                attach = if (editing == null && (content.anyAttachment || onSendLocation != null)) {
+                attach = if (editing == null && (content.anyAttachment || attach.onSendLocation != null)) {
                     {
                         AttachButton(
-                            onPickMedia = onPickMedia,
-                            onPickDocument = onPickDocument,
+                            actions = attach,
                             // Skupina může povolit fotky a zakázat soubory; nabídne se jen dovolené.
                             canPickMedia = content.photos || content.videos,
                             canPickDocument = content.documents,
-                            onCreatePoll = onCreatePoll,
-                            onCreateChecklist = onCreateChecklist,
-                            onSendLocation = onSendLocation,
-                            onShareContact = onShareContact,
-                            onPickRecentFiles = onPickRecentFiles,
+                            canTakePhoto = content.photos,
+                            canRecordVideo = content.videos,
                             contentColor = attachColor,
                         )
                     }
@@ -790,8 +672,8 @@ internal fun MessageInput(
                 acceptAnimations = editing == null && content.stickers,
                 acceptImages = editing == null && content.photos,
                 acceptFiles = editing == null && content.documents,
-                onContent = onKeyboardContent,
-                onError = onKeyboardContentFailed,
+                onContent = keyboardContent.onContent,
+                onError = keyboardContent.onFailed,
             ) {
                 BasicTextField(
                     value = draft,
@@ -799,7 +681,7 @@ internal fun MessageInput(
                         val changed = it.text != draft.text
                         draft = it
                         // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
-                        if (changed) onDraftChanged(composer.composed)
+                        if (changed) field.onDraftChanged(composer.composed)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -820,10 +702,10 @@ internal fun MessageInput(
                                 return@onPreviewKeyEvent false
                             }
                             when {
-                                event.key == Key.Escape && editing != null -> onCancelEdit()
-                                event.key == Key.Escape && replyingTo != null -> onCancelReply()
-                                event.key == Key.DirectionUp && onEditLast != null && editing == null &&
-                                    replyingTo == null && draft.text.isEmpty() && !withAttachments -> onEditLast()
+                                event.key == Key.Escape && editing != null -> editing.onCancel()
+                                event.key == Key.Escape && reply != null -> reply.onCancel()
+                                event.key == Key.DirectionUp && field.onEditLast != null && editing == null &&
+                                    reply == null && draft.text.isEmpty() && !withAttachments -> field.onEditLast()
                                 else -> return@onPreviewKeyEvent false
                             }
                             true
@@ -839,10 +721,10 @@ internal fun MessageInput(
                             if (!enter || event.isShiftPressed || !event.isFromHardwareKeyboard) {
                                 return@onPreviewKeyEvent false
                             }
-                            val sendable = !voiceActive && !attachmentsPreparing &&
-                                (draft.text.isNotBlank() || withAttachments || editing?.editKind() == ComposerEdit.Caption)
+                            val sendable = !voiceActive && !attachments.preparing &&
+                                (draft.text.isNotBlank() || withAttachments || editing?.message?.editKind() == ComposerEdit.Caption)
                             if (event.type == KeyEventType.KeyDown && sendable) {
-                                onSend(composer.composed, SendOptions())
+                                send.onSend(composer.composed, SendOptions())
                                 draft = TextFieldValue()
                             }
                             true
@@ -861,7 +743,7 @@ internal fun MessageInput(
                     ),
                     keyboardActions = KeyboardActions(
                         onSend = {
-                            onSend(composer.composed, SendOptions())
+                            send.onSend(composer.composed, SendOptions())
                             draft = TextFieldValue()
                         },
                     ),
@@ -884,7 +766,7 @@ internal fun MessageInput(
                                 Text(
                                     when {
                                         withAttachments -> stringResource(Res.string.conversation_input_caption)
-                                        placeholder != null && editing == null -> placeholder
+                                        field.placeholder != null && editing == null -> field.placeholder
                                         else -> stringResource(Res.string.conversation_input_message)
                                     },
                                     maxLines = 1,
@@ -933,27 +815,27 @@ internal fun MessageInput(
             }
             }
             // Výchozí ticho v kanálu: přepínač, ne akce — stav nese tvar i ikona (přeškrtnutý zvon).
-            if (editing == null && defaultSilent != null) {
+            if (editing == null && send.defaultSilent != null) {
                 IconToggleButton(
-                    checked = defaultSilent,
-                    onCheckedChange = { onToggleDefaultSilent() },
+                    checked = send.defaultSilent,
+                    onCheckedChange = { send.onToggleDefaultSilent() },
                     colors = IconButtonDefaults.iconToggleButtonColors(contentColor = inputIconColor()),
                     modifier = Modifier.padding(bottom = 4.dp),
                     shapes = IconButtonDefaults.toggleableShapes(),
                 ) {
                     Icon(
-                        painterResource(if (defaultSilent) Res.drawable.notifications_off_24dp else Res.drawable.notifications_24dp),
+                        painterResource(if (send.defaultSilent) Res.drawable.notifications_off_24dp else Res.drawable.notifications_24dp),
                         contentDescription = stringResource(
-                            if (defaultSilent) Res.string.conversation_default_silent_disable else Res.string.conversation_default_silent_enable,
+                            if (send.defaultSilent) Res.string.conversation_default_silent_disable else Res.string.conversation_default_silent_enable,
                         ),
                     )
                 }
             }
             // Naplánované zprávy: hodiny u pole, dokud nějaké čekají — do historie nepatří,
             // takže jinak by o nich nebylo vidět nic.
-            if (editing == null && onOpenScheduled != null) {
+            if (editing == null && send.onOpenScheduled != null) {
                 IconButton(
-                    onClick = onOpenScheduled,
+                    onClick = send.onOpenScheduled,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                     modifier = Modifier.padding(bottom = 4.dp),
                     shapes = IconButtonDefaults.shapes(),
@@ -970,7 +852,7 @@ internal fun MessageInput(
                 onClick = {
                     // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky; sheet je
                     // další okno, takže otevřený hned by klávesnici utrhl skokem.
-                    afterKeyboardHidden(onOpenStickers)
+                    afterKeyboardHidden(expression.onOpen)
                 },
                 colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                 modifier = Modifier.padding(end = 4.dp, bottom = 4.dp),
@@ -979,9 +861,9 @@ internal fun MessageInput(
                 // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                 // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
                 when {
-                    editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
+                    editing != null || !content.stickers || expression.mode == ExpressionMode.Emoji ->
                         Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
-                    expressionMode == ExpressionMode.Gifs ->
+                    expression.mode == ExpressionMode.Gifs ->
                         Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
                     else ->
                         Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
@@ -1001,7 +883,7 @@ internal fun MessageInput(
                 ) {
                     FormattingBar(
                         composer = composer,
-                        onChanged = { onDraftChanged(composer.composed) },
+                        onChanged = { field.onDraftChanged(composer.composed) },
                         onLink = { draft.selection.let { linkTarget = listOf(it.min, it.max) } },
                         onCodeLanguage = { draft.selection.let { languageTarget = listOf(it.min, it.max) } },
                     )
@@ -1030,17 +912,17 @@ internal fun MessageInput(
              */
             // Bez práva na hlasovky i kolečka tlačítko zůstane odesláním, jen neaktivním.
             val showMic = !voiceActive && editing == null && draft.text.isBlank() && !withAttachments &&
-                !attachmentsPreparing && recordMode != null
+                !attachments.preparing && recording.mode != null
 
             /*
              * Prázdný POPISEK je platná úprava — tím se popisek odebere —, takže tlačítko musí jít
              * zmáčknout i s prázdným polem. U textu zprávy ne: prázdnou zprávu server odmítne.
              */
-            val removableCaption = editing?.editKind() == ComposerEdit.Caption
+            val removableCaption = editing?.message?.editKind() == ComposerEdit.Caption
             val kind = when {
                 editing != null -> SendButtonKind.Save
                 voiceActive -> SendButtonKind.SendVoice
-                showMic && recordMode == RecordMode.VideoNote -> SendButtonKind.Camera
+                showMic && recording.mode == RecordMode.VideoNote -> SendButtonKind.Camera
                 showMic -> SendButtonKind.Mic
                 else -> SendButtonKind.Send
             }
@@ -1053,15 +935,15 @@ internal fun MessageInput(
             // nahrávání se rozhoduje až po zavření: bez volby se nahrává dál, s volbou ne.
             LaunchedEffect(sendMenuOpen) {
                 if (!sendMenuOpen && voiceMenu) {
-                    if (!voiceChosen) onVoiceMenu(false)
+                    if (!voiceChosen) recording.onMenu(false)
                     voiceMenu = false
                     voiceChosen = false
                 }
             }
             // Efekt jde vybrat jen k textu — výběr efektu posílá obsah pole.
-            val voiceSendMenu = sendMenu.copy(effects = false)
+            val voiceSendMenu = send.menu.copy(effects = false)
             val recordActionLabel = stringResource(
-                if (recordMode == RecordMode.VideoNote) Res.string.conversation_record_video_note else Res.string.conversation_record_voice,
+                if (recording.mode == RecordMode.VideoNote) Res.string.conversation_record_video_note else Res.string.conversation_record_voice,
             )
             // Ťuknutí na mikrofon či kameru nahrávání nespouští, jen přepíná — a řekne jak dál.
             val recordHint = rememberTooltipState(isPersistent = false)
@@ -1069,23 +951,23 @@ internal fun MessageInput(
             // „Přepsat…" nese nabídka odeslání, ale do `sendMenuOffer` nepatří: rozhoduje o něm
             // text pole, a ten `ConversationScreen` číst nemá (skládal by se při každém úhozu).
             val rewriteOffered = rewrite.offered && editing == null && rewritable(draft.text)
-            val sendOptionsOffered = (kind == SendButtonKind.Send && (sendMenu.any || rewriteOffered) && !attachmentsPreparing) ||
+            val sendOptionsOffered = (kind == SendButtonKind.Send && (send.menu.any || rewriteOffered) && !attachments.preparing) ||
                 (kind == SendButtonKind.SendVoice && voiceSendMenu.any)
             ButtonGestureHint(
                 hints = gestureHints,
                 sendOptions = kind == SendButtonKind.Send && sendOptionsOffered,
                 recording = showMic,
-                recordMode = recordMode ?: RecordMode.Voice,
-                effects = sendMenu.effects,
+                recordMode = recording.mode ?: RecordMode.Voice,
+                effects = send.menu.effects,
             ) {
-            Box(Modifier.onGloballyPositioned { recordGesture.buttonCenterX = it.boundsInWindow().center.x }) {
+            Box(Modifier.onGloballyPositioned { recording.gesture.buttonCenterX = it.boundsInWindow().center.x }) {
                 RootTooltipBox(
                     positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                     tooltip = {
                         PlainTooltip {
                             Text(
                                 stringResource(
-                                    if (recordMode == RecordMode.VideoNote) {
+                                    if (recording.mode == RecordMode.VideoNote) {
                                         Res.string.conversation_record_hint_video_note
                                     } else {
                                         Res.string.conversation_record_hint_voice
@@ -1121,7 +1003,7 @@ internal fun MessageInput(
                  * už nebliká — dva blikající prvky vedle sebe by byly šum — a živost nese tlačítko,
                  * kterým se nahrávání i odesílá.
                  */
-                val breathing = if (isRecording) {
+                val breathing = if (recording.isRecording) {
                     rememberInfiniteTransition(label = "recording-breath").animateFloat(
                         initialValue = 0f,
                         targetValue = 1f,
@@ -1187,25 +1069,25 @@ internal fun MessageInput(
                 FilledIconButton(
                     onClick = {
                         when {
-                            voiceActive -> onSendRecording(SendOptions())
+                            voiceActive -> recording.onSend(SendOptions())
                             showMic -> {
-                                if (canSwitchRecordMode) {
-                                    haptics.toggle(on = recordMode == RecordMode.Voice)
-                                    onSwitchRecordMode()
+                                if (recording.canSwitchMode) {
+                                    haptics.toggle(on = recording.mode == RecordMode.Voice)
+                                    recording.onSwitchMode()
                                 }
                                 hintScope.launch { recordHint.show() }
                             }
                             else -> {
-                                onSend(composer.composed, SendOptions())
+                                send.onSend(composer.composed, SendOptions())
                                 draft = TextFieldValue()
                             }
                         }
                     },
                     // Přílohy jdou poslat i bez popisku a popisek jde i odebrat.
                     // Náhled, který se ještě dokončuje, poslat nejde — soubor není hotový.
-                    enabled = (isRecording || voicePreview?.voice != null || videoNotePreview?.note != null || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
+                    enabled = (recording.isRecording || voicePreview?.preview?.voice != null || videoNotePreview?.preview?.note != null || showMic || draft.text.isNotBlank() || withAttachments || removableCaption) &&
                         // Odeslání teď by poslalo zprávu bez videa, které se ještě kopíruje.
-                        !(kind == SendButtonKind.Send && attachmentsPreparing),
+                        !(kind == SendButtonKind.Send && attachments.preparing),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = containerColor,
                         contentColor = contentColor,
@@ -1222,20 +1104,20 @@ internal fun MessageInput(
                                 recordHeld = true
                                 // Zamčení z minula (akce čtečky, která nakonec nenahrávala) neplatí.
                                 recordLocked = false
-                                onStartRecording(true)
+                                recording.onStart(true)
                             },
                             onDrag = { recordDrag.value = it },
                             onRelease = {
                                 recordHeld = false
-                                if (isRecording) onSendRecording(SendOptions())
+                                if (recording.isRecording) recording.onSend(SendOptions())
                             },
                             onCancel = {
                                 recordHeld = false
-                                if (isRecording) onCancelRecording()
+                                if (recording.isRecording) recording.onCancel()
                             },
                             onLock = {
                                 recordHeld = false
-                                if (isRecording) {
+                                if (recording.isRecording) {
                                     haptics.threshold()
                                     recordLocked = true
                                 }
@@ -1247,7 +1129,7 @@ internal fun MessageInput(
                                 customActions = listOf(
                                     CustomAccessibilityAction(recordActionLabel) {
                                         recordLocked = true
-                                        onStartRecording(false)
+                                        recording.onStart(false)
                                         true
                                     },
                                 )
@@ -1261,7 +1143,7 @@ internal fun MessageInput(
                         .longPressInstead(enabled = sendOptionsOffered) {
                             gestureHints?.used(GestureHint.SendOptions)
                             voiceMenu = kind == SendButtonKind.SendVoice
-                            if (voiceMenu) onVoiceMenu(true)
+                            if (voiceMenu) recording.onMenu(true)
                             sendMenuOpen = true
                         },
                 ) {
@@ -1292,7 +1174,7 @@ internal fun MessageInput(
                                     SendButtonKind.Save -> Res.string.conversation_save_edit
                                     SendButtonKind.Mic -> Res.string.conversation_record_voice
                                     SendButtonKind.Camera -> Res.string.conversation_record_video_note
-                                    SendButtonKind.SendVoice -> if (recordingKind == RecordMode.VideoNote) {
+                                    SendButtonKind.SendVoice -> if (recording.kind == RecordMode.VideoNote) {
                                         Res.string.conversation_send_video_note
                                     } else {
                                         Res.string.conversation_send_voice
@@ -1305,7 +1187,7 @@ internal fun MessageInput(
                     }
                 }
                 }
-                val offer = if (voiceMenu) voiceSendMenu else sendMenu
+                val offer = if (voiceMenu) voiceSendMenu else send.menu
                 ExpressiveMenu(
                     expanded = sendMenuOpen,
                     onDismiss = { sendMenuOpen = false },
@@ -1316,43 +1198,43 @@ internal fun MessageInput(
                                 MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
                                     voiceChosen = true
                                     sendMenuOpen = false
-                                    onSendRecording(SendOptions(silent = true))
+                                    recording.onSend(SendOptions(silent = true))
                                 }.takeIf { offer.silent },
                                 MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
                                     voiceChosen = true
                                     sendMenuOpen = false
-                                    afterKeyboardHidden(onScheduleRecording)
+                                    afterKeyboardHidden(recording.onSchedule)
                                 }.takeIf { offer.schedule },
                                 MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
                                     voiceChosen = true
                                     sendMenuOpen = false
-                                    onSendRecording(SendOptions(schedule = MessageSchedule.WhenOnline))
+                                    recording.onSend(SendOptions(schedule = MessageSchedule.WhenOnline))
                                 }.takeIf { offer.whenOnline },
                             )
                         } else listOfNotNull(
                             MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
                                 sendMenuOpen = false
-                                onSend(composer.composed, SendOptions(silent = true))
+                                send.onSend(composer.composed, SendOptions(silent = true))
                                 draft = TextFieldValue()
-                            }.takeIf { sendMenu.silent },
+                            }.takeIf { send.menu.silent },
                             MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
                                 sendMenuOpen = false
-                                afterKeyboardHidden(onSchedule)
-                            }.takeIf { sendMenu.schedule },
+                                afterKeyboardHidden(send.onSchedule)
+                            }.takeIf { send.menu.schedule },
                             MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
                                 sendMenuOpen = false
-                                onSend(composer.composed, SendOptions(schedule = MessageSchedule.WhenOnline))
+                                send.onSend(composer.composed, SendOptions(schedule = MessageSchedule.WhenOnline))
                                 draft = TextFieldValue()
-                            }.takeIf { sendMenu.whenOnline },
+                            }.takeIf { send.menu.whenOnline },
                             MenuAction(stringResource(Res.string.conversation_send_effect), Res.drawable.auto_awesome_24dp) {
                                 sendMenuOpen = false
-                                afterKeyboardHidden(onPickEffect)
-                            }.takeIf { sendMenu.effects },
+                                afterKeyboardHidden(send.onPickEffect)
+                            }.takeIf { send.menu.effects },
                             MenuAction(stringResource(Res.string.suggested_post_send), Res.drawable.campaign_24dp) {
                                 sendMenuOpen = false
-                                onSend(composer.composed, SendOptions(suggestPost = true))
+                                send.onSend(composer.composed, SendOptions(suggestPost = true))
                                 draft = TextFieldValue()
-                            }.takeIf { sendMenu.suggestPost },
+                            }.takeIf { send.menu.suggestPost },
                             MenuAction(stringResource(Res.string.conversation_send_rewrite), Res.drawable.edit_note_24dp) {
                                 sendMenuOpen = false
                                 val text = draft.text
@@ -1658,7 +1540,8 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit, media: Edi
  * Výměna přílohy při úpravě: [replacement] je vybraná nová příloha (`null` = zatím žádná),
  * [onReplace] otevře výběr, [onKeep] výměnu zahodí. Jeden objekt místo tří parametrů pole.
  */
-class EditMediaControls(
+@Immutable
+data class EditMediaControls(
     val replacement: MediaReplacement?,
     val onReplace: () -> Unit,
     val onKeep: () -> Unit,

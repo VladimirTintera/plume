@@ -28,6 +28,7 @@ import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.core.ui.QuoteBlockStyle
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.messageTextStyle
 import eu.tintera.plume.resources.Res
@@ -109,9 +110,11 @@ internal data class PendingReplyItem(
                                 else -> Unit
                             }
                         },
-                        quoteBackground = onBubble.copy(alpha = QUOTE_TINT_ALPHA),
-                        quoteBleed = MESSAGE_PADDING_H,
-                        quotePadding = MESSAGE_PADDING_V,
+                        quote = QuoteBlockStyle(
+                            background = onBubble.copy(alpha = QUOTE_TINT_ALPHA),
+                            bleed = MESSAGE_PADDING_H,
+                            padding = MESSAGE_PADDING_V,
+                        ),
                         modifier = Modifier.padding(horizontal = MESSAGE_PADDING_H, vertical = MESSAGE_PADDING_V),
                     )
                 }

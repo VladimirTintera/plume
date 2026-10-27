@@ -48,7 +48,10 @@
             android:name=".WearNotificationReceiver"
             android:exported="false" />
 
-        <!-- Dlaždice s počtem nepřečtených chatů (UnreadTileService). -->
+        <!-- Dlaždice s počtem nepřečtených chatů (UnreadTileService).
+             Náhledy dlaždic (androidx.wear.tiles.PREVIEW) ukazuje výběr dlaždic v hodinkách
+             a v aplikaci Pixel Watch; bez nich je tam jen ikona aplikace. Jsou to snímky
+             z emulátoru s vymyšlenými chaty, česky v drawable-cs-nodpi. -->
         <service
             android:name=".UnreadTileService"
             android:exported="true"
@@ -57,6 +60,9 @@
             <intent-filter>
                 <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
             </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@drawable/tile_preview_unread" />
         </service>
 
         <!-- Dlaždice s chaty ze začátku seznamu (RecentChatsTileService). -->
@@ -68,6 +74,9 @@
             <intent-filter>
                 <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
             </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@drawable/tile_preview_chats" />
         </service>
 
         <!-- Komplikace na ciferník; obnovu si vyžádá UnreadCountPublisher, pravidelná není. -->
@@ -99,6 +108,9 @@
             <intent-filter>
                 <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
             </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@drawable/tile_preview_note" />
         </service>
         <service
             android:name=".QuickNoteComplicationService"

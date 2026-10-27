@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.features.media.MediaPageGestures
+import eu.tintera.plume.features.media.MediaPagePlacement
+import eu.tintera.plume.features.media.MediaSpoiler
 import eu.tintera.plume.features.media.SystemBarShades
+import eu.tintera.plume.features.media.VideoFileSource
 import eu.tintera.plume.features.media.VideoPage
 import eu.tintera.plume.features.media.ZoomableMediaPage
 import androidx.compose.animation.core.animateFloatAsState
@@ -658,8 +662,20 @@ private fun SharedPhoto(
         scaleX = scale
         scaleY = scale
     }
-    // Na celé obrazovce vede svislý tah zpátky do galerie; v galerii nemá kam.
-    val onDismiss = onLeaveImmersive.takeIf { immersive }
+    val placement = MediaPagePlacement(
+        isCurrent = isCurrent,
+        immersive = immersive,
+        immersion = immersion,
+        reservedTop = reservedTop,
+        reservedBottom = reservedBottom,
+        cardBias = cardBias,
+    )
+    val gestures = MediaPageGestures(
+        // Na celé obrazovce vede svislý tah zpátky do galerie; v galerii nemá kam.
+        onDismiss = onLeaveImmersive.takeIf { immersive },
+        onTap = onToggleImmersive,
+        onEngage = onEngage,
+    )
 
     // ✕ a volba režimu patří galerii; na celé obrazovce by překážely snímku.
     val badges: @Composable BoxScope.() -> Unit = {
@@ -729,25 +745,14 @@ private fun SharedPhoto(
             durationSeconds = attachment.durationSeconds,
             // Popisek se tu teprve píše, a to do pole pod kartou.
             caption = "",
-            isCurrent = isCurrent,
-            immersive = immersive,
-            immersion = immersion,
-            reservedTop = reservedTop,
-            reservedBottom = reservedBottom,
+            placement = placement,
             dismissDrag = dismissDrag,
-            onDismiss = onDismiss,
-            onTap = onToggleImmersive,
-            onEngage = onEngage,
+            gestures = gestures,
             // Soubor je celý na disku, nic se nestahuje.
-            source = { FileState.Ready(attachment.path) },
-            streamable = false,
-            requestFrom = {},
-            hasSpoiler = attachment.hasSpoiler,
+            source = VideoFileSource(state = { FileState.Ready(attachment.path) }, streamable = false, requestFrom = {}),
             // Zakrytý spoiler odkryje (a na celou obrazovku přepne) první ťuknutí.
-            revealed = immersive,
-            onReveal = onEngage,
+            spoiler = MediaSpoiler(revealed = immersive, onReveal = onEngage).takeIf { attachment.hasSpoiler },
             modifier = pageModifier,
-            cardBias = cardBias,
             overlay = badges,
             thumbnail = {
                 AsyncImage(
@@ -766,17 +771,10 @@ private fun SharedPhoto(
         else -> ZoomableMediaPage(
             aspectRatio = attachment.previewRatio ?: 1f,
             caption = "",
-            isCurrent = isCurrent,
-            immersive = immersive,
-            immersion = immersion,
-            reservedTop = reservedTop,
-            reservedBottom = reservedBottom,
+            placement = placement,
             dismissDrag = dismissDrag,
-            onDismiss = onDismiss,
-            onTap = onToggleImmersive,
-            onEngage = onEngage,
+            gestures = gestures,
             modifier = pageModifier,
-            cardBias = cardBias,
             overlay = badges,
         ) {
             AsyncImage(

@@ -18,6 +18,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.foundation.text.InlineTextContent
@@ -106,54 +107,14 @@ fun RichText(
      * tak místo nabídky otevíral prohlížeč. Proto se dlouhý stisk nad odkazem hlídá tady.
      */
     onLongClick: (() -> Unit)? = null,
-    /**
-     * Úseky, které se mají zvýraznit (hledané slovo, viz [highlightRanges]). Úsek uvnitř
-     * zakrytého spoileru se nezvýrazní — zvýraznění by skryté slovo prozradilo.
-     */
-    highlights: List<IntRange> = emptyList(),
-    /** Barva písma zvýrazněného úseku. */
-    highlightColor: Color = Color.Unspecified,
-    /** Podklad zvýrazněného úseku — zaoblená pilulka za textem, po řádcích. */
-    highlightBackground: Color = Color.Unspecified,
-    /**
-     * Podklad citace v textu ([MessageEntityType.Quote]) — tónovaný blok za jejími řádky.
-     *
-     * Musí jít předat ze stejného důvodu jako [linkColor]: barva se počítá proti ploše, na které
-     * zpráva leží (`MessageBodyScope.insetColor`). Bez barvy se blok nekreslí a citace zůstane
-     * obyčejným textem.
-     */
-    quoteBackground: Color = Color.Unspecified,
-    /**
-     * O kolik pás citace přesáhne za text nahoru a dolů, když sahá na PRVNÍ, respektive POSLEDNÍ
-     * řádek — tedy o vnitřní odsazení bubliny, aby dosedl na její okraj.
-     *
-     * Musí to podat volající: `drawBehind` se na hranice textu neořezává, takže uvnitř by se
-     * hádalo, jestli nad textem nestojí značka přeposlání nebo hlavička citované zprávy, přes
-     * jejichž šev pás přelézt nesmí.
-     */
-    quoteBleedTop: Dp = 0.dp,
-    quoteBleedBottom: Dp = 0.dp,
-    /**
-     * Geometrie pásu citace, kterou podává volající — ať je stejná jako u ostatních dílů zprávy
-     * (v konverzaci `MESSAGE_PADDING_H` / `MESSAGE_PADDING_V`).
-     *
-     * [quoteBleed] je přesah do stran: přesně vnitřní odsazení karty, takže pás dosedne na její
-     * okraj. [quotePadding] je svislé odsazení uvnitř pásu, kde citace nesahá na kraj textu.
-     */
-    quoteBleed: Dp = 0.dp,
-    quotePadding: Dp = 0.dp,
+    /** Zvýraznění hledaného slova; bez něj nic. */
+    highlights: TextHighlights = TextHighlights.None,
+    /** Jak se kreslí citace v textu ([MessageEntityType.Quote]); bez podkladu jen menší písmo. */
+    quote: QuoteBlockStyle = QuoteBlockStyle.None,
     /** Sbalená citace se ořízne na pár řádků; zbytek ukáže rozbalovač pod ní. */
     maxLines: Int = Int.MAX_VALUE,
     /** Hlásí, jestli se text do [maxLines] nevešel — podle toho se nabízí rozbalovač. */
     onOverflow: ((Boolean) -> Unit)? = null,
-    /**
-     * Citace je CELÝ text zprávy, takže se odsadí `padding`em celý `Text`, ne `ParagraphStyle`em.
-     *
-     * Odsazení odstavcem by se s ořezem na [maxLines] pralo: **Compose ellipsizovaný poslední
-     * řádek zalomí na plnou šířku a teprve pak ho posune o odsazení**, takže mu konec i s výpustkou
-     * přeteče za okraj a `Text` ho ořízne — poslední řádek pak končí uprostřed slova a bez „…".
-     */
-    quoteIndentAsPadding: Boolean = false,
 ) {
     /*
      * Spoilery se odkrývají po zprávě, ne po jednotlivých úsecích.
@@ -181,8 +142,8 @@ fun RichText(
     val suppressLinkClick = remember { booleanArrayOf(false) }
     val haptics = LocalHapticFeedback.current
 
-    val visible = remember(text, entities, highlights, spoilersRevealed) {
-        visibleHighlights(text, entities, highlights, spoilersRevealed)
+    val visible = remember(text, entities, highlights.ranges, spoilersRevealed) {
+        visibleHighlights(text, entities, highlights.ranges, spoilersRevealed)
     }
     val quotes = remember(text, entities) { quoteRanges(text, entities) }
     /*
@@ -192,7 +153,7 @@ fun RichText(
      */
     val quoteIcon = if (quotes.isEmpty()) null else painterResource(Res.drawable.format_quote_24dp)
     // Odsazení se počítá z dp, ne ze sp: lícuje s ikonou vedle sebe, ne s velikostí písma.
-    val quoteIndent = if (quoteIndentAsPadding) null else with(LocalDensity.current) { QUOTE_INDENT.toSp() }
+    val quoteIndent = if (quote.indentAsPadding) null else with(LocalDensity.current) { QUOTE_INDENT.toSp() }
     /*
      * Vlastní emoji jako inline obsah. Úsek textu (náhradní emoji) zůstává v řetězci, jen se
      * vykreslí obrázkem — offsety ostatních entit, zvýraznění i kopírování tím zůstanou platné.
@@ -228,7 +189,7 @@ fun RichText(
     val inlineContent = remember(customEmoji, dateContent) {
         customEmojiInlineContent(customEmoji.map { it.second }.toSet()) + dateContent
     }
-    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlightColor, quoteIndent, customEmoji, dates, commandsClickable, timestampsClickable) {
+    val annotated = remember(text, entities, linkColor, contentColor, spoilersRevealed, visible, highlights.color, quoteIndent, customEmoji, dates, commandsClickable, timestampsClickable) {
         buildMessageText(
             text = text,
             entities = entities,
@@ -236,17 +197,19 @@ fun RichText(
             timestampsClickable = timestampsClickable,
             quoteIndent = quoteIndent,
             highlights = visible,
-            highlightColor = highlightColor,
+            highlightColor = highlights.color,
             linkColor = linkColor,
             overlayColor = contentColor,
             spoilersRevealed = spoilersRevealed,
-            onLinkClick = {
-                if (suppressLinkClick[0]) suppressLinkClick[0] = false else linkHandler(it)
-            },
-            onEntityClick = {
-                if (suppressLinkClick[0]) suppressLinkClick[0] = false else entityHandler(it)
-            },
-            onSpoilerClick = { spoilersRevealed = true },
+            handlers = TextLinkHandlers(
+                onLink = {
+                    if (suppressLinkClick[0]) suppressLinkClick[0] = false else linkHandler(it)
+                },
+                onEntity = {
+                    if (suppressLinkClick[0]) suppressLinkClick[0] = false else entityHandler(it)
+                },
+                onSpoiler = { spoilersRevealed = true },
+            ),
             customEmoji = customEmoji,
             dates = dates.mapIndexed { index, (range, _) -> range to dateTimeKey(index) },
         )
@@ -265,25 +228,21 @@ fun RichText(
         modifier = modifier.drawBehind {
             // Napřed pás citace, teprve na něm pilulka zvýraznění — hledané slovo musí být vidět
             // i uvnitř citace.
-            if (quotes.isNotEmpty() && quoteBackground.isSpecified) {
+            if (quotes.isNotEmpty() && quote.background.isSpecified) {
                 layout?.let {
                     drawQuoteBlocks(
                         layout = it,
                         ranges = quotes,
-                        color = quoteBackground,
-                        bleed = quoteBleed,
-                        padding = quotePadding,
-                        bleedTop = quoteBleedTop,
-                        bleedBottom = quoteBleedBottom,
+                        style = quote,
                         icon = quoteIcon,
                         iconColor = contentColor.copy(alpha = QUOTE_ICON_ALPHA),
                     )
                 }
             }
-            if (visible.isNotEmpty() && highlightBackground.isSpecified) {
-                layout?.let { drawHighlightPills(it, visible, highlightBackground) }
+            if (visible.isNotEmpty() && highlights.background.isSpecified) {
+                layout?.let { drawHighlightPills(it, visible, highlights.background) }
             }
-        }.padding(start = if (quoteIndentAsPadding && quotes.isNotEmpty()) QUOTE_INDENT else 0.dp).then(
+        }.padding(start = if (quote.indentAsPadding && quotes.isNotEmpty()) QUOTE_INDENT else 0.dp).then(
             if (onLongClick == null) {
                 Modifier
             } else {
@@ -329,6 +288,78 @@ fun RichText(
     )
 }
 
+/** Zvýraznění úseků textu [RichText] — hledané slovo, viz [highlightRanges]. */
+@Immutable
+data class TextHighlights(
+    /**
+     * Úseky, které se mají zvýraznit. Úsek uvnitř zakrytého spoileru se nezvýrazní — zvýraznění
+     * by skryté slovo prozradilo.
+     */
+    val ranges: List<IntRange> = emptyList(),
+    /** Barva písma zvýrazněného úseku. */
+    val color: Color = Color.Unspecified,
+    /** Podklad zvýrazněného úseku — zaoblená pilulka za textem, po řádcích. */
+    val background: Color = Color.Unspecified,
+) {
+    companion object {
+        val None = TextHighlights()
+    }
+}
+
+/**
+ * Jak [RichText] kreslí citaci v textu ([MessageEntityType.Quote]): tónovaný pás za jejími
+ * řádky, jeho geometrie a odsazení.
+ */
+@Immutable
+data class QuoteBlockStyle(
+    /**
+     * Podklad citace — tónovaný blok za jejími řádky.
+     *
+     * Musí jít předat ze stejného důvodu jako barva odkazu: barva se počítá proti ploše, na které
+     * zpráva leží (`MessageBodyScope.insetColor`). Bez barvy se blok nekreslí a citace zůstane
+     * obyčejným textem.
+     */
+    val background: Color = Color.Unspecified,
+    /**
+     * O kolik pás citace přesáhne za text nahoru a dolů, když sahá na PRVNÍ, respektive POSLEDNÍ
+     * řádek — tedy o vnitřní odsazení bubliny, aby dosedl na její okraj.
+     *
+     * Musí to podat volající: `drawBehind` se na hranice textu neořezává, takže uvnitř by se
+     * hádalo, jestli nad textem nestojí značka přeposlání nebo hlavička citované zprávy, přes
+     * jejichž šev pás přelézt nesmí.
+     */
+    val bleedTop: Dp = 0.dp,
+    val bleedBottom: Dp = 0.dp,
+    /**
+     * Geometrie pásu citace, kterou podává volající — ať je stejná jako u ostatních dílů zprávy
+     * (v konverzaci `MESSAGE_PADDING_H` / `MESSAGE_PADDING_V`).
+     *
+     * [bleed] je přesah do stran: přesně vnitřní odsazení karty, takže pás dosedne na její
+     * okraj. [padding] je svislé odsazení uvnitř pásu, kde citace nesahá na kraj textu.
+     */
+    val bleed: Dp = 0.dp,
+    val padding: Dp = 0.dp,
+    /**
+     * Citace je CELÝ text zprávy, takže se odsadí `padding`em celý `Text`, ne `ParagraphStyle`em.
+     *
+     * Odsazení odstavcem by se s ořezem na `maxLines` pralo: **Compose ellipsizovaný poslední
+     * řádek zalomí na plnou šířku a teprve pak ho posune o odsazení**, takže mu konec i s výpustkou
+     * přeteče za okraj a `Text` ho ořízne — poslední řádek pak končí uprostřed slova a bez „…".
+     */
+    val indentAsPadding: Boolean = false,
+) {
+    companion object {
+        val None = QuoteBlockStyle()
+    }
+}
+
+/** Co dělá ťuknutí na úsek textu: odkaz, zmínku (hashtag, příkaz, čas) a zakrytý spoiler. */
+private data class TextLinkHandlers(
+    val onLink: (String) -> Unit,
+    val onEntity: (MessageEntityType) -> Unit,
+    val onSpoiler: () -> Unit,
+)
+
 /**
  * Poskládá text se styly.
  *
@@ -347,9 +378,7 @@ private fun buildMessageText(
     linkColor: Color,
     overlayColor: Color,
     spoilersRevealed: Boolean,
-    onLinkClick: (String) -> Unit,
-    onEntityClick: (MessageEntityType) -> Unit,
-    onSpoilerClick: () -> Unit,
+    handlers: TextLinkHandlers,
     customEmoji: List<Pair<IntRange, Long>>,
     dates: List<Pair<IntRange, String>>,
 ): AnnotatedString = buildAnnotatedString {
@@ -379,7 +408,7 @@ private fun buildMessageText(
                     ),
                     // Vlastní posluchač schválně: bez něj by odkaz otevíral `LocalUriHandler`
                     // a my bychom neměli kam vložit obsluhu interních `t.me` odkazů.
-                    linkInteractionListener = { onLinkClick(type.url) },
+                    linkInteractionListener = { handlers.onLink(type.url) },
                 ),
                 start = start,
                 end = end,
@@ -408,7 +437,7 @@ private fun buildMessageText(
                             textDecoration = if (linkColor == overlayColor) TextDecoration.Underline else null,
                         ),
                     ),
-                    linkInteractionListener = { onEntityClick(type) },
+                    linkInteractionListener = { handlers.onEntity(type) },
                 ),
                 start = start,
                 end = end,
@@ -480,7 +509,7 @@ private fun buildMessageText(
                         styles = TextLinkStyles(
                             style = SpanStyle(color = Color.Transparent, background = overlayColor),
                         ),
-                        linkInteractionListener = { onSpoilerClick() },
+                        linkInteractionListener = { handlers.onSpoiler() },
                     ),
                     start = start,
                     end = end,
@@ -561,16 +590,12 @@ private fun dateTimeKey(index: Int): String = "date-time:$index"
 private fun DrawScope.drawQuoteBlocks(
     layout: TextLayoutResult,
     ranges: List<IntRange>,
-    color: Color,
-    bleed: Dp,
-    padding: Dp,
-    bleedTop: Dp,
-    bleedBottom: Dp,
+    style: QuoteBlockStyle,
     icon: Painter?,
     iconColor: Color,
 ) {
-    val bleedPx = bleed.toPx()
-    val paddingPx = padding.toPx()
+    val bleedPx = style.bleed.toPx()
+    val paddingPx = style.padding.toPx()
     val iconSize = QUOTE_ICON_SIZE.toPx()
     ranges.forEach { range ->
         val last = range.last.coerceAtMost(layout.layoutInput.text.length - 1)
@@ -583,11 +608,11 @@ private fun DrawScope.drawQuoteBlocks(
          * z místa KOLEM pásu se tím stane místo UVNITŘ. Na kraji textu rozhoduje volající:
          * u bubliny to je její vnitřní odsazení, takže pás dosedne na okraj.
          */
-        val top = layout.getLineTop(firstLine) - if (firstLine == 0) bleedTop.toPx() else paddingPx
+        val top = layout.getLineTop(firstLine) - if (firstLine == 0) style.bleedTop.toPx() else paddingPx
         val bottom = layout.getLineBottom(lastLine) +
-            if (lastLine == layout.lineCount - 1) bleedBottom.toPx() else paddingPx
+            if (lastLine == layout.lineCount - 1) style.bleedBottom.toPx() else paddingPx
         drawRect(
-            color = color,
+            color = style.background,
             topLeft = Offset(-bleedPx, top),
             size = Size(size.width + 2 * bleedPx, bottom - top),
         )

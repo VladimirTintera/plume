@@ -22,6 +22,9 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerEmpty
+import eu.tintera.plume.core.ui.PickerError
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.PickerSection
@@ -115,9 +118,11 @@ fun NewChatScreen(
 
     ChatPicker(
         title = stringResource(if (state.secretMode) Res.string.new_chat_new_secret else Res.string.new_chat_title),
-        query = state.query,
-        onQueryChange = viewModel::onQueryChange,
-        searchPlaceholder = stringResource(Res.string.new_chat_search),
+        search = PickerSearch(
+            query = state.query,
+            onQueryChange = viewModel::onQueryChange,
+            placeholder = stringResource(Res.string.new_chat_search),
+        ),
         // Kontakty se načtou jednou; dokud nějaké jsou, hledání je jen zúží a načítání
         // by pod prstem vyměnilo seznam za kolečko.
         loading = state.loading && state.contacts.isEmpty(),
@@ -132,14 +137,15 @@ fun NewChatScreen(
         onPick = { chatId -> if (state.secretMode) viewModel.pickForSecretChat(chatId) else onChatSelected(chatId) },
         showPresence = true,
         savedMessagesChatId = state.savedMessagesChatId,
-        // Bez dotazu je prázdno „nemáš kontakty", s dotazem „nic nenalezeno" — dvě různé
-        // situace, a rada „hledej podle @jména" dává smysl jen u té první.
-        emptyIcon = if (blankQuery) Res.drawable.person_24dp else Res.drawable.search_off_24dp,
-        emptyTitle = if (blankQuery) stringResource(Res.string.new_chat_empty) else null,
-        emptyText = if (blankQuery) stringResource(Res.string.new_chat_empty_text) else null,
+        empty = PickerEmpty(
+            // Bez dotazu je prázdno „nemáš kontakty", s dotazem „nic nenalezeno" — dvě různé
+            // situace, a rada „hledej podle @jména" dává smysl jen u té první.
+            icon = if (blankQuery) Res.drawable.person_24dp else Res.drawable.search_off_24dp,
+            title = if (blankQuery) stringResource(Res.string.new_chat_empty) else null,
+            text = if (blankQuery) stringResource(Res.string.new_chat_empty_text) else null,
+        ),
         onBack = { if (!viewModel.leaveSecretMode()) onBack() },
-        error = state.error,
-        onErrorShown = viewModel::consumeError,
+        error = state.error?.let { PickerError(it, viewModel::consumeError) },
         header = {
             if (blankQuery && !state.secretMode) {
                 CreateChatRows(

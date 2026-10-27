@@ -118,6 +118,8 @@ import eu.tintera.plume.core.telegram.NewReaction
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.RichText
+import eu.tintera.plume.core.ui.QuoteBlockStyle
+import eu.tintera.plume.core.ui.TextHighlights
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.senderColor
 import eu.tintera.plume.core.ui.surfaceApart
@@ -1573,20 +1575,20 @@ internal fun MessageBodyScope.MessageText(
     val selectable = description == null && items.selectableText()
     val richText = @Composable {
         RichText(
-            highlights = highlights,
-            highlightColor = bubbleColor,
-            highlightBackground = onBubbleColor,
-            // Citace v textu se tónuje Z INKOUSTU, ne container rolí: `tertiaryContainer` uvnitř
-            // bubliny byla druhá karta v kartě (a na odchozí `primary` bublině cizí barva). Stejná
-            // úvaha jako u podkladu kódu v `RichText`.
-            quoteBackground = onBubbleColor.copy(alpha = QUOTE_TINT_ALPHA),
-            quoteBleedTop = bleedTop,
-            quoteBleedBottom = bleedBottom,
-            quoteBleed = MESSAGE_PADDING_H,
-            quotePadding = MESSAGE_PADDING_V,
+            highlights = TextHighlights(ranges = highlights, color = bubbleColor, background = onBubbleColor),
+            quote = QuoteBlockStyle(
+                // Citace v textu se tónuje Z INKOUSTU, ne container rolí: `tertiaryContainer` uvnitř
+                // bubliny byla druhá karta v kartě (a na odchozí `primary` bublině cizí barva). Stejná
+                // úvaha jako u podkladu kódu v `RichText`.
+                background = onBubbleColor.copy(alpha = QUOTE_TINT_ALPHA),
+                bleedTop = bleedTop,
+                bleedBottom = bleedBottom,
+                bleed = MESSAGE_PADDING_H,
+                padding = MESSAGE_PADDING_V,
+                indentAsPadding = wholeTextQuote,
+            ),
             maxLines = maxLines,
             onOverflow = onOverflow,
-            quoteIndentAsPadding = wholeTextQuote,
             text = text,
             entities = when {
                 segment != null -> segment.entities
@@ -1667,18 +1669,24 @@ internal fun MessageBodyScope.Attachment(
         messageId = id,
         onOpen = { openMedia(media) },
         onRequestMenu = ::requestMenu,
-        uploading = message.sendState == SendState.Sending,
-        onCancelUpload = { act(MessageAction.CancelUpload) },
-        documentProgress = items::documentProgress,
-        onOpenDocument = { act(MessageAction.OpenDocument) },
+        file = FileTransfer(
+            uploading = message.sendState == SendState.Sending,
+            onCancelUpload = { act(MessageAction.CancelUpload) },
+            documentProgress = items::documentProgress,
+            onOpenDocument = { act(MessageAction.OpenDocument) },
+        ),
         accent = accent,
         mediaShape = mediaShape,
         fillWidth = fillWidth,
-        // Rozhoduje se jednou za život položky: po odscrollování a návratu už je vidět výsledek.
-        diceThrow = remember(frame.key) {
-            media is MessageMedia.Dice && items.claimDiceThrow(frame.key, message.timestamp)
-        },
-        diceCelebrate = message.isOutgoing,
+        emoji = EmojiPlay(
+            // Rozhoduje se jednou za život položky: po odscrollování a návratu už je vidět výsledek.
+            diceThrow = remember(frame.key) {
+                media is MessageMedia.Dice && items.claimDiceThrow(frame.key, message.timestamp)
+            },
+            diceCelebrate = message.isOutgoing,
+            bursts = items.emojiBursts(),
+            isOutgoing = message.isOutgoing,
+        ),
         videoNote = VideoNoteHandlers(
             sounding = { items.videoNoteSounding(id) },
             onToggleSound = { act(MessageAction.ToggleVideoNoteSound) },
@@ -1692,11 +1700,9 @@ internal fun MessageBodyScope.Attachment(
             onCycleSpeed = { act(MessageAction.CycleVoiceSpeed) },
             accent = accent,
             onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
+            transcript = (media as? MessageMedia.VoiceNote)?.let { rememberTranscript(it.transcript, it.durationSeconds) },
         ),
-        transcript = (media as? MessageMedia.VoiceNote)?.let { rememberTranscript(it.transcript, it.durationSeconds) },
         onAction = { action -> act(action) },
-        emojiBursts = items.emojiBursts(),
-        isOutgoing = message.isOutgoing,
     )
 }
 

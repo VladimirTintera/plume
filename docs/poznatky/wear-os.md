@@ -70,12 +70,26 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   černém pozadí hodinek by ho čtečka nenašla. Odkaz po vypršení vymění TDLib sám.
 - **Přihlášení telefonem** (smlouva `WatchLogin` v `:client:core`, hodinky `PhoneLogin`, telefon
   `WatchLoginService` v `androidApp`): pod nadpisem QR obrazovky „Přihlásit telefonem", jen když
-  je v dosahu telefon s Plume — telefon ohlašuje schopnost `plume_phone` (`res/values/wear.xml`,
-  `tools:keep`, jinak by ji zmenšení prostředků v release vyhodilo; Play služby ji čtou bez kódu).
+  je v dosahu telefon s Plume — telefon ohlašuje schopnost `plume_phone` (`res/values/wear.xml`;
+  Play služby ji čtou bez kódu, takže ji před zmenšením prostředků v release drží
+  `res/raw/plume_keep.xml`, viz „Schopnost telefonu v release" níž).
   Hodinky pošlou odkaz z QR kódu (`MessageClient`, cesta `/plume/watch-login`), telefon ukáže
   notifikaci „Přihlásit hodinky?" s Přihlásit / Zamítnout a po potvrzení zavolá `confirmQrLogin`
   — jako by kód naskenoval. Výsledek jde zpátky (`/plume/watch-login/result`: potvrzeno,
   zamítnuto, telefon nepřihlášen, nezdar); `Ready` hodinkám přijde od TDLib samo.
+  - **Čekání je přes celou obrazovku** (`PhoneLoginWaiting`): kruh po obvodu displeje
+    (neurčitý `CircularProgressIndicator` s `FullScreenPadding` a silnou čarou), uprostřed ikona
+    telefonu, co udělat, a Zrušit (i tahem zpět, `BackHandler`); po potvrzení v telefonu
+    „Přihlašování…" bez Zrušit. Dřív se věta jen vyměnila za tlačítko uvnitř seznamu s QR kódem
+    a se zmenšováním položek u okraje se překreslovala přes nápovědu pod sebou.
+  - **Konec hlásí potvrzovací dialog.** Fajfku „Přihlášeno" ukazuje `WearApp`, ne QR obrazovka:
+    ta s `Ready` zmizí i s dialogem. Ukáže se po průchodu `WaitQrConfirmation`/`WaitPassword`,
+    takže i po naskenování kódu, a ne při startu už přihlášené aplikace. Nezdar je křížek
+    („Zamítnuto", jinak „Nepovedlo se") a po něm zůstane pod nadpisem věta, proč, s tlačítkem
+    znovu. Odpověď telefonu na zrušené čekání se zahodí.
+  - Ověřeno na emulátoru 2026-10-26 dočasným buildem, který místo seznamu chatů prošel stavy
+    (fajfka, čekání, Přihlašování…, Zamítnuto, věta pod nadpisem) s napodobeným telefonem;
+    skutečný telefon na emulátoru spárovat nejde. Normální build fajfku při startu neukázal.
   - **Nikdy bez potvrzení na telefonu.** Data Layer doručí zprávu jen mezi aplikacemi se stejným
     id a podpisem, ale přihlášení zařízení k účtu je citlivé.
   - **Notifikace `setLocalOnly`:** nepřihlášené hodinky zrcadlí notifikace telefonu, takže by se
@@ -91,6 +105,16 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
     Wear OS na telefonu s účtem Google, takže to čeká na Pixel Watch se spárovaným telefonem
     (oba z interního testu — Data Layer vyžaduje stejný podpis). Přeložené obě aplikace, test
     smlouvy (`WatchLoginTest`), hodinky se s novou závislostí spustí.
+- **Schopnost telefonu v release** (`android_wear_capabilities` v telefonní aplikaci): bez ní
+  hodinky telefon s Plume nenajdou — chybí „Přihlásit telefonem" a přepis hlasovky hlásí
+  „telefon s Plume není v dosahu", i když leží vedle. Tak to bylo v 0.3.106–0.3.108 z Play:
+  `tools:keep` stál na kořeni `res/values/wear.xml` a zmenšení prostředků (AGP 9, R8) ho tam
+  nečte, takže pole z APK zmizelo (`aapt2 dump resources` nad `base.apk` z telefonu: žádný typ
+  `array`). **`tools:keep` patří do souboru v `res/raw`** (`plume_keep.xml`, jako
+  `firebase_common_keep.xml` od Firebase). Ověří se v `build/outputs/mapping/release/resources.txt`
+  (u pole „reachable from keep xml file") nebo `aapt2 dump resources` nad APK.
+  - **Debug build to neodhalí** — prostředky nezmenšuje. Na emulátorech se hodinky s telefonem
+    spárovat nedají a obě aplikace z Play se poprvé potkaly až na skutečném páru.
 - **Heslo dvoufázového ověření systémovou klávesnicí** (`RemoteInput` přes `androidx.wear:wear-input`):
   Compose for Wear OS textové pole nemá. Klávesnice heslo nemaskuje — jiná cesta na hodinkách není.
 - **Ověřeno na emulátoru 2026-10-24:** sken telefonem (Nastavení → Zařízení → Připojit zařízení),
@@ -608,6 +632,13 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   zprávy), dole `textEdgeButton` „Všechny chaty". Začátek seznamu = připnuté a pak podle poslední
   zprávy, tedy totéž co nahoře v aplikaci.
 - **Dva řádky, tři až od výšky 260 dp.** Na emulátoru (227 dp) se třetí s tlačítkem dole nevešel.
+- **Řádky si dělí výšku rovným dílem** (`height = weight(1f)`, sloupec `expand`). S výchozí
+  `wrap` se na emulátoru (227 dp) nevešel ani druhý: první měl 64 dp, druhý renderer zmáčkl na
+  52 dp a jeho avatar uřízl nahoře i dole. **Kolečko avataru je o 3 dp menší než slot**
+  (`AVATAR_INSET_DP`): slot měří knihovna z ŠÍŘKY displeje (19,6 % v `AvatarButtonStyle`),
+  kdežto výška řádku plyne z hlavního slotu, takže i stejně vysoké řádky kolečko trochu ořízly.
+- **„Všechny" místo „Všechny chaty"** v češtině: do `textEdgeButton` se celé nevešlo
+  („Všechny …"). Anglické „All chats" se vejde.
 - **Podklady v souboru** (`RecentChatsState`, SharedPreferences `wear_recent_chats`, JSON), zapisuje
   `RecentChatsPublisher` jako u počtu nepřečtených: jen v jasných stavech, po vteřině klidu,
   a jen když se změní, co dlaždice ukazuje (id, název, počet, náhled, fotka) — seznam se mění
@@ -632,6 +663,24 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   message") a kanálem s fotkou, obnova po zprávě od bota, ťuknutí otevřelo konverzaci Notifikátora
   ze studeného startu i s aplikací na pozadí (jedna instance aktivity), tah zpět do seznamu.
   Neověřené: stav bez přihlášení, chat s nestaženou fotkou, skutečné hodinky.
+
+## Náhledy dlaždic
+
+- **Výběr dlaždic (v hodinkách i v aplikaci Pixel Watch) ukazuje obrázek z manifestu**
+  (`<meta-data android:name="androidx.wear.tiles.PREVIEW" android:resource="@drawable/…">`
+  u služby). Bez něj tam byla jen ikona aplikace v černém kruhu.
+- **Obrázky jsou snímky z emulátoru `Plume_Wear`** (454 px, `drawable-nodpi`, česky
+  `drawable-cs-nodpi`), ne kresba: dlaždice se vykreslí přesně, jak vypadá. **S vymyšlenými daty**
+  — emulátor je na skutečném účtu a náhled jde veřejně do Play. Postup: dočasně
+  `RecentChatsState.read` a `UnreadState.read` vrátí ukázku (Anna Nováková 2 nové zprávy,
+  Výlet na hory / Hiking trip, 3 nepřečtené chaty), `am broadcast -a
+  com.google.android.wearable.app.DEBUG_SURFACE --es operation add-tile --ecn component
+  eu.tintera.plume/eu.tintera.plume.wear.<Služba>`, zobrazit `DEBUG_SYSUI … show-tile --ei index N`,
+  `screencap`; češtinu přepne `cmd locale set-app-locales eu.tintera.plume --locales cs-CZ`
+  a `force-stop` (dlaždice běží v procesu aplikace). Nakonec `remove-tile` a data zpátky.
+  **Změní-li se vzhled dlaždice, snímky se dělají znovu.**
+- **Ověřeno na emulátoru 2026-10-26** ve výběru dlaždic v hodinkách (podržet dlaždici → +):
+  všechny tři s náhledem. Aplikace Pixel Watch na telefonu neověřená (emulátor nemá párování).
 
 ## Rychlá poznámka do Uložených
 

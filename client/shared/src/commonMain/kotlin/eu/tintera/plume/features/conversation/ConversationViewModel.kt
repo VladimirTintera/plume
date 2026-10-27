@@ -1512,7 +1512,10 @@ class ConversationViewModel(
     fun jumpToLatest() {
         viewModelScope.launch {
             loadMutex.withLock {
-                _state.update { it.copy(messages = emptyList(), reachedStart = false, reachedEnd = true, window = it.window + 1) }
+                // Na konci je každá zpráva, ke které se šlo vracet, minutá.
+                _state.update {
+                    it.copy(messages = emptyList(), reachedStart = false, reachedEnd = true, window = it.window + 1, returnPoints = emptyList())
+                }
             }
             loadOlderPage()
             val newest = _state.value.messages.firstOrNull() ?: return@launch
@@ -1639,6 +1642,8 @@ class ConversationViewModel(
         messageId: Long,
         fromSearch: Boolean = false,
         anchor: ScrollAnchor = ScrollAnchor.Center,
+        /** Zpráva, ze které se skáče (citace v ní); tlačítko dolů k ní pak vrátí. Viz `JumpReturns.kt`. */
+        returnTo: Long? = null,
     ) {
         viewModelScope.launch {
             // Dojíždí se jen ke zprávě, která už v seznamu byla. Po výměně okna (`loadAround`) je
@@ -1671,6 +1676,9 @@ class ConversationViewModel(
                         older = older.takeUnless { alreadyLoaded },
                     ),
                     highlightedMessageId = messageId,
+                    // Ve stejné změně jako cíl skoku: obrazovka body návratu odebírá jen mimo
+                    // skok, a zdrojová zpráva je v tuhle chvíli ještě vidět.
+                    returnPoints = if (returnTo != null && returnTo != messageId) it.returnPoints.withReturnPoint(returnTo) else it.returnPoints,
                 )
             }
 
@@ -1679,6 +1687,24 @@ class ConversationViewModel(
             _state.update {
                 if (it.highlightedMessageId == messageId) it.copy(highlightedMessageId = null) else it
             }
+        }
+    }
+
+    /**
+     * Tlačítko dolů, když je kam se vracet: zpět ke zprávě, ze které se skákalo na citaci.
+     * Smazaná zdrojová zpráva ohlásí „už není k dispozici" jako výsledek hledání — o citaci nejde.
+     */
+    fun returnFromJump() {
+        val target = _state.value.returnPoints.lastOrNull() ?: return
+        _state.update { it.copy(returnPoints = it.returnPoints.dropLast(1)) }
+        jumpToMessage(target, fromSearch = true)
+    }
+
+    /** Obrazovka hlásí nejnovější viditelnou zprávu po doskočení skoku; minuté body návratu zmizí. */
+    fun passReturnPoints(newestVisibleId: Long) {
+        _state.update {
+            val kept = it.returnPoints.notPassed(newestVisibleId)
+            if (kept.size == it.returnPoints.size) it else it.copy(returnPoints = kept)
         }
     }
 
@@ -2071,7 +2097,7 @@ class ConversationViewModel(
             MessageAction.SwipeReply -> composer.replyTo(messageId)
             // U alba na fotku, na které stisk začal, ne na zprávu s popiskem, které patří blok.
             MessageMenuAction.Reply -> composer.replyTo(_state.value.messageMenu?.takeIf { it.messageId == messageId }?.replyTarget ?: messageId)
-            is MessageAction.JumpTo -> jumpToMessage(action.messageId)
+            is MessageAction.JumpTo -> jumpToMessage(action.messageId, returnTo = messageId)
             is MessageAction.PressBotButton -> bots.pressBotButton(messageId, action.row, action.column)
             is MessageAction.Vote -> bots.vote(messageId, action.answerIndexes)
             MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }

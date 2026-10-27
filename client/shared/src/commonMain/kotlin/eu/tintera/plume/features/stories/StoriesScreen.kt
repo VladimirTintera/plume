@@ -316,25 +316,33 @@ fun StoriesScreen(
                     story = story,
                     live = live?.takeIf { it.key == key },
                     liveSupported = viewModel.liveSupported,
-                    active = active,
-                    // Seznam diváků přes příběh — příběh pod ním stojí.
-                    paused = dragging || viewers != null || reportWizard != null || albumsSheet != null ||
-                        audienceSheet != null || captionEdit != null || replaceKey != null || covered,
-                    restart = state.restart,
+                    playback = StoryPlayback(
+                        active = active,
+                        // Seznam diváků přes příběh — příběh pod ním stojí.
+                        paused = dragging || viewers != null || reportWizard != null || albumsSheet != null ||
+                            audienceSheet != null || captionEdit != null || replaceKey != null || covered,
+                        restart = state.restart,
+                    ),
                     reactionChoices = reactionChoices,
-                    onNext = viewModel::next,
-                    onPrevious = viewModel::previous,
-                    onClose = onBack,
-                    onReact = { reaction -> key?.let { viewModel.react(it, reaction) } },
-                    onReply = { text, onResult -> key?.let { viewModel.reply(it, text, onResult) } },
-                    onLiveSend = viewModel::sendLiveMessage,
-                    onLiveDelete = { message, spam -> viewModel.deleteLiveMessage(message.id, spam) },
-                    onDelete = { key?.let(viewModel::delete) },
-                    onViewers = { key?.let(viewModel::openViewers) },
-                    onToggleHidden = { viewModel.toggleHidden(author.chatId) },
-                    onReport = { key?.let(viewModel::reportStory) },
-                    onAlbums = { key?.let(viewModel::openAlbums) },
-                    own = own,
+                    navigation = StoryNavigation(
+                        onNext = viewModel::next,
+                        onPrevious = viewModel::previous,
+                        onClose = onBack,
+                    ),
+                    barActions = StoryBarActions(
+                        onReact = { reaction -> key?.let { viewModel.react(it, reaction) } },
+                        onReply = { text, onResult -> key?.let { viewModel.reply(it, text, onResult) } },
+                        onLiveSend = viewModel::sendLiveMessage,
+                        onLiveDelete = { message, spam -> viewModel.deleteLiveMessage(message.id, spam) },
+                        onDelete = { key?.let(viewModel::delete) },
+                        onViewers = { key?.let(viewModel::openViewers) },
+                    ),
+                    menu = StoryMenu(
+                        onToggleHidden = { viewModel.toggleHidden(author.chatId) },
+                        onReport = { key?.let(viewModel::reportStory) },
+                        onAlbums = { key?.let(viewModel::openAlbums) },
+                        own = own,
+                    ),
                 )
             }
         }
@@ -404,23 +412,11 @@ private fun StoryPage(
     story: MessageMedia.Story?,
     live: LiveStoryState?,
     liveSupported: Boolean,
-    active: Boolean,
-    paused: Boolean,
-    restart: Int,
+    playback: StoryPlayback,
     reactionChoices: List<String>,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-    onClose: () -> Unit,
-    onReact: (String) -> Unit,
-    onReply: (String, (Boolean) -> Unit) -> Unit,
-    onLiveSend: (String, (Boolean) -> Unit) -> Unit,
-    onLiveDelete: (LiveMessage, Boolean) -> Unit,
-    onDelete: () -> Unit,
-    onViewers: () -> Unit,
-    onToggleHidden: () -> Unit,
-    onReport: () -> Unit,
-    onAlbums: () -> Unit,
-    own: OwnStoryMenu?,
+    navigation: StoryNavigation,
+    barActions: StoryBarActions,
+    menu: StoryMenu,
 ) {
     var held by remember { mutableStateOf(false) }
     // Psaní odpovědi a výběr reakce příběh zastaví — jinak by uživateli odjel pod rukama.
@@ -443,24 +439,17 @@ private fun StoryPage(
                     story = story,
                     live = live,
                     liveSupported = liveSupported,
-                    active = active,
-                    paused = paused || held || composing || confirmDelete,
-                    restart = restart,
+                    playback = playback.copy(paused = playback.paused || held || composing || confirmDelete),
                     onHeld = { held = it },
-                    onNext = onNext,
-                    onPrevious = onPrevious,
-                    onClose = onClose,
-                    onToggleHidden = onToggleHidden,
-                    onReport = onReport,
-                    onAlbums = onAlbums,
-                    own = own,
+                    navigation = navigation,
+                    menu = menu,
                 )
                 ReactionBurst(burst, Modifier.align(Alignment.Center))
                 if (liveBar && liveRunning && live != null) {
                     LiveChatMessages(
                         messages = live.messages,
                         canModerate = live.canModerate,
-                        onDelete = onLiveDelete,
+                        onDelete = barActions.onLiveDelete,
                         // S klávesnicí jede lišta s polem nahoru a chat nad ni. Odsazení před
                         // výškou, ať se chat posune, a ne zmenší; místo pro lištu pod obrazem už je.
                         modifier = Modifier
@@ -477,7 +466,7 @@ private fun StoryPage(
         if (ownBar && story != null) {
             OwnStoryBar(
                 viewCount = story.viewCount,
-                onViewers = onViewers,
+                onViewers = barActions.onViewers,
                 onDelete = { confirmDelete = true },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
@@ -491,13 +480,13 @@ private fun StoryPage(
                 destructive = true,
                 onConfirm = {
                     confirmDelete = false
-                    onDelete()
+                    barActions.onDelete()
                 },
                 onDismiss = { confirmDelete = false },
             )
         }
         if (liveBar && liveRunning && live != null) {
-            LiveMessageBar(live, onLiveSend, Modifier.align(Alignment.BottomCenter))
+            LiveMessageBar(live, barActions.onLiveSend, Modifier.align(Alignment.BottomCenter))
         }
         if (bar && story != null) {
             StoryReplyBar(
@@ -506,9 +495,9 @@ private fun StoryPage(
                 onComposingChange = { composing = it },
                 onReact = { reaction ->
                     if (reaction != story.chosenReaction) burst = ((burst?.first ?: 0) + 1) to reaction
-                    onReact(reaction)
+                    barActions.onReact(reaction)
                 },
-                onReply = onReply,
+                onReply = barActions.onReply,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
@@ -523,18 +512,13 @@ private fun StoryCard(
     story: MessageMedia.Story?,
     live: LiveStoryState?,
     liveSupported: Boolean,
-    active: Boolean,
-    paused: Boolean,
-    restart: Int,
+    playback: StoryPlayback,
     onHeld: (Boolean) -> Unit,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-    onClose: () -> Unit,
-    onToggleHidden: () -> Unit,
-    onReport: () -> Unit,
-    onAlbums: () -> Unit,
-    own: OwnStoryMenu?,
+    navigation: StoryNavigation,
+    menu: StoryMenu,
 ) {
+    val onNext = navigation.onNext
+    val onPrevious = navigation.onPrevious
     var progress by remember(author.chatId, index) { mutableFloatStateOf(0f) }
     // Otevřená nabídka autora příběh zastaví, jako podržení.
     var menuOpen by remember(author.chatId) { mutableStateOf(false) }
@@ -569,9 +553,9 @@ private fun StoryCard(
             story = story,
             live = live,
             liveSupported = liveSupported,
-            active = active,
-            paused = paused || menuOpen,
-            restart = restart,
+            active = playback.active,
+            paused = playback.paused || menuOpen,
+            restart = playback.restart,
             onProgress = { progress = it },
             onFinished = onNext,
         )
@@ -582,13 +566,13 @@ private fun StoryCard(
             progress = progress,
             postedAt = story?.postedAt?.takeIf { it > 0 } ?: author.stories.getOrNull(index)?.date ?: 0,
             liveViewers = if (story?.live != null && liveSupported) live?.viewers ?: 0 else null,
-            onClose = onClose,
+            onClose = navigation.onClose,
             menuOpen = menuOpen,
             onMenuOpenChange = { menuOpen = it },
-            onToggleHidden = onToggleHidden,
-            onReport = onReport.takeIf { story != null && story.isAvailable && !story.isOwn },
-            onAlbums = onAlbums.takeIf { story != null && story.isOwn && story.canBeAddedToAlbum },
-            own = own,
+            onToggleHidden = menu.onToggleHidden,
+            onReport = menu.onReport.takeIf { story != null && story.isAvailable && !story.isOwn },
+            onAlbums = menu.onAlbums.takeIf { story != null && story.isOwn && story.canBeAddedToAlbum },
+            own = menu.own,
         )
 
         val caption = story?.caption.orEmpty()
@@ -898,6 +882,45 @@ private const val DISMISS_THRESHOLD = 0.18f
 
 /** Jak rychle při zavíracím tahu prosvítá obsah pod prohlížečem. */
 private const val DISMISS_FADE = 2.5f
+
+/** Jestli příběh běží: průběh se počítá a video hraje jen u aktivního, nezastaveného. */
+internal data class StoryPlayback(
+    /** Autor je vybraný a pager dosedl. */
+    val active: Boolean,
+    /** Zastaveno: podržení, psaní odpovědi, otevřený sheet nad příběhem. */
+    val paused: Boolean,
+    /** Roste s každým „pusť znovu od začátku" ([StoriesState.restart]). */
+    val restart: Int,
+)
+
+/** Pohyb mezi příběhy (ťuknutí do stran, dohrání) a zavření prohlížeče. */
+internal data class StoryNavigation(
+    val onNext: () -> Unit,
+    val onPrevious: () -> Unit,
+    val onClose: () -> Unit,
+)
+
+/**
+ * Akce z lišty pod příběhem: reakce a odpověď u cizího, chat živého vysílání, diváci
+ * a smazání u vlastního.
+ */
+internal data class StoryBarActions(
+    val onReact: (String) -> Unit,
+    val onReply: (String, (Boolean) -> Unit) -> Unit,
+    val onLiveSend: (String, (Boolean) -> Unit) -> Unit,
+    val onLiveDelete: (LiveMessage, Boolean) -> Unit,
+    val onDelete: () -> Unit,
+    val onViewers: () -> Unit,
+)
+
+/** Nabídka ⋮ v hlavičce příběhu; co u kterého příběhu nejde, vyřadí `StoryCard`. */
+internal data class StoryMenu(
+    val onToggleHidden: () -> Unit,
+    val onReport: () -> Unit,
+    val onAlbums: () -> Unit,
+    /** Správa vlastního příběhu; `null` u cizího. */
+    val own: OwnStoryMenu?,
+)
 
 /**
  * Správa vlastního příběhu v nabídce ⋮. `null` u akce = TDLib ji u příběhu nedovolí

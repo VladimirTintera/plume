@@ -217,6 +217,7 @@ import eu.tintera.plume.app.root.presentation.theme.ChatColorTheme
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.features.chats.ArchiveScreen
+import eu.tintera.plume.features.chats.ChatListNavigation
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.chats.AddBotToGroupScreen
 import eu.tintera.plume.features.chats.NewChatScreen
@@ -743,42 +744,44 @@ private fun shellEntryProvider(
                         ?: (it as? DirectTopicsRoute)?.chatId ?: (it as SavedTopicsRoute).chatId
                 }
                 ?.takeIf { twoPane },
-            onChatClick = { chatId ->
-                // Uložené zprávy po chatech, když si to uživatel zvolil („Zobrazit jako chaty").
-                if (chatId == savedMessagesChatId && settings.savedMessagesAsChats.value) {
-                    chatsStack.openSavedTopics(chatId)
-                } else {
-                    chatsStack.openConversation(chatId)
-                }
-            },
-            onForumClick = { chatId -> chatsStack.openForum(chatId) },
-            // Koncept v tématu z přehledu konceptů: téma a pod ním seznam témat, jako u nalezené zprávy.
-            onTopicClick = { chatId, topicId -> chatsStack.openFoundMessage(chatId, messageId = null, topicId = topicId) },
-            onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(chatId, messageId, topicId) },
+            navigation = ChatListNavigation(
+                onChatClick = { chatId ->
+                    // Uložené zprávy po chatech, když si to uživatel zvolil („Zobrazit jako chaty").
+                    if (chatId == savedMessagesChatId && settings.savedMessagesAsChats.value) {
+                        chatsStack.openSavedTopics(chatId)
+                    } else {
+                        chatsStack.openConversation(chatId)
+                    }
+                },
+                onForumClick = { chatId -> chatsStack.openForum(chatId) },
+                // Koncept v tématu z přehledu konceptů: téma a pod ním seznam témat, jako u nalezené zprávy.
+                onTopicClick = { chatId, topicId -> chatsStack.openFoundMessage(chatId, messageId = null, topicId = topicId) },
+                onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(chatId, messageId, topicId) },
+                onOpenArchive = {
+                    if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
+                },
+                onOpenCalls = { if (chatsStack.lastOrNull() != CallsRoute) chatsStack.add(CallsRoute) }
+                    .takeIf { koinInject<CallRepository>().supported },
+                onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
+                onOpenMyStories = { if (chatsStack.lastOrNull() != MyStoriesRoute) chatsStack.add(MyStoriesRoute) },
+                onNewChat = {
+                    if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
+                },
+                onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
+                onNewChannel = { chatsStack.add(CreateChatRoute(channel = true)) },
+                onChatArchived = chatsStack::closeConversationOf,
+                onOpenSettings = navigation::openSettings,
+                onOpenProxySettings = navigation::openProxySettings,
+                onCreateFolder = { navigation.openChatFolders(create = true) },
+                onManageFolders = { navigation.openChatFolders() },
+                onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
+                onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
+                onOpenStories = { chatId -> chatsStack.openStories(chatId) },
+                onComposeStory = { path, video -> chatsStack.add(StoryComposerRoute(path, video)) },
+            ),
             searchRequest = navigation.searchRequest,
             onSearchRequestHandled = navigation::consumeSearchRequest,
-            onOpenArchive = {
-                if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
-            },
-            onOpenCalls = { if (chatsStack.lastOrNull() != CallsRoute) chatsStack.add(CallsRoute) }
-                .takeIf { koinInject<CallRepository>().supported },
-            onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
-            onOpenMyStories = { if (chatsStack.lastOrNull() != MyStoriesRoute) chatsStack.add(MyStoriesRoute) },
-            onNewChat = {
-                if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
-            },
-            onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
-            onNewChannel = { chatsStack.add(CreateChatRoute(channel = true)) },
-            onChatArchived = chatsStack::closeConversationOf,
-            onOpenSettings = navigation::openSettings,
-            onOpenProxySettings = navigation::openProxySettings,
-            onCreateFolder = { navigation.openChatFolders(create = true) },
-            onManageFolders = { navigation.openChatFolders() },
-            onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
-            onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
             modifier = Modifier.listPaneInsets(twoPane),
-            onOpenStories = { chatId -> chatsStack.openStories(chatId) },
-            onComposeStory = { path, video -> chatsStack.add(StoryComposerRoute(path, video)) },
         )
     }
 

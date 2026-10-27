@@ -78,6 +78,8 @@ import eu.tintera.plume.core.ui.folderIcon
 import eu.tintera.plume.core.ui.CHAT_FOLDER_ICONS
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerSelection
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.core.ui.avatarShape
@@ -550,20 +552,24 @@ private fun FolderChatPicker(viewModel: ChatFolderEditViewModel, pick: FolderCha
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     ChatPicker(
         title = stringResource(if (pick == FolderChatPick.Include) Res.string.chat_folder_add_chats else Res.string.chat_folder_exclude_chats),
-        query = state.pickQuery,
-        onQueryChange = viewModel::setPickQuery,
-        searchPlaceholder = stringResource(Res.string.chat_folder_pick_search),
+        search = PickerSearch(
+            query = state.pickQuery,
+            onQueryChange = viewModel::setPickQuery,
+            placeholder = stringResource(Res.string.chat_folder_pick_search),
+        ),
         loading = chats.loading,
         sections = listOf(PickerSection(key = "chats", chats = chats.chats)),
         enabled = true,
         onPick = viewModel::togglePicked,
         onBack = viewModel::closePick,
         savedMessagesChatId = savedMessagesChatId,
-        selected = state.picked,
-        onConfirm = viewModel::confirmPick,
-        confirmWhenEmpty = true,
-        confirmLabel = Res.string.chat_folder_done,
-        confirmIcon = Res.drawable.check_24dp,
+        selection = PickerSelection(
+            selected = state.picked,
+            onConfirm = viewModel::confirmPick,
+            confirmWhenEmpty = true,
+            confirmLabel = Res.string.chat_folder_done,
+            confirmIcon = Res.drawable.check_24dp,
+        ),
         modifier = modifier,
     )
 }

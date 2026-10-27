@@ -58,7 +58,6 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.Country
-import eu.tintera.plume.core.telegram.DEFAULT_POLL_DESCRIPTION_MAX
 import eu.tintera.plume.core.telegram.POLL_MIN_CLOSE_AHEAD_SECONDS
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.telegram.MIN_POLL_ANSWERS
@@ -68,6 +67,7 @@ import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MAX_LINE_FEEDS
 import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MEDIA
 import eu.tintera.plume.core.telegram.POLL_QUESTION_MAX
 import eu.tintera.plume.core.telegram.PollDraft
+import eu.tintera.plume.core.telegram.PollLimits
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.IconSwitch
@@ -265,97 +265,105 @@ internal fun correctAfterRemoval(correct: Set<Int>, removed: Int): Set<Int> =
     }.toSet()
 
 /**
- * Hotová anketa z formuláře, nebo `null`, dokud se poslat nedá (tlačítko Odeslat je pak
- * zašedlé). Prázdná pole odpovědí se vynechají; [correct] jsou indexy POLÍ a přepočítají se na
- * indexy odpovědí, které opravdu odejdou.
- *
- * Konec ankety je buď doba ([openPeriodSeconds]), nebo čas ([closeDate]); čas, který mezitím
- * vypršel nebo leží za stropem serveru ([closeDateValid]), formulář neodešle — server by ho
- * odmítl až po odeslání.
+ * Co je ve formuláři nové ankety, jak to vidí pravidla ([pollDraftOf]): pole tak, jak je
+ * uživatel vyplnil, už s omezeními podle chatu (v kanálu vždycky anonymní, omezení hlasujících
+ * jen v kanálu). Ve ViewModelu je každé pole vlastní Compose stav; tohle je jejich snímek.
  */
-internal fun pollDraftOf(
-    question: String,
-    answers: List<String>,
-    anonymous: Boolean,
-    multipleAnswers: Boolean,
-    shuffle: Boolean,
-    quiz: Boolean,
-    correct: Set<Int>,
-    explanation: String,
-    maxAnswers: Int,
-    openPeriodSeconds: Int = 0,
-    hideResultsUntilClose: Boolean = false,
-    description: String = "",
-    maxDescription: Int = DEFAULT_POLL_DESCRIPTION_MAX,
-    closeDate: Long = 0,
-    now: Long = 0,
-    maxOpenPeriodSeconds: Int = 0,
-    membersOnly: Boolean = false,
-    countryCodes: List<String> = emptyList(),
-    maxCountries: Int = 0,
-    media: PollDraftMedia? = null,
+internal data class PollForm(
+    val question: String,
+    val answers: List<String>,
+    val anonymous: Boolean,
+    val multipleAnswers: Boolean,
+    val shuffle: Boolean,
+    val quiz: Boolean,
+    /** Správné odpovědi kvízu jako indexy POLÍ v [answers]. */
+    val correct: Set<Int>,
+    val explanation: String,
+    /** Za kolik sekund se anketa uzavře; `0` = bez omezení (nebo vlastní čas). */
+    val openPeriodSeconds: Int = 0,
+    val hideResultsUntilClose: Boolean = false,
+    val description: String = "",
+    /** Vlastní čas uzavření (unixový); `0` = podle [openPeriodSeconds]. */
+    val closeDate: Long = 0,
+    val membersOnly: Boolean = false,
+    val countryCodes: List<String> = emptyList(),
+    /** Příloha otázky. */
+    val media: PollDraftMedia? = null,
     /** Přílohy odpovědí podle indexu POLE, jako [correct]. */
-    answerMedia: Map<Int, PollDraftMedia> = emptyMap(),
+    val answerMedia: Map<Int, PollDraftMedia> = emptyMap(),
     /** Příloha vysvětlení; bere se jen u kvízu, jako vysvětlení samo. */
-    explanationMedia: PollDraftMedia? = null,
+    val explanationMedia: PollDraftMedia? = null,
     /** Ostatní smějí přidávat odpovědi; bere se jen u běžné neanonymní ankety. */
-    allowAddingOptions: Boolean = false,
-): PollDraft? {
-    val text = question.trim()
+    val allowAddingOptions: Boolean = false,
+)
+
+/**
+ * Hotová anketa z formuláře, nebo `null`, dokud se poslat nedá (tlačítko Odeslat je pak
+ * zašedlé). Prázdná pole odpovědí se vynechají; [PollForm.correct] jsou indexy POLÍ a přepočítají
+ * se na indexy odpovědí, které opravdu odejdou.
+ *
+ * Konec ankety je buď doba ([PollForm.openPeriodSeconds]), nebo čas ([PollForm.closeDate]); čas,
+ * který vzhledem k [now] vypršel nebo leží za stropem serveru ([closeDateValid]), formulář
+ * neodešle — server by ho odmítl až po odeslání. Meze ([limits]) jsou od serveru.
+ */
+internal fun pollDraftOf(form: PollForm, limits: PollLimits, now: Long = 0): PollDraft? {
+    val text = form.question.trim()
     if (text.isEmpty() || text.length > POLL_QUESTION_MAX) return null
 
-    val filled = answers.mapIndexedNotNull { index, answer -> answer.trim().takeIf { it.isNotEmpty() }?.let { index to it } }
-    if (filled.size !in MIN_POLL_ANSWERS..maxAnswers) return null
+    val filled = form.answers.mapIndexedNotNull { index, answer -> answer.trim().takeIf { it.isNotEmpty() }?.let { index to it } }
+    if (filled.size !in MIN_POLL_ANSWERS..limits.maxAnswers) return null
     if (filled.any { (_, answer) -> answer.length > POLL_ANSWER_MAX }) return null
 
-    val correctAnswers = if (quiz) {
-        filled.mapIndexedNotNull { position, (field, _) -> position.takeIf { field in correct } }.toSet()
+    val correctAnswers = if (form.quiz) {
+        filled.mapIndexedNotNull { position, (field, _) -> position.takeIf { field in form.correct } }.toSet()
     } else {
         null
     }
     if (correctAnswers != null) {
         if (correctAnswers.isEmpty()) return null
         // Bez víc odpovědí je správná jen jedna — výběr to hlídá, tohle je pojistka.
-        if (!multipleAnswers && correctAnswers.size > 1) return null
+        if (!form.multipleAnswers && correctAnswers.size > 1) return null
     }
-    val why = if (quiz) explanation.trim() else ""
+    val why = if (form.quiz) form.explanation.trim() else ""
     if (why.length > POLL_EXPLANATION_MAX || why.count { it == '\n' } > POLL_EXPLANATION_MAX_LINE_FEEDS) return null
 
-    val about = description.trim()
-    if (about.length > maxDescription) return null
+    val about = form.description.trim()
+    if (about.length > limits.maxDescription) return null
 
-    if (closeDate > 0 && !closeDateValid(closeDate, now, maxOpenPeriodSeconds)) return null
+    val closeDate = form.closeDate
+    if (closeDate > 0 && !closeDateValid(closeDate, now, limits.maxOpenPeriodSeconds)) return null
     // Doba i čas jsou dvě podoby téže volby; čas má přednost.
-    val period = if (closeDate > 0) 0 else openPeriodSeconds.coerceAtLeast(0)
+    val period = if (closeDate > 0) 0 else form.openPeriodSeconds.coerceAtLeast(0)
     val closes = closeDate > 0 || period > 0
 
-    if (countryCodes.size > maxCountries) return null
+    if (form.countryCodes.size > limits.maxCountries) return null
     // Samolepku a odkaz otázka nesmí — server by odmítl celou anketu. Formulář je u otázky
     // nenabízí, tohle je pojistka.
+    val media = form.media
     if (media != null && !media.allowedForQuestion) return null
-    val whyMedia = explanationMedia.takeIf { quiz }
+    val whyMedia = form.explanationMedia.takeIf { form.quiz }
     if (whyMedia != null && !whyMedia.allowedForQuestion) return null
 
     return PollDraft(
         question = text,
         answers = filled.map { it.second },
-        anonymous = anonymous,
-        multipleAnswers = multipleAnswers,
-        shuffle = shuffle,
+        anonymous = form.anonymous,
+        multipleAnswers = form.multipleAnswers,
+        shuffle = form.shuffle,
         correctAnswers = correctAnswers,
         explanation = why,
         explanationMedia = whyMedia,
         openPeriodSeconds = period,
         closeDate = closeDate.coerceAtLeast(0),
         // Výsledky až po uzavření jen s koncem ankety — bez něj by je nikdo nikdy neviděl.
-        hideResultsUntilClose = hideResultsUntilClose && closes,
+        hideResultsUntilClose = form.hideResultsUntilClose && closes,
         description = about,
-        membersOnly = membersOnly,
-        countryCodes = countryCodes.distinct(),
+        membersOnly = form.membersOnly,
+        countryCodes = form.countryCodes.distinct(),
         media = media,
         // Příloha prázdného pole neodejde: pole bez textu se vynechává, a s ním i ona.
-        answerMedia = filled.map { (field, _) -> answerMedia[field] }.takeIf { list -> list.any { it != null } }.orEmpty(),
-        allowAddingOptions = allowAddingOptions && !quiz && !anonymous,
+        answerMedia = filled.map { (field, _) -> form.answerMedia[field] }.takeIf { list -> list.any { it != null } }.orEmpty(),
+        allowAddingOptions = form.allowAddingOptions && !form.quiz && !form.anonymous,
     )
 }
 
@@ -422,14 +430,13 @@ data class PollComposerStatus(
     val isChannel: Boolean = false,
     /** V Uložených zprávách nemá „bez zvuku" komu ušetřit zvuk. */
     val isSavedMessages: Boolean = false,
-    val maxAnswers: Int = DEFAULT_MAX_ANSWERS,
+    /**
+     * Meze od serveru. Strop doby platí i pro vlastní čas uzavření (`0` = konec se nastavit nedá),
+     * strop zemí `0` = omezení zemí se nenabízí.
+     */
+    val limits: PollLimits = PollLimits(maxAnswers = DEFAULT_MAX_ANSWERS, maxOpenPeriodSeconds = 0),
     /** Nabízené doby trvání; prázdné = volba doby se nekreslí. */
     val durations: List<Int> = emptyList(),
-    /** Strop doby od serveru — i pro vlastní čas uzavření; `0` = konec se nastavit nedá. */
-    val maxOpenPeriodSeconds: Int = 0,
-    val maxDescription: Int = DEFAULT_POLL_DESCRIPTION_MAX,
-    /** Kolik zemí smí anketa v kanálu omezit; `0` = volba se nenabízí. */
-    val maxCountries: Int = 0,
     /** Země pro výběr; načtou se až při prvním otevření výběru. */
     val countries: List<Country> = emptyList(),
     /** Citovaná zpráva, když se anketou odpovídá; `null`, dokud se nenačte, nebo bez odpovědi. */
@@ -538,11 +545,8 @@ class PollComposerViewModel(
                     isChannel = info?.isChannel == true,
                     isSavedMessages = info?.isSavedMessages == true,
                     chatTitle = info?.title,
-                    maxAnswers = limits.maxAnswers,
+                    limits = limits,
                     durations = pollDurations(limits.maxOpenPeriodSeconds),
-                    maxOpenPeriodSeconds = limits.maxOpenPeriodSeconds,
-                    maxDescription = limits.maxDescription,
-                    maxCountries = limits.maxCountries,
                 )
             }
         }
@@ -557,31 +561,30 @@ class PollComposerViewModel(
 
     val draft: PollDraft?
         get() = pollDraftOf(
-            question = question,
-            answers = answers,
-            anonymous = anonymous || _status.value.isChannel,
-            multipleAnswers = multipleAnswers,
-            shuffle = shuffle,
-            quiz = quiz,
-            correct = correct,
-            explanation = explanation,
-            maxAnswers = _status.value.maxAnswers,
-            openPeriodSeconds = openPeriod,
-            hideResultsUntilClose = hideResults,
-            description = description,
-            maxDescription = _status.value.maxDescription,
-            closeDate = closeDate,
+            form = PollForm(
+                question = question,
+                answers = answers,
+                anonymous = anonymous || _status.value.isChannel,
+                multipleAnswers = multipleAnswers,
+                shuffle = shuffle,
+                quiz = quiz,
+                correct = correct,
+                explanation = explanation,
+                openPeriodSeconds = openPeriod,
+                hideResultsUntilClose = hideResults,
+                description = description,
+                closeDate = closeDate,
+                media = questionMedia,
+                answerMedia = answerMedia,
+                explanationMedia = explanationMedia,
+                allowAddingOptions = allowAddingOptions && !_status.value.isChannel,
+                // Omezení hlasujících jsou jen pro kanál; jinde se neposílají, ani kdyby zůstala
+                // nastavená.
+                membersOnly = membersOnly && _status.value.isChannel,
+                countryCodes = countryCodes.takeIf { _status.value.isChannel }.orEmpty(),
+            ),
+            limits = _status.value.limits,
             now = now,
-            maxOpenPeriodSeconds = _status.value.maxOpenPeriodSeconds,
-            // Omezení hlasujících jsou jen pro kanál; jinde se neposílají, ani kdyby zůstala
-            // nastavená.
-            media = questionMedia,
-            answerMedia = answerMedia,
-            explanationMedia = explanationMedia,
-            allowAddingOptions = allowAddingOptions && !_status.value.isChannel,
-            membersOnly = membersOnly && _status.value.isChannel,
-            countryCodes = countryCodes.takeIf { _status.value.isChannel }.orEmpty(),
-            maxCountries = _status.value.maxCountries,
         )
 
     /** Konec ankety podle doby; vlastní čas se tím zahodí. */
@@ -600,7 +603,7 @@ class PollComposerViewModel(
 
     /** Vlastní čas uzavření, který formulář neodešle — prošel, nebo je za stropem serveru. */
     val closeDateInvalid: Boolean
-        get() = closeDate > 0 && !closeDateValid(closeDate, now, _status.value.maxOpenPeriodSeconds)
+        get() = closeDate > 0 && !closeDateValid(closeDate, now, _status.value.limits.maxOpenPeriodSeconds)
 
     /** Příští vybraná příloha patří poli [target] (otázka, nebo index odpovědi). */
     fun pickMediaFor(target: Int) {
@@ -645,7 +648,7 @@ class PollComposerViewModel(
     fun toggleCountry(code: String) {
         countryCodes = when {
             code in countryCodes -> countryCodes - code
-            countryCodes.size >= _status.value.maxCountries -> countryCodes
+            countryCodes.size >= _status.value.limits.maxCountries -> countryCodes
             else -> countryCodes + code
         }
     }
@@ -727,7 +730,7 @@ class PollComposerViewModel(
     }
 
     private fun normalize() {
-        val normalized = normalizedAnswers(answers, _status.value.maxAnswers)
+        val normalized = normalizedAnswers(answers, _status.value.limits.maxAnswers)
         if (normalized != answers.toList()) {
             answers.clear()
             answers.addAll(normalized)
@@ -894,9 +897,9 @@ fun PollComposerScreen(
             item(key = "description") {
                 BlockField(
                     value = viewModel.description,
-                    onValueChange = { viewModel.description = it.take(status.maxDescription + ANSWER_OVERFLOW_ALLOWANCE) },
+                    onValueChange = { viewModel.description = it.take(status.limits.maxDescription + ANSWER_OVERFLOW_ALLOWANCE) },
                     label = stringResource(Res.string.poll_compose_description),
-                    max = status.maxDescription,
+                    max = status.limits.maxDescription,
                     shape = groupItemShape(1, 2),
                     singleLine = false,
                     style = MaterialTheme.typography.bodyMedium,
@@ -930,8 +933,8 @@ fun PollComposerScreen(
                 val filled = viewModel.answers.count { it.isNotBlank() }
                 val hint = when {
                     viewModel.quiz && viewModel.correct.isEmpty() -> stringResource(Res.string.poll_compose_quiz_hint)
-                    filled >= status.maxAnswers -> stringResource(Res.string.poll_compose_too_many, status.maxAnswers)
-                    else -> (status.maxAnswers - filled).let { left ->
+                    filled >= status.limits.maxAnswers -> stringResource(Res.string.poll_compose_too_many, status.limits.maxAnswers)
+                    else -> (status.limits.maxAnswers - filled).let { left ->
                         pluralStringResource(Res.plurals.poll_compose_add_answer, left, left)
                     }
                 }
@@ -1005,7 +1008,7 @@ fun PollComposerScreen(
                     Text(
                         text = stringResource(
                             Res.string.poll_compose_close_invalid,
-                            (viewModel.now + status.maxOpenPeriodSeconds).asUpcomingTime(),
+                            (viewModel.now + status.limits.maxOpenPeriodSeconds).asUpcomingTime(),
                         ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
@@ -1028,7 +1031,7 @@ fun PollComposerScreen(
             if (status.isChannel) {
                 val voterRows = buildList {
                     add(VoterRow.MembersOnly)
-                    if (status.maxCountries > 0) add(VoterRow.Countries)
+                    if (status.limits.maxCountries > 0) add(VoterRow.Countries)
                 }
                 item(key = "voters-title") { SectionTitle(stringResource(Res.string.poll_compose_voters)) }
                 itemsIndexed(voterRows, key = { _, row -> "voters-$row" }) { index, row ->
@@ -1080,7 +1083,7 @@ fun PollComposerScreen(
     if (pickingCloseDay) {
         FutureDayDialog(
             now = viewModel.now,
-            maxAheadSeconds = status.maxOpenPeriodSeconds.toLong(),
+            maxAheadSeconds = status.limits.maxOpenPeriodSeconds.toLong(),
             onPick = { day ->
                 pickingCloseDay = false
                 pickedCloseDay = day
@@ -1149,9 +1152,9 @@ fun PollComposerScreen(
             onPick = { viewModel.toggleCountry(it.code) },
             onDismiss = { pickingCountries = false },
             title = stringResource(Res.string.poll_compose_countries_title),
-            supportingText = pluralStringResource(Res.plurals.poll_compose_countries_hint, status.maxCountries, status.maxCountries),
+            supportingText = pluralStringResource(Res.plurals.poll_compose_countries_hint, status.limits.maxCountries, status.limits.maxCountries),
             multiSelect = true,
-            canPick = { viewModel.countryCodes.size < status.maxCountries },
+            canPick = { viewModel.countryCodes.size < status.limits.maxCountries },
         )
     }
 }

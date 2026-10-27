@@ -45,6 +45,8 @@ import eu.tintera.plume.core.telegram.PrivacyMember
 import eu.tintera.plume.core.telegram.PrivacySetting
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.PickerSearch
+import eu.tintera.plume.core.ui.PickerSelection
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.resolveNow
@@ -604,9 +606,11 @@ private fun ExceptionPickerScreen(viewModel: PrivacySettingViewModel, picker: Ex
     val (contacts, groups, others) = candidates
     ChatPicker(
         title = stringResource(if (picker.always) Res.string.privacy_always else Res.string.privacy_never),
-        query = picker.query,
-        onQueryChange = viewModel::onPickerQuery,
-        searchPlaceholder = stringResource(Res.string.privacy_picker_search),
+        search = PickerSearch(
+            query = picker.query,
+            onQueryChange = viewModel::onPickerQuery,
+            placeholder = stringResource(Res.string.privacy_picker_search),
+        ),
         loading = false,
         sections = listOf(
             PickerSection(key = "contacts", chats = contacts, title = stringResource(Res.string.new_chat_contacts)),
@@ -616,10 +620,12 @@ private fun ExceptionPickerScreen(viewModel: PrivacySettingViewModel, picker: Ex
         enabled = !picker.adding,
         onPick = viewModel::togglePicked,
         onBack = viewModel::closePicker,
-        selected = picker.selected,
-        onConfirm = viewModel::confirmPicker,
-        confirmLabel = Res.string.privacy_picker_add,
-        confirmIcon = Res.drawable.check_24dp,
+        selection = PickerSelection(
+            selected = picker.selected,
+            onConfirm = viewModel::confirmPicker,
+            confirmLabel = Res.string.privacy_picker_add,
+            confirmIcon = Res.drawable.check_24dp,
+        ),
         modifier = modifier,
     )
 }
