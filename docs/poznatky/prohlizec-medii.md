@@ -1883,11 +1883,39 @@ a pozastavením) a „Nedávno staženo". Seznam vede TDLib (`addFileToDownloads
 - **Seznam se po každé změně čte znovu** (`fileAddedToDownloads` / `fileDownload` /
   `fileRemovedFromDownloads`, sloučené s 300ms debounce), průběh jednotlivých řádků si ale
   odebírá řádek sám (`FileRepository.observe`) — kvůli procentům se seznam číst nemusí.
-- **Ťuknutí otevře zprávu v chatu** (`openFoundMessage`), podržení nabídne odebrání ze seznamu
-  a ve vlastní chybové skupině odebrání se smazáním souboru (`deleteFromCache`). Smaže se jen
-  stažená kopie v úložišti aplikace, zpráva v chatu zůstává.
-- **⋮ → Vymazat stažené** čistí jen dokončená (`removeAllFilesFromDownloads(onlyCompleted)`),
-  soubory zůstanou na disku. „Pozastavit vše" je v liště, jen když se něco stahuje.
+- **Ťuknutí na STAŽENÝ soubor ho otevře, na rozestahovaný otevře zprávu v chatu**
+  (`openFoundMessage`). Video ze zprávy jde do prohlížeče médií (`MediaRoute` přes celou plochu),
+  dokument s obrázkem nebo videem taky, jen když ho prohlížeč na platformě umí (`opensInViewer`,
+  jako sdílené soubory v profilu); skladba a ostatní dokumenty do systému (`FileOpener`). Na čem
+  to stojí, nese položka sama: `FileDownloadItem.kind` (z druhu zprávy) a `mimeType`.
+  - **Soubor, který na disku už není** (vymazaná mezipaměť), se nestahuje znovu potichu: stav se
+    jen zjistí (`FileRepository.observe`, nic nespouští) a otevře se zpráva, odkud se stáhne.
+  - Podržení nabídne „Zobrazit v chatu" — ťuknutí na stažený soubor tam už nevede.
+- **Ikona podle druhu** (skladba, video, a u dokumentu podle přípony obrázek / video / dokument —
+  `documentKind`, ne `mimeType` od odesílatele) a **u staženého čas dokončení** (`completeDate`,
+  `asRelativeTime` jako v seznamu chatů: dnes hodina, pak „včera", den, datum).
+- **Odebrání ze seznamu, odebrání se smazáním souboru i ⋮ → Vymazat stažené mají „Vrátit"**,
+  proto se ODKLÁDAJÍ (`PendingDownloadRemovals`, týž mechanismus a lhůta jako smazání chatu,
+  `docs/poznatky/seznam-chatu.md`, „Akce nad chatem"; snackbar s odpočtem `CountdownSnackbarHost`).
+  TDLib odebrání vrátit neumí: znovu přidaný soubor (`addFileToDownloads`) dostane nové datum
+  a smazaná kopie by se stahovala znovu. Soubor ze seznamu zmizí hned, TDLib se volá po 8 s.
+  - **Odkládač je ve scope aplikace** — odebrání doběhne, i když se ze Stahování mezitím odejde.
+    Zánik procesu ve lhůtě ho zruší (soubor zůstane, i se smazáním).
+  - **Smazání souboru proto nemá potvrzovací dialog**: nic se nesmaže dřív, než „Vrátit" vyprší,
+    a následek říká už název položky. Smaže se jen stažená kopie v úložišti aplikace
+    (`deleteFromCache`), zpráva v chatu zůstává.
+  - **Ověřeno na emulátoru** (Fold, česky, soubory od Notifikátoru): obrázek jako dokument se
+    otevřel v prohlížeči, skladba v YouTube Music, PDF v prohlížeči PDF; „Vrátit" u odebrání,
+    smazání i vymazání stažených soubor vrátil a po lhůtě zůstal; bez „Vrátit" vymazání doběhlo.
+    **Pozor při ověřování:** odpočet je 7,5 s — snímek obrazovky a jeho prohlédnutí mezi akcí
+    a ťuknutím na „Vrátit" to snadno přetáhne a vypadá to jako nefunkční „Vrátit".
+    Neověřené: video ze zprávy (prohlížeč), soubor smazaný z mezipaměti (otevře zprávu; jen test),
+    iOS a desktop.
+  - **„Vymazat stažené" odebírá viditelná dokončená PO JEDNOM**, ne `removeAllFilesFromDownloads`:
+    hromadné volání po lhůtě by vzalo i soubor, který se mezitím dostáhl, nebo ten, jehož
+    odebrání uživatel právě vrátil. Soubory zůstanou na disku. Seznam se čte jen první stránkou
+    (100), takže víc položek by se mazalo na dvakrát — u ručně stahovaných souborů nepravděpodobné.
+- „Pozastavit vše" je v liště, jen když se něco stahuje.
 - **Řádky bloku si okraj dávají samy** (`groupedItem`, 16 dp) — `contentPadding` seznamu
   vodorovný okraj mít nesmí, jinak je blok užší než ostatní obrazovky (ověřeno na emulátoru).
 - **Ověřeno na emulátoru**: prázdný stav, stažení `dokument.pdf` z chatu s testovacím botem

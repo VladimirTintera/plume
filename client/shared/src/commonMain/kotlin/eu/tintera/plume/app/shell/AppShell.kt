@@ -840,7 +840,8 @@ private fun shellEntryProvider(
         )
     }
 
-    // Stahování: seznam vlevo, zpráva se souborem vedle (jako nalezená zpráva).
+    // Stahování: seznam vlevo, zpráva se souborem vedle (jako nalezená zpráva); stažené video
+    // a obrázek přes celou plochu v prohlížeči.
     entry<DownloadsRoute>(
         metadata = Panes.list(
             detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
@@ -850,6 +851,7 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(),
             onBack = { chatsStack.remove(DownloadsRoute) },
             onOpenMessage = { chatId, messageId -> chatsStack.openFoundMessage(chatId, messageId, topicId = null) },
+            onOpenMedia = { chatId, messageId -> chatsStack.add(MediaRoute(chatId, messageId)) },
         )
     }
 

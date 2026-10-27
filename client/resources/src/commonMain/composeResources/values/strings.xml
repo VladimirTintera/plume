@@ -1202,6 +1202,10 @@
     <string name="downloads_clear_completed">Clear downloaded</string>
     <string name="downloads_load_failed">Couldn’t load downloads.</string>
     <string name="downloads_action_failed">That didn’t work. Try again.</string>
+    <string name="downloads_removed">Removed from downloads</string>
+    <string name="downloads_deleted">File deleted</string>
+    <string name="downloads_cleared">Downloaded files cleared</string>
+    <string name="downloads_undo">Undo</string>
     <string name="calls_title">Calls</string>
     <string name="calls_all">All</string>
     <string name="calls_missed">Missed</string>

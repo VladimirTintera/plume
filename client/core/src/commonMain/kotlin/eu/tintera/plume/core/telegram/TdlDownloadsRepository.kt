@@ -66,33 +66,41 @@ class TdlDownloadsRepository(private val holder: TelegramClientHolder) : Downloa
     override suspend fun remove(fileId: Int, deleteFile: Boolean): Result<Unit> =
         client.removeFileFromDownloads(fileId = fileId, deleteFromCache = deleteFile).toResult().map { }
 
-    override suspend fun clearCompleted(): Result<Unit> =
-        client.removeAllFilesFromDownloads(onlyActive = false, onlyCompleted = true, deleteFromCache = false)
-            .toResult().map { }
-
     private fun FileDownload.toItem(chatTitle: String, fallbackName: String): FileDownloadItem {
-        val (name, size) = message.fileNameAndSize(fileId)
+        val file = message.fileInfo(fileId)
         return FileDownloadItem(
             fileId = fileId,
             chatId = message.chatId,
             messageId = message.id,
             chatTitle = chatTitle,
-            fileName = name.ifBlank { fallbackName },
-            size = size,
+            fileName = file.name.ifBlank { fallbackName },
+            mimeType = file.mimeType,
+            kind = file.kind,
+            size = file.size,
             addDate = addDate,
             completeDate = completeDate,
             isPaused = isPaused,
         )
     }
 
-    /** Jméno a velikost souboru ze zprávy; do seznamu se přidávají dokumenty, skladby a videa. */
-    private fun Message.fileNameAndSize(fileId: Int): Pair<String, Long> = when (val content = content) {
-        is MessageDocument -> content.document.fileName to content.document.document.size()
-        is MessageAudio -> content.audio.fileName.ifBlank { content.audio.title } to content.audio.audio.size()
-        is MessageVideo -> content.video.fileName to content.video.video.size()
-        is MessageAnimation -> content.animation.fileName to content.animation.animation.size()
-        else -> "" to 0L
-    }.also { if (it.first.isBlank()) logger.d { "Stahování $fileId: zpráva bez jména souboru (${content::class.simpleName})." } }
+    /** Jméno, typ a velikost souboru ze zprávy; do seznamu se přidávají dokumenty, skladby a videa. */
+    private fun Message.fileInfo(fileId: Int): DownloadedFile = when (val content = content) {
+        is MessageDocument -> content.document.let {
+            DownloadedFile(it.fileName, it.mimeType, DownloadKind.Document, it.document.size())
+        }
+        is MessageAudio -> content.audio.let {
+            DownloadedFile(it.fileName.ifBlank { it.title }, it.mimeType, DownloadKind.Audio, it.audio.size())
+        }
+        is MessageVideo -> content.video.let {
+            DownloadedFile(it.fileName, it.mimeType, DownloadKind.Video, it.video.size())
+        }
+        is MessageAnimation -> content.animation.let {
+            DownloadedFile(it.fileName, it.mimeType, DownloadKind.Video, it.animation.size())
+        }
+        else -> DownloadedFile("", "", DownloadKind.Document, 0L)
+    }.also { if (it.name.isBlank()) logger.d { "Stahování $fileId: zpráva bez jména souboru (${content::class.simpleName})." } }
+
+    private class DownloadedFile(val name: String, val mimeType: String, val kind: DownloadKind, val size: Long)
 
     private fun dev.g000sha256.tdl.dto.File.size(): Long = if (size > 0) size else expectedSize
 }

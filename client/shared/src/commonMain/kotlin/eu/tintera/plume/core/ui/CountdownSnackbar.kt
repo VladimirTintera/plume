@@ -127,3 +127,15 @@ fun CountdownSnackbarHost(data: SnackbarData) {
 private val RING_SIZE = 32.dp
 private val RING_STROKE = 3.dp
 private const val TRACK_ALPHA = 0.3f
+
+/**
+ * Jak dlouho jde smazání vrátit (chat, soubor ze Stahování). Delší než odpočet snackbaru
+ * ([UNDO_COUNTDOWN_MS]) s „Vrátit".
+ */
+const val UNDO_WINDOW_MS = 8_000L
+
+/**
+ * Odpočet ve snackbaru s „Vrátit" (`CountdownSnackbarVisuals`): o půl vteřiny kratší než lhůta,
+ * aby ťuknutí na „Vrátit" na poslední chvíli smazání ještě předběhlo.
+ */
+const val UNDO_COUNTDOWN_MS = UNDO_WINDOW_MS - 500L

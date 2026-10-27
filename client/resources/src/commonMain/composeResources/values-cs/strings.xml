@@ -1229,6 +1229,10 @@
     <string name="downloads_clear_completed">Vymazat stažené</string>
     <string name="downloads_load_failed">Stahování se nepodařilo načíst.</string>
     <string name="downloads_action_failed">Nepovedlo se, zkus to znovu.</string>
+    <string name="downloads_removed">Odebráno ze seznamu</string>
+    <string name="downloads_deleted">Soubor smazán</string>
+    <string name="downloads_cleared">Stažené soubory odebrány ze seznamu</string>
+    <string name="downloads_undo">Vrátit</string>
     <string name="calls_title">Hovory</string>
     <string name="calls_all">Všechny</string>
     <string name="calls_missed">Zmeškané</string>

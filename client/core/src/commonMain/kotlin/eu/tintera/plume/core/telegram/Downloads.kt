@@ -23,9 +23,6 @@ interface DownloadsRepository {
 
     /** Odebere soubor ze seznamu; s [deleteFile] smaže i stažený soubor z úložiště aplikace. */
     suspend fun remove(fileId: Int, deleteFile: Boolean): Result<Unit>
-
-    /** Vyčistí dokončená stahování ze seznamu; soubory zůstanou. */
-    suspend fun clearCompleted(): Result<Unit>
 }
 
 /** Soubor v seznamu stahování: odkud je (chat a zpráva), jak se jmenuje a kde se stahování nachází. */
@@ -35,6 +32,9 @@ data class FileDownloadItem(
     val messageId: Long,
     val chatTitle: String,
     val fileName: String,
+    /** Typ souboru od odesílatele (může být prázdný nebo obecný); u videa a skladby od TDLib. */
+    val mimeType: String,
+    val kind: DownloadKind,
     /** Velikost v bajtech; 0 = neznámá. */
     val size: Long,
     val addDate: Int,
@@ -44,6 +44,13 @@ data class FileDownloadItem(
 ) {
     val isCompleted: Boolean get() = completeDate > 0
 }
+
+/**
+ * Z jaké zprávy soubor je. Rozhoduje o ikoně i o tom, čím se stažený soubor otevře: video
+ * v prohlížeči médií, skladba a dokument v systému (dokument s obrázkem nebo videem podle
+ * přípony taky v prohlížeči, to už ale pozná UI z názvu).
+ */
+enum class DownloadKind { Document, Audio, Video }
 
 data class DownloadsPage(
     val items: List<FileDownloadItem>,

@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.ui.UNDO_WINDOW_MS
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -79,15 +80,6 @@ class PendingChatDeletes(
         _pending.update { it - chatIds.toSet() }
     }
 }
-
-/** Jak dlouho jde smazání vrátit. Delší než odpočet snackbaru ([UNDO_COUNTDOWN_MS]) s „Vrátit". */
-internal const val UNDO_WINDOW_MS = 8_000L
-
-/**
- * Odpočet ve snackbaru s „Vrátit" (`CountdownSnackbarVisuals`): o půl vteřiny kratší než lhůta,
- * aby ťuknutí na „Vrátit" na poslední chvíli smazání ještě předběhlo.
- */
-internal const val UNDO_COUNTDOWN_MS = UNDO_WINDOW_MS - 500L
 
 /** Jak dlouho zůstává smazaný chat schovaný po odpovědi, než ho ze seznamu odebere update. */
 private const val SETTLE_MS = 3_000L
