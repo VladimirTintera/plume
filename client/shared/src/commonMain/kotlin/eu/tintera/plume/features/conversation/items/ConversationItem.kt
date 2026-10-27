@@ -216,6 +216,12 @@ internal interface ConversationItemScope {
     fun searchHighlight(): String? = null
 
     /**
+     * Ťuknutí na předěl dne (nebo plovoucí datum) otevře kalendář na tom dni ([timestamp]);
+     * `null`, kde skok na datum nejde (vlákno komentářů, téma skupiny — viz `canJumpToDate`).
+     */
+    fun datePicker(): ((timestamp: Int) -> Unit)? = null
+
+    /**
      * Nese tvář odesílatele u téhle zprávy sdílený prvek do profilu? Jen ta ŤUKNUTÁ: tentýž
      * člověk má ve skupině tvář u každého bloku zpráv a o jeden klíč by se přetahovaly všechny.
      */
@@ -273,7 +279,7 @@ internal fun Modifier.gathered(key: Any, scope: ConversationItemScope): Modifier
 internal data class DayDividerItem(val timestamp: Int, override val key: String) : ConversationItem {
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
-        DayDivider(timestamp, Modifier.animateItem().gathered(key, scope))
+        DayDivider(timestamp, Modifier.animateItem().gathered(key, scope), onClick = scope.datePicker())
     }
 
     companion object {

@@ -403,9 +403,10 @@ fun ConversationScreen(
     )
 
     // Štítek se drží i po zmizení data, aby při odeznívání nezůstala prázdná pilulka.
-    var floatingDay by remember { mutableStateOf("") }
+    var floatingDay by remember { mutableStateOf<FloatingDay?>(null) }
     LaunchedEffect(visibleDay) {
-        if (visibleDay != null) floatingDay = visibleDay
+        val start = visibleDayStart
+        if (visibleDay != null && start != null) floatingDay = FloatingDay(visibleDay, start)
     }
 
     ConversationJumps(state, items, listState, jumpTransition, viewModel)

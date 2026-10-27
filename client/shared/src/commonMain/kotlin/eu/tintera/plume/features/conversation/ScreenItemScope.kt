@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.runtime.mutableStateOf
 import eu.tintera.plume.features.conversation.items.EmojiBurst
 import eu.tintera.plume.features.conversation.items.EmojiBursts
 import eu.tintera.plume.core.ui.bubbleTextSelectable
@@ -71,6 +72,17 @@ internal class ScreenItemScope(
     private val summary: ChatSummaryViewModel,
 ) : ConversationItemScope {
     override fun isProfileFlight(messageId: Long): Boolean = profileFlight.value == messageId
+
+    /**
+     * Den, na kterém je otevřený kalendář po ťuknutí na předěl dne nebo plovoucí datum; `null`
+     * = zavřený. Dialog kreslí `ConversationContent`. Otočení obrazovky ho zavře — je to jedno
+     * ťuknutí, ne rozdělaná práce.
+     */
+    val datePickerDay = mutableStateOf<Int?>(null)
+
+    private val openDatePicker: (Int) -> Unit = { datePickerDay.value = it }
+
+    override fun datePicker(): ((timestamp: Int) -> Unit)? = openDatePicker.takeIf { viewModel.canJumpToDate }
 
     override fun pressingBotButton(messageId: Long): Pair<Int, Int>? =
         state.value.pressingBotButton?.takeIf { it.messageId == messageId }?.let { it.row to it.column }
