@@ -708,8 +708,12 @@ v `features/conversation/items`, testy `DraggedFileTest`).
   **V prohlížeči médií jde ven nepřiblížená fotka** (`ZoomableMediaPage(dragOut)`): myš nad ní
   táhne snímek ven místo zavíracího tahu (zavírá se Esc a ✕), přiblíženou dál posouvá — zdroj
   tahu je na kartě, jen když `scale == 1` (`derivedStateOf`, ať přiblížení nerekomponuje), a gesto
-  stránky myš při nepřiblížené fotce pustí. Dotyk se nemění. **Video z prohlížeče ven nejde** —
-  stránka přehrávače má vlastní gesta (posuvník, dvojklik, podržení); táhne se z bubliny.
+  stránky myš při nepřiblížené fotce pustí. Dotyk se nemění. **Video taky**, v galerii i na celé
+  obrazovce: zdroj tahu je na kartě s obrazem (`VideoPage`), ovládání přehrávače (posuvník,
+  tlačítka) leží nad ní a dál funguje; táhne se původní soubor (`video.fileId`, ne přepočítaná
+  kvalita), a jen celý stažený. Svislý tah myší stránku nezavírá. **Tah ven nese
+  `MediaPageGestures.dragOut`**, ne další parametr stránky — vnitřní `VideoPage` byla na 19
+  z 20 parametrů (`verifyParameterCount`) a „jak stránka reaguje na tah" k gestům patří.
 - **Táhne se jen soubor, který už je na disku.** Data tahu se skládají synchronně při jeho
   začátku, takže čekat na stažení nejde; stav se sleduje `FileRepository.observe`, ne `file`
   (to by kvůli bublině stáhlo každý soubor v chatu). Fotka bere ostrou verzi, a není-li

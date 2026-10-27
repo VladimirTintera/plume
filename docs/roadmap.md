@@ -226,8 +226,8 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - ~~**Dostat přílohu z aplikace ven**~~ — hotovo kopírováním do schránky a „Uložit jako…"
   (`docs/poznatky/desktop.md`, „Kopírování příloh do schránky a cesta ven"). ~~Přetažení přílohy
   z okna ven~~ — hotovo (tamtéž, „Přetažení přílohy z okna ven"). ~~„Zobrazit ve složce" po
-  uložení do Stažených~~ a ~~tah fotky z prohlížeče médií~~ — hotovo (tamtéž). Zbývá tah videa
-  z prohlížeče (gesta přehrávače).
+  uložení do Stažených~~ a ~~tah fotky z prohlížeče médií~~ — hotovo (tamtéž). ~~Tah videa
+  z prohlížeče~~ — hotovo (tamtéž).
 - **Release pro Linux a Intel Mac** (Windows MSI a DMG pro Apple Silicon už jsou,
   `desktop-release.yml`): job na Ubuntu (DEB, glibc 2.38+) a na Intel runneru (`macos-15-intel`,
   DMG pro macOS 15+). Ani jedno zatím nikdo nezkoušel spustit.

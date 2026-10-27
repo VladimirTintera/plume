@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.media
 
+import kotlinx.datetime.TimeZone
+import eu.tintera.plume.core.files.savedFileName
+import eu.tintera.plume.core.ui.rememberFileState
+import eu.tintera.plume.core.ui.fileDragSupported
+import eu.tintera.plume.core.ui.fileDragSource
+import eu.tintera.plume.core.ui.DraggedFile
+import androidx.compose.ui.input.pointer.PointerType
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.VideoStoryboard
 import eu.tintera.plume.core.telegram.VideoQuality
@@ -228,9 +235,22 @@ internal fun VideoPage(
     quality: VideoQualitySelection? = null,
     /** Hraje-li vybraná stránka (viz druhé [VideoPage]); prohlížeč podle toho vypíná listování. */
     onPlayingChange: ((Boolean) -> Unit)? = null,
+    /** Čas zprávy pro jméno videa taženého z okna ven; `null` = video se ven netáhne. */
+    dragSentAt: Int? = null,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
+    // Ven jde původní soubor, a jen celý stažený — stav se sleduje, nic se kvůli tomu nestahuje.
+    val original = rememberFileState(video.fileId.takeIf { dragSentAt != null && fileDragSupported }, download = false)
+    val dragOut = if (dragSentAt != null && !spoiler.hidden) {
+        {
+            (original as? FileState.Ready)?.let { ready ->
+                DraggedFile(ready.path, savedFileName(null, ready.path, dragSentAt, TimeZone.currentSystemDefault()))
+            }
+        }
+    } else {
+        null
+    }
     val isCurrent = placement.isCurrent
     val qualityChoice = quality?.choice ?: VideoQualityChoice.Auto
 
@@ -307,7 +327,7 @@ internal fun VideoPage(
         caption = caption,
         placement = placement,
         dismissDrag = dismissDrag,
-        gestures = gestures,
+        gestures = gestures.copy(dragOut = dragOut),
         source = VideoFileSource(
             state = { started ->
                 /*
@@ -435,6 +455,9 @@ internal fun VideoPage(
     val sourceKey = source.key
     val startMs = progress.startMs
     val currentDismiss by rememberUpdatedState(gestures.onDismiss)
+    // Tah videa ven myší ([MediaPageGestures.dragOut]); kde jde, myš stránku tahem nezavírá.
+    val dragOut = gestures.dragOut?.takeIf { fileDragSupported }
+    val currentDraggable by rememberUpdatedState(dragOut != null)
 
     // Hraje (a stahuje se) jen vybraná stránka na celé obrazovce.
     val active = isCurrent && immersive
@@ -787,6 +810,7 @@ internal fun VideoPage(
                 // Jen svislý tah (zavírání); vodorovný se nekonzumuje a patří pageru.
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    if (down.type == PointerType.Mouse && currentDraggable) return@awaitEachGesture
                     var vertical: Boolean? = null
                     // Svislý tah v levé půlce videa na celé obrazovce: jas místo zavírání.
                     var dimming: ScreenBrightness? = null
@@ -1126,7 +1150,13 @@ internal fun VideoPage(
     ) {
         // Zaoblení se ořezává v layoutu, ne ve vrstvě: nativní view s videem (UIKit) ořez
         // vrstvy nedostane. Na celé obrazovce je nulové, takže přechod se kreslí jen nad náhledem.
-        Box(Modifier.fillMaxSize().clip(RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion())))) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion())))
+                // Tah myší po obrazu vytáhne video ven; ovládání (posuvník, tlačítka) je nad kartou.
+                .then(if (dragOut != null) Modifier.fileDragSource(dragOut) else Modifier),
+        ) {
             thumbnail()
             // V galerii jen náhled; povrch se složí až na celé obrazovce.
             if (loaded && immersive) {

@@ -812,6 +812,8 @@ private fun ViewerContent(
                         }
                     },
                     rememberPosition = !state.isSelfDestruct,
+                    // Ven jen to, co jde uložit: mizející a chráněné video ne.
+                    dragSentAt = item.timestamp.takeIf { state.actions[item.messageId]?.canSave == true && !state.isSelfDestruct },
                 )
 
                 is MessageMedia.Photo -> ZoomableImage(
@@ -1467,12 +1469,11 @@ private fun ZoomableImage(
         caption = caption,
         placement = placement,
         dismissDrag = dismissDrag,
-        gestures = gestures.copy(onTap = { if (hidden) spoiler?.onReveal?.invoke() else gestures.onTap() }),
+        gestures = gestures.copy(onTap = { if (hidden) spoiler?.onReveal?.invoke() else gestures.onTap() }, dragOut = dragOut),
         zoomable = !hidden,
         zoomSteps = zoomSteps,
         modifier = modifier,
         cardModifier = Modifier.sharedNavElement(photoKey(messageId), besidePanes = true),
-        dragOut = dragOut,
     ) {
         RemoteImage(
             // Ostrá verze; zmenšenina z bubliny slouží jako okamžitý náhled, než se dotáhne.

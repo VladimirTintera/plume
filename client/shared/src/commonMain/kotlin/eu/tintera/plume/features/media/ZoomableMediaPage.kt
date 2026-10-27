@@ -3,7 +3,6 @@ package eu.tintera.plume.features.media
 import androidx.compose.runtime.derivedStateOf
 import eu.tintera.plume.core.ui.fileDragSupported
 import eu.tintera.plume.core.ui.fileDragSource
-import eu.tintera.plume.core.ui.DraggedFile
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
@@ -97,11 +96,6 @@ internal fun ZoomableMediaPage(
     cardModifier: Modifier = Modifier,
     /** Ovládání na kartě, které se s fotkou nepřibližuje (✕ a volba režimu ve sdílení). */
     overlay: @Composable BoxScope.() -> Unit = {},
-    /**
-     * Tah myší vytáhne snímek z okna ven (`fileDragSource`, desktop); `null` = nejde (sdílení,
-     * zakrytý nebo chráněný snímek). Jen u nepřiblížené fotky — přiblíženou tah myší posouvá.
-     */
-    dragOut: (() -> DraggedFile?)? = null,
     /** Snímek; vyplní kartu a přibližuje se. */
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -117,6 +111,8 @@ internal fun ZoomableMediaPage(
     val currentTap by rememberUpdatedState(gestures.onTap)
     val currentDismiss by rememberUpdatedState(gestures.onDismiss)
     val currentZoomable by rememberUpdatedState(zoomable)
+    // Tah ven ([MediaPageGestures.dragOut]) jen u nepřiblížené fotky — přiblíženou tah myší posouvá.
+    val dragOut = gestures.dragOut
     val draggable = dragOut != null && fileDragSupported
     val currentDraggable by rememberUpdatedState(draggable)
 
