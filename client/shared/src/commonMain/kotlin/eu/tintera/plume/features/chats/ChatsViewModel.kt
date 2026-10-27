@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.chat_folder_delete_failed
 import eu.tintera.plume.core.settings.StoredPhotoDescription
 import eu.tintera.plume.features.media.PhotoDescriptions
 import kotlinx.coroutines.flow.mapLatest
@@ -349,6 +350,21 @@ class ChatsViewModel(
      * hlavní seznam. Odznaky se přepočítají samy updaty; hláška jde jen při selhání.
      */
     fun readFolder(id: Int?) = readAll(if (id == null) ChatFolder.Main else ChatFolder.Custom(id))
+
+    /**
+     * „Smazat složku" z nabídky nad záložkou, po potvrzení. Sdílená se tu nenabízí (viz
+     * `FolderTabActions`). Vybraná smazaná složka přestane platit sama (`selectedFolderId`)
+     * a seznam spadne na všechny chaty.
+     */
+    fun deleteFolder(id: Int) {
+        val repo = folderRepository ?: return
+        viewModelScope.launch {
+            repo.delete(id).onFailure { failure ->
+                logger.w(failure) { "Složku $id se nepodařilo smazat." }
+                _actions.update { it.copy(error = failure.userMessage(Res.string.chat_folder_delete_failed)) }
+            }
+        }
+    }
 
     /** Archiv jako přečtený — ikona v liště archivu, ten lištu složek nemá. */
     fun readArchive() = readAll(ChatFolder.Archive)

@@ -18,6 +18,11 @@ data class FolderTab(
     val selected: Boolean = false,
     /** Ikona složky od TDLib — jen pro prázdný stav vybrané složky, řádek ikony nekreslí. */
     val iconName: String? = null,
+    /**
+     * Sdílená složka (má nebo měla odkaz). Smazat ji z nabídky nad záložkou nejde: s ní se
+     * rozhoduje i o odchodu z jejích chatů, a to umí jen Správa složek.
+     */
+    val shareable: Boolean = false,
 )
 
 /**
@@ -43,6 +48,7 @@ internal fun folderTabs(folders: ChatFolders, unread: Map<Int, ArchiveUnread>, s
             unread = unread[folder.id]?.unmutedChats ?: 0,
             selected = folder.id == selected,
             iconName = folder.iconName,
+            shareable = folder.isShareable,
         )
     }
     val all = FolderTab(id = null, selected = selected == null)

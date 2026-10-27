@@ -1679,10 +1679,9 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 - ~~**Výběr víc chatů: smazat / opustit, připnout, přidat do složky, vybrat vše**~~ — hotovo,
   i s bublinami s popisem u všech akcí (`docs/poznatky/seznam-chatu.md`, „Výběr víc chatů").
-- **Nabídka nad záložkou složky a prázdná složka** (S). Podržení záložky nabízí jen „Označit vše
-  jako přečtené" (`ChatFolderToolbar.kt`); chybí Upravit, Přidat chaty, Ztlumit vše a Smazat.
-  Prázdná vlastní složka je slepá ulička bez tlačítka „Přidat chaty" (`ChatListScreen.kt`,
-  prázdný stav).
+- ~~**Nabídka nad záložkou složky a prázdná složka**~~ — hotovo: upravit, spravovat a smazat
+  složku z podržení, „Přidat chaty" v prázdné složce (`docs/poznatky/seznam-chatu.md`, „Složky
+  chatů"). „Ztlumit vše" vědomě ne (TDLib ztlumení složky nemá).
 - **„Vymazat historii" z nabídky nad chatem a „Vrátit" u smazání / opuštění** (S–M). Vymazání
   historie jde jen z konverzace (`ClearHistorySheet` ve `features/conversation`); smazání
   a opuštění mají jen potvrzovací dialog, archivace a blokování mají „Vrátit".

@@ -213,6 +213,19 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
   `uiautomator` každá položka jednou. **Neověřené:** účet bez složek (holé FAB menu), režim se
   všemi popisky, tmavý motiv, TalkBack, desktop (jen přeložený) a iOS.
 
+- **Nabídka nad záložkou nese i úpravu, správu a smazání** (`folderMenuGroups`, akce v jedné
+  `FolderTabActions` na ViewModel — jinak by každá protékala čtyřmi úrovněmi lišty). Vlastní
+  složka: přečíst vše; Upravit složku (editor v Nastavení, `AppNavigation.openChatFolder`)
+  a Spravovat složky (pořadí, doporučené, sdílení); ve vlastní skupině Smazat složku s potvrzením
+  (`ChatsViewModel.deleteFolder`, vybraná smazaná složka spadne na celý seznam sama).
+  „Všechny chaty": přečíst vše a Spravovat složky.
+  - **Sdílenou složku z nabídky smazat nejde** (`FolderTab.shareable`): s ní se rozhoduje
+    i o odchodu z jejích chatů (`chatsToLeave`) a ten dialog má jen Správa složek.
+  - **„Ztlumit vše" vědomě není**: TDLib ztlumení složky nemá, šlo by jen chat po chatu přes
+    načtené chaty — a ty, které se dotáhnou později, by zůstaly neztlumené.
+- **Prázdná vlastní složka má tlačítko „Přidat chaty"** (tónové, v `IntroEmptyState`), které
+  otevře editor složky — ten začíná výběrem chatů. Bez něj byla prázdná složka slepá ulička.
+  „Nepřečtené" se vším přečteným ho má taky: přidané chaty se pak ukážou i přečtené.
 - **Podržení složky otevře nabídku „Označit vše jako přečtené"** (`readChatList`, `ChatRepository.readAll`,
   `ChatsViewModel.readFolder`). U „Vše" to vezme hlavní seznam. Odznaky se přepočítají samy
   updaty, hláška jde jen při selhání. Potvrzení není: nic se nemaže a oficiální klienti se taky

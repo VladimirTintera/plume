@@ -37,6 +37,8 @@ data class ChatListNavigation(
     val onCreateFolder: () -> Unit = {},
     /** „+" v řádku složek → Spravovat složky. */
     val onManageFolders: () -> Unit = {},
+    /** Editor jedné složky (z nabídky nad záložkou a z prázdné složky). */
+    val onEditFolder: (folderId: Int) -> Unit = { onManageFolders() },
     /** Obrazovka aplikace z doporučené akce (dvoufázové ověření, úprava profilu). */
     val onOpenScreen: (AppScreen) -> Unit = {},
     /** Hledání ze sbaleného sloupce; otevře se, až se seznam rozbalí (viz [CollapsedChatList]). */

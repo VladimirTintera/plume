@@ -30,6 +30,13 @@ class ChatFolderTabsTest {
         assertEquals(listOf(2, 5, null), folderTabs(folders.copy(mainPosition = 9), emptyMap(), null).map { it.id })
     }
 
+    /** Sdílenou složku nabídka nad záložkou smazat nenabídne (o odchodu z chatů rozhoduje Správa). */
+    @Test
+    fun sdilenaSlozkaToVi() {
+        val shared = folders.copy(folders = folders.folders + ChatFolderTab(id = 7, title = "Klub", isShareable = true))
+        assertEquals(listOf(false, false, false, true), folderTabs(shared, emptyMap(), null).map { it.shareable })
+    }
+
     @Test
     fun vybranaJePravdeJedna() {
         assertEquals(listOf(false, false, true), folderTabs(folders, emptyMap(), 5).map { it.selected })
