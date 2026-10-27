@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.GifRepository
+import eu.tintera.plume.core.telegram.GifItem
+import eu.tintera.plume.resources.conversation_saved_gif_added
+import eu.tintera.plume.resources.conversation_saved_gif_removed
+import eu.tintera.plume.resources.conversation_saved_gif_failed
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
@@ -60,6 +65,8 @@ internal class ConversationMessageMenu(
     private val onDeviceAi: OnDeviceAi?,
     private val bookmarks: MessageBookmarks?,
     private val stickerRepository: StickerRepository,
+    /** Uložené GIFy; bez nich se „Uložit GIF" nenabízí. */
+    private val gifs: GifRepository? = null,
     /** Hudba ve vlastním profilu; bez ní se „Přidat do profilu" nenabízí. */
     private val profiles: ProfileRepository? = null,
     /** Nabídka nabízí „Akce u zprávy", když v ní model něco našel. */
@@ -175,6 +182,15 @@ internal class ConversationMessageMenu(
             val sticker = message.media as? MessageMedia.Sticker
 
             val audio = message.media as? MessageMedia.Audio
+            val animation = message.media as? MessageMedia.Animation
+            // Tajný chat ne: jeho soubor na serveru k uložení není (stejně jako hudba do profilu).
+            val savedGifTask = scope.async {
+                if (animation == null || gifs == null || state.value.info?.isSecret == true) {
+                    null
+                } else {
+                    gifs.savedGifs().first().any { it.animation.fileId == animation.fileId }
+                }
+            }
             // Tajný chat ne: jeho soubor na serveru pro profil není.
             val profileAudioTask = scope.async {
                 if (audio == null || profiles == null || MessageMenuAction.ToggleProfileAudio !in items || state.value.info?.isSecret == true) {
@@ -232,6 +248,7 @@ internal class ConversationMessageMenu(
                         actions = actions,
                         items = shownItems,
                         favoriteSticker = favorite,
+                        savedGif = savedGifTask.await(),
                         bookmarked = bookmarks?.isBookmarked(chatId, messageId),
                         profileAudio = profileAudioTask.await(),
                         pressedMessageId = pressed?.takeIf { it != messageId },
@@ -306,6 +323,33 @@ internal class ConversationMessageMenu(
                 }
                 .onFailure { failure ->
                     state.update { it.copy(error = failure.reported(logger, Res.string.conversation_favorite_failed)) }
+                }
+        }
+    }
+
+    /**
+     * Uloží GIF ze zprávy mezi uložené GIFy, nebo ho z nich odebere. V konverzaci se nic
+     * nezmění, takže výsledek hlásí snackbar, jako u oblíbené samolepky. Uložený se objeví
+     * ve výběru GIFů (potvrzení přijde `savedGifs`).
+     */
+    fun toggleSavedGif(messageId: Long) {
+        val gifs = gifs ?: return
+        val menu = state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
+        val saved = menu.savedGif ?: return
+        val animation = state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Animation
+            ?: return
+        closeMenus()
+
+        scope.launch {
+            val gif = GifItem(animation)
+            (if (saved) gifs.removeSaved(gif) else gifs.addSaved(gif))
+                .onSuccess {
+                    state.update {
+                        it.copy(notice = UiText(if (saved) Res.string.conversation_saved_gif_removed else Res.string.conversation_saved_gif_added))
+                    }
+                }
+                .onFailure { failure ->
+                    state.update { it.copy(error = failure.reported(logger, Res.string.conversation_saved_gif_failed)) }
                 }
         }
     }

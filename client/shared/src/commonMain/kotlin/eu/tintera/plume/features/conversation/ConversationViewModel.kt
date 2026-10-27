@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.GifRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.channels.Channel
@@ -284,6 +285,8 @@ class ConversationViewModel(
     private val liveUploads: LiveUploads? = null,
     /** Přílohy nad polem přečkají odchod z chatu; bez úložiště zmizí s konverzací. */
     private val stagedAttachments: StagedAttachmentsStore? = null,
+    /** Uložené GIFy pro „Uložit GIF" v nabídce nad zprávou; bez nich se položka nenabízí. */
+    private val gifs: GifRepository? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -851,6 +854,7 @@ class ConversationViewModel(
         onDeviceAi = onDeviceAi,
         bookmarks = bookmarks,
         stickerRepository = stickerRepository,
+        gifs = gifs,
         profiles = profiles,
         messageContext = messageContext,
         translation = translation,
@@ -2204,6 +2208,7 @@ class ConversationViewModel(
             is MessageAction.QuoteReply -> composer.quoteReply(messageId, action.text)
             is MessageAction.CopyText -> menu.copyText(action.text)
             MessageMenuAction.ToggleFavoriteSticker -> menu.toggleFavoriteSticker(messageId)
+            MessageMenuAction.ToggleSavedGif -> menu.toggleSavedGif(messageId)
             MessageMenuAction.ToggleProfileAudio -> menu.toggleProfileAudio(messageId)
             MessageMenuAction.ToggleBookmark -> menu.toggleBookmark(messageId)
             MessageMenuAction.Forward -> messageActions.requestForward(messageId)

@@ -897,6 +897,11 @@
     <string name="menu_quote">Quote</string>
     <string name="menu_edit">Edit</string>
     <string name="menu_copy">Copy</string>
+    <string name="menu_saved_gif_add">Save to GIFs</string>
+    <string name="menu_saved_gif_remove">Remove from GIFs</string>
+    <string name="conversation_saved_gif_added">Saved to GIFs</string>
+    <string name="conversation_saved_gif_removed">Removed from GIFs</string>
+    <string name="conversation_saved_gif_failed">Saved GIFs could not be changed.</string>
     <string name="menu_favorite_add">Add to favourites</string>
     <string name="menu_favorite_remove">Remove from favourites</string>
     <string name="menu_pin">Pin</string>

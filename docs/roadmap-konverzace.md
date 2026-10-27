@@ -487,9 +487,8 @@ témat má věty se jmény jako seznam chatů (bez předpony „Jana:").
 Konverzační část průchodu, který je jinak v [roadmap.md](roadmap.md) („Nápady z průchodu
 aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům. Velikost: S / M / L.
 
-- **Uložit cizí GIF do Uložených GIFů** z nabídky nad zprávou (S). `GifRepository.addSaved` už
-  je, volá ho jen výběr GIFů; nabídka umí „do oblíbených" jen u samolepky
-  (`ToggleFavoriteSticker` v `MessageAction.kt`). Dnes se GIF od kamaráda uložit nedá.
+- ~~**Uložit cizí GIF do Uložených GIFů**~~ — hotovo, „Uložit do GIFů" v nabídce nad zprávou
+  (`docs/poznatky/emoji-samolepky-reakce.md`, „Výběr GIFů").
 - **Víc než 10 fotek naráz a „poslat jednotlivě"** (M). Výběr se usekne na
   `MAX_ATTACHMENTS = 10` s hláškou; Telegram rozdělí výběr do víc alb a umí je poslat i bez
   seskupení.

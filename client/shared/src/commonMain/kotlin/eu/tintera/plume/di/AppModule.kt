@@ -518,6 +518,7 @@ fun appModule() = module {
             downloads = get(),
             liveUploads = get(),
             stagedAttachments = get(),
+            gifs = get(),
             liveStoriesSupported = getOrNull<LiveStreamMedia>() != null,
         )
     }
