@@ -961,6 +961,12 @@
     <string name="forward_search">Hledat chat</string>
     <string name="forward_empty">Hledání neodpovídá žádný chat.</string>
     <string name="forward_failed">Zprávu se nepodařilo přeposlat.</string>
+    <string name="forward_failed_partial">Zpráva nedorazila do: %1$s. Ostatním odešla, znovu se pošle jen tam.</string>
+    <plurals name="forward_failed_partial_more">
+        <item quantity="one">Zpráva nedorazila do: %1$s a %2$d dalšího chatu. Ostatním odešla, znovu se pošle jen tam.</item>
+        <item quantity="few">Zpráva nedorazila do: %1$s a %2$d dalších chatů. Ostatním odešla, znovu se pošle jen tam.</item>
+        <item quantity="other">Zpráva nedorazila do: %1$s a %2$d dalších chatů. Ostatním odešla, znovu se pošle jen tam.</item>
+    </plurals>
     <string name="forward_hide_sender">Skrýt odesílatele</string>
     <string name="forward_hide_captions">Skrýt popisky</string>
     <string name="decimal_number">%1$s,%2$s</string>

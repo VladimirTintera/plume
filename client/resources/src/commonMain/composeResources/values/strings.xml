@@ -943,6 +943,11 @@
     <string name="forward_search">Search chats</string>
     <string name="forward_empty">No chat matches the search.</string>
     <string name="forward_failed">The message could not be forwarded.</string>
+    <string name="forward_failed_partial">Not delivered to %1$s. The others got it; sending again goes only there.</string>
+    <plurals name="forward_failed_partial_more">
+        <item quantity="one">Not delivered to %1$s and %2$d other chat. The others got it; sending again goes only there.</item>
+        <item quantity="other">Not delivered to %1$s and %2$d other chats. The others got it; sending again goes only there.</item>
+    </plurals>
     <string name="forward_hide_sender">Hide sender name</string>
     <string name="forward_hide_captions">Hide captions</string>
     <string name="decimal_number">%1$s.%2$s</string>

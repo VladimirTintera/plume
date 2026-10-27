@@ -675,7 +675,7 @@ fun appModule() = module {
             messageIds = parameters.get(),
             repository = get(),
             chatRepository = get(),
-            shareTargets = get(),
+            reportUsed = get<ShareTargets>()::reportUsed,
         )
     }
 
