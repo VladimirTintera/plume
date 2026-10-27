@@ -9,6 +9,9 @@ import eu.tintera.plume.core.ui.bubbleTextSelectable
 import eu.tintera.plume.core.ui.fileDragSupported
 import eu.tintera.plume.features.conversation.items.LocalMediaDragOut
 import eu.tintera.plume.features.conversation.items.MediaDragOut
+import eu.tintera.plume.features.conversation.items.LocalVideoDownload
+import eu.tintera.plume.features.conversation.items.VideoDownload
+import eu.tintera.plume.features.conversation.items.MessageAction
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -235,10 +238,18 @@ internal fun BoxScope.ConversationContent(
           val mediaDragOut = remember(protectsContent) {
               if (!fileDragSupported || protectsContent) null else MediaDragOut { id -> currentMessages.firstOrNull { it.id == id }?.timestamp }
           }
+          // Stažení videa tlačítkem v náhledu jde do ViewModelu jako akce zprávy.
+          val videoDownload = remember(itemScope) {
+              VideoDownload(
+                  onDownload = { id -> itemScope.onAction(id, MessageAction.DownloadVideo) },
+                  onCancel = { id -> itemScope.onAction(id, MessageAction.CancelVideoDownload) },
+              )
+          }
           CompositionLocalProvider(
               LocalSharedElementClip provides listClip,
               LocalPhotoDescriptions provides photoDescriptions,
               LocalMediaDragOut provides mediaDragOut,
+              LocalVideoDownload provides videoDownload,
           ) {
           // Na široké ploše zprávy ve sloupci uprostřed; scroll zůstává přes celou plochu.
           ConversationColumn { inset ->

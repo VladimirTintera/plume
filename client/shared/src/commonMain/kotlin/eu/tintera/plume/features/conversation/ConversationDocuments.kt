@@ -111,6 +111,27 @@ internal class ConversationDocuments(
     }
 
     /**
+     * Stáhne video zprávy celé, přes seznam Stahování (jako soubor); když se přidat nepovede,
+     * postaru. Průběh ukazuje náhled videa sám (`observe`), stav tady se nevede.
+     */
+    fun downloadVideo(messageId: Long) {
+        val video = state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Video ?: return
+        scope.launch {
+            val listed = downloads != null && chatId != 0L && downloads.add(video.fileId, chatId, messageId).isSuccess
+            if (!listed) fileRepository.retryDownload(video.fileId)
+        }
+    }
+
+    /** Zruší stahování videa a vyřadí ho ze seznamu Stahování — rozestahované tam nemá viset. */
+    fun cancelVideoDownload(messageId: Long) {
+        val video = state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Video ?: return
+        scope.launch {
+            fileRepository.cancelDownload(video.fileId)
+            downloads?.remove(video.fileId, deleteFile = false)
+        }
+    }
+
+    /**
      * Stáhne soubor a nabídne systémový výběr umístění („Uložit jako…").
      *
      * Výběr je aktivita systému, takže [launcher] dodá obrazovka; ViewModel ho jen zavolá, až je

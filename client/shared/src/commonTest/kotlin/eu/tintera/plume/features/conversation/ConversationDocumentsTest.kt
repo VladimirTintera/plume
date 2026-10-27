@@ -105,6 +105,45 @@ class ConversationDocumentsTest {
         assertNull(state.value.notice)
     }
 
+    private fun stateWithVideo() = testState(
+        testMessage(2).copy(
+            media = MessageMedia.Video(fileId = FILE, thumbnailFileId = null, width = 16, height = 9, durationSeconds = 42),
+        ),
+    )
+
+    @Test
+    fun videoSeStahujePresSeznamStahovani() = runTest {
+        val downloads = FakeDownloads()
+        documents(stateWithVideo(), downloads).downloadVideo(2)
+        runCurrent()
+        assertEquals(listOf(Triple(FILE, TEST_CHAT, 2L)), downloads.added)
+        assertEquals(emptyList(), files.retried)
+    }
+
+    @Test
+    fun videoBezSeznamuSeStahujePostaru() = runTest {
+        documents(stateWithVideo()).downloadVideo(2)
+        runCurrent()
+        assertEquals(listOf(FILE), files.retried)
+    }
+
+    @Test
+    fun zruseneStahovaniVideaZmiziZeSeznamu() = runTest {
+        val downloads = FakeDownloads()
+        documents(stateWithVideo(), downloads).cancelVideoDownload(2)
+        runCurrent()
+        assertEquals(listOf(FILE), files.cancelled)
+        // Rozestahované video v seznamu viset nemá; soubor sám (část) zůstává.
+        assertEquals(listOf(FILE to false), downloads.removed)
+    }
+
+    @Test
+    fun stazeniVideaUJineZpravyNicNedela() = runTest {
+        documents(stateWithDocument()).downloadVideo(1)
+        runCurrent()
+        assertEquals(emptyList(), files.retried)
+    }
+
     @Test
     fun souborZeZpravyJdeDoSeznamuStahovani() = runTest {
         val downloads = FakeDownloads()

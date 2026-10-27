@@ -1797,7 +1797,7 @@ a pozastavením) a „Nedávno staženo". Seznam vede TDLib (`addFileToDownloads
 `searchFileDownloads`, `toggleDownloadIsPaused`, `removeFileFromDownloads`).
 
 - **Do seznamu jde jen VÝSLOVNÉ stažení souboru ze zprávy** (`ConversationDocuments`:
-  otevřít, sdílet, uložit jako). Ten pak stahování spustí sám; když se přidat nepovede, stáhne
+  otevřít, sdílet, uložit jako, a tlačítko stažení u videa — viz „Stažení videa z náhledu"). Ten pak stahování spustí sám; když se přidat nepovede, stáhne
   se postaru přes `retryDownload`. Náhledy, fotky v konverzaci, streamované video ani soubor
   v článku do seznamu nepatří — nejsou to „stažené soubory" a zahltily by ho.
 - **Seznam se po každé změně čte znovu** (`fileAddedToDownloads` / `fileDownload` /
@@ -1814,6 +1814,27 @@ a pozastavením) a „Nedávno staženo". Seznam vede TDLib (`addFileToDownloads
   (otevřel se v prohlížeči PDF a v seznamu se objevil s chatem a velikostí), ťuknutí otevřelo
   zprávu, odebrání se smazáním souboru seznam hned vyprázdnilo. **Pozastavení ověřené NENÍ** —
   malý soubor se stáhne dřív, než se dá zmáčknout; hlídá ho `DownloadsViewModelTest`.
+
+### Stažení videa z náhledu
+
+Video se přehrává proudem a celé na disku není, dokud ho někdo nedokouká nebo výslovně nestáhne.
+Náhled videa v konverzaci proto říká, jak na tom je (`VideoThumbnail`, `VideoDownloadButton`,
+`LocalVideoDownload`; akce `MessageAction.DownloadVideo` / `CancelVideoDownload`):
+
+- **Nestažené**: vpravo nahoře tmavé kolečko se šipkou a ve štítku za délkou velikost
+  („0:42 · 12 MB", `video.sizeBytes`). Ťuknutí video stáhne celé přes seznam Stahování
+  (`downloads.add`, jako soubor; když se přidat nepovede, `retryDownload`).
+- **Stahuje se**: totéž kolečko s vlnitým průběhem a křížkem, jako nahrávání; ťuknutí stahování
+  zruší a vyřadí ho ze seznamu (`removeFileFromDownloads` bez smazání) — rozestahované tam viset
+  nemá. Průběh ukazuje i proud z prohlížeče (TDLib hlásí aktivní stahování), náhled je ale tou
+  dobou pod prohlížečem.
+- **Stažené**: tlačítko zmizí a štítek má před délkou fajfku („Staženo" pro čtečku). Takové video
+  jde přehrát bez sítě a na desktopu vytáhnout z okna ven (`docs/poznatky/desktop.md`).
+- **Stav se jen sleduje** (`rememberFileState(…, download = false)`), zjistit ho nesmí nic stáhnout.
+- **Jen v seznamu zpráv** (`LocalVideoDownload` poskytuje `ConversationContent`); anketa, reklama
+  a článek tlačítko nemají. Mizející, tajné, zakryté a nahrávané video taky ne.
+- **Přehrát jde i nestažené** — tlačítko uprostřed dál otevírá prohlížeč s proudem.
+- **Ověřené testy a překladem** (`ConversationDocumentsTest`), na zařízení zatím ne.
 
 ### Automatické stahování
 

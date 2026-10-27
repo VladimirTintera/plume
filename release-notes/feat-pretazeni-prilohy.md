@@ -1,4 +1,3 @@
 type: feat
-units: desktop
-cs: Fotky, videa a soubory z konverzace jde myší přetáhnout do složky nebo jiné aplikace
-en: Drag photos, videos and files from a chat into a folder or another app
+cs: Video jde stáhnout přímo z náhledu v chatu; na desktopu přílohy přetáhnout myší do složky
+en: Download videos right from the chat; on desktop, drag attachments into a folder or app
