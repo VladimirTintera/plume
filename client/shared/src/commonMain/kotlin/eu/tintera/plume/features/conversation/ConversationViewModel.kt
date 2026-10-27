@@ -295,6 +295,9 @@ class ConversationViewModel(
     /** Co nahraje podržení tlačítka v prázdném poli (volba přežije i odchod z chatu). */
     val recordMode: StateFlow<RecordMode> = settings.recordMode
 
+    /** Rychlá reakce — kvůli popisku akce „Reagovat" pro čtečku obrazovky. */
+    val quickReactionKey: StateFlow<String?> get() = quickReaction.reaction
+
     /** Nápovědy gest, které uživatel už viděl (napříč chaty i spuštěními). */
     val seenGestureHints: StateFlow<Set<GestureHint>> = settings.seenGestureHints
 

@@ -1070,6 +1070,30 @@ se ukazují v místním pásmu a v jazyce aplikace: „středa 30. září 2026 
   Offsety jsou v UTF-16 — s ručně spočítaným offsetem nahradí entita i sousední znak. Ověřeno
   na emulátoru anglicky i česky. **iOS jen přeložené.**
 
+## Zpráva pro čtečku obrazovky
+
+Bublina je pro TalkBack jeden uzel: text, jméno, čas a stav doručení a vlastní akce Odpovědět
+a Reagovat (`MessageA11y.kt`, testy `MessageA11yTest` a headless `MessageA11ySemanticsTest`).
+
+- **Jeden uzel je bublina už díky `contextClickable`** — klikání slučuje potomky. Fotka, přehrávač,
+  odkaz a další potomci s vlastním klikáním zůstávají samostatné uzly, takže se k nim čtečka
+  dostane dál. `clearAndSetSemantics` na bublině by je odřízl.
+- **Popis se NESKLÁDÁ do `contentDescription`**: na sloučeném uzlu by přebil text zprávy (čtečka
+  bere popis místo textu). Čas a stav jdou do `stateDescription`, čtou se za textem.
+- **Jméno u navazující příchozí zprávy ve skupině** (`a11ySender`) — viditelně ho nese jen první
+  bublina bloku. Jde do `text` uzlu: ten se slučuje SEZNAMEM a rodič je první, takže zazní před
+  textem zprávy (ověřené headless testem, ne předpoklad). U první bubliny bloku ne, zaznělo by dvakrát.
+- **Akce Odpovědět** jen tam, kam se smí psát (`canReply`), **Reagovat** je rychlá reakce
+  z Nastavení → Chaty (popisek s jejím emoji, u vlastního emoji bez něj). Jinou reakci nabízí
+  nabídka nad zprávou — popisek dlouhého stisku je teď „Možnosti zprávy". V režimu výběru akce
+  nejsou: ťuknutí tam vybírá.
+- **Odznak doručení pod bublinou je pro čtečku tichý** (kromě vykřičníku s „Poslat znovu"):
+  stav už řekla bublina a odznak by ho zopakoval jako další položku.
+- **TalkBack na emulátoru prakticky ověřit nejde**: injektované dotyky z `adb input` průzkum
+  dotykem obchází (fokus se nepohne) a „zobrazit výstup řeči" je volba uvnitř TalkBacku, kterou
+  bez roota nenastavíš. Sémantika je proto ověřená headless testem; skutečný TalkBack na telefonu
+  ověřený NENÍ.
+
 ## Sbalení dlouhé zprávy
 
 Text zprávy delší než 20 řádků (`COLLAPSED_TEXT_LINES`) se sbalí a pod ním je „Číst dál",

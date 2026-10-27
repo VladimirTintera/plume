@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.resources.menu_reply
+import eu.tintera.plume.core.ui.asTimeOfDay
+import eu.tintera.plume.resources.conversation_react_with
+import eu.tintera.plume.resources.conversation_react
+import eu.tintera.plume.resources.conversation_message_options
 import androidx.compose.foundation.LocalIndication
 import eu.tintera.plume.core.ui.bubbleTextSelectable
 import eu.tintera.plume.features.conversation.quoteSelection
@@ -807,6 +812,19 @@ private fun MessageFrame(
                     }
                 },
             ) {
+            // Zpráva pro čtečku obrazovky jedním uzlem (`MessageA11y.kt`): kdo, kdy, stav, akce.
+            val optionsLabel = stringResource(Res.string.conversation_message_options)
+            val reactLabel = scope.quickReactionEmoji()?.let { stringResource(Res.string.conversation_react_with, it) }
+                ?: stringResource(Res.string.conversation_react)
+            val a11y = MessageA11y(
+                sender = a11ySender(message, frame.continuesAbove),
+                state = listOfNotNull(message.timestamp.asTimeOfDay(), frame.delivery?.let { stringResource(it.label) })
+                    .joinToString(", "),
+                replyLabel = stringResource(Res.string.menu_reply).takeIf { scope.canReply() && frame.selected == null },
+                reactLabel = reactLabel.takeIf { frame.selected == null },
+                onReply = { scope.onAction(currentMessageId, MessageAction.SwipeReply) },
+                onReact = { bodyScope.act(MessageAction.QuickReact) },
+            )
             MessageBox(
                 frame = frame,
                 bodyScope = bodyScope,
@@ -863,6 +881,8 @@ private fun MessageFrame(
                     interactionSource = null,
                     indication = if (bubbleTextSelectable) null else LocalIndication.current,
                     rightClick = !bubbleTextSelectable,
+                    // Čtečka obrazovky dlouhý stisk nabízí jako akci; bez popisku zněla „podržet".
+                    onLongClickLabel = optionsLabel,
                     onLongClick = bodyScope::requestMenu,
                     onDoubleClick = if (scope.doubleTapReaction()) {
                         { bodyScope.act(MessageAction.QuickReact) }
@@ -870,7 +890,7 @@ private fun MessageFrame(
                         null
                     },
                     onClick = { if (!bubbleTextSelectable) frame.onTap?.let(bodyScope::act) },
-                ),
+                ).semantics { messageA11y(a11y) },
                 onReactionClick = if (frame.reactionsOpenable) {
                     { bodyScope.act(MessageAction.ShowReactions) }
                 } else {

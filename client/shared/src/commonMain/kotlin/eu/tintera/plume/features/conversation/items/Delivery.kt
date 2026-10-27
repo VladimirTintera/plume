@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -26,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.SendFailure
 import eu.tintera.plume.resources.Res
@@ -158,7 +160,12 @@ private fun DeliveryIcon(delivery: Delivery) {
         label = "delivery",
     ) { current ->
         // Barva se počítá z `current`, ne z cílového stavu: odcházející ikona si barvu drží.
-        DeliveryStateIcon(current)
+        // Pro čtečku obrazovky bez popisu: stav říká bublina sama (`MessageA11y`), a odznak by ho
+        // zopakoval jako další položku. Vykřičník s „Poslat znovu" je akce a popis si nechává.
+        DeliveryStateIcon(
+            current,
+            modifier = if (current == Delivery.Failed) Modifier else Modifier.clearAndSetSemantics {},
+        )
     }
 }
 
@@ -174,12 +181,13 @@ internal fun DeliveryStateIcon(
     tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     failedTint: Color = MaterialTheme.colorScheme.error,
 ) {
-    val (icon, description) = when (delivery) {
-        Delivery.Sending -> Res.drawable.schedule_24dp to Res.string.conversation_delivery_sending
-        Delivery.Sent -> Res.drawable.check_24dp to Res.string.conversation_delivery_sent
-        Delivery.Read -> Res.drawable.done_all_24dp to Res.string.conversation_delivery_read
-        Delivery.Failed -> Res.drawable.error_24dp to Res.string.conversation_delivery_failed
+    val icon = when (delivery) {
+        Delivery.Sending -> Res.drawable.schedule_24dp
+        Delivery.Sent -> Res.drawable.check_24dp
+        Delivery.Read -> Res.drawable.done_all_24dp
+        Delivery.Failed -> Res.drawable.error_24dp
     }
+    val description = delivery.label
     Icon(
         painter = painterResource(icon),
         contentDescription = stringResource(description),
@@ -187,6 +195,15 @@ internal fun DeliveryStateIcon(
         modifier = modifier.size(DELIVERY_ICON_SIZE),
     )
 }
+
+/** Stav slovem — popis ikony i stav zprávy pro čtečku obrazovky ([MessageA11y]). */
+internal val Delivery.label: StringResource
+    get() = when (this) {
+        Delivery.Sending -> Res.string.conversation_delivery_sending
+        Delivery.Sent -> Res.string.conversation_delivery_sent
+        Delivery.Read -> Res.string.conversation_delivery_read
+        Delivery.Failed -> Res.string.conversation_delivery_failed
+    }
 
 /** Mezera mezi vykřičníkem a větou u neodeslané zprávy. */
 private val FAILED_NOTE_GAP = 4.dp

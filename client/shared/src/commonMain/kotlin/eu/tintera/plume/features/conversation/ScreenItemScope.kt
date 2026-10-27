@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.customEmojiIdOf
 import androidx.compose.runtime.mutableStateOf
 import eu.tintera.plume.features.conversation.items.EmojiBurst
 import eu.tintera.plume.features.conversation.items.EmojiBursts
@@ -95,6 +96,9 @@ internal class ScreenItemScope(
     override fun canSendCommands(): Boolean = canSendCommands.value
 
     override fun doubleTapReaction(): Boolean = state.value.doubleTapReaction
+
+    override fun quickReactionEmoji(): String? =
+        viewModel.quickReactionKey.value?.takeIf { customEmojiIdOf(it) == null }
 
     // Odpovědět i poslat příkaz jde jen tam, kam se smí psát — tentýž stav (`canWrite`).
     override fun canReply(): Boolean = canSendCommands.value
