@@ -218,6 +218,16 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 - **Fotka z prohlížeče nemusí být v načtené historii** — prohlížeč listuje médii celého chatu.
   Odpověď si ji proto dočte (`repository.message`, lokálně); citace ji v seznamu mít nemusí.
   Ověřeno na emulátoru odpovědí na fotku 31 ze 43: bot ji dostal s `reply_to_message` na ni.
+- **„Zobrazit v chatu" (⋮ i nabídka u kurzoru) skočí na zprávu s médiem** (`showInChat`
+  v `AppShell`, testy `ShowInChatTest`). Prohlížeč listuje médii celého chatu, takže fotka,
+  na kterou se odlistovalo, bývá daleko od místa, odkud se otevřel. Skok jde přes
+  `ConversationJumpRequests`, stejně jako záložka v profilu: prohlížeč se zavře, a otevřel-li
+  se z mřížky médií v profilu téhož chatu, zavře se i profil — konverzace leží pod ním. Bez
+  konverzace toho chatu nahoře se otevře nová rovnou na zprávě (v archivní větvi archivní).
+  **Nabízí se jen u zpráv chatu** (`showsChatMessages`): profilovky, příběh a reklama zprávou
+  nejsou a přílohy ankety a článku nesou id té jedné zprávy, ze které se otevřely. Na rozdíl
+  od odpovědi se nabízí i z profilu, kde pod prohlížečem konverzace není — právě tam je
+  nejužitečnější. **Na zařízení neověřené.**
 - **Reakce, přeposlání a smazání jsou přímo v prohlížeči.** Nabízené reakce a práva
   (`messageActions`) se načítají **pro stránku, na které uživatel stojí**, jednou za zprávu —
   stejný důvod jako u nabídky v konverzaci. Dokud nedorazí, akce se nekreslí. Smaže se jen

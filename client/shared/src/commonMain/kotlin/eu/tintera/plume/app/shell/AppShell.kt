@@ -174,6 +174,7 @@ import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
 import eu.tintera.plume.core.navigation.ArchiveDirectTopicsRoute
 import eu.tintera.plume.features.forum.ForumTopicsScreen
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
+import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.PollComposerRoute
 import eu.tintera.plume.core.navigation.ChecklistComposerRoute
@@ -1429,6 +1430,7 @@ private fun shellEntryProvider(
     entry<MediaRoute> { route ->
         val replyRequests = koinInject<ConversationReplyRequests>()
         val sponsoredLinks = koinInject<SponsoredLinkRequests>()
+        val jumpRequests = koinInject<ConversationJumpRequests>()
         /*
          * Klíč sdíleného prvku fotky nese, ODKUD se letí: táž fotka je v bublině i v mřížce
          * sdílených médií v profilu a se společným klíčem se ty dvě spárovaly mezi sebou —
@@ -1488,6 +1490,13 @@ private fun shellEntryProvider(
                 onOpenSponsoredLink = { url ->
                     sponsoredLinks.request(route.chatId, url)
                     chatsStack.pop(route)
+                },
+                // Jen média ze zpráv chatu: profilovky, příběh a reklama zprávou nejsou, příloha
+                // ankety a článku se otvírá z té zprávy a stránky nesou její id.
+                onShowInChat = if (route.showsChatMessages) {
+                    { messageId: Long -> chatsStack.showInChat(route, messageId, jumpRequests) }
+                } else {
+                    null
                 },
             )
         }
@@ -2126,6 +2135,32 @@ private fun pollComposerRoute(chatId: Long, request: PollComposerRequest) = Poll
     quotePosition = request.quote?.position ?: 0,
 )
 
+
+/**
+ * Zobrazit zprávu [messageId] z prohlížeče [route] v konverzaci: prohlížeč se zavře a konverzace
+ * skočí na zprávu (`ConversationJumpRequests`, stejně jako záložka v profilu). Prohlížeč otevřený
+ * z mřížky médií v profilu zavře i profil — konverzace leží pod ním. Bez konverzace toho chatu
+ * nahoře se otevře rovnou na zprávě, v archivní větvi archivní.
+ */
+internal fun MutableList<NavKey>.showInChat(route: MediaRoute, messageId: Long, jumps: ConversationJumpRequests) {
+    if (!pop(route)) return
+    val below = lastOrNull()
+    val archive = below is ArchiveChatProfileRoute
+    if ((below as? ChatProfileRoute)?.chatId == route.chatId || (below as? ArchiveChatProfileRoute)?.chatId == route.chatId) {
+        pop(below)
+    }
+    jumps.request(route.chatId, messageId)
+    when {
+        isOpenConversation(route.chatId) || isOpenArchiveConversation(route.chatId) -> Unit
+        archive -> add(ArchiveConversationRoute(route.chatId, messageId))
+        else -> add(ConversationRoute(route.chatId, messageId))
+    }
+}
+
+/** Stránky prohlížeče jsou zprávy chatu [MediaRoute.chatId] — jde na ně skočit v konverzaci. */
+internal val MediaRoute.showsChatMessages: Boolean
+    get() = !profilePhotos && storyId == NO_STORY && !sponsored &&
+        pollMedia == NO_POLL_MEDIA && articleMedia == NO_ARTICLE_MEDIA
 
 /**
  * Chat konverzace, která leží v zásobníku přímo pod prohlížečem [route], je-li to konverzace
