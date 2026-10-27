@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -110,7 +111,10 @@ internal fun StickerPreviewDialog(
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                     modifier = Modifier.padding(24.dp),
                 ) {
-                    StickerPreview(sticker.preview, playing = true, modifier = Modifier.size(PREVIEW_SIZE))
+                    // Přejetím prstu na jinou buňku se samolepka vymění; animace jede od začátku.
+                    key(sticker.id) {
+                        StickerPreview(sticker.preview, playing = true, modifier = Modifier.size(PREVIEW_SIZE))
+                    }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,

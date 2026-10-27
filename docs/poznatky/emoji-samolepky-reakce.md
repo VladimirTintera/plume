@@ -515,8 +515,25 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   - **Hvězdička náhled nezavírá**; stav se přepíše, až ho potvrdí `favoriteStickersUpdates`.
   - **Hlavní tlačítko má popisek od volajícího** (`pickLabel`): ve formuláři ankety se
     samolepka nevysílá, ale vybírá („Vybrat").
-  - **Prstem po mřížce se mezi náhledy nepřejíždí** (jako v Telegramu). Náhled zůstává otevřený
-    i po puštění, protože se v něm ťuká na tlačítka.
+  - **Prstem po mřížce se mezi náhledy přejíždí** (`StickerPreviewSwipe`, jako v Telegramu):
+    dokud prst po podržení neopustí displej, přejetí na jinou buňku vymění samolepku v náhledu
+    (tiknutí `tick()`, podbarvení buňky jde s ní). Po puštění náhled zůstává otevřený na
+    poslední samolepce — na rozdíl od Telegramu, protože se v něm ťuká na tlačítka. Platí ve
+    výběru i v detailu sady; návrhy nad polem a výsledky inline bota mají řádek, ne mřížku, a
+    přejíždění nemají.
+    - **Gesto sleduje buňka, na které začalo.** Compose doručí celý dotyk jen uzlům zasaženým při
+      položení prstu, ostatní buňky o pohybu nevědí. Buňky se proto evidují s polohou
+      (`LayoutCoordinates` z `onPlaced`) a ta, která gesto vede, hledá cíl v souřadnicích kořene.
+      Evidence je podle polohy, ne podle id — tatáž samolepka bývá v jedné mřížce dvakrát
+      (oblíbené a nedávné).
+    - **Dotyk zůstává v sheetu, i když se nad ním otevře dialog náhledu** (vlastní okno): Android
+      doručuje gesto oknu, kde začalo, až do puštění. Ověřeno na emulátoru `input motionevent`
+      (DOWN, po 1,2 s MOVE po krocích, UP).
+    - **Pohyb s otevřeným náhledem se spotřebuje** (průchod Initial), jinak by ho po překročení
+      prahu převzal posun mřížky nebo tah sheetu dolů; před otevřením náhledu se nebere nic,
+      takže posun mřížky funguje jako dřív.
+    - **Samolepka v náhledu má `key(sticker.id)`**: vyměněná začne animaci od začátku, ne ze
+      snímku té předchozí.
 - **Sheety výběru a sady nemají napůl rozbalený stav** (`enabledValues = Hidden, Expanded`).
   Jejich obsah je vyšší než polovina obrazovky a napůl rozbalený sheet schoval spodek pod okraj —
   tlačítko „Odebrat sadu" skončilo pod navigační lištou. V sheetu SADY řeší spodní inset
