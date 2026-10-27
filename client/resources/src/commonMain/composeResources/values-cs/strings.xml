@@ -420,6 +420,7 @@
     <string name="media_attached_stickers_none">Žádné sady samolepek se nenašly.</string>
     <string name="media_attached_stickers_failed">Sady samolepek se nepodařilo načíst.</string>
     <string name="media_save_as">Uložit jako…</string>
+    <string name="media_show_in_chat">Zobrazit v chatu</string>
     <string name="media_saved_as">Uloženo</string>
     <string name="media_share_failed">Sdílení se nepodařilo</string>
     <string name="media_save_downloads">Uložit do Stažených</string>

@@ -412,6 +412,7 @@
     <string name="media_attached_stickers_none">No sticker sets found.</string>
     <string name="media_attached_stickers_failed">Couldn’t load the sticker sets.</string>
     <string name="media_save_as">Save as…</string>
+    <string name="media_show_in_chat">Show in chat</string>
     <string name="media_saved_as">Saved</string>
     <string name="media_share_failed">Couldn't share</string>
     <string name="media_save_downloads">Save to Downloads</string>
