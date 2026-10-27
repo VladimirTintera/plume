@@ -195,7 +195,7 @@ internal fun MessageAttachment(
                                 messageId = messageId,
                                 fileId = media.fullFileId,
                                 fallbackFileId = media.fileId,
-                                enabled = !isSelfDestruct && revealed && !uploading,
+                                enabled = !isSelfDestruct && revealed && !file.uploading,
                             ),
                     ) {
                         RemoteImage(
@@ -377,7 +377,7 @@ internal fun MessageAttachment(
                                 },
                                 onLongClick = onRequestMenu,
                             )
-                            .mediaDragOut(messageId, media.fileId, enabled = !isSelfDestruct && revealed && !uploading),
+                            .mediaDragOut(messageId, media.fileId, enabled = !isSelfDestruct && revealed && !file.uploading),
                     )
                 }
             }
