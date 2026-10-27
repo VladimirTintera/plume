@@ -73,13 +73,37 @@ import eu.tintera.plume.resources.more_vert_24dp
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.profile_more
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.rememberCoroutineScope
+import eu.tintera.plume.core.files.DocumentKind
+import eu.tintera.plume.core.files.documentKind
+import eu.tintera.plume.core.files.opensInViewer
+import eu.tintera.plume.core.telegram.DownloadKind
+import eu.tintera.plume.core.ui.CountdownSnackbarHost
+import eu.tintera.plume.core.ui.UNDO_COUNTDOWN_MS
+import eu.tintera.plume.core.ui.asRelativeTime
+import eu.tintera.plume.core.ui.readString
+import eu.tintera.plume.core.ui.showCountdownSnackbar
+import eu.tintera.plume.resources.chat_24dp
+import eu.tintera.plume.resources.downloads_cleared
+import eu.tintera.plume.resources.downloads_deleted
+import eu.tintera.plume.resources.downloads_removed
+import eu.tintera.plume.resources.downloads_undo
+import eu.tintera.plume.resources.image_24dp
+import eu.tintera.plume.resources.media_show_in_chat
+import eu.tintera.plume.resources.music_note_24dp
+import eu.tintera.plume.resources.videocam_24dp
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /**
- * Stahování: co se stahuje (s průběhem a pozastavením) a co se nedávno stáhlo. Ťuknutí otevře
- * zprávu se souborem v chatu; podržení nabídne odebrání ze seznamu, i se smazáním souboru.
+ * Stahování: co se stahuje (s průběhem a pozastavením) a co se nedávno stáhlo. Ťuknutí na
+ * stažený soubor ho otevře (video a obrázek v prohlížeči médií, ostatní v systému), na
+ * rozestahovaný zprávu v chatu; podržení nabídne zprávu v chatu a odebrání ze seznamu, i se
+ * smazáním souboru — obojí s „Vrátit".
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,10 +111,13 @@ fun DownloadsScreen(
     viewModel: DownloadsViewModel,
     onBack: () -> Unit,
     onOpenMessage: (chatId: Long, messageId: Long) -> Unit,
+    onOpenMedia: (chatId: Long, messageId: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    // Snackbar s „Vrátit" běží mimo efekt: spotřebování události mění stav a efekt by ho zrušil.
+    val snackbarScope = rememberCoroutineScope()
     var menu by remember { mutableStateOf(false) }
 
     val errorText = state.error?.resolve()
@@ -101,9 +128,32 @@ fun DownloadsScreen(
         }
     }
 
+    // Odebrání čeká na lhůtu (`PendingDownloadRemovals`); soubor už ze seznamu zmizel.
+    LaunchedEffect(state.removal) {
+        val removal = state.removal ?: return@LaunchedEffect
+        viewModel.consumeRemoval()
+        snackbarScope.launch {
+            // Předchozí snackbar pryč: odpočet běží, až je tenhle vidět, a ve frontě by
+            // odebrání doběhlo dřív, než by se „Vrátit" ukázalo.
+            snackbarHostState.currentSnackbarData?.dismiss()
+            val result = snackbarHostState.showCountdownSnackbar(
+                message = readString(
+                    when (removal.kind) {
+                        DownloadRemoval.Kind.Removed -> Res.string.downloads_removed
+                        DownloadRemoval.Kind.Deleted -> Res.string.downloads_deleted
+                        DownloadRemoval.Kind.Cleared -> Res.string.downloads_cleared
+                    },
+                ),
+                actionLabel = readString(Res.string.downloads_undo),
+                durationMs = UNDO_COUNTDOWN_MS,
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoRemoval(removal)
+        }
+    }
+
     Scaffold(
         modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) { CountdownSnackbarHost(it) } },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(Res.string.downloads_title)) },
@@ -149,7 +199,14 @@ fun DownloadsScreen(
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             DownloadsContent(
                 state = state,
-                onOpen = { onOpenMessage(it.chatId, it.messageId) },
+                onOpen = { item ->
+                    when {
+                        !item.isCompleted -> onOpenMessage(item.chatId, item.messageId)
+                        item.showsInViewer() -> onOpenMedia(item.chatId, item.messageId)
+                        else -> viewModel.openFile(item) { onOpenMessage(item.chatId, item.messageId) }
+                    }
+                },
+                onShowInChat = { onOpenMessage(it.chatId, it.messageId) },
                 onPause = viewModel::setPaused,
                 onRemove = viewModel::remove,
                 modifier = Modifier.widthIn(max = ContentWidth.Reading),
@@ -163,6 +220,7 @@ fun DownloadsScreen(
 private fun DownloadsContent(
     state: DownloadsState,
     onOpen: (FileDownloadItem) -> Unit,
+    onShowInChat: (FileDownloadItem) -> Unit,
     onPause: (FileDownloadItem, Boolean) -> Unit,
     onRemove: (FileDownloadItem, Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -196,7 +254,7 @@ private fun DownloadsContent(
                     )
                 }
                 itemsIndexed(section, key = { _, item -> item.fileId }) { index, item ->
-                    DownloadRow(item, index, section.size, onOpen, onPause, onRemove, Modifier.animateItem())
+                    DownloadRow(item, index, section.size, onOpen, onShowInChat, onPause, onRemove, Modifier.animateItem())
                 }
             }
         }
@@ -209,6 +267,7 @@ private fun DownloadRow(
     index: Int,
     count: Int,
     onOpen: (FileDownloadItem) -> Unit,
+    onShowInChat: (FileDownloadItem) -> Unit,
     onPause: (FileDownloadItem, Boolean) -> Unit,
     onRemove: (FileDownloadItem, Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -231,6 +290,7 @@ private fun DownloadRow(
                     val parts = listOfNotNull(
                         item.chatTitle.takeIf { it.isNotBlank() },
                         item.size.takeIf { it > 0 }?.let { fileSizeText(it) },
+                        if (item.isCompleted) item.completeDate.asRelativeTime() else null,
                         if (item.isPaused && !item.isCompleted) stringResource(Res.string.downloads_paused) else null,
                     )
                     Text(
@@ -245,7 +305,7 @@ private fun DownloadRow(
                 }
             },
             leadingContent = {
-                Icon(painterResource(Res.drawable.description_24dp), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(painterResource(item.icon()), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             trailingContent = if (item.isCompleted) {
                 null
@@ -267,6 +327,10 @@ private fun DownloadRow(
             onDismiss = { menu = false },
             groups = listOf(
                 listOf(
+                    MenuAction(stringResource(Res.string.media_show_in_chat), Res.drawable.chat_24dp) {
+                        menu = false
+                        onShowInChat(item)
+                    },
                     MenuAction(stringResource(Res.string.downloads_remove), Res.drawable.close_24dp) {
                         menu = false
                         onRemove(item, false)
@@ -282,4 +346,26 @@ private fun DownloadRow(
             ),
         )
     }
+}
+
+/** Ikona podle druhu souboru; u dokumentu podle přípony, ne podle `mimeType` od odesílatele. */
+private fun FileDownloadItem.icon(): DrawableResource = when (kind) {
+    DownloadKind.Audio -> Res.drawable.music_note_24dp
+    DownloadKind.Video -> Res.drawable.videocam_24dp
+    DownloadKind.Document -> when (documentKind(fileName, mimeType)) {
+        DocumentKind.Image -> Res.drawable.image_24dp
+        DocumentKind.Video -> Res.drawable.videocam_24dp
+        DocumentKind.Other -> Res.drawable.description_24dp
+    }
+}
+
+/**
+ * Otevře se soubor v prohlížeči médií? Video ze zprávy vždycky (hraje ho prohlížeč i v chatu),
+ * dokument s obrázkem nebo videem, jen když ho prohlížeč na téhle platformě umí — jako
+ * ve sdílených souborech v profilu.
+ */
+private fun FileDownloadItem.showsInViewer(): Boolean = when (kind) {
+    DownloadKind.Video -> true
+    DownloadKind.Document -> opensInViewer(fileName, mimeType)
+    DownloadKind.Audio -> false
 }

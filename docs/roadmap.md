@@ -1724,10 +1724,10 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 **Stahování**
 
-- **Otevřít soubor, ikona podle typu, datum, „Vrátit"** (S–M). Ťuknutí na stažené otevře zprávu,
-  ne soubor (`DownloadsScreen.kt`); všechny řádky mají tutéž ikonu dokumentu a žádné datum;
-  odebrání i „Odebrat a smazat soubor" jsou hned, bez „Vrátit" a nevratné smazání souboru bez
-  potvrzení. (Hledání ve Stažených je na seznamu už dřív.)
+- ~~**Otevřít soubor, ikona podle typu, datum, „Vrátit"**~~ — hotovo: stažený soubor se
+  otevře (video a obrázek v prohlížeči), ikona podle druhu, čas dokončení, odebrání i smazání
+  s „Vrátit" (`docs/poznatky/prohlizec-medii.md`, „Stahování"). Zbývá ověřit na iOS a desktopu.
+  (Hledání ve Stažených je na seznamu už dřív.)
 
 **Přístupnost přes celou aplikaci**
 

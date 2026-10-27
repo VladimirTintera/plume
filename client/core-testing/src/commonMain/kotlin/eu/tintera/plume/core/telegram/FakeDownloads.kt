@@ -13,6 +13,7 @@ class FakeDownloads(
     val allPaused = mutableListOf<Boolean>()
     val removed = mutableListOf<Pair<Int, Boolean>>()
     var lists = 0
+    var removeResult: Result<Unit> = Result.success(Unit)
 
     override suspend fun add(fileId: Int, chatId: Long, messageId: Long): Result<Unit> {
         added += Triple(fileId, chatId, messageId)
@@ -44,18 +45,24 @@ class FakeDownloads(
 
     override suspend fun remove(fileId: Int, deleteFile: Boolean): Result<Unit> {
         removed += fileId to deleteFile
-        return Result.success(Unit)
+        return removeResult
     }
-
-    override suspend fun clearCompleted(): Result<Unit> = Result.success(Unit)
 }
 
-fun testDownload(fileId: Int, completed: Boolean = false, paused: Boolean = false) = FileDownloadItem(
+fun testDownload(
+    fileId: Int,
+    completed: Boolean = false,
+    paused: Boolean = false,
+    fileName: String = "soubor$fileId.pdf",
+    kind: DownloadKind = DownloadKind.Document,
+) = FileDownloadItem(
     fileId = fileId,
     chatId = 1,
     messageId = fileId.toLong(),
     chatTitle = "Chat",
-    fileName = "soubor$fileId.pdf",
+    fileName = fileName,
+    mimeType = "",
+    kind = kind,
     size = 1000,
     addDate = 0,
     completeDate = if (completed) 100 else 0,
