@@ -40,6 +40,7 @@ open class UnimplementedChatRepository : ChatRepository {
     override suspend fun removeRecentlyFound(chatId: Long) : Result<Unit> = error("removeRecentlyFound")
     override suspend fun removeTopChat(chatId: Long) : Result<Unit> = error("removeTopChat")
     override suspend fun topChats() : Result<List<ChatSummary>> = error("topChats")
+    override suspend fun topForwardChats() : Result<List<ChatSummary>> = error("topForwardChats")
     override val archiveUnread: StateFlow<ArchiveUnread> get() = error("archiveUnread")
     override val mainUnread: StateFlow<ArchiveUnread> get() = error("mainUnread")
     override val unreadMessages: StateFlow<Int?> get() = error("unreadMessages")

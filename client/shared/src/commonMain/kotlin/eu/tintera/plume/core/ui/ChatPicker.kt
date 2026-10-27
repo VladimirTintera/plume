@@ -182,6 +182,12 @@ fun ChatPicker(
      */
     header: @Composable () -> Unit = {},
     /**
+     * Pod seznamem, nad klávesnicí: co se k výběru píše (komentář k přeposlání). Spodní insety
+     * (navigační lišta, klávesnice) si lišta dává SAMA — Scaffold jí je nepředá, a seznam
+     * i tlačítko se pak drží nad ní.
+     */
+    bottomBar: @Composable () -> Unit = {},
+    /**
      * Snackbar obrazovky. Výchozí stačí na chyby ([error]); vlastní dává ten, kdo potřebuje
      * snackbar s akcí — seznam blokovaných nabízí po odblokování „Vrátit".
      */
@@ -233,6 +239,7 @@ fun ChatPicker(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = bottomBar,
         floatingActionButton = {
             // Bez vybraného cíle není co odeslat — tlačítko naskočí, až je kam.
             AnimatedVisibility(
@@ -265,10 +272,9 @@ fun ChatPicker(
          * jako seznam chatů a výsledky hledání. Klávesnice je v tom taky (`safeDrawing`).
          */
         val layoutDirection = LocalLayoutDirection.current
-        val bottomInset = WindowInsets.safeDrawing
-            .only(WindowInsetsSides.Bottom)
-            .asPaddingValues()
-            .calculateBottomPadding()
+        // Bez spodní lišty je to inset `safeDrawing` (i klávesnice), s ní její výška — Scaffold
+        // počítá obojí sám.
+        val bottomInset = padding.calculateBottomPadding()
         /*
          * Odjíždějící bar smrskne horní padding od Scaffoldu až na nulu, takže by pilulka
          * skončila pod hodinami a ikonami stavové lišty. Drží se proto pod ní: níž než

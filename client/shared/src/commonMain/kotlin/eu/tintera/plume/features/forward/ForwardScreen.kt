@@ -8,7 +8,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ButtonDefaults
@@ -37,6 +36,23 @@ import eu.tintera.plume.resources.forward_hide_captions
 import eu.tintera.plume.resources.forward_hide_sender
 import eu.tintera.plume.resources.forward_search
 import eu.tintera.plume.resources.forward_title
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.ui.FormTextField
+import eu.tintera.plume.resources.chats_search_section_chats
+import eu.tintera.plume.resources.forward_comment
+import eu.tintera.plume.resources.forward_frequent
+import eu.tintera.plume.resources.forward_silent
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -64,8 +80,12 @@ fun ForwardScreen(
             placeholder = stringResource(Res.string.forward_search),
         ),
         loading = state.loading,
-        // Jeden blok bez nadpisu — cíle se nečlení, je to prostě seznam chatů.
-        sections = listOf(PickerSection(key = "chats", chats = state.chats)),
+        sections = forwardSections(
+            frequent = state.frequent,
+            chats = state.chats,
+            frequentTitle = stringResource(Res.string.forward_frequent),
+            chatsTitle = stringResource(Res.string.chats_search_section_chats),
+        ),
         // Dokud odesílání běží, další ťuknutí by poslalo zprávu dvakrát.
         enabled = !state.sending,
         onPick = viewModel::toggle,
@@ -84,6 +104,16 @@ fun ForwardScreen(
                 enabled = !state.sending,
                 onHideSender = viewModel::setHideSender,
                 onHideCaptions = viewModel::setHideCaptions,
+                onSilent = viewModel::setSilent,
+            )
+        },
+        bottomBar = {
+            ForwardComment(
+                // Komentář patří k odeslání: bez vybraného cíle není komu ho psát.
+                visible = state.selected.isNotEmpty(),
+                comment = state.comment,
+                enabled = !state.sending,
+                onChange = viewModel::setComment,
             )
         },
         modifier = modifier,
@@ -91,7 +121,59 @@ fun ForwardScreen(
 }
 
 /**
- * Jak přeposlat: „Skrýt odesílatele" (kopie bez „Přeposláno od …") a s ní „Skrýt popisky".
+ * Bloky výběru: bez častých cílů jeden blok bez nadpisu (cíle se nečlení), s nimi „Časté" nahoře
+ * a pod nimi všechny chaty. Častý chat je v obou — dole by chyběl tam, kde ho uživatel hledá
+ * podle pořadí ze seznamu chatů; výběr platí pro oba řádky (podle id).
+ */
+internal fun forwardSections(
+    frequent: List<ChatSummary>,
+    chats: List<ChatSummary>,
+    frequentTitle: String,
+    chatsTitle: String,
+): List<PickerSection> =
+    if (frequent.isEmpty()) {
+        listOf(PickerSection(key = "chats", chats = chats))
+    } else {
+        listOf(
+            PickerSection(key = "frequent", chats = frequent, title = frequentTitle),
+            PickerSection(key = "chats", chats = chats, title = chatsTitle),
+        )
+    }
+
+/**
+ * Komentář k přeposlání — pole pod seznamem, nad klávesnicí. Odejde do každého cíle před
+ * zprávami. Ukáže se, až je vybraný cíl; insety si dává samo (viz `ChatPicker.bottomBar`).
+ */
+@Composable
+private fun ForwardComment(visible: Boolean, comment: String, enabled: Boolean, onChange: (String) -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
+    ) {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            FormTextField(
+                value = comment,
+                onValueChange = onChange,
+                enabled = enabled,
+                placeholder = { Text(stringResource(Res.string.forward_comment)) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                maxLines = COMMENT_MAX_LINES,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+    }
+}
+
+/** Delší komentář se v poli posouvá; pole by jinak vytlačilo seznam. */
+private const val COMMENT_MAX_LINES = 4
+
+/**
+ * Jak přeposlat: „Bez zvuku", „Skrýt odesílatele" (kopie bez „Přeposláno od …") a s ní
+ * „Skrýt popisky".
  *
  * Dvě NEZÁVISLÁ přepínací tlačítka, ne connected group — ta je pro výběr z jedné sady (druh
  * chatu v hledání), tady jsou to dvě volby, z nichž druhá platí jen s první. Proto se druhá
@@ -99,7 +181,7 @@ fun ForwardScreen(
  *
  * Co server nedovolí (`canBeCopied`), se nenabízí vůbec — stejně jako položky nabídky nad zprávou.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ForwardOptionsRow(
     capabilities: ForwardCapabilities,
@@ -107,17 +189,28 @@ private fun ForwardOptionsRow(
     enabled: Boolean,
     onHideSender: (Boolean) -> Unit,
     onHideCaptions: (Boolean) -> Unit,
+    onSilent: (Boolean) -> Unit,
 ) {
-    AnimatedVisibility(
-        visible = capabilities.canHideSender,
-        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
-        exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+    /*
+     * Volby se zalamují: s „Bez zvuku" jsou tři a na úzkém telefonu by se do řádku nevešly.
+     * Mezeru pod sebou nese tenhle řádek — vodorovné odsazení dává seznam (volby jsou jeho
+     * první položka).
+     */
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            // Vodorovné odsazení dává seznam (volby jsou jeho první položka); mezeru pod sebou
-            // nese tenhle Row, takže bez voleb po ní nezbude prázdné místo.
-            modifier = Modifier.padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
+        // Bez zvuku jde vždycky; skrýt odesílatele jen, když zprávy jde zkopírovat.
+        OptionToggle(
+            checked = options.silent,
+            onCheckedChange = onSilent,
+            enabled = enabled,
+            label = stringResource(Res.string.forward_silent),
+        )
+        AnimatedVisibility(
+            visible = capabilities.canHideSender,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()),
         ) {
             OptionToggle(
                 checked = options.hideSender,
@@ -125,18 +218,18 @@ private fun ForwardOptionsRow(
                 enabled = enabled,
                 label = stringResource(Res.string.forward_hide_sender),
             )
-            AnimatedVisibility(
-                visible = options.hideSender && capabilities.hasCaptions,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
-            ) {
-                OptionToggle(
-                    checked = options.hideCaptions,
-                    onCheckedChange = onHideCaptions,
-                    enabled = enabled,
-                    label = stringResource(Res.string.forward_hide_captions),
-                )
-            }
+        }
+        AnimatedVisibility(
+            visible = options.hideSender && capabilities.hasCaptions,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) + shrinkHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        ) {
+            OptionToggle(
+                checked = options.hideCaptions,
+                onCheckedChange = onHideCaptions,
+                enabled = enabled,
+                label = stringResource(Res.string.forward_hide_captions),
+            )
         }
     }
 }

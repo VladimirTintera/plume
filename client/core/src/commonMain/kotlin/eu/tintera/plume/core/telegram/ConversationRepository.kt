@@ -2121,6 +2121,8 @@ data class ForwardOptions(
     val hideCaptions: Boolean = false,
     /** Přeposlat až ve zvolený čas — připomínka do Uložených zpráv; `null` = hned. */
     val schedule: MessageSchedule? = null,
+    /** Bez zvuku u příjemce (jako [SendOptions.silent]). */
+    val silent: Boolean = false,
 )
 
 /** Co jde u přeposlání nabídnout — viz [ConversationRepository.forwardCapabilities]. */

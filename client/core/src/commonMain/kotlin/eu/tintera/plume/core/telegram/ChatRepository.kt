@@ -270,6 +270,12 @@ interface ChatRepository {
     suspend fun topChats(): Result<List<ChatSummary>>
 
     /**
+     * Chaty, do kterých uživatel nejčastěji přeposílá (`TopChatCategoryForwardChats`) — nahoře
+     * ve výběru cíle přeposlání. Prázdný seznam, když si „nejčastější" v Telegramu vypnul.
+     */
+    suspend fun topForwardChats(): Result<List<ChatSummary>>
+
+    /**
      * Kanály, které Telegram uživateli doporučuje (`getRecommendedChats`) — podle toho, co
      * odebírá. Prázdný seznam, když server nic nedoporučí.
      */

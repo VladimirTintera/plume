@@ -137,6 +137,8 @@ import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageTopicForum
 import dev.g000sha256.tdl.dto.OptionValueBoolean
 import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.TopChatCategory
+import dev.g000sha256.tdl.dto.TopChatCategoryForwardChats
 import dev.g000sha256.tdl.dto.TopChatCategoryUsers
 import dev.g000sha256.tdl.dto.UserStatus
 import dev.g000sha256.tdl.dto.UserStatusLastWeek
@@ -1851,8 +1853,13 @@ class TdlChatRepository(
             summariesFor(notJoined.toLongArray())
         }
 
-    override suspend fun topChats(): Result<List<ChatSummary>> =
-        when (val result = client.getTopChats(category = TopChatCategoryUsers(), limit = TOP_CHATS_LIMIT)) {
+    override suspend fun topChats(): Result<List<ChatSummary>> = topChats(TopChatCategoryUsers(), TOP_CHATS_LIMIT)
+
+    override suspend fun topForwardChats(): Result<List<ChatSummary>> =
+        topChats(TopChatCategoryForwardChats(), TOP_FORWARD_CHATS_LIMIT)
+
+    private suspend fun topChats(category: TopChatCategory, limit: Int): Result<List<ChatSummary>> =
+        when (val result = client.getTopChats(category = category, limit = limit)) {
             is TdlResult.Success -> Result.success(summariesFor(result.result.chatIds))
             // Uživatel si „nejčastější" v Telegramu vypnul — není co ukázat, chyba to není.
             is TdlResult.Failure -> {
@@ -2179,6 +2186,9 @@ class TdlChatRepository(
 
         /** Řádek nejčastějších lidí nad historií hledání. */
         const val TOP_CHATS_LIMIT = 10
+
+        /** Časté cíle přeposlání: řádek nad seznamem, ne celý seznam — víc by odsunulo hledání. */
+        const val TOP_FORWARD_CHATS_LIMIT = 5
 
         /** TDLib hlásí „už není co načítat" jako 404. */
         const val NOT_FOUND = 404

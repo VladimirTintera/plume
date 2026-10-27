@@ -68,6 +68,11 @@ open class FakeChatRepository(
 
     override suspend fun topChats(): Result<List<ChatSummary>> = Result.success(emptyList())
 
+    /** Časté cíle přeposlání; test je nastaví sám. */
+    var topForwardChats: List<ChatSummary> = emptyList()
+
+    override suspend fun topForwardChats(): Result<List<ChatSummary>> = Result.success(topForwardChats)
+
     override val archiveUnread: StateFlow<ArchiveUnread> = MutableStateFlow(ArchiveUnread())
     override val mainUnread: StateFlow<ArchiveUnread> = MutableStateFlow(ArchiveUnread())
 

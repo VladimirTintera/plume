@@ -850,6 +850,30 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
 - **Kopii nabízí jen `canBeCopied`** u VŠECH zpráv (`forwardCapabilities`, zjišťuje se jednou
   při otevření, zpráva a příznaky souběžně). Volba se ukáže až po odpovědi — zmizelá by
   vypadala jako chyba; když se zjistit nepodaří, nenabídne se.
+- **„Bez zvuku" je volba vždycky**, i když zprávu nejde zkopírovat (`ForwardOptions.silent`,
+  `disableNotification`) — první v řadě voleb, které se zalamují (`FlowRow`): se třemi
+  přepínači by se řádek na úzkém telefonu nevešel. Platí pro komentář i zprávy.
+- **Komentář je pole pod seznamem** (`ChatPicker.bottomBar`), ukáže se, až je vybraný cíl.
+  Odejde do každého cíle PŘED přeposlanými zprávami, jako u oficiálního klienta: čte se jako
+  úvod a zprávy pod ním. Je to obyčejná zpráva (`send`), takže odkazy v ní se dohledají samy.
+  - **Neodeslaný komentář zastaví zprávy do téhož cíle** — bez úvodu by přišly jinak, než je
+    uživatel poslal; cíl zůstane vybraný jako po selhání přeposlání.
+  - **Kam komentář už odešel, tam ho opakování po selhání zpráv nepošle znovu** (`commented`)
+    — tatáž past jako zpráva poslaná podruhé.
+  - **Lišta si spodní insety dává sama** (`safeDrawing`: navigační lišta i klávesnice). Scaffold
+    je slotu `bottomBar` nepředá a seznam i tlačítko se drží nad ní: spodní padding seznamu se
+    bere ze Scaffoldu (bez lišty je to inset `safeDrawing`, s ní její výška), dřív se počítal
+    zvlášť z insetů a lišta by poslední chat zakryla.
+- **Časté cíle nahoře** (`ChatRepository.topForwardChats`, `getTopChats` s
+  `TopChatCategoryForwardChats`, pět chatů), jen bez dotazu. Pak má výběr dva bloky s nadpisy,
+  „Časté" a „Chaty"; častý chat je v obou, výběr platí podle id pro oba řádky
+  (`forwardSections`). Uložené zprávy mezi nimi nejsou — mají vlastní kartu nahoře.
+- **Ověřeno na emulátoru** (Fold, česky): z Notifikátoru do Uložených zpráv s komentářem
+  a „Bez zvuku" — v Uložených komentář a pod ním přeposlaná zpráva. Pole komentáře sedí nad
+  klávesnicí, tlačítko nad polem; bloky „Časté" a „Chaty". **Že „Bez zvuku" opravdu nezvoní,
+  ověřené není** (Uložené nezvoní nikdy) — jen testem, že jde do komentáře i přeposlání.
+  **Pozor při ověřování:** pod poslední zprávou bývají návrhy odpovědí a podržení podle
+  starých souřadnic ťukne do návrhu — vloží text do pole a uloží se jako koncept.
 - **Volby se nepamatují.** Přeposlání bez odesílatele je rozhodnutí o konkrétní zprávě; zapnuté
   napořád by příště tiše vydávalo cizí zprávu za vlastní.
 - **`animateContentSize` na FAB mu UŘÍZNE stín a spodní nároží.** Modifikátor ořezává na svoje
