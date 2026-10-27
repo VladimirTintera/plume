@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.media
 
 import androidx.compose.ui.Modifier
+import eu.tintera.plume.core.ui.DraggedFile
 import androidx.compose.ui.unit.Dp
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import eu.tintera.plume.features.conversation.items.spoilerBlur
@@ -42,6 +43,13 @@ internal data class MediaPageGestures(
     val onTap: () -> Unit,
     /** Přepne na celou obrazovku: přiblížení gestem u fotky, tlačítko přehrání v galerii u videa. */
     val onEngage: () -> Unit,
+    /**
+     * Tah myší vytáhne snímek nebo video z okna ven (`fileDragSource`, desktop); ptá se až při
+     * začátku tahu, `null` z něj = teď není co táhnout (nestažené). `null` celé = nejde vůbec
+     * (sdílení, zakrytý, chráněný nebo mizející obsah). Kde jde, myš stránku tahem nezavírá —
+     * na to je Esc a ✕.
+     */
+    val dragOut: (() -> DraggedFile?)? = null,
 )
 
 /** Snímek zakrytý spoilerem nebo kvůli citlivému obsahu, a jak se odkryje. */
