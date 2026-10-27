@@ -278,6 +278,9 @@ import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.auto_delete_title
 import eu.tintera.plume.resources.auto_delete_off
 import org.jetbrains.compose.resources.DrawableResource
+import eu.tintera.plume.core.ui.LinkQrSheet
+import eu.tintera.plume.resources.link_qr_code
+import eu.tintera.plume.resources.qr_code_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -1198,11 +1201,7 @@ private fun ProfileHeader(
     /** Ťuknutí na avatar s lemem: aktivní příběhy chatu. */
     onOpenStories: () -> Unit,
 ) {
-    val avatarShape = when (profile.kind) {
-        ProfileKind.Group -> ChatKind.Group
-        ProfileKind.Channel -> ChatKind.Channel
-        ProfileKind.User, ProfileKind.Bot, ProfileKind.SavedMessages -> ChatKind.Private
-    }.avatarShape()
+    val avatarShape = profile.kind.chatKind().avatarShape()
     // Bez fotky (iniciály) není co prohlížet; Uložené zprávy profil nemají.
     val hasPhoto = (profile.photoFileId ?: profile.photoThumbnailFileId) != null &&
         profile.kind != ProfileKind.SavedMessages
@@ -1832,6 +1831,7 @@ private fun ProfileMenu(
     var confirmBlock by rememberSaveable { mutableStateOf(false) }
     var confirmRemoveContact by rememberSaveable { mutableStateOf(false) }
     var pickBirthdate by rememberSaveable { mutableStateOf(false) }
+    var showQr by rememberSaveable { mutableStateOf(false) }
     val canBlock = profile.userId != null
     // Úprava se nabízí, jen když je aspoň jedno z práv — co uvnitř ukáže, rozhoduje obrazovka.
     val canEdit = profile.editRights.any
@@ -1875,6 +1875,8 @@ private fun ProfileMenu(
                         null
                     },
                     profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = onCopyLink) },
+                    // QR kód a sdílení odkazu: kdo stojí vedle, naskenuje; komu se posílá, dostane odkaz.
+                    profile.link?.let { MenuAction(stringResource(Res.string.link_qr_code), Res.drawable.qr_code_24dp, onClick = { showQr = true }) },
                     if (canShareContact) {
                         MenuAction(stringResource(Res.string.profile_share_contact), Res.drawable.share_24dp, onClick = onShareContact)
                     } else {
@@ -1958,6 +1960,23 @@ private fun ProfileMenu(
             destructive = true,
         )
     }
+    val qrLink = profile.link
+    if (showQr && qrLink != null) {
+        LinkQrSheet(
+            link = qrLink,
+            title = profile.title,
+            onDismiss = { showQr = false },
+            avatar = {
+                Avatar(
+                    chatId = profile.chatId,
+                    title = profile.title,
+                    avatarFileId = profile.photoThumbnailFileId ?: profile.photoFileId,
+                    size = QR_AVATAR_SIZE,
+                    shape = profile.kind.chatKind().avatarShape(),
+                )
+            },
+        )
+    }
     if (pickBirthdate) {
         BirthdatePickerDialog(
             initial = null,
@@ -1998,3 +2017,13 @@ private fun birthdateWithAge(birthdate: Birthdate): String {
 private val HEADER_RING_GAP = 4.dp
 private val HEADER_RING_WIDTH = 3.dp
 private val HEADER_RING_READ_WIDTH = 2.dp
+
+/** Tvar avataru podle druhu profilu — týž jako v seznamu chatů a hlavičce konverzace. */
+private fun ProfileKind.chatKind(): ChatKind = when (this) {
+    ProfileKind.Group -> ChatKind.Group
+    ProfileKind.Channel -> ChatKind.Channel
+    ProfileKind.User, ProfileKind.Bot, ProfileKind.SavedMessages -> ChatKind.Private
+}
+
+/** Fotka nad QR kódem: jako u „Můj QR kód". */
+private val QR_AVATAR_SIZE = 72.dp

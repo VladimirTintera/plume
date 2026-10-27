@@ -149,6 +149,9 @@ import eu.tintera.plume.resources.link_off_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
+import eu.tintera.plume.core.ui.LinkQrSheet
+import eu.tintera.plume.resources.link_qr_code
+import eu.tintera.plume.resources.qr_code_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -180,6 +183,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
     }
 
     var actionsFor by remember { mutableStateOf<InviteLink?>(null) }
+    var qrFor by remember { mutableStateOf<InviteLink?>(null) }
     var confirmRevoke by remember { mutableStateOf<InviteLink?>(null) }
     var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
     var confirmDeleteAdminRevoked by remember { mutableStateOf<AdminInviteLinks?>(null) }
@@ -225,6 +229,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                         busy = viewModel.busy,
                         onCopy = { viewModel.copy(primary) },
                         onShare = { viewModel.share(primary) },
+                        onQr = { qrFor = primary },
                         onReplace = { confirmRevoke = primary },
                         onMembers = { viewModel.openMembers(primary) },
                     )
@@ -292,6 +297,13 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
         }
     }
 
+    // Nadpis kódu je název odkazu, a bez něj název chatu — samotný odkaz stojí pod nadpisem
+    // a dvakrát za sebou by nic neřekl.
+    val chatTitle = rememberChatTitle(viewModel.chatId)
+    qrFor?.let { link ->
+        LinkQrSheet(link = link.url, title = link.name.ifBlank { chatTitle.ifBlank { link.shortUrl() } }, onDismiss = { qrFor = null })
+    }
+
     actionsFor?.let { link ->
         LinkActionsSheet(
             link = link,
@@ -299,6 +311,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
             onDismiss = { actionsFor = null },
             onCopy = { viewModel.copy(link) },
             onShare = { viewModel.share(link) },
+            onQr = { qrFor = link },
             onEdit = { viewModel.openEdit(link) },
             onRevoke = { confirmRevoke = link },
             onDelete = { viewModel.deleteRevoked(link) },
@@ -411,6 +424,7 @@ private fun PrimaryLinkCard(
     busy: Boolean,
     onCopy: () -> Unit,
     onShare: () -> Unit,
+    onQr: () -> Unit,
     onReplace: () -> Unit,
     onMembers: () -> Unit,
 ) {
@@ -436,6 +450,7 @@ private fun PrimaryLinkCard(
             val share = stringResource(Res.string.invite_links_share)
             val replace = stringResource(Res.string.invite_links_replace_primary)
             val copy = stringResource(Res.string.invite_links_copy)
+            val qr = stringResource(Res.string.link_qr_code)
             ActionButtonGroup(
                 listOf(
                     GroupAction(share, onShare, weight = 1f) { modifier, source ->
@@ -457,6 +472,11 @@ private fun PrimaryLinkCard(
                     GroupAction(copy, onCopy, compressionLimit = PaddingValues(horizontal = 4.dp)) { modifier, source ->
                         FilledTonalIconButton(onClick = onCopy, modifier = modifier, interactionSource = source, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.content_copy_24dp), contentDescription = copy)
+                        }
+                    },
+                    GroupAction(qr, onQr, compressionLimit = PaddingValues(horizontal = 4.dp)) { modifier, source ->
+                        FilledTonalIconButton(onClick = onQr, modifier = modifier, interactionSource = source, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.qr_code_24dp), contentDescription = qr)
                         }
                     },
                 ),
@@ -546,6 +566,7 @@ private fun LinkActionsSheet(
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
     onShare: () -> Unit,
+    onQr: () -> Unit,
     onEdit: () -> Unit,
     onRevoke: () -> Unit,
     onDelete: () -> Unit,
@@ -571,6 +592,7 @@ private fun LinkActionsSheet(
                 } else {
                     add(Triple(Res.string.invite_links_share, Res.drawable.share_24dp, onShare))
                     add(Triple(Res.string.invite_links_copy, Res.drawable.content_copy_24dp, onCopy))
+                    add(Triple(Res.string.link_qr_code, Res.drawable.qr_code_24dp, onQr))
                     if (link.memberCount > 0) add(members)
                     if (canEdit && !link.isSubscription) add(Triple(Res.string.invite_links_edit, Res.drawable.edit_24dp, onEdit))
                     if (canManage) add(Triple(Res.string.invite_links_revoke, Res.drawable.link_off_24dp, onRevoke))

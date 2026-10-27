@@ -360,6 +360,28 @@ nabízí sheet („Naskenovat kód druhého") a řádek „Naskenovat QR kód" v
 - **„Zkopírováno" nese tlačítko** (fajfka na dvě vteřiny), ne snackbar — stav ovládacího prvku
   uvnitř sheetu, viz „Hláška Zkopírováno" v CLAUDE.md.
 
+### QR kód odkazu na chat a pozvánku (`LinkQrSheet`)
+
+Tentýž sheet jako „Můj QR kód", jen pro hotový odkaz: kód, odkaz pod názvem (bez `https://`),
+Sdílet a Kopírovat (`core/ui/LinkQrSheet.kt`). Otevírá ho „QR kód" v ⋮ profilu chatu (u každého
+profilu s odkazem, `ChatProfile.link`: veřejné jméno, jinak pozvánka) a u pozvánek: akce
+„QR kód" nad odkazem a ikonové tlačítko na kartě hlavní pozvánky.
+
+- **Nic nenačítá ani neobnovuje.** Odkaz je hotový a nevyprší jako dočasný token vlastního kódu
+  (`getUserLink`); kdo ho zruší, zruší i kód — stejně jako odkaz poslaný dřív.
+- **Sdílení a kopírování dělá sheet sám** (`MediaSharer`, `TextClipboard` z Koinu), volající
+  dodá jen odkaz, název a případně fotku. „Zkopírováno" nese tlačítko, ne snackbar (sheet leží
+  nad obrazovkou, hláška pod ním by zapadla).
+- **Nadpis kódu pozvánky je její název, a bez něj název chatu** — odkaz stojí pod nadpisem
+  a dvakrát za sebou by nic neřekl. Kdyby se název rovnal odkazu, sheet odkaz pod ním vynechá.
+- **Ověřeno na emulátoru** (Fold, česky, „Plume test pozvánek"): ⋮ profilu → QR kód (fotka,
+  název, odkaz, kód), Sdílet otevře systémový výběr, Kopírovat se na chvíli změní na
+  „Zkopírováno"; v Pozvánkách ikonové tlačítko QR na kartě hlavního odkazu se do řady vešlo.
+  Akce „QR kód" nad dalším odkazem neověřená (skupina žádný vlastní další odkaz nemá), kód
+  naskenovaný druhým telefonem taky ne. iOS a desktop jen přeložené.
+- **V ⋮ profilu zůstává „Kopírovat odkaz"** vedle „QR kód": zkopírovat odkaz je nejčastější a na
+  dvě ťuknutí přes sheet by to byl krok navíc.
+
 ### Odkazy z jiných aplikací (`LinkOpenRequests`)
 
 Naskenovaný kód i `t.me/…` / `tg://…` z jiné aplikace jde do `LinkOpenRequests` (stav, ne

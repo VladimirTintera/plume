@@ -1714,8 +1714,8 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 - **Hledání v Nastavení** (M). Sekcí a voleb je přes sedm skupin s podstránkami; „Naposledy
   viděn" nebo „Proxy" se hledá zkoušením.
-- **QR kód a systémové sdílení** veřejného chatu, uživatele a pozvánky (S–M). QR je jen pro
-  vlastní účet (`MyQrCodeSheet`), jinde jen „Kopírovat odkaz".
+- ~~**QR kód a systémové sdílení** veřejného chatu, uživatele a pozvánky~~ — hotovo
+  (`LinkQrSheet`; `docs/poznatky/hledani-a-zakladani-chatu.md`, „QR kód odkazu na chat a pozvánku").
 - **Víc účtů** (L). Menu účtu jiný účet nenabízí; dotkne se klienta TDLib na účet, notifikací
   i widgetu. Rozhodnutí, jestli vůbec, zatím nepadlo.
 
