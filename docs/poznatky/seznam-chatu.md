@@ -1013,6 +1013,28 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 - **Nevratná akce má potvrzení a pojmenovává následek**, ne „opravdu?". `ChatActionsState` proto
   drží `target` (sheet) a `pendingDelete` (dialog) zvlášť — mezi zavřením nabídky a potvrzením
   nesmí zůstat viset obojí.
+- **Smazání a opuštění mají „Vrátit" — smazání se proto ODKLÁDÁ** (`PendingChatDeletes`, testy
+  `PendingChatDeletesTest`). Zpětně se vrátit nedá nic: z opuštěné skupiny se zpátky dostane
+  jen pozvánkou a smazanou historii nic neobnoví. Chat po potvrzení hned zmizí ze seznamu
+  (`ChatListState.without`), snackbar „Chat smazán" / „Chat opuštěn" (a plurály u výběru víc
+  chatů) nabídne „Vrátit" a `deleteOrLeave` se zavolá až po 8 s — o půl vteřiny déle, než
+  běží odpočet ve snackbaru, aby „Vrátit" na poslední chvíli ještě stihlo.
+  - **Snackbar ukazuje ubíhající odpočet** (`CountdownSnackbarVisuals`, `CountdownSnackbarHost`
+    v `core/ui`): kroužek, který se plynule vyprázdní, a v něm zbývající vteřiny. Původních
+    5 s s krátkým snackbarem (4 s) bylo málo — při ověřování na emulátoru snackbar zmizel dřív,
+    než se na „Vrátit" ťuklo, a chat se opravdu smazal. Odpočet běží od chvíle, kdy je snackbar
+    VIDĚT, a zavírá ho sám (délka `Indefinite`); předchozí snackbar se proto zavře, jinak by
+    smazání doběhlo, zatímco „Vrátit" čeká ve frontě. Každý `SnackbarHost`, kam může přijít,
+    kreslí přes `CountdownSnackbarHost` (seznam chatů, archiv, sbalený seznam).
+  - **Odkládač je jeden na aplikaci a běží ve scope aplikace**: hlavní seznam i archiv schovávají
+    tytéž chaty a smazání doběhne, i když se archiv mezitím zavře (jeho ViewModel zaniká).
+  - **Zánik procesu ve lhůtě smazání zruší** — chat zůstane. Opačná chyba by byla horší.
+  - **Smazaný chat zůstává schovaný ještě 3 s po odpovědi**: update, který ho ze seznamu odebere,
+    může dorazit až po ní a chat by jinak na okamžik vyskočil.
+  - **Chyba chat vrátí a ohlásí** přes seznam, který zrovna žije (`PendingChatDeletes.failures`).
+  - **Se spamem (nahlásit, zablokovat) se maže hned, bez „Vrátit"**: nahlášení i blokování
+    proběhnou předem a vrátit nejdou, takže odložené smazání by slibovalo víc, než umí.
+  - Potvrzovací dialog zůstává: „Vrátit" je pojistka proti omylu, ne náhrada věty o následku.
 - **Ztlumení se nastavuje celým objektem `ChatNotificationSettings`**, ne jedním polem. Ostatní
   hodnoty se musí přenést z aktuálního stavu chatu, jinak by se uživateli tiše přepsal třeba
   vlastní zvuk. `useDefaultMuteFor = false` je nutné: dokud je `true`, jede chat podle globálního
