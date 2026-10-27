@@ -101,6 +101,11 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   bližšímu aktuální stránce** (`cardBias` = −`getOffsetDistanceInPages`, čteno až při umístění
   v `MediaPageLayout`). Plynule s tahem — karta, která dojede doprostřed, stojí na středu.
   Šířka se bere z `BoxWithConstraints`, ne z okna.
+- **Strop stránky roste s výškou plochy** (`TALL_PAGE_ASPECT`, 4 : 3 výšky, nejméně 640 dp).
+  S pevnými 640 dp byla fotka na šířku ve velkém okně na monitoru vysoká kolem 360 dp a okno
+  zůstalo prázdné. Telefon (na výšku i na šířku) vychází stejně jako dřív; rozložený Fold
+  a tablet dostanou širší stránku a sousedé u okrajů vykukují méně. Širší poměr (16 : 9)
+  odsunul sousedy k samému kraji i vedle fotky na výšku. Neověřeno na zařízení.
 - **Pozadí jezdí s pagerem**, neprolíná se. Kreslí se pozadí aktuální stránky i sousedů vedle
   sebe, posunutá o `currentPageOffsetFraction` (čteno až v `graphicsLayer`). Dokud se pozadí
   jen prolnulo podle `currentPage`, měnilo se skokem až po přeskočení na další stránku, zatímco
@@ -318,6 +323,35 @@ dva prsty, takže myš měla jen dvojklik na 2,5×. Teď:
   „Celá obrazovka okna".
 - **Ověřeno na Windows 11** (ladicí běh, uživatel): listování šipkami a tlačítky, Ctrl+kolečko,
   +/−/0 a Esc. macOS, Android s myší a štípnutí na touchpadu ve Windows neověřené.
+- **Svislé kolečko listuje** (`viewerMouse`, `WheelPaging`, testy `WheelPagingTest`), jako ve
+  Windows Fotkách. Bere jen událost, kterou nikdo nespotřeboval: Ctrl + kolečko a kolečko nad
+  přiblíženou fotkou si bere stránka, Shift + kolečko pager. **Kolečko a touchpad se rozeznat
+  nedají** (obojí je `PointerType.Mouse`), liší se jen krokem: zub je celé číslo, touchpad posílá
+  zlomky. Proto pravidlo po gestech (události bez mezery delší než 200 ms): poprvé se listuje
+  po nasčítání jednoho zubu, další stránka v témže gestu jen za CELÝ zub a nejdřív po 150 ms.
+  Roztočené kolečko tak listuje dál, tah po touchpadu i se setrvačností přelistuje jednou —
+  s prostým „zub = stránka" by delší tah přeskočil půl chatu. Dolů = další (novější), jako
+  posun v konverzaci.
+- **Boční tlačítka myši** (zpět / vpřed) listují. **Pravé tlačítko otevře nabídku u kurzoru**
+  (`ViewerContextMenu`): kotva nulové velikosti v místě puštění, obsah z `viewerMenuGroups`,
+  téže funkce jako ⋮ — jinak by se seznamy rozešly. Nabídka u kurzoru má napřed i akce, které
+  jsou venku v liště (Kopírovat / Sdílet, Uložit), protože na celé obrazovce lišta vidět není.
+  Mizející médium ji nemá. **Tlačítka se berou v průchodu `Initial` a spotřebují se celá,
+  i pohyb mezi stiskem a puštěním**: stránka by jinak pravé tlačítko vzala jako ťuknutí
+  (přepnutí celé obrazovky) a tah s ním jako posun přiblížené fotky. Kolečko naopak až v `Main`,
+  po stránce, aby se poznalo, jestli si ho vzala.
+- **Další klávesy** (`viewerKey`): PageUp/PageDown listují, Home/End skočí na kraj NAČTENÉHO
+  výřezu (ViewModel pak dotáhne další, End jde zmáčknout znovu; skok na úplně první médium chatu
+  by znamenal zahodit souvislý výřez), F celá obrazovka i u fotky (na desktopu okno, jinde režim
+  prohlížeče), Ctrl/⌘+S uloží, Delete (na macOS ⌘⌫) smaže s potvrzením jako z nabídky —
+  u vlastních profilovek smaže profilovku. Uložit a smazat se u mizejícího média nenabízí.
+- **Nad přiblíženou fotkou je kurzor přesunu** (`PanPointerIcon`, `expect`): společné API
+  Compose zná jen šipku, ruku na odkaz, text a kříž. Android `TYPE_GRAB`, desktop AWT
+  `MOVE_CURSOR` (ruku „chytit" AWT nemá), iOS nic.
+- **Nové myší ovládání, klávesy i kurzor jsou ověřené jen testy a překladem**, ne rukou: na
+  Windows je potřeba vyzkoušet kolečko myši i touchpadu, boční tlačítka (že je Compose desktop
+  hlásí jako `isBackPressed` / `isForwardPressed`), pravé tlačítko na fotce i videu a v celé
+  obrazovce, Ctrl+S a Delete.
 - **Štípnutí a dvojité ťuknutí prstem po sloučení výpočtu ověřené na emulátoru** (skutečná
   fotka, celá obrazovka) MĚŘENÍM ze snímků, ne okem: bod Q fotky musí po přiblížení k× kolem
   P ležet na P + k·(Q − P). Dvojité ťuknutí 2,5×: šest bodů, rozdíl barev 0–9 (ze 765), druhé

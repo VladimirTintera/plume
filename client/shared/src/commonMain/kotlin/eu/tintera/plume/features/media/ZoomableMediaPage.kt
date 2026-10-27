@@ -42,6 +42,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
 import eu.tintera.plume.core.ui.MediaPageLayout
+import eu.tintera.plume.core.ui.PanPointerIcon
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import eu.tintera.plume.core.ui.threshold
 import kotlin.math.abs
 import kotlin.math.max
@@ -77,8 +80,11 @@ import kotlinx.coroutines.launch
  *   touchpadu systém právě jako Ctrl + kolečko, takže tatáž obsluha pokryje i touchpad.
  *   Události štípnutí, které Compose zná (`ScaleChange`), desktopová vrstva neposílá vůbec.
  * - **Kolečko bez Ctrl posouvá přiblíženou fotku** (Shift do strany). Nepřiblížené nechá být —
- *   pager pak dostane Shift + kolečko a touchpad do strany jako dřív.
+ *   pager pak dostane Shift + kolečko a touchpad do strany a prohlížeč svislé kolečko, kterým
+ *   listuje (`viewerMouse`).
  * - **Klávesy +/−/0** posílá obrazovka jako [zoomSteps]; přibližuje se kolem středu stránky.
+ * - **Nad přiblíženou fotkou je kurzor přesunu** ([PanPointerIcon]) — posun tahem myší jinak
+ *   nic neprozradí.
  */
 @Composable
 internal fun ZoomableMediaPage(
@@ -187,6 +193,8 @@ internal fun ZoomableMediaPage(
         cardBias = placement.cardBias,
         modifier = modifier
             .onSizeChanged { card.page = it }
+            // Přiblíženou fotku myš posouvá tahem; kurzor to ukáže, jinak se na to nepřijde.
+            .pointerHoverIcon(if (unzoomed) PointerIcon.Default else PanPointerIcon)
             // Kolečko myši: s Ctrl (⌘) přibližuje kolem kurzoru, bez něj posouvá přiblíženou fotku.
             .pointerInput(Unit) {
                 awaitPointerEventScope {
