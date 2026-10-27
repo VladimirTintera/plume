@@ -5,6 +5,7 @@ import dev.g000sha256.tdl.dto.DiceStickersSlotMachine
 import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.LocalFile
 import dev.g000sha256.tdl.dto.MessageDice
+import dev.g000sha256.tdl.dto.MessageStakeDice
 import dev.g000sha256.tdl.dto.RemoteFile
 import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerFormat
@@ -106,5 +107,46 @@ class DiceMediaTest {
         )
         // Chybějící válec by ukázal jiný výsledek, než jaký padl.
         assertNull(slot.toDiceMedia())
+    }
+
+    private fun stakeDice(value: Int, prize: Long, initial: Int? = 1, final: Int? = 2) = MessageStakeDice(
+        initialState = initial?.let { DiceStickersRegular(sticker(it)) },
+        finalState = final?.let { DiceStickersRegular(sticker(it)) },
+        value = value,
+        stakeGramAmount = 1_500_000_000,
+        prizeGramAmount = prize,
+    )
+
+    @Test
+    fun sazkaSVyhrouNeseVkladIVyhru() {
+        val media = stakeDice(value = 6, prize = 3_000_000_000).toDiceMedia()
+        assertEquals(
+            MessageMedia.Dice(
+                emoji = "🎲",
+                value = 6,
+                layers = listOf(2),
+                stake = MessageMedia.DiceStake(stake = 1_500_000_000, prize = 3_000_000_000),
+            ),
+            media,
+        )
+    }
+
+    @Test
+    fun propadlaSazkaMaNulovouVyhru() {
+        assertEquals(0L, stakeDice(value = 2, prize = 0).toDiceMedia()?.stake?.prize)
+    }
+
+    @Test
+    fun sazkaPredDopademVyhruNezna() {
+        // TDLib posílá -1, dokud hod nemá výsledek; točí se úvodní animace.
+        val media = stakeDice(value = 0, prize = -1).toDiceMedia()
+        assertEquals(listOf(1), media?.layers)
+        assertNull(media?.stake?.prize)
+        assertEquals(1_500_000_000L, media?.stake?.stake)
+    }
+
+    @Test
+    fun sazkaBezAnimaceJeText() {
+        assertNull(stakeDice(value = 6, prize = 0, final = null).toDiceMedia())
     }
 }

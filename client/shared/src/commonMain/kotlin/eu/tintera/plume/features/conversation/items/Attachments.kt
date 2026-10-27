@@ -7,6 +7,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import eu.tintera.plume.core.video.VideoPositions
 import eu.tintera.plume.core.ui.LocalAutoDownload
 import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.telegram.tonAmount
+import eu.tintera.plume.resources.dice_stake_lost
+import eu.tintera.plume.resources.dice_stake_rolling
+import eu.tintera.plume.resources.dice_stake_won
+import eu.tintera.plume.resources.ton_amount
 import eu.tintera.plume.features.conversation.loadsOriginalPreview
 import eu.tintera.plume.features.conversation.showsLargePreview
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -308,7 +314,17 @@ internal fun MessageAttachment(
             isOutgoing = emoji.isOutgoing,
             onRequestMenu = onRequestMenu,
         )
-        is MessageMedia.Dice -> DiceImage(media, throwNow = emoji.diceThrow, celebrate = emoji.diceCelebrate, seed = messageId)
+        is MessageMedia.Dice -> {
+            val stake = media.stake
+            if (stake == null) {
+                DiceImage(media, throwNow = emoji.diceThrow, celebrate = emoji.diceCelebrate, seed = messageId)
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    DiceImage(media, throwNow = emoji.diceThrow, celebrate = emoji.diceCelebrate, seed = messageId)
+                    DiceStakeLabel(stake)
+                }
+            }
+        }
         is MessageMedia.Location -> LocationMap(
             location = media,
             shape = pictureShape,
@@ -633,6 +649,29 @@ private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean, celebrate: Boo
                 modifier = Modifier.align(Alignment.Center),
             )
         }
+    }
+}
+
+/**
+ * Vklad a výhra kostky se sázkou pod hodem: „Vsazeno 1,5 TON", po dopadu s výhrou, nebo „bez
+ * výhry". Hod se kreslí bez bubliny jako samolepka, takže sázka dostane vlastní tónovanou
+ * pilulku — holý text by na tapetě konverzace nebyl čitelný. Hodnota hodu je nakreslená
+ * v animaci, sem nepatří.
+ */
+@Composable
+internal fun DiceStakeLabel(stake: MessageMedia.DiceStake) {
+    val amount = tonAmount(stake.stake)
+    val text = when (val prize = stake.prize) {
+        null -> UiText(Res.string.dice_stake_rolling, UiText(Res.string.ton_amount, amount))
+        0L -> UiText(Res.string.dice_stake_lost, UiText(Res.string.ton_amount, amount))
+        else -> UiText(Res.string.dice_stake_won, UiText(Res.string.ton_amount, amount), UiText(Res.string.ton_amount, tonAmount(prize)))
+    }
+    Surface(shape = ShapeDefaults.Large, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Text(
+            text = text.resolve(),
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        )
     }
 }
 
