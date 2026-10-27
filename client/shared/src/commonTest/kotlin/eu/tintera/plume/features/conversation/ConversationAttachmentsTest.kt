@@ -213,14 +213,14 @@ class ConversationAttachmentsTest {
 
         parts.attachments.openRecentFiles()
         advanceUntilIdle()
-        assertEquals(3, state.value.recentFiles?.files?.size)
+        assertEquals(3, state.value.sheet<RecentFilesSheet>()?.files?.size)
         parts.attachments.toggleRecentFile(3)
         parts.attachments.toggleRecentFile(1)
         parts.attachments.sendRecentFiles()
         advanceUntilIdle()
 
         assertEquals(listOf<Pair<List<Int>, Long?>>(listOf(3, 1) to 50L), repository.sentFiles, "album v pořadí ťuknutí, jako odpověď")
-        assertNull(state.value.recentFiles)
+        assertNull(state.value.sheet<RecentFilesSheet>())
         assertNull(state.value.replyingTo, "odpověď se odesláním spotřebuje")
         assertEquals(listOf(TEST_CHAT), usedChats)
     }
@@ -234,9 +234,9 @@ class ConversationAttachmentsTest {
         advanceUntilIdle()
 
         (1..12).forEach { parts.attachments.toggleRecentFile(it) }
-        assertEquals((1..MAX_RECENT_FILES).toList(), state.value.recentFiles?.selected)
+        assertEquals((1..MAX_RECENT_FILES).toList(), state.value.sheet<RecentFilesSheet>()?.selected)
         parts.attachments.toggleRecentFile(2)
-        assertEquals(MAX_RECENT_FILES - 1, state.value.recentFiles?.selected?.size, "odznačit jde i v plném albu")
+        assertEquals(MAX_RECENT_FILES - 1, state.value.sheet<RecentFilesSheet>()?.selected?.size, "odznačit jde i v plném albu")
     }
 
     @Test
@@ -253,8 +253,8 @@ class ConversationAttachmentsTest {
         advanceUntilIdle()
 
         assertEquals(listOf("", "smlouva"), repository.recentQueries)
-        assertEquals(listOf(2), state.value.recentFiles?.files?.map { it.fileId })
-        assertEquals(listOf(1), state.value.recentFiles?.selected, "výběr hledání přežije")
+        assertEquals(listOf(2), state.value.sheet<RecentFilesSheet>()?.files?.map { it.fileId })
+        assertEquals(listOf(1), state.value.sheet<RecentFilesSheet>()?.selected, "výběr hledání přežije")
     }
 
     @Test

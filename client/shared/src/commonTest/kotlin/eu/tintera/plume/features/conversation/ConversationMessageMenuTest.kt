@@ -308,9 +308,9 @@ class ConversationMessageMenuTest {
         val state = testState(testMessage(1))
         val menu = menu(state)
         menu.showMessageInfo(1)
-        assertNull(state.value.messageInfo?.info, "sheet se otevře hned, údaje dojdou")
+        assertNull(state.value.sheet<MessageInfoSheet>()?.info, "sheet se otevře hned, údaje dojdou")
         advanceUntilIdle()
-        assertEquals(INFO, state.value.messageInfo?.info)
+        assertEquals(INFO, state.value.sheet<MessageInfoSheet>()?.info)
     }
 
     @Test
@@ -325,7 +325,7 @@ class ConversationMessageMenuTest {
 
         waiting.complete(Result.success(INFO))
         advanceUntilIdle()
-        assertNull(state.value.messageInfo)
+        assertNull(state.value.sheet<MessageInfoSheet>())
     }
 
     @Test
@@ -334,7 +334,7 @@ class ConversationMessageMenuTest {
         repository.infoResult = Result.failure(IllegalStateException("x"))
         menu(state).showMessageInfo(1)
         advanceUntilIdle()
-        assertNull(state.value.messageInfo)
+        assertNull(state.value.sheet<MessageInfoSheet>())
         assertEquals(UiText(Res.string.message_info_failed), state.value.error)
     }
 
@@ -347,7 +347,7 @@ class ConversationMessageMenuTest {
         menu.copyMessageLink("https://t.me/c/1/1")
         advanceUntilIdle()
         assertEquals(listOf("https://t.me/c/1/1"), copied)
-        assertNull(state.value.messageInfo)
+        assertNull(state.value.sheet<MessageInfoSheet>())
         assertEquals(UiText(Res.string.message_info_link_copied), state.value.notice)
 
         val confirmed = testState(testMessage(1))
@@ -376,9 +376,9 @@ class ConversationMessageMenuTest {
         advanceUntilIdle()
         menu.selectText(1)
         assertNull(state.value.messageMenu)
-        assertEquals(1L, state.value.selectingText?.id)
+        assertEquals(1L, state.value.sheet<SelectTextSheet>()?.message?.id)
         menu.dismissTextSelection()
-        assertNull(state.value.selectingText)
+        assertNull(state.value.sheet<SelectTextSheet>()?.message)
     }
 
     @Test

@@ -52,30 +52,30 @@ internal class ConversationImport(
         // do soukromého chatu a naopak), věta k potvrzení není.
         val confirmation = repository.importConfirmation(chatId, kind).getOrNull()
         state.update {
-            it.copy(chatImport = ChatImportOffer(export, files - export, kind, confirmation, content.attachments.orEmpty()))
+            it.copy(sheet = ChatImportOffer(export, files - export, kind, confirmation, content.attachments.orEmpty()))
         }
         return true
     }
 
     /** Import potvrzený v dialogu. */
     fun confirm() {
-        val offer = state.value.chatImport?.takeIf { it.confirmation != null && !it.importing } ?: return
-        state.update { it.copy(chatImport = offer.copy(importing = true)) }
+        val offer = state.value.sheet<ChatImportOffer>()?.takeIf { it.confirmation != null && !it.importing } ?: return
+        state.update { it.updatingSheet<ChatImportOffer> { open -> open.copy(importing = true) } }
         scope.launch {
             repository.importMessages(chatId, offer.messageFile, offer.attachedFiles)
-                .onSuccess { state.update { it.copy(chatImport = null, notice = UiText(Res.string.chat_import_done)) } }
+                .onSuccess { state.update { it.closingSheet<ChatImportOffer>().copy(notice = UiText(Res.string.chat_import_done)) } }
                 .onFailure { failure ->
-                    state.update { it.copy(chatImport = null, error = failure.reported(logger, Res.string.chat_import_failed)) }
+                    state.update { it.closingSheet<ChatImportOffer>().copy(error = failure.reported(logger, Res.string.chat_import_failed)) }
                 }
         }
     }
 
-    fun dismiss() = state.update { current -> current.copy(chatImport = current.chatImport?.takeIf { it.importing }) }
+    fun dismiss() = state.update { current -> current.updatingSheet<ChatImportOffer> { offer -> offer.takeIf { it.importing } } }
 
     /** Do chatu, kam import nejde: export i přílohy se vloží nad pole jako obyčejné soubory. */
     fun attachInstead() {
-        val offer = state.value.chatImport?.takeIf { !it.importing } ?: return
-        state.update { it.copy(chatImport = null) }
+        val offer = state.value.sheet<ChatImportOffer>()?.takeIf { !it.importing } ?: return
+        state.update { it.closingSheet<ChatImportOffer>() }
         attachAsFiles(offer.files)
     }
 
@@ -105,6 +105,6 @@ data class ChatImportOffer(
     /** Sdílené soubory, jak přišly — pro vložení jako přílohy místo importu. */
     val files: List<OutgoingAttachment> = emptyList(),
     val importing: Boolean = false,
-)
+) : ConversationSheet
 
 private const val HEAD_LINES = 100

@@ -380,7 +380,7 @@ internal class ConversationMessageActions(
         val sentAt = message?.let { Instant.fromEpochSeconds(it.timestamp.toLong()).toLocalDateTime(zone) }
         val fromRules = sentAt?.let { reminderTimeFromText(message.text, it) }
         val suggested = fromRules?.toInstant(zone)?.epochSeconds?.takeIf { scheduleValid(it, Clock.System.now().epochSeconds) }
-        state.update { it.copy(messageMenu = null, remindRequest = RemindRequest(messageId, suggested)) }
+        state.update { it.copy(messageMenu = null, sheet = RemindRequest(messageId, suggested)) }
 
         // Model jen tam, kde pravidla nenašla NIC. Termín, který pravidla našla a který už
         // minul, model nespraví — a ptát se ho by jen zdrželo sheet.
@@ -397,12 +397,12 @@ internal class ConversationMessageActions(
 
     /** Změna otevřeného sheetu připomínky — jen když je pořád otevřený u téže zprávy. */
     private fun updateRemind(messageId: Long, change: (RemindRequest) -> RemindRequest) = state.update { current ->
-        val open = current.remindRequest?.takeIf { it.messageId == messageId } ?: return@update current
-        current.copy(remindRequest = change(open))
+        val open = current.sheet<RemindRequest>()?.takeIf { it.messageId == messageId } ?: return@update current
+        current.copy(sheet = change(open))
     }
 
     fun closeRemind() {
-        state.update { it.copy(remindRequest = null) }
+        state.update { it.closingSheet<RemindRequest>() }
     }
 
     /**
@@ -414,7 +414,7 @@ internal class ConversationMessageActions(
      */
     fun remind(messageId: Long, at: Long) {
         val ids = state.value.albumMemberIds(messageId)
-        state.update { it.copy(remindRequest = null) }
+        state.update { it.closingSheet<RemindRequest>() }
         val saved = chatRepository.savedMessagesChatId.value ?: return
         scope.launch {
             val result = repository.forward(chatId, ids, saved, ForwardOptions(schedule = MessageSchedule.At(at)))

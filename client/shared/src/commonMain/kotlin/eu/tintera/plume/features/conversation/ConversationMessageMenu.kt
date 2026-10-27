@@ -79,11 +79,11 @@ internal class ConversationMessageMenu(
      */
     fun selectText(messageId: Long) {
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
-        state.update { it.copy(messageMenu = null, selectingText = message) }
+        state.update { it.copy(messageMenu = null, sheet = SelectTextSheet(message)) }
     }
 
     fun dismissTextSelection() {
-        state.update { it.copy(selectingText = null) }
+        state.update { it.closingSheet<SelectTextSheet>() }
     }
 
     /**
@@ -95,31 +95,28 @@ internal class ConversationMessageMenu(
      */
     fun showMessageInfo(messageId: Long) {
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
-        state.update { it.copy(messageMenu = null, messageInfo = MessageInfoSheet(message = message)) }
+        state.update { it.copy(messageMenu = null, sheet = MessageInfoSheet(message = message)) }
 
         scope.launch {
             repository.messageInfo(chatId, messageId)
                 .onSuccess { info ->
                     state.update { current ->
                         // Mezitím mohl uživatel sheet zavřít nebo otevřít u jiné zprávy.
-                        val open = current.messageInfo?.takeIf { it.message.id == messageId }
+                        val open = current.sheet<MessageInfoSheet>()?.takeIf { it.message.id == messageId }
                             ?: return@update current
-                        current.copy(messageInfo = open.copy(info = info))
+                        current.copy(sheet = open.copy(info = info))
                     }
                 }
                 .onFailure { failure ->
                     state.update {
-                        it.copy(
-                            messageInfo = null,
-                            error = failure.reported(logger, Res.string.message_info_failed),
-                        )
+                        it.closingSheet<MessageInfoSheet>().copy(error = failure.reported(logger, Res.string.message_info_failed))
                     }
                 }
         }
     }
 
     fun dismissMessageInfo() {
-        state.update { it.copy(messageInfo = null) }
+        state.update { it.closingSheet<MessageInfoSheet>() }
     }
 
     /**
@@ -134,10 +131,8 @@ internal class ConversationMessageMenu(
         scope.launch {
             copyToClipboard(link)
             state.update {
-                it.copy(
-                    messageInfo = null,
-                    notice = if (clipboardConfirmsCopy) it.notice else UiText(Res.string.message_info_link_copied),
-                )
+                it.closingSheet<MessageInfoSheet>()
+                    .copy(notice = if (clipboardConfirmsCopy) it.notice else UiText(Res.string.message_info_link_copied))
             }
         }
     }

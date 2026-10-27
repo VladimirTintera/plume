@@ -76,7 +76,7 @@ class ConversationImportTest {
 
         assertTrue(import(state).offer(share(txt, photo)))
 
-        val offer = assertNotNull(state.value.chatImport)
+        val offer = assertNotNull(state.value.sheet<ChatImportOffer>())
         assertEquals(txt.toString(), offer.messageFile)
         assertEquals(listOf(photo.toString()), offer.attachedFiles)
         assertEquals("12/31/24, 9:41 PM - Jana: Ahoj\n", repository.heads.single())
@@ -90,7 +90,7 @@ class ConversationImportTest {
         val state = testState()
 
         assertFalse(import(state).offer(share(file("poznamky.txt", "nakup"))))
-        assertNull(state.value.chatImport)
+        assertNull(state.value.sheet<ChatImportOffer>())
         assertNotNull(shares.incoming.value)
     }
 
@@ -112,7 +112,7 @@ class ConversationImportTest {
         advanceUntilIdle()
 
         assertEquals(listOf(txt.toString() to emptyList<String>()), repository.imported)
-        assertNull(state.value.chatImport)
+        assertNull(state.value.sheet<ChatImportOffer>())
         assertNotNull(state.value.notice)
     }
 
@@ -122,7 +122,7 @@ class ConversationImportTest {
         val state = testState()
         val import = import(state)
         import.offer(share(file("chat.txt", "x\n")))
-        assertNull(state.value.chatImport?.confirmation)
+        assertNull(state.value.sheet<ChatImportOffer>()?.confirmation)
 
         import.confirm()
         advanceUntilIdle()
@@ -141,6 +141,6 @@ class ConversationImportTest {
         import.attachInstead()
 
         assertEquals(listOf(txt.toString()), attached)
-        assertNull(state.value.chatImport)
+        assertNull(state.value.sheet<ChatImportOffer>())
     }
 }

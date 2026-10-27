@@ -316,7 +316,7 @@ class ConversationMessageActionsTest {
             repository.forwarded,
         )
         assertNotNull(state.value.notice)
-        assertNull(state.value.remindRequest)
+        assertNull(state.value.sheet<RemindRequest>())
     }
 
     @Test

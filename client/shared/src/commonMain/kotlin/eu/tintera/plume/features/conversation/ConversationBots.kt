@@ -275,7 +275,7 @@ internal class ConversationBots(
 
 
     fun dismissPollVoters() {
-        state.update { it.copy(pollVoters = null) }
+        state.update { it.closingSheet<PollVotersSheet>() }
     }
 
     /**
@@ -283,25 +283,25 @@ internal class ConversationBots(
      * kdyby se čekalo s otevřením, ťuknutí by na chvíli vypadalo, že nic neudělalo.
      */
     fun showGiveaway(messageId: Long) {
-        state.update { it.copy(giveaway = GiveawaySheet(messageId), messageMenu = null) }
+        state.update { it.copy(sheet = GiveawaySheet(messageId), messageMenu = null) }
         scope.launch {
             val result = repository.giveawayStatus(chatId, messageId)
                 .onFailure { logger.w(it) { "Stav soutěže $messageId se nepodařilo zjistit" } }
             state.update { current ->
-                val sheet = current.giveaway?.takeIf { it.messageId == messageId } ?: return@update current
-                current.copy(giveaway = sheet.copy(status = result.getOrNull(), failed = result.isFailure))
+                val sheet = current.sheet<GiveawaySheet>()?.takeIf { it.messageId == messageId } ?: return@update current
+                current.copy(sheet = sheet.copy(status = result.getOrNull(), failed = result.isFailure))
             }
         }
     }
 
     fun dismissGiveaway() {
-        state.update { it.copy(giveaway = null) }
+        state.update { it.closingSheet<GiveawaySheet>() }
     }
 
     /** Dárkový kód Premium do schránky; potvrzení ukáže sheet sám — snackbar by byl pod ním. */
     fun copyGiftCode(code: String) {
         scope.launch { copyToClipboard(code) }
-        state.update { current -> current.copy(giveaway = current.giveaway?.copy(codeCopied = true)) }
+        state.update { current -> current.updatingSheet<GiveawaySheet> { open -> open.copy(codeCopied = true) } }
     }
 
     /**
@@ -309,7 +309,7 @@ internal class ConversationBots(
      * sám sebe. Id drží konvenci odesílatele — kladné uživatel, záporné chat.
      */
     fun openPollVoter(senderId: Long) {
-        state.update { it.copy(pollVoters = null) }
+        state.update { it.closingSheet<PollVotersSheet>() }
         if (senderId > 0) {
             links.openMentioned { chatRepository.privateChat(senderId) }
         } else if (senderId != chatId) {

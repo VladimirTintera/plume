@@ -1951,8 +1951,8 @@ class ConversationViewModel(
             repository.hasScheduledMessages(chatId).collect { has ->
                 _state.update { it.copy(hasScheduledMessages = has) }
                 // Otevřený seznam se přečte znovu: naplánovaná zpráva mohla mezitím odejít.
-                if (_state.value.scheduledMessages != null) {
-                    if (has) scheduled.loadScheduled() else _state.update { it.copy(scheduledMessages = null) }
+                if (_state.value.sheet is ScheduledSheet) {
+                    if (has) scheduled.loadScheduled() else _state.update { it.closingSheet<ScheduledSheet>() }
                 }
             }
         }
@@ -2142,7 +2142,7 @@ class ConversationViewModel(
             is MessageAction.JumpTo -> jumpToMessage(action.messageId, returnTo = messageId)
             is MessageAction.PressBotButton -> bots.pressBotButton(messageId, action.row, action.column)
             is MessageAction.Vote -> bots.vote(messageId, action.answerIndexes)
-            MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }
+            MessageAction.ShowPollVoters -> _state.update { it.copy(sheet = PollVotersSheet(messageId)) }
             MessageAction.AddPollOption -> _state.update { it.copy(dialog = ConversationDialog.AddPollOption(messageId)) }
             is MessageAction.MarkChecklistTask -> checklists.mark(messageId, action.taskId, action.done)
             MessageAction.AddChecklistTask -> checklists.openAddTask(messageId)
