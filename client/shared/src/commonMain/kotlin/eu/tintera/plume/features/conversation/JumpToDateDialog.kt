@@ -33,11 +33,20 @@ import org.jetbrains.compose.resources.stringResource
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun JumpToDateDialog(onPick: (Int) -> Unit, onDismiss: () -> Unit) {
+internal fun JumpToDateDialog(
+    onPick: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    /**
+     * Den, na kterém kalendář začne (sekundy epochy, kterákoli chvíle dne); `null` = dnes. Po
+     * ťuknutí na předěl dne je to ten den — uživatel chce většinou kousek vedle, ne od dneška.
+     */
+    initialDay: Int? = null,
+) {
     val zone = remember { TimeZone.currentSystemDefault() }
     val today = remember { Clock.System.now().toLocalDateTime(zone).date }
+    val start = remember(initialDay) { datePickerStart(initialDay, zone, today) }
     val state = rememberDatePickerState(
-        initialSelectedDateMillis = today.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds(),
+        initialSelectedDateMillis = start.atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds(),
         selectableDates = remember(today) {
             object : SelectableDates {
                 override fun isSelectableDate(utcTimeMillis: Long): Boolean =
@@ -70,3 +79,10 @@ internal fun JumpToDateDialog(onPick: (Int) -> Unit, onDismiss: () -> Unit) {
         )
     }
 }
+
+/**
+ * Den, na kterém kalendář začne: místní den chvíle [initialDay], nebo [today]. Budoucí den
+ * (posunuté hodiny odesílatele) vybrat nejde, takže taky dnes.
+ */
+internal fun datePickerStart(initialDay: Int?, zone: TimeZone, today: LocalDate): LocalDate =
+    initialDay?.let { Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(zone).date }?.takeIf { it <= today } ?: today

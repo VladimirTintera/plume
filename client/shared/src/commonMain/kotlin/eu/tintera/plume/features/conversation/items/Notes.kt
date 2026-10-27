@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.resources.conversation_jump_to_date
 import eu.tintera.plume.resources.cake_24dp
 import eu.tintera.plume.resources.add_photo_alternate_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -405,10 +406,17 @@ private fun ProtectionRequestNote(text: String, modifier: Modifier, onAnswer: (a
  * protože datum má nést právě tohle.
  */
 @Composable
-internal fun DayDivider(timestamp: Int, modifier: Modifier = Modifier) {
+internal fun DayDivider(
+    timestamp: Int,
+    modifier: Modifier = Modifier,
+    /** Ťuknutí otevře kalendář na tom dni; `null` = předěl je jen nápis. */
+    onClick: ((timestamp: Int) -> Unit)? = null,
+) {
     CenteredNote(
         text = stringResource(Res.string.date_with_time, timestamp.asDayLabel(), timestamp.asTimeOfDay()),
         modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
+        onClick = onClick?.let { open -> { open(timestamp) } },
+        onClickLabel = stringResource(Res.string.conversation_jump_to_date),
     )
 }
 
@@ -439,14 +447,19 @@ internal fun FloatingDayBadge(
     /** Mléčné sklo nad seznamem: plocha je průhledná, barvu i rozostření nese sklo. */
     glass: Modifier = Modifier,
     modifier: Modifier = Modifier,
+    /** Ťuknutí otevře kalendář; `null` = jen nápis. */
+    onClick: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(BUBBLE_CORNER)
+    val label = stringResource(Res.string.conversation_jump_to_date)
     Surface(
         shape = shape,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         shadowElevation = 3.dp,
-        modifier = modifier,
+        modifier = modifier.then(
+            if (onClick == null) Modifier else Modifier.clip(shape).clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
+        ),
     ) {
         Box(Modifier.clip(shape).then(glass)) {
             Text(
@@ -469,7 +482,28 @@ internal fun CenteredNote(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    /**
+     * Ťuknutí na nápis (předěl dne → kalendář). Klikatelný je jen nápis s malým okrajem, ne celá
+     * šířka řádku: vlnka přes celou konverzaci by vypadala jako ťuknutí na zprávu.
+     */
+    onClick: (() -> Unit)? = null,
+    onClickLabel: String? = null,
 ) {
+    if (onClick != null) {
+        Box(modifier.fillMaxWidth().padding(horizontal = 24.dp), contentAlignment = Alignment.Center) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                color = color,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .clip(MaterialTheme.shapes.small)
+                    .clickable(onClickLabel = onClickLabel, role = Role.Button, onClick = onClick)
+                    .padding(horizontal = NOTE_TOUCH_H, vertical = 4.dp),
+            )
+        }
+        return
+    }
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium.tabularNumbers(),
@@ -490,3 +524,6 @@ private val DAY_DIVIDER_SPACING = 6.dp
  * pod předělem stejně těsně, jako když byl předěl kreslený uvnitř její položky.
  */
 private val DIVIDER_BOTTOM_SPACING = DAY_DIVIDER_SPACING - MESSAGE_SPACING
+
+/** Vodorovný okraj ťukatelného nápisu předělu — kolem textu, aby se dal trefit. */
+private val NOTE_TOUCH_H = 8.dp

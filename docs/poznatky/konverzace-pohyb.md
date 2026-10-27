@@ -422,6 +422,26 @@ jako na citaci (`jumpToMessage`, okno v historii), hledání se zavře.
 - `ConversationScreen` dostal jen jeden argument (`onJumpToDate`) — je na hraně počtu registrů
   (viz CLAUDE.md), dialog i jeho stav žijí v `InChatSearchTopBar`.
 
+### Kalendář z předělu dne a plovoucího data
+
+Ťuknutí na předěl dne nebo na plovoucí datum otevře tentýž kalendář — rovnou na tom dni, ne na
+dnešku: kdo z data skáče, chce většinou kousek vedle (`ConversationItemScope.datePicker`,
+dialog kreslí `ConversationContent`, výchozí den `datePickerStart`, testy `DatePickerStartTest`).
+Dřív vedl kalendář jen přes hledání a předěl, na který se člověk dívá, nic nedělal.
+
+- **Kde skok na datum nejde, nic není ťukatelné** (`canJumpToDate`: vlákno komentářů, téma skupiny).
+- **Ťukatelný je jen nápis**, ne celá šířka řádku (`CenteredNote` s `onClick`): vlnka přes celou
+  konverzaci by vypadala jako ťuknutí na zprávu.
+- **Plovoucí datum po zastavení rolování ještě 1,5 s zůstane** (`FLOATING_DAY_LINGER_MS`). Ťuknutí
+  samo rolování zastaví — s odchodem hned po něm se na datum trefit nedalo.
+- **Dvojice popisek + začátek dne** (`FloatingDay`) místo samotného textu, aby `ConversationScreen`
+  nepřibral parametr (registry, viz CLAUDE.md).
+- **Stav dialogu drží `ScreenItemScope`**, ne `ConversationState`: je to jedno ťuknutí a otočení
+  obrazovky ho smí zavřít.
+- **Ověřeno na emulátoru** v testovací skupině: „Dnes · 07:12" → kalendář na 27. 10., výběr
+  23. 10. → skok na „Pátek · 11:16"; plovoucí „Pátek" ťuknuté hned po rolování → kalendář na
+  23. 10. Vlákno komentářů (nic ťukatelného) ověřené není.
+
 ## Okno v historii
 
 Skok na zprávu mimo načtené (hledání, citace, stovky nepřečtených) NENAČÍTÁ historii od

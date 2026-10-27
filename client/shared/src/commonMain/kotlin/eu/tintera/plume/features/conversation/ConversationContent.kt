@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import eu.tintera.plume.features.conversation.items.LocalConversationTopInset
 import eu.tintera.plume.features.media.LocalPhotoDescriptions
 import eu.tintera.plume.resources.chat_bubble_24dp
@@ -107,7 +110,7 @@ internal fun BoxScope.ConversationContent(
     topPadding: Dp,
     /** Výška vstupního pole — seznam pod něj zajíždí. */
     bottomPadding: Dp,
-    floatingDay: String,
+    floatingDay: FloatingDay?,
 ) {
     val scope = rememberCoroutineScope()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
@@ -296,14 +299,28 @@ internal fun BoxScope.ConversationContent(
      * jsem. Je to overlay, ne `stickyHeader`: ten se v obráceném seznamu lepí na jeho
      * začátek, tedy dolů, což je přesně naopak.
      */
+    /*
+     * Po zastavení ještě chvíli zůstane: na datum jde ťuknout a otevřít kalendář, a ťuknutí
+     * samo rolování zastaví — se zmizením hned po něm by se trefit nedalo.
+     */
+    var dayShown by remember { mutableStateOf(false) }
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) {
+            dayShown = true
+        } else {
+            delay(FLOATING_DAY_LINGER_MS)
+            dayShown = false
+        }
+    }
     AnimatedVisibility(
-        visible = listState.isScrollInProgress && floatingDay.isNotEmpty(),
+        visible = dayShown && floatingDay != null,
         enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
         exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = Modifier.align(Alignment.TopCenter),
     ) {
         FloatingDayBadge(
-            text = floatingDay,
+            text = floatingDay?.label.orEmpty(),
+            onClick = itemScope.datePicker()?.let { open -> { floatingDay?.let { open(it.dayStart) } } },
             glass = Modifier.hazeBlur(
                 input = HazeInput.Sources(listHaze),
                 style = glassStyle(
@@ -315,4 +332,22 @@ internal fun BoxScope.ConversationContent(
             modifier = Modifier.padding(top = 8.dp + topPadding),
         )
     }
+
+    // Kalendář z předělu dne nebo plovoucího data; skok je týž jako z hledání.
+    itemScope.datePickerDay.value?.let { day ->
+        JumpToDateDialog(
+            initialDay = day,
+            onPick = { seconds ->
+                itemScope.datePickerDay.value = null
+                viewModel.jumpToDate(seconds)
+            },
+            onDismiss = { itemScope.datePickerDay.value = null },
+        )
+    }
 }
+
+/** Plovoucí datum: popisek a začátek dne, na kterém po ťuknutí otevře kalendář. */
+internal data class FloatingDay(val label: String, val dayStart: Int)
+
+/** Jak dlouho plovoucí datum po zastavení rolování zůstane, aby se na něj dalo ťuknout. */
+private const val FLOATING_DAY_LINGER_MS = 1500L
