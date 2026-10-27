@@ -441,6 +441,12 @@ v oznamovací oblasti, nabídka v liště macOS).
   (seznam chatů, prázdný panel i nabídka „Chats" v liště), „Podle systému" v Nastavení přeložilo
   okno i lištu zpátky do češtiny hned a soubor s volbou smazalo. **Neověřeno**: Windows
   a Linux, oznámení v jiném jazyce, než má systém.
+- **UI testy v `jvmTest` kreslí v jazyce STROJE**, protože výchozí `Locale` JVM bere systém.
+  `DiceStakeLabelTest` čekal anglické „Stake 1.5 TON" a na Macu v češtině padal (kreslilo se
+  „Vsazeno 1,5 TON") i na čistém `main`. Test, který porovnává vykreslený text, si jazyk
+  nastaví sám (`Locale.setDefault` v `@BeforeTest`, v `@AfterTest` vrátit — testy běží v jednom
+  JVM), nebo očekávaný text přečte přes `readString`. `ActionMenuTest` naopak dodnes čeká
+  češtinu („Smazat") a na anglickém stroji by padal.
 
 ## Spouštění po přihlášení (Windows)
 
