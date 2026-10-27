@@ -103,6 +103,10 @@ internal data class SendControls(
      */
     val defaultSilent: Boolean? = null,
     val onToggleDefaultSilent: () -> Unit = {},
+    /** Pomalý režim: kdy (epoch ms) půjde poslat další zpráva; do té doby je místo odeslání odpočet. */
+    val slowModeUntil: Long? = null,
+    /** Ťuknutí na odpočet: věta, kdy půjde psát. */
+    val onSlowModeWait: () -> Unit = {},
 )
 
 /** Náhled odkazu v rozepsaném textu a jeho volby. */

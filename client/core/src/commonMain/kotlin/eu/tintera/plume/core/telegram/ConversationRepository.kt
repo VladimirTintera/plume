@@ -1040,6 +1040,13 @@ interface ConversationRepository {
     fun accessUpdates(chatId: Long): Flow<ChatAccess>
 
     /**
+     * Pomalý režim ve skupině: kdy (epoch ms) půjde poslat další zpráva, nebo `null`, když se
+     * čekat nemusí. Platí jen pro uživatele, kterého režim omezuje — správcům TDLib čekání
+     * nehlásí. Mimo skupiny s pomalým režimem nevydá nic.
+     */
+    fun slowModeUpdates(chatId: Long): Flow<Long?> = emptyFlow()
+
+    /**
      * Uloží rozepsanou zprávu do TDLib, odkud ji vidí seznam chatů i ostatní zařízení.
      *
      * Prázdný [text] koncept **smaže** — i kdyby zbývala citace. Odpověď bez textu Telegram jako

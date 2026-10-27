@@ -2849,6 +2849,25 @@ class TdlConversationRepository(
                 .distinctUntilChanged(),
         )
     }
+    /*
+     * Pomalý režim. Kolik zbývá, ví TDLib (`SupergroupFullInfo.slowModeDelayExpiresIn`, sekundy
+     * od chvíle dotazu) — a po odeslání ho ohlásí sám: `UpdateSupergroupFullInfo` nechodí jen
+     * tehdy, když se mění nenulová hodnota na jinou nenulovou, takže přechod z nuly po odeslání
+     * přijde. Na konec čekání update spoléhat nesmí; ten si odpočítá obrazovka z vráceného času.
+     */
+    override fun slowModeUpdates(chatId: Long): Flow<Long?> = flow {
+        val supergroup = client.getChat(chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup ?: return@flow
+        // Kanál pomalý režim nemá; píše do něj jen správa.
+        if (supergroup.isChannel) return@flow
+        val id = supergroup.supergroupId
+        client.getSupergroupFullInfo(supergroupId = id).toResult().getOrNull()?.let { emit(slowModeUntil(it.slowModeDelayExpiresIn)) }
+        emitAll(
+            holder.updates { supergroupFullInfoUpdates }
+                .filter { it.supergroupId == id }
+                .map { slowModeUntil(it.supergroupFullInfo.slowModeDelayExpiresIn) },
+        )
+    }.distinctUntilChanged()
+
     /**
      * Dostupnost protějšku.
      *

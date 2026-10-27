@@ -494,6 +494,30 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   — vypnuté hlasovky nechávaly kolečko, protože je to v TDLib vlastní právo; dnes je mají
   výchozí práva skupiny i omezení člena (`GroupPermissions.sendVideoNotes`, `sendPolls`).
 
+### Odpočet pomalého režimu
+
+Ve skupině s pomalým režimem je po odeslání místo odesílacího tlačítka (i mikrofonu) tonální
+kolečko s odpočtem „0:27"; ťuknutí řekne větou, kdy půjde psát (`SlowModeCountdown.kt`,
+`ConversationRepository.slowModeUpdates`, testy `SlowModeTest` a `SlowModeCountdownTest`).
+Dřív zpráva odešla a vrátila se chybou `SLOWMODE_WAIT_` — napsaná zbytečně.
+
+- **Kolik zbývá, ví TDLib** (`SupergroupFullInfo.slowModeDelayExpiresIn`, sekundy od chvíle
+  dotazu). Převádí se hned na čas konce (`slowModeUntil`), zbývající sekundy by uprostřed
+  odpočtu nic neznamenaly. Správcům a vlastníkovi TDLib čekání nehlásí, takže se jich odpočet
+  netýká bez vlastního pravidla.
+- **Po odeslání přijde čekání updatem** — `UpdateSupergroupFullInfo` podle dokumentace nechodí
+  jen tehdy, když se nenulová hodnota mění na jinou nenulovou; přechod z nuly ano. Na KONEC
+  čekání se update nespoléhá: odpočítává obrazovka a hotový odpočet nekreslí.
+- **Tiká se na hranu sekundy a nahoru** (`secondsLeft`): „0:00" by tvrdilo, že už jde psát,
+  a pevný krok od spuštění by číslo posouval proti skutečnosti.
+- **Psát jde dál**, jen odeslat ne; úprava zprávy odpočet nemá (nic nového neposílá) a rozjeté
+  nahrávání se dokončí, jak bylo.
+- **Hláška pod dvě minuty v sekundách** (`slowModeWaitText`, i pro chybu od serveru). S hranicí
+  minuta stálo vedle odpočtu „1:01" „za 2 min" a vypadalo to jako rozpor.
+- **Ověřeno sondou** (podstrčené čekání 75 s v testovací skupině, kde je účet vlastník a pomalý
+  režim se ho netýká): kolečko s odpočtem místo mikrofonu, popis pro čtečku, ťuknutí → hláška,
+  po vypršení se mikrofon vrátí. **Skutečný pomalý režim jako člen ověřený není** — chce druhý účet.
+
 ## Psaní jménem kanálu nebo skupiny
 
 Kde TDLib nabízí víc odesílatelů (uživatel spravuje kanál, nebo je ve skupině anonymní

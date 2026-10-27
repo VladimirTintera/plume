@@ -46,8 +46,6 @@ import eu.tintera.plume.resources.error_transfer_needs_password
 import eu.tintera.plume.resources.error_transfer_too_fresh
 import eu.tintera.plume.resources.error_you_blocked_user
 import eu.tintera.plume.resources.error_resend_too_early
-import eu.tintera.plume.resources.error_slowmode_wait_minutes
-import eu.tintera.plume.resources.error_slowmode_wait_seconds
 import eu.tintera.plume.resources.error_verification_failed
 import org.jetbrains.compose.resources.StringResource
 
@@ -115,11 +113,7 @@ internal fun errorText(raw: String?, fallback: StringResource): UiText {
     // Pomalý režim ve skupině: další zprávu pustí až po uplynutí doby (dokumentace
     // `messages.sendMessage`). Počet sekund je za podtržítkem jako u `FLOOD_WAIT_`.
     raw.takeIf { it.startsWith(SLOWMODE_WAIT_PREFIX) }?.removePrefix(SLOWMODE_WAIT_PREFIX)?.toIntOrNull()?.let { seconds ->
-        return if (seconds < 60) {
-            UiText(Res.string.error_slowmode_wait_seconds, seconds)
-        } else {
-            UiText(Res.string.error_slowmode_wait_minutes, (seconds + 59) / 60)
-        }
+        return slowModeWaitText(seconds)
     }
 
     // Čerstvé heslo nebo relace u převodu vlastnictví; za podtržítkem je počet sekund, ale

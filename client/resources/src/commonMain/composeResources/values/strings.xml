@@ -500,6 +500,7 @@
     <string name="error_verification_failed">Telegram allows this only after verifying the official app, which Plume can't do. Try it in the official Telegram app.</string>
     <string name="error_slowmode_wait_seconds">The group has slow mode on. You can send again in %1$d s.</string>
     <string name="error_slowmode_wait_minutes">The group has slow mode on. You can send again in %1$d min.</string>
+    <string name="conversation_slow_mode_wait">Slow mode. You can send again in %1$d s.</string>
     <string name="error_resend_too_early">The message can be sent again only after a while.</string>
     <string name="error_you_blocked_user">You have blocked this person.</string>
     <string name="error_recovery_unavailable">This account has no recovery email.</string>
