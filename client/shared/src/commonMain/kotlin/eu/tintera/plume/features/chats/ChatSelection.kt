@@ -1,7 +1,9 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.canBeArchived
+import eu.tintera.plume.core.telegram.ChatFolderTab
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.isPrivate
 
 /**
  * Výběr víc chatů v seznamu: [ids] vybraných v pořadí, v jakém je uživatel vybíral. Režim
@@ -50,15 +52,37 @@ data class ChatSelectionActions(
     val mute: Boolean,
     /** `true` = přečíst, `false` = označit jako nepřečtené. */
     val read: Boolean,
+    /** `true` = připnout, `false` = odepnout. */
+    val pin: Boolean = true,
+    /**
+     * Smazat / opustit jde, jen když ve výběru nejsou Uložené zprávy: jejich smazání by vymazalo
+     * všechno uložené, a to hromadně, mimo nabídku nad nimi samými. Zšedne, nezmizí — jako archivace.
+     */
+    val canDelete: Boolean = true,
+    /** Ve výběru je soukromý chat (smaže se u nás) — potvrzení to musí říct. */
+    val deletesPrivate: Boolean = false,
+    /** Ve výběru je skupina nebo kanál (z nich se odchází) — potvrzení to musí říct. */
+    val leavesGroups: Boolean = false,
+    /** Složky, do kterých jde výběr přidat; prázdné = položka se nenabízí. */
+    val folders: List<ChatFolderTab> = emptyList(),
 )
 
-fun chatSelectionActions(selected: List<ChatSummary>, savedMessagesChatId: Long?): ChatSelectionActions =
+fun chatSelectionActions(
+    selected: List<ChatSummary>,
+    savedMessagesChatId: Long?,
+    folders: List<ChatFolderTab> = emptyList(),
+): ChatSelectionActions =
     ChatSelectionActions(
         archive = !selected.all { it.isArchived },
         canArchive = selected.isNotEmpty() &&
             (selected.all { it.isArchived } || selected.all { it.canBeArchived(savedMessagesChatId) }),
         mute = !selected.all { it.isMuted },
         read = selected.any { it.hasUnread },
+        pin = !selected.all { it.isPinned },
+        canDelete = selected.isNotEmpty() && selected.none { it.id == savedMessagesChatId },
+        deletesPrivate = selected.any { it.isPrivate },
+        leavesGroups = selected.any { !it.isPrivate },
+        folders = folders,
     )
 
 /**
@@ -73,3 +97,21 @@ fun ChatSelectionActions.muteTargets(selected: List<ChatSummary>): List<ChatSumm
 
 fun ChatSelectionActions.readTargets(selected: List<ChatSummary>): List<ChatSummary> =
     selected.filter { it.hasUnread == read }
+
+/**
+ * Připínají se v pořadí výběru, takže nahoře skončí ten vybraný naposled — jako by je uživatel
+ * připínal po jednom z nabídky.
+ */
+fun ChatSelectionActions.pinTargets(selected: List<ChatSummary>): List<ChatSummary> =
+    selected.filter { it.isPinned != pin }
+
+/**
+ * Všechny chaty v seznamu, které jde vybrat ([isSelectable]) — „Vybrat vše". Jen načtené: seznam
+ * se dotahuje po stránkách a vybrat chaty, které uživatel neviděl, by bylo překvapení.
+ */
+fun ChatSelection.withAll(chats: List<ChatSummary>): ChatSelection =
+    ChatSelection(ids + chats.filter { it.isSelectable() }.map { it.id })
+
+/** Jsou vybrané všechny chaty, které jde vybrat? Pak „Vybrat vše" zšedne. */
+fun ChatSelection.hasAll(chats: List<ChatSummary>): Boolean =
+    chats.filter { it.isSelectable() }.all { it.id in ids }

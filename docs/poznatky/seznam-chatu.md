@@ -1088,10 +1088,34 @@ v `AppSettings`; doby jsou čisté funkce v `SnoozeOption.kt`, testy `SnoozeTest
 
 ### Výběr víc chatů
 
-„Vybrat" v nabídce nad chatem přepne seznam (hlavní, složku i archiv) do výběru: hlavička s ✕
-a počtem místo pilulky hledání, ťuknutí i dlouhý stisk chat přepíná a místo FAB menu je plovoucí
-lišta s archivací, ztlumením a přečtením (`ChatSelectionTopBar`, `ChatSelectionToolbar`).
-Pravidla jsou čisté funkce v `ChatSelection.kt` (testy `ChatSelectionTest`).
+„Vybrat" v nabídce nad chatem přepne seznam (hlavní, složku i archiv) do výběru: hlavička s ✕,
+počtem a „Vybrat vše" místo pilulky hledání, ťuknutí i dlouhý stisk chat přepíná a místo FAB menu
+je plovoucí lišta s archivací, připnutím, ztlumením, přečtením, přidáním do složky a smazáním /
+opuštěním (`ChatSelectionTopBar`, `ChatSelectionToolbar`). Pravidla jsou čisté funkce
+v `ChatSelection.kt` (testy `ChatSelectionTest`).
+
+- **Každé tlačítko lišty i hlavičky má bublinu s popisem** (`WithTooltip`: na dotyku po
+  podržení, myší po najetí; u svislé lišty sbaleného sloupce vpravo, jinak nad tlačítkem).
+  Šest ikon vedle sebe se poznat dá, jistotu dá text — i u zšedlé akce, kde se uživatel ptá
+  nejvíc.
+- **Callbacky lišty jsou jedna `ChatSelectionCallbacks` na ViewModel**: lišta stojí na třech
+  místech (seznam, archiv, sbalený sloupec) a každá nová akce by jinak přidávala parametr na
+  všech třech.
+- **Připnutí je přepínač jako ostatní** (připnout, dokud nejsou připnuté všechny); připíná se
+  v pořadí výběru. Strop připnutých hlídá server: chat nad strop selže s vlastní hláškou a ty
+  před ním zůstanou připnuté.
+- **„Do složky" je nabídka složek** (nad tlačítkem, lišta je u spodku); ťuknutí přidá do složky
+  celý výběr. Jen kde složky jsou a jdou upravovat (`folderRepository`).
+- **Smazání / opuštění je jediná nevratná akce lišty — chce potvrzení** (`ConfirmDialog`,
+  destruktivní), s větou podle obsahu výběru: soukromé chaty se smažou jen u nás, ze skupin
+  a kanálů se odejde, nebo obojí. Operace je tatáž jako u jednoho chatu (`deleteOrLeave`). Jen
+  skupiny ve výběru → ikona, nadpis i tlačítko „Opustit". **Uložené zprávy ve výběru mazání zakážou**
+  (zšedne, jako archivace): jejich smazání by vymazalo všechno uložené, a to hromadně, mimo
+  nabídku nad nimi samými. Volby proti spamu (nahlásit, zablokovat) má jen nabídka nad jedním
+  chatem — hromadně by šly mimo kontext.
+- **„Vybrat vše" vybere jen načtené chaty** (`withAll`, bez sponzorovaných) — seznam se dotahuje
+  po stránkách a vybrat chaty, které uživatel neviděl, by bylo překvapení; když jsou vybrané
+  všechny, tlačítko zšedne.
 
 - **Vstup je položka nabídky, ne dlouhý stisk** — ten patří nabídce nad chatem, stejně jako
   u výběru zpráv. Uvnitř výběru dlouhý stisk jen přepíná: nabídka nad jedním chatem by z výběru

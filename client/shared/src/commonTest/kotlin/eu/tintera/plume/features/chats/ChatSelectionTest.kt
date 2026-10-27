@@ -93,6 +93,52 @@ class ChatSelectionTest {
         assertEquals(listOf(3L, 4L), allRead.readTargets(listOf(read, chat(4))).map { it.id })
     }
 
+    @Test
+    fun pripinaSeDokudNejsouVsechnyPripnute() {
+        val pinned = chat(1).copy(isPinned = true)
+        val loose = chat(2)
+        val mixed = chatSelectionActions(listOf(pinned, loose), savedMessagesChatId = null)
+        assertTrue(mixed.pin)
+        assertEquals(listOf(2L), mixed.pinTargets(listOf(pinned, loose)).map { it.id })
+
+        val all = chatSelectionActions(listOf(pinned, chat(3).copy(isPinned = true)), savedMessagesChatId = null)
+        assertFalse(all.pin)
+        assertEquals(listOf(1L, 3L), all.pinTargets(listOf(pinned, chat(3).copy(isPinned = true))).map { it.id })
+    }
+
+    /** Smazání Uložených zpráv by vymazalo všechno uložené — z hromadného výběru ne. */
+    @Test
+    fun ulozeneZpravyMazaniZasedi() {
+        assertFalse(chatSelectionActions(listOf(chat(1), chat(99)), savedMessagesChatId = 99).canDelete)
+        assertTrue(chatSelectionActions(listOf(chat(1)), savedMessagesChatId = 99).canDelete)
+    }
+
+    /** Potvrzení smazání říká, co se stane: soukromé se smažou, ze skupin se odejde. */
+    @Test
+    fun mazaniVi_coVeVyberuJe() {
+        val group = chat(2).copy(kind = ChatKind.Group)
+        val onlyPrivate = chatSelectionActions(listOf(chat(1)), savedMessagesChatId = null)
+        assertTrue(onlyPrivate.deletesPrivate)
+        assertFalse(onlyPrivate.leavesGroups)
+
+        val mixed = chatSelectionActions(listOf(chat(1), group), savedMessagesChatId = null)
+        assertTrue(mixed.deletesPrivate)
+        assertTrue(mixed.leavesGroups)
+
+        val onlyGroups = chatSelectionActions(listOf(group), savedMessagesChatId = null)
+        assertFalse(onlyGroups.deletesPrivate)
+        assertTrue(onlyGroups.leavesGroups)
+    }
+
+    @Test
+    fun vybratVseVynechaSponzorovany() {
+        val chats = listOf(chat(1), chat(2), chat(3).copy(sponsor = ChatSponsor.Proxy))
+        val all = ChatSelection(setOf(1L)).withAll(chats)
+        assertEquals(setOf(1L, 2L), all.ids)
+        assertTrue(all.hasAll(chats))
+        assertFalse(ChatSelection(setOf(1L)).hasAll(chats))
+    }
+
     private fun chat(id: Long, archived: Boolean = false, muted: Boolean = false, unread: Int = 0) = ChatSummary(
         id = id,
         title = "Chat $id",

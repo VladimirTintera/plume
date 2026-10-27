@@ -1065,10 +1065,27 @@ class ChatsViewModel(
 
     /** Co lišta výběru nabídne; `null` mimo výběr. */
     val selectionActions: StateFlow<ChatSelectionActions?> =
-        combine(_selection, state, repository.savedMessagesChatId) { selection, state, savedId ->
+        combine(_selection, state, repository.savedMessagesChatId, repository.chatFolders) { selection, state, savedId, folders ->
             selection ?: return@combine null
-            chatSelectionActions(selectedChats(selection, state), savedId)
+            // Do složky jen tam, kde složky jdou upravovat (`folderRepository`).
+            chatSelectionActions(selectedChats(selection, state), savedId, folders.folders.takeIf { folderRepository != null }.orEmpty())
         }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Jsou vybrané všechny chaty, které seznam ukazuje? Pak „Vybrat vše" zšedne. */
+    val allSelected: StateFlow<Boolean> = combine(_selection, state) { selection, state ->
+        val chats = (state as? ChatListState.Ready)?.chats ?: return@combine true
+        selection?.hasAll(chats) ?: false
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** Co lišta a hlavička výběru volají — jedna instance na ViewModel (viz [ChatSelectionCallbacks]). */
+    internal val selectionCallbacks = ChatSelectionCallbacks(
+        onArchive = ::archiveSelected,
+        onPin = ::pinSelected,
+        onMute = ::muteSelected,
+        onRead = ::readSelected,
+        onAddToFolder = ::addSelectedToFolder,
+        onDelete = ::deleteSelected,
+    )
 
     init {
         // Chat, který ze seznamu odešel (archivace jinde, opuštěná skupina), z výběru vypadne;
@@ -1115,6 +1132,42 @@ class ChatsViewModel(
         runOnSelection(actions.readTargets(selected)) {
             if (actions.read) repository.readChat(it.id) else repository.setMarkedAsUnread(it.id, true)
         }
+    }
+
+    /**
+     * Připnutí z výběru, přepínač podle všech vybraných jako ostatní akce. Strop připnutých hlídá
+     * server: chat nad strop selže s vlastní hláškou (`userMessage`) a ty před ním zůstanou připnuté.
+     */
+    fun pinSelected() {
+        val (actions, selected) = selectionNow() ?: return
+        runOnSelection(actions.pinTargets(selected)) { repository.setPinned(it.id, it.folder, actions.pin) }
+    }
+
+    /**
+     * Přidá vybrané do složky. Chat, který tam už je, TDLib přijme bez chyby; chat, který do
+     * složky nejde (strop chatů ve složce), selže a ohlásí se.
+     */
+    fun addSelectedToFolder(folderId: Int) {
+        val repo = folderRepository ?: return
+        val (_, selected) = selectionNow() ?: return
+        runOnSelection(selected) { repo.addChat(folderId, it.id) }
+    }
+
+    /**
+     * Smaže soukromé chaty a opustí skupiny a kanály ve výběru — tatáž operace jako „Smazat" /
+     * „Opustit" u jednoho chatu ([ChatRepository.deleteOrLeave]), potvrzená dialogem lišty.
+     * Uložené zprávy ve výběru akci zakážou ([ChatSelectionActions.canDelete]).
+     */
+    fun deleteSelected() {
+        val (actions, selected) = selectionNow() ?: return
+        if (!actions.canDelete) return
+        runOnSelection(selected) { repository.deleteOrLeave(it.id) }
+    }
+
+    /** „Vybrat vše" v hlavičce výběru: všechny načtené chaty seznamu, které jde vybrat. */
+    fun selectAll() {
+        val chats = (state.value as? ChatListState.Ready)?.chats ?: return
+        _selection.update { it?.withAll(chats) }
     }
 
     private fun selectionNow(): Pair<ChatSelectionActions, List<ChatSummary>>? {

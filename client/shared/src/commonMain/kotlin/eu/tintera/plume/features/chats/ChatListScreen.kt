@@ -218,6 +218,7 @@ fun ChatListScreen(
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
     val selection by viewModel.selection.collectAsStateWithLifecycle()
     val selectionActions by viewModel.selectionActions.collectAsStateWithLifecycle()
+    val allSelected by viewModel.allSelected.collectAsStateWithLifecycle()
     // Vybraná složka Telegramu (ne celý seznam) — kvůli prázdnému stavu.
     val selectedFolder = folderTabs.firstOrNull { it.selected && it.id != null }
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
@@ -453,7 +454,12 @@ fun ChatListScreen(
                     return@Scaffold
                 }
                 selection?.let { current ->
-                    ChatSelectionTopBar(count = current.count, onClose = viewModel::closeSelection)
+                    ChatSelectionTopBar(
+                        count = current.count,
+                        allSelected = allSelected,
+                        onSelectAll = viewModel::selectAll,
+                        onClose = viewModel::closeSelection,
+                    )
                     return@Scaffold
                 }
                 // Hlavička pod otevřeným FAB menu ztlumená a neťukací, stejně jako seznam.
@@ -633,9 +639,8 @@ fun ChatListScreen(
                     // vybírání nedává smysl a obojí by se o spodek obrazovky přetahovalo.
                     ChatSelectionToolbar(
                         actions = selectionActions,
-                        onArchive = viewModel::archiveSelected,
-                        onMute = viewModel::muteSelected,
-                        onRead = viewModel::readSelected,
+                        callbacks = viewModel.selectionCallbacks,
+                        count = selection?.count ?: 0,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
                     /*
