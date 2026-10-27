@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.media
 
+import kotlinx.datetime.TimeZone
+import eu.tintera.plume.core.files.savedFileName
+import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.core.ui.rememberFileState
+import eu.tintera.plume.core.ui.fileDragSupported
+import eu.tintera.plume.core.ui.DraggedFile
 import eu.tintera.plume.features.report.ReportHost
 import androidx.compose.foundation.focusable
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -78,6 +84,8 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -115,6 +123,7 @@ import dev.chrisbanes.haze.HazeInput
 import eu.tintera.plume.core.files.autosavesToGallery
 import eu.tintera.plume.core.files.fileShareSupported
 import eu.tintera.plume.core.files.rememberSaveAs
+import eu.tintera.plume.core.files.revealInFolder
 import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SelfDestructType
@@ -168,6 +177,7 @@ import eu.tintera.plume.resources.sponsored_sponsored
 import eu.tintera.plume.resources.media_save
 import eu.tintera.plume.resources.media_save_as
 import eu.tintera.plume.resources.media_save_downloads
+import eu.tintera.plume.resources.media_show_in_folder
 import eu.tintera.plume.resources.media_copy_photo
 import eu.tintera.plume.resources.media_copy_video
 import eu.tintera.plume.resources.content_copy_24dp
@@ -258,8 +268,18 @@ fun MediaViewerScreen(
     // hláškou by se vynulováním restartoval a snackbar zrušil (viz „Připnuté zprávy").
     LaunchedEffect(state.notice) {
         val notice = state.notice ?: return@LaunchedEffect
+        val savedFile = state.savedFile
         viewModel.dismissNotice()
-        scope.launch { snackbarHostState.showSnackbar(notice.resolveNow()) }
+        scope.launch {
+            // Uloženo do Stažených: hláška s akcí, která složku otevře. S akcí by snackbar bez
+            // výslovné délky visel napořád (výchozí `Indefinite`).
+            val result = snackbarHostState.showSnackbar(
+                message = notice.resolveNow(),
+                actionLabel = savedFile?.let { readString(Res.string.media_show_in_folder) },
+                duration = SnackbarDuration.Long.takeIf { savedFile != null } ?: SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed && savedFile != null) revealInFolder(savedFile)
+        }
     }
 
     LaunchedEffect(state.closed) {
@@ -797,6 +817,8 @@ private fun ViewerContent(
                 is MessageMedia.Photo -> ZoomableImage(
                     photo = media,
                     messageId = item.messageId,
+                    // Ven jen to, co jde uložit: mizející a chráněná fotka ne.
+                    dragSentAt = item.timestamp.takeIf { state.actions[item.messageId]?.canSave == true && !state.isSelfDestruct },
                     photoText = state.recognizedText?.takeIf { it.messageId == item.messageId },
                     onToggleTextLine = photoTextActions.onToggleLine,
                     caption = item.caption,
@@ -1413,6 +1435,8 @@ private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 private fun ZoomableImage(
     photo: MessageMedia.Photo,
     messageId: Long,
+    /** Čas zprávy pro jméno taženého souboru; `null` = fotka se z okna ven netáhne. */
+    dragSentAt: Int?,
     /** Rozpoznaný text na téhle fotce — zvýrazní se na ní a jde na ní vybírat; `null` = žádný. */
     photoText: PhotoText?,
     onToggleTextLine: (index: Int) -> Unit,
@@ -1427,6 +1451,17 @@ private fun ZoomableImage(
     zoomSteps: Flow<ZoomStep>? = null,
 ) {
     val hidden = spoiler.hidden
+    // Táhne se ostrá verze, a jen stažená — stav se sleduje, stahuje ji `RemoteImage` níž.
+    val full = rememberFileState(photo.fullFileId.takeIf { dragSentAt != null && fileDragSupported }, download = false)
+    val dragOut = if (dragSentAt != null && !hidden) {
+        {
+            (full as? FileState.Ready)?.let { ready ->
+                DraggedFile(ready.path, savedFileName(null, ready.path, dragSentAt, TimeZone.currentSystemDefault()))
+            }
+        }
+    } else {
+        null
+    }
     ZoomableMediaPage(
         aspectRatio = aspectRatioOf(photo.width, photo.height),
         caption = caption,
@@ -1437,6 +1472,7 @@ private fun ZoomableImage(
         zoomSteps = zoomSteps,
         modifier = modifier,
         cardModifier = Modifier.sharedNavElement(photoKey(messageId), besidePanes = true),
+        dragOut = dragOut,
     ) {
         RemoteImage(
             // Ostrá verze; zmenšenina z bubliny slouží jako okamžitý náhled, než se dotáhne.

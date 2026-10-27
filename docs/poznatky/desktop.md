@@ -673,6 +673,12 @@ taky. Ven teď vede schránka a „Uložit jako…" (`MediaSharer.copy`, `fileSh
   z fotky a nad popisem fotky klávesu nechává jejich výběru. „Uložit do galerie" se na desktopu
   jmenuje **„Uložit do Stažených"** — tam ukládá odjakživa (`MediaSaver`) a starý popisek
   sliboval galerii, kterou desktop nemá (rozhoduje `autosavesToGallery`, tedy „má galerii").
+- **Hláška „Uloženo do Stažených" má akci „Zobrazit ve složce"** (`revealInFolder`): Windows
+  `explorer /select,<soubor>`, macOS `open -R`, Linux jen složka (`Desktop.browseFileDirectory`,
+  jinak `xdg-open` na adresář). Cestu vrací `MediaSaver.save` jako `SavedMedia.file`; galerie
+  telefonu ji nemá, takže tam hláška akci nedostane. Snackbar s akcí potřebuje výslovnou délku
+  (`Long`) — bez ní je výchozí `Indefinite` a visel by napořád. U „Uložit jako…" akce není,
+  složku si uživatel právě sám vybral.
 - **V nabídce nad zprávou (pravé tlačítko)** fotka, video, soubor i skladba nabízí „Kopírovat …"
   a „Uložit jako…" — u fotky a videa jen tam, kde není dialog sdílení, na telefonu je cesta ven
   z prohlížeče. Sdílet souboru se na desktopu nenabízí, stejně jako QR platby.
@@ -699,8 +705,11 @@ v `features/conversation/items`, testy `DraggedFileTest`).
 
 - **Tah startuje Compose `dragAndDropSource`**: na desktopu levé tlačítko po překročení slopu.
   Konzumuje pohyb, takže tah nad přílohou nezaloží výběr textu v bublině; nad textem dál vybírá.
-  **V prohlížeči médií tah není** — tah myší tam posouvá přiblíženou fotku a svislý zavírá,
-  ven vede Kopírovat a Uložit.
+  **V prohlížeči médií jde ven nepřiblížená fotka** (`ZoomableMediaPage(dragOut)`): myš nad ní
+  táhne snímek ven místo zavíracího tahu (zavírá se Esc a ✕), přiblíženou dál posouvá — zdroj
+  tahu je na kartě, jen když `scale == 1` (`derivedStateOf`, ať přiblížení nerekomponuje), a gesto
+  stránky myš při nepřiblížené fotce pustí. Dotyk se nemění. **Video z prohlížeče ven nejde** —
+  stránka přehrávače má vlastní gesta (posuvník, dvojklik, podržení); táhne se z bubliny.
 - **Táhne se jen soubor, který už je na disku.** Data tahu se skládají synchronně při jeho
   začátku, takže čekat na stažení nejde; stav se sleduje `FileRepository.observe`, ne `file`
   (to by kvůli bublině stáhlo každý soubor v chatu). Fotka bere ostrou verzi, a není-li

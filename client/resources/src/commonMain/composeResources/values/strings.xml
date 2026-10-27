@@ -416,6 +416,7 @@
     <string name="media_share_failed">Couldn't share</string>
     <string name="media_save_downloads">Save to Downloads</string>
     <string name="media_saved_downloads">Saved to Downloads</string>
+    <string name="media_show_in_folder">Show in folder</string>
     <string name="media_copy_photo">Copy photo</string>
     <string name="media_copy_video">Copy video</string>
     <string name="media_copy_file">Copy file</string>

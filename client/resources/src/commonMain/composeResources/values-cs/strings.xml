@@ -424,6 +424,7 @@
     <string name="media_share_failed">Sdílení se nepodařilo</string>
     <string name="media_save_downloads">Uložit do Stažených</string>
     <string name="media_saved_downloads">Uloženo do Stažených</string>
+    <string name="media_show_in_folder">Zobrazit ve složce</string>
     <string name="media_copy_photo">Kopírovat fotku</string>
     <string name="media_copy_video">Kopírovat video</string>
     <string name="media_copy_file">Kopírovat soubor</string>

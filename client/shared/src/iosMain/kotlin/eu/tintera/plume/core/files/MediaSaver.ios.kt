@@ -24,7 +24,10 @@ actual class MediaSaver {
 
     private val logger = Logger.withTag("MediaSaver")
 
-    actual suspend fun save(path: String, fileName: String, isVideo: Boolean): Boolean = suspendCancellableCoroutine { continuation ->
+    actual suspend fun save(path: String, fileName: String, isVideo: Boolean): SavedMedia? =
+        if (saveToLibrary(path, isVideo)) SavedMedia() else null
+
+    private suspend fun saveToLibrary(path: String, isVideo: Boolean): Boolean = suspendCancellableCoroutine { continuation ->
         val url = NSURL.fileURLWithPath(path)
         PHPhotoLibrary.sharedPhotoLibrary().performChanges(
             changeBlock = {
@@ -56,3 +59,5 @@ actual fun rememberSavePermission(): SavePermission = remember {
 }
 
 actual val autosavesToGallery: Boolean = true
+
+actual fun revealInFolder(path: String): Boolean = false

@@ -197,7 +197,7 @@ fun appModule() = module {
             AutosaveWorker(
                 autosave = get(),
                 files = get(),
-                save = saver::save,
+                save = { path, fileName, isVideo -> saver.save(path, fileName, isVideo) != null },
                 limits = { policy.limits.value },
                 scope = get(named(APP_SCOPE)),
             ).also { it.start() }

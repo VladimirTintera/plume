@@ -765,7 +765,9 @@ class MediaViewerViewModel(
             val file = prepare(messageId, MediaTask.Gallery) ?: return@launch
             val saved = saver.save(file.path, file.fileName, file.isVideo)
             val done = if (autosavesToGallery) Res.string.media_saved else Res.string.media_saved_downloads
-            finish(messageId, if (saved) done else Res.string.media_save_failed)
+            // Soubor ve Stažených (desktop) jde z hlášky ukázat ve složce; galerie telefonu ne.
+            _state.update { it.copy(savedFile = saved?.file) }
+            finish(messageId, if (saved != null) done else Res.string.media_save_failed)
         }
     }
 
@@ -1031,7 +1033,7 @@ class MediaViewerViewModel(
     }
 
     fun dismissNotice() {
-        _state.update { it.copy(notice = null) }
+        _state.update { it.copy(notice = null, savedFile = null) }
     }
 
     private fun loadOlder() {
@@ -1413,6 +1415,11 @@ data class MediaViewerState(
     val busy: Map<Long, MediaTask> = emptyMap(),
     /** Jednorázová hláška do snackbaru (nepovedená reakce, mazání, uložení). */
     val notice: UiText? = null,
+    /**
+     * Soubor, který hláška [notice] právě uložila na disk (desktop: Stažené) — snackbar k ní
+     * nabídne „Zobrazit ve složce". `null` = hláška bez akce.
+     */
+    val savedFile: String? = null,
     /** Text z fotky, zvýrazněný na ní; `null` = žádný. */
     val recognizedText: PhotoText? = null,
     /** Nabídnout popis fotky modelem v telefonu ([MediaViewerViewModel.describePhoto]). */
