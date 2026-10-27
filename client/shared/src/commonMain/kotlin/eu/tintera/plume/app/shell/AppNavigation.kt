@@ -137,6 +137,15 @@ class AppNavigation internal constructor(
     }
 
     /**
+     * Editor jedné složky z lišty složek (podržení záložky, prázdná složka): Nastavení → Chaty →
+     * Složky chatů → složka [folderId]. Zpět vede přes správu složek, jako u nové složky.
+     */
+    fun openChatFolder(folderId: Int) {
+        openSettingsAt(SettingsSection.Chats, ChatFoldersRoute)
+        stack(SettingsRoute).add(ChatFolderEditRoute(folderId))
+    }
+
+    /**
      * Šipka v hlavičce Nastavení: z Nastavení pryč, do Chatů. Ne [goBack] — ten odebírá jednu
      * položku, a v dvoupanelu je to otevřená sekce, kterou [ensureSettingsSection] hned vrátí;
      * šipka by pak nedělala nic. Zásobník se srovná na kořen, stejně jako ho najde [openSettings].

@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.material3.Icon
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.layout.width
+import eu.tintera.plume.resources.add_24dp
+import eu.tintera.plume.resources.chat_folder_add_chats
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import eu.tintera.plume.core.ui.animatedGroupItemShape
@@ -219,6 +224,14 @@ fun ChatListScreen(
     val selection by viewModel.selection.collectAsStateWithLifecycle()
     val selectionActions by viewModel.selectionActions.collectAsStateWithLifecycle()
     val allSelected by viewModel.allSelected.collectAsStateWithLifecycle()
+    val folderActions = remember(viewModel, navigation) {
+        FolderTabActions(
+            onReadAll = viewModel::readFolder,
+            onEdit = navigation.onEditFolder,
+            onManage = navigation.onManageFolders,
+            onDelete = viewModel::deleteFolder,
+        )
+    }
     // Vybraná složka Telegramu (ne celý seznam) — kvůli prázdnému stavu.
     val selectedFolder = folderTabs.firstOrNull { it.selected && it.id != null }
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
@@ -566,6 +579,16 @@ fun ChatListScreen(
                                         icon = folderIcon(selectedFolder.iconName),
                                         title = stringResource(Res.string.chats_folder_empty_title),
                                         text = stringResource(Res.string.chats_folder_empty),
+                                        // Cesta dál, ne slepá ulička: editor složky začíná výběrem chatů.
+                                        action = selectedFolder.id?.let { id ->
+                                            {
+                                                FilledTonalButton(onClick = { navigation.onEditFolder(id) }, shapes = ButtonDefaults.shapes()) {
+                                                    Icon(painterResource(Res.drawable.add_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                                    Text(stringResource(Res.string.chat_folder_add_chats))
+                                                }
+                                            }
+                                        },
                                     )
                                 }
                             } else {
@@ -670,7 +693,7 @@ fun ChatListScreen(
                                     scope.launch { listState.scrollToItem(0) }
                                 },
                                 onAdd = viewModel::openFolderSuggestions,
-                                onReadAll = viewModel::readFolder,
+                                actions = folderActions,
                                 floatingActionButton = fab,
                             )
                         },

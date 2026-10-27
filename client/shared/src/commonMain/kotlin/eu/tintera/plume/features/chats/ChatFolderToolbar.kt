@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.ConfirmDialog
+import eu.tintera.plume.resources.chat_folder_delete
+import eu.tintera.plume.resources.chat_folder_delete_body
+import eu.tintera.plume.resources.chat_folder_delete_title
+import eu.tintera.plume.resources.chat_folder_edit_title
+import eu.tintera.plume.resources.chat_folders_manage
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.tune_24dp
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.chat_folders_read_all_main
 import eu.tintera.plume.resources.chat_folders_read_all
@@ -116,8 +125,8 @@ internal fun ChatFolderToolbar(
     expanded: Boolean,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
-    /** Podržení složky → „Označit vše jako přečtené"; `null` = hlavní seznam. */
-    onReadAll: (Int?) -> Unit,
+    /** Co nabídne podržení složky ([FolderTabActions]). */
+    actions: FolderTabActions,
     floatingActionButton: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -135,7 +144,7 @@ internal fun ChatFolderToolbar(
             floatingActionButton = floatingActionButton,
             colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
         ) {
-            FolderItems(tabs, expanded, contentWidth, onSelect, onAdd, onReadAll)
+            FolderItems(tabs, expanded, contentWidth, onSelect, onAdd, actions)
         }
     }
 }
@@ -160,14 +169,14 @@ private fun FolderItems(
     maxWidth: Dp,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
-    onReadAll: (Int?) -> Unit,
+    actions: FolderTabActions,
 ) {
     var labels by remember { mutableStateOf(true) }
     val scroll = rememberScrollState()
     Layout(
         contents = listOf(
-            { FolderRow(tabs, labels = true, placed = labels, expanded = expanded, onSelect, onAdd, onReadAll) },
-            { FolderRow(tabs, labels = false, placed = !labels, expanded = expanded, onSelect, onAdd, onReadAll) },
+            { FolderRow(tabs, labels = true, placed = labels, expanded = expanded, onSelect, onAdd, actions) },
+            { FolderRow(tabs, labels = false, placed = !labels, expanded = expanded, onSelect, onAdd, actions) },
         ),
         modifier = Modifier
             .widthIn(max = maxWidth)
@@ -223,7 +232,7 @@ private fun FolderRow(
     expanded: Boolean,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
-    onReadAll: (Int?) -> Unit,
+    actions: FolderTabActions,
 ) {
     val focusable = placed && expanded
     Row(
@@ -238,7 +247,7 @@ private fun FolderRow(
                 placed = placed,
                 focusable = focusable,
                 onClick = { if (!tab.selected) onSelect(tab.id) },
-                onReadAll = { onReadAll(tab.id) },
+                actions = actions,
             )
         }
         val addLabel = stringResource(Res.string.chat_folders_add_folder)
@@ -270,9 +279,10 @@ private fun FolderRow(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FolderItem(tab: FolderTab, label: Boolean, placed: Boolean, focusable: Boolean, onClick: () -> Unit, onReadAll: () -> Unit) {
+private fun FolderItem(tab: FolderTab, label: Boolean, placed: Boolean, focusable: Boolean, onClick: () -> Unit, actions: FolderTabActions) {
     val title = tab.plainTitle()
     var menuOpen by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     val container by animateColorAsState(
         targetValue = if (tab.selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
@@ -351,23 +361,81 @@ private fun FolderItem(tab: FolderTab, label: Boolean, placed: Boolean, focusabl
             expanded = menuOpen,
             onDismiss = { menuOpen = false },
             popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Above),
-            groups = listOf(
-                listOf(
-                    MenuAction(
-                        if (tab.id == null) {
-                            stringResource(Res.string.chat_folders_read_all_main)
-                        } else {
-                            stringResource(Res.string.chat_folders_read_all, title)
-                        },
-                        Res.drawable.done_all_24dp,
-                    ) {
-                        menuOpen = false
-                        onReadAll()
-                    },
-                ),
+            groups = folderMenuGroups(
+                tab = tab,
+                title = title,
+                actions = actions,
+                close = { menuOpen = false },
+                onDelete = { confirmDelete = true },
             ),
         )
     }
+    val id = tab.id
+    if (confirmDelete && id != null) {
+        ConfirmDialog(
+            title = stringResource(Res.string.chat_folder_delete_title),
+            text = stringResource(Res.string.chat_folder_delete_body),
+            confirmLabel = stringResource(Res.string.chat_folder_delete),
+            onConfirm = {
+                confirmDelete = false
+                actions.onDelete(id)
+            },
+            onDismiss = { confirmDelete = false },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
+        )
+    }
+}
+
+/**
+ * Co nabídne podržení složky v liště. Jedna instance na ViewModel (`ChatsViewModel`), aby nová
+ * akce nepřidávala parametr přes všechny úrovně lišty (lišta → položky → řada → položka).
+ */
+internal data class FolderTabActions(
+    /** „Označit vše jako přečtené"; `null` = hlavní seznam. */
+    val onReadAll: (Int?) -> Unit,
+    /** Editor složky v Nastavení — i s přidáním chatů. */
+    val onEdit: (Int) -> Unit,
+    /** Správa složek v Nastavení: pořadí, doporučené, sdílení. */
+    val onManage: () -> Unit,
+    val onDelete: (Int) -> Unit,
+)
+
+/**
+ * Nabídka nad záložkou. Vlastní složka: přečíst vše, upravit a spravovat, a ve vlastní skupině
+ * (nevratné, viz `ExpressiveMenu`) smazat — sdílenou ne, ta chce rozhodnout i o odchodu z chatů
+ * a to umí jen Správa složek. „Všechny chaty": přečíst vše a spravovat složky.
+ */
+@Composable
+private fun folderMenuGroups(
+    tab: FolderTab,
+    title: String,
+    actions: FolderTabActions,
+    close: () -> Unit,
+    onDelete: () -> Unit,
+): List<List<MenuAction>> {
+    val id = tab.id
+    val readAll = MenuAction(
+        if (id == null) stringResource(Res.string.chat_folders_read_all_main) else stringResource(Res.string.chat_folders_read_all, title),
+        Res.drawable.done_all_24dp,
+    ) {
+        close()
+        actions.onReadAll(id)
+    }
+    val manage = MenuAction(stringResource(Res.string.chat_folders_manage), Res.drawable.tune_24dp) {
+        close()
+        actions.onManage()
+    }
+    if (id == null) return listOf(listOf(readAll), listOf(manage))
+    val edit = MenuAction(stringResource(Res.string.chat_folder_edit_title), Res.drawable.edit_24dp) {
+        close()
+        actions.onEdit(id)
+    }
+    val delete = MenuAction(stringResource(Res.string.chat_folder_delete), Res.drawable.delete_24dp, destructive = true) {
+        close()
+        onDelete()
+    }
+    return listOfNotNull(listOf(readAll), listOf(edit, manage), listOf(delete).takeUnless { tab.shareable })
 }
 
 /**

@@ -778,6 +778,7 @@ private fun shellEntryProvider(
                 onOpenProxySettings = navigation::openProxySettings,
                 onCreateFolder = { navigation.openChatFolders(create = true) },
                 onManageFolders = { navigation.openChatFolders() },
+                onEditFolder = { id -> navigation.openChatFolder(id) },
                 onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
                 onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
                 onOpenStories = { chatId -> chatsStack.openStories(chatId) },
