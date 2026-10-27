@@ -4027,6 +4027,9 @@
     <string name="message_context_money_assumed">%1$s (%2$s)</string>
     <string name="menu_context_wifi_sheet">Wi-Fi a heslo…</string>
     <string name="my_qr_title">Můj QR kód</string>
+    <string name="link_qr_code">QR kód</string>
+    <string name="link_qr_description">QR kód s odkazem na %1$s</string>
+    <string name="link_qr_hint">Naskenovat ho jde fotoaparátem nebo v Telegramu, otevře tenhle odkaz.</string>
     <string name="my_qr_hint">Ať si druhý kód naskenuje fotoaparátem nebo v Telegramu. Otevře se mu chat s vámi.</string>
     <string name="my_qr_expires">Platí do %1$s, pak ho nahradí nový kód.</string>
     <string name="my_qr_permanent">Kód vede na vaše veřejné uživatelské jméno, takže nevyprší.</string>

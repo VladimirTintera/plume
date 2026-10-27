@@ -3895,6 +3895,9 @@
     <string name="message_context_money_assumed">%1$s (%2$s)</string>
     <string name="menu_context_wifi_sheet">Wi-Fi and password…</string>
     <string name="my_qr_title">My QR code</string>
+    <string name="link_qr_code">QR code</string>
+    <string name="link_qr_description">QR code with a link to %1$s</string>
+    <string name="link_qr_hint">Scan it with a camera or in Telegram to open this link.</string>
     <string name="my_qr_hint">Let the other person scan the code with their camera or in Telegram. A chat with you opens for them.</string>
     <string name="my_qr_expires">Valid until %1$s, then a new code replaces it.</string>
     <string name="my_qr_permanent">The code leads to your public username, so it doesn't expire.</string>
