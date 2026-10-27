@@ -1299,6 +1299,9 @@
     <string name="content_suggested_birthdate">Návrh data narození</string>
     <string name="content_suggested_photo">Návrh profilové fotky</string>
     <string name="content_stake_dice">Kostka se sázkou</string>
+    <string name="dice_stake_rolling">Vsazeno %1$s</string>
+    <string name="dice_stake_won">Vsazeno %1$s · výhra %2$s</string>
+    <string name="dice_stake_lost">Vsazeno %1$s · bez výhry</string>
     <string name="ton_amount">%1$s TON</string>
     <string name="content_ton_received">Přijato %1$s</string>
     <string name="content_ton_sent">Odesláno %1$s</string>

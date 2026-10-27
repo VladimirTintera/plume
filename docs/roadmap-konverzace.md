@@ -479,8 +479,8 @@ témat má věty se jmény jako seznam chatů (bez předpony „Jana:").
   Fotky sdílených se nekreslí — uživatelskému účtu je TDLib ve zprávě neposílá (jen botům).
 - ~~**Návrh profilové fotky**~~ — hotovo, i odeslání (`docs/poznatky/profil-chatu.md`, „Návrh profilové fotky").
 - ~~**Návrh data narození**~~ — hotovo (`docs/poznatky/nastaveni.md`, „Narozeniny").
-- **Kostka se sázkou** (`MessageStakeDice`): animace hodu jako u `MessageDice` (`initialState`,
-  `finalState`), hodnota, vklad a výhra v TON.
+- ~~**Kostka se sázkou**~~ — hotovo: animace hodu jako u kostky a pod ní vklad a výhra v TON
+  (`docs/poznatky/emoji-samolepky-reakce.md`, „Kostka se sázkou"). Skutečnou sázkou neověřené.
 
 ## Co TDLib umí a Plume zatím ne (audit září 2026)
 

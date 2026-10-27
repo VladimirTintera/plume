@@ -1277,6 +1277,9 @@
     <string name="content_suggested_birthdate">Suggested birthday</string>
     <string name="content_suggested_photo">Suggested profile photo</string>
     <string name="content_stake_dice">Dice with a stake</string>
+    <string name="dice_stake_rolling">Stake %1$s</string>
+    <string name="dice_stake_won">Stake %1$s · won %2$s</string>
+    <string name="dice_stake_lost">Stake %1$s · no win</string>
     <string name="ton_amount">%1$s TON</string>
     <string name="content_ton_received">Received %1$s</string>
     <string name="content_ton_sent">Sent %1$s</string>

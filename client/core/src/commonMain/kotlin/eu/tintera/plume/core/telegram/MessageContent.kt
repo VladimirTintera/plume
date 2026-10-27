@@ -62,6 +62,7 @@ import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedAnimationPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypeEmbeddedVideoPlayer
 import dev.g000sha256.tdl.dto.LinkPreviewTypePhoto
 import dev.g000sha256.tdl.dto.LinkPreviewTypeVideo
+import dev.g000sha256.tdl.dto.DiceStickers
 import dev.g000sha256.tdl.dto.DiceStickersRegular
 import dev.g000sha256.tdl.dto.DiceStickersSlotMachine
 import dev.g000sha256.tdl.dto.Document
@@ -545,8 +546,8 @@ private fun MessageContent.describe(isChannelPost: Boolean): UiText? = when (thi
     is MessageVenue -> UiText(Res.string.content_venue, venue.title)
     is MessageContact -> UiText(Res.string.content_contact, "${contact.firstName} ${contact.lastName}".trim())
     is MessageGame -> UiText(Res.string.content_game, game.title)
-    // Sázková kostka (TDLib 15): jako `MessageDice`, ale s vkladem v TON. Hodnotu ani vklad
-    // nevypisujeme — bez animace by z čísla nebylo poznat, že jde o hod.
+    // Sázková kostka (TDLib 15): jako `MessageDice`, ale s vkladem v TON. Hod se sázkou kreslí
+    // příloha (`toDiceMedia`); tenhle popis je pro náhled v seznamu a pro hod bez animace.
     is MessageStakeDice -> UiText(Res.string.content_stake_dice)
     // Převod z peněženky TON (TDLib 1.8.68). Peněženku Plume nemá, převod jen popíše; záporná
     // částka je odchozí. Zašifrovaný komentář je nečitelný bez klíče peněženky, takže se vynechá.
@@ -695,6 +696,8 @@ internal suspend fun Message.captionBody(
 
     // Hod s animací je příloha a výsledek je v ní nakreslený; text by ho zdvojil.
     is MessageDice -> if (content.toDiceMedia() != null) MessageBody.Empty else MessageBody(content.diceText())
+    // Bez animace zůstává popis „Kostka se sázkou" (`describe`), s ní je hod i sázka v příloze.
+    is MessageStakeDice -> if (content.toDiceMedia() != null) MessageBody.Empty else MessageBody(text = "", description = previewText())
 
     // Typy, které mají v bublině vlastní přílohu s popiskem — text by ho zdvojil.
     is MessageVideoNote, is MessageGame, is MessageInvoice -> MessageBody.Empty
@@ -882,7 +885,38 @@ private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else
  * ukazoval jiný výsledek, než jaký padl. Koncová animace bez výsledku (nebo výsledek bez ní)
  * nedává smysl, takže se na druhý stav nepadá — radši text.
  */
-internal fun MessageDice.toDiceMedia(): MessageMedia.Dice? {
+internal fun MessageDice.toDiceMedia(): MessageMedia.Dice? = diceMedia(
+    initialState = initialState,
+    finalState = finalState,
+    emoji = emoji,
+    value = value,
+    successFrame = successAnimationFrameNumber,
+)
+
+/**
+ * Kostka se sázkou (TDLib 15): tentýž hod jako [MessageDice.toDiceMedia], navíc vklad a výhra
+ * v TON. Emoji nenese — hází se vždycky kostkou — a snímek oslavy server neposílá.
+ */
+internal fun MessageStakeDice.toDiceMedia(): MessageMedia.Dice? = diceMedia(
+    initialState = initialState,
+    finalState = finalState,
+    emoji = STAKE_DICE_EMOJI,
+    value = value,
+    successFrame = 0,
+)?.copy(
+    stake = MessageMedia.DiceStake(stake = stakeGramAmount, prize = prizeGramAmount.takeIf { value > 0 && it >= 0 }),
+)
+
+/** Kostka se sázkou se hází vždycky kostkou; `MessageStakeDice` emoji nenese. */
+internal const val STAKE_DICE_EMOJI = "🎲"
+
+private fun diceMedia(
+    initialState: DiceStickers?,
+    finalState: DiceStickers?,
+    emoji: String,
+    value: Int,
+    successFrame: Int,
+): MessageMedia.Dice? {
     val stickers = (if (value > 0) finalState else initialState) ?: return null
     val layers = when (stickers) {
         is DiceStickersRegular -> listOf(stickers.sticker)
@@ -899,7 +933,7 @@ internal fun MessageDice.toDiceMedia(): MessageMedia.Dice? {
         emoji = emoji,
         value = value,
         layers = layers.map { it.sticker.id },
-        successFrame = successAnimationFrameNumber.takeIf { value > 0 } ?: 0,
+        successFrame = successFrame.takeIf { value > 0 } ?: 0,
     )
 }
 
@@ -1032,6 +1066,7 @@ internal suspend fun Message.messageMedia(
     }
 
     is MessageDice -> content.toDiceMedia()
+    is MessageStakeDice -> content.toDiceMedia()
 
     is MessageVideoNote -> MessageMedia.VideoNote(
         fileId = content.videoNote.video.id,

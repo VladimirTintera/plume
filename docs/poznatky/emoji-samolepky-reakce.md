@@ -64,6 +64,26 @@ testy `DiceMediaTest`).
   (`screencap` do `/data/local/tmp` ve smyčce v jednom `adb shell`, aspoň 70 — hod trvá přes
   tři vteřiny). Hodnotu hodu řekne `getUpdates`.
 
+#### Kostka se sázkou
+
+`MessageStakeDice` (TDLib 15) je tentýž hod jako `MessageDice`, jen s vkladem a výhrou v TON.
+Převádí se na tutéž přílohu (`MessageMedia.Dice` s polem `stake`, společná `diceMedia`, testy
+`DiceMediaTest`) a pod animací má pilulku se sázkou (`DiceStakeLabel`, test `DiceStakeLabelTest`).
+
+- **Emoji nenese** — hází se vždycky kostkou (`STAKE_DICE_EMOJI` „🎲"). Popisek pro citaci
+  a čtečku je proto „🎲 6" jako u obyčejné kostky.
+- **Výhra `-1` = hod ještě nedopadl** (`prize = null`), `0` = sázka propadla. Pilulka říká
+  „Vsazeno 1,5 TON", po dopadu „… · výhra 3 TON" nebo „… · bez výhry". Hodnota hodu do ní
+  nepatří, je nakreslená v animaci.
+- **Pilulka je tónovaná plocha** (`surfaceContainerHigh`), ne holý text: hod se kreslí bez
+  bubliny a text by na tapetě konverzace nebyl čitelný.
+- **Konfety ne** — server u sázky snímek výhry (`successAnimationFrameNumber`) neposílá.
+- **Bez animace zůstává popis** „Kostka se sázkou" (jako dřív u každé); náhled v seznamu chatů
+  ho má taky.
+- **Neověřeno skutečnou sázkou**: vsadit jde jen s TON a testovací účet ho nemá. Ověřený je
+  převod (testy) a vzhled pilulky (snímek z `runComposeUiTest`); animace je tatáž jako u
+  obyčejné kostky.
+
 #### Poslat hod
 
 - **Samotné emoji ze seznamu serveru odejde jako hod**, ne jako text (`diceEmojiFor`, testy

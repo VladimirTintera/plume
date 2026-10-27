@@ -2834,12 +2834,20 @@ sealed interface MessageMedia {
          * `0` = hod nic nevyhrál. Posílá ho server (`successAnimationFrameNumber`).
          */
         val successFrame: Int = 0,
+        /** Sázka v TON u kostky se sázkou (`MessageStakeDice`); `null` u obyčejného hodu. */
+        val stake: DiceStake? = null,
     ) : MessageMedia {
         val rolling: Boolean get() = value == 0
 
         /** Hod slovy („🎲 6“) — pro citaci, schránku a všude, kde animace být nemůže. */
         val label: String get() = if (rolling) emoji else "$emoji $value"
     }
+
+    /**
+     * Vklad a výhra kostky se sázkou, v nejmenších jednotkách TON (nanotonech). [prize] je `null`,
+     * dokud hod nedopadl (TDLib posílá `-1`); `0` = sázka propadla.
+     */
+    data class DiceStake(val stake: Long, val prize: Long?)
 
     data class Sticker(
         /** Soubor samolepky v jakémkoli formátu. Podle něj se samolepka posílá i dává do oblíbených. */
