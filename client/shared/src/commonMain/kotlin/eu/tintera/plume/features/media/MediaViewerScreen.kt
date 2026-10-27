@@ -194,6 +194,10 @@ import eu.tintera.plume.resources.menu_forward
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.sender_you
 import kotlin.math.abs
+import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntOffset
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -663,6 +667,23 @@ private fun ViewerContent(
     val keyFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { keyFocus.requestFocus() }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    /*
+     * Kolečko a boční tlačítka myši listují, pravé tlačítko otevře nabídku u kurzoru
+     * ([viewerMouse]). Obsluha žije s prohlížečem, takže čte aktuální stránku přes stav.
+     */
+    val wheelPaging = remember { WheelPaging() }
+    val pageBy by rememberUpdatedState { step: Int -> goToPage(pagerState.currentPage + step) }
+    // Nabídka u kurzoru: pro které médium a kde. Drží se i po zavření, ať nabídka odjede animací.
+    var contextMenu by remember { mutableStateOf<ViewerContextMenu?>(null) }
+    var contextMenuOpen by remember { mutableStateOf(false) }
+    val openContextMenu by rememberUpdatedState { at: Offset ->
+        // Mizející médium nemá lištu ani akce — nabídka by jen obcházela, co lišta schovává.
+        val item = current?.takeIf { !state.isSelfDestruct }
+        if (item != null) {
+            contextMenu = ViewerContextMenu(item.messageId, at)
+            contextMenuOpen = true
+        }
+    }
 
     Box(
         Modifier
@@ -684,6 +705,9 @@ private fun ViewerContent(
                 when (action) {
                     ViewerKey.Previous -> goToPage(pagerState.currentPage - 1)
                     ViewerKey.Next -> goToPage(pagerState.currentPage + 1)
+                    // Kraj načteného výřezu; ViewModel pak dotáhne další a End jde zmáčknout znovu.
+                    ViewerKey.First -> goToPage(0)
+                    ViewerKey.Last -> goToPage(pagerState.pageCount - 1)
                     ViewerKey.ZoomIn -> zoomSteps.tryEmit(ZoomStep.In)
                     ViewerKey.ZoomOut -> zoomSteps.tryEmit(ZoomStep.Out)
                     ViewerKey.ZoomReset -> zoomSteps.tryEmit(ZoomStep.Reset)
@@ -692,9 +716,29 @@ private fun ViewerContent(
                     ViewerKey.SeekBack -> videoCommands.tryEmit(VideoCommand.Seek(-KEY_SEEK_STEP_MS))
                     ViewerKey.SeekForward -> videoCommands.tryEmit(VideoCommand.Seek(KEY_SEEK_STEP_MS))
                     ViewerKey.ToggleMute -> videoMuted = !videoMuted
+                    // Kde okno přes celou obrazovku nejde (telefon), fotka aspoň přepne režim prohlížeče.
                     ViewerKey.ToggleFullscreen -> {
-                        val set = setWindowFullscreen ?: return@onPreviewKeyEvent false
-                        set(!windowFullscreenOn)
+                        val set = setWindowFullscreen
+                        when {
+                            set != null -> set(!windowFullscreenOn)
+                            currentIsVideo -> return@onPreviewKeyEvent false
+                            else -> toggleImmersive()
+                        }
+                    }
+                    ViewerKey.Save -> {
+                        val item = current?.takeIf { !state.isSelfDestruct && state.actions[it.messageId]?.canSave == true }
+                            ?: return@onPreviewKeyEvent false
+                        actions.onSave(item.messageId)
+                    }
+                    // Potvrzení přijde jako z nabídky ⋮.
+                    ViewerKey.Delete -> {
+                        val item = current?.takeIf { !state.isSelfDestruct } ?: return@onPreviewKeyEvent false
+                        val allowed = state.actions[item.messageId]
+                        when {
+                            allowed != null && (allowed.canDeleteForSelf || allowed.canDeleteForAll) -> actions.onDelete(item.messageId)
+                            state.ownProfilePhotos -> profilePhotoActions.onDelete(item.messageId)
+                            else -> return@onPreviewKeyEvent false
+                        }
                     }
                     ViewerKey.Copy -> {
                         // Nad textem z fotky a popisem patří Ctrl+C jejich výběru, ne fotce.
@@ -730,7 +774,9 @@ private fun ViewerContent(
             pageKey = { latestItems[it].messageId },
             immersion = immersion,
             backdropModifier = fadeWithDismiss,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .viewerMouse(wheelPaging, onPage = { pageBy(it) }, onContextMenu = { openContextMenu(it) }),
             // Otevřená fotka je vidět hned, sousedé se dotahují až pod ní — nesmí naskočit.
             animateArrivals = true,
             // Video na celé obrazovce se neodlistuje (viz `pagerScroll`).
@@ -837,6 +883,29 @@ private fun ViewerContent(
         }
 
         SystemBarShades(immersion, fadeWithDismiss)
+
+        // Nabídka u kurzoru: kotva nulové velikosti tam, kde se pustilo pravé tlačítko.
+        contextMenu?.let { menu ->
+            val item = items.firstOrNull { it.messageId == menu.messageId }
+            val groups = item?.let {
+                viewerMenuGroups(
+                    item = it,
+                    state = state,
+                    itemActions = actions,
+                    profilePhotoActions = profilePhotoActions,
+                    onRecognizeText = photoTextActions.onRecognize,
+                    onDescribePhoto = photoDescriptionActions.onDescribe,
+                    withBarActions = true,
+                )
+            }.orEmpty()
+            Box(Modifier.offset { IntOffset(menu.at.x.roundToInt(), menu.at.y.roundToInt()) }) {
+                ExpressiveMenu(
+                    expanded = contextMenuOpen && groups.any { it.isNotEmpty() },
+                    onDismiss = { contextMenuOpen = false },
+                    groups = groups,
+                )
+            }
+        }
 
         PageArrows(
             activity = mouse,
@@ -1112,26 +1181,8 @@ private fun TopBar(
     onDescribePhoto: ((messageId: Long) -> Unit)?,
 ) {
     val messageId = item.messageId
-    val onDelete = { itemActions.onDelete(messageId) }
-    val onForward = { itemActions.onForward(messageId) }
     val onSave = { itemActions.onSave(messageId) }
     val onShare = { itemActions.onShare(messageId) }
-    // `null` = médium do schránky nejde ([MediaViewerViewModel.canCopy]).
-    val onCopy = { itemActions.onCopy(messageId) }.takeIf { itemActions.canCopy(item) }
-    val onSaveAs = itemActions.onSaveAs?.let { saveAs -> { saveAs(messageId) } }
-    val onSetMainProfilePhoto = { profilePhotoActions.onSetMain(messageId) }
-    val onDeleteProfilePhoto = { profilePhotoActions.onDelete(messageId) }
-    val onReportProfilePhoto = { profilePhotoActions.onReport(messageId) }
-    // `null` = na médiu samolepky nejsou.
-    val onAttachedStickers = { itemActions.onAttachedStickers(messageId) }.takeIf { itemActions.hasAttachedStickers(item) }
-    val isPhoto = item.media is MessageMedia.Photo
-    // Jen fotka, a jen když jde uložit: u chatu se zakázaným ukládáním by text
-    // z fotky obešel tutéž ochranu jako snímek obrazovky.
-    val recognizeTextOnPhoto = onRecognizeText?.takeIf { isPhoto }?.let { recognize -> { recognize(messageId) } }
-    // Totéž omezení: samolepka by fotku z chatu se zákazem ukládání vynesla ven.
-    val makeStickerOnPhoto = itemActions.onMakeSticker?.takeIf { isPhoto }?.let { make -> { make(messageId) } }
-    // Totéž omezení jako text z fotky: popis by obešel zákaz ukládání.
-    val describePhotoOnPhoto = onDescribePhoto?.takeIf { isPhoto }?.let { describe -> { describe(messageId) } }
     val actions = state.actions[item.messageId]
 
     Row(
@@ -1198,8 +1249,7 @@ private fun TopBar(
         val busy = state.busy[item.messageId]
         val canSave = actions?.canSave == true
         val copyInBar = !fileShareSupported
-        val copy = onCopy?.takeIf { canSave }
-        val copyLabel = stringResource(if (item.media is MessageMedia.Video) Res.string.media_copy_video else Res.string.media_copy_photo)
+        val copy = { itemActions.onCopy(messageId) }.takeIf { canSave && itemActions.canCopy(item) }
         if (canSave) {
             if (fileShareSupported) {
                 BusyOr(busy == MediaTask.Share) {
@@ -1207,96 +1257,137 @@ private fun TopBar(
                 }
             } else if (copy != null) {
                 BusyOr(busy == MediaTask.Copy) {
-                    ChromeIcon(Res.drawable.content_copy_24dp, copyLabel, copy)
+                    ChromeIcon(Res.drawable.content_copy_24dp, copyLabel(item), copy)
                 }
             }
             BusyOr(busy == MediaTask.Gallery) {
-                ChromeIcon(
-                    Res.drawable.download_24dp,
-                    stringResource(if (autosavesToGallery) Res.string.media_save else Res.string.media_save_downloads),
-                    onSave,
-                )
+                ChromeIcon(Res.drawable.download_24dp, saveLabel(), onSave)
             }
         }
-        val copyInMenu = copy?.takeIf { !copyInBar }
 
-        val canForward = actions?.canForward == true
-        val canDelete = actions != null && (actions.canDeleteForSelf || actions.canDeleteForAll)
-        val saveAs = onSaveAs?.takeIf { canSave }
-        val recognizeText = recognizeTextOnPhoto?.takeIf { canSave }
-        val textShown = state.recognizedText?.messageId == item.messageId
-        val describePhoto = describePhotoOnPhoto?.takeIf { canSave }
-        val makeSticker = makeStickerOnPhoto?.takeIf { canSave }
-        val descriptionShown = state.photoDescription?.messageId == item.messageId
-        // Vlastní profilovky: starší jde nastavit zase jako hlavní (ta nejnovější hlavní je)
-        // a každou smazat. Cizí profilovky a fotky skupin tohle nemají — TDLib to neumí.
-        val own = state.ownProfilePhotos
-        val canSetMain = own && item.messageId != state.items.lastOrNull()?.messageId
-        // Cizí profilovku jde nahlásit moderátorům, kde to TDLib dovolí.
-        val reportable = item.messageId in state.reportablePhotos
-        if (canForward || canDelete || saveAs != null || copyInMenu != null || own || reportable || recognizeText != null || describePhoto != null || makeSticker != null || onAttachedStickers != null) {
+        val menuGroups = viewerMenuGroups(
+            item = item,
+            state = state,
+            itemActions = itemActions,
+            profilePhotoActions = profilePhotoActions,
+            onRecognizeText = onRecognizeText,
+            onDescribePhoto = onDescribePhoto,
+            withBarActions = false,
+        )
+        if (menuGroups.any { it.isNotEmpty() }) {
             var menuOpen by remember { mutableStateOf(false) }
             BusyOr(busy == MediaTask.SaveAs || (busy == MediaTask.Copy && !copyInBar) || busy == MediaTask.Text || busy == MediaTask.Describe || busy == MediaTask.Sticker) {
                 Box {
                     ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
-                    ExpressiveMenu(
-                        expanded = menuOpen,
-                        onDismiss = { menuOpen = false },
-                        groups = listOf(
-                            listOfNotNull(
-                                recognizeText?.let {
-                                    MenuAction(
-                                        stringResource(if (textShown) Res.string.media_text_hide else Res.string.media_text),
-                                        Res.drawable.text_select_24dp,
-                                        onClick = it,
-                                    )
-                                },
-                                describePhoto?.let {
-                                    MenuAction(
-                                        stringResource(if (descriptionShown) Res.string.media_describe_hide else Res.string.media_describe),
-                                        Res.drawable.auto_awesome_24dp,
-                                        onClick = it,
-                                    )
-                                },
-                                onAttachedStickers?.let {
-                                    MenuAction(stringResource(Res.string.media_attached_stickers), Res.drawable.sticker_24dp, onClick = it)
-                                },
-                                makeSticker?.let {
-                                    MenuAction(stringResource(Res.string.media_make_sticker), Res.drawable.sticker_24dp, onClick = it)
-                                },
-                                MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp, onClick = onForward).takeIf { canForward },
-                                copyInMenu?.let { MenuAction(copyLabel, Res.drawable.content_copy_24dp, onClick = it) },
-                                saveAs?.let { MenuAction(stringResource(Res.string.media_save_as), Res.drawable.description_24dp, onClick = it) },
-                                MenuAction(
-                                    stringResource(Res.string.media_profile_photo_set_main),
-                                    Res.drawable.person_24dp,
-                                    onClick = onSetMainProfilePhoto,
-                                ).takeIf { canSetMain },
-                            ),
-                            listOfNotNull(
-                                MenuAction(
-                                    stringResource(Res.string.media_profile_photo_report),
-                                    Res.drawable.flag_24dp,
-                                    onClick = onReportProfilePhoto,
-                                ).takeIf { reportable },
-                            ),
-                            // Smazání zvlášť: nevratné, nemá stát mezi častými akcemi.
-                            listOfNotNull(
-                                MenuAction(stringResource(Res.string.menu_delete), Res.drawable.delete_24dp, destructive = true, onClick = onDelete).takeIf { canDelete },
-                                MenuAction(
-                                    stringResource(Res.string.media_profile_photo_delete),
-                                    Res.drawable.delete_24dp,
-                                    destructive = true,
-                                    onClick = onDeleteProfilePhoto,
-                                ).takeIf { own },
-                            ),
-                        ),
-                    )
+                    ExpressiveMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, groups = menuGroups)
                 }
             }
         }
     }
 }
+
+/**
+ * Akce nad médiem v nabídce — ⋮ v horní liště i nabídka u kurzoru (pravé tlačítko myši). Jedna
+ * funkce pro obě, jinak by se seznamy rozešly na první nové akci.
+ *
+ * [withBarActions] dá napřed i to, co je venku v liště (Sdílet nebo Kopírovat, Uložit): nabídka
+ * u kurzoru je na desktopu první místo, kde se akce hledají, a na celé obrazovce lišta vidět
+ * není. V ⋮ by byly dvakrát.
+ *
+ * Akce, které obcházejí zákaz ukládání (text z fotky, popis, samolepka, kopie), se nabízejí jen
+ * u média, které jde uložit: u chatu s chráněným obsahem by vynesly ven totéž co snímek obrazovky.
+ * Vlastní profilovky jde nastavit jako hlavní (ta nejnovější hlavní je) a smazat; cizí ne,
+ * TDLib to neumí — cizí jde jen nahlásit, kde to dovolí.
+ */
+@Composable
+private fun viewerMenuGroups(
+    item: ViewerItem,
+    state: MediaViewerState,
+    itemActions: ViewerItemActions,
+    profilePhotoActions: ProfilePhotoActions,
+    onRecognizeText: ((messageId: Long) -> Unit)?,
+    onDescribePhoto: ((messageId: Long) -> Unit)?,
+    withBarActions: Boolean,
+): List<List<MenuAction>> {
+    val messageId = item.messageId
+    val actions = state.actions[messageId]
+    val canSave = actions?.canSave == true
+    val isPhoto = item.media is MessageMedia.Photo
+    val copy = { itemActions.onCopy(messageId) }.takeIf { canSave && itemActions.canCopy(item) }
+    val copyAction = copy?.let { MenuAction(copyLabel(item), Res.drawable.content_copy_24dp, onClick = it) }
+    val canForward = actions?.canForward == true
+    val canDelete = actions != null && (actions.canDeleteForSelf || actions.canDeleteForAll)
+    val own = state.ownProfilePhotos
+    val canSetMain = own && messageId != state.items.lastOrNull()?.messageId
+    val reportable = messageId in state.reportablePhotos
+
+    val bar = listOfNotNull(
+        MenuAction(stringResource(Res.string.media_share), Res.drawable.share_24dp) { itemActions.onShare(messageId) }.takeIf { fileShareSupported },
+        copyAction,
+        MenuAction(saveLabel(), Res.drawable.download_24dp) { itemActions.onSave(messageId) },
+    ).takeIf { withBarActions && canSave }.orEmpty()
+    // Na telefonu je Kopírovat v nabídce, venku je Sdílet; na desktopu naopak.
+    val copyInMenu = copyAction?.takeIf { !withBarActions && fileShareSupported }
+
+    return listOf(
+        bar,
+        listOfNotNull(
+            onRecognizeText?.takeIf { isPhoto && canSave }?.let { recognize ->
+                val shown = state.recognizedText?.messageId == messageId
+                MenuAction(
+                    stringResource(if (shown) Res.string.media_text_hide else Res.string.media_text),
+                    Res.drawable.text_select_24dp,
+                    onClick = { recognize(messageId) },
+                )
+            },
+            onDescribePhoto?.takeIf { isPhoto && canSave }?.let { describe ->
+                val shown = state.photoDescription?.messageId == messageId
+                MenuAction(
+                    stringResource(if (shown) Res.string.media_describe_hide else Res.string.media_describe),
+                    Res.drawable.auto_awesome_24dp,
+                    onClick = { describe(messageId) },
+                )
+            },
+            MenuAction(stringResource(Res.string.media_attached_stickers), Res.drawable.sticker_24dp) {
+                itemActions.onAttachedStickers(messageId)
+            }.takeIf { itemActions.hasAttachedStickers(item) },
+            itemActions.onMakeSticker?.takeIf { isPhoto && canSave }?.let { make ->
+                MenuAction(stringResource(Res.string.media_make_sticker), Res.drawable.sticker_24dp) { make(messageId) }
+            },
+            MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp) { itemActions.onForward(messageId) }.takeIf { canForward },
+            copyInMenu,
+            itemActions.onSaveAs?.takeIf { canSave }?.let { saveAs ->
+                MenuAction(stringResource(Res.string.media_save_as), Res.drawable.description_24dp) { saveAs(messageId) }
+            },
+            MenuAction(stringResource(Res.string.media_profile_photo_set_main), Res.drawable.person_24dp) {
+                profilePhotoActions.onSetMain(messageId)
+            }.takeIf { canSetMain },
+        ),
+        listOfNotNull(
+            MenuAction(stringResource(Res.string.media_profile_photo_report), Res.drawable.flag_24dp) {
+                profilePhotoActions.onReport(messageId)
+            }.takeIf { reportable },
+        ),
+        // Smazání zvlášť: nevratné, nemá stát mezi častými akcemi.
+        listOfNotNull(
+            MenuAction(stringResource(Res.string.menu_delete), Res.drawable.delete_24dp, destructive = true) {
+                itemActions.onDelete(messageId)
+            }.takeIf { canDelete },
+            MenuAction(stringResource(Res.string.media_profile_photo_delete), Res.drawable.delete_24dp, destructive = true) {
+                profilePhotoActions.onDelete(messageId)
+            }.takeIf { own },
+        ),
+    )
+}
+
+@Composable
+private fun copyLabel(item: ViewerItem): String =
+    stringResource(if (item.media is MessageMedia.Video) Res.string.media_copy_video else Res.string.media_copy_photo)
+
+/** Desktop galerii nemá a ukládá do Stažených; popisek to musí říct. */
+@Composable
+private fun saveLabel(): String =
+    stringResource(if (autosavesToGallery) Res.string.media_save else Res.string.media_save_downloads)
 
 /** Indikátor na místě tlačítka, dokud jeho akce běží. */
 @Composable
@@ -1547,6 +1638,9 @@ private const val CHOSEN_ALPHA = 0.22f
 
 /** Datum pod jménem je druhotné. */
 private const val SECONDARY_ALPHA = 0.75f
+
+/** Nabídka u kurzoru: pro které médium a kde se pustilo pravé tlačítko (souřadnice prohlížeče). */
+private class ViewerContextMenu(val messageId: Long, val at: Offset)
 
 /**
  * Co jde udělat s položkou prohlížeče — v liště nahoře, v nabídce ⋮ a v pruhu reakcí. Akce

@@ -60,7 +60,7 @@ class MediaCarouselPage internal constructor(
  *
  * Co carousel dělá:
  * - **sousední snímky vykukují u okrajů** (`contentPadding`), na širokém displeji má stránka
- *   strop [MAX_PAGE_WIDTH] a sousedé dostanou zbytek,
+ *   strop ([MAX_PAGE_WIDTH], na vysoké ploše podle výšky) a sousedé dostanou zbytek,
  * - **rozostřené pozadí jezdí s tahem pod prstem** — kreslí se pozadí aktuální stránky i sousedů
  *   vedle sebe, posunutá o průběh pageru; šev mezi nimi změkčí rozostření samo,
  * - [immersion] (0 = galerie, 1 = celá obrazovka) sousedy i pozadí plynule schová — používá ho
@@ -89,8 +89,14 @@ fun MediaCarousel(
     BoxWithConstraints(modifier) {
         MediaBackdrop(pagerState, pageKey, immersion, backdrop, Modifier.fillMaxSize().then(backdropModifier))
 
-        // Na širokém displeji má stránka strop, jinak by sousedé leželi daleko za okrajem.
-        val galleryInset = max(PAGE_INSET, (maxWidth - MAX_PAGE_WIDTH) / 2)
+        /*
+         * Na širokém displeji má stránka strop, jinak by sousedé leželi daleko za okrajem. Strop
+         * roste s výškou plochy: s pevnými 640 dp byla fotka na šířku ve velkém okně na monitoru
+         * vysoká kolem 360 dp a zbytek okna zůstal prázdný. Na telefonu (na výšku i na šířku)
+         * vyjde strop jako dřív.
+         */
+        val pageCap = max(MAX_PAGE_WIDTH, maxHeight * TALL_PAGE_ASPECT)
+        val galleryInset = max(PAGE_INSET, (maxWidth - pageCap) / 2)
         // Na širokém displeji je kolem karty místa dost a těsná mezera by z ní dělala stěnu.
         val galleryGap = if (galleryInset > PAGE_INSET) WIDE_PAGE_GAP else PAGE_GAP
         /*
@@ -253,8 +259,18 @@ val MEDIA_PAGE_VERTICAL_GAP = 8.dp
 private val PAGE_INSET = 32.dp
 private val PAGE_GAP = 8.dp
 
-/** Nejširší stránka. Širší displej (rozložený Fold, tablet) dostane po stranách víc souseda. */
+/**
+ * Nejširší stránka na nízké ploše. Širší displej dostane po stranách víc souseda; na vysoké
+ * ploše (okno na monitoru, tablet) strop roste s výškou ([TALL_PAGE_ASPECT]).
+ */
 private val MAX_PAGE_WIDTH = 640.dp
+
+/**
+ * Strop stránky jako násobek výšky plochy: 4 : 3, nejčastější poměr fotek z telefonu. Karta se
+ * vepisuje mezi lišty, takže fotka 4 : 3 je na výšku omezená dřív než stránkou a fotka 16 : 9
+ * vyplní šířku stránky. Širší strop by sousedy odsunul k samému kraji i vedle fotky na výšku.
+ */
+private const val TALL_PAGE_ASPECT = 4f / 3f
 
 /** Mezera mezi kartami, když je stránka zastropovaná a místa je dost. */
 private val WIDE_PAGE_GAP = 24.dp

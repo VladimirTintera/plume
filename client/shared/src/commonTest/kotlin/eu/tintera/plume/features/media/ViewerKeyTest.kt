@@ -81,9 +81,50 @@ class ViewerKeyTest {
         assertEquals(ViewerKey.PlayPause, key(Key.Spacebar, char = ' ', video = true))
         assertEquals(ViewerKey.ToggleFullscreen, key(Key.F, char = 'f', video = true))
         assertEquals(ViewerKey.ToggleMute, key(Key.M, char = 'm', video = true))
-        assertNull(key(Key.F, char = 'f'))
+        assertNull(key(Key.M, char = 'm'))
         assertNull(key(Key.F, ctrl = true, video = true))
         assertNull(key(Key.Spacebar, meta = true, video = true))
+    }
+
+    /** F přepíná celou obrazovku i u fotky, podle klávesy (na azbuce je tam „а"). */
+    @Test
+    fun fCelaObrazovkaIUFotky() {
+        assertEquals(ViewerKey.ToggleFullscreen, key(Key.F, char = 'f'))
+        assertEquals(ViewerKey.ToggleFullscreen, key(Key.F, char = 'а'))
+        assertNull(key(Key.F, shift = true))
+    }
+
+    /** PageUp/PageDown listují, Home/End na kraj; logicky, takže v RTL stejně. */
+    @Test
+    fun strankovaciKlavesy() {
+        for (rtl in listOf(false, true)) {
+            assertEquals(ViewerKey.Previous, key(Key.PageUp, rtl = rtl))
+            assertEquals(ViewerKey.Next, key(Key.PageDown, rtl = rtl))
+            assertEquals(ViewerKey.First, key(Key.MoveHome, rtl = rtl))
+            assertEquals(ViewerKey.Last, key(Key.MoveEnd, rtl = rtl))
+        }
+        assertNull(key(Key.MoveHome, ctrl = true))
+        assertNull(key(Key.PageDown, alt = true))
+    }
+
+    /** Ctrl+S i ⌘S ukládají; samotné S a s dalším modifikátorem nic. */
+    @Test
+    fun ctrlSUklada() {
+        assertEquals(ViewerKey.Save, key(Key.S, char = 's', ctrl = true))
+        assertEquals(ViewerKey.Save, key(Key.S, char = 's', meta = true))
+        assertNull(key(Key.S, char = 's'))
+        assertNull(key(Key.S, ctrl = true, shift = true))
+        assertNull(key(Key.S, ctrl = true, meta = true))
+    }
+
+    /** Delete maže, na macOS ⌘⌫; Backspace sám ani s Ctrl ne. */
+    @Test
+    fun deleteMaze() {
+        assertEquals(ViewerKey.Delete, key(Key.Delete))
+        assertEquals(ViewerKey.Delete, key(Key.Backspace, meta = true))
+        assertNull(key(Key.Backspace))
+        assertNull(key(Key.Backspace, ctrl = true))
+        assertNull(key(Key.Delete, shift = true))
     }
 
     /** Hrající video na celé obrazovce: šipky posouvají, doleva zpět i v RTL. */
