@@ -202,7 +202,8 @@ actual fun ContentDropArea(modifier: Modifier, content: @Composable BoxScope.() 
                 false
             }.dragAndDropTarget(
                 shouldStartDragAndDrop = { event ->
-                    slot.target?.value?.acceptsAny == true && event.dragData() is DragData.FilesList
+                    // Tah přílohy z vlastního okna ven (`fileDragSource`) se sem přiložit nemá.
+                    !OutgoingFileDrag.active && slot.target?.value?.acceptsAny == true && event.dragData() is DragData.FilesList
                 },
                 target = dropTarget,
             ),

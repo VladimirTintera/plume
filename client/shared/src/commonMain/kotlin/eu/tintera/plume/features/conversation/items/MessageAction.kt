@@ -310,6 +310,16 @@ sealed interface MessageAction {
      */
     data class OpenStory(val posterChatId: Long, val storyId: Int) : MessageAction
     data object CancelUpload : MessageAction
+
+    /**
+     * Stáhnout video zprávy (tlačítko v rohu náhledu) — do seznamu Stahování, jako soubor. Video
+     * se jinak přehrává proudem a na disku celé není; stažené jde přehrát bez sítě a vytáhnout
+     * z okna ven.
+     */
+    data object DownloadVideo : MessageAction
+
+    /** Zrušit stahování videa z [DownloadVideo] — totéž tlačítko s průběhem. */
+    data object CancelVideoDownload : MessageAction
     data object ToggleVoice : MessageAction
 
     /** Ťuknutí na video kolečko: pustí ho se zvukem od začátku, podruhé zvuk vypne. */

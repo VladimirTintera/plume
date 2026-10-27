@@ -213,7 +213,7 @@ private fun AlbumTile(
                         }
                     },
                     onLongClick = onRequestMenu,
-                ),
+                ).mediaDragOut(messageId, media.fullFileId, fallbackFileId = media.fileId, enabled = revealed && !uploading),
             ) {
                 RemoteImage(
                     fileId = media.fileId,
@@ -261,7 +261,7 @@ private fun AlbumTile(
                         }
                     },
                     onLongClick = onRequestMenu,
-                ),
+                ).mediaDragOut(messageId, media.fileId, enabled = revealed && !uploading),
             )
         }
 

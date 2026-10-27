@@ -2157,6 +2157,8 @@ class ConversationViewModel(
             is MessageAction.OpenArticleDocument -> documents.openArticleDocument(messageId, action.index)
             MessageAction.OpenDocument -> documents.openDocument(messageId)
             MessageAction.CancelUpload -> messageActions.cancelUpload(messageId)
+            MessageAction.DownloadVideo -> documents.downloadVideo(messageId)
+            MessageAction.CancelVideoDownload -> documents.cancelVideoDownload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
             is MessageAction.OpenStory -> links.openStory(StoryTarget(action.posterChatId, action.storyId))
             MessageAction.ToggleVoice -> playback.toggleVoice(messageId)

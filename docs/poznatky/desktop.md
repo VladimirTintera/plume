@@ -691,6 +691,36 @@ taky. Ven teď vede schránka a „Uložit jako…" (`MediaSharer.copy`, `fileSh
 - **Ověřit na Windows a macOS rukou**: vložení do Průzkumníka/Finderu, do Malování/Náhledu
   a do webové aplikace; Android vložení fotky do Zpráv. iOS je napsaný, ne přeložený.
 
+### Přetažení přílohy z okna ven
+
+Fotku, video, soubor i dlaždici alba v konverzaci jde myší vytáhnout do Průzkumníka, Finderu
+nebo jiné aplikace (`fileDragSource` v `core/ui`, `mediaDragOut` a `LocalMediaDragOut`
+v `features/conversation/items`, testy `DraggedFileTest`).
+
+- **Tah startuje Compose `dragAndDropSource`**: na desktopu levé tlačítko po překročení slopu.
+  Konzumuje pohyb, takže tah nad přílohou nezaloží výběr textu v bublině; nad textem dál vybírá.
+  **V prohlížeči médií tah není** — tah myší tam posouvá přiblíženou fotku a svislý zavírá,
+  ven vede Kopírovat a Uložit.
+- **Táhne se jen soubor, který už je na disku.** Data tahu se skládají synchronně při jeho
+  začátku, takže čekat na stažení nejde; stav se sleduje `FileRepository.observe`, ne `file`
+  (to by kvůli bublině stáhlo každý soubor v chatu). Fotka bere ostrou verzi, a není-li
+  stažená, tu z bubliny. Nestažený soubor tah nemá a pohyb propadne dál.
+- **Pod čitelným jménem jako tvrdý odkaz** (`Files.createLink`) v `%TEMP%/plume-drag/<tah>/`.
+  Kopírovat nejde — tah běží na hlavním vlákně a video má stovky MB. Odkaz je okamžitý, ale
+  je to TENTÝŽ soubor: cíl, který ho otevře a uloží na místě (místo kopie), by změnil soubor
+  v úložišti TDLib. Průzkumník i Finder kopírují. Kde odkaz nejde (jiný svazek), táhne se soubor
+  z TDLib pod jeho jménem. Každý tah má vlastní adresář, starší se mažou při dalším — cíl může
+  soubor kopírovat ještě po puštění.
+- **Jen kopírování** (`DragAndDropTransferAction.Copy`), přesun by smazal zdroj.
+- **Vlastní okno tah nepřijme** (`OutgoingFileDrag` v `ContentDropArea`): konverzace bere
+  puštěné soubory jako přílohu, takže by se při každém tahu ven rozsvítila výzva k puštění
+  a puštění zpátky by soubor přiložilo. Příznak shazuje `onTransferCompleted` (AWT
+  `exportDone`, chodí i při zrušeném tahu).
+- **Kdy ne**: chat s chráněným obsahem (`protectsContent`, tatáž podmínka jako výběr textu),
+  mizející médium, ještě neodkrytý spoiler, nahrávaná zpráva. Ostatní (anketa, reklama, článek) tah
+  nemá, protože `LocalMediaDragOut` poskytuje jen seznam zpráv.
+- **Ověřené jen testy a překladem** — tah do Průzkumníka a Finderu rukou ověřený není.
+
 ## Pravé tlačítko myši = podržení
 
 Podržení (`onLongClick`) otevírá v aplikaci nabídky — zpráva, chat, složka, téma, samolepka,

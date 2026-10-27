@@ -79,6 +79,10 @@ import androidx.compose.foundation.layout.Spacer
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.ui.fileSizeText
+import eu.tintera.plume.core.ui.rememberFileState
+import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.resources.check_circle_filled_24dp
+import eu.tintera.plume.resources.media_video_downloaded
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.content_expired_photo
 import eu.tintera.plume.resources.content_expired_video
@@ -184,6 +188,14 @@ internal fun MessageAttachment(
                                     }
                                 },
                                 onLongClick = onRequestMenu,
+                            )
+                            // Myší ven do složky (desktop): ostrá verze, a není-li stažená, ta z bubliny.
+                            // Mizející a zakrytá fotka ne — tah by obešel, co skrytí chrání.
+                            .mediaDragOut(
+                                messageId = messageId,
+                                fileId = media.fullFileId,
+                                fallbackFileId = media.fileId,
+                                enabled = !isSelfDestruct && revealed && !file.uploading,
                             ),
                     ) {
                         RemoteImage(
@@ -364,7 +376,8 @@ internal fun MessageAttachment(
                                     }
                                 },
                                 onLongClick = onRequestMenu,
-                            ),
+                            )
+                            .mediaDragOut(messageId, media.fileId, enabled = !isSelfDestruct && revealed && !file.uploading),
                     )
                 }
             }
@@ -681,6 +694,11 @@ internal data class EmojiPlay(
  * průběh nahrávání se zrušením) a vlevo dole délka. Přehrává se až v prohlížeči — v bublině by
  * se video pralo se scrollem a swipem na odpověď.
  *
+ * V konverzaci ([LocalVideoDownload]) je vpravo nahoře stažení ([VideoDownloadButton]) a štítek
+ * říká, jestli je video na disku: nestažené má za délkou velikost, stažené před ní fajfku. Stav
+ * se jen sleduje (`observe`) — zjišťovat ho nesmí nic stahovat. Přehrát jde i nestažené (proud
+ * v prohlížeči); stažené jde přehrát bez sítě a vytáhnout z okna ven.
+ *
  * Náhled nese sdílený prvek `photoKey`, stejně jako fotka: v prohlížeči z něj video vyrůstá.
  */
 @Composable
@@ -697,6 +715,10 @@ internal fun VideoThumbnail(
 ) {
     val spoilerStyle = rememberSpoilerBlurStyle()
     val shouldBlur = isSelfDestruct || (video.hasSpoiler && !revealed)
+    // Mizející a zakryté video se nestahuje: tlačítko by obešlo, co skrytí chrání.
+    val download = LocalVideoDownload.current?.takeIf { !uploading && !isSelfDestruct && revealed && !video.isSecret }
+    val file = rememberFileState(video.fileId.takeIf { download != null }, download = false)
+    val downloaded = download != null && file is FileState.Ready
     Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
         video.thumbnailFileId?.let { thumbnail ->
             RemoteImage(
@@ -740,18 +762,41 @@ internal fun VideoThumbnail(
         if (!isSelfDestruct && revealed && !video.isSecret) {
             WatchedBar(video, Modifier.align(Alignment.BottomStart))
         }
+        if (download != null && !downloaded) {
+            VideoDownloadButton(
+                file = file,
+                onDownload = { download.onDownload(messageId) },
+                onCancel = { download.onCancel(messageId) },
+                modifier = Modifier.align(Alignment.TopEnd),
+            )
+        }
         if (!isSelfDestruct && revealed) {
+            val downloadedLabel = stringResource(Res.string.media_video_downloaded)
             Surface(
                 shape = ShapeDefaults.Small,
                 color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
                 contentColor = Color.White,
                 modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
             ) {
-                Text(
-                    text = formatDuration(video.durationSeconds),
-                    style = MaterialTheme.typography.labelSmall,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                )
+                ) {
+                    if (downloaded) {
+                        Icon(
+                            painterResource(Res.drawable.check_circle_filled_24dp),
+                            contentDescription = downloadedLabel,
+                            modifier = Modifier.size(12.dp),
+                        )
+                    }
+                    // Nestažené: kolik dat stažení stojí, jako u souboru.
+                    val size = if (download != null && !downloaded && video.sizeBytes > 0) fileSizeText(video.sizeBytes) else null
+                    Text(
+                        text = listOfNotNull(formatDuration(video.durationSeconds), size).joinToString(" · "),
+                        style = MaterialTheme.typography.labelSmall.tabularNumbers(),
+                    )
+                }
             }
         }
     }
@@ -816,6 +861,7 @@ private fun DocumentContent(
                 onLongClick = onRequestMenu,
                 onClickLabel = stringResource(Res.string.document_open),
             )
+            .mediaDragOut(messageId, document.fileId, originalName = document.fileName, enabled = !uploading)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -897,7 +943,8 @@ private fun LargeDocumentPreview(
                     onClick = onOpen,
                     onLongClick = onRequestMenu,
                     onClickLabel = stringResource(Res.string.document_open),
-                ),
+                )
+                .mediaDragOut(messageId, document.fileId, originalName = document.fileName, enabled = !uploading),
             contentAlignment = Alignment.Center,
         ) {
             val original = document.loadsOriginalPreview(LocalAutoDownload.current.maxFileBytes)
