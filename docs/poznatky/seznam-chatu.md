@@ -750,8 +750,24 @@ všemi známými chaty (`all` v `TdlChatRepository`), ne nad jednou složkou.
   „všechno odesláno" a zavírá se, aby nezůstal slepou uličkou. Ověřeno přeinstalací s otevřeným
   sheetem.
 - **Jen chaty, které TDLib zná.** Koncept v chatu, který se v relaci ještě nenačetl (hluboko
-  v archivu), v přehledu není, dokud ho seznam nedotáhne. Koncepty ve vláknech komentářů tu
-  nejsou — TDLib je nehlásí žádným updatem, který by šel sbírat.
+  v archivu), v přehledu není, dokud ho seznam nedotáhne.
+- **Koncepty ve vláknech komentářů jsou v přehledu z EVIDENCE, ne z updatů** (`CommentDrafts`,
+  `ThreadDrafts`/`TdlThreadDrafts`, testy `CommentDraftsTest`). TDLib koncept vlákna nehlásí
+  ničím (`UpdateChatDraftMessage` nese jen koncept celého chatu, `UpdateForumTopic` témata);
+  je jen v odpovědi `getMessageThread`. Plume si proto pamatuje vlákna, ve kterých koncept
+  psalo (`AppSettings.commentDraftThreads`, po účtech), a při čtení přehledu je ověří.
+  - **Zapisuje obal repository vlákna** (`CommentDraftTracking` kolem
+    `ThreadConversationRepository` v Koinu), ne ViewModel konverzace: koncept ukládá víc míst
+    (psaní, odeslání příloh) a všechna jdou přes `saveDraft`. Prázdný koncept vlákno zapomene.
+  - **Ověřuje se při změně evidence a při otevření přehledu** (`refreshCommentDrafts`).
+    Vlákno bez konceptu (odeslaný, smazaný jinde) z evidence vypadne, chyba čtení (bez sítě)
+    ho tam nechá na příště.
+  - **Koncept psaný jen na jiném zařízení ve vlákně, které Plume neotevřelo, v přehledu není** —
+    zjistit to jde jen projitím všech vláken všech kanálů.
+  - Řádek nese pod diskusní skupinou „Komentář k: <příspěvek>" (kořen vlákna z
+    `MessageThreadInfo.messages`, nejstarší zpráva). Ťuknutí otevře vlákno místo konverzace
+    (`openCommentThread`, kanál pod ním není); mazání a „Vrátit" jako u témat, hromadné smazání
+    dočistí vlákna po jednom.
 - **Koncepty v tématech skupin jsou v přehledu taky** (`TopicDrafts`, `TdlTopicDrafts`), pod
   názvem skupiny s řádkem „# Téma" a ťuknutí otevře přímo téma (pod ním seznam témat, jako
   u nalezené zprávy). `Chat.draftMessage` nese jen koncept celého chatu; koncept tématu je

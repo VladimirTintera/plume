@@ -241,6 +241,8 @@
     <string name="spam_report_confirm">Report</string>
     <string name="chats_draft_delete">Delete draft</string>
     <string name="chats_draft_deleted">Draft deleted</string>
+    <string name="drafts_comments">Comments</string>
+    <string name="drafts_comment_on">Comment on: %1$s</string>
     <string name="chats_drafts">Drafts</string>
     <string name="chats_drafts_delete_all">Delete all</string>
     <string name="chats_drafts_delete_all_title">Delete all drafts?</string>

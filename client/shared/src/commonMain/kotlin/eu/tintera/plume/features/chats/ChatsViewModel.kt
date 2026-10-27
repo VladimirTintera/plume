@@ -13,6 +13,8 @@ import kotlinx.datetime.todayIn
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.core.telegram.ChatDraft
 import eu.tintera.plume.core.telegram.TopicDrafts
+import eu.tintera.plume.core.drafts.CommentDrafts
+import kotlinx.coroutines.flow.onStart
 import eu.tintera.plume.core.telegram.AccountRepository
 import kotlin.time.Duration
 import co.touchlab.kermit.Logger
@@ -103,6 +105,8 @@ class ChatsViewModel(
     private val folderRepository: ChatFolderRepository? = null,
     /** Koncepty v tématech skupin do přehledu konceptů; bez nich jen koncepty chatů. */
     private val topicDrafts: TopicDrafts? = null,
+    /** Koncepty ve vláknech komentářů do přehledu konceptů ([CommentDrafts]). */
+    private val commentDrafts: CommentDrafts? = null,
     /** Odložení chatů; bez něj se „Odložit" nenabízí. */
     private val snoozes: ChatSnoozes? = null,
     /** Barvy konverzací; bez nich mají všechny odznaky barvu aplikace. */
@@ -453,11 +457,18 @@ class ChatsViewModel(
     val drafts: StateFlow<List<DraftItem>?> = combine(
         repository.drafts,
         topicDrafts?.drafts ?: flowOf(emptyList()),
-    ) { chats, topics ->
+        commentDrafts?.drafts?.onStart { emit(emptyList()) } ?: flowOf(emptyList()),
+    ) { chats, topics, comments ->
         (chats.mapNotNull { chat -> chat.draft?.let { DraftItem(chat, topic = null, draft = it) } } +
-            topics.map { DraftItem(it.chat, DraftTopic(it.topicId, it.topicName), it.draft) })
+            topics.map { DraftItem(it.chat, DraftTopic(it.topicId, it.topicName), it.draft) } +
+            comments.map { DraftItem(it.chat, topic = null, draft = it.draft, thread = DraftThread(it.threadId, it.post)) })
             .sortedByDescending { it.draft.timestamp }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Otevření přehledu konceptů: koncepty ve vláknech se znovu ověří (TDLib je nehlásí). */
+    fun refreshCommentDrafts() {
+        commentDrafts?.refresh()
+    }
 
     /** Záložky přihlášeného účtu ze všech chatů, nejnovější první. */
     val allBookmarks: StateFlow<List<MessageBookmark>> = (bookmarks?.all ?: flowOf(emptyList()))
@@ -494,10 +505,11 @@ class ChatsViewModel(
         val chatId = item.chat.id
         viewModelScope.launch {
             val topicId = item.topic?.id
-            val deleted = if (topicId == null) {
-                repository.deleteDraft(chatId)
-            } else {
-                topicDrafts?.delete(chatId, topicId) ?: Result.success(null)
+            val threadId = item.thread?.id
+            val deleted = when {
+                threadId != null -> commentDrafts?.delete(chatId, threadId) ?: Result.success(null)
+                topicId != null -> topicDrafts?.delete(chatId, topicId) ?: Result.success(null)
+                else -> repository.deleteDraft(chatId)
             }
             val restore = deleted
                 .onFailure {
@@ -523,6 +535,10 @@ class ChatsViewModel(
             }
             items.mapNotNull { item -> item.topic?.let { item.chat.id to it.id } }.forEach { (chatId, topicId) ->
                 topicDrafts?.delete(chatId, topicId)?.onFailure { logger.w(it) { "Koncept v tématu $topicId se nesmazal." } }
+            }
+            // Koncepty ve vláknech komentářů taky po jednom, ze stejného důvodu jako témata.
+            items.mapNotNull { item -> item.thread?.let { item.chat.id to it.id } }.forEach { (chatId, threadId) ->
+                commentDrafts?.delete(chatId, threadId)?.onFailure { logger.w(it) { "Koncept ve vlákně $threadId se nesmazal." } }
             }
         }
     }
@@ -1273,10 +1289,21 @@ data class NewFolderChats(
  */
 class DraftDeleted(val chatId: Long, val restore: DraftRestore?)
 
-/** Položka přehledu konceptů: koncept celého chatu ([topic] `null`), nebo tématu ve skupině. */
-data class DraftItem(val chat: ChatSummary, val topic: DraftTopic?, val draft: ChatDraft) {
-    /** Klíč do seznamu: chat i téma, jeden chat může mít koncepty ve víc tématech. */
-    val key: String get() = "${chat.id}:${topic?.id ?: ""}"
+/**
+ * Položka přehledu konceptů: koncept celého chatu ([topic] i [thread] `null`), tématu ve skupině,
+ * nebo vlákna komentářů v diskusní skupině [chat].
+ */
+data class DraftItem(
+    val chat: ChatSummary,
+    val topic: DraftTopic?,
+    val draft: ChatDraft,
+    val thread: DraftThread? = null,
+) {
+    /** Klíč do seznamu: chat, téma i vlákno, jeden chat může mít koncepty ve víc tématech a vláknech. */
+    val key: String get() = "${chat.id}:${topic?.id ?: ""}:${thread?.id ?: ""}"
 }
 
 data class DraftTopic(val id: Int, val name: String)
+
+/** Vlákno komentářů s konceptem: kořen vlákna a náhled příspěvku, ke kterému patří. */
+data class DraftThread(val id: Long, val post: UiText?)

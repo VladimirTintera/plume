@@ -69,6 +69,10 @@ open class UnimplementedAppSettings : AppSettings {
     override suspend fun setAutoDownloadSync(state: SettingsSync): Unit = error("setAutoDownloadSync")
     override val messageBookmarks: StateFlow<List<MessageBookmark>> get() = error("messageBookmarks")
     override fun setMessageBookmarks(bookmarks: List<MessageBookmark>): Unit = error("setMessageBookmarks")
+    override val commentDraftThreads: StateFlow<List<eu.tintera.plume.core.drafts.CommentDraftThread>>
+        get() = error("commentDraftThreads")
+    override fun setCommentDraftThreads(threads: List<eu.tintera.plume.core.drafts.CommentDraftThread>): Unit =
+        error("setCommentDraftThreads")
     override val chatSnoozes: StateFlow<List<ChatSnooze>> get() = error("chatSnoozes")
     override val videoPositions: StateFlow<List<VideoPosition>> get() = error("videoPositions")
     override fun updateVideoPositions(transform: (List<VideoPosition>) -> List<VideoPosition>): Unit = error("updateVideoPositions")

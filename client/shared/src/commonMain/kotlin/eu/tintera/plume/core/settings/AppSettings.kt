@@ -2,6 +2,7 @@ package eu.tintera.plume.core.settings
 
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
+import eu.tintera.plume.core.drafts.CommentDraftThread
 import eu.tintera.plume.core.snooze.ChatSnooze
 import eu.tintera.plume.core.video.VideoPosition
 import eu.tintera.plume.core.chatcolor.StoredChatColor
@@ -196,6 +197,15 @@ interface AppSettings {
 
     /** Uloží záložky. Neblokuje. */
     fun setMessageBookmarks(bookmarks: List<MessageBookmark>)
+
+    /**
+     * Vlákna komentářů, ve kterých se psal koncept, všech účtů; spravuje je
+     * [eu.tintera.plume.core.drafts.CommentDrafts] (TDLib koncepty vláken nehlásí).
+     */
+    val commentDraftThreads: StateFlow<List<CommentDraftThread>>
+
+    /** Uloží vlákna s konceptem. Neblokuje. */
+    fun setCommentDraftThreads(threads: List<CommentDraftThread>)
 
     /** Odložené chaty všech účtů; filtruje a spravuje je [eu.tintera.plume.core.snooze.ChatSnoozes]. */
     val chatSnoozes: StateFlow<List<ChatSnooze>>
@@ -748,6 +758,24 @@ class DataStoreAppSettings(
         }
     }
 
+    override val commentDraftThreads: StateFlow<List<CommentDraftThread>> = value(emptyList()) { preferences ->
+        preferences[COMMENT_DRAFT_THREADS]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<CommentDraftThread>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setCommentDraftThreads(threads: List<CommentDraftThread>) {
+        scope.launch {
+            edit { preferences ->
+                if (threads.isEmpty()) {
+                    preferences.remove(COMMENT_DRAFT_THREADS)
+                } else {
+                    preferences[COMMENT_DRAFT_THREADS] = storedListJson.encodeToString(threads)
+                }
+            }
+        }
+    }
+
     override val storedTranscripts: StateFlow<List<StoredTranscript>> = value(emptyList()) { preferences ->
         preferences[STORED_TRANSCRIPTS]?.let { stored ->
             runCatching { storedListJson.decodeFromString<List<StoredTranscript>>(stored) }.getOrNull()
@@ -1230,6 +1258,7 @@ class DataStoreAppSettings(
         val AUTO_DOWNLOAD_SYNC = stringPreferencesKey("auto_download_sync")
         val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
         val MESSAGE_BOOKMARKS = stringPreferencesKey("message_bookmarks")
+        val COMMENT_DRAFT_THREADS = stringPreferencesKey("comment_draft_threads")
         val CHAT_SNOOZES = stringPreferencesKey("chat_snoozes")
         val VIDEO_POSITIONS = stringPreferencesKey("video_positions")
         val CHAT_COLORS = stringPreferencesKey("chat_colors")

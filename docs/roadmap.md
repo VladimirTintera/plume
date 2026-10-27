@@ -1648,8 +1648,9 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   zbývá iOS (`UIDropInteraction`). ~~Seznam zkratek v systémovém přehledu (Meta+/)~~ — hotovo.
 - ~~**Přehled rozepsaných konceptů**~~ — hotovo (menu účtu → Koncepty;
   `docs/poznatky/seznam-chatu.md`, „Přehled konceptů"). ~~Smazání konceptu přímo z přehledu~~ —
-  hotovo (koš a „Vrátit"). ~~Koncepty v tématech fóra~~ — hotovo. Zbývá: koncepty ve vláknech
-  komentářů (TDLib je nehlásí updatem, musely by se hledat jinak).
+  hotovo (koš a „Vrátit"). ~~Koncepty v tématech fóra~~ — hotovo. ~~Koncepty ve vláknech
+  komentářů~~ — hotovo z evidence vláken, kde koncept vznikl (`docs/poznatky/seznam-chatu.md`,
+  „Přehled konceptů"); koncept psaný jen na jiném zařízení v neotevřeném vlákně chybí.
 - ~~**Lokální odložení chatu (Snooze)**~~ — hotovo z nabídky nad chatem (`docs/poznatky/seznam-chatu.md`,
   „Odložení chatu"). ~~Odložení tahem~~ a ~~upozornění v čase vynoření~~ — hotovo. Zbývá iOS
   ověřit (lokální notifikace i tah).

@@ -33,6 +33,8 @@ import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.features.profile.ProfileTabRequests
 import eu.tintera.plume.features.conversation.ChatSwitcher
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
+import eu.tintera.plume.core.drafts.CommentDraftTracking
+import eu.tintera.plume.core.drafts.CommentDrafts
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.video.VideoPositions
 import eu.tintera.plume.core.chatcolor.ChatColors
@@ -272,6 +274,7 @@ fun appModule() = module {
     single { ExchangeRates(TextDownloader()) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
+    single { CommentDrafts(settings = get(), chats = get(), threads = get()) }
     single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
     single { VideoPositions(settings = get()) }
     single { ChatColors(settings = get(), chats = get()) }
@@ -320,6 +323,7 @@ fun appModule() = module {
             savedState = get(),
             folderRepository = get(),
             topicDrafts = get(),
+            commentDrafts = get(),
             snoozes = get(),
             chatColorStore = get(),
             naturalSearch = get(),
@@ -448,7 +452,12 @@ fun appModule() = module {
             savedTopicId = savedTopicId,
             directTopicId = directTopicId,
             repository = when {
-                threadRootId != null -> ThreadConversationRepository(delegate = get(), rootMessageId = threadRootId)
+                // Koncept vlákna se hlásí evidenci přehledu konceptů — TDLib ho nehlásí (`CommentDrafts`).
+                threadRootId != null -> CommentDraftTracking(
+                    delegate = ThreadConversationRepository(delegate = get(), rootMessageId = threadRootId),
+                    threadId = threadRootId,
+                    drafts = get(),
+                )
                 forumTopicId != null -> get<ConversationRepository>().inForumTopic(forumTopicId)
                 savedTopicId != null -> get<ConversationRepository>().inSavedTopic(savedTopicId)
                 directTopicId != null -> get<ConversationRepository>().inDirectTopic(directTopicId)
