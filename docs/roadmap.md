@@ -177,6 +177,19 @@ Android je napřed; tohle je, čím se to dorovnává.
   (AltStore PAL) chtějí stejný účet i notarizaci, takže nic neušetří; stažení z webu je jen pro
   vývojáře s milionem instalací. Bez poplatku by šla nepodepsaná IPA instalovaná přes
   SideStore / AltStore (podpis uživatelovým Apple ID na 7 dní), ovšem bez push notifikací.
+- **Rozmazané přiblížení a nejspíš zubaté zmenšování fotek** (prohlížeč médií). iOS jede přes
+  týž kód Coilu jako desktop (`nonAndroidMain`, výchozí `SkiaImageDecoder` zmenšuje nejbližším
+  sousedem), ale opravu desktopu nemá: `zoomLoadsFullResolution` je v `ZoomResolution.ios.kt`
+  `false`, takže přiblížení až 5× roztahuje obrázek velký jako karta, a vlastní dekodér
+  (`SmoothSkiaImageDecoder`, `SmoothImage` v `jvmMain/…/core/ui/DesktopImageLoader.kt`) se
+  zapojuje jen z `desktopApp` `Main.kt`. Skia je na iOS taky (Skiko), takže by dekodér nejspíš
+  šel přesunout do `nonDynamicThemeMain` (iOS + JVM) a zapojit i ve vstupním bodě iOS; testy
+  `SmoothSkiaImageDecoderTest` a `SmoothImageTest` jsou dnes v `jvmTest`. Mechanismus
+  a pasti (proč `filterQuality` nepomůže, proč `SmoothImage` místo `BitmapImage`):
+  `docs/poznatky/desktop.md`, „Zubaté a rozmazané obrázky (Coil na Skie)". Napřed **ověřit na
+  simulátoru nebo iPhonu**, že problém na iOS opravdu je (písmo na letáku, hrany při zmenšení,
+  detail při přiblížení), pak opravit a ověřit tamtéž. Zjištěno čtením kódu při práci na
+  prohlížeči médií (říjen 2026), na iOS nevyzkoušené.
 - **Release link do CI jako samostatný cachovaný krok.** Kotlin/Native pouští LTO nad celou
   statickou TDLib a naměřeno je 15+ minut na M-series; do smyčky, kterou čeká vývojář, to nepatří.
 
