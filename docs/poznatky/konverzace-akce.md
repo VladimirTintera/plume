@@ -833,6 +833,13 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
   a holé `ListItem`y na pozadí, tedy dva vzhledy pro „seznam věcí" v jedné aplikaci.
 - **Prázdný výsledek je `IntroEmptyState`**, jako u hledání v chatech a prázdného archivu.
 - **Během odesílání se seznam nedá ťuknout podruhé** — dvě ťuknutí by poslala zprávu dvakrát.
+- **Po částečném selhání zůstanou vybrané jen cíle, kam zpráva nedorazila** (`ForwardViewModel.send`,
+  testy `ForwardRetryTest`). Dřív zůstal výběr celý a další „Odeslat" poslal zprávu podruhé i tam,
+  kde už byla — tatáž past jako dvojí ťuknutí, jen přes chybu. Hláška jmenuje první nedoručený
+  chat a ostatní počtem („Zpráva nedorazila do: Jana a 2 dalších chatů. Ostatním odešla, znovu se
+  pošle jen tam."); víc jmen za sebou by se do snackbaru nevešlo. Uložené zprávy se jmenují
+  přeloženě (v TDLib nesou jméno účtu). Když neodešlo nic, zůstává obecná věta a výběr se nemění;
+  jako použité (Direct Share) se hlásí jen chaty, kam zpráva dorazila.
 - **Výchozí je přeposlání, kopie je volba** — přepínací tlačítka pod hledáním: „Skrýt
   odesílatele" (`sendCopy`, v cíli není „Přeposláno od …") a s ním „Skrýt popisky"
   (`removeCaption`). Pravidlo je čistá funkce `ForwardOptions.allowedBy` (testy

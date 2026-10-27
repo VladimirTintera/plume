@@ -2,7 +2,6 @@ package eu.tintera.plume.features.forward
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -13,6 +12,9 @@ import eu.tintera.plume.features.chats.ChatSearch
 import eu.tintera.plume.features.chats.pickerChats
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.forward_failed
+import eu.tintera.plume.resources.forward_failed_partial
+import eu.tintera.plume.resources.forward_failed_partial_more
+import eu.tintera.plume.resources.saved_messages
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,9 +35,12 @@ class ForwardViewModel(
     private val fromChatId: Long,
     private val messageIds: List<Long>,
     private val repository: ConversationRepository,
-    chatRepository: ChatRepository,
-    /** Přeposlání je taky „sem posílám" — cíl se nahlásí jako použitý (Direct Share). */
-    private val shareTargets: ShareTargets,
+    private val chatRepository: ChatRepository,
+    /**
+     * Přeposlání je taky „sem posílám" — cíl se nahlásí jako použitý (`ShareTargets.reportUsed`,
+     * Direct Share). Funkce, aby šla v testu nahradit — `ShareTargets` má závislosti na systému.
+     */
+    private val reportUsed: (chatId: Long) -> Unit,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -112,6 +117,10 @@ class ForwardViewModel(
      * Posílá se **postupně**, ne souběžně: pořadí zpráv v cílech tím zůstane dané a server
      * nedostane deset přeposlání naráz. Selhání jednoho cíle ostatní nezastaví — co odešlo,
      * odešlo, a chyba se ohlásí na konci.
+     *
+     * **Po selhání zůstanou vybrané jen cíle, kam zpráva nedorazila.** Dřív zůstal výběr celý
+     * a další „Odeslat" poslalo zprávu podruhé i tam, kde už byla. Hláška jmenuje, kam
+     * nedorazila ([failureText]), ať je vidět, čeho se opakování týká.
      */
     fun send(onDone: (chatId: Long) -> Unit) {
         val targets = _selected.value.toList()
@@ -120,18 +129,41 @@ class ForwardViewModel(
         _sending.value = true
 
         viewModelScope.launch {
-            var failed = false
+            val failed = mutableListOf<Long>()
             targets.forEach { target ->
                 repository.forward(fromChatId, messageIds, target, options)
-                    .onSuccess { shareTargets.reportUsed(target) }
-                    .onFailure { failed = true }
+                    .onSuccess { reportUsed(target) }
+                    .onFailure { failed += target }
             }
-            if (failed) {
-                _error.update { UiText(Res.string.forward_failed) }
-                _sending.value = false
-            } else {
+            if (failed.isEmpty()) {
                 onDone(targets.first())
+                return@launch
             }
+            _selected.value = targets.filter { it in failed }.toSet()
+            _error.value = failureText(failed, allFailed = failed.size == targets.size)
+            _sending.value = false
+        }
+    }
+
+    /**
+     * Hláška po selhání. Když neodešlo nic, stačí obecná věta — výběr se nezměnil. Když část
+     * odešla, jmenuje se první cíl, kam zpráva nedorazila, a ostatní počtem (jména víc chatů
+     * za sebou by se do snackbaru nevešla).
+     */
+    private suspend fun failureText(failed: List<Long>, allFailed: Boolean): UiText {
+        if (allFailed) return UiText(Res.string.forward_failed)
+        val first = failed.first()
+        val name = if (first == chatRepository.savedMessagesChatId.value) {
+            UiText(Res.string.saved_messages)
+        } else {
+            chatRepository.summaries(listOf(first)).firstOrNull()?.title?.let(UiText::Raw)
+                ?: return UiText(Res.string.forward_failed)
+        }
+        val others = failed.size - 1
+        return if (others == 0) {
+            UiText(Res.string.forward_failed_partial, name)
+        } else {
+            UiText(Res.plurals.forward_failed_partial_more, others, name, others)
         }
     }
 
