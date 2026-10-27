@@ -3,6 +3,23 @@
 Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
 v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
+## Skladba obrazovky
+
+Obrazovka je rozdělená do souborů v `features/chats`, nová logika patří do toho svého:
+
+- `ChatListScreen.kt` — obrazovka (hlavička, lišta složek, sheety), `ChatActionsHost`
+  (nabídka nad chatem, nahlášení, snackbary) a `ChatListContent` (seznam ve skupinách,
+  dotahování, prázdný stav, klávesové zkratky).
+- `ChatRow.kt` — řádek chatu a tah do strany (`SwipeableChat`, `ChatRow`, odznaky, odložení,
+  palety barev chatů).
+- `ChatListHeaderCards.kt` — karty nad seznamem (`ChatListCards` a `chatListHeaderCards`);
+  jejich počet (`count`) je `headerItemCount` seznamu, takže nová karta se přidává jen tam.
+- `AccountMenu.kt` — fotka účtu v pilulce a menu pod ní.
+- `ChatListFabMenu.kt` — FAB menu Vytvořit, závoj pod ním a FAB ve slotu lišty složek.
+
+Dřív to byl jeden soubor o 2 457 řádcích (funkce `ChatListScreen` sama ~680 řádků). Rozdělilo se
+dřív, než narazí na limit registrů jako kdysi `ConversationScreen` (viz CLAUDE.md, „Gotchas").
+
 ## Seznam chatů
 
 Položky nejsou samostatné karty, ale **skupiny se společným zaoblením** — vzor, kterým M3
