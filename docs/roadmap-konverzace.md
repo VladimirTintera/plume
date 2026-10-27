@@ -482,6 +482,31 @@ témat má věty se jmény jako seznam chatů (bez předpony „Jana:").
 - ~~**Kostka se sázkou**~~ — hotovo: animace hodu jako u kostky a pod ní vklad a výhra v TON
   (`docs/poznatky/emoji-samolepky-reakce.md`, „Kostka se sázkou"). Skutečnou sázkou neověřené.
 
+## Nápady z průchodu aplikací (27. 10. 2026)
+
+Konverzační část průchodu, který je jinak v [roadmap.md](roadmap.md) („Nápady z průchodu
+aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům. Velikost: S / M / L.
+
+- **Uložit cizí GIF do Uložených GIFů** z nabídky nad zprávou (S). `GifRepository.addSaved` už
+  je, volá ho jen výběr GIFů; nabídka umí „do oblíbených" jen u samolepky
+  (`ToggleFavoriteSticker` v `MessageAction.kt`). Dnes se GIF od kamaráda uložit nedá.
+- **Víc než 10 fotek naráz a „poslat jednotlivě"** (M). Výběr se usekne na
+  `MAX_ATTACHMENTS = 10` s hláškou; Telegram rozdělí výběr do víc alb a umí je poslat i bez
+  seskupení.
+- **Výsledky hledání v chatu jako seznam** (M) s úryvkem a datem, vedle šipek „N z M". Při
+  stovkách výsledků se šipkami nedá nic projít (`InChatSearchBar.kt`).
+- **Výběr víc zpráv tahem** (M), případně „vybrat až sem". Dnes ťuknutí na každou zprávu zvlášť
+  (`MessageFrame.kt`, vrstva výběru).
+- **Odpovědět v jiném chatu** (M) — `InputMessageReplyToExternalMessage`. Příchozí odpovědi
+  z jiného chatu Plume kreslí, poslat takovou neumí.
+- **Velikost písma štípnutím v konverzaci** (S–M), jako Google Messages. Dnes jen Nastavení →
+  Vzhled (`MessageTextSizeSetting.kt`).
+- **Čtečka obrazovky: předěly dnů jako nadpisy a ohlášení nové zprávy** (S). `DayDivider`
+  a `UnreadDivider` nemají `heading()` a příchozí zpráva v otevřeném chatu se neohlásí —
+  živou oblast má jen „píše…".
+
+---
+
 ## Co TDLib umí a Plume zatím ne (audit září 2026)
 
 Prošlo se všech 105 podtypů `MessageContent` v `tdl-coroutines 15.0.0`, pole `Message`,

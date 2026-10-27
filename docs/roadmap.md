@@ -1667,6 +1667,78 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
 
 ---
 
+## Nápady z průchodu aplikací (27. 10. 2026)
+
+Průchod seznamem chatů, Nastavením, profilem, médii, příběhy, hovory a notifikacemi proti
+oficiálnímu Telegramu a Google Messages; každý bod ověřený v kódu a proti tomuhle seznamu
+a poznatkům. Konverzace má vlastní část v [roadmap-konverzace.md](roadmap-konverzace.md)
+(„Nápady z průchodu aplikací"). Velikost: S = malé, M = střední, L = velké. Chyba z téhož
+průchodu (opakované přeposlání po částečném selhání) je opravená zvlášť.
+
+**Seznam chatů a složky**
+
+- **Výběr víc chatů: smazat / opustit, připnout, přidat do složky, vybrat vše** (M). Lišta
+  výběru umí jen archivovat, ztlumit a přečteno (`ChatSelectionBars.kt`); úklid víc chatů
+  znamená otevírat nabídku každého zvlášť.
+- **Nabídka nad záložkou složky a prázdná složka** (S). Podržení záložky nabízí jen „Označit vše
+  jako přečtené" (`ChatFolderToolbar.kt`); chybí Upravit, Přidat chaty, Ztlumit vše a Smazat.
+  Prázdná vlastní složka je slepá ulička bez tlačítka „Přidat chaty" (`ChatListScreen.kt`,
+  prázdný stav).
+- **„Vymazat historii" z nabídky nad chatem a „Vrátit" u smazání / opuštění** (S–M). Vymazání
+  historie jde jen z konverzace (`ClearHistorySheet` ve `features/conversation`); smazání
+  a opuštění mají jen potvrzovací dialog, archivace a blokování mají „Vrátit".
+- **Zástupce chatu na ploše** (S). `HomeScreenShortcuts` (Android) dnes slouží jen mini
+  aplikacím; Telegram nabízí „Přidat na plochu" u chatu i v profilu.
+
+**Nastavení a profil**
+
+- **Hledání v Nastavení** (M). Sekcí a voleb je přes sedm skupin s podstránkami; „Naposledy
+  viděn" nebo „Proxy" se hledá zkoušením.
+- **QR kód a systémové sdílení** veřejného chatu, uživatele a pozvánky (S–M). QR je jen pro
+  vlastní účet (`MyQrCodeSheet`), jinde jen „Kopírovat odkaz".
+- **Víc účtů** (L). Menu účtu jiný účet nenabízí; dotkne se klienta TDLib na účet, notifikací
+  i widgetu. Rozhodnutí, jestli vůbec, zatím nepadlo.
+
+**Přeposílání**
+
+- **Komentář, tiché odeslání a časté cíle ve výběru** (M). Hlavička výběru má jen skrytí
+  odesílatele a popisků (`ForwardScreen.kt`); časté cíle přeposílání vrací TDLib
+  (`getTopChats` s `TopChatCategoryForwardChats`, dnes se volá jen pro lidi).
+
+**Příběhy**
+
+- **Poslat dál, přeposlat a zkopírovat odkaz** (M). Nabídka ⋮ v prohlížeči příběhů nemá ani
+  jedno (`StoriesScreen.kt`); model příběhu nenese `canBeForwarded` / `canGetLink`
+  a `getStoryLink` se nevolá. Prohlížeč médií vedle to umí.
+- **Ztlumení videa, rozbalení dlouhého popisku a čtečka obrazovky** (S). Video hraje vždycky se
+  zvukem; popisek je uříznutý na 6 řádků (`CAPTION_LINES`); se zapnutou čtečkou fotka po 6 s
+  sama přeskočí a popis fotky (model v zařízení) u příběhů není.
+
+**Hovory a videochat**
+
+- **„Odmítnout se zprávou" a „Zavolat zpět"** (M). Příchozí hovor má jen Odmítnout a Přijmout
+  (`CallOverlay.kt`); zmeškaný hovor přijde jako obyčejná notifikace zprávy bez „Zavolat zpět".
+- **Výběr výstupu zvuku ve videochatu** (S). Hovor ve dvou ho má (`AudioOutputButton`),
+  videochat ne (`VideoChatScreen.kt`) — sluchátko / reproduktor / Bluetooth.
+- **Historie hovorů: smazat jeden hovor, sloučit opakované** (S–M). Dnes jen ⋮ → smazat vše
+  a pět zmeškaných od jednoho člověka je pět řádků.
+
+**Stahování**
+
+- **Otevřít soubor, ikona podle typu, datum, „Vrátit"** (S–M). Ťuknutí na stažené otevře zprávu,
+  ne soubor (`DownloadsScreen.kt`); všechny řádky mají tutéž ikonu dokumentu a žádné datum;
+  odebrání i „Odebrat a smazat soubor" jsou hned, bez „Vrátit" a nevratné smazání souboru bez
+  potvrzení. (Hledání ve Stažených je na seznamu už dřív.)
+
+**Přístupnost přes celou aplikaci**
+
+- **Nadpisy pro čtečku obrazovky** (S). `heading()` se v aplikaci nepoužívá nikde — ani
+  u nadpisů bloků (`GroupTitle`), ani u předělů dnů v konverzaci; čtečka mezi nimi neskáče.
+- **Akce tahu v seznamu chatů pro čtečku** (S). `ChatRow` / tah nemají `customActions`
+  (jiné prvky je mají: `ReorderRow`, bublina zprávy); TalkBack na seznamu chatů ověřený není.
+
+---
+
 ## Nastavení
 
 Nastavení je list-detail: vlevo karta účtu, sekce, řádek Jazyk, Pomoc a odhlášení, vpravo obsah vybrané sekce (nebo úprava profilu).
