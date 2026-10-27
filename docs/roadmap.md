@@ -1683,8 +1683,9 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
   složku z podržení, „Přidat chaty" v prázdné složce (`docs/poznatky/seznam-chatu.md`, „Složky
   chatů"). „Ztlumit vše" vědomě ne (TDLib ztlumení složky nemá).
 - ~~**„Vrátit" u smazání / opuštění**~~ — hotovo (odložené smazání, `docs/poznatky/seznam-chatu.md`,
-  „Akce nad chatem"). Zbývá **„Vymazat historii" z nabídky nad chatem** (S): jde jen
-  z konverzace (`ClearHistorySheet` ve `features/conversation`).
+  „Akce nad chatem").
+- ~~**„Vymazat historii" z nabídky nad chatem**~~ — hotovo (tentýž `ClearHistorySheet` jako
+  v konverzaci, `docs/poznatky/seznam-chatu.md`, „Akce nad chatem").
 - **Zástupce chatu na ploše** (S). `HomeScreenShortcuts` (Android) dnes slouží jen mini
   aplikacím; Telegram nabízí „Přidat na plochu" u chatu i v profilu.
 

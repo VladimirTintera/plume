@@ -115,6 +115,13 @@ interface ConversationRepository {
         Result.failure(UnsupportedOperationException())
 
     /**
+     * Co jde s historií chatu udělat, bez otevření konverzace (nabídka nad chatem v seznamu);
+     * `null` = vymazat ji nejde. V konverzaci totéž nese [ChatInfo.clearHistory].
+     */
+    suspend fun clearHistoryRights(chatId: Long): Result<ClearHistoryRights?> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Vymaže historii chatu, chat v seznamu zůstane (`deleteChatHistory`). S [forAll] i protějšku
      * — jen kde to [ClearHistoryRights.forAll] dovolí.
      */

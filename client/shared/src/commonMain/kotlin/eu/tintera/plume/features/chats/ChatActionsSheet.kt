@@ -85,6 +85,8 @@ import eu.tintera.plume.resources.chats_action_pin
 import eu.tintera.plume.resources.chats_action_unmute
 import eu.tintera.plume.resources.chats_action_unpin
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.delete_sweep_24dp
+import eu.tintera.plume.resources.clear_history
 import eu.tintera.plume.resources.mark_chat_unread_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
@@ -135,6 +137,11 @@ fun ChatActionsSheet(
     /** Složky, do kterých chat jde přidat nebo ve kterých je; prázdné = „Přidat do složky" není. */
     folders: List<FolderChoice>,
     onToggleFolder: (Int) -> Unit,
+    /**
+     * Vymazání historie (chat v seznamu zůstane); otevře sheet s volbami. `null` = nenabízet
+     * (TDLib to u chatu nedovolí, nebo práva ještě nedorazila).
+     */
+    onClearHistory: (() -> Unit)?,
     /** Smazání potvrzené v podmenu, s volbami proti spamu. */
     onDelete: (SpamCleanup) -> Unit,
     onDismiss: () -> Unit,
@@ -337,6 +344,22 @@ fun ChatActionsSheet(
                 }
 
                 /*
+                 * Vyprázdnit, ale nechat v seznamu — od smazání se liší právě tím, proto hned nad
+                 * ním a ve stejné chybové barvě: obojí je nevratné. Volby (dny, „i pro protějšek")
+                 * jsou v sheetu jako v konverzaci, ne v podmenu: kalendář se do nabídky nevejde.
+                 */
+                if (onClearHistory != null) {
+                    SheetActionRow(
+                        icon = Res.drawable.delete_sweep_24dp,
+                        label = stringResource(Res.string.clear_history),
+                        shape = ShapeDefaults.ExtraSmall,
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        onClick = onClearHistory,
+                    )
+                }
+
+                /*
                  * Smazání se rozbalí na místě do podmenu s následkem, volbami proti spamu a tlačítkem,
                  * které chat opravdu smaže. Dřív to byl dialog nad sheetem: zavřel nabídku, ze které
                  * vyšel, a volby v něm stály mimo to, čeho se týkaly.
@@ -362,8 +385,8 @@ fun ChatActionsSheet(
                         bottomStart = deleteBottom.coerceAtLeast(0.dp),
                         bottomEnd = deleteBottom.coerceAtLeast(0.dp),
                     ),
-                    // Jediná nevratná akce v nabídce — dostane chybovou barvu, aby se nespletla
-                    // s ostatními.
+                    // Nevratné akce (smazání a vymazání historie) mají chybovou barvu, aby se
+                    // nespletly s ostatními.
                     color = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     onClick = { deleteExpanded = !deleteExpanded },

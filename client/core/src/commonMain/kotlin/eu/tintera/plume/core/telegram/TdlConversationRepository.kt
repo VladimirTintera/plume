@@ -555,6 +555,9 @@ class TdlConversationRepository(
     override suspend fun setDefaultSilent(chatId: Long, silent: Boolean): Result<Unit> =
         client.toggleChatDefaultDisableNotification(chatId = chatId, defaultDisableNotification = silent).toResult().map { }
 
+    override suspend fun clearHistoryRights(chatId: Long): Result<ClearHistoryRights?> =
+        client.getChat(chatId = chatId).toResult().map { it.clearHistoryRights() }
+
     override suspend fun clearHistory(chatId: Long, forAll: Boolean): Result<Unit> = when {
         // Téma Uložených zpráv a vlákno přímých zpráv mají vlastní volání; celý chat by smazal víc.
         savedTopicId != null -> client.deleteSavedMessagesTopicHistory(savedMessagesTopicId = savedTopicId)

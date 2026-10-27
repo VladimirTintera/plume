@@ -14,6 +14,11 @@ import eu.tintera.plume.core.settings.ThemeColor
 import kotlinx.datetime.todayIn
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.core.telegram.ChatDraft
+import eu.tintera.plume.resources.clear_history_period_done
+import eu.tintera.plume.resources.clear_history_failed
+import eu.tintera.plume.resources.clear_history_done
+import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.ClearHistoryRights
 import eu.tintera.plume.core.telegram.TopicDrafts
 import eu.tintera.plume.core.drafts.CommentDrafts
 import kotlinx.coroutines.flow.onStart
@@ -128,6 +133,8 @@ class ChatsViewModel(
     private val stories: StoryRepository? = null,
     /** Smazání s „Vrátit" ([PendingChatDeletes]); bez něj se maže hned. */
     private val pendingDeletes: PendingChatDeletes? = null,
+    /** „Vymazat historii" v nabídce nad chatem; bez něj se nenabízí. */
+    private val history: ConversationRepository? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -918,6 +925,17 @@ class ChatsViewModel(
             // Nabídka se mezitím mohla zavřít, nebo už patřit jinému chatu.
             _actions.update { if (it.target?.id == chat.id) it.copy(spam = spam) else it }
         }
+        /*
+         * Práva vymazat historii taky až na dotaz (`Chat.canBeDeleted…` seznam chatů nenese).
+         * Uložené zprávy jako celek ne, stejně jako v konverzaci: tam se maže po tématech.
+         */
+        if (history != null && chat.id != repository.savedMessagesChatId.value) {
+            viewModelScope.launch {
+                history.clearHistoryRights(chat.id)
+                    .onSuccess { rights -> _actions.update { if (it.target?.id == chat.id) it.copy(clearHistory = rights) else it } }
+                    .onFailure { failure -> logger.w(failure) { "Práva vymazat historii chatu ${chat.id} se nepodařilo zjistit." } }
+            }
+        }
         // Složky, stejně jako spam, až na dotaz: `Chat.chatLists` a kam chat přidat jde.
         if (folderRepository != null && repository.chatFolders.value.folders.isNotEmpty()) {
             viewModelScope.launch {
@@ -953,6 +971,52 @@ class ChatsViewModel(
 
     fun hideActions() {
         _actions.value = _actions.value.copy(target = null)
+    }
+
+    private val _clearingHistory = MutableStateFlow<ClearHistoryTarget?>(null)
+
+    /** Chat, jehož historii se uživatel chystá vymazat (sheet s volbami); `null` = nic. */
+    val clearingHistory: StateFlow<ClearHistoryTarget?> = _clearingHistory.asStateFlow()
+
+    /** „Vymazat historii" v nabídce: nabídka se zavře a otevře se sheet s volbami. */
+    fun startClearHistory(chat: ChatSummary) {
+        val rights = _actions.value.clearHistory?.takeIf { _actions.value.target?.id == chat.id } ?: return
+        hideActions()
+        _clearingHistory.value = ClearHistoryTarget(chat, rights)
+    }
+
+    fun cancelClearHistory() {
+        _clearingHistory.value = null
+    }
+
+    /**
+     * Vymaže historii chatu z nabídky, celou ([from] `null`), nebo jen vybrané dny — totéž co
+     * ⋮ v konverzaci (`ConversationChatActions.clearHistory`). Chat zůstane v seznamu.
+     */
+    fun clearHistory(chat: ChatSummary, from: Int?, to: Int?, forAll: Boolean) {
+        val repo = history ?: return
+        _clearingHistory.value = null
+        viewModelScope.launch {
+            val result = if (from != null && to != null) {
+                repo.clearHistoryBetween(chat.id, from, to, forAll)
+            } else {
+                repo.clearHistory(chat.id, forAll)
+            }
+            result
+                .onSuccess {
+                    _actions.update {
+                        it.copy(notice = UiText(if (from != null) Res.string.clear_history_period_done else Res.string.clear_history_done))
+                    }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Historii chatu ${chat.id} se nepodařilo vymazat." }
+                    _actions.update { it.copy(error = failure.userMessage(Res.string.clear_history_failed)) }
+                }
+        }
+    }
+
+    fun dismissNotice() {
+        _actions.update { it.copy(notice = null) }
     }
 
     fun togglePinned(chat: ChatSummary) = run(chat.id) {
@@ -1372,7 +1436,14 @@ data class ChatActionsState(
     val spam: SpamActions? = null,
     /** Složky, ve kterých chat je a kam jde přidat; `null` = nenabízet (nezjištěno, žádné složky). */
     val folders: ChatFolderMembership? = null,
+    /** Co jde s historií chatu v [target]; `null` = „Vymazat historii" nenabízet (nebo nezjištěno). */
+    val clearHistory: ClearHistoryRights? = null,
+    /** Hláška o povedené akci bez „Vrátit" (vymazaná historie). */
+    val notice: UiText? = null,
 )
+
+/** Chat a co s jeho historií jde, pro sheet „Vymazat historii" z nabídky nad chatem. */
+data class ClearHistoryTarget(val chat: ChatSummary, val rights: ClearHistoryRights)
 
 /** Chaty se přesunuly do archivu ([archived]), nebo z něj — jeden z nabídky, víc z výběru. */
 data class ArchiveChange(val chatIds: List<Long>, val archived: Boolean) {
