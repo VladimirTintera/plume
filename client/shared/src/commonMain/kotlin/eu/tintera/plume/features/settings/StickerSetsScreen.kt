@@ -98,6 +98,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.GroupTitle
 
 /**
  * Sady samolepek v Nastavení: pořadí tažením za úchyt, archivace a odebrání, archivované sady.
@@ -224,7 +225,7 @@ fun StickerSetsScreen(
                     }
                 }
             }
-            item(key = "mine-header") { SetsHeader(stringResource(Res.string.sticker_sets_mine)) }
+            item(key = "mine-header") { GroupTitle(stringResource(Res.string.sticker_sets_mine), Modifier.padding(bottom = 6.dp)) }
             if (installed.isEmpty()) {
                 item(key = "empty") {
                     GroupEmptyRow(
@@ -273,7 +274,7 @@ fun StickerSetsScreen(
             val archived = state.archived
             if (archived.isNotEmpty()) {
                 item(key = "archived-header") {
-                    SetsHeader(stringResource(Res.string.sticker_sets_archived), Modifier.padding(top = 16.dp))
+                    GroupTitle(stringResource(Res.string.sticker_sets_archived), Modifier.padding(top = 16.dp, bottom = 6.dp))
                 }
                 itemsIndexed(archived, key = { _, set -> "archived-${set.id}" }) { index, set ->
                     SetRow(
@@ -383,16 +384,6 @@ private fun SetMenu(
             ),
         )
     }
-}
-
-@Composable
-private fun SetsHeader(title: String, modifier: Modifier = Modifier) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.fillMaxWidth().padding(start = 16.dp, bottom = 6.dp),
-    )
 }
 
 /** Obálka sady v řádku — jako avatar v seznamu chatů menší, ať řádek nevyroste. */

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -74,6 +73,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.GroupTitle
 
 /**
  * Složky chatů v Nastavení: seznam s pořadím tažením za úchyt, nová složka a doporučené.
@@ -141,7 +141,7 @@ fun ChatFoldersScreen(
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                 )
             }
-            item(key = "mine-header") { FoldersHeader(stringResource(Res.string.chat_folders_mine)) }
+            item(key = "mine-header") { GroupTitle(stringResource(Res.string.chat_folders_mine), Modifier.padding(bottom = 6.dp)) }
             // „Nová složka" je první řádek bloku, jako „Vytvořit odkaz" u pozvánek.
             val count = entries.size + 1
             item(key = "create") {
@@ -211,7 +211,7 @@ fun ChatFoldersScreen(
             val recommended = state.recommended
             if (recommended.isNotEmpty()) {
                 item(key = "recommended-header") {
-                    FoldersHeader(stringResource(Res.string.chat_folders_recommended), Modifier.padding(top = 16.dp))
+                    GroupTitle(stringResource(Res.string.chat_folders_recommended), Modifier.padding(top = 16.dp, bottom = 6.dp))
                 }
                 itemsIndexed(recommended, key = { _, it -> "rec-${it.draft.title}" }) { index, folder ->
                     ListItem(
@@ -240,7 +240,7 @@ fun ChatFoldersScreen(
              */
             if (state.aiAvailable) {
                 item(key = "ai-header") {
-                    FoldersHeader(stringResource(Res.string.chat_folders_ai), Modifier.padding(top = 16.dp))
+                    GroupTitle(stringResource(Res.string.chat_folders_ai), Modifier.padding(top = 16.dp, bottom = 6.dp))
                 }
                 when (val ai = state.ai) {
                     is AiFolders.Done -> if (ai.folders.isEmpty()) {
@@ -280,16 +280,6 @@ fun ChatFoldersScreen(
             }
         }
     }
-}
-
-@Composable
-private fun FoldersHeader(title: String, modifier: Modifier = Modifier) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.fillMaxWidth().padding(start = 16.dp, bottom = 6.dp),
-    )
 }
 
 /** Navržená složka: název kategorie, kterým chatům patří, a „Přidat". */

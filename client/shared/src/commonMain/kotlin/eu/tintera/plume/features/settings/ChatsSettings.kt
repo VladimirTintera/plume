@@ -4,17 +4,13 @@ import eu.tintera.plume.core.ui.ChoiceRow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.audio.skipSilenceSupported
 import eu.tintera.plume.core.settings.AppSettings
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.rememberTelegramLinkHandling
 import eu.tintera.plume.resources.link_24dp
 import eu.tintera.plume.resources.settings_telegram_links
 import eu.tintera.plume.resources.settings_telegram_links_off
 import eu.tintera.plume.resources.settings_telegram_links_on
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.open_in_new_24dp
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.settings_message_context
@@ -26,7 +22,6 @@ import eu.tintera.plume.resources.settings_skip_silence
 import eu.tintera.plume.resources.settings_skip_silence_summary
 import org.koin.compose.koinInject
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.settings.ChatSwipeAction
 import eu.tintera.plume.core.settings.ChatSwipeActions
@@ -76,6 +71,8 @@ import eu.tintera.plume.resources.settings_messages
 import eu.tintera.plume.resources.settings_links
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Sekce Chaty: jak se chová seznam chatů (složky, řazení, akce tahem, widget), práce se
@@ -92,7 +89,7 @@ internal fun ChatsSettings(
 ) {
     val actions by swipe.actions.collectAsStateWithLifecycle()
 
-    SettingsGroup(Res.string.settings_chats) {
+    TitledGroup(Res.string.settings_chats) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.folder_24dp), contentDescription = null) },
@@ -122,7 +119,7 @@ internal fun ChatsSettings(
         ChatsWidgetRow(appearance)
     }
 
-    SettingsGroup(Res.string.settings_messages) {
+    TitledGroup(Res.string.settings_messages) {
         QuickReactionSettings(quickReaction)
         MessageContextRow()
         if (skipSilenceSupported) SkipSilenceRow()
@@ -142,7 +139,7 @@ internal fun ChatsSettings(
         )
     }
 
-    SettingsGroup(Res.string.settings_links) {
+    TitledGroup(Res.string.settings_links) {
         OpenLinksInAppRow()
         TelegramLinksRow()
     }
@@ -157,22 +154,13 @@ internal fun ChatsSettings(
 @Composable
 private fun OpenLinksInAppRow() {
     val settings = koinInject<AppSettings>()
-    val haptics = LocalHapticFeedback.current
     val enabled by settings.openLinksInApp.collectAsStateWithLifecycle()
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_open_links_in_app)) },
-        supportingContent = { Text(stringResource(Res.string.settings_open_links_in_app_summary)) },
-        trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
-        modifier = Modifier.toggleable(
-            value = enabled,
-            role = Role.Switch,
-            onValueChange = { on ->
-                haptics.toggle(on)
-                settings.setOpenLinksInApp(on)
-            },
-        ),
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_open_links_in_app),
+        checked = enabled,
+        supporting = stringResource(Res.string.settings_open_links_in_app_summary),
+        icon = Res.drawable.open_in_new_24dp,
+        onCheckedChange = settings::setOpenLinksInApp,
     )
 }
 
@@ -208,22 +196,13 @@ private fun TelegramLinksRow() {
 @Composable
 private fun MessageContextRow() {
     val settings = koinInject<AppSettings>()
-    val haptics = LocalHapticFeedback.current
     val enabled by settings.messageContextEnabled.collectAsStateWithLifecycle()
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { Icon(painterResource(Res.drawable.auto_awesome_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_message_context)) },
-        supportingContent = { Text(stringResource(Res.string.settings_message_context_summary)) },
-        trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
-        modifier = Modifier.toggleable(
-            value = enabled,
-            role = Role.Switch,
-            onValueChange = { on ->
-                haptics.toggle(on)
-                settings.setMessageContextEnabled(on)
-            },
-        ),
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_message_context),
+        checked = enabled,
+        supporting = stringResource(Res.string.settings_message_context_summary),
+        icon = Res.drawable.auto_awesome_24dp,
+        onCheckedChange = settings::setMessageContextEnabled,
     )
 }
 
@@ -236,22 +215,13 @@ private fun MessageContextRow() {
 @Composable
 private fun SkipSilenceRow() {
     val settings = koinInject<AppSettings>()
-    val haptics = LocalHapticFeedback.current
     val enabled by settings.skipSilence.collectAsStateWithLifecycle()
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { Icon(painterResource(Res.drawable.headphones_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_skip_silence)) },
-        supportingContent = { Text(stringResource(Res.string.settings_skip_silence_summary)) },
-        trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
-        modifier = Modifier.toggleable(
-            value = enabled,
-            role = Role.Switch,
-            onValueChange = { on ->
-                haptics.toggle(on)
-                settings.setSkipSilence(on)
-            },
-        ),
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_skip_silence),
+        checked = enabled,
+        supporting = stringResource(Res.string.settings_skip_silence_summary),
+        icon = Res.drawable.headphones_24dp,
+        onCheckedChange = settings::setSkipSilence,
     )
 }
 
@@ -299,7 +269,7 @@ internal fun ConnectionSettings(viewModel: ProxyStatusViewModel, onOpenProxy: ()
         viewModel.reload()
         onPauseOrDispose {}
     }
-    SettingsGroup(Res.string.settings_connection_group) {
+    TitledGroup(Res.string.settings_connection_group) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.vpn_lock_24dp), contentDescription = null) },

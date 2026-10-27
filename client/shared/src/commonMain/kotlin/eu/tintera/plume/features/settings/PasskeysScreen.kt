@@ -62,6 +62,7 @@ import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Řádek v Soukromí s počtem klíčů. Čte se při každém zobrazení sekce — update o změně seznamu
@@ -117,7 +118,7 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
 
         val passkeys = state.passkeys
         when {
-            passkeys != null -> SettingsGroup(Res.string.passkeys_section) {
+            passkeys != null -> TitledGroup(Res.string.passkeys_section) {
                 if (passkeys.isEmpty()) {
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -136,7 +137,7 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
             // Chyba na místě seznamu, ve stejné sekci: řádek s ikonou a tónovým „Zkusit znovu"
             // (pravidlo chybových stavů v CLAUDE.md). Dřív červený text a `TextButton` pod
             // nadpisem stránky, bez bloku — vypadalo to jako rozbitá obrazovka.
-            state.loadFailed -> SettingsGroup(Res.string.passkeys_section) {
+            state.loadFailed -> TitledGroup(Res.string.passkeys_section) {
                 ListItem(
                     colors = ListItemDefaults.colors(
                         containerColor = Color.Transparent,

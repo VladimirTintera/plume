@@ -30,6 +30,7 @@ import eu.tintera.plume.resources.usernames_move_up
 import eu.tintera.plume.resources.usernames_section
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.GroupTitle
 
 /**
  * Všechna uživatelská jména účtu pod polem uživatelského jména — jen když jich je víc než to
@@ -46,12 +47,7 @@ internal fun UsernamesSection(
     onMove: (String, up: Boolean) -> Unit,
 ) {
     Column {
-        Text(
-            stringResource(Res.string.usernames_section),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
+        GroupTitle(stringResource(Res.string.usernames_section), Modifier.padding(top = 8.dp))
         usernames.active.forEachIndexed { index, name ->
             UsernameRow(
                 name = name,

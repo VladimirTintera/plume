@@ -25,7 +25,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.common_cancel
-import eu.tintera.plume.resources.poll_compose_counter
+import eu.tintera.plume.resources.text_counter
 import eu.tintera.plume.resources.poll_add_option_confirm
 import eu.tintera.plume.resources.poll_add_option_title
 import org.jetbrains.compose.resources.stringResource
@@ -69,7 +69,7 @@ internal fun AddPollOptionDialog(
                 value = text,
                 onValueChange = { text = it.take(POLL_ANSWER_MAX) },
                 singleLine = true,
-                supportingText = { Text(stringResource(Res.string.poll_compose_counter, text.length, POLL_ANSWER_MAX)) },
+                supportingText = { Text(stringResource(Res.string.text_counter, text.length, POLL_ANSWER_MAX)) },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 trailingIcon = {
                     TextFieldSlot {

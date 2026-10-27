@@ -74,6 +74,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Přenesená data: přepínač sítě (jen sítě, kterými něco teklo), velké číslo za síť a rozpis
@@ -128,7 +129,7 @@ fun NetworkUsageScreen(viewModel: NetworkUsageViewModel, onBack: () -> Unit, mod
                         )
                     } else {
                         // Bez přepínače by nebylo poznat, o kterou síť jde — nadpis skupiny to řekne.
-                        SettingsGroup(shown.network.label) {
+                        TitledGroup(shown.network.label) {
                             NetworkHeader(shown)
                             shown.kinds.forEach { KindRow(it, total = shown.sentBytes + shown.receivedBytes, callSeconds = shown.callSeconds) }
                         }

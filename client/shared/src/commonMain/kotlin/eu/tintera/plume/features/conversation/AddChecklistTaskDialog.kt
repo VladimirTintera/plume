@@ -21,7 +21,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.checklist_add_task_confirm
 import eu.tintera.plume.resources.checklist_add_task_title
 import eu.tintera.plume.resources.common_cancel
-import eu.tintera.plume.resources.poll_compose_counter
+import eu.tintera.plume.resources.text_counter
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -46,7 +46,7 @@ internal fun AddChecklistTaskDialog(
                 value = text,
                 onValueChange = { text = checklistTaskText(it).take(maxLength) },
                 singleLine = true,
-                supportingText = { Text(stringResource(Res.string.poll_compose_counter, text.length, maxLength)) },
+                supportingText = { Text(stringResource(Res.string.text_counter, text.length, maxLength)) },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.focusRequester(focus),
             )

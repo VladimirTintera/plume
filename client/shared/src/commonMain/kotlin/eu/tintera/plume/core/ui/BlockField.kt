@@ -49,6 +49,9 @@ import eu.tintera.plume.resources.visibility_off_24dp
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import eu.tintera.plume.resources.text_counter
 
 /** Tloušťka rámečku tónovaného vstupu — políčka kódu, číslo i heslo. */
 val BLOCK_OUTLINE = 2.dp
@@ -293,3 +296,63 @@ fun FormTextField(
         }
     }
 }
+
+/**
+ * **Pole jako řádek bloku** (otázka a odpovědi ankety, úkoly seznamu): tónovaná plocha řádku
+ * s tvarem podle pozice ([groupItemShape]), bez podtržení — podtržení `TextField`u je jazyk,
+ * kterého se aplikace vzdala (viz přihlášení a „Jeden prvek pro hledání"). Na rozdíl od
+ * [FormTextField] nemá rámeček ani vlastní zaoblení: pole skládaná pod sebe tvoří jeden blok,
+ * jako řádky [GroupedColumn].
+ *
+ * Počítadlo se ukáže až v posledních [COUNTER_FROM] znacích a přes strop [max] zčervená. Text
+ * se nad strop smí kousek pustit (ořez je na volajícím), aby šlo vložit delší text a zkrátit
+ * ho; odeslání je do té doby zašedlé.
+ */
+@Composable
+fun GroupTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    max: Int,
+    shape: Shape,
+    singleLine: Boolean,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    style: TextStyle = LocalTextStyle.current,
+) {
+    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = style,
+            placeholder = { Text(placeholder, style = style) },
+            singleLine = singleLine,
+            leadingIcon = leading,
+            trailingIcon = trailing,
+            supportingText = counterText(value.length, max)?.let { { it() } },
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Počítadlo znaků — až v posledních [COUNTER_FROM] znacích, přes strop chybovou barvou. */
+private fun counterText(length: Int, max: Int): (@Composable () -> Unit)? {
+    if (length < max - COUNTER_FROM) return null
+    return {
+        Text(
+            text = stringResource(Res.string.text_counter, length, max),
+            color = if (length > max) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Počítadlo se ukáže, až zbývá tolik znaků. */
+private const val COUNTER_FROM = 20

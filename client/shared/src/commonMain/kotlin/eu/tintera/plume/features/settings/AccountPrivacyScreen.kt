@@ -130,6 +130,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /** Název řádku a detailu. */
 internal val PrivacySetting.title: StringResource
@@ -236,7 +238,7 @@ fun AccountPrivacyScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            SettingsGroup(Res.string.privacy_section_seen) {
+            TitledGroup(Res.string.privacy_section_seen) {
                 for (setting in SEEN) {
                     if (!privacyRowShown(setting, state.choices)) continue
                     PrivacyRow(setting, state, onOpen)
@@ -244,12 +246,12 @@ fun AccountPrivacyScreen(
                     if (setting == PrivacySetting.LastSeen) ReadDateRow(state, viewModel::setShowReadDate)
                 }
             }
-            SettingsGroup(Res.string.privacy_section_allowed) {
+            TitledGroup(Res.string.privacy_section_allowed) {
                 for (setting in ALLOWED) PrivacyRow(setting, state, onOpen)
             }
             // Jako v oficiálních klientech na konci soukromí: samosmazání po neaktivitě
             // a smazání hned, obojí o témž.
-            SettingsGroup(Res.string.privacy_section_delete) {
+            TitledGroup(Res.string.privacy_section_delete) {
                 AccountTtlRow(state, onSelect = viewModel::setAccountTtl)
                 ListItem(
                     colors = ListItemDefaults.colors(
@@ -316,12 +318,12 @@ private fun ReadDateRow(state: AccountPrivacyState, onChange: (Boolean) -> Unit)
         }
         return
     }
-    SwitchRow(
-        title = Res.string.privacy_read_date,
-        summary = if (state.readDateFailed) Res.string.privacy_save_failed else Res.string.privacy_read_date_summary,
-        summaryIsError = state.readDateFailed,
+    SwitchListItem(
+        headline = stringResource(Res.string.privacy_read_date),
+        supporting = stringResource(if (state.readDateFailed) Res.string.privacy_save_failed else Res.string.privacy_read_date_summary),
+        supportingIsError = state.readDateFailed,
         checked = show,
-        onChange = onChange,
+        onCheckedChange = onChange,
         icon = Res.drawable.done_all_24dp,
     )
 }
@@ -468,7 +470,7 @@ fun PrivacySettingScreen(
             if (!state.editable) Note(Res.string.privacy_voice_messages_premium)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingsGroup(Res.string.privacy_choice_title) {
+                TitledGroup(Res.string.privacy_choice_title) {
                     for (base in setting.bases) {
                         BaseRow(base, selected = choice.base == base, enabled = state.editable) { viewModel.chooseBase(base) }
                     }
@@ -550,7 +552,7 @@ private fun ExceptionGroup(
     onAdd: () -> Unit,
     onRemove: (PrivacyMember) -> Unit,
 ) {
-    SettingsGroup(title) {
+    TitledGroup(title) {
         for (member in members) {
             val name = member.title.ifBlank { deleted }
             ListItem(

@@ -50,7 +50,7 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   `Card { Column { … } }` jako stará podoba Nastavení. **Přepínač Témata a nápověda pod ním
   zůstaly jedním řádkem bloku** (`Column` uvnitř), nápověda mluví o přepínači nad ní.
 - **Údaje i obsah záložek jsou bloky zaoblených řádků** (`groupItemShape`, `surfaceContainerLowest`,
-  spára 2 dp), stejný jazyk jako seznam chatů. Dřív byly údaje karta `SettingsGroup`
+  spára 2 dp), stejný jazyk jako seznam chatů. Dřív byly údaje karta `SettingsGroup` (dnes `TitledGroup`)
   (`surfaceContainerHighest`) a záložky holé řádky — v jednom profilu dva vzhledy pro „seznam věcí".
   Mřížka médií nese velké zaoblení jen v rozích bloku (`mediaTileShape`, i schod neúplného
   posledního řádku). Role člena je tonální štítek, ne barevné slovo;

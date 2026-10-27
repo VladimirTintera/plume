@@ -66,6 +66,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.getKoin
 import org.koin.compose.koinInject
+import eu.tintera.plume.core.ui.GroupTitle
 
 /**
  * „Pomoc" pod sekcemi Nastavení: chat s podporou Telegramu, jeho časté dotazy, odeslání deníku
@@ -99,12 +100,7 @@ internal fun HelpGroup(
     var exportFailed by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
-        Text(
-            stringResource(Res.string.settings_help),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
-        )
+        GroupTitle(stringResource(Res.string.settings_help), Modifier.padding(bottom = 6.dp))
         SettingsListRow(
             icon = Res.drawable.contact_support_24dp,
             title = stringResource(Res.string.settings_ask_question),

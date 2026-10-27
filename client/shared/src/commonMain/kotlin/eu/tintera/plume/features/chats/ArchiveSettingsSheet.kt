@@ -13,20 +13,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ArchiveSettings
-import eu.tintera.plume.core.ui.IconSwitch
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_archive_keep_folders
 import eu.tintera.plume.resources.chats_archive_keep_folders_summary
@@ -35,8 +26,8 @@ import eu.tintera.plume.resources.chats_archive_keep_summary
 import eu.tintera.plume.resources.chats_archive_settings
 import eu.tintera.plume.resources.chats_archive_unknown
 import eu.tintera.plume.resources.chats_archive_unknown_summary
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
 
 /**
  * Nastavení archivu — sheet z hlavičky archivu, ne sekce v Nastavení.
@@ -71,19 +62,19 @@ fun ArchiveSettingsSheet(
                  * vůbec: přepínač, který skončí chybou, je horší než žádný.
                  */
                 if (settings.canArchiveUnknownSenders) {
-                    SwitchRow(
-                        title = Res.string.chats_archive_unknown,
-                        summary = Res.string.chats_archive_unknown_summary,
+                    SwitchListItem(
+                        headline = stringResource(Res.string.chats_archive_unknown),
+                        supporting = stringResource(Res.string.chats_archive_unknown_summary),
                         checked = settings.archiveUnknownSenders,
-                        onChange = onArchiveUnknownSenders,
+                        onCheckedChange = onArchiveUnknownSenders,
                     )
                 }
 
-                SwitchRow(
-                    title = Res.string.chats_archive_keep,
-                    summary = Res.string.chats_archive_keep_summary,
+                SwitchListItem(
+                    headline = stringResource(Res.string.chats_archive_keep),
+                    supporting = stringResource(Res.string.chats_archive_keep_summary),
                     checked = settings.keepUnmutedArchived,
-                    onChange = onKeepUnmutedArchived,
+                    onCheckedChange = onKeepUnmutedArchived,
                 )
 
                 /*
@@ -98,35 +89,14 @@ fun ArchiveSettingsSheet(
                     exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
                         fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                 ) {
-                    SwitchRow(
-                        title = Res.string.chats_archive_keep_folders,
-                        summary = Res.string.chats_archive_keep_folders_summary,
+                    SwitchListItem(
+                        headline = stringResource(Res.string.chats_archive_keep_folders),
+                        supporting = stringResource(Res.string.chats_archive_keep_folders_summary),
                         checked = settings.keepFromFoldersArchived,
-                        onChange = onKeepFromFoldersArchived,
+                        onCheckedChange = onKeepFromFoldersArchived,
                     )
                 }
             }
         }
     }
-}
-
-/** Řádek nese klikání celý, přepínač má `onCheckedChange = null` — jako v Nastavení. */
-@Composable
-private fun SwitchRow(
-    title: StringResource,
-    summary: StringResource,
-    checked: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
-    val haptics = LocalHapticFeedback.current
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(stringResource(summary)) },
-        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = { on ->
-            haptics.toggle(on)
-            onChange(on)
-        }),
-    )
 }

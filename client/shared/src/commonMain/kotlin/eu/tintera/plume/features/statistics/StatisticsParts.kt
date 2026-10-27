@@ -28,6 +28,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.PluralStringResource
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import eu.tintera.plume.core.ui.GroupTitle
 
 /** Jeden údaj přehledu: velké číslo, co to je, a změna proti předchozímu období. */
 internal data class StatTile(val label: String, val value: String, val growth: String? = null)
@@ -102,12 +103,8 @@ internal fun growthText(value: StatValue): String? {
 /** Nadpis oddílu nad blokem řádků. */
 @Composable
 internal fun StatSectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(start = 32.dp, end = 32.dp, top = 20.dp, bottom = 8.dp),
-    )
+    // Seznam statistik nemá okraj, blok si ho dává sám — nadpis lícuje s obsahem řádků.
+    GroupTitle(text, modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp))
 }
 
 /** Počty u příspěvku: „1,2 tis. zhlédnutí · 12 sdílení · 30 reakcí"; nuly se vynechají. */

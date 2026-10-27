@@ -54,7 +54,6 @@ import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.core.ui.resolve
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.checklist_compose_add_task
 import eu.tintera.plume.resources.checklist_compose_name
@@ -90,6 +89,10 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
+import eu.tintera.plume.core.ui.GroupTextField
+import eu.tintera.plume.core.ui.GroupTitle
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.groupRowBackground
 
 /*
  * Pravidla formuláře jsou čisté funkce (testy `ChecklistComposerTest`), jako u ankety: co se
@@ -108,15 +111,7 @@ internal fun checklistTaskText(text: String): String = text.replace("\r\n", " ")
  * tatáž úvaha jako u odpovědí ankety ([normalizedAnswers]). Přebytečná prázdná pole na konci
  * zmizí, jedno pole zůstane vždycky; prázdné pole UPROSTŘED se nechává a odebírá se křížkem.
  */
-internal fun normalizedTasks(tasks: List<String>, max: Int): List<String> {
-    val list = tasks.toMutableList()
-    if (list.isEmpty()) list += ""
-    while (list.size > 1 && list.last().isBlank() && list[list.lastIndex - 1].isBlank()) {
-        list.removeAt(list.lastIndex)
-    }
-    if (list.last().isNotBlank() && list.size < max) list += ""
-    return list
-}
+internal fun normalizedTasks(tasks: List<String>, max: Int): List<String> = normalizedEntries(tasks, min = 1, max = max)
 
 /**
  * Hotový seznam z formuláře, nebo `null`, dokud se poslat nedá (Odeslat je pak zašedlé). Prázdná
@@ -448,10 +443,10 @@ fun ChecklistComposerScreen(
             }
 
             item(key = "title") {
-                BlockField(
+                GroupTextField(
                     value = viewModel.title,
                     onValueChange = { viewModel.title = it.take(limits.maxTitle + ANSWER_OVERFLOW_ALLOWANCE) },
-                    label = stringResource(Res.string.checklist_compose_name),
+                    placeholder = stringResource(Res.string.checklist_compose_name),
                     max = limits.maxTitle,
                     shape = groupItemShape(0, 1),
                     singleLine = false,
@@ -459,13 +454,13 @@ fun ChecklistComposerScreen(
             }
 
             item(key = "tasks-title") {
-                SectionTitle(stringResource(Res.string.checklist_compose_tasks))
+                GroupTitle(stringResource(Res.string.checklist_compose_tasks), COMPOSER_TITLE_PADDING)
             }
             itemsIndexed(viewModel.tasks, key = { index, _ -> "task-$index" }) { index, task ->
-                BlockField(
+                GroupTextField(
                     value = task,
                     onValueChange = { viewModel.setTask(index, it) },
-                    label = stringResource(Res.string.checklist_compose_task, index + 1),
+                    placeholder = stringResource(Res.string.checklist_compose_task, index + 1),
                     max = limits.maxTaskText,
                     shape = groupItemShape(index, viewModel.tasks.size),
                     singleLine = true,
@@ -500,19 +495,23 @@ fun ChecklistComposerScreen(
             // V Uložených zprávách nejsou „ostatní", volby o nich by nic neznamenaly.
             if (!status.isSavedMessages) {
                 item(key = "settings-title") {
-                    SectionTitle(stringResource(Res.string.poll_compose_settings))
+                    GroupTitle(stringResource(Res.string.poll_compose_settings), COMPOSER_TITLE_PADDING)
                 }
                 item(key = "others-add") {
-                    SwitchRow(stringResource(Res.string.checklist_compose_others_add), viewModel.othersCanAddTasks, groupItemShape(0, 2)) {
-                        haptics.toggle(it)
-                        viewModel.othersCanAddTasks = it
-                    }
+                    SwitchListItem(
+                        headline = stringResource(Res.string.checklist_compose_others_add),
+                        checked = viewModel.othersCanAddTasks,
+                        onCheckedChange = { viewModel.othersCanAddTasks = it },
+                        modifier = Modifier.groupRowBackground(groupItemShape(0, 2)),
+                    )
                 }
                 item(key = "others-mark") {
-                    SwitchRow(stringResource(Res.string.checklist_compose_others_mark), viewModel.othersCanMarkTasksAsDone, groupItemShape(1, 2)) {
-                        haptics.toggle(it)
-                        viewModel.othersCanMarkTasksAsDone = it
-                    }
+                    SwitchListItem(
+                        headline = stringResource(Res.string.checklist_compose_others_mark),
+                        checked = viewModel.othersCanMarkTasksAsDone,
+                        onCheckedChange = { viewModel.othersCanMarkTasksAsDone = it },
+                        modifier = Modifier.groupRowBackground(groupItemShape(1, 2)),
+                    )
                 }
             }
         }

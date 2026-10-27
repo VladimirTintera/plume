@@ -128,6 +128,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Sekce „Úložiště": automatické stahování podle sítě, kolik zabírají stažené soubory a databáze,
@@ -183,7 +184,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
         }
 
         else -> {
-            SettingsGroup(Res.string.storage_used) {
+            TitledGroup(Res.string.storage_used) {
                 if (usage == null) {
                     /*
                      * Podrobný přehled prochází celý adresář. Součet z rychlého přehledu se
@@ -219,7 +220,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
             }
 
             // Přenesená data nejsou místo na disku, ale „Data a úložiště" je jejich přirozený domov.
-            SettingsGroup(Res.string.network_usage_group) {
+            TitledGroup(Res.string.network_usage_group) {
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = { CategoryIcon(Res.drawable.data_usage_24dp) },
@@ -241,7 +242,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
 
             if (autosavesToGallery) AutosaveGroup(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
 
-            SettingsGroup(Res.string.storage_keep_media_title) {
+            TitledGroup(Res.string.storage_keep_media_title) {
                 ChoiceRow(
                     headline = stringResource(Res.string.storage_keep_media),
                     options = KeepMedia.entries,
@@ -265,7 +266,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
             // Chaty jen s podrobným přehledem a jen když v nich něco je.
             val chats = usage?.chats.orEmpty()
             if (chats.isNotEmpty()) {
-                SettingsGroup(Res.string.storage_chats) {
+                TitledGroup(Res.string.storage_chats) {
                     chats.forEach { chat ->
                         ChatStorageRow(
                             chat = chat,
@@ -280,7 +281,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
             }
 
             if (state.models.isNotEmpty()) {
-                SettingsGroup(Res.string.storage_ai_models) {
+                TitledGroup(Res.string.storage_ai_models) {
                     state.models.forEach { stored ->
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -310,7 +311,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
 
             // Balíčky pro překlad v telefonu (`core/translation`). Angličtina je vestavěná a není tu.
             if (state.translationPacks.isNotEmpty()) {
-                SettingsGroup(Res.string.storage_translation_packs) {
+                TitledGroup(Res.string.storage_translation_packs) {
                     state.translationPacks.forEach { pack ->
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),

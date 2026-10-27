@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -31,17 +30,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatNotificationOption
 import eu.tintera.plume.core.telegram.ChatNotificationPrefs
 import eu.tintera.plume.core.telegram.MuteState
 import eu.tintera.plume.core.telegram.NotificationDefaults
 import eu.tintera.plume.core.telegram.NotificationScope
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.asUpcomingTime
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notif_sound_row
 import eu.tintera.plume.resources.open_in_new_24dp
@@ -72,6 +67,7 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
+import eu.tintera.plume.core.ui.SwitchListItem
 
 /** Stav upozornění chatu jednou větou — do řádku v profilu i do hlavičky sheetu. */
 @Composable
@@ -146,36 +142,36 @@ internal fun ChatNotificationSheet(
 
             Spacer(Modifier.height(GROUP_SPACING))
             GroupedColumn(Modifier.padding(horizontal = 16.dp)) {
-                SwitchRow(
-                    title = Res.string.settings_notif_preview,
-                    summary = Res.string.settings_notif_preview_summary,
+                SwitchListItem(
+                    headline = stringResource(Res.string.settings_notif_preview),
+                    supporting = stringResource(Res.string.settings_notif_preview_summary),
                     checked = prefs.showPreview,
-                    onChange = { onOption(ChatNotificationOption.ShowPreview, it) },
+                    onCheckedChange = { onOption(ChatNotificationOption.ShowPreview, it) },
                 )
-                SwitchRow(
-                    title = Res.string.settings_notif_pinned,
-                    summary = Res.string.settings_notif_pinned_summary,
+                SwitchListItem(
+                    headline = stringResource(Res.string.settings_notif_pinned),
+                    supporting = stringResource(Res.string.settings_notif_pinned_summary),
                     checked = prefs.pinnedMessages,
-                    onChange = { onOption(ChatNotificationOption.PinnedMessages, it) },
+                    onCheckedChange = { onOption(ChatNotificationOption.PinnedMessages, it) },
                 )
                 // Zmínit se dá jen ve skupině, stejně jako v Nastavení.
                 if (prefs.scope == NotificationScope.Groups) {
-                    SwitchRow(
-                        title = Res.string.settings_notif_mentions,
-                        summary = Res.string.settings_notif_mentions_summary,
+                    SwitchListItem(
+                        headline = stringResource(Res.string.settings_notif_mentions),
+                        supporting = stringResource(Res.string.settings_notif_mentions_summary),
                         checked = prefs.mentions,
-                        onChange = { onOption(ChatNotificationOption.Mentions, it) },
+                        onCheckedChange = { onOption(ChatNotificationOption.Mentions, it) },
                     )
                 }
                 // Příběhy zveřejňují lidé a kanály; téma ve skupině je nemá.
                 if (prefs.defaults == NotificationDefaults.Scope &&
                     (prefs.scope == NotificationScope.Private || prefs.scope == NotificationScope.Channels)
                 ) {
-                    SwitchRow(
-                        title = Res.string.settings_notif_stories_chat,
-                        summary = Res.string.settings_notif_stories_chat_summary,
+                    SwitchListItem(
+                        headline = stringResource(Res.string.settings_notif_stories_chat),
+                        supporting = stringResource(Res.string.settings_notif_stories_chat_summary),
                         checked = prefs.stories,
-                        onChange = { onOption(ChatNotificationOption.Stories, it) },
+                        onCheckedChange = { onOption(ChatNotificationOption.Stories, it) },
                     )
                 }
                 // Zvuk z Telegramu — nastavení účtu, platí i v oficiálních aplikacích (jako u rozsahu
@@ -226,20 +222,5 @@ private fun ActionRow(title: StringResource, icon: DrawableResource, color: Colo
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
         headlineContent = { Text(stringResource(title)) },
         modifier = Modifier.clickable(onClick = onClick),
-    )
-}
-
-@Composable
-private fun SwitchRow(title: StringResource, summary: StringResource, checked: Boolean, onChange: (Boolean) -> Unit) {
-    val haptics = LocalHapticFeedback.current
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(stringResource(summary)) },
-        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = { on ->
-            haptics.toggle(on)
-            onChange(on)
-        }),
     )
 }

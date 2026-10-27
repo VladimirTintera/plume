@@ -35,6 +35,7 @@ import eu.tintera.plume.resources.changelog_show_older
 import eu.tintera.plume.resources.rocket_launch_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Sekce „Co je nového": poznámky k vydání zapečené při buildu ([Changelog]), od nejnovější verze.
@@ -81,7 +82,7 @@ fun WhatsNewSettings() {
 
 @Composable
 private fun ReleaseGroup(release: ChangelogRelease, czech: Boolean) {
-    SettingsGroup(stringResource(Res.string.changelog_release_title, release.version, release.date.asDate())) {
+    TitledGroup(stringResource(Res.string.changelog_release_title, release.version, release.date.asDate())) {
         if (release.notes.isEmpty()) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),

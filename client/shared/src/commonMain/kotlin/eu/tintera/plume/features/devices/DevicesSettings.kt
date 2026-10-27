@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -45,8 +44,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -55,15 +52,12 @@ import eu.tintera.plume.core.telegram.ConnectedWebsite
 import eu.tintera.plume.core.telegram.Device
 import eu.tintera.plume.core.telegram.DeviceKind
 import eu.tintera.plume.core.telegram.INACTIVE_TTL_OPTIONS
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.QrScanFailure
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.rememberQrScanner
 import eu.tintera.plume.core.ui.resolve
-import eu.tintera.plume.core.ui.toggle
-import eu.tintera.plume.features.settings.SettingsGroup
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.computer_24dp
@@ -118,6 +112,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Sekce „Zařízení": kde je účet přihlášený, odhlašování, weby přihlášené přes Telegram,
@@ -207,7 +203,7 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
 
         else -> {
             devices.current?.let { current ->
-                SettingsGroup(Res.string.devices_this_device) {
+                TitledGroup(Res.string.devices_this_device) {
                     DeviceRow(current, onClick = { detailId = current.id })
                     // Odhlášení ostatních patří k tomuto zařízení: je to „nech jen mě".
                     if (devices.others.isNotEmpty()) {
@@ -220,7 +216,7 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
                 }
             }
 
-            SettingsGroup(Res.string.devices_active) {
+            TitledGroup(Res.string.devices_active) {
                 if (devices.others.isEmpty()) {
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -235,7 +231,7 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
             // Weby jen když nějaké jsou — prázdná skupina by jen vysvětlovala funkci, kterou skoro
             // nikdo nepoužívá.
             if (state.websites.isNotEmpty()) {
-                SettingsGroup(Res.string.devices_websites) {
+                TitledGroup(Res.string.devices_websites) {
                     state.websites.forEach { website ->
                         WebsiteRow(website, onClick = { disconnectWebsiteId = website.id })
                     }
@@ -247,7 +243,7 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
                 }
             }
 
-            SettingsGroup(Res.string.devices_auto_terminate) {
+            TitledGroup(Res.string.devices_auto_terminate) {
                 // Hodnota z jiného klienta, která mezi volbami není, zůstane vidět a vybraná.
                 ChoiceRow(
                     headline = stringResource(Res.string.devices_auto_terminate_row),
@@ -496,8 +492,8 @@ private fun DeviceDetailSheet(
                     modifier = Modifier.padding(start = 32.dp, top = 16.dp, bottom = 8.dp),
                 )
                 GroupedColumn(Modifier.padding(horizontal = 16.dp)) {
-                    SwitchRow(Res.string.devices_accept_calls, device.canAcceptCalls, !busy, onCanAcceptCalls)
-                    SwitchRow(Res.string.devices_accept_secret_chats, device.canAcceptSecretChats, !busy, onCanAcceptSecretChats)
+                    SwitchListItem(stringResource(Res.string.devices_accept_calls), device.canAcceptCalls, enabled = !busy, onCheckedChange = onCanAcceptCalls)
+                    SwitchListItem(stringResource(Res.string.devices_accept_secret_chats), device.canAcceptSecretChats, enabled = !busy, onCheckedChange = onCanAcceptSecretChats)
                 }
             }
         }
@@ -511,26 +507,6 @@ private fun DetailRow(label: StringResource, value: String) {
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         overlineContent = { Text(stringResource(label)) },
         headlineContent = { Text(value) },
-    )
-}
-
-@Composable
-private fun SwitchRow(
-    label: StringResource,
-    checked: Boolean,
-    enabled: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
-    val haptics = LocalHapticFeedback.current
-    // Klikání nese celý řádek, přepínač má `onCheckedChange = null` — jako v sekci Vzhled.
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(stringResource(label)) },
-        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null, enabled = enabled) },
-        modifier = Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = { on ->
-            haptics.toggle(on)
-            onChange(on)
-        }),
     )
 }
 

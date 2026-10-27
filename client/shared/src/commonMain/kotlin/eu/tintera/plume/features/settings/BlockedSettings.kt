@@ -107,6 +107,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Sekce Soukromí: kdo co vidí a s kým se mluví, co po sobě aplikace nechává (diskrétnost)
@@ -125,18 +127,18 @@ internal fun PrivacySettings(
     onOpenLoginEmail: () -> Unit,
     onOpenPasskeys: () -> Unit,
 ) {
-    SettingsGroup(Res.string.settings_privacy) {
+    TitledGroup(Res.string.settings_privacy) {
         AccountPrivacyRow(onOpenAccountPrivacy)
         BlockedRow(blocked, onOpenBlocked)
         ContactSyncRow()
         DefaultAutoDeleteRow(autoDelete)
         SensitiveContentRow(sensitive)
     }
-    SettingsGroup(Res.string.settings_discretion) {
+    TitledGroup(Res.string.settings_discretion) {
         DiscreetReadingRow()
         StripTrackingParametersRow()
     }
-    SettingsGroup(Res.string.settings_security) {
+    TitledGroup(Res.string.settings_security) {
         TwoStepRow(twoStep, onOpenTwoStep)
         LoginEmailRow(twoStep, onOpenLoginEmail)
         PasskeysRow(onOpenPasskeys)
@@ -194,18 +196,12 @@ private fun ContactSyncRow() {
 private fun DiscreetReadingRow() {
     val settings = org.koin.compose.koinInject<eu.tintera.plume.core.settings.AppSettings>()
     val enabled by settings.discreetReading.collectAsStateWithLifecycle()
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { Icon(painterResource(Res.drawable.visibility_off_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_discreet_reading)) },
-        supportingContent = { Text(stringResource(Res.string.settings_discreet_reading_summary)) },
-        trailingContent = {
-            eu.tintera.plume.core.ui.IconSwitch(
-                checked = enabled,
-                onCheckedChange = settings::setDiscreetReading,
-            )
-        },
-        modifier = Modifier.clickable { settings.setDiscreetReading(!enabled) },
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_discreet_reading),
+        checked = enabled,
+        supporting = stringResource(Res.string.settings_discreet_reading_summary),
+        icon = Res.drawable.visibility_off_24dp,
+        onCheckedChange = settings::setDiscreetReading,
     )
 }
 
@@ -213,18 +209,12 @@ private fun DiscreetReadingRow() {
 private fun StripTrackingParametersRow() {
     val settings = org.koin.compose.koinInject<eu.tintera.plume.core.settings.AppSettings>()
     val enabled by settings.stripTrackingParameters.collectAsStateWithLifecycle()
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { Icon(painterResource(Res.drawable.link_off_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_strip_tracking_params)) },
-        supportingContent = { Text(stringResource(Res.string.settings_strip_tracking_params_summary)) },
-        trailingContent = {
-            eu.tintera.plume.core.ui.IconSwitch(
-                checked = enabled,
-                onCheckedChange = settings::setStripTrackingParameters,
-            )
-        },
-        modifier = Modifier.clickable { settings.setStripTrackingParameters(!enabled) },
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_strip_tracking_params),
+        checked = enabled,
+        supporting = stringResource(Res.string.settings_strip_tracking_params_summary),
+        icon = Res.drawable.link_off_24dp,
+        onCheckedChange = settings::setStripTrackingParameters,
     )
 }
 
@@ -339,12 +329,12 @@ private fun BlockedRow(viewModel: BlockedSendersViewModel, onOpen: () -> Unit) {
 private fun SensitiveContentRow(viewModel: SensitiveContentViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val show = state.show ?: return
-    SwitchRow(
-        title = Res.string.settings_sensitive_content,
-        summary = if (state.failed) Res.string.settings_sensitive_content_failed else Res.string.settings_sensitive_content_summary,
-        summaryIsError = state.failed,
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_sensitive_content),
+        supporting = stringResource(if (state.failed) Res.string.settings_sensitive_content_failed else Res.string.settings_sensitive_content_summary),
+        supportingIsError = state.failed,
         checked = show,
-        onChange = viewModel::setShow,
+        onCheckedChange = viewModel::setShow,
         icon = Res.drawable.visibility_24dp,
     )
 }

@@ -23,7 +23,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import eu.tintera.plume.core.ui.TextFieldSlot
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.resources.chat_folder_icon
 import eu.tintera.plume.resources.chat_folder_icon_auto
 import eu.tintera.plume.resources.chat_folder_icon_auto_help
@@ -35,7 +34,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -164,6 +162,9 @@ import eu.tintera.plume.resources.chat_folder_link_chats_help
 import eu.tintera.plume.resources.chat_folder_link_no_chats
 import eu.tintera.plume.resources.chat_folder_delete_body_leave
 import eu.tintera.plume.resources.chat_folder_delete_leave
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.GroupTitle
+import eu.tintera.plume.core.ui.groupRowBackground
 
 /**
  * Editor složky: název, co do ní patří (vybrané chaty a druhy chatů) a co z ní vypadne
@@ -286,7 +287,7 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            FolderHeader(Res.string.chat_folder_included)
+            GroupTitle(stringResource(Res.string.chat_folder_included), Modifier.padding(bottom = 6.dp))
             val chosen = draft.chosenChatIds
             // Sdílená složka nese jen vybrané chaty — druhy a vynechané by server při uložení odmítl.
             val kinds = if (draft.isShareable) emptyList() else listOf(
@@ -318,7 +319,7 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
             )
 
             if (!draft.isShareable) {
-                FolderHeader(Res.string.chat_folder_excluded, Modifier.padding(top = 16.dp))
+                GroupTitle(stringResource(Res.string.chat_folder_excluded), Modifier.padding(top = 16.dp, bottom = 6.dp))
                 FolderBlock(
                     addLabel = Res.string.chat_folder_exclude_chats,
                     onAdd = { viewModel.openPick(FolderChatPick.Exclude) },
@@ -340,7 +341,7 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
             }
 
             state.links?.let { links ->
-                FolderHeader(Res.string.chat_folder_share_header, Modifier.padding(top = 16.dp))
+                GroupTitle(stringResource(Res.string.chat_folder_share_header), Modifier.padding(top = 16.dp, bottom = 6.dp))
                 FolderLinks(
                     links = links,
                     canCreate = state.canCreateLink,
@@ -442,15 +443,12 @@ private fun FolderBlock(
             modifier = Modifier.clip(groupItemShape(0, count)).clickable(onClick = onAdd),
         )
         toggles.forEachIndexed { index, toggle ->
-            ListItem(
+            SwitchListItem(
+                checked = toggle.checked,
+                onCheckedChange = toggle.onChange,
                 headlineContent = { Text(stringResource(toggle.label)) },
                 leadingContent = { FolderIcon(toggle.icon, accent = false) },
-                // Klikání nese celý řádek, přepínač ne (viz „Obrazovka nastavení").
-                trailingContent = { IconSwitch(checked = toggle.checked, onCheckedChange = null) },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-                modifier = Modifier
-                    .clip(groupItemShape(index + 1, count))
-                    .toggleable(value = toggle.checked, role = Role.Switch, onValueChange = toggle.onChange),
+                modifier = Modifier.groupRowBackground(groupItemShape(index + 1, count)),
             )
         }
         chatIds.forEachIndexed { index, chatId ->
@@ -532,16 +530,6 @@ private fun FolderLinks(
             )
         }
     }
-}
-
-@Composable
-private fun FolderHeader(title: StringResource, modifier: Modifier = Modifier) {
-    Text(
-        stringResource(title),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.fillMaxWidth().padding(start = 16.dp, bottom = 6.dp),
-    )
 }
 
 /** Výběr chatů do složky (nebo vynechaných): tentýž `ChatPicker` jako přeposílání, víc naráz. */

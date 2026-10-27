@@ -96,7 +96,7 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   **Dvě skutečné tváře ověřené se dvěma účty** (12. 10. 2026): „V" a „P5" přes sebe, „2 hlasy".
 - **Zakládání je obrazovka `PollComposerRoute`** (sponka → Anketa), bez metadat scény jako
   přeposílání: jde přes celou plochu z hlavního seznamu i archivu, zpět umí sám `NavDisplay`.
-  Pravidla formuláře jsou čisté funkce (`pollDraftOf`, `normalizedAnswers`,
+  Pravidla formuláře jsou čisté funkce (`pollDraftOf`, `normalizedAnswers` nad společným `normalizedEntries`,
   `correctAfterRemoval`, testy `PollComposerTest`).
 - **Do soukromého chatu s ČLOVĚKEM anketa nejde** — TDLib: *„Polls can be sent to a private
   chat only if the chat is a chat with a bot or the Saved Messages chat."* Server by ji odmítl

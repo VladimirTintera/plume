@@ -22,7 +22,6 @@ import eu.tintera.plume.resources.event_log_row_help
 import eu.tintera.plume.resources.event_log_row
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ButtonDefaults
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.resources.edit_chat_forum_help
 import eu.tintera.plume.resources.edit_chat_forum
 import eu.tintera.plume.resources.how_to_reg_24dp
@@ -47,7 +46,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -74,8 +72,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -100,7 +96,6 @@ import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.PhotoCropOverlay
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.core.telegram.MemberModeration
 import eu.tintera.plume.resources.edit_chat_moderation
 import eu.tintera.plume.resources.edit_chat_restricted
@@ -153,9 +148,10 @@ import eu.tintera.plume.resources.edit_profile_delete_photo_confirm
 import eu.tintera.plume.resources.edit_profile_save
 import eu.tintera.plume.resources.photo_camera_24dp
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Úprava skupiny nebo kanálu z profilu: fotka, název, popis, veřejný odkaz a výchozí práva členů.
@@ -512,7 +508,7 @@ fun EditChatScreen(
                 if (chat.canToggleForum) {
                     GroupedColumn(Modifier.fillMaxWidth()) {
                         Column {
-                            SwitchRow(Res.string.edit_chat_forum, viewModel.isForum, viewModel::toggleForum)
+                            SwitchListItem(stringResource(Res.string.edit_chat_forum), viewModel.isForum, onCheckedChange = viewModel::toggleForum)
                             Text(
                                 stringResource(Res.string.edit_chat_forum_help),
                                 style = MaterialTheme.typography.bodySmall,
@@ -665,52 +661,42 @@ private fun PermissionsGroup(
     permissions: GroupPermissions,
     onChange: ((GroupPermissions) -> GroupPermissions) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Nadpis a blok jsou jeden kus, jako skupina v Nastavení — jinak by nadpis visel
-        // stejně daleko od svého bloku jako od pole nad ním.
-        Text(
-            stringResource(Res.string.edit_chat_permissions),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
-        )
-        GroupedColumn(Modifier.fillMaxWidth()) {
-            SwitchRow(Res.string.edit_chat_perm_send_messages, permissions.sendMessages) { value ->
-                onChange { it.copy(sendMessages = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_photos, permissions.sendPhotos) { value ->
-                onChange { it.copy(sendPhotos = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_videos, permissions.sendVideos) { value ->
-                onChange { it.copy(sendVideos = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_documents, permissions.sendDocuments) { value ->
-                onChange { it.copy(sendDocuments = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_voice, permissions.sendVoiceNotes) { value ->
-                onChange { it.copy(sendVoiceNotes = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_video_notes, permissions.sendVideoNotes) { value ->
-                onChange { it.copy(sendVideoNotes = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_stickers, permissions.sendStickers) { value ->
-                onChange { it.copy(sendStickers = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_polls, permissions.sendPolls) { value ->
-                onChange { it.copy(sendPolls = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_react, permissions.react) { value ->
-                onChange { it.copy(react = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_invite, permissions.inviteUsers) { value ->
-                onChange { it.copy(inviteUsers = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_pin, permissions.pinMessages) { value ->
-                onChange { it.copy(pinMessages = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_change_info, permissions.changeInfo) { value ->
-                onChange { it.copy(changeInfo = value) }
-            }
+    TitledGroup(Res.string.edit_chat_permissions, Modifier.fillMaxWidth()) {
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_messages), permissions.sendMessages) { value ->
+            onChange { it.copy(sendMessages = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_photos), permissions.sendPhotos) { value ->
+            onChange { it.copy(sendPhotos = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_videos), permissions.sendVideos) { value ->
+            onChange { it.copy(sendVideos = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_documents), permissions.sendDocuments) { value ->
+            onChange { it.copy(sendDocuments = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_voice), permissions.sendVoiceNotes) { value ->
+            onChange { it.copy(sendVoiceNotes = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_video_notes), permissions.sendVideoNotes) { value ->
+            onChange { it.copy(sendVideoNotes = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_stickers), permissions.sendStickers) { value ->
+            onChange { it.copy(sendStickers = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_polls), permissions.sendPolls) { value ->
+            onChange { it.copy(sendPolls = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_react), permissions.react) { value ->
+            onChange { it.copy(react = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_invite), permissions.inviteUsers) { value ->
+            onChange { it.copy(inviteUsers = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_pin), permissions.pinMessages) { value ->
+            onChange { it.copy(pinMessages = value) }
+        }
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_change_info), permissions.changeInfo) { value ->
+            onChange { it.copy(changeInfo = value) }
         }
     }
 }
@@ -721,35 +707,27 @@ private fun PermissionsGroup(
  */
 @Composable
 private fun StickerSetGroup(set: StickerSetSummary?, busy: Boolean, onClick: () -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(Res.string.edit_chat_sticker_set),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+    TitledGroup(Res.string.edit_chat_sticker_set, Modifier.fillMaxWidth()) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            headlineContent = { Text(set?.title ?: stringResource(Res.string.edit_chat_sticker_set_none)) },
+            supportingContent = {
+                Text(
+                    if (set != null && set.size > 0) {
+                        pluralStringResource(Res.plurals.stickers_count, set.size, set.size)
+                    } else {
+                        stringResource(Res.string.edit_chat_sticker_set_off)
+                    },
+                )
+            },
+            leadingContent = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
+            trailingContent = if (busy) {
+                { LoadingIndicator(Modifier.size(32.dp)) }
+            } else {
+                null
+            },
+            modifier = Modifier.clickable(enabled = !busy, onClick = onClick),
         )
-        GroupedColumn(Modifier.fillMaxWidth()) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(set?.title ?: stringResource(Res.string.edit_chat_sticker_set_none)) },
-                supportingContent = {
-                    Text(
-                        if (set != null && set.size > 0) {
-                            pluralStringResource(Res.plurals.stickers_count, set.size, set.size)
-                        } else {
-                            stringResource(Res.string.edit_chat_sticker_set_off)
-                        },
-                    )
-                },
-                leadingContent = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
-                trailingContent = if (busy) {
-                    { LoadingIndicator(Modifier.size(32.dp)) }
-                } else {
-                    null
-                },
-                modifier = Modifier.clickable(enabled = !busy, onClick = onClick),
-            )
-        }
     }
 }
 
@@ -759,35 +737,27 @@ private fun StickerSetGroup(set: StickerSetSummary?, busy: Boolean, onClick: () 
  */
 @Composable
 private fun DiscussionGroup(linked: LinkedChat?, busy: Boolean, onClick: () -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(Res.string.edit_chat_discussion),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+    TitledGroup(Res.string.edit_chat_discussion, Modifier.fillMaxWidth()) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            headlineContent = {
+                Text(linked?.title ?: stringResource(Res.string.edit_chat_discussion_none))
+            },
+            supportingContent = {
+                Text(
+                    stringResource(
+                        if (linked != null) Res.string.edit_chat_discussion_on else Res.string.edit_chat_discussion_off,
+                    ),
+                )
+            },
+            leadingContent = { Icon(painterResource(Res.drawable.forum_24dp), contentDescription = null) },
+            trailingContent = if (busy) {
+                { LoadingIndicator(Modifier.size(32.dp)) }
+            } else {
+                null
+            },
+            modifier = Modifier.clickable(enabled = !busy, onClick = onClick),
         )
-        GroupedColumn(Modifier.fillMaxWidth()) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = {
-                    Text(linked?.title ?: stringResource(Res.string.edit_chat_discussion_none))
-                },
-                supportingContent = {
-                    Text(
-                        stringResource(
-                            if (linked != null) Res.string.edit_chat_discussion_on else Res.string.edit_chat_discussion_off,
-                        ),
-                    )
-                },
-                leadingContent = { Icon(painterResource(Res.drawable.forum_24dp), contentDescription = null) },
-                trailingContent = if (busy) {
-                    { LoadingIndicator(Modifier.size(32.dp)) }
-                } else {
-                    null
-                },
-                modifier = Modifier.clickable(enabled = !busy, onClick = onClick),
-            )
-        }
     }
 }
 
@@ -797,37 +767,29 @@ private fun DiscussionGroup(linked: LinkedChat?, busy: Boolean, onClick: () -> U
  */
 @Composable
 private fun InvitesGroup(pending: Int, onOpenInviteLinks: () -> Unit, onOpenJoinRequests: () -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(Res.string.edit_chat_invites),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+    TitledGroup(Res.string.edit_chat_invites, Modifier.fillMaxWidth()) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            headlineContent = { Text(stringResource(Res.string.edit_chat_invite_links)) },
+            supportingContent = { Text(stringResource(Res.string.edit_chat_invite_links_help)) },
+            leadingContent = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
+            modifier = Modifier.clickable(onClick = onOpenInviteLinks),
         )
-        GroupedColumn(Modifier.fillMaxWidth()) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(Res.string.edit_chat_invite_links)) },
-                supportingContent = { Text(stringResource(Res.string.edit_chat_invite_links_help)) },
-                leadingContent = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
-                modifier = Modifier.clickable(onClick = onOpenInviteLinks),
-            )
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(Res.string.edit_chat_join_requests)) },
-                supportingContent = {
-                    Text(
-                        if (pending > 0) {
-                            pluralStringResource(Res.plurals.edit_chat_join_requests_count, pending, pending.grouped())
-                        } else {
-                            stringResource(Res.string.edit_chat_join_requests_none)
-                        },
-                    )
-                },
-                leadingContent = { Icon(painterResource(Res.drawable.how_to_reg_24dp), contentDescription = null) },
-                modifier = Modifier.clickable(onClick = onOpenJoinRequests),
-            )
-        }
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            headlineContent = { Text(stringResource(Res.string.edit_chat_join_requests)) },
+            supportingContent = {
+                Text(
+                    if (pending > 0) {
+                        pluralStringResource(Res.plurals.edit_chat_join_requests_count, pending, pending.grouped())
+                    } else {
+                        stringResource(Res.string.edit_chat_join_requests_none)
+                    },
+                )
+            },
+            leadingContent = { Icon(painterResource(Res.drawable.how_to_reg_24dp), contentDescription = null) },
+            modifier = Modifier.clickable(onClick = onOpenJoinRequests),
+        )
     }
 }
 
@@ -843,47 +805,24 @@ private fun ModerationGroup(moderation: MemberModeration, onOpen: (banned: Boole
     } else {
         stringResource(Res.string.edit_chat_nobody)
     }
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(Res.string.edit_chat_moderation),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
-        )
-        GroupedColumn(Modifier.fillMaxWidth()) {
-            moderation.restrictedCount?.let { restricted ->
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.edit_chat_restricted)) },
-                    supportingContent = { Text(count(restricted)) },
-                    leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
-                    modifier = Modifier.clickable { onOpen(false) },
-                )
-            }
+    TitledGroup(Res.string.edit_chat_moderation, Modifier.fillMaxWidth()) {
+        moderation.restrictedCount?.let { restricted ->
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(Res.string.edit_chat_removed)) },
-                supportingContent = { Text(count(moderation.bannedCount)) },
-                leadingContent = { Icon(painterResource(Res.drawable.person_remove_24dp), contentDescription = null) },
-                modifier = Modifier.clickable { onOpen(true) },
+                headlineContent = { Text(stringResource(Res.string.edit_chat_restricted)) },
+                supportingContent = { Text(count(restricted)) },
+                leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
+                modifier = Modifier.clickable { onOpen(false) },
             )
         }
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            headlineContent = { Text(stringResource(Res.string.edit_chat_removed)) },
+            supportingContent = { Text(count(moderation.bannedCount)) },
+            leadingContent = { Icon(painterResource(Res.drawable.person_remove_24dp), contentDescription = null) },
+            modifier = Modifier.clickable { onOpen(true) },
+        )
     }
-}
-
-/** Řádek nese klikání celý, přepínač má `onCheckedChange = null` — jako v Nastavení. */
-@Composable
-internal fun SwitchRow(title: StringResource, checked: Boolean, onChange: (Boolean) -> Unit) {
-    val haptics = LocalHapticFeedback.current
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(stringResource(title)) },
-        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = { on ->
-            haptics.toggle(on)
-            onChange(on)
-        }),
-    )
 }
 
 private const val TITLE_MAX_LENGTH = 128
