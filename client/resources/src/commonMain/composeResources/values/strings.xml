@@ -977,6 +977,9 @@
         <item quantity="one">Not delivered to %1$s and %2$d other chat. The others got it; sending again goes only there.</item>
         <item quantity="other">Not delivered to %1$s and %2$d other chats. The others got it; sending again goes only there.</item>
     </plurals>
+    <string name="forward_comment">Add a comment</string>
+    <string name="forward_frequent">Frequent</string>
+    <string name="forward_silent">Silent</string>
     <string name="forward_hide_sender">Hide sender name</string>
     <string name="forward_hide_captions">Hide captions</string>
     <string name="decimal_number">%1$s.%2$s</string>

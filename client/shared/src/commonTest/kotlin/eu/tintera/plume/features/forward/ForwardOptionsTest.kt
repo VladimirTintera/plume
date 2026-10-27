@@ -34,4 +34,11 @@ class ForwardOptionsTest {
         val chosen = ForwardOptions(hideSender = true, hideCaptions = true)
         assertEquals(ForwardOptions(hideSender = true), chosen.allowedBy(everything.copy(hasCaptions = false)))
     }
+
+    @Test
+    fun bezZvukuPlatiVzdycky() {
+        // Nezávisí na zprávách: i zprávu, kterou nejde zkopírovat, jde přeposlat potichu.
+        val chosen = ForwardOptions(silent = true)
+        assertEquals(ForwardOptions(silent = true), chosen.allowedBy(ForwardCapabilities()))
+    }
 }

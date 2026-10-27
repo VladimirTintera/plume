@@ -1700,9 +1700,8 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 **Přeposílání**
 
-- **Komentář, tiché odeslání a časté cíle ve výběru** (M). Hlavička výběru má jen skrytí
-  odesílatele a popisků (`ForwardScreen.kt`); časté cíle přeposílání vrací TDLib
-  (`getTopChats` s `TopChatCategoryForwardChats`, dnes se volá jen pro lidi).
+- ~~**Komentář, tiché odeslání a časté cíle ve výběru**~~ — hotovo
+  (`docs/poznatky/konverzace-akce.md`, „Přeposílání").
 
 **Příběhy**
 

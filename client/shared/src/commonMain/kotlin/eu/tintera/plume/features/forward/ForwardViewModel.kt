@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ForwardCapabilities
 import eu.tintera.plume.core.telegram.ForwardOptions
+import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.chats.ChatSearch
 import eu.tintera.plume.features.chats.pickerChats
@@ -64,17 +65,30 @@ class ForwardViewModel(
     private val _capabilities = MutableStateFlow(ForwardCapabilities())
     private val _options = MutableStateFlow(ForwardOptions())
 
+    /** Komentář, který odejde do každého cíle PŘED přeposlanými zprávami. */
+    private val _comment = MutableStateFlow("")
+
+    /** Kam uživatel přeposílá nejčastěji (`getTopChats`); nahoře nad seznamem, jen bez dotazu. */
+    private val _frequent = MutableStateFlow<List<ChatSummary>>(emptyList())
+
+    /**
+     * Cíle, kam komentář už odešel, i když přeposlání samo pak selhalo. Opakované „Odeslat" tam
+     * pošle jen zprávy — komentář podruhé by byl tatáž chyba jako zpráva podruhé.
+     */
+    private val commented = mutableSetOf<Long>()
+
     init {
         viewModelScope.launch { _capabilities.value = repository.forwardCapabilities(fromChatId, messageIds) }
+        viewModelScope.launch { _frequent.value = chatRepository.topForwardChats().getOrDefault(emptyList()) }
     }
 
     val state: StateFlow<ForwardState> = combine(
         combine(chatRepository.chats(), query, search.state) { list, text, found -> pickerChats(text, list, found) },
         query,
         combine(_sending, _selected, ::Pair),
-        _error,
+        combine(_error, _comment, _frequent, ::Triple),
         combine(chatRepository.savedMessagesChatId, _capabilities, _options, ::Triple),
-    ) { picker, text, (sending, selected), error, (saved, capabilities, options) ->
+    ) { picker, text, (sending, selected), (error, comment, frequent), (saved, capabilities, options) ->
         ForwardState(
             query = text,
             loading = picker.loading,
@@ -87,6 +101,10 @@ class ForwardViewModel(
             savedMessagesChatId = saved,
             capabilities = capabilities,
             options = options,
+            comment = comment,
+            // Časté cíle jen bez dotazu: s dotazem uživatel ví, co hledá, a blok nad výsledky by
+            // je odsunul.
+            frequent = if (text.isBlank()) frequent else emptyList(),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ForwardState())
 
@@ -101,6 +119,14 @@ class ForwardViewModel(
 
     fun setHideCaptions(hide: Boolean) {
         _options.update { it.copy(hideCaptions = hide) }
+    }
+
+    fun setSilent(silent: Boolean) {
+        _options.update { it.copy(silent = silent) }
+    }
+
+    fun setComment(text: String) {
+        _comment.value = text
     }
 
     /** Ťuknutí na chat ho přidá mezi cíle, nebo ho z nich vyndá. Odesílá se až tlačítkem. */
@@ -121,16 +147,30 @@ class ForwardViewModel(
      * **Po selhání zůstanou vybrané jen cíle, kam zpráva nedorazila.** Dřív zůstal výběr celý
      * a další „Odeslat" poslalo zprávu podruhé i tam, kde už byla. Hláška jmenuje, kam
      * nedorazila ([failureText]), ať je vidět, čeho se opakování týká.
+     *
+     * **Komentář jde do cíle PŘED zprávami**, jako u oficiálního klienta: čte se jako úvod
+     * („koukni na tohle") a přeposlané zprávy pod ním. Když neodejde, zprávy se do toho cíle
+     * neposílají — bez úvodu by přišly jinak, než je uživatel poslal. „Bez zvuku" platí pro
+     * komentář i zprávy.
      */
     fun send(onDone: (chatId: Long) -> Unit) {
         val targets = _selected.value.toList()
         if (targets.isEmpty() || _sending.value) return
         val options = _options.value.allowedBy(_capabilities.value)
+        val comment = _comment.value.trim()
         _sending.value = true
 
         viewModelScope.launch {
             val failed = mutableListOf<Long>()
             targets.forEach { target ->
+                if (comment.isNotEmpty() && target !in commented) {
+                    val sent = repository.send(target, comment, replyToMessageId = null, options = SendOptions(silent = options.silent))
+                    if (sent.isFailure) {
+                        failed += target
+                        return@forEach
+                    }
+                    commented += target
+                }
                 repository.forward(fromChatId, messageIds, target, options)
                     .onSuccess { reportUsed(target) }
                     .onFailure { failed += target }
@@ -184,6 +224,10 @@ data class ForwardState(
     val capabilities: ForwardCapabilities = ForwardCapabilities(),
     /** Co uživatel zvolil; co se opravdu pošle, určí [ForwardOptions.allowedBy]. */
     val options: ForwardOptions = ForwardOptions(),
+    /** Komentář k přeposlání; prázdný = jen zprávy. */
+    val comment: String = "",
+    /** Časté cíle nad seznamem; prázdné při hledání. */
+    val frequent: List<ChatSummary> = emptyList(),
 )
 
 /**
@@ -196,5 +240,7 @@ internal fun ForwardOptions.allowedBy(capabilities: ForwardCapabilities): Forwar
     return ForwardOptions(
         hideSender = hideSender,
         hideCaptions = hideSender && hideCaptions && capabilities.hasCaptions,
+        // Bez zvuku jde vždycky, nezávisí na zprávách.
+        silent = silent,
     )
 }

@@ -1000,6 +1000,9 @@
         <item quantity="few">Zpráva nedorazila do: %1$s a %2$d dalších chatů. Ostatním odešla, znovu se pošle jen tam.</item>
         <item quantity="other">Zpráva nedorazila do: %1$s a %2$d dalších chatů. Ostatním odešla, znovu se pošle jen tam.</item>
     </plurals>
+    <string name="forward_comment">Přidat komentář</string>
+    <string name="forward_frequent">Časté</string>
+    <string name="forward_silent">Bez zvuku</string>
     <string name="forward_hide_sender">Skrýt odesílatele</string>
     <string name="forward_hide_captions">Skrýt popisky</string>
     <string name="decimal_number">%1$s,%2$s</string>
