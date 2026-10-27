@@ -3632,6 +3632,11 @@
     <string name="story_unhidden">Stories from %1$s are back among the others</string>
     <string name="story_hide_failed">Couldn’t move the stories.</string>
     <string name="story_report">Report story</string>
+    <string name="story_forward">Forward</string>
+    <string name="story_copy_link">Copy link</string>
+    <string name="story_share_link">Share link</string>
+    <string name="story_link_copied">Link copied</string>
+    <string name="story_forward_failed">The story could not be sent.</string>
     <string name="story_albums_menu">Albums…</string>
     <string name="story_albums_title">Albums</string>
     <string name="story_albums_hint">The story is in the checked albums. Albums show on your profile.</string>

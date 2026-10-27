@@ -3759,6 +3759,11 @@
     <string name="story_unhidden">Příběhy od %1$s jsou zase mezi ostatními</string>
     <string name="story_hide_failed">Příběhy se nepodařilo přesunout.</string>
     <string name="story_report">Nahlásit příběh</string>
+    <string name="story_forward">Poslat dál</string>
+    <string name="story_copy_link">Kopírovat odkaz</string>
+    <string name="story_share_link">Sdílet odkaz</string>
+    <string name="story_link_copied">Odkaz zkopírován</string>
+    <string name="story_forward_failed">Příběh se nepodařilo poslat.</string>
     <string name="story_albums_menu">Alba…</string>
     <string name="story_albums_title">Alba</string>
     <string name="story_albums_hint">Příběh je v zaškrtnutých albech. Alba jsou vidět v profilu.</string>

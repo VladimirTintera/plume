@@ -414,6 +414,11 @@ class StoriesViewModel(
         _notice.value = null
     }
 
+    /** Hláška z akce, kterou dělá obrazovka sama (zkopírovaný odkaz, nepovedené sdílení). */
+    fun showNotice(text: UiText) {
+        _notice.value = text
+    }
+
     private val _pinned = MutableStateFlow<Map<Long, List<Int>>>(emptyMap())
 
     /**

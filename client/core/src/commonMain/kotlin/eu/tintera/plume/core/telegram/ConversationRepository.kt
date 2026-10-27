@@ -410,6 +410,14 @@ interface ConversationRepository {
     ): Result<Unit>
 
     /**
+     * Pošle příběh [storyId] autora [posterChatId] do chatu [toChatId] jako zprávu
+     * (`InputMessageStory`) — příjemce ho otevře ťuknutím. Smí jen příběh s
+     * [MessageMedia.Story.canBeForwarded].
+     */
+    suspend fun sendStory(toChatId: Long, posterChatId: Long, storyId: Int, options: SendOptions = SendOptions()): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Co přeposílané zprávy dovolí: jestli jdou poslat jako kopie bez odesílatele a jestli
      * nesou popisek, který by šlo vynechat. Když se to zjistit nepodaří, nedovolí nic — volba,
      * po které přijde chyba, je horší než volba, která tam není.
@@ -3028,6 +3036,13 @@ sealed interface MessageMedia {
         val canToggleOnProfile: Boolean = false,
         /** Příběh zůstane v profilu i po vypršení (`isPostedToChatPage`). */
         val isOnProfile: Boolean = false,
+        /** Příběh jde poslat dál do chatu (`canBeForwarded`); chráněný obsah ne. */
+        val canBeForwarded: Boolean = false,
+        /**
+         * Veřejný odkaz `t.me/jméno/s/N`; `null`, když autor veřejné jméno nemá, nebo příběh
+         * dál poslat nejde. Plní ho jen prohlížeč příběhů ([StoryRepository.story]).
+         */
+        val link: String? = null,
     ) : MessageMedia
 }
 

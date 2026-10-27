@@ -449,9 +449,10 @@ const val NO_STORY = 0
  * Výběr chatu, do kterého se přeposílá.
  *
  * Nese id zpráv, ne jejich obsah — přeposílá se na serveru podle id a album jich má víc.
+ * S [storyId] se posílá příběh autora [fromChatId] a [messageIds] je prázdné.
  */
 @Serializable
-data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Route
+data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>, val storyId: Int = NO_STORY) : Route
 
 /**
  * Výběr pro tlačítko klávesnice bota „vyber lidi" ([users] `true`) nebo „vyber chat" ve zprávě

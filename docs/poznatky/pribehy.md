@@ -318,6 +318,28 @@ Lišta pod cizím příběhem (`StoryReplyBar`): pole „Odpovědět…", „+" 
 - **Výsledek hlásí pilulka nad lištou** („Odpověď odeslána", chyba přes `userMessage`), ne
   snackbar — prohlížeč žádný `Scaffold` nemá.
 
+## Poslat dál a odkaz
+
+Nabídka ⋮ v prohlížeči má nahoře „Poslat dál", „Kopírovat odkaz" a „Sdílet odkaz"
+(`StoryShare` ve `StoriesScreen.kt`), u cizího i vlastního příběhu.
+
+- **Poslat dál jde jen u `Story.canBeForwarded`** (`MessageMedia.Story.canBeForwarded`). Chráněný
+  příběh (autor zakázal přeposílání a snímky) nemá žádnou z těch tří položek: ani odkaz, protože
+  ten by obsah, který autor nechtěl šířit, vynesl stejně.
+- **Výběr cílů je tentýž jako u přeposlání zpráv** (`ForwardRoute` se `storyId`,
+  `ForwardViewModel`), komentář, „Bez zvuku" i časté cíle platí stejně. Příběh odchází jako
+  zpráva `InputMessageStory` (`ConversationRepository.sendStory`), ne jako kopie obsahu: volby
+  „skrýt odesílatele" a popisky proto chybí (kopie se u příběhu ani nezjišťuje). Po odeslání
+  se otevře první vybraný chat nad prohlížečem a zpět vede do příběhu.
+- **TDLib 1.8.69 nemá `getStoryLink` ani `canGetLink`.** Odkaz `t.me/jméno/s/N` skládá
+  `getInternalLink(InternalLinkTypeStory(jméno, id), isHttp = true)` z prvního aktivního
+  veřejného jména autora (uživatel přes `getUser`, kanál přes `getSupergroup`; obojí je
+  v lokální databázi). **Autor bez veřejného jména odkaz nemá** a položky s odkazem chybí;
+  poslat dál přes výběr chatu jde i tak. Odkaz plní jen `StoryRepository.story` (prohlížeč),
+  ne sdílený příběh ve zprávě.
+- **„Odkaz zkopírován" jen tam, kde zkopírování nepotvrdí systém** (`TextClipboard.confirmsCopy`),
+  pilulkou nad lištou jako ostatní hlášky prohlížeče.
+
 ## Vlastní příběh
 
 „+" v seznamu chatů → Nový příběh (nahoře, nejdál od palce; ve sbaleném sloupci vlastní

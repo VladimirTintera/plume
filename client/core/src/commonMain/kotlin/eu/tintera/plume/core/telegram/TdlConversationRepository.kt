@@ -153,6 +153,7 @@ import dev.g000sha256.tdl.dto.InputMessageAudio
 import dev.g000sha256.tdl.dto.InputMessagePhoto
 import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
 import dev.g000sha256.tdl.dto.InputMessageSticker
+import dev.g000sha256.tdl.dto.InputMessageStory
 import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.InputMessageVideo
 import dev.g000sha256.tdl.dto.InputMessageVideoNote
@@ -1057,6 +1058,15 @@ class TdlConversationRepository(
             removeCaption = options.hideSender && options.hideCaptions,
         )
             .toResult()
+            .map { }
+
+    override suspend fun sendStory(toChatId: Long, posterChatId: Long, storyId: Int, options: SendOptions): Result<Unit> =
+        client.sendMessage(
+            chatId = toChatId,
+            options = options.toTdl(),
+            inputMessageContent = InputMessageStory(storyPosterChatId = posterChatId, storyId = storyId),
+        ).toResult()
+            .onFailure { logger.w(it) { "Příběh $posterChatId/$storyId do $toChatId" } }
             .map { }
 
     override suspend fun forwardCapabilities(chatId: Long, messageIds: List<Long>): ForwardCapabilities =

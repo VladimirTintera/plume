@@ -685,6 +685,7 @@ fun appModule() = module {
         ForwardViewModel(
             fromChatId = parameters.get(),
             messageIds = parameters.get(),
+            storyId = parameters.get<Int>().takeIf { it != NO_STORY },
             repository = get(),
             chatRepository = get(),
             reportUsed = get<ShareTargets>()::reportUsed,
