@@ -1562,6 +1562,7 @@ private fun shellEntryProvider(
                 parameters = { parametersOf(route.chatId, route.storyIds, route.startStoryId) },
             ),
             onBack = { chatsStack.pop(route) },
+            onForward = { posterChatId, storyId -> chatsStack.add(ForwardRoute(posterChatId, emptyList(), storyId)) },
             onReplaceMedia = { target, path, video ->
                 chatsStack.add(
                     StoryComposerRoute(
@@ -1728,8 +1729,8 @@ private fun shellEntryProvider(
     entry<ForwardRoute> { route ->
         ForwardScreen(
             viewModel = koinViewModel(
-                key = "forward-${route.fromChatId}-${route.messageIds.joinToString("-")}",
-                parameters = { parametersOf(route.fromChatId, route.messageIds) },
+                key = "forward-${route.fromChatId}-${route.messageIds.joinToString("-")}-${route.storyId}",
+                parameters = { parametersOf(route.fromChatId, route.messageIds, route.storyId) },
             ),
             onBack = { chatsStack.pop(route) },
             onForwarded = { chatId ->

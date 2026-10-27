@@ -16,6 +16,7 @@ import eu.tintera.plume.resources.forward_failed
 import eu.tintera.plume.resources.forward_failed_partial
 import eu.tintera.plume.resources.forward_failed_partial_more
 import eu.tintera.plume.resources.saved_messages
+import eu.tintera.plume.resources.story_forward_failed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,10 +32,15 @@ import kotlinx.coroutines.launch
  *
  * Bez dotazu je to živý hlavní seznam z [ChatRepository], ten samý, který kreslí hlavní
  * obrazovka. S dotazem výsledky [ChatSearch] — ze všech chatů, i archivovaných.
+ *
+ * **Příběh se posílá týmž výběrem** ([storyId] autora [fromChatId], [messageIds] prázdné):
+ * komentář, „bez zvuku" i časté cíle platí stejně, volby kopie ne — příběh odchází jako
+ * zpráva s odkazem na něj (`InputMessageStory`), ne jako kopie obsahu.
  */
 class ForwardViewModel(
     private val fromChatId: Long,
     private val messageIds: List<Long>,
+    private val storyId: Int? = null,
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
     /**
@@ -78,7 +84,8 @@ class ForwardViewModel(
     private val commented = mutableSetOf<Long>()
 
     init {
-        viewModelScope.launch { _capabilities.value = repository.forwardCapabilities(fromChatId, messageIds) }
+        // U příběhu kopie bez odesílatele nedává smysl, volby zůstanou výchozí (žádné).
+        if (storyId == null) viewModelScope.launch { _capabilities.value = repository.forwardCapabilities(fromChatId, messageIds) }
         viewModelScope.launch { _frequent.value = chatRepository.topForwardChats().getOrDefault(emptyList()) }
     }
 
@@ -171,7 +178,12 @@ class ForwardViewModel(
                     }
                     commented += target
                 }
-                repository.forward(fromChatId, messageIds, target, options)
+                val sent = if (storyId != null) {
+                    repository.sendStory(target, fromChatId, storyId, SendOptions(silent = options.silent))
+                } else {
+                    repository.forward(fromChatId, messageIds, target, options)
+                }
+                sent
                     .onSuccess { reportUsed(target) }
                     .onFailure { failed += target }
             }
@@ -191,7 +203,7 @@ class ForwardViewModel(
      * za sebou by se do snackbaru nevešla).
      */
     private suspend fun failureText(failed: List<Long>, allFailed: Boolean): UiText {
-        if (allFailed) return UiText(Res.string.forward_failed)
+        if (allFailed) return UiText(if (storyId != null) Res.string.story_forward_failed else Res.string.forward_failed)
         val first = failed.first()
         val name = if (first == chatRepository.savedMessagesChatId.value) {
             UiText(Res.string.saved_messages)

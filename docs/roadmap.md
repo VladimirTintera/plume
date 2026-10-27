@@ -1726,9 +1726,10 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 **Příběhy**
 
-- **Poslat dál, přeposlat a zkopírovat odkaz** (M). Nabídka ⋮ v prohlížeči příběhů nemá ani
-  jedno (`StoriesScreen.kt`); model příběhu nenese `canBeForwarded` / `canGetLink`
-  a `getStoryLink` se nevolá. Prohlížeč médií vedle to umí.
+- ~~**Poslat dál, přeposlat a zkopírovat odkaz**~~ — hotovo: „Poslat dál" přes výběr
+  přeposílání, kopírovat a sdílet odkaz u autora s veřejným jménem
+  (`docs/poznatky/pribehy.md`, „Poslat dál a odkaz"). TDLib `getStoryLink` nemá, odkaz skládá
+  `getInternalLink`.
 - **Ztlumení videa, rozbalení dlouhého popisku a čtečka obrazovky** (S). Video hraje vždycky se
   zvukem; popisek je uříznutý na 6 řádků (`CAPTION_LINES`); se zapnutou čtečkou fotka po 6 s
   sama přeskočí a popis fotky (model v zařízení) u příběhů není.

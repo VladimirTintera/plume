@@ -38,7 +38,9 @@ import eu.tintera.plume.resources.story_post_not_allowed
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
+import dev.g000sha256.tdl.dto.InternalLinkTypeStory
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageReplyToStory
 import dev.g000sha256.tdl.dto.InputMessageText
@@ -163,8 +165,27 @@ class TdlStoryRepository(
                 .onFailure { logger.w(it) { "Příběh $posterChatId/$storyId se nepodařilo načíst" } }
                 .getOrNull()
         }
-        return MessageStory(storyPosterChatId = posterChatId, storyId = storyId, viaMention = false)
+        val media = MessageStory(storyPosterChatId = posterChatId, storyId = storyId, viaMention = false)
             .toMedia(story) { id -> _active.value[id]?.title ?: client.getChat(chatId = id).toResult().getOrNull()?.title }
+        return if (media.canBeForwarded) media.copy(link = storyLink(posterChatId, storyId)) else media
+    }
+
+    /**
+     * Odkaz `t.me/jméno/s/N`. TDLib na něj vlastní dotaz nemá (ani `canGetLink` u příběhu):
+     * skládá ho `getInternalLink` z veřejného jména autora, takže autor bez jména odkaz nemá.
+     * Jméno i chat jsou v lokální databázi, nic se nestahuje.
+     */
+    private suspend fun storyLink(posterChatId: Long, storyId: Int): String? {
+        val usernames = when (val type = client.getChat(chatId = posterChatId).toResult().getOrNull()?.type) {
+            is ChatTypePrivate -> client.getUser(userId = type.userId).toResult().getOrNull()?.usernames
+            is ChatTypeSupergroup -> client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.usernames
+            else -> null
+        }
+        val username = usernames?.activeUsernames?.firstOrNull() ?: return null
+        return client.getInternalLink(type = InternalLinkTypeStory(storyPosterUsername = username, storyId = storyId), isHttp = true)
+            .toResult()
+            .onFailure { logger.w(it) { "Odkaz na příběh $posterChatId/$storyId" } }
+            .getOrNull()?.url
     }
 
     override suspend fun open(posterChatId: Long, storyId: Int) {

@@ -83,6 +83,17 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.resources.invite_links_share_failed
+import eu.tintera.plume.resources.story_link_copied
+import eu.tintera.plume.resources.story_share_link
+import eu.tintera.plume.resources.story_copy_link
+import eu.tintera.plume.resources.story_forward
+import eu.tintera.plume.resources.share_24dp
+import eu.tintera.plume.resources.link_24dp
+import eu.tintera.plume.resources.forward_24dp
+import eu.tintera.plume.core.files.MediaSharer
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.features.report.ReportSheet
 import eu.tintera.plume.core.ui.DarkSystemBars
@@ -142,6 +153,8 @@ import kotlin.math.abs
 fun StoriesScreen(
     viewModel: StoriesViewModel,
     onBack: () -> Unit,
+    /** Poslat příběh do chatu: výběr cílů nad prohlížečem (tentýž jako u přeposlání zpráv). */
+    onForward: (posterChatId: Long, storyId: Int) -> Unit = { _, _ -> },
     /** Vyměnit médium vlastního příběhu: editor nad prohlížečem s vybranou fotkou nebo videem. */
     onReplaceMedia: (target: StoryEditTarget, path: String, video: Boolean) -> Unit = { _, _, _ -> },
 ) {
@@ -158,6 +171,8 @@ fun StoriesScreen(
     val pickingPeople by viewModel.pickingPeople.collectAsStateWithLifecycle()
     val pinned by viewModel.pinned.collectAsStateWithLifecycle()
     val storyVideoSupported = koinInject<StoryVideo>().supported
+    val clipboard = koinInject<TextClipboard>()
+    val sharer = koinInject<MediaSharer>()
     // Nad prohlížečem je jiná obrazovka (editor příběhu): příběh pod ní stojí. Jinak dojel,
     // prohlížeč se zavřel a po uložení nebylo kam se vrátit (ověřeno na emulátoru).
     // collectAsState, ne …WithLifecycle: to by sběr při zastavení vypnulo a změnu nepoznalo.
@@ -298,6 +313,26 @@ fun StoriesScreen(
             } else {
                 null
             }
+            // Poslat dál a odkaz: jen co TDLib u příběhu dovolí (`canBeForwarded`, veřejné jméno autora).
+            val share = if (key != null && story != null && story.isAvailable && story.canBeForwarded) {
+                val link = story.link
+                StoryShare(
+                    onForward = { onForward(key.posterChatId, key.storyId) },
+                    onCopyLink = link?.let {
+                        {
+                            scope.launch {
+                                clipboard.copy(it)
+                                if (!clipboard.confirmsCopy) viewModel.showNotice(UiText(Res.string.story_link_copied))
+                            }
+                        }
+                    },
+                    onShareLink = link?.let {
+                        { if (!sharer.shareText(it)) viewModel.showNotice(UiText(Res.string.invite_links_share_failed)) }
+                    },
+                )
+            } else {
+                null
+            }
             Box(
                 Modifier
                     .fillMaxSize()
@@ -342,6 +377,7 @@ fun StoriesScreen(
                         onReport = { key?.let(viewModel::reportStory) },
                         onAlbums = { key?.let(viewModel::openAlbums) },
                         own = own,
+                        share = share,
                     ),
                 )
             }
@@ -573,6 +609,7 @@ private fun StoryCard(
             onReport = menu.onReport.takeIf { story != null && story.isAvailable && !story.isOwn },
             onAlbums = menu.onAlbums.takeIf { story != null && story.isOwn && story.canBeAddedToAlbum },
             own = menu.own,
+            share = menu.share,
         )
 
         val caption = story?.caption.orEmpty()
@@ -720,6 +757,8 @@ private fun BoxScope.StoryHeader(
     onAlbums: (() -> Unit)?,
     /** Správa vlastního příběhu; `null` u cizího. */
     own: OwnStoryMenu?,
+    /** Poslat dál a odkaz; `null`, když příběh dál poslat nejde. */
+    share: StoryShare?,
 ) {
     Column(
         Modifier
@@ -809,6 +848,12 @@ private fun BoxScope.StoryHeader(
                 onMenuOpenChange(false)
                 run()
             }
+            // Poslat dál a odkaz nahoře: u cizího příběhu je to nejčastější volba v nabídce.
+            val shareGroup = listOfNotNull(
+                share?.onForward?.let { action(stringResource(Res.string.story_forward), Res.drawable.forward_24dp, it) },
+                share?.onCopyLink?.let { action(stringResource(Res.string.story_copy_link), Res.drawable.link_24dp, it) },
+                share?.onShareLink?.let { action(stringResource(Res.string.story_share_link), Res.drawable.share_24dp, it) },
+            )
             val ownEdit = listOfNotNull(
                 own?.onEditCaption?.let { action(stringResource(Res.string.story_edit_caption), Res.drawable.edit_24dp, it) },
                 own?.onReplaceMedia?.let { action(stringResource(Res.string.story_replace_media), Res.drawable.add_photo_alternate_24dp, it) },
@@ -839,7 +884,7 @@ private fun BoxScope.StoryHeader(
                     report()
                 }
             }
-            if (archive != null || report != null || albums != null || ownEdit.isNotEmpty() || ownProfile.isNotEmpty()) {
+            if (archive != null || report != null || albums != null || shareGroup.isNotEmpty() || ownEdit.isNotEmpty() || ownProfile.isNotEmpty()) {
                 Box {
                     IconButton(onClick = { onMenuOpenChange(true) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.more_vert_24dp), stringResource(Res.string.profile_more), tint = ON_SCRIM)
@@ -847,7 +892,7 @@ private fun BoxScope.StoryHeader(
                     ExpressiveMenu(
                         expanded = menuOpen,
                         onDismiss = { onMenuOpenChange(false) },
-                        groups = listOf(ownEdit, ownProfile + listOfNotNull(albums), listOfNotNull(archive), listOfNotNull(report))
+                        groups = listOf(shareGroup, ownEdit, ownProfile + listOfNotNull(albums), listOfNotNull(archive), listOfNotNull(report))
                             .filter { it.isNotEmpty() },
                     )
                 }
@@ -920,6 +965,18 @@ internal data class StoryMenu(
     val onAlbums: () -> Unit,
     /** Správa vlastního příběhu; `null` u cizího. */
     val own: OwnStoryMenu?,
+    /** Poslat dál a odkaz; `null`, když příběh dál poslat nejde. */
+    val share: StoryShare? = null,
+)
+
+/**
+ * Poslat příběh dál do chatu a jeho odkaz. Odkaz (`null`) má jen příběh autora s veřejným
+ * jménem — `t.me/jméno/s/N` bez jména neexistuje.
+ */
+internal class StoryShare(
+    val onForward: () -> Unit,
+    val onCopyLink: (() -> Unit)?,
+    val onShareLink: (() -> Unit)?,
 )
 
 /**

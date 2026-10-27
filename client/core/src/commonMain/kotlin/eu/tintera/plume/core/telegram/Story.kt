@@ -52,6 +52,7 @@ internal suspend fun MessageStory.toMedia(
         audience = story?.takeIf { it.canSetPrivacySettings }?.privacySettings?.toAudience(),
         canToggleOnProfile = story?.canToggleIsPostedToChatPage == true,
         isOnProfile = story?.isPostedToChatPage == true,
+        canBeForwarded = story?.canBeForwarded == true,
     )
 }
 
