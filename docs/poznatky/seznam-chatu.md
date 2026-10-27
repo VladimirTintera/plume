@@ -1013,6 +1013,19 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 - **Nevratná akce má potvrzení a pojmenovává následek**, ne „opravdu?". `ChatActionsState` proto
   drží `target` (sheet) a `pendingDelete` (dialog) zvlášť — mezi zavřením nabídky a potvrzením
   nesmí zůstat viset obojí.
+- **„Přidat na plochu" (nabídka nad chatem i ⋮ v profilu) připne TUTÉŽ zkratku konverzace**,
+  kterou zakládají notifikace a Direct Share (`conversationShortcut`, id `chat_<id>`;
+  `ShareTargets.pinToHomeScreen`, `ShortcutManagerCompat.requestPinShortcut`). Má tak fotku chatu
+  (nebo iniciálu, u Uložených zpráv záložku) a otevře chat stejným intentem jako notifikace;
+  launcher připnutou zkratku aktualizuje spolu s tou ve sdílení.
+  - **Jen Android s launcherem, který připnutí dovolí** (`isRequestPinShortcutSupported`);
+    jinde (iOS, desktop) se položka nenabízí (`ShareTargetPublisher.canPin`).
+  - **Potvrzení je dialog launcheru**, aplikace se nedozví, jestli ho uživatel přijal — proto po
+    ťuknutí žádná hláška. Na fotku se čeká až 5 s (u zkratky ke sdílení 2 s): na ploše zůstane
+    napořád a uživatel o ni výslovně požádal.
+  - Ověřeno na emulátoru (Pixel Launcher, chat s botem): dialog s fotkou bota, zástupce na
+    ploše s odznakem Plume (`dumpsys shortcut` → `Pinned: chat_…`), ťuknutí otevřelo chat.
+    Položka v ⋮ profilu vidět je.
 - **„Vymazat historii…" je v nabídce taky, ne jen v ⋮ konverzace** — chat se vyprázdní a zůstane
   v seznamu. Otevře TENTÝŽ `ClearHistorySheet` (celá historie nebo vybrané dny, „i pro
   protějšek"), dvě podoby téhož kroku by se rozešly; pravidla jsou v `konverzace-akce.md`,

@@ -46,33 +46,66 @@ class ShareTargets(
      */
     fun reportUsed(chatId: Long) {
         scope.launch {
-            // Uložené zprávy nesou v TDLib jméno a fotku vlastního účtu; ve sdílení mají mít
-            // vlastní název a záložku, jako všude v aplikaci.
-            if (chatId == chats.savedMessagesChatId.value) {
-                publisher.publish(chatId, readString(Res.string.saved_messages), avatarPath = null, isSavedMessages = true)
-                return@launch
-            }
-            val info = repository.chatInfo(chatId).getOrElse { failure ->
-                logger.w(failure) { "Chat $chatId se kvůli zkratce ke sdílení nepodařilo načíst." }
-                return@launch
-            }
-            // Profilovka bývá stažená (kreslí ji seznam i hlavička). Když není, zkratka ji
-            // nedostane — čekat na síť kvůli ikoně ve sdílení nestojí za to.
-            val avatarPath = info.avatarFileId?.let { fileId ->
-                withTimeoutOrNull(AVATAR_WAIT_MS) {
-                    (files.file(fileId).first { it is FileState.Ready || it is FileState.Failed } as? FileState.Ready)?.path
-                }
-            }
-            publisher.publish(chatId, info.title, avatarPath, isSavedMessages = false)
+            val chat = shortcutChat(chatId, AVATAR_WAIT_MS) ?: return@launch
+            publisher.publish(chat.chatId, chat.title, chat.avatarPath, chat.isSavedMessages)
         }
     }
 
+    /** Umí platforma připnout chat na plochu (Android s launcherem, který připnutí dovolí). */
+    val canPinToHomeScreen: Boolean get() = publisher.canPin
+
+    /**
+     * „Přidat na plochu": požádá launcher o zástupce chatu — tutéž zkratku konverzace, kterou
+     * znají notifikace i sdílení, takže má fotku chatu a otevře ho. Potvrzení (dialog launcheru)
+     * je věc systému; jestli ho uživatel přijal, se aplikace nedozví.
+     */
+    fun pinToHomeScreen(chatId: Long) {
+        scope.launch {
+            // Na plochu jde fotka napořád a uživatel o ni výslovně požádal: na stažení se
+            // počká déle než u zkratky ke sdílení.
+            val chat = shortcutChat(chatId, PIN_AVATAR_WAIT_MS) ?: return@launch
+            if (!publisher.pin(chat.chatId, chat.title, chat.avatarPath, chat.isSavedMessages)) {
+                logger.w { "Launcher zástupce chatu $chatId nepřijal." }
+            }
+        }
+    }
+
+    /** Název a stažená profilovka chatu pro jeho zkratku; `null`, když chat nejde načíst. */
+    private suspend fun shortcutChat(chatId: Long, avatarWaitMs: Long): ShortcutChat? {
+        // Uložené zprávy nesou v TDLib jméno a fotku vlastního účtu; ve sdílení i na ploše mají
+        // mít vlastní název a záložku, jako všude v aplikaci.
+        if (chatId == chats.savedMessagesChatId.value) {
+            return ShortcutChat(chatId, readString(Res.string.saved_messages), avatarPath = null, isSavedMessages = true)
+        }
+        val info = repository.chatInfo(chatId).getOrElse { failure ->
+            logger.w(failure) { "Chat $chatId se kvůli zkratce nepodařilo načíst." }
+            return null
+        }
+        // Profilovka bývá stažená (kreslí ji seznam i hlavička). Když není, zkratka ji
+        // nedostane — čekat na síť kvůli ikoně ve sdílení nestojí za to.
+        val avatarPath = info.avatarFileId?.let { fileId ->
+            withTimeoutOrNull(avatarWaitMs) {
+                (files.file(fileId).first { it is FileState.Ready || it is FileState.Failed } as? FileState.Ready)?.path
+            }
+        }
+        return ShortcutChat(chatId, info.title, avatarPath, isSavedMessages = false)
+    }
+
+    private class ShortcutChat(val chatId: Long, val title: String, val avatarPath: String?, val isSavedMessages: Boolean)
+
     private companion object {
         const val AVATAR_WAIT_MS = 2_000L
+        const val PIN_AVATAR_WAIT_MS = 5_000L
     }
 }
 
-/** Platformní publikace chatu jako cíle sdílení. */
+/** Platformní publikace chatu jako cíle sdílení a jeho zástupce na ploše. */
 interface ShareTargetPublisher {
     fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean)
+
+    /** Jde chat připnout na plochu ([pin]); jinde než na Androidu ne. */
+    val canPin: Boolean get() = false
+
+    /** Požádá launcher o připnutí zástupce chatu; `false`, když žádost neodešla. */
+    fun pin(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): Boolean = false
 }

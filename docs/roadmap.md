@@ -1686,8 +1686,8 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
   „Akce nad chatem").
 - ~~**„Vymazat historii" z nabídky nad chatem**~~ — hotovo (tentýž `ClearHistorySheet` jako
   v konverzaci, `docs/poznatky/seznam-chatu.md`, „Akce nad chatem").
-- **Zástupce chatu na ploše** (S). `HomeScreenShortcuts` (Android) dnes slouží jen mini
-  aplikacím; Telegram nabízí „Přidat na plochu" u chatu i v profilu.
+- ~~**Zástupce chatu na ploše**~~ — hotovo: „Přidat na plochu" v nabídce nad chatem i v ⋮
+  profilu, jen Android (`docs/poznatky/seznam-chatu.md`, „Akce nad chatem").
 
 **Nastavení a profil**
 

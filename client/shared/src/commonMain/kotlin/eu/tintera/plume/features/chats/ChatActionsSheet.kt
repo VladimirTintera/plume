@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.add_to_home_screen_24dp
+import eu.tintera.plume.resources.chat_add_to_home_screen
 import androidx.compose.runtime.Immutable
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ShapeDefaults
@@ -137,6 +139,8 @@ fun ChatActionsSheet(
     /** Složky, do kterých chat jde přidat nebo ve kterých je; prázdné = „Přidat do složky" není. */
     folders: List<FolderChoice>,
     onToggleFolder: (Int) -> Unit,
+    /** Zástupce chatu na ploše; `null` = nenabízet (platforma nebo launcher to neumí). */
+    onAddToHomeScreen: (() -> Unit)?,
     /**
      * Vymazání historie (chat v seznamu zůstane); otevře sheet s volbami. `null` = nenabízet
      * (TDLib to u chatu nedovolí, nebo práva ještě nedorazila).
@@ -308,6 +312,15 @@ fun ChatActionsSheet(
                 }
 
                 if (folders.isNotEmpty()) FolderChoices(folders, onToggleFolder)
+
+                if (onAddToHomeScreen != null) {
+                    SheetActionRow(
+                        icon = Res.drawable.add_to_home_screen_24dp,
+                        label = stringResource(Res.string.chat_add_to_home_screen),
+                        shape = ShapeDefaults.ExtraSmall,
+                        onClick = onAddToHomeScreen,
+                    )
+                }
 
                 /*
                  * Zablokovat, když má chat koho. Zjišťuje se to na dotaz, takže položka naskočí o kousek

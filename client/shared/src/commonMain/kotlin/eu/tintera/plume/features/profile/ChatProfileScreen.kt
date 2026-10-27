@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.add_to_home_screen_24dp
+import eu.tintera.plume.resources.chat_add_to_home_screen
 import eu.tintera.plume.core.telegram.CollectibleItem
 import eu.tintera.plume.core.telegram.isCollectiblePhone
 import eu.tintera.plume.resources.profile_stories_open
@@ -481,6 +483,7 @@ fun ChatProfileScreen(
                                 onSuggestPhoto = if (viewModel.canSuggestPhoto) photoPicker::pickMedia else null,
                                 onEditContact = { editContact = true },
                                 onCall = rememberStartCall(profile.userId),
+                                onAddToHomeScreen = viewModel::addToHomeScreen.takeIf { viewModel.canAddToHomeScreen },
                             )
                         }
                     },
@@ -1820,6 +1823,8 @@ private fun ProfileMenu(
     onEditContact: () -> Unit,
     /** Zavolat (`null` = hovory tu nejsou, viz `CallRepository.supported`). */
     onCall: ((video: Boolean) -> Unit)?,
+    /** Zástupce chatu na ploše (`null` = platforma nebo launcher to neumí). */
+    onAddToHomeScreen: (() -> Unit)?,
 ) {
     val videoCalls = rememberVideoCallsSupported()
     var expanded by remember { mutableStateOf(false) }
@@ -1838,7 +1843,7 @@ private fun ProfileMenu(
     val canStartSecret = profile.kind == ProfileKind.User && profile.userId != null
     if (
         profile.link == null && !canBlock && !canEdit && !canShareContact &&
-        !profile.canAddMembers && !canManageContact && !canStartSecret
+        !profile.canAddMembers && !canManageContact && !canStartSecret && onAddToHomeScreen == null
     ) {
         return
     }
@@ -1873,6 +1878,9 @@ private fun ProfileMenu(
                         MenuAction(stringResource(Res.string.profile_share_contact), Res.drawable.share_24dp, onClick = onShareContact)
                     } else {
                         null
+                    },
+                    onAddToHomeScreen?.let {
+                        MenuAction(stringResource(Res.string.chat_add_to_home_screen), Res.drawable.add_to_home_screen_24dp, onClick = it)
                     },
                     if (canStartSecret && onCall != null) {
                         MenuAction(stringResource(Res.string.call_start), Res.drawable.call_24dp, onClick = { onCall(false) })

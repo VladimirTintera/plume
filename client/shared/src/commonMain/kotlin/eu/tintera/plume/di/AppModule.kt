@@ -343,6 +343,7 @@ fun appModule() = module {
             stories = get(),
             pendingDeletes = get(),
             history = get(),
+            shareTargets = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
@@ -594,6 +595,7 @@ fun appModule() = module {
             contactOffers = get(),
             photoCrop = get(),
             stories = get(),
+            shareTargets = get(),
         )
     }
 
