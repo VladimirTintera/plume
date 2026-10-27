@@ -1026,6 +1026,11 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
     VIDĚT, a zavírá ho sám (délka `Indefinite`); předchozí snackbar se proto zavře, jinak by
     smazání doběhlo, zatímco „Vrátit" čeká ve frontě. Každý `SnackbarHost`, kam může přijít,
     kreslí přes `CountdownSnackbarHost` (seznam chatů, archiv, sbalený seznam).
+  - **Vlastní obsah snackbaru si okraj 12 dp přidává sám.** `Snackbar(data)` ho dává
+    v sobě (`modifier.padding(12.dp)`), přetížení s obsahem ne — první verze odpočtu proto ležela
+    přes celou šířku displeje. Písmo zprávy i akce je výchozí M3 (`bodyMedium`, `labelLarge`);
+    číslice v kroužku má řádek oříznutý na výšku písma (`LineHeightStyle.Trim.Both`), jinak sedí
+    níž, a kroužek je bez mezery mezi průběhem a stopou (`gapSize = 0.dp`).
   - **Odkládač je jeden na aplikaci a běží ve scope aplikace**: hlavní seznam i archiv schovávají
     tytéž chaty a smazání doběhne, i když se archiv mezitím zavře (jeho ViewModel zaniká).
   - **Zánik procesu ve lhůtě smazání zruší** — chat zůstane. Opačná chyba by byla horší.
