@@ -1680,6 +1680,8 @@
     <string name="article_read_more">Číst celý článek</string>
     <string name="article_load_failed">Celý článek se nepodařilo načíst.</string>
     <string name="conversation_quote_collapse">Zobrazit méně</string>
+    <string name="conversation_read_more">Číst dál</string>
+    <string name="conversation_read_less">Sbalit</string>
     <string name="conversation_forwarded_from">Přeposláno od %1$s</string>
     <string name="conversation_forwarded">Přeposlaná zpráva</string>
     <string name="conversation_via_bot">přes %1$s</string>

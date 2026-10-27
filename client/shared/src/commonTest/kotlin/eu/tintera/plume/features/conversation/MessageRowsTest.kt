@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.settings.MEDIUM_BYTES
+import eu.tintera.plume.core.telegram.Article
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageEntity
@@ -526,5 +527,23 @@ class MessageRowsTest {
         val row = groupAlbums(listOf(failed(2, album = 9, failure = forbidden), message(1, album = 9, sendState = SendState.Sent))).single()
         assertEquals(SendState.Failed, row.display.sendState)
         assertEquals(false, row.display.sendFailure?.canRetry)
+    }
+
+    @Test
+    fun dlouhyTextSeSbaluje() {
+        assertTrue(collapsesLongText(message(1, text = "Dlouhý text"), searchQuery = null))
+    }
+
+    @Test
+    fun zpravaSNalezemHledaniSeNesbaluje() {
+        // Nález by mohl být ve schované části a skok na něj by ho neukázal.
+        assertFalse(collapsesLongText(message(1, text = "Někde dole je slovo hledané"), searchQuery = "hledané"))
+        assertTrue(collapsesLongText(message(1, text = "Někde dole je slovo"), searchQuery = "jiné"))
+    }
+
+    @Test
+    fun clanekSeNesbaluje() {
+        // Článek má vlastní „Číst celý článek".
+        assertFalse(collapsesLongText(message(1, text = "Článek").copy(article = Article()), searchQuery = null))
     }
 }

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.features.conversation.items.LocalConversationTopInset
 import eu.tintera.plume.features.media.LocalPhotoDescriptions
 import eu.tintera.plume.resources.chat_bubble_24dp
 import eu.tintera.plume.resources.error_24dp
@@ -253,6 +254,8 @@ internal fun BoxScope.ConversationContent(
           ) {
           // Na široké ploše zprávy ve sloupci uprostřed; scroll zůstává přes celou plochu.
           ConversationColumn { inset ->
+          // Dlouhá zpráva po rozbalení ukáže místo ořezu pod lištou, ne pod ní (`LongText`).
+          CompositionLocalProvider(LocalConversationTopInset provides 8.dp + topPadding) {
           LazyColumn(
             state = listState,
             reverseLayout = true,
@@ -277,6 +280,7 @@ internal fun BoxScope.ConversationContent(
                 ConversationItemContent(item, itemScope)
             }
         }
+          }
           }
           }
           // Nápověda k odkrývání časů ukazuje k pravému okraji, odkud časy přijedou.

@@ -1551,6 +1551,8 @@ internal fun MessageBodyScope.MessageText(
     style: TextStyle = messageTextStyle(),
     /** Sbalená citace: kolik řádků je vidět, než se rozbalí. */
     maxLines: Int = Int.MAX_VALUE,
+    /** Ořez posledního řádku nad [maxLines] (viz `RichText`). */
+    overflow: TextOverflow = TextOverflow.Ellipsis,
     /**
      * O kolik smí pás citace přesáhnout na okraj bubliny. Nenulové jen tam, kde nad textem
      * (pod ním) opravdu nic není — viz `RichText`.
@@ -1589,6 +1591,7 @@ internal fun MessageBodyScope.MessageText(
             ),
             maxLines = maxLines,
             onOverflow = onOverflow,
+            overflow = overflow,
             text = text,
             entities = when {
                 segment != null -> segment.entities

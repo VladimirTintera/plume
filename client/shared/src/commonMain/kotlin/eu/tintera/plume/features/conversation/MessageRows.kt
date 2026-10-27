@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.highlightRanges
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -203,6 +204,14 @@ internal fun collapsesQuote(message: ChatMessage): Boolean {
         quote.offset == 0 &&
         quote.offset + quote.length >= message.text.length
 }
+
+/**
+ * Smí se dlouhý text zprávy sbalit (viz `LongText`)? Ne u článku — ten má vlastní „Číst celý
+ * článek" — a ne u zprávy s nálezem hledání [searchQuery]: nález by mohl ležet ve schované
+ * části a skok na něj by ukázal zprávu bez něj.
+ */
+internal fun collapsesLongText(message: ChatMessage, searchQuery: String?): Boolean =
+    message.article == null && (searchQuery == null || highlightRanges(message.text, searchQuery).isEmpty())
 
 /** Na kolik řádků se sbalená citace ořízne. */
 internal const val COLLAPSED_QUOTE_LINES = 3

@@ -115,6 +115,8 @@ fun RichText(
     maxLines: Int = Int.MAX_VALUE,
     /** Hlásí, jestli se text do [maxLines] nevešel — podle toho se nabízí rozbalovač. */
     onOverflow: ((Boolean) -> Unit)? = null,
+    /** Jak se ořízne poslední řádek nad [maxLines]; výpustka, nebo (u dlouhé zprávy) nic. */
+    overflow: TextOverflow = TextOverflow.Ellipsis,
 ) {
     /*
      * Spoilery se odkrývají po zprávě, ne po jednotlivých úsecích.
@@ -220,7 +222,7 @@ fun RichText(
         style = style,
         inlineContent = inlineContent,
         maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
+        overflow = overflow,
         onTextLayout = {
             layout = it
             onOverflow?.invoke(it.hasVisualOverflow)
