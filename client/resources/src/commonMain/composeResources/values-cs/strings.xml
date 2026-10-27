@@ -1601,6 +1601,7 @@
         <item quantity="few">Za zprávy se vrátily %1$d hvězdy</item>
         <item quantity="other">Za zprávy se vrátilo %1$d hvězd</item>
     </plurals>
+    <string name="service_unpaid_messages_by_link">Psaní zdarma povolené odkazem</string>
     <string name="date_today">Dnes</string>
     <string name="date_today_short">dnes</string>
     <string name="date_yesterday">Včera</string>

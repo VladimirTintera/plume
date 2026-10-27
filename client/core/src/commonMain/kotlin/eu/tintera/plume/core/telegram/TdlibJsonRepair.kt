@@ -7,9 +7,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.put
 
 /**
  * Doplní do odpovědi TDLib pole, která TDLib v praxi vynechává, přestože je dokumentace vede
@@ -29,23 +27,12 @@ object TdlibJsonRepair {
     /**
      * Typ objektu → chybějící pole → co doplnit. Do tabulky patří jen pole ověřená ve zdroji
      * TDLib (konstruktor dostane `nullptr`) nebo pádem — nic preventivně.
+     *
+     * Dnes prázdná: jediný známý případ, `gift.background`, čte wrapper od 17.0.0 jako nullable
+     * (g000sha256/tdl-coroutines#162). Hook i kontrola po přihlášení zůstávají, aby další
+     * takové pole stálo jen řádek tady.
      */
-    private val defaults: Map<String, Map<String, JsonObject>> = mapOf(
-        // `StarGift::get_gift_object` nechá pozadí prázdné, když ho server k dárku nepošle.
-        // Aplikace `Gift.background` nečte, takže na hodnotě nezáleží; jen musí být platná.
-        "gift" to mapOf(
-            "background" to buildJsonObject {
-                put("@type", "giftBackground")
-                put("center_color", 0)
-                put("edge_color", 0)
-                put("text_color", 0)
-            },
-        ),
-    )
-
-    // TDLib píše JSON bez mezer, takže typ se pozná podřetězcem a zbytek odpovědí se neparsuje.
-    // Uzavírací uvozovka je součást vzoru: `"@type":"gift"` nesmí chytit `giftBackground`.
-    private val markers = defaults.keys.map { "\"@type\":\"$it\"" }
+    private val defaults: Map<String, Map<String, JsonObject>> = emptyMap()
 
     private val logger = Logger.withTag("TdlibJsonRepair")
 
@@ -60,9 +47,18 @@ object TdlibJsonRepair {
     /** Nikdy nevyhodí: chyba tady by shodila přijímací smyčku stejně jako ta, které brání. */
     fun repair(json: String): String {
         isHooked = true
-        if (markers.none { json.contains(it) }) return json
+        if (defaults.isEmpty()) return json
+        return repair(json, defaults)
+    }
+
+    /** Oprava podle zadané tabulky; veřejná [repair] bere [defaults], testy vlastní. */
+    internal fun repair(json: String, defaults: Map<String, Map<String, JsonObject>>): String {
+        // TDLib píše JSON bez mezer, takže typ se pozná podřetězcem a zbytek odpovědí se
+        // neparsuje. Uzavírací uvozovka je součást vzoru: `"@type":"gift"` nesmí chytit
+        // `giftBackground`.
+        if (defaults.keys.none { json.contains("\"@type\":\"$it\"") }) return json
         return try {
-            val repaired = Repairing()
+            val repaired = Repairing(defaults)
             val root = repaired.visit(Json.parseToJsonElement(json))
             if (repaired.filled.isEmpty()) {
                 json
@@ -76,7 +72,7 @@ object TdlibJsonRepair {
         }
     }
 
-    private class Repairing {
+    private class Repairing(private val defaults: Map<String, Map<String, JsonObject>>) {
         val filled = mutableSetOf<String>()
 
         fun visit(element: JsonElement): JsonElement = when (element) {

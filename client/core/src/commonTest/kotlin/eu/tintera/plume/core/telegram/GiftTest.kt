@@ -95,6 +95,7 @@ class GiftTest {
             wasRefunded = false,
             upgradedReceivedGiftId = "",
             prepaidUpgradeHash = "",
+            canBeDeleted = false,
         ).toMedia(senderName)
 
         assertEquals(
@@ -128,6 +129,7 @@ class GiftTest {
             ownerAddress = "",
             ownerName = "",
             giftAddress = "",
+            canBeTonWalletCardBackground = false,
             model = UpgradedGiftModel(name = "Ninja", sticker = sticker(21), rarity = UpgradedGiftAttributeRarityRare(), isCrafted = false),
             symbol = UpgradedGiftSymbol(name = "Hvězda", sticker = sticker(22), rarity = UpgradedGiftAttributeRarityRare()),
             backdrop = UpgradedGiftBackdrop(

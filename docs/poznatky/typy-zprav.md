@@ -693,9 +693,10 @@ a komu, vzkaz a stav. Dřív z nich zbylo jen „Byl poslán dárek".
   bez koncových nul, oddělovač dodá jazyk (`decimal_number`).
 - **Karty mají stejnou šířku** (do 280 dp přes celou plochu), ne podle obsahu: karta „Dárek" vedle
   „Telegram Premium na 3 měsíce" vypadala jako jiný prvek.
-- **`tdl-coroutines` 15.0.0 i 16.0.0 padá na dárku bez `background` — na Androidu to obchází
-  instrumentace, na iOS NE.** Viz „Odpovědi TDLib, které wrapper nerozebere" (Hranice kolem
-  TDLib). Ověřeno sondou přes `getAvailableGifts`: bez obcházky pád, s ní 151 dárků.
+- **`tdl-coroutines` 15.0.0 i 16.0.0 padal na dárku bez `background`, od 17.0.0 je pole
+  nullable** (na všech platformách, i na iOS). Do té doby to na Androidu a desktopu obcházela
+  instrumentace; viz „Odpovědi TDLib, které wrapper nerozebere" (Hranice kolem TDLib). Ověřeno
+  sondou přes `getAvailableGifts`: bez obcházky pád, s ní 151 dárků.
 - **Bot dárek poslat neumí**, takže se ověřuje sondou: text `#darek1–8` od testovacího bota
   `toChatMessage` dočasně nahradí obsahem dárku (objekty skládané ručně, samolepky
   z `getAnimatedEmoji` / `getStickers`). Necommituje se. Animované samolepky drží Compose

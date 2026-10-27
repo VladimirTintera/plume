@@ -30,8 +30,8 @@ import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 
-// Obcházka pádu `tdl-coroutines` (15.0.0, 16.0.0) na odpovědi TDLib, ve které chybí pole dokumentované
-// jako povinné (dárek bez `background`). Viz „Dárek" v docs/poznatky/typy-zprav.md.
+// Obcházka pádu `tdl-coroutines` na odpovědi TDLib, ve které chybí pole dokumentované jako povinné
+// (15.0.0 a 16.0.0 dárek bez `background`, opravené v 17.0.0). Viz „Dárek" v docs/poznatky/typy-zprav.md.
 //
 // Za každé `JsonClient.receive` uvnitř wrapperu se vloží `TdlibReceiveHook.afterReceive`, takže
 // odpověď projde `TdlibJsonRepair` dřív, než ji wrapper rozebere. Jinou cestu dovnitř wrapper

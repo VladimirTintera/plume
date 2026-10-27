@@ -1,14 +1,33 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
+/**
+ * Mechanismus opravy nad tabulkou, kterou měla do wrapperu 17.0.0 (`gift.background`): skutečná
+ * tabulka je dnes prázdná, ale oprava se má chovat stejně, až do ní přibude další pole.
+ */
 class TdlibJsonRepairTest {
+
+    private val giftDefaults = mapOf(
+        "gift" to mapOf(
+            "background" to buildJsonObject {
+                put("@type", "giftBackground")
+                put("center_color", 0)
+                put("edge_color", 0)
+                put("text_color", 0)
+            },
+        ),
+    )
+
+    private fun repair(json: String) = TdlibJsonRepair.repair(json, giftDefaults)
 
     // Tvar odpovědi na getAvailableGifts, se kterým tdl-coroutines 15.0.0 shodil aplikaci.
     private val availableGifts =
@@ -21,7 +40,7 @@ class TdlibJsonRepairTest {
 
     @Test
     fun darekBezPozadiDostaneVychoziPozadi() {
-        val gifts = Json.parseToJsonElement(TdlibJsonRepair.repair(availableGifts))
+        val gifts = Json.parseToJsonElement(repair(availableGifts))
             .jsonObject.getValue("gifts").jsonArray
             .map { it.jsonObject.getValue("gift").jsonObject }
 
@@ -34,7 +53,7 @@ class TdlibJsonRepairTest {
 
     @Test
     fun zbytekOdpovediZustaneBezeZmeny() {
-        val repaired = Json.parseToJsonElement(TdlibJsonRepair.repair(availableGifts)).jsonObject
+        val repaired = Json.parseToJsonElement(repair(availableGifts)).jsonObject
         // int64 chodí jako řetězec a nesmí se cestou převést na číslo.
         assertEquals(
             "\"5170145012310081615\"",
@@ -51,27 +70,27 @@ class TdlibJsonRepairTest {
     @Test
     fun odpovedBezDarkuProjdeNetknuta() {
         val json = """{"@type":"updateChatTitle","chat_id":1,"title":"gift"}"""
-        assertSame(json, TdlibJsonRepair.repair(json))
+        assertSame(json, repair(json))
     }
 
     /** `giftBackground` samotný není dárek. */
     @Test
     fun jinyTypSeStejnymZacatkemSeNeopravuje() {
         val json = """{"@type":"giftBackground","center_color":1,"edge_color":2,"text_color":3}"""
-        assertSame(json, TdlibJsonRepair.repair(json))
+        assertSame(json, repair(json))
     }
 
     @Test
     fun uplnyDarekSeNeprepisuje() {
         val json = """{"@type":"gift","background":{"@type":"giftBackground","center_color":5}}"""
-        assertSame(json, TdlibJsonRepair.repair(json))
+        assertSame(json, repair(json))
     }
 
     /** Chyba opravy nesmí vyletět: na přijímacím vlákně by shodila aplikaci. */
     @Test
     fun rozbityJsonProjdeBezVyjimky() {
         val json = """{"@type":"gift","id":"""
-        assertSame(json, TdlibJsonRepair.repair(json))
+        assertSame(json, repair(json))
     }
 
     /** Dárek uvnitř zprávy, tedy cesta, kterou by spadl skutečný chat s dárkem. */
@@ -80,8 +99,14 @@ class TdlibJsonRepairTest {
         val message =
             """{"@type":"message","id":1048576,"content":{"@type":"messageGift",""" +
                 """"gift":{"@type":"gift","id":"1","star_count":50},"text":{"@type":"formattedText","text":""}}}"""
-        val gift = Json.parseToJsonElement(TdlibJsonRepair.repair(message))
+        val gift = Json.parseToJsonElement(repair(message))
             .jsonObject.getValue("content").jsonObject.getValue("gift").jsonObject
         assertEquals("giftBackground", gift.getValue("background").jsonObject.getValue("@type").jsonPrimitive.content)
+    }
+
+    /** S prázdnou tabulkou projde i dárek bez pozadí netknutý — wrapper ho od 17.0.0 přečte sám. */
+    @Test
+    fun prazdnaTabulkaNicNeopravuje() {
+        assertSame(availableGifts, TdlibJsonRepair.repair(availableGifts))
     }
 }

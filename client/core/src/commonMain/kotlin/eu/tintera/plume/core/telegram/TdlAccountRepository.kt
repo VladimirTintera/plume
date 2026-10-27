@@ -160,7 +160,8 @@ class TdlAccountRepository(
             .onFailure { logger.w(it) { "Přístupový klíč se nepodařilo odebrat." } }
 
     override suspend fun contactLink(): Result<ContactLink> =
-        client.getUserLink().toResult().map { ContactLink(url = it.url, expiresInSeconds = it.expiresIn) }
+        client.getUserLink(removeMessagesFee = false, returnPermanentLink = false, revokePreviousLinks = false)
+            .toResult().map { ContactLink(url = it.url, expiresInSeconds = it.expiresIn) }
             .onFailure { logger.w(it) { "Kontaktní odkaz se nepodařilo vyrobit." } }
 
     /** Veřejná fotka (`isPublic`) je jen pro ty, kdo vidí skutečnou fotku zakázanou nastavením — tady ne. */
