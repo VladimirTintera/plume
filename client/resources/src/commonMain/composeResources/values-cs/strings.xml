@@ -817,6 +817,8 @@
     <string name="conversation_cancel_edit">Zrušit úpravu</string>
     <string name="conversation_reply">Odpověď</string>
     <string name="conversation_message_options">Možnosti zprávy</string>
+    <string name="conversation_react">Reagovat</string>
+    <string name="conversation_react_with">Reagovat %1$s</string>
     <string name="conversation_voice_message">Hlasová zpráva</string>
     <string name="conversation_unread_divider">Nepřečtené zprávy</string>
     <string name="conversation_delivery_sending">Odesílá se</string>

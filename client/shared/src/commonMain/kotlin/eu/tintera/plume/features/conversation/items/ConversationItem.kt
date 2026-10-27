@@ -236,6 +236,12 @@ internal interface ConversationItemScope {
     /** Přidá dvojité ťuknutí na zprávu rychlou reakci (Nastavení → Chaty)? */
     fun doubleTapReaction(): Boolean = false
 
+    /**
+     * Rychlá reakce (Nastavení → Chaty) jako obyčejné emoji, kvůli popisku akce pro čtečku
+     * („Reagovat ❤️"); `null` = vlastní emoji nebo nezjištěno, popisek je pak bez něj.
+     */
+    fun quickReactionEmoji(): String? = null
+
     /** Jde na zprávu odpovědět — smí se do chatu psát? Tlačítko Odpovědět po najetí myší jen tehdy. */
     fun canReply(): Boolean = false
 
