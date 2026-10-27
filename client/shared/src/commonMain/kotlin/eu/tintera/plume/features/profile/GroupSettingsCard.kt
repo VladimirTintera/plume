@@ -15,7 +15,6 @@ import eu.tintera.plume.resources.edit_chat_sponsored_unknown
 import eu.tintera.plume.core.ui.MediumButton
 import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
-import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -43,15 +41,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatReactions
 import eu.tintera.plume.core.telegram.GroupSettings
 import eu.tintera.plume.core.telegram.GroupToggle
 import eu.tintera.plume.core.telegram.SLOW_MODE_DELAYS
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
@@ -91,6 +85,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Nastavení skupiny nebo kanálu: pomalý režim a reakce jako řádky s výběrem, pod nimi přepínače.
@@ -110,104 +106,63 @@ internal fun GroupSettingsCard(
     onSponsoredMessages: (Boolean) -> Unit = {},
     onMainTab: (ProfileMainTab) -> Unit = {},
 ) {
-    val haptics = LocalHapticFeedback.current
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(if (channel) Res.string.edit_chat_settings_channel else Res.string.edit_chat_settings_group),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
-        )
-        GroupedColumn(Modifier.fillMaxWidth()) {
-            settings.slowModeDelay?.let { delay ->
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.edit_chat_slow_mode)) },
-                    supportingContent = { Text(slowModeLabel(delay)) },
-                    leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onOpenSlowMode),
-                )
-            }
-            settings.reactions?.let { reactions ->
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.edit_chat_reactions)) },
-                    supportingContent = { Text(reactionsLabel(reactions)) },
-                    leadingContent = { Icon(painterResource(Res.drawable.add_reaction_24dp), contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onOpenReactions),
-                )
-            }
-            GroupToggle.entries.forEach { toggle ->
-                val checked = settings.toggles[toggle] ?: return@forEach
-                // Profily autorů bez podpisů nedávají smysl — jako u oficiálních klientů.
-                if (toggle == GroupToggle.ShowMessageSender && settings.toggles[GroupToggle.SignMessages] != true) return@forEach
-                val (title, help) = toggle.texts()
-                ToggleRow(title, help, checked, haptics) { onToggle(toggle, it) }
-            }
-            settings.unrestrictBoostCount?.let { count ->
-                ChoiceRow(
-                    headline = stringResource(Res.string.edit_chat_unrestrict_boosts),
-                    options = UNRESTRICT_BOOST_COUNTS,
-                    selected = count,
-                    label = { boostCountLabel(it) },
-                    onSelect = onUnrestrictBoosts,
-                    icon = Res.drawable.rocket_launch_24dp,
-                    note = stringResource(Res.string.edit_chat_unrestrict_boosts_help),
-                )
-            }
-            settings.sponsoredMessages?.let { sponsored ->
-                // Zapnout jde vždycky, vypnout až od úrovně boostů — jinak je přepínač zamčený
-                // a věta pod ním říká, kolik chybí.
-                val locked = sponsored.enabled && !sponsored.canDisable
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.edit_chat_sponsored)) },
-                    supportingContent = {
-                        Text(
-                            if (sponsored.canDisable || !sponsored.enabled) {
-                                stringResource(Res.string.edit_chat_sponsored_help)
-                            } else if (sponsored.minLevel == Int.MAX_VALUE) {
-                                stringResource(Res.string.edit_chat_sponsored_unknown)
-                            } else {
-                                stringResource(Res.string.edit_chat_sponsored_locked, sponsored.minLevel, sponsored.level)
-                            },
-                        )
-                    },
-                    trailingContent = { IconSwitch(checked = sponsored.enabled, onCheckedChange = null, enabled = !locked) },
-                    modifier = Modifier.toggleable(
-                        value = sponsored.enabled,
-                        enabled = !locked,
-                        role = Role.Switch,
-                        onValueChange = { on ->
-                            haptics.toggle(on)
-                            onSponsoredMessages(on)
-                        },
-                    ),
-                )
-            }
-            settings.mainTab?.let { setting -> MainTabRow(current = setting.current, onSelect = onMainTab) }
+    TitledGroup(if (channel) Res.string.edit_chat_settings_channel else Res.string.edit_chat_settings_group, Modifier.fillMaxWidth()) {
+        settings.slowModeDelay?.let { delay ->
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                headlineContent = { Text(stringResource(Res.string.edit_chat_slow_mode)) },
+                supportingContent = { Text(slowModeLabel(delay)) },
+                leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onOpenSlowMode),
+            )
         }
+        settings.reactions?.let { reactions ->
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                headlineContent = { Text(stringResource(Res.string.edit_chat_reactions)) },
+                supportingContent = { Text(reactionsLabel(reactions)) },
+                leadingContent = { Icon(painterResource(Res.drawable.add_reaction_24dp), contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onOpenReactions),
+            )
+        }
+        GroupToggle.entries.forEach { toggle ->
+            val checked = settings.toggles[toggle] ?: return@forEach
+            // Profily autorů bez podpisů nedávají smysl — jako u oficiálních klientů.
+            if (toggle == GroupToggle.ShowMessageSender && settings.toggles[GroupToggle.SignMessages] != true) return@forEach
+            val (title, help) = toggle.texts()
+            SwitchListItem(stringResource(title), checked, supporting = stringResource(help)) { onToggle(toggle, it) }
+        }
+        settings.unrestrictBoostCount?.let { count ->
+            ChoiceRow(
+                headline = stringResource(Res.string.edit_chat_unrestrict_boosts),
+                options = UNRESTRICT_BOOST_COUNTS,
+                selected = count,
+                label = { boostCountLabel(it) },
+                onSelect = onUnrestrictBoosts,
+                icon = Res.drawable.rocket_launch_24dp,
+                note = stringResource(Res.string.edit_chat_unrestrict_boosts_help),
+            )
+        }
+        settings.sponsoredMessages?.let { sponsored ->
+            // Zapnout jde vždycky, vypnout až od úrovně boostů — jinak je přepínač zamčený
+            // a věta pod ním říká, kolik chybí.
+            val locked = sponsored.enabled && !sponsored.canDisable
+            SwitchListItem(
+                headline = stringResource(Res.string.edit_chat_sponsored),
+                checked = sponsored.enabled,
+                supporting = if (sponsored.canDisable || !sponsored.enabled) {
+                    stringResource(Res.string.edit_chat_sponsored_help)
+                } else if (sponsored.minLevel == Int.MAX_VALUE) {
+                    stringResource(Res.string.edit_chat_sponsored_unknown)
+                } else {
+                    stringResource(Res.string.edit_chat_sponsored_locked, sponsored.minLevel, sponsored.level)
+                },
+                enabled = !locked,
+                onCheckedChange = onSponsoredMessages,
+            )
+        }
+        settings.mainTab?.let { setting -> MainTabRow(current = setting.current, onSelect = onMainTab) }
     }
-}
-
-@Composable
-private fun ToggleRow(
-    title: StringResource,
-    help: StringResource,
-    checked: Boolean,
-    haptics: HapticFeedback,
-    onChange: (Boolean) -> Unit,
-) {
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(stringResource(help)) },
-        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null) },
-        modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = { on ->
-            haptics.toggle(on)
-            onChange(on)
-        }),
-    )
 }
 
 private fun GroupToggle.texts(): Pair<StringResource, StringResource> = when (this) {

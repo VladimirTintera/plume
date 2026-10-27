@@ -4,8 +4,6 @@ import eu.tintera.plume.resources.settings_app_lock_on_text
 import eu.tintera.plume.resources.settings_app_lock_on_title
 import eu.tintera.plume.resources.settings_app_lock_off_title
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.selection.toggleable
 import eu.tintera.plume.core.ui.GroupBreak
 import eu.tintera.plume.resources.app_lock_biometrics_revoked
 import androidx.compose.runtime.setValue
@@ -22,9 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,13 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.lock.APP_LOCK_TIMEOUTS
 import eu.tintera.plume.core.lock.SystemLockClock
 import eu.tintera.plume.core.lock.rememberBiometricAuth
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.PinDots
 import eu.tintera.plume.core.ui.PinKeypad
 import eu.tintera.plume.resources.Res
@@ -74,8 +67,8 @@ import eu.tintera.plume.resources.settings_app_lock_timeout
 import eu.tintera.plume.resources.settings_app_lock_verify_current
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
 
 @Composable
 fun AppLockScreen(
@@ -328,24 +321,12 @@ private fun AppLockManageContent(
         )
 
         if (biometricSupported) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = {
-                    Icon(painterResource(Res.drawable.fingerprint_24dp), contentDescription = null)
-                },
-                headlineContent = { Text(stringResource(Res.string.settings_app_lock_biometrics)) },
-                supportingContent = { Text(stringResource(Res.string.settings_app_lock_biometrics_summary)) },
-                trailingContent = {
-                    IconSwitch(
-                        checked = settings.biometrics,
-                        onCheckedChange = null,
-                    )
-                },
-                modifier = Modifier.toggleable(
-                    value = settings.biometrics,
-                    role = Role.Switch,
-                    onValueChange = onSetBiometrics,
-                ),
+            SwitchListItem(
+                headline = stringResource(Res.string.settings_app_lock_biometrics),
+                checked = settings.biometrics,
+                supporting = stringResource(Res.string.settings_app_lock_biometrics_summary),
+                icon = Res.drawable.fingerprint_24dp,
+                onCheckedChange = onSetBiometrics,
             )
         }
 

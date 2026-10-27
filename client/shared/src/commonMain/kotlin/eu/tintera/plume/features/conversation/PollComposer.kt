@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,8 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -49,8 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,7 +65,6 @@ import eu.tintera.plume.core.telegram.PollDraft
 import eu.tintera.plume.core.telegram.PollLimits
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.userMessage
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
@@ -102,7 +96,6 @@ import eu.tintera.plume.resources.poll_compose_answers
 import eu.tintera.plume.resources.poll_compose_anonymous
 import eu.tintera.plume.resources.poll_compose_allow_adding
 import eu.tintera.plume.resources.poll_compose_anonymous_channel
-import eu.tintera.plume.resources.poll_compose_counter
 import eu.tintera.plume.resources.poll_compose_explanation
 import eu.tintera.plume.resources.poll_compose_explanation_hint
 import eu.tintera.plume.resources.poll_compose_mark_correct
@@ -132,14 +125,12 @@ import eu.tintera.plume.resources.poll_compose_hide_results
 import eu.tintera.plume.resources.poll_duration_none
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.ui.text.TextStyle
 import eu.tintera.plume.core.telegram.flagEmoji
 import eu.tintera.plume.core.telegram.localizedCountryName
 import eu.tintera.plume.core.ui.CountryPickerSheet
@@ -215,6 +206,11 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.GroupTextField
+import eu.tintera.plume.core.ui.GroupTitle
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
+import eu.tintera.plume.core.ui.groupRowBackground
 
 /*
  * Pravidla formuláře jsou čisté funkce (testy `PollComposerTest`): co se pošle, kdy je formulář
@@ -231,10 +227,17 @@ import org.jetbrains.compose.resources.stringResource
  * odpovědi. Prázdné pole UPROSTŘED se nechává — uživatel ho mohl vymazat jen proto, aby ho
  * přepsal; odebírá se křížkem.
  */
-internal fun normalizedAnswers(answers: List<String>, max: Int): List<String> {
-    val list = answers.toMutableList()
-    while (list.size < MIN_POLL_ANSWERS) list += ""
-    while (list.size > MIN_POLL_ANSWERS && list.last().isBlank() && list[list.lastIndex - 1].isBlank()) {
+internal fun normalizedAnswers(answers: List<String>, max: Int): List<String> =
+    normalizedEntries(answers, min = MIN_POLL_ANSWERS, max = max)
+
+/**
+ * Pole formuláře po úpravě (odpovědi ankety, úkoly seznamu): doplní je na [min], uřízne
+ * přebytečná prázdná na konci a dokud je místo do [max], nechá na konci jedno prázdné.
+ */
+internal fun normalizedEntries(entries: List<String>, min: Int, max: Int): List<String> {
+    val list = entries.toMutableList()
+    while (list.size < min) list += ""
+    while (list.size > min && list.last().isBlank() && list[list.lastIndex - 1].isBlank()) {
         list.removeAt(list.lastIndex)
     }
     if (list.last().isNotBlank() && list.size < max) list += ""
@@ -877,10 +880,10 @@ fun PollComposerScreen(
 
             // Otázka a popis jsou jeden blok: popis patří k otázce, ne k odpovědím.
             item(key = "question") {
-                BlockField(
+                GroupTextField(
                     value = viewModel.question,
                     onValueChange = { viewModel.question = it.take(POLL_QUESTION_MAX + ANSWER_OVERFLOW_ALLOWANCE) },
-                    label = stringResource(Res.string.poll_compose_question),
+                    placeholder = stringResource(Res.string.poll_compose_question),
                     max = POLL_QUESTION_MAX,
                     shape = groupItemShape(0, 2),
                     singleLine = false,
@@ -895,10 +898,10 @@ fun PollComposerScreen(
                 )
             }
             item(key = "description") {
-                BlockField(
+                GroupTextField(
                     value = viewModel.description,
                     onValueChange = { viewModel.description = it.take(status.limits.maxDescription + ANSWER_OVERFLOW_ALLOWANCE) },
-                    label = stringResource(Res.string.poll_compose_description),
+                    placeholder = stringResource(Res.string.poll_compose_description),
                     max = status.limits.maxDescription,
                     shape = groupItemShape(1, 2),
                     singleLine = false,
@@ -907,7 +910,7 @@ fun PollComposerScreen(
             }
 
             item(key = "answers-title") {
-                SectionTitle(stringResource(Res.string.poll_compose_answers))
+                GroupTitle(stringResource(Res.string.poll_compose_answers), COMPOSER_TITLE_PADDING)
             }
             itemsIndexed(viewModel.answers, key = { index, _ -> "answer-$index" }) { index, answer ->
                 AnswerField(
@@ -951,7 +954,7 @@ fun PollComposerScreen(
             }
 
             item(key = "settings-title") {
-                SectionTitle(stringResource(Res.string.poll_compose_settings))
+                GroupTitle(stringResource(Res.string.poll_compose_settings), COMPOSER_TITLE_PADDING)
             }
             val settings = buildList {
                 if (!status.isChannel) add(SettingRow.Anonymous)
@@ -968,26 +971,36 @@ fun PollComposerScreen(
             itemsIndexed(settings, key = { _, row -> "setting-$row" }) { index, row ->
                 val shape = groupItemShape(index, settings.size)
                 when (row) {
-                    SettingRow.Anonymous -> SwitchRow(stringResource(Res.string.poll_compose_anonymous), viewModel.anonymous, shape) {
-                        haptics.toggle(it)
-                        viewModel.anonymous = it
-                    }
-                    SettingRow.AllowAdding -> SwitchRow(stringResource(Res.string.poll_compose_allow_adding), viewModel.allowAddingOptions, shape) {
-                        haptics.toggle(it)
-                        viewModel.allowAddingOptions = it
-                    }
-                    SettingRow.Multiple -> SwitchRow(stringResource(Res.string.poll_compose_multiple), viewModel.multipleAnswers, shape) {
-                        haptics.toggle(it)
-                        viewModel.changeMultipleAnswers(it)
-                    }
-                    SettingRow.Quiz -> SwitchRow(stringResource(Res.string.poll_compose_quiz), viewModel.quiz, shape) {
-                        haptics.toggle(it)
-                        viewModel.quiz = it
-                    }
-                    SettingRow.Shuffle -> SwitchRow(stringResource(Res.string.poll_compose_shuffle), viewModel.shuffle, shape) {
-                        haptics.toggle(it)
-                        viewModel.shuffle = it
-                    }
+                    SettingRow.Anonymous -> SwitchListItem(
+                        headline = stringResource(Res.string.poll_compose_anonymous),
+                        checked = viewModel.anonymous,
+                        onCheckedChange = { viewModel.anonymous = it },
+                        modifier = Modifier.groupRowBackground(shape),
+                    )
+                    SettingRow.AllowAdding -> SwitchListItem(
+                        headline = stringResource(Res.string.poll_compose_allow_adding),
+                        checked = viewModel.allowAddingOptions,
+                        onCheckedChange = { viewModel.allowAddingOptions = it },
+                        modifier = Modifier.groupRowBackground(shape),
+                    )
+                    SettingRow.Multiple -> SwitchListItem(
+                        headline = stringResource(Res.string.poll_compose_multiple),
+                        checked = viewModel.multipleAnswers,
+                        onCheckedChange = { viewModel.changeMultipleAnswers(it) },
+                        modifier = Modifier.groupRowBackground(shape),
+                    )
+                    SettingRow.Quiz -> SwitchListItem(
+                        headline = stringResource(Res.string.poll_compose_quiz),
+                        checked = viewModel.quiz,
+                        onCheckedChange = { viewModel.quiz = it },
+                        modifier = Modifier.groupRowBackground(shape),
+                    )
+                    SettingRow.Shuffle -> SwitchListItem(
+                        headline = stringResource(Res.string.poll_compose_shuffle),
+                        checked = viewModel.shuffle,
+                        onCheckedChange = { viewModel.shuffle = it },
+                        modifier = Modifier.groupRowBackground(shape),
+                    )
                     SettingRow.Duration -> DurationRow(
                         selected = viewModel.openPeriod.takeIf { viewModel.closeDate == 0L },
                         value = if (viewModel.closeDate > 0) viewModel.closeDate.asUpcomingTime() else durationLabel(viewModel.openPeriod),
@@ -997,10 +1010,12 @@ fun PollComposerScreen(
                         onSelect = viewModel::chooseOpenPeriod,
                         onCustom = { pickingCloseDay = true },
                     )
-                    SettingRow.HideResults -> SwitchRow(stringResource(Res.string.poll_compose_hide_results), viewModel.hideResults, shape) {
-                        haptics.toggle(it)
-                        viewModel.hideResults = it
-                    }
+                    SettingRow.HideResults -> SwitchListItem(
+                        headline = stringResource(Res.string.poll_compose_hide_results),
+                        checked = viewModel.hideResults,
+                        onCheckedChange = { viewModel.hideResults = it },
+                        modifier = Modifier.groupRowBackground(shape),
+                    )
                 }
             }
             if (viewModel.closeDateInvalid) {
@@ -1033,14 +1048,16 @@ fun PollComposerScreen(
                     add(VoterRow.MembersOnly)
                     if (status.limits.maxCountries > 0) add(VoterRow.Countries)
                 }
-                item(key = "voters-title") { SectionTitle(stringResource(Res.string.poll_compose_voters)) }
+                item(key = "voters-title") { GroupTitle(stringResource(Res.string.poll_compose_voters), COMPOSER_TITLE_PADDING) }
                 itemsIndexed(voterRows, key = { _, row -> "voters-$row" }) { index, row ->
                     val shape = groupItemShape(index, voterRows.size)
                     when (row) {
-                        VoterRow.MembersOnly -> SwitchRow(stringResource(Res.string.poll_compose_members_only), viewModel.membersOnly, shape) {
-                            haptics.toggle(it)
-                            viewModel.membersOnly = it
-                        }
+                        VoterRow.MembersOnly -> SwitchListItem(
+                            headline = stringResource(Res.string.poll_compose_members_only),
+                            checked = viewModel.membersOnly,
+                            onCheckedChange = { viewModel.membersOnly = it },
+                            modifier = Modifier.groupRowBackground(shape),
+                        )
                         VoterRow.Countries -> ValueRow(
                             label = stringResource(Res.string.poll_compose_countries),
                             value = countriesLabel(viewModel.countryCodes),
@@ -1057,11 +1074,11 @@ fun PollComposerScreen(
             item(key = "explanation") {
                 AnimatedVisibility(visible = viewModel.quiz) {
                     Column(Modifier.animateContentSize()) {
-                        SectionTitle(stringResource(Res.string.poll_compose_explanation))
-                        BlockField(
+                        GroupTitle(stringResource(Res.string.poll_compose_explanation), COMPOSER_TITLE_PADDING)
+                        GroupTextField(
                             value = viewModel.explanation,
                             onValueChange = { viewModel.explanation = it.take(POLL_EXPLANATION_MAX + ANSWER_OVERFLOW_ALLOWANCE) },
-                            label = stringResource(Res.string.poll_compose_explanation_hint),
+                            placeholder = stringResource(Res.string.poll_compose_explanation_hint),
                             max = POLL_EXPLANATION_MAX,
                             shape = groupItemShape(0, 1),
                             singleLine = false,
@@ -1193,68 +1210,6 @@ private fun ValueRow(label: String, value: String, shape: Shape, onClick: () -> 
     }
 }
 
-@Composable
-internal fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = GROUP_SPACING + 4.dp, bottom = 6.dp),
-    )
-}
-
-/**
- * Pole v bloku: tónovaná plocha řádku, bez podtržení — podtržení `TextField`u je jazyk, kterého
- * se aplikace vzdala (viz přihlášení a „Jeden prvek pro hledání"). Počítadlo se ukáže až
- * v posledních dvaceti znacích a přes strop zčervená; text se nad strop kousek pustí, aby šlo
- * vložit delší text a zkrátit ho, a odeslání je do té doby zašedlé.
- */
-@Composable
-internal fun BlockField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    max: Int,
-    shape: Shape,
-    singleLine: Boolean,
-    leading: (@Composable () -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null,
-    style: TextStyle = LocalTextStyle.current,
-) {
-    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
-        TextField(
-            value = value,
-            onValueChange = onValueChange,
-            textStyle = style,
-            placeholder = { Text(label, style = style) },
-            singleLine = singleLine,
-            leadingIcon = leading,
-            trailingIcon = trailing,
-            supportingText = counterText(value.length, max)?.let { { it() } },
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-/** Počítadlo znaků — až v posledních [COUNTER_FROM] znacích, přes strop chybovou barvou. */
-private fun counterText(length: Int, max: Int): (@Composable () -> Unit)? {
-    if (length < max - COUNTER_FROM) return null
-    return {
-        Text(
-            text = stringResource(Res.string.poll_compose_counter, length, max),
-            color = if (length > max) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
 /**
  * Pole odpovědi. V kvízu vlevo kolečko (jedna správná) nebo zaškrtávátko (víc správných), kterým
  * se označuje správná odpověď; vpravo křížek na odebrání.
@@ -1276,10 +1231,10 @@ private fun AnswerField(
     onRemove: () -> Unit,
 ) {
     val markLabel = stringResource(Res.string.poll_compose_mark_correct)
-    BlockField(
+    GroupTextField(
         value = value,
         onValueChange = onValueChange,
-        label = stringResource(Res.string.poll_compose_answer, index + 1),
+        placeholder = stringResource(Res.string.poll_compose_answer, index + 1),
         max = POLL_ANSWER_MAX,
         shape = groupItemShape(index, count),
         singleLine = true,
@@ -1522,34 +1477,16 @@ private fun PollLinkDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     )
 }
 
-/** Přepínač, který nese celý řádek (viz „Obrazovka nastavení"). */
-@Composable
-internal fun SwitchRow(label: String, checked: Boolean, shape: Shape, onChange: (Boolean) -> Unit) {
-    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(12.dp))
-            IconSwitch(checked = checked, onCheckedChange = null)
-        }
-    }
-}
-
 /** Kdyby server strop nevydal. */
 private const val DEFAULT_MAX_ANSWERS = 10
 
 private fun currentEpochSeconds(): Long = Clock.System.now().epochSeconds
 
+/** Odsazení nadpisu bloku ve formuláři ankety a seznamu úkolů (lazy seznam bez [TitledGroup]). */
+internal val COMPOSER_TITLE_PADDING = Modifier.padding(top = GROUP_SPACING + 4.dp, bottom = 6.dp)
+
 /** O kolik se text smí dostat přes strop, než ho pole utne — aby šlo vložit a zkrátit. */
 internal const val ANSWER_OVERFLOW_ALLOWANCE = 50
-
-/** Počítadlo se ukáže, až zbývá tolik znaků. */
-private const val COUNTER_FROM = 20
 
 private val MEDIA_SLOT = 40.dp
 private val MEDIA_SLOT_CORNER = 8.dp

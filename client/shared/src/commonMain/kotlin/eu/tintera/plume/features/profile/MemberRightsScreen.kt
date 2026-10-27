@@ -77,6 +77,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Práva jednoho člena: správcovská, nebo jeho omezení. Otevírá se z nabídky nad členem
@@ -206,55 +208,55 @@ private fun AdminRightsCard(
 ) {
     val channel = kind == MemberGroupKind.Channel
     GroupedColumn(Modifier.fillMaxWidth()) {
-        SwitchRow(
-            if (channel) Res.string.member_right_change_info_channel else Res.string.member_right_change_info,
+        SwitchListItem(
+            stringResource(if (channel) Res.string.member_right_change_info_channel else Res.string.member_right_change_info),
             rights.changeInfo,
         ) { value -> onChange { it.copy(changeInfo = value) } }
 
         if (channel) {
-            SwitchRow(Res.string.member_right_post, rights.postMessages) { value ->
+            SwitchListItem(stringResource(Res.string.member_right_post), rights.postMessages) { value ->
                 onChange { it.copy(postMessages = value) }
             }
-            SwitchRow(Res.string.member_right_edit, rights.editMessages) { value ->
+            SwitchListItem(stringResource(Res.string.member_right_edit), rights.editMessages) { value ->
                 onChange { it.copy(editMessages = value) }
             }
         }
 
-        SwitchRow(Res.string.member_right_delete, rights.deleteMessages) { value ->
+        SwitchListItem(stringResource(Res.string.member_right_delete), rights.deleteMessages) { value ->
             onChange { it.copy(deleteMessages = value) }
         }
 
         if (!channel) {
-            SwitchRow(Res.string.member_right_restrict, rights.restrictMembers) { value ->
+            SwitchListItem(stringResource(Res.string.member_right_restrict), rights.restrictMembers) { value ->
                 onChange { it.copy(restrictMembers = value) }
             }
         }
 
-        SwitchRow(
-            if (channel) Res.string.member_right_invite_channel else Res.string.member_right_invite,
+        SwitchListItem(
+            stringResource(if (channel) Res.string.member_right_invite_channel else Res.string.member_right_invite),
             rights.inviteUsers,
         ) { value -> onChange { it.copy(inviteUsers = value) } }
 
         if (!channel) {
-            SwitchRow(Res.string.member_right_pin, rights.pinMessages) { value ->
+            SwitchListItem(stringResource(Res.string.member_right_pin), rights.pinMessages) { value ->
                 onChange { it.copy(pinMessages = value) }
             }
         }
 
         // Jen ve skupině s tématy: jinde by přepínač sliboval vliv, který nemá.
         if (isForum) {
-            SwitchRow(Res.string.member_right_manage_topics, rights.manageTopics) { value ->
+            SwitchListItem(stringResource(Res.string.member_right_manage_topics), rights.manageTopics) { value ->
                 onChange { it.copy(manageTopics = value) }
             }
         }
 
-        SwitchRow(Res.string.member_right_promote, rights.promoteMembers) { value ->
+        SwitchListItem(stringResource(Res.string.member_right_promote), rights.promoteMembers) { value ->
             onChange { it.copy(promoteMembers = value) }
         }
 
         // Anonymitu má jen supergroup; v základní skupině ani v kanálu se nenabízí.
         if (kind == MemberGroupKind.Supergroup) {
-            SwitchRow(Res.string.member_right_anonymous, rights.anonymous) { value ->
+            SwitchListItem(stringResource(Res.string.member_right_anonymous), rights.anonymous) { value ->
                 onChange { it.copy(anonymous = value) }
             }
         }
@@ -271,40 +273,40 @@ private fun RestrictionsCard(
     onChange: ((GroupPermissions) -> GroupPermissions) -> Unit,
 ) {
     GroupedColumn(Modifier.fillMaxWidth()) {
-        SwitchRow(Res.string.edit_chat_perm_send_messages, permissions.sendMessages) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_messages), permissions.sendMessages) { value ->
             onChange { it.copy(sendMessages = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_send_photos, permissions.sendPhotos) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_photos), permissions.sendPhotos) { value ->
             onChange { it.copy(sendPhotos = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_send_videos, permissions.sendVideos) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_videos), permissions.sendVideos) { value ->
             onChange { it.copy(sendVideos = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_send_documents, permissions.sendDocuments) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_documents), permissions.sendDocuments) { value ->
             onChange { it.copy(sendDocuments = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_send_voice, permissions.sendVoiceNotes) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_voice), permissions.sendVoiceNotes) { value ->
             onChange { it.copy(sendVoiceNotes = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_send_video_notes, permissions.sendVideoNotes) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_video_notes), permissions.sendVideoNotes) { value ->
             onChange { it.copy(sendVideoNotes = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_send_stickers, permissions.sendStickers) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_stickers), permissions.sendStickers) { value ->
             onChange { it.copy(sendStickers = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_send_polls, permissions.sendPolls) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_send_polls), permissions.sendPolls) { value ->
             onChange { it.copy(sendPolls = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_react, permissions.react) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_react), permissions.react) { value ->
             onChange { it.copy(react = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_invite, permissions.inviteUsers) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_invite), permissions.inviteUsers) { value ->
             onChange { it.copy(inviteUsers = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_pin, permissions.pinMessages) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_pin), permissions.pinMessages) { value ->
             onChange { it.copy(pinMessages = value) }
         }
-        SwitchRow(Res.string.edit_chat_perm_change_info, permissions.changeInfo) { value ->
+        SwitchListItem(stringResource(Res.string.edit_chat_perm_change_info), permissions.changeInfo) { value ->
             onChange { it.copy(changeInfo = value) }
         }
     }
@@ -326,29 +328,21 @@ private fun DurationCard(
     onKeep: () -> Unit,
     onSelect: (Duration?) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(Res.string.member_restrict_duration),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
-        )
-        GroupedColumn(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(vertical = 8.dp)) {
-                if (restrictedUntil != null) {
-                    DurationOption(
-                        label = stringResource(Res.string.member_restricted_until, restrictedUntil.toLong().asUpcomingTime()),
-                        selected = keepsCurrentEnd,
-                        onSelect = onKeep,
-                    )
-                }
-                MEMBER_DURATIONS.forEach { (label, value) ->
-                    DurationOption(
-                        label = stringResource(label),
-                        selected = !keepsCurrentEnd && selected == value,
-                        onSelect = { onSelect(value) },
-                    )
-                }
+    TitledGroup(Res.string.member_restrict_duration, Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(vertical = 8.dp)) {
+            if (restrictedUntil != null) {
+                DurationOption(
+                    label = stringResource(Res.string.member_restricted_until, restrictedUntil.toLong().asUpcomingTime()),
+                    selected = keepsCurrentEnd,
+                    onSelect = onKeep,
+                )
+            }
+            MEMBER_DURATIONS.forEach { (label, value) ->
+                DurationOption(
+                    label = stringResource(label),
+                    selected = !keepsCurrentEnd && selected == value,
+                    onSelect = { onSelect(value) },
+                )
             }
         }
     }

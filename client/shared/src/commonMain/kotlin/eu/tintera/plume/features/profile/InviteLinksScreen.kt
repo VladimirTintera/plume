@@ -150,6 +150,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.GroupTitle
 
 /**
  * Pozvánky chatu. Tři bloky zaoblených řádků, jako profil: hlavní odkaz s kopírováním a výměnou,
@@ -389,18 +391,11 @@ private fun SectionHeader(
     first: Boolean = false,
     action: @Composable () -> Unit = {},
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = if (first) 0.dp else 16.dp, bottom = 6.dp),
-    ) {
-        Text(
-            stringResource(title),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f),
-        )
-        action()
-    }
+    GroupTitle(
+        stringResource(title),
+        Modifier.padding(top = if (first) 0.dp else 16.dp, bottom = 6.dp),
+        action = { action() },
+    )
 }
 
 /**
@@ -646,7 +641,7 @@ private fun InviteLinkEditorSheet(
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
             ) {
                 Column {
-                    SwitchRow(Res.string.invite_editor_approval, editor.createsJoinRequest) { value ->
+                    SwitchListItem(stringResource(Res.string.invite_editor_approval), editor.createsJoinRequest) { value ->
                         onChange { it.copy(createsJoinRequest = value) }
                     }
                     Text(

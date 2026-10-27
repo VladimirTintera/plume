@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -26,8 +25,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -49,9 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -64,7 +59,6 @@ import eu.tintera.plume.core.telegram.OwnedStickerSet
 import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.GroupedColumn
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.MediumButton
 import eu.tintera.plume.core.ui.MediumButtonHeight
@@ -110,6 +104,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.GroupTitle
 
 /**
  * Samolepka z fotky: náhled na šachovnici (průhlednost je vidět), úprava fotky editorem
@@ -229,29 +225,19 @@ private fun StickerForm(
         if (state.canRemoveBackground) {
             item(key = "background") {
                 GroupedColumn(Modifier.fillMaxWidth()) {
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(Res.string.sticker_remove_background)) },
-                        supportingContent = { Text(stringResource(Res.string.sticker_remove_background_hint)) },
-                        trailingContent = { IconSwitch(checked = state.removeBackground, onCheckedChange = null) },
-                        modifier = Modifier.toggleable(
-                            value = state.removeBackground,
-                            role = Role.Switch,
-                            onValueChange = viewModel::setRemoveBackground,
-                        ),
+                    SwitchListItem(
+                        headline = stringResource(Res.string.sticker_remove_background),
+                        checked = state.removeBackground,
+                        supporting = stringResource(Res.string.sticker_remove_background_hint),
+                        onCheckedChange = viewModel::setRemoveBackground,
                     )
                     // Obrys sedí jen kolem vyříznutého objektu; kolem celé fotky by byl jen rámeček.
                     if (state.removeBackground) {
-                        ListItem(
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            headlineContent = { Text(stringResource(Res.string.sticker_outline)) },
-                            supportingContent = { Text(stringResource(Res.string.sticker_outline_hint)) },
-                            trailingContent = { IconSwitch(checked = state.outline, onCheckedChange = null) },
-                            modifier = Modifier.toggleable(
-                                value = state.outline,
-                                role = Role.Switch,
-                                onValueChange = viewModel::setOutline,
-                            ),
+                        SwitchListItem(
+                            headline = stringResource(Res.string.sticker_outline),
+                            checked = state.outline,
+                            supporting = stringResource(Res.string.sticker_outline_hint),
+                            onCheckedChange = viewModel::setOutline,
                         )
                     }
                 }
@@ -385,12 +371,7 @@ private fun setSupporting(set: OwnedStickerSet): String =
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp),
-        )
+        GroupTitle(title)
         content()
     }
 }

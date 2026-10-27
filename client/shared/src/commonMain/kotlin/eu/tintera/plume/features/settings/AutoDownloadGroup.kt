@@ -47,6 +47,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Automatické stahování (Úložiště). Zápis běží v rozsahu aplikace, ne ve `viewModelScope` —
@@ -83,7 +84,7 @@ enum class AutoDownloadNetwork { WiFi, Mobile, Roaming }
 internal fun AutoDownloadGroup(viewModel: AutoDownloadViewModel) {
     val levels by viewModel.levels.collectAsStateWithLifecycle()
 
-    SettingsGroup(Res.string.auto_download_title) {
+    TitledGroup(Res.string.auto_download_title) {
         AutoDownloadNetwork.entries
             .filter { it != AutoDownloadNetwork.Roaming || detectsRoaming }
             .forEach { network ->

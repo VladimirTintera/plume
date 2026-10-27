@@ -158,8 +158,26 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
 - **Seznam sekcí nemá ViewModel.** Obsah (účet, notifikace, motiv) patří sekcím; kdyby si účet
   načítal i seznam, ptali bychom se na něj v dvoupanelu dvakrát. Ze stejného důvodu se ViewModel
   sekce vyrábí až uvnitř `when` nad sekcí — složí se jen jedna větev.
-- **Nadpis skupiny a její blok jsou jeden kus** (`SettingsGroup`). Jako dva sousedi ve sloupci
-  sekce by nadpis visel stejně daleko od svého bloku jako od toho předchozího.
+- **Nadpis skupiny a její blok jsou jeden kus** (`TitledGroup` v `core/ui/FormRows.kt`, dřív
+  `SettingsGroup`). Jako dva sousedi ve sloupci sekce by nadpis visel stejně daleko od svého
+  bloku jako od toho předchozího.
+- **Prvky bloku jsou v `core/ui/FormRows.kt` jednou** (říjen 2026): nadpis `GroupTitle`, blok
+  s nadpisem `TitledGroup`, řádek s přepínačem `SwitchListItem`, podklad řádku v lazy seznamu
+  `groupRowBackground`; pole jako řádek bloku je `GroupTextField` (`core/ui/BlockField.kt`).
+  Do té doby měl formulář ankety vlastní `SectionTitle`, `BlockField` a `SwitchRow` a Nastavení,
+  profil, zařízení, archiv a příběhy dalších sedm `SwitchRow`/`ToggleRow` a přes deset ručně
+  psaných řádků s přepínačem. Rozcházely se v tom, co nikdo nevidí:
+  - **Haptika přepnutí** (`toggle(on)`) chyběla v anketě, ve variantách AI, u biometrie zámku,
+    typů chatů ve složce a samolepky z fotky. `SwitchListItem` ji hlásí sám, volající ji
+    NEPŘIDÁVÁ — dvě volání by se zdvojila (jako ruční `longPress()` u podržení).
+  - **Diskrétní čtení a čištění sledovacích parametrů neměly roli přepínače**: řádek byl
+    `clickable` a přepínač měl vlastní `onCheckedChange`, takže čtečka hlásila tlačítko a vedle
+    něj druhý ovládací prvek. Totéž rok narození v profilu.
+  - **Nadpisy nad blokem** měly start 16 dp, ale různé konce a mezery; tlačítko vedle nadpisu
+    (`action`) lícuje s okrajem bloku, ne s textem.
+  - Vědomě vlastní zůstaly: synchronizace kontaktů (přepnutí čeká na systémové oprávnění a hlásí
+    `toggle`/`reject` až podle výsledku), uživatelská jména (přepínač je jeden z několika ovládacích
+    prvků řádku) a „Překládat v zařízení" v sheetu překladu (řádek bez odsazení `ListItem`u).
 - **Skupiny jsou bloky zaoblených řádků, ne karta** (`GroupedColumn` v `core/ui/GroupedList.kt`,
   říjen 2026). Do té doby byla skupina holá `Card` (`surfaceContainerHighest`, rohy 12 dp)
   s řádky natěsno a dělicí čárou, zatímco kořen Nastavení a profil měly bloky 20/4 dp
@@ -179,7 +197,7 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
   - **Dělicí čára je `GroupBreak()`**: blok se rozdělí na dva se svými krajními zaobleními
     (mezera `GROUP_BREAK_SPACING`). Čára mezi zaoblenými řádky by byla pozůstatek karty. Nevratná
     akce má blok vlastní (vypnutí dvoufázového ověření), stejně jako v nabídkách.
-  - Stejný blok mají i ruční karty mimo `SettingsGroup`: správa zámku aplikace, dvoufázové
+  - Stejný blok mají i ruční karty mimo `TitledGroup`: správa zámku aplikace, dvoufázové
     ověření a údaje pod poli v úpravě profilu.
   - **Stisknutý řádek se z bloku vyčlení zaoblením 16 dp** (M3 Expressive
     `ListTokens.ItemPressedContainerExpressiveShape`, říjen 2026). Řádky jsou cizí `ListItem`y

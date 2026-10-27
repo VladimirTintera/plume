@@ -284,7 +284,7 @@ import org.jetbrains.compose.resources.stringResource
  *
  * - **Avatar a název přiletí z hlavičky konverzace** — tytéž sdílené klíče (`chatAvatarKey`,
  *   `chatTitleKey`) jako ze seznamu chatů do konverzace.
- * - **Údaje a členové jsou skupiny jako v Nastavení** (`SettingsGroup`): nadpis a karta s řádky.
+ * - **Údaje a členové jsou skupiny jako v Nastavení** (`TitledGroup`): nadpis a karta s řádky.
  *   Aplikace tak má pro „seznam vlastností" jeden vzhled.
  * - **Akce jsou tónované dlaždice** s ikonou nad popiskem — velký cíl, a popisek řekne, co se stane
  *   (ztlumit / zapnout zvuk), ne jen stav.

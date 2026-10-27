@@ -81,6 +81,9 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
+import eu.tintera.plume.core.ui.GroupTitle
 
 /**
  * „Ukládání do galerie" v Úložišti: výchozí pravidla pro soukromé chaty, skupiny a kanály
@@ -116,7 +119,7 @@ internal fun AutosaveGroup(viewModel: AutosaveViewModel, snackbarHostState: Snac
     val permission = rememberSavePermission()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SettingsGroup(Res.string.autosave_group) {
+        TitledGroup(Res.string.autosave_group) {
             val settings = state.settings
             when {
                 settings != null -> {
@@ -134,7 +137,7 @@ internal fun AutosaveGroup(viewModel: AutosaveViewModel, snackbarHostState: Snac
         }
         val exceptions = state.settings?.exceptions.orEmpty()
         if (exceptions.isNotEmpty()) {
-            SettingsGroup(Res.string.autosave_exceptions) {
+            TitledGroup(Res.string.autosave_exceptions) {
                 exceptions.forEach { exception ->
                     val chat = state.exceptionChats[exception.chatId]
                     val title = chatTitle(exception.chatId, chat?.title.orEmpty())
@@ -274,11 +277,11 @@ internal fun AutosaveScopeDialog(
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
                 }
-                SwitchRow(title = Res.string.autosave_photos_switch, checked = photos, onChange = { photos = it })
-                SwitchRow(
-                    title = Res.string.autosave_videos_switch,
+                SwitchListItem(headline = stringResource(Res.string.autosave_photos_switch), checked = photos, onCheckedChange = { photos = it })
+                SwitchListItem(
+                    headline = stringResource(Res.string.autosave_videos_switch),
                     checked = videos,
-                    onChange = { on ->
+                    onCheckedChange = { on ->
                         videos = on
                         // Zapnutí s limitem, který mezi volbami není (512 kB od serveru), by ukládalo
                         // jen půlmegová videa — předvybere se rozumná velikost.
@@ -286,12 +289,7 @@ internal fun AutosaveScopeDialog(
                     },
                 )
                 if (videos) {
-                    Text(
-                        stringResource(Res.string.autosave_max_video),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp),
-                    )
+                    GroupTitle(stringResource(Res.string.autosave_max_video), Modifier.padding(top = 8.dp, bottom = 4.dp))
                     sizes.forEach { size ->
                         val selected = size == maxVideo
                         ListItem(

@@ -25,9 +25,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -50,17 +48,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.CustomEmojiIcon
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.confirm
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.settings_quick_reaction
 import eu.tintera.plume.resources.settings_quick_reaction_choose
 import eu.tintera.plume.resources.settings_quick_reaction_choose_body
 import eu.tintera.plume.resources.settings_quick_reaction_summary
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
 
 /**
  * Rychlá reakce: přepínač dvojitého ťuknutí a pod ním (jen zapnutý) výběr reakce.
@@ -76,20 +72,12 @@ internal fun QuickReactionSettings(viewModel: QuickReactionSettingsViewModel) {
     val choices by viewModel.choices.collectAsStateWithLifecycle()
     var picking by rememberSaveable { mutableStateOf(false) }
 
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { Icon(painterResource(Res.drawable.add_reaction_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_quick_reaction)) },
-        supportingContent = { Text(stringResource(Res.string.settings_quick_reaction_summary)) },
-        trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
-        modifier = Modifier.toggleable(
-            value = enabled,
-            role = Role.Switch,
-            onValueChange = { on ->
-                haptics.toggle(on)
-                viewModel.setEnabled(on)
-            },
-        ),
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_quick_reaction),
+        checked = enabled,
+        supporting = stringResource(Res.string.settings_quick_reaction_summary),
+        icon = Res.drawable.add_reaction_24dp,
+        onCheckedChange = viewModel::setEnabled,
     )
     AnimatedVisibility(visible = enabled) {
         ListItem(

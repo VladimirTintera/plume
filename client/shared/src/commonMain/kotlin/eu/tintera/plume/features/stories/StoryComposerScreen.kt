@@ -72,7 +72,6 @@ import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.chats.groupMemberCandidates
-import eu.tintera.plume.features.settings.SwitchRow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.check_24dp
@@ -105,6 +104,7 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import eu.tintera.plume.core.ui.SwitchListItem
 
 /**
  * Nový vlastní příběh: náhled na plátně 9 : 16 (vyplnit, nebo celá fotka), popisek, kdo ho
@@ -347,16 +347,16 @@ fun StoryComposerScreen(
                 }
 
                 GroupedColumn {
-                    SwitchRow(
-                        title = Res.string.story_keep_on_profile,
-                        summary = Res.string.story_keep_on_profile_summary,
+                    SwitchListItem(
+                        headline = stringResource(Res.string.story_keep_on_profile),
+                        supporting = stringResource(Res.string.story_keep_on_profile_summary),
                         checked = state.keepOnProfile,
-                        onChange = viewModel::setKeepOnProfile,
+                        onCheckedChange = viewModel::setKeepOnProfile,
                     )
-                    SwitchRow(
-                        title = Res.string.story_allow_screenshots,
+                    SwitchListItem(
+                        headline = stringResource(Res.string.story_allow_screenshots),
                         checked = state.allowScreenshots,
-                        onChange = viewModel::setAllowScreenshots,
+                        onCheckedChange = viewModel::setAllowScreenshots,
                     )
                 }
             }

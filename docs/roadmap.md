@@ -1593,7 +1593,7 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
 - ~~**Obrysová pole mimo dialog**~~ — hotovo (VladimirTintera/telegram#862): úprava kontaktu, „Jiný důvod"
   v nahlášení fotky a pole v nahlášení (dřív napodobenina bloku bez rámečku při psaní) přes
   `FormTextField`. `OutlinedTextField` zůstal jen v `AlertDialog`ech, blok možností ankety
-  (`BlockField` v `PollComposer`) je záměrně vlastní (skupinové tvary).
+  (`GroupTextField` v `core/ui/BlockField.kt`, dřív `BlockField` v `PollComposer`) je záměrně vlastní (skupinové tvary).
 - ~~**Zbývá z prvního kola**~~ — hotovo (VladimirTintera/telegram#863): chyba načtení přístupových klíčů je řádek
   v bloku sekce s ikonou a tónovým „Zkusit znovu"; odepřený přístup ve sdílení má zmenšený
   úvodní tvar (`IntroShape`, 96 dp) a zvýrazněný nadpis — celoobrazovkový stav se mezi

@@ -48,7 +48,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -67,8 +66,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,11 +76,9 @@ import eu.tintera.plume.core.telegram.NotificationException
 import eu.tintera.plume.core.telegram.NotificationScope
 import eu.tintera.plume.core.telegram.ScopeSettings
 import eu.tintera.plume.core.ui.Avatar
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_channels
 import eu.tintera.plume.resources.notification_channel_groups
@@ -125,10 +120,11 @@ import eu.tintera.plume.resources.quiet_hours_until
 import eu.tintera.plume.features.conversation.TimeOfDayDialog
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Sekce „Notifikace": co TDLib upozorní a jak (po rozsazích soukromé chaty / skupiny / kanály),
@@ -173,7 +169,7 @@ fun NotificationSettings(
     // Stav oprávnění se ukazuje vždycky, ne jen když chybí — jinak by nebylo kde ověřit, že
     // notifikace opravdu běží. Bez něj ostatní volby nic nezmění, proto je nahoře. Linux
     // povolení nemá (viz `NotificationPermission.hasSystemPermission`).
-    if (viewModel.hasSystemPermission) SettingsGroup(Res.string.settings_notif_system) {
+    if (viewModel.hasSystemPermission) TitledGroup(Res.string.settings_notif_system) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = {
@@ -227,12 +223,12 @@ fun NotificationSettings(
     // Desktop: oznámení chodí, jen když aplikace běží (push tam není) — hned pod povolením,
     // protože bez běžící aplikace nezmění nic ani ono.
     state.launchAtLogin?.let { enabled ->
-        SettingsGroup(Res.string.settings_notif_background) {
-            SwitchRow(
-                title = Res.string.settings_launch_at_login,
-                summary = Res.string.settings_launch_at_login_summary,
+        TitledGroup(Res.string.settings_notif_background) {
+            SwitchListItem(
+                headline = stringResource(Res.string.settings_launch_at_login),
+                supporting = stringResource(Res.string.settings_launch_at_login_summary),
                 checked = enabled,
-                onChange = viewModel::setLaunchAtLogin,
+                onCheckedChange = viewModel::setLaunchAtLogin,
             )
         }
     }
@@ -277,12 +273,12 @@ fun NotificationSettings(
         )
     }
 
-    SettingsGroup(Res.string.settings_notif_other) {
+    TitledGroup(Res.string.settings_notif_other) {
         state.contactJoined?.let { enabled ->
-            SwitchRow(
-                title = Res.string.settings_notif_contact_joined,
+            SwitchListItem(
+                headline = stringResource(Res.string.settings_notif_contact_joined),
                 checked = enabled,
-                onChange = viewModel::setContactJoined,
+                onCheckedChange = viewModel::setContactJoined,
             )
         }
         // Zmínky mají vlastní kanál — v tiché skupině jsou to jediné, co má zvonit, a zvuk
@@ -341,42 +337,42 @@ private fun ScopeGroup(
     soundLabel: String,
     onPickSound: () -> Unit,
 ) {
-    SettingsGroup(scope.title) {
+    TitledGroup(scope.title) {
         if (settings == null) {
             Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                 LoadingIndicator()
             }
-            return@SettingsGroup
+            return@TitledGroup
         }
 
-        SwitchRow(
-            title = Res.string.settings_notif_enabled,
+        SwitchListItem(
+            headline = stringResource(Res.string.settings_notif_enabled),
             checked = settings.enabled,
-            onChange = { value -> onUpdate { it.copy(enabled = value) } },
+            onCheckedChange = { value -> onUpdate { it.copy(enabled = value) } },
         )
         // Náhled bez upozornění nemá kde být vidět. Zmínky a připnuté ne: zmínky projdou
         // i ztlumeným chatem, a to je přesně jejich smysl.
-        SwitchRow(
-            title = Res.string.settings_notif_preview,
-            summary = Res.string.settings_notif_preview_summary,
+        SwitchListItem(
+            headline = stringResource(Res.string.settings_notif_preview),
+            supporting = stringResource(Res.string.settings_notif_preview_summary),
             checked = settings.showPreview,
             enabled = settings.enabled,
-            onChange = { value -> onUpdate { it.copy(showPreview = value) } },
+            onCheckedChange = { value -> onUpdate { it.copy(showPreview = value) } },
         )
-        SwitchRow(
-            title = Res.string.settings_notif_pinned,
-            summary = Res.string.settings_notif_pinned_summary,
+        SwitchListItem(
+            headline = stringResource(Res.string.settings_notif_pinned),
+            supporting = stringResource(Res.string.settings_notif_pinned_summary),
             checked = settings.pinnedMessages,
-            onChange = { value -> onUpdate { it.copy(pinnedMessages = value) } },
+            onCheckedChange = { value -> onUpdate { it.copy(pinnedMessages = value) } },
         )
         // Zmínit se dá jen ve skupině. V soukromém chatu je každá zpráva „pro mě" a v kanálu
         // píše jen kanál.
         if (scope == NotificationScope.Groups) {
-            SwitchRow(
-                title = Res.string.settings_notif_mentions,
-                summary = Res.string.settings_notif_mentions_summary,
+            SwitchListItem(
+                headline = stringResource(Res.string.settings_notif_mentions),
+                supporting = stringResource(Res.string.settings_notif_mentions_summary),
                 checked = settings.mentions,
-                onChange = { value -> onUpdate { it.copy(mentions = value) } },
+                onCheckedChange = { value -> onUpdate { it.copy(mentions = value) } },
             )
         }
         // Příběhy zveřejňují hlavně lidé, nastavení je proto u soukromých chatů (jako
@@ -389,12 +385,12 @@ private fun ScopeGroup(
                 label = { stringResource(it.label()) },
                 onSelect = { value -> onUpdate { it.copy(storyAlerts = value) } },
             )
-            SwitchRow(
-                title = Res.string.settings_notif_story_poster,
-                summary = Res.string.settings_notif_story_poster_summary,
+            SwitchListItem(
+                headline = stringResource(Res.string.settings_notif_story_poster),
+                supporting = stringResource(Res.string.settings_notif_story_poster_summary),
                 checked = settings.showStoryPoster,
                 enabled = settings.storyAlerts != StoryAlerts.None,
-                onChange = { value -> onUpdate { it.copy(showStoryPoster = value) } },
+                onCheckedChange = { value -> onUpdate { it.copy(showStoryPoster = value) } },
             )
         }
         if (exceptions.isNotEmpty()) {
@@ -425,44 +421,6 @@ private fun ScopeGroup(
     }
 }
 
-/** Řádek nese klikání celý, přepínač má `onClick = null` (viz „Obrazovka nastavení"). */
-@Composable
-internal fun SwitchRow(
-    title: StringResource,
-    checked: Boolean,
-    onChange: (Boolean) -> Unit,
-    summary: StringResource? = null,
-    enabled: Boolean = true,
-    /** Podtitul je hláška o selhání — chybovou barvou. */
-    summaryIsError: Boolean = false,
-    icon: DrawableResource? = null,
-) {
-    val haptics = LocalHapticFeedback.current
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = icon?.let { { Icon(painterResource(it), contentDescription = null) } },
-        headlineContent = { Text(stringResource(title)) },
-        supportingContent = summary?.let {
-            {
-                Text(
-                    stringResource(it),
-                    color = if (summaryIsError) MaterialTheme.colorScheme.error else Color.Unspecified,
-                )
-            }
-        },
-        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null, enabled = enabled) },
-        modifier = Modifier.toggleable(
-            value = checked,
-            enabled = enabled,
-            role = Role.Switch,
-            onValueChange = { on ->
-                haptics.toggle(on)
-                onChange(on)
-            },
-        ),
-    )
-}
-
 /**
  * Tiché hodiny: přepínač a pod ním začátek a konec. Časy jsou vidět jen se zapnutým přepínačem —
  * vypnuté hodiny nic nedělají a dva řádky navíc by jen odváděly pozornost.
@@ -476,13 +434,13 @@ private fun QuietHoursGroup(
 ) {
     var picking by rememberSaveable { mutableStateOf<QuietHoursEdge?>(null) }
 
-    SettingsGroup(Res.string.quiet_hours_title) {
+    TitledGroup(Res.string.quiet_hours_title) {
         // Nadpis skupiny už „Tiché hodiny" říká; řádek říká, co přepínač dělá.
-        SwitchRow(
-            title = Res.string.quiet_hours_switch,
-            summary = Res.string.quiet_hours_summary,
+        SwitchListItem(
+            headline = stringResource(Res.string.quiet_hours_switch),
+            supporting = stringResource(Res.string.quiet_hours_summary),
             checked = quietHours.enabled,
-            onChange = onEnabledChange,
+            onCheckedChange = onEnabledChange,
             icon = Res.drawable.bedtime_24dp,
         )
         AnimatedVisibility(visible = quietHours.enabled) {

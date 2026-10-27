@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.Birthdate
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.birthdate_done
@@ -47,6 +46,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
 import kotlin.time.Instant
+import eu.tintera.plume.core.ui.SwitchListItem
 
 /**
  * Datum narození v úpravě profilu: řádek s datem (ťuknutí otevře kalendář) a pod ním „Ukazovat
@@ -91,14 +91,13 @@ internal fun BirthdateRows(
                 onShowYearChange(on)
             }
         }
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            // Prázdné místo velikosti ikony: text stojí pod „Datum narození", ke kterému patří.
-            leadingContent = { Spacer(Modifier.size(24.dp)) },
+        SwitchListItem(
+            checked = showYear && value.year != null,
+            onCheckedChange = toggle,
             headlineContent = { Text(stringResource(Res.string.birthdate_show_year)) },
             supportingContent = { Text(stringResource(Res.string.birthdate_privacy_hint)) },
-            trailingContent = { IconSwitch(checked = showYear && value.year != null, onCheckedChange = toggle) },
-            modifier = Modifier.clickable { toggle(!(showYear && value.year != null)) },
+            // Prázdné místo velikosti ikony: text stojí pod „Datum narození", ke kterému patří.
+            leadingContent = { Spacer(Modifier.size(24.dp)) },
         )
     }
     if (picking) {

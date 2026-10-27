@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ButtonDefaults
@@ -50,7 +49,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -66,11 +64,9 @@ import eu.tintera.plume.core.ai.NotEnoughSpaceException
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
-import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.fileSizeText
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.tabularNumbers
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.settings_ai_provider_apple
 import eu.tintera.plume.resources.settings_ai_provider_apple_summary
@@ -134,6 +130,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /** Stav modelu, jak ho ukazuje Nastavení. */
 sealed interface OnDeviceModelState {
@@ -456,7 +454,6 @@ fun supportedModels(current: AiModels, available: AiAvailability): AiModels? {
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
-    val haptics = LocalHapticFeedback.current
     val enabled by viewModel.enabled.collectAsStateWithLifecycle()
     val models by viewModel.models.collectAsStateWithLifecycle()
     val states by viewModel.states.collectAsStateWithLifecycle()
@@ -479,20 +476,12 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
      */
     val available = availability?.takeIf { it.providers.isNotEmpty() } ?: return
 
-    SettingsGroup(Res.string.settings_on_device_ai) {
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(stringResource(Res.string.settings_on_device_ai_enable)) },
-            supportingContent = { Text(stringResource(Res.string.settings_on_device_ai_enable_summary)) },
-            trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
-            modifier = Modifier.toggleable(
-                value = enabled,
-                role = Role.Switch,
-                onValueChange = { on ->
-                    haptics.toggle(on)
-                    viewModel.setEnabled(on)
-                },
-            ),
+    TitledGroup(Res.string.settings_on_device_ai) {
+        SwitchListItem(
+            headline = stringResource(Res.string.settings_on_device_ai_enable),
+            checked = enabled,
+            supporting = stringResource(Res.string.settings_on_device_ai_enable_summary),
+            onCheckedChange = viewModel::setEnabled,
         )
 
         if (enabled) {
@@ -506,10 +495,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 title = Res.string.settings_reply_suggestions,
                 summary = Res.string.settings_reply_suggestions_summary,
                 checked = replySuggestions,
-                onChange = { on ->
-                    haptics.toggle(on)
-                    viewModel.setReplySuggestions(on)
-                },
+                onChange = { on -> viewModel.setReplySuggestions(on) },
             )
             // Varování před podvodem má vlastní vypínač ze stejného důvodu: model posuzuje
             // příchozí zprávy sám, bez ťuknutí.
@@ -517,20 +503,14 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 title = Res.string.settings_scam_warnings,
                 summary = Res.string.settings_scam_warnings_summary,
                 checked = scamWarnings,
-                onChange = { on ->
-                    haptics.toggle(on)
-                    viewModel.setScamWarnings(on)
-                },
+                onChange = { on -> viewModel.setScamWarnings(on) },
             )
             // Odznak „čeká na odpověď" taky: model posuzuje nepřečtené chaty sám.
             VariantSwitch(
                 title = Res.string.settings_chat_triage,
                 summary = Res.string.settings_chat_triage_summary,
                 checked = chatTriage,
-                onChange = { on ->
-                    haptics.toggle(on)
-                    viewModel.setChatTriage(on)
-                },
+                onChange = { on -> viewModel.setChatTriage(on) },
             )
             // Popisy fotek předem: model běží sám na pozadí (jen na nabíječce), proto vlastní
             // vypínač. Jen s modelem, který obraz bere, a jen kde je pozadí (Android).
@@ -539,10 +519,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     title = Res.string.settings_background_photos,
                     summary = Res.string.settings_background_photos_summary,
                     checked = backgroundPhotos,
-                    onChange = { on ->
-                        haptics.toggle(on)
-                        viewModel.setBackgroundPhotos(on)
-                    },
+                    onChange = { on -> viewModel.setBackgroundPhotos(on) },
                 )
             }
         }
@@ -555,7 +532,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
      * modelů naráz: Nano na text a Gemmu na to, co Nano neumí (zvuk, obraz).
      */
     val choosable = available.providers.size > 1
-    SettingsGroup(if (choosable) Res.string.settings_ai_models else Res.string.settings_ai_model) {
+    TitledGroup(if (choosable) Res.string.settings_ai_models else Res.string.settings_ai_model) {
         available.providers.forEachIndexed { index, provider ->
             if (index > 0) GroupBreak()
             val on = provider in models.enabled
@@ -564,10 +541,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     title = provider.title,
                     summary = provider.summary,
                     checked = on,
-                    onChange = { checked ->
-                        haptics.toggle(checked)
-                        viewModel.setModelEnabled(provider, checked)
-                    },
+                    onChange = { checked -> viewModel.setModelEnabled(provider, checked) },
                     // Poslední zapnutý vypnout nejde: vypnout AI je přepínač nahoře.
                     enabled = !on || models.enabled.size > 1,
                 )
@@ -590,7 +564,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
      */
     val enabledHere = available.providers.filter { it in models.enabled }
     if (enabledHere.size > 1) {
-        SettingsGroup(Res.string.settings_ai_tasks) {
+        TitledGroup(Res.string.settings_ai_tasks) {
             AiTask.entries.filter { task -> enabledHere.count { it.handles(task) } > 1 }.forEach { task ->
                 val options = listOf<AiProvider?>(null) + enabledHere.filter { it.handles(task) }
                 val chosen = models.assignment(task)
@@ -634,27 +608,20 @@ private fun ModelOptions(
     previewIsStable: Boolean,
     viewModel: OnDeviceAiSettingsViewModel,
 ) {
-    val haptics = LocalHapticFeedback.current
     when (provider) {
         AiProvider.GeminiNano -> {
             VariantSwitch(
                 title = Res.string.settings_on_device_ai_preview,
                 summary = Res.string.settings_on_device_ai_preview_summary,
                 checked = models.preview,
-                onChange = { on ->
-                    haptics.toggle(on)
-                    viewModel.setPreview(on)
-                },
+                onChange = { on -> viewModel.setPreview(on) },
                 note = Res.string.settings_on_device_ai_preview_same.takeIf { previewIsStable },
             )
             VariantSwitch(
                 title = Res.string.settings_on_device_ai_fast,
                 summary = Res.string.settings_on_device_ai_fast_summary,
                 checked = models.fast,
-                onChange = { on ->
-                    haptics.toggle(on)
-                    viewModel.setFast(on)
-                },
+                onChange = { on -> viewModel.setFast(on) },
             )
         }
         // Větší model se nabídne jen tam, kde na něj stačí paměť.
@@ -824,8 +791,9 @@ private fun VariantSwitch(
     note: StringResource? = null,
     enabled: Boolean = true,
 ) {
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    SwitchListItem(
+        checked = checked,
+        onCheckedChange = onChange,
         headlineContent = { Text(stringResource(title)) },
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -835,8 +803,7 @@ private fun VariantSwitch(
                 note?.let { Text(stringResource(it), style = MaterialTheme.typography.labelLarge) }
             }
         },
-        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null, enabled = enabled) },
-        modifier = Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange),
+        enabled = enabled,
     )
 }
 

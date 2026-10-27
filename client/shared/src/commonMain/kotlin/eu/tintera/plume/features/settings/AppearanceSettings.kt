@@ -25,7 +25,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -34,7 +33,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,8 +40,6 @@ import eu.tintera.plume.app.root.presentation.resolveIsDark
 import eu.tintera.plume.app.root.presentation.supportsDynamicColor
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
-import eu.tintera.plume.core.ui.IconSwitch
-import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.brightness_medium_24dp
 import eu.tintera.plume.resources.dark_mode_24dp
@@ -66,6 +62,8 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.TitledGroup
 
 /**
  * Sekce „Vzhled": motiv, barva aplikace a písmo zpráv. Řazení seznamu chatů je v sekci Chaty.
@@ -74,7 +72,6 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 fun AppearanceSettings(viewModel: AppearanceViewModel) {
-    val haptics = LocalHapticFeedback.current
     val storedTheme by viewModel.themeMode.collectAsStateWithLifecycle()
     val storedDynamic by viewModel.dynamicColor.collectAsStateWithLifecycle()
     val storedColor by viewModel.themeColor.collectAsStateWithLifecycle()
@@ -85,26 +82,18 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     val selectedTheme = storedTheme ?: ThemeMode.SYSTEM
     val dynamicColor = storedDynamic ?: supportsDynamicColor
 
-    SettingsGroup(Res.string.settings_theme) {
+    TitledGroup(Res.string.settings_theme) {
         ThemeModeSelector(selected = selectedTheme, onSelect = viewModel::setThemeMode)
 
         // Barvy z tapety se kombinují s kterýmkoli motivem, proto přepínač, ne čtvrtá volba.
         // Kde systémové barvy nejsou (iOS, Android do 11), by to byla volba, po které se nic nezmění.
         if (supportsDynamicColor) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = { Icon(painterResource(Res.drawable.palette_24dp), contentDescription = null) },
-                headlineContent = { Text(stringResource(Res.string.settings_theme_dynamic)) },
-                supportingContent = { Text(stringResource(Res.string.settings_theme_dynamic_summary)) },
-                trailingContent = { IconSwitch(checked = dynamicColor, onCheckedChange = null) },
-                modifier = Modifier.toggleable(
-                    value = dynamicColor,
-                    role = Role.Switch,
-                    onValueChange = { on ->
-                        haptics.toggle(on)
-                        viewModel.setDynamicColor(on)
-                    },
-                ),
+            SwitchListItem(
+                headline = stringResource(Res.string.settings_theme_dynamic),
+                checked = dynamicColor,
+                supporting = stringResource(Res.string.settings_theme_dynamic_summary),
+                icon = Res.drawable.palette_24dp,
+                onCheckedChange = viewModel::setDynamicColor,
             )
         }
     }
@@ -112,7 +101,7 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     // Barva platí, jen když neplatí tapeta — s tapetou žádný vzorek vybraný není, jinak by
     // tvrdil, že se aplikace kreslí z něj. Řada je vidět i tak: ťuknutí tapetu vypne.
     val dynamicActive = dynamicColor && supportsDynamicColor
-    SettingsGroup(Res.string.settings_theme_color) {
+    TitledGroup(Res.string.settings_theme_color) {
         // Vzorky i poznámka pod nimi jsou jeden řádek bloku: poznámka mluví o vzorcích.
         Column {
             ThemeColorPicker(
@@ -131,7 +120,7 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
         }
     }
 
-    SettingsGroup(Res.string.settings_messages) {
+    TitledGroup(Res.string.settings_messages) {
         MessageTextSizeSetting(stored = messageTextSize, onChange = viewModel::setMessageTextSize)
     }
 
@@ -143,22 +132,13 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
  */
 @Composable
 internal fun SeparateUnreadRow(viewModel: AppearanceViewModel) {
-    val haptics = LocalHapticFeedback.current
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { Icon(painterResource(Res.drawable.mark_chat_unread_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_separate_unread)) },
-        supportingContent = { Text(stringResource(Res.string.settings_separate_unread_summary)) },
-        trailingContent = { IconSwitch(checked = separateUnread, onCheckedChange = null) },
-        modifier = Modifier.toggleable(
-            value = separateUnread,
-            role = Role.Switch,
-            onValueChange = { on ->
-                haptics.toggle(on)
-                viewModel.setSeparateUnreadChats(on)
-            },
-        ),
+    SwitchListItem(
+        headline = stringResource(Res.string.settings_separate_unread),
+        checked = separateUnread,
+        supporting = stringResource(Res.string.settings_separate_unread_summary),
+        icon = Res.drawable.mark_chat_unread_24dp,
+        onCheckedChange = viewModel::setSeparateUnreadChats,
     )
 }
 
