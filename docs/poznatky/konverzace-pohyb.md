@@ -390,6 +390,30 @@ Lupa v hlavičce chatu přepne hlavičku na **vyhledávací pilulku** a místo v
 - **`highlightRanges` / `foldDiacritics` jsou v `core/ui`** (`SearchHighlight.kt`), sdílí je
   hledání napříč chaty i konverzace. Obojí hledá bez ohledu na diakritiku jako TDLib.
 
+### Seznam výsledků
+
+Na liště „N z M" je vlevo tlačítko seznamu (`InChatSearchResultsSheet` v `InChatSearchResults.kt`):
+sheet s řádky jako u hledání napříč chaty — odesílatel, čas, úryvek kolem hledaného slova se
+zvýrazněním (`snippetOf`, `highlightRanges`). Ukázaný výsledek je vybraný a seznam se otevře
+na něm. Šipkami se stovky výsledků projít nedaly.
+
+- **Úryvek nese stránka hledání** (`ChatSearchPage.hits`, `ChatSearchHit`: `previewText` jako
+  náhled v seznamu chatů, čas, jméno odesílatele jen ve skupině). Výsledky dřív byly jen id
+  a dočítat zprávu po zprávě by u stovek výsledků znamenalo stovky dotazů. `InChatSearch.hits`
+  je mapa podle id, stránky se do ní slévají (`withNextPage`).
+- **Ťuknutí = skok jako šipkami** (`searchGoTo` → `jumpToMessage(fromSearch = true)`), sheet se
+  zavře a pozice na liště odpovídá („3 z 6").
+- **Seznam stránkuje sám, bez posunu** (`loadMoreResults`): pět řádků před koncem načtených se
+  dotáhne další stránka a ukázaný výsledek zůstane. Šipka nahoru na konci načtených naopak
+  stránku dotáhne A posune se (`loadNextPage(moveToNext)`).
+- **Odesílatel**: ve skupině jméno, u vlastní zprávy „Vy", jinak název chatu (soukromý chat,
+  kanál) — `partnerName` z hlavičky.
+- **Po výběru se klávesnice NEvrátí** (`clearFocus` + `hide`). Zavřený sheet vrátil fokus do
+  pole hledání a vyjela klávesnice přes půl konverzace i se zprávou, na kterou se skočilo
+  (viděno na emulátoru).
+- Ověřeno na emulátoru (Fold) v Notifikátoru: „test" → 6 výsledků, ťuknutí na třetí → „3 z 6"
+  a zvýrazněná zpráva. Skupina (jména odesílatelů) a dlouhé stránkování ověřené nejsou.
+
 ## Skok na datum
 
 V hledání v konverzaci je vedle výběru člena ikona kalendáře (`InChatSearchTopBar`,

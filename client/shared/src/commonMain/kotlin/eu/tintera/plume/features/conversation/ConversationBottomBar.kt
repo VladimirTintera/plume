@@ -16,6 +16,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.composed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.layout.boundsInWindow
@@ -157,6 +159,9 @@ internal fun ConversationBottomBar(
             fallbackAlpha = INPUT_SCRIM_ALPHA,
         ),
     )
+    // Seznam výsledků hledání (sheet nad lištou „N z M"); se zavřeným hledáním zmizí s ní.
+    var showSearchList by rememberSaveable { mutableStateOf(false) }
+    if (state.search == null && showSearchList) showSearchList = false
     // Při výběru patří spodek akcím nad ním; rozepsaný text zůstává v konceptu.
     state.selection?.let { selection ->
         SelectionToolbar(
@@ -183,7 +188,26 @@ internal fun ConversationBottomBar(
                 haptics.tick()
                 viewModel.searchNewer()
             },
+            onShowList = { showSearchList = true },
         )
+        if (showSearchList) {
+            // Fokus se po zavření sheetu vrací do pole hledání a s ním klávesnice, která by
+            // zakryla půlku konverzace i se zprávou, na kterou se právě skočilo.
+            val focusManager = LocalFocusManager.current
+            val keyboard = LocalSoftwareKeyboardController.current
+            InChatSearchResultsSheet(
+                search = search,
+                partnerName = state.info?.title,
+                onPick = { index ->
+                    showSearchList = false
+                    focusManager.clearFocus()
+                    keyboard?.hide()
+                    viewModel.searchGoTo(index)
+                },
+                onLoadMore = viewModel::loadMoreSearchResults,
+                onDismiss = { showSearchList = false },
+            )
+        }
         return@Box
     }
     // Omezený chat: do chatu, který se nedá ukázat, se ani psát nedá.

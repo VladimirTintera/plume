@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ChatSearchHit
 import eu.tintera.plume.core.telegram.ChatSearchPage
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -98,6 +100,45 @@ class ConversationSearchTest {
         assertEquals(1, repository.queries.size)
         assertEquals(emptyList(), state.value.search?.results)
     }
+
+    @Test
+    fun seznamVysledkuSkaceNaVybranyAStrankujeBezPosunu() = runTest {
+        val repository = FakeRepository { q ->
+            if (q.fromMessageId == 0L) pageWithHits(30, 20, next = 20) else pageWithHits(10, 5)
+        }
+        val search = search(this, repository)
+        search.openSearch()
+        search.onSearchQuery("ahoj")
+        advanceUntilIdle()
+
+        // Ťuknutí na řádek: skok jako šipkami.
+        search.searchGoTo(1)
+        assertEquals(20L, state.value.search?.current)
+        assertEquals(listOf(30L, 20L), jumper.jumps)
+
+        // Seznam dojel ke konci načtených: stránka přibude, ukázaný výsledek zůstane.
+        search.loadMoreResults()
+        advanceUntilIdle()
+        val loaded = assertNotNull(state.value.search)
+        assertEquals(listOf(30L, 20L, 10L, 5L), loaded.results)
+        assertEquals(20L, loaded.current)
+        assertEquals(listOf(30L, 20L), jumper.jumps)
+        // Úryvky pro seznam z obou stránek.
+        assertEquals(setOf(30L, 20L, 10L, 5L), loaded.hits.keys)
+
+        // Mimo načtené se neskáče.
+        search.searchGoTo(9)
+        assertEquals(20L, state.value.search?.current)
+    }
+
+    private fun pageWithHits(vararg ids: Long, next: Long? = null) = Result.success(
+        ChatSearchPage(
+            messageIds = ids.toList(),
+            total = null,
+            nextFromMessageId = next,
+            hits = ids.map { ChatSearchHit(messageId = it, text = UiText.Raw("zpráva $it"), date = 0, isOutgoing = false) },
+        ),
+    )
 
     @Test
     fun sipkyProchaziVysledkyASkaciNaKazdy() = runTest {

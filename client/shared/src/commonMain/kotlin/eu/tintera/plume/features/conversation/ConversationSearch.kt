@@ -158,6 +158,21 @@ internal class ConversationSearch(
             moved.current?.let { jumper.jumpToMessage(it, fromSearch = true) }
             return
         }
+        loadNextPage(moveToNext = true)
+    }
+
+    /** Seznam výsledků dojel na konec načtených: další stránka, ukázaný výsledek se nemění. */
+    fun loadMoreResults() = loadNextPage(moveToNext = false)
+
+    /** Ťuknutí na výsledek v seznamu: skok na něj jako šipkami. */
+    fun searchGoTo(index: Int) {
+        val moved = state.value.search?.at(index) ?: return
+        state.update { it.copy(search = moved) }
+        moved.current?.let { jumper.jumpToMessage(it, fromSearch = true) }
+    }
+
+    private fun loadNextPage(moveToNext: Boolean) {
+        val search = state.value.search ?: return
         val from = search.nextFromMessageId ?: return
         if (search.loading) return
         searchJob = scope.launch {
@@ -166,9 +181,11 @@ internal class ConversationSearch(
                 .onSuccess { page ->
                     state.update { current ->
                         val loaded = current.search?.withNextPage(search.resultsQuery, page, search.resultsSenderId)
-                        current.copy(search = loaded?.older() ?: loaded)
+                        current.copy(search = if (moveToNext) loaded?.older() ?: loaded else loaded)
                     }
-                    state.value.search?.current?.takeIf { it != search.current }?.let { jumper.jumpToMessage(it, fromSearch = true) }
+                    if (moveToNext) {
+                        state.value.search?.current?.takeIf { it != search.current }?.let { jumper.jumpToMessage(it, fromSearch = true) }
+                    }
                 }
                 .onFailure { failure ->
                     val message = failure.reported(logger, Res.string.conversation_search_failed)

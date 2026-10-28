@@ -962,11 +962,13 @@ class TdlConversationRepository(
         )
             .toResult()
             .map { found ->
+                val messages = found.messages.filterNotNull()
                 ChatSearchPage(
-                    messageIds = found.messages.filterNotNull().map { it.id },
+                    messageIds = messages.map { it.id },
                     // -1 = server odhad nemá.
                     total = found.totalCount.takeIf { it >= 0 },
                     nextFromMessageId = found.nextFromMessageId.takeIf { it != 0L },
+                    hits = searchHits(chatId, messages),
                 )
             }
     }
@@ -992,11 +994,32 @@ class TdlConversationRepository(
         )
             .toResult()
             .map { found ->
-                val ids = found.messages.filterNotNull()
+                val messages = found.messages.filterNotNull()
                     .filter { senderUserId == null || (it.senderId as? MessageSenderUser)?.userId == senderUserId }
-                    .map { it.id }
-                ChatSearchPage(messageIds = ids, total = ids.size, nextFromMessageId = null)
+                ChatSearchPage(
+                    messageIds = messages.map { it.id },
+                    total = messages.size,
+                    nextFromMessageId = null,
+                    hits = searchHits(chatId, messages),
+                )
             }
+    }
+
+    /**
+     * Řádky seznamu výsledků. Jméno odesílatele jen ve skupině (lokální dotaz, jako u bublin);
+     * v soukromém chatu a kanálu je jasné z chatu.
+     */
+    private suspend fun searchHits(chatId: Long, messages: List<Message>): List<ChatSearchHit> {
+        val group = isGroup(chatId)
+        return messages.map { message ->
+            ChatSearchHit(
+                messageId = message.id,
+                text = message.previewText(),
+                date = message.date,
+                isOutgoing = message.isOutgoing,
+                senderName = if (group && !message.isOutgoing) resolveSender(message.senderId.plainId())?.title else null,
+            )
+        }
     }
 
     override suspend fun pinnedMessages(chatId: Long): Result<PinnedMessages> {

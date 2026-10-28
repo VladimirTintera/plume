@@ -49,6 +49,8 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.SearchPill
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_search_list
+import eu.tintera.plume.resources.format_list_bulleted_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.conversation_jump_to_date
@@ -210,8 +212,16 @@ internal fun InChatSearchNavigator(
     search: InChatSearch,
     onOlder: () -> Unit,
     onNewer: () -> Unit,
+    /** Výsledky jako seznam (úryvek a datum) — při stovkách se šipkami nedá nic projít. */
+    onShowList: () -> Unit,
 ) {
     ConversationFloatingBar(visible = search.hasCriteria) {
+        IconButton(onClick = onShowList, enabled = search.results.isNotEmpty(), shapes = IconButtonDefaults.shapes()) {
+            Icon(
+                painterResource(Res.drawable.format_list_bulleted_24dp),
+                contentDescription = stringResource(Res.string.conversation_search_list),
+            )
+        }
         IconButton(
             onClick = onOlder,
             enabled = search.hasOlder && !search.loading,
