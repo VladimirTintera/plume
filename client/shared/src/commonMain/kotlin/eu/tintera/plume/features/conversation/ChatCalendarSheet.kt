@@ -2,7 +2,6 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,6 +47,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import eu.tintera.plume.core.telegram.CalendarDayMedia
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.contextClickable
+import eu.tintera.plume.resources.arrow_forward_24dp
+import eu.tintera.plume.resources.chat_calendar_day_actions
+import eu.tintera.plume.resources.chat_calendar_day_clear
+import eu.tintera.plume.resources.chat_calendar_day_go
+import eu.tintera.plume.resources.chat_calendar_day_summarize
+import eu.tintera.plume.resources.chat_calendar_legend_all
+import eu.tintera.plume.resources.chat_calendar_legend_hold
+import eu.tintera.plume.resources.delete_sweep_24dp
+import eu.tintera.plume.resources.summarize_24dp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -127,6 +144,10 @@ internal fun ChatCalendarSheet(
     initialDay: Int?,
     onJumpToDay: (dayStart: Int) -> Unit,
     onJumpToMessage: (messageId: Long) -> Unit,
+    /** „Shrnout den" z podržení dne; `null`, když shrnutí v zařízení není. */
+    onSummarizeDay: ((LocalDate) -> Unit)?,
+    /** „Vymazat historii za den…"; `null`, kde po dnech mazat nejde. */
+    onClearDay: ((LocalDate) -> Unit)?,
 ) {
     val zone = remember { TimeZone.currentSystemDefault() }
     val today = remember { Clock.System.now().toLocalDateTime(zone).date }
@@ -150,14 +171,32 @@ internal fun ChatCalendarSheet(
 
         val filter = state.filter
         val media = state.media
+        val hasActions = onSummarizeDay != null || onClearDay != null
+        CalendarLegend(allMessages = filter == null, hasActions = hasActions)
+        val dayActions = remember(zone, onJumpToDay, onSummarizeDay, onClearDay) {
+            DayActions(
+                onJump = { date -> onJumpToDay(date.atStartOfDayIn(zone).epochSeconds.toInt()) },
+                onSummarize = onSummarizeDay,
+                onClear = onClearDay,
+            )
+        }
         // Sheet má pevnou výšku (celou), ne podle obsahu: měsíce přibývají postupně a čip druhu
         // s pár měsíci nebo čekání na první stránku obsah zkrátí — sheet pak poskakoval nahoru
         // a dolů pod prstem, který zrovna mířil na čip nebo den.
         Box(Modifier.fillMaxWidth().weight(1f)) {
             if (filter == null) {
-                AllMessagesMonths(state.all, calendar, today, zone, initialMonth, onJumpToDay)
+                AllMessagesMonths(state.all, calendar, today, initialMonth, dayActions)
             } else if (media != null) {
-                KindMonths(media, today, initialMonth, calendar::loadMoreMedia, onJumpToMessage)
+                KindMonths(
+                    media = media,
+                    thumbnails = filter == SharedMediaKind.Media,
+                    today = today,
+                    initialMonth = initialMonth,
+                    onLoadMore = calendar::loadMoreMedia,
+                    // U druhu vede ťuknutí na jeho první zprávu dne, ne na začátek dne.
+                    actions = dayActions,
+                    onJumpToMessage = onJumpToMessage,
+                )
             }
         }
     }
@@ -221,9 +260,8 @@ private fun AllMessagesMonths(
     all: AllMessagesCalendar,
     calendar: ConversationCalendar,
     today: LocalDate,
-    zone: TimeZone,
     initialMonth: YearMonth?,
-    onJumpToDay: (dayStart: Int) -> Unit,
+    actions: DayActions,
 ) {
     val coveredFrom = all.coveredFrom
     if (coveredFrom == null) {
@@ -241,7 +279,6 @@ private fun AllMessagesMonths(
     val months = remember(today.yearMonth, axisEnd) { monthsBetween(today.yearMonth, axisEnd) }
     // Den, od kterého dál do minulosti souvislý úsek nesahá; po začátek chatu je známé všechno.
     val partialDay = coveredFrom.takeUnless { all.reachedStart }
-    val onPick = { date: LocalDate -> onJumpToDay(date.atStartOfDayIn(zone).epochSeconds.toInt()) }
     val listState = rememberLazyListState()
     // Otevře se na měsíci, který je v konverzaci zrovna vidět — kdo čte starou historii, chce
     // kolem ní, ne od dneška. Osa roste, jak se počítá, takže až měsíc na ose je.
@@ -262,9 +299,9 @@ private fun AllMessagesMonths(
         itemsIndexed(months, key = { _, month -> month.toString() }) { _, month ->
             Column(MonthModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (month >= coveredMonth) {
-                    CoveredMonth(month, all.days, partialDay, today, onPick)
+                    CoveredMonth(month, all.days, partialDay, today, actions)
                 } else {
-                    IslandMonth(month, all.islands, today, onPick)
+                    IslandMonth(month, all.islands, today, actions)
                 }
             }
             // „Načíst starší" patří k místu, kde souvislý úsek končí, ne na konec osy: pod ním
@@ -292,7 +329,7 @@ private fun CoveredMonth(
     allDays: Map<LocalDate, Int>,
     partialDay: LocalDate?,
     today: LocalDate,
-    onPick: (LocalDate) -> Unit,
+    actions: DayActions,
 ) {
     val days = remember(allDays, month) { allDays.filterKeys { it.yearMonth == month } }
     val partial = partialDay?.takeIf { it.yearMonth == month }
@@ -308,16 +345,16 @@ private fun CoveredMonth(
             modifier = Modifier.padding(start = 8.dp),
         )
     } else {
-        MonthGrid(month, today, onPick) { date -> coveredDayStatus(date, days, partial) }
+        MonthGrid(month, today, actions) { date -> coveredDayStatus(date, days, partial) }
     }
 }
 
 /** Měsíc starší než souvislý úsek: dny ostrůvků, jsou-li, jinak samé neznámé (a ťukatelné) dny. */
 @Composable
-private fun IslandMonth(month: YearMonth, islands: List<Island>, today: LocalDate, onPick: (LocalDate) -> Unit) {
+private fun IslandMonth(month: YearMonth, islands: List<Island>, today: LocalDate, actions: DayActions) {
     val total = islands.sumOf { island -> island.days.filterKeys { it.yearMonth == month }.values.sum() }
     MonthHeader(month, total = if (total > 0) monthTotal(total, atLeast = true) else null)
-    MonthGrid(month, today, onPick) { date -> islandDayStatus(date, islands) }
+    MonthGrid(month, today, actions) { date -> islandDayStatus(date, islands) }
 }
 
 /**
@@ -359,13 +396,23 @@ private fun OlderFooter(all: AllMessagesCalendar, onLoadOlder: () -> Unit) {
 @Composable
 private fun KindMonths(
     media: MediaCalendarState,
+    /** Den jako kruh s první fotkou (čip Média), jako kalendář v profilu. */
+    thumbnails: Boolean,
     today: LocalDate,
     initialMonth: YearMonth?,
     onLoadMore: () -> Unit,
+    actions: DayActions,
     onJumpToMessage: (messageId: Long) -> Unit,
 ) {
     val months = remember(media.days) { calendarMonths(media.days) }
     val byDate = remember(media.days) { media.days.associateBy { it.date } }
+    val kindActions = remember(actions, byDate) {
+        DayActions(
+            onJump = { date -> byDate[date]?.let { onJumpToMessage(it.message.id) } },
+            onSummarize = actions.onSummarize,
+            onClear = actions.onClear,
+        )
+    }
     if (months.isEmpty()) {
         if (media.loading) CalendarLoading() else CalendarNote(stringResource(Res.string.chat_calendar_kind_empty))
         return
@@ -393,7 +440,8 @@ private fun KindMonths(
                 MonthGrid(
                     month = month.month,
                     today = today,
-                    onPick = { date -> byDate[date]?.let { onJumpToMessage(it.message.id) } },
+                    actions = kindActions,
+                    media = if (thumbnails) byDate else null,
                 ) { date -> DayStatus.Known(days[date] ?: 0) }
             }
         }
@@ -454,7 +502,9 @@ internal fun islandDayStatus(date: LocalDate, islands: List<Island>): DayStatus 
 private fun MonthGrid(
     month: YearMonth,
     today: LocalDate,
-    onPick: (LocalDate) -> Unit,
+    actions: DayActions,
+    /** První fotka dne u čipu Média; `null` = bez náhledů. */
+    media: Map<LocalDate, CalendarDayMedia>? = null,
     status: (LocalDate) -> DayStatus,
 ) {
     val cells = remember(month) { calendarMonth(month).cells }
@@ -485,7 +535,8 @@ private fun MonthGrid(
                             unknown = day == DayStatus.Unknown && date <= today,
                             partial = day is DayStatus.Partial,
                             isToday = date == today,
-                            onPick = onPick,
+                            actions = actions,
+                            media = media?.get(date),
                         )
                     }
                 }
@@ -508,14 +559,26 @@ private fun DayCell(
     unknown: Boolean,
     partial: Boolean,
     isToday: Boolean,
-    onPick: (LocalDate) -> Unit,
+    actions: DayActions,
+    /** První fotka dne (čip Média): den je pak kruh s jejím náhledem. */
+    media: CalendarDayMedia? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val base = BottomSheetDefaults.ContainerColor
+    val photo = media?.message?.media as? MessageMedia.Photo
+    val video = media?.message?.media as? MessageMedia.Video
+    // Skryté médium (spoiler) náhled neukáže, jako kalendář v profilu — odkrývá se až v chatu.
+    val hidden = photo?.hasSpoiler == true || video?.hasSpoiler == true
+    val thumbnail = (photo?.thumbnailFileId ?: video?.thumbnailFileId).takeUnless { hidden }
     val background = if (level == 0) base else scheme.primary.copy(alpha = HEAT_ALPHA[level]).compositeOver(base)
     // Na syté ploše `primary` je čitelný `onPrimary`, na bledé `onSurface` — vybere se podle
-    // skutečného kontrastu, ne podle úrovně (v tmavém motivu je `primary` světlá).
-    val content = if (level == 0) scheme.onSurface else strongestAccentOn(background, scheme.onSurface, scheme.onPrimary)
+    // skutečného kontrastu, ne podle úrovně (v tmavém motivu je `primary` světlá). Přes fotku
+    // bílá na ztmavení, jako v profilu.
+    val content = when {
+        thumbnail != null -> Color.White
+        level == 0 -> scheme.onSurface
+        else -> strongestAccentOn(background, scheme.onSurface, scheme.onPrimary)
+    }
     val dayName = stringResource(Res.string.date_day_month, date.day, stringResource(date.month.name()))
     val description = when {
         count > 0 -> stringResource(
@@ -530,42 +593,118 @@ private fun DayCell(
         unknown -> stringResource(Res.string.chat_calendar_day_unknown, dayName)
         else -> null
     }
-    Box(
-        Modifier
-            .fillMaxSize()
-            .clip(CircleShape)
-            .background(background)
-            .then(if (isToday) Modifier.border(2.dp, scheme.primary, CircleShape) else Modifier)
-            .then(
-                if (description != null) {
-                    Modifier
-                        .clickable { onPick(date) }
-                        .clearAndSetSemantics {
-                            contentDescription = description
-                            role = Role.Button
-                        }
-                } else {
-                    Modifier
-                },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                date.day.toString(),
-                style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
-                color = if (count > 0) content else scheme.onSurfaceVariant.copy(alpha = if (unknown) UNKNOWN_DAY_ALPHA else EMPTY_DAY_ALPHA),
-            )
-            if (count > 0) {
-                Text(
-                    cellCount(count).let { if (partial) stringResource(Res.string.chat_calendar_at_least, it) else it },
-                    style = MaterialTheme.typography.labelSmall.tabularNumbers(),
-                    color = content,
-                    maxLines = 1,
+    // Podržení jen u dne se zprávami: u neznámého dne není co shrnout ani mazat.
+    val menuActions = dayMenu(date, actions).takeIf { count > 0 }
+    var menuOpen by remember { mutableStateOf(false) }
+    val actionsLabel = stringResource(Res.string.chat_calendar_day_actions)
+    Box {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(background)
+                .then(if (isToday) Modifier.border(2.dp, scheme.primary, CircleShape) else Modifier)
+                .then(
+                    if (description != null) {
+                        Modifier
+                            .contextClickable(
+                                role = Role.Button,
+                                onLongClick = menuActions?.let { { menuOpen = true } },
+                                onClick = { actions.onJump(date) },
+                            )
+                            .clearAndSetSemantics {
+                                contentDescription = description
+                                role = Role.Button
+                                onClick { actions.onJump(date); true }
+                                if (menuActions != null) onLongClick(actionsLabel) { menuOpen = true; true }
+                            }
+                    } else {
+                        Modifier
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (thumbnail != null) {
+                RemoteImage(
+                    fileId = thumbnail,
+                    placeholder = (photo?.minithumbnail ?: video?.minithumbnail),
+                    modifier = Modifier.fillMaxSize(),
                 )
+                // Bílé číslo na fotce potřebuje podklad — na světlé fotce by zaniklo.
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = DAY_SCRIM_ALPHA)))
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    date.day.toString(),
+                    style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
+                    color = if (count > 0) content else scheme.onSurfaceVariant.copy(alpha = if (unknown) UNKNOWN_DAY_ALPHA else EMPTY_DAY_ALPHA),
+                )
+                if (count > 0) {
+                    Text(
+                        cellCount(count).let { if (partial) stringResource(Res.string.chat_calendar_at_least, it) else it },
+                        style = MaterialTheme.typography.labelSmall.tabularNumbers(),
+                        color = content,
+                        maxLines = 1,
+                    )
+                }
             }
         }
+        if (menuActions != null) {
+            ExpressiveMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, groups = menuActions)
+        }
     }
+}
+
+/**
+ * Nabídka z podržení dne: přejít, shrnout den modelem v zařízení a vymazat historii za den.
+ * Mazání ve vlastní skupině v chybové barvě, jako všude ([MenuAction.destructive]).
+ */
+@Composable
+private fun dayMenu(date: LocalDate, actions: DayActions): List<List<MenuAction>>? {
+    val summarize = actions.onSummarize
+    val clear = actions.onClear
+    if (summarize == null && clear == null) return null
+    return listOf(
+        listOfNotNull(
+            MenuAction(stringResource(Res.string.chat_calendar_day_go), Res.drawable.arrow_forward_24dp) { actions.onJump(date) },
+            summarize?.let { MenuAction(stringResource(Res.string.chat_calendar_day_summarize), Res.drawable.summarize_24dp) { it(date) } },
+        ),
+        listOfNotNull(
+            clear?.let {
+                MenuAction(stringResource(Res.string.chat_calendar_day_clear), Res.drawable.delete_sweep_24dp, destructive = true) { it(date) }
+            },
+        ),
+    )
+}
+
+/**
+ * Co jde se dnem udělat — ťuknutí ([onJump]) a nabídka z podržení. Jedna skupina místo tří
+ * lambd v každé funkci mřížky (viz „Parametry funkce" v CLAUDE.md).
+ */
+@Immutable
+internal class DayActions(
+    val onJump: (LocalDate) -> Unit,
+    val onSummarize: ((LocalDate) -> Unit)?,
+    val onClear: ((LocalDate) -> Unit)?,
+)
+
+/**
+ * Pod čipy: co znamená šedý den a „+" (jen u všech zpráv — druhy počítá server celé) a že den
+ * jde podržet. Bez toho se na obojí dalo přijít jen náhodou.
+ */
+@Composable
+private fun CalendarLegend(allMessages: Boolean, hasActions: Boolean) {
+    val parts = listOfNotNull(
+        stringResource(Res.string.chat_calendar_legend_all).takeIf { allMessages },
+        stringResource(Res.string.chat_calendar_legend_hold).takeIf { hasActions },
+    )
+    if (parts.isEmpty()) return
+    Text(
+        parts.joinToString(" "),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp),
+    )
 }
 
 /** Počet v políčku: do tisíce celý, výš v tisících („1,2k"), aby se vešel do kruhu. */
@@ -621,6 +760,12 @@ private val HEAT_ALPHA = floatArrayOf(0f, 0.18f, 0.36f, 0.62f, 1f)
 
 /** Den bez zpráv je jen orientační; plnou barvu mají dny, na které jde ťuknout. */
 private const val EMPTY_DAY_ALPHA = 0.6f
+
+/**
+ * Ztmavení náhledu fotky pod číslem dne a počtem. Silnější než v profilu (0,3): tam je přes
+ * fotku jen číslo dne, tady dva řádky a pestré obálky je bez něj přebíjely.
+ */
+private const val DAY_SCRIM_ALPHA = 0.4f
 
 /** Den, jehož zprávy v zařízení nejsou — o něm se neví nic, proto ještě tlumenější než prázdný. */
 private const val UNKNOWN_DAY_ALPHA = 0.3f

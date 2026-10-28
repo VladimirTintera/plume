@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.runtime.Immutable
+import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.HistoryCounts
 import eu.tintera.plume.core.telegram.SharedMediaKind
@@ -13,9 +14,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.yearMonth
 import kotlin.time.Instant
@@ -211,6 +215,30 @@ class ConversationCalendar(
         }
     }
 
+    /**
+     * Zprávy dne [date] pro „Shrnout den": od první zprávy dalšího dne (nebo od nejnovější, je-li
+     * den poslední) se historie čte ke starším, dokud nesáhne před začátek dne. Od nejnovějších,
+     * takže u dne nad stropem ([DAY_SUMMARY_CAP]) zůstane jeho konec. Servisní zprávy pryč —
+     * o obsahu nic neříkají, jako u shrnutí konverzace.
+     */
+    suspend fun messagesOfDay(date: LocalDate): List<ChatMessage> {
+        val start = date.atStartOfDayIn(zone).epochSeconds.toInt()
+        val end = date.plus(DatePeriod(days = 1)).atStartOfDayIn(zone).epochSeconds.toInt()
+        var from = repository.firstMessageFrom(chatId, end).getOrNull() ?: 0L
+        val seen = HashSet<Long>()
+        val day = mutableListOf<ChatMessage>()
+        for (page in 0 until DAY_SUMMARY_PAGES) {
+            val fresh = repository.history(chatId, from, limit = DAY_SUMMARY_PAGE).getOrNull().orEmpty()
+                .filter { seen.add(it.id) }
+            if (fresh.isEmpty()) break
+            day += fresh.filter { it.timestamp in start until end && !it.isService }
+            val oldest = fresh.minBy { it.id }
+            if (oldest.timestamp < start || day.size >= DAY_SUMMARY_CAP) break
+            from = oldest.id
+        }
+        return day.sortedBy { it.id }.takeLast(DAY_SUMMARY_CAP)
+    }
+
     private suspend fun findFirstMonth() {
         // Před spuštěním Telegramu nic není — „první zpráva od té doby" je první zpráva chatu.
         val first = repository.firstMessageFrom(chatId, TELEGRAM_START).getOrNull() ?: return
@@ -266,6 +294,13 @@ internal fun islandOf(anchor: Long, counts: HistoryCounts, zone: TimeZone): Isla
         newestMessageId = anchor,
     )
 }
+
+/** Kolik zpráv dne nejvýš jde do shrnutí; model je stejně skládá po částech. */
+private const val DAY_SUMMARY_CAP = 500
+
+/** Stránka a nejvýš stránek při čtení dne — rušný den se nesmí číst donekonečna. */
+private const val DAY_SUMMARY_PAGE = 100
+private const val DAY_SUMMARY_PAGES = 30
 
 /** 1. 8. 2013, kdy Telegram začal — dřív žádná zpráva není. */
 private const val TELEGRAM_START = 1_375_315_200

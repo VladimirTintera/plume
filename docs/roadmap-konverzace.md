@@ -504,6 +504,27 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
   (`docs/poznatky/konverzace-zobrazeni.md`, „Zpráva pro čtečku obrazovky"); se skutečným
   TalkBackem neověřené.
 
+## Kalendář zpráv — další kroky (28. 10. 2026)
+
+Kalendář z ⋮ → Přejít na datum (`ChatCalendarSheet`, `ConversationCalendar`, poznatky
+v `docs/poznatky/konverzace-pohyb.md`, „Kalendář zpráv z nabídky"). Legenda, náhledy fotek
+u čipu Média a podržení dne (přejít / shrnout den / vymazat za den) jsou hotové; zbývá:
+
+- **Tlačítko „Dnes"** (S). Po odrolování o roky zpátky vede zpět jen dlouhé švihnutí; ikona
+  v hlavičce vedle zadání data, nebo plovoucí tlačítko, když běžný měsíc není vidět.
+- **Souhrn nad měsícem** (S). Nejrušnější den, průměr za den, nejdelší série dnů se zprávami —
+  z počtů, které už kalendář má; u odhadu („+") jen to, co jde říct poctivě.
+- **Hledaný výraz v kalendáři** (M), „kdy jsme psali o dovolené". Výsledky hledání v chatu
+  (`searchChatMessages`) nesou datum a přicházejí ze serveru, takže počty po dnech budou přesné
+  za celou historii — jako druhy obsahu, ne jako všechny zprávy z databáze.
+- **Filtr podle člena ve skupině** (M), „kdy psal Petr". Lokální průchod zprávy čte a odesílatel
+  v nich je; výběr člena z hledání (`openMemberPicker`) jde použít znovu. Jen z toho, co je
+  v zařízení — stejné přiznání jako u všech zpráv.
+- **Roční přehled** (M–L), mřížka aktivity jako na GitHubu: 12 měsíců na obrazovce, ťuknutí na
+  měsíc. Rychlý skok přes roky a nejlepší odpověď na „kdy jsme si psali nejvíc".
+- **Kalendář vedle konverzace na tabletu a rozloženém Foldu** (L). Panel zůstane otevřený
+  a ťukání na dny posouvá chat vedle, bez zavírání sheetu (list-detail, `docs/poznatky/navigace.md`).
+
 ---
 
 ## Co TDLib umí a Plume zatím ne (audit září 2026)

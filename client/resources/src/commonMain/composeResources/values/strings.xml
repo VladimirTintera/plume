@@ -2399,6 +2399,7 @@
         <item quantity="one">Summary of %1$d unread message</item>
         <item quantity="other">Summary of %1$d unread messages</item>
     </plurals>
+    <string name="summary_title_day">Summary of %1$s</string>
     <plurals name="summary_title_recent">
         <item quantity="one">Summary of the last message</item>
         <item quantity="other">Summary of the last %1$d messages</item>
@@ -4197,6 +4198,12 @@
     <string name="chat_calendar_all">All messages</string>
     <string name="chat_calendar_at_least">%1$s+</string>
     <string name="chat_calendar_count_thousands">%1$sk</string>
+    <string name="chat_calendar_day_actions">More actions</string>
+    <string name="chat_calendar_day_clear">Clear history for this day…</string>
+    <string name="chat_calendar_day_go">Go to day</string>
+    <string name="chat_calendar_day_summarize">Summarize day</string>
+    <string name="chat_calendar_legend_all">Grey days aren't on this device yet — tap one to jump there. “+” means only part of the day is counted.</string>
+    <string name="chat_calendar_legend_hold">Hold a day for more actions.</string>
     <string name="chat_calendar_day_unknown">%1$s, messages not loaded</string>
     <string name="chat_calendar_failed">Couldn't count the messages.</string>
     <string name="chat_calendar_kind_empty">Nothing like that in this chat.</string>

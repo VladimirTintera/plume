@@ -2466,6 +2466,7 @@
         <item quantity="few">Shrnutí %1$d nepřečtených zpráv</item>
         <item quantity="other">Shrnutí %1$d nepřečtených zpráv</item>
     </plurals>
+    <string name="summary_title_day">Shrnutí dne %1$s</string>
     <plurals name="summary_title_recent">
         <item quantity="one">Shrnutí poslední zprávy</item>
         <item quantity="few">Shrnutí posledních %1$d zpráv</item>
@@ -4333,6 +4334,12 @@
     <string name="chat_calendar_all">Všechny zprávy</string>
     <string name="chat_calendar_at_least">%1$s+</string>
     <string name="chat_calendar_count_thousands">%1$sk</string>
+    <string name="chat_calendar_day_actions">Další akce</string>
+    <string name="chat_calendar_day_clear">Vymazat historii za den…</string>
+    <string name="chat_calendar_day_go">Přejít na den</string>
+    <string name="chat_calendar_day_summarize">Shrnout den</string>
+    <string name="chat_calendar_legend_all">Šedé dny zatím nejsou v zařízení — ťuknutím na ně skočíš. „+“ znamená, že je den spočtený jen zčásti.</string>
+    <string name="chat_calendar_legend_hold">Podržením dne otevřeš další akce.</string>
     <string name="chat_calendar_day_unknown">%1$s, zprávy nenačtené</string>
     <string name="chat_calendar_failed">Zprávy se nepodařilo spočítat.</string>
     <string name="chat_calendar_kind_empty">Nic takového v chatu není.</string>

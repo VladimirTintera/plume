@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import eu.tintera.plume.core.telegram.ClearHistoryRights
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
@@ -95,10 +96,8 @@ internal fun ConversationMenu(
     var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var clearHistory by rememberSaveable { mutableStateOf(false) }
-    // Vyprázdnit jde celý chat (kde to TDLib dovolí), téma Uložených zpráv a vlákno přímých zpráv
-    // kanálu — ty mají vlastní mazání. Vlákno komentářů a téma skupiny ne.
-    val inOwnTopic = state.savedTopicId != null || state.directTopicId != null
-    val clearRights = info?.clearHistory?.takeIf { wholeChat || inOwnTopic }
+    val inOwnTopic = state.inOwnTopic
+    val clearRights = state.clearHistoryRights()
 
     val groups = listOf(
         // Přepnutí je pohyb mezi chaty, ne práce s tímhle, proto skupina sama. Je tu hlavně kvůli
@@ -238,4 +237,18 @@ internal fun ConversationMenu(
             onDismiss = { confirmDelete = false },
         )
     }
+}
+
+/** Téma Uložených zpráv nebo vlákno přímých zpráv kanálu — mají vlastní historii i mazání. */
+internal val ConversationState.inOwnTopic: Boolean get() = savedTopicId != null || directTopicId != null
+
+/**
+ * Co jde v konverzaci vyprázdnit: celý chat (kde to TDLib dovolí), téma Uložených zpráv a vlákno
+ * přímých zpráv kanálu — ty mají vlastní mazání. Vlákno komentářů a téma skupiny ne. Totéž
+ * pravidlo pro ⋮ i pro podržení dne v kalendáři zpráv.
+ */
+internal fun ConversationState.clearHistoryRights(): ClearHistoryRights? {
+    val info = info ?: return null
+    val wholeChat = !narrowed && !info.isSavedMessages
+    return info.clearHistory?.takeIf { wholeChat || inOwnTopic }
 }
