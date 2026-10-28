@@ -113,6 +113,7 @@ internal fun BoxScope.ConversationContent(
     floatingDay: FloatingDay?,
 ) {
     val scope = rememberCoroutineScope()
+    val selectionTargets = remember { SelectionDragTargets() }
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val photoDescriptions by viewModel.photoDescriptions.collectAsStateWithLifecycle()
     val revealMax = with(LocalDensity.current) { TIME_COLUMN_WIDTH.toPx() }
@@ -217,6 +218,18 @@ internal fun BoxScope.ConversationContent(
                 // (viz `SharedElementClip`) — jinak by na konci letu ležela přes hlavičku.
                 .sharedElementClipArea(listClip)
                 .hazeSource(listHaze)
+                // Výběr tahem (podržet a táhnout přes zprávy), jen v režimu výběru.
+                .selectionDrag(
+                    enabled = state.selection != null,
+                    targets = selectionTargets,
+                    listState = listState,
+                    // Plocha začíná pod hlavičkou; zajíždí jen pod pruhy (připnuté…) a pole.
+                    topInset = topPadding,
+                    bottomInset = bottomPadding,
+                    onStart = viewModel::startDragSelection,
+                    onMove = viewModel::extendDragSelection,
+                    onEnd = viewModel::endDragSelection,
+                )
                 .pointerInput(revealMax) {
                     detectHorizontalSwipe(
                         direction = SwipeDirection.Left,
@@ -254,6 +267,7 @@ internal fun BoxScope.ConversationContent(
               LocalPhotoDescriptions provides photoDescriptions,
               LocalMediaDragOut provides mediaDragOut,
               LocalVideoDownload provides videoDownload,
+              LocalSelectionDragTargets provides selectionTargets.takeIf { state.selection != null },
           ) {
           // Na široké ploše zprávy ve sloupci uprostřed; scroll zůstává přes celou plochu.
           ConversationColumn { inset ->

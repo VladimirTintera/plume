@@ -819,6 +819,27 @@ data class ConversationState(
      * Klíč BLOKU, do kterého zpráva patří — u alba klíč celého alba, ne ťuknuté fotky.
      * `null`, když zpráva v načteném okně není.
      */
+    /**
+     * Bloky (klíč → zpráva, na kterou se ptát po právech) mezi zprávami [fromId] a [toId] včetně,
+     * v pořadí seznamu. Album je jeden blok, i když tah přejede jen část jeho fotek.
+     */
+    fun blocksBetween(fromId: Long, toId: Long): Map<Long, Long> {
+        val from = messages.indexOfFirst { it.id == fromId }
+        val to = messages.indexOfFirst { it.id == toId }
+        if (from < 0 || to < 0) return emptyMap()
+        val blocks = LinkedHashMap<Long, Long>()
+        for (index in minOf(from, to)..maxOf(from, to)) {
+            val id = messages[index].id
+            val key = blockKeyOf(id) ?: continue
+            blocks.getOrPut(key) { id }
+        }
+        return blocks
+    }
+
+    /** V bloku zprávy [messageId] je co zkopírovat — popisek alba nemusí být na ní samé. */
+    fun blockHasText(messageId: Long): Boolean =
+        albumMemberIds(messageId).mapNotNull { id -> messages.firstOrNull { it.id == id } }.any { it.copyableText().isNotBlank() }
+
     fun blockKeyOf(messageId: Long): Long? {
         val message = messages.firstOrNull { it.id == messageId } ?: return null
         val album = message.mediaAlbumId
