@@ -4218,6 +4218,7 @@
         <item quantity="other">%1$d days in a row</item>
     </plurals>
     <string name="chat_calendar_today">Today</string>
+    <string name="chat_calendar_year_view">Year overview</string>
     <string name="chat_calendar_load_older">Load older</string>
     <string name="chat_calendar_older_missing">Older messages aren't on this device yet.</string>
     <string name="chat_calendar_start">Start of the chat</string>

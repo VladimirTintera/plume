@@ -1,6 +1,12 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.runtime.MutableState
+import eu.tintera.plume.core.ui.standaloneName
+import eu.tintera.plume.resources.apps_24dp
+import eu.tintera.plume.resources.chat_calendar_year_view
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -183,6 +189,9 @@ internal fun ChatCalendarSheet(
     val listState = remember(filter) { LazyListState() }
     val scope = rememberCoroutineScope()
     val awayFromTop by remember(listState) { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
+    var yearView by rememberSaveable { mutableStateOf(false) }
+    // Měsíc, na který se má seznam po výběru v ročním přehledu posunout; seznam si ho odebere.
+    val scrollTarget = remember { mutableStateOf<YearMonth?>(null) }
 
     ModalBottomSheet(onDismissRequest = calendar::close, sheetState = rememberExpandedSheetState()) {
         Row(
@@ -192,13 +201,17 @@ internal fun ChatCalendarSheet(
             SheetTitle(stringResource(Res.string.chat_calendar_title), modifier = Modifier.weight(1f))
             // Zpátky na nejnovější měsíc — po odrolování o roky by to jinak bylo dlouhé švihání.
             AnimatedVisibility(
-                visible = awayFromTop,
+                visible = awayFromTop && !yearView,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
             ) {
                 TextButton(onClick = { scope.launch { listState.animateScrollToItem(0) } }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.chat_calendar_today))
                 }
+            }
+            // Roky na jedné obrazovce: kdy se psalo víc a kdy míň, a skok do vzdáleného měsíce.
+            IconToggleButton(checked = yearView, onCheckedChange = { yearView = it }, shapes = IconButtonDefaults.toggleableShapes()) {
+                Icon(painterResource(Res.drawable.apps_24dp), contentDescription = stringResource(Res.string.chat_calendar_year_view))
             }
             // Na rok zpátky se roluje dlouho; konkrétní den jde zadat rovnou.
             IconButton(onClick = { pickingDate = true }, shapes = IconButtonDefaults.shapes()) {
@@ -237,9 +250,25 @@ internal fun ChatCalendarSheet(
         // Sheet má pevnou výšku (celou), ne podle obsahu: měsíce přibývají postupně a čip druhu
         // s pár měsíci nebo čekání na první stránku obsah zkrátí — sheet pak poskakoval nahoru
         // a dolů pod prstem, který zrovna mířil na čip nebo den.
+        val pickMonth = { month: YearMonth ->
+            yearView = false
+            scrollTarget.value = month
+        }
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when {
-                filter == CalendarFilter.All -> AllMessagesMonths(state.all, calendar, today, initialMonth, dayActions, listState)
+                yearView && filter == CalendarFilter.All -> {
+                    val axis = remember(state.all, today) { allAxis(state.all, today) }
+                    if (axis == null) CalendarLoading() else YearOverview(axis.newest, axis.oldest, today, axis.status, onPickMonth = pickMonth)
+                }
+                yearView && server != null -> {
+                    val axis = remember(server) { serverAxis(server) }
+                    if (axis == null) {
+                        if (server.loading) CalendarLoading() else CalendarNote(stringResource(Res.string.chat_calendar_kind_empty))
+                    } else {
+                        YearOverview(axis.newest, axis.oldest, today, axis.status, onPickMonth = pickMonth, onReachEnd = calendar::loadMoreServer)
+                    }
+                }
+                filter == CalendarFilter.All -> AllMessagesMonths(state.all, calendar, today, initialMonth, dayActions, listState, scrollTarget)
                 server != null -> ServerMonths(
                     server = server,
                     thumbnails = filter == CalendarFilter.Kind(SharedMediaKind.Media),
@@ -250,6 +279,7 @@ internal fun ChatCalendarSheet(
                     actions = dayActions,
                     onJumpToMessage = onJumpToMessage,
                     listState = listState,
+                    scrollTarget = scrollTarget,
                 )
                 else -> CalendarNote(stringResource(Res.string.chat_calendar_search_empty))
             }
@@ -360,6 +390,7 @@ private fun AllMessagesMonths(
     initialMonth: YearMonth?,
     actions: DayActions,
     listState: LazyListState,
+    scrollTarget: MutableState<YearMonth?>,
 ) {
     val coveredFrom = all.coveredFrom
     if (coveredFrom == null) {
@@ -387,6 +418,7 @@ private fun AllMessagesMonths(
             if (index > 0) listState.scrollToItem(index)
         }
     }
+    ScrollToTarget(scrollTarget, listState) { target -> months.indexOf(target) }
     LazyColumn(
         Modifier.fillMaxWidth().navigationBarsPadding(),
         state = listState,
@@ -507,6 +539,7 @@ private fun ServerMonths(
     actions: DayActions,
     onJumpToMessage: (messageId: Long) -> Unit,
     listState: LazyListState,
+    scrollTarget: MutableState<YearMonth?>,
 ) {
     val months = remember(server.days) { calendarMonthsOf(server.days.keys) }
     val counts = remember(server.days) { server.days.mapValues { it.value.count } }
@@ -534,6 +567,8 @@ private fun ServerMonths(
             if (index > 0) listState.scrollToItem(index)
         }
     }
+    // Druh má jen měsíce, ve kterých něco je: z přehledu na nejbližší starší.
+    ScrollToTarget(scrollTarget, listState) { target -> months.indexOfFirst { it.month <= target } }
     LazyColumn(
         Modifier.fillMaxWidth().navigationBarsPadding(),
         state = listState,
@@ -561,6 +596,152 @@ private fun ServerMonths(
         if (server.loading) item { CalendarLoading() }
     }
 }
+
+/** Posune seznam na měsíc vybraný v ročním přehledu ([index] ho najde) a cíl odebere. */
+@Composable
+private fun ScrollToTarget(target: MutableState<YearMonth?>, listState: LazyListState, index: (YearMonth) -> Int) {
+    val month = target.value
+    LaunchedEffect(month) {
+        if (month == null) return@LaunchedEffect
+        val at = index(month)
+        if (at >= 0) listState.scrollToItem(at)
+        target.value = null
+    }
+}
+
+/** Osa kalendáře (od nejnovějšího měsíce po nejstarší) a co se ví o kterém dni. */
+private class CalendarAxis(val newest: YearMonth, val oldest: YearMonth, val status: (LocalDate) -> DayStatus)
+
+/**
+ * Všechny zprávy: od běžného měsíce po první zprávu chatu (nebo konec souvislého úseku), den
+ * jako v měsících — souvislý úsek, ostrůvky, jinak neznámý. Totéž čtou měsíce i přehled.
+ */
+private fun allAxis(all: AllMessagesCalendar, today: LocalDate): CalendarAxis? {
+    val coveredFrom = all.coveredFrom ?: return null
+    val coveredMonth = coveredFrom.yearMonth
+    val axisEnd = all.firstMonth?.takeIf { !all.reachedStart && it < coveredMonth } ?: coveredMonth
+    val partialDay = coveredFrom.takeUnless { all.reachedStart }
+    return CalendarAxis(today.yearMonth, axisEnd) { date ->
+        if (date.yearMonth >= coveredMonth) coveredDayStatus(date, all.days, partialDay) else islandDayStatus(date, all.islands)
+    }
+}
+
+/** Druh nebo hledání: od nejnovějšího načteného dne; za nejstarší stránkou neznámo, dokud nepřijde další. */
+private fun serverAxis(server: ServerDays): CalendarAxis? {
+    if (server.days.isEmpty()) return null
+    val newest = server.days.keys.max()
+    val oldest = server.days.keys.min()
+    return CalendarAxis(newest.yearMonth, oldest.yearMonth) { date ->
+        if (!server.reachedEnd && date < oldest) DayStatus.Unknown else DayStatus.Known(server.days[date]?.count ?: 0)
+    }
+}
+
+/**
+ * Roční přehled: roky od nejnovějšího, v každém dvanáct malých měsíců s tečkou za den, sytou
+ * podle počtu proti nejrušnějšímu dni ROKU — tady jde o srovnání měsíců mezi sebou. Ťuknutí na
+ * měsíc přepne zpět na měsíce a posune na něj. Měsíce mimo osu (budoucí, před začátkem chatu)
+ * jsou jen tlumené.
+ */
+@Composable
+private fun YearOverview(
+    newest: YearMonth,
+    oldest: YearMonth,
+    today: LocalDate,
+    status: (LocalDate) -> DayStatus,
+    onPickMonth: (YearMonth) -> Unit,
+    /** U dnů ze serveru: dotáhnout starší, když se dojede k nejstaršímu roku. */
+    onReachEnd: (() -> Unit)? = null,
+) {
+    val years = (newest.year downTo oldest.year).toList()
+    LazyColumn(
+        Modifier.fillMaxWidth().navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
+    ) {
+        itemsIndexed(years, key = { _, year -> year }) { index, year ->
+            if (onReachEnd != null && index == years.size - 1) LaunchedEffect(oldest) { onReachEnd() }
+            val max = remember(year, status) {
+                (1..12).maxOf { m -> calendarMonth(YearMonth(year, m)).cells.filterNotNull().maxOfOrNull { status(it).count() } ?: 0 }
+            }
+            Column(MonthModifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(year.toString(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 8.dp))
+                (1..12).chunked(MONTHS_PER_ROW).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { m ->
+                            val month = YearMonth(year, m)
+                            MiniMonth(
+                                month = month,
+                                enabled = month in oldest..newest && month <= today.yearMonth,
+                                max = max,
+                                today = today,
+                                status = status,
+                                onClick = { onPickMonth(month) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun DayStatus.count(): Int = (this as? DayStatus.Known)?.count ?: (this as? DayStatus.Partial)?.count ?: 0
+
+/** Malý měsíc v ročním přehledu: název a tečka za každý den, bez čísel. */
+@Composable
+private fun MiniMonth(
+    month: YearMonth,
+    enabled: Boolean,
+    max: Int,
+    today: LocalDate,
+    status: (LocalDate) -> DayStatus,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val base = BottomSheetDefaults.ContainerColor
+    val cells = remember(month) { calendarMonth(month).cells }
+    val title = stringResource(month.month.standaloneName())
+    Column(
+        modifier
+            .clip(MaterialTheme.shapes.medium)
+            .then(if (enabled) Modifier.clickable(role = Role.Button, onClickLabel = monthTitle(month), onClick = onClick) else Modifier)
+            .padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (enabled) scheme.onSurface else scheme.onSurfaceVariant.copy(alpha = UNKNOWN_DAY_ALPHA),
+            modifier = Modifier.padding(start = 2.dp),
+        )
+        cells.chunked(DAYS_IN_WEEK).forEach { week ->
+            Row(Modifier.fillMaxWidth()) {
+                week.forEach { date ->
+                    Box(Modifier.weight(1f).aspectRatio(1f).padding(1.dp)) {
+                        if (date != null) {
+                            val day = status(date)
+                            val level = heatLevel(day.count(), max)
+                            val color = when {
+                                !enabled || date > today || day == DayStatus.Unknown -> scheme.onSurfaceVariant.copy(alpha = MINI_UNKNOWN_ALPHA)
+                                level == 0 -> scheme.surfaceContainerHighest
+                                else -> scheme.primary.copy(alpha = HEAT_ALPHA[level]).compositeOver(base)
+                            }
+                            Box(Modifier.fillMaxSize().clip(CircleShape).background(color))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Tři měsíce vedle sebe — na telefonu se tečky dne ještě rozeznají. */
+private const val MONTHS_PER_ROW = 3
+
+/** Den, o kterém se v přehledu neví nic (nebo mimo osu): jen náznak tečky. */
+private const val MINI_UNKNOWN_ALPHA = 0.08f
 
 @Composable
 private fun MonthHeader(month: YearMonth, total: String?) {

@@ -538,6 +538,26 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
 - **Čip Média kreslí den jako kruh s první fotkou** (jako `MediaCalendarSheet` v profilu, spoiler
   bez náhledu) a přes ni den a počet bíle; ztmavení 0,4 místo 0,3 z profilu — dva řádky na
   pestrých obálkách byly hůř čitelné.
+- **Hledání a člen jsou jeden filtr** (`CalendarFilter.Search`: výraz, člen skupiny, nebo obojí).
+  `searchChatMessages` umí výraz i odesílatele a s odesílatelem i prázdný výraz („všechny jeho
+  zprávy"), takže je to přesné za celou historii, ne jen z databáze. Výsledky jsou zprávy, ne
+  dny — po dnech je sčítá kalendář; den, který přijde na dvou stránkách, se sečte a vede na
+  STARŠÍ zprávu (`mergeServerDays`). Druhy obsahu a hledání sdílejí stav „dny ze serveru"
+  (`ServerDays`) i vykreslení (`ServerMonths`). Člen jen ve skupině; výběr člena je tentýž sheet
+  jako v hledání v konverzaci (`MemberPickerSheet`), ale se stavem v kalendáři.
+- **Opakované ťuknutí na čip Hledat nic nemaže** — přepnutí z hledání na hledání se ignoruje,
+  jinak by znovu ťuknutý čip zahodil výraz i člena.
+- **Souhrn nad měsícem** (`monthStats`): nejrušnější den (při shodě dřívější), průměr za den
+  a nejdelší série dnů se zprávami (od dvou dnů). **Jen u měsíce spočteného celého** — u měsíce
+  s „+" (souvislý úsek do něj sahá jen zčásti) i u nejstaršího načteného měsíce ze serveru, dokud
+  nepřijde další stránka, by „nejrušnější den" lhal. Běžný měsíc se průměruje jen po dnešek.
+- **Dnes** je v hlavičce, jen když je seznam odrolovaný; stav seznamu je jeden na filtr
+  (`remember(filter)`), takže nový výraz nebo druh začíná nahoře.
+- **Roční přehled** (přepínač v hlavičce, `YearOverview`): roky od nejnovějšího, v každém
+  dvanáct malých měsíců s tečkou za den. Sytost je proti nejrušnějšímu dni ROKU, ne měsíce —
+  v přehledu jde o srovnání měsíců. Stav dne bere z téže osy jako měsíce (`allAxis`,
+  `serverAxis`), takže neznámé dny jsou i tady neznámé. Ťuknutí na měsíc přepne zpět na měsíce
+  a posune na něj (`ScrollToTarget`; u druhu na nejbližší starší měsíc, který něco má).
 - **Měsíc nejvýš na šířku `ContentWidth.Form`**: na rozloženém Foldu natáhl sheet (640 dp) dny do
   kruhů přes 90 dp a měsíc se nevešel na obrazovku.
 - **Ověřeno na emulátoru** (Fold, rozložený): Notifikátor (7 zpráv 27. 10.), testovací skupina,
@@ -548,7 +568,10 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   Podržení dne: v Notifikátoru 27. 10. → nabídka se třemi položkami; „Vymazat historii za
   den…" otevřelo sheet na „Vybrané dny — 27. října" (zavřeno bez mazání); „Shrnout den" →
   „Shrnutí dne 27. října" (Gemma 4 E2B, 7,4 s). Náhledy fotek u čipu Média na kanálu
-  s obálkami.
+  s obálkami. Další kroky: „Mafia" v kanálu Short Drama → 27 výsledků v říjnu, nejvíc 17. 10.;
+  člen Notifikátor ve skupině „Plume test triaze" → 5 zpráv 18. 10.; souhrn u čipu Média
+  (říjen 278 zpráv, 9,9 denně, 27 dní v řadě — sedí s mřížkou); roční přehled → ťuknutí na
+  září přepnulo na měsíce se zářím nahoře, „Dnes" vrátil na říjen.
   iOS a desktop jen přeložené.
 
 ## Okno v historii
