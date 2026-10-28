@@ -92,6 +92,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -104,6 +106,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import eu.tintera.plume.core.telegram.CalendarDayMedia
@@ -220,7 +223,9 @@ internal fun ChatCalendarSheet(
  * Kalendář jako panel vedle konverzace (široká plocha, `ChatCalendarRoute`): tentýž obsah jako
  * sheet, jen s ✕ v hlavičce. Ťuknutí na den chat vedle posune a panel zůstane otevřený — kvůli
  * tomu panel je: listovat dny a dívat se, co se v nich psalo, bez zavírání a otevírání.
- * Podklad v barvě sheetu, ať sytost dnů vychází stejně jako v něm.
+ * Podklad je plocha karty (`surface`) jako u profilu a ostatních obrazovek třetího panelu —
+ * s konverzací vedle tvoří jednu kartu. Dny se míchají s podkladem, na kterém leží
+ * ([LocalCalendarBase]), takže sytost vychází stejně v panelu i v sheetu.
  */
 @Composable
 internal fun ChatCalendarPane(
@@ -234,18 +239,30 @@ internal fun ChatCalendarPane(
     canFilterBySender: Boolean,
     onClose: () -> Unit,
 ) {
-    Surface(color = BottomSheetDefaults.ContainerColor, modifier = Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                // Spodek si berou seznamy měsíců (`navigationBarsPadding`); panel stojí vpravo.
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.End))
-                .padding(top = 8.dp),
-        ) {
-            ChatCalendarContent(state, calendar, initialDay, onJumpToDay, onJumpToMessage, onSummarizeDay, onClearDay, canFilterBySender, onClose)
+    val background = MaterialTheme.colorScheme.surface
+    Surface(color = background, modifier = Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalCalendarBase provides background) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    // Spodek si berou seznamy měsíců (`navigationBarsPadding`); panel stojí vpravo.
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.End))
+                    .padding(top = 8.dp),
+            ) {
+                ChatCalendarContent(state, calendar, initialDay, onJumpToDay, onJumpToMessage, onSummarizeDay, onClearDay, canFilterBySender, onClose)
+            }
         }
     }
 }
+
+/**
+ * Podklad, se kterým se míchají barvy dnů (sytost podle počtu zpráv). Panel ho nastaví na svou
+ * plochu; bez něj (sheet) platí barva sheetu.
+ */
+private val LocalCalendarBase = staticCompositionLocalOf { Color.Unspecified }
+
+@Composable
+private fun calendarBase(): Color = LocalCalendarBase.current.takeOrElse { BottomSheetDefaults.ContainerColor }
 
 /** Obsah kalendáře — hlavička, čipy, hledání, měsíce nebo roční přehled — pro sheet i panel. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -908,7 +925,7 @@ private fun MiniMonth(
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val base = BottomSheetDefaults.ContainerColor
+    val base = calendarBase()
     val cells = remember(month) { calendarMonth(month).cells }
     val title = stringResource(month.month.standaloneName())
     val dotFade = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
@@ -1104,7 +1121,7 @@ private fun DayCell(
     media: CalendarDayMedia? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val base = BottomSheetDefaults.ContainerColor
+    val base = calendarBase()
     val photo = media?.message?.media as? MessageMedia.Photo
     val video = media?.message?.media as? MessageMedia.Video
     // Skryté médium (spoiler) náhled neukáže, jako kalendář v profilu — odkrývá se až v chatu.

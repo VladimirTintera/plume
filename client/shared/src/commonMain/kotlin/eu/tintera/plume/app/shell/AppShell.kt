@@ -126,8 +126,10 @@ import eu.tintera.plume.core.adaptive.PaneNeighbours
 import eu.tintera.plume.core.adaptive.listWidthBesideProfile
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
 import eu.tintera.plume.core.adaptive.rememberWithLeavingExtras
+import eu.tintera.plume.core.adaptive.shownExtras
 import eu.tintera.plume.core.adaptive.LocalProfilePaneResize
 import eu.tintera.plume.core.adaptive.LocalListPaneResize
+import eu.tintera.plume.core.adaptive.LocalPaneResizeOwners
 import eu.tintera.plume.core.adaptive.PaneHandleOverlay
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.adaptive.PaneInfo
@@ -562,6 +564,11 @@ private fun ShellContent(
         if (listPaneWidth != null || profilePaneWidth != null) {
             entryProvider = buildEntryProvider(listPaneWidth, profilePaneWidth, instantPaneBounds)
         }
+        // Čí karta hlásí polohu táhlům: jen to, co je v Chatech opravdu vidět (`LocalPaneResizeOwners`).
+        val paneResizeOwners = setOfNotNull(
+            chatsDisplayed.shownExtras(paneOf).lastOrNull()?.takeIf { profileBeside },
+            chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List }?.takeIf { listResizeShown != null },
+        ).mapTo(HashSet()) { entryProvider(it).contentKey }
 
         ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
 
@@ -613,6 +620,7 @@ private fun ShellContent(
                     LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
                     LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
                     LocalListPaneResize provides listResizeShown,
+                    LocalPaneResizeOwners provides paneResizeOwners,
                     // Volba z hledání v Nastavení, na kterou se sekce doscrolluje.
                     LocalHighlightTarget provides navigation.settingsHighlight,
                 ) {
