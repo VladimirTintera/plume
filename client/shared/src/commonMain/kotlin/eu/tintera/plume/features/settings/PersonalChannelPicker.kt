@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
@@ -70,10 +71,12 @@ internal fun PersonalChannelRow(
         leadingContent = { Icon(painterResource(Res.drawable.campaign_24dp), contentDescription = null) },
         headlineContent = { Text(stringResource(Res.string.personal_channel_row)) },
         supportingContent = { Text(value?.title ?: stringResource(Res.string.personal_channel_none)) },
-        modifier = Modifier.clickable {
-            onOpen()
-            picking = true
-        },
+        modifier = Modifier
+            .highlightAnchor(stringResource(Res.string.personal_channel_row))
+            .clickable {
+                onOpen()
+                picking = true
+            },
     )
     if (picking) {
         PersonalChannelDialog(

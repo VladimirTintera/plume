@@ -5,6 +5,8 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import eu.tintera.plume.core.ui.HighlightTarget
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -77,8 +79,12 @@ class AppNavigation internal constructor(
      */
     fun openSettings() {
         settingsOpenings++
+        settingsHighlight.consume()
         showSettingsRoot()
     }
+
+    /** Volba z hledání, na kterou se otevřená obrazovka Nastavení doscrolluje a zvýrazní ji. */
+    val settingsHighlight = HighlightTarget()
 
     /**
      * Roste s každým otevřením Nastavení zvenku (menu účtu, odkaz). Hledání v seznamu sekcí se
@@ -134,7 +140,8 @@ class AppNavigation internal constructor(
      * Výsledek hledání v Nastavení: nad seznamem jen [screens] (sekce a podstránky k volbě).
      * Co bylo otevřené předtím, výsledek nahradí — vybraná vlevo je vpravo jednou, jako u sekcí.
      */
-    fun openSettingsSearchResult(screens: List<NavKey>) {
+    fun openSettingsSearchResult(screens: List<NavKey>, highlight: StringResource?) {
+        settingsHighlight.show(highlight)
         showSettingsRoot()
         stack(SettingsRoute).addAll(screens)
     }

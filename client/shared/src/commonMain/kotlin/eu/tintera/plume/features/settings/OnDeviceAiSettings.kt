@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.resources.ai_task_folders
 import eu.tintera.plume.resources.settings_gemma_under_load
 import eu.tintera.plume.resources.ai_task_photo_description
@@ -795,6 +796,7 @@ private fun VariantSwitch(
         checked = checked,
         onCheckedChange = onChange,
         headlineContent = { Text(stringResource(title)) },
+        modifier = Modifier.highlightAnchor(stringResource(title)),
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(summary))

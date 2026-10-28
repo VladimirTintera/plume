@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.features.profile.MainTabRow
 import androidx.compose.foundation.layout.FlowRow
 import eu.tintera.plume.features.profile.EmojiPhotoSheet
@@ -215,7 +216,12 @@ fun EditProfileScreen(
                 }
                 // Tři tlačítka se na úzký telefon nevejdou vedle sebe — co přeteče, jde pod.
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                    TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy, shapes = ButtonDefaults.shapes()) {
+                    TextButton(
+                        onClick = picker::pickMedia,
+                        enabled = !viewModel.photoBusy,
+                        shapes = ButtonDefaults.shapes(),
+                        modifier = Modifier.highlightAnchor(stringResource(Res.string.edit_profile_change_photo)),
+                    ) {
                         Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                         Text(stringResource(Res.string.edit_profile_change_photo))
                     }
@@ -240,7 +246,7 @@ fun EditProfileScreen(
                         { Text(stringResource(Res.string.edit_profile_first_name_required)) }
                     } else null,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().highlightAnchor(stringResource(Res.string.edit_profile_first_name)),
                 )
                 FormTextField(
                     value = viewModel.lastName,
@@ -262,7 +268,7 @@ fun EditProfileScreen(
                     isError = usernameMessage?.second == true,
                     supportingText = { Text(usernameMessage?.first ?: stringResource(Res.string.edit_profile_username_help)) },
                     keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().highlightAnchor(stringResource(Res.string.edit_profile_username)),
                 )
 
                 if (viewModel.usernames.hasMore) {
@@ -289,7 +295,7 @@ fun EditProfileScreen(
                         }
                     },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().highlightAnchor(stringResource(Res.string.edit_profile_bio)),
                 )
 
                 // Údaje pod poli jsou blok zaoblených řádků jako skupiny sekcí Nastavení.

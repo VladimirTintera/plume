@@ -41,6 +41,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -121,7 +123,7 @@ fun SettingsScreen(
     /** Otevřít chat (s podporou Telegramu z „Zeptat se"). */
     onOpenChat: (Long) -> Unit = {},
     /** Výsledek hledání: obrazovky nad seznamem po řadě (sekce, podstránky). */
-    onOpenSearchResult: (List<NavKey>) -> Unit = {},
+    onOpenSearchResult: (screens: List<NavKey>, highlight: StringResource?) -> Unit = { _, _ -> },
     /** Změna vymaže hledání: Nastavení se otevřela znovu zvenku, ne návratem z výsledku. */
     searchResetKey: Int = 0,
     viewModel: SettingsViewModel = koinViewModel(),
@@ -187,7 +189,17 @@ fun SettingsScreen(
             // S dotazem jsou výsledky MÍSTO obsahu seznamu — výběr sekce pod nimi by se míjel
             // s tím, co uživatel hledá.
             if (query.isNotBlank()) {
-                SettingsSearchResults(results = results, onOpen = onOpenSearchResult)
+                // Klávesnice z hledání by zakryla řádek, na který se sekce doscrolluje.
+                val focusManager = LocalFocusManager.current
+                val keyboard = LocalSoftwareKeyboardController.current
+                SettingsSearchResults(
+                    results = results,
+                    onOpen = { screens, highlight ->
+                        focusManager.clearFocus()
+                        keyboard?.hide()
+                        onOpenSearchResult(screens, highlight)
+                    },
+                )
                 return@Column
             }
 

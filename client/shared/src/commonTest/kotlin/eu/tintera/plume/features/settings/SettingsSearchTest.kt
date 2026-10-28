@@ -7,9 +7,14 @@ import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.telegram.PrivacySetting
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.privacy_account_ttl
+import eu.tintera.plume.resources.privacy_last_seen
+import eu.tintera.plume.resources.settings_section_privacy
 import eu.tintera.plume.resources.settings_theme
+import eu.tintera.plume.resources.settings_two_step
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsSearchTest {
@@ -69,6 +74,18 @@ class SettingsSearchTest {
             val first = entry.screens.first()
             assertTrue(first is SettingsSectionRoute || first == EditProfileRoute, "${entry.title} začíná $first")
         }
+    }
+
+    @Test
+    fun zvyrazniSeRadekNeObrazovkaSama() {
+        val byTitle = SETTINGS_SEARCH_INDEX.associateBy { it.title }
+        // Řádek v sekci: doscrolluje se na něj.
+        assertEquals(Res.string.settings_theme, byTitle.getValue(Res.string.settings_theme).highlight)
+        assertEquals(Res.string.privacy_account_ttl, byTitle.getValue(Res.string.privacy_account_ttl).highlight)
+        // Sekce, podstránka a nastavení soukromí jsou obrazovka samy.
+        assertNull(byTitle.getValue(Res.string.settings_section_privacy).highlight)
+        assertNull(byTitle.getValue(Res.string.settings_two_step).highlight)
+        assertNull(byTitle.getValue(Res.string.privacy_last_seen).highlight)
     }
 
     @Test

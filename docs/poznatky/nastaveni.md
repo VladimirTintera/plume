@@ -310,8 +310,25 @@ takže zpět vede, kudy by se tam uživatel proklikal sám.
     klíč mezitím změnil (`consumeRestored` jde před porovnáním vstupů). Ověřeno na emulátoru
     v jednom procesu: dotaz „motiv" po zavření a novém otevření zůstal. Klíč se proto ukládá
     vedle dotazu a porovnává se ručně.
-- Na volbu uvnitř sekce se zatím nescrolluje ani ji nic nezvýrazní; dlouhé sekce (Soukromí,
-  Úložiště) ji nechávají najít očima.
+- **Na volbu se obrazovka doscrolluje a dvakrát ji rozsvítí** (`core/ui/HighlightTarget.kt`).
+  Výsledek uloží název volby do `AppNavigation.settingsHighlight`, AppShell ho dá obrazovkám
+  přes `LocalHighlightTarget` a **řádek se pozná sám** (`Modifier.highlightAnchor(název)`):
+  kotvu nesou společné komponenty (`SwitchListItem` s textovým názvem, `ChoiceRow`,
+  `TitledGroup` — celý blok i s nadpisem, `SettingsActionRow`), ruční řádky ji mají jednotlivě
+  (automatické mazání v nových chatech, odkazy Telegramu, smazání při nečinnosti, velikost
+  písma, vyčištění mezipaměti, pole a řádky úpravy profilu, AI přepínače). Nic se tak nepředává
+  sekcím ani podstránkám po cestě. Nový řádek v rejstříku, který nejde přes společnou
+  komponentu, potřebuje kotvu taky — jinak se jen otevře obrazovka.
+  - **Zvýrazní se jen řádek, ne obrazovka sama**: výsledek, který JE obrazovkou (sekce,
+    Dvoufázové ověření, jedno nastavení soukromí), cíl nemá (`SettingsSearchEntry.highlight`).
+  - **Tón jde PŘES obsah** (`drawWithContent`, `primary` 16 %), jako stavová vrstva: řádky mají
+    vlastní podklad a tón pod nimi by nebyl vidět.
+  - **Scroll s okrajem 96 dp** (`bringIntoView(Rect)`): holé `bringIntoView` řádek jen dotlačilo
+    k dolní hraně pod navigační lištu (ověřeno na emulátoru, „Strop mezipaměti").
+  - **Klávesnici z hledání výsledek zavře** (a sundá fokus z pole): jinak zakryla dolní půlku
+    sekce i s hledaným řádkem.
+  - **Cíl je jednorázový** — po bliknutí ho řádek spotřebuje a `openSettings` ho zahodí, jinak
+    by se rozsvítil při dalším otevření sekce.
 
 ### Soukromí účtu
 

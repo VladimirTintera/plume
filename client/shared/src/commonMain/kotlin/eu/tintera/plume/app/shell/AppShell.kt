@@ -178,6 +178,7 @@ import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.SharedMediaKind
 import eu.tintera.plume.features.profile.ProfileTabRequests
 import eu.tintera.plume.core.navigation.ForwardRoute
+import eu.tintera.plume.core.ui.LocalHighlightTarget
 import eu.tintera.plume.core.navigation.PollComposerRoute
 import eu.tintera.plume.core.navigation.ChecklistComposerRoute
 import eu.tintera.plume.features.conversation.WebAppRequest
@@ -608,6 +609,8 @@ private fun ShellContent(
                     LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
                     LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
                     LocalListPaneResize provides listResizeShown,
+                    // Volba z hledání v Nastavení, na kterou se sekce doscrolluje.
+                    LocalHighlightTarget provides navigation.settingsHighlight,
                 ) {
                     val paneCard = rememberPaneCardDecorator()
                     val decorators = remember(entryDecorators, paneCard) { entryDecorators + paneCard }

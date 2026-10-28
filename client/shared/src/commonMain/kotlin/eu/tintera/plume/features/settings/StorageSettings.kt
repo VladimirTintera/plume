@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.core.ui.DialogCheckRow
 import eu.tintera.plume.resources.delete_sweep_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -208,7 +209,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
             MediumButton(
                 onClick = { clearAll = true },
                 enabled = usage != null && usage.categories.isNotEmpty() && !state.clearing,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().highlightAnchor(stringResource(Res.string.storage_clear)),
                 emphasis = ButtonEmphasis.Tonal,
             ) {
                 if (state.clearing) {

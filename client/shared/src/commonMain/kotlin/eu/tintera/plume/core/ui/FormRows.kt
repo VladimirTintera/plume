@@ -67,7 +67,8 @@ fun GroupTitle(text: String, modifier: Modifier = Modifier, action: (@Composable
  */
 @Composable
 fun TitledGroup(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // Hledaná volba může být celý blok (Motiv, Automatické stahování): zvýrazní se s nadpisem.
+    Column(modifier.highlightAnchor(title), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         GroupTitle(title)
         GroupedColumn(Modifier.fillMaxWidth(), content = content)
     }
@@ -110,7 +111,7 @@ fun SwitchListItem(
     checked = checked,
     onCheckedChange = onCheckedChange,
     headlineContent = { Text(headline) },
-    modifier = modifier,
+    modifier = modifier.highlightAnchor(headline),
     supportingContent = supporting?.let {
         { Text(it, color = if (supportingIsError) MaterialTheme.colorScheme.error else Color.Unspecified) }
     },

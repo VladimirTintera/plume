@@ -28,6 +28,7 @@ import eu.tintera.plume.core.ui.foldDiacritics
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_download_title
 import eu.tintera.plume.resources.autosave_group
+import eu.tintera.plume.resources.birthdate_row
 import eu.tintera.plume.resources.change_phone_title
 import eu.tintera.plume.resources.chat_folders_title
 import eu.tintera.plume.resources.chats_search_empty
@@ -111,6 +112,13 @@ internal data class SettingsSearchEntry(
 ) {
     val section: SettingsSection?
         get() = (screens.firstOrNull() as? SettingsSectionRoute)?.section
+
+    /**
+     * Na co se otevřená obrazovka doscrolluje: na řádek s [title]. Když je volba obrazovka sama
+     * (sekce, Dvoufázové ověření), není co hledat — `null`.
+     */
+    val highlight: StringResource?
+        get() = title.takeIf { screens.last().pathTitle != it }
 }
 
 /**
@@ -213,6 +221,7 @@ internal val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = buildList {
         Res.string.edit_profile_first_name,
         Res.string.edit_profile_username,
         Res.string.edit_profile_bio,
+        Res.string.birthdate_row,
         Res.string.edit_profile_change_photo,
         Res.string.personal_channel_row,
         Res.string.usernames_section,
@@ -265,7 +274,7 @@ private fun normalize(text: String): String =
     foldDiacritics(text).lowercase().replace(Regex("[^\\p{L}\\p{N},]+"), " ").trim()
 
 /** Název obrazovky v cestě k volbě. */
-private val NavKey.pathTitle: StringResource?
+internal val NavKey.pathTitle: StringResource?
     get() = when (this) {
         is SettingsSectionRoute -> section.title
         is PrivacySettingRoute -> setting.title
@@ -308,7 +317,10 @@ internal fun rememberResolvedSettingsIndex(sections: List<SettingsSection>): Lis
  * k ní pod ním. Ťuknutí otevře obrazovku, kde volba je, i s podstránkami po cestě.
  */
 @Composable
-internal fun SettingsSearchResults(results: List<ResolvedSettingsEntry>, onOpen: (List<NavKey>) -> Unit) {
+internal fun SettingsSearchResults(
+    results: List<ResolvedSettingsEntry>,
+    onOpen: (screens: List<NavKey>, highlight: StringResource?) -> Unit,
+) {
     if (results.isEmpty()) {
         GroupEmptyRow(stringResource(Res.string.chats_search_empty), icon = Res.drawable.search_off_24dp)
         return
@@ -322,7 +334,7 @@ internal fun SettingsSearchResults(results: List<ResolvedSettingsEntry>, onOpen:
                 summary = result.path.ifEmpty { null },
                 first = index == 0,
                 last = index == results.lastIndex,
-                onClick = { onOpen(result.entry.screens) },
+                onClick = { onOpen(result.entry.screens, result.entry.highlight) },
             )
         }
     }

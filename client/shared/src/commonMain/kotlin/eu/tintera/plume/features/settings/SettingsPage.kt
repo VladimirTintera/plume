@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -128,6 +129,6 @@ internal fun SettingsActionRow(
         ),
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
         headlineContent = { Text(title) },
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
+        modifier = Modifier.highlightAnchor(title).clickable(enabled = enabled, onClick = onClick),
     )
 }

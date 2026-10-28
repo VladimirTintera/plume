@@ -1713,8 +1713,8 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 **Nastavení a profil**
 
 - ~~**Hledání v Nastavení**~~ — hotovo: pilulka nad sekcemi, rejstřík voleb se synonymy, výsledek
-  otevře sekci i podstránku (`docs/poznatky/nastaveni.md`, „Hledání v Nastavení"). Zbývá
-  doscrollovat na volbu uvnitř sekce a zvýraznit ji.
+  otevře sekci i podstránku, doscrolluje na volbu a zvýrazní ji (`docs/poznatky/nastaveni.md`,
+  „Hledání v Nastavení").
 - ~~**QR kód a systémové sdílení** veřejného chatu, uživatele a pozvánky~~ — hotovo
   (`LinkQrSheet`; `docs/poznatky/hledani-a-zakladani-chatu.md`, „QR kód odkazu na chat a pozvánku").
 - **Víc účtů** (L). Menu účtu jiný účet nenabízí; dotkne se klienta TDLib na účet, notifikací

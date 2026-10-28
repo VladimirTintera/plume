@@ -1,3 +1,3 @@
 type: feat
-cs: Hledání v Nastavení – najde volbu a otevře ji, i na podstránce
-en: Search in Settings – finds an option and opens it, even on a subpage
+cs: Hledání v Nastavení – najde volbu, otevře ji a ukáže, kde na obrazovce je
+en: Search in Settings – finds an option, opens it and shows where it is on screen
