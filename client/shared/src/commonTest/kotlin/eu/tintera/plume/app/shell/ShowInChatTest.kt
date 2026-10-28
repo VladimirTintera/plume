@@ -8,6 +8,7 @@ import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
+import eu.tintera.plume.features.conversation.JumpTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -27,7 +28,7 @@ class ShowInChatTest {
         stack.showInChat(media, messageId = 42, jumps)
 
         assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(7)), stack)
-        assertEquals(7L to 42L, jumps.target.value)
+        assertEquals(7L to JumpTarget.Message(42L), jumps.target.value)
     }
 
     /** Z mřížky médií v profilu se zavře i profil — konverzace leží pod ním. */
@@ -39,7 +40,7 @@ class ShowInChatTest {
         stack.showInChat(media, messageId = 42, jumps)
 
         assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(7)), stack)
-        assertEquals(7L to 42L, jumps.target.value)
+        assertEquals(7L to JumpTarget.Message(42L), jumps.target.value)
     }
 
     /** Bez konverzace toho chatu (profil otevřený ze skupiny) se otevře rovnou na zprávě. */

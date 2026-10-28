@@ -554,7 +554,10 @@ class ConversationViewModel(
      * Otevře kalendář. Nejnovější načtená zpráva je vstup do ostrůvku: po skoku na staré datum
      * stojí konverzace v okně, ke kterému lokální průchod od nejnovější zprávy nedojde.
      */
-    fun openCalendar() = calendar.open(anchor = _state.value.messages.maxOfOrNull { it.id })
+    fun openCalendar() = calendar.open(anchor = calendarAnchor())
+
+    /** Nejnovější načtená zpráva — vstup kalendáře do ostrůvku (sheet i panel vedle konverzace). */
+    fun calendarAnchor(): Long? = _state.value.messages.maxOfOrNull { it.id }
     fun closeSearch() = search.closeSearch()
     fun jumpToDate(epochSeconds: Int) = search.jumpToDate(epochSeconds)
     fun onSearchQuery(text: String) = search.onSearchQuery(text)
@@ -1156,7 +1159,10 @@ class ConversationViewModel(
             jumpRequests?.target?.collect { requested ->
                 if (requested?.first == chatId) {
                     jumpRequests.consume(chatId)
-                    jumpToMessage(requested.second)
+                    when (val target = requested.second) {
+                        is JumpTarget.Message -> jumpToMessage(target.messageId)
+                        is JumpTarget.Day -> if (canJumpToDate) jumpToDate(target.epochSeconds)
+                    }
                 }
             }
         }

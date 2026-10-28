@@ -1,6 +1,15 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Surface
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.common_close
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.runtime.MutableState
@@ -162,7 +171,7 @@ import org.jetbrains.compose.resources.stringResource
  * nabízí „Načíst starší" (viz [ConversationCalendar]). Druhy a hledání počítá server celé
  * a měsíce bez nich se vynechávají.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChatCalendarSheet(
     state: ChatCalendarState,
@@ -177,6 +186,57 @@ internal fun ChatCalendarSheet(
     onClearDay: ((LocalDate) -> Unit)?,
     /** Hledat podle člena jde jen ve skupině — v soukromém chatu jsou odesílatelé dva, v kanálu jeden. */
     canFilterBySender: Boolean,
+) {
+    ModalBottomSheet(onDismissRequest = calendar::close, sheetState = rememberExpandedSheetState()) {
+        ChatCalendarContent(state, calendar, initialDay, onJumpToDay, onJumpToMessage, onSummarizeDay, onClearDay, canFilterBySender, onClose = null)
+    }
+}
+
+/**
+ * Kalendář jako panel vedle konverzace (široká plocha, `ChatCalendarRoute`): tentýž obsah jako
+ * sheet, jen s ✕ v hlavičce. Ťuknutí na den chat vedle posune a panel zůstane otevřený — kvůli
+ * tomu panel je: listovat dny a dívat se, co se v nich psalo, bez zavírání a otevírání.
+ * Podklad v barvě sheetu, ať sytost dnů vychází stejně jako v něm.
+ */
+@Composable
+internal fun ChatCalendarPane(
+    state: ChatCalendarState,
+    calendar: ConversationCalendar,
+    initialDay: Int?,
+    onJumpToDay: (dayStart: Int) -> Unit,
+    onJumpToMessage: (messageId: Long) -> Unit,
+    onSummarizeDay: ((LocalDate) -> Unit)?,
+    onClearDay: ((LocalDate) -> Unit)?,
+    canFilterBySender: Boolean,
+    onClose: () -> Unit,
+) {
+    Surface(color = BottomSheetDefaults.ContainerColor, modifier = Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                // Spodek si berou seznamy měsíců (`navigationBarsPadding`); panel stojí vpravo.
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.End))
+                .padding(top = 8.dp),
+        ) {
+            ChatCalendarContent(state, calendar, initialDay, onJumpToDay, onJumpToMessage, onSummarizeDay, onClearDay, canFilterBySender, onClose)
+        }
+    }
+}
+
+/** Obsah kalendáře — hlavička, čipy, hledání, měsíce nebo roční přehled — pro sheet i panel. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ColumnScope.ChatCalendarContent(
+    state: ChatCalendarState,
+    calendar: ConversationCalendar,
+    initialDay: Int?,
+    onJumpToDay: (dayStart: Int) -> Unit,
+    onJumpToMessage: (messageId: Long) -> Unit,
+    onSummarizeDay: ((LocalDate) -> Unit)?,
+    onClearDay: ((LocalDate) -> Unit)?,
+    canFilterBySender: Boolean,
+    /** ✕ v hlavičce panelu; sheet se zavírá tahem a mimo něj, `null`. */
+    onClose: (() -> Unit)?,
 ) {
     val zone = remember { TimeZone.currentSystemDefault() }
     val today = remember { Clock.System.now().toLocalDateTime(zone).date }
@@ -193,11 +253,16 @@ internal fun ChatCalendarSheet(
     // Měsíc, na který se má seznam po výběru v ročním přehledu posunout; seznam si ho odebere.
     val scrollTarget = remember { mutableStateOf<YearMonth?>(null) }
 
-    ModalBottomSheet(onDismissRequest = calendar::close, sheetState = rememberExpandedSheetState()) {
+    run {
         Row(
-            Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = if (onClose != null) 4.dp else 24.dp, end = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (onClose != null) {
+                IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                    Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                }
+            }
             SheetTitle(stringResource(Res.string.chat_calendar_title), modifier = Modifier.weight(1f))
             // Zpátky na nejnovější měsíc — po odrolování o roky by to jinak bylo dlouhé švihání.
             AnimatedVisibility(

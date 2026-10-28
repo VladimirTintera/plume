@@ -504,16 +504,6 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
   (`docs/poznatky/konverzace-zobrazeni.md`, „Zpráva pro čtečku obrazovky"); se skutečným
   TalkBackem neověřené.
 
-## Kalendář zpráv — další kroky (28. 10. 2026)
-
-Kalendář z ⋮ → Přejít na datum (`ChatCalendarSheet`, `ConversationCalendar`, poznatky
-v `docs/poznatky/konverzace-pohyb.md`, „Kalendář zpráv z nabídky"). Hotové: legenda, náhledy
-fotek u čipu Média, podržení dne (přejít / shrnout den / vymazat za den), Dnes, souhrn nad
-měsícem, hledaný výraz a filtr podle člena, roční přehled. Zbývá:
-
-- **Kalendář vedle konverzace na tabletu a rozloženém Foldu** (L). Panel zůstane otevřený
-  a ťukání na dny posouvá chat vedle, bez zavírání sheetu (list-detail, `docs/poznatky/navigace.md`).
-
 ---
 
 ## Co TDLib umí a Plume zatím ne (audit září 2026)

@@ -558,6 +558,29 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   v přehledu jde o srovnání měsíců. Stav dne bere z téže osy jako měsíce (`allAxis`,
   `serverAxis`), takže neznámé dny jsou i tady neznámé. Ťuknutí na měsíc přepne zpět na měsíce
   a posune na něj (`ScrollToTarget`; u druhu na nejbližší starší měsíc, který něco má).
+- **Na široké ploše je kalendář panel vedle konverzace, ne sheet** (`ChatCalendarRoute`,
+  `Panes.extra()`, `ChatCalendarPaneHost`). Chová se jako profil: na Large třetí panel vedle
+  seznamu a konverzace, na rozloženém Foldu konverzace a kalendář (seznam se schová), sdílí s
+  profilem šířku i místo — otevřený kalendář profil zavře a naopak (`toggleCalendar`, druhé
+  ťuknutí na „Přejít na datum" panel zavře). Ťuknutí na den konverzaci vedle posune a panel
+  zůstane: kvůli tomu panel je. Jen celý chat hlavního seznamu, téma Uložených zpráv a vlákno
+  přímých zpráv; archiv, vlákno komentářů a téma skupiny mají dál sheet.
+  - **Konverzaci řídí přes `ConversationJumpRequests`**, ne přímo — panel je jiná položka
+    navigace s vlastním úložištěm ViewModelů a na ViewModel konverzace nedosáhne. Kanál umí
+    zprávu i den (`JumpTarget`); vyzvednutý požadavek se vynuluje, takže totéž ťuknutí podruhé
+    je nová hodnota, kterou `StateFlow` nespolkne.
+  - **Vlastní `ChatCalendarViewModel`** (tentýž `ConversationCalendar` jako sheet) si o chatu
+    řekne sám (`chatInfo`: název, práva mazat po dnech, skupina). Shrnutí dne a vymazání historie
+    obslouží panel sám, i s hláškou o výsledku — sheety v konverzaci patří jiné položce.
+  - **Rozhoduje `LocalPanesSideBySide`, ne `wide` z poskytovatele vstupů.** Poskytovatel vstupů
+    se po složení a rozložení Foldu nepřestavěl a „Přejít na datum" na rozloženém Foldu otevíral
+    sheet (viděno na emulátoru). `sideBySide` se čte při každé kompozici vstupu.
+  - **Panel, který po složení zůstane sám, se po skoku zavře** — konverzace pod ním by jinak
+    nebyla vidět. Jednou se skok po složení neprojevil (konverzace zůstala na „Včera"), dvakrát
+    potom prošel (s logem: požadavek dorazil, skok i posun seznamu proběhly); příčinu prvního
+    pokusu jsem nenašel.
+  - **Jiný chat otevřený vedle** přepne panel na kalendář nového (`followProfile` s
+    `calendarRoute`), téma skupiny a vlákno ho zavřou, jako profil u obrazovek bez profilu.
 - **Měsíc nejvýš na šířku `ContentWidth.Form`**: na rozloženém Foldu natáhl sheet (640 dp) dny do
   kruhů přes 90 dp a měsíc se nevešel na obrazovku.
 - **Ověřeno na emulátoru** (Fold, rozložený): Notifikátor (7 zpráv 27. 10.), testovací skupina,
@@ -571,7 +594,11 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   s obálkami. Další kroky: „Mafia" v kanálu Short Drama → 27 výsledků v říjnu, nejvíc 17. 10.;
   člen Notifikátor ve skupině „Plume test triaze" → 5 zpráv 18. 10.; souhrn u čipu Média
   (říjen 278 zpráv, 9,9 denně, 27 dní v řadě — sedí s mřížkou); roční přehled → ťuknutí na
-  září přepnulo na měsíce se zářím nahoře, „Dnes" vrátil na říjen.
+  září přepnulo na měsíce se zářím nahoře, „Dnes" vrátil na říjen. Panel (Fold rozložený):
+  konverzace + kalendář, ťuknutí na 16. a 11. 10. posunulo chat a panel zůstal; po složení
+  kalendář sám, ťuknutí na 25. 10. ho zavřelo a chat stál na „Neděle"; po rozložení znovu
+  panel, ✕ ho zavřel; složený telefon dostal sheet. Large (tři panely) neověřené — tablet
+  emulátor v projektu není.
   iOS a desktop jen přeložené.
 
 ## Okno v historii
