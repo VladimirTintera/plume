@@ -202,8 +202,8 @@ class ConversationCalendar(
 
     /**
      * Přepočítá všechny zprávy znovu, protože konverzace vedle načetla další okno historie
-     * ([LoadedHistory]); [anchor] je jeho nejnovější zpráva — vstup do ostrůvku, který s ním
-     * mohl vzniknout. Počítá se BOKEM a výsledek se vymění naráz: kalendář se nevrátí do stavu
+     * ([LoadedHistory]), nebo si shrnutí stáhlo den ([messagesOfDay]); [anchor] je vstup do
+     * ostrůvku, který s tím mohl vzniknout. Počítá se BOKEM a výsledek se vymění naráz: kalendář se nevrátí do stavu
      * „počítám" a neproblikne, jen přibydou dny. Běží-li zrovna první počítání nebo „Načíst
      * starší", nic se nedělá — kotva zůstane zapsaná a další okno ji započítá.
      *
@@ -368,11 +368,17 @@ class ConversationCalendar(
      * den poslední) se historie čte ke starším, dokud nesáhne před začátek dne. Od nejnovějších,
      * takže u dne nad stropem ([DAY_SUMMARY_CAP]) zůstane jeho konec. Servisní zprávy pryč —
      * o obsahu nic neříkají, jako u shrnutí konverzace.
+     *
+     * Den, který v zařízení nebyl, si čtení stáhne ze serveru — a kalendář se pak přepočítá
+     * ([refresh]), jinak by zůstal šedý: TDLib o uložených zprávách nedá vědět. Kotvou ostrůvku
+     * je první zpráva DALŠÍHO dne, ne nejnovější zpráva tohoto: krajní den ostrůvku je spočtený
+     * jen zčásti („+"), a tím má být ten sousední, ne den, který se právě přečetl celý.
      */
     suspend fun messagesOfDay(date: LocalDate): List<ChatMessage> {
         val start = date.atStartOfDayIn(zone).epochSeconds.toInt()
         val end = date.plus(DatePeriod(days = 1)).atStartOfDayIn(zone).epochSeconds.toInt()
-        var from = repository.firstMessageFrom(chatId, end).getOrNull() ?: 0L
+        val nextDay = repository.firstMessageFrom(chatId, end).getOrNull()
+        var from = nextDay ?: 0L
         val seen = HashSet<Long>()
         val day = mutableListOf<ChatMessage>()
         for (page in 0 until DAY_SUMMARY_PAGES) {
@@ -384,6 +390,8 @@ class ConversationCalendar(
             if (oldest.timestamp < start || day.size >= DAY_SUMMARY_CAP) break
             from = oldest.id
         }
+        // Bez dalšího dne je den poslední v chatu, a ten počítá souvislý úsek od nejnovější zprávy.
+        if (seen.isNotEmpty()) refresh(anchor = nextDay)
         return day.sortedBy { it.id }.takeLast(DAY_SUMMARY_CAP)
     }
 

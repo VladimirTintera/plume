@@ -536,9 +536,17 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   víc a kdy míň, a přesun o rok by byl dvanáct tahů; paměť by neušetřil (drží se jen počty
   po dnech, mřížky skládá `LazyColumn` jen viditelné).
 - **Podržení dne nabídne Přejít / Shrnout den / Vymazat historii za den…** (`dayMenu`,
-  `DayActions`; podržení přes `contextClickable`, pro čtečku vlastní akce „Další akce"). Jen
-  u dne se zprávami — u neznámého není co shrnout ani mazat. Kalendář se před shrnutím
-  i mazáním zavře, dva modální sheety přes sebe by se překrývaly.
+  `DayActions`; podržení přes `contextClickable`, pro čtečku vlastní akce „Další akce"). U dne
+  se zprávami i u NEZNÁMÉHO (šedého): shrnutí si den stáhne ze serveru a mazání jde podle data,
+  takže obojí funguje i bez zpráv v zařízení. Napřed byla nabídka jen u dnů se zprávami
+  („u neznámého není co shrnout") — omyl, šedý den neznamená prázdný. Nabídku nemá jen den,
+  o kterém se VÍ, že je prázdný. Kalendář se před shrnutím i mazáním zavře, dva modální sheety
+  přes sebe by se překrývaly.
+  - **Shrnutý šedý den se v kalendáři dopočítá** (`messagesOfDay` → `refresh`): TDLib o
+    stažených zprávách nedá vědět, takže by den zůstal šedý. Kotvou ostrůvku je první zpráva
+    DALŠÍHO dne — krajní den ostrůvku má „+", a mít ho má sousední den, ne ten přečtený celý.
+  - **U čipu Média a Hledat vede šedý den (za načtenými stránkami) na datum**, ne na první
+    nalezenou zprávu, kterou ještě nezná — ťuknutí i „Přejít" by jinak nedělaly nic.
   - **Shrnutí dne** jde přes tentýž `ChatSummaryViewModel` a sheet jako „Shrnout" z ⋮ (klíč
     `summary-<chat>`, tatáž instance); zprávy dne čte `ConversationCalendar.messagesOfDay` —
     od první zprávy dalšího dne (`firstMessageFrom`) historií ke starším, bez servisních, nejvýš

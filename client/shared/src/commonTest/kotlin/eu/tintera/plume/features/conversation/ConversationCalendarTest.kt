@@ -248,6 +248,52 @@ class ConversationCalendarTest {
     }
 
     @Test
+    fun shrnutyNenactenyDenSeDopocitaCely() = runTest(StandardTestDispatcher()) {
+        // Souvislý úsek končí 27. 10.; 15. 10. v zařízení není, shrnutí si ho stáhne. První
+        // zpráva 16. 10. (id 100) je kotvou ostrůvku, takže „+" dostane 16. 10., ne 15. 10.
+        val messages = listOf(
+            testMessage(100).copy(timestamp = at(10, 16)),
+            testMessage(99).copy(timestamp = at(10, 15)),
+            testMessage(97).copy(timestamp = at(10, 15)),
+            testMessage(96).copy(timestamp = at(10, 14)),
+        )
+        val counts = mapOf(
+            Call(0, onlyLocal = true) to HistoryCounts(mapOf(LocalDate(2026, 10, 27) to 5), 500, at(10, 27), reachedEnd = false),
+            Call(500, onlyLocal = true) to HistoryCounts(emptyMap(), null, null, reachedEnd = true),
+            Call(100, onlyLocal = true) to HistoryCounts(
+                days = mapOf(LocalDate(2026, 10, 16) to 1, LocalDate(2026, 10, 15) to 2, LocalDate(2026, 10, 14) to 1),
+                oldestMessageId = 96,
+                oldestTimestamp = at(10, 14),
+                newestTimestamp = at(10, 16),
+                reachedEnd = true,
+            ),
+        )
+        val repository = object : UnimplementedConversationRepository() {
+            override suspend fun messageCountsByDay(
+                chatId: Long, fromMessageId: Long, onlyLocal: Boolean, maxMessages: Int, zone: TimeZone, includeFrom: Boolean,
+            ): Result<HistoryCounts> = Result.success(counts.getValue(Call(fromMessageId, onlyLocal)))
+
+            // První zpráva chatu (osa) se nezjistí; první zpráva 16. 10. je id 100.
+            override suspend fun firstMessageFrom(chatId: Long, epochSeconds: Int): Result<Long?> =
+                Result.success(if (epochSeconds < at(1, 1)) null else 100)
+
+            override suspend fun history(chatId: Long, fromMessageId: Long, limit: Int, offset: Int): Result<List<ChatMessage>> =
+                Result.success(messages.filter { it.id <= fromMessageId }.take(limit))
+        }
+        val calendar = ConversationCalendar(chatId = 1, repository = repository, scope = this, zone = zone)
+        calendar.open()
+        advanceUntilIdle()
+        assertTrue(calendar.state.value!!.all.islands.isEmpty())
+
+        calendar.messagesOfDay(LocalDate(2026, 10, 15))
+        advanceUntilIdle()
+
+        val islands = calendar.state.value!!.all.islands
+        assertEquals(DayStatus.Known(2), islandDayStatus(LocalDate(2026, 10, 15), islands))
+        assertEquals(DayStatus.Partial(1), islandDayStatus(LocalDate(2026, 10, 16), islands))
+    }
+
+    @Test
     fun hledaniPodleClenaSecteVysledkyPoDnech() = runTest(StandardTestDispatcher()) {
         val petr = SenderInfo(id = 42, title = "Petr", avatarFileId = null)
         var asked: Pair<String, Long?>? = null
