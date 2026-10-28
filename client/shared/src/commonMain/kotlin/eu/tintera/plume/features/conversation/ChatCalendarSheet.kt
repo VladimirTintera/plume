@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Surface
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.common_close
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.IconToggleButton
@@ -52,6 +53,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
@@ -264,16 +267,6 @@ private fun ColumnScope.ChatCalendarContent(
                 }
             }
             SheetTitle(stringResource(Res.string.chat_calendar_title), modifier = Modifier.weight(1f))
-            // Zpátky na nejnovější měsíc — po odrolování o roky by to jinak bylo dlouhé švihání.
-            AnimatedVisibility(
-                visible = awayFromTop && !yearView,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-            ) {
-                TextButton(onClick = { scope.launch { listState.animateScrollToItem(0) } }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.chat_calendar_today))
-                }
-            }
             // Roky na jedné obrazovce: kdy se psalo víc a kdy míň, a skok do vzdáleného měsíce.
             IconToggleButton(checked = yearView, onCheckedChange = { yearView = it }, shapes = IconButtonDefaults.toggleableShapes()) {
                 Icon(painterResource(Res.drawable.apps_24dp), contentDescription = stringResource(Res.string.chat_calendar_year_view))
@@ -348,6 +341,12 @@ private fun ColumnScope.ChatCalendarContent(
                 )
                 else -> CalendarNote(stringResource(Res.string.chat_calendar_search_empty))
             }
+            // Zpátky na nejnovější měsíc — po odrolování o roky by to jinak bylo dlouhé švihání.
+            TodayButton(
+                visible = awayFromTop && !yearView,
+                onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 
@@ -369,6 +368,26 @@ private fun ColumnScope.ChatCalendarContent(
             },
             onDismiss = { pickingDate = false },
         )
+    }
+}
+
+/**
+ * „Dnes" dole nad seznamem, když je odrolovaný. Ne v hlavičce: v úzkém panelu se tam nevešel,
+ * nadpis se zalomil a hlavička poskočila pokaždé, když se tlačítko ukázalo.
+ */
+@Composable
+private fun TodayButton(visible: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+        modifier = modifier.navigationBarsPadding().padding(bottom = 16.dp),
+    ) {
+        FilledTonalButton(onClick = onClick, shapes = ButtonDefaults.shapes()) {
+            Icon(painterResource(Res.drawable.keyboard_arrow_up_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(Res.string.chat_calendar_today))
+        }
     }
 }
 

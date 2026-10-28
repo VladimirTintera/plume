@@ -248,6 +248,8 @@ class ConversationViewModel(
     private val profiles: ProfileRepository? = null,
     /** Skok na zprávu ze záložky v profilu; bez něj se nečeká. */
     private val jumpRequests: ConversationJumpRequests? = null,
+    /** Kam hlásit načtené okno historie — kalendář v panelu vedle z něj dopočítá dny. */
+    private val loadedHistory: LoadedHistory? = null,
     /** Odložené chaty: otevřený chat z bloku připomínek v seznamu zmizí. */
     snoozes: ChatSnoozes? = null,
     /** Kreslení do fotky před odesláním; bez něj se „Upravit" nenabízí. */
@@ -1153,6 +1155,21 @@ class ConversationViewModel(
         // Vynořený odložený chat splnil účel, ať se otevřel odkudkoli (seznam, notifikace,
         // hledání). Chat, který ještě spí, zůstává odložený.
         snoozes?.opened(chatId)
+
+        // Načtené okno pro kalendář v panelu vedle: TDLib o uložení stažených zpráv nedává
+        // vědět, ví o nich jen konverzace. Vlákno komentářů a téma skupiny kalendář nemají.
+        if (loadedHistory != null && threadRootId == null && forumTopicId == null) {
+            viewModelScope.launch {
+                _state
+                    .map { state -> state.messages.maxOfOrNull { it.id } to state.messages.minOfOrNull { it.id } }
+                    .distinctUntilChanged()
+                    .collect { (newest, oldest) ->
+                        if (newest != null && oldest != null) {
+                            loadedHistory.report(LoadedWindow(chatId, savedTopicId, directTopicId, newest, oldest))
+                        }
+                    }
+            }
+        }
 
         // Záložka z profilu: profil se zavře a konverzace skočí na zprávu.
         viewModelScope.launch {
