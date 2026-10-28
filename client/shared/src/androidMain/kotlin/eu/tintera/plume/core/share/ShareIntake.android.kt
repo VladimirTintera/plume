@@ -7,12 +7,12 @@ import androidx.core.content.IntentCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.ui.AttachmentPrepareDispatcher
 import eu.tintera.plume.core.ui.PICK_LIMIT
 import eu.tintera.plume.core.ui.prepareFile
 import eu.tintera.plume.core.ui.displayName
 import eu.tintera.plume.core.ui.prepareVisual
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -88,7 +88,7 @@ class ShareIntake(
         scope.launch {
             val results = limited
                 .map { uri ->
-                    async(Dispatchers.IO) {
+                    async(AttachmentPrepareDispatcher) {
                         runCatching { if (visual) prepareVisual(context, uri) else prepareFile(context, uri) }
                     }
                 }

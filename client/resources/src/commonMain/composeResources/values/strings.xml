@@ -729,6 +729,7 @@
     <string name="conversation_mention_not_found">Couldn't find that chat.</string>
     <string name="conversation_sticker_send_failed">Couldn't send the sticker.</string>
     <string name="conversation_attachments_limit">You can send at most %1$d attachments at once.</string>
+    <string name="attachments_group">Group as album</string>
     <string name="conversation_gif_send_failed">Couldn't send the GIF.</string>
     <string name="conversation_location_send_failed">Couldn't send the location.</string>
     <string name="conversation_content_not_allowed">This chat doesn't accept this kind of attachment.</string>
@@ -4611,4 +4612,12 @@
     <string name="post_statistics_reactions">Reactions</string>
     <string name="post_statistics_public_shares">Public shares</string>
     <string name="post_statistics_public_shares_failed">Public shares could not be loaded.</string>
+    <plurals name="attachments_albums">
+        <item quantity="one">Sends as %1$d album</item>
+        <item quantity="other">Sends as %1$d albums</item>
+    </plurals>
+    <plurals name="attachments_separate_messages">
+        <item quantity="one">Sends as %1$d message</item>
+        <item quantity="other">Sends as %1$d messages</item>
+    </plurals>
 </resources>

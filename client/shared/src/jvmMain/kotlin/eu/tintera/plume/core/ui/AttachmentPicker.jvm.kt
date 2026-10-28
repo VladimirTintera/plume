@@ -13,7 +13,6 @@ import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
 import javax.imageio.ImageIO
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -49,7 +48,8 @@ actual fun rememberAttachmentPicker(
                 val files = chooseFiles(media)
                 if (files.isEmpty()) return
                 scope.launch {
-                    val results = withContext(Dispatchers.IO) {
+                    // Souběžně, ale nejvýš po několika — viz `AttachmentPrepareDispatcher`.
+                    val results = withContext(AttachmentPrepareDispatcher) {
                         files.map { file -> async { runCatching { prepareAttachment(file, media) } } }.awaitAll()
                     }
                     results.forEach { result ->

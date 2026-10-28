@@ -222,6 +222,9 @@ internal data class ComposerAttachments(
     /** Soukromý chat, kde se u jedné přílohy smí nabídnout mizení (`canSelfDestruct`). */
     val selfDestructAllowed: Boolean = false,
     val previewIndex: Int? = null,
+    /** „Poslat jednotlivě" místo alba; [onToggleSeparately] `null` volbu nenabízí. */
+    val separately: Boolean = false,
+    val onToggleSeparately: (() -> Unit)? = null,
     /** Návrh popisku první fotky modelem ([ConversationCaption]); ukáže se jen u prázdného pole. */
     val captionSuggestion: CaptionSuggestion = CaptionSuggestion.Hidden,
     val onSuggestCaption: () -> Unit = {},

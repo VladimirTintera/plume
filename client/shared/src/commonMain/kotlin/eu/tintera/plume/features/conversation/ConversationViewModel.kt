@@ -854,6 +854,7 @@ class ConversationViewModel(
     fun addAttachments(picked: List<OutgoingAttachment>) = attachments.addAttachments(picked)
     fun removeAttachment(index: Int) = attachments.removeAttachment(index)
     fun removeAttachments(paths: List<String>) = attachments.removeAttachments(paths)
+    fun toggleAttachmentsSeparately() = attachments.toggleAttachmentsSeparately()
     val canMarkupPhotos: Boolean get() = attachments.canMarkupPhotos
     fun applyPhotoMarkup(path: String, markup: PhotoMarkup) = attachments.applyPhotoMarkup(path, markup)
     fun setAttachmentMode(index: Int, mode: AttachmentMode) = attachments.setAttachmentMode(index, mode)
@@ -1019,7 +1020,9 @@ class ConversationViewModel(
         // Přílohy, které tu uživatel nechal při odchodu z chatu. Popisek k nim se vrátí sám —
         // je to koncept v TDLib, ten se načítá s chatem.
         stagedAttachments?.take(stagedKey)?.let { staged ->
-            _state.update { it.copy(attachments = staged.attachments, photoEdits = staged.photoEdits) }
+            _state.update {
+                it.copy(attachments = staged.attachments, attachmentsSeparately = staged.separately, photoEdits = staged.photoEdits)
+            }
         }
 
         // Vlastní emoji v úpravě zprávy: smí se jen tam, kde se smí poslat (lokální dotaz).
@@ -2072,7 +2075,10 @@ class ConversationViewModel(
         stagedAttachments?.let { store ->
             val current = _state.value
             val paths = current.attachments.mapTo(HashSet()) { it.path }
-            store.put(stagedKey, StagedAttachmentsEntry(current.attachments, current.photoEdits.filterKeys { it in paths }))
+            store.put(
+                stagedKey,
+                StagedAttachmentsEntry(current.attachments, current.photoEdits.filterKeys { it in paths }, current.attachmentsSeparately),
+            )
         }
     }
 

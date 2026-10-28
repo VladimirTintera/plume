@@ -11,6 +11,7 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.TelegramClientHolder
+import eu.tintera.plume.core.ui.AttachmentPrepareDispatcher
 import eu.tintera.plume.core.ui.PICK_LIMIT
 import eu.tintera.plume.core.ui.outgoingPath
 import eu.tintera.plume.core.ui.prepareFile
@@ -308,7 +309,7 @@ class IosShareInbox(
         // Fotky a videa jako média, jen když jsou médii všechny — stejné pravidlo jako Android.
         val visual = moved.all { (_, kind) -> kind == KIND_IMAGE || kind == KIND_VIDEO }
         val results = moved
-            .map { (path, kind) -> scope.async(Dispatchers.IO) { runCatching { prepare(path, kind, visual) } } }
+            .map { (path, kind) -> scope.async(AttachmentPrepareDispatcher) { runCatching { prepare(path, kind, visual) } } }
             .awaitAll()
         results.forEach { result -> result.exceptionOrNull()?.let { logger.w(it) { "Sdílený soubor se nepodařilo připravit." } } }
         requests.prepared(

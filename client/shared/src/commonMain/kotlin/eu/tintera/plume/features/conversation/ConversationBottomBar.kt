@@ -724,6 +724,8 @@ internal fun ConversationBottomBar(
             onSetMode = viewModel::setAttachmentMode,
             selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
             previewIndex = sheets.previewAttachmentIndex,
+            separately = state.attachmentsSeparately,
+            onToggleSeparately = viewModel::toggleAttachmentsSeparately,
             captionSuggestion = state.captionSuggestion,
             onSuggestCaption = viewModel::suggestCaption,
         ),

@@ -47,8 +47,12 @@ data class StagedAttachmentsKey(
     val directTopicId: Long? = null,
 )
 
-/** Co se s přílohami ukládá: ony samy (i s režimem spoileru a mizení) a záznamy úprav fotek. */
+/**
+ * Co se s přílohami ukládá: ony samy (i s režimem spoileru a mizení), záznamy úprav fotek
+ * a volba „Poslat jednotlivě".
+ */
 data class StagedAttachmentsEntry(
     val attachments: List<OutgoingAttachment>,
     val photoEdits: Map<String, PhotoEdit> = emptyMap(),
+    val separately: Boolean = false,
 )

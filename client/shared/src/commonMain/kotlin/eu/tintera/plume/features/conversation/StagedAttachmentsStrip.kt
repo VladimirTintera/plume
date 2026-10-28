@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -50,6 +52,10 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_mode_title
 import eu.tintera.plume.resources.attachment_remove_file
 import eu.tintera.plume.resources.attachment_remove_photo
+import eu.tintera.plume.resources.attachments_albums
+import eu.tintera.plume.resources.attachments_group
+import eu.tintera.plume.resources.attachments_separate_messages
+import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.content_file
 import eu.tintera.plume.resources.conversation_attachment_position
@@ -59,6 +65,7 @@ import eu.tintera.plume.resources.media_view_once
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import okio.Path.Companion.toPath
 
@@ -81,10 +88,68 @@ fun StagedAttachmentsStrip(
     /** Chat mizení dovoluje; v albu (carousel) se stejně nenabízí. */
     selfDestructAllowed: Boolean = false,
     previewAttachmentIndex: Int? = null,
+    /** Odejdou každá zvlášť, ne v albu; [onToggleSeparately] `null` volbu nenabízí. */
+    separately: Boolean = false,
+    onToggleSeparately: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     if (attachments.isEmpty()) return
 
+    Column(modifier) {
+        StagedAttachmentsItems(attachments, onRemove, onOpen, onSetMode, selfDestructAllowed, previewAttachmentIndex)
+        if (attachments.size > 1 && onToggleSeparately != null) {
+            AlbumGrouping(attachments, separately, onToggleSeparately)
+        }
+    }
+}
+
+/**
+ * **Seskupit do alba**, nebo poslat každou přílohu zvlášť. Věta vedle říká, co z výběru
+ * doopravdy odejde, když to není jedno album: víc než deset položek se rozdělí do několika
+ * ([attachmentBatches]) a bez seskupení je každá vlastní zprávou.
+ */
+@Composable
+private fun AlbumGrouping(attachments: List<OutgoingAttachment>, separately: Boolean, onToggle: () -> Unit) {
+    val batches = attachmentBatches(attachments, separately).size
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp),
+    ) {
+        FilterChip(
+            selected = !separately,
+            onClick = onToggle,
+            label = { Text(stringResource(Res.string.attachments_group)) },
+            leadingIcon = if (!separately) {
+                { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+            } else {
+                null
+            },
+        )
+        if (separately || batches > 1) {
+            Text(
+                pluralStringResource(
+                    if (separately) Res.plurals.attachments_separate_messages else Res.plurals.attachments_albums,
+                    batches,
+                    batches,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StagedAttachmentsItems(
+    attachments: List<OutgoingAttachment>,
+    onRemove: (Int) -> Unit,
+    onOpen: (Int) -> Unit,
+    onSetMode: (Int, AttachmentMode) -> Unit,
+    selfDestructAllowed: Boolean,
+    previewAttachmentIndex: Int?,
+    modifier: Modifier = Modifier,
+) {
     if (attachments.first().let { it is OutgoingAttachment.Photo || it is OutgoingAttachment.Video }) {
         if (attachments.size == 1) {
             SinglePhotoPreview(

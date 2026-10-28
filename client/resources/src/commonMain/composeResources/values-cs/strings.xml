@@ -750,6 +750,7 @@
     <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>
     <string name="conversation_sticker_send_failed">Samolepku se nepodařilo odeslat.</string>
     <string name="conversation_attachments_limit">Najednou jde poslat nejvýš %1$d příloh.</string>
+    <string name="attachments_group">Seskupit do alba</string>
     <string name="conversation_gif_send_failed">GIF se nepodařilo odeslat.</string>
     <string name="conversation_location_send_failed">Polohu se nepodařilo odeslat.</string>
     <string name="conversation_content_not_allowed">Tenhle druh přílohy chat nepřijímá.</string>
@@ -4779,4 +4780,16 @@
     <string name="post_statistics_reactions">Reakce</string>
     <string name="post_statistics_public_shares">Veřejná sdílení</string>
     <string name="post_statistics_public_shares_failed">Veřejná sdílení se nepodařilo načíst.</string>
+    <plurals name="attachments_albums">
+        <item quantity="one">Odejde jako %1$d album</item>
+        <item quantity="few">Odejde jako %1$d alba</item>
+        <item quantity="many">Odejde jako %1$d alba</item>
+        <item quantity="other">Odejde jako %1$d alb</item>
+    </plurals>
+    <plurals name="attachments_separate_messages">
+        <item quantity="one">Odejde jako %1$d zpráva</item>
+        <item quantity="few">Odejde jako %1$d zprávy</item>
+        <item quantity="many">Odejde jako %1$d zprávy</item>
+        <item quantity="other">Odejde jako %1$d zpráv</item>
+    </plurals>
 </resources>

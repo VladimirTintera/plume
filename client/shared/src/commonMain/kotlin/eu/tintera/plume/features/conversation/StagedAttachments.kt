@@ -1,11 +1,22 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.AttachmentMode
+import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ContentAccess
+import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.FormatSpan
+import eu.tintera.plume.core.telegram.NameMention
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.ReplyQuote
+import eu.tintera.plume.core.telegram.SendOptions
+import eu.tintera.plume.core.telegram.sendableTogether
+import eu.tintera.plume.core.ui.PICK_LIMIT
 
-/** Kolik příloh jde poslat najednou — strop alba v Telegramu. */
-internal const val MAX_ATTACHMENTS = 10
+/** Kolik příloh jde připravit nad polem najednou; víc než [ALBUM_LIMIT] odejde v několika albech. */
+internal const val MAX_ATTACHMENTS = PICK_LIMIT
+
+/** Strop jednoho alba v Telegramu (`sendMessageAlbum` bere 2–10 položek). */
+internal const val ALBUM_LIMIT = 10
 
 /** Výsledek přidání příloh k připraveným: nový seznam a jestli se něco nevešlo pod strop. */
 internal data class StagedAttachments(
@@ -110,4 +121,61 @@ internal fun allowedByContent(
         attachment is OutgoingAttachment.Video -> attachment.takeIf { content.videos }
         else -> attachment
     }
+}
+
+/**
+ * Jak přílohy odejdou: po albech nejvýš [ALBUM_LIMIT] položek, nebo s [separately] každá
+ * zvlášť jako samostatná zpráva („Poslat jednotlivě").
+ *
+ * Skladby mezi soubory se na soubory převedou za CELÝ výběr ([sendableTogether]), ne po albech:
+ * jinak by z jednoho výběru odešlo album souborů a vedle něj album skladeb, podle toho, kam
+ * dělení zrovna padlo.
+ */
+internal fun attachmentBatches(attachments: List<OutgoingAttachment>, separately: Boolean): List<List<OutgoingAttachment>> {
+    val sendable = sendableTogether(attachments)
+    return if (separately) sendable.map(::listOf) else sendable.chunked(ALBUM_LIMIT)
+}
+
+/** Kolik příloh z výběru odešlo a proč se zbytek nepovedl (`null` = odešlo všechno). */
+internal data class BatchSendResult(val sent: Int, val failure: Throwable?)
+
+/**
+ * Pošle přílohy po dávkách ([attachmentBatches]), jednu po druhé — pořadí zpráv v chatu je
+ * pořadí výběru.
+ *
+ * **Popisek, odpověď a zmínky patří PRVNÍ dávce**, jako u alba první položce: tak Telegram
+ * ukazuje popisek alba a odpověď na zprávu nemá smysl opakovat u každé desítky fotek.
+ * Selhání dávky odesílání zastaví; volající ví z [BatchSendResult.sent], které přílohy už
+ * odešly, a vrátí nad pole jen ty ostatní — jinak by je druhý pokus poslal podruhé.
+ */
+internal suspend fun ConversationRepository.sendInBatches(
+    chatId: Long,
+    attachments: List<OutgoingAttachment>,
+    separately: Boolean,
+    caption: String,
+    replyToMessageId: Long?,
+    quote: ReplyQuote?,
+    options: SendOptions,
+    mentions: List<NameMention> = emptyList(),
+    formats: List<FormatSpan> = emptyList(),
+    onSent: (List<ChatMessage>) -> Unit = {},
+): BatchSendResult {
+    var sent = 0
+    attachmentBatches(attachments, separately).forEachIndexed { index, batch ->
+        val first = index == 0
+        sendAttachments(
+            chatId = chatId,
+            attachments = batch,
+            caption = if (first) caption else "",
+            replyToMessageId = replyToMessageId.takeIf { first },
+            quote = quote.takeIf { first },
+            options = options,
+            mentions = if (first) mentions else emptyList(),
+            formats = if (first) formats else emptyList(),
+        )
+            .onSuccess(onSent)
+            .onFailure { return BatchSendResult(sent, it) }
+        sent += batch.size
+    }
+    return BatchSendResult(sent, failure = null)
 }

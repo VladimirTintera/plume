@@ -489,9 +489,9 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
 
 - ~~**Uložit cizí GIF do Uložených GIFů**~~ — hotovo, „Uložit do GIFů" v nabídce nad zprávou
   (`docs/poznatky/emoji-samolepky-reakce.md`, „Výběr GIFů").
-- **Víc než 10 fotek naráz a „poslat jednotlivě"** (M). Výběr se usekne na
-  `MAX_ATTACHMENTS = 10` s hláškou; Telegram rozdělí výběr do víc alb a umí je poslat i bez
-  seskupení.
+- ~~**Víc než 10 fotek naráz a „poslat jednotlivě"**~~ — hotovo: až 100 příloh, odejdou po
+  albech desíti, čip „Seskupit do alba" (`docs/poznatky/konverzace-psani.md`, „Víc než deset
+  příloh a „Poslat jednotlivě"").
 - ~~**Výsledky hledání v chatu jako seznam**~~ — hotovo: tlačítko na liště „N z M", sheet
   s úryvky a datem (`docs/poznatky/konverzace-pohyb.md`, „Seznam výsledků").
 - ~~**Výběr víc zpráv tahem**~~ — hotovo: podržet a táhnout, přidává i ubírá, posun u okraje
