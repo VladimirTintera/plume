@@ -206,6 +206,11 @@ class ConversationCalendar(
      * mohl vzniknout. Počítá se BOKEM a výsledek se vymění naráz: kalendář se nevrátí do stavu
      * „počítám" a neproblikne, jen přibydou dny. Běží-li zrovna první počítání nebo „Načíst
      * starší", nic se nedělá — kotva zůstane zapsaná a další okno ji započítá.
+     *
+     * **Každý průchod rozbudí přednačítání TDLib.** Lokální čtení, které dojde k díře, nechá TDLib
+     * na pozadí stáhnout dalších 50 starších zpráv — pod souvislým úsekem i pod každým
+     * ostrůvkem. Proto při rolování roste i konec úseku, kam konverzace nesahá. Počty to
+     * nekazí (počítá se jen, co v databázi je), ale zbytečný průchod stojí dotaz na server.
      */
     fun refresh(anchor: Long?) {
         val current = _state.value?.all ?: return

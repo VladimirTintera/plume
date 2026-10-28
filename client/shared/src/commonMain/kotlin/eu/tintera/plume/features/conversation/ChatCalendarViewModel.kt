@@ -64,10 +64,14 @@ class ChatCalendarViewModel(
         }
         // Panel po ťuknutí na den zůstává otevřený a konverzace vedle si stáhne okno kolem
         // dne — TDLib to neohlásí, konverzace ano. Pauza, ať se při rolování, kdy okno roste
-        // po stránkách, nepočítá s každou znovu.
+        // po stránkách, nepočítá s každou znovu. Okno, které konverzace měla už při otevření,
+        // započítalo `open` — stav ho pošle hned, a druhý průchod by jen znovu rozbudil
+        // přednačítání TDLib (viz `ConversationCalendar.refresh`).
+        val openedWith = loadedHistory.window.value
         viewModelScope.launch {
             loadedHistory.window
                 .filterNotNull()
+                .filter { it != openedWith }
                 .filter { it.chatId == chatId && it.savedTopicId == savedTopicId && it.directTopicId == directTopicId }
                 .debounce(REFRESH_DEBOUNCE_MS)
                 .collect { window -> calendar.refresh(window.newestMessageId) }

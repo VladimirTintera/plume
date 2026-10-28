@@ -518,6 +518,16 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   spočtený ostrůvek nebyl vidět a vypadalo to, že se kalendář nedopočítal — v kanálu Google to
   prošlo jen proto, že ostrůvek padl do jiného měsíce. `coveredDayStatus` proto dny před koncem
   úseku bere z ostrůvků a součet měsíce je zahrne.
+- **Lokální průchod kalendáře rozbudí přednačítání TDLib: u každé díry se stáhne 50 starších
+  zpráv.** `getChatHistory(onlyLocal = true)` sám na server nesáhne, ale když dojde ke konci
+  souvislého úseku, TDLib na pozadí dočte dalších 50 starších zpráv. Změřeno v kanálu Google:
+  opakované otevření kalendáře bez jediného načtení v konverzaci posunulo souvislý úsek pokaždé
+  o přesně 50 zpráv (3 525 → 3 575 → 3 625…), ostrůvek rostl dolů o zhruba stejný kus. Proto při
+  rolování v konverzaci roste i konec měsíce na druhé straně: každý přepočet panelu přidá 50 pod
+  každou dírou. Počty to nekazí, ale každý průchod je dotaz na server — panel proto po otevření
+  nepočítá znovu okno, které konverzace měla už při otevření (stav ho pošle hned a byl to
+  druhý průchod do půl vteřiny). Ostrůvek je navíc větší než okno konverzace (148 zpráv proti 80):
+  TDLib si ze serveru bere celou stránku, i když vrátí méně.
 - **Ostrůvek, do kterého „Načíst starší" dorostlo, se zahodí** (`newestMessageId` < nejstarší id
   úseku), jinak by se jeho zprávy sečetly dvakrát.
 - **Sheet má pevnou, celou výšku** (`weight(1f)` pod čipy), ne podle obsahu. Měsíce přibývají
