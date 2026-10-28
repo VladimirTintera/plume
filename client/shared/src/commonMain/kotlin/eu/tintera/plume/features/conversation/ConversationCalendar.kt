@@ -170,6 +170,9 @@ class ConversationCalendar(
      */
     private val anchors = mutableSetOf<Long>()
 
+    /** První zpráva chatu (ze serveru, kvůli ose); úsek, který na ni dosáhne, je u začátku. */
+    private var firstMessageId: Long? = null
+
     /**
      * Otevře kalendář a projde lokální databázi znovu: zprávy staré z minula tam jsou dál a k nim
      * nové i ty, které mezitím přinesl server — počítat od nuly je jednodušší než slévat.
@@ -181,11 +184,45 @@ class ConversationCalendar(
         _state.value = ChatCalendarState()
         allJob?.cancel()
         allJob = scope.launch {
-            countLocal()
-            countIslands()
+            // Při otevření se kalendář plní průběžně, po úsecích.
+            val publish = { all: AllMessagesCalendar ->
+                updateAll { all.copy(firstMonth = it.firstMonth, reachedStart = all.reachedStart || it.reachedStart) }
+            }
+            val local = countLocal(AllMessagesCalendar(), publish)
+            if (local == null) {
+                updateAll { it.copy(counting = false, failed = true) }
+                return@launch
+            }
+            publish(local)
+            countIslands(local, publish)
         }
         firstMonthJob?.cancel()
         firstMonthJob = scope.launch { findFirstMonth() }
+    }
+
+    /**
+     * Přepočítá všechny zprávy znovu, protože konverzace vedle načetla další okno historie
+     * ([LoadedHistory]); [anchor] je jeho nejnovější zpráva — vstup do ostrůvku, který s ním
+     * mohl vzniknout. Počítá se BOKEM a výsledek se vymění naráz: kalendář se nevrátí do stavu
+     * „počítám" a neproblikne, jen přibydou dny. Běží-li zrovna první počítání nebo „Načíst
+     * starší", nic se nedělá — kotva zůstane zapsaná a další okno ji započítá.
+     *
+     * **Každý průchod rozbudí přednačítání TDLib.** Lokální čtení, které dojde k díře, nechá TDLib
+     * na pozadí stáhnout dalších 50 starších zpráv — pod souvislým úsekem i pod každým
+     * ostrůvkem. Proto při rolování roste i konec úseku, kam konverzace nesahá. Počty to
+     * nekazí (počítá se jen, co v databázi je), ale zbytečný průchod stojí dotaz na server.
+     */
+    fun refresh(anchor: Long?) {
+        val current = _state.value?.all ?: return
+        anchor?.let { anchors += it }
+        if (current.counting || current.loadingOlder) return
+        allJob?.cancel()
+        allJob = scope.launch {
+            val local = countLocal(AllMessagesCalendar(), publish = {}) ?: return@launch
+            val all = countIslands(local, publish = {})
+            // Začátek chatu zůstává začátkem: databáze o zprávy nepřichází, úsek může jen růst.
+            updateAll { all.copy(counting = false, firstMonth = it.firstMonth, reachedStart = all.reachedStart || it.reachedStart) }
+        }
     }
 
     fun close() {
@@ -280,33 +317,35 @@ class ConversationCalendar(
         }
     }
 
-    /** Lokální databáze po úsecích, ať se kalendář plní hned a ne až po posledním. */
-    private suspend fun countLocal() {
+    /**
+     * Lokální databáze po úsecích od nejnovější zprávy; [publish] dostává mezivýsledky (při
+     * otevření, ať se kalendář plní hned; při přepočtu nic). `null` = databáze neodpověděla.
+     */
+    private suspend fun countLocal(start: AllMessagesCalendar, publish: (AllMessagesCalendar) -> Unit): AllMessagesCalendar? {
+        var all = start
         var from = 0L
         var counted = 0
         while (true) {
             val counts = repository.messageCountsByDay(chatId, from, onlyLocal = true, maxMessages = LOCAL_CHUNK, zone = zone)
-                .getOrElse {
-                    updateAll { it.copy(counting = false, failed = true) }
-                    return
-                }
-            updateAll { it.withCounts(counts) }
+                .getOrElse { return null }
+            all = all.withCounts(counts)
+            publish(all)
             counted += counts.days.values.sum()
             val next = counts.oldestMessageId
             if (counts.reachedEnd || next == null || counted >= LOCAL_CAP) break
             from = next
         }
-        updateAll { it.copy(counting = false) }
+        return all.copy(counting = false)
     }
 
     /**
      * Ostrůvky od kotev starších než souvislý úsek. Kotva uvnitř už spočteného ostrůvku se
      * přeskočí — dvě kotvy v témž okně by ho jinak sečetly dvakrát.
      */
-    private suspend fun countIslands() {
+    private suspend fun countIslands(start: AllMessagesCalendar, publish: (AllMessagesCalendar) -> Unit): AllMessagesCalendar {
+        var all = start
         for (anchor in anchors.sortedDescending()) {
-            val all = _state.value?.all ?: return
-            val coveredOldest = all.oldestMessageId ?: return
+            val coveredOldest = all.oldestMessageId ?: return all
             if (all.reachedStart || anchor >= coveredOldest) continue
             if (all.islands.any { anchor in it.oldestMessageId..it.newestMessageId }) continue
             val counts = repository.messageCountsByDay(
@@ -318,8 +357,10 @@ class ConversationCalendar(
                 includeFrom = true,
             ).getOrNull() ?: continue
             val island = islandOf(anchor, counts, zone) ?: continue
-            updateAll { it.copy(islands = it.islands + island) }
+            all = all.copy(islands = all.islands + island)
+            publish(all)
         }
+        return all
     }
 
     /**
@@ -349,9 +390,10 @@ class ConversationCalendar(
     private suspend fun findFirstMonth() {
         // Před spuštěním Telegramu nic není — „první zpráva od té doby" je první zpráva chatu.
         val first = repository.firstMessageFrom(chatId, TELEGRAM_START).getOrNull() ?: return
+        firstMessageId = first
         val timestamp = repository.message(chatId, first).getOrNull()?.timestamp ?: return
         val month = Instant.fromEpochSeconds(timestamp.toLong()).toLocalDateTime(zone).date.yearMonth
-        updateAll { it.copy(firstMonth = month) }
+        updateAll { it.copy(firstMonth = month, reachedStart = it.reachedStart || it.oldestMessageId == first) }
     }
 
     private fun AllMessagesCalendar.withCounts(counts: HistoryCounts): AllMessagesCalendar {
@@ -363,6 +405,9 @@ class ConversationCalendar(
             oldestMessageId = oldestId,
             // Ostrůvek, do kterého souvislý úsek dorostl, by se s ním sečetl dvakrát.
             islands = islands.filter { it.newestMessageId < oldestId },
+            // Úsek dosáhl první zprávy chatu: dál do minulosti nic není, i když to řekla lokální
+            // databáze, ne server — nejstarší den je celý a „Načíst starší" nemá co nabízet.
+            reachedStart = reachedStart || oldestId == firstMessageId,
         )
     }
 

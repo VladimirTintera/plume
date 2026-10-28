@@ -199,9 +199,29 @@ class ConversationCalendarTest {
     fun denPredSouvislymUsekemJeNeznamy() {
         val counts = mapOf(LocalDate(2026, 10, 20) to 4, LocalDate(2026, 10, 22) to 1)
 
-        assertEquals(DayStatus.Unknown, coveredDayStatus(LocalDate(2026, 10, 19), counts, LocalDate(2026, 10, 20)))
-        assertEquals(DayStatus.Partial(4), coveredDayStatus(LocalDate(2026, 10, 20), counts, LocalDate(2026, 10, 20)))
-        assertEquals(DayStatus.Known(0), coveredDayStatus(LocalDate(2026, 10, 21), counts, LocalDate(2026, 10, 20)))
+        assertEquals(DayStatus.Unknown, coveredDayStatus(LocalDate(2026, 10, 19), counts, LocalDate(2026, 10, 20), emptyList()))
+        assertEquals(DayStatus.Partial(4), coveredDayStatus(LocalDate(2026, 10, 20), counts, LocalDate(2026, 10, 20), emptyList()))
+        assertEquals(DayStatus.Known(0), coveredDayStatus(LocalDate(2026, 10, 21), counts, LocalDate(2026, 10, 20), emptyList()))
+    }
+
+    @Test
+    fun ostruvekVMesiciKonceUsekuSeUkaze() {
+        // Úsek končí 25. 9., skok na 4. 9. přinesl ostrůvek 3.–5. 9. — ve stejném měsíci.
+        val counts = mapOf(LocalDate(2026, 9, 25) to 2, LocalDate(2026, 9, 28) to 6)
+        val island = Island(
+            days = mapOf(LocalDate(2026, 9, 3) to 1, LocalDate(2026, 9, 4) to 7, LocalDate(2026, 9, 5) to 2),
+            oldestDay = LocalDate(2026, 9, 3),
+            newestDay = LocalDate(2026, 9, 5),
+            oldestMessageId = 10,
+            newestMessageId = 20,
+        )
+        val partial = LocalDate(2026, 9, 25)
+
+        assertEquals(DayStatus.Known(7), coveredDayStatus(LocalDate(2026, 9, 4), counts, partial, listOf(island)))
+        assertEquals(DayStatus.Partial(2), coveredDayStatus(LocalDate(2026, 9, 5), counts, partial, listOf(island)))
+        assertEquals(DayStatus.Unknown, coveredDayStatus(LocalDate(2026, 9, 10), counts, partial, listOf(island)))
+        assertEquals(DayStatus.Partial(2), coveredDayStatus(partial, counts, partial, listOf(island)))
+        assertEquals(DayStatus.Known(6), coveredDayStatus(LocalDate(2026, 9, 28), counts, partial, listOf(island)))
     }
 
     @Test
@@ -293,6 +313,50 @@ class ConversationCalendarTest {
         val stats = monthStats(YearMonth(2026, 10), mapOf(LocalDate(2026, 10, 1) to 10), today = LocalDate(2026, 10, 4))!!
 
         assertEquals(25, stats.perDayTenths)
+    }
+
+    @Test
+    fun noveOknoKonverzacePridaOstruvekBezProbliknuti() = runTest(StandardTestDispatcher()) {
+        val repository = FakeRepository(
+            mapOf(
+                Call(0, onlyLocal = true) to HistoryCounts(mapOf(LocalDate(2026, 10, 27) to 5), 50, at(10, 27), reachedEnd = false),
+                Call(50, onlyLocal = true) to HistoryCounts(emptyMap(), null, null, reachedEnd = true),
+                // Okno, které si konverzace stáhla po skoku na 1. 9.
+                Call(30, onlyLocal = true) to HistoryCounts(mapOf(LocalDate(2026, 9, 1) to 4), 25, at(9, 1), newestTimestamp = at(9, 1), reachedEnd = true),
+            ),
+        )
+        val calendar = calendar(repository)
+        calendar.open()
+        advanceUntilIdle()
+        assertTrue(calendar.state.value!!.all.islands.isEmpty())
+
+        calendar.refresh(anchor = 30)
+        // Přepočet běží bokem: stav dál ukazuje spočtený kalendář, ne „počítám".
+        assertFalse(calendar.state.value!!.all.counting)
+        advanceUntilIdle()
+
+        val all = calendar.state.value!!.all
+        assertEquals(4, all.islands.single().days[LocalDate(2026, 9, 1)])
+        assertEquals(5, all.days[LocalDate(2026, 10, 27)])
+        assertFalse(all.counting)
+    }
+
+    @Test
+    fun usekAzKPrvniZpraveChatuJeUZacatku() = runTest(StandardTestDispatcher()) {
+        val repository = FakeRepository(
+            answers = mapOf(
+                Call(0, onlyLocal = true) to HistoryCounts(mapOf(LocalDate(2026, 8, 25) to 50), 10, at(8, 25), reachedEnd = false),
+                Call(10, onlyLocal = true) to HistoryCounts(emptyMap(), null, null, reachedEnd = true),
+            ),
+            firstMessage = 10L to at(8, 25),
+        )
+        val calendar = calendar(repository)
+
+        calendar.open()
+        advanceUntilIdle()
+
+        // Lokální databáze dál nevede, ale nejstarší spočtená zpráva JE první zpráva chatu.
+        assertTrue(calendar.state.value!!.all.reachedStart)
     }
 
     @Test

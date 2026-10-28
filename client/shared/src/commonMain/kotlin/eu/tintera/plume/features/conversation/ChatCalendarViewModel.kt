@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 
 /**
  * Kalendář zpráv v panelu vedle konverzace (`ChatCalendarRoute`). Kalendář sám je tentýž
@@ -23,11 +27,16 @@ import kotlinx.coroutines.launch
  * [ConversationJumpRequests] a ViewModel konverzace si ho vyzvedne, jako záložku z profilu.
  * O chatu (název, práva mazat po dnech, skupina) si řekne sám — konverzace mu je nepředává.
  */
+@OptIn(FlowPreview::class)
 class ChatCalendarViewModel(
     val chatId: Long,
     /** Zúžené na téma Uložených zpráv nebo vlákno přímých zpráv, je-li panel jejich. */
     private val repository: ConversationRepository,
     private val jumpRequests: ConversationJumpRequests,
+    /** Co má konverzace vedle načtené — z toho se dopočítají dny, na které se z panelu skočilo. */
+    loadedHistory: LoadedHistory,
+    savedTopicId: Long?,
+    directTopicId: Long?,
     /** Zpráva, na které konverzace stála — vstup do ostrůvku a měsíc, na kterém panel začne. */
     private val anchor: Long?,
 ) : ViewModel() {
@@ -52,6 +61,20 @@ class ChatCalendarViewModel(
         viewModelScope.launch { _info.value = repository.chatInfo(chatId).getOrNull() }
         if (anchor != null) {
             viewModelScope.launch { _initialDay.value = repository.message(chatId, anchor).getOrNull()?.timestamp }
+        }
+        // Panel po ťuknutí na den zůstává otevřený a konverzace vedle si stáhne okno kolem
+        // dne — TDLib to neohlásí, konverzace ano. Pauza, ať se při rolování, kdy okno roste
+        // po stránkách, nepočítá s každou znovu. Okno, které konverzace měla už při otevření,
+        // započítalo `open` — stav ho pošle hned, a druhý průchod by jen znovu rozbudil
+        // přednačítání TDLib (viz `ConversationCalendar.refresh`).
+        val openedWith = loadedHistory.window.value
+        viewModelScope.launch {
+            loadedHistory.window
+                .filterNotNull()
+                .filter { it != openedWith }
+                .filter { it.chatId == chatId && it.savedTopicId == savedTopicId && it.directTopicId == directTopicId }
+                .debounce(REFRESH_DEBOUNCE_MS)
+                .collect { window -> calendar.refresh(window.newestMessageId) }
         }
     }
 
@@ -85,3 +108,6 @@ class ChatCalendarViewModel(
         _notice.value = null
     }
 }
+
+/** Jak dlouho se po poslední změně okna konverzace čeká, než se kalendář přepočítá. */
+private const val REFRESH_DEBOUNCE_MS = 600L

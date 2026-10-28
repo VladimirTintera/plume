@@ -513,6 +513,21 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   a zahozeno: TDLib si tu zprávu stáhl ze serveru (31. 1.) a z ní žádná lokální historie nevede,
   takže každý měsíc dostal falešný ostrůvek „1+" a k oknu kolem 10. 1. se nedošlo. Navíc stál
   dotaz na server za každý ukázaný měsíc.
+- **Ostrůvek může ležet ve STEJNÉM měsíci, kde souvislý úsek končí** (úsek do 25. 9., skok na
+  4. 9.). Měsíc úseku kreslil dny před jeho koncem jako neznámé bez ohledu na ostrůvky, takže
+  spočtený ostrůvek nebyl vidět a vypadalo to, že se kalendář nedopočítal — v kanálu Google to
+  prošlo jen proto, že ostrůvek padl do jiného měsíce. `coveredDayStatus` proto dny před koncem
+  úseku bere z ostrůvků a součet měsíce je zahrne.
+- **Lokální průchod kalendáře rozbudí přednačítání TDLib: u každé díry se stáhne 50 starších
+  zpráv.** `getChatHistory(onlyLocal = true)` sám na server nesáhne, ale když dojde ke konci
+  souvislého úseku, TDLib na pozadí dočte dalších 50 starších zpráv. Změřeno v kanálu Google:
+  opakované otevření kalendáře bez jediného načtení v konverzaci posunulo souvislý úsek pokaždé
+  o přesně 50 zpráv (3 525 → 3 575 → 3 625…), ostrůvek rostl dolů o zhruba stejný kus. Proto při
+  rolování v konverzaci roste i konec měsíce na druhé straně: každý přepočet panelu přidá 50 pod
+  každou dírou. Počty to nekazí, ale každý průchod je dotaz na server — panel proto po otevření
+  nepočítá znovu okno, které konverzace měla už při otevření (stav ho pošle hned a byl to
+  druhý průchod do půl vteřiny). Ostrůvek je navíc větší než okno konverzace (148 zpráv proti 80):
+  TDLib si ze serveru bere celou stránku, i když vrátí méně.
 - **Ostrůvek, do kterého „Načíst starší" dorostlo, se zahodí** (`newestMessageId` < nejstarší id
   úseku), jinak by se jeho zprávy sečetly dvakrát.
 - **Sheet má pevnou, celou výšku** (`weight(1f)` pod čipy), ne podle obsahu. Měsíce přibývají
@@ -579,6 +594,19 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
     nebyla vidět. Jednou se skok po složení neprojevil (konverzace zůstala na „Včera"), dvakrát
     potom prošel (s logem: požadavek dorazil, skok i posun seznamu proběhly); příčinu prvního
     pokusu jsem nenašel.
+  - **Panel se dopočítá z oken, která si konverzace vedle stáhne** (`LoadedHistory`).
+    **TDLib uložení stažených zpráv neohlásí** — historie stažená skokem nebo rolováním jde
+    do databáze bez updatu (updaty jsou jen na změny v chatu: nová zpráva, smazání, úprava),
+    takže panel, který po ťuknutí na den zůstává otevřený, o nových dnech nevěděl (den, na
+    který se skočilo, zůstal šedý). Ví o nich konverzace: hlásí nejnovější a nejstarší zprávu
+    načteného okna, panel po 600 ms klidu přepočítá (`refresh`) s nejnovější jako kotvou.
+    Přepočet běží BOKEM a výsledek se vymění naráz — kalendář nespadne do „počítám" a nepřeroluje;
+    při prvním počítání a „Načíst starší" se neruší, kotva jen zůstane zapsaná.
+  - **Úsek, který dosáhne první zprávy chatu, je u začátku** (`firstMessageId` z dotazu na osu),
+    i když konec ohlásila lokální databáze, ne server. Jinak nejstarší den kanálu nesl „50+"
+    a pod ním „Načíst starší", přestože víc zpráv není.
+  - **„Dnes" je plovoucí tlačítko dole nad seznamem**, ne v hlavičce: v úzkém panelu se tam
+    nevešel, nadpis se zalomil a hlavička poskočila, kdykoli se tlačítko ukázalo.
   - **Jiný chat otevřený vedle** přepne panel na kalendář nového (`followProfile` s
     `calendarRoute`), téma skupiny a vlákno ho zavřou, jako profil u obrazovek bez profilu.
 - **Měsíc nejvýš na šířku `ContentWidth.Form`**: na rozloženém Foldu natáhl sheet (640 dp) dny do
@@ -597,7 +625,10 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   září přepnulo na měsíce se zářím nahoře, „Dnes" vrátil na říjen. Panel (Fold rozložený):
   konverzace + kalendář, ťuknutí na 16. a 11. 10. posunulo chat a panel zůstal; po složení
   kalendář sám, ťuknutí na 25. 10. ho zavřelo a chat stál na „Neděle"; po rozložení znovu
-  panel, ✕ ho zavřel; složený telefon dostal sheet. Large (tři panely) neověřené — tablet
+  panel, ✕ ho zavřel; složený telefon dostal sheet. Dopočítání: ťuknutí na šedý 1. 9. → za
+  chvíli 1. 9. se 7 zprávami a září úplné (335, se souhrnem) bez přerolování; ťuknutí na 20. 8.
+  → konverzace na první zprávě kanálu (25. 8.) a panel dopočítal 25.–31. 8.; po novém otevření
+  „Začátek chatu" a srpen bez „+". Large (tři panely) neověřené — tablet
   emulátor v projektu není.
   iOS a desktop jen přeložené.
 
