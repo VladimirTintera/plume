@@ -54,6 +54,9 @@ import eu.tintera.plume.resources.summary_reading_part
 import eu.tintera.plume.resources.summary_details_parts
 import eu.tintera.plume.resources.summary_retry
 import eu.tintera.plume.resources.summary_truncated
+import eu.tintera.plume.resources.date_day_month
+import eu.tintera.plume.core.ui.name
+import eu.tintera.plume.resources.summary_title_day
 import eu.tintera.plume.resources.summary_title_recent
 import eu.tintera.plume.resources.summary_title_unread
 import org.jetbrains.compose.resources.StringResource
@@ -107,6 +110,11 @@ fun ChatSummarySheet(
                     } else if (it.voice) {
                         val videoNote = it.messages.firstOrNull()?.media is MessageMedia.VideoNote
                         stringResource(if (videoNote) Res.string.voice_summary_title_video else Res.string.voice_summary_title)
+                    } else if (it.day != null) {
+                        stringResource(
+                            Res.string.summary_title_day,
+                            stringResource(Res.string.date_day_month, it.day.day, stringResource(it.day.month.name())),
+                        )
                     } else if (it.unread) {
                         pluralStringResource(Res.plurals.summary_title_unread, count, count)
                     } else {

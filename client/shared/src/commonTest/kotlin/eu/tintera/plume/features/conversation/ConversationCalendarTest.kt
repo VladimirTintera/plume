@@ -201,6 +201,29 @@ class ConversationCalendarTest {
     }
 
     @Test
+    fun shrnutiDneBereJenZpravyToHoDneBezServisnich() = runTest(StandardTestDispatcher()) {
+        // Zprávy 14.–16. 10.: id 100 je první zpráva 16. 10., od ní se čte ke starším.
+        val messages = listOf(
+            testMessage(100).copy(timestamp = at(10, 16)),
+            testMessage(99).copy(timestamp = at(10, 15)),
+            testMessage(98).copy(timestamp = at(10, 15), isService = true),
+            testMessage(97).copy(timestamp = at(10, 15)),
+            testMessage(96).copy(timestamp = at(10, 14)),
+        )
+        val repository = object : UnimplementedConversationRepository() {
+            override suspend fun firstMessageFrom(chatId: Long, epochSeconds: Int): Result<Long?> = Result.success(100)
+
+            override suspend fun history(chatId: Long, fromMessageId: Long, limit: Int, offset: Int): Result<List<ChatMessage>> =
+                Result.success(messages.filter { it.id <= fromMessageId }.take(limit))
+        }
+        val calendar = ConversationCalendar(chatId = 1, repository = repository, scope = this, zone = zone)
+
+        val day = calendar.messagesOfDay(LocalDate(2026, 10, 15))
+
+        assertEquals(listOf(97L, 99L), day.map { it.id })
+    }
+
+    @Test
     fun zavrenyKalendarNemaStav() = runTest(StandardTestDispatcher()) {
         val calendar = calendar(FakeRepository(mapOf(Call(0, onlyLocal = true) to HistoryCounts(emptyMap(), null, null, reachedEnd = true))))
 

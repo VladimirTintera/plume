@@ -520,6 +520,24 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   pod prstem. Pager (měsíc na stránku) by to vyřešil taky, ale vzal by přehled, kdy se psalo
   víc a kdy míň, a přesun o rok by byl dvanáct tahů; paměť by neušetřil (drží se jen počty
   po dnech, mřížky skládá `LazyColumn` jen viditelné).
+- **Podržení dne nabídne Přejít / Shrnout den / Vymazat historii za den…** (`dayMenu`,
+  `DayActions`; podržení přes `contextClickable`, pro čtečku vlastní akce „Další akce"). Jen
+  u dne se zprávami — u neznámého není co shrnout ani mazat. Kalendář se před shrnutím
+  i mazáním zavře, dva modální sheety přes sebe by se překrývaly.
+  - **Shrnutí dne** jde přes tentýž `ChatSummaryViewModel` a sheet jako „Shrnout" z ⋮ (klíč
+    `summary-<chat>`, tatáž instance); zprávy dne čte `ConversationCalendar.messagesOfDay` —
+    od první zprávy dalšího dne (`firstMessageFrom`) historií ke starším, bez servisních, nejvýš
+    500. Čte se přes server, takže i den, který kalendář zná jen zčásti, se shrne celý. Nadpis
+    „Shrnutí dne 27. října" (`SummarySource.day`), ne „posledních N zpráv".
+  - **Vymazání za den** otevře tentýž `ClearHistorySheet` jako ⋮, předvyplněný na „Vybrané dny"
+    s tím dnem (`initialDay`). Kde po dnech mazat nejde (`ClearHistoryRights.byDate`), položka
+    v nabídce není. Pravidlo, co jde vyprázdnit, je jedno pro ⋮ i kalendář
+    (`ConversationState.clearHistoryRights`).
+- **Legenda pod čipy** říká, co je šedý den a „+" (jen u všech zpráv) a že den jde podržet (jen
+  když nabídka něco nabízí). Bez ní se na obojí dalo přijít jen náhodou.
+- **Čip Média kreslí den jako kruh s první fotkou** (jako `MediaCalendarSheet` v profilu, spoiler
+  bez náhledu) a přes ni den a počet bíle; ztmavení 0,4 místo 0,3 z profilu — dva řádky na
+  pestrých obálkách byly hůř čitelné.
 - **Měsíc nejvýš na šířku `ContentWidth.Form`**: na rozloženém Foldu natáhl sheet (640 dp) dny do
   kruhů přes 90 dp a měsíc se nevešel na obrazovku.
 - **Ověřeno na emulátoru** (Fold, rozložený): Notifikátor (7 zpráv 27. 10.), testovací skupina,
@@ -527,6 +545,10 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   ťuknutí na 17. 2. skočilo na „17. února · 00:01"; čip Odkazy ze serveru 10.–20. 2. a leden.
   Ostrůvky: v kalendáři ťuknutí na neznámý 10. 1. → skok na „10. ledna · 00:32", znovu otevřený
   kalendář stál rovnou na lednu s 9. 1. (104+) a 10. 1. (44+), zbytek ledna šedý.
+  Podržení dne: v Notifikátoru 27. 10. → nabídka se třemi položkami; „Vymazat historii za
+  den…" otevřelo sheet na „Vybrané dny — 27. října" (zavřeno bez mazání); „Shrnout den" →
+  „Shrnutí dne 27. října" (Gemma 4 E2B, 7,4 s). Náhledy fotek u čipu Média na kanálu
+  s obálkami.
   iOS a desktop jen přeložené.
 
 ## Okno v historii

@@ -82,10 +82,15 @@ internal fun ClearHistorySheet(
     allText: StringResource = Res.string.clear_history_all_text,
     onConfirm: (from: Int?, to: Int?, forAll: Boolean) -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * Předvybraný den (sekundy epochy, jeho místní začátek) — z podržení dne v kalendáři zpráv.
+     * Sheet se pak otevře rovnou na volbě „vybrané dny" s tímhle dnem; `null` = celá historie.
+     */
+    initialDay: Int? = null,
 ) {
-    var byDate by rememberSaveable { mutableStateOf(false) }
-    var from by rememberSaveable { mutableStateOf<Int?>(null) }
-    var to by rememberSaveable { mutableStateOf<Int?>(null) }
+    var byDate by rememberSaveable { mutableStateOf(initialDay != null) }
+    var from by rememberSaveable { mutableStateOf(initialDay) }
+    var to by rememberSaveable { mutableStateOf(initialDay?.let { dayEnd(it) }) }
     var forAll by rememberSaveable { mutableStateOf(false) }
     var picking by rememberSaveable { mutableStateOf(false) }
     // Smazat i ostatním jde po dnech jen v soukromém chatu (TDLib `revoke`).
@@ -286,6 +291,13 @@ private fun ClearHistoryRangeDialog(onPick: (Int, Int) -> Unit, onDismiss: () ->
             modifier = Modifier.weight(1f),
         )
     }
+}
+
+/** Poslední sekunda místního dne, který začíná v [dayStart] — konec rozsahu je včetně. */
+private fun dayEnd(dayStart: Int): Int {
+    val zone = TimeZone.currentSystemDefault()
+    val day = Instant.fromEpochSeconds(dayStart.toLong()).toLocalDateTime(zone).date
+    return (day.plus(DatePeriod(days = 1)).atStartOfDayIn(zone).epochSeconds - 1).toInt()
 }
 
 private fun utcDay(millis: Long): LocalDate = Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.UTC).date

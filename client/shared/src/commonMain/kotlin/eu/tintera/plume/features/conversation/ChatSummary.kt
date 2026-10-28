@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import kotlinx.datetime.LocalDate
 import eu.tintera.plume.core.ai.withoutIntro
 import eu.tintera.plume.core.ai.voiceSummaryPrompt
 import kotlin.time.TimeSource
@@ -78,6 +79,8 @@ data class SummarySource(
     val explain: Boolean = false,
     /** Shrnuje se přepis jedné hlasovky nebo kolečka (`ChatSummaryViewModel.summarizeVoice`). */
     val voice: Boolean = false,
+    /** Shrnují se zprávy jednoho dne (podržení dne v kalendáři zpráv). */
+    val day: LocalDate? = null,
 )
 
 /**
