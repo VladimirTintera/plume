@@ -82,6 +82,8 @@ internal fun ConversationMenu(
     onViewAsTopics: (() -> Unit)?,
     /** Rychlý přepínač chatů pod šipkou zpět; `null`, když není na co přepnout. */
     onSwitchChat: (() -> Unit)?,
+    /** „Přejít na datum": kalendář zpráv — sheet, nebo na široké ploše panel vedle. */
+    onOpenCalendar: () -> Unit,
 ) {
     val info = state.info
     val wholeChat = info != null && !state.narrowed && !info.isSavedMessages
@@ -123,7 +125,7 @@ internal fun ConversationMenu(
             // nemá na co ťuknout, dokud k březnu nedoroluje. Otevře kalendář s počty zpráv po
             // dnech — vidět, kdy se psalo, je při hledání dne polovina práce.
             if (showsContent && viewModel.canJumpToDate) {
-                MenuAction(stringResource(Res.string.conversation_jump_to_date), Res.drawable.event_24dp, onClick = viewModel::openCalendar)
+                MenuAction(stringResource(Res.string.conversation_jump_to_date), Res.drawable.event_24dp, onClick = onOpenCalendar)
             } else {
                 null
             },

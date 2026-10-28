@@ -46,6 +46,11 @@ data class ConversationNavigation(
     val onSearch: (query: String) -> Unit,
     /** Ťuknutí na hlavičku: profil chatu. */
     val onOpenProfile: () -> Unit,
+    /**
+     * Kalendář zpráv jako panel vedle konverzace; `null` = sheet v konverzaci (telefon, archiv).
+     * [anchor] = zpráva, na které konverzace stojí — vstup do ostrůvku historie.
+     */
+    val onOpenCalendarPane: ((anchor: Long?) -> Unit)? = null,
     /** Profil jiného chatu nad konverzací — odesílatel ze skupiny, na jehož tvář se ťuklo. */
     val onOpenUserProfile: (chatId: Long) -> Unit,
     /** Statistika příspěvku v kanálu z „Informace o zprávě" (jen pro správce, `canGetStatistics`). */

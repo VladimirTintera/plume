@@ -155,6 +155,7 @@ import eu.tintera.plume.features.settings.TwoStepViewModel
 import eu.tintera.plume.features.settings.AppLockViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import eu.tintera.plume.features.settings.OnDeviceAiSettingsViewModel
+import eu.tintera.plume.features.conversation.ChatCalendarViewModel
 import eu.tintera.plume.features.conversation.ChatSummaryViewModel
 import eu.tintera.plume.features.conversation.ReplySuggestionsViewModel
 import eu.tintera.plume.features.conversation.DraftRewriteViewModel
@@ -435,6 +436,21 @@ fun appModule() = module {
     // Model v zařízení (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
     viewModel { OnDeviceAiSettingsViewModel(settings = get(), ai = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::ChatSummaryViewModel)
+    // Kalendář zpráv v panelu: chat, téma Uložených zpráv, vlákno přímých zpráv a kotva z routy.
+    viewModel { parameters ->
+        val savedTopicId = parameters.values.getOrNull(1) as Long?
+        val directTopicId = parameters.values.getOrNull(2) as Long?
+        ChatCalendarViewModel(
+            chatId = parameters.get(),
+            repository = when {
+                savedTopicId != null -> get<ConversationRepository>().inSavedTopic(savedTopicId)
+                directTopicId != null -> get<ConversationRepository>().inDirectTopic(directTopicId)
+                else -> get()
+            },
+            jumpRequests = get(),
+            anchor = parameters.values.getOrNull(3) as Long?,
+        )
+    }
     viewModelOf(::ReplySuggestionsViewModel)
     // Překladač v telefonu je jen na Androidu; jinde `null` a sheet překlad v telefonu nenabídne.
     viewModel {

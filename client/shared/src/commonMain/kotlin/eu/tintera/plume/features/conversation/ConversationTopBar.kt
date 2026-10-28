@@ -330,6 +330,9 @@ internal fun ConversationTopBar(
                 // Skupina s tématy otevřená jako zprávy: zpátky na seznam témat, jen z celé skupiny.
                 onViewAsTopics = navigation.onViewAsTopics?.takeIf { state.info?.isForum == true && !state.narrowed },
                 onSwitchChat = switcher::open.takeIf { switcher.canSwitch },
+                // Na široké ploše panel vedle konverzace — ťukání na dny pak chat posouvá a panel zůstává.
+                onOpenCalendar = navigation.onOpenCalendarPane?.let { open -> { open(viewModel.calendarAnchor()) } }
+                    ?: viewModel::openCalendar,
             )
         },
     )

@@ -67,6 +67,7 @@ import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.settings.TwoStepScreen
 import eu.tintera.plume.features.settings.AppLockScreen
+import eu.tintera.plume.features.conversation.ChatCalendarPaneHost
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.SponsoredLinkRequests
@@ -78,6 +79,7 @@ import eu.tintera.plume.features.profile.ChatProfileScreen
 import eu.tintera.plume.features.profile.EditChatScreen
 import eu.tintera.plume.features.profile.RemovedMembersScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
+import eu.tintera.plume.core.navigation.ChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
 import eu.tintera.plume.core.ui.LocalArticleMediaFlight
@@ -984,6 +986,20 @@ private fun shellEntryProvider(
                     onOpenChat = { target -> chatsStack.openTarget(target, archive = false) },
                     onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
+                    // Kalendář zpráv jako panel vedle konverzace — jen když panely stojí vedle sebe
+                    // a tam, kde jde skok na datum (ne vlákno komentářů, ne téma skupiny); jinak
+                    // sheet. `sideBySide` se čte při každé kompozici; poskytovatel vstupů s `wide`
+                    // se po složení a rozložení Foldu nepřestaví a nabízel by sheet dál.
+                    onOpenCalendarPane = if (sideBySide && route.threadId == null && route.topicId == null) {
+                        { anchor ->
+                            chatsStack.toggleCalendar(
+                                route,
+                                ChatCalendarRoute(route.chatId, savedTopicId = route.savedTopicId, directTopicId = route.directTopicId, anchor = anchor),
+                            )
+                        }
+                    } else {
+                        null
+                    },
                     onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
                     onOpenPostStatistics = { messageId -> chatsStack.addOnce(PostStatisticsRoute(route.chatId, messageId)) },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
@@ -1108,6 +1124,18 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(key = "instant-view-${route.url}", parameters = { parametersOf(route.url) }),
             onBack = { chatsStack.pop(route) },
         )
+    }
+
+    /*
+     * Kalendář zpráv jako třetí panel (extra), jako profil: na velké ploše vedle seznamu
+     * a konverzace, na střední vedle konverzace (seznam se schová). Šířku sdílí s profilem —
+     * třetí panel je jeden a táhlo profilu ji nastavuje. Jiná konverzace otevřená vedle ho
+     * vystřídá kalendářem té nové (`followProfile`).
+     */
+    entry<ChatCalendarRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        ChatColorTheme(route.chatId) {
+            ChatCalendarPaneHost(route, onClose = { chatsStack.pop(route) })
+        }
     }
 
     /*

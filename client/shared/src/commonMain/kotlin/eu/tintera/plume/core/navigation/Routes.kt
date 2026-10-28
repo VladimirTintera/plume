@@ -287,6 +287,20 @@ data class DirectTopicsRoute(val chatId: Long) : Route
 @Serializable
 data class ChatProfileRoute(val chatId: Long) : Route
 
+/**
+ * Kalendář zpráv jako panel vedle konverzace (široká plocha; na telefonu je to sheet v konverzaci).
+ * Třetí panel jako profil: na velké ploše vedle seznamu a konverzace, na střední vedle konverzace,
+ * a při přepnutí chatu přejde na kalendář nového (`followProfile`). [anchor] je zpráva, na které
+ * konverzace stála — vstup do ostrůvku historie (`ConversationCalendar.open`).
+ */
+@Serializable
+data class ChatCalendarRoute(
+    val chatId: Long,
+    val savedTopicId: Long? = null,
+    val directTopicId: Long? = null,
+    val anchor: Long? = null,
+) : Route
+
 /** Čtečka Instant View stránky [url] (z náhledu odkazu). Vrší se nad konverzací v zásobníku Chatů. */
 @Serializable
 data class InstantViewRoute(val url: String) : Route
@@ -663,6 +677,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchivePostStatisticsRoute::class, ArchivePostStatisticsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
+            subclass(ChatCalendarRoute::class, ChatCalendarRoute.serializer())
             subclass(InstantViewRoute::class, InstantViewRoute.serializer())
             subclass(EditChatRoute::class, EditChatRoute.serializer())
             subclass(MemberRightsRoute::class, MemberRightsRoute.serializer())
