@@ -420,6 +420,7 @@ private fun ChatCalendarHost(viewModel: ConversationViewModel, state: Conversati
             } else {
                 null
             },
+            canFilterBySender = info?.let { it.isGroup && !it.isChannel } == true,
             onClearDay = clearRights?.let {
                 { date ->
                     viewModel.calendar.close()

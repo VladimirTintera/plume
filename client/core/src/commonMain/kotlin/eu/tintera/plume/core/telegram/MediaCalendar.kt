@@ -58,8 +58,11 @@ data class CalendarMonth(val month: YearMonth, val cells: List<LocalDate?>)
  * **Týden začíná pondělím** (ISO a česká zvyklost); angličtina v aplikaci je obecná, ne
  * americká, takže neděle na začátku by tu byla výjimka bez důvodu.
  */
-fun calendarMonths(days: List<CalendarDayMedia>): List<CalendarMonth> =
-    days.map { it.date.yearMonth }
+fun calendarMonths(days: List<CalendarDayMedia>): List<CalendarMonth> = calendarMonthsOf(days.map { it.date })
+
+/** Měsíce, do kterých [dates] padají, od nejnovějšího (viz [calendarMonths]). */
+fun calendarMonthsOf(dates: Collection<LocalDate>): List<CalendarMonth> =
+    dates.map { it.yearMonth }
         .distinct()
         .sortedDescending()
         .map { calendarMonth(it) }

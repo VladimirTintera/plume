@@ -4207,6 +4207,18 @@
     <string name="chat_calendar_day_unknown">%1$s, messages not loaded</string>
     <string name="chat_calendar_failed">Couldn't count the messages.</string>
     <string name="chat_calendar_kind_empty">Nothing like that in this chat.</string>
+    <string name="chat_calendar_member">Member</string>
+    <string name="chat_calendar_search">Search</string>
+    <string name="chat_calendar_search_empty">Type what to look for, or pick a member — the calendar shows on which days it came up.</string>
+    <string name="chat_calendar_search_hint">Search in chat</string>
+    <string name="chat_calendar_stats_average">%1$s a day</string>
+    <string name="chat_calendar_stats_busiest">Busiest %1$s (%2$s)</string>
+    <plurals name="chat_calendar_stats_streak">
+        <item quantity="one">%1$d day in a row</item>
+        <item quantity="other">%1$d days in a row</item>
+    </plurals>
+    <string name="chat_calendar_today">Today</string>
+    <string name="chat_calendar_year_view">Year overview</string>
     <string name="chat_calendar_load_older">Load older</string>
     <string name="chat_calendar_older_missing">Older messages aren't on this device yet.</string>
     <string name="chat_calendar_start">Start of the chat</string>

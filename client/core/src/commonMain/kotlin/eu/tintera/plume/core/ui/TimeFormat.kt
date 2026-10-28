@@ -360,7 +360,8 @@ fun Birthdate.label(): String {
 fun monthTitle(month: YearMonth): String =
     stringResource(Res.string.calendar_month_year, stringResource(month.month.standaloneName()), month.year)
 
-private fun Month.standaloneName(): StringResource = when (this) {
+/** Název měsíce v 1. pádě („leden"), pro nadpis bez dne — [name] je 2. pád za dnem („ledna"). */
+fun Month.standaloneName(): StringResource = when (this) {
     Month.JANUARY -> Res.string.month_standalone_1
     Month.FEBRUARY -> Res.string.month_standalone_2
     Month.MARCH -> Res.string.month_standalone_3

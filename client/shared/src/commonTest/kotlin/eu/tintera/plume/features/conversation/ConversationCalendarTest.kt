@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ChatSearchHit
+import eu.tintera.plume.core.telegram.ChatSearchPage
+import eu.tintera.plume.core.telegram.SenderInfo
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.telegram.HistoryCounts
 import eu.tintera.plume.core.telegram.testMessage
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
@@ -221,6 +225,74 @@ class ConversationCalendarTest {
         val day = calendar.messagesOfDay(LocalDate(2026, 10, 15))
 
         assertEquals(listOf(97L, 99L), day.map { it.id })
+    }
+
+    @Test
+    fun hledaniPodleClenaSecteVysledkyPoDnech() = runTest(StandardTestDispatcher()) {
+        val petr = SenderInfo(id = 42, title = "Petr", avatarFileId = null)
+        var asked: Pair<String, Long?>? = null
+        val repository = object : UnimplementedConversationRepository() {
+            override suspend fun messageCountsByDay(
+                chatId: Long, fromMessageId: Long, onlyLocal: Boolean, maxMessages: Int, zone: TimeZone, includeFrom: Boolean,
+            ): Result<HistoryCounts> = Result.success(HistoryCounts(emptyMap(), null, null, reachedEnd = true))
+
+            override suspend fun searchInChat(chatId: Long, query: String, fromMessageId: Long, senderUserId: Long?): Result<ChatSearchPage> {
+                asked = query to senderUserId
+                val hits = listOf(
+                    ChatSearchHit(messageId = 30, text = UiText.Raw(""), date = at(10, 14), isOutgoing = false),
+                    ChatSearchHit(messageId = 20, text = UiText.Raw(""), date = at(10, 14), isOutgoing = false),
+                    ChatSearchHit(messageId = 10, text = UiText.Raw(""), date = at(10, 2), isOutgoing = false),
+                )
+                return Result.success(ChatSearchPage(hits.map { it.messageId }, total = 3, nextFromMessageId = null, hits = hits))
+            }
+        }
+        val calendar = ConversationCalendar(chatId = 1, repository = repository, scope = this, zone = zone)
+        calendar.open()
+        advanceUntilIdle()
+
+        calendar.setSearchSender(petr)
+        advanceUntilIdle()
+
+        val state = calendar.state.value!!
+        assertEquals(CalendarFilter.Search(sender = petr), state.filter)
+        assertEquals("" to 42L, asked)
+        val server = state.server!!
+        assertTrue(server.reachedEnd)
+        // Den vede na nejstarší výsledek, ať ťuknutí začne od začátku dne.
+        assertEquals(ServerDay(count = 2, firstMessageId = 20), server.days[LocalDate(2026, 10, 14)])
+        assertEquals(1, server.days.getValue(LocalDate(2026, 10, 2)).count)
+    }
+
+    @Test
+    fun denZeDvouStranekSeSecteAVedeNaStarsiZpravu() {
+        val day = LocalDate(2026, 10, 14)
+        val merged = mergeServerDays(mapOf(day to ServerDay(3, firstMessageId = 50)), listOf(day to ServerDay(2, firstMessageId = 40)))
+
+        assertEquals(ServerDay(5, firstMessageId = 40), merged[day])
+    }
+
+    @Test
+    fun souhrnMesice() {
+        val counts = mapOf(
+            LocalDate(2026, 9, 1) to 4,
+            LocalDate(2026, 9, 2) to 10,
+            LocalDate(2026, 9, 3) to 10,
+            LocalDate(2026, 9, 10) to 6,
+        )
+
+        val stats = monthStats(YearMonth(2026, 9), counts, today = LocalDate(2026, 10, 28))!!
+
+        // Při shodě vyhraje dřívější den; průměr 30 zpráv za 30 dnů; série 1.–3. září.
+        assertEquals(LocalDate(2026, 9, 2), stats.busiest)
+        assertEquals(10, stats.perDayTenths)
+        assertEquals(3, stats.longestStreak)
+    }
+
+    @Test
+    fun beznyMesicSePrumerujeJenPoDnesek() {
+        val stats = monthStats(YearMonth(2026, 10), mapOf(LocalDate(2026, 10, 1) to 10), today = LocalDate(2026, 10, 4))!!
+
+        assertEquals(25, stats.perDayTenths)
     }
 
     @Test

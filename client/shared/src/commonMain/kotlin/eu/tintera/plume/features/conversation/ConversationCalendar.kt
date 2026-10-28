@@ -1,14 +1,16 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.runtime.Immutable
+import eu.tintera.plume.core.telegram.CalendarDayMedia
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.HistoryCounts
+import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.SharedMediaKind
 import eu.tintera.plume.core.telegram.mergeDayCounts
-import eu.tintera.plume.features.profile.MediaCalendarState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,17 +72,68 @@ data class Island(
     val newestMessageId: Long,
 )
 
+/** Co kalendář počítá. */
+@Immutable
+sealed interface CalendarFilter {
+    /** Všechny zprávy — z lokální databáze ([AllMessagesCalendar]). */
+    data object All : CalendarFilter
+
+    /** Fotky, soubory, odkazy… — po dnech ze serveru (`getChatMessageCalendar`). */
+    data class Kind(val kind: SharedMediaKind) : CalendarFilter
+
+    /**
+     * Výsledky hledání v chatu: výraz, zprávy jednoho člena skupiny, nebo obojí naráz
+     * (`searchChatMessages` umí výraz i odesílatele). Ze serveru, takže přesně za celou historii.
+     */
+    data class Search(val query: String = "", val sender: SenderInfo? = null) : CalendarFilter {
+        /** Bez výrazu i člena není co hledat — kalendář jen vyzve k psaní. */
+        val isEmpty: Boolean get() = query.isBlank() && sender == null
+    }
+}
+
+/** Den spočtený serverem: kolik zpráv a první z nich (kam vede ťuknutí, náhled fotky). */
+@Immutable
+data class ServerDay(val count: Int, val firstMessageId: Long, val media: CalendarDayMedia? = null)
+
+/** Dny ze serveru po stránkách, od nejnovějšího; starší se dotahují při dojetí k nim. */
+@Immutable
+data class ServerDays(
+    val days: Map<LocalDate, ServerDay> = emptyMap(),
+    val loading: Boolean = true,
+    val reachedEnd: Boolean = false,
+    val next: Long = 0,
+)
+
 /**
- * Kalendář konverzace: kolik zpráv přišlo který den ([filter] `null`), nebo kolik fotek, souborů,
- * odkazů… ([filter] druh).
+ * Den, který přišel na dvou stránkách (poslední den stránky bývá neúplný), se sečte; první
+ * zprávou zůstane ta starší.
+ */
+internal fun mergeServerDays(loaded: Map<LocalDate, ServerDay>, page: List<Pair<LocalDate, ServerDay>>): Map<LocalDate, ServerDay> {
+    val merged = LinkedHashMap(loaded)
+    for ((date, day) in page) {
+        val known = merged[date]
+        merged[date] = if (known == null) {
+            day
+        } else {
+            val older = if (day.firstMessageId < known.firstMessageId) day else known
+            older.copy(count = known.count + day.count)
+        }
+    }
+    return merged
+}
+
+/**
+ * Kalendář konverzace: kolik zpráv přišlo který den, nebo kolik fotek, souborů, odkazů,
+ * nalezených zpráv… podle [filter].
  */
 @Immutable
 data class ChatCalendarState(
-    /** `null` = všechny zprávy, jinak jen zprávy toho druhu. */
-    val filter: SharedMediaKind? = null,
+    val filter: CalendarFilter = CalendarFilter.All,
     val all: AllMessagesCalendar = AllMessagesCalendar(),
-    /** Dny se zprávami druhu [filter], po stránkách od serveru; `null` u všech zpráv. */
-    val media: MediaCalendarState? = null,
+    /** Dny druhu nebo hledání ze serveru; `null` u všech zpráv a u prázdného hledání. */
+    val server: ServerDays? = null,
+    /** Výběr člena pro hledání podle odesílatele; `null` = zavřený. */
+    val memberPicker: MemberPicker? = null,
 )
 
 /**
@@ -107,7 +160,8 @@ class ConversationCalendar(
 
     private var allJob: Job? = null
     private var firstMonthJob: Job? = null
-    private var mediaJob: Job? = null
+    private var serverJob: Job? = null
+    private var memberJob: Job? = null
 
     /**
      * Zprávy, na kterých konverzace stála, když se kalendář otevíral — vstupy do ostrůvků. Drží
@@ -137,27 +191,80 @@ class ConversationCalendar(
     fun close() {
         allJob?.cancel()
         firstMonthJob?.cancel()
-        mediaJob?.cancel()
+        serverJob?.cancel()
+        memberJob?.cancel()
         _state.value = null
     }
 
-    /** Přepne mezi všemi zprávami a jedním druhem; druh se načítá pokaždé od nejnovějšího dne. */
-    fun setFilter(kind: SharedMediaKind?) {
+    /**
+     * Přepne, co kalendář počítá. Druh a hledání se načítají pokaždé od nejnovějšího dne;
+     * přepnutí na hledání si nechá výraz i člena, které už byly zadané.
+     */
+    fun setFilter(filter: CalendarFilter) {
         val current = _state.value ?: return
-        if (current.filter == kind) return
-        mediaJob?.cancel()
-        _state.value = current.copy(filter = kind, media = kind?.let { MediaCalendarState(loading = true) })
-        if (kind != null) loadMediaPage(kind, fromMessageId = 0)
+        // Hledání zůstává hledáním: znovu ťuknutý čip nesmaže výraz ani člena.
+        if (current.filter == filter || (filter is CalendarFilter.Search && current.filter is CalendarFilter.Search)) return
+        loadServer(current.copy(filter = filter))
     }
 
-    /** Další stránka dnů druhu, když se k nejstaršímu načtenému měsíci dojede. */
-    fun loadMoreMedia() {
+    /** Hledaný výraz; hledá se po krátké pauze v psaní, jako hledání v konverzaci. */
+    fun setSearchQuery(text: String) {
         val current = _state.value ?: return
-        val kind = current.filter ?: return
-        val media = current.media ?: return
-        if (media.loading || media.reachedEnd) return
-        _state.value = current.copy(media = media.copy(loading = true))
-        loadMediaPage(kind, media.nextFromMessageId)
+        val search = current.filter as? CalendarFilter.Search ?: return
+        if (search.query == text) return
+        _state.value = current.copy(filter = search.copy(query = text))
+        serverJob?.cancel()
+        serverJob = scope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            _state.value?.let { loadServer(it) }
+        }
+    }
+
+    /** Člen skupiny pro hledání podle odesílatele; `null` = filtr pryč. Hledá se hned. */
+    fun setSearchSender(sender: SenderInfo?) {
+        val current = _state.value ?: return
+        val search = current.filter as? CalendarFilter.Search ?: CalendarFilter.Search()
+        memberJob?.cancel()
+        loadServer(current.copy(filter = search.copy(sender = sender), memberPicker = null))
+    }
+
+    fun openMemberPicker() {
+        _state.update { it?.copy(memberPicker = MemberPicker()) }
+        onMemberQuery("")
+    }
+
+    fun closeMemberPicker() {
+        memberJob?.cancel()
+        _state.update { it?.copy(memberPicker = null) }
+    }
+
+    /** Člen podle jména, s pauzou v psaní; prázdné = první členové skupiny. */
+    fun onMemberQuery(text: String) {
+        _state.update { current -> current?.memberPicker?.let { current.copy(memberPicker = it.copy(query = text, loading = true)) } ?: current }
+        memberJob?.cancel()
+        memberJob = scope.launch {
+            if (text.isNotEmpty()) delay(SEARCH_DEBOUNCE_MS)
+            val members = repository.searchMembers(chatId, text.trim()).getOrDefault(emptyList())
+            _state.update { current -> current?.memberPicker?.let { current.copy(memberPicker = it.copy(members = members, loading = false)) } ?: current }
+        }
+    }
+
+    /** Další stránka dnů druhu nebo hledání, když se k nejstaršímu načtenému měsíci dojede. */
+    fun loadMoreServer() {
+        val current = _state.value ?: return
+        val server = current.server ?: return
+        if (server.loading || server.reachedEnd) return
+        _state.value = current.copy(server = server.copy(loading = true))
+        loadServerPage(current.filter, server.next)
+    }
+
+    /** Stav s [state] a první stránkou jeho filtru (u všech zpráv a prázdného hledání žádnou). */
+    private fun loadServer(state: ChatCalendarState) {
+        serverJob?.cancel()
+        val filter = state.filter
+        val needsServer = filter is CalendarFilter.Kind || (filter is CalendarFilter.Search && !filter.isEmpty)
+        _state.value = state.copy(server = if (needsServer) ServerDays() else null)
+        if (needsServer) loadServerPage(filter, from = 0)
     }
 
     /** „Načíst starší": další kus historie ze serveru, za nejstarší spočtenou zprávou. */
@@ -263,22 +370,43 @@ class ConversationCalendar(
         _state.update { it?.copy(all = change(it.all)) }
     }
 
-    private fun loadMediaPage(kind: SharedMediaKind, fromMessageId: Long) {
-        mediaJob = scope.launch {
-            val result = repository.mediaCalendar(chatId, fromMessageId, kind)
+    private fun loadServerPage(filter: CalendarFilter, from: Long) {
+        serverJob = scope.launch {
+            val page: Result<Triple<List<Pair<LocalDate, ServerDay>>, Long, Boolean>> = when (filter) {
+                is CalendarFilter.Kind -> repository.mediaCalendar(chatId, from, filter.kind).map { page ->
+                    val days = page.days.map { day ->
+                        val date = localDate(day.message.timestamp)
+                        date to ServerDay(day.count, day.message.id, CalendarDayMedia(date, day.count, day.message))
+                    }
+                    Triple(days, page.nextFromMessageId, page.reachedEnd || page.nextFromMessageId == from)
+                }
+                is CalendarFilter.Search -> repository.searchInChat(chatId, filter.query.trim(), from, filter.sender?.id).map { page ->
+                    // Výsledek je zpráva, ne den: po dnech se sečtou tady. První zprávou dne je
+                    // nejstarší výsledek, ať ťuknutí vede na začátek dne, jako u druhů.
+                    val days = page.hits.groupBy { localDate(it.date) }.map { (date, hits) ->
+                        date to ServerDay(hits.size, hits.minOf { it.messageId })
+                    }
+                    Triple(days, page.nextFromMessageId ?: 0, page.nextFromMessageId == null)
+                }
+                CalendarFilter.All -> return@launch
+            }
             _state.update { state ->
-                val media = state?.media?.takeIf { state.filter == kind } ?: return@update state
+                val server = state?.server?.takeIf { state.filter == filter } ?: return@update state
                 state.copy(
-                    media = result.fold(
-                        onSuccess = { media.withPage(it) },
+                    server = page.fold(
+                        onSuccess = { (days, next, end) ->
+                            server.copy(days = mergeServerDays(server.days, days), loading = false, reachedEnd = end, next = next)
+                        },
                         // Stránka, která nepřišla, ukončí dotahování — jinak by se zkoušela dokola,
                         // dokud se k ní dojíždí.
-                        onFailure = { media.copy(loading = false, reachedEnd = true) },
+                        onFailure = { server.copy(loading = false, reachedEnd = true) },
                     ),
                 )
             }
         }
     }
+
+    private fun localDate(timestamp: Int): LocalDate = Instant.fromEpochSeconds(timestamp.toLong()).toLocalDateTime(zone).date
 }
 
 /** Ostrůvek spočtený od kotvy [anchor]; `null`, když v databázi není ani ona. */
