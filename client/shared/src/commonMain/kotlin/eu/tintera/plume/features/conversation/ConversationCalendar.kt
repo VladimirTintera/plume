@@ -15,12 +15,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.YearMonth
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.yearMonth
 import kotlin.time.Instant
 
 /**
- * Všechny zprávy po dnech — jen to, co je spočtené: od nejnovější zprávy po [coveredFrom].
- * Starší dny kalendář neukazuje jako prázdné, ale jako neznámé.
+ * Všechny zprávy po dnech — jen to, co je spočtené: souvislý úsek od nejnovější zprávy po
+ * [coveredFrom] a starší ostrůvky ([islands]). Ostatní dny kalendář neukazuje jako prázdné, ale
+ * jako neznámé.
  */
 @Immutable
 data class AllMessagesCalendar(
@@ -36,6 +39,31 @@ data class AllMessagesCalendar(
     /** Server starší zprávy nemá — spočtené je všechno až po začátek chatu. */
     val reachedStart: Boolean = false,
     val failed: Boolean = false,
+    /**
+     * Měsíc první zprávy chatu (ptá se server); kalendář jde rolovat až k němu, i když zprávy
+     * mezi ním a [coveredFrom] v zařízení nejsou. `null` = nezjištěno, osa končí u [coveredFrom].
+     */
+    val firstMonth: YearMonth? = null,
+    /** Úseky historie starší než [coveredFrom] — viz [Island]. */
+    val islands: List<Island> = emptyList(),
+)
+
+/**
+ * Úsek historie starší než souvislý úsek od nejnovější zprávy. Uživatel skočil na staré datum,
+ * TDLib si stáhl okno zpráv kolem něj a uložil ho — mezi ním a souvislým úsekem ale zůstala
+ * díra, přes kterou lokální průchod (`getChatHistory(onlyLocal = true)`) nevede: TDLib vydá
+ * z databáze jen souvislé úseky. Do ostrůvku se proto vstupuje zprávou, na které konverzace
+ * stála ([ConversationCalendar.open]), a od ní se počítá ke starším.
+ *
+ * Dny mezi [oldestDay] a [newestDay] jsou spočtené celé (i ty bez zpráv), krajní dny jen zčásti.
+ */
+@Immutable
+data class Island(
+    val days: Map<LocalDate, Int>,
+    val oldestDay: LocalDate,
+    val newestDay: LocalDate,
+    val oldestMessageId: Long,
+    val newestMessageId: Long,
 )
 
 /**
@@ -74,20 +102,37 @@ class ConversationCalendar(
     val state: StateFlow<ChatCalendarState?> = _state.asStateFlow()
 
     private var allJob: Job? = null
+    private var firstMonthJob: Job? = null
     private var mediaJob: Job? = null
+
+    /**
+     * Zprávy, na kterých konverzace stála, když se kalendář otevíral — vstupy do ostrůvků. Drží
+     * se po celou dobu obrazovky: po dalším skoku jinam je okno v konverzaci jiné, ale to staré
+     * v databázi zůstalo.
+     */
+    private val anchors = mutableSetOf<Long>()
 
     /**
      * Otevře kalendář a projde lokální databázi znovu: zprávy staré z minula tam jsou dál a k nim
      * nové i ty, které mezitím přinesl server — počítat od nuly je jednodušší než slévat.
+     * [anchor] = nejnovější zpráva, kterou konverzace má načtenou; je-li starší než souvislý
+     * úsek, kalendář od ní spočítá ostrůvek.
      */
-    fun open() {
+    fun open(anchor: Long? = null) {
+        anchor?.let { anchors += it }
         _state.value = ChatCalendarState()
         allJob?.cancel()
-        allJob = scope.launch { countLocal() }
+        allJob = scope.launch {
+            countLocal()
+            countIslands()
+        }
+        firstMonthJob?.cancel()
+        firstMonthJob = scope.launch { findFirstMonth() }
     }
 
     fun close() {
         allJob?.cancel()
+        firstMonthJob?.cancel()
         mediaJob?.cancel()
         _state.value = null
     }
@@ -143,12 +188,46 @@ class ConversationCalendar(
         updateAll { it.copy(counting = false) }
     }
 
+    /**
+     * Ostrůvky od kotev starších než souvislý úsek. Kotva uvnitř už spočteného ostrůvku se
+     * přeskočí — dvě kotvy v témž okně by ho jinak sečetly dvakrát.
+     */
+    private suspend fun countIslands() {
+        for (anchor in anchors.sortedDescending()) {
+            val all = _state.value?.all ?: return
+            val coveredOldest = all.oldestMessageId ?: return
+            if (all.reachedStart || anchor >= coveredOldest) continue
+            if (all.islands.any { anchor in it.oldestMessageId..it.newestMessageId }) continue
+            val counts = repository.messageCountsByDay(
+                chatId = chatId,
+                fromMessageId = anchor,
+                onlyLocal = true,
+                maxMessages = ISLAND_CAP,
+                zone = zone,
+                includeFrom = true,
+            ).getOrNull() ?: continue
+            val island = islandOf(anchor, counts, zone) ?: continue
+            updateAll { it.copy(islands = it.islands + island) }
+        }
+    }
+
+    private suspend fun findFirstMonth() {
+        // Před spuštěním Telegramu nic není — „první zpráva od té doby" je první zpráva chatu.
+        val first = repository.firstMessageFrom(chatId, TELEGRAM_START).getOrNull() ?: return
+        val timestamp = repository.message(chatId, first).getOrNull()?.timestamp ?: return
+        val month = Instant.fromEpochSeconds(timestamp.toLong()).toLocalDateTime(zone).date.yearMonth
+        updateAll { it.copy(firstMonth = month) }
+    }
+
     private fun AllMessagesCalendar.withCounts(counts: HistoryCounts): AllMessagesCalendar {
         val oldest = counts.oldestTimestamp ?: return this
+        val oldestId = counts.oldestMessageId ?: return this
         return copy(
             days = mergeDayCounts(days, counts.days),
             coveredFrom = Instant.fromEpochSeconds(oldest.toLong()).toLocalDateTime(zone).date,
-            oldestMessageId = counts.oldestMessageId,
+            oldestMessageId = oldestId,
+            // Ostrůvek, do kterého souvislý úsek dorostl, by se s ním sečetl dvakrát.
+            islands = islands.filter { it.newestMessageId < oldestId },
         )
     }
 
@@ -173,6 +252,26 @@ class ConversationCalendar(
         }
     }
 }
+
+/** Ostrůvek spočtený od kotvy [anchor]; `null`, když v databázi není ani ona. */
+internal fun islandOf(anchor: Long, counts: HistoryCounts, zone: TimeZone): Island? {
+    fun day(timestamp: Int?): LocalDate? = timestamp?.let { Instant.fromEpochSeconds(it.toLong()).toLocalDateTime(zone).date }
+    val oldestDay = day(counts.oldestTimestamp) ?: return null
+    val newestDay = day(counts.newestTimestamp) ?: return null
+    return Island(
+        days = counts.days,
+        oldestDay = oldestDay,
+        newestDay = newestDay,
+        oldestMessageId = counts.oldestMessageId ?: anchor,
+        newestMessageId = anchor,
+    )
+}
+
+/** 1. 8. 2013, kdy Telegram začal — dřív žádná zpráva není. */
+private const val TELEGRAM_START = 1_375_315_200
+
+/** Strop jednoho ostrůvku; okno po skoku má desítky zpráv, víc jen po dlouhém čtení. */
+private const val ISLAND_CAP = 10_000
 
 /** Kolik zpráv z lokální databáze jeden úsek; mezi úseky se kalendář překreslí. */
 private const val LOCAL_CHUNK = 2_000

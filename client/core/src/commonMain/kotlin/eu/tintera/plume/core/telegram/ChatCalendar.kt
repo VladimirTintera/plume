@@ -16,6 +16,8 @@ data class HistoryCounts(
     val oldestMessageId: Long?,
     /** Její čas (sekundy epochy). Den, do kterého spadá, je spočtený jen zčásti. */
     val oldestTimestamp: Int?,
+    /** Čas nejnovější spočtené zprávy — horní okraj úseku. */
+    val newestTimestamp: Int? = null,
     /**
      * Starší zprávy ze zdroje nejsou: z lokální databáze = dál už zařízení nic nemá, ze serveru =
      * začátek chatu.

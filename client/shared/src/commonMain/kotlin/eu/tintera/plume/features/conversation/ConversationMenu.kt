@@ -124,7 +124,7 @@ internal fun ConversationMenu(
             // nemá na co ťuknout, dokud k březnu nedoroluje. Otevře kalendář s počty zpráv po
             // dnech — vidět, kdy se psalo, je při hledání dne polovina práce.
             if (showsContent && viewModel.canJumpToDate) {
-                MenuAction(stringResource(Res.string.conversation_jump_to_date), Res.drawable.event_24dp, onClick = viewModel.calendar::open)
+                MenuAction(stringResource(Res.string.conversation_jump_to_date), Res.drawable.event_24dp, onClick = viewModel::openCalendar)
             } else {
                 null
             },

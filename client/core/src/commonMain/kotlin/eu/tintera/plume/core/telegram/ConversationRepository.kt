@@ -580,6 +580,11 @@ interface ConversationRepository {
         onlyLocal: Boolean,
         maxMessages: Int,
         zone: TimeZone,
+        /**
+         * Započítat i [fromMessageId] — začíná-li se jinde než na konci předchozího úseku (ostrůvek
+         * od zprávy, na které konverzace stojí).
+         */
+        includeFrom: Boolean = false,
     ): Result<HistoryCounts> = Result.failure(UnsupportedOperationException())
 
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
