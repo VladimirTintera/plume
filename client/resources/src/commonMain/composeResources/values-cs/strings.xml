@@ -1269,6 +1269,10 @@
     <string name="calls_delete_revoke">Smazat i ostatním</string>
     <string name="calls_load_failed">Historii hovorů se nepodařilo načíst.</string>
     <string name="calls_delete_failed">Historii hovorů se nepodařilo smazat.</string>
+    <string name="calls_delete_one">Smazat z historie</string>
+    <string name="calls_delete_one_failed">Hovor se nepodařilo smazat.</string>
+    <string name="calls_delete_one_text">Zmizí i z chatu „%1$s“. Vrátit to nejde.</string>
+    <string name="calls_repeated">%1$s (%2$d)</string>
     <string name="call_rating_title">Jak se hovor povedl?</string>
     <string name="call_rating_text">Hodnocení pomůže Telegramu zlepšit kvalitu hovorů.</string>
     <string name="call_rating_problems">Co nefungovalo?</string>
@@ -4791,5 +4795,11 @@
         <item quantity="few">Odejde jako %1$d zprávy</item>
         <item quantity="many">Odejde jako %1$d zprávy</item>
         <item quantity="other">Odejde jako %1$d zpráv</item>
+    </plurals>
+    <plurals name="calls_delete_one_confirm">
+        <item quantity="one">Smazat hovor z historie?</item>
+        <item quantity="few">Smazat %1$d hovory z historie?</item>
+        <item quantity="many">Smazat %1$d hovoru z historie?</item>
+        <item quantity="other">Smazat %1$d hovorů z historie?</item>
     </plurals>
 </resources>

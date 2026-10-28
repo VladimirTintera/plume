@@ -944,6 +944,10 @@ class TdlChatRepository(
         client.deleteAllCallMessages(revoke = revoke).toResult().map { }
             .onFailure { logger.w(it) { "Historii hovorů se nepodařilo smazat." } }
 
+    override suspend fun deleteCallEntries(chatId: Long, messageIds: List<Long>, revoke: Boolean): Result<Unit> =
+        client.deleteMessages(chatId = chatId, messageIds = messageIds.toLongArray(), revoke = revoke).toResult().map { }
+            .onFailure { logger.w(it) { "Hovory ${messageIds} v chatu $chatId se nepodařilo smazat." } }
+
     override fun unreadCount(chatId: Long): Flow<Int> =
         all.map { it[chatId]?.unreadCount ?: 0 }.distinctUntilChanged()
 

@@ -620,6 +620,20 @@ s volbou „Smazat i ostatním" = `revoke`).
 - **Ověřeno na emulátoru** (skutečný účet, jen čtení): historie s odchozími, příchozími,
   zrušenými a zmeškanými hovory, filtr Zmeškané, stránkování posunem dolů (data do června).
   Smazání historie a volání z řádku na zařízení ověřené NEJSOU.
+- **Opakované hovory po sobě jsou jeden řádek** s počtem za jménem („Jana (3)",
+  `groupCallHistory`, testy `CallHistoryGroupsTest`): týž chat, týž výsledek a druh (video,
+  skupinový) a týž den, jako v telefonu. Slučují se jen SOUSEDNÍ — přijatý hovor mezi dvěma
+  zmeškanými řadu přeruší, jinak by se ztratilo pořadí událostí. Délka se u sloučeného řádku
+  neukazuje (byla by jen jednoho z nich). Stránkování počítá řádky, a protože se slučuje celý
+  načtený seznam znovu, hovor z další stránky se k poslednímu řádku přidá.
+- **Smazání jednoho řádku podržením** (pravým tlačítkem myši) → „Smazat z historie" a potvrzení
+  (`ChatRepository.deleteCallEntries` = `deleteMessages` v chatu hovoru). Sloučený řádek smaže
+  všechny své hovory. Řádek zmizí hned; když smazání selže, historie se přečte znovu a řádek se
+  vrátí s hláškou. „Smazat i ostatním" jen u hovoru ve dvou — záznam o videochatu ve skupině
+  je zpráva všech a ostatním ji smí smazat jen správce.
+- **Ověřeno na emulátoru** (skutečný účet): sloučené řádky („VT (3) · Zrušený hovor"), nabídka
+  podržením a dialog „Smazat 3 hovory z historie?" — zrušený, skutečné smazání na zařízení
+  ověřené NENÍ (jen testy `CallsViewModelTest`).
 
 ## Hodnocení hovoru
 
