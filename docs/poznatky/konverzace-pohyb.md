@@ -466,6 +466,46 @@ Dřív vedl kalendář jen přes hledání a předěl, na který se člověk dí
   23. 10. → skok na „Pátek · 11:16"; plovoucí „Pátek" ťuknuté hned po rolování → kalendář na
   23. 10. Vlákno komentářů (nic ťukatelného) ověřené není.
 
+### Kalendář zpráv z nabídky
+
+Položka **Přejít na datum** v ⋮ konverzace (`ConversationMenu`, jen kde `canJumpToDate`) otevře
+sheet „Kalendář zpráv" (`ChatCalendarSheet`): měsíce od nejnovějšího, u dne počet zpráv a kruh
+tím sytější, čím víc zpráv proti nejrušnějšímu dni měsíce (`heatLevel`). Ťuknutí na den skočí
+jako z výběru data (`jumpToDate`), u druhu obsahu přímo na jeho první zprávu toho dne. Ikona
+v hlavičce otevře klasický `JumpToDateDialog` na vzdálené datum. Stav drží
+`ConversationCalendar` (vlastní `StateFlow` ve ViewModelu, ne `ConversationState`), sheet kreslí
+`ChatCalendarHost` v `ConversationContent` — `ConversationScreen` nepřibral nic (registry).
+Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationCalendarTest`.
+
+- **Počty VŠECH zpráv po dnech TDLib nevydá.** `getChatMessageCalendar` umí jen druh obsahu;
+  filtr prázdný odmítne („The filter is not supported", ověřeno ve `libtdjsonjava`). Druhy
+  (Média, Soubory, Odkazy, Hlasovky, Hudba) proto jdou ze serveru přesně a celé, všechny zprávy
+  ne.
+- **Odhad z čísel zpráv je slepá ulička.** V supergroupě a kanálu roste číslo zprávy po jedné
+  v chatu, takže rozdíl čísel na hranicích dnů (`getChatMessageByDate`) je počet zpráv. Na
+  emulátoru ale (1) měsíc kanálu, který TDLib neměl lokálně, trval pokaždé ~28 s — z 32 dotazů
+  jeden visel půl minuty, i postupně a i po pauze, ostatní za ~60 ms; a (2) kde TDLib zná jen kus
+  historie, vrátil `getChatMessageByDate` pro rok 2026 zprávu číslo 1 z roku 2016 (Telegram Beta
+  Blog) — kalendář by tiše ukazoval nuly. V soukromém chatu a malé skupině jsou čísla navíc
+  společná pro celý účet.
+- **Všechny zprávy se proto počítají z lokální databáze TDLib** (`messageCountsByDay`,
+  `getChatHistory(onlyLocal = true)` po stránkách, jen id a čas). TDLib ukládá každou načtenou
+  zprávu sám — vlastní zrcadlo by neslo totéž. Počet je PŘESNÝ, jen sahá tam, kam uživatel kdy
+  dočetl: nejstarší spočtený den má „+", starší dny jsou tlumenější než prázdné (o nich se neví)
+  a pod posledním měsícem je „Starší zprávy zatím v zařízení nejsou" s tlačítkem **Načíst
+  starší** (1 000 zpráv ze serveru, na kanálu ~4 s). Až server nic staršího nemá, „Začátek chatu".
+  Lokální průchod jde po úsecích 2 000 zpráv (kalendář se plní hned), strop 30 000.
+- **Lokální konec není začátek chatu** — ten pozná až prázdná stránka ze serveru (zkouší se
+  dvakrát, TDLib smí vrátit méně, než se chtělo).
+- **Navazující úsek začíná zprávou, na které skončil předchozí** (`offset = 0`); proto se předem
+  vloží mezi viděné, jinak by se počítala dvakrát.
+- **Měsíc nejvýš na šířku `ContentWidth.Form`**: na rozloženém Foldu natáhl sheet (640 dp) dny do
+  kruhů přes 90 dp a měsíc se nevešel na obrazovku.
+- **Ověřeno na emulátoru** (Fold, rozložený): Notifikátor (7 zpráv 27. 10.), testovací skupina,
+  kanál Google — v zařízení jen 20. 2. (150+), po „Načíst starší" 15.–20. 2. po ~200 zprávách,
+  ťuknutí na 17. 2. skočilo na „17. února · 00:01"; čip Odkazy ze serveru 10.–20. 2. a leden.
+  iOS a desktop jen přeložené.
+
 ## Okno v historii
 
 Skok na zprávu mimo načtené (hledání, citace, stovky nepřečtených) NENAČÍTÁ historii od

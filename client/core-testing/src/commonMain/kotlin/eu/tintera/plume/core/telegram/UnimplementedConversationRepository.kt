@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.location.GeoPoint
 import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.TimeZone
 
 /**
  * ConversationRepository pro testy: každé volání, které test nepřepsal, vyhodí chybu se jménem metody — test tak
@@ -67,7 +68,8 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun sharedMedia(chatId: Long, kind: SharedMediaKind, fromMessageId: Long, query: String, offset: Int) : Result<SharedMediaPage> = error("sharedMedia")
     override suspend fun sharedMediaPositions(chatId: Long, kind: SharedMediaKind) : Result<SharedMediaPositions> = error("sharedMediaPositions")
     override suspend fun sharedMediaCounts(chatId: Long) : Result<SharedMediaCounts> = error("sharedMediaCounts")
-    override suspend fun mediaCalendar(chatId: Long, fromMessageId: Long) : Result<MediaCalendarPage> = error("mediaCalendar")
+    override suspend fun mediaCalendar(chatId: Long, fromMessageId: Long, kind: SharedMediaKind) : Result<MediaCalendarPage> = error("mediaCalendar")
+    override suspend fun messageCountsByDay(chatId: Long, fromMessageId: Long, onlyLocal: Boolean, maxMessages: Int, zone: TimeZone) : Result<HistoryCounts> = error("messageCountsByDay")
     override suspend fun message(chatId: Long, messageId: Long) : Result<ChatMessage> = error("message")
     override suspend fun story(posterChatId: Long, storyId: Int) : MessageMedia.Story = error("story")
     override suspend fun musicNeighbors(chatId: Long, messageId: Long) : Result<MusicNeighbors> = error("musicNeighbors")

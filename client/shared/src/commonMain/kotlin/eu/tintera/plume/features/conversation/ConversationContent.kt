@@ -345,9 +345,33 @@ internal fun BoxScope.ConversationContent(
         )
     }
 
+    // Kalendář zpráv z ⋮. Stav si čte sám, aby dotahování počtů neskládalo celý obsah; otevře
+    // se na dni, který je zrovna vidět.
+    ChatCalendarHost(viewModel, visibleDay = { floatingDay?.dayStart })
+
     // Příchozí zprávu ohlásí čtečce obrazovky — bublina se do seznamu jen tiše vloží. Až
     // na konci plochy: uzel zakrytý seznamem nebo lištou by Compose čtečce vůbec nedal.
     NewMessageAnnouncer(messages = state.messages, live = state.reachedEnd, chatTitle = state.info?.title)
+}
+
+@Composable
+private fun ChatCalendarHost(viewModel: ConversationViewModel, visibleDay: () -> Int?) {
+    val state = viewModel.calendar.state.collectAsStateWithLifecycle().value ?: return
+    // Den se vezme při otevření; rolování konverzace pod sheetem už nic nemění.
+    val initialDay = remember { visibleDay() }
+    ChatCalendarSheet(
+        state = state,
+        calendar = viewModel.calendar,
+        initialDay = initialDay,
+        onJumpToDay = { seconds ->
+            viewModel.calendar.close()
+            viewModel.jumpToDate(seconds)
+        },
+        onJumpToMessage = { messageId ->
+            viewModel.calendar.close()
+            viewModel.jumpToMessage(messageId)
+        },
+    )
 }
 
 /** Plovoucí datum: popisek a začátek dne, na kterém po ťuknutí otevře kalendář. */

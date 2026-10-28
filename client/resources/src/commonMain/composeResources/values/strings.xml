@@ -4193,6 +4193,20 @@
     <string name="conversation_jump_date_empty">There are no messages from that day on.</string>
     <string name="conversation_jump_date_failed">Couldn't find messages from that day.</string>
     <string name="conversation_jump_date_go">Go</string>
+    <string name="chat_calendar_title">Message calendar</string>
+    <string name="chat_calendar_all">All messages</string>
+    <string name="chat_calendar_at_least">%1$s+</string>
+    <string name="chat_calendar_count_thousands">%1$sk</string>
+    <string name="chat_calendar_failed">Couldn't count the messages.</string>
+    <string name="chat_calendar_kind_empty">Nothing like that in this chat.</string>
+    <string name="chat_calendar_load_older">Load older</string>
+    <string name="chat_calendar_older_missing">Older messages aren't on this device yet.</string>
+    <string name="chat_calendar_start">Start of the chat</string>
+    <string name="chat_calendar_month_empty">No messages</string>
+    <plurals name="chat_calendar_messages">
+        <item quantity="one">%1$s message</item>
+        <item quantity="other">%1$s messages</item>
+    </plurals>
     <string name="instant_view_mark">Instant View</string>
     <string name="instant_view_open_browser">Open in browser</string>
     <string name="instant_view_full_page">Read the rest in the browser</string>

@@ -27,6 +27,8 @@ kotlin {
         commonMain.dependencies {
             api(projects.client.core)
             implementation(libs.kotlinx.coroutines.core)
+            // ConversationRepository bere měsíc a pásmo (kalendář zpráv).
+            implementation(libs.kotlinx.datetime)
         }
     }
 }

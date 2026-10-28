@@ -95,7 +95,6 @@ internal fun ConversationMenu(
     var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var clearHistory by rememberSaveable { mutableStateOf(false) }
-    var pickingDate by rememberSaveable { mutableStateOf(false) }
     // Vyprázdnit jde celý chat (kde to TDLib dovolí), téma Uložených zpráv a vlákno přímých zpráv
     // kanálu — ty mají vlastní mazání. Vlákno komentářů a téma skupiny ne.
     val inOwnTopic = state.savedTopicId != null || state.directTopicId != null
@@ -122,9 +121,10 @@ internal fun ConversationMenu(
                 null
             },
             // Skok na den i odtud, ne jen z hledání a předělu: kdo hledá „co bylo v březnu“,
-            // nemá na co ťuknout, dokud k březnu nedoroluje.
+            // nemá na co ťuknout, dokud k březnu nedoroluje. Otevře kalendář s počty zpráv po
+            // dnech — vidět, kdy se psalo, je při hledání dne polovina práce.
             if (showsContent && viewModel.canJumpToDate) {
-                MenuAction(stringResource(Res.string.conversation_jump_to_date), Res.drawable.event_24dp, onClick = { pickingDate = true })
+                MenuAction(stringResource(Res.string.conversation_jump_to_date), Res.drawable.event_24dp, onClick = viewModel.calendar::open)
             } else {
                 null
             },
@@ -200,16 +200,6 @@ internal fun ConversationMenu(
             Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
         }
         ExpressiveMenu(expanded = expanded, onDismiss = { expanded = false }, groups = groups)
-    }
-
-    if (pickingDate) {
-        JumpToDateDialog(
-            onPick = { seconds ->
-                pickingDate = false
-                viewModel.jumpToDate(seconds)
-            },
-            onDismiss = { pickingDate = false },
-        )
     }
 
     if (confirmCloseSecret) {

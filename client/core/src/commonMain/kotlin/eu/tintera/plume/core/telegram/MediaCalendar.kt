@@ -62,17 +62,20 @@ fun calendarMonths(days: List<CalendarDayMedia>): List<CalendarMonth> =
     days.map { it.date.yearMonth }
         .distinct()
         .sortedDescending()
-        .map { month ->
-            val first = month.firstDay
-            val leading = first.dayOfWeek.isoDayNumber - DayOfWeek.MONDAY.isoDayNumber
-            val cells = buildList<LocalDate?> {
-                repeat(leading) { add(null) }
-                var date = first
-                while (date.yearMonth == month) {
-                    add(date)
-                    date = date.plus(DatePeriod(days = 1))
-                }
-                while (size % 7 != 0) add(null)
-            }
-            CalendarMonth(month, cells)
+        .map { calendarMonth(it) }
+
+/** Políčka jednoho měsíce po řádcích od pondělí (viz [calendarMonths]). */
+fun calendarMonth(month: YearMonth): CalendarMonth {
+    val first = month.firstDay
+    val leading = first.dayOfWeek.isoDayNumber - DayOfWeek.MONDAY.isoDayNumber
+    val cells = buildList<LocalDate?> {
+        repeat(leading) { add(null) }
+        var date = first
+        while (date.yearMonth == month) {
+            add(date)
+            date = date.plus(DatePeriod(days = 1))
         }
+        while (size % 7 != 0) add(null)
+    }
+    return CalendarMonth(month, cells)
+}

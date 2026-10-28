@@ -1111,6 +1111,11 @@ zavře kalendář a otevře na ní prohlížeč, ve kterém se listuje dál jako
 - **Ověřeno na emulátoru** v chatu s Notifikátorem (67 médií od 20. 9.): říjen a září s náhledy,
   ťuknutí na 10. 10. otevřelo prohlížeč na fotce „sobota 19:21 · 66 z 67". **Dotahování starších
   měsíců ověřené NENÍ** — celá historie se vešla do první stránky.
+- **Další stránka se žádá podle místa, odkud se pokračuje** (`nextFromMessageId`), ne podle
+  počtu měsíců. Stránka rušného chatu přinese jen pár dnů TÉHOŽ měsíce; s počtem měsíců jako
+  klíčem efektu se další stránka už nevyžádala a nejstarší den zůstal napůl spočtený. Přišlo se
+  na to v kalendáři konverzace (odkazy kanálu, 250 denně), kde stejný kód je — viz
+  `konverzace-pohyb.md`, „Kalendář zpráv".
 
 #### Rychlé rolování v Médiích
 

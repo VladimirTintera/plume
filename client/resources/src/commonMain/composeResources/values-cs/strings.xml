@@ -4329,6 +4329,22 @@
     <string name="conversation_jump_date_empty">Od toho dne v chatu nic není.</string>
     <string name="conversation_jump_date_failed">Zprávy z toho dne se nepodařilo najít.</string>
     <string name="conversation_jump_date_go">Přejít</string>
+    <string name="chat_calendar_title">Kalendář zpráv</string>
+    <string name="chat_calendar_all">Všechny zprávy</string>
+    <string name="chat_calendar_at_least">%1$s+</string>
+    <string name="chat_calendar_count_thousands">%1$sk</string>
+    <string name="chat_calendar_failed">Zprávy se nepodařilo spočítat.</string>
+    <string name="chat_calendar_kind_empty">Nic takového v chatu není.</string>
+    <string name="chat_calendar_load_older">Načíst starší</string>
+    <string name="chat_calendar_older_missing">Starší zprávy zatím v zařízení nejsou.</string>
+    <string name="chat_calendar_start">Začátek chatu</string>
+    <string name="chat_calendar_month_empty">Žádné zprávy</string>
+    <plurals name="chat_calendar_messages">
+        <item quantity="one">%1$s zpráva</item>
+        <item quantity="few">%1$s zprávy</item>
+        <item quantity="many">%1$s zprávy</item>
+        <item quantity="other">%1$s zpráv</item>
+    </plurals>
     <string name="instant_view_mark">Rychlé zobrazení</string>
     <string name="instant_view_open_browser">Otevřít v prohlížeči</string>
     <string name="instant_view_full_page">Zbytek dočíst v prohlížeči</string>
