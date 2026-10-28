@@ -1774,6 +1774,8 @@ private fun shellEntryProvider(
             // Zavírá Nastavení celá — v dvoupanelu je sekce otevřená pořád, viz `closeSettings`.
             onBack = navigation::closeSettings,
             onOpenChat = { chatId -> navigation.openChat(chatId) },
+            onOpenSearchResult = navigation::openSettingsSearchResult,
+            searchResetKey = navigation.settingsOpenings,
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }

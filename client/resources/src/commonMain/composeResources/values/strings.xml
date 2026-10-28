@@ -283,6 +283,18 @@
         <item quantity="other">%1$d unread chats in the archive</item>
     </plurals>
     <string name="settings_title">Settings</string>
+    <string name="settings_search">Search settings</string>
+    <string name="settings_search_kw_blocked">block, blocked users, ban</string>
+    <string name="settings_search_kw_last_seen">online, status, last seen, hide online</string>
+    <string name="settings_search_kw_two_step">password, cloud password, 2FA, two-factor</string>
+    <string name="settings_search_kw_app_lock">PIN, passcode, fingerprint, face, biometrics, lock</string>
+    <string name="settings_search_kw_quiet_hours">do not disturb, night, silence, mute</string>
+    <string name="settings_search_kw_folders">filters, tabs, folders</string>
+    <string name="settings_search_kw_theme">dark mode, night mode, light mode, theme</string>
+    <string name="settings_search_kw_text_size">font, text size, bigger, smaller</string>
+    <string name="settings_search_kw_storage">cache, space, memory, free up, clear</string>
+    <string name="settings_search_kw_proxy">VPN, SOCKS, MTProto, connection</string>
+    <string name="settings_search_kw_devices">sessions, log out, logged in, devices</string>
     <string name="settings_notifications_on">On</string>
     <string name="settings_notifications_off">Off — you'll only find out about new messages in the app</string>
     <string name="settings_full_screen_calls">Incoming calls on full screen</string>

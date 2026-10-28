@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -75,6 +76,19 @@ class AppNavigation internal constructor(
      * otevřenou. Zpět pak vede do Chatů.
      */
     fun openSettings() {
+        settingsOpenings++
+        showSettingsRoot()
+    }
+
+    /**
+     * Roste s každým otevřením Nastavení zvenku (menu účtu, odkaz). Hledání v seznamu sekcí se
+     * podle něj vymaže — dotaz z minulé návštěvy by výsledky zakryl kořen, který menu slibuje.
+     * Výsledek hledání ho nemění: zpět z něj vede k týmž výsledkům.
+     */
+    var settingsOpenings by mutableIntStateOf(0)
+        private set
+
+    private fun showSettingsRoot() {
         popToRoot(SettingsRoute)
         selected.value = SettingsRoute
     }
@@ -115,6 +129,15 @@ class AppNavigation internal constructor(
 
     private fun openSettingsAt(section: SettingsSection, screen: NavKey? = null) =
         openSettingsWith(*listOfNotNull(SettingsSectionRoute(section), screen).toTypedArray())
+
+    /**
+     * Výsledek hledání v Nastavení: nad seznamem jen [screens] (sekce a podstránky k volbě).
+     * Co bylo otevřené předtím, výsledek nahradí — vybraná vlevo je vpravo jednou, jako u sekcí.
+     */
+    fun openSettingsSearchResult(screens: List<NavKey>) {
+        showSettingsRoot()
+        stack(SettingsRoute).addAll(screens)
+    }
 
     /** Nastavení na kořeni a nad ním [screens] po řadě — kudy by se tam uživatel proklikal sám. */
     private fun openSettingsWith(vararg screens: NavKey) {
