@@ -2,6 +2,9 @@ package eu.tintera.plume.core.ui
 
 import androidx.compose.runtime.Composable
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 
 /**
  * Výběr fotek, videí nebo souborů k odeslání — víc najednou, nejvýš [PICK_LIMIT].
@@ -67,8 +70,20 @@ const val PHOTO_JPEG_QUALITY = 87
 /** Delší strana náhledu videa. TDLib přijme náhled nejvýš 320 × 320. */
 const val VIDEO_THUMBNAIL_EDGE = 320
 
-/** Kolik souborů jde vybrat najednou — strop alba v Telegramu. */
-const val PICK_LIMIT = 10
+/**
+ * Kolik souborů jde vybrat najednou. Album v Telegramu má nejvýš 10 položek, víc se při odeslání
+ * rozdělí do několika alb (`attachmentBatches`). Sto je i strop systémového výběru fotek na
+ * Androidu (`MediaStore.getPickImagesMaxLimit`).
+ */
+const val PICK_LIMIT = 100
+
+/**
+ * Na čem se vybrané přílohy připravují (kopie, zmenšení fotky, náhled videa): **nejvýš čtyři
+ * naráz**. Se stropem 10 stačilo `Dispatchers.IO`, jenže to pustí až 64 souběžných dekódování
+ * a sto fotek z foťáku po ~50 MB v bitmapě by na telefonu skončilo pádem na paměť. Pořadí výběru
+ * dál drží `awaitAll`.
+ */
+val AttachmentPrepareDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(4)
 
 /** Podadresář cache pro připravené přílohy. */
 const val OUTGOING_DIRECTORY = "outgoing"

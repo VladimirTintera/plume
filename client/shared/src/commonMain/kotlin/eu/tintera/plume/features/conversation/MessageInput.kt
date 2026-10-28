@@ -471,6 +471,8 @@ internal fun MessageInput(
                       onSetMode = attachments.onSetMode,
                       selfDestructAllowed = attachments.selfDestructAllowed,
                       previewAttachmentIndex = attachments.previewIndex,
+                      separately = attachments.separately,
+                      onToggleSeparately = attachments.onToggleSeparately,
                   )
                   // Návrh jen do PRÁZDNÉHO pole: napsaný popisek by model přepsal, a ten má přednost.
                   if (attachments.captionSuggestion != CaptionSuggestion.Hidden && draft.text.isBlank()) {

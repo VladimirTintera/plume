@@ -635,6 +635,11 @@ data class ConversationState(
     val selection: MessageSelection? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
     val attachments: List<OutgoingAttachment> = emptyList(),
+    /**
+     * Přílohy odejdou každá zvlášť, ne v albu („Poslat jednotlivě", [attachmentBatches]). Platí
+     * pro to, co právě čeká nad polem; odesláním se vrací na album.
+     */
+    val attachmentsSeparately: Boolean = false,
     /** Návrh popisku první fotky modelem v zařízení ([ConversationCaption]). */
     val captionSuggestion: CaptionSuggestion = CaptionSuggestion.Hidden,
     /**

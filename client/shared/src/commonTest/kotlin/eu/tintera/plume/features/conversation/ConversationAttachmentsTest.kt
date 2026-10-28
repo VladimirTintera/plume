@@ -34,6 +34,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -47,6 +48,8 @@ class ConversationAttachmentsTest {
     private class FakeRepository : UnimplementedConversationRepository() {
         var attachmentsResult: Result<List<ChatMessage>> = Result.success(listOf(testMessage(900, outgoing = true)))
         val sentAttachments = mutableListOf<SentAttachments>()
+        /** Kolikáté odeslání (od nuly) selže; ostatní vrátí [attachmentsResult]. */
+        var failingBatch: Int? = null
         val locations = mutableListOf<Pair<Place, Long?>>()
         val contacts = mutableListOf<Long>()
         val drafts = mutableListOf<String>()
@@ -63,6 +66,7 @@ class ConversationAttachmentsTest {
             formats: List<FormatSpan>,
         ): Result<List<ChatMessage>> {
             sentAttachments += SentAttachments(caption, attachments.size, replyToMessageId, options)
+            if (sentAttachments.size - 1 == failingBatch) return Result.failure(IllegalStateException("FLOOD_WAIT_5"))
             return attachmentsResult
         }
 
@@ -344,6 +348,56 @@ class ConversationAttachmentsTest {
         assertTrue(state.value.messages.any { it.id == 900L }, "odeslané přílohy jsou hned v seznamu")
         assertEquals(listOf(TEST_CHAT), usedChats)
         assertEquals("", repository.drafts.last(), "koncept se smaže")
+    }
+
+    @Test
+    fun viceNezDesetFotekOdejdeVeVicAlbechSPopiskemUPrvniho() = runTest {
+        val state = stateIn(testChatInfo(), testMessage(1))
+        val parts = parts(state)
+        parts.attachments.addAttachments((1..23).map { photo("p$it") })
+        parts.composer.replyTo(1)
+
+        parts.composer.send(ComposedText("výlet"))
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                SentAttachments("výlet", 10, replyTo = 1, SendOptions()),
+                SentAttachments("", 10, replyTo = null, SendOptions()),
+                SentAttachments("", 3, replyTo = null, SendOptions()),
+            ),
+            repository.sentAttachments,
+        )
+    }
+
+    @Test
+    fun jednotliveOdejdeKazdaPrilohaZvlastAVolbaSeVrati() = runTest {
+        val state = stateIn(testChatInfo())
+        val parts = parts(state)
+        parts.attachments.addAttachments(listOf(photo("a"), photo("b"), photo("c")))
+        parts.attachments.toggleAttachmentsSeparately()
+
+        parts.composer.send(ComposedText("popisek"))
+        advanceUntilIdle()
+
+        assertEquals(listOf(1, 1, 1), repository.sentAttachments.map { it.count })
+        assertEquals(listOf("popisek", "", ""), repository.sentAttachments.map { it.caption })
+        assertFalse(state.value.attachmentsSeparately, "další výběr jde zase do alba")
+    }
+
+    @Test
+    fun poSelhaniDruhehoAlbaSeVratiJenNeodeslane() = runTest {
+        repository.failingBatch = 1
+        val state = stateIn(testChatInfo())
+        val parts = parts(state)
+        parts.attachments.addAttachments((1..15).map { photo("p$it") })
+
+        parts.composer.send(ComposedText(""))
+        advanceUntilIdle()
+
+        assertNotNull(state.value.error)
+        assertEquals((11..15).map { "/tmp/p$it.jpg" }, state.value.attachments.map { it.path })
+        assertEquals(listOf(TEST_CHAT), usedChats, "první album odešlo")
     }
 
     @Test

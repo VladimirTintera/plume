@@ -140,7 +140,7 @@ rozhoduje `embeddedMediaPickerAvailable()`.
 
 ## Posílání příloh a alb
 
-Sponka ve vstupním poli nabídne Fotka nebo video / Soubor (výběr víc najednou, nejvýš 10). Vybrané přílohy
+Sponka ve vstupním poli nabídne Fotka nebo video / Soubor (výběr víc najednou, nejvýš 100). Vybrané přílohy
 čekají v kartě nad polem, text pole je jejich popisek; odeslání pošle jednu jako zprávu, víc jako
 album. Bublina ukazuje průběh nahrávání.
 
@@ -242,6 +242,37 @@ album. Bublina ukazuje průběh nahrávání.
   soubor z foťáku, kde index bývá na konci, takže `supportsStreaming = false`. Soubor
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
+
+### Víc než deset příloh a „Poslat jednotlivě"
+
+Nad polem jde připravit až 100 příloh (`MAX_ATTACHMENTS` = `PICK_LIMIT`); album v Telegramu
+bere nejvýš 10 (`ALBUM_LIMIT`), takže se při odeslání rozdělí do několika alb za sebou. Od
+dvou příloh je pod nimi čip **Seskupit do alba** a věta, co doopravdy odejde, když to není
+jedno album („Odejde jako 2 alba", „Odejde jako 12 zpráv").
+
+- **Dělí se ve `shared`, ne v `core`** (`attachmentBatches`, `sendInBatches` ve
+  `StagedAttachments.kt`): repository dál posílá jedno album na volání. Konverzace i obrazovka
+  „Komu: …" tak chodí stejnou cestou a volající ví, kolik příloh odešlo, než něco selhalo.
+- **Popisek, odpověď a zmínky jdou jen s PRVNÍ dávkou** — jako u alba s první položkou.
+  Opakovaná odpověď u každé desítky fotek by v chatu jen překážela.
+- **Po selhání se nad pole vrátí jen to, co neodešlo** (`BatchSendResult.sent`). Dřív se při
+  chybě vracel celý výběr, a s víc alby by druhý pokus poslal první album podruhé. Obrazovka
+  „Komu: …" po částečném odeslání smaže i popisek — odešel s prvním albem.
+- **Skladby mezi soubory se převádějí za celý výběr**, ne po albech (`sendableTogether` před
+  dělením): jinak by z jednoho výběru odešlo album souborů a vedle něj album skladeb podle
+  toho, kam dělení padlo.
+- **Volba „jednotlivě" platí pro to, co právě čeká nad polem**; odesláním se vrací na album
+  a přečká odchod z chatu s přílohami (`StagedAttachmentsEntry.separately`).
+- **Příprava běží nejvýš po čtyřech** (`AttachmentPrepareDispatcher`). Se stropem 10 stačilo
+  `Dispatchers.IO`, jenže ten pustí 64 souběžných dekódování — sto fotek z foťáku by v bitmapách
+  zabralo gigabajty a skončilo pádem na paměť.
+- **Systémový výběr fotek na Androidu má vlastní strop** (`MediaStore.getPickImagesMaxLimit`,
+  výchozí 100) a vyšší `maxItems` androidx odmítne výjimkou při otevření — proto
+  `systemPickLimit()`, totéž pro vestavěnou galerii.
+- **Ověřeno na emulátoru** (Fold, vestavěná galerie) v Uložených zprávách: 12 fotek, věta
+  „Odejde jako 2 alba", po přepnutí čipu „Odejde jako 12 zpráv", odeslání jako album 10 + 2.
+  Odeslání jednotlivě a částečné selhání jen testy (`ConversationAttachmentsTest`), iOS
+  a desktop jen přeložené.
 
 ### Fotoaparát ve sponce
 

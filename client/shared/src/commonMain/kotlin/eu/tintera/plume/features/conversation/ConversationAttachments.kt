@@ -412,6 +412,11 @@ internal class ConversationAttachments(
         }
     }
 
+    /** Přepne mezi albem a odesláním každé přílohy zvlášť ([attachmentBatches]). */
+    fun toggleAttachmentsSeparately() {
+        state.update { it.copy(attachmentsSeparately = !it.attachmentsSeparately) }
+    }
+
     /**
      * Odebere přílohy podle CESTY — to je jediné, co o nich ví vestavěná galerie: odznačenou
      * fotku hlásí jako soubor, ne jako pořadí nad polem (viz `EmbeddedMediaPicker`). Upravená
@@ -509,33 +514,52 @@ internal class ConversationAttachments(
         val replyTo = state.value.replyingTo?.id
         val quote = state.value.replyQuote
         val mentions = suggestions.takeNameMentions()
+        val separately = state.value.attachmentsSeparately
         composer.clearReply()
-        state.update { it.copy(attachments = emptyList()) }
+        state.update { it.copy(attachments = emptyList(), attachmentsSeparately = false) }
 
         scope.launch {
-            repository.sendAttachments(chatId, attachments, caption.text, replyTo, quote, options, mentions, caption.formats)
-                .onSuccess { pending ->
-                    reportUsed(chatId)
-                    if (options.schedule != null) {
-                        state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) }
-                        repository.saveDraft(chatId, "", null)
-                        return@onSuccess
+            // Víc než deset příloh odejde v několika albech, jedno po druhém.
+            val result = repository.sendInBatches(
+                chatId = chatId,
+                attachments = attachments,
+                separately = separately,
+                caption = caption.text,
+                replyToMessageId = replyTo,
+                quote = quote,
+                options = options,
+                mentions = mentions,
+                formats = caption.formats,
+                onSent = { pending ->
+                    if (options.schedule == null) {
+                        state.update { current ->
+                            // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
+                            val fresh = pending.filterNot { it.id in current.itemKeys.values }
+                            current.copy(messages = merge(current.messages, fresh))
+                        }
                     }
-                    state.update { current ->
-                        // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
-                        val fresh = pending.filterNot { it.id in current.itemKeys.values }
-                        current.copy(messages = merge(current.messages, fresh))
-                    }
-                    repository.saveDraft(chatId, "", null)
+                },
+            )
+            if (result.sent > 0) {
+                reportUsed(chatId)
+                if (options.schedule != null) {
+                    state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) }
                 }
-                .onFailure { failure ->
-                    state.update {
-                        it.copy(
-                            error = failure.reported(logger, Res.string.conversation_attachments_send_failed),
-                            attachments = it.attachments.ifEmpty { attachments },
-                        )
-                    }
-                }
+                repository.saveDraft(chatId, "", null)
+            }
+            val failure = result.failure ?: return@launch
+            // Vrátí se jen to, co neodešlo — odeslané album by druhý pokus poslal podruhé.
+            // Dávky jdou v pořadí výběru, takže neodeslané jsou jeho konec.
+            val unsent = attachments.drop(result.sent)
+            state.update {
+                // Mezitím vybrané přílohy mají přednost, jako dřív.
+                val restore = it.attachments.isEmpty()
+                it.copy(
+                    error = failure.reported(logger, Res.string.conversation_attachments_send_failed),
+                    attachments = if (restore) unsent else it.attachments,
+                    attachmentsSeparately = if (restore) separately else it.attachmentsSeparately,
+                )
+            }
         }
     }
 }

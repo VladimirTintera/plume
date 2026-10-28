@@ -13,6 +13,7 @@ import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.conversation.MAX_ATTACHMENTS
 import eu.tintera.plume.features.conversation.EditedPhoto
@@ -28,6 +29,7 @@ import eu.tintera.plume.resources.markup_failed
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.features.conversation.dropForbiddenSelfDestruct
 import eu.tintera.plume.features.conversation.selfDestructAllowed
+import eu.tintera.plume.features.conversation.sendInBatches
 import eu.tintera.plume.features.conversation.stageAttachments
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_attachments_limit
@@ -296,24 +298,41 @@ class ShareToChatViewModel(
 
         val text = caption.text.trim()
         val sending = appScope.async {
-            repository.sendAttachments(chatId, attachments, text, replyToMessageId = null)
+            // Víc než deset příloh odejde v několika albech (`sendInBatches`).
+            repository.sendInBatches(
+                chatId = chatId,
+                attachments = attachments,
+                separately = false,
+                caption = text,
+                replyToMessageId = null,
+                quote = null,
+                options = SendOptions(),
+            )
         }
         viewModelScope.launch {
-            sending.await()
-                .onSuccess {
-                    // Pořadí chatů v nabídce „Sdílet" si systém skládá z toho, jak často
-                    // zkratku publikujeme — odeslání se proto hlásí i odsud.
-                    shareTargets.reportUsed(chatId)
-                    // Stav napřed, vyřízení sdílení až po něm: `consume` zhasne `incoming`
-                    // a odběr výš by to jinak stihl přečíst jako „obsah zmizel".
-                    _state.update { it.copy(sending = false, sent = true) }
-                    requests.consume(content.id)
-                }
-                .onFailure {
-                    _state.update {
-                        it.copy(sending = false, notice = UiText(Res.string.conversation_attachments_send_failed))
-                    }
-                }
+            val result = sending.await()
+            if (result.sent > 0) {
+                // Pořadí chatů v nabídce „Sdílet" si systém skládá z toho, jak často
+                // zkratku publikujeme — odeslání se proto hlásí i odsud.
+                shareTargets.reportUsed(chatId)
+            }
+            if (result.failure == null) {
+                // Stav napřed, vyřízení sdílení až po něm: `consume` zhasne `incoming`
+                // a odběr výš by to jinak stihl přečíst jako „obsah zmizel".
+                _state.update { it.copy(sending = false, sent = true) }
+                requests.consume(content.id)
+                return@launch
+            }
+            // Odeslaná alba z obrazovky zmizí i s popiskem, který šel s prvním; druhý pokus
+            // pošle jen zbytek.
+            if (result.sent > 0) caption = TextFieldValue()
+            _state.update {
+                it.copy(
+                    sending = false,
+                    attachments = it.attachments?.drop(result.sent),
+                    notice = UiText(Res.string.conversation_attachments_send_failed),
+                )
+            }
         }
     }
 

@@ -20,8 +20,6 @@ import kotlin.math.roundToInt
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -128,7 +126,7 @@ private class IosAttachmentPicker(
         if (items.isEmpty()) return
         scope.launch {
             val results = items
-                .map { item -> async(Dispatchers.IO) { runCatching { block(item) } } }
+                .map { item -> async(AttachmentPrepareDispatcher) { runCatching { block(item) } } }
                 .awaitAll()
             results.forEach { result ->
                 result.exceptionOrNull()?.let { failure -> logger.w(failure) { "Přílohu se nepodařilo připravit." } }

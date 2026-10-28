@@ -17,6 +17,7 @@ import android.media.MediaExtractor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -48,7 +49,6 @@ import java.util.Locale
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.roundToInt
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -75,7 +75,7 @@ actual fun rememberAttachmentPicker(
             // Kopie a zmenšení fotek jsou práce na disku a procesoru — mimo hlavní vlákno, souběžně.
             // `awaitAll` drží pořadí výběru.
             val results = uris
-                .map { uri -> async(Dispatchers.IO) { runCatching { block(context, uri) } } }
+                .map { uri -> async(AttachmentPrepareDispatcher) { runCatching { block(context, uri) } } }
                 .awaitAll()
             results.forEach { result ->
                 result.exceptionOrNull()?.let { failure ->
@@ -89,7 +89,7 @@ actual fun rememberAttachmentPicker(
     }
 
     val photoLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(maxItems = PICK_LIMIT),
+        ActivityResultContracts.PickMultipleVisualMedia(maxItems = systemPickLimit()),
     ) { uris -> prepare(uris, ::prepareVisual) }
     val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         prepare(uris.take(PICK_LIMIT), ::prepareFile)
@@ -506,3 +506,10 @@ private fun outgoingFile(context: Context, name: String): File {
     // Jméno z cizího zdroje: bez lomítek, aby nemohlo vést mimo adresář.
     return File(directory, name.replace('/', '_').replace('\\', '_'))
 }
+
+/**
+ * Kolik fotek pustí systémový výběr: [PICK_LIMIT], nebo méně, hlásí-li systém nižší strop.
+ * Výběr s vyšším `maxItems`, než systém dovolí, androidx odmítne výjimkou rovnou při otevření.
+ */
+internal fun systemPickLimit(): Int =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) minOf(PICK_LIMIT, MediaStore.getPickImagesMaxLimit()) else PICK_LIMIT

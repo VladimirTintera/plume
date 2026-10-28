@@ -47,10 +47,30 @@ class StagedAttachmentsTest {
 
     @Test
     fun overLimitIsTrimmedAndReported() {
-        val current = (1..8).map(::photo)
-        val staged = stageAttachments(current, (9..12).map(::photo))
+        val current = (1..MAX_ATTACHMENTS - 2).map(::photo)
+        val staged = stageAttachments(current, (MAX_ATTACHMENTS - 1..MAX_ATTACHMENTS + 2).map(::photo))
         assertEquals((1..MAX_ATTACHMENTS).map(::photo), staged.attachments)
         assertTrue(staged.overflow)
+    }
+
+    @Test
+    fun viceNezAlbumSeRozdeliPoDeseti() {
+        val batches = attachmentBatches((1..23).map(::photo), separately = false)
+        assertEquals(listOf(10, 10, 3), batches.map { it.size })
+        assertEquals((1..23).map(::photo), batches.flatten(), "pořadí výběru zůstává")
+    }
+
+    @Test
+    fun jednotliveJeKazdaPrilohaZvlast() {
+        assertEquals(listOf(listOf(photo(1)), listOf(photo(2))), attachmentBatches(listOf(photo(1), photo(2)), separately = true))
+    }
+
+    @Test
+    fun skladbaMeziSouboryJdeJakoSouborVeVsechAlbech() {
+        val audio = OutgoingAttachment.Audio(path = "/a.mp3", durationSeconds = 1, title = null, performer = null, cover = null)
+        val batches = attachmentBatches((1..10).map(::document) + audio, separately = false)
+        assertEquals(listOf(10, 1), batches.map { it.size })
+        assertTrue(batches.last().single() is OutgoingAttachment.Document, "i v druhém albu, kam dělení padlo")
     }
 
     @Test

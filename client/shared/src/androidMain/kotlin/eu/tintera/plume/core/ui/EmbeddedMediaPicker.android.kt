@@ -27,7 +27,6 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_prepare_failed
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -173,7 +172,7 @@ actual fun EmbeddedMediaPicker(
                         // Kopie a zmenšení jsou práce na disku a procesoru — mimo hlavní vlákno,
                         // souběžně; `awaitAll` drží pořadí výběru.
                         val results = uris
-                            .map { uri -> async(Dispatchers.IO) { runCatching { prepareVisual(context, uri) } } }
+                            .map { uri -> async(AttachmentPrepareDispatcher) { runCatching { prepareVisual(context, uri) } } }
                             .awaitAll()
                         val ready = mutableListOf<OutgoingAttachment>()
                         var failures = 0
@@ -223,7 +222,7 @@ actual fun EmbeddedMediaPicker(
     val info = remember(accent, dark, allowPhotos, allowVideos, single) {
         EmbeddedPhotoPickerFeatureInfo.Builder()
             // Výměna přílohy bere jednu položku; picker pak druhou zaškrtnout nedovolí.
-            .setMaxSelectionLimit(if (single) 1 else PICK_LIMIT)
+            .setMaxSelectionLimit(if (single) 1 else systemPickLimit())
             /*
              * Co chat nepřijme, se ani nenabídne — jinak by skupina jen pro fotky nechala
              * uživatele vybrat video a chyba by přišla až od serveru (totéž pravidlo jako
