@@ -4,6 +4,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.location.GeoPoint
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.datetime.TimeZone
 
 /**
  * Přístup k obsahu jedné konverzace.
@@ -553,12 +554,33 @@ interface ConversationRepository {
     suspend fun sharedMediaCounts(chatId: Long): Result<SharedMediaCounts>
 
     /**
-     * Fotky a videa chatu po dnech, od nejnovějšího dne (`getChatMessageCalendar`) — pro kalendář
-     * ve sdílených médiích. [fromMessageId] `0` začíná u nejnovější zprávy, jinak se pokračuje
-     * od [MediaCalendarPage.nextFromMessageId]. Poslední den stránky bývá neúplný a na další
-     * stránce se objeví znovu; skládá je [mergeCalendarDays].
+     * Zprávy druhu [kind] (výchozí fotky a videa) po dnech, od nejnovějšího dne
+     * (`getChatMessageCalendar`) — pro kalendář ve sdílených médiích a v konverzaci. [fromMessageId]
+     * `0` začíná u nejnovější zprávy, jinak se pokračuje od [MediaCalendarPage.nextFromMessageId].
+     * Poslední den stránky bývá neúplný a na další stránce se objeví znovu; skládá je
+     * [mergeCalendarDays]. Všechny zprávy bez rozdílu TDLib po dnech nevydá (filtr „prázdný"
+     * odmítne: „The filter is not supported") — na ty je [messageCountsByDay].
      */
-    suspend fun mediaCalendar(chatId: Long, fromMessageId: Long = 0): Result<MediaCalendarPage>
+    suspend fun mediaCalendar(
+        chatId: Long,
+        fromMessageId: Long = 0,
+        kind: SharedMediaKind = SharedMediaKind.Media,
+    ): Result<MediaCalendarPage>
+
+    /**
+     * Zprávy po dnech pro kalendář konverzace: projde historii od [fromMessageId] (`0` = od
+     * nejnovější) ke starším, nejvýš [maxMessages] zpráv. [onlyLocal] = jen to, co má TDLib
+     * v lokální databázi — rychle a bez dotazů na server, ale jen tak daleko, kam uživatel kdy
+     * dočetl; jinak se starší stahují ze serveru. Proč ne odhad z čísel zpráv ani kalendář od
+     * TDLib, viz `docs/poznatky/konverzace-pohyb.md`, „Kalendář zpráv".
+     */
+    suspend fun messageCountsByDay(
+        chatId: Long,
+        fromMessageId: Long,
+        onlyLocal: Boolean,
+        maxMessages: Int,
+        zone: TimeZone,
+    ): Result<HistoryCounts> = Result.failure(UnsupportedOperationException())
 
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 

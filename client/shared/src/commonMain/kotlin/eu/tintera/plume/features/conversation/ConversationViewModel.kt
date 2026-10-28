@@ -543,6 +543,12 @@ class ConversationViewModel(
         logger = logger,
     )
     fun openSearch() = search.openSearch()
+
+    /**
+     * Kalendář zpráv po dnech z ⋮ — viz [ConversationCalendar]. Kde jde skok na datum
+     * ([canJumpToDate]); v tématu skupiny TDLib kalendář nedá a ve vlákně by počítal celý chat.
+     */
+    val calendar: ConversationCalendar = ConversationCalendar(chatId = chatId, repository = repository, scope = viewModelScope)
     fun closeSearch() = search.closeSearch()
     fun jumpToDate(epochSeconds: Int) = search.jumpToDate(epochSeconds)
     fun onSearchQuery(text: String) = search.onSearchQuery(text)

@@ -236,6 +236,7 @@ import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ChatMembersFilterMention
 import dev.g000sha256.tdl.dto.TextEntityTypeMentionName
 import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.async
@@ -329,6 +330,57 @@ class TdlConversationRepository(
         }
         target
     }.onFailure { logger.w(it) { "Zprávu podle data se nepodařilo najít." } }
+
+    /**
+     * Historie po stránkách ([HISTORY_PAGE]) ke starším; počítá se jen id a čas, převod tisíců
+     * zpráv na [ChatMessage] by byl práce zbytečně. Téma Uložených zpráv a vlákno přímých zpráv
+     * mají vlastní historii bez volby „jen lokálně" — tam jde vždycky o server.
+     */
+    override suspend fun messageCountsByDay(
+        chatId: Long,
+        fromMessageId: Long,
+        onlyLocal: Boolean,
+        maxMessages: Int,
+        zone: TimeZone,
+    ): Result<HistoryCounts> = runCatching {
+        var from = fromMessageId
+        // Zpráva, od které se navazuje, je spočtená z předchozího úseku.
+        val seen = HashSet<Long>().apply { if (fromMessageId != 0L) add(fromMessageId) }
+        val timestamps = mutableListOf<Int>()
+        var oldest: Pair<Long, Int>? = null
+        var idle = 0
+        var reachedEnd = false
+        while (timestamps.size < maxMessages) {
+            val page: List<Pair<Long, Int>> = if (savedTopicId != null || directTopicId != null) {
+                history(chatId = chatId, fromMessageId = from, limit = HISTORY_PAGE).getOrThrow().map { it.id to it.timestamp }
+            } else {
+                client.getChatHistory(chatId = chatId, fromMessageId = from, offset = 0, limit = HISTORY_PAGE, onlyLocal = onlyLocal)
+                    .toResult().getOrThrow().messages.filterNotNull().map { it.id to it.date }
+            }
+            // Stránka začíná zprávou [from] (nebo za ní) a TDLib smí vrátit méně, než se chtělo
+            // — co už bylo, se nepočítá znovu. Lokální databáze řekne „nic" hned a napořád; ze
+            // serveru se prázdná stránka zkusí ještě jednou, než se vezme jako začátek chatu.
+            val fresh = page.filter { seen.add(it.first) }
+            if (fresh.isEmpty()) {
+                if (onlyLocal || ++idle >= EMPTY_PAGE_ATTEMPTS) {
+                    reachedEnd = true
+                    break
+                }
+                continue
+            }
+            idle = 0
+            timestamps += fresh.map { it.second }
+            val last = fresh.minBy { it.first }
+            oldest = last
+            from = last.first
+        }
+        HistoryCounts(
+            days = countMessagesByDay(timestamps, zone),
+            oldestMessageId = oldest?.first,
+            oldestTimestamp = oldest?.second,
+            reachedEnd = reachedEnd,
+        )
+    }.onFailure { logger.w(it) { "Zprávy po dnech se nepodařilo spočítat." } }
 
     override fun inForumTopic(topicId: Int): ConversationRepository =
         TdlConversationRepository(holder = holder, forumTopicId = topicId, savedTopics = savedTopics, directTopics = directTopics)
@@ -1266,12 +1318,14 @@ class TdlConversationRepository(
                 )
             }
 
-    override suspend fun mediaCalendar(chatId: Long, fromMessageId: Long): Result<MediaCalendarPage> {
+    override suspend fun mediaCalendar(chatId: Long, fromMessageId: Long, kind: SharedMediaKind): Result<MediaCalendarPage> {
         val isGroup = isGroup(chatId)
         return client.getChatMessageCalendar(
             chatId = chatId,
-            topicId = null,
-            filter = SharedMediaKind.Media.toFilter(),
+            // Téma Uložených zpráv a vlákno přímých zpráv TDLib umí; téma skupiny ne („forum
+            // topics aren't supported"), tam se kalendář nenabízí.
+            topicId = readTopic.takeIf { forumTopicId == null },
+            filter = kind.toFilter(),
             fromMessageId = fromMessageId,
         )
             .toResult()
@@ -4678,6 +4732,12 @@ internal fun firstMessageAfter(before: Long?, newer: List<Long>): Long? =
 /** Kolik novějších zpráv se při skoku na datum chce a kolikrát se o ně TDLib požádá. */
 private const val NEWER_WINDOW = 5
 private const val NEWER_ATTEMPTS = 3
+
+/** Stránka historie při počítání zpráv po dnech (víc TDLib v jednom dotazu nevydá). */
+private const val HISTORY_PAGE = 100
+
+/** Kolikrát prázdná stránka ze serveru, než se vezme jako začátek chatu. */
+private const val EMPTY_PAGE_ATTEMPTS = 2
 
 /** Id první zprávy na serveru (`ServerMessageId(1) << 20`) — od něj se čte historie od začátku. */
 private const val FIRST_SERVER_MESSAGE_ID = 1L shl 20

@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,8 +85,10 @@ internal fun MediaCalendarSheet(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             itemsIndexed(months, key = { _, month -> month.month.toString() }) { index, month ->
-                // Měsíců na stránku přijde pár; dotahuje se, už když se ukáže předposlední.
-                LoadMoreAtEnd(index, months.size, onLoadMore)
+                // Dotahuje se, už když se ukáže předposlední měsíc. Klíčem je místo, odkud se
+                // pokračuje, ne počet měsíců: stránka rušného chatu přinese jen pár dnů téhož
+                // měsíce a s počtem měsíců jako klíčem se další už nevyžádala.
+                if (index >= months.size - 2) LaunchedEffect(calendar.nextFromMessageId) { onLoadMore() }
                 CalendarMonthGrid(month, byDate, onPick)
             }
             if (calendar.loading) {
