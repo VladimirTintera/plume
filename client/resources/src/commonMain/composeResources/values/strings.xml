@@ -3604,6 +3604,8 @@
     <string name="story_keep_on_profile_summary">Stays visible on your profile after 24 hours</string>
     <string name="story_replace_media">Replace photo or video</string>
     <string name="story_edit_caption">Edit caption…</string>
+    <string name="story_caption_expand">Show full caption</string>
+    <string name="story_caption_collapse">Collapse caption</string>
     <string name="story_caption_save">Save</string>
     <string name="story_caption_saved">Caption saved</string>
     <string name="story_audience_menu">Who can see it…</string>

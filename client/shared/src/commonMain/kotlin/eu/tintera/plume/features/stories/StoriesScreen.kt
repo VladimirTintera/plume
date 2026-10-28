@@ -1,5 +1,23 @@
 package eu.tintera.plume.features.stories
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.contentDescription
+import eu.tintera.plume.core.ui.rememberScreenReaderEnabled
+import eu.tintera.plume.resources.media_mute
+import eu.tintera.plume.resources.media_photo
+import eu.tintera.plume.resources.media_unmute
+import eu.tintera.plume.resources.media_video
+import eu.tintera.plume.resources.story_caption_collapse
+import eu.tintera.plume.resources.story_caption_expand
+import eu.tintera.plume.resources.volume_off_24dp
+import eu.tintera.plume.resources.volume_up_24dp
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -173,6 +191,8 @@ fun StoriesScreen(
     val storyVideoSupported = koinInject<StoryVideo>().supported
     val clipboard = koinInject<TextClipboard>()
     val sharer = koinInject<MediaSharer>()
+    // Ztlumení platí pro všechna videa až do zavření prohlížeče, jako v oficiální aplikaci.
+    var muted by rememberSaveable { mutableStateOf(false) }
     // Nad prohlížečem je jiná obrazovka (editor příběhu): příběh pod ní stojí. Jinak dojel,
     // prohlížeč se zavřel a po uložení nebylo kam se vrátit (ověřeno na emulátoru).
     // collectAsState, ne …WithLifecycle: to by sběr při zastavení vypnulo a změnu nepoznalo.
@@ -357,6 +377,8 @@ fun StoriesScreen(
                         paused = dragging || viewers != null || reportWizard != null || albumsSheet != null ||
                             audienceSheet != null || captionEdit != null || replaceKey != null || covered,
                         restart = state.restart,
+                        muted = muted,
+                        onToggleMuted = { muted = !muted },
                     ),
                     reactionChoices = reactionChoices,
                     navigation = StoryNavigation(
@@ -558,6 +580,15 @@ private fun StoryCard(
     var progress by remember(author.chatId, index) { mutableFloatStateOf(0f) }
     // Otevřená nabídka autora příběh zastaví, jako podržení.
     var menuOpen by remember(author.chatId) { mutableStateOf(false) }
+    // Rozbalený dlouhý popisek taky — kdo čte, nechce, aby mu příběh odjel.
+    var captionExpanded by remember(author.chatId, index) { mutableStateOf(false) }
+    val media = story?.content
+    val isVideo = media is MessageMedia.Video && story.live == null
+    val mediaLabel = when {
+        isVideo -> stringResource(Res.string.media_video)
+        media is MessageMedia.Photo -> stringResource(Res.string.media_photo)
+        else -> null
+    }
     val next = stringResource(Res.string.stories_next)
     val previous = stringResource(Res.string.stories_previous)
 
@@ -579,6 +610,8 @@ private fun StoryCard(
                 )
             }
             .semantics {
+                // Čtečka jinak u fotky nic neřekne; popisek čte vlastní uzel pod ní.
+                mediaLabel?.let { contentDescription = it }
                 customActions = listOf(
                     CustomAccessibilityAction(next) { onNext(); true },
                     CustomAccessibilityAction(previous) { onPrevious(); true },
@@ -590,8 +623,9 @@ private fun StoryCard(
             live = live,
             liveSupported = liveSupported,
             active = playback.active,
-            paused = playback.paused || menuOpen,
+            paused = playback.paused || menuOpen || captionExpanded,
             restart = playback.restart,
+            muted = playback.muted,
             onProgress = { progress = it },
             onFinished = onNext,
         )
@@ -610,23 +644,66 @@ private fun StoryCard(
             onAlbums = menu.onAlbums.takeIf { story != null && story.isOwn && story.canBeAddedToAlbum },
             own = menu.own,
             share = menu.share,
+            sound = if (isVideo) StorySound(playback.muted, playback.onToggleMuted) else null,
         )
 
         val caption = story?.caption.orEmpty()
         if (caption.isNotBlank()) {
-            Text(
-                caption,
-                color = ON_SCRIM,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = CAPTION_LINES,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = SHADE_ALPHA))))
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
+            StoryCaption(
+                caption = caption,
+                expanded = captionExpanded,
+                onExpandedChange = { captionExpanded = it },
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+    }
+}
+
+/**
+ * Popisek příběhu dole přes obraz. Dlouhý se usekne na [CAPTION_LINES] řádků a **ťuknutím se
+ * rozbalí** (příběh mezitím stojí) — do poloviny výšky, dál se posouvá; další ťuknutí ho sbalí.
+ * Krátký popisek ťuknutí nebere, to dál přepíná příběhy.
+ */
+@Composable
+internal fun StoryCaption(caption: String, expanded: Boolean, onExpandedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    var overflows by remember(caption) { mutableStateOf(false) }
+    val expandLabel = stringResource(Res.string.story_caption_expand)
+    val collapseLabel = stringResource(Res.string.story_caption_collapse)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val maxHeight = maxHeight
+        Text(
+            caption,
+            color = ON_SCRIM,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = if (expanded) Int.MAX_VALUE else CAPTION_LINES,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { if (!expanded) overflows = it.hasVisualOverflow },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    if (expanded) {
+                        // Nahoře z průhledné: ostrá hrana podkladu přes obraz vypadala jako cizí panel.
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            EXPANDED_SHADE_FADE to Color.Black.copy(alpha = EXPANDED_SHADE_ALPHA),
+                            1f to Color.Black.copy(alpha = EXPANDED_SHADE_ALPHA),
+                        )
+                    } else {
+                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = SHADE_ALPHA)))
+                    },
+                )
+                .then(if (expanded) Modifier.heightIn(max = maxHeight * EXPANDED_CAPTION_HEIGHT).verticalScroll(rememberScrollState()) else Modifier)
+                .then(
+                    if (overflows || expanded) {
+                        Modifier.clickable(onClickLabel = if (expanded) collapseLabel else expandLabel) { onExpandedChange(!expanded) }
+                    } else {
+                        Modifier
+                    },
+                )
+                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec())
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+        )
     }
 }
 
@@ -642,10 +719,18 @@ private fun BoxScope.StoryContent(
     active: Boolean,
     paused: Boolean,
     restart: Int,
+    muted: Boolean,
     onProgress: (Float) -> Unit,
     onFinished: () -> Unit,
 ) {
     val currentPaused by rememberUpdatedState(paused)
+    /*
+     * Se čtečkou obrazovky příběh sám neodjíždí: fotka stojí, video po dohrání zůstane. Šest
+     * vteřin čtečka nestihne — uživatel se k obsahu prstem teprve hledá. Dál se jde akcí
+     * „Další" (`customActions`) nebo ťuknutím.
+     */
+    val screenReader by rememberUpdatedState(rememberScreenReaderEnabled())
+    val currentMuted by rememberUpdatedState(muted)
     val finish by rememberUpdatedState(onFinished)
     val media = story?.content
     when {
@@ -669,8 +754,9 @@ private fun BoxScope.StoryContent(
             }
             if (player != null && path != null) {
                 VideoSurface(player, Modifier.fillMaxSize())
+                LaunchedEffect(player, muted) { player.setMuted(muted) }
                 LaunchedEffect(player, path, restart) {
-                    player.load(path)
+                    player.load(path, muted = currentMuted)
                     player.play()
                     var fallbackMs = 0L
                     var last = withFrameMillis { it }
@@ -693,7 +779,7 @@ private fun BoxScope.StoryContent(
                         if (duration > 0) onProgress((player.positionMs.toFloat() / duration).coerceIn(0f, 1f))
                         if (player.isEnded) break
                     }
-                    finish()
+                    if (!screenReader) finish()
                 }
             }
         }
@@ -727,7 +813,7 @@ private fun BoxScope.StoryContent(
                     var last = withFrameMillis { it }
                     while (elapsed < PHOTO_DURATION_MS) {
                         val now = withFrameMillis { it }
-                        if (!currentPaused) elapsed += now - last
+                        if (!currentPaused && !screenReader) elapsed += now - last
                         last = now
                         onProgress(elapsed.toFloat() / PHOTO_DURATION_MS)
                     }
@@ -759,6 +845,8 @@ private fun BoxScope.StoryHeader(
     own: OwnStoryMenu?,
     /** Poslat dál a odkaz; `null`, když příběh dál poslat nejde. */
     share: StoryShare?,
+    /** Ztlumení u videa; `null` u fotky a živého příběhu. */
+    sound: StorySound?,
 ) {
     Column(
         Modifier
@@ -884,6 +972,16 @@ private fun BoxScope.StoryHeader(
                     report()
                 }
             }
+            sound?.let { sound ->
+                val label = stringResource(if (sound.muted) Res.string.media_unmute else Res.string.media_mute)
+                IconToggleButton(checked = sound.muted, onCheckedChange = { sound.onToggle() }, shapes = IconButtonDefaults.toggleableShapes()) {
+                    Icon(
+                        painterResource(if (sound.muted) Res.drawable.volume_off_24dp else Res.drawable.volume_up_24dp),
+                        contentDescription = label,
+                        tint = ON_SCRIM,
+                    )
+                }
+            }
             if (archive != null || report != null || albums != null || shareGroup.isNotEmpty() || ownEdit.isNotEmpty() || ownProfile.isNotEmpty()) {
                 Box {
                     IconButton(onClick = { onMenuOpenChange(true) }, shapes = IconButtonDefaults.shapes()) {
@@ -919,6 +1017,15 @@ private const val TRACK_ALPHA = 0.35f
 private const val SECONDARY_ALPHA = 0.75f
 private const val CAPTION_LINES = 6
 
+/** Rozbalený popisek: kolik výšky příběhu smí zabrat, než se začne posouvat. */
+private const val EXPANDED_CAPTION_HEIGHT = 0.5f
+
+/** Rozbalený popisek leží na tmavším podkladu — přes celou výšku textu, ne jen dole. */
+private const val EXPANDED_SHADE_ALPHA = 0.75f
+
+/** Kde (v podílu výšky rozbaleného popisku) podklad dosáhne plné tmy. */
+private const val EXPANDED_SHADE_FADE = 0.15f
+
 /** Kolik výšky obrazu smí zabrat chat živého vysílání. */
 private const val LIVE_CHAT_HEIGHT = 0.4f
 
@@ -936,7 +1043,13 @@ internal data class StoryPlayback(
     val paused: Boolean,
     /** Roste s každým „pusť znovu od začátku" ([StoriesState.restart]). */
     val restart: Int,
+    /** Video bez zvuku; volba platí pro všechna videa do zavření prohlížeče. */
+    val muted: Boolean = false,
+    val onToggleMuted: () -> Unit = {},
 )
+
+/** Zvuk videa v hlavičce příběhu: ztlumit a zapnout. */
+internal class StorySound(val muted: Boolean, val onToggle: () -> Unit)
 
 /** Pohyb mezi příběhy (ťuknutí do stran, dohrání) a zavření prohlížeče. */
 internal data class StoryNavigation(
