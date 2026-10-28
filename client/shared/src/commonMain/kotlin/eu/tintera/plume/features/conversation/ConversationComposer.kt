@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.telegram.ExternalReplyTarget
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.composedFormatsOf
@@ -36,6 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
@@ -647,6 +649,7 @@ internal class ConversationComposer(
         // Swipe na odpověď se nabízí u každé zprávy; kde se psát nesmí, není kam odpovědět.
         if (!state.value.canWrite) return
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
+        dropExternalReply()
         state.update {
             it.copy(
                 replyingTo = message,
@@ -671,6 +674,7 @@ internal class ConversationComposer(
         }
         scope.launch {
             repository.message(chatId, messageId).onSuccess { message ->
+                dropExternalReply()
                 state.update {
                     it.copy(replyingTo = message, replyQuote = null, messageMenu = null, inputFocusRequest = it.inputFocusRequest + 1)
                 }
@@ -690,6 +694,42 @@ internal class ConversationComposer(
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
         val position = message.text.indexOf(text)
         replyTo(messageId, quote = ReplyQuote(text, position).takeIf { position >= 0 })
+    }
+
+    /**
+     * „Odpovědět v jiném chatu": odpověď tady na zprávu [messageId] z chatu [fromChatId].
+     * Repository se řekne, že tohle id je zpráva jinde ([ConversationRepository.setExternalReply]),
+     * takže odejde jako odpověď do jiného chatu, ať se posílá cokoli (text, fotka, anketa).
+     *
+     * **Označení se NEruší se zmizením odpovědi**: odeslání ji z pole sundá hned při ťuknutí
+     * ([clearReply]) a samo odchází až v korutině — zrušené označení by odpověď poslalo na zprávu
+     * s týmž id v TOMHLE chatu. Ruší ho až odpověď na zprávu tady ([dropExternalReply]); do té
+     * doby nemůže id nikoho splést, jiná odpověď s ním nevznikne.
+     */
+    fun replyElsewhere(fromChatId: Long, messageId: Long, quote: ReplyQuote? = null, focusInput: Boolean = true) {
+        scope.launch {
+            val message = repository.message(fromChatId, messageId).getOrNull() ?: return@launch
+            val title = chatRepository.summaries(listOf(fromChatId)).firstOrNull()?.title
+            repository.setExternalReply(chatId, ExternalReplyTarget(fromChatId, messageId))
+            state.update {
+                it.copy(
+                    replyingTo = message,
+                    replyQuote = quote,
+                    replyElsewhere = ReplyElsewhere(messageId, title),
+                    messageMenu = null,
+                    inputFocusRequest = if (focusInput) it.inputFocusRequest + 1 else it.inputFocusRequest,
+                )
+            }
+            // Jméno chatu v pruhu jen u téhle odpovědi.
+            state.first { it.replyingTo?.id != messageId }
+            state.update { if (it.replyElsewhere?.messageId == messageId) it.copy(replyElsewhere = null) else it }
+        }
+    }
+
+    /** Odpověď na zprávu v TOMHLE chatu: označení odpovědi jinam ([replyElsewhere]) neplatí. */
+    private fun dropExternalReply() {
+        repository.setExternalReply(chatId, null)
+        state.update { it.copy(replyElsewhere = null) }
     }
 
     fun clearReply() {

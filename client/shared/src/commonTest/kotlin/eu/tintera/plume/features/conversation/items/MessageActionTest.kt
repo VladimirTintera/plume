@@ -116,6 +116,7 @@ class MessageActionTest {
                 MessageMenuAction.ContextActions,
                 MessageMenuAction.SelectText,
                 MessageMenuAction.Info,
+                MessageMenuAction.ReplyElsewhere,
                 MessageMenuAction.ToggleBookmark,
                 MessageMenuAction.Remind,
                 MessageMenuAction.Pin,

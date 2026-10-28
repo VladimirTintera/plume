@@ -496,8 +496,8 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
   stovkách výsledků se šipkami nedá nic projít (`InChatSearchBar.kt`).
 - **Výběr víc zpráv tahem** (M), případně „vybrat až sem". Dnes ťuknutí na každou zprávu zvlášť
   (`MessageFrame.kt`, vrstva výběru).
-- **Odpovědět v jiném chatu** (M) — `InputMessageReplyToExternalMessage`. Příchozí odpovědi
-  z jiného chatu Plume kreslí, poslat takovou neumí.
+- ~~**Odpovědět v jiném chatu**~~ — hotovo: Další → „Odpovědět jinde", výběr chatu, citace nad
+  polem i v konceptu (`docs/poznatky/konverzace-psani.md`, „Odpovědět jinde").
 - **Velikost písma štípnutím v konverzaci** (S–M), jako Google Messages. Dnes jen Nastavení →
   Vzhled (`MessageTextSizeSetting.kt`).
 - ~~**Čtečka obrazovky: předěly dnů jako nadpisy a ohlášení nové zprávy**~~ — hotovo

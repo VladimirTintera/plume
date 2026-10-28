@@ -1233,6 +1233,35 @@ v `ConversationSuggestions` (`hashtagQuery`, `mentionQuery(…, atStart)`, testy
   `replyingTo`, jen když je prázdné, a kdo doběhne dřív, vyhraje — koncept se čte asynchronně.
   Při zkoušení citací v chatu s testovacím botem pozor na starou `force_reply`.
 
+### Odpovědět jinde (odpověď v jiném chatu)
+
+Nabídka nad zprávou → Další → „Odpovědět jinde" (`MessageMenuAction.ReplyElsewhere`, slot
+`MenuSlot.Elsewhere`) otevře výběr chatu (`ReplyElsewhereRoute`, `ChatPicker` bez výběru víc:
+ťuknutí rovnou vybírá, chat zprávy v něm není). Vybraný chat se otevře s citací nad polem
+a odpověď se dopíše tam, jako v oficiálním klientu. Nabízí se jen u `canBeRepliedInAnotherChat`.
+
+- **Předání jde přes `ConversationReplyRequests`** (týž stav jako „Odpovědět" z prohlížeče
+  médií, nově s `fromChatId`): cílová konverzace ještě nemusí existovat.
+- **Repository zná odpověď jinam jen jako označení id** (`setExternalReply(chatId, cíl)`):
+  odpověď se do ~20 cest odeslání (text, média, anketa, kostka…) i do konceptu předává jako
+  samotné id zprávy a přidat všude chat by bylo široké. `replyInput` pro označené id vyrobí
+  `InputMessageReplyToExternalMessage` (i s citovaným úryvkem dohledaným ve zdrojovém chatu).
+- **Past: označení se NEruší zmizením odpovědi z pole.** Odeslání odpověď sundá hned při ťuknutí
+  (`clearReply`) a samo odejde až v korutině; zrušené označení by poslalo odpověď na zprávu
+  s týmž id v TOMHLE chatu (napoprvé to tak bylo napsané, test `oznaceniVydrziDoOdeslani`).
+  Ruší ho až odpověď na zprávu tady (`dropExternalReply`) — jedině tehdy by se id mohlo splést.
+- **Pruh nad polem jmenuje zdrojový chat** (`ConversationState.replyElsewhere`), ne tenhle:
+  příchozí zpráva ze soukromého chatu jméno odesílatele nemá a pruh by jinak nesl název chatu,
+  do kterého se píše.
+- **Koncept odpověď jinam unese** (`SavedDraft.replyFromChatId` z `InputMessageReplyToExternalMessage`)
+  a po návratu do chatu se obnoví bez fokusu pole. Dřív `toSavedDraft` bral jen
+  `InputMessageReplyToMessage`, takže by se odpověď ztratila (text zůstal).
+- **Popisek „Odpovědět v jiném chatu" se do nabídky nevešel** (šířka nabídky, useknuté „…cha…"
+  na snímku), proto „Odpovědět jinde"; plné znění nese nadpis výběru („Kam odpovědět").
+- **Ověřeno na emulátoru** (Fold, česky): Notifikátor → Další → Odpovědět jinde → Uložené
+  zprávy → citace „Notifikator" nad polem → odeslaná zpráva s citací. Ťuknutí na citaci nikam
+  nevede (soukromý chat s botem server jako cíl neprozradí, `ExternalReply.target` je `null`).
+
 ## Odesílání a scrollování
 
 - **Odeslaná zpráva se do seznamu přidává OKAMŽITĚ.** `sendMessage` vrací zprávu hned, s dočasným

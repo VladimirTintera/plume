@@ -1099,7 +1099,12 @@ class ConversationViewModel(
             replyRequests.request.collect { request ->
                 if (request?.chatId == chatId) {
                     replyRequests.consume(chatId)
-                    composer.replyFromViewer(request.messageId)
+                    val from = request.fromChatId
+                    if (from != null && from != chatId) {
+                        composer.replyElsewhere(from, request.messageId)
+                    } else {
+                        composer.replyFromViewer(request.messageId)
+                    }
                 }
             }
         }
@@ -1179,7 +1184,15 @@ class ConversationViewModel(
                     composer.draft = ComposedText(it, info.draftFormats)
                     composer.refreshLinkPreview(it)
                 }
-                info.draftReplyToMessageId?.let { composer.restoreDraftReply(it, info.draftReplyQuote) }
+                info.draftReplyToMessageId?.let { messageId ->
+                    // Koncept s odpovědí do jiného chatu ji nese i s chatem, odkud zpráva je.
+                    val from = info.draftReplyFromChatId
+                    if (from != null && from != chatId) {
+                        composer.replyElsewhere(from, messageId, info.draftReplyQuote, focusInput = false)
+                    } else {
+                        composer.restoreDraftReply(messageId, info.draftReplyQuote)
+                    }
+                }
                 // Nalezená zpráva má přednost před nepřečtenými — kvůli ní chat otevřel.
                 if (initialMessageId != null) {
                     releaseReads(jumped = false)
@@ -2212,6 +2225,7 @@ class ConversationViewModel(
             MessageMenuAction.ToggleProfileAudio -> menu.toggleProfileAudio(messageId)
             MessageMenuAction.ToggleBookmark -> menu.toggleBookmark(messageId)
             MessageMenuAction.Forward -> messageActions.requestForward(messageId)
+            MessageMenuAction.ReplyElsewhere -> messageActions.requestReplyElsewhere(messageId)
             MessageMenuAction.Remind -> messageActions.requestRemind(messageId)
             MessageMenuAction.Info -> menu.showMessageInfo(messageId)
             MessageMenuAction.Translate -> translation.showTranslation(messageId)

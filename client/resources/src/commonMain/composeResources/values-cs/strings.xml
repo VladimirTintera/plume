@@ -937,6 +937,8 @@
     <string name="message_info_link_copied">Odkaz zkopírován</string>
     <string name="menu_sent_at_delivery">%1$s, %2$s · %3$s</string>
     <string name="menu_reply">Odpovědět</string>
+    <string name="menu_reply_elsewhere">Odpovědět jinde</string>
+    <string name="reply_elsewhere_title">Kam odpovědět</string>
     <string name="menu_quote">Citovat</string>
     <string name="menu_edit">Upravit</string>
     <string name="menu_copy">Kopírovat</string>

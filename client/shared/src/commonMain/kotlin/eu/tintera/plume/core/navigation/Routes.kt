@@ -454,6 +454,10 @@ const val NO_STORY = 0
 @Serializable
 data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>, val storyId: Int = NO_STORY) : Route
 
+/** „Odpovědět v jiném chatu": výběr chatu, kde se odpoví na zprávu [messageId] z chatu [fromChatId]. */
+@Serializable
+data class ReplyElsewhereRoute(val fromChatId: Long, val messageId: Long) : Route
+
 /**
  * Výběr pro tlačítko klávesnice bota „vyber lidi" ([users] `true`) nebo „vyber chat" ve zprávě
  * [messageId] chatu [chatId]. Omezení tlačítka nese routa rozložená do polí — domácí typy
@@ -675,6 +679,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(VideoChatRoute::class, VideoChatRoute.serializer())
             subclass(StoryComposerRoute::class, StoryComposerRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
+            subclass(ReplyElsewhereRoute::class, ReplyElsewhereRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())
             subclass(AddMembersRoute::class, AddMembersRoute.serializer())
             subclass(BotShareRoute::class, BotShareRoute.serializer())

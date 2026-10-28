@@ -344,6 +344,8 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean, customEmoji: B
     // model odpoví. Jestli je přepis hotový (i ten z telefonu, který zpráva nenese), zjistí nabídka.
     if (!message.isOutgoing && message.recordingSeconds() >= VOICE_SUMMARY_MIN_SECONDS) add(MessageMenuAction.SummarizeVoice)
     add(MessageMenuAction.Info)
+    // Pod „Další" (vlastní skupina, `MenuSlot.Elsewhere`); nahoře je obyčejná odpověď.
+    add(MessageMenuAction.ReplyElsewhere)
     add(MessageMenuAction.ToggleBookmark)
     add(MessageMenuAction.Remind)
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)

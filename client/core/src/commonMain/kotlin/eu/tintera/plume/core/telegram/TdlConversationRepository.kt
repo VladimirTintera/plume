@@ -151,6 +151,7 @@ import dev.g000sha256.tdl.dto.InputMessageDocument
 import dev.g000sha256.tdl.dto.InputAudio
 import dev.g000sha256.tdl.dto.InputMessageAudio
 import dev.g000sha256.tdl.dto.InputMessagePhoto
+import dev.g000sha256.tdl.dto.InputMessageReplyToExternalMessage
 import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
 import dev.g000sha256.tdl.dto.InputMessageSticker
 import dev.g000sha256.tdl.dto.InputMessageStory
@@ -200,6 +201,8 @@ import dev.g000sha256.tdl.dto.DirectMessagesChatTopic
 import dev.g000sha256.tdl.dto.MessageSourceForumTopicHistory
 import dev.g000sha256.tdl.dto.ForumTopic as TdlForumTopic
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
@@ -810,6 +813,7 @@ class TdlConversationRepository(
                     canSave = properties.canBeSaved,
                     canReport = properties.canReportChat,
                     canEditMedia = properties.canEditMedia,
+                    canReplyElsewhere = properties.canBeRepliedInAnotherChat,
                 )
             }
 
@@ -1383,11 +1387,22 @@ class TdlConversationRepository(
      */
     private suspend fun replyInput(chatId: Long, messageId: Long?, quote: ReplyQuote?): InputMessageReplyTo? {
         messageId ?: return null
+        val external = externalReplies.value[chatId]?.takeIf { it.messageId == messageId }
+        val sourceChatId = external?.fromChatId ?: chatId
         val inputQuote = quote?.let {
-            val original = client.getMessage(chatId = chatId, messageId = messageId).toResult()
+            val original = client.getMessage(chatId = sourceChatId, messageId = messageId).toResult()
                 .getOrNull()?.content?.quotableText()
             original?.let { text -> quoteInput(text, it) }
                 ?: null.also { logger.w { "Citovaný úryvek se ve zprávě $messageId nenašel, odpovídám na celou." } }
+        }
+        if (external != null) {
+            return InputMessageReplyToExternalMessage(
+                chatId = external.fromChatId,
+                messageId = messageId,
+                quote = inputQuote,
+                checklistTaskId = 0,
+                pollOptionId = "",
+            )
         }
         return InputMessageReplyToMessage(
             messageId = messageId,
@@ -1395,6 +1410,13 @@ class TdlConversationRepository(
             checklistTaskId = 0,
             pollOptionId = "",
         )
+    }
+
+    /** Odpovědi na zprávy z jiného chatu podle cílového chatu, viz [setExternalReply]. */
+    private val externalReplies = MutableStateFlow<Map<Long, ExternalReplyTarget>>(emptyMap())
+
+    override fun setExternalReply(chatId: Long, reply: ExternalReplyTarget?) {
+        externalReplies.update { if (reply == null) it - chatId else it + (chatId to reply) }
     }
 
     override suspend fun send(
@@ -2514,6 +2536,7 @@ class TdlConversationRepository(
                     content = access.content,
                     draftReplyToMessageId = draft?.replyToMessageId,
                     draftReplyQuote = draft?.quote,
+                    draftReplyFromChatId = draft?.replyFromChatId,
                     draftLinkPreview = draft?.linkPreview,
                     verification = client.verificationOf(chat),
                     isSecret = chat.type is ChatTypeSecret,
@@ -2583,14 +2606,16 @@ class TdlConversationRepository(
     private fun DraftMessage.toSavedDraft(): SavedDraft? {
         val text = toChatDraft()?.text ?: return null
         val reply = replyTo as? InputMessageReplyToMessage
+        val external = replyTo as? InputMessageReplyToExternalMessage
         val content = content as? DraftMessageContentText
         return SavedDraft(
             text = text,
             formats = content?.text
                 ?.let { draft -> draft.toBody().let { draftFormatsOf(it.text, it.entities) } }
                 .orEmpty(),
-            replyToMessageId = reply?.messageId,
-            quote = reply?.quote?.let { ReplyQuote(text = it.text.text, position = it.position) },
+            replyToMessageId = reply?.messageId ?: external?.messageId,
+            quote = (reply?.quote ?: external?.quote)?.let { ReplyQuote(text = it.text.text, position = it.position) },
+            replyFromChatId = external?.chatId,
             linkPreview = content?.linkPreviewOptions?.toDomain(),
         )
     }

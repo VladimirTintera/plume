@@ -81,6 +81,7 @@ import eu.tintera.plume.resources.menu_info
 import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_quote
 import eu.tintera.plume.resources.menu_reply
+import eu.tintera.plume.resources.menu_reply_elsewhere
 import eu.tintera.plume.resources.menu_report
 import eu.tintera.plume.resources.menu_select_messages
 import eu.tintera.plume.resources.menu_select_text
@@ -613,6 +614,16 @@ sealed interface MessageMenuAction : MessageAction {
             MenuPresentation(Res.drawable.notifications_24dp, Res.string.menu_remind).takeIf { menu.actions.canForward }
     }
 
+    /**
+     * Odpovědět v jiném chatu (`InputMessageReplyToExternalMessage`): výběr chatu, kde se
+     * odpověď napíše, citace pak vede sem. Jen kde to server dovolí (`canBeRepliedInAnotherChat`,
+     * chráněný obsah ne). Pod „Další" — nahoře je obyčejná odpověď, tohle se hledá výjimečně.
+     */
+    data object ReplyElsewhere : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.reply_24dp, Res.string.menu_reply_elsewhere).takeIf { menu.actions.canReplyElsewhere }
+    }
+
     data object Forward : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.forward_24dp, Res.string.menu_forward).takeIf { menu.actions.canForward }
@@ -786,6 +797,8 @@ enum class MenuSlot(val inMore: Boolean = false) {
     Context,
     /** Práce s textem: vybrat, shrnout, vysvětlit. */
     Text(inMore = true),
+    /** Mimo tenhle chat: odpovědět v jiném. */
+    Elsewhere(inMore = true),
     /** Na později: záložka, připomenutí, připnutí. */
     Later(inMore = true),
     Selection(inMore = true),
@@ -817,6 +830,7 @@ val MessageMenuAction.slot: MenuSlot
         MessageMenuAction.ContextActions, is MessageMenuAction.ContextItem -> MenuSlot.Context
         MessageMenuAction.SelectText, MessageMenuAction.Summarize, MessageMenuAction.Explain, MessageMenuAction.SummarizeVoice ->
             MenuSlot.Text
+        MessageMenuAction.ReplyElsewhere -> MenuSlot.Elsewhere
         MessageMenuAction.ToggleBookmark, MessageMenuAction.Remind, MessageMenuAction.Pin, MessageMenuAction.Unpin -> MenuSlot.Later
         MessageMenuAction.Select -> MenuSlot.Selection
         MessageMenuAction.Report, MessageMenuAction.BlockFromReplies -> MenuSlot.Report
