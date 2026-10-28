@@ -27,8 +27,10 @@ import eu.tintera.plume.resources.clear_history
 import eu.tintera.plume.resources.delete_sweep_24dp
 import eu.tintera.plume.resources.chats_action_report
 import eu.tintera.plume.resources.chats_delete_report
+import eu.tintera.plume.resources.conversation_jump_to_date
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.event_24dp
 import eu.tintera.plume.resources.flag_24dp
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.lock_open_24dp
@@ -55,7 +57,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * ⋮ v hlavičce konverzace: všechno kromě hovoru (ten je v liště, `ConversationCallButtons`).
  *
- * Skupiny podle významu: přepnutí na jiný chat (otevře přepínač pod šipkou zpět), práce s obsahem chatu (hledat, shrnout, Uložené po chatech, ztlumit),
+ * Skupiny podle významu: přepnutí na jiný chat (otevře přepínač pod šipkou zpět), práce s obsahem chatu (hledat, přejít na datum, shrnout, Uložené po chatech, ztlumit),
  * nahlášení a nakonec nevratné akce v chybové barvě — ukončit tajný chat, smazat chat / opustit
  * skupinu nebo kanál. Nahlášení a smazání sem přešly z ⋮ profilu: týkají se konverzace, ne
  * člověka, a v profilu otevřeném z cizí zprávy ve skupině nedávaly smysl.
@@ -93,6 +95,7 @@ internal fun ConversationMenu(
     var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var clearHistory by rememberSaveable { mutableStateOf(false) }
+    var pickingDate by rememberSaveable { mutableStateOf(false) }
     // Vyprázdnit jde celý chat (kde to TDLib dovolí), téma Uložených zpráv a vlákno přímých zpráv
     // kanálu — ty mají vlastní mazání. Vlákno komentářů a téma skupiny ne.
     val inOwnTopic = state.savedTopicId != null || state.directTopicId != null
@@ -115,6 +118,13 @@ internal fun ConversationMenu(
         listOfNotNull(
             if (showsContent) {
                 MenuAction(stringResource(Res.string.conversation_search), Res.drawable.search_24dp, onClick = viewModel::openSearch)
+            } else {
+                null
+            },
+            // Skok na den i odtud, ne jen z hledání a předělu: kdo hledá „co bylo v březnu“,
+            // nemá na co ťuknout, dokud k březnu nedoroluje.
+            if (showsContent && viewModel.canJumpToDate) {
+                MenuAction(stringResource(Res.string.conversation_jump_to_date), Res.drawable.event_24dp, onClick = { pickingDate = true })
             } else {
                 null
             },
@@ -190,6 +200,16 @@ internal fun ConversationMenu(
             Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
         }
         ExpressiveMenu(expanded = expanded, onDismiss = { expanded = false }, groups = groups)
+    }
+
+    if (pickingDate) {
+        JumpToDateDialog(
+            onPick = { seconds ->
+                pickingDate = false
+                viewModel.jumpToDate(seconds)
+            },
+            onDismiss = { pickingDate = false },
+        )
     }
 
     if (confirmCloseSecret) {
