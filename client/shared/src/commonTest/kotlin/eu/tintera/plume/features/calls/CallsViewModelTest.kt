@@ -12,6 +12,7 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.telegram.FakeChatRepository
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.calls_delete_one_failed
 import eu.tintera.plume.resources.calls_load_failed
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -79,6 +80,8 @@ class CallsViewModelTest {
         var gate: CompletableDeferred<Unit>? = null
         var fail = false
         val deleted = mutableListOf<Boolean>()
+        val deletedEntries = mutableListOf<Pair<Long, List<Long>>>()
+        var failDelete = false
 
         override suspend fun callHistory(offset: String, onlyMissed: Boolean): Result<CallHistoryPage> {
             requests += offset to onlyMissed
@@ -88,6 +91,11 @@ class CallsViewModelTest {
             val index = offset.toIntOrNull() ?: 0
             val next = if (index + 1 < pages.size) "${index + 1}" else ""
             return Result.success(CallHistoryPage(pages[index], next))
+        }
+
+        override suspend fun deleteCallEntries(chatId: Long, messageIds: List<Long>, revoke: Boolean): Result<Unit> {
+            deletedEntries += chatId to messageIds
+            return if (failDelete) Result.failure(IllegalStateException("MESSAGE_DELETE_FORBIDDEN")) else Result.success(Unit)
         }
 
         override suspend fun deleteCallHistory(revoke: Boolean): Result<Unit> {
@@ -179,5 +187,33 @@ class CallsViewModelTest {
         viewModel.deleteAll(revoke = true)
         advanceUntilIdle()
         assertEquals(listOf(true), server.deleted)
+    }
+
+    @Test
+    fun smazaniRadkuSmazeVsechnyJehoHovoryAZmiziHned() = runTest {
+        val server = Server(listOf(listOf(entry(1, 10, CallOutcome.Missed), entry(1, 9, CallOutcome.Missed), entry(2, 8))))
+        val viewModel = CallsViewModel(server, Calls())
+        advanceUntilIdle()
+        val missed = groupCallHistory(viewModel.state.value.entries.orEmpty()).first()
+
+        viewModel.delete(missed, revoke = false)
+        assertEquals(listOf(8L), viewModel.state.value.entries?.map { it.messageId }, "řádek zmizí před odpovědí")
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L to listOf(10L, 9L)), server.deletedEntries)
+        assertEquals(1, server.requests.size, "po úspěchu se nečte znovu")
+    }
+
+    @Test
+    fun nepovedeneSmazaniRadekVratiSHlaskou() = runTest {
+        val server = Server(listOf(listOf(entry(1, 10), entry(2, 8)))).apply { failDelete = true }
+        val viewModel = CallsViewModel(server, Calls())
+        advanceUntilIdle()
+
+        viewModel.delete(groupCallHistory(viewModel.state.value.entries.orEmpty()).first(), revoke = true)
+        advanceUntilIdle()
+
+        assertEquals(listOf(10L, 8L), viewModel.state.value.entries?.map { it.messageId })
+        assertEquals(UiText(Res.string.calls_delete_one_failed), viewModel.state.value.error)
     }
 }

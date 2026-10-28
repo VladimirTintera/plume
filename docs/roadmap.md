@@ -1741,8 +1741,9 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
   (`CallOverlay.kt`); zmeškaný hovor přijde jako obyčejná notifikace zprávy bez „Zavolat zpět".
 - **Výběr výstupu zvuku ve videochatu** (S). Hovor ve dvou ho má (`AudioOutputButton`),
   videochat ne (`VideoChatScreen.kt`) — sluchátko / reproduktor / Bluetooth.
-- **Historie hovorů: smazat jeden hovor, sloučit opakované** (S–M). Dnes jen ⋮ → smazat vše
-  a pět zmeškaných od jednoho člověka je pět řádků.
+- ~~**Historie hovorů: smazat jeden hovor, sloučit opakované**~~ — hotovo: opakované po sobě
+  jsou jeden řádek s počtem, podržení nabídne smazání řádku (`docs/poznatky/hovory.md`,
+  „Historie hovorů").
 
 **Stahování**
 

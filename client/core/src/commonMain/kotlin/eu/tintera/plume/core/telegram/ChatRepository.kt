@@ -413,6 +413,13 @@ interface ChatRepository {
     suspend fun deleteCallHistory(revoke: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())
 
     /**
+     * Smaže z historie jednotlivé hovory — jsou to zprávy v chatu [chatId] (`deleteMessages`);
+     * [revoke] = i protějšku.
+     */
+    suspend fun deleteCallEntries(chatId: Long, messageIds: List<Long>, revoke: Boolean): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Skupiny a kanály, ve kterých se uživatel dlouho neozval (`getInactiveSupergroupChats`) —
      * kandidáti na opuštění, když narazí na limit skupin a kanálů ([isChannelLimit]).
      */

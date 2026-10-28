@@ -1,6 +1,5 @@
 package eu.tintera.plume.features.calls
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -42,7 +41,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.adaptive.ContentWidth
-import eu.tintera.plume.core.telegram.CallHistoryEntry
 import eu.tintera.plume.core.telegram.isFailure
 import eu.tintera.plume.core.telegram.title
 import eu.tintera.plume.core.ui.Avatar
@@ -54,6 +52,7 @@ import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.avatarShape
+import eu.tintera.plume.core.ui.contextClickable
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -67,6 +66,10 @@ import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.calls_all
 import eu.tintera.plume.resources.calls_delete
 import eu.tintera.plume.resources.calls_delete_confirm
+import eu.tintera.plume.resources.calls_delete_one
+import eu.tintera.plume.resources.calls_delete_one_confirm
+import eu.tintera.plume.resources.calls_delete_one_text
+import eu.tintera.plume.resources.calls_repeated
 import eu.tintera.plume.resources.calls_delete_revoke
 import eu.tintera.plume.resources.calls_delete_text
 import eu.tintera.plume.resources.calls_empty
@@ -82,6 +85,7 @@ import eu.tintera.plume.resources.videocam_24dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -101,6 +105,7 @@ fun CallsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var deleteGroup by remember { mutableStateOf<CallHistoryGroup?>(null) }
 
     val errorText = state.error?.resolve()
     LaunchedEffect(errorText) {
@@ -156,6 +161,7 @@ fun CallsScreen(
                 onFilter = viewModel::setOnlyMissed,
                 onLoadMore = viewModel::loadMore,
                 onOpenChat = onOpenChat,
+                onDelete = { deleteGroup = it },
                 modifier = Modifier.widthIn(max = ContentWidth.Reading),
             )
         }
@@ -179,6 +185,28 @@ fun CallsScreen(
             DialogCheckRow(label = stringResource(Res.string.calls_delete_revoke), checked = revoke, onChange = { revoke = it })
         }
     }
+
+    deleteGroup?.let { group ->
+        var revoke by remember(group) { mutableStateOf(false) }
+        ConfirmDialog(
+            title = pluralStringResource(Res.plurals.calls_delete_one_confirm, group.count, group.count),
+            text = stringResource(Res.string.calls_delete_one_text, group.latest.chat.title),
+            confirmLabel = stringResource(Res.string.calls_delete_one),
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
+            onConfirm = {
+                deleteGroup = null
+                viewModel.delete(group, revoke)
+            },
+            onDismiss = { deleteGroup = null },
+            // Ve skupině je záznam o videochatu zpráva všech; smazat ji ostatním smí jen správce.
+            content = if (group.latest.isGroup) {
+                null
+            } else {
+                { DialogCheckRow(label = stringResource(Res.string.calls_delete_revoke), checked = revoke, onChange = { revoke = it }) }
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -188,15 +216,18 @@ private fun CallsContent(
     onFilter: (onlyMissed: Boolean) -> Unit,
     onLoadMore: () -> Unit,
     onOpenChat: (Long) -> Unit,
+    onDelete: (CallHistoryGroup) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val entries = state.entries
+    // Opakované hovory po sobě jsou jeden řádek; stránkování počítá řádky, ne hovory.
+    val groups = remember(entries) { entries?.let(::groupCallHistory) }
     val listState = rememberLazyListState()
     // Dojíždí se ke konci: další stránka s předstihem, ať seznam při rychlém scrollu nedojede.
-    LaunchedEffect(listState, entries?.size) {
+    LaunchedEffect(listState, groups?.size) {
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
             .distinctUntilChanged()
-            .collect { last -> if (entries != null && last >= entries.size - LOAD_AHEAD) onLoadMore() }
+            .collect { last -> if (groups != null && last >= groups.size - LOAD_AHEAD) onLoadMore() }
     }
 
     LazyColumn(
@@ -214,10 +245,10 @@ private fun CallsContent(
             }
         }
         when {
-            entries == null -> item(key = "loading") {
+            groups == null -> item(key = "loading") {
                 Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
             }
-            entries.isEmpty() -> item(key = "empty") {
+            groups.isEmpty() -> item(key = "empty") {
                 IntroEmptyState(
                     icon = Res.drawable.call_24dp,
                     title = stringResource(Res.string.calls_empty_title),
@@ -226,8 +257,14 @@ private fun CallsContent(
                 )
             }
             else -> {
-                itemsIndexed(entries, key = { _, entry -> "${entry.chat.id}-${entry.messageId}" }) { index, entry ->
-                    CallHistoryRow(entry, index, entries.size, onClick = { onOpenChat(entry.chat.id) })
+                itemsIndexed(groups, key = { _, group -> group.key }) { index, group ->
+                    CallHistoryRow(
+                        group = group,
+                        index = index,
+                        count = groups.size,
+                        onClick = { onOpenChat(group.latest.chat.id) },
+                        onDelete = { onDelete(group) },
+                    )
                 }
                 if (state.loadingMore) {
                     item(key = "more") {
@@ -254,67 +291,91 @@ private fun FilterOption(label: StringResource, selected: Boolean, onClick: () -
     )
 }
 
+/**
+ * Řádek historie: nejnovější hovor skupiny, u opakovaných s počtem za jménem („Jana (3)").
+ * Podržení (pravé tlačítko myši) nabídne smazání řádku z historie.
+ */
 @Composable
-private fun CallHistoryRow(entry: CallHistoryEntry, index: Int, count: Int, onClick: () -> Unit) {
+private fun CallHistoryRow(group: CallHistoryGroup, index: Int, count: Int, onClick: () -> Unit, onDelete: () -> Unit) {
+    val entry = group.latest
     val container = MaterialTheme.colorScheme.surfaceContainerLowest
     val failed = entry.outcome.isFailure
     val start = rememberStartCall(entry.callUserId)
-    ListItem(
-        headlineContent = {
-            Text(
-                entry.chat.title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                // Zmeškaný jménem v chybové barvě, jako v telefonu: po uživateli něco chce.
-                color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-            )
-        },
-        supportingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(
-                    painterResource(entry.outcome.icon()),
-                    contentDescription = null,
-                    tint = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp),
-                )
-                val parts = listOfNotNull(
-                    stringResource(entry.outcome.title(entry.isVideo, entry.isGroup)),
-                    entry.durationSeconds.takeIf { it > 0 }?.let(::formatDuration),
-                    entry.date.asRelativeTime(),
-                )
+    var menu by remember { mutableStateOf(false) }
+    val deleteLabel = stringResource(Res.string.calls_delete_one)
+    Box {
+        ListItem(
+            headlineContent = {
                 Text(
-                    parts.joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
+                    if (group.count > 1) stringResource(Res.string.calls_repeated, entry.chat.title, group.count) else entry.chat.title,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    // Zmeškaný jménem v chybové barvě, jako v telefonu: po uživateli něco chce.
+                    color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                 )
-            }
-        },
-        leadingContent = {
-            Avatar(
-                chatId = entry.chat.avatarColorId,
-                title = entry.chat.title,
-                avatarFileId = entry.chat.avatarFileId,
-                size = 40.dp,
-                shape = entry.chat.kind.avatarShape(),
-            )
-        },
-        trailingContent = start?.let {
-            {
-                val label = stringResource(Res.string.call_back)
-                WithTooltip(label) {
-                    IconButton(onClick = { start(entry.isVideo) }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            painterResource(if (entry.isVideo) Res.drawable.videocam_24dp else Res.drawable.call_24dp),
-                            contentDescription = label,
-                        )
+            },
+            supportingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(
+                        painterResource(entry.outcome.icon()),
+                        contentDescription = null,
+                        tint = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    val parts = listOfNotNull(
+                        stringResource(entry.outcome.title(entry.isVideo, entry.isGroup)),
+                        // U sloučených by délka jednoho z nich mátla.
+                        entry.durationSeconds.takeIf { it > 0 && group.count == 1 }?.let(::formatDuration),
+                        entry.date.asRelativeTime(),
+                    )
+                    Text(
+                        parts.joinToString(" · "),
+                        style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            },
+            leadingContent = {
+                Avatar(
+                    chatId = entry.chat.avatarColorId,
+                    title = entry.chat.title,
+                    avatarFileId = entry.chat.avatarFileId,
+                    size = 40.dp,
+                    shape = entry.chat.kind.avatarShape(),
+                )
+            },
+            trailingContent = start?.let {
+                {
+                    val label = stringResource(Res.string.call_back)
+                    WithTooltip(label) {
+                        IconButton(onClick = { start(entry.isVideo) }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                painterResource(if (entry.isVideo) Res.drawable.videocam_24dp else Res.drawable.call_24dp),
+                                contentDescription = label,
+                            )
+                        }
                     }
                 }
-            }
-        },
-        colors = ListItemDefaults.colors(containerColor = container),
-        modifier = Modifier.groupedItem(index, count, container).clickable(onClick = onClick),
-    )
+            },
+            colors = ListItemDefaults.colors(containerColor = container),
+            modifier = Modifier
+                .groupedItem(index, count, container)
+                .contextClickable(onLongClickLabel = deleteLabel, onLongClick = { menu = true }, onClick = onClick),
+        )
+        ExpressiveMenu(
+            expanded = menu,
+            onDismiss = { menu = false },
+            groups = listOf(
+                listOf(
+                    MenuAction(label = deleteLabel, icon = Res.drawable.delete_24dp, destructive = true) {
+                        menu = false
+                        onDelete()
+                    },
+                ),
+            ),
+        )
+    }
 }
 
 /** Kolik řádků před koncem se čte další stránka. */

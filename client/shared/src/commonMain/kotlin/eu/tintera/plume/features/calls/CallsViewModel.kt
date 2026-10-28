@@ -9,6 +9,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.calls_delete_failed
+import eu.tintera.plume.resources.calls_delete_one_failed
 import eu.tintera.plume.resources.calls_load_failed
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -123,6 +124,23 @@ class CallsViewModel(
                     reload()
                 }
                 .onFailure { _state.update { it.copy(deleting = false, error = UiText(Res.string.calls_delete_failed)) } }
+        }
+    }
+
+    /**
+     * Smaže jeden řádek historie — i sloučený, tedy všechny jeho hovory. Ze seznamu zmizí hned;
+     * když smazání selže, historie se přečte znovu a řádek se vrátí. [revoke] = i protějšku.
+     */
+    fun delete(group: CallHistoryGroup, revoke: Boolean) {
+        val ids = group.messageIds.toSet()
+        val chatId = group.latest.chat.id
+        _state.update { state -> state.copy(entries = state.entries?.filterNot { it.chat.id == chatId && it.messageId in ids }) }
+        viewModelScope.launch {
+            chats.deleteCallEntries(chatId, group.messageIds, revoke)
+                .onFailure {
+                    _state.update { it.copy(error = UiText(Res.string.calls_delete_one_failed)) }
+                    reload()
+                }
         }
     }
 
