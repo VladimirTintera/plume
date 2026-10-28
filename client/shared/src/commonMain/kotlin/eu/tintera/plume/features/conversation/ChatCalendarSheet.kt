@@ -635,7 +635,8 @@ private fun ServerMonths(
     }
     val serverActions = remember(actions, server.days) {
         DayActions(
-            onJump = { date -> server.days[date]?.let { onJumpToMessage(it.firstMessageId) } },
+            // Den za načtenými stránkami první zprávu nezná — skočí se na datum, jako u všech zpráv.
+            onJump = { date -> server.days[date]?.let { onJumpToMessage(it.firstMessageId) } ?: actions.onJump(date) },
             onSummarize = actions.onSummarize,
             onClear = actions.onClear,
         )
@@ -978,8 +979,10 @@ private fun DayCell(
         unknown -> stringResource(Res.string.chat_calendar_day_unknown, dayName)
         else -> null
     }
-    // Podržení jen u dne se zprávami: u neznámého dne není co shrnout ani mazat.
-    val menuActions = dayMenu(date, actions).takeIf { count > 0 }
+    // Podržení u dne se zprávami i u neznámého: shrnutí si den stáhne ze serveru a mazání jde
+    // podle data, takže obojí funguje i bez zpráv v zařízení. Jen den, o kterém se ví, že je
+    // prázdný, nabídku nemá — není s ním co dělat.
+    val menuActions = dayMenu(date, actions).takeIf { count > 0 || unknown }
     var menuOpen by remember { mutableStateOf(false) }
     val actionsLabel = stringResource(Res.string.chat_calendar_day_actions)
     Box {
