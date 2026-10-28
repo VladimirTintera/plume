@@ -12,6 +12,7 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,8 +71,30 @@ class PaneResize(
     /** Popis pro čtečku („Šířka profilu"). */
     val label: String,
 ) {
-    /** Kde v okně leží panel; zapisuje `PaneCard`, čte [PaneHandleOverlay]. */
-    val paneBounds: MutableState<Rect?> = mutableStateOf(null)
+    private val bounds: MutableState<Rect?> = mutableStateOf(null)
+
+    /** Karta, jejíž poloha v [bounds] je; jen ta ji smí smazat. */
+    private var reporter: Any? = null
+
+    /** Kde v okně leží panel; hlásí `PaneCard` ([report]), čte [PaneHandleOverlay]. */
+    val paneBounds: State<Rect?> get() = bounds
+
+    /** Karta [owner] leží v okně na [rect]. */
+    fun report(owner: Any, rect: Rect) {
+        reporter = owner
+        bounds.value = rect
+    }
+
+    /**
+     * Karta [owner] zmizela. Smaže polohu, jen když je poslední zapsaná její: karta, která panel
+     * opouští (odjíždějící scéna), zaniká až po té, která ho převzala, a jinak by po sobě
+     * vymazala i její polohu — táhlo by zmizelo, dokud se nová karta nepohne.
+     */
+    fun release(owner: Any) {
+        if (reporter !== owner) return
+        reporter = null
+        bounds.value = null
+    }
 }
 
 /** Táhlo profilu vedle konverzace (Chaty, dva i tři panely); jinde `null`. */
@@ -79,6 +102,14 @@ val LocalProfilePaneResize = compositionLocalOf<PaneResize?> { null }
 
 /** Táhlo seznamu chatů ve třech panelech (ve dvou je táhlo knihovny); jinde `null`. */
 val LocalListPaneResize = compositionLocalOf<PaneResize?> { null }
+
+/**
+ * Položky (`NavEntry.contentKey`), jejichž karta smí hlásit polohu táhlům: profil navrchu
+ * zobrazeného zásobníku Chatů a hlavní seznam. Lokály táhel dosáhnou na všechno v `NavDisplay`,
+ * tedy i na scénu, která zrovna odjíždí (Nastavení s podstránkou ve třetím panelu po přepnutí
+ * do Chatů, archiv): bez téhle podmínky by její karta táhlo přesunula k sobě a pak smazala.
+ */
+val LocalPaneResizeOwners = compositionLocalOf<Set<Any>> { emptySet() }
 
 /**
  * Vrstva přes celou scénu, která posadí táhla [resizes] na předěly jejich panelů, svisle

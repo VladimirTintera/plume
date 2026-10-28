@@ -612,6 +612,12 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   ťuknutí na „Přejít na datum" panel zavře). Ťuknutí na den konverzaci vedle posune a panel
   zůstane: kvůli tomu panel je. Jen celý chat hlavního seznamu, téma Uložených zpráv a vlákno
   přímých zpráv; archiv, vlákno komentářů a téma skupiny mají dál sheet.
+  - **Podklad panelu je plocha karty (`surface`), jako u profilu**, ne barva sheetu. Napřed měl
+    panel `BottomSheetDefaults.ContainerColor` (`surfaceContainerLow`), aby sytost dnů seděla se
+    sheetem — jenže konverzace s třetím panelem je JEDNA karta (`PaneCard`) a kalendář v ní byl
+    o tón tmavší než profil i konverzace vedle. Dny se proto míchají s podkladem, na kterém leží
+    (`LocalCalendarBase`: panel ho nastaví na svou plochu, sheet bez něj bere barvu sheetu),
+    takže sytost vychází stejně v obou. Ověřeno na desktopu (světlý motiv).
   - **Konverzaci řídí přes `ConversationJumpRequests`**, ne přímo — panel je jiná položka
     navigace s vlastním úložištěm ViewModelů a na ViewModel konverzace nedosáhne. Kanál umí
     zprávu i den (`JumpTarget`); vyzvednutý požadavek se vynuluje, takže totéž ťuknutí podruhé

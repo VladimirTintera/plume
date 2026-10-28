@@ -63,7 +63,12 @@ val LocalPaneNeighbours = compositionLocalOf { PaneNeighbours() }
  * (téma, `Box`) — kdyby se větvila, přišel by obsah při změně šířky okna o svůj stav.
  */
 @Composable
-fun PaneCard(role: PaneRole, content: @Composable () -> Unit) {
+fun PaneCard(
+    role: PaneRole,
+    /** `NavEntry.contentKey` položky v kartě; hlásit polohu táhlu smí jen ta z [LocalPaneResizeOwners]. */
+    entryKey: Any? = null,
+    content: @Composable () -> Unit,
+) {
     val sideBySide = LocalPanesSideBySide.current
     val neighbours = LocalPaneNeighbours.current
     val flat = sideBySide && role == PaneRole.List
@@ -115,15 +120,19 @@ fun PaneCard(role: PaneRole, content: @Composable () -> Unit) {
         ) {
             content()
             // Kde panel leží — táhlo šířky na předělu kreslí shell nad panely
-            // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl.
+            // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl. Jen karta zobrazené položky —
+            // odjíždějící scéna by táhlo přetáhla k sobě a po zániku smazala (`LocalPaneResizeOwners`).
+            val owned = entryKey != null && entryKey in LocalPaneResizeOwners.current
             val resize = when {
+                !owned -> null
                 card && role == PaneRole.Extra -> LocalProfilePaneResize.current
                 flat -> LocalListPaneResize.current
                 else -> null
             }
             if (resize != null) {
-                Box(Modifier.matchParentSize().onGloballyPositioned { resize.paneBounds.value = it.boundsInWindow() })
-                DisposableEffect(resize) { onDispose { resize.paneBounds.value = null } }
+                val token = remember { Any() }
+                Box(Modifier.matchParentSize().onGloballyPositioned { resize.report(token, it.boundsInWindow()) })
+                DisposableEffect(resize) { onDispose { resize.release(token) } }
             }
         }
     }
@@ -144,7 +153,7 @@ fun rememberPaneCardDecorator(): NavEntryDecorator<NavKey> = remember {
             entry.Content()
             return@NavEntryDecorator
         }
-        PaneCard(info.role) {
+        PaneCard(info.role, entry.contentKey) {
             val maxWidth = entry.contentMaxWidth
             if (maxWidth == null) entry.Content() else Box(Modifier.centeredColumn(maxWidth)) { entry.Content() }
         }

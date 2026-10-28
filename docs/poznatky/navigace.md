@@ -381,6 +381,16 @@ knihovny ve dvou panelech).
   bere z položky SEZNAMU** (`lastList.boundsAnimationSpec()` v `ThreePaneScaffoldScene`),
   proto ji nese i seznam.
 - Jen Chaty; podstránky Nastavení ve třetím panelu mají výchozí šířku.
+- **Polohu táhlu hlásí jen karta položky, která je v Chatech opravdu vidět**
+  (`LocalPaneResizeOwners`: profil navrchu zobrazeného zásobníku a hlavní seznam), a smaže ji
+  jen ta karta, která ji zapsala (`PaneResize.report` / `release`). Lokály táhel dosáhnou na
+  všechno v `NavDisplay`, tedy i na scénu, která po změně scény ještě odjíždí. Po návratu
+  z Nastavení s otevřenou podstránkou do Chatů s profilem dostala táhla i karta podstránky
+  a karta seznamu Nastavení: zapsaly do slotu svou polohu a po dojetí přechodu ho vynulovaly.
+  Nová karta se znovu nepřihlásila (`onGloballyPositioned` se ozve až při pohybu), takže obě
+  táhla zmizela, dokud se nezměnilo rozložení. Reprodukováno na desktopu bez opravy (obě táhla
+  pryč) a s opravou ověřeno, že zůstanou. Týž mechanismus hrozil u skoku mezi archivem
+  (`ARCHIVE_SCENE`) a hlavními Chaty, ten ověřený není.
 
 ### Obsah přesouvaný mezi scénami
 
