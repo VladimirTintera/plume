@@ -363,6 +363,11 @@ internal class ConversationMessageActions(
      * „Přeposlat" z nabídky. Obrazovka si o cíl řekne sama (otevře výběr chatu), takže se tu jen
      * zapamatuje, co se přeposílá — u alba celé album, jako u mazání.
      */
+    fun requestReplyElsewhere(messageId: Long) {
+        state.update { it.copy(messageMenu = null) }
+        navigate(ConversationNavEvent.ReplyElsewhere(messageId))
+    }
+
     fun requestForward(messageId: Long) {
         val ids = state.value.albumMemberIds(messageId)
         state.update { it.copy(messageMenu = null) }

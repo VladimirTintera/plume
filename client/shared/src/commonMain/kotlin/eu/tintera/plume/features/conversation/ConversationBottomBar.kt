@@ -511,7 +511,9 @@ internal fun ConversationBottomBar(
             ReplyControls(
                 message = target,
                 quote = state.replyQuote?.text,
-                partnerName = state.info?.title,
+                // U zprávy z jiného chatu jmenuje pruh ten chat (bez jména odesílatele by
+                // příchozí zpráva ze soukromého chatu nesla jméno tohohle chatu).
+                partnerName = state.replyElsewhere?.takeIf { it.messageId == target.id }?.chatTitle ?: state.info?.title,
                 onCancel = viewModel::clearReply,
             )
         },

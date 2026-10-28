@@ -23,6 +23,9 @@ sealed interface ConversationNavEvent {
     /** Přeposlat zprávy — obrazovka otevře výběr cílového chatu. */
     data class Forward(val messageIds: List<Long>) : ConversationNavEvent
 
+    /** Odpovědět na zprávu v jiném chatu — výběr chatu, kde se odpověď napíše. */
+    data class ReplyElsewhere(val messageId: Long) : ConversationNavEvent
+
     /** Video v prohlížeči od daného místa (čas v médiu). */
     data class OpenMediaAt(val target: MediaAt) : ConversationNavEvent
 

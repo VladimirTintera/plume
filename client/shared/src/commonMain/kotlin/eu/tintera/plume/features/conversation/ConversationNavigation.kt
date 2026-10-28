@@ -25,6 +25,8 @@ data class ConversationNavigation(
     /** Video od daného místa — čas v médiu („1:23" v textu). */
     val onOpenMediaAt: (messageId: Long, seconds: Int) -> Unit = { messageId, _ -> onOpenMedia(messageId) },
     val onForward: (messageIds: List<Long>) -> Unit,
+    /** „Odpovědět v jiném chatu": výběr chatu, kde se na zprávu odpoví. */
+    val onReplyElsewhere: (messageId: Long) -> Unit = {},
     /** Příloha ankety v prohlížeči; `index` viz [MessageAction.OpenPollMedia]. */
     val onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
     /** Médium článku v prohlížeči; `index` viz [MessageAction.OpenArticleMedia]. */
@@ -128,6 +130,7 @@ internal fun ConversationEvents(
             when (event) {
                 // Výběr cílového chatu je vlastní obrazovka.
                 is ConversationNavEvent.Forward -> nav.onForward(event.messageIds)
+                is ConversationNavEvent.ReplyElsewhere -> nav.onReplyElsewhere(event.messageId)
                 is ConversationNavEvent.OpenMediaAt -> nav.onOpenMediaAt(event.target.messageId, event.target.seconds)
                 is ConversationNavEvent.OpenChat -> nav.onOpenChat(event.target)
                 is ConversationNavEvent.OpenScreen -> nav.onOpenScreen(event.screen)

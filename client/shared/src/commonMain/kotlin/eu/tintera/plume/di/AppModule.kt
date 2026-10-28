@@ -167,6 +167,7 @@ import org.koin.core.module.dsl.viewModel
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
 import eu.tintera.plume.features.forward.ForwardViewModel
+import eu.tintera.plume.features.forward.ReplyElsewhereViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -697,6 +698,8 @@ fun appModule() = module {
     viewModel { parameters ->
         ShareContactViewModel(userId = parameters.get(), repository = get(), chatRepository = get(), shareTargets = get())
     }
+
+    viewModel { parameters -> ReplyElsewhereViewModel(fromChatId = parameters.get(), chatRepository = get()) }
 
     // Parametry INDEXEM: požadavky bývají `null`.
     viewModel { parameters ->

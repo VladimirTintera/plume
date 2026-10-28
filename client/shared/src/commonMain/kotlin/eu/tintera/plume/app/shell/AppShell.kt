@@ -178,6 +178,8 @@ import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.SharedMediaKind
 import eu.tintera.plume.features.profile.ProfileTabRequests
 import eu.tintera.plume.core.navigation.ForwardRoute
+import eu.tintera.plume.core.navigation.ReplyElsewhereRoute
+import eu.tintera.plume.features.forward.ReplyElsewhereScreen
 import eu.tintera.plume.core.ui.LocalHighlightTarget
 import eu.tintera.plume.core.navigation.PollComposerRoute
 import eu.tintera.plume.core.navigation.ChecklistComposerRoute
@@ -974,6 +976,7 @@ private fun shellEntryProvider(
                     onForward = { messageIds ->
                         chatsStack.add(ForwardRoute(route.chatId, messageIds))
                     },
+                    onReplyElsewhere = { messageId -> chatsStack.add(ReplyElsewhereRoute(route.chatId, messageId)) },
                     // Zmínka i odkaz otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
                     // Odkaz na zprávu nese její id a konverzace na ni po otevření skočí.
                     // Komentáře jsou vlákno diskusní skupiny nad kanálem, téma jde rovnou do tématu
@@ -1357,6 +1360,7 @@ private fun shellEntryProvider(
                     onForward = { messageIds ->
                         chatsStack.add(ForwardRoute(route.chatId, messageIds))
                     },
+                    onReplyElsewhere = { messageId -> chatsStack.add(ReplyElsewhereRoute(route.chatId, messageId)) },
                     onOpenChat = { target -> chatsStack.openTarget(target, archive = true) },
                     onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
@@ -1722,6 +1726,22 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             // Jako po přeposlání: otevře se první vybraný chat, je vidět, že kontakt dorazil.
             onSent = { chatId ->
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                    chatsStack.add(ConversationRoute(chatId))
+                }
+            },
+        )
+    }
+
+    // Odpovědět v jiném chatu: výběr cíle zmizí a otevře se vybraný chat s rozepsanou odpovědí
+    // (`ConversationReplyRequests`); zpět vede do původní konverzace, jako po přeposlání.
+    entry<ReplyElsewhereRoute> { route ->
+        val replyRequests = koinInject<ConversationReplyRequests>()
+        ReplyElsewhereScreen(
+            viewModel = koinViewModel(key = "reply-elsewhere-${route.fromChatId}-${route.messageId}", parameters = { parametersOf(route.fromChatId) }),
+            onBack = { chatsStack.pop(route) },
+            onPicked = { chatId ->
+                replyRequests.request(chatId, route.messageId, fromChatId = route.fromChatId)
                 if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
                     chatsStack.add(ConversationRoute(chatId))
                 }

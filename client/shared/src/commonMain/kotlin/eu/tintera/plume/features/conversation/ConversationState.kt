@@ -523,6 +523,9 @@ internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long
 /** Otevřený dialog upozornění na blízkost: u které zprávy a jaký poloměr je nastavený teď. */
 data class ProximityAlertPrompt(val messageId: Long, val currentRadius: Int)
 
+/** Odpověď na zprávu [messageId] z chatu [chatTitle] — pruh nad polem ho jmenuje místo tohoto chatu. */
+data class ReplyElsewhere(val messageId: Long, val chatTitle: String?)
+
 data class ConversationState(
     val info: ChatInfo? = null,
     /**
@@ -713,6 +716,11 @@ data class ConversationState(
     val businessIntro: BusinessIntro? = null,
     /** Parametr ze startovacího odkazu, který čeká na Start ([BotStartRequests]). */
     val botStartParameter: String? = null,
+    /**
+     * Odpověď míří na zprávu z JINÉHO chatu („Odpovědět v jiném chatu"); `null` = odpověď tady.
+     * Platí, jen dokud [replyingTo] je právě tahle zpráva.
+     */
+    val replyElsewhere: ReplyElsewhere? = null,
     /** Start odešel a čeká se na odpověď — tlačítko je neaktivní. */
     val startingBot: Boolean = false,
     /** Má chat naplánované zprávy? Pak je u pole hodiny, které otevřou jejich seznam. */

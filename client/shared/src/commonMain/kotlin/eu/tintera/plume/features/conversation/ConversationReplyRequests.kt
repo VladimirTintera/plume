@@ -4,11 +4,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** Požadavek odpovědět na zprávu [messageId] v chatu [chatId]. */
-data class ReplyRequest(val chatId: Long, val messageId: Long)
+/**
+ * Požadavek odpovědět na zprávu [messageId] v chatu [chatId]. S [fromChatId] je zpráva
+ * z jiného chatu („Odpovědět v jiném chatu"), jinak z [chatId].
+ */
+data class ReplyRequest(val chatId: Long, val messageId: Long, val fromChatId: Long? = null)
 
 /**
- * Požadavek „připrav v konverzaci odpověď" zvenčí — z tlačítka Odpovědět v prohlížeči médií.
+ * Požadavek „připrav v konverzaci odpověď" zvenčí — z tlačítka Odpovědět v prohlížeči médií
+ * a z výběru chatu „Odpovědět v jiném chatu".
  *
  * Stav, ne událost, ze stejného důvodu jako [ConversationSearchRequests]: prohlížeč se zavírá
  * a konverzace pod ním se teprve znovu skládá, takže v okamžiku ťuknutí nemusí být komu doručit.
@@ -19,8 +23,8 @@ class ConversationReplyRequests {
 
     val request: StateFlow<ReplyRequest?> = pending.asStateFlow()
 
-    fun request(chatId: Long, messageId: Long) {
-        pending.value = ReplyRequest(chatId, messageId)
+    fun request(chatId: Long, messageId: Long, fromChatId: Long? = null) {
+        pending.value = ReplyRequest(chatId, messageId, fromChatId)
     }
 
     /** Vyřízeno — jen když čeká požadavek právě pro [chatId]. */

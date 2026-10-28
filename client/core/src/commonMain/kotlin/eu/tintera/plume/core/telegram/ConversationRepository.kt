@@ -410,6 +410,15 @@ interface ConversationRepository {
     ): Result<Unit>
 
     /**
+     * Odpověď v chatu [chatId] míří na zprávu z JINÉHO chatu ([reply]); `null` ji zruší.
+     *
+     * Všechna odeslání (text, média, anketa…) i koncept berou odpověď jako id zprávy a to by
+     * bez chatu ukazovalo do [chatId]. Tady se jedno id označí za zprávu jinde: odeslání s tímhle
+     * id pak odejde jako `InputMessageReplyToExternalMessage`, jiné id jako obyčejná odpověď.
+     */
+    fun setExternalReply(chatId: Long, reply: ExternalReplyTarget?) {}
+
+    /**
      * Pošle příběh [storyId] autora [posterChatId] do chatu [toChatId] jako zprávu
      * (`InputMessageStory`) — příjemce ho otevře ťuknutím. Smí jen příběh s
      * [MessageMedia.Story.canBeForwarded].
@@ -1476,6 +1485,8 @@ data class ChatInfo(
     val draftLinkPreview: LinkPreviewOptions? = null,
     /** Citovaný úryvek odpovědi v konceptu, nebo `null` (odpověď na celou zprávu). */
     val draftReplyQuote: ReplyQuote? = null,
+    /** Odpověď konceptu míří na zprávu z jiného chatu (`InputMessageReplyToExternalMessage`). */
+    val draftReplyFromChatId: Long? = null,
     /** Ověřený, podvod, falešný (viz [Verification]) — štítek u jména v hlavičce. */
     val verification: Verification? = null,
     /** Tajný chat — zámek u jména, zákaz snímků obrazovky. */
@@ -1550,6 +1561,9 @@ data class ChatInfo(
  * repository z původní zprávy — TDLib chce, aby v citaci zůstalo.
  */
 data class ReplyQuote(val text: String, val position: Int)
+
+/** Zpráva [messageId] z chatu [fromChatId], na kterou se odpovídá v jiném chatu. */
+data class ExternalReplyTarget(val fromChatId: Long, val messageId: Long)
 
 /**
  * Odkazy v rozepsaném textu a náhled jednoho z nich.
@@ -1900,6 +1914,8 @@ data class SavedDraft(
     val replyToMessageId: Long? = null,
     val quote: ReplyQuote? = null,
     val linkPreview: LinkPreviewOptions? = null,
+    /** [replyToMessageId] je zpráva z tohohle chatu, ne z chatu konceptu. */
+    val replyFromChatId: Long? = null,
 )
 
 /**
@@ -2293,6 +2309,8 @@ data class MessageActions(
      * a u zpráv, které média neunesou; v albu jen fotku za video a naopak.
      */
     val canEditMedia: Boolean = false,
+    /** Na zprávu jde odpovědět v jiném chatu (`canBeRepliedInAnotherChat`); chráněný obsah ne. */
+    val canReplyElsewhere: Boolean = false,
 ) {
     companion object {
         /**
