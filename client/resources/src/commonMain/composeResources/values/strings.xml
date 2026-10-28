@@ -4207,8 +4207,9 @@
     <string name="chat_calendar_day_clear">Clear history for this day…</string>
     <string name="chat_calendar_day_go">Go to day</string>
     <string name="chat_calendar_day_summarize">Summarize day</string>
-    <string name="chat_calendar_legend_all">Grey days aren't on this device yet — tap one to jump there. “+” means only part of the day is counted.</string>
-    <string name="chat_calendar_legend_hold">Hold a day for more actions.</string>
+    <string name="chat_calendar_key_unknown">Not on this device yet</string>
+    <string name="chat_calendar_key_partial">Counted in part</string>
+    <string name="chat_calendar_key_hold">Hold a day for more actions</string>
     <string name="chat_calendar_day_unknown">%1$s, messages not loaded</string>
     <string name="chat_calendar_failed">Couldn't count the messages.</string>
     <string name="chat_calendar_kind_empty">Nothing like that in this chat.</string>

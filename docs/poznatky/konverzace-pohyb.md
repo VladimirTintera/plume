@@ -556,8 +556,32 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
     s tím dnem (`initialDay`). Kde po dnech mazat nejde (`ClearHistoryRights.byDate`), položka
     v nabídce není. Pravidlo, co jde vyprázdnit, je jedno pro ⋮ i kalendář
     (`ConversationState.clearHistoryRights`).
-- **Legenda pod čipy** říká, co je šedý den a „+" (jen u všech zpráv) a že den jde podržet (jen
-  když nabídka něco nabízí). Bez ní se na obojí dalo přijít jen náhodou.
+- **Kalendář se plní plynule, neprobliká.** Kalendář se počítá po úsecích a panel se
+  přepočítává při každém novém okně konverzace, takže se dny, součty i měsíce mění pod rukama.
+  Barva dne a čísla se prolínají (`animateColorAsState`; kontrast popředí se rozhoduje z CÍLOVÉ
+  barvy, prolíná se výsledek), počet pod číslem dne vyjede a další změny přetočí
+  (`RollingNumber` — formát je obyčejná funkce, šablony „1,2k" a „+" se proto berou z prostředků
+  se značkami místo čísel, `rememberCellCountFormat`), součet měsíce se přetočí uvnitř věty
+  z `plurals` (`MonthTotalLabel`, `NUMBER_MARK` jako „N nových zpráv"). Měsíce mají
+  `animateItem` a `animateContentSize`, souhrn měsíce a patička „Načíst starší" se prolnou,
+  pole hledání vyjede. Tečky ročního přehledu se prolínají taky.
+  - **Přepnutí čipu nebo ročního přehledu jen prolne NOVÝ obsah** (`FadeInOnChange`), starý
+    zmizí hned. Při prolnutí obou by dva seznamy sdílely jeden `LazyListState` (patří k filtru)
+    a odcházející obsah by se kreslil z NOVÉHO stavu (u druhu už bez dnů ze serveru). Klíčem je
+    čip, druh, roční přehled a „první data dorazila" — ne hledaný výraz ani další stránka.
+  - Ověřeno na emulátoru zpomalenými animacemi (`animator_duration_scale 10`) a sérií snímků:
+    mezistavy sytosti dnů, vyjíždějící „68+", přetáčení součtu „2 001+" → „3 975+".
+- **Neznámý den má přerušovaný kroužek, prázdný jen tlumené číslo** (`drawUnknownOutline`,
+  `outlineVariant`). Dřív se lišily jen sytostí čísla (0,3 proti 0,6) a rozeznat nešly, přestože
+  znamenají opak: o prázdném dni se ví, že nic nemá, neznámý v zařízení není — a jde na něj
+  ťuknout (skok na datum) i ho podržet. Neznámý má proto číslo plně čitelné, prázdný tlumené.
+- **Legenda pod čipy je klíč, ne věty** (`CalendarLegend`, `FlowRow`): kroužek „Zatím není
+  v zařízení", „+" „Spočteno zčásti" (obojí jen u všech zpráv) a „Podržením dne další akce" (jen
+  když nabídka něco nabízí). Dvě věty na tři řádky zůstávaly nad kalendářem napořád; klíč se
+  vejde na řádek, v úzkém panelu na dva. Bez legendy se na „+" a podržení dalo přijít jen náhodou.
+- **Pod hlavičkou je předěl, jen když je seznam odrolovaný** (`canScrollBackward`, prolnutí).
+  Seznam zajížděl pod legendu bez předělu a text na jeho hraně vypadal useknutý přes ni. Roční
+  přehled má vlastní `LazyListState` (`yearListState`), aby předěl věděl i o něm.
 - **Čip Média kreslí den jako kruh s první fotkou** (jako `MediaCalendarSheet` v profilu, spoiler
   bez náhledu) a přes ni den a počet bíle; ztmavení 0,4 místo 0,3 z profilu — dva řádky na
   pestrých obálkách byly hůř čitelné.
