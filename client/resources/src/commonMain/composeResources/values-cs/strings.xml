@@ -4343,6 +4343,19 @@
     <string name="chat_calendar_day_unknown">%1$s, zprávy nenačtené</string>
     <string name="chat_calendar_failed">Zprávy se nepodařilo spočítat.</string>
     <string name="chat_calendar_kind_empty">Nic takového v chatu není.</string>
+    <string name="chat_calendar_member">Člen</string>
+    <string name="chat_calendar_search">Hledat</string>
+    <string name="chat_calendar_search_empty">Napiš, co hledáš, nebo vyber člena — kalendář ukáže, kterých dnů se to týká.</string>
+    <string name="chat_calendar_search_hint">Hledat v chatu</string>
+    <string name="chat_calendar_stats_average">průměrně %1$s denně</string>
+    <string name="chat_calendar_stats_busiest">Nejvíc %1$s (%2$s)</string>
+    <plurals name="chat_calendar_stats_streak">
+        <item quantity="one">%1$d den v řadě</item>
+        <item quantity="few">%1$d dny v řadě</item>
+        <item quantity="many">%1$d dne v řadě</item>
+        <item quantity="other">%1$d dní v řadě</item>
+    </plurals>
+    <string name="chat_calendar_today">Dnes</string>
     <string name="chat_calendar_load_older">Načíst starší</string>
     <string name="chat_calendar_older_missing">Starší zprávy zatím v zařízení nejsou.</string>
     <string name="chat_calendar_start">Začátek chatu</string>
