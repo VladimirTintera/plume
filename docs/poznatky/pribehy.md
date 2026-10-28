@@ -287,6 +287,33 @@ zapisuje dvakrát.
 - **Příběh, který už není**, ukáže větu a po 6 s jde dál. Živé vysílání má vlastní
   kapitolu („Živé příběhy"); kde ho neumíme (desktop, iOS), ukáže větu taky.
 
+### Zvuk, dlouhý popisek a čtečka obrazovky
+
+- **Ztlumení videa** je tlačítko v hlavičce (jen u videa, ne u fotky ani živého příběhu;
+  `StorySound`). Platí pro všechna videa až do zavření prohlížeče (`rememberSaveable`
+  v `StoriesScreen`), jako v oficiální aplikaci — po zavření hraje zase se zvukem. Do přehrávače
+  jde `setMuted` hned a nové video se rovnou načte ztlumené (`load(muted = …)`), ať první
+  zlomek vteřiny nezazní.
+- **Dlouhý popisek se ťuknutím rozbalí** (`StoryCaption`): usekne se na šest řádků a jen tehdy
+  bere ťuknutí (`hasVisualOverflow`); krátký ho nechá přepínání příběhů pod sebou. Rozbalený
+  zabere nejvýš polovinu výšky a dál se posouvá, **příběh mezitím stojí** a další ťuknutí ho
+  sbalí. Tmavší podklad rozbaleného nahoře plynule začíná z průhledné — s ostrou hranou vypadal
+  jako cizí panel přes obraz. Čtečka u něj slyší „Zobrazit celý popisek" / „Sbalit popisek".
+  Free účet má popisek do 200 znaků (`MEDIA_CAPTION_TOO_LONG`), přes šest řádků se tedy
+  dostane hlavně zalomeními.
+- **Se čtečkou obrazovky příběh sám neodjíždí** (`rememberScreenReaderEnabled`: TalkBack
+  s prozkoumáváním dotykem, VoiceOver): fotka stojí a video po dohrání zůstane. Šest vteřin
+  čtečka nestihne — uživatel se k obsahu prstem teprve hledá. Dál se jde akcí „Další příběh"
+  nebo ťuknutím. Obsah má popis „Fotka" / „Video" (dřív čtečka u fotky neřekla nic).
+- **Popis fotky modelem v zařízení** (jako „Popsat fotku" v konverzaci) u příběhů zatím NENÍ.
+- **Ověřeno na Pixelu 5** (testovací účet, vlastní příběh v archivu s popiskem o deseti řádcích
+  a s médiem vyměněným za nahrávku obrazovky): popisek uříznutý na „Radek 6…", ťuknutí ho
+  rozbalí a příběh stojí (průběh za 8 s jen na pětině), další ťuknutí sbalí a průběh jede dál;
+  u videa tlačítko zvuku v hlavičce, po ťuknutí přeškrtnutý reproduktor a popis „Unmute".
+  Že je video opravdu ztlumené, slyšet nebylo (nahrávka obrazovky nemá zvukovou stopu).
+  **Se zapnutým TalkBackem ověřené NENÍ** (zapnutí čtečky je systémové nastavení); rozbalení
+  popisku pokrývá i `StoryCaptionTest` (jvmTest). iOS a desktop jen přeložené.
+
 ## Reakce a odpověď
 
 Lišta pod cizím příběhem (`StoryReplyBar`): pole „Odpovědět…", „+" pro výběr reakce a srdce.

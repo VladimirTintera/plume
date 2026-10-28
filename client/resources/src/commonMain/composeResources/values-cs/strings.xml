@@ -3731,6 +3731,8 @@
     <string name="story_keep_on_profile_summary">Zůstane v profilu i po 24 hodinách</string>
     <string name="story_replace_media">Vyměnit fotku nebo video</string>
     <string name="story_edit_caption">Upravit popisek…</string>
+    <string name="story_caption_expand">Zobrazit celý popisek</string>
+    <string name="story_caption_collapse">Sbalit popisek</string>
     <string name="story_caption_save">Uložit</string>
     <string name="story_caption_saved">Popisek uložen</string>
     <string name="story_audience_menu">Kdo ho uvidí…</string>
