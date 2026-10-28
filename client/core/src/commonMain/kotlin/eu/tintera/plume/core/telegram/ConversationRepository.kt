@@ -1402,6 +1402,22 @@ data class ChatSearchPage(
     val messageIds: List<Long>,
     val total: Int?,
     val nextFromMessageId: Long?,
+    /** Co o výsledcích ukáže seznam (úryvek, čas, odesílatel), v pořadí [messageIds]. */
+    val hits: List<ChatSearchHit> = emptyList(),
+)
+
+/**
+ * Výsledek hledání v konverzaci pro seznam výsledků: jak by zprávu ukázal náhled v seznamu chatů
+ * ([text], „Fotka" u médií bez popisku), kdy přišla a kdo ji ve skupině napsal.
+ */
+data class ChatSearchHit(
+    val messageId: Long,
+    val text: UiText,
+    /** Unixový čas. */
+    val date: Int,
+    val isOutgoing: Boolean,
+    /** Kdo zprávu ve SKUPINĚ napsal; u vlastní a v soukromém chatu `null`. */
+    val senderName: String? = null,
 )
 
 /** Co je v exportu chatu z jiné aplikace (`MessageFileType`): soukromý chat s [name], nebo skupina. */

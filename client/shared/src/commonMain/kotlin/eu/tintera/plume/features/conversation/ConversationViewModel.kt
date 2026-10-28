@@ -552,6 +552,8 @@ class ConversationViewModel(
     fun onMemberQuery(text: String) = search.onMemberQuery(text)
     fun searchOlder() = search.searchOlder()
     fun searchNewer() = search.searchNewer()
+    fun searchGoTo(index: Int) = search.searchGoTo(index)
+    fun loadMoreSearchResults() = search.loadMoreResults()
 
     /** Chat jako celek: pruhy nad konverzací, vstup, ztlumení, smazání — viz [ConversationChatActions]. */
     private val chatActions: ConversationChatActions = ConversationChatActions(

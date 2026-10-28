@@ -612,6 +612,12 @@
     </plurals>
     <string name="conversation_search_position">%1$d z %2$d</string>
     <string name="conversation_search_none">Nic nenalezeno</string>
+    <string name="conversation_search_list">Seznam výsledků</string>
+    <plurals name="conversation_search_results">
+        <item quantity="one">%1$d výsledek</item>
+        <item quantity="few">%1$d výsledky</item>
+        <item quantity="other">%1$d výsledků</item>
+    </plurals>
     <string name="conversation_selection_select">Vybrat zprávu</string>
     <string name="conversation_selection_deselect">Zrušit výběr zprávy</string>
     <string name="conversation_selection_close">Ukončit výběr</string>

@@ -597,6 +597,11 @@
     </plurals>
     <string name="conversation_search_position">%1$d of %2$d</string>
     <string name="conversation_search_none">No results</string>
+    <string name="conversation_search_list">List of results</string>
+    <plurals name="conversation_search_results">
+        <item quantity="one">%1$d result</item>
+        <item quantity="other">%1$d results</item>
+    </plurals>
     <string name="conversation_selection_select">Select message</string>
     <string name="conversation_selection_deselect">Deselect message</string>
     <string name="conversation_selection_close">Leave selection</string>

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ChatSearchHit
 import eu.tintera.plume.core.telegram.ChatSearchPage
 import eu.tintera.plume.core.telegram.SenderInfo
 
@@ -30,6 +31,8 @@ data class InChatSearch(
     val total: Int? = null,
     val nextFromMessageId: Long? = null,
     val loading: Boolean = false,
+    /** Úryvek, čas a odesílatel k načteným [results] — pro seznam výsledků. */
+    val hits: Map<Long, ChatSearchHit> = emptyMap(),
 ) {
     /** Ukázaná zpráva, nebo `null`. */
     val current: Long? get() = results.getOrNull(index)
@@ -59,6 +62,7 @@ data class InChatSearch(
         total = page.total,
         nextFromMessageId = page.nextFromMessageId,
         loading = false,
+        hits = page.hits.associateBy { it.messageId },
     )
 
     /** Další stránka starších — jen pro dotaz a odesílatele, ke kterým patří načtené výsledky. */
@@ -69,8 +73,12 @@ data class InChatSearch(
             results = results + page.messageIds.filter { known.add(it) },
             nextFromMessageId = page.nextFromMessageId,
             loading = false,
+            hits = hits + page.hits.associateBy { it.messageId },
         )
     }
+
+    /** Skok na výsledek z [index] (seznam výsledků); `null`, když tam žádný není. */
+    fun at(index: Int): InChatSearch? = copy(index = index).takeIf { index in results.indices }
 
     /** O výsledek starší; `null`, když je potřeba napřed dotáhnout stránku (nebo už není kam). */
     fun older(): InChatSearch? = if (index + 1 < results.size) copy(index = index + 1) else null

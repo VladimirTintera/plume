@@ -492,8 +492,8 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
 - **Víc než 10 fotek naráz a „poslat jednotlivě"** (M). Výběr se usekne na
   `MAX_ATTACHMENTS = 10` s hláškou; Telegram rozdělí výběr do víc alb a umí je poslat i bez
   seskupení.
-- **Výsledky hledání v chatu jako seznam** (M) s úryvkem a datem, vedle šipek „N z M". Při
-  stovkách výsledků se šipkami nedá nic projít (`InChatSearchBar.kt`).
+- ~~**Výsledky hledání v chatu jako seznam**~~ — hotovo: tlačítko na liště „N z M", sheet
+  s úryvky a datem (`docs/poznatky/konverzace-pohyb.md`, „Seznam výsledků").
 - **Výběr víc zpráv tahem** (M), případně „vybrat až sem". Dnes ťuknutí na každou zprávu zvlášť
   (`MessageFrame.kt`, vrstva výběru).
 - ~~**Odpovědět v jiném chatu**~~ — hotovo: Další → „Odpovědět jinde", výběr chatu, citace nad
