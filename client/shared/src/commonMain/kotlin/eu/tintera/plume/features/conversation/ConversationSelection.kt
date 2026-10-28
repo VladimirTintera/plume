@@ -98,6 +98,83 @@ internal class ConversationSelection(
         }
     }
 
+    /** Výběr, ze kterého tah vyšel; tah ho jen rozšiřuje (nebo z něj ubírá), nepřepisuje. */
+    private var dragBase: MessageSelection? = null
+    private var dragAnchor: Long = 0
+    private var dragAdding: Boolean = true
+
+    /** Bloky, na jejichž práva se během tahu už ptáme — rozsah se tam a zpět mění často. */
+    private val dragRequested = mutableSetOf<Long>()
+
+    /**
+     * Začátek výběru tahem: podržená zpráva [messageId] je kotva. Na nevybrané tah PŘIDÁVÁ,
+     * na vybrané UBÍRÁ — jako v Google Fotkách; jinak by se vybraný úsek nedal tahem zrušit.
+     */
+    fun startDragSelection(messageId: Long) {
+        val snapshot = state.value
+        val selection = snapshot.selection ?: return
+        val key = snapshot.blockKeyOf(messageId) ?: return
+        dragBase = selection
+        dragAnchor = messageId
+        dragAdding = key !in selection.keys
+        dragRequested.clear()
+        extendDragSelection(messageId)
+    }
+
+    /**
+     * Tah došel ke zprávě [toMessageId]: výběr = výběr na začátku tahu ± všechno mezi kotvou
+     * a touhle zprávou (včetně). Počítá se pokaždé od začátku tahu, takže návrat prstu zpátky
+     * výběr zase zúží.
+     */
+    fun extendDragSelection(toMessageId: Long) {
+        val base = dragBase ?: return
+        val snapshot = state.value
+        val range = snapshot.blocksBetween(dragAnchor, toMessageId)
+        val keys = if (dragAdding) {
+            val added = range.keys.filter { it !in base.keys }
+            val room = (MAX_SELECTED_MESSAGES - base.count).coerceAtLeast(0)
+            if (added.size > room) {
+                state.update { it.copy(notice = UiText(Res.string.conversation_selection_limit, listOf(MAX_SELECTED_MESSAGES))) }
+            }
+            base.keys + added.take(room)
+        } else {
+            base.keys - range.keys
+        }
+        val withText = base.withText.filter { it in keys }.toSet() +
+            keys.filter { it !in base.keys && snapshot.blockHasText(range.getValue(it)) }
+        state.update {
+            val current = it.selection ?: return@update it
+            it.copy(
+                selection = current.copy(
+                    keys = keys,
+                    rights = (base.rights + current.rights).filterKeys { key -> key in keys },
+                    withText = withText,
+                ),
+            )
+        }
+        // Jen nově přejeté bloky; na vybrané před tahem se ptal už `toggleSelection`.
+        range.filterKeys { it in keys && it !in base.keys && dragRequested.add(it) }
+            .forEach { (key, messageId) -> requestRights(key, messageId) }
+    }
+
+    /** Konec tahu. Ubírání, které vzalo všechno, výběr ukončí — jako odebrání poslední zprávy. */
+    fun endDragSelection() {
+        dragBase = null
+        dragRequested.clear()
+        if (state.value.selection?.keys?.isEmpty() == true) closeSelection()
+    }
+
+    private fun requestRights(key: Long, messageId: Long) {
+        scope.launch {
+            val actions = repository.messageActions(chatId, messageId).getOrElse { MessageActions.Fallback }
+            state.update { latest ->
+                val current = latest.selection ?: return@update latest
+                if (key !in current.keys) return@update latest
+                latest.copy(selection = current.copy(rights = current.rights + (key to actions)))
+            }
+        }
+    }
+
     fun closeSelection() {
         state.update { it.copy(selection = null) }
     }

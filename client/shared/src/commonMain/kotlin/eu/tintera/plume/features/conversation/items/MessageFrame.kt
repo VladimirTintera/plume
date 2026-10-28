@@ -135,6 +135,7 @@ import eu.tintera.plume.features.conversation.REACTION_BADGE_ROOM
 import eu.tintera.plume.features.conversation.REACTION_ROW_HEIGHT
 import eu.tintera.plume.features.conversation.REACTION_SHADOW_ROOM
 import eu.tintera.plume.features.conversation.ReactionRow
+import eu.tintera.plume.features.conversation.reportSelectionTarget
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.check_circle_filled_24dp
 import eu.tintera.plume.resources.conversation_selection_deselect
@@ -1017,15 +1018,13 @@ private fun MessageFrame(
             Box(
                 Modifier
                     .matchParentSize()
+                    // Podržení a tah patří výběru tahem v seznamu (`selectionDrag`), řádek mu
+                    // jen hlásí, kde leží.
+                    .reportSelectionTarget(currentMessageId)
                     .contextClickable(
                         onClickLabel = label,
-                        onLongClickLabel = label,
-                        /*
-                         * Přidání a odebrání z výběru se liší (na Androidu) — je to přepnutí
-                         * stavu, ne potvrzení akce. U dlouhého stisku se nic nepřidává:
-                         * `combinedClickable` si haptiku dělá sám a druhá by ji zdvojila.
-                         */
-                        onLongClick = { scope.onAction(currentMessageId, MessageAction.ToggleSelection) },
+                        // Přidání a odebrání z výběru se liší (na Androidu) — je to přepnutí
+                        // stavu, ne potvrzení akce.
                         onClick = {
                             haptics.toggle(on = !frame.selected)
                             scope.onAction(currentMessageId, MessageAction.ToggleSelection)

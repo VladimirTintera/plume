@@ -947,6 +947,9 @@ class ConversationViewModel(
         logger = logger,
     )
     fun closeSelection() = selection.closeSelection()
+    fun startDragSelection(messageId: Long) = selection.startDragSelection(messageId)
+    fun extendDragSelection(messageId: Long) = selection.extendDragSelection(messageId)
+    fun endDragSelection() = selection.endDragSelection()
     fun copySelection() = selection.copySelection()
     fun copySelectionWithNames() = selection.copySelectionWithNames()
     fun copySelectionAsMarkdown() = selection.copySelectionAsMarkdown()

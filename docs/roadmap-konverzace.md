@@ -494,8 +494,8 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
   seskupení.
 - ~~**Výsledky hledání v chatu jako seznam**~~ — hotovo: tlačítko na liště „N z M", sheet
   s úryvky a datem (`docs/poznatky/konverzace-pohyb.md`, „Seznam výsledků").
-- **Výběr víc zpráv tahem** (M), případně „vybrat až sem". Dnes ťuknutí na každou zprávu zvlášť
-  (`MessageFrame.kt`, vrstva výběru).
+- ~~**Výběr víc zpráv tahem**~~ — hotovo: podržet a táhnout, přidává i ubírá, posun u okraje
+  (`docs/poznatky/konverzace-akce.md`, „Výběr tahem"). „Vybrat až sem" ne — tah to pokryje.
 - ~~**Odpovědět v jiném chatu**~~ — hotovo: Další → „Odpovědět jinde", výběr chatu, citace nad
   polem i v konceptu (`docs/poznatky/konverzace-psani.md`, „Odpovědět jinde").
 - **Velikost písma štípnutím v konverzaci** (S–M), jako Google Messages. Dnes jen Nastavení →

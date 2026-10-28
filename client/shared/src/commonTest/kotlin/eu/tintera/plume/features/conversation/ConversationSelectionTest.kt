@@ -60,6 +60,61 @@ class ConversationSelectionTest {
     }
 
     @Test
+    fun tahVyberePrejeteZpravyANavratJeZuzi() = runTest {
+        val state = testState(testMessage(1), testMessage(2), testMessage(3), testMessage(4), testMessage(5))
+        val repository = FakeRepository(deletable)
+        val selection = selection(this, state, repository)
+        selection.startSelection(1)
+
+        selection.startDragSelection(2)
+        selection.extendDragSelection(4)
+        assertEquals(listOf(1L, 2L, 3L, 4L), state.value.selectedMessageIds())
+
+        // Prst se vrátil: úsek se zúží, ale vybrané před tahem zůstane.
+        selection.extendDragSelection(3)
+        assertEquals(listOf(1L, 2L, 3L), state.value.selectedMessageIds())
+        selection.endDragSelection()
+        advanceUntilIdle()
+
+        // Na práva se ptá jednou za blok, i když se úsek během tahu měnil.
+        assertEquals(listOf(1L, 2L, 3L, 4L), repository.asked.sorted())
+        assertTrue(state.value.selection!!.canDelete)
+    }
+
+    @Test
+    fun tahZVybraneZpravyUbira() = runTest {
+        val state = testState(testMessage(1), testMessage(2), testMessage(3))
+        val selection = selection(this, state, FakeRepository(deletable))
+        selection.startSelection(1)
+        selection.toggleSelection(2)
+        selection.toggleSelection(3)
+
+        selection.startDragSelection(3)
+        selection.extendDragSelection(2)
+        selection.endDragSelection()
+        assertEquals(listOf(1L), state.value.selectedMessageIds())
+
+        // Ubrat všechno = konec výběru, jako odebrání poslední zprávy.
+        selection.startDragSelection(1)
+        selection.endDragSelection()
+        assertNull(state.value.selection)
+    }
+
+    @Test
+    fun tahPresCastAlbaVybereCeleAlbum() = runTest {
+        val state = testState(testMessage(1), testMessage(2, album = 9), testMessage(3, album = 9), testMessage(4))
+        val selection = selection(this, state, FakeRepository(deletable))
+        selection.startSelection(1)
+
+        // Z nevybrané čtyřky přes jen jednu fotku alba (3).
+        selection.startDragSelection(4)
+        selection.extendDragSelection(3)
+        selection.endDragSelection()
+
+        assertEquals(listOf(1L, 2L, 3L, 4L), state.value.selectedMessageIds())
+    }
+
+    @Test
     fun odebraniPosledniZpravyVyberUkonci() = runTest {
         val state = testState(testMessage(1))
         val selection = selection(this, state, FakeRepository(deletable))

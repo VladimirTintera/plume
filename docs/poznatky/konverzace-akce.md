@@ -655,6 +655,33 @@ zpráva má na volné straně kolečko. Stav je `ConversationState.selection` (`
     (Ctrl+V) ano — **pole po kontrole vyčistit**, jinak zůstane koncept, který se synchronizuje
     na ostatní zařízení. **Po kopírování pár vteřin počkat**: Android ukáže vlevo dole překryv
     schránky a ťuknutí do vstupního pole trefí jeho „Sdílet" (otevřelo nastavení Quick Share).
+- **Výběr tahem** (`SelectionDrag.kt`, `ConversationSelection.startDragSelection` /
+  `extendDragSelection` / `endDragSelection`, testy v `ConversationSelectionTest`): v režimu
+  výběru podržet zprávu a táhnout — vybere se všechno mezi kotvou a zprávou pod prstem.
+  - **Začátek na nevybrané PŘIDÁVÁ, na vybrané UBÍRÁ** (jako Google Fotky); jinak by vybraný
+    úsek tahem zrušit nešlo. Ubrat všechno = konec výběru, jako odebrání poslední zprávy.
+  - **Rozsah se počítá vždy od výběru na začátku tahu** (`dragBase`), takže návrat prstu úsek
+    zase zúží a vybrané před tahem zůstane. Album je jeden blok, i když tah přejede jen jednu
+    fotku (`ConversationState.blocksBetween`). Strop sto zpráv platí i tady.
+  - **Na práva se ptá jen u nově přejetých bloků, každý jednou za tah** (`dragRequested`):
+    úsek se tam a zpět mění po každém pohybu. Bloky vybrané před tahem se ptaly už
+    v `toggleSelection` — dotaz na ně by sahal do úseku, kde nejsou (pád v testu).
+  - **Gesto patří seznamu, v průchodu `Initial`**: dřív než překryv řádku i scroll. Do podržení
+    nic nespotřebuje (ťuknutí i scroll fungují dál), po něm si bere všechny pohyby — seznam pod
+    prstem nejede a puštění nic neťukne. Dlouhý stisk proto z překryvu řádku zmizel (dřív
+    jen přepínal jednu zprávu); přepnutí zůstává ťuknutím.
+  - **Kde je prst, hlásí řádky samy** (`SelectionDragTargets`, `reportSelectionTarget` na
+    překryvu): pozice v obráceném seznamu se z `LazyListLayoutInfo` počítají nejistě. Prst
+    v mezeře mezi bublinami patří nejbližší zprávě.
+  - **U okraje se seznam posouvá sám**, rychleji blíž okraji. Pás leží až pod pruhy nad seznamem
+    a nad vstupním polem (`topPadding` / `bottomPadding`) — plocha seznamu pod ně zajíždí
+    a nejrychlejší část pásu by byla tam, kam prst nedosáhne. Hlavička do toho nepatří: plocha
+    seznamu začíná až pod ní (padding ze `Scaffold`u).
+  - Haptika: podržení `threshold()`, každá nově přejetá zpráva `tick()`.
+  - Ověřeno na emulátoru (Fold) surovými `input motionevent` (DOWN, pauza 0,9 s, MOVE…, UP)
+    v Notifikátoru: z „Čtvrtý" na „Druhý" → 4 vybrané, z vybrané „Druhý" na „Třetí" → 2,
+    tah k hornímu okraji → seznam dojel na začátek historie, 8 vybraných. Rukou na telefonu
+    a s myší na desktopu neověřené.
 - **Tělo potvrzení mazání má vlastní věty pro víc zpráv** (`delete_messages_*`), ne plurál nad
   jednou větou: čeština i angličtina v nich mění víc než jedno slovo. Titulek plurál má
   (`conversation_delete_selected_title`), protože nese počet.
