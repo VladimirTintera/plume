@@ -4333,6 +4333,7 @@
     <string name="chat_calendar_all">Všechny zprávy</string>
     <string name="chat_calendar_at_least">%1$s+</string>
     <string name="chat_calendar_count_thousands">%1$sk</string>
+    <string name="chat_calendar_day_unknown">%1$s, zprávy nenačtené</string>
     <string name="chat_calendar_failed">Zprávy se nepodařilo spočítat.</string>
     <string name="chat_calendar_kind_empty">Nic takového v chatu není.</string>
     <string name="chat_calendar_load_older">Načíst starší</string>

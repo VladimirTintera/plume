@@ -499,11 +499,29 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   dvakrát, TDLib smí vrátit méně, než se chtělo).
 - **Navazující úsek začíná zprávou, na které skončil předchozí** (`offset = 0`); proto se předem
   vloží mezi viděné, jinak by se počítala dvakrát.
+- **Osa jde až k první zprávě chatu**, ne jen po souvislý úsek (`firstMonth`: `firstMessageFrom`
+  od 1. 8. 2013 a čas té zprávy). Kdo skočil na staré datum, chce se tam v kalendáři dostat;
+  **neznámé dny jdou ťuknout** — skok na datum se ptá serveru, takže funguje i bez počtů.
+  „Načíst starší" visí pod měsícem, kde souvislý úsek končí, ne na konci osy.
+- **Ostrůvky: po skoku na staré datum je okno zpráv v databázi, ale lokální průchod k němu
+  nedojde.** `getChatHistory(onlyLocal = true)` vydá jen SOUVISLÝ úsek — od zprávy těsně nad
+  dírou vrátí nic, i když starší zprávy v databázi jsou (ověřeno: okno kolem 10. 1. v kanálu
+  Google, průchod od nejnovější skončil 7. 2.). Do ostrůvku se vstupuje **nejnovější zprávou,
+  kterou konverzace drží načtenou** (`openCalendar` → kotva), od ní se počítá ke starším; kotvy
+  se pamatují po dobu obrazovky. Dny mezi krajními dny ostrůvku jsou přesné, krajní mají „+".
+- **Vstup přes „poslední zprávu do konce měsíce" (`getChatMessageByDate`) nefunguje** — zkoušeno
+  a zahozeno: TDLib si tu zprávu stáhl ze serveru (31. 1.) a z ní žádná lokální historie nevede,
+  takže každý měsíc dostal falešný ostrůvek „1+" a k oknu kolem 10. 1. se nedošlo. Navíc stál
+  dotaz na server za každý ukázaný měsíc.
+- **Ostrůvek, do kterého „Načíst starší" dorostlo, se zahodí** (`newestMessageId` < nejstarší id
+  úseku), jinak by se jeho zprávy sečetly dvakrát.
 - **Měsíc nejvýš na šířku `ContentWidth.Form`**: na rozloženém Foldu natáhl sheet (640 dp) dny do
   kruhů přes 90 dp a měsíc se nevešel na obrazovku.
 - **Ověřeno na emulátoru** (Fold, rozložený): Notifikátor (7 zpráv 27. 10.), testovací skupina,
   kanál Google — v zařízení jen 20. 2. (150+), po „Načíst starší" 15.–20. 2. po ~200 zprávách,
   ťuknutí na 17. 2. skočilo na „17. února · 00:01"; čip Odkazy ze serveru 10.–20. 2. a leden.
+  Ostrůvky: v kalendáři ťuknutí na neznámý 10. 1. → skok na „10. ledna · 00:32", znovu otevřený
+  kalendář stál rovnou na lednu s 9. 1. (104+) a 10. 1. (44+), zbytek ledna šedý.
   iOS a desktop jen přeložené.
 
 ## Okno v historii

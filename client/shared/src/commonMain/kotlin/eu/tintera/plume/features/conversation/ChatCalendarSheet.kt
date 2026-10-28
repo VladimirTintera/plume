@@ -37,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +73,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chat_calendar_all
 import eu.tintera.plume.resources.chat_calendar_at_least
 import eu.tintera.plume.resources.chat_calendar_count_thousands
+import eu.tintera.plume.resources.chat_calendar_day_unknown
 import eu.tintera.plume.resources.chat_calendar_failed
 import eu.tintera.plume.resources.chat_calendar_kind_empty
 import eu.tintera.plume.resources.chat_calendar_load_older
@@ -227,9 +229,14 @@ private fun AllMessagesMonths(
         }
         return
     }
-    val months = remember(today.yearMonth, coveredFrom.yearMonth) { monthsBetween(today.yearMonth, coveredFrom.yearMonth) }
-    // Den, od kterého dál do minulosti počty nejsou známé; po začátek chatu známé jsou všechny.
+    // Osa jde až k měsíci první zprávy chatu, ne jen po souvislý úsek: kdo skočil na staré datum,
+    // chce se v kalendáři dostat i tam — s tím, co z té doby v zařízení je, a s ťukatelnými dny.
+    val coveredMonth = coveredFrom.yearMonth
+    val axisEnd = all.firstMonth?.takeIf { !all.reachedStart && it < coveredMonth } ?: coveredMonth
+    val months = remember(today.yearMonth, axisEnd) { monthsBetween(today.yearMonth, axisEnd) }
+    // Den, od kterého dál do minulosti souvislý úsek nesahá; po začátek chatu je známé všechno.
     val partialDay = coveredFrom.takeUnless { all.reachedStart }
+    val onPick = { date: LocalDate -> onJumpToDay(date.atStartOfDayIn(zone).epochSeconds.toInt()) }
     val listState = rememberLazyListState()
     // Otevře se na měsíci, který je v konverzaci zrovna vidět — kdo čte starou historii, chce
     // kolem ní, ne od dneška. Osa roste, jak se počítá, takže až měsíc na ose je.
@@ -248,45 +255,78 @@ private fun AllMessagesMonths(
         contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
     ) {
         itemsIndexed(months, key = { _, month -> month.toString() }) { _, month ->
-            val days = remember(all.days, month) { all.days.filterKeys { it.yearMonth == month } }
-            val partial = partialDay?.takeIf { it.yearMonth == month }
             Column(MonthModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                val empty = days.isEmpty() && partial == null
-                // U prázdného měsíce by „0 zpráv" jen opakovalo řádek pod ním.
-                MonthHeader(month, total = if (empty) null else monthTotal(days.values.sum(), atLeast = partial != null))
-                if (empty) {
-                    // Prázdný měsíc jen řádkem: v chatu, kde se rok nepsalo, by jinak byly
-                    // hlavně prázdné mřížky.
+                if (month >= coveredMonth) {
+                    CoveredMonth(month, all.days, partialDay, today, onPick)
+                } else {
+                    IslandMonth(month, all.islands, today, onPick)
+                }
+            }
+            // „Načíst starší" patří k místu, kde souvislý úsek končí, ne na konec osy: pod ním
+            // můžou být starší měsíce s ostrůvky, ale souvislý úsek se prodlužuje odtud.
+            if (month == coveredMonth) OlderFooter(all, onLoadOlder = calendar::loadOlder)
+        }
+        if (axisEnd < coveredMonth) {
+            item(key = "start") {
+                Column(MonthModifier, horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        stringResource(Res.string.chat_calendar_month_empty),
+                        stringResource(Res.string.chat_calendar_start),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                } else {
-                    MonthGrid(
-                        month = month,
-                        counts = days,
-                        today = today,
-                        partialDay = partial,
-                        onPick = { date -> onJumpToDay(date.atStartOfDayIn(zone).epochSeconds.toInt()) },
                     )
                 }
             }
         }
-        item(key = "older") { OlderFooter(all, onLoadOlder = calendar::loadOlder) }
     }
 }
 
+/** Měsíc, kam sahá souvislý úsek od nejnovější zprávy. */
+@Composable
+private fun CoveredMonth(
+    month: YearMonth,
+    allDays: Map<LocalDate, Int>,
+    partialDay: LocalDate?,
+    today: LocalDate,
+    onPick: (LocalDate) -> Unit,
+) {
+    val days = remember(allDays, month) { allDays.filterKeys { it.yearMonth == month } }
+    val partial = partialDay?.takeIf { it.yearMonth == month }
+    val empty = days.isEmpty() && partial == null
+    // U prázdného měsíce by „0 zpráv" jen opakovalo řádek pod ním.
+    MonthHeader(month, total = if (empty) null else monthTotal(days.values.sum(), atLeast = partial != null))
+    if (empty) {
+        // Prázdný měsíc jen řádkem: v chatu, kde se rok nepsalo, by jinak byly hlavně prázdné mřížky.
+        Text(
+            stringResource(Res.string.chat_calendar_month_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    } else {
+        MonthGrid(month, today, onPick) { date -> coveredDayStatus(date, days, partial) }
+    }
+}
+
+/** Měsíc starší než souvislý úsek: dny ostrůvků, jsou-li, jinak samé neznámé (a ťukatelné) dny. */
+@Composable
+private fun IslandMonth(month: YearMonth, islands: List<Island>, today: LocalDate, onPick: (LocalDate) -> Unit) {
+    val total = islands.sumOf { island -> island.days.filterKeys { it.yearMonth == month }.values.sum() }
+    MonthHeader(month, total = if (total > 0) monthTotal(total, atLeast = true) else null)
+    MonthGrid(month, today, onPick) { date -> islandDayStatus(date, islands) }
+}
+
 /**
- * Pod nejstarším spočteným měsícem: dál do minulosti počty nejsou, protože starší zprávy
- * v zařízení nejsou — kalendář to řekne a nabídne je stáhnout. Po začátek chatu už jen
- * „Začátek chatu".
+ * Pod měsícem, kde končí souvislý úsek: dál do minulosti ho zařízení nemá — kalendář to řekne
+ * a nabídne starší stáhnout. Po začátek chatu už jen „Začátek chatu".
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun OlderFooter(all: AllMessagesCalendar, onLoadOlder: () -> Unit) {
-    Column(MonthModifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        MonthModifier.padding(top = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         when {
             all.counting || all.loadingOlder -> LoadingIndicator()
             all.reachedStart -> Text(
@@ -347,10 +387,9 @@ private fun KindMonths(
                 MonthHeader(month.month, total = days.values.sum().let { pluralStringResource(Res.plurals.chat_calendar_messages, it, it.grouped()) })
                 MonthGrid(
                     month = month.month,
-                    counts = days,
                     today = today,
                     onPick = { date -> byDate[date]?.let { onJumpToMessage(it.message.id) } },
-                )
+                ) { date -> DayStatus.Known(days[date] ?: 0) }
             }
         }
         if (media.loading) item { CalendarLoading() }
@@ -379,21 +418,43 @@ private fun monthTotal(total: Int, atLeast: Boolean): String {
     return pluralStringResource(Res.plurals.chat_calendar_messages, total, shown)
 }
 
+/** Co se o dni ví: spočtený celý, jen zčásti („+"), nebo nic, protože jeho zprávy v zařízení nejsou. */
+@Immutable
+internal sealed interface DayStatus {
+    data class Known(val count: Int) : DayStatus
+    data class Partial(val count: Int) : DayStatus
+    data object Unknown : DayStatus
+}
+
+/** Den v měsíci souvislého úseku: před jeho nejstarším dnem ([partialDay]) neznámý. */
+internal fun coveredDayStatus(date: LocalDate, counts: Map<LocalDate, Int>, partialDay: LocalDate?): DayStatus = when {
+    partialDay != null && date < partialDay -> DayStatus.Unknown
+    date == partialDay -> DayStatus.Partial(counts[date] ?: 0)
+    else -> DayStatus.Known(counts[date] ?: 0)
+}
+
+/** Den starší než souvislý úsek: známý jen uvnitř ostrůvku, jeho krajní dny zčásti. */
+internal fun islandDayStatus(date: LocalDate, islands: List<Island>): DayStatus {
+    val island = islands.firstOrNull { date in it.oldestDay..it.newestDay } ?: return DayStatus.Unknown
+    val count = island.days[date] ?: 0
+    return if (date == island.oldestDay || date == island.newestDay) DayStatus.Partial(count) else DayStatus.Known(count)
+}
+
 /**
- * Mřížka měsíce od pondělí. Dny před [partialDay] nejsou spočtené (v zařízení nejsou): kreslí se
- * tlumeně a bez počtu, ne jako „nic" — prázdný den by tvrdil, že se ten den nepsalo. Sám
- * [partialDay] je spočtený jen zčásti a má „+".
+ * Mřížka měsíce od pondělí. Neznámé dny ([DayStatus.Unknown]) se kreslí tlumeně a bez počtu, ne
+ * jako „nic" — prázdný den by tvrdil, že se ten den nepsalo; ťuknout na ně jde, skok na datum se
+ * ptá serveru.
  */
 @Composable
 private fun MonthGrid(
     month: YearMonth,
-    counts: Map<LocalDate, Int>,
     today: LocalDate,
     onPick: (LocalDate) -> Unit,
-    partialDay: LocalDate? = null,
+    status: (LocalDate) -> DayStatus,
 ) {
     val cells = remember(month) { calendarMonth(month).cells }
-    val max = counts.values.maxOrNull() ?: 0
+    val statuses = cells.filterNotNull().associateWith(status)
+    val max = statuses.values.maxOfOrNull { (it as? DayStatus.Known)?.count ?: (it as? DayStatus.Partial)?.count ?: 0 } ?: 0
     Row(Modifier.fillMaxWidth()) {
         DayOfWeek.entries.forEach { day ->
             Text(
@@ -410,13 +471,14 @@ private fun MonthGrid(
             week.forEach { date ->
                 Box(Modifier.weight(1f).aspectRatio(1f)) {
                     if (date != null) {
-                        val unknown = partialDay != null && date < partialDay
+                        val day = statuses.getValue(date)
+                        val count = (day as? DayStatus.Known)?.count ?: (day as? DayStatus.Partial)?.count ?: 0
                         DayCell(
                             date = date,
-                            count = if (unknown) 0 else counts[date] ?: 0,
-                            level = if (unknown) 0 else heatLevel(counts[date] ?: 0, max),
-                            unknown = unknown,
-                            partial = date == partialDay,
+                            count = count,
+                            level = heatLevel(count, max),
+                            unknown = day == DayStatus.Unknown && date <= today,
+                            partial = day is DayStatus.Partial,
                             isToday = date == today,
                             onPick = onPick,
                         )
@@ -430,7 +492,8 @@ private fun MonthGrid(
 /**
  * Den: číslo a pod ním počet, kruh za nimi tím sytější, čím víc zpráv proti nejrušnějšímu dni
  * měsíce. Měřítko je po měsících — v chatu, kde se jednou psalo tisíc zpráv denně a jindy
- * deset, by jinak klidné měsíce vyšly celé bledé.
+ * deset, by jinak klidné měsíce vyšly celé bledé. [unknown] = o dni se neví nic (jeho zprávy
+ * v zařízení nejsou), ťuknutí na něj skočí na datum přes server.
  */
 @Composable
 private fun DayCell(
@@ -448,18 +511,19 @@ private fun DayCell(
     // Na syté ploše `primary` je čitelný `onPrimary`, na bledé `onSurface` — vybere se podle
     // skutečného kontrastu, ne podle úrovně (v tmavém motivu je `primary` světlá).
     val content = if (level == 0) scheme.onSurface else strongestAccentOn(background, scheme.onSurface, scheme.onPrimary)
-    val description = if (count > 0) {
-        stringResource(
+    val dayName = stringResource(Res.string.date_day_month, date.day, stringResource(date.month.name()))
+    val description = when {
+        count > 0 -> stringResource(
             Res.string.profile_calendar_day,
-            stringResource(Res.string.date_day_month, date.day, stringResource(date.month.name())),
+            dayName,
             pluralStringResource(
                 Res.plurals.chat_calendar_messages,
                 count,
                 count.grouped().let { if (partial) stringResource(Res.string.chat_calendar_at_least, it) else it },
             ),
         )
-    } else {
-        null
+        unknown -> stringResource(Res.string.chat_calendar_day_unknown, dayName)
+        else -> null
     }
     Box(
         Modifier

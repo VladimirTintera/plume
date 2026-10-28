@@ -342,12 +342,22 @@ class TdlConversationRepository(
         onlyLocal: Boolean,
         maxMessages: Int,
         zone: TimeZone,
+        includeFrom: Boolean,
     ): Result<HistoryCounts> = runCatching {
         var from = fromMessageId
         // Zpráva, od které se navazuje, je spočtená z předchozího úseku.
-        val seen = HashSet<Long>().apply { if (fromMessageId != 0L) add(fromMessageId) }
+        val seen = HashSet<Long>().apply { if (fromMessageId != 0L && !includeFrom) add(fromMessageId) }
         val timestamps = mutableListOf<Int>()
         var oldest: Pair<Long, Int>? = null
+        var newest: Int? = null
+        // Jestli stránka od [fromMessageId] obsahuje i ji samotnou, TDLib neslibuje; přečte se zvlášť.
+        if (includeFrom && fromMessageId != 0L) {
+            val first = client.getMessage(chatId = chatId, messageId = fromMessageId).toResult().getOrThrow()
+            seen += first.id
+            timestamps += first.date
+            oldest = first.id to first.date
+            newest = first.date
+        }
         var idle = 0
         var reachedEnd = false
         while (timestamps.size < maxMessages) {
@@ -370,6 +380,7 @@ class TdlConversationRepository(
             }
             idle = 0
             timestamps += fresh.map { it.second }
+            if (newest == null) newest = fresh.maxBy { it.first }.second
             val last = fresh.minBy { it.first }
             oldest = last
             from = last.first
@@ -378,6 +389,7 @@ class TdlConversationRepository(
             days = countMessagesByDay(timestamps, zone),
             oldestMessageId = oldest?.first,
             oldestTimestamp = oldest?.second,
+            newestTimestamp = newest,
             reachedEnd = reachedEnd,
         )
     }.onFailure { logger.w(it) { "Zprávy po dnech se nepodařilo spočítat." } }
