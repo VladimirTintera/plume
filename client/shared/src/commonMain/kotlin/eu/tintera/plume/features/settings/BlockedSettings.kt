@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -261,7 +262,9 @@ private fun DefaultAutoDeleteRow(viewModel: DefaultAutoDeleteViewModel) {
                 else -> Text(durationText(seconds))
             }
         },
-        modifier = Modifier.clickable(onClick = viewModel::openChooser),
+        modifier = Modifier
+            .highlightAnchor(stringResource(Res.string.settings_default_auto_delete))
+            .clickable(onClick = viewModel::openChooser),
     )
     if (state.choosing) {
         AutoDeleteSheet(

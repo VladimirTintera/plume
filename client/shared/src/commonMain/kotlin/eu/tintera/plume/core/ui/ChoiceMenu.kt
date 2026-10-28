@@ -71,7 +71,7 @@ fun <T> ChoiceRow(
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "choice-arrow",
     )
-    Box(modifier) {
+    Box(modifier.highlightAnchor(headline)) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = icon?.let { { Icon(painterResource(it), contentDescription = null) } },

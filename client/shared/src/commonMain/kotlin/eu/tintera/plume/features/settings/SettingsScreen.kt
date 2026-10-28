@@ -34,24 +34,30 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.ControlledSearchPill
+import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.INNER_CORNER
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.chats_search_clear
 import eu.tintera.plume.resources.devices_24dp
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.hard_drive_24dp
@@ -81,6 +87,7 @@ import eu.tintera.plume.resources.settings_sign_out
 import eu.tintera.plume.resources.settings_sign_out_body
 import eu.tintera.plume.resources.settings_sign_out_confirm
 import eu.tintera.plume.resources.settings_sign_out_title
+import eu.tintera.plume.resources.settings_search
 import eu.tintera.plume.resources.settings_title
 import kotlinx.coroutines.flow.map
 import org.jetbrains.compose.resources.DrawableResource
@@ -115,6 +122,10 @@ fun SettingsScreen(
     onBack: (() -> Unit)? = null,
     /** Otevřít chat (s podporou Telegramu z „Zeptat se"). */
     onOpenChat: (Long) -> Unit = {},
+    /** Výsledek hledání: obrazovky nad seznamem po řadě (sekce, podstránky). */
+    onOpenSearchResult: (screens: List<NavKey>, highlight: StringResource?) -> Unit = { _, _ -> },
+    /** Změna vymaže hledání: Nastavení se otevřela znovu zvenku, ne návratem z výsledku. */
+    searchResetKey: Int = 0,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val scrollBehavior = settingsScrollBehavior()
@@ -129,6 +140,19 @@ fun SettingsScreen(
         }
     }
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
+    // Dotaz přežije návrat z výsledku: na telefonu se ze sekce vrací zpět k výsledkům, jako
+    // v Nastavení systému.
+    // `rememberSaveable(searchResetKey)` nestačí: při OBNOVĚ (seznam se po zavření Nastavení
+    // rozpadne a složí znovu) vrací uloženou hodnotu bez ohledu na klíč. Klíč se proto ukládá
+    // s dotazem a porovnává tady.
+    var query by rememberSaveable { mutableStateOf("") }
+    var queryKey by rememberSaveable { mutableIntStateOf(searchResetKey) }
+    if (queryKey != searchResetKey) {
+        queryKey = searchResetKey
+        query = ""
+    }
+    val index = rememberResolvedSettingsIndex(sections)
+    val results = remember(query, index) { searchSettings(query, index) }
     if (confirmLogOut) {
         LogOutDialog(
             onConfirm = {
@@ -153,6 +177,32 @@ fun SettingsScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             verticalArrangement = Arrangement.spacedBy(BLOCK_SPACING),
         ) {
+            // Řízená: text drží `query` tady, aby ho šlo vymazat zvenku ([searchResetKey]).
+            ControlledSearchPill(
+                query = query,
+                onQueryChange = { query = it },
+                placeholder = stringResource(Res.string.settings_search),
+                clearDescription = stringResource(Res.string.chats_search_clear),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            // S dotazem jsou výsledky MÍSTO obsahu seznamu — výběr sekce pod nimi by se míjel
+            // s tím, co uživatel hledá.
+            if (query.isNotBlank()) {
+                // Klávesnice z hledání by zakryla řádek, na který se sekce doscrolluje.
+                val focusManager = LocalFocusManager.current
+                val keyboard = LocalSoftwareKeyboardController.current
+                SettingsSearchResults(
+                    results = results,
+                    onOpen = { screens, highlight ->
+                        focusManager.clearFocus()
+                        keyboard?.hide()
+                        onOpenSearchResult(screens, highlight)
+                    },
+                )
+                return@Column
+            }
+
             AccountCard(viewModel = viewModel, selected = accountSelected, onClick = onEditProfile)
 
             // Sekce jsou jeden blok se společným zaoblením, stejný jazyk jako seznam chatů.

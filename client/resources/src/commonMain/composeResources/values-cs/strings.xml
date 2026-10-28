@@ -293,6 +293,18 @@
         <item quantity="other">%1$d nepřečtených chatů v archivu</item>
     </plurals>
     <string name="settings_title">Nastavení</string>
+    <string name="settings_search">Hledat v Nastavení</string>
+    <string name="settings_search_kw_blocked">blokovat, blokování, zablokovat, zakázat</string>
+    <string name="settings_search_kw_last_seen">online, stav, naposledy, skrýt online</string>
+    <string name="settings_search_kw_two_step">heslo, cloudové heslo, 2FA, dvoufázové</string>
+    <string name="settings_search_kw_app_lock">PIN, kód, otisk prstu, obličej, biometrie, zamknout</string>
+    <string name="settings_search_kw_quiet_hours">nerušit, noc, ticho, ztlumit</string>
+    <string name="settings_search_kw_folders">filtry, záložky, složky</string>
+    <string name="settings_search_kw_theme">tmavý režim, noční režim, světlý režim, téma</string>
+    <string name="settings_search_kw_text_size">písmo, font, velikost textu, větší, menší</string>
+    <string name="settings_search_kw_storage">mezipaměť, cache, místo, paměť, uvolnit, vyčistit</string>
+    <string name="settings_search_kw_proxy">VPN, SOCKS, MTProto, připojení</string>
+    <string name="settings_search_kw_devices">relace, sezení, odhlásit, přihlášená zařízení</string>
     <string name="settings_notifications_on">Zapnuté</string>
     <string name="settings_notifications_off">Vypnuté — o nových zprávách se dozvíš až v aplikaci</string>
     <string name="settings_full_screen_calls">Příchozí hovory přes celou obrazovku</string>

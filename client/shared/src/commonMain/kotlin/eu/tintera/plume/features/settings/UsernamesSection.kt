@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -46,7 +47,7 @@ internal fun UsernamesSection(
     onSetActive: (String, Boolean) -> Unit,
     onMove: (String, up: Boolean) -> Unit,
 ) {
-    Column {
+    Column(Modifier.highlightAnchor(stringResource(Res.string.usernames_section))) {
         GroupTitle(stringResource(Res.string.usernames_section), Modifier.padding(top = 8.dp))
         usernames.active.forEachIndexed { index, name ->
             UsernameRow(

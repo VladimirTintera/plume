@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -76,10 +77,12 @@ internal fun BirthdateRows(
         leadingContent = { Icon(painterResource(Res.drawable.cake_24dp), contentDescription = null) },
         headlineContent = { Text(stringResource(Res.string.birthdate_row)) },
         supportingContent = { Text(shown?.label() ?: stringResource(Res.string.birthdate_none)) },
-        modifier = Modifier.clickable {
-            pickingForYear = false
-            picking = true
-        },
+        modifier = Modifier
+            .highlightAnchor(stringResource(Res.string.birthdate_row))
+            .clickable {
+                pickingForYear = false
+                picking = true
+            },
     )
     if (value != null) {
         // Datum bez roku (uložené dřív): rok musí přijít z kalendáře, zapnutí ho otevře.

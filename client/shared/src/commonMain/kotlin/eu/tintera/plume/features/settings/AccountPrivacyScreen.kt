@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.resources.expand_more_24dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.graphics.graphicsLayer
@@ -343,7 +344,7 @@ private fun AccountTtlRow(state: AccountPrivacyState, onSelect: (Int) -> Unit) {
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "ttl-arrow",
     )
-    Box {
+    Box(Modifier.highlightAnchor(stringResource(Res.string.privacy_account_ttl))) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.core.ui.ChoiceRow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
@@ -184,7 +185,9 @@ private fun TelegramLinksRow() {
                 ),
             )
         },
-        modifier = Modifier.clickable(onClick = handling.openSettings),
+        modifier = Modifier
+            .highlightAnchor(stringResource(Res.string.settings_telegram_links))
+            .clickable(onClick = handling.openSettings),
     )
 }
 

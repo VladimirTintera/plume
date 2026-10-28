@@ -281,6 +281,55 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
   název stojí hned vedle. „Co je nového" má megafon, ne raketu: raketou se uvnitř sekce značí
   novinka u jedné poznámky.
 
+### Hledání v Nastavení (`SettingsSearch.kt`)
+
+Pilulka nahoře v seznamu sekcí (`SearchPill`, tentýž prvek jako všude jinde). S dotazem jsou
+místo obsahu seznamu výsledky: ikona sekce, název volby a cesta k ní („Soukromí › Soukromí
+účtu"); ťuknutí otevře sekci i podstránky po cestě (`AppNavigation.openSettingsSearchResult`),
+takže zpět vede, kudy by se tam uživatel proklikal sám.
+
+- **Rejstřík je ruční** (`SETTINGS_SEARCH_INDEX`): volby žijí v ~40 composable funkcích plných
+  podmínek a strom obrazovek se za běhu projít nedá. **Kdo přidá řádek, který lidé budou hledat,
+  přidá ho i do rejstříku.** Názvy jsou TYTÉŽ prostředky, které nese řádek — co se najde, je
+  přesně to, co pak na obrazovce stojí; jiný text by se po přejmenování řádku rozešel.
+- **Synonyma** (`settings_search_kw_*`, čárkami) jen tam, kde se hledá jiným slovem, než řádek
+  nese: tmavý režim → Motiv, heslo → Dvoufázové ověření, PIN → Zámek aplikace, cache → Zabrané
+  místo, VPN → Proxy. Každý jazyk má svoje (překladatel je píše, ne překládá).
+- **Shoda = každé slovo dotazu je začátkem slova názvu nebo synonym**, bez ohledu na velikost
+  a diakritiku (`foldDiacritics`): „vid" najde „Naposledy viděn", „zam apl" „Zámek aplikace".
+  Pořadí: název začíná dotazem, pak shoda v názvu, nakonec jen v synonymech.
+- **Řádky jen pro jednu platformu v rejstříku nejsou** (widget, spouštění po přihlášení,
+  synchronizace kontaktů, hovory přes celou obrazovku, dynamické barvy) a sekce AI jen se
+  stejnou podmínkou jako v seznamu — hledání nesmí vést na volbu, která na zařízení není.
+- **Dotaz přežije návrat z výsledku, ne nové otevření Nastavení.** Na telefonu se ze sekce vrací
+  k výsledkům, jako v Nastavení systému; menu účtu ale slibuje kořen, a starý dotaz by ho
+  zakryl. Proto `AppNavigation.settingsOpenings` (roste s `openSettings`, výsledek hledání ho
+  nemění) a dotaz se při změně vymaže.
+  - **Past: `rememberSaveable(klíč)` klíč při OBNOVĚ nekontroluje.** Seznam sekcí se po zavření
+    Nastavení rozpadne a při návratu se stav obnoví z uloženého — se starou hodnotou, i když se
+    klíč mezitím změnil (`consumeRestored` jde před porovnáním vstupů). Ověřeno na emulátoru
+    v jednom procesu: dotaz „motiv" po zavření a novém otevření zůstal. Klíč se proto ukládá
+    vedle dotazu a porovnává se ručně.
+- **Na volbu se obrazovka doscrolluje a dvakrát ji rozsvítí** (`core/ui/HighlightTarget.kt`).
+  Výsledek uloží název volby do `AppNavigation.settingsHighlight`, AppShell ho dá obrazovkám
+  přes `LocalHighlightTarget` a **řádek se pozná sám** (`Modifier.highlightAnchor(název)`):
+  kotvu nesou společné komponenty (`SwitchListItem` s textovým názvem, `ChoiceRow`,
+  `TitledGroup` — celý blok i s nadpisem, `SettingsActionRow`), ruční řádky ji mají jednotlivě
+  (automatické mazání v nových chatech, odkazy Telegramu, smazání při nečinnosti, velikost
+  písma, vyčištění mezipaměti, pole a řádky úpravy profilu, AI přepínače). Nic se tak nepředává
+  sekcím ani podstránkám po cestě. Nový řádek v rejstříku, který nejde přes společnou
+  komponentu, potřebuje kotvu taky — jinak se jen otevře obrazovka.
+  - **Zvýrazní se jen řádek, ne obrazovka sama**: výsledek, který JE obrazovkou (sekce,
+    Dvoufázové ověření, jedno nastavení soukromí), cíl nemá (`SettingsSearchEntry.highlight`).
+  - **Tón jde PŘES obsah** (`drawWithContent`, `primary` 16 %), jako stavová vrstva: řádky mají
+    vlastní podklad a tón pod nimi by nebyl vidět.
+  - **Scroll s okrajem 96 dp** (`bringIntoView(Rect)`): holé `bringIntoView` řádek jen dotlačilo
+    k dolní hraně pod navigační lištu (ověřeno na emulátoru, „Strop mezipaměti").
+  - **Klávesnici z hledání výsledek zavře** (a sundá fokus z pole): jinak zakryla dolní půlku
+    sekce i s hledaným řádkem.
+  - **Cíl je jednorázový** — po bliknutí ho řádek spotřebuje a `openSettings` ho zahodí, jinak
+    by se rozsvítil při dalším otevření sekce.
+
 ### Soukromí účtu
 
 Soukromí → Soukromí účtu (`AccountPrivacyRoute`, `AccountPrivacyScreen`): seznam

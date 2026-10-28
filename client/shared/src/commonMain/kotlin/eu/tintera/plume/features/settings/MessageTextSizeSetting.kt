@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.highlightAnchor
 import androidx.compose.foundation.background
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.Arrangement
@@ -52,7 +53,7 @@ internal fun MessageTextSizeSetting(stored: Int, onChange: (Int) -> Unit) {
     // Klíč `stored`: změna odjinud (obnovené nastavení) přepíše rozpracovaný tah.
     var size by remember(stored) { mutableIntStateOf(stored) }
 
-    Column(Modifier.padding(vertical = 12.dp)) {
+    Column(Modifier.highlightAnchor(stringResource(Res.string.settings_message_text_size)).padding(vertical = 12.dp)) {
         CompositionLocalProvider(LocalMessageTextSize provides size) {
             PreviewBubbles(Modifier.padding(horizontal = 16.dp))
         }
