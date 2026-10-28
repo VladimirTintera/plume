@@ -515,6 +515,11 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   dotaz na server za každý ukázaný měsíc.
 - **Ostrůvek, do kterého „Načíst starší" dorostlo, se zahodí** (`newestMessageId` < nejstarší id
   úseku), jinak by se jeho zprávy sečetly dvakrát.
+- **Sheet má pevnou, celou výšku** (`weight(1f)` pod čipy), ne podle obsahu. Měsíce přibývají
+  postupně a čip druhu s pár měsíci nebo čekání na stránku obsah zkrátí — sheet pak poskakoval
+  pod prstem. Pager (měsíc na stránku) by to vyřešil taky, ale vzal by přehled, kdy se psalo
+  víc a kdy míň, a přesun o rok by byl dvanáct tahů; paměť by neušetřil (drží se jen počty
+  po dnech, mřížky skládá `LazyColumn` jen viditelné).
 - **Měsíc nejvýš na šířku `ContentWidth.Form`**: na rozloženém Foldu natáhl sheet (640 dp) dny do
   kruhů přes 90 dp a měsíc se nevešel na obrazovku.
 - **Ověřeno na emulátoru** (Fold, rozložený): Notifikátor (7 zpráv 27. 10.), testovací skupina,

@@ -150,10 +150,15 @@ internal fun ChatCalendarSheet(
 
         val filter = state.filter
         val media = state.media
-        if (filter == null) {
-            AllMessagesMonths(state.all, calendar, today, zone, initialMonth, onJumpToDay)
-        } else if (media != null) {
-            KindMonths(media, today, initialMonth, calendar::loadMoreMedia, onJumpToMessage)
+        // Sheet má pevnou výšku (celou), ne podle obsahu: měsíce přibývají postupně a čip druhu
+        // s pár měsíci nebo čekání na první stránku obsah zkrátí — sheet pak poskakoval nahoru
+        // a dolů pod prstem, který zrovna mířil na čip nebo den.
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            if (filter == null) {
+                AllMessagesMonths(state.all, calendar, today, zone, initialMonth, onJumpToDay)
+            } else if (media != null) {
+                KindMonths(media, today, initialMonth, calendar::loadMoreMedia, onJumpToMessage)
+            }
         }
     }
 
