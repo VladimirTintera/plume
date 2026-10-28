@@ -556,6 +556,21 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
     s tím dnem (`initialDay`). Kde po dnech mazat nejde (`ClearHistoryRights.byDate`), položka
     v nabídce není. Pravidlo, co jde vyprázdnit, je jedno pro ⋮ i kalendář
     (`ConversationState.clearHistoryRights`).
+- **Kalendář se plní plynule, neprobliká.** Kalendář se počítá po úsecích a panel se
+  přepočítává při každém novém okně konverzace, takže se dny, součty i měsíce mění pod rukama.
+  Barva dne a čísla se prolínají (`animateColorAsState`; kontrast popředí se rozhoduje z CÍLOVÉ
+  barvy, prolíná se výsledek), počet pod číslem dne vyjede a další změny přetočí
+  (`RollingNumber` — formát je obyčejná funkce, šablony „1,2k" a „+" se proto berou z prostředků
+  se značkami místo čísel, `rememberCellCountFormat`), součet měsíce se přetočí uvnitř věty
+  z `plurals` (`MonthTotalLabel`, `NUMBER_MARK` jako „N nových zpráv"). Měsíce mají
+  `animateItem` a `animateContentSize`, souhrn měsíce a patička „Načíst starší" se prolnou,
+  pole hledání vyjede. Tečky ročního přehledu se prolínají taky.
+  - **Přepnutí čipu nebo ročního přehledu jen prolne NOVÝ obsah** (`FadeInOnChange`), starý
+    zmizí hned. Při prolnutí obou by dva seznamy sdílely jeden `LazyListState` (patří k filtru)
+    a odcházející obsah by se kreslil z NOVÉHO stavu (u druhu už bez dnů ze serveru). Klíčem je
+    čip, druh, roční přehled a „první data dorazila" — ne hledaný výraz ani další stránka.
+  - Ověřeno na emulátoru zpomalenými animacemi (`animator_duration_scale 10`) a sérií snímků:
+    mezistavy sytosti dnů, vyjíždějící „68+", přetáčení součtu „2 001+" → „3 975+".
 - **Legenda pod čipy** říká, co je šedý den a „+" (jen u všech zpráv) a že den jde podržet (jen
   když nabídka něco nabízí). Bez ní se na obojí dalo přijít jen náhodou.
 - **Čip Média kreslí den jako kruh s první fotkou** (jako `MediaCalendarSheet` v profilu, spoiler

@@ -297,7 +297,7 @@ private fun NewMessagesLabel(count: Int, modifier: Modifier = Modifier) {
 }
 
 /** Značka místa čísla ve větě z prostředků; znak ze soukromé oblasti Unicode se v textu nevyskytne. */
-private const val NUMBER_MARK = "\uE000"
+internal const val NUMBER_MARK = "\uE000"
 
 /** Tlačítko „dolů" bez počtu je kruh téhle velikosti — zároveň minimální dotyková plocha. */
 /**

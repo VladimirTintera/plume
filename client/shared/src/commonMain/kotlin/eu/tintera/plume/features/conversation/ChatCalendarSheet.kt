@@ -17,7 +17,17 @@ import androidx.compose.runtime.MutableState
 import eu.tintera.plume.core.ui.standaloneName
 import eu.tintera.plume.resources.apps_24dp
 import eu.tintera.plume.resources.chat_calendar_year_view
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.key
+import androidx.compose.ui.graphics.graphicsLayer
+import eu.tintera.plume.core.ui.RollingNumber
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.lazy.LazyListState
@@ -110,6 +120,8 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.telegram.CalendarMonth
@@ -283,16 +295,28 @@ private fun ColumnScope.ChatCalendarContent(
             onPickSender = calendar::openMemberPicker,
             onClearSender = { calendar.setSearchSender(null) },
         )
-        if (filter is CalendarFilter.Search) {
-            SearchPill(
-                initialQuery = filter.query,
-                onQueryChange = calendar::setSearchQuery,
-                placeholder = stringResource(Res.string.chat_calendar_search_hint),
-                clearDescription = stringResource(Res.string.conversation_search_clear),
-                // Kdo ťukl na Hledat, chce psát; kdo vybral člena, hledá všechny jeho zprávy.
-                autoFocus = filter.sender == null && filter.query.isEmpty(),
-                modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
-            )
+        // Pole hledání vyjede pod čipy, ne aby celý obsah poskočil o jeho výšku. Při odchodu
+        // se drží poslední hledání — filtr už hledáním není.
+        val lastSearch = remember { arrayOfNulls<CalendarFilter.Search>(1) }
+        (filter as? CalendarFilter.Search)?.let { lastSearch[0] = it }
+        AnimatedVisibility(
+            visible = filter is CalendarFilter.Search,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                shrinkVertically(MaterialTheme.motionScheme.fastEffectsSpec()),
+        ) {
+            lastSearch[0]?.let { search ->
+                SearchPill(
+                    initialQuery = search.query,
+                    onQueryChange = calendar::setSearchQuery,
+                    placeholder = stringResource(Res.string.chat_calendar_search_hint),
+                    clearDescription = stringResource(Res.string.conversation_search_clear),
+                    // Kdo ťukl na Hledat, chce psát; kdo vybral člena, hledá všechny jeho zprávy.
+                    autoFocus = search.sender == null && search.query.isEmpty(),
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
+                )
+            }
         }
 
         val server = state.server
@@ -313,33 +337,38 @@ private fun ColumnScope.ChatCalendarContent(
             scrollTarget.value = month
         }
         Box(Modifier.fillMaxWidth().weight(1f)) {
-            when {
-                yearView && filter == CalendarFilter.All -> {
-                    val axis = remember(state.all, today) { allAxis(state.all, today) }
-                    if (axis == null) CalendarLoading() else YearOverview(axis.newest, axis.oldest, today, axis.status, onPickMonth = pickMonth)
-                }
-                yearView && server != null -> {
-                    val axis = remember(server) { serverAxis(server) }
-                    if (axis == null) {
-                        if (server.loading) CalendarLoading() else CalendarNote(stringResource(Res.string.chat_calendar_kind_empty))
-                    } else {
-                        YearOverview(axis.newest, axis.oldest, today, axis.status, onPickMonth = pickMonth, onReachEnd = calendar::loadMoreServer)
+            // Jiný čip, roční přehled nebo první spočtená data: obsah se vymění celý, tak ať se
+            // prolne, ne probliká. Hledaný výraz ani další stránka obsah nemění — ty klíčem nejsou.
+            val loaded = if (filter == CalendarFilter.All) state.all.coveredFrom != null else server?.days?.isNotEmpty() == true
+            FadeInOnChange(key = listOf(yearView, filter::class, (filter as? CalendarFilter.Kind)?.kind, loaded)) {
+                when {
+                    yearView && filter == CalendarFilter.All -> {
+                        val axis = remember(state.all, today) { allAxis(state.all, today) }
+                        if (axis == null) CalendarLoading() else YearOverview(axis.newest, axis.oldest, today, axis.status, onPickMonth = pickMonth)
                     }
+                    yearView && server != null -> {
+                        val axis = remember(server) { serverAxis(server) }
+                        if (axis == null) {
+                            if (server.loading) CalendarLoading() else CalendarNote(stringResource(Res.string.chat_calendar_kind_empty))
+                        } else {
+                            YearOverview(axis.newest, axis.oldest, today, axis.status, onPickMonth = pickMonth, onReachEnd = calendar::loadMoreServer)
+                        }
+                    }
+                    filter == CalendarFilter.All -> AllMessagesMonths(state.all, calendar, today, initialMonth, dayActions, listState, scrollTarget)
+                    server != null -> ServerMonths(
+                        server = server,
+                        thumbnails = filter == CalendarFilter.Kind(SharedMediaKind.Media),
+                        today = today,
+                        initialMonth = initialMonth,
+                        onLoadMore = calendar::loadMoreServer,
+                        // U druhu a hledání vede ťuknutí na první zprávu dne, která sedí, ne na začátek dne.
+                        actions = dayActions,
+                        onJumpToMessage = onJumpToMessage,
+                        listState = listState,
+                        scrollTarget = scrollTarget,
+                    )
+                    else -> CalendarNote(stringResource(Res.string.chat_calendar_search_empty))
                 }
-                filter == CalendarFilter.All -> AllMessagesMonths(state.all, calendar, today, initialMonth, dayActions, listState, scrollTarget)
-                server != null -> ServerMonths(
-                    server = server,
-                    thumbnails = filter == CalendarFilter.Kind(SharedMediaKind.Media),
-                    today = today,
-                    initialMonth = initialMonth,
-                    onLoadMore = calendar::loadMoreServer,
-                    // U druhu a hledání vede ťuknutí na první zprávu dne, která sedí, ne na začátek dne.
-                    actions = dayActions,
-                    onJumpToMessage = onJumpToMessage,
-                    listState = listState,
-                    scrollTarget = scrollTarget,
-                )
-                else -> CalendarNote(stringResource(Res.string.chat_calendar_search_empty))
             }
             // Zpátky na nejnovější měsíc — po odrolování o roky by to jinak bylo dlouhé švihání.
             TodayButton(
@@ -368,6 +397,21 @@ private fun ColumnScope.ChatCalendarContent(
             },
             onDismiss = { pickingDate = false },
         )
+    }
+}
+
+/**
+ * Obsah, který se při změně [key] objeví prolnutím. Starý obsah zmizí hned — kdyby se prolínaly
+ * oba, sdílely by jeden stav seznamu (`listState` patří k filtru) a vedle sebe by se ukázaly dva
+ * kalendáře z jednoho stavu.
+ */
+@Composable
+private fun FadeInOnChange(key: Any, content: @Composable () -> Unit) {
+    val spec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    key(key) {
+        val alpha = remember { Animatable(0f) }
+        LaunchedEffect(Unit) { alpha.animateTo(1f, spec) }
+        Box(Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha.value }) { content() }
     }
 }
 
@@ -503,6 +547,12 @@ private fun AllMessagesMonths(
         }
     }
     ScrollToTarget(scrollTarget, listState) { target -> months.indexOf(target) }
+    // Měsíce přibývají, jak se počítá (osa roste), a mění výšku (prázdný měsíc → mřížka, souhrn):
+    // nový se prolne, ostatní se posunou plynule.
+    val itemFade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val itemFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val itemPlacement = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+    val monthResize = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
     LazyColumn(
         Modifier.fillMaxWidth().navigationBarsPadding(),
         state = listState,
@@ -510,16 +560,18 @@ private fun AllMessagesMonths(
         contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
     ) {
         itemsIndexed(months, key = { _, month -> month.toString() }) { _, month ->
-            Column(MonthModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (month >= coveredMonth) {
-                    CoveredMonth(month, all.days, all.islands, partialDay, today, actions)
-                } else {
-                    IslandMonth(month, all.islands, today, actions)
+            Column(Modifier.animateItem(fadeInSpec = itemFade, placementSpec = itemPlacement, fadeOutSpec = itemFadeOut)) {
+                Column(MonthModifier.animateContentSize(monthResize), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (month >= coveredMonth) {
+                        CoveredMonth(month, all.days, all.islands, partialDay, today, actions)
+                    } else {
+                        IslandMonth(month, all.islands, today, actions)
+                    }
                 }
+                // „Načíst starší" patří k místu, kde souvislý úsek končí, ne na konec osy: pod ním
+                // můžou být starší měsíce s ostrůvky, ale souvislý úsek se prodlužuje odtud.
+                if (month == coveredMonth) OlderFooter(all, onLoadOlder = calendar::loadOlder)
             }
-            // „Načíst starší" patří k místu, kde souvislý úsek končí, ne na konec osy: pod ním
-            // můžou být starší měsíce s ostrůvky, ale souvislý úsek se prodlužuje odtud.
-            if (month == coveredMonth) OlderFooter(all, onLoadOlder = calendar::loadOlder)
         }
         if (axisEnd < coveredMonth) {
             item(key = "start") {
@@ -551,9 +603,16 @@ private fun CoveredMonth(
     val islandTotal = remember(islands, month) { islands.sumOf { island -> island.days.filterKeys { it.yearMonth == month }.values.sum() } }
     val empty = days.isEmpty() && partial == null
     // U prázdného měsíce by „0 zpráv" jen opakovalo řádek pod ním.
-    MonthHeader(month, total = if (empty) null else monthTotal(days.values.sum() + islandTotal, atLeast = partial != null))
-    // Souhrn jen u měsíce spočteného celého: z poloviny dat by „nejrušnější den" lhal.
-    if (!empty && partial == null) MonthStatsLine(month, days, today)
+    MonthHeader(month, total = if (empty) null else MonthTotal(days.values.sum() + islandTotal, atLeast = partial != null))
+    // Souhrn jen u měsíce spočteného celého: z poloviny dat by „nejrušnější den" lhal. Objeví
+    // se, až se měsíc dopočítá — pozvolna, výšku měsíce mezitím natáhne `animateContentSize`.
+    AnimatedVisibility(
+        visible = !empty && partial == null,
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+    ) {
+        MonthStatsLine(month, days, today)
+    }
     if (empty) {
         // Prázdný měsíc jen řádkem: v chatu, kde se rok nepsalo, by jinak byly hlavně prázdné mřížky.
         Text(
@@ -571,7 +630,7 @@ private fun CoveredMonth(
 @Composable
 private fun IslandMonth(month: YearMonth, islands: List<Island>, today: LocalDate, actions: DayActions) {
     val total = islands.sumOf { island -> island.days.filterKeys { it.yearMonth == month }.values.sum() }
-    MonthHeader(month, total = if (total > 0) monthTotal(total, atLeast = true) else null)
+    MonthHeader(month, total = if (total > 0) MonthTotal(total, atLeast = true) else null)
     MonthGrid(month, today, actions) { date -> islandDayStatus(date, islands) }
 }
 
@@ -587,27 +646,47 @@ private fun OlderFooter(all: AllMessagesCalendar, onLoadOlder: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        when {
-            all.counting || all.loadingOlder -> LoadingIndicator()
-            all.reachedStart -> Text(
-                stringResource(Res.string.chat_calendar_start),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            else -> {
-                Text(
-                    stringResource(if (all.failed) Res.string.chat_calendar_failed else Res.string.chat_calendar_older_missing),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                FilledTonalButton(onClick = onLoadOlder, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.chat_calendar_load_older))
+        val footer = when {
+            all.counting || all.loadingOlder -> FooterState.Loading
+            all.reachedStart -> FooterState.Start
+            all.failed -> FooterState.Failed
+            else -> FooterState.Missing
+        }
+        // Čekání → text s tlačítkem (a zpět) se prolne, ne vymění v jednom snímku.
+        val enter = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val exit = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        AnimatedContent(
+            targetState = footer,
+            transitionSpec = { fadeIn(enter) togetherWith fadeOut(exit) },
+            contentAlignment = Alignment.TopCenter,
+            label = "calendar-older-footer",
+        ) { state ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                when (state) {
+                    FooterState.Loading -> LoadingIndicator()
+                    FooterState.Start -> Text(
+                        stringResource(Res.string.chat_calendar_start),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FooterState.Failed, FooterState.Missing -> {
+                        Text(
+                            stringResource(if (state == FooterState.Failed) Res.string.chat_calendar_failed else Res.string.chat_calendar_older_missing),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        FilledTonalButton(onClick = onLoadOlder, shapes = ButtonDefaults.shapes()) {
+                            Text(stringResource(Res.string.chat_calendar_load_older))
+                        }
+                    }
                 }
             }
         }
     }
 }
+
+private enum class FooterState { Loading, Start, Failed, Missing }
 
 /**
  * Měsíce s aspoň jednou zprávou druhu nebo výsledkem hledání, od nejnovějšího; starší se
@@ -657,6 +736,10 @@ private fun ServerMonths(
     }
     // Druh má jen měsíce, ve kterých něco je: z přehledu na nejbližší starší.
     ScrollToTarget(scrollTarget, listState) { target -> months.indexOfFirst { it.month <= target } }
+    val itemFade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    val itemFadeOut = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val itemPlacement = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+    val monthResize = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
     LazyColumn(
         Modifier.fillMaxWidth().navigationBarsPadding(),
         state = listState,
@@ -670,9 +753,21 @@ private fun ServerMonths(
             if (index >= months.size - 2) LaunchedEffect(server.next) { onLoadMore() }
             val days = counts.filterKeys { it.yearMonth == month.month }
             val complete = server.reachedEnd || index < months.size - 1
-            Column(MonthModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                MonthHeader(month.month, total = monthTotal(days.values.sum(), atLeast = !complete))
-                if (complete) MonthStatsLine(month.month, days, today)
+            Column(
+                Modifier
+                    .animateItem(fadeInSpec = itemFade, placementSpec = itemPlacement, fadeOutSpec = itemFadeOut)
+                    .then(MonthModifier)
+                    .animateContentSize(monthResize),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                MonthHeader(month.month, total = MonthTotal(days.values.sum(), atLeast = !complete))
+                AnimatedVisibility(
+                    visible = complete,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ) {
+                    MonthStatsLine(month.month, days, today)
+                }
                 MonthGrid(
                     month = month.month,
                     today = today,
@@ -791,6 +886,7 @@ private fun MiniMonth(
     val base = BottomSheetDefaults.ContainerColor
     val cells = remember(month) { calendarMonth(month).cells }
     val title = stringResource(month.month.standaloneName())
+    val dotFade = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
     Column(
         modifier
             .clip(MaterialTheme.shapes.medium)
@@ -816,7 +912,9 @@ private fun MiniMonth(
                                 level == 0 -> scheme.surfaceContainerHighest
                                 else -> scheme.primary.copy(alpha = HEAT_ALPHA[level]).compositeOver(base)
                             }
-                            Box(Modifier.fillMaxSize().clip(CircleShape).background(color))
+                            // Přehled se plní spolu s počítáním — tečky se prolnou jako dny v měsíci.
+                            val shown by animateColorAsState(color, dotFade, label = "mini-day")
+                            Box(Modifier.fillMaxSize().clip(CircleShape).background(shown))
                         }
                     }
                 }
@@ -831,26 +929,57 @@ private const val MONTHS_PER_ROW = 3
 /** Den, o kterém se v přehledu neví nic (nebo mimo osu): jen náznak tečky. */
 private const val MINI_UNKNOWN_ALPHA = 0.08f
 
+/** Nadpis měsíce a jeho součet; `null` = bez součtu (prázdný měsíc). */
 @Composable
-private fun MonthHeader(month: YearMonth, total: String?) {
+private fun MonthHeader(month: YearMonth, total: MonthTotal?) {
     Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
         Text(monthTitle(month), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        if (total != null) {
-            Text(
-                total,
-                style = MaterialTheme.typography.labelLarge.tabularNumbers(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        AnimatedVisibility(
+            visible = total != null,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+        ) {
+            // Při odchodu se drží poslední součet, ne nic.
+            val last = remember { arrayOfNulls<MonthTotal>(1) }
+            if (total != null) last[0] = total
+            last[0]?.let { MonthTotalLabel(it) }
         }
     }
 }
 
-/** Součet měsíce; „120+ zpráv" u měsíce, do kterého spočtené zprávy sahají jen zčásti. */
+/** Součet měsíce; [atLeast] = měsíc, do kterého spočtené zprávy sahají jen zčásti („120+ zpráv"). */
+@Immutable
+private data class MonthTotal(val count: Int, val atLeast: Boolean)
+
+/**
+ * „120+ zpráv" s přetáčeným číslem, jako „N nových zpráv" na tlačítku dolů: součet roste, jak
+ * se kalendář dopočítává, a skoková výměna by problikla. Skloňování nese `plurals`, číslo se do
+ * věty dosadí jako značka ([NUMBER_MARK]) a věta se kolem ní rozdělí.
+ */
 @Composable
-private fun monthTotal(total: Int, atLeast: Boolean): String {
-    val number = total.grouped()
-    val shown = if (atLeast) stringResource(Res.string.chat_calendar_at_least, number) else number
-    return pluralStringResource(Res.plurals.chat_calendar_messages, total, shown)
+private fun MonthTotalLabel(total: MonthTotal) {
+    val style = MaterialTheme.typography.labelLarge.tabularNumbers()
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    val template = pluralStringResource(Res.plurals.chat_calendar_messages, total.count, NUMBER_MARK)
+    val before = template.substringBefore(NUMBER_MARK)
+    val after = template.substringAfter(NUMBER_MARK, missingDelimiterValue = "")
+    val atLeast = stringResource(Res.string.chat_calendar_at_least, NUMBER_MARK)
+    val number = total.count.grouped()
+    val label = pluralStringResource(
+        Res.plurals.chat_calendar_messages,
+        total.count,
+        if (total.atLeast) atLeast.replace(NUMBER_MARK, number) else number,
+    )
+    Row(Modifier.clearAndSetSemantics { contentDescription = label }) {
+        if (before.isNotEmpty()) Text(before, style = style, color = color)
+        RollingNumber(
+            value = total.count,
+            style = style,
+            color = color,
+            format = { if (total.atLeast) atLeast.replace(NUMBER_MARK, it.grouped()) else it.grouped() },
+        )
+        if (after.isNotEmpty()) Text(after, style = style, color = color)
+    }
 }
 
 /** Co se o dni ví: spočtený celý, jen zčásti („+"), nebo nic, protože jeho zprávy v zařízení nejsou. */
@@ -965,6 +1094,18 @@ private fun DayCell(
         level == 0 -> scheme.onSurface
         else -> strongestAccentOn(background, scheme.onSurface, scheme.onPrimary)
     }
+    val numberColor = if (count > 0) content else scheme.onSurfaceVariant.copy(alpha = if (unknown) UNKNOWN_DAY_ALPHA else EMPTY_DAY_ALPHA)
+    // Dopočtený den se prolne, neprobliká: kalendář se plní po úsecích a panel se přepočítává,
+    // když konverzace vedle načte další okno. Kontrast se rozhoduje z CÍLOVÝCH barev (výš),
+    // prolíná se až výsledek — jinak by popředí uprostřed přechodu přeskočilo.
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Color>()
+    val shownBackground by animateColorAsState(background, effects, label = "day-background")
+    val shownContent by animateColorAsState(content, effects, label = "day-content")
+    val shownNumber by animateColorAsState(numberColor, effects, label = "day-number")
+    val countFormat = rememberCellCountFormat(partial)
+    // Počet, který se ukazoval naposled — při odchodu (den vymazaný) se nemá přepsat na nulu.
+    val lastCount = remember { intArrayOf(count) }
+    if (count > 0) lastCount[0] = count
     val dayName = stringResource(Res.string.date_day_month, date.day, stringResource(date.month.name()))
     val description = when {
         count > 0 -> stringResource(
@@ -990,7 +1131,7 @@ private fun DayCell(
             Modifier
                 .fillMaxSize()
                 .clip(CircleShape)
-                .background(background)
+                .background(shownBackground)
                 .then(if (isToday) Modifier.border(2.dp, scheme.primary, CircleShape) else Modifier)
                 .then(
                     if (description != null) {
@@ -1025,14 +1166,22 @@ private fun DayCell(
                 Text(
                     date.day.toString(),
                     style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
-                    color = if (count > 0) content else scheme.onSurfaceVariant.copy(alpha = if (unknown) UNKNOWN_DAY_ALPHA else EMPTY_DAY_ALPHA),
+                    color = shownNumber,
                 )
-                if (count > 0) {
-                    Text(
-                        cellCount(count).let { if (partial) stringResource(Res.string.chat_calendar_at_least, it) else it },
+                // Počet pod číslem vyjede, číslo dne se posune nahoru plynule; další dopočtení
+                // počet přetočí jako odznak.
+                AnimatedVisibility(
+                    visible = count > 0,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                        expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                        shrinkVertically(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ) {
+                    RollingNumber(
+                        value = lastCount[0],
                         style = MaterialTheme.typography.labelSmall.tabularNumbers(),
-                        color = content,
-                        maxLines = 1,
+                        color = shownContent,
+                        format = countFormat,
                     )
                 }
             }
@@ -1091,23 +1240,43 @@ private fun CalendarLegend(allMessages: Boolean, hasActions: Boolean) {
         parts.joinToString(" "),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp),
+        // Text se mění s čipem (o řádek kratší u druhů) — obsah pod ním se posune plynule.
+        modifier = Modifier.animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()).padding(start = 24.dp, end = 24.dp, top = 12.dp),
     )
 }
 
-/** Počet v políčku: do tisíce celý, výš v tisících („1,2k"), aby se vešel do kruhu. */
+/**
+ * Počet v políčku: do tisíce celý, výš v tisících („1,2k"), aby se vešel do kruhu; u dne
+ * spočteného zčásti s „+". Jako funkce pro [RollingNumber], která není `@Composable` — šablony
+ * se proto vezmou z prostředků se značkami místo čísel ([NUMBER_MARK]) a čísla se do nich
+ * dosadí až při formátování.
+ */
 @Composable
-private fun cellCount(count: Int): String {
-    if (count < 1000) return count.toString()
-    val whole = count / 1000
-    val tenths = count % 1000 / 100
-    val number = if (whole < 10 && tenths != 0) {
-        stringResource(Res.string.decimal_number, whole.toString(), tenths.toString())
-    } else {
-        whole.toString()
+private fun rememberCellCountFormat(partial: Boolean): (Int) -> String {
+    val thousands = stringResource(Res.string.chat_calendar_count_thousands, NUMBER_MARK)
+    val decimal = stringResource(Res.string.decimal_number, NUMBER_MARK, DECIMAL_MARK)
+    val atLeast = stringResource(Res.string.chat_calendar_at_least, NUMBER_MARK)
+    return remember(thousands, decimal, atLeast, partial) {
+        { count ->
+            val text = if (count < 1000) {
+                count.toString()
+            } else {
+                val whole = count / 1000
+                val tenths = count % 1000 / 100
+                val number = if (whole < 10 && tenths != 0) {
+                    decimal.replace(NUMBER_MARK, whole.toString()).replace(DECIMAL_MARK, tenths.toString())
+                } else {
+                    whole.toString()
+                }
+                thousands.replace(NUMBER_MARK, number)
+            }
+            if (partial) atLeast.replace(NUMBER_MARK, text) else text
+        }
     }
-    return stringResource(Res.string.chat_calendar_count_thousands, number)
 }
+
+/** Druhá značka čísla (desetiny v „1,2k"), vedle [NUMBER_MARK]. */
+private const val DECIMAL_MARK = "\uE001"
 
 /** Sytost dne: 0 = žádná zpráva, 1–4 podle podílu na nejrušnějším dni měsíce. */
 internal fun heatLevel(count: Int, max: Int): Int =
