@@ -283,7 +283,8 @@ Co zbývá:
     zprávou `ShareFile` a `SaveFileAs`). Ověřit na iOS, kde je jen Sdílet.
 - ~~**Odpověď z prohlížeče**~~ — hotovo (šipka vlevo v dolní liště, `ConversationReplyRequests`).
 - **Přiblížení dvojitým ťuknutím a štípnutím po přestavbě na karty** je ověřené jen
-  čtením kódu; `adb input` dvojité ťuknutí nestihne a štípnutí neumí.
+  čtením kódu; `adb input` dvojité ťuknutí nestihne a štípnutí neumí — štípnutí ale jde
+  vstříknout přes `app_process` (`docs/nastroje/pinch`).
 - ~~**Samolepky `.webm`**~~ — na Androidu hrají i s průhledností (`WebmSticker`,
   `docs/poznatky/emoji-samolepky-reakce.md`). Zbývá: **iOS** (WebM tam neumí systém; VP9 přes
   VideoToolbox jen na novějších zařízeních, kontejner by četl náš `WebmDemuxer`) a **vlastní
@@ -499,8 +500,7 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
 - ~~**Odpovědět v jiném chatu**~~ — hotovo: Další → „Odpovědět jinde", výběr chatu, citace nad
   polem i v konceptu (`docs/poznatky/konverzace-psani.md`, „Odpovědět jinde").
 - ~~**Velikost písma štípnutím v konverzaci**~~ — hotovo, i Ctrl + / − / 0
-  (`docs/poznatky/nastaveni.md`, „Velikost písma přímo v konverzaci"). Štípnutí na zařízení
-  neověřené.
+  (`docs/poznatky/nastaveni.md`, „Velikost písma přímo v konverzaci").
 - ~~**Čtečka obrazovky: předěly dnů jako nadpisy a ohlášení nové zprávy**~~ — hotovo
   (`docs/poznatky/konverzace-zobrazeni.md`, „Zpráva pro čtečku obrazovky"); se skutečným
   TalkBackem neověřené.

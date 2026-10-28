@@ -1240,9 +1240,12 @@ Táž hodnota jde měnit i v konverzaci: **štípnutím nad seznamem zpráv** a 
 - **Kód obrazovky je v `MessageTextZoom.kt`** — `ConversationScreen` (na hraně registrů, viz CLAUDE.md)
   dostal jen `rememberMessageTextZoom()` a modifikátor kláves.
 - **Ověřeno na emulátoru** (Fold, Uložené zprávy): Ctrl + = dvakrát → štítek „Velikost písma 18",
-  bubliny větší, do pole se nic nenapsalo; Ctrl + 0 → zpět na 16. **Štípnutí na zařízení ověřené
-  NENÍ** — `adb input` dva prsty neumí; výpočet a ukládání pokrývá `MessageTextZoomTest`. Desktop
-  (⌘) a iOS jen přeložené.
+  bubliny větší, do pole se nic nenapsalo; Ctrl + 0 → zpět na 16.
+- **Štípnutí ověřené na Pixelu 5** (Android 14, chat s testovacím účtem) vstříknutým dvouprstovým
+  gestem (`docs/nastroje/pinch`): rozevření z 300 na 450 px → štítek „Text size 20" během držení,
+  bubliny větší, přesně čtyři tiky (`dumpsys vibrator_manager`: `Prebaked{effect=TICK}` z Plume),
+  po puštění velikost zůstala; stažení ji vrátilo a výchozí 16 se zase neukládá (klíč
+  `message_text_size` z DataStore zmizel). Desktop (⌘) a iOS jen přeložené.
 
 ### Odkazy v aplikaci (`UrlOpener`, `AppSettings.openLinksInApp`)
 
