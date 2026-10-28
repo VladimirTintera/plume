@@ -4343,8 +4343,9 @@
     <string name="chat_calendar_day_clear">Vymazat historii za den…</string>
     <string name="chat_calendar_day_go">Přejít na den</string>
     <string name="chat_calendar_day_summarize">Shrnout den</string>
-    <string name="chat_calendar_legend_all">Šedé dny zatím nejsou v zařízení — ťuknutím na ně skočíš. „+“ znamená, že je den spočtený jen zčásti.</string>
-    <string name="chat_calendar_legend_hold">Podržením dne otevřeš další akce.</string>
+    <string name="chat_calendar_key_unknown">Zatím není v zařízení</string>
+    <string name="chat_calendar_key_partial">Spočteno zčásti</string>
+    <string name="chat_calendar_key_hold">Podržením dne další akce</string>
     <string name="chat_calendar_day_unknown">%1$s, zprávy nenačtené</string>
     <string name="chat_calendar_failed">Zprávy se nepodařilo spočítat.</string>
     <string name="chat_calendar_kind_empty">Nic takového v chatu není.</string>
