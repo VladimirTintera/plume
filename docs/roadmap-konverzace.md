@@ -498,8 +498,9 @@ aplikací"); každý bod ověřený v kódu a proti tomuhle seznamu a poznatkům
   (`docs/poznatky/konverzace-akce.md`, „Výběr tahem"). „Vybrat až sem" ne — tah to pokryje.
 - ~~**Odpovědět v jiném chatu**~~ — hotovo: Další → „Odpovědět jinde", výběr chatu, citace nad
   polem i v konceptu (`docs/poznatky/konverzace-psani.md`, „Odpovědět jinde").
-- **Velikost písma štípnutím v konverzaci** (S–M), jako Google Messages. Dnes jen Nastavení →
-  Vzhled (`MessageTextSizeSetting.kt`).
+- ~~**Velikost písma štípnutím v konverzaci**~~ — hotovo, i Ctrl + / − / 0
+  (`docs/poznatky/nastaveni.md`, „Velikost písma přímo v konverzaci"). Štípnutí na zařízení
+  neověřené.
 - ~~**Čtečka obrazovky: předěly dnů jako nadpisy a ohlášení nové zprávy**~~ — hotovo
   (`docs/poznatky/konverzace-zobrazeni.md`, „Zpráva pro čtečku obrazovky"); se skutečným
   TalkBackem neověřené.

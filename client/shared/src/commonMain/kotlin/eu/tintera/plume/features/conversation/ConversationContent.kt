@@ -61,6 +61,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -72,6 +73,7 @@ import dev.chrisbanes.haze.hazeSource
 import eu.tintera.plume.core.settings.GestureHint
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.IntroEmptyState
+import eu.tintera.plume.core.ui.LocalMessageTextSize
 import eu.tintera.plume.core.ui.LocalSharedElementClip
 import eu.tintera.plume.core.ui.SharedElementClip
 import eu.tintera.plume.core.ui.SwipeDirection
@@ -120,8 +122,11 @@ internal fun BoxScope.ConversationContent(
     /** Výška vstupního pole — seznam pod něj zajíždí. */
     bottomPadding: Dp,
     floatingDay: FloatingDay?,
+    /** Velikost písma štípnutím ([MessageTextZoom]); náhled platí jen pro tenhle seznam. */
+    textZoom: MessageTextZoom,
 ) {
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
     val selectionTargets = remember { SelectionDragTargets() }
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val photoDescriptions by viewModel.photoDescriptions.collectAsStateWithLifecycle()
@@ -239,6 +244,8 @@ internal fun BoxScope.ConversationContent(
                     onMove = viewModel::extendDragSelection,
                     onEnd = viewModel::endDragSelection,
                 )
+                // Štípnutí mění velikost písma zpráv; jeden prst ani scroll nebere.
+                .messageTextPinch(textZoom, haptics)
                 .pointerInput(revealMax) {
                     detectHorizontalSwipe(
                         direction = SwipeDirection.Left,
@@ -277,6 +284,7 @@ internal fun BoxScope.ConversationContent(
               LocalMediaDragOut provides mediaDragOut,
               LocalVideoDownload provides videoDownload,
               LocalSelectionDragTargets provides selectionTargets.takeIf { state.selection != null },
+              LocalMessageTextSize provides (textZoom.preview ?: LocalMessageTextSize.current),
           ) {
           // Na široké ploše zprávy ve sloupci uprostřed; scroll zůstává přes celou plochu.
           ConversationColumn { inset ->
@@ -355,6 +363,9 @@ internal fun BoxScope.ConversationContent(
             modifier = Modifier.padding(top = 8.dp + topPadding),
         )
     }
+
+    // Velikost písma během štípnutí a chvíli po Ctrl + / −; přes plovoucí datum.
+    MessageTextZoomLabel(textZoom, topPadding)
 
     // Kalendář z předělu dne nebo plovoucího data; skok je týž jako z hledání.
     itemScope.datePickerDay.value?.let { day ->
