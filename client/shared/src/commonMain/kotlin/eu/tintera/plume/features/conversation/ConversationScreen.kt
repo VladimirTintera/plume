@@ -492,12 +492,14 @@ fun ConversationScreen(
             label = "conversation-page",
         )
 
+        val textZoom = rememberMessageTextZoom()
         Scaffold(
             // Barva popředí se z plochy neodvozuje: `surfaceContainerLowest` mapování nemá a fallback
             // by závisel na tom, co je zrovna v `LocalContentColor`.
             containerColor = pageColor,
             contentColor = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.fillMaxSize().hazeSource(hazeState),
+            // Ctrl + / − / 0: velikost písma zpráv (`MessageTextZoom`), i s fokusem v poli.
+            modifier = Modifier.fillMaxSize().hazeSource(hazeState).messageTextZoomKeys(textZoom),
             /*
              * Spodní inset si řeší vstupní pole samo (`windowInsetsPadding` se `safeDrawing`).
              *
@@ -622,6 +624,7 @@ fun ConversationScreen(
                     topPadding = pinnedHeight,
                     bottomPadding = padding.calculateBottomPadding(),
                     floatingDay = floatingDay,
+                    textZoom = textZoom,
                 )
 
                 ConversationBars(

@@ -750,6 +750,7 @@
     <string name="conversation_mention_not_found">Tenhle chat se nepodařilo najít.</string>
     <string name="conversation_sticker_send_failed">Samolepku se nepodařilo odeslat.</string>
     <string name="conversation_attachments_limit">Najednou jde poslat nejvýš %1$d příloh.</string>
+    <string name="conversation_text_size">Velikost písma %1$d</string>
     <string name="attachments_group">Seskupit do alba</string>
     <string name="conversation_gif_send_failed">GIF se nepodařilo odeslat.</string>
     <string name="conversation_location_send_failed">Polohu se nepodařilo odeslat.</string>

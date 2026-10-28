@@ -1218,6 +1218,35 @@ zkratky" v `navigace.md`).
 - **Náhled bublin leží na `surface`**, ne přímo na kartě nastavení: příchozí `surfaceContainerHigh`
   by s kartou (`surfaceContainerHighest`) splývala.
 
+#### Velikost písma přímo v konverzaci (`MessageTextZoom`)
+
+Táž hodnota jde měnit i v konverzaci: **štípnutím nad seznamem zpráv** a **Ctrl (na Macu ⌘)
++ `+` / `−` / `0`**, jako v Google Messages a v prohlížeči. Během změny je nahoře štítek
+„Velikost písma 18" (čtečce se hlásí jako `liveRegion`).
+
+- **Štípnutí: počáteční velikost × poměr vzdálenosti prstů**, zaokrouhleno a přitaženo k rozsahu
+  (`pinchedTextSize`): z 16 vede rozevření o čtvrtinu na 20 a stažení o čtvrtinu na 12. Každý
+  dílek tikne (`tick`), stejně jako posuvník v Nastavení.
+- **Gesto čte v průchodu `Initial`, ale nic nespotřebuje, dokud se vzdálenost prstů nezmění
+  o víc než `touchSlop`** — jeden prst ani posun seznamu dvěma prsty se nezmění. Pak bere
+  všechny pohyby do puštění, takže seznam pod prsty nejede.
+- **Během štípnutí se mění jen náhled seznamu téhle konverzace** (`LocalMessageTextSize` kolem
+  seznamu), uloží se až po puštění — ze stejného důvodu jako u posuvníku. **Náhled drží, dokud
+  nedorazí uložená hodnota** (`settle` ze `SideEffect`): DataStore ji vrátí o pár snímků později
+  a písmo by mezitím skočilo zpátky.
+- **Klávesy chytá `onPreviewKeyEvent` na kořeni obrazovky konverzace**, takže fungují i s fokusem
+  ve vstupním poli a znak `=` se do pole nenapíše. Plus jde psát s Shiftem i bez (`=`) a z numerické
+  klávesnice; `0` vrací výchozích 16.
+- **Kód obrazovky je v `MessageTextZoom.kt`** — `ConversationScreen` (na hraně registrů, viz CLAUDE.md)
+  dostal jen `rememberMessageTextZoom()` a modifikátor kláves.
+- **Ověřeno na emulátoru** (Fold, Uložené zprávy): Ctrl + = dvakrát → štítek „Velikost písma 18",
+  bubliny větší, do pole se nic nenapsalo; Ctrl + 0 → zpět na 16.
+- **Štípnutí ověřené na Pixelu 5** (Android 14, chat s testovacím účtem) vstříknutým dvouprstovým
+  gestem (`docs/nastroje/pinch`): rozevření z 300 na 450 px → štítek „Text size 20" během držení,
+  bubliny větší, přesně čtyři tiky (`dumpsys vibrator_manager`: `Prebaked{effect=TICK}` z Plume),
+  po puštění velikost zůstala; stažení ji vrátilo a výchozí 16 se zase neukládá (klíč
+  `message_text_size` z DataStore zmizel). Desktop (⌘) a iOS jen přeložené.
+
 ### Odkazy v aplikaci (`UrlOpener`, `AppSettings.openLinksInApp`)
 
 - **Výchozí je v aplikaci**, jako v oficiálním klientovi. Jen `http`/`https`; `mailto:`, `tel:`
