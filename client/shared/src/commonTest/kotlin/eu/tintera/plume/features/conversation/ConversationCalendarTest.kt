@@ -199,9 +199,29 @@ class ConversationCalendarTest {
     fun denPredSouvislymUsekemJeNeznamy() {
         val counts = mapOf(LocalDate(2026, 10, 20) to 4, LocalDate(2026, 10, 22) to 1)
 
-        assertEquals(DayStatus.Unknown, coveredDayStatus(LocalDate(2026, 10, 19), counts, LocalDate(2026, 10, 20)))
-        assertEquals(DayStatus.Partial(4), coveredDayStatus(LocalDate(2026, 10, 20), counts, LocalDate(2026, 10, 20)))
-        assertEquals(DayStatus.Known(0), coveredDayStatus(LocalDate(2026, 10, 21), counts, LocalDate(2026, 10, 20)))
+        assertEquals(DayStatus.Unknown, coveredDayStatus(LocalDate(2026, 10, 19), counts, LocalDate(2026, 10, 20), emptyList()))
+        assertEquals(DayStatus.Partial(4), coveredDayStatus(LocalDate(2026, 10, 20), counts, LocalDate(2026, 10, 20), emptyList()))
+        assertEquals(DayStatus.Known(0), coveredDayStatus(LocalDate(2026, 10, 21), counts, LocalDate(2026, 10, 20), emptyList()))
+    }
+
+    @Test
+    fun ostruvekVMesiciKonceUsekuSeUkaze() {
+        // Úsek končí 25. 9., skok na 4. 9. přinesl ostrůvek 3.–5. 9. — ve stejném měsíci.
+        val counts = mapOf(LocalDate(2026, 9, 25) to 2, LocalDate(2026, 9, 28) to 6)
+        val island = Island(
+            days = mapOf(LocalDate(2026, 9, 3) to 1, LocalDate(2026, 9, 4) to 7, LocalDate(2026, 9, 5) to 2),
+            oldestDay = LocalDate(2026, 9, 3),
+            newestDay = LocalDate(2026, 9, 5),
+            oldestMessageId = 10,
+            newestMessageId = 20,
+        )
+        val partial = LocalDate(2026, 9, 25)
+
+        assertEquals(DayStatus.Known(7), coveredDayStatus(LocalDate(2026, 9, 4), counts, partial, listOf(island)))
+        assertEquals(DayStatus.Partial(2), coveredDayStatus(LocalDate(2026, 9, 5), counts, partial, listOf(island)))
+        assertEquals(DayStatus.Unknown, coveredDayStatus(LocalDate(2026, 9, 10), counts, partial, listOf(island)))
+        assertEquals(DayStatus.Partial(2), coveredDayStatus(partial, counts, partial, listOf(island)))
+        assertEquals(DayStatus.Known(6), coveredDayStatus(LocalDate(2026, 9, 28), counts, partial, listOf(island)))
     }
 
     @Test

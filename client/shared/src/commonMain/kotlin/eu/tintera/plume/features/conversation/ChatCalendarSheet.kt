@@ -512,7 +512,7 @@ private fun AllMessagesMonths(
         itemsIndexed(months, key = { _, month -> month.toString() }) { _, month ->
             Column(MonthModifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (month >= coveredMonth) {
-                    CoveredMonth(month, all.days, partialDay, today, actions)
+                    CoveredMonth(month, all.days, all.islands, partialDay, today, actions)
                 } else {
                     IslandMonth(month, all.islands, today, actions)
                 }
@@ -540,15 +540,18 @@ private fun AllMessagesMonths(
 private fun CoveredMonth(
     month: YearMonth,
     allDays: Map<LocalDate, Int>,
+    islands: List<Island>,
     partialDay: LocalDate?,
     today: LocalDate,
     actions: DayActions,
 ) {
     val days = remember(allDays, month) { allDays.filterKeys { it.yearMonth == month } }
     val partial = partialDay?.takeIf { it.yearMonth == month }
+    // Ostrůvky před koncem úseku v tomtéž měsíci se do součtu počítají taky (viz coveredDayStatus).
+    val islandTotal = remember(islands, month) { islands.sumOf { island -> island.days.filterKeys { it.yearMonth == month }.values.sum() } }
     val empty = days.isEmpty() && partial == null
     // U prázdného měsíce by „0 zpráv" jen opakovalo řádek pod ním.
-    MonthHeader(month, total = if (empty) null else monthTotal(days.values.sum(), atLeast = partial != null))
+    MonthHeader(month, total = if (empty) null else monthTotal(days.values.sum() + islandTotal, atLeast = partial != null))
     // Souhrn jen u měsíce spočteného celého: z poloviny dat by „nejrušnější den" lhal.
     if (!empty && partial == null) MonthStatsLine(month, days, today)
     if (empty) {
@@ -560,7 +563,7 @@ private fun CoveredMonth(
             modifier = Modifier.padding(start = 8.dp),
         )
     } else {
-        MonthGrid(month, today, actions) { date -> coveredDayStatus(date, days, partial) }
+        MonthGrid(month, today, actions) { date -> coveredDayStatus(date, days, partial, islands) }
     }
 }
 
@@ -706,7 +709,7 @@ private fun allAxis(all: AllMessagesCalendar, today: LocalDate): CalendarAxis? {
     val axisEnd = all.firstMonth?.takeIf { !all.reachedStart && it < coveredMonth } ?: coveredMonth
     val partialDay = coveredFrom.takeUnless { all.reachedStart }
     return CalendarAxis(today.yearMonth, axisEnd) { date ->
-        if (date.yearMonth >= coveredMonth) coveredDayStatus(date, all.days, partialDay) else islandDayStatus(date, all.islands)
+        if (date.yearMonth >= coveredMonth) coveredDayStatus(date, all.days, partialDay, all.islands) else islandDayStatus(date, all.islands)
     }
 }
 
@@ -857,10 +860,14 @@ internal sealed interface DayStatus {
     data object Unknown : DayStatus
 }
 
-/** Den v měsíci souvislého úseku: před jeho nejstarším dnem ([partialDay]) neznámý. */
-internal fun coveredDayStatus(date: LocalDate, counts: Map<LocalDate, Int>, partialDay: LocalDate?): DayStatus = when {
-    partialDay != null && date < partialDay -> DayStatus.Unknown
-    date == partialDay -> DayStatus.Partial(counts[date] ?: 0)
+/**
+ * Den v měsíci souvislého úseku. Před jeho nejstarším dnem ([partialDay]) rozhodují ostrůvky —
+ * i ve stejném měsíci: skok o tři týdny zpátky přinese ostrůvek v měsíci, kde úsek končí, a bez
+ * nich by tam zůstaly samé neznámé dny, přestože jsou spočtené.
+ */
+internal fun coveredDayStatus(date: LocalDate, counts: Map<LocalDate, Int>, partialDay: LocalDate?, islands: List<Island>): DayStatus = when {
+    partialDay != null && date < partialDay -> islandDayStatus(date, islands)
+    date == partialDay -> DayStatus.Partial((counts[date] ?: 0) + islands.sumOf { it.days[date] ?: 0 })
     else -> DayStatus.Known(counts[date] ?: 0)
 }
 

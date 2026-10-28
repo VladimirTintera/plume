@@ -513,6 +513,11 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   a zahozeno: TDLib si tu zprávu stáhl ze serveru (31. 1.) a z ní žádná lokální historie nevede,
   takže každý měsíc dostal falešný ostrůvek „1+" a k oknu kolem 10. 1. se nedošlo. Navíc stál
   dotaz na server za každý ukázaný měsíc.
+- **Ostrůvek může ležet ve STEJNÉM měsíci, kde souvislý úsek končí** (úsek do 25. 9., skok na
+  4. 9.). Měsíc úseku kreslil dny před jeho koncem jako neznámé bez ohledu na ostrůvky, takže
+  spočtený ostrůvek nebyl vidět a vypadalo to, že se kalendář nedopočítal — v kanálu Google to
+  prošlo jen proto, že ostrůvek padl do jiného měsíce. `coveredDayStatus` proto dny před koncem
+  úseku bere z ostrůvků a součet měsíce je zahrne.
 - **Ostrůvek, do kterého „Načíst starší" dorostlo, se zahodí** (`newestMessageId` < nejstarší id
   úseku), jinak by se jeho zprávy sečetly dvakrát.
 - **Sheet má pevnou, celou výšku** (`weight(1f)` pod čipy), ne podle obsahu. Měsíce přibývají
