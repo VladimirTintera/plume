@@ -12,6 +12,9 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.NavigationEventInfo
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.CompositionLocalProvider
+import eu.tintera.plume.features.conversation.items.EffectLayer
+import eu.tintera.plume.features.conversation.items.LocalEffectLayer
 import eu.tintera.plume.features.conversation.items.SoundingVideoNote
 import eu.tintera.plume.features.conversation.items.rememberSoundingVideoNote
 import androidx.compose.animation.core.Animatable
@@ -438,6 +441,8 @@ fun ConversationScreen(
     // Plocha, do které se v překryvu ořezává sdílený prvek letící sem z prohlížeče médií.
     // Tvary, pod které zajede, hlásí vstupní pole — proto už tady, nad Scaffoldem.
     val listClip = rememberSharedElementClip()
+    // Efekty, které přesahují zprávu (efekt zprávy, emoji, konfety): kreslí se nad Scaffoldem.
+    val effectLayer = remember { EffectLayer() }
     // Na desktopu přijme soubory přetažené kamkoli do konverzace, ne jen na pole (viz [ContentDropArea]).
     ContentDropArea(modifier) {
         // Zpět hledání zavře, z chatu se odchází až dalším. `NavigationBackHandler`, ne
@@ -608,24 +613,27 @@ fun ConversationScreen(
                     )
                     .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
             ) {
-                ConversationContent(
-                    state = state,
-                    viewModel = viewModel,
-                    items = items,
-                    itemScope = itemScope,
-                    listState = listState,
-                    jumpTransition = jumpTransition,
-                    gestureHints = gestureHints,
-                    timeReveal = timeReveal,
-                    listHaze = listHaze,
-                    listClip = listClip,
-                    sensitiveWarning = sensitiveWarning,
-                    onShowSensitive = { sensitiveAccepted = true },
-                    topPadding = pinnedHeight,
-                    bottomPadding = padding.calculateBottomPadding(),
-                    floatingDay = floatingDay,
-                    textZoom = textZoom,
-                )
+                // Efekty zpráv letí ze seznamu do vrstvy nad celou obrazovkou (viz `EffectLayer`).
+                CompositionLocalProvider(LocalEffectLayer provides effectLayer) {
+                    ConversationContent(
+                        state = state,
+                        viewModel = viewModel,
+                        items = items,
+                        itemScope = itemScope,
+                        listState = listState,
+                        jumpTransition = jumpTransition,
+                        gestureHints = gestureHints,
+                        timeReveal = timeReveal,
+                        listHaze = listHaze,
+                        listClip = listClip,
+                        sensitiveWarning = sensitiveWarning,
+                        onShowSensitive = { sensitiveAccepted = true },
+                        topPadding = pinnedHeight,
+                        bottomPadding = padding.calculateBottomPadding(),
+                        floatingDay = floatingDay,
+                        textZoom = textZoom,
+                    )
+                }
 
                 ConversationBars(
                     state = state,
@@ -666,6 +674,9 @@ fun ConversationScreen(
                 )
             }
         }
+
+        // Nad hlavičkou i vstupním polem, pod nabídkou nad zprávou.
+        with(effectLayer) { Content() }
 
         MessageMenuLayer(
             menu = state.messageMenu,

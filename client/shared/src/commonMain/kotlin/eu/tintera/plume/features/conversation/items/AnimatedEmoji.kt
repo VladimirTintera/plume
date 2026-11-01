@@ -1,8 +1,5 @@
 package eu.tintera.plume.features.conversation.items
 
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.foundation.layout.Box
@@ -22,7 +19,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Constraints
@@ -98,50 +94,24 @@ internal fun AnimatedEmojiImage(
         }
     }
     var playing by remember { mutableStateOf<EmojiBurst?>(null) }
-    val raise = LocalRaiseItem.current
 
     val waiting = bursts?.burst(messageId)
     LaunchedEffect(waiting) {
         val burst = waiting ?: return@LaunchedEffect
         bursts?.shown(burst)
         playing = burst
-        // Efekt přesahuje zprávu; novější zprávy pod ní by ho jinak přikryly.
-        raise(true)
         // Vlastní ťuknutí odpovědělo už při ťuknutí.
         if (burst.fromPartner) respond()
     }
 
     val finish = { burst: EmojiBurst ->
-        if (playing == burst) {
-            playing = null
-            raise(false)
-        }
-    }
-    /*
-     * Efekt je třikrát větší než emoji a obsah zprávy je ořezaný jejím obrysem — na místě by se
-     * uřízl. Kreslí se proto ve vrstvě rámu ([MessageOverlay]), ukotvený ve středu emoji.
-     */
-    val overlay = LocalMessageOverlay.current
-    // Umístění emoji; kotva se z něj počítá až při přehrání, to už je rám i emoji umístěné.
-    val placed = remember { arrayOfNulls<LayoutCoordinates>(1) }
-    val current = playing
-    if (overlay != null && current != null) {
-        DisposableEffect(overlay, current, isOutgoing) {
-            val coordinates = placed[0]
-            val at = coordinates?.let { overlay.anchorOf(it, Offset(it.size.width / 2f, it.size.height / 2f)) }
-            val drawing: @Composable () -> Unit = {
-                EmojiBurstAnimation(burst = current, isOutgoing = isOutgoing, onFinished = { finish(current) })
-            }
-            if (at != null) overlay.show(at, drawing) else finish(current)
-            onDispose { overlay.hide(drawing) }
-        }
+        if (playing == burst) playing = null
     }
 
     val playLabel = stringResource(Res.string.animated_emoji_play)
     Box(
         modifier = Modifier
             .size(ANIMATED_EMOJI_SIZE)
-            .onPlaced { placed[0] = it }
             .then(
                 if (bursts == null) {
                     Modifier
@@ -174,10 +144,15 @@ internal fun AnimatedEmojiImage(
                 Text(text = emoji.emoji, style = MaterialTheme.typography.displayLarge)
             },
         )
+        /*
+         * Efekt je třikrát větší než emoji a obsah zprávy je ořezaný jejím obrysem — na místě by se
+         * uřízl. Kreslí se proto ve vrstvě nad konverzací ([PlayEffect]), ze středu emoji.
+         */
         val burst = playing
-        if (burst != null && overlay == null) {
-            // Mimo rám zprávy (náhledy) není kam přesahovat; kreslí se na místě.
-            EmojiBurstAnimation(burst = burst, isOutgoing = isOutgoing, onFinished = { finish(burst) })
+        if (burst != null) {
+            PlayEffect {
+                EmojiBurstAnimation(burst = burst, isOutgoing = isOutgoing, onFinished = { finish(burst) })
+            }
         }
     }
 }

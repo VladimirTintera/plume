@@ -87,7 +87,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
@@ -260,21 +259,11 @@ internal interface MessageItem : ConversationItem {
                 .first { boundary -> scope.claimEffect(frame.key, frame.message, boundary) }
             effectPlayback.play()
         }
-        // Konfety výhry u kostky přesahují zprávu stejně jako efekt; položka se kvůli nim zvedne.
-        var raised by remember { mutableStateOf(false) }
-        val raise = remember { { up: Boolean -> raised = up } }
         // Příchozí zpráva při odkrývání časů stojí, čas se vejde vedle ní (viz RevealAnchor).
         val anchor = remember(frame.message.isOutgoing) { if (frame.message.isOutgoing) null else RevealAnchor() }
-        RevealingTime(
-            frame.message.timestamp,
-            scope.timeReveal,
-            // Animace přesahuje zprávu; starší zprávy se kreslí po ní a přikryly by ji.
-            modifier.zIndex(if (effectPlayback.playing || raised) 1f else 0f),
-            anchor = anchor,
-        ) {
-            CompositionLocalProvider(LocalRaiseItem provides raise) {
-                MessageFrame(frame, scope, maxWidthFraction, effectPlayback, anchor) { Body() }
-            }
+        // Efekty, které zprávu přesahují, kreslí vrstva nad konverzací (`EffectLayer`), ne položka.
+        RevealingTime(frame.message.timestamp, scope.timeReveal, modifier, anchor = anchor) {
+            MessageFrame(frame, scope, maxWidthFraction, effectPlayback, anchor) { Body() }
         }
     }
 }
@@ -1115,9 +1104,7 @@ internal fun MessageBox(
         label = "emphasis-wave",
     )
     val wavePhase = rememberWavePhase(running = waving)
-    // Co z obsahu přesahuje zprávu (efekt animovaného emoji), se kreslí tady, mimo ořez obsahu.
-    val overlay = remember { MessageOverlay() }
-    Box(modifier.onPlaced(overlay::hostPlaced)) {
+    Box(modifier) {
         Box(
             Modifier
                 .padding(bottom = overhang.coerceAtLeast(0.dp))
@@ -1153,10 +1140,7 @@ internal fun MessageBox(
         ) {
             // Bez bubliny se kreslí na plochu konverzace, takže výchozí barva popředí patří
             // k NÍ. Bublina (`Bubble`) si ji přepíše svou.
-            CompositionLocalProvider(
-                LocalContentColor provides MaterialTheme.colorScheme.onSurface,
-                LocalMessageOverlay provides overlay,
-            ) {
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
                 bodyScope.body()
             }
         }
@@ -1185,9 +1169,6 @@ internal fun MessageBox(
         )
 
         extra()
-
-        // Nad vším ostatním ve zprávě, i nad čipy reakcí — efekt letí přes ně.
-        overlay.Content()
     }
 }
 
