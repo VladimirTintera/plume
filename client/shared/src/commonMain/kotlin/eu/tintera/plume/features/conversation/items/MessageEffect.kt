@@ -34,9 +34,8 @@ import eu.tintera.plume.resources.message_effect_play
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Přehrávání efektu jedné zprávy. Žije v položce seznamu, ne v rámu: dokud efekt hraje, dostane
- * položka vyšší `zIndex` (animace přesahuje zprávu a starší zprávy nad ní by ji jinak přikryly),
- * a ten se nastavuje na kořeni položky.
+ * Přehrávání efektu jedné zprávy. Žije v položce seznamu, ne v rámu: samočinné přehrání po
+ * příchodu rozhoduje položka. Kreslí se ve vrstvě efektů ([EffectLayer]).
  */
 @Stable
 internal class EffectPlayback {
@@ -75,12 +74,14 @@ internal fun EffectMark(
     val playLabel = stringResource(Res.string.message_effect_play)
     Box(modifier.size(EFFECT_MARK_SIZE), contentAlignment = Alignment.Center) {
         /*
-         * Animace je DÍTĚ značky, ale do layoutu nezasahuje ([EffectAnimation] se měří na nulu),
-         * takže zprávu nezvětší. Nahoru přes sousední zprávy efekt letí tak jako tak — i
-         * v oficiálních klientech.
+         * Animace vyletí ze značky, ale kreslí se ve vrstvě nad celou konverzací ([PlayEffect]):
+         * přes sousední zprávy, hlavičku i vstupní pole. Do layoutu nezasahuje
+         * ([EffectAnimation] se měří na nulu), takže zprávu nezvětší.
          */
         if (playback.playing) {
-            EffectAnimation(effect = effect, run = playback.run, isOutgoing = isOutgoing, onFinished = playback::finished)
+            PlayEffect {
+                EffectAnimation(effect = effect, run = playback.run, isOutgoing = isOutgoing, onFinished = playback::finished)
+            }
         }
         Surface(
             shape = CircleShape,

@@ -613,7 +613,6 @@ private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean, celebrate: Boo
     // Oslava výhry na snímku, který poslal server (míč propadne košem, šipka zasáhne střed).
     // U automatu se hlásí poslední vrstva — pravý válec, ten dotočí poslední.
     var celebrating by remember { mutableStateOf(false) }
-    val raise = LocalRaiseItem.current
     val winFrame = dice.successFrame.takeIf { celebrate && it > 0 } ?: 0
     Box(Modifier.size(DICE_SIZE).semantics { contentDescription = dice.label }) {
         dice.layers.forEachIndexed { index, fileId ->
@@ -628,10 +627,7 @@ private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean, celebrate: Boo
                         if (finishedLayers.size == dice.layers.size) thrown = true
                     },
                     markerFrame = if (index == dice.layers.lastIndex) winFrame else 0,
-                    onMarker = {
-                        celebrating = true
-                        raise(true)
-                    },
+                    onMarker = { celebrating = true },
                     placeholder = {
                         // Znak drží místo jen pod spodní vrstvou; nad ní by se zdvojil.
                         if (index == 0) Text(text = dice.emoji, style = MaterialTheme.typography.displayLarge)
@@ -639,15 +635,11 @@ private fun DiceImage(dice: MessageMedia.Dice, throwNow: Boolean, celebrate: Boo
                 )
             }
         }
+        // Konfety přesahují zprávu; kreslí je vrstva nad konverzací, ze středu kostky.
         if (celebrating) {
-            DiceConfetti(
-                seed = seed,
-                onFinished = {
-                    celebrating = false
-                    raise(false)
-                },
-                modifier = Modifier.align(Alignment.Center),
-            )
+            PlayEffect {
+                DiceConfetti(seed = seed, onFinished = { celebrating = false })
+            }
         }
     }
 }

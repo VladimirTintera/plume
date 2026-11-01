@@ -10,7 +10,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -26,17 +25,10 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Položka seznamu, jejíž animace přesahuje zprávu, si o to řekne tady: dokud hraje, dostane
- * vyšší `zIndex` — starší zprávy se kreslí po ní a konfety by jinak přikryly (tatáž past jako
- * u efektu zprávy). Mimo seznam (kopie v nabídce) se nedělá nic.
- */
-internal val LocalRaiseItem = staticCompositionLocalOf<(Boolean) -> Unit> { {} }
-
-/**
  * Oslava výhry u hodu kostkou: sprška konfet ze středu kostky, nahoru a do stran, pak dolů.
  *
- * Kreslí se ve vlastní vrstvě bez velikosti — do layoutu nezasahuje, jen přesahuje kostku, jako
- * efekt zprávy. Barvy jsou z tématu (primary, secondary, tertiary a jejich kontejnery), ne pevná
+ * Kreslí se bez velikosti — do layoutu nezasahuje, jen přesahuje kostku, a jako efekt zprávy
+ * ve vrstvě nad konverzací ([PlayEffect]). Barvy jsou z tématu (primary, secondary, tertiary a jejich kontejnery), ne pevná
  * duha: konfety mají ladit s aplikací, ne vypadat jako vložený obrázek. Náhoda je semínkem
  * [seed], takže tatáž zpráva vybuchne vždycky stejně.
  */

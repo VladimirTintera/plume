@@ -57,8 +57,8 @@ testy `DiceMediaTest`).
   vrstva (pravý válec dotočí poslední). **Jen u VLASTNÍHO hodu, který proběhl před očima** —
   server snímek výhry posílá kvůli odeslanému hodu (TDLib: „on updateMessageSendSucceeded"),
   oficiální klienti cizí výhru neslaví. Konfety se kreslí v Compose (barvy z tématu, náhoda
-  se semínkem id zprávy), bez velikosti v layoutu; položka se po dobu oslavy zvedne
-  (`LocalRaiseItem`, `zIndex` jako u efektu zprávy).
+  se semínkem id zprávy), bez velikosti v layoutu, ve vrstvě efektů nad konverzací (viz
+  „Vrstva efektů nad konverzací").
 - **Ověřuje se hodem ⚽ v chatu s botem** (gól je hodnota 3–5, tedy asi tři hody z pěti; text
   do pole přes sdílení, `SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`) a sérií surových snímků
   (`screencap` do `/data/local/tmp` ve smyčce v jednom `adb shell`, aspoň 70 — hod trvá přes
@@ -239,7 +239,7 @@ tolerance jako hod kostkou) nebo je NEPŘEČTENÁ, a znovu po ťuknutí na znač
   (viz „Skok na první nepřečtenou"): obě nepřečtené zprávy s 🔥 zahořely po otevření chatu.
   Ověření bez sondy v #325 nic nedokazovalo — chat otevřený do pěti vteřin po zprávě spadl pod
   toleranci příchodu, ne pod nepřečtené. Efekt u nejnovější zprávy
-  zčásti zajede pod vstupní pole — to leží nad seznamem.
+  letí přes vstupní pole (viz „Vrstva efektů nad konverzací").
 - **Efekt se dočítá při převodu zprávy** (`getMessageEffect`, pamatuje se pro instanci klienta),
   jako jméno inline bota. Efektů je pár desítek a opakují se; `fileId` animace platí jen v jedné
   databázi.
@@ -251,9 +251,6 @@ tolerance jako hod kostkou) nebo je NEPŘEČTENÁ, a znovu po ťuknutí na znač
   (`EFFECT_SOURCE_X`) a výbuch letí doleva. Na značku se kotví ten bod, ne střed plátna —
   vystředěný oheň stál o ~50 dp vedle značky. U příchozí zprávy se animace zrcadlí; bez zrcadlení
   letěla srdce doleva přes bubliny (ověřeno obojí na emulátoru).
-- **Dokud efekt hraje, má položka `zIndex(1f)`.** Animace přesahuje zprávu a starší zprávy se
-  v `LazyColumn` kreslí po ní — přikryly by ji. `zIndex` na kořeni položky pořadí kreslení mezi
-  položkami mění.
 - **Animace je krátká (kolem vteřiny)**: snímek o půl vteřiny po ťuknutí už nic nezachytí
   a vypadá to, že ťuknutí nefunguje. Ověřuje se sérií `screencap` v jednom `adb shell`.
 - **Poslat s efektem jde z podržení odesílacího tlačítka** („Odeslat s efektem…" →
@@ -307,14 +304,39 @@ v `items/AnimatedEmoji.kt`.
   rozletí srdíčka doleva přes starší zprávy.
 - **Obsah zprávy je ořezaný obrysem i bez bubliny** (`graphicsLayer { clip = true }` v `MessageBox`)
   a efekt nakreslený na místě se uřízl na hranici zprávy (první pokus na emulátoru). Kreslí se
-  proto do `MessageOverlay` — vrstvy rámu mimo ořez, kam obsah předá kresbu a kotvu (střed emoji
-  v souřadnicích rámu, `localPositionOf`). Kotva se počítá až při přehrání: pořadí `onPlaced`
-  rámu a emoji zaručené není. Položka se po dobu efektu zvedne (`LocalRaiseItem`).
+  proto ve vrstvě efektů nad konverzací (viz níž).
 - **Kopie v nabídce na ťuknutí nereaguje** (`InertItemScope.emojiBursts() = null`).
 - **Ověřeno na emulátoru** v chatu s testovacím botem (❤️ přes sdílení): poskočení, efekt mimo
   ořez, tep (`dumpsys vibrator_manager`: dva `constant=0` 142 ms po sobě). **Neověřeno**: efekt
   od protějšku a „sleduje animaci…" — bot interakci poslat neumí, chce to druhý účet. iOS jen
   přeložené.
+
+### Vrstva efektů nad konverzací
+
+Efekt zprávy, efekt animovaného emoji i konfety u kostky kreslí jedna vrstva nad celou
+obrazovkou konverzace (`EffectLayer` v `items/EffectLayer.kt`, na kořeni `ConversationScreen`
+nad Scaffoldem a pod nabídkou nad zprávou). Zpráva jí přes `PlayEffect` předá jen kresbu;
+efekt vyletí ze středu prvku, ve kterém se `PlayEffect` zavolal (značka, emoji, kostka).
+
+- **Proč ne v položce.** Efekt kreslený zprávou narážel na tři hranice: obsah zprávy ořezává
+  obrys bubliny, seznam ořezává svou plochu (`clipToBounds`) a hlavička se vstupním polem leží ve
+  Scaffoldu NAD seznamem. Výbuch u nejnovější zprávy zajel pod pole a `zIndex(1f)` na položce
+  pomohl jen proti sousedním zprávám. S vrstvou letí efekt přes hlavičku, pole, řádek návrhů
+  i pod stavovou lištu; `zIndex`, `LocalRaiseItem` a vrstva rámu (`MessageOverlay`) zmizely.
+- **Poloha se čte při KRESLENÍ a každý snímek** (`localPositionOf` vůči vrstvě, překreslení
+  přes `withFrameNanos`, jen dokud něco hraje). Zpráva se během efektu hýbe (scroll, tah na
+  odpověď, příjezd nové zprávy). Při rozmístění by kotva jela o snímek pozadu: seznam leží
+  v stromu hlouběji než vrstva a Compose přeskládává mělčí uzly dřív.
+- **Vrstva je jen pro seznam** (`LocalEffectLayer` obaluje `ConversationContent`). Kopie
+  zprávy v nabídce ji nemá a kreslí na místě, stejně jako náhled ve výběru efektů (vlastní sheet).
+- **Zpráva, která odjede ze seznamu, efekt ukončí**: položka se složí a `PlayEffect` efekt
+  z vrstvy odebere.
+- **Vrstva je mimo `hazeSource`**, takže ji mléčné sklo hlavičky nerozostří do sebe.
+- **Ověřeno na emulátoru** (Fold rozložený, chat s Notifikátorem): 🔥 poslaný botem
+  s `message_effect_id` hoří přes vstupní pole a spodní okraj panelu, srdíčka z ❤️ po ťuknutí
+  letí přes řádek návrhů a pole, a efekt přehraný ťuknutím na značku jede se zprávou, když se
+  seznamem během něj táhne. **Neověřeno**: konfety u kostky (cesta je tatáž) a iOS (jen
+  přeložené přes Android, společný kód).
 
 ### Vlastní emoji v textu
 
