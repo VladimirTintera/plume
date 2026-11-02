@@ -4,6 +4,7 @@ import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +25,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.WavyProgressIndicatorDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -151,11 +154,16 @@ fun UpdateCard(
                 // a nabízet „Teď ne" u něčeho, co už běží, by lhalo.
                 is AppUpdateState.Downloading -> {
                     val progress = state.progress
+                    // Obchod hlásí průběh po skocích, proužek za ním dojíždí plynule.
+                    val animatedProgress by animateFloatAsState(
+                        targetValue = progress ?: 0f,
+                        animationSpec = WavyProgressIndicatorDefaults.ProgressAnimationSpec,
+                    )
                     val modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                     if (progress == null) {
                         LinearWavyProgressIndicator(modifier, color = accent)
                     } else {
-                        LinearWavyProgressIndicator(progress = { progress }, modifier = modifier, color = accent)
+                        LinearWavyProgressIndicator(progress = { animatedProgress }, modifier = modifier, color = accent)
                     }
                 }
 

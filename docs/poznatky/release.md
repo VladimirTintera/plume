@@ -480,6 +480,12 @@ In-App Updates v režimu **flexible**: stahuje se na pozadí, pak „Restartovat
   kontrastem je `primaryContainer` v tmavém režimu světlý jako `primary`, takže „Teď ne" bylo
   bílé na světle modré a kolečko ikony s tlačítkem splývaly s kartou. Kde `primary` na kartě
   vidět není, převezme jeho roli `onPrimaryContainer` (viz „Material 3 / vzhled").
+- **Proužek průběhu dojíždí animací** (`animateFloatAsState` se specem
+  `WavyProgressIndicatorDefaults.ProgressAnimationSpec`, který M3 dává přesně na tohle). Obchod
+  hlásí průběh po skocích a holá hodnota proužkem cukala.
+  **Ověřuje se podstrčeným stavem** jako vzhled karty: dočasná série `Downloading` po `Handler`
+  a měření konce proužku ze `screenrecord`. Karta se v seznamu během toho posouvá, jak přibývají
+  bloky nad ní (Čeká na odpověď), takže je třeba měřit na její aktuální výšce.
 - **Ikona je `system_update` (telefon se šipkou dovnitř), ne `upgrade`.** Šipka nahoru k čáře se
   čte jako NAHRÁVÁNÍ — a to je přesně opačný směr, než co karta nabízí. Ikona má říct, co se
   stane, ne jakým gestem se to spustí.
