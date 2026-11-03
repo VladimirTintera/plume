@@ -107,7 +107,7 @@ actual class MediaSharer {
             val copy = File(path).copyTo(File(directory, fileName), overwrite = true)
             val image = if (isImage) runCatching { ImageIO.read(copy) }.getOrNull() else null
             val selection = when (desktopOs) {
-                DesktopOs.MacOs -> MacClipboardSelection(macClipboardEntries(copy, image))
+                DesktopOs.MacOs -> MacClipboardSelection(copy, macClipboardEntries(copy, image))
                 else -> FileSelection(copy, image)
             }
             Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
@@ -142,16 +142,27 @@ internal class FileSelection(private val file: File, private val image: Image? =
     }
 }
 
-/** Schránka macOS: data pod přesně těmi typy, které má vidět druhá strana, viz [macClipboardEntries]. */
-internal class MacClipboardSelection(private val entries: List<MacClipboardEntry>) : Transferable {
+/**
+ * Schránka macOS: data pod přesně těmi typy, které má vidět druhá strana, viz [macClipboardEntries].
+ *
+ * [DataFlavor.javaFileListFlavor] umí, ale nenabízí. AWT zapisuje jen to, co vrátí
+ * [getTransferDataFlavors], kdežto pole zprávy v Plume se ptá přímo tohohle objektu, ne obsahu
+ * schránky, a soubor v něm hledá přes [isDataFlavorSupported].
+ */
+internal class MacClipboardSelection(private val file: File, private val entries: List<MacClipboardEntry>) : Transferable {
 
     override fun getTransferDataFlavors(): Array<DataFlavor> = entries.map { it.flavor }.toTypedArray()
 
-    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = entries.any { it.flavor == flavor }
+    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean =
+        flavor == DataFlavor.javaFileListFlavor || entries.any { it.flavor == flavor }
 
     override fun getTransferData(flavor: DataFlavor): Any =
-        entries.firstOrNull { it.flavor == flavor }?.let { ByteArrayInputStream(it.bytes) }
-            ?: throw UnsupportedFlavorException(flavor)
+        if (flavor == DataFlavor.javaFileListFlavor) {
+            listOf(file)
+        } else {
+            entries.firstOrNull { it.flavor == flavor }?.let { ByteArrayInputStream(it.bytes) }
+                ?: throw UnsupportedFlavorException(flavor)
+        }
 }
 
 /** Data ve schránce pod typem, který doopravdy nesou. */

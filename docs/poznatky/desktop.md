@@ -707,8 +707,14 @@ taky. Ven teď vede schránka a „Uložit jako…" (`MediaSharer.copy`, `fileSh
   - **Oprava:** vlastní flavory (`class=java.io.InputStream`) napojené v `SystemFlavorMap` na
     `public.png`, `public.jpeg` a `public.file-url`. `NSURL` pak soubor vrátí a Chromium dá soubor
     s původním jménem i u jmen s diakritikou a mezerou (`image/jpeg`, `application/pdf`).
-    Java z téhle podoby dál čte `javaFileListFlavor` i `imageFlavor`, vložení do Plume se nemění.
-    Tah ven (`FileSelection`) jde jinudy a oprava se ho netýká.
+    Druhý proces Javy z téhle podoby dál čte `javaFileListFlavor` i `imageFlavor`. Tah ven
+    (`FileSelection`) jde jinudy a oprava se ho netýká.
+  - **Plume si vlastní kopii nečte ze schránky.** Dokud je AWT vlastníkem schránky, vrátí
+    `getContents` obal (`TransferableProxy`) kolem uloženého `Transferable`, takže se typy
+    nepřekládají a pole zprávy hledá `javaFileListFlavor` v něm. Jen s vlastními typy ⌘V v Plume
+    nedělalo nic, přestože druhý proces Javy soubor přečetl a systémový snímek obrazovky šel vložit. `MacClipboardSelection` proto seznam souborů umí, ale v
+    `getTransferDataFlavors` ho nenabízí: AWT zapisuje jen to, co vrací tahle metoda. **Vložení do
+    Plume se tedy ověřuje ve STEJNÉM procesu, který kopíroval.**
   - **Vložení se měří v Chromu přes CDP, ne odhadem ze seznamu typů:** `Input.dispatchKeyEvent`
     s `commands: ["paste"]` na stránce s posluchačem `paste` vyvolá skutečnou událost i bez
     povolení ke čtení schránky; výpis `clipboardData.types`, `items` a `files` ukáže, co dostane

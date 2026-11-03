@@ -68,15 +68,25 @@ class MacClipboardEntriesTest {
     }
 
     @Test
-    fun schrankaNenabiziTypyAwtAPokazdeDaCteniOdZacatku() {
+    fun doSchrankyJdeJenVlastniTypAPokazdeDaCteniOdZacatku() {
         val file = imageFile("jpg")
         val entries = macClipboardEntries(file, image)
-        val selection = MacClipboardSelection(entries)
+        val selection = MacClipboardSelection(file, entries)
+        assertEquals(entries.map { it.flavor }, selection.transferDataFlavors.toList())
         assertFalse(selection.isDataFlavorSupported(DataFlavor.imageFlavor))
-        assertFalse(selection.isDataFlavorSupported(DataFlavor.javaFileListFlavor))
         repeat(2) {
             val stream = selection.getTransferData(entries[1].flavor) as InputStream
             assertContentEquals(file.readBytes(), stream.readBytes())
         }
+    }
+
+    /** Pole zprávy v Plume čte vlastní kopii přímo z tohohle objektu, ne ze schránky. */
+    @Test
+    fun plumeVlastniKopiiCteJakoSoubor() {
+        val file = imageFile("jpg")
+        val selection = MacClipboardSelection(file, macClipboardEntries(file, image))
+        assertTrue(selection.isDataFlavorSupported(DataFlavor.javaFileListFlavor))
+        assertEquals(listOf(file), selection.getTransferData(DataFlavor.javaFileListFlavor))
+        assertFalse(DataFlavor.javaFileListFlavor in selection.transferDataFlavors)
     }
 }
