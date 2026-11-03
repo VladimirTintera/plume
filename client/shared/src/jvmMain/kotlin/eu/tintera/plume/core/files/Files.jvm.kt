@@ -13,8 +13,12 @@ import java.awt.Image
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
+import java.awt.datatransfer.SystemFlavorMap
 import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
+import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import javax.imageio.ImageIO
 import kotlinx.coroutines.Dispatchers
@@ -91,7 +95,8 @@ actual class MediaSharer {
     /**
      * Do schránky jde **seznam souborů** (Průzkumník a Finder ho vloží jako soubor, Outlook
      * a webové aplikace jako přílohu) a u obrázku navíc **obrázek** (Malování, Word, editor
-     * fotek). Obrázek se čte ImageIO; co nepřečte (HEIC, WebP), jde jen jako soubor.
+     * fotek). Obrázek se čte ImageIO; co nepřečte (HEIC, WebP), jde jen jako soubor. Na macOS
+     * jde obojí jinudy než přes typy AWT, viz [macClipboardEntries].
      */
     actual suspend fun copy(path: String, fileName: String, isImage: Boolean): Boolean = withContext(Dispatchers.IO) {
         runCatching {
@@ -101,7 +106,11 @@ actual class MediaSharer {
             directory.mkdirs()
             val copy = File(path).copyTo(File(directory, fileName), overwrite = true)
             val image = if (isImage) runCatching { ImageIO.read(copy) }.getOrNull() else null
-            Toolkit.getDefaultToolkit().systemClipboard.setContents(FileSelection(copy, image), null)
+            val selection = when (desktopOs) {
+                DesktopOs.MacOs -> MacClipboardSelection(copy, macClipboardEntries(copy, image))
+                else -> FileSelection(copy, image)
+            }
+            Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
             true
         }.getOrElse {
             logger.w(it) { "Soubor $path se nepodařilo zkopírovat do schránky." }
@@ -117,7 +126,10 @@ actual class MediaSharer {
 /** Soubor ve schránce nebo v tahu ven: seznam s jedním souborem a k obrázku i obrázek sám. */
 internal class FileSelection(private val file: File, private val image: Image? = null) : Transferable {
 
-    private val flavors = listOfNotNull(DataFlavor.javaFileListFlavor, DataFlavor.imageFlavor.takeIf { image != null })
+    private val flavors = buildList {
+        add(DataFlavor.javaFileListFlavor)
+        if (image != null) add(DataFlavor.imageFlavor)
+    }
 
     override fun getTransferDataFlavors(): Array<DataFlavor> = flavors.toTypedArray()
 
@@ -129,6 +141,76 @@ internal class FileSelection(private val file: File, private val image: Image? =
         else -> throw UnsupportedFlavorException(flavor)
     }
 }
+
+/**
+ * Schránka macOS: data pod přesně těmi typy, které má vidět druhá strana, viz [macClipboardEntries].
+ *
+ * [DataFlavor.javaFileListFlavor] umí, ale nenabízí. AWT zapisuje jen to, co vrátí
+ * [getTransferDataFlavors], kdežto pole zprávy v Plume se ptá přímo tohohle objektu, ne obsahu
+ * schránky, a soubor v něm hledá přes [isDataFlavorSupported].
+ */
+internal class MacClipboardSelection(private val file: File, private val entries: List<MacClipboardEntry>) : Transferable {
+
+    override fun getTransferDataFlavors(): Array<DataFlavor> = entries.map { it.flavor }.toTypedArray()
+
+    override fun isDataFlavorSupported(flavor: DataFlavor): Boolean =
+        flavor == DataFlavor.javaFileListFlavor || entries.any { it.flavor == flavor }
+
+    override fun getTransferData(flavor: DataFlavor): Any =
+        if (flavor == DataFlavor.javaFileListFlavor) {
+            listOf(file)
+        } else {
+            entries.firstOrNull { it.flavor == flavor }?.let { ByteArrayInputStream(it.bytes) }
+                ?: throw UnsupportedFlavorException(flavor)
+        }
+}
+
+/** Data ve schránce pod typem, který doopravdy nesou. */
+internal class MacClipboardEntry(val flavor: DataFlavor, val bytes: ByteArray)
+
+/**
+ * Obsah schránky macOS: odkaz na soubor a u obrázku skutečné PNG, u fotky v JPEG i její původní data.
+ *
+ * Typy AWT tu nejdou, Chromium (webové aplikace a Electron) by ze schránky nic nedostal.
+ * [DataFlavor.imageFlavor] zapíše do `public.png`, `public.jpeg` i `public.tiff` tatáž data TIFF
+ * a po [DataFlavor.javaFileListFlavor] vrací čtení odkazu přes `NSURL` prázdno: Chromium vidí, že
+ * odkaz ve schránce je, soubor nedostane a obrázek už nehledá. Proto vlastní typy, které AWT zapíše
+ * tak, jak jsou.
+ */
+internal fun macClipboardEntries(file: File, image: BufferedImage?): List<MacClipboardEntry> {
+    val fileUrl = MacClipboardEntry(macFileUrlFlavor, file.toPath().toUri().toString().toByteArray())
+    if (image == null) return listOf(fileUrl)
+    val bytes = file.readBytes()
+    val png = if (bytes.startsWith(PNG_SIGNATURE)) {
+        bytes
+    } else {
+        ByteArrayOutputStream().also { ImageIO.write(image, "png", it) }.toByteArray()
+    }
+    return listOfNotNull(
+        MacClipboardEntry(macPngFlavor, png),
+        MacClipboardEntry(macJpegFlavor, bytes).takeIf { bytes.startsWith(JPEG_SIGNATURE) },
+        fileUrl,
+    )
+}
+
+private val macPngFlavor by lazy { macClipboardFlavor("application/x-plume-png", "public.png") }
+private val macJpegFlavor by lazy { macClipboardFlavor("application/x-plume-jpeg", "public.jpeg") }
+private val macFileUrlFlavor by lazy { macClipboardFlavor("application/x-plume-file-url", "public.file-url") }
+
+/** Vlastní typ MIME napojený přímo na typ schránky macOS, ať AWT data nepřevádí. */
+private fun macClipboardFlavor(mimeType: String, pasteboardType: String): DataFlavor {
+    val flavor = DataFlavor("$mimeType; class=java.io.InputStream")
+    val flavorMap = SystemFlavorMap.getDefaultFlavorMap() as SystemFlavorMap
+    flavorMap.addUnencodedNativeForFlavor(flavor, pasteboardType)
+    flavorMap.addFlavorForUnencodedNative(pasteboardType, flavor)
+    return flavor
+}
+
+private fun ByteArray.startsWith(prefix: ByteArray): Boolean =
+    size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }
+
+private val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
+private val JPEG_SIGNATURE = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())
 
 actual val fileShareSupported: Boolean = false
 
