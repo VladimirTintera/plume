@@ -13,8 +13,12 @@ import java.awt.Image
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
+import java.awt.datatransfer.SystemFlavorMap
 import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
+import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import javax.imageio.ImageIO
 import kotlinx.coroutines.Dispatchers
@@ -91,7 +95,8 @@ actual class MediaSharer {
     /**
      * Do schránky jde **seznam souborů** (Průzkumník a Finder ho vloží jako soubor, Outlook
      * a webové aplikace jako přílohu) a u obrázku navíc **obrázek** (Malování, Word, editor
-     * fotek). Obrázek se čte ImageIO; co nepřečte (HEIC, WebP), jde jen jako soubor.
+     * fotek). Obrázek se čte ImageIO; co nepřečte (HEIC, WebP), jde jen jako soubor. Na macOS
+     * jde obrázek jinudy než přes [DataFlavor.imageFlavor], viz [macClipboardImages].
      */
     actual suspend fun copy(path: String, fileName: String, isImage: Boolean): Boolean = withContext(Dispatchers.IO) {
         runCatching {
@@ -101,7 +106,11 @@ actual class MediaSharer {
             directory.mkdirs()
             val copy = File(path).copyTo(File(directory, fileName), overwrite = true)
             val image = if (isImage) runCatching { ImageIO.read(copy) }.getOrNull() else null
-            Toolkit.getDefaultToolkit().systemClipboard.setContents(FileSelection(copy, image), null)
+            val selection = when {
+                image != null && desktopOs == DesktopOs.MacOs -> FileSelection(copy, encodedImages = macClipboardImages(copy, image))
+                else -> FileSelection(copy, image)
+            }
+            Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
             true
         }.getOrElse {
             logger.w(it) { "Soubor $path se nepodařilo zkopírovat do schránky." }
@@ -115,9 +124,17 @@ actual class MediaSharer {
 }
 
 /** Soubor ve schránce nebo v tahu ven: seznam s jedním souborem a k obrázku i obrázek sám. */
-internal class FileSelection(private val file: File, private val image: Image? = null) : Transferable {
+internal class FileSelection(
+    private val file: File,
+    private val image: Image? = null,
+    private val encodedImages: List<EncodedImage> = emptyList(),
+) : Transferable {
 
-    private val flavors = listOfNotNull(DataFlavor.javaFileListFlavor, DataFlavor.imageFlavor.takeIf { image != null })
+    private val flavors = buildList {
+        add(DataFlavor.javaFileListFlavor)
+        if (image != null) add(DataFlavor.imageFlavor)
+        encodedImages.mapTo(this) { it.flavor }
+    }
 
     override fun getTransferDataFlavors(): Array<DataFlavor> = flavors.toTypedArray()
 
@@ -126,9 +143,51 @@ internal class FileSelection(private val file: File, private val image: Image? =
     override fun getTransferData(flavor: DataFlavor): Any = when {
         flavor == DataFlavor.javaFileListFlavor -> listOf(file)
         flavor == DataFlavor.imageFlavor && image != null -> image
-        else -> throw UnsupportedFlavorException(flavor)
+        else -> encodedImages.firstOrNull { it.flavor == flavor }?.let { ByteArrayInputStream(it.bytes) }
+            ?: throw UnsupportedFlavorException(flavor)
     }
 }
+
+/** Obrázek ve schránce pod typem, který data doopravdy nesou. */
+internal class EncodedImage(val flavor: DataFlavor, val bytes: ByteArray)
+
+/**
+ * Obrázek do schránky macOS: skutečné PNG a u fotky v JPEG i její původní data.
+ *
+ * [DataFlavor.imageFlavor] tu nejde: AWT z něj do `public.png`, `public.jpeg` i `public.tiff` zapíše
+ * tatáž data TIFF. Knihovny Applu si formát poznají z obsahu, kdo ale věří typu (Chromium, tedy
+ * webové aplikace a Electron), dostane PNG, které nejde přečíst.
+ */
+internal fun macClipboardImages(file: File, image: BufferedImage): List<EncodedImage> {
+    val bytes = file.readBytes()
+    val png = if (bytes.startsWith(PNG_SIGNATURE)) {
+        bytes
+    } else {
+        ByteArrayOutputStream().also { ImageIO.write(image, "png", it) }.toByteArray()
+    }
+    return listOfNotNull(
+        EncodedImage(macPngFlavor, png),
+        EncodedImage(macJpegFlavor, bytes).takeIf { bytes.startsWith(JPEG_SIGNATURE) },
+    )
+}
+
+private val macPngFlavor by lazy { macImageFlavor("application/x-plume-png", "public.png") }
+private val macJpegFlavor by lazy { macImageFlavor("application/x-plume-jpeg", "public.jpeg") }
+
+/** Vlastní typ MIME napojený přímo na typ schránky macOS, ať AWT data nepřevádí. */
+private fun macImageFlavor(mimeType: String, pasteboardType: String): DataFlavor {
+    val flavor = DataFlavor("$mimeType; class=java.io.InputStream")
+    val flavorMap = SystemFlavorMap.getDefaultFlavorMap() as SystemFlavorMap
+    flavorMap.addUnencodedNativeForFlavor(flavor, pasteboardType)
+    flavorMap.addFlavorForUnencodedNative(pasteboardType, flavor)
+    return flavor
+}
+
+private fun ByteArray.startsWith(prefix: ByteArray): Boolean =
+    size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }
+
+private val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
+private val JPEG_SIGNATURE = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())
 
 actual val fileShareSupported: Boolean = false
 

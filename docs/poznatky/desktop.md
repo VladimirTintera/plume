@@ -693,6 +693,16 @@ taky. Ven teď vede schránka a „Uložit jako…" (`MediaSharer.copy`, `fileSh
 - **Do schránky jde seznam s jedním souborem (`javaFileListFlavor`) a k obrázku i obrázek
   (`imageFlavor`).** Průzkumník a Finder vloží soubor, Malování a Word obrázek, webové aplikace
   si vyberou. Obrázek čte ImageIO; co nepřečte (HEIC, WebP), jde jen jako soubor.
+- **Na macOS jde obrázek bez `imageFlavor`** (`macClipboardImages`). AWT z něj do `public.png`,
+  `public.jpeg` i `public.tiff` zapíše tatáž data TIFF (změřeno: stejná velikost a začátek
+  `4d4d002a` u všech tří). `NSImage` si formát pozná z obsahu, takže to v AppKitu nevadí, a proto
+  to dlouho nikdo nepoznal; kdo věří typu, dostane nečitelné PNG. Vložení do aplikace Claude
+  (Electron) tak nešlo. Teď jde do `public.png` skutečné PNG a u JPEG do `public.jpeg` původní
+  soubor, přes vlastní flavory napojené v `SystemFlavorMap` na typy schránky. Čtení z Javy
+  (i vložení do Plume) dál najde `imageFlavor`. Co ve schránce opravdu je, ukáže až
+  `NSPasteboard.general.data(forType:)` a první bajty dat, seznam typů chybu neodhalí. **Ne přes
+  `pasteboardItems`:** `data(forType:)` na položce u téhož obsahu občas vrátí `nil`, jako by se
+  data ztratila, kdežto na schránce je dá pokaždé.
 - **Kopíruje se kopie pod čitelným jménem** (`savedFileName`: soubor svoje, fotka
   `Plume_20260918_233017.jpg`) v `%TEMP%/plume-clipboard` — vložený soubor by jinak nesl jméno
   z TDLib. Další kopírování adresář vyprázdní; dřív to nejde, schránka na soubor odkazuje.
