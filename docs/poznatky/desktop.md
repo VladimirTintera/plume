@@ -702,7 +702,8 @@ taky. Ven teď vede schránka a „Uložit jako…" (`MediaSharer.copy`, `fileSh
   (i vložení do Plume) dál najde `imageFlavor`. Co ve schránce opravdu je, ukáže až
   `NSPasteboard.general.data(forType:)` a první bajty dat, seznam typů chybu neodhalí. **Ne přes
   `pasteboardItems`:** `data(forType:)` na položce u téhož obsahu občas vrátí `nil`, jako by se
-  data ztratila, kdežto na schránce je dá pokaždé.
+  data ztratila, kdežto na schránce je dá pokaždé. **Soubor ve schránce se ověřuje na Javě 25 jako
+  v aplikaci:** testy (`jvmTest`) běží na Javě 17 a tam `public.file-url` chybí u každého obsahu.
 - **Kopíruje se kopie pod čitelným jménem** (`savedFileName`: soubor svoje, fotka
   `Plume_20260918_233017.jpg`) v `%TEMP%/plume-clipboard` — vložený soubor by jinak nesl jméno
   z TDLib. Další kopírování adresář vyprázdní; dřív to nejde, schránka na soubor odkazuje.
