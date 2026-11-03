@@ -693,17 +693,30 @@ taky. Ven teď vede schránka a „Uložit jako…" (`MediaSharer.copy`, `fileSh
 - **Do schránky jde seznam s jedním souborem (`javaFileListFlavor`) a k obrázku i obrázek
   (`imageFlavor`).** Průzkumník a Finder vloží soubor, Malování a Word obrázek, webové aplikace
   si vyberou. Obrázek čte ImageIO; co nepřečte (HEIC, WebP), jde jen jako soubor.
-- **Na macOS jde obrázek bez `imageFlavor`** (`macClipboardImages`). AWT z něj do `public.png`,
-  `public.jpeg` i `public.tiff` zapíše tatáž data TIFF (změřeno: stejná velikost a začátek
-  `4d4d002a` u všech tří). `NSImage` si formát pozná z obsahu, takže to v AppKitu nevadí, a proto
-  to dlouho nikdo nepoznal; kdo věří typu, dostane nečitelné PNG. Vložení do aplikace Claude
-  (Electron) tak nešlo. Teď jde do `public.png` skutečné PNG a u JPEG do `public.jpeg` původní
-  soubor, přes vlastní flavory napojené v `SystemFlavorMap` na typy schránky. Čtení z Javy
-  (i vložení do Plume) dál najde `imageFlavor`. Co ve schránce opravdu je, ukáže až
-  `NSPasteboard.general.data(forType:)` a první bajty dat, seznam typů chybu neodhalí. **Ne přes
-  `pasteboardItems`:** `data(forType:)` na položce u téhož obsahu občas vrátí `nil`, jako by se
-  data ztratila, kdežto na schránce je dá pokaždé. **Soubor ve schránce se ověřuje na Javě 25 jako
-  v aplikaci:** testy (`jvmTest`) běží na Javě 17 a tam `public.file-url` chybí u každého obsahu.
+- **Na macOS jde do schránky všechno pod vlastními typy** (`macClipboardEntries`), ne přes
+  `imageFlavor` a `javaFileListFlavor`, jinak Chromium (web, Electron, aplikace Claude) nedostane
+  nic. Závady jsou dvě a každá stačí sama:
+  - **`imageFlavor`** zapíše do `public.png`, `public.jpeg` i `public.tiff` tatáž data TIFF
+    (změřeno: stejná velikost a začátek `4d4d002a` u všech tří). `NSImage` si formát pozná
+    z obsahu, takže v AppKitu to nevadí; kdo věří typu, dostane nečitelné PNG.
+  - **`javaFileListFlavor`** zapíše `public.file-url` tak, že ho `readObjects` pro `NSURL` nepřečte
+    (změřeno pětkrát po sobě: prázdno). Chromium pak v události `paste` ukáže jen prázdné
+    `text/uri-list`, žádný soubor ani obrázek, přestože `public.png` je v pořádku. Mechanismus
+    uvnitř AWT ověřený není. Sundat `text/uri-list` přes `setNativesForFlavor` nepomohlo: typ ze
+    schránky zmizí, Chromium hlásí totéž. Tytéž typy přepsané přes `NSPasteboardItem` fungují.
+  - **Oprava:** vlastní flavory (`class=java.io.InputStream`) napojené v `SystemFlavorMap` na
+    `public.png`, `public.jpeg` a `public.file-url`. `NSURL` pak soubor vrátí a Chromium dá soubor
+    s původním jménem i u jmen s diakritikou a mezerou (`image/jpeg`, `application/pdf`).
+    Java z téhle podoby dál čte `javaFileListFlavor` i `imageFlavor`, vložení do Plume se nemění.
+    Tah ven (`FileSelection`) jde jinudy a oprava se ho netýká.
+  - **Vložení se měří v Chromu přes CDP, ne odhadem ze seznamu typů:** `Input.dispatchKeyEvent`
+    s `commands: ["paste"]` na stránce s posluchačem `paste` vyvolá skutečnou událost i bez
+    povolení ke čtení schránky; výpis `clipboardData.types`, `items` a `files` ukáže, co dostane
+    webová aplikace. Holé syntetické ⌘V ani `navigator.clipboard.read` v panelu prohlížeče nejdou.
+  - **Co ve schránce opravdu je, ukáže `NSPasteboard.general.data(forType:)`** a první bajty dat,
+    seznam typů chybu neodhalí. `data(forType:)` na položce z `pasteboardItems` u zápisu přes AWT
+    vrací `nil`. **Zápis se ověřuje na Javě 25 jako v aplikaci:** testy (`jvmTest`) běží na Javě 17
+    a tam `javaFileListFlavor` `public.file-url` nezapíše vůbec.
 - **Kopíruje se kopie pod čitelným jménem** (`savedFileName`: soubor svoje, fotka
   `Plume_20260918_233017.jpg`) v `%TEMP%/plume-clipboard` — vložený soubor by jinak nesl jméno
   z TDLib. Další kopírování adresář vyprázdní; dřív to nejde, schránka na soubor odkazuje.
