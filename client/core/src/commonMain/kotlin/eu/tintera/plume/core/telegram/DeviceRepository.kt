@@ -77,7 +77,25 @@ data class Device(
 )
 
 /** Druh zařízení — jen tolik, kolik rozliší ikona. */
-enum class DeviceKind { Phone, Tablet, Desktop, Browser, Unknown }
+enum class DeviceKind { Phone, Tablet, Watch, Desktop, Browser, Unknown }
+
+/**
+ * Druh zařízení upřesněný podle modelu a systému, které klient při přihlášení poslal.
+ *
+ * TDLib druh ([reported]) odvozuje napřed z PLATFORMY a tu u neoficiálních klientů dává server
+ * podle aplikace, ne podle zařízení: u všech relací Plume je „Android", i u desktopu s Windows
+ * („Android" + „Windows 11 10.0", ověřeno v detailu relace) a u hodinek. Seznam zařízení pak měl
+ * u všeho ikonu telefonu. Systém a model posílá klient sám (`platformSystemVersion`,
+ * `platformDeviceModel`), takže jim jde věřit víc. Hodinky TDLib nezná vůbec.
+ */
+fun refinedDeviceKind(reported: DeviceKind, deviceModel: String, systemVersion: String): DeviceKind {
+    if (deviceModel.contains("watch", ignoreCase = true)) return DeviceKind.Watch
+    if (reported != DeviceKind.Phone && reported != DeviceKind.Unknown) return reported
+    val system = systemVersion.trim().lowercase()
+    return if (DESKTOP_SYSTEMS.any { system.startsWith(it) }) DeviceKind.Desktop else reported
+}
+
+private val DESKTOP_SYSTEMS = listOf("windows", "mac os", "macos", "linux", "ubuntu")
 
 data class ConnectedWebsite(
     val id: Long,
