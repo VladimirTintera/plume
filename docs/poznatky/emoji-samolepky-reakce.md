@@ -5,6 +5,10 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 ## Emoji a samolepky
 
+- **Velikost samolepky ve zprávě si volí uživatel** (`LocalStickerSize`, 100–200 dp po dvaceti,
+  výchozí 160; `docs/poznatky/nastaveni.md`). Jde jen o delší hranu samolepky v bublině: dárky,
+  soutěže, uvítání ani kostka volbu nečtou, mají vlastní rozložení. Animace i `.webm` se kreslí
+  do velikosti na obrazovce, takže 200 dp stojí víc procesoru než 160 (asi 1,6× pixelů).
 - **Zpráva složená jen z emoji se kreslí velká a bez bubliny**, stejně jako samolepka. Bublina
   kolem nich nemá co ohraničovat: samolepka má vlastní tvar s průhledností a velká emoji jsou
   obrázek samy o sobě. Barva popředí pak musí patřit PLOŠE, ne bublině, která tam není —

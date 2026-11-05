@@ -18,6 +18,7 @@ import eu.tintera.plume.features.conversation.showsLargePreview
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import eu.tintera.plume.core.ui.LocalStickerSize
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -539,8 +540,9 @@ private fun StickerImage(
         1f
     }
 
-    val width = if (ratio >= 1f) STICKER_SIZE else STICKER_SIZE * ratio
-    val height = if (ratio >= 1f) STICKER_SIZE / ratio else STICKER_SIZE
+    val longerSide = LocalStickerSize.current.dp
+    val width = if (ratio >= 1f) longerSide else longerSide * ratio
+    val height = if (ratio >= 1f) longerSide / ratio else longerSide
     val size = modifier.size(width = width, height = height)
 
     val still: @Composable () -> Unit = {
@@ -1121,9 +1123,6 @@ private val UPLOAD_INDICATOR_SIZE = 48.dp
 
 /** Hod je samolepka od Telegramu a kreslí se stejně velký jako ona. */
 private val DICE_SIZE = 160.dp
-
-/** Delší hrana samolepky. Telegram je kreslí zhruba takhle velké. */
-private val STICKER_SIZE = 160.dp
 
 /**
  * Odznak samozničujícího média (view-once nebo odpočet času).

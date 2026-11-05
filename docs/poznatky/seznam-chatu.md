@@ -685,6 +685,19 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   „naposledy nedávno" a přesný čas nedostaneme. Proto je `Presence` několik pojmenovaných stupňů,
   ne čas — dopočítávat minutu, kterou neznáme, by bylo horší než neurčitost.
 
+#### Řádky náhledu (`LocalChatPreviewLines`)
+
+Nastavení → Vzhled → Řádky náhledu zprávy: 1 (výchozí), 2, nebo 3. Skladba volby je v
+`docs/poznatky/nastaveni.md`, „Velikost samolepek a řádky náhledu".
+
+- **S víc řádky mají všechny chaty stejnou výšku** (`minLines` i `maxLines`), i chat bez zpráv
+  (prázdný text). Jinak by seznam rozhoupala každá krátká zpráva a začátek a konec „píše…".
+- **Avatar s víc řádky stojí nahoře u jména.** Uprostřed se pod krátkou zprávou se jménem rozešel.
+  Odznaky zůstávají na středu, patří k pravému sloupci.
+- **Zalomení v náhledu je mezera, stejně dlouhá kvůli offsetům emoji.** Platí i pro jeden řádek:
+  dřív se tam víceřádková zpráva usekla po prvním zalomení a teď je vidět víc textu.
+- **Řádky karty „Čeká na odpověď" volba nemění** (`AwaitingChatRow`), mají vlastní kompaktní tvar.
+
 #### Kdo psal, stav doručení a obrázek v náhledu
 
 Náhled poslední zprávy říká, kdo ji napsal („Jana: …", „Vy: …"), u vlastní zprávy je před

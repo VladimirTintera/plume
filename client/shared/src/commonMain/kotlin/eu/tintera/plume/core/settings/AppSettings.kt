@@ -480,6 +480,24 @@ interface AppSettings {
     fun setMessageTextSize(size: Int)
 
     /**
+     * Kolik řádků má náhled zprávy v seznamu chatů (Nastavení → Vzhled), v rozsahu
+     * [CHAT_PREVIEW_LINES]. Výchozí [DEFAULT_CHAT_PREVIEW_LINES].
+     */
+    val chatPreviewLines: StateFlow<Int>
+
+    /** Uloží počet řádků náhledu; výchozí se neukládá. Neblokuje. */
+    fun setChatPreviewLines(lines: Int)
+
+    /**
+     * Delší hrana samolepky ve zprávě v dp (Nastavení → Vzhled), v rozsahu [STICKER_SIZES].
+     * Výchozí [DEFAULT_STICKER_SIZE].
+     */
+    val stickerSize: StateFlow<Int>
+
+    /** Uloží velikost samolepek; výchozí se neukládá. Neblokuje. */
+    fun setStickerSize(size: Int)
+
+    /**
      * Webové odkazy otevírat uvnitř aplikace (Custom Tabs / `SFSafariViewController`), ne
      * v prohlížeči. Výchozí `true`, jako v oficiálním klientovi; odkaz, který si vezme jiná
      * aplikace (YouTube), jde do ní v obou režimech — viz `UrlOpener`.
@@ -504,6 +522,21 @@ const val DEFAULT_MESSAGE_TEXT_SIZE = 16
 
 /** Nabízené velikosti písma zpráv (sp); výchozí stojí uprostřed. */
 val MESSAGE_TEXT_SIZES = 12..20
+
+/** Výchozí počet řádků náhledu zprávy v seznamu chatů. */
+const val DEFAULT_CHAT_PREVIEW_LINES = 1
+
+/** Nabízené počty řádků náhledu zprávy. */
+val CHAT_PREVIEW_LINES = 1..3
+
+/** Výchozí delší hrana samolepky ve zprávě (dp). Telegram je kreslí zhruba takhle velké. */
+const val DEFAULT_STICKER_SIZE = 160
+
+/** Rozsah velikosti samolepek (dp). */
+val STICKER_SIZES = 100..200
+
+/** Krok velikosti samolepek na posuvníku (dp). */
+const val STICKER_SIZE_STEP = 20
 
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
 const val MAX_RECENT_EMOJIS = 40
@@ -1201,6 +1234,40 @@ class DataStoreAppSettings(
         }
     }
 
+    override val chatPreviewLines: StateFlow<Int> = value(DEFAULT_CHAT_PREVIEW_LINES) { preferences ->
+        preferences[CHAT_PREVIEW_LINES_KEY]?.coerceIn(CHAT_PREVIEW_LINES) ?: DEFAULT_CHAT_PREVIEW_LINES
+    }
+
+    override fun setChatPreviewLines(lines: Int) {
+        val clamped = lines.coerceIn(CHAT_PREVIEW_LINES)
+        scope.launch {
+            edit { preferences ->
+                if (clamped == DEFAULT_CHAT_PREVIEW_LINES) {
+                    preferences.remove(CHAT_PREVIEW_LINES_KEY)
+                } else {
+                    preferences[CHAT_PREVIEW_LINES_KEY] = clamped
+                }
+            }
+        }
+    }
+
+    override val stickerSize: StateFlow<Int> = value(DEFAULT_STICKER_SIZE) { preferences ->
+        preferences[STICKER_SIZE]?.coerceIn(STICKER_SIZES) ?: DEFAULT_STICKER_SIZE
+    }
+
+    override fun setStickerSize(size: Int) {
+        val clamped = size.coerceIn(STICKER_SIZES)
+        scope.launch {
+            edit { preferences ->
+                if (clamped == DEFAULT_STICKER_SIZE) {
+                    preferences.remove(STICKER_SIZE)
+                } else {
+                    preferences[STICKER_SIZE] = clamped
+                }
+            }
+        }
+    }
+
     override val openLinksInApp: StateFlow<Boolean> = value(true) { preferences ->
         preferences[OPEN_LINKS_IN_APP] ?: true
     }
@@ -1295,6 +1362,8 @@ class DataStoreAppSettings(
         val CACHE_LIMIT = stringPreferencesKey("cache_limit")
         val LAST_STORAGE_CLEANUP = longPreferencesKey("last_storage_cleanup")
         val MESSAGE_TEXT_SIZE = intPreferencesKey("message_text_size")
+        val CHAT_PREVIEW_LINES_KEY = intPreferencesKey("chat_preview_lines")
+        val STICKER_SIZE = intPreferencesKey("sticker_size")
         val OPEN_LINKS_IN_APP = booleanPreferencesKey("open_links_in_app")
         val DOUBLE_TAP_REACTION = booleanPreferencesKey("double_tap_reaction")
         const val KEYBOARD_ENTRY_SEPARATOR = " "

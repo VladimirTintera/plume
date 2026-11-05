@@ -66,7 +66,8 @@ import eu.tintera.plume.core.ui.SwitchListItem
 import eu.tintera.plume.core.ui.TitledGroup
 
 /**
- * Sekce „Vzhled": motiv, barva aplikace a písmo zpráv. Řazení seznamu chatů je v sekci Chaty.
+ * Sekce „Vzhled": motiv, barva aplikace, písmo a samolepky ve zprávách a řádky náhledu v seznamu
+ * chatů. Řazení seznamu chatů je v sekci Chaty.
  *
  * Obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží [SettingsSectionScreen].
  */
@@ -76,6 +77,8 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     val storedDynamic by viewModel.dynamicColor.collectAsStateWithLifecycle()
     val storedColor by viewModel.themeColor.collectAsStateWithLifecycle()
     val messageTextSize by viewModel.messageTextSize.collectAsStateWithLifecycle()
+    val stickerSize by viewModel.stickerSize.collectAsStateWithLifecycle()
+    val chatPreviewLines by viewModel.chatPreviewLines.collectAsStateWithLifecycle()
 
     // Dokud si uživatel nevybral, je vybraná ta možnost, podle které se aplikace opravdu kreslí —
     // prázdný výběr by vypadal jako chyba a nikdo by z něj nepoznal, co teď platí.
@@ -122,8 +125,12 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
 
     TitledGroup(Res.string.settings_messages) {
         MessageTextSizeSetting(stored = messageTextSize, onChange = viewModel::setMessageTextSize)
+        StickerSizeSetting(stored = stickerSize, onChange = viewModel::setStickerSize)
     }
 
+    TitledGroup(Res.string.settings_chats) {
+        ChatPreviewLinesSetting(selected = chatPreviewLines, onSelect = viewModel::setChatPreviewLines)
+    }
 }
 
 /**

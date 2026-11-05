@@ -3,6 +3,7 @@ package eu.tintera.plume.features.chats
 import androidx.compose.runtime.Immutable
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import eu.tintera.plume.core.ui.LocalChatPreviewLines
 import eu.tintera.plume.core.ui.animatedGroupItemShape
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.app.root.presentation.LocalIsDarkTheme
@@ -475,6 +476,7 @@ internal fun ChatRow(
      */
     val sleeping = marks.snooze is RowSnooze.Sleeping
     val showUnread = chat.hasUnread && !sleeping
+    val previewLines = LocalChatPreviewLines.current
     /*
      * Blok je SVĚTLEJŠÍ než pozadí, ne tmavší.
      *
@@ -534,6 +536,8 @@ internal fun ChatRow(
             val openStories = stringResource(Res.string.stories_open, chat.title)
             Box(
                 Modifier
+                    // S víc řádky bývá pod krátkou zprávou volno: avatar uprostřed by se rozešel se jménem.
+                    .then(if (previewLines > 1) Modifier.align(Alignment.Top) else Modifier)
                     .storyRing(
                         ring = marks.stories,
                         shape = avatarShape,
@@ -546,7 +550,7 @@ internal fun ChatRow(
                         } else {
                             Modifier.contextClickable(
                                 interactionSource = null,
-                                indication = ripple(bounded = false, radius = AVATAR_SIZE / 2 + STORY_RING_OUTSET),
+                                indication = ripple(bounded = false, radius = CHAT_ROW_AVATAR_SIZE / 2 + STORY_RING_OUTSET),
                                 onClickLabel = openStories,
                                 onLongClick = onLongClick,
                                 onClick = onAvatarClick,
@@ -558,7 +562,7 @@ internal fun ChatRow(
                     chatId = chat.avatarColorId,
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
-                    size = AVATAR_SIZE,
+                    size = CHAT_ROW_AVATAR_SIZE,
                     isSavedMessages = isSavedMessages(chat.id),
                     // Druh chatu tvarem: člověk kruh, skupina sušenka, kanál čtverec.
                     shape = avatarShape,
@@ -715,8 +719,8 @@ internal fun ChatRow(
                         buildAnnotatedString {
                             // Štítek jinou barvou než „píše…" (primary) — jde o náš text, ne o dění.
                             withStyle(SpanStyle(color = draftLabelColor)) { append(stringResource(Res.string.chats_draft_prefix)) }
-                            // Zalomení by v jednořádkovém náhledu useklo text hned na začátku;
-                            // mezera je stejně dlouhá, takže offsety emoji sedí dál.
+                            // Zalomení by náhled useklo hned na začátku; mezera je stejně
+                            // dlouhá, takže offsety emoji sedí dál.
                             customEmoji += appendWithCustomEmoji(draft.text.replace('\n', ' '), draft.entities)
                         }
                     }
@@ -732,13 +736,17 @@ internal fun ChatRow(
                                 appendInlineContent(PREVIEW_THUMBNAIL_KEY, alternateText = " ")
                                 append(' ')
                             }
-                            customEmoji += appendWithCustomEmoji(preview, chat.lastMessagePreviewEntities)
+                            // Zalomení by náhled useklo dřív, než zaplní svoje řádky; mezera je
+                            // stejně dlouhá, takže offsety emoji sedí dál (jako u konceptu).
+                            customEmoji += appendWithCustomEmoji(preview.replace('\n', ' '), chat.lastMessagePreviewEntities)
                         }
                     }
 
-                subtitle?.let {
+                // S víc řádky mají všechny chaty stejnou výšku: krátká zpráva, „píše…" ani chat bez
+                // zpráv seznam nerozhoupe. Jeden řádek se vejde do výšky avataru, prázdný text netřeba.
+                if (subtitle != null || previewLines > 1) {
                     Text(
-                        text = it,
+                        text = subtitle ?: AnnotatedString(""),
                         inlineContent = customEmojiInlineContent(customEmoji) + previewThumbnailInlineContent(thumbnail),
                         style = MaterialTheme.typography.bodyMedium,
                         // Nepřečtený náhled se odliší barvou, ne řezem: s polotučným názvem nad
@@ -751,7 +759,8 @@ internal fun ChatRow(
                             chat.hasUnread -> MaterialTheme.colorScheme.onSurface
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        maxLines = 1,
+                        minLines = previewLines,
+                        maxLines = previewLines,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -852,7 +861,7 @@ internal fun rememberChatAccents(used: Set<ThemeColor>): Map<ThemeColor, ColorSc
 }
 
 /** Avatar. Větší než výchozích 48 dp — v odlehčeném řádku nese hlavní váhu on, ne písmo. */
-private val AVATAR_SIZE = 52.dp
+internal val CHAT_ROW_AVATAR_SIZE = 52.dp
 
 /** Jak daleko za okraj avataru sahá kroužek příběhů (mezera a čára, `storyRing`). */
 private val STORY_RING_OUTSET = 5.dp

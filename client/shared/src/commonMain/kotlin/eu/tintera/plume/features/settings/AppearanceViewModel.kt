@@ -60,4 +60,12 @@ class AppearanceViewModel(
     val messageTextSize: StateFlow<Int> = settings.messageTextSize
 
     fun setMessageTextSize(size: Int) = settings.setMessageTextSize(size)
+
+    val stickerSize: StateFlow<Int> = settings.stickerSize
+
+    fun setStickerSize(size: Int) = settings.setStickerSize(size)
+
+    val chatPreviewLines: StateFlow<Int> = settings.chatPreviewLines
+
+    fun setChatPreviewLines(lines: Int) = settings.setChatPreviewLines(lines)
 }

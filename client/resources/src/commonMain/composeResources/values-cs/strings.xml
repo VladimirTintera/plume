@@ -302,6 +302,8 @@
     <string name="settings_search_kw_folders">filtry, záložky, složky</string>
     <string name="settings_search_kw_theme">tmavý režim, noční režim, světlý režim, téma</string>
     <string name="settings_search_kw_text_size">písmo, font, velikost textu, větší, menší</string>
+    <string name="settings_search_kw_sticker_size">samolepky, nálepky, větší, menší</string>
+    <string name="settings_search_kw_chat_preview_lines">seznam chatů, náhled zprávy, počet řádků, kompaktní</string>
     <string name="settings_search_kw_storage">mezipaměť, cache, místo, paměť, uvolnit, vyčistit</string>
     <string name="settings_search_kw_proxy">VPN, SOCKS, MTProto, připojení</string>
     <string name="settings_search_kw_devices">relace, sezení, odhlásit, přihlášená zařízení</string>
@@ -352,10 +354,20 @@
     <string name="chat_color_default">Podle aplikace</string>
     <string name="settings_messages">Zprávy</string>
     <string name="settings_message_text_size">Velikost písma</string>
-    <string name="settings_message_text_size_value">%1$d</string>
-    <string name="settings_message_text_size_default">%1$d (výchozí)</string>
+    <string name="settings_size_value">%1$d</string>
+    <string name="settings_size_default">%1$d (výchozí)</string>
     <string name="settings_message_text_size_preview_in">Ahoj! Čte se ti to takhle dobře?</string>
     <string name="settings_message_text_size_preview_out">Jo, přesně tak. Přečtu to na první pohled.</string>
+    <string name="settings_sticker_size">Velikost samolepek</string>
+    <string name="settings_sticker_size_preview">😺</string>
+    <string name="settings_chat_preview_lines">Řádky náhledu zprávy</string>
+    <plurals name="settings_chat_preview_lines_count">
+        <item quantity="one">%1$d řádek</item>
+        <item quantity="few">%1$d řádky</item>
+        <item quantity="other">%1$d řádků</item>
+    </plurals>
+    <string name="settings_chat_preview_sample_title">Jana</string>
+    <string name="settings_chat_preview_sample_text">Zítra se stavím kolem desáté a vezmu s sebou fotky z výletu i tu mapu. Kdyby se něco změnilo, napíšu ti ještě ráno, ať na mě nečekáš zbytečně.</string>
     <string name="settings_chats">Seznam chatů</string>
     <string name="settings_separate_unread">Nepřečtené ve vlastním bloku</string>
     <string name="settings_separate_unread_summary">Nepřečtené chaty se přesunou nad ostatní. Vypnuté drží pořadí, jak ho posílá Telegram.</string>
