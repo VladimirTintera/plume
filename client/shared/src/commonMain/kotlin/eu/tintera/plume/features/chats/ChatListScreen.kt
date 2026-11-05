@@ -17,7 +17,10 @@ import eu.tintera.plume.resources.chat_folder_add_chats
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import eu.tintera.plume.core.ui.animatedGroupItemShape
+import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.INNER_CORNER
+import eu.tintera.plume.core.ui.LocalChatRowGaps
 import eu.tintera.plume.features.profile.BookmarksSheet
 import eu.tintera.plume.core.telegram.canBeArchived
 import androidx.compose.material3.FilledTonalButton
@@ -83,6 +86,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import eu.tintera.plume.core.ui.rememberShownConnection
 import androidx.compose.material3.Scaffold
@@ -945,6 +949,7 @@ internal fun ChatListContent(
     // Start je hotový, až seznam ukazuje chaty (nebo že žádné nejsou), ne s prvním snímkem.
     ReportDrawnWhen { state !is ChatListState.Loading }
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
+    val rowGaps = LocalChatRowGaps.current
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val swipeActions by viewModel.swipeActions.collectAsStateWithLifecycle()
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
@@ -1051,21 +1056,22 @@ internal fun ChatListContent(
         is ChatListState.Ready -> if (current.chats.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), content = empty)
         } else {
+            // Uspořádání mezery nechává vždycky: tažený řádek je samostatný kus, ne část panelu.
+            val itemSpacing = if (rowGaps || reorder != null) GROUP_ITEM_SPACING else 0.dp
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     // Kotva i rozestup za ní jdou z horního odsazení, první chat tak
                     // zůstane tam, kde byl bez ní.
-                    top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT -
-                        GROUP_ITEM_SPACING,
+                    top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT - itemSpacing,
                     bottom = padding.calculateBottomPadding() + 8.dp,
                     start = LIST_CONTENT_INSET,
                     end = LIST_CONTENT_INSET,
                 ),
                 // Rozestup UVNITŘ skupiny. Mezera mezi skupinami se přidává u její první
                 // položky — seznam o sousedech položky nic neví.
-                verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+                verticalArrangement = Arrangement.spacedBy(itemSpacing),
             ) {
                 /*
                  * Kotva nahoře. `LazyColumn` drží pozici podle klíče první viditelné
@@ -1140,6 +1146,7 @@ internal fun ChatListContent(
                             last = index == group.lastIndex,
                             selected = highlighted,
                             pressed = pressed,
+                            inner = if (rowGaps) INNER_CORNER else 0.dp,
                         )
                         SwipeableChat(
                             // Ve výběru tah nejde: akce jdou lištou a tah by mířil jen na jeden chat.
@@ -1156,6 +1163,23 @@ internal fun ChatListContent(
                                 .padding(
                                     top = if (index == 0 && groupIndex > 0) GROUP_SPACING
                                     else 0.dp,
+                                )
+                                // Bez mezer drží panel podklad: v rozích stisknutého a vybraného
+                                // řádku má prosvítat on, ne stránka.
+                                .then(
+                                    if (rowGaps) {
+                                        Modifier
+                                    } else {
+                                        Modifier.background(
+                                            MaterialTheme.colorScheme.groupRow,
+                                            RoundedCornerShape(
+                                                topStart = if (index == 0) GROUP_CORNER else 0.dp,
+                                                topEnd = if (index == 0) GROUP_CORNER else 0.dp,
+                                                bottomStart = if (index == group.lastIndex) GROUP_CORNER else 0.dp,
+                                                bottomEnd = if (index == group.lastIndex) GROUP_CORNER else 0.dp,
+                                            ),
+                                        )
+                                    },
                                 ),
                         ) { swipeActions ->
                             ChatRow(

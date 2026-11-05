@@ -68,4 +68,8 @@ class AppearanceViewModel(
     val chatPreviewLines: StateFlow<Int> = settings.chatPreviewLines
 
     fun setChatPreviewLines(lines: Int) = settings.setChatPreviewLines(lines)
+
+    val chatRowGaps: StateFlow<Boolean> = settings.chatRowGaps
+
+    fun setChatRowGaps(gaps: Boolean) = settings.setChatRowGaps(gaps)
 }

@@ -46,6 +46,8 @@ import eu.tintera.plume.resources.dark_mode_24dp
 import eu.tintera.plume.resources.light_mode_24dp
 import eu.tintera.plume.resources.mark_chat_unread_24dp
 import eu.tintera.plume.resources.palette_24dp
+import eu.tintera.plume.resources.settings_chat_row_gaps
+import eu.tintera.plume.resources.settings_chat_row_gaps_summary
 import eu.tintera.plume.resources.settings_chats
 import eu.tintera.plume.resources.settings_messages
 import eu.tintera.plume.resources.settings_separate_unread
@@ -63,6 +65,7 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.ui.SwitchListItem
+import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.core.ui.TitledGroup
 
 /**
@@ -79,6 +82,7 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     val messageTextSize by viewModel.messageTextSize.collectAsStateWithLifecycle()
     val stickerSize by viewModel.stickerSize.collectAsStateWithLifecycle()
     val chatPreviewLines by viewModel.chatPreviewLines.collectAsStateWithLifecycle()
+    val chatRowGaps by viewModel.chatRowGaps.collectAsStateWithLifecycle()
 
     // Dokud si uživatel nevybral, je vybraná ta možnost, podle které se aplikace opravdu kreslí —
     // prázdný výběr by vypadal jako chyba a nikdo by z něj nepoznal, co teď platí.
@@ -130,6 +134,14 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
 
     TitledGroup(Res.string.settings_chats) {
         ChatPreviewLinesSetting(selected = chatPreviewLines, onSelect = viewModel::setChatPreviewLines)
+        val gapsTitle = stringResource(Res.string.settings_chat_row_gaps)
+        SwitchListItem(
+            headline = gapsTitle,
+            checked = chatRowGaps,
+            supporting = stringResource(Res.string.settings_chat_row_gaps_summary),
+            modifier = Modifier.highlightAnchor(gapsTitle),
+            onCheckedChange = viewModel::setChatRowGaps,
+        )
     }
 }
 

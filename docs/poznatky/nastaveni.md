@@ -1223,6 +1223,8 @@ zkratky" v `navigace.md`).
 Další dvě volby Vzhledu mají týž vzor jako velikost písma: statický local z `AppRoot`, výchozí
 hodnota se neukládá, hodnota mimo rozsah se při čtení přitáhne k mezi.
 
+- **Mezery mezi chaty jsou táž kategorie: hustota seznamu**, viz „Plocha stránky a řádku"
+  v `seznam-chatu.md`. Přibyla kvůli tomu, že obě podoby jsou v pořádku a liší se jen vkusem.
 - **Volby Vzhledu mění hustotu a čitelnost, ne styl.** Tvar bubliny, vlastní písma ani volné barvy
   sem nepatří: tvar nese význam, písmo se volí rolí a kontrast hlídá `accentOn`. Každá volba navíc
   násobí stavy k ověření, proto pevné stupně, ne volné hodnoty.

@@ -177,12 +177,19 @@ private const val PRESS_DELAY_MS = 100L
  * smí přestřelit, záporné zaoblení se ořízne (`RoundedCornerShape` ho neunese).
  */
 @Composable
-fun animatedGroupItemShape(first: Boolean, last: Boolean, selected: Boolean, pressed: Boolean = false): RoundedCornerShape {
+fun animatedGroupItemShape(
+    first: Boolean,
+    last: Boolean,
+    selected: Boolean,
+    pressed: Boolean = false,
+    /** Nároží mezi sousedy; 0 u bloku bez spár (seznam chatů bez mezer). */
+    inner: Dp = INNER_CORNER,
+): RoundedCornerShape {
     fun target(edge: Boolean): Dp = when {
         selected -> GROUP_CORNER
         pressed -> PRESSED_CORNER
         edge -> GROUP_CORNER
-        else -> INNER_CORNER
+        else -> inner
     }
     val top by animateDpAsState(target(first), MaterialTheme.motionScheme.fastSpatialSpec(), label = "group-corner-top")
     val bottom by animateDpAsState(target(last), MaterialTheme.motionScheme.fastSpatialSpec(), label = "group-corner-bottom")
