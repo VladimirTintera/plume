@@ -379,6 +379,15 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
+    fun mezeryMeziChatySeUlozi() = settingsTest { settings, _ ->
+        assertEquals(true, settings.chatRowGaps.value)
+        settings.setChatRowGaps(false)
+        assertEquals(false, settings.chatRowGaps.awaitValue("bez mezer") { !it })
+        settings.setChatRowGaps(true)
+        assertEquals(true, settings.chatRowGaps.awaitValue("návrat na výchozí") { it })
+    }
+
+    @Test
     fun radkyNahleduSeUloziAOriznouDoRozsahu() = settingsTest { settings, _ ->
         assertEquals(DEFAULT_CHAT_PREVIEW_LINES, settings.chatPreviewLines.value)
         settings.setChatPreviewLines(2)

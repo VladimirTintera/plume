@@ -304,6 +304,7 @@
     <string name="settings_search_kw_text_size">písmo, font, velikost textu, větší, menší</string>
     <string name="settings_search_kw_sticker_size">samolepky, nálepky, větší, menší</string>
     <string name="settings_search_kw_chat_preview_lines">seznam chatů, náhled zprávy, počet řádků, kompaktní</string>
+    <string name="settings_search_kw_chat_row_gaps">seznam chatů, rozestupy, kompaktní, panel</string>
     <string name="settings_search_kw_storage">mezipaměť, cache, místo, paměť, uvolnit, vyčistit</string>
     <string name="settings_search_kw_proxy">VPN, SOCKS, MTProto, připojení</string>
     <string name="settings_search_kw_devices">relace, sezení, odhlásit, přihlášená zařízení</string>
@@ -361,6 +362,8 @@
     <string name="settings_sticker_size">Velikost samolepek</string>
     <string name="settings_sticker_size_preview">😺</string>
     <string name="settings_chat_preview_lines">Řádky náhledu zprávy</string>
+    <string name="settings_chat_row_gaps">Mezery mezi chaty</string>
+    <string name="settings_chat_row_gaps_summary">Bez mezer je seznam chatů jeden souvislý panel</string>
     <plurals name="settings_chat_preview_lines_count">
         <item quantity="one">%1$d řádek</item>
         <item quantity="few">%1$d řádky</item>

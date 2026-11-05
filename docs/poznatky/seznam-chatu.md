@@ -573,6 +573,12 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   motivu tmavší než stránka, proto `groupRow`. **Náhled konverzace v Nastavení** má plochu
   z `LocalAppColorScheme`, ne `surface`, ten je tam už přemapovaný a bublina by na něm vypadala jinak
   než v konverzaci.
+- **Mezery mezi chaty jsou volba** (`LocalChatRowGaps`, Nastavení → Vzhled, výchozí zapnuté). Se
+  spárou 2 dp je to segmentovaný seznam M3 (`SegmentedGap`), bez ní jeden souvislý panel na skupinu
+  jako v Google Zprávách (změřeno ze snímku: stránka #E7EEFF, panel #F9F9FF, mezi řádky nic). Bez
+  mezer dává podklad panel pod řádkem (`background` na obalu tahu), jinak by v rozích stisknutého
+  a vybraného řádku prosvítala stránka. Uspořádání připnutých mezery nechává vždycky. Platí jen pro
+  seznam chatů a archiv; bloky Nastavení a profilu mezery mají dál.
 - **`surfaceContainerLowest` zůstává jen tam, kde má ustoupit:** plocha konverzace při hledání a čip
   reakce (`docs/poznatky/emoji-samolepky-reakce.md`).
 - **Název jde běžným řezem, polotučně jen nepřečtený.** Když je polotučný každý chat, nevyčnívá

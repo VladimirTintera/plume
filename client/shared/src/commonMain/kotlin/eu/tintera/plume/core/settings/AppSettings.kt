@@ -488,6 +488,12 @@ interface AppSettings {
     /** Uloží počet řádků náhledu; výchozí se neukládá. Neblokuje. */
     fun setChatPreviewLines(lines: Int)
 
+    /** Mezery mezi řádky seznamu chatů (Nastavení → Vzhled); bez nich je skupina souvislý panel. Výchozí ano. */
+    val chatRowGaps: StateFlow<Boolean>
+
+    /** Uloží volbu mezer; výchozí se neukládá. Neblokuje. */
+    fun setChatRowGaps(gaps: Boolean)
+
     /**
      * Delší hrana samolepky ve zprávě v dp (Nastavení → Vzhled), v rozsahu [STICKER_SIZES].
      * Výchozí [DEFAULT_STICKER_SIZE].
@@ -1234,6 +1240,18 @@ class DataStoreAppSettings(
         }
     }
 
+    override val chatRowGaps: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[CHAT_ROW_GAPS] ?: true
+    }
+
+    override fun setChatRowGaps(gaps: Boolean) {
+        scope.launch {
+            edit { preferences ->
+                if (gaps) preferences.remove(CHAT_ROW_GAPS) else preferences[CHAT_ROW_GAPS] = false
+            }
+        }
+    }
+
     override val chatPreviewLines: StateFlow<Int> = value(DEFAULT_CHAT_PREVIEW_LINES) { preferences ->
         preferences[CHAT_PREVIEW_LINES_KEY]?.coerceIn(CHAT_PREVIEW_LINES) ?: DEFAULT_CHAT_PREVIEW_LINES
     }
@@ -1315,6 +1333,7 @@ class DataStoreAppSettings(
         val LIST_PANE_ANCHOR = stringPreferencesKey("list_pane_anchor")
         val PROFILE_PANE_ANCHOR = stringPreferencesKey("profile_pane_anchor")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
+        val CHAT_ROW_GAPS = booleanPreferencesKey("chat_row_gaps")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
         val TRANSLATE_ON_DEVICE = booleanPreferencesKey("translate_on_device")
         val CHAT_SWIPE_RIGHT = stringPreferencesKey("chat_swipe_right")

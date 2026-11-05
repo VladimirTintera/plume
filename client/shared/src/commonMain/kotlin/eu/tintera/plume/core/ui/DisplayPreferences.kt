@@ -11,6 +11,9 @@ import eu.tintera.plume.core.settings.DEFAULT_STICKER_SIZE
  */
 val LocalChatPreviewLines = staticCompositionLocalOf { DEFAULT_CHAT_PREVIEW_LINES }
 
+/** Mezery mezi řádky seznamu chatů z Nastavení → Vzhled. Dodává je kořen aplikace. */
+val LocalChatRowGaps = staticCompositionLocalOf { true }
+
 /**
  * Delší hrana samolepky ve zprávě v dp z Nastavení → Vzhled. Dodává ji kořen aplikace.
  *

@@ -135,6 +135,8 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setLastStorageCleanup(epochSeconds: Long): Unit = error("setLastStorageCleanup")
     override val messageTextSize: StateFlow<Int> get() = error("messageTextSize")
     override fun setMessageTextSize(size: Int): Unit = error("setMessageTextSize")
+    override val chatRowGaps: StateFlow<Boolean> get() = error("chatRowGaps")
+    override fun setChatRowGaps(gaps: Boolean): Unit = error("setChatRowGaps")
     override val chatPreviewLines: StateFlow<Int> get() = error("chatPreviewLines")
     override fun setChatPreviewLines(lines: Int): Unit = error("setChatPreviewLines")
     override val stickerSize: StateFlow<Int> get() = error("stickerSize")
