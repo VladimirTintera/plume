@@ -1236,7 +1236,7 @@ hodnota se neukládá, hodnota mimo rozsah se při čtení přitáhne k mezi.
   `ChatRow` do PNG (první snímky jsou bez textů, prostředky se čtou asynchronně; `ChatRow` bez
   `LocalSharedTransitionScope` a Koinu běží).
 - **Ověřeno na emulátoru** (Pixel 10 Pro XL, anglicky): samolepka 600 px při 200 a 300 px při 100 dp
-  (hustota 480), seznam chatů se 2 a 3 řádky, přechod do chatu, restart aplikace, hledání
+  (hustota 480), seznam chatů se 2 a 3 řádky a jejich změna výšky, přechod do chatu, restart aplikace, hledání
   v Nastavení, tmavý motiv a Vzhled i ve světlém. Výchozí hodnoty z úložiště zmizí. Z češtiny jen
   vykreslení mimo obrazovku; iOS a desktop za běhu ne. Tah z levé meze ve vzdálenosti 90 px od
   okraje posuvníkem nepohnul, 170 px ano; příčina ani chování pod prstem ověřené nejsou.

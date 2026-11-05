@@ -70,7 +70,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -536,7 +538,7 @@ internal fun ChatRow(
             val openStories = stringResource(Res.string.stories_open, chat.title)
             Box(
                 Modifier
-                    // S víc řádky bývá pod krátkou zprávou volno: avatar uprostřed by se rozešel se jménem.
+                    // U víceřádkového náhledu by avatar uprostřed utekl od jména.
                     .then(if (previewLines > 1) Modifier.align(Alignment.Top) else Modifier)
                     .storyRing(
                         ring = marks.stories,
@@ -742,11 +744,9 @@ internal fun ChatRow(
                         }
                     }
 
-                // S víc řádky mají všechny chaty stejnou výšku: krátká zpráva, „píše…" ani chat bez
-                // zpráv seznam nerozhoupe. Jeden řádek se vejde do výšky avataru, prázdný text netřeba.
-                if (subtitle != null || previewLines > 1) {
+                subtitle?.let {
                     Text(
-                        text = subtitle ?: AnnotatedString(""),
+                        text = it,
                         inlineContent = customEmojiInlineContent(customEmoji) + previewThumbnailInlineContent(thumbnail),
                         style = MaterialTheme.typography.bodyMedium,
                         // Nepřečtený náhled se odliší barvou, ne řezem: s polotučným názvem nad
@@ -759,9 +759,14 @@ internal fun ChatRow(
                             chat.hasUnread -> MaterialTheme.colorScheme.onSurface
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        minLines = previewLines,
                         maxLines = previewLines,
                         overflow = TextOverflow.Ellipsis,
+                        // Jeden řádek se vejde do výšky avataru, řádek chatu tedy nemění výšku vůbec.
+                        modifier = if (previewLines > 1) {
+                            Modifier.smoothPreviewHeight(chat.id, holdHeight = chat.activity != null)
+                        } else {
+                            Modifier
+                        },
                     )
                 }
             }
@@ -769,6 +774,23 @@ internal fun ChatRow(
             UnreadBadges(chat, quiet = sleeping, accent = accent, awaitingReply = marks.awaitingReply)
         }
     }
+}
+
+/**
+ * Víceřádkový náhled má výšku podle obsahu a mění ji plynule, řádky pod ním jedou s ním.
+ *
+ * Effects spec, ne spatial: překmit výšky by rozkýval celý seznam pod řádkem. Při [holdHeight]
+ * („píše…") drží poslední výšku: činnost je krátká a dlouhý náhled by se kvůli ní pokaždé
+ * smrskl a zase roztáhl.
+ */
+@Composable
+private fun Modifier.smoothPreviewHeight(chatId: Long, holdHeight: Boolean): Modifier {
+    var settledHeight by remember(chatId) { mutableIntStateOf(0) }
+    val minHeight = if (holdHeight) with(LocalDensity.current) { settledHeight.toDp() } else 0.dp
+    return fillMaxWidth()
+        .animateContentSize(MaterialTheme.motionScheme.defaultEffectsSpec())
+        .heightIn(min = minHeight)
+        .onSizeChanged { if (!holdHeight) settledHeight = it.height }
 }
 
 /** Odložení chatu z pohledu řádku: ještě spí (do [Sleeping.until], ms od epochy), nebo se vynořil. */

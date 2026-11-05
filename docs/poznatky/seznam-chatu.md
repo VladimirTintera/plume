@@ -690,10 +690,20 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
 Nastavení → Vzhled → Řádky náhledu zprávy: 1 (výchozí), 2, nebo 3. Skladba volby je v
 `docs/poznatky/nastaveni.md`, „Velikost samolepek a řádky náhledu".
 
-- **S víc řádky mají všechny chaty stejnou výšku** (`minLines` i `maxLines`), i chat bez zpráv
-  (prázdný text). Jinak by seznam rozhoupala každá krátká zpráva a začátek a konec „píše…".
-- **Avatar s víc řádky stojí nahoře u jména.** Uprostřed se pod krátkou zprávou se jménem rozešel.
-  Odznaky zůstávají na středu, patří k pravému sloupci.
+- **Výška řádku jde podle obsahu, ne pevně** (`smoothPreviewHeight`). Se stejnou výškou zůstávalo
+  u většiny skutečných chatů pod krátkou zprávou prázdno: na obrazovku se vešlo jen sedm chatů
+  při třech řádcích. Krátká zpráva tak zabere stejně jako při jednom řádku.
+- **Změna výšky je `animateContentSize` s effects specem.** Spatial spec má překmit a ten by
+  rozkýval všechny řádky pod chatem. Při jednom řádku se modifikátor nepřidává vůbec: výšku drží
+  avatar, takže výchozí nastavení nic neplatí.
+- **„Píše…" drží poslední výšku.** Činnost nahradí náhled jedním krátkým řádkem a dlouhý náhled by
+  se kvůli ní smrskl a po pár vteřinách zase roztáhl.
+- **Ověřeno na emulátoru** (`wm density 240` kvůli seznamu vedle konverzace, `animator_duration_scale
+  20`, polohy řádků z `uiautomator`): řádek s konceptem rostl přes 153 na 159 px, po smazání konceptu
+  řádek pod ním jel přes 553 na 547, při `sendChatAction` od bota zůstalo 159 px. Výpis stihne jeden
+  snímek za ~3 s, takže plynulost pod prstem je potřeba posoudit rukou.
+- **Avatar s víc řádky stojí nahoře u jména.** Uprostřed od něj u dlouhého náhledu utekl. Odznaky
+  zůstávají na středu, patří k pravému sloupci.
 - **Zalomení v náhledu je mezera, stejně dlouhá kvůli offsetům emoji.** Platí i pro jeden řádek:
   dřív se tam víceřádková zpráva usekla po prvním zalomení a teď je vidět víc textu.
 - **Řádky karty „Čeká na odpověď" volba nemění** (`AwaitingChatRow`), mají vlastní kompaktní tvar.

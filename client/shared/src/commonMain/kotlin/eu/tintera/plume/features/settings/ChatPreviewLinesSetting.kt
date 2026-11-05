@@ -62,7 +62,7 @@ private fun ChatRowLikeness(lines: Int, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface, ShapeDefaults.Large)
             .padding(12.dp)
-            .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
+            .animateContentSize(MaterialTheme.motionScheme.defaultEffectsSpec()),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
