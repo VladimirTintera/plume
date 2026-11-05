@@ -383,7 +383,8 @@ internal fun ConversationBottomBar(
         }?.let { emojiWordAt(it.text, it.selection.start) }
     }
     LaunchedEffect(emojiWord?.word) { emojiWords.lookup(emojiWord?.word, emojiLanguages) }
-    val shownEmojis = emojiSuggestions?.takeIf { it.word == emojiWord?.word }?.emojis.orEmpty()
+    // Sada ke slovu z minulého písmene zůstává, dokud nepřijde nová: pilulka se mění na místě.
+    val shownEmojis = emojiSuggestions?.takeIf { emojiWord != null }?.emojis.orEmpty()
     // Samolepky k emoji, které je v poli samo. Jen kde se samolepka smí poslat a pole
     // je obyčejná zpráva — ne při úpravě ani s přílohou, kde by emoji byl popisek.
     val stickerEmoji = remember(draft.text, inlineDraft, state.editing, state.attachments.isEmpty(), state.content.stickers) {
@@ -470,6 +471,8 @@ internal fun ConversationBottomBar(
             visible = emojiWord != null,
             onPick = { emoji ->
                 val word = emojiWord ?: return@EmojiSuggestionsPanel
+                // Sada k předchozímu slovu nesmí přepsat to, které už je v poli jiné.
+                if (emojiSuggestions?.word != word.word) return@EmojiSuggestionsPanel
                 haptics.confirm()
                 val (text, cursor) = emojiReplacement(draft.text, word, emoji)
                 draft = TextFieldValue(text, selection = TextRange(cursor))
