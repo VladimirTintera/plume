@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.background
@@ -284,7 +285,7 @@ private fun PlaceRow(
     onClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    Surface(shape = shape, color = colors.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = shape, color = colors.groupRow, modifier = Modifier.fillMaxWidth()) {
         ListItem(
             headlineContent = { Text(title) },
             supportingContent = subtitle.takeIf { it.isNotBlank() }?.let { { Text(it) } },

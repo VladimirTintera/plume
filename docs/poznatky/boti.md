@@ -414,7 +414,7 @@ zobrazí a zprostředkuje její události.
   celá obrazovka, plocha): „zrušeno" / „nepodporováno". Jinak by mini aplikace visela.
   Zápis, sdílení zprávy, výběr chatu a stažení souboru Plume umí — viz „Požadavky mini aplikace".
   Schránku mini aplikacím nedáváme (`data: null`).
-- **Motiv jsou barvy aplikace** (`webAppTheme`: stránka `surface`, sekce `surfaceContainerLowest`
+- **Motiv jsou barvy aplikace** (`webAppTheme`: stránka `surface`, sekce `groupRow`
   jako bloky seznamů, tlačítka `primary`) — do adresy přes TDLib i do `theme_changed` po změně
   motivu. Hlavička a hlavní tlačítko jsou naše, přebarvit je smí stránka; popředí se pak volí
   podle světlosti.

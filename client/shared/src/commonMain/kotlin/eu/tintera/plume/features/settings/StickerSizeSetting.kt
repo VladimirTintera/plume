@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.app.root.presentation.LocalAppColorScheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,7 +69,7 @@ private fun StickerLikeness(size: Dp, modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, ShapeDefaults.Large)
+            .background(LocalAppColorScheme.current?.surface ?: MaterialTheme.colorScheme.surface, ShapeDefaults.Large)
             .padding(12.dp)
             .height(STICKER_SIZES.last.dp),
         contentAlignment = Alignment.BottomStart,

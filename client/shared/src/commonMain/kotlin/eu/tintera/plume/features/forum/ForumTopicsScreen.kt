@@ -86,6 +86,7 @@ import eu.tintera.plume.core.telegram.canReorderPinned
 import eu.tintera.plume.core.ui.ReorderRow
 import eu.tintera.plume.core.ui.ReorderTopBar
 import eu.tintera.plume.core.ui.draggedItem
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberDragReorderState
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.forum_topics_reorder_title
@@ -489,7 +490,7 @@ private fun TopicRow(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+    val containerColor = MaterialTheme.colorScheme.groupRow
     val secondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
         shape = shape,

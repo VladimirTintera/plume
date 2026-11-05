@@ -23,6 +23,7 @@ import eu.tintera.plume.core.telegram.byDay
 import eu.tintera.plume.core.telegram.isWholeDay
 import eu.tintera.plume.core.telegram.stateAt
 import eu.tintera.plume.core.ui.SheetTitle
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.longName
 import eu.tintera.plume.core.ui.onName
@@ -99,7 +100,7 @@ internal fun BusinessHoursSheet(hours: List<OpeningInterval>, onDismiss: () -> U
                 val isToday = index == today
                 Row(
                     Modifier
-                        .groupedItem(index, days.size, MaterialTheme.colorScheme.surfaceContainerLowest, edge = 0.dp, pressable = false)
+                        .groupedItem(index, days.size, MaterialTheme.colorScheme.groupRow, edge = 0.dp, pressable = false)
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,

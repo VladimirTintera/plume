@@ -41,6 +41,7 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
@@ -166,7 +167,7 @@ private fun ProfileAudioRow(
                 }
             }
         },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(shape).clickable(onClickLabel = actionLabel, onClick = onToggle),
     )
 }

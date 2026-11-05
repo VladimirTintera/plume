@@ -30,6 +30,7 @@ import eu.tintera.plume.core.telegram.BirthdayWhen
 import eu.tintera.plume.core.telegram.CloseBirthday
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.accentOn
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.birthday_today
 import eu.tintera.plume.resources.birthday_today_age
@@ -55,7 +56,7 @@ import kotlin.time.Clock
  * `tertiaryContainer`, ne `secondaryContainer` doporučené akce: je to oslava, ne rada — a obě
  * karty můžou stát pod sebou.
  *
- * **Lidé stojí na vlastních dlaždicích v `surfaceContainerLowest`**, ne přímo na kartě: barvy
+ * **Lidé stojí na vlastních dlaždicích v `groupRow`**, ne přímo na kartě: barvy
  * avatarů jsou container role včetně `tertiaryContainer`, takže avatar v barvě karty na ní
  * zmizel (ověřeno na emulátoru — z „PS" zůstala jen písmena).
  */
@@ -111,7 +112,7 @@ private fun BirthdayRow(birthday: CloseBirthday, today: LocalDate, shape: Shape,
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .background(MaterialTheme.colorScheme.groupRow)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),

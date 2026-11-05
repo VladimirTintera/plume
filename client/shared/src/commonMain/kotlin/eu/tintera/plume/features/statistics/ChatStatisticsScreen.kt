@@ -33,6 +33,7 @@ import eu.tintera.plume.core.telegram.StatGraphEntry
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.asDate
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.features.profile.ProfileSubpageTopBar
@@ -177,7 +178,7 @@ private fun LazyListScope.recentPosts(recent: List<RecentInteraction>, onOpenPos
     item(key = "recent-title") { StatSectionTitle(stringResource(Res.string.statistics_recent_posts)) }
     itemsIndexed(recent, key = { _, it -> "recent-${it.messageId}-${it.storyId}" }) { index, post ->
         val messageId = post.messageId
-        val color = MaterialTheme.colorScheme.surfaceContainerLowest
+        val color = MaterialTheme.colorScheme.groupRow
         Column(
             Modifier
                 .fillMaxWidth()
@@ -238,7 +239,7 @@ private fun LazyListScope.leaderList(
         Row(
             Modifier
                 .fillMaxWidth()
-                .groupedItem(index, users.size, MaterialTheme.colorScheme.surfaceContainerLowest, pressable = false)
+                .groupedItem(index, users.size, MaterialTheme.colorScheme.groupRow, pressable = false)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

@@ -51,6 +51,7 @@ import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.profile_more
@@ -166,7 +167,7 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                 itemsIndexed(shown, key = { _, request -> request.userId }) { index, request ->
                     Surface(
                         shape = groupItemShape(index, shown.size),
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        color = MaterialTheme.colorScheme.groupRow,
                         modifier = Modifier.animateItem(),
                     ) {
                         Column {
@@ -181,7 +182,7 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                                 leadingContent = {
                                     Avatar(chatId = request.userId, title = request.name, avatarFileId = request.avatarFileId)
                                 },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                             )
                             val approve = stringResource(Res.string.join_requests_approve)
                             val decline = stringResource(Res.string.join_requests_decline)

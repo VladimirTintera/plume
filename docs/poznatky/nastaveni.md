@@ -652,7 +652,7 @@ v profilu druhého uživatele (`ChatProfile.birthdate`, řádek „Datum narozen
   „Včera byly 46. narozeniny" platí i přes Nový rok.
 - **Texty se vyhýbají rodu**: „Dnes má narozeniny", „Narozeniny byly včera", „Dnes slaví 30.
   narozeniny" — „měl/měla" by vyžadovalo pohlaví, které Telegram nezná.
-- **Lidé v kartě stojí na dlaždicích `surfaceContainerLowest`**, ne přímo na `tertiaryContainer`
+- **Lidé v kartě stojí na dlaždicích `groupRow`**, ne přímo na `tertiaryContainer`
   karty: barvy avatarů jsou container role včetně `tertiaryContainer`, takže avatar v barvě karty
   zmizel (ověřeno na emulátoru, z „PS" zůstala jen písmena).
 - **Ťuknutí na člověka otevře chat** přes `privateChat` (lokálně založí chat, který TDLib nemusí

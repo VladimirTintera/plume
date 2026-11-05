@@ -261,22 +261,22 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 
 ### Táhlo, kotvy a sbalený seznam
 
-- **Seznam leží na ploše okna, konverzace s profilem jsou JEDNA karta** (`PaneCard`, styl
-  Gmailu / Google Chatu). Dřív byl kartou každý panel zvlášť s mezerami 24 dp a uvnitř seznamu
-  i profilu byly další karty (řádky, bloky informací) — tři vrstvy zaoblených ploch do sebe,
-  což na desktopu působilo nepořádně. Plochu okna (`surfaceContainer`) kreslí shell pod scénou.
-  - **Seznamu se `surface` a `background` přemapují na `surfaceContainer`** (téma uvnitř
-    `PaneCard` pro roli List). Obrazovky seznamů (chaty, archiv, nová zpráva, sekce Nastavení)
+- **Stránky leží na ploše okna, karta je jen konverzace** (`PaneCard`, styl Gmailu / Google
+  Chatu). Dřív byl kartou každý panel zvlášť s mezerami 24 dp a uvnitř seznamu i profilu byly
+  další karty (řádky, bloky informací) — tři vrstvy zaoblených ploch do sebe, což na desktopu
+  působilo nepořádně. Plochu okna (`surfaceContainer`) kreslí shell pod scénou.
+  - **Stránkám se `surface` a `background` přemapují na `surfaceContainer`** (`asListPage`, téma
+    v `PaneCard`, viz „Plocha stránky a řádku" v `seznam-chatu.md`), a to i na telefonu. Obrazovky
     si pozadí kreslí samy přes `Scaffold`; bez přemapování by na ploše okna stál obdélník o tón
-    jiný — karta bez rohů. Řádky (`surfaceContainerLowest`) pak sedí na ploše jako segmentovaný
-    seznam M3 a tónem odpovídají kartě vedle.
-  - **Karta (role Detail a Extra) je `surface` se `shapes.large`**; detail vedle profilu má
-    vpravo rovné rohy (animované, profil vjíždí), profil vlevo rovné rohy a tenký předěl
-    `outlineVariant`. Kdo je vedle koho, říká shell přes `LocalPaneNeighbours`.
+    jiný — karta bez rohů.
+  - **Karta (`Panes.ownSurface`: konverzace, článek, placeholder) je `surface` se `shapes.large`**,
+    rohy má všechny, i vedle profilu. Do listopadu 2026 s ním tvořila jednu plochu (rovné rohy,
+    předěl `outlineVariant`); to s profilem na `surfaceContainer` neplatí a rovný okraj vedle plochy
+    okna by vypadal jako useknutý. Profil vedle ní žádný předěl nepotřebuje, bloky mají vlastní okraj.
   - **Mezeru mezi panely nedělá scaffold** (`horizontalPartitionSpacerSize = 0`): jeho mezera je
-    všude stejná, takže by rozdělila i konverzaci od profilu, a přes ni kreslit nejde — panely
-    mají `clipToBounds` (`AnimatedPane`). Okraj `PANE_SPACING` (12 dp) si dělá karta zleva, když
-    je vedle ní seznam, a táhlo stojí na hranici panelů, tedy v té mezeře. Práh dvou panelů:
+    všude stejná a přes ni kreslit nejde — panely mají `clipToBounds` (`AnimatedPane`). Okraj
+    `PANE_SPACING` (12 dp) si dělá detail zleva, když je vedle něj seznam, a táhlo stojí na hranici
+    panelů, tedy v té mezeře. Práh dvou panelů:
     360 + 12 + 360 = 732 dp; ve třech panelech se mezera počítá jednou (`listWidthBesideProfile`).
   - Kartu dává dekorátor položek (`rememberPaneCardDecorator`) všemu, co má roli panelu;
     placeholder ji má zvlášť (`PaneCard(PaneRole.Detail)`), protože položkou není. Na telefonu

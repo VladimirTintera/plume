@@ -45,6 +45,7 @@ import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
 import eu.tintera.plume.core.ui.appendWithCustomEmoji
 import eu.tintera.plume.core.ui.customEmojiInlineContent
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.threshold
 import eu.tintera.plume.resources.favorite_filled_24dp
 import eu.tintera.plume.resources.alternate_email_24dp
@@ -294,7 +295,7 @@ internal fun SwipeableChat(
          * Bez tahu se podklad NEKRESLÍ VŮBEC, ani jeho plocha. Řádek nad ním má tentýž tvar,
          * jenže vyhlazené hrany (zaoblení, okraje na zlomcích pixelu) jsou poloprůhledné a
          * podklad jimi prosvítal: v tmavém tématu byl kolem každého chatu světlý lem
-         * `primaryContainer` na skoro černém `surfaceContainerLowest`.
+         * `primaryContainer` na mnohem tmavším řádku.
          */
         val effect = when (side) {
             SwipeSide.Start -> right
@@ -493,7 +494,7 @@ internal fun ChatRow(
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.secondaryContainer
     } else {
-        MaterialTheme.colorScheme.surfaceContainerLowest
+        MaterialTheme.colorScheme.groupRow
     }
     val contentColor = if (selected) {
         MaterialTheme.colorScheme.onSecondaryContainer
@@ -820,7 +821,7 @@ private fun UnreadBadges(
     awaitingReply: Boolean = false,
 ) {
     val scheme = accent ?: MaterialTheme.colorScheme
-    val container = if (quiet) MaterialTheme.colorScheme.surfaceContainerHighest else scheme.primary
+    val container = if (quiet) MaterialTheme.colorScheme.outlineVariant else scheme.primary
     val content = if (quiet) MaterialTheme.colorScheme.onSurfaceVariant else scheme.onPrimary
     if (chat.unreadPollVoteCount == 0 && chat.unreadReactionCount == 0 && chat.unreadMentionCount == 0 && chat.unreadCount == 0) return
     Row(

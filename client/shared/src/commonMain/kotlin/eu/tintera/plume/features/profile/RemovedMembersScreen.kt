@@ -42,6 +42,7 @@ import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.SearchPill
 import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_search_clear
@@ -205,7 +206,7 @@ private fun RemovedMemberRow(
                 Text(stringResource(if (banned) Res.string.removed_members_unban else Res.string.member_action_unrestrict))
             }
         },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = if (onOpen != null) modifier.clickable(onClick = onOpen) else modifier,
     )
 }

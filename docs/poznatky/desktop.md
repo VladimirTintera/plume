@@ -346,8 +346,8 @@ Bílý systémový titulek nad tmavou aplikací byl nejrušivější prvek okna.
     #E7EFF8 = `surfaceContainer`).
 - **Přihlašovací obrazovka leží na `surfaceContainer`**, ne na `surface`: titulek má barvu plochy
   okna (`surfaceContainer`, seznam chatů), a nad přihlášením na `surface` byl vidět jako pruh
-  (#E7EFF8 nad #F6FAFF). Blok s telefonem je proto `surfaceContainerLowest` jako skupiny
-  v Nastavení; jinde (změna čísla, nový kontakt) zůstává `surfaceContainerLow` na `surface`.
+  (#E7EFF8 nad #F6FAFF). Blok s telefonem je proto `groupRow` jako skupiny
+  v Nastavení, stejně jako na změně čísla a u nového kontaktu.
 - Ověřeno na Windows 11 v tmavém motivu: titulek splývá s plochou okna.
 
 ## Oznamovací oblast a jediná instance

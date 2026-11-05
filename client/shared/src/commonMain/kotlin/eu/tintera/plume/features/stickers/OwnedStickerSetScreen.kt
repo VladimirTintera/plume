@@ -62,6 +62,7 @@ import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.ui.dragHandle
 import eu.tintera.plume.core.ui.draggedItem
 import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.rememberDragReorderState
 import eu.tintera.plume.core.ui.resolveNow
@@ -244,7 +245,7 @@ fun OwnedStickerSetScreen(
                         } else {
                             null
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                         modifier = Modifier.padding(bottom = 16.dp).clip(groupItemShape(0, 1)),
                     )
                 }
@@ -282,7 +283,7 @@ fun OwnedStickerSetScreen(
                             }
                         },
                         colors = ListItemDefaults.colors(
-                            containerColor = if (dragged) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLowest,
+                            containerColor = if (dragged) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.groupRow,
                         ),
                         // Tažená položka bez `animateItem`: animace umístění by se s posunem pod prstem prala.
                         modifier = (if (dragState.draggedKey == null) Modifier.animateItem() else Modifier)

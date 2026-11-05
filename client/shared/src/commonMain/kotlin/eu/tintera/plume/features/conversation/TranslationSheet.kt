@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.lazy.itemsIndexed
 import eu.tintera.plume.resources.search_off_24dp
@@ -328,7 +329,7 @@ internal fun TranslationLanguageSheet(
                             modifier = Modifier.groupedItem(
                                 index = index,
                                 count = options.size,
-                                color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
+                                color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow,
                                 selected = isSelected,
                             ),
                         )

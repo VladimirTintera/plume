@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.isCollectiblePhone
 import eu.tintera.plume.resources.profile_stories_open
 import eu.tintera.plume.resources.profile_tab_stories
 import eu.tintera.plume.resources.history_toggle_off_24dp
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.storyRing
 import eu.tintera.plume.core.ui.StoryRingState
 import eu.tintera.plume.resources.cake_24dp
@@ -1596,7 +1597,7 @@ private fun ProfileInfo(
                         style = MaterialTheme.typography.bodyLarge,
                         onLinkClick = onLinkClick,
                         // Bio i popis skupiny můžou nést citaci; řádek stojí na
-                        // `surfaceContainerLowest`, takže blok musí být o stupeň výš.
+                        // `groupRow`, takže blok musí mít plochu jinou.
                         quote = QuoteBlockStyle(background = MaterialTheme.colorScheme.surfaceContainerHigh),
                     )
                 }
@@ -1784,7 +1785,7 @@ private fun InfoRow(
         headlineContent = value,
         supportingContent = { Text(label) },
         trailingContent = trailing,
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     )
 }

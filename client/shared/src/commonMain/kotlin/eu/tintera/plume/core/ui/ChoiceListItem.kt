@@ -75,7 +75,7 @@ fun ChoiceListItem(
             .groupedItem(
                 index = index,
                 count = count,
-                color = if (selected) colors.secondaryContainer else colors.surfaceContainerLowest,
+                color = if (selected) colors.secondaryContainer else colors.groupRow,
                 selected = selected,
                 edge = edge,
             )

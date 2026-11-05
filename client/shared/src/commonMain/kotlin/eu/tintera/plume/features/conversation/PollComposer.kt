@@ -65,6 +65,7 @@ import eu.tintera.plume.core.telegram.PollDraft
 import eu.tintera.plume.core.telegram.PollLimits
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
@@ -1191,7 +1192,7 @@ private fun countriesLabel(codes: List<String>): String = when (codes.size) {
 /** Řádek s hodnotou vpravo; ťuknutí otevře výběr. */
 @Composable
 private fun ValueRow(label: String, value: String, shape: Shape, onClick: () -> Unit, valueIsError: Boolean = false) {
-    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = shape, color = MaterialTheme.colorScheme.groupRow, modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier

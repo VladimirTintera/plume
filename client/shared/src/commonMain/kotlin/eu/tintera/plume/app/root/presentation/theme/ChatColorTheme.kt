@@ -12,6 +12,8 @@ import eu.tintera.plume.app.root.presentation.LocalAppColorScheme
 import eu.tintera.plume.app.root.presentation.LocalIsDarkTheme
 import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.core.settings.ThemeColor
+import eu.tintera.plume.core.ui.LocalListPage
+import eu.tintera.plume.core.ui.asListPage
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 
@@ -46,7 +48,9 @@ fun ChatColorTheme(color: ThemeColor?, content: @Composable () -> Unit) {
         return
     }
     val target = if (color == null) app else chatColorScheme(LocalIsDarkTheme.current, color.seed)
-    val scheme = animateColorScheme(target, animationSpec = { AppMotion.defaultEffectsSpec<Color>() })
+    val animated = animateColorScheme(target, animationSpec = { AppMotion.defaultEffectsSpec<Color>() })
+    // Profil a seznam témat jsou stránky s bloky řádků; plochu si nese jen konverzace.
+    val scheme = if (LocalListPage.current) remember(animated) { animated.asListPage() } else animated
     // Písmo, tvary i pohyb zůstávají z nadřazeného tématu; `MaterialExpressiveTheme` bere jen,
     // co se mu předá.
     MaterialExpressiveTheme(colorScheme = scheme, content = content)

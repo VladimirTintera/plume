@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.ConfirmDialog
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.conversation_contact_me
@@ -120,7 +121,7 @@ internal fun ContactPickerSheet(
                             leadingContent = {
                                 Avatar(chatId = contact.id, title = contact.title, avatarFileId = contact.avatarFileId, size = 40.dp)
                             },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                             modifier = Modifier
                                 .animateItem()
                                 .clip(groupItemShape(index, shown.size))

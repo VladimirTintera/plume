@@ -53,6 +53,7 @@ import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.contextClickable
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -298,7 +299,7 @@ private fun FilterOption(label: StringResource, selected: Boolean, onClick: () -
 @Composable
 private fun CallHistoryRow(group: CallHistoryGroup, index: Int, count: Int, onClick: () -> Unit, onDelete: () -> Unit) {
     val entry = group.latest
-    val container = MaterialTheme.colorScheme.surfaceContainerLowest
+    val container = MaterialTheme.colorScheme.groupRow
     val failed = entry.outcome.isFailure
     val start = rememberStartCall(entry.callUserId)
     var menu by remember { mutableStateOf(false) }

@@ -75,6 +75,7 @@ import eu.tintera.plume.core.ui.INTRO_ICON_SIZE
 import eu.tintera.plume.core.ui.IntroShape
 import eu.tintera.plume.core.ui.QrCode
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.waitUiText
@@ -1084,8 +1085,6 @@ private fun PhoneForm(
             onPhoneChange = onPhoneChange,
             onPickCountry = onPickCountry,
             onSubmit = onSubmit,
-            // Na ploše `surfaceContainer` jako skupiny v Nastavení.
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         )
         FormError(error)
         ContinueButton(enabled = phone.isComplete, busy = busy, onClick = onSubmit)

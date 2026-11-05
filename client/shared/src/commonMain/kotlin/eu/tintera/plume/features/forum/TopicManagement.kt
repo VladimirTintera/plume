@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.forum
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -187,7 +188,7 @@ internal fun TopicActionsSheet(
                     headlineContent = { Text(item.label) },
                     leadingContent = { Icon(painterResource(item.icon), contentDescription = null) },
                     colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = MaterialTheme.colorScheme.groupRow,
                         headlineColor = color,
                         leadingIconColor = color,
                     ),

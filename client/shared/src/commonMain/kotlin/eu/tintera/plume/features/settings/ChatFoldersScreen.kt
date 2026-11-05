@@ -53,6 +53,7 @@ import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.dragHandle
 import eu.tintera.plume.core.ui.draggedItem
 import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberDragReorderState
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.Res
@@ -149,7 +150,7 @@ fun ChatFoldersScreen(
                     headlineContent = { Text(stringResource(Res.string.chat_folders_create)) },
                     leadingContent = { FolderIcon(Res.drawable.add_24dp, accent = true) },
                     colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = MaterialTheme.colorScheme.groupRow,
                         headlineColor = MaterialTheme.colorScheme.primary,
                     ),
                     modifier = Modifier.animateItem().clip(groupItemShape(0, count)).clickable { onEdit(0) },
@@ -196,7 +197,7 @@ fun ChatFoldersScreen(
                         containerColor = if (dragged) {
                             MaterialTheme.colorScheme.surfaceContainerHigh
                         } else {
-                            MaterialTheme.colorScheme.surfaceContainerLowest
+                            MaterialTheme.colorScheme.groupRow
                         },
                     ),
                     // Tažená položka bez `animateItem`: animace umístění by se s posunem pod
@@ -227,7 +228,7 @@ fun ChatFoldersScreen(
                                 }
                             }
                         },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                         modifier = Modifier.animateItem().clip(groupItemShape(index, recommended.size)),
                     )
                 }
@@ -269,7 +270,7 @@ fun ChatFoldersScreen(
                                 if (working) LoadingIndicator(Modifier.size(40.dp)) else FolderIcon(Res.drawable.auto_awesome_24dp, accent = true)
                             },
                             colors = ListItemDefaults.colors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                containerColor = MaterialTheme.colorScheme.groupRow,
                                 headlineColor = MaterialTheme.colorScheme.primary,
                             ),
                             modifier = Modifier.animateItem().clip(groupItemShape(0, 1))
@@ -303,7 +304,7 @@ private fun SuggestedFolderRow(folder: SuggestedFolder, adding: String?, onAdd: 
                 }
             }
         },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier,
     )
 }
@@ -313,7 +314,7 @@ private fun SuggestedFolderRow(folder: SuggestedFolder, adding: String?, onAdd: 
 private fun AiFoldersNote(text: String) {
     ListItem(
         headlineContent = { Text(text, style = MaterialTheme.typography.bodyMedium) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(groupItemShape(0, 1)),
     )
 }

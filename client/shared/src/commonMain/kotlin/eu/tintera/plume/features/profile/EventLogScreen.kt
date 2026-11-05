@@ -43,6 +43,7 @@ import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -398,7 +399,7 @@ private fun EventRow(
             Avatar(chatId = event.actor.id, title = event.actor.title, avatarFileId = event.actor.avatarFileId)
         },
         trailingContent = { Text(event.date.asTimeOfDay(), style = MaterialTheme.typography.labelMedium.tabularNumbers()) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier,
     )
 }

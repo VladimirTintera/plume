@@ -53,6 +53,12 @@ object Panes {
      */
     fun contentWidth(maxWidth: Dp): Map<String, Any> = mapOf(CONTENT_MAX_WIDTH_KEY to maxWidth)
 
+    /**
+     * Obrazovka, která NENÍ stránkou s bloky řádků (`asListPage`) a nechává si `surface`:
+     * konverzace (na té ploše jsou vyladěné bubliny), článek, prohlížeč médií a podobně.
+     */
+    fun ownSurface(): Map<String, Any> = mapOf(OWN_SURFACE_KEY to true)
+
     private fun info(role: PaneRole, sceneKey: Any): Map<String, Any> = mapOf(PANE_INFO_KEY to PaneInfo(role, sceneKey))
 }
 
@@ -65,6 +71,11 @@ private const val CONTENT_MAX_WIDTH_KEY = "eu.tintera.plume.contentMaxWidth"
 
 /** Strop šířky obsahu z [Panes.contentWidth]; `null` = obsah přes celý panel. */
 val NavEntry<*>.contentMaxWidth: Dp? get() = metadata[CONTENT_MAX_WIDTH_KEY] as? Dp
+
+private const val OWN_SURFACE_KEY = "eu.tintera.plume.ownSurface"
+
+/** Položka z [Panes.ownSurface]; ostatní jsou stránky s bloky řádků. */
+val NavEntry<*>.ownSurface: Boolean get() = metadata[OWN_SURFACE_KEY] == true
 
 /**
  * Indexy extra položek, nad kterými v téže scéně leží detail — profil, nad který se otevřela

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SaveActionButton
@@ -439,7 +440,7 @@ private fun FolderBlock(
             headlineContent = { Text(stringResource(addLabel)) },
             leadingContent = { FolderIcon(Res.drawable.add_24dp, accent = true) },
             colors = ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                containerColor = MaterialTheme.colorScheme.groupRow,
                 headlineColor = MaterialTheme.colorScheme.primary,
             ),
             modifier = Modifier.clip(groupItemShape(0, count)).clickable(onClick = onAdd),
@@ -473,7 +474,7 @@ private fun FolderBlock(
                         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.chat_folder_remove_chat, title))
                     }
                 },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 modifier = Modifier.clip(groupItemShape(1 + toggles.size + index, count)),
             )
         }
@@ -506,7 +507,7 @@ private fun FolderLinks(
                 }
             },
             colors = ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                containerColor = MaterialTheme.colorScheme.groupRow,
                 headlineColor = if (canCreate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
             modifier = Modifier.clip(groupItemShape(0, count)).clickable(enabled = canCreate, onClick = onCreate),
@@ -525,7 +526,7 @@ private fun FolderLinks(
                         Icon(painterResource(Res.drawable.share_24dp), contentDescription = stringResource(Res.string.chat_folder_share_share))
                     }
                 },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 modifier = Modifier
                     .clip(groupItemShape(1 + index, count))
                     .clickable(onClickLabel = stringResource(Res.string.chat_folder_share_edit)) { onOpen(link) },
@@ -597,7 +598,7 @@ private fun FolderIconSheet(
                 } else {
                     null
                 },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 modifier = Modifier
                     .clip(MaterialTheme.shapes.large)
                     .selectable(selected = selected == null, role = Role.RadioButton, onClick = { onSelect(null) }),
@@ -616,7 +617,7 @@ private fun FolderIconSheet(
                     )
                     Surface(
                         shape = RoundedCornerShape(corner),
-                        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
+                        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow,
                         contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .size(56.dp)
@@ -699,7 +700,7 @@ private fun FolderLinkSheet(
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
         ) {
             SheetTitle(stringResource(Res.string.chat_folder_link_title), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
-            Surface(shape = ShapeDefaults.Large, color = MaterialTheme.colorScheme.surfaceContainerLowest) {
+            Surface(shape = ShapeDefaults.Large, color = MaterialTheme.colorScheme.groupRow) {
                 ListItem(
                     headlineContent = {
                         Text(editor.link.url.removePrefix("https://"), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -718,7 +719,7 @@ private fun FolderLinkSheet(
                             }
                         }
                     },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 )
             }
             FormTextField(

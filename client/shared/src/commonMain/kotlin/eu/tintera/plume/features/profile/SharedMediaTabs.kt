@@ -23,6 +23,7 @@ import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.profile_shared_video_note
 import eu.tintera.plume.resources.profile_shared_gif
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.telegram.RelatedChat
 import androidx.compose.foundation.shape.CircleShape
@@ -428,7 +429,7 @@ private fun ClipTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
         Modifier
             .aspectRatio(1f)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .background(MaterialTheme.colorScheme.groupRow)
             .clickable(onClick = onOpen),
         contentAlignment = Alignment.Center,
     ) {
@@ -1134,7 +1135,7 @@ private fun BotLabel() {
 
 /** Řádky záložek jsou světlé bloky na tónované stránce, jako chaty v seznamu. */
 @Composable
-private fun rowColors() = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)
+private fun rowColors() = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow)
 
 /**
  * Tvar dlaždice mřížky: velké zaoblení jen v rozích celého bloku.

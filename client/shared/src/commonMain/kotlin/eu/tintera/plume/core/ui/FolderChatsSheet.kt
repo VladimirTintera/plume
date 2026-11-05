@@ -167,7 +167,7 @@ fun CheckableChatRows(
             val checked = chat.id in selected
             Surface(
                 shape = groupItemShape(index, chats.size),
-                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                color = MaterialTheme.colorScheme.groupRow,
             ) {
                 ListItem(
                     headlineContent = { Text(chat.title, maxLines = 1) },
@@ -181,7 +181,7 @@ fun CheckableChatRows(
                         )
                     },
                     trailingContent = { Checkbox(checked = checked, onCheckedChange = null) },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                     modifier = Modifier.toggleable(
                         value = checked,
                         enabled = enabled,

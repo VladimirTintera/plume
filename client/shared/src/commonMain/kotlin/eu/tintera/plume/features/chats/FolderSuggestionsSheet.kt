@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
@@ -113,7 +114,7 @@ internal fun FolderSuggestionsSheet(
                             }
                         }
                     },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                     modifier = Modifier.clip(groupItemShape(index, state.recommended.size)),
                 )
             }
@@ -125,13 +126,13 @@ internal fun FolderSuggestionsSheet(
             ListItem(
                 headlineContent = { Text(stringResource(Res.string.chat_folders_create)) },
                 leadingContent = { FolderIcon(Res.drawable.add_24dp, accent = true) },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 modifier = Modifier.clip(groupItemShape(0, 2)).clickable(onClick = onCreate),
             )
             ListItem(
                 headlineContent = { Text(stringResource(Res.string.chat_folders_manage)) },
                 leadingContent = { FolderIcon(Res.drawable.tune_24dp, accent = false) },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 modifier = Modifier.clip(groupItemShape(1, 2)).clickable(onClick = onManage),
             )
         }

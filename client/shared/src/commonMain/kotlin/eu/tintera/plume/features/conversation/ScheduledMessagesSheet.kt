@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
@@ -110,7 +111,7 @@ private fun ScheduledRow(
             },
             // Kdy odejde — to je u naplánované zprávy to hlavní, co se tu hledá.
             overlineContent = { Text(message.schedule.label(), maxLines = 1) },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
             modifier = Modifier.clickable { menuOpen = true },
         )
         ExpressiveMenu(
