@@ -444,8 +444,20 @@ ho mezi nedávná.
   ViewModel už vracel srdce (ověřeno sondou v logu). Opraveno v obou panelech.
 - **Pilulka PLAVE nad polem a místo v rozvržení nezabírá** — viz „Plovoucí napovídání nad
   polem" (Konverzace).
-- **Ověřeno na emulátoru** v Uložených zprávách jen psaním: „heart" anglicky i „srdce" česky,
-  přechod „hear" → „heart", ťuknutí dosadí emoji. Nic se neodeslalo.
+- **Skrytá pilulka čeká 600 ms na pauzu v psaní, ukázaná se mění hned a na místě** (testy
+  `EmojiSuggestionsViewModelTest`). Dřív se při každém písmenu schovala, protože sada patřila
+  k předchozímu slovu, a po 200 ms mohla vyskočit znovu: 200 ms je zhruba rozestup písmen na
+  telefonu, takže to hledalo i uprostřed psaní a každé klíčové slovo po cestě („hear" u „heart")
+  znamenalo odjezd a příjezd. Hodnoty i chování odpovídají oficiálnímu klientu na Androidu
+  (`SuggestEmojiView`: 600 ms bez výsledků, jinak hned, stará sada zůstává do příchodu nové).
+- **Stará sada v poli s novým slovem je vidět jen po dobu dotazu**, ale ťuknutí na ni by přepsalo
+  slovo, ke kterému nepatří. Proto `onPick` porovnává `EmojiSuggestions.word` se slovem v poli
+  a ťuknutí mimo shodu nic neudělá.
+- **Ověřeno na emulátoru** v chatu s botem jen psaním, sérií snímků po ~300 ms: při „hear" bez
+  pauzy pilulka nevyskočila, po pauze ano, „hear" → „heart" změna na místě bez mezery, „hearts"
+  zmizí, mazání zpět na „heart" zase čeká, mezera schová, ťuknutí dosadí emoji. Průběžnou šířku
+  pilulky se zachytit nepovedlo ani se zpomalenými animacemi, viděl jsem jen začátek a konec.
+  Česká „srdce" po této změně vyzkoušená není. Nic se neodeslalo.
 
 ## Výběr samolepek
 

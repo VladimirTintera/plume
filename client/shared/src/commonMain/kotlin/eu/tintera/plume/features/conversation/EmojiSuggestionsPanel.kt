@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.foundation.clickable
@@ -11,8 +12,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -51,9 +54,15 @@ internal fun EmojiSuggestionsPanel(
         origin = TransformOrigin(0f, 1f),
     ) {
         val rowState = rememberLazyListState()
+        // Pilulka mezi písmeny nezmizí, takže nová sada začíná zleva jen díky tomuhle.
+        LaunchedEffect(last.value) { rowState.scrollToItem(0) }
+        val motion = MaterialTheme.motionScheme
         LazyRow(
             state = rowState,
-            modifier = Modifier.wheelScrollsHorizontally(rowState),
+            // Nová sada mění šířku pilulky plynule; emoji, které zůstává, dojede na nové místo.
+            modifier = Modifier
+                .animateContentSize(motion.fastEffectsSpec())
+                .wheelScrollsHorizontally(rowState),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -61,6 +70,11 @@ internal fun EmojiSuggestionsPanel(
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = motion.fastEffectsSpec(),
+                            placementSpec = motion.fastSpatialSpec(),
+                            fadeOutSpec = motion.fastEffectsSpec(),
+                        )
                         .size(EMOJI_CELL)
                         .clip(CircleShape)
                         .clickable { onPick(emoji) },

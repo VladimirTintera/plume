@@ -4,13 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
-import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
@@ -50,8 +48,12 @@ data class EmojiSuggestions(val word: String, val emojis: List<String>)
  * emoji. Hledá se PŘESNÁ shoda klíčového slova (`getKeywordEmojis`), ne začátek: se začátkem by
  * panel vyskakoval u každého druhého slova. Výsledky se zúží na katalog (novější emoji by písmo
  * nenakreslilo) a dostanou zvolený odstín pleti, stejně jako ve výběru emoji.
+ *
+ * Skrytá pilulka čeká na pauzu v psaní ([APPEAR_DELAY_MS]), ukázaná se mění hned a na místě: stará
+ * sada zůstává, dokud nepřijde nová, a zmizí, až když ke slovu nic není. Pilulka tak při psaní
+ * nevyskakuje u každého slova, které má shodou okolností klíčové slovo.
  */
-@OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class EmojiSuggestionsViewModel(
     private val emojiRepository: EmojiRepository,
     private val settings: AppSettings,
@@ -62,17 +64,16 @@ class EmojiSuggestionsViewModel(
     private val request = MutableStateFlow(Request(null, emptyList()))
 
     val suggestions: StateFlow<EmojiSuggestions?> = combine(
-        request
-            .debounce { if (it.word == null) 0L else LOOKUP_DELAY_MS }
-            .distinctUntilChanged()
-            .mapLatest { request ->
-                val word = request.word ?: return@mapLatest null
-                val found = emojiRepository.keywordEmojis(word.lowercase(), request.languageCodes)
-                    .mapNotNull(::catalogEmoji)
-                    .distinct()
-                    .take(MAX_EMOJI_SUGGESTIONS)
-                EmojiSuggestions(word, found).takeIf { found.isNotEmpty() }
-            },
+        // `mapLatest` zruší čekání i dotaz, jakmile přijde další slovo, takže `delay` je debounce.
+        request.mapLatest { request ->
+            val word = request.word ?: return@mapLatest null
+            if (suggestions.value == null) delay(APPEAR_DELAY_MS)
+            val found = emojiRepository.keywordEmojis(word.lowercase(), request.languageCodes)
+                .mapNotNull(::catalogEmoji)
+                .distinct()
+                .take(MAX_EMOJI_SUGGESTIONS)
+            EmojiSuggestions(word, found).takeIf { found.isNotEmpty() }
+        },
         settings.emojiSkinTones,
     ) { found, tones ->
         found?.copy(emojis = found.emojis.map { tones[baseEmoji(it)] ?: it })
@@ -99,7 +100,10 @@ private const val NOT_A_WORD_BEFORE = "@#/_.:\\-"
 
 private const val MAX_EMOJI_SUGGESTIONS = 12
 
-/** Pauza v psaní, než se slovo hledá — rozepsané „srd" se nemá ptát zbytečně. */
-private const val LOOKUP_DELAY_MS = 200L
+/**
+ * Pauza v psaní, než se skrytá pilulka ukáže. Stejně jako oficiální klient na Androidu: při 200 ms
+ * stačilo dopsat písmeno o chvíli pomaleji a pilulka vyskočila uprostřed psaní.
+ */
+private const val APPEAR_DELAY_MS = 600L
 
 private const val STOP_TIMEOUT_MS = 5_000L
