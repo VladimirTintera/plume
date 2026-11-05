@@ -365,7 +365,12 @@ nepovolit" (lidé i skupiny, přidávají se přes `ChatPicker`). Hranice je `Pr
   (`PrivacySettingState.editable`), server by zápis odmítl.
 - **Kanál výjimkou být nemůže** (TDLib bere jen lidi a členy skupin), výběr ho nenabízí; tajný
   chat je člověk s id uživatele (`memberOf`).
-- **Řádek „Soukromí účtu" je v bloku Soukromí první**, nad blokovanými.
+- **Řádek „Soukromí účtu" je v bloku Soukromí první**, nad blokovanými. **Blok nadpis nemá**:
+  „Soukromí" by jen zopakovalo název stránky nad ním. Dvoufázové ověření má ikonu hesla
+  (`password_24dp`), zámek aplikace zámek — dřív měly oba týž.
+- **Popisy přepínačů nejvýš na tři řádky.** Synchronizace kontaktů, diskrétní čtení a akce u zpráv
+  měly na telefonu pět; zkrácené v angličtině i češtině, smysl (co se smaže, kdy odejde přečtení)
+  zůstal.
 - **Ověřeno na emulátoru JEN ČTENÍM** (anglicky): seznam se skutečnými stavy účtu a detail
   „Naposledy viděn" s výjimkami, nic se nepřepnulo. **Zápis na skutečný účet ověřený NENÍ**
   (mění soukromí všude) — zápis, rychlé přepínání a selhání pokrývají jen testy s podstrčeným
@@ -836,6 +841,12 @@ Sekce Nastavení „Zařízení" (`features/devices`): kde je účet přihláše
 všech ostatních, weby přihlášené přes Telegram, automatické odhlášení nečinných a přihlášení
 jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
 
+- **Ikonu nese druh upřesněný podle systému a modelu** (`refinedDeviceKind`), ne druh od TDLib.
+  Ten se odvozuje napřed z platformy a tu dává server neoficiálním klientům podle aplikace: všechny
+  relace Plume jsou „Android", i desktop s „Windows 11 10.0" (ověřeno v detailu relace), takže měly
+  ikonu telefonu. Hodinky TDLib nezná vůbec (`DeviceKind.Watch`, model s „Watch" nebo „gwear").
+  Řádek Systém v detailu platformu neopakuje, když ji systém sám jmenuje (`systemLine`); dřív stálo
+  „Android Windows 11 10.0" a „Android Android 16". Ověřeno na emulátoru: hodinky, desktopy i telefony.
 - **Seznam se po každé akci ČTE ZNOVU**, nic se nepřepisuje lokálně. Co odhlášení udělalo
   s ostatními relacemi (a jestli server vůbec poslechl), ví jen server.
 - **„Byli jste to vy?" je karta nahoře v seznamu chatů** (`UnconfirmedLoginCard`), ne jen

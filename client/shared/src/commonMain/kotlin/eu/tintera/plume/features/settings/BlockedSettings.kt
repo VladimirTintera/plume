@@ -98,7 +98,6 @@ import eu.tintera.plume.resources.settings_blocked_deleted
 import eu.tintera.plume.resources.settings_blocked_none
 import eu.tintera.plume.resources.settings_blocked_search
 import eu.tintera.plume.resources.settings_blocked_summary
-import eu.tintera.plume.resources.settings_privacy
 import eu.tintera.plume.resources.settings_discretion
 import eu.tintera.plume.resources.settings_security
 import eu.tintera.plume.resources.settings_sensitive_content
@@ -111,6 +110,7 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.ui.SwitchListItem
 import eu.tintera.plume.core.ui.TitledGroup
+import eu.tintera.plume.core.ui.GroupedColumn
 
 /**
  * Sekce Soukromí: kdo co vidí a s kým se mluví, co po sobě aplikace nechává (diskrétnost)
@@ -129,7 +129,8 @@ internal fun PrivacySettings(
     onOpenLoginEmail: () -> Unit,
     onOpenPasskeys: () -> Unit,
 ) {
-    TitledGroup(Res.string.settings_privacy) {
+    // První blok bez nadpisu: „Soukromí" by jen zopakovalo název stránky nad ním.
+    GroupedColumn(Modifier.fillMaxWidth()) {
         AccountPrivacyRow(onOpenAccountPrivacy)
         BlockedRow(blocked, onOpenBlocked)
         ContactSyncRow()

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.horizontalFadingEdges
 import androidx.compose.foundation.lazy.rememberLazyListState
 import eu.tintera.plume.core.ui.REDUCED_STICKER_FRAME_RATE
 import eu.tintera.plume.core.ui.wheelScrollsHorizontally
@@ -139,7 +140,7 @@ internal fun StickerSuggestionsPanel(
         val rowState = rememberLazyListState()
         LazyRow(
             state = rowState,
-            modifier = Modifier.wheelScrollsHorizontally(rowState),
+            modifier = Modifier.horizontalFadingEdges(rowState).wheelScrollsHorizontally(rowState),
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {

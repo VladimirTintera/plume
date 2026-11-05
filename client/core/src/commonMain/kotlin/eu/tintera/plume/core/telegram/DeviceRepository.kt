@@ -89,13 +89,16 @@ enum class DeviceKind { Phone, Tablet, Watch, Desktop, Browser, Unknown }
  * `platformDeviceModel`), takže jim jde věřit víc. Hodinky TDLib nezná vůbec.
  */
 fun refinedDeviceKind(reported: DeviceKind, deviceModel: String, systemVersion: String): DeviceKind {
-    if (deviceModel.contains("watch", ignoreCase = true)) return DeviceKind.Watch
+    if (WATCH_MODELS.any { deviceModel.contains(it, ignoreCase = true) }) return DeviceKind.Watch
     if (reported != DeviceKind.Phone && reported != DeviceKind.Unknown) return reported
     val system = systemVersion.trim().lowercase()
     return if (DESKTOP_SYSTEMS.any { system.startsWith(it) }) DeviceKind.Desktop else reported
 }
 
 private val DESKTOP_SYSTEMS = listOf("windows", "mac os", "macos", "linux", "ubuntu")
+
+/** „Watch" u skutečných hodinek (Pixel Watch, Galaxy Watch), „gwear" u emulátoru Wear OS (`sdk_gwear_arm64`). */
+private val WATCH_MODELS = listOf("watch", "gwear")
 
 data class ConnectedWebsite(
     val id: Long,

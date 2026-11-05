@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.horizontalFadingEdges
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import eu.tintera.plume.core.ui.wheelScrollsHorizontally
@@ -62,6 +63,7 @@ internal fun EmojiSuggestionsPanel(
             // Nová sada mění šířku pilulky plynule; emoji, které zůstává, dojede na nové místo.
             modifier = Modifier
                 .animateContentSize(motion.fastEffectsSpec())
+                .horizontalFadingEdges(rowState)
                 .wheelScrollsHorizontally(rowState),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),

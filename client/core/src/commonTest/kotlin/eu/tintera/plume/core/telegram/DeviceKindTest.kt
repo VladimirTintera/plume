@@ -15,6 +15,7 @@ class DeviceKindTest {
     @Test
     fun hodinkyPodleModelu() {
         assertEquals(DeviceKind.Watch, refinedDeviceKind(DeviceKind.Phone, "Google Pixel Watch 4", "Android 16"))
+        assertEquals(DeviceKind.Watch, refinedDeviceKind(DeviceKind.Phone, "unknown sdk_gwear_arm64", "Android 16"))
     }
 
     @Test

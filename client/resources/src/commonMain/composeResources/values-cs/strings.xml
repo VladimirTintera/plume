@@ -2023,7 +2023,7 @@
     <string name="settings_skip_silence">Přeskakovat ticho</string>
     <string name="settings_skip_silence_summary">Zkrátí pauzy v hlasovkách a audiu, hlas se přitom nezrychlí.</string>
     <string name="settings_open_links_in_app">Otevírat odkazy v aplikaci</string>
-    <string name="settings_open_links_in_app_summary">Webové stránky se otevřou uvnitř Plume, ne v prohlížeči. Odkaz, který umí jiná aplikace, jde dál do ní.</string>
+    <string name="settings_open_links_in_app_summary">Webové stránky se otevřou v Plume. Odkaz, který umí jiná aplikace, jde do ní.</string>
     <string name="settings_quick_reaction">Rychlá reakce</string>
     <string name="settings_quick_reaction_summary">Dvojitým ťuknutím na zprávu na ni zareaguješ</string>
     <string name="settings_quick_reaction_choose">Reakce</string>
@@ -2465,7 +2465,7 @@
     <string name="conversation_profile_audio_removed">Skladba je z profilu pryč</string>
     <string name="conversation_profile_audio_failed">Hudbu v profilu se nepodařilo změnit.</string>
     <string name="settings_contact_sync">Synchronizovat kontakty</string>
-    <string name="settings_contact_sync_summary">Čísla z kontaktů v telefonu se nahrají do Telegramu, abys viděl, kdo z nich ho používá. Vypnutím se nahraná čísla smažou; kontakty, které už v Telegramu jsou, zůstanou.</string>
+    <string name="settings_contact_sync_summary">Nahraje kontakty z telefonu, abys viděl, kdo má Telegram. Vypnutí je smaže, kontakty v Telegramu zůstanou.</string>
     <string name="settings_contact_sync_denied">Bez přístupu ke kontaktům není co synchronizovat. Povol ho v nastavení systému.</string>
     <string name="settings_chat_triage">Čeká na odpověď</string>
     <string name="settings_chat_triage_summary">Model v telefonu označí nepřečtené soukromé chaty, ve kterých na tvou odpověď někdo čeká. Zprávy se nikam neposílají.</string>
@@ -2601,7 +2601,6 @@
     <string name="model_download_notification_done_text">AI v zařízení je připravená.</string>
     <string name="model_download_notification_failed">Model %1$s se nepodařilo stáhnout</string>
     <string name="model_download_notification_failed_text">Ve stahování jde pokračovat v Nastavení.</string>
-    <string name="settings_privacy">Soukromí</string>
     <string name="settings_account_privacy">Soukromí účtu</string>
     <string name="settings_account_privacy_summary">Kdo vidí číslo a fotku, kdo smí volat</string>
     <string name="privacy_last_seen">Naposledy viděn a online</string>
@@ -3914,7 +3913,7 @@
     <string name="settings_strip_tracking_params">Odstraňovat sledovací parametry</string>
     <string name="settings_strip_tracking_params_summary">Z odkazů odstraňuje sledovací značky (UTM, fbclid, YouTube si a další)</string>
     <string name="settings_discreet_reading">Diskrétní čtení</string>
-    <string name="settings_discreet_reading_summary">Otevřený chat nehlásí, že ho čteš, posloucháš hlasovky ani píšeš. Přečtení odejde, až odpovíš nebo ťukneš na Označit jako přečtené.</string>
+    <string name="settings_discreet_reading_summary">Ostatní neuvidí, že čteš, posloucháš ani píšeš. Přečtení odejde, až odpovíš nebo dáš Označit jako přečtené.</string>
     <string name="conversation_mark_read">Označit jako přečtené</string>
     <string name="settings_section_storage">Úložiště</string>
     <string name="settings_section_storage_summary">Zabrané místo, automatické stahování, proxy</string>
@@ -4036,7 +4035,7 @@
     <string name="message_context_carrier_dpd">DPD</string>
     <string name="message_context_no_calendar">Událost není kam přidat, v telefonu chybí kalendář</string>
     <string name="settings_message_context">Akce ze zpráv</string>
-    <string name="settings_message_context_summary">Ikonka u zprávy s termínem, číslem účtu nebo zásilky nabídne kalendář, QR platbu nebo sledování. Rozpoznává se v telefonu; vypnutá ikonka je nechá v nabídce nad zprávou.</string>
+    <string name="settings_message_context_summary">Zkratka u termínů, čísel účtů a zásilek. Rozpoznává se v telefonu; vypnutá zůstane v nabídce nad zprávou.</string>
     <string name="menu_context_payment">QR platba…</string>
     <string name="menu_context_actions">Akce ze zprávy…</string>
     <string name="message_context_address">Adresa</string>

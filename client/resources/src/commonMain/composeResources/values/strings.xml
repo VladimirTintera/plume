@@ -1959,7 +1959,7 @@
     <string name="settings_skip_silence">Skip silence</string>
     <string name="settings_skip_silence_summary">Shortens pauses in voice messages and audio without speeding up the voice.</string>
     <string name="settings_open_links_in_app">Open links in the app</string>
-    <string name="settings_open_links_in_app_summary">Web pages open inside Plume, not in the browser. Links an app can handle still go to that app.</string>
+    <string name="settings_open_links_in_app_summary">Web pages open inside Plume. Links another app can handle still go to it.</string>
     <string name="settings_quick_reaction">Quick reaction</string>
     <string name="settings_quick_reaction_summary">Double-tap a message to react</string>
     <string name="settings_quick_reaction_choose">Reaction</string>
@@ -2398,7 +2398,7 @@
     <string name="conversation_profile_audio_removed">Song removed from your profile</string>
     <string name="conversation_profile_audio_failed">Couldn't change the music in your profile.</string>
     <string name="settings_contact_sync">Sync contacts</string>
-    <string name="settings_contact_sync_summary">Phone numbers from your phone's contacts are uploaded to Telegram so you can see who uses it. Turning this off deletes the uploaded numbers; contacts already in Telegram stay.</string>
+    <string name="settings_contact_sync_summary">Uploads your phone contacts so you see who uses Telegram. Off deletes them; Telegram contacts stay.</string>
     <string name="settings_contact_sync_denied">Without access to contacts there is nothing to sync. Allow it in the system settings.</string>
     <string name="settings_chat_triage">Awaiting reply</string>
     <string name="settings_chat_triage_summary">The model on your phone marks unread private chats where someone is waiting for your answer. Messages are not sent anywhere.</string>
@@ -2529,7 +2529,6 @@
     <string name="model_download_notification_done_text">On-device AI is ready to use.</string>
     <string name="model_download_notification_failed">%1$s could not be downloaded</string>
     <string name="model_download_notification_failed_text">You can resume the download in Settings.</string>
-    <string name="settings_privacy">Privacy</string>
     <string name="settings_account_privacy">Account privacy</string>
     <string name="settings_account_privacy_summary">Who sees your number and photo, who can call</string>
     <string name="privacy_last_seen">Last seen &amp; online</string>
@@ -3783,7 +3782,7 @@
     <string name="settings_strip_tracking_params">Strip tracking parameters</string>
     <string name="settings_strip_tracking_params_summary">Remove tracking tags (UTM, fbclid, YouTube si, etc.) from links</string>
     <string name="settings_discreet_reading">Discreet reading</string>
-    <string name="settings_discreet_reading_summary">Open chats do not report that you read them, listen to voice messages or type. Messages are marked as read when you reply or tap Mark as read.</string>
+    <string name="settings_discreet_reading_summary">Others won't see that you read, listen or type. Chats are marked read when you reply or tap Mark as read.</string>
     <string name="conversation_mark_read">Mark as read</string>
     <string name="settings_section_storage">Storage</string>
     <string name="settings_section_storage_summary">Space used, auto-download, proxy</string>
@@ -3902,7 +3901,7 @@
     <string name="message_context_carrier_dpd">DPD</string>
     <string name="message_context_no_calendar">There is no calendar app to add the event to</string>
     <string name="settings_message_context">Actions from messages</string>
-    <string name="settings_message_context_summary">An icon next to a message with a date, bank account or parcel number offers your calendar, a QR payment or tracking. Recognized on your phone; when off, the actions stay in the message menu.</string>
+    <string name="settings_message_context_summary">A shortcut next to dates, bank accounts and parcel numbers. Recognized on your phone; when off, it stays in the message menu.</string>
     <string name="menu_context_payment">QR payment…</string>
     <string name="menu_context_actions">Actions from the message…</string>
     <string name="message_context_address">Address</string>

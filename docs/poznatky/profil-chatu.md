@@ -9,6 +9,10 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a Hledat, údaje
 (uživatelské jméno, telefon, bio nebo popis) a u skupiny členové s rolí.
 
+- **Údaj má hodnotu nahoře, nastavení název nahoře** (`InfoRow` / `SettingRow`). U jména, telefonu
+  nebo bia hledá člověk hodnotu a popisek pod ní říká, co to je, jako v kontaktech. U automatického
+  mazání, upozornění, ukládání do galerie, barvy chatu, záložek a šifrovacího klíče je to naopak,
+  jako v Nastavení; dokud šla přes `InfoRow`, četl se profil „Off / Auto-delete messages".
 - **`ProfileRepository` v `core/telegram`** nad `getUserFullInfo` / `getBasicGroupFullInfo` /
   `getSupergroupFullInfo` a `searchChatMembers`. Data se čtou při otevření a **znovu po každé
   změně** (`profileUpdates`): název, fotka, emoji status a automatické mazání chatu, `User`
