@@ -182,6 +182,9 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
     ořízne — jinak by lišta i s FAB přetekla za okraj a FAB by zmizel z obrazovky. Na tu šířku
     se položky i ořezávají (`widthIn`) a posouvají se VLASTNÍM `horizontalScroll`, ne tím
     v M3 — viz kolečko níž.
+- **Okraj, kde lišta pokračuje, vybledne** (`horizontalFadingEdges`, `core/ui/FadingEdges.kt`).
+  Naležato se lišta nevejde a „+" na konci byl useknutý přesně uprostřed, četl se jako „−".
+  Vyblednutí říká, že řada pokračuje; zbytek „+" je ale vidět dál jako slabá čárka.
 - **Svislé kolečko myši nad lištou ji posouvá do strany** (`wheelScrollsHorizontally`, sdílený
   v `core/ui/WheelScroll.kt`, viz „Kolečko u vodorovných řad" v `desktop.md`). Na
   desktopu je seznam chatů úzký (panel 360 dp, na složky vedle FAB zbývá ~250 dp), takže
@@ -583,6 +586,9 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   reakce (`docs/poznatky/emoji-samolepky-reakce.md`).
 - **Název jde běžným řezem, polotučně jen nepřečtený.** Když je polotučný každý chat, nevyčnívá
   žádný. Proto `bodyLarge` + `FontWeight.SemiBold` jen podle `hasUnread`, ne `titleMedium` pro vše.
+- **Odznaky stojí na řádku náhledu, pod časem.** Dokud měly vlastní sloupec vedle obou řádků,
+  posunuly čas nepřečteného chatu doleva a časy v seznamu nestály pod sebou (18:25 vedle 18:00).
+  Odznak (16 dp) sedí na středu prvního řádku náhledu (20 sp) i při víc řádcích.
 - **Odznak nepřečtených není chybově červený.** M3 `Badge` je ve výchozím stavu `error`; nepřečtená
   zpráva ale není chyba a v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce.
 - **Ztlumený chat má počet i čas neutrálně** (`quietCount` v `UnreadBadges`, `outlineVariant`

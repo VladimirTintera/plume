@@ -1676,73 +1676,66 @@ private fun ProfileInfo(
         // Šifrovací klíč tajného chatu je údaj o chatu — za údaji o člověku, před nastaveními.
         profile.secretChatKey?.let { key ->
             add { shape ->
-                InfoRow(
-                    label = stringResource(Res.string.secret_chat_key_title),
+                SettingRow(
+                    title = stringResource(Res.string.secret_chat_key_title),
+                    value = stringResource(Res.string.secret_chat_key_compare),
                     shape = shape,
                     onClick = onOpenSecretKey,
                     trailing = { SecretChatIdenticon(key, size = 40.dp) },
-                ) {
-                    Text(stringResource(Res.string.secret_chat_key_compare), style = MaterialTheme.typography.bodyLarge)
-                }
+                )
             }
         }
         // Automatické mazání je nastavení chatu jako upozornění, takže stojí u nich — před nimi,
         // protože se týká všech v chatu, upozornění jen mě.
         if (onOpenAutoDelete != null || profile.autoDeleteTime > 0) {
             add { shape ->
-                InfoRow(
-                    label = stringResource(Res.string.auto_delete_title),
+                SettingRow(
+                    title = stringResource(Res.string.auto_delete_title),
+                    value = profile.autoDeleteTime.takeIf { it > 0 }?.let { durationText(it) }
+                        ?: stringResource(Res.string.auto_delete_off),
                     shape = shape,
                     onClick = onOpenAutoDelete,
-                ) {
-                    Text(
-                        text = profile.autoDeleteTime.takeIf { it > 0 }?.let { durationText(it) }
-                            ?: stringResource(Res.string.auto_delete_off),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
+                )
             }
         }
         // Záložky jsou moje, ne údaj o chatu — za údaji, před nastaveními. Jen když nějaké jsou:
         // přidávají se v nabídce nad zprávou a prázdný řádek by nic neřekl.
         if (bookmarkCount > 0) {
             add { shape ->
-                InfoRow(label = stringResource(Res.string.profile_bookmarks), shape = shape, onClick = onOpenBookmarks) {
-                    Text(
-                        pluralStringResource(Res.plurals.profile_bookmarks_count, bookmarkCount, bookmarkCount),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
+                SettingRow(
+                    title = stringResource(Res.string.profile_bookmarks),
+                    value = pluralStringResource(Res.plurals.profile_bookmarks_count, bookmarkCount, bookmarkCount),
+                    shape = shape,
+                    onClick = onOpenBookmarks,
+                )
             }
         }
         // Upozornění poslední: údaje o chatu napřed, jeho nastavení až za nimi. Řádek vede do
         // sheetu s dobou ztlumení a volbami; dlaždice Ztlumit nahoře zůstává rychlým přepínačem.
         notifications?.let { prefs ->
             add { shape ->
-                InfoRow(
-                    label = stringResource(Res.string.profile_notif_title),
+                SettingRow(
+                    title = stringResource(Res.string.profile_notif_title),
+                    value = prefs.summary(),
                     shape = shape,
                     onClick = onOpenNotifications,
-                ) {
-                    Text(prefs.summary(), style = MaterialTheme.typography.bodyLarge)
-                }
+                )
             }
         }
         // Ukládání do galerie je nastavení účtu pro tenhle chat — vedle upozornění. Ťuknutí
         // výjimku založí, upraví nebo odebere (v Úložišti jde jen upravit a odebrat).
         autosave?.let { current ->
             add { shape ->
-                InfoRow(label = chatAutosaveLabel(), shape = shape, onClick = onOpenAutosave) {
-                    Text(chatAutosaveText(current), style = MaterialTheme.typography.bodyLarge)
-                }
+                SettingRow(title = chatAutosaveLabel(), value = chatAutosaveText(current), shape = shape, onClick = onOpenAutosave)
             }
         }
         // Barva je čistě moje a jen vzhled — až za upozorněními. Puntík nese barvu, jakou chat
         // má: profil sám leží v barvě chatu, takže je to jeho `primary`.
         onOpenChatColor?.let { onClick ->
             add { shape ->
-                InfoRow(
-                    label = stringResource(Res.string.chat_color_title),
+                SettingRow(
+                    title = stringResource(Res.string.chat_color_title),
+                    value = stringResource(chatColor?.label ?: Res.string.chat_color_default),
                     shape = shape,
                     onClick = onClick,
                     trailing = chatColor?.let {
@@ -1750,12 +1743,7 @@ private fun ProfileInfo(
                             Box(Modifier.size(CHAT_COLOR_DOT).background(MaterialTheme.colorScheme.primary, CircleShape))
                         }
                     },
-                ) {
-                    Text(
-                        stringResource(chatColor?.label ?: Res.string.chat_color_default),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
+                )
             }
         }
     }
@@ -1784,6 +1772,28 @@ private fun InfoRow(
     ListItem(
         headlineContent = value,
         supportingContent = { Text(label) },
+        trailingContent = trailing,
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
+        modifier = Modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+    )
+}
+
+/**
+ * Nastavení chatu: název a pod ním hodnota, jako řádky v Nastavení. Dokud šla nastavení přes
+ * [InfoRow], četl se profil „Vypnuto / Automatické mazání" a „Zapnuto / Upozornění": u údaje
+ * o kontaktu je hodnota to, co člověk hledá, u nastavení je to název.
+ */
+@Composable
+private fun SettingRow(
+    title: String,
+    value: String,
+    shape: Shape,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(value) },
         trailingContent = trailing,
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),

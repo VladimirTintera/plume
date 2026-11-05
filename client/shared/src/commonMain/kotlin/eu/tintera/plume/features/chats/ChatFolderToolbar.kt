@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.horizontalFadingEdges
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.chat_folder_delete
 import eu.tintera.plume.resources.chat_folder_delete_body
@@ -183,6 +184,7 @@ private fun FolderItems(
         ),
         modifier = Modifier
             .widthIn(max = maxWidth)
+            .horizontalFadingEdges(scroll)
             .horizontalScroll(scroll)
             // Až za posunem: kolečko se tak zpracuje dřív než v něm a posun ho už nedostane.
             .wheelScrollsHorizontally(scroll),

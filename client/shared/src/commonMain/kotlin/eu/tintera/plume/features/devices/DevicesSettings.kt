@@ -107,6 +107,7 @@ import eu.tintera.plume.resources.devices_websites_disconnect_all_title
 import eu.tintera.plume.resources.language_24dp
 import eu.tintera.plume.resources.qr_code_scanner_24dp
 import eu.tintera.plume.resources.smartphone_24dp
+import eu.tintera.plume.resources.watch_24dp
 import eu.tintera.plume.resources.tablet_android_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
@@ -415,6 +416,7 @@ private val DeviceKind.icon: DrawableResource
     get() = when (this) {
         DeviceKind.Phone -> Res.drawable.smartphone_24dp
         DeviceKind.Tablet -> Res.drawable.tablet_android_24dp
+        DeviceKind.Watch -> Res.drawable.watch_24dp
         DeviceKind.Desktop -> Res.drawable.computer_24dp
         DeviceKind.Browser -> Res.drawable.language_24dp
         DeviceKind.Unknown -> Res.drawable.devices_24dp
@@ -473,10 +475,7 @@ private fun DeviceDetailSheet(
             // údaj se nekreslí a `GroupedColumn` krajní zaoblení přesune na sousední.
             GroupedColumn(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 DetailRow(Res.string.devices_detail_app, device.appLine)
-                DetailRow(
-                    Res.string.devices_detail_system,
-                    listOf(device.platform, device.systemVersion).filter { it.isNotBlank() }.joinToString(" "),
-                )
+                DetailRow(Res.string.devices_detail_system, systemLine(device.platform, device.systemVersion))
                 DetailRow(Res.string.devices_detail_login, device.logInDate.asDateTime())
                 if (!device.isCurrent) {
                     DetailRow(Res.string.devices_detail_last_active, device.lastActiveDate.asDateTime())
@@ -545,3 +544,17 @@ private fun ConfirmDialog(
         destructive = true,
     )
 }
+
+/**
+ * Řádek „Systém" v detailu zařízení. Platforma jen tam, kde ji systém sám neříká: oficiální Android
+ * posílá „SDK 34", takže „Android SDK 34"; Plume posílá „Android 16" a server k němu platformu
+ * „Android", z čehož bylo „Android Android 16" a u desktopu „Android Windows 11 10.0" (platformu
+ * dává server podle aplikace, viz `refinedDeviceKind`).
+ */
+internal fun systemLine(platform: String, systemVersion: String): String {
+    val system = systemVersion.trim()
+    val named = OS_NAMES.any { system.startsWith(it, ignoreCase = true) }
+    return if (named || platform.isBlank()) system else listOf(platform, system).filter { it.isNotBlank() }.joinToString(" ")
+}
+
+private val OS_NAMES = listOf("android", "ios", "ipados", "windows", "mac os", "macos", "linux", "ubuntu")

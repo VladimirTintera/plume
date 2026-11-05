@@ -66,6 +66,7 @@ import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.password_24dp
 import eu.tintera.plume.resources.lock_open_24dp
 import eu.tintera.plume.resources.mail_24dp
 import eu.tintera.plume.resources.schedule_24dp
@@ -147,7 +148,7 @@ internal fun TwoStepRow(viewModel: TwoStepViewModel, onOpen: () -> Unit) {
     val status = state.status
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
+        leadingContent = { Icon(painterResource(Res.drawable.password_24dp), contentDescription = null) },
         headlineContent = { Text(stringResource(Res.string.settings_two_step)) },
         supportingContent = {
             // Dokud stav nedorazí, řádek nic netvrdí — „vypnuto" by mohla být lež.

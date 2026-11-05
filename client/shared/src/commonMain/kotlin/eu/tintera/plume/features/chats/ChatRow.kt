@@ -746,34 +746,42 @@ internal fun ChatRow(
                         }
                     }
 
-                subtitle?.let {
-                    Text(
-                        text = it,
-                        inlineContent = customEmojiInlineContent(customEmoji) + previewThumbnailInlineContent(thumbnail),
-                        style = MaterialTheme.typography.bodyMedium,
-                        // Nepřečtený náhled se odliší barvou, ne řezem: s polotučným názvem nad
-                        // ním by byly na jednom řádku dvě úrovně tučnosti a blok by ztěžkl.
-                        color = when {
-                            selected -> MaterialTheme.colorScheme.onSecondaryContainer
-                            sleeping -> secondaryColor
-                            // Činnost se odliší barvou, aby bylo poznat, že to není text zprávy.
-                            chat.activity != null -> accentOn(containerColor, MaterialTheme.colorScheme.primary, contentColor)
-                            chat.hasUnread -> MaterialTheme.colorScheme.onSurface
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        maxLines = previewLines,
-                        overflow = TextOverflow.Ellipsis,
-                        // Jeden řádek se vejde do výšky avataru, řádek chatu tedy nemění výšku vůbec.
-                        modifier = if (previewLines > 1) {
-                            Modifier.smoothPreviewHeight(chat.id, holdHeight = chat.activity != null)
-                        } else {
-                            Modifier
-                        },
-                    )
+                // Odznaky na řádku náhledu, pod časem: dokud stály ve vlastním sloupci vedle obou
+                // řádků, posunuly čas nepřečteného chatu doleva a časy nestály pod sebou.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(Modifier.weight(1f)) {
+                        subtitle?.let {
+                            Text(
+                                text = it,
+                                inlineContent = customEmojiInlineContent(customEmoji) + previewThumbnailInlineContent(thumbnail),
+                                style = MaterialTheme.typography.bodyMedium,
+                                // Nepřečtený náhled se odliší barvou, ne řezem: s polotučným názvem nad
+                                // ním by byly na jednom řádku dvě úrovně tučnosti a blok by ztěžkl.
+                                color = when {
+                                    selected -> MaterialTheme.colorScheme.onSecondaryContainer
+                                    sleeping -> secondaryColor
+                                    // Činnost se odliší barvou, aby bylo poznat, že to není text zprávy.
+                                    chat.activity != null -> accentOn(containerColor, MaterialTheme.colorScheme.primary, contentColor)
+                                    chat.hasUnread -> MaterialTheme.colorScheme.onSurface
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                maxLines = previewLines,
+                                overflow = TextOverflow.Ellipsis,
+                                // Jeden řádek se vejde do výšky avataru, řádek chatu tedy nemění výšku vůbec.
+                                modifier = if (previewLines > 1) {
+                                    Modifier.smoothPreviewHeight(chat.id, holdHeight = chat.activity != null)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                        }
+                    }
+                    // Odznak (16 dp) na střed prvního řádku náhledu (20 sp), i u víc řádků.
+                    Box(Modifier.padding(top = 2.dp)) {
+                        UnreadBadges(chat, quiet = sleeping, quietCount = chat.isMuted, accent = accent, awaitingReply = marks.awaitingReply)
+                    }
                 }
             }
-
-            UnreadBadges(chat, quiet = sleeping, quietCount = chat.isMuted, accent = accent, awaitingReply = marks.awaitingReply)
         }
     }
 }
