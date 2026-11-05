@@ -438,6 +438,10 @@ ho mezi nedávná.
   zmínkou nebo příkazem se nenabízí: to napovídání má nad polem přednost.
 - **Jazyk zařízení a angličtina**, jako hledání ve výběru emoji; výsledky se zúží na katalog
   a dostanou zvolený odstín pleti.
+- **Nedávná emoji jdou dopředu** (`recentFirst`, od nejnovějšího), a to před ořezem na dvanáct.
+  TDLib běžnost neřeší: u „heart" je první karetní ♥️ a ❤️ až třetí. Bez nedávných zůstává jeho
+  pořadí. Porovnává se základ, nedávné bývá s odstínem pleti. Ověřeno na emulátoru: po výběru ❤️
+  stojí u „heart" první.
 - **Panel nad polem drží poslední sadu ve STAVU, ne v obyčejném poli.** Napovídání zmínek mělo
   `remember { arrayOf(…) }` a zápis do pole kompozici nevyvolá: obsah uvnitř
   `AnimatedVisibility` zůstal u první sady — po „hear" → „heart" dál 👂 🙉, přestože

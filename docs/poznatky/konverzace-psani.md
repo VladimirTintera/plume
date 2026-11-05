@@ -1104,6 +1104,9 @@ nezabírají.
 - **`floatAbove` nahlásí nulovou výšku a obsah posadí nad své místo.** Obsah mimo hranice rodiče
   Compose kreslí i nechá ťukat, dokud nic neořezává (ověřeno ťuknutím na emoji i příkaz).
   Vrstva stojí v `bottomBar` těsně nad polem, u textu, ke kterému patří.
+- **Boky lícují s polem:** okraj 12 dp a boční `safeDrawing` jako `MessageInput`. S okrajem 8 dp
+  stála pilulka vedle pole přesazená a naležato zajela pod výřez kamery, kdežto pole mu uhýbalo.
+  Ověřeno na emulátoru na výšku i naležato (vedle seznamu).
 - **Vyrůstá zvětšením od pole, ne rozbalením do výšky** — to by u plovoucího prvku vypadalo,
   jako by se pod ním něco odsouvalo.
 - **Sklo je v INVERZNÍ roli, jako snackbar** (`inverseSurface`, popředí `inverseOnSurface`,

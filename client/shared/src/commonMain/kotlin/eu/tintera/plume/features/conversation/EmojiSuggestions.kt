@@ -38,6 +38,16 @@ fun emojiWordAt(text: String, cursor: Int): EmojiWord? {
 fun emojiReplacement(text: String, word: EmojiWord, emoji: String): Pair<String, Int> =
     text.replaceRange(word.start, word.end, emoji) to word.start + emoji.length
 
+/**
+ * Nedávná emoji dopředu, od nejnovějšího, ostatní v pořadí od TDLib. To řadí bez ohledu na běžnost:
+ * u „heart" je první karetní ♥️ a ❤️ až třetí. Porovnává se základ: nedávné bývá s odstínem pleti.
+ */
+internal fun List<String>.recentFirst(recent: List<String>): List<String> {
+    val rank = recent.mapNotNull(::catalogEmoji).map(::baseEmoji).distinct()
+        .withIndex().associate { (index, emoji) -> emoji to index }
+    return sortedBy { rank[baseEmoji(it)] ?: Int.MAX_VALUE }
+}
+
 /** Emoji ke slovu; [word] je slovo, ke kterému patří — pomalá odpověď na starší se zahodí. */
 data class EmojiSuggestions(val word: String, val emojis: List<String>)
 
@@ -71,6 +81,7 @@ class EmojiSuggestionsViewModel(
             val found = emojiRepository.keywordEmojis(word.lowercase(), request.languageCodes)
                 .mapNotNull(::catalogEmoji)
                 .distinct()
+                .recentFirst(settings.recentEmojis.value)
                 .take(MAX_EMOJI_SUGGESTIONS)
             EmojiSuggestions(word, found).takeIf { found.isNotEmpty() }
         },

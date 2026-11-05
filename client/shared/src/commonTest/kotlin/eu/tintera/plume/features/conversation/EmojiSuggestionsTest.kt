@@ -56,4 +56,21 @@ class EmojiSuggestionsTest {
         val word = emojiWordAt(text, 9)!!
         assertEquals("mám ❤️ a víc" to 6, emojiReplacement(text, word, "❤️"))
     }
+
+    @Test
+    fun nedavnaEmojiJdouDopreduOdNejnovejsiho() {
+        val found = listOf("♥️", "❣️", "❤️", "🔥")
+        assertEquals(listOf("🔥", "❤️", "♥️", "❣️"), found.recentFirst(listOf("🔥", "😀", "❤️")))
+    }
+
+    @Test
+    fun bezNedavnychZustavaPoradiOdTdlib() {
+        val found = listOf("♥️", "❣️", "❤️")
+        assertEquals(found, found.recentFirst(emptyList()))
+    }
+
+    @Test
+    fun nedavneSOdstinemPletiPosuneZakladniEmoji() {
+        assertEquals(listOf("👍", "👋"), listOf("👋", "👍").recentFirst(listOf("👍🏽")))
+    }
 }
