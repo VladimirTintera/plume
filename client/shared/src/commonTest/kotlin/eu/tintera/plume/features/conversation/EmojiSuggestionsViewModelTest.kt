@@ -47,6 +47,7 @@ class EmojiSuggestionsViewModelTest {
 
     private class FakeSettings : UnimplementedAppSettings() {
         override val emojiSkinTones: StateFlow<Map<String, String>> = MutableStateFlow(emptyMap())
+        override val recentEmojis = MutableStateFlow(emptyList<String>())
     }
 
     private val emojis = FakeEmojis()

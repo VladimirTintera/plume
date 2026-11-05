@@ -2,6 +2,11 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -425,7 +430,12 @@ internal fun ConversationBottomBar(
         (stickerEmoji != null && shownStickers.isNotEmpty()) ||
         inlineDraft != null
     SideEffect { onSuggestionsFloating(floatingShown) }
-    Column(Modifier.floatAbove()) {
+    // Boky jako pole (`MessageInput`): naležato by pilulka jinak zajela pod výřez kamery.
+    Column(
+        Modifier
+            .floatAbove()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
+    ) {
         BotCommandsPanel(
             commands = typedCommands ?: state.botCommands.takeIf { state.commandsOpen }.orEmpty(),
             visible = commandsShown,

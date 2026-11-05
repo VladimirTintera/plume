@@ -61,7 +61,8 @@ internal fun FloatingSuggestion(
             color = Color.Transparent,
             contentColor = FloatingSuggestionColors.content,
             shadowElevation = 3.dp,
-            modifier = modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            // Na šířku jako pole pod ní (`MessageInput`), ať pilulka nestojí vedle něj přesazená.
+            modifier = modifier.padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
             Box(Modifier.clip(shape).then(glass)) { content() }
         }
