@@ -58,7 +58,11 @@ import eu.tintera.plume.resources.settings_chat_triage
 import eu.tintera.plume.resources.settings_default_auto_delete
 import eu.tintera.plume.resources.settings_discreet_reading
 import eu.tintera.plume.resources.settings_login_email
+import eu.tintera.plume.resources.settings_chat_preview_lines
 import eu.tintera.plume.resources.settings_message_text_size
+import eu.tintera.plume.resources.settings_search_kw_chat_preview_lines
+import eu.tintera.plume.resources.settings_search_kw_sticker_size
+import eu.tintera.plume.resources.settings_sticker_size
 import eu.tintera.plume.resources.settings_notif_contact_joined
 import eu.tintera.plume.resources.settings_notif_mentions
 import eu.tintera.plume.resources.settings_notif_pinned
@@ -190,6 +194,8 @@ internal val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = buildList {
     add(SettingsSearchEntry(Res.string.settings_theme, section(appearance), Res.string.settings_search_kw_theme))
     add(SettingsSearchEntry(Res.string.settings_theme_color, section(appearance)))
     add(SettingsSearchEntry(Res.string.settings_message_text_size, section(appearance), Res.string.settings_search_kw_text_size))
+    add(SettingsSearchEntry(Res.string.settings_sticker_size, section(appearance), Res.string.settings_search_kw_sticker_size))
+    add(SettingsSearchEntry(Res.string.settings_chat_preview_lines, section(appearance), Res.string.settings_search_kw_chat_preview_lines))
     add(SettingsSearchEntry(Res.string.settings_separate_unread, section(appearance)))
 
     val storage = SettingsSection.Storage

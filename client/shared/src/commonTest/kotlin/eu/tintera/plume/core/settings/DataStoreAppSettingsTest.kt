@@ -378,6 +378,40 @@ class DataStoreAppSettingsTest {
         )
     }
 
+    @Test
+    fun radkyNahleduSeUloziAOriznouDoRozsahu() = settingsTest { settings, _ ->
+        assertEquals(DEFAULT_CHAT_PREVIEW_LINES, settings.chatPreviewLines.value)
+        settings.setChatPreviewLines(2)
+        assertEquals(2, settings.chatPreviewLines.awaitValue("uložené 2") { it == 2 })
+        settings.setChatPreviewLines(99)
+        assertEquals(
+            CHAT_PREVIEW_LINES.last,
+            settings.chatPreviewLines.awaitValue("oříznutá horní mez") { it == CHAT_PREVIEW_LINES.last },
+        )
+        settings.setChatPreviewLines(DEFAULT_CHAT_PREVIEW_LINES)
+        assertEquals(
+            DEFAULT_CHAT_PREVIEW_LINES,
+            settings.chatPreviewLines.awaitValue("návrat na výchozí") { it == DEFAULT_CHAT_PREVIEW_LINES },
+        )
+    }
+
+    @Test
+    fun velikostSamolepekSeUloziAOrizneDoRozsahu() = settingsTest { settings, _ ->
+        assertEquals(DEFAULT_STICKER_SIZE, settings.stickerSize.value)
+        settings.setStickerSize(120)
+        assertEquals(120, settings.stickerSize.awaitValue("uložených 120") { it == 120 })
+        settings.setStickerSize(1000)
+        assertEquals(
+            STICKER_SIZES.last,
+            settings.stickerSize.awaitValue("oříznutá horní mez") { it == STICKER_SIZES.last },
+        )
+        settings.setStickerSize(DEFAULT_STICKER_SIZE)
+        assertEquals(
+            DEFAULT_STICKER_SIZE,
+            settings.stickerSize.awaitValue("návrat na výchozí") { it == DEFAULT_STICKER_SIZE },
+        )
+    }
+
     /** Doba, kterou tahle verze nezná, nesmí znamenat mazání — spadne na „navždy". */
     @Test
     fun neznameUchovaniSpadneNaNavzdy() = runBlocking {

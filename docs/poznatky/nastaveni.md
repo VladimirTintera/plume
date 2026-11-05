@@ -1218,6 +1218,29 @@ zkratky" v `navigace.md`).
 - **Náhled bublin leží na `surface`**, ne přímo na kartě nastavení: příchozí `surfaceContainerHigh`
   by s kartou (`surfaceContainerHighest`) splývala.
 
+### Velikost samolepek a řádky náhledu (`LocalStickerSize`, `LocalChatPreviewLines`)
+
+Další dvě volby Vzhledu mají týž vzor jako velikost písma: statický local z `AppRoot`, výchozí
+hodnota se neukládá, hodnota mimo rozsah se při čtení přitáhne k mezi.
+
+- **Volby Vzhledu mění hustotu a čitelnost, ne styl.** Tvar bubliny, vlastní písma ani volné barvy
+  sem nepatří: tvar nese význam, písmo se volí rolí a kontrast hlídá `accentOn`. Každá volba navíc
+  násobí stavy k ověření, proto pevné stupně, ne volné hodnoty.
+- **Náhled velikosti samolepek má pevnou výšku největší samolepky.** Rostoucí náhled by posuvník
+  odsouval až o sto dp přímo pod prstem. U písma ten skok skoro není vidět, tady by byl.
+- **Samolepka v náhledu je emoji (`settings_sticker_size_preview`), ne skutečná samolepka** — ta
+  by se musela stahovat. Velikost písma je 0,75 hrany, obrázek emoji je širší než `fontSize`.
+- **`SizeSlider` je společný posuvník** písma i samolepek (název, hodnota, tik na dílek). Zápis
+  po puštění si řeší volající; přepínač řádků se ukládá hned, zápis na dílek tahu tam nehrozí.
+- **Ověření bez přihlášení:** dočasný test v `jvmTest` s `ImageComposeScene` vykreslí volby i
+  `ChatRow` do PNG (první snímky jsou bez textů, prostředky se čtou asynchronně; `ChatRow` bez
+  `LocalSharedTransitionScope` a Koinu běží).
+- **Ověřeno na emulátoru** (Pixel 10 Pro XL, anglicky): samolepka 600 px při 200 a 300 px při 100 dp
+  (hustota 480), seznam chatů se 2 a 3 řádky a jejich změna výšky, přechod do chatu, restart aplikace, hledání
+  v Nastavení, tmavý motiv a Vzhled i ve světlém. Výchozí hodnoty z úložiště zmizí. Z češtiny jen
+  vykreslení mimo obrazovku; iOS a desktop za běhu ne. Tah z levé meze ve vzdálenosti 90 px od
+  okraje posuvníkem nepohnul, 170 px ano; příčina ani chování pod prstem ověřené nejsou.
+
 #### Velikost písma přímo v konverzaci (`MessageTextZoom`)
 
 Táž hodnota jde měnit i v konverzaci: **štípnutím nad seznamem zpráv** a **Ctrl (na Macu ⌘)

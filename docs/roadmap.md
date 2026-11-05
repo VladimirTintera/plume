@@ -1803,7 +1803,7 @@ Odhlásit se          (vlastní skupina, chybová barva)
 - **Chaty** — *Seznam:* Složky chatů, Nepřečtené ve vlastním bloku (z Vzhledu), Tah doprava
   a doleva, Widget na plochu (z Vzhledu). *Zprávy:* Rychlá reakce a emoji, Akce ze zpráv, Sady
   samolepek, Sady emoji. *Odkazy:* Otevírat v aplikaci, Odkazy Telegramu v Plume.
-- **Vzhled** — Motiv, Barva, Velikost písma.
+- **Vzhled** — Motiv, Barva, Velikost písma a samolepek, Řádky náhledu zprávy.
 - **Úložiště** — dnešní obsah a navíc skupina *Připojení* s Proxy (jako oficiální Telegram).
   Správa stažených modelů AI odtud odchází do AI v zařízení; balíčky pro překlad zůstávají.
 - **Zařízení** — beze změny.

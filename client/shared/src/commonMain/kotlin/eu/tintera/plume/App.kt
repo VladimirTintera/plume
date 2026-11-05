@@ -40,7 +40,9 @@ import eu.tintera.plume.features.lock.LockWindow
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
 import eu.tintera.plume.core.ui.LocalAutoDownload
+import eu.tintera.plume.core.ui.LocalChatPreviewLines
 import eu.tintera.plume.core.ui.LocalMessageTextSize
+import eu.tintera.plume.core.ui.LocalStickerSize
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -101,6 +103,8 @@ fun SettingsTheme(content: @Composable () -> Unit) {
 fun AppRoot(content: @Composable () -> Unit) {
     val settings = koinInject<AppSettings>()
     val messageTextSize by settings.messageTextSize.collectAsStateWithLifecycle()
+    val chatPreviewLines by settings.chatPreviewLines.collectAsStateWithLifecycle()
+    val stickerSize by settings.stickerSize.collectAsStateWithLifecycle()
 
     val appLock = koinInject<AppLock>()
     val lockSettings by appLock.settings.collectAsStateWithLifecycle()
@@ -149,6 +153,8 @@ fun AppRoot(content: @Composable () -> Unit) {
                             CompositionLocalProvider(
                                 LocalAutoDownload provides autoDownload,
                                 LocalMessageTextSize provides messageTextSize,
+                                LocalChatPreviewLines provides chatPreviewLines,
+                                LocalStickerSize provides stickerSize,
                             ) {
                                 content()
                             }

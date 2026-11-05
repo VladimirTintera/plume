@@ -16,7 +16,7 @@ Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale če
 Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail: nahoře karta účtu, sekce Soukromí, Notifikace, Chaty, Vzhled, Úložiště, Zařízení a AI v zařízení, řádek Jazyk, Pomoc s Co je nového a odhlášení; vědomě
 nastavitelné je téma aplikace (motiv a barvy z tapety), vyčlenění nepřečtených chatů do vlastního
 bloku, upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami, velikost písma
-zpráv, rychlá reakce dvojitým ťuknutím, odkazy v aplikaci, jazyk aplikace a tiché hodiny notifikací.
+zpráv a samolepek, řádky náhledu v seznamu chatů, rychlá reakce dvojitým ťuknutím, odkazy v aplikaci, jazyk aplikace a tiché hodiny notifikací.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 

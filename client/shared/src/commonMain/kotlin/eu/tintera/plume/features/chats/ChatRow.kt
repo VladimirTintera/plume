@@ -3,6 +3,7 @@ package eu.tintera.plume.features.chats
 import androidx.compose.runtime.Immutable
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import eu.tintera.plume.core.ui.LocalChatPreviewLines
 import eu.tintera.plume.core.ui.animatedGroupItemShape
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.app.root.presentation.LocalIsDarkTheme
@@ -69,7 +70,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -475,6 +478,7 @@ internal fun ChatRow(
      */
     val sleeping = marks.snooze is RowSnooze.Sleeping
     val showUnread = chat.hasUnread && !sleeping
+    val previewLines = LocalChatPreviewLines.current
     /*
      * Blok je SVĚTLEJŠÍ než pozadí, ne tmavší.
      *
@@ -534,6 +538,8 @@ internal fun ChatRow(
             val openStories = stringResource(Res.string.stories_open, chat.title)
             Box(
                 Modifier
+                    // U víceřádkového náhledu by avatar uprostřed utekl od jména.
+                    .then(if (previewLines > 1) Modifier.align(Alignment.Top) else Modifier)
                     .storyRing(
                         ring = marks.stories,
                         shape = avatarShape,
@@ -546,7 +552,7 @@ internal fun ChatRow(
                         } else {
                             Modifier.contextClickable(
                                 interactionSource = null,
-                                indication = ripple(bounded = false, radius = AVATAR_SIZE / 2 + STORY_RING_OUTSET),
+                                indication = ripple(bounded = false, radius = CHAT_ROW_AVATAR_SIZE / 2 + STORY_RING_OUTSET),
                                 onClickLabel = openStories,
                                 onLongClick = onLongClick,
                                 onClick = onAvatarClick,
@@ -558,7 +564,7 @@ internal fun ChatRow(
                     chatId = chat.avatarColorId,
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
-                    size = AVATAR_SIZE,
+                    size = CHAT_ROW_AVATAR_SIZE,
                     isSavedMessages = isSavedMessages(chat.id),
                     // Druh chatu tvarem: člověk kruh, skupina sušenka, kanál čtverec.
                     shape = avatarShape,
@@ -715,8 +721,8 @@ internal fun ChatRow(
                         buildAnnotatedString {
                             // Štítek jinou barvou než „píše…" (primary) — jde o náš text, ne o dění.
                             withStyle(SpanStyle(color = draftLabelColor)) { append(stringResource(Res.string.chats_draft_prefix)) }
-                            // Zalomení by v jednořádkovém náhledu useklo text hned na začátku;
-                            // mezera je stejně dlouhá, takže offsety emoji sedí dál.
+                            // Zalomení by náhled useklo hned na začátku; mezera je stejně
+                            // dlouhá, takže offsety emoji sedí dál.
                             customEmoji += appendWithCustomEmoji(draft.text.replace('\n', ' '), draft.entities)
                         }
                     }
@@ -732,7 +738,9 @@ internal fun ChatRow(
                                 appendInlineContent(PREVIEW_THUMBNAIL_KEY, alternateText = " ")
                                 append(' ')
                             }
-                            customEmoji += appendWithCustomEmoji(preview, chat.lastMessagePreviewEntities)
+                            // Zalomení by náhled useklo dřív, než zaplní svoje řádky; mezera je
+                            // stejně dlouhá, takže offsety emoji sedí dál (jako u konceptu).
+                            customEmoji += appendWithCustomEmoji(preview.replace('\n', ' '), chat.lastMessagePreviewEntities)
                         }
                     }
 
@@ -751,8 +759,14 @@ internal fun ChatRow(
                             chat.hasUnread -> MaterialTheme.colorScheme.onSurface
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        maxLines = 1,
+                        maxLines = previewLines,
                         overflow = TextOverflow.Ellipsis,
+                        // Jeden řádek se vejde do výšky avataru, řádek chatu tedy nemění výšku vůbec.
+                        modifier = if (previewLines > 1) {
+                            Modifier.smoothPreviewHeight(chat.id, holdHeight = chat.activity != null)
+                        } else {
+                            Modifier
+                        },
                     )
                 }
             }
@@ -760,6 +774,23 @@ internal fun ChatRow(
             UnreadBadges(chat, quiet = sleeping, accent = accent, awaitingReply = marks.awaitingReply)
         }
     }
+}
+
+/**
+ * Víceřádkový náhled má výšku podle obsahu a mění ji plynule, řádky pod ním jedou s ním.
+ *
+ * Effects spec, ne spatial: překmit výšky by rozkýval celý seznam pod řádkem. Při [holdHeight]
+ * („píše…") drží poslední výšku: činnost je krátká a dlouhý náhled by se kvůli ní pokaždé
+ * smrskl a zase roztáhl.
+ */
+@Composable
+private fun Modifier.smoothPreviewHeight(chatId: Long, holdHeight: Boolean): Modifier {
+    var settledHeight by remember(chatId) { mutableIntStateOf(0) }
+    val minHeight = if (holdHeight) with(LocalDensity.current) { settledHeight.toDp() } else 0.dp
+    return fillMaxWidth()
+        .animateContentSize(MaterialTheme.motionScheme.defaultEffectsSpec())
+        .heightIn(min = minHeight)
+        .onSizeChanged { if (!holdHeight) settledHeight = it.height }
 }
 
 /** Odložení chatu z pohledu řádku: ještě spí (do [Sleeping.until], ms od epochy), nebo se vynořil. */
@@ -852,7 +883,7 @@ internal fun rememberChatAccents(used: Set<ThemeColor>): Map<ThemeColor, ColorSc
 }
 
 /** Avatar. Větší než výchozích 48 dp — v odlehčeném řádku nese hlavní váhu on, ne písmo. */
-private val AVATAR_SIZE = 52.dp
+internal val CHAT_ROW_AVATAR_SIZE = 52.dp
 
 /** Jak daleko za okraj avataru sahá kroužek příběhů (mezera a čára, `storyRing`). */
 private val STORY_RING_OUTSET = 5.dp
