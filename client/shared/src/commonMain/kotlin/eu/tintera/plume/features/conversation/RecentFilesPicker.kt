@@ -38,6 +38,7 @@ import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.asDate
 import eu.tintera.plume.core.ui.fileSizeText
 import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
@@ -143,7 +144,7 @@ private fun RecentFileRow(file: RecentFile, selected: Boolean, enabled: Boolean,
         },
         // Stav nese řádek (`toggleable`), zaškrtávátko je jen jeho obraz.
         trailingContent = { Checkbox(checked = selected, onCheckedChange = null, enabled = enabled) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier
             .clip(groupItemShape(index, count))
             .toggleable(value = selected, enabled = enabled, role = Role.Checkbox, onValueChange = { onToggle() })

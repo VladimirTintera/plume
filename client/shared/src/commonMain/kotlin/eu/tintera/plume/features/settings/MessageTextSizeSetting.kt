@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.app.root.presentation.LocalAppColorScheme
 import eu.tintera.plume.core.ui.highlightAnchor
 import androidx.compose.foundation.background
 import androidx.compose.material3.ShapeDefaults
@@ -70,7 +71,7 @@ private fun PreviewBubbles(modifier: Modifier = Modifier) {
     Column(
         modifier
             .fillMaxWidth()
-            .background(colors.surface, ShapeDefaults.Large)
+            .background(LocalAppColorScheme.current?.surface ?: colors.surface, ShapeDefaults.Large)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

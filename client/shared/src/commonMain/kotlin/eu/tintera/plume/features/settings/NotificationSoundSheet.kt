@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import eu.tintera.plume.core.ui.GROUP_SPACING
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -202,7 +203,7 @@ internal fun NotificationSoundSheet(
                 headlineContent = { Text(stringResource(Res.string.notif_sound_upload)) },
                 supportingContent = limits?.let { { Text(stringResource(Res.string.notif_sound_upload_hint, (it.maxBytes / 1024).toInt(), it.maxSeconds)) } },
                 modifier = Modifier
-                    .groupedItem(index = 0, count = 1, color = MaterialTheme.colorScheme.surfaceContainerLowest)
+                    .groupedItem(index = 0, count = 1, color = MaterialTheme.colorScheme.groupRow)
                     .clickable(enabled = !uploading) { picker.pickDocument() },
             )
         }

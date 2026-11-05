@@ -117,7 +117,7 @@ fun CountryPickerSheet(
                                 color = if (isSelected) {
                                     MaterialTheme.colorScheme.secondaryContainer
                                 } else {
-                                    MaterialTheme.colorScheme.surfaceContainerLowest
+                                    MaterialTheme.colorScheme.groupRow
                                 },
                                 selected = isSelected,
                             ),

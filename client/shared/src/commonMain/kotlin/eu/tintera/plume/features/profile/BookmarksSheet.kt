@@ -2,6 +2,7 @@ package eu.tintera.plume.features.profile
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
@@ -62,7 +63,7 @@ internal fun BookmarksSheet(
                 Row(
                     Modifier
                         .animateItem()
-                        .groupedItem(index, bookmarks.size, MaterialTheme.colorScheme.surfaceContainerLowest)
+                        .groupedItem(index, bookmarks.size, MaterialTheme.colorScheme.groupRow)
                         .fillMaxWidth()
                         .clickable { onOpen(bookmark) }
                         .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),

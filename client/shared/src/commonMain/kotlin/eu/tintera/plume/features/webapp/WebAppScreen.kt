@@ -82,6 +82,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.telegram.WebAppTheme
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.confirm
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.threshold
@@ -535,14 +536,14 @@ private fun WebAppPopupDialog(popup: WebAppPopup, onClose: (String?) -> Unit) {
 
 /**
  * Barvy aplikace pro mini aplikaci. Stránka je stránka (`surface`), sekce jsou karty
- * (`surfaceContainerLowest`, jako bloky seznamů v Plume), tlačítka `primary`.
+ * (`groupRow`, jako bloky seznamů v Plume), tlačítka `primary`.
  */
 private fun webAppTheme(colors: ColorScheme) = WebAppTheme(
     background = colors.surface.rgb(),
     secondaryBackground = colors.surfaceContainerHigh.rgb(),
     headerBackground = colors.surface.rgb(),
     bottomBarBackground = colors.surface.rgb(),
-    sectionBackground = colors.surfaceContainerLowest.rgb(),
+    sectionBackground = colors.groupRow.rgb(),
     sectionSeparator = colors.outlineVariant.rgb(),
     text = colors.onSurface.rgb(),
     accentText = colors.primary.rgb(),

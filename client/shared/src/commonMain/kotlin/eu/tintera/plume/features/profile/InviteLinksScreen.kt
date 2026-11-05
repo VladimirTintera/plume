@@ -3,6 +3,7 @@ package eu.tintera.plume.features.profile
 import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -244,7 +245,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                     supportingContent = { Text(stringResource(Res.string.invite_links_additional_help)) },
                     leadingContent = { RowIcon(Res.drawable.add_24dp, accent = true) },
                     colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = MaterialTheme.colorScheme.groupRow,
                         headlineColor = MaterialTheme.colorScheme.primary,
                     ),
                     modifier = Modifier
@@ -430,7 +431,7 @@ private fun PrimaryLinkCard(
 ) {
     Surface(
         shape = RoundedCornerShape(GROUP_CORNER),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.groupRow,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -509,7 +510,7 @@ private fun LinkRow(link: InviteLink, now: Long, shape: Shape, onClick: () -> Un
         },
         supportingContent = { Text(linkSummary(link, status), maxLines = 2) },
         leadingContent = { RowIcon(if (usable) Res.drawable.link_24dp else Res.drawable.link_off_24dp, accent = usable) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier.clip(shape).clickable(onClick = onClick),
     )
 }
@@ -605,7 +606,7 @@ private fun LinkActionsSheet(
                     headlineContent = { Text(stringResource(label)) },
                     leadingContent = { Icon(painterResource(icon), contentDescription = null) },
                     colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = MaterialTheme.colorScheme.groupRow,
                         headlineColor = color,
                         leadingIconColor = color,
                     ),
@@ -662,7 +663,7 @@ private fun InviteLinkEditorSheet(
 
             Surface(
                 shape = RoundedCornerShape(GROUP_CORNER),
-                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                color = MaterialTheme.colorScheme.groupRow,
             ) {
                 Column {
                     SwitchListItem(stringResource(Res.string.invite_editor_approval), editor.createsJoinRequest) { value ->
@@ -770,7 +771,7 @@ private fun AdminRow(admin: AdminInviteLinks, shape: Shape, onClick: () -> Unit,
         headlineContent = { Text(admin.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(adminSummary(admin)) },
         leadingContent = { Avatar(chatId = admin.userId, title = admin.name, avatarFileId = admin.avatarFileId, size = 40.dp) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier.clip(shape).clickable(onClick = onClick),
     )
 }
@@ -908,7 +909,7 @@ private fun MemberRow(member: InviteLinkMember, shape: Shape) {
         headlineContent = { Text(member.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(listOfNotNull(joined, via).joinToString(" · ")) },
         leadingContent = { Avatar(chatId = member.userId, title = member.name, avatarFileId = member.avatarFileId, size = 40.dp) },
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(shape),
     )
 }

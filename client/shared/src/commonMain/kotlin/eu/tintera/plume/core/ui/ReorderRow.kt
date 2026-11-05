@@ -77,7 +77,7 @@ fun ReorderRow(
     val dragged = dragState.draggedKey == key
     Surface(
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.groupRow,
         // Tažený řádek se zvedne, aby bylo vidět, že jede nad ostatními.
         shadowElevation = if (dragged) 6.dp else 0.dp,
         modifier = modifier.fillMaxWidth().semantics {

@@ -166,7 +166,7 @@ fun BlockTextField(
 
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.groupRow,
         border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = focused)),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -320,7 +320,7 @@ fun GroupTextField(
     trailing: (@Composable () -> Unit)? = null,
     style: TextStyle = LocalTextStyle.current,
 ) {
-    Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = shape, color = MaterialTheme.colorScheme.groupRow, modifier = Modifier.fillMaxWidth()) {
         TextField(
             value = value,
             onValueChange = onValueChange,

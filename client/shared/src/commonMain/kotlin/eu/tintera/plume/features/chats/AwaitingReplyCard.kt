@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.accentOn
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.awaiting_reply_hide
@@ -49,7 +50,7 @@ import org.jetbrains.compose.resources.stringResource
  *   (`ChatsViewModel.hideAwaitingReply`). Schovat ji natrvalo jde vypnutím volby v AI v zařízení.
  * - **Nejvýš [MAX_ROWS] chatů**, zbytek jako „a další N" — karta nemá vytlačit seznam
  *   z obrazovky, a ostatní jsou v seznamu pod ní s odznakem.
- * - Řádky na dlaždicích v `surfaceContainerLowest` ze stejného důvodu jako u narozenin: avatar
+ * - Řádky na dlaždicích v `groupRow` ze stejného důvodu jako u narozenin: avatar
  *   v barvě karty by na ní zmizel.
  */
 @Composable
@@ -107,7 +108,7 @@ private fun AwaitingChatRow(chat: ChatSummary, shape: Shape, onClick: () -> Unit
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .background(MaterialTheme.colorScheme.groupRow)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),

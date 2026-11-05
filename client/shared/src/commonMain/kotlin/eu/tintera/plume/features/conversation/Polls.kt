@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.stop_circle_24dp
@@ -253,7 +254,7 @@ private fun AnswerHeader(text: String, votes: Int, percentage: Int, modifier: Mo
 private fun VoterRow(voter: SenderInfo, shape: Shape, onClick: () -> Unit) {
     Surface(
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.groupRow,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(

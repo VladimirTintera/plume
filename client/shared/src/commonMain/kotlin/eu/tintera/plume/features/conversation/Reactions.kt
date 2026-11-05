@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
@@ -599,7 +600,7 @@ fun ReactionDetailsSheet(
                 Box {
                 Row(
                     Modifier
-                        .groupedItem(index, details.items.size, MaterialTheme.colorScheme.surfaceContainerLowest, pressable = moderated)
+                        .groupedItem(index, details.items.size, MaterialTheme.colorScheme.groupRow, pressable = moderated)
                         .then(if (moderated) Modifier.clickable { menu = true } else Modifier)
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp),

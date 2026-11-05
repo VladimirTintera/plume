@@ -454,6 +454,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **Vrstvení = surface container role, ne `tonalElevation`.** `surface` < `surfaceContainerLow/…` <
   `surfaceContainerHigh` (overlay) < `surfaceContainerHighest` (menu nad overlayem). `tonalElevation`
   u `surfaceContainer*` barev nic nedělá — M3 `Surface` tónuje jen `color == colorScheme.surface`.
+- **Stránka je `surfaceContainer`, řádek na ní `surfaceBright`** (`groupRow`, `asListPage` v `core/ui/GroupedList.kt`).
+  Stránku dává shell každé obrazovce sám (`PaneCard`), jen konverzace a obrazovky přes celou plochu si přes
+  `Panes.ownSurface` nechávají `surface`. **`surfaceContainerLowest` na řádek ne:** v tmavém motivu je nejtmavší
+  role (na Androidu 16 čistá černá) a z řádků by byly díry do stránky. Viz „Plocha stránky a řádku"
+  v `docs/poznatky/seznam-chatu.md`.
 - Barvy vždy z `MaterialTheme.colorScheme`, nikdy natvrdo hex.
 - **Přepnutí motivu se PROLÍNÁ, neprobliká** (`animateColorScheme` z materialkoloru v `AppTheme`,
   spec `AppMotion.defaultEffectsSpec`). Skoková výměna schématu přebarvila celou obrazovku v jednom

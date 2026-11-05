@@ -48,6 +48,7 @@ import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.ui.contextClickable
 import eu.tintera.plume.core.ui.fileSizeText
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -274,7 +275,7 @@ private fun DownloadRow(
     onRemove: (FileDownloadItem, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val container = MaterialTheme.colorScheme.surfaceContainerLowest
+    val container = MaterialTheme.colorScheme.groupRow
     var menu by remember { mutableStateOf(false) }
     // Průběh si řádek odebírá sám — seznam se kvůli každému procentu číst znovu nemusí.
     val progress = if (item.isCompleted) {

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.saved
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
@@ -327,7 +328,7 @@ private fun SavedTopicRow(
     val secondaryColor = MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.groupRow,
         modifier = modifier.fillMaxWidth().clip(shape).contextClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Row(
@@ -428,7 +429,7 @@ private fun SavedTopicActionsSheet(
                     headlineContent = { Text(label) },
                     leadingContent = { Icon(painterResource(icon), contentDescription = null) },
                     colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = MaterialTheme.colorScheme.groupRow,
                         headlineColor = color,
                         leadingIconColor = color,
                     ),

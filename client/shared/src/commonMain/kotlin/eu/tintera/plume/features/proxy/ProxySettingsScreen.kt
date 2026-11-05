@@ -6,6 +6,7 @@ import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.features.settings.settingsScroll
 import eu.tintera.plume.features.settings.settingsScrollBehavior
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -189,7 +190,7 @@ fun ProxySettingsScreen(
                     headlineContent = { Text(stringResource(Res.string.proxy_add)) },
                     leadingContent = { RowIcon(Res.drawable.add_24dp, accent = true) },
                     colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = MaterialTheme.colorScheme.groupRow,
                         headlineColor = MaterialTheme.colorScheme.primary,
                     ),
                     modifier = Modifier.animateItem().clip(groupItemShape(0, count)).clickable(onClick = viewModel::add),
@@ -287,7 +288,7 @@ private fun ProxyRow(
         leadingContent = { RowIcon(if (selected) Res.drawable.check_24dp else Res.drawable.vpn_lock_24dp, accent = selected) },
         trailingContent = menu,
         colors = ListItemDefaults.colors(
-            containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
+            containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow,
             contentColor = content,
             supportingContentColor = if (selected) {
                 MaterialTheme.colorScheme.onSecondaryContainer

@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.CompositionLocalProvider
@@ -40,6 +41,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +59,29 @@ import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+/**
+ * **Plocha řádku bloku** a všeho, co stojí na stránce jako on (dlaždice, karta, pole formuláře).
+ * Je vždycky světlejší než stránka ([asListPage]), ve světlém i tmavém motivu; tuhle dvojici rolí
+ * používají i systémová Nastavení Androidu. `surfaceContainerLowest` to být nemůže: v tmavém
+ * motivu je nejtmavší ze všech (na Androidu 16 čistá černá) a z řádků by byly díry do stránky.
+ */
+val ColorScheme.groupRow: Color get() = surfaceBright
+
+/**
+ * Schéma **stránky s bloky řádků**: její `surface` a `background` jsou `surfaceContainer`, aby se
+ * od ní řádek ([groupRow]) odlišil. Ve světlém motivu je `surfaceBright` totéž co `surface`, takže
+ * na holém `surface` by řádek splynul se stránkou. Přemapování nese hlavičku i `Scaffold` každé
+ * obrazovky bez jediného parametru navíc; dává ho shell (`PaneCard`), výjimky hlásí
+ * `Panes.ownSurface`.
+ */
+fun ColorScheme.asListPage(): ColorScheme = copy(surface = surfaceContainer, background = surfaceContainer)
+
+/**
+ * Obrazovka je stránka s bloky řádků ([asListPage]). Čte to, kdo schéma pod shellem vyměňuje za
+ * jiné (barva chatu u profilu a seznamu témat), jinak by stránka přišla o svou plochu.
+ */
+val LocalListPage = staticCompositionLocalOf { false }
 
 /**
  * Tvary a rozestupy **bloku zaoblených řádků** — vzor, kterým M3 Expressive nahrazuje kartu
@@ -203,7 +228,7 @@ val GROUP_BREAK_SPACING = 12.dp
 @Composable
 fun GroupedColumn(
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLowest,
+    containerColor: Color = MaterialTheme.colorScheme.groupRow,
     content: @Composable () -> Unit,
 ) {
     // Zapisuje se při umístění a čte při kreslení, takže změna rozvržení překreslí i podklad.
@@ -385,7 +410,7 @@ fun GroupEmptyRow(text: String, modifier: Modifier = Modifier, icon: DrawableRes
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest, groupItemShape(0, 1))
+            .background(MaterialTheme.colorScheme.groupRow, groupItemShape(0, 1))
             .padding(horizontal = 16.dp, vertical = 20.dp),
     ) {
         if (icon != null) {

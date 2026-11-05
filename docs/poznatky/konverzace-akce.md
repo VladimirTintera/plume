@@ -853,7 +853,7 @@ po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
 - **Bez dotazu je ve výběru živý hlavní seznam, s dotazem výsledky `ChatSearch`** — ze všech
   chatů, i archivovaných (`pickerChats`, viz „Hledání chatů").
 - **Výběr vypadá jako seznam chatů, ne jako systémový dialog**: hledá se v `SearchPill`
-  a chaty jsou blok zaoblených řádků (`groupItemShape`, `surfaceContainerLowest`, spára 2 dp)
+  a chaty jsou blok zaoblených řádků (`groupItemShape`, `groupRow`, spára 2 dp)
   s tváří podle druhu chatu. Vybraný cíl nese `secondaryContainer` a je zaoblený celý — výběr
   je v M3 selekční stav, tatáž role jako u vybraného chatu v dvoupanelu; samotné zaškrtávátko
   na konci řádku se v dlouhém seznamu hledá hůř než barva. Dřív to byl `TextField` s podtržením

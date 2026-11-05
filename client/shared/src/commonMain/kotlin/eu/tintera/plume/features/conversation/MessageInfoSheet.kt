@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.lazy.itemsIndexed
 import eu.tintera.plume.core.ui.groupedItem
@@ -156,7 +157,7 @@ fun MessageInfoSheet(
                     modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp).semantics { heading() },
                 )
 
-                val rowColor = MaterialTheme.colorScheme.surfaceContainerLowest
+                val rowColor = MaterialTheme.colorScheme.groupRow
                 LazyColumn(Modifier.heightIn(max = VIEWERS_MAX_HEIGHT)) {
                     itemsIndexed(info.viewers, key = { _, viewer -> viewer.sender.id }) { index, viewer ->
                         Row(

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ShapeDefaults
@@ -425,7 +426,7 @@ fun BlockedSendersScreen(
 private fun BlockUserRow(onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(GROUP_CORNER),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.groupRow,
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),

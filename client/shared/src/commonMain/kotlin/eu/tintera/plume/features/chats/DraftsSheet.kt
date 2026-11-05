@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -206,7 +207,7 @@ internal fun DraftsSheet(
                 .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
         ) {
             // Koncepty jsou blok zaoblených řádků jako seznam chatů, ze kterého se do nich chodí.
-            val rowColor = MaterialTheme.colorScheme.surfaceContainerLowest
+            val rowColor = MaterialTheme.colorScheme.groupRow
             LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
                 itemsIndexed(rows, key = { _, item -> item.key }) { index, item ->
                     val isPresent = item.key in present

@@ -3,6 +3,7 @@ package eu.tintera.plume.features.chats
 import eu.tintera.plume.features.conversation.ClearHistorySheet
 import eu.tintera.plume.core.ui.CountdownSnackbarHost
 import eu.tintera.plume.core.ui.UNDO_COUNTDOWN_MS
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.showCountdownSnackbar
 import eu.tintera.plume.resources.chats_deleted
 import eu.tintera.plume.resources.chats_left
@@ -1113,7 +1114,7 @@ internal fun ChatListContent(
                                 size = REORDER_AVATAR_SIZE,
                                 isSavedMessages = isSavedMessages(chat.id),
                                 shape = chat.kind.avatarShape(),
-                                backdrop = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                backdrop = MaterialTheme.colorScheme.groupRow,
                             )
                         }
                     }

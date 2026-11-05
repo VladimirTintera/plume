@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.StatValue
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.compactCountText
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.statistics_growth
@@ -40,7 +41,7 @@ internal fun StatTiles(tiles: List<StatTile>, modifier: Modifier = Modifier) {
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(GROUP_CORNER))
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .background(MaterialTheme.colorScheme.groupRow)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

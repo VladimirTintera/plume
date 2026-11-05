@@ -54,6 +54,7 @@ import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.INNER_CORNER
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.campaign_24dp
@@ -261,7 +262,7 @@ private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick
     var showMyQrCode by rememberSaveable { mutableStateOf(false) }
     if (showMyQrCode) MyQrCodeSheet(onDismiss = { showMyQrCode = false })
 
-    val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
+    val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow
     val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     val secondary = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     val shape = RoundedCornerShape(GROUP_CORNER)
@@ -334,7 +335,7 @@ internal fun SettingsListRow(
     onClick: () -> Unit,
     selected: Boolean = false,
 ) {
-    val containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
+    val containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow
     val contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     // Popis je doplněk k názvu, takže je tlumený — na vybraném řádku ale nesmí zůstat
     // `onSurfaceVariant`, ten je počítaný na jinou plochu.

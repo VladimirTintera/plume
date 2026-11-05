@@ -145,7 +145,7 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
 - **Krytí skla zůstává `GLASS_TEXT_TINT_ALPHA` (0,88)**, i když by pilulka s nižším vypadala víc
   „skleně". Pruh nese text a v tmavém režimu nad světlou fotkou by s nižším krytím spadl pod AA
   (viz „Vzhled konverzace", mléčné sklo). Rozostření je vidět nad fotkou nebo sytou bublinou.
-- **Sheet všech připnutých je blok zaoblených řádků** (`groupItemShape`, `surfaceContainerLowest`,
+- **Sheet všech připnutých je blok zaoblených řádků** (`groupItemShape`, `groupRow`,
   spára 2 dp), jako kontakty a odkazy v profilu; řádek je `ListItem` s náhledem, textem a dnem.
   Dřív holé řádky na ploše sheetu — jiný vzhled pro tentýž „seznam věcí".
 - **Právo odepínat se zjišťuje jednou** (`canBePinned` první připnuté zprávy). Je v chatu jedno

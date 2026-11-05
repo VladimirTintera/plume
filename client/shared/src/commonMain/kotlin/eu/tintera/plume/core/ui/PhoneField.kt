@@ -56,14 +56,13 @@ fun PhoneField(
     onPhoneChange: (String) -> Unit,
     onPickCountry: () -> Unit,
     onSubmit: () -> Unit,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
 
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = containerColor,
+        color = MaterialTheme.colorScheme.groupRow,
         border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = focused)),
         modifier = Modifier.fillMaxWidth(),
     ) {

@@ -142,7 +142,10 @@ internal fun ChatFolderToolbar(
         HorizontalFloatingToolbar(
             expanded = expanded,
             floatingActionButton = floatingActionButton,
-            colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
+            // Výchozí `surfaceContainer` je barva stránky: pod koncem seznamu by lišta zmizela.
+            colors = FloatingToolbarDefaults.standardFloatingToolbarColors(
+                toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
         ) {
             FolderItems(tabs, expanded, contentWidth, onSelect, onAdd, actions)
         }

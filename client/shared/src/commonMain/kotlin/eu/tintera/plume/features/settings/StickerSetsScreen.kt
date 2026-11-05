@@ -5,6 +5,7 @@ import eu.tintera.plume.resources.sticker_set_edit
 import eu.tintera.plume.resources.sticker_create_from_photo
 import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.resources.sticker_24dp
@@ -241,7 +242,7 @@ fun StickerSetsScreen(
                     containerColor = if (dragged) {
                         MaterialTheme.colorScheme.surfaceContainerHigh
                     } else {
-                        MaterialTheme.colorScheme.surfaceContainerLowest
+                        MaterialTheme.colorScheme.groupRow
                     },
                     trailing = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -279,7 +280,7 @@ fun StickerSetsScreen(
                 itemsIndexed(archived, key = { _, set -> "archived-${set.id}" }) { index, set ->
                     SetRow(
                         set = set,
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = MaterialTheme.colorScheme.groupRow,
                         trailing = {
                             FilledTonalButton(onClick = { viewModel.unarchive(set) }, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.stickers_add))

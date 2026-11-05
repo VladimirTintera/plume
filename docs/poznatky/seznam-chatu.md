@@ -548,16 +548,33 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
     nesla fotka, měl ho i popis tlačítka.
 - **Hledá se ve všech známých chatech**, ne v načteném seznamu — viz „Hledání chatů" níž.
 
-### Odlehčení: blok je světlejší než pozadí
+### Plocha stránky a řádku
 
-- **Vrstvení je otočené proti tomu, jak vzniklo.** Původně bylo pozadí `surface` (nejsvětlejší role)
-  a řádky `surfaceContainerHighest` o tři stupně tmavší — z položek byly šedé plochy na světlém
-  a seznam působil těžce. Teď mají řádky `surfaceContainerLowest`, takže je to vztah „světlý panel
-  na tónované stránce". Tím dělá odstup i Google Messages: jeho řádky samy žádnou výplň nemají,
-  nese ho rozdíl panelu a pozadí.
-- **V tmavém režimu se to obrátí a je to správně.** `surfaceContainerLowest` je tam nejtmavší role,
-  takže z panelu bude tmavší plocha na světlejším pozadí. Role drží HIERARCHII, ne konkrétní
-  světlost — proto se nesahá po natvrdo zadané barvě.
+- **Stránka `surfaceContainer`, řádek `surfaceBright`, v obou motivech** (`groupRow`, `asListPage`
+  v `core/ui/GroupedList.kt`). Řádek je tak vždycky světlejší než stránka, „světlý panel na tónované
+  stránce". Tutéž dvojici mají systémová Nastavení Androidu (změřeno na API 37 proti
+  `cmd overlay dump`: stránka #181920 / #EEEDF6, řádek #2A2C34 / #FAF8FE).
+- **Řádky `surfaceContainerLowest` na `surface` se vyměnily, protože v tmavém motivu nesedly.** Do
+  listopadu 2026 to tu tvrdilo, že se to „obrátí a je to správně", role prý drží hierarchii. Nedrží:
+  `surfaceContainerLowest` je role nejnižšího důrazu a na Androidu 16 čistá černá, takže byly řádky
+  #000000 na stránce #0D0E12 (kontrast 1,09), díry pod pilulkou hledání, která je světlejší.
+  Vzniklo to laděním světlého motivu, předtím byly řádky `surfaceContainerHighest` a seznam působil
+  těžce.
+- **Holý `surface` jako stránka pod řádky nejde:** ve světlém motivu je `surfaceBright` totéž co
+  `surface` a blok by zmizel. Proto stránku dává shell (`PaneCard`, `rememberPaneCardDecorator`)
+  přemapováním `surface` a `background` VŠEM položkám zásobníku; výjimky jsou `Panes.ownSurface`
+  (konverzace, článek, prohlížeč, příběhy, hovor, mini aplikace). Nová obrazovka je tím stránka sama.
+- **Kdo schéma pod shellem vyměňuje, musí přemapování zopakovat.** `ChatColorTheme` staví schéma
+  z `LocalAppColorScheme`, takže profil a seznam témat o stránku přišly, a stálo to za pohled až na
+  snímku (profil měl #0D0E12). Proto `LocalListPage`.
+- **Co na `surfaceBright` nebo na nové stránce splývá:** tichý odznak na `surfaceContainerHighest`
+  (#23252E na #2A2C34), proto `outlineVariant`; plovoucí lišta složek ve výchozím `surfaceContainer`,
+  proto `surfaceContainerHigh` jako pilulka; pole formuláře na `surfaceContainerLow`, v tmavém
+  motivu tmavší než stránka, proto `groupRow`. **Náhled konverzace v Nastavení** má plochu
+  z `LocalAppColorScheme`, ne `surface`, ten je tam už přemapovaný a bublina by na něm vypadala jinak
+  než v konverzaci.
+- **`surfaceContainerLowest` zůstává jen tam, kde má ustoupit:** plocha konverzace při hledání a čip
+  reakce (`docs/poznatky/emoji-samolepky-reakce.md`).
 - **Název jde běžným řezem, polotučně jen nepřečtený.** Když je polotučný každý chat, nevyčnívá
   žádný. Proto `bodyLarge` + `FontWeight.SemiBold` jen podle `hasUnread`, ne `titleMedium` pro vše.
 - **Odznak nepřečtených není chybově červený.** M3 `Badge` je ve výchozím stavu `error`; nepřečtená
@@ -972,7 +989,7 @@ snackbar s „Vrátit".
     zaobloval jinak než řádek nad ním.
 - **Bez tahu se podklad nekreslí VŮBEC, ani jeho plocha.** Stejný tvar nestačí: vyhlazené hrany
   řádku jsou poloprůhledné a barevný podklad pod nimi prosvítal jako světlý lem kolem každého
-  chatu, v tmavém tématu na skoro černém `surfaceContainerLowest` do očí bijící. Na emulátoru
+  chatu, v tmavém tématu na tmavém řádku do očí bijící. Na emulátoru
   (hustota 3,0) leží rovné hrany na celých pixelech a lem je vidět jen v zaoblených rozích; na
   telefonu s necelou hustotou jde kolem celé karty. **Obecně: pod plochou, která má být krycí,
   nesmí trvale ležet jiná barva stejného tvaru.** Ukáže se na každé vyhlazené hraně.
@@ -1143,7 +1160,7 @@ v `AppSettings`; doby jsou čisté funkce v `SnoozeOption.kt`, testy `SnoozeTest
   všechna zařízení a nevynoří chat zpátky). Účet je id Uložených zpráv, jako u záložek zpráv
   (viz „Záložky zpráv" v `konverzace-akce.md`), takže se odložení mezi účty nepromíchají.
 - **Spící chat v seznamu ZŮSTÁVÁ, jen ztichne**: jméno bez tučnosti, čas bez akcentu, odznaky
-  v neutrální barvě (`surfaceContainerHighest`) a místo náhledu „Odloženo do 20:00". Kdyby
+  v neutrální barvě (`outlineVariant`) a místo náhledu „Odloženo do 20:00". Kdyby
   zmizel, uživatel by ho nenašel ani pohledem, a to je víc, než si řekl.
 - **Notifikace spícího chatu přijdou potichu**, ne vůbec — stejné pravidlo jako u tichých hodin
   (viz „Tiché hodiny" v `notifikace.md`): zprávu, kterou TDLib považuje za doručenou, znovu nevydá.

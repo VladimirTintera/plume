@@ -21,6 +21,7 @@ import eu.tintera.plume.resources.profile_bookmarks
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.resources.chats_search_remove_recent
 import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.resources.chats_search_remove_top
 import eu.tintera.plume.core.ui.MenuAction
@@ -660,7 +661,7 @@ private fun SearchResults(
 
         val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
 
-        val rowColor = MaterialTheme.colorScheme.surfaceContainerLowest
+        val rowColor = MaterialTheme.colorScheme.groupRow
         LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = resultsPadding()) {
             val chatCount = chats.size + if (showSaved) 1 else 0
             /*
@@ -1010,7 +1011,7 @@ private fun Suggestions(
                     avatarFileId = chat.avatarFileId,
                     archived = chat.isArchived,
                     onClick = { onPick(chat.id) },
-                    modifier = Modifier.animateItem().groupedItem(index, search.recent.size, MaterialTheme.colorScheme.surfaceContainerLowest),
+                    modifier = Modifier.animateItem().groupedItem(index, search.recent.size, MaterialTheme.colorScheme.groupRow),
                     avatarShape = chat.kind.avatarShape(),
                     onRemove = { actions.onRemoveRecent(chat.id) },
                 )
@@ -1034,7 +1035,7 @@ private fun Suggestions(
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.animateItem()
-                        .groupedItem(index, search.tags.size, MaterialTheme.colorScheme.surfaceContainerLowest)
+                        .groupedItem(index, search.tags.size, MaterialTheme.colorScheme.groupRow)
                         .clickable { onPickTag(tag) },
                 )
             }
@@ -1054,7 +1055,7 @@ private fun Suggestions(
                     avatarFileId = chat.avatarFileId,
                     archived = false,
                     onClick = { onPick(chat.id) },
-                    modifier = Modifier.animateItem().groupedItem(index, shown.size, MaterialTheme.colorScheme.surfaceContainerLowest),
+                    modifier = Modifier.animateItem().groupedItem(index, shown.size, MaterialTheme.colorScheme.groupRow),
                     avatarShape = chat.kind.avatarShape(),
                     avatarColorId = chat.avatarColorId,
                 )

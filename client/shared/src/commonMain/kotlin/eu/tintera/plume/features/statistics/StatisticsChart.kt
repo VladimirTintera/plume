@@ -57,6 +57,7 @@ import eu.tintera.plume.core.telegram.StatGraphEntry
 import eu.tintera.plume.core.telegram.StatGraphKind
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.compactCountText
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.longName
 import eu.tintera.plume.core.ui.name
@@ -109,7 +110,7 @@ internal fun StatGraphCard(entry: StatGraphEntry, modifier: Modifier = Modifier)
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(GROUP_CORNER))
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .background(MaterialTheme.colorScheme.groupRow)
             .padding(16.dp),
     ) {
         Text(stringResource(entry.kind.title()), style = MaterialTheme.typography.titleMedium)
@@ -281,11 +282,11 @@ private fun ChartCanvas(
         translate(left = gutterPx) {
             val width = size.width - gutterPx
             when {
-                bars -> drawBars(chart, seriesIndices, colors, plot, selected, scheme.surfaceContainerLowest, width)
-                chart.isStackedDrawing -> drawAreas(chart, seriesIndices, colors, plot, scheme.surfaceContainerLowest, width)
+                bars -> drawBars(chart, seriesIndices, colors, plot, selected, scheme.groupRow, width)
+                chart.isStackedDrawing -> drawAreas(chart, seriesIndices, colors, plot, scheme.groupRow, width)
                 else -> drawLines(chart, seriesIndices, colors, plot, width)
             }
-            if (selected != null) drawSelection(chart, seriesIndices, colors, plot, selected, width, scheme.onSurfaceVariant, scheme.surfaceContainerLowest)
+            if (selected != null) drawSelection(chart, seriesIndices, colors, plot, selected, width, scheme.onSurfaceVariant, scheme.groupRow)
         }
     }
 }

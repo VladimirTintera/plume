@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import eu.tintera.plume.resources.profile_gift_collection_chip
 import eu.tintera.plume.resources.profile_gift_collection_empty
 import eu.tintera.plume.resources.profile_story_albums_all
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.GroupEmptyRow
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.FilterChip
@@ -143,7 +144,7 @@ private fun GiftTile(gift: ProfileGift, onClick: () -> Unit) {
     val kind = gift.gift.kind
     val upgraded = kind as? GiftKind.Upgraded
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.groupRow,
         shape = MaterialTheme.shapes.large,
         modifier = Modifier.aspectRatio(TILE_ASPECT).clip(MaterialTheme.shapes.large).clickable(onClick = onClick),
     ) {

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.lazy.itemsIndexed
 import eu.tintera.plume.resources.search_off_24dp
@@ -324,7 +325,7 @@ internal fun MemberPickerSheet(
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             modifier = Modifier
-                                .groupedItem(index, picker.members.size, MaterialTheme.colorScheme.surfaceContainerLowest)
+                                .groupedItem(index, picker.members.size, MaterialTheme.colorScheme.groupRow)
                                 .clickable { onPick(member) },
                         )
                     }

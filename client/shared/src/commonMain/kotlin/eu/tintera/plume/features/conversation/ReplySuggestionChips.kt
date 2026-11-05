@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.horizontalScrollWithWheel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -64,7 +65,7 @@ fun ReplySuggestionChips(
                     onClick = { pick(suggestion) },
                     label = { Text(suggestion, style = MaterialTheme.typography.labelLarge) },
                     colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        containerColor = MaterialTheme.colorScheme.groupRow,
                     ),
                 )
             }

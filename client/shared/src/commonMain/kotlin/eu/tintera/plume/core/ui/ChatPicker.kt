@@ -414,7 +414,7 @@ fun ChatPicker(
                                 container = if (isSelected) {
                                     MaterialTheme.colorScheme.secondaryContainer
                                 } else {
-                                    MaterialTheme.colorScheme.surfaceContainerLowest
+                                    MaterialTheme.colorScheme.groupRow
                                 },
                                 content = if (isSelected) {
                                     MaterialTheme.colorScheme.onSecondaryContainer

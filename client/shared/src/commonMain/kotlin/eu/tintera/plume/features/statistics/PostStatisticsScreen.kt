@@ -34,6 +34,7 @@ import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.asDate
 import eu.tintera.plume.core.ui.compactCountText
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.features.profile.ProfileSubpageTopBar
@@ -110,7 +111,7 @@ fun PostStatisticsScreen(
                             .padding(horizontal = 16.dp, vertical = 4.dp)
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(GROUP_CORNER))
-                            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                            .background(MaterialTheme.colorScheme.groupRow)
                             .padding(16.dp),
                     ) {
                         Text(statistics.preview.resolve(), style = MaterialTheme.typography.bodyLarge, maxLines = 4, overflow = TextOverflow.Ellipsis)
@@ -143,7 +144,7 @@ fun PostStatisticsScreen(
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .groupedItem(index, forwards.size, MaterialTheme.colorScheme.surfaceContainerLowest, pressable = messageId != null)
+                                .groupedItem(index, forwards.size, MaterialTheme.colorScheme.groupRow, pressable = messageId != null)
                                 .then(if (messageId != null) Modifier.clickable { onOpenMessage(forward.chat.id, messageId) } else Modifier)
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,

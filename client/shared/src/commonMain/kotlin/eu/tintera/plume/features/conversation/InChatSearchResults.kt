@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatSearchHit
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.asRelativeTime
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.highlightRanges
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -88,7 +89,7 @@ internal fun InChatSearchResultsSheet(
             itemsIndexed(search.results, key = { _, id -> id }) { index, messageId ->
                 val hit = search.hits[messageId]
                 val selected = index == search.index
-                val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
+                val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow
                 val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
                 val supporting = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                 ResultRow(

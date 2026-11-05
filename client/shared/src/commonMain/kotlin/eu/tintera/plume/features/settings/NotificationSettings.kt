@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.itemsIndexed
 import eu.tintera.plume.core.ui.WithTooltip
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
@@ -550,7 +551,7 @@ private fun ExceptionsSheet(
                         },
                         modifier = Modifier
                             .animateItem()
-                            .groupedItem(index, exceptions.size, MaterialTheme.colorScheme.surfaceContainerLowest, pressable = false),
+                            .groupedItem(index, exceptions.size, MaterialTheme.colorScheme.groupRow, pressable = false),
                     )
                 }
             }

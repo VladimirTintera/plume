@@ -544,7 +544,6 @@ private fun ShellContent(
         val extraBeside = twoPane && extraShown
         val paneNeighbours = PaneNeighbours(
             listBeside = twoPane && (!extraBeside || threePane),
-            extraBeside = extraBeside,
         )
 
         /*
@@ -744,7 +743,7 @@ private fun shellEntryProvider(
 
     entry<ChatsRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ) + ChatListMetadata + Panes.width(listPaneWidth) + Panes.instantBounds(instantPaneBounds),
     ) {
         val settings = koinInject<AppSettings>()
@@ -813,7 +812,7 @@ private fun shellEntryProvider(
     entry<ArchiveRoute>(
         metadata = Panes.list(
             ARCHIVE_SCENE,
-            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ) + ChatListMetadata + Panes.instantBounds(instantPaneBounds),
     ) {
         ArchiveScreen(
@@ -845,7 +844,7 @@ private fun shellEntryProvider(
     // Historie hovorů: seznam vlevo, konverzace z ní vedle (jako nová konverzace).
     entry<CallsRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
         CallsScreen(
@@ -859,7 +858,7 @@ private fun shellEntryProvider(
     // a obrázek přes celou plochu v prohlížeči.
     entry<DownloadsRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
         DownloadsScreen(
@@ -873,7 +872,7 @@ private fun shellEntryProvider(
     // Moje příběhy: mřížka přes list panel, prohlížeč z ní přes celou plochu (jako z profilu).
     entry<MyStoriesRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
         MyStoriesScreen(
@@ -885,7 +884,7 @@ private fun shellEntryProvider(
 
     entry<NewChatRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
         NewChatScreen(
@@ -945,7 +944,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ConversationRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
+    entry<ConversationRoute>(metadata = Panes.detail() + Panes.ownSurface() + ChatScreenMetadata) { route ->
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val settings = koinInject<AppSettings>()
             val sideBySide = LocalPanesSideBySide.current
@@ -1127,7 +1126,7 @@ private fun shellEntryProvider(
     }
 
     // Článek je detail jako konverzace: na širokém rozvržení ji v pravém panelu nahradí.
-    entry<InstantViewRoute>(metadata = Panes.detail()) { route ->
+    entry<InstantViewRoute>(metadata = Panes.detail() + Panes.ownSurface()) { route ->
         InstantViewScreen(
             viewModel = koinViewModel(key = "instant-view-${route.url}", parameters = { parametersOf(route.url) }),
             onBack = { chatsStack.pop(route) },
@@ -1360,7 +1359,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
+    entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + Panes.ownSurface() + ChatScreenMetadata) { route ->
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
@@ -1476,7 +1475,7 @@ private fun shellEntryProvider(
      * a `NavDisplay` ho vykreslí přes celou plochu — i na širokém rozvržení,
      * kde by panel vedle seznamu chatů neměl co dělat.
      */
-    entry<MediaRoute> { route ->
+    entry<MediaRoute>(metadata = Panes.ownSurface()) { route ->
         val replyRequests = koinInject<ConversationReplyRequests>()
         val sponsoredLinks = koinInject<SponsoredLinkRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
@@ -1561,7 +1560,7 @@ private fun shellEntryProvider(
      * Prohlížeč příběhů. Stejně jako prohlížeč médií bez metadat list-detail scény, takže ho
      * `NavDisplay` vykreslí přes celou plochu i na širokém rozvržení.
      */
-    entry<StoryComposerRoute> { route ->
+    entry<StoryComposerRoute>(metadata = Panes.ownSurface()) { route ->
         StoryComposerScreen(
             viewModel = koinViewModel(
                 key = "story-composer-${route.path}-${route.editStoryId}-${route.editCoverOnly}",
@@ -1577,7 +1576,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<VideoChatRoute> { route ->
+    entry<VideoChatRoute>(metadata = Panes.ownSurface()) { route ->
         VideoChatScreen(
             viewModel = koinViewModel(
                 key = "video-chat-${route.groupCallId}",
@@ -1587,7 +1586,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<StickerComposerRoute> { route ->
+    entry<StickerComposerRoute>(metadata = Panes.ownSurface()) { route ->
         StickerComposerScreen(
             viewModel = koinViewModel(
                 key = "sticker-composer-${route.path}",
@@ -1597,7 +1596,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<StoriesRoute> { route ->
+    entry<StoriesRoute>(metadata = Panes.ownSurface()) { route ->
         StoriesScreen(
             // Klíč s autorem ze stejného důvodu jako u prohlížeče médií (cachovaný ViewModel).
             viewModel = koinViewModel(
@@ -1627,7 +1626,7 @@ private fun shellEntryProvider(
      * vrátí do původní konverzace.
      */
     // Mini aplikace bota. Odkaz na chat z ní zavře ji a otevře chat nad konverzací pod ní.
-    entry<WebAppRoute> { route ->
+    entry<WebAppRoute>(metadata = Panes.ownSurface()) { route ->
         WebAppScreen(
             viewModel = koinViewModel(
                 key = "web-app-${route.chatId}-${route.botUserId}-${route.url.hashCode()}-${route.main}-${route.shortName}-" +

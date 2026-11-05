@@ -30,6 +30,7 @@ import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.core.ui.QrScanFailure
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.qrScannerSupported
 import eu.tintera.plume.core.ui.rememberQrScanner
 import eu.tintera.plume.core.ui.groupItemShape
@@ -193,7 +194,7 @@ private fun CreateChatRows(
 private fun CreateChatRow(icon: DrawableResource, title: StringResource, index: Int, count: Int, onClick: () -> Unit) {
     Surface(
         shape = groupItemShape(index, count = count),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        color = MaterialTheme.colorScheme.groupRow,
         modifier = Modifier.fillMaxWidth(),
     ) {
         ListItem(

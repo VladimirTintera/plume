@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.StickerSetSummary
 import eu.tintera.plume.core.ui.SheetTitle
+import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.features.conversation.StickerPreview
@@ -45,7 +46,7 @@ internal fun AttachedStickerSetsSheet(
                 stringResource(Res.string.media_attached_stickers),
                 modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 12.dp),
             )
-            val container = MaterialTheme.colorScheme.surfaceContainerLowest
+            val container = MaterialTheme.colorScheme.groupRow
             LazyColumn {
                 itemsIndexed(sets, key = { _, set -> set.id }) { index, set ->
                     ListItem(

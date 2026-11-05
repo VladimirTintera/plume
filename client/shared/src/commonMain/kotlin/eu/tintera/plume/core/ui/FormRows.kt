@@ -85,7 +85,7 @@ fun TitledGroup(title: StringResource, modifier: Modifier = Modifier, content: @
  */
 @Composable
 fun Modifier.groupRowBackground(shape: Shape): Modifier =
-    clip(shape).background(MaterialTheme.colorScheme.surfaceContainerLowest)
+    clip(shape).background(MaterialTheme.colorScheme.groupRow)
 
 /**
  * **Řádek s přepínačem.** Klikání nese celý řádek (`toggleable(role = Switch)`), [IconSwitch] je
