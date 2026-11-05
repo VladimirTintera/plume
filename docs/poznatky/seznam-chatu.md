@@ -585,6 +585,12 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   žádný. Proto `bodyLarge` + `FontWeight.SemiBold` jen podle `hasUnread`, ne `titleMedium` pro vše.
 - **Odznak nepřečtených není chybově červený.** M3 `Badge` je ve výchozím stavu `error`; nepřečtená
   zpráva ale není chyba a v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce.
+- **Ztlumený chat má počet i čas neutrálně** (`quietCount` v `UnreadBadges`, `outlineVariant`
+  s `onSurfaceVariant`), zmínka a reakce zůstávají v akcentu: míří na uživatele a TDLib na ně
+  upozorní i ve ztlumeném chatu. Do listopadu 2026 měl ztlumený kanál stejně sytý odznak jako
+  člověk, ačkoli přepínač chatů v konverzaci (`ChatSwitcherButton`) ho kreslil neutrálně
+  s komentářem „jako v seznamu chatů". Ověřeno na emulátoru v Archivu: ztlumené kanály šedě,
+  neztlumený chat v akcentu. Zmínka ve ztlumené skupině ověřená není.
 
 ### Karta narozenin
 

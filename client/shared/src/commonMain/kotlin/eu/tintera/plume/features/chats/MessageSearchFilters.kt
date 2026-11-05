@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.MenuColors
 import eu.tintera.plume.core.ui.horizontalScrollWithWheel
 import androidx.compose.material3.MaterialTheme
 import eu.tintera.plume.core.ui.MenuPopupProperties
@@ -186,35 +187,37 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
              * skupiny — rozsah otevírá další krok (výběr dat) a pod sebou ukazuje, jaký je.
              */
             DropdownMenuPopup(expanded = periodMenu, onDismissRequest = { periodMenu = false }, properties = MenuPopupProperties) {
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
-                    PERIODS.forEachIndexed { index, (period, label) ->
+                MenuColors {
+                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
+                        PERIODS.forEachIndexed { index, (period, label) ->
+                            DropdownMenuItem(
+                                checked = filter.period == period,
+                                onCheckedChange = {
+                                    periodMenu = false
+                                    onChange(filter.copy(period = period))
+                                },
+                                text = { Text(stringResource(label)) },
+                                shapes = MenuDefaults.itemShape(index, PERIODS.size),
+                                checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                        val custom = filter.period as? SearchPeriod.Custom
                         DropdownMenuItem(
-                            checked = filter.period == period,
+                            checked = custom != null,
+                            // Ťuknutí na už vybraný rozsah ho nezruší, ale otevře výběr znovu.
                             onCheckedChange = {
                                 periodMenu = false
-                                onChange(filter.copy(period = period))
+                                pickRange = true
                             },
-                            text = { Text(stringResource(label)) },
-                            shapes = MenuDefaults.itemShape(index, PERIODS.size),
+                            text = { Text(stringResource(Res.string.search_filter_custom)) },
+                            supportingText = custom?.let { { Text(it.label()) } },
+                            shapes = MenuDefaults.itemShape(0, 1),
                             checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
                         )
                     }
-                }
-                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
-                    val custom = filter.period as? SearchPeriod.Custom
-                    DropdownMenuItem(
-                        checked = custom != null,
-                        // Ťuknutí na už vybraný rozsah ho nezruší, ale otevře výběr znovu.
-                        onCheckedChange = {
-                            periodMenu = false
-                            pickRange = true
-                        },
-                        text = { Text(stringResource(Res.string.search_filter_custom)) },
-                        supportingText = custom?.let { { Text(it.label()) } },
-                        shapes = MenuDefaults.itemShape(0, 1),
-                        checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
-                    )
                 }
             }
         }
@@ -291,18 +294,20 @@ private fun ContentFilterButton(filter: MessageSearchFilter, onChange: (MessageS
             },
         )
         DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
-                SearchContent.entries.forEachIndexed { index, content ->
-                    DropdownMenuItem(
-                        checked = filter.content == content,
-                        onCheckedChange = {
-                            menu = false
-                            onChange(filter.copy(content = content))
-                        },
-                        text = { Text(stringResource(content.label)) },
-                        shapes = MenuDefaults.itemShape(index, SearchContent.entries.size),
-                        checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
-                    )
+            MenuColors {
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                    SearchContent.entries.forEachIndexed { index, content ->
+                        DropdownMenuItem(
+                            checked = filter.content == content,
+                            onCheckedChange = {
+                                menu = false
+                                onChange(filter.copy(content = content))
+                            },
+                            text = { Text(stringResource(content.label)) },
+                            shapes = MenuDefaults.itemShape(index, SearchContent.entries.size),
+                            checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
+                        )
+                    }
                 }
             }
         }

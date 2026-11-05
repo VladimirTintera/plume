@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
@@ -269,14 +270,16 @@ private fun Groups(
     row: @Composable (MenuRow, Int, Int) -> Unit,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(MENU_GROUP_GAP)) {
-        groups.forEachIndexed { groupIndex, group ->
-            DropdownMenuGroup(
-                shapes = MenuDefaults.groupShape(groupIndex, groups.size),
-                contentPadding = PaddingValues(vertical = MENU_GROUP_PADDING),
-                interactionSource = interactionSource,
-                modifier = Modifier.width(MENU_WIDTH),
-            ) {
-                group.forEachIndexed { index, item -> row(item, index, group.size) }
+        MenuColors {
+            groups.forEachIndexed { groupIndex, group ->
+                DropdownMenuGroup(
+                    shapes = MenuDefaults.groupShape(groupIndex, groups.size),
+                    contentPadding = PaddingValues(vertical = MENU_GROUP_PADDING),
+                    interactionSource = interactionSource,
+                    modifier = Modifier.width(MENU_WIDTH),
+                ) {
+                    group.forEachIndexed { index, item -> row(item, index, group.size) }
+                }
             }
         }
     }

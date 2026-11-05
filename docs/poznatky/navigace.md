@@ -17,7 +17,13 @@ má rozhodovat podle místa, které opravdu dostane.
 o ně řekne, i když stojí daleko od kamery. Telefon naležato proto měl v konverzaci (panel VPRAVO)
 mezeru o šířku výřezu vlevo — v hlavičce a seznamu zpráv, ne ve vstupním poli, které si boky
 nebralo vůbec. Pravidlo: kdo inset vyřešil, ten ho **zkonzumuje** (`consumeWindowInsets`).
-Seznam v dvoupanelu konzumuje pravý inset (`listPaneInsets`) — ten patří panelu vpravo. Vstupní pole bere `safeDrawing` bokem i spodkem, jinak by odeslání zajelo pod
+Seznam v dvoupanelu konzumuje pravý inset (`listPaneInsets`) — ten patří panelu vpravo. Detail
+vedle seznamu a profil konzumují levý, detail vedle profilu pravý (`consumeSide` v `PaneCard`).
+Levý bok dřív konzumoval rail; s jeho odstraněním ho nikdo nebral a konverzace vedle seznamu měla
+naležato vlevo prázdný pruh asi 53 dp. Každý bok je ve vlastním uzlu, ne dvě konzumace v jednom
+řetězci: při změně scény by si místa vyměnily a uzel by dostal jiné insety (Gotchas v CLAUDE.md).
+Ověřeno na emulátoru v obou rotacích i s profilem vedle konverzace, deset otočení mezi jedním
+a dvěma panely bez pádu; Fold ověřený není. Vstupní pole bere `safeDrawing` bokem i spodkem, jinak by odeslání zajelo pod
 výřez nebo boční třítlačítkovou lištu. Ověřuje se v OBOU rotacích naležato
 (`adb shell cmd window user-rotation lock 1` / `3`, pak `free`) — výřez je pokaždé na jiné straně.
 

@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.runtime.remember
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.DropdownMenuGroup
@@ -67,32 +69,53 @@ fun ExpressiveMenu(
         popupPositionProvider = popupPositionProvider,
         properties = properties,
     ) {
-        shown.forEachIndexed { groupIndex, group ->
-            if (groupIndex > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, shown.size)) {
-                group.forEachIndexed { index, action ->
-                    val colors = if (action.destructive) {
-                        MenuDefaults.itemColors(
-                            textColor = MaterialTheme.colorScheme.error,
-                            leadingIconColor = MaterialTheme.colorScheme.error,
+        MenuColors {
+            shown.forEachIndexed { groupIndex, group ->
+                if (groupIndex > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, shown.size)) {
+                    group.forEachIndexed { index, action ->
+                        val colors = if (action.destructive) {
+                            MenuDefaults.itemColors(
+                                textColor = MaterialTheme.colorScheme.error,
+                                leadingIconColor = MaterialTheme.colorScheme.error,
+                            )
+                        } else {
+                            MenuDefaults.itemColors()
+                        }
+                        DropdownMenuItem(
+                            onClick = {
+                                onDismiss()
+                                action.onClick()
+                            },
+                            text = { Text(action.label) },
+                            shape = MenuDefaults.itemShape(index, group.size).shape,
+                            leadingIcon = action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
+                            trailingIcon = action.trailing,
+                            supportingText = action.supporting?.let { text -> { Text(text) } },
+                            colors = colors,
                         )
-                    } else {
-                        MenuDefaults.itemColors()
                     }
-                    DropdownMenuItem(
-                        onClick = {
-                            onDismiss()
-                            action.onClick()
-                        },
-                        text = { Text(action.label) },
-                        shape = MenuDefaults.itemShape(index, group.size).shape,
-                        leadingIcon = action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
-                        trailingIcon = action.trailing,
-                        supportingText = action.supporting?.let { text -> { Text(text) } },
-                        colors = colors,
-                    )
                 }
             }
         }
     }
+}
+
+/**
+ * Barvy nabídky: plocha skupin i položek je `surfaceContainerHighest`, ne výchozí
+ * `surfaceContainerLow` z M3 Expressive (`StandardMenuTokens`).
+ *
+ * `surfaceContainerLow` je pod stránkou (`surfaceContainer`, `asListPage`) i pod řádky na ní
+ * (`surfaceBright`), takže nabídka v tmavém motivu vypadala jako díra: nad seznamem chatů #121318
+ * na řádcích #2A2C34 (API 37). Vrstvení projektu dává nabídce nad plochou `surfaceContainerHighest`
+ * (CLAUDE.md, „Vrstvení"). Přemapovává se role, ne barvy po komponentách: skupinu i každou
+ * položku kreslí M3 z téhož tokenu a položek jsou desítky.
+ *
+ * Kdo kreslí `DropdownMenuPopup` sám, obalí jeho obsah taky.
+ */
+@Composable
+fun MenuColors(content: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val menu = remember(scheme) { scheme.copy(surfaceContainerLow = scheme.surfaceContainerHighest) }
+    MaterialExpressiveTheme(colorScheme = menu, content = content)
 }

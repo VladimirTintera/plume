@@ -124,31 +124,33 @@ fun <T> ChoiceMenu(
         popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below),
         properties = MenuPopupProperties,
     ) {
-        val groups = if (note != null) 2 else 1
-        // Obě skupiny stejně široké: věta nad volbami užší než volby vypadala jako zbytek.
-        Column(Modifier.width(IntrinsicSize.Max)) {
-            if (note != null) {
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, groups), modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        note,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        // Širší věta by nabídku roztáhla přes obrazovku.
-                        modifier = Modifier.widthIn(max = NOTE_MAX_WIDTH).padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
+        MenuColors {
+            val groups = if (note != null) 2 else 1
+            // Obě skupiny stejně široké: věta nad volbami užší než volby vypadala jako zbytek.
+            Column(Modifier.width(IntrinsicSize.Max)) {
+                if (note != null) {
+                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, groups), modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            note,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            // Širší věta by nabídku roztáhla přes obrazovku.
+                            modifier = Modifier.widthIn(max = NOTE_MAX_WIDTH).padding(horizontal = 12.dp, vertical = 8.dp),
+                        )
+                    }
+                    Spacer(Modifier.height(MenuDefaults.GroupSpacing))
                 }
-                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            }
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(groups - 1, groups), modifier = Modifier.fillMaxWidth()) {
-                options.forEachIndexed { index, option ->
-                    DropdownMenuItem(
-                        checked = option == selected,
-                        onCheckedChange = { onSelect(option) },
-                        text = { Text(label(option)) },
-                        supportingText = optionSupporting?.let { supporting -> { Text(supporting(option)) } },
-                        shapes = MenuDefaults.itemShape(index, options.size),
-                        checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
-                    )
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(groups - 1, groups), modifier = Modifier.fillMaxWidth()) {
+                    options.forEachIndexed { index, option ->
+                        DropdownMenuItem(
+                            checked = option == selected,
+                            onCheckedChange = { onSelect(option) },
+                            text = { Text(label(option)) },
+                            supportingText = optionSupporting?.let { supporting -> { Text(supporting(option)) } },
+                            shapes = MenuDefaults.itemShape(index, options.size),
+                            checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
+                        )
+                    }
                 }
             }
         }
