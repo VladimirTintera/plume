@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
@@ -204,15 +205,17 @@ internal fun ChatSwitcherBackButton(
             popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below),
             properties = MenuPopupProperties,
         ) {
-            val candidates = state.candidates
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
-                candidates.forEachIndexed { index, chat ->
-                    SwitcherItem(
-                        chat = chat,
-                        index = index,
-                        count = candidates.size,
-                        onClick = { state.switchTo(chat) },
-                    )
+            MenuColors {
+                val candidates = state.candidates
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                    candidates.forEachIndexed { index, chat ->
+                        SwitcherItem(
+                            chat = chat,
+                            index = index,
+                            count = candidates.size,
+                            onClick = { state.switchTo(chat) },
+                        )
+                    }
                 }
             }
         }
@@ -250,7 +253,7 @@ private fun SwitcherItem(chat: ChatSummary, index: Int, count: Int, onClick: () 
                 // Ztlumený chat neutrálně, jako v seznamu chatů — počet tam je, ale nevolá.
                 val colors = MaterialTheme.colorScheme
                 Badge(
-                    containerColor = if (chat.isMuted) colors.surfaceContainerHighest else colors.primary,
+                    containerColor = if (chat.isMuted) colors.outlineVariant else colors.primary,
                     contentColor = if (chat.isMuted) colors.onSurfaceVariant else colors.onPrimary,
                 ) {
                     RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())

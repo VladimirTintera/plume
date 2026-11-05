@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -272,30 +273,32 @@ private fun AuthorChip(
             },
         )
         DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
-                DropdownMenuItem(
-                    checked = chosen.isEmpty(),
-                    onCheckedChange = {
-                        menu = false
-                        onAnyAuthor()
-                    },
-                    text = { Text(stringResource(Res.string.event_log_filter_anyone)) },
-                    shapes = MenuDefaults.itemShape(0, 1),
-                    checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
-                )
-            }
-            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
-                admins.forEachIndexed { index, admin ->
+            MenuColors {
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
                     DropdownMenuItem(
-                        checked = admin.id in chosen,
-                        onCheckedChange = { onToggleAuthor(admin.id) },
-                        text = { Text(admin.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        shapes = MenuDefaults.itemShape(index, admins.size),
-                        // Fotka říká kdo, fajfka na jejím místě, že je vybraný.
-                        leadingIcon = { Avatar(chatId = admin.id, title = admin.title, avatarFileId = admin.avatarFileId, size = 24.dp) },
+                        checked = chosen.isEmpty(),
+                        onCheckedChange = {
+                            menu = false
+                            onAnyAuthor()
+                        },
+                        text = { Text(stringResource(Res.string.event_log_filter_anyone)) },
+                        shapes = MenuDefaults.itemShape(0, 1),
                         checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
                     )
+                }
+                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                    admins.forEachIndexed { index, admin ->
+                        DropdownMenuItem(
+                            checked = admin.id in chosen,
+                            onCheckedChange = { onToggleAuthor(admin.id) },
+                            text = { Text(admin.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            shapes = MenuDefaults.itemShape(index, admins.size),
+                            // Fotka říká kdo, fajfka na jejím místě, že je vybraný.
+                            leadingIcon = { Avatar(chatId = admin.id, title = admin.title, avatarFileId = admin.avatarFileId, size = 24.dp) },
+                            checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
+                        )
+                    }
                 }
             }
         }

@@ -2,6 +2,11 @@ package eu.tintera.plume.core.adaptive
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +40,8 @@ import eu.tintera.plume.core.ui.groupRow
 data class PaneNeighbours(
     /** Vlevo od karty je seznam — karta od něj odstoupí o [PANE_SPACING]. */
     val listBeside: Boolean = false,
+    /** Vpravo od karty je profil (třetí panel). */
+    val extraBeside: Boolean = false,
 )
 
 val LocalPaneNeighbours = compositionLocalOf { PaneNeighbours() }
@@ -76,10 +83,15 @@ fun PaneCard(
             Modifier
                 .fillMaxSize()
                 .padding(start = if (sideBySide && role == PaneRole.Detail && neighbours.listBeside) PANE_SPACING else 0.dp)
+                .consumeSide(sideBySide && (role == PaneRole.Extra || role == PaneRole.Detail && neighbours.listBeside), WindowInsetsSides.Start)
                 .clip(shape)
                 .then(if (card) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier),
         ) {
-            content()
+            // Druhý bok ve vlastním uzlu: dvě konzumace v jednom řetězci by si při změně scény
+            // vyměnily místo a Compose by uzel přepsal jinými insety (viz `consumeSide`).
+            Box(Modifier.fillMaxSize().consumeSide(sideBySide && role == PaneRole.Detail && neighbours.extraBeside, WindowInsetsSides.End)) {
+                content()
+            }
             // Kde panel leží — táhlo šířky na předělu kreslí shell nad panely
             // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl. Jen karta zobrazené položky —
             // odjíždějící scéna by táhlo přetáhla k sobě a po zániku smazala (`LocalPaneResizeOwners`).
@@ -98,6 +110,19 @@ fun PaneCard(
         }
     }
 }
+
+/**
+ * Zkonzumuje boční inset ([side]), když panel u toho okraje obrazovky nestojí. Insety nevědí, kde
+ * prvek leží: konverzace vpravo od seznamu dostávala naležato výřez kamery z LEVÉHO kraje obrazovky
+ * a hlavička, zprávy i pole od něj odskočily o jeho šířku. Seznam si pravý bok bere sám
+ * (`listPaneInsets` v shellu), levý bok detailu a profilu do odstranění railu konzumoval rail.
+ *
+ * Podmínka přidá nebo odebere celý modifikátor, hodnota uvnitř je pořád tatáž: změněné insety
+ * u uzlu, který NavDisplay zrovna přesouvá do jiné scény, shodí aplikaci (Gotchas v CLAUDE.md).
+ */
+@Composable
+private fun Modifier.consumeSide(consume: Boolean, side: WindowInsetsSides): Modifier =
+    if (consume) consumeWindowInsets(WindowInsets.safeDrawing.only(side)) else this
 
 /** Téma obrazovky: stránka s bloky řádků ([asListPage]), nebo vlastní plocha. */
 @Composable

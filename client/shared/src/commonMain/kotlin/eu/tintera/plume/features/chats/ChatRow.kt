@@ -691,7 +691,8 @@ internal fun ChatRow(
                                 style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                                 // U nepřečteného chatu je čas akcentem, stejně jako odznak pod ním —
                                 // oči jdou po pravém sloupci a hledají, kde se něco stalo.
-                                color = if (showUnread && !selected) {
+                                // Ztlumený chat ne: počet tam je, ale nevolá (viz `UnreadBadges`).
+                                color = if (showUnread && !selected && !chat.isMuted) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
                                     secondaryColor
@@ -772,7 +773,7 @@ internal fun ChatRow(
                 }
             }
 
-            UnreadBadges(chat, quiet = sleeping, accent = accent, awaitingReply = marks.awaitingReply)
+            UnreadBadges(chat, quiet = sleeping, quietCount = chat.isMuted, accent = accent, awaitingReply = marks.awaitingReply)
         }
     }
 }
@@ -807,6 +808,10 @@ internal sealed interface RowSnooze {
  * nepřečtených je to jediné, kvůli čemu ji uživatel otevře. Číslo nenesou (kolik jich je, řekne
  * tlačítko v konverzaci) — jde o to, ŽE nějaké jsou.
  *
+ * Ztlumený chat ([quietCount]) má neutrální jen počet: zprávy v něm jsou, ale ztlumení říká, že
+ * nevolají. Zmínka a reakce míří na uživatele a TDLib na ně upozorní i ve ztlumeném chatu, takže
+ * akcent drží. Stejně to kreslí přepínač chatů v konverzaci (`ChatSwitcherButton`).
+ *
  * Odznak „čeká na odpověď" ([awaitingReply], šipka odpovědi) je stejného druhu a stojí hned
  * u počtu: týká se právě těch nepřečtených zpráv. Tvar ikonového odznaku, ne štítek s textem —
  * řádek nemá kam růst a slovní štítek by se pral s časem i náhledem.
@@ -816,6 +821,8 @@ private fun UnreadBadges(
     chat: ChatSummary,
     /** Odznaky v neutrální barvě — u odloženého chatu, který se má do té doby neozývat. */
     quiet: Boolean = false,
+    /** Počet nepřečtených v neutrální barvě — u ztlumeného chatu. */
+    quietCount: Boolean = false,
     /** Paleta z barvy konverzace; odznak je pak jediné místo v řádku, které ji nese. */
     accent: ColorScheme? = null,
     awaitingReply: Boolean = false,
@@ -844,7 +851,10 @@ private fun UnreadBadges(
             // `Badge` je ve výchozím stavu chybově červený. Nepřečtená zpráva ale není
             // chyba — v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce
             // a přebíjela všechno ostatní.
-            Badge(containerColor = container, contentColor = content) {
+            Badge(
+                containerColor = if (quietCount) MaterialTheme.colorScheme.outlineVariant else container,
+                contentColor = if (quietCount) MaterialTheme.colorScheme.onSurfaceVariant else content,
+            ) {
                 RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())
             }
         }

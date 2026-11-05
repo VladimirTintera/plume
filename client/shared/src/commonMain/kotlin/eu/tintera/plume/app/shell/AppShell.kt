@@ -544,6 +544,7 @@ private fun ShellContent(
         val extraBeside = twoPane && extraShown
         val paneNeighbours = PaneNeighbours(
             listBeside = twoPane && (!extraBeside || threePane),
+            extraBeside = extraBeside,
         )
 
         /*

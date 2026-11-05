@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -71,40 +72,42 @@ internal fun VideoQualityChip(
             onDismissRequest = { onExpandedChange(false) },
             properties = MenuPopupProperties,
         ) {
-            val choose = { choice: VideoQualityChoice ->
-                onExpandedChange(false)
-                menu.onChoose(choice)
-            }
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
-                DropdownMenuItem(
-                    checked = menu.choice == VideoQualityChoice.Auto,
-                    onCheckedChange = { choose(VideoQualityChoice.Auto) },
-                    text = { Text(stringResource(Res.string.media_quality_auto)) },
-                    supportingText = { Text(stringResource(Res.string.media_quality_auto_hint, qualityLabel(menu.autoPick))) },
-                    shapes = MenuDefaults.itemShape(0, 1),
-                    checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
-                )
-            }
-            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-            DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
-                menu.options.forEachIndexed { index, option ->
-                    val size = option.sizeBytes.takeIf { it > 0 }?.let { fileSizeText(it) }
-                    val supporting = when {
-                        option.isOriginal && size != null ->
-                            stringResource(Res.string.media_quality_with_size, stringResource(Res.string.media_quality_original), size)
-                        option.isOriginal -> stringResource(Res.string.media_quality_original)
-                        else -> size
-                    }
+            MenuColors {
+                val choose = { choice: VideoQualityChoice ->
+                    onExpandedChange(false)
+                    menu.onChoose(choice)
+                }
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
                     DropdownMenuItem(
-                        checked = menu.choice != VideoQualityChoice.Auto && option == menu.playing,
-                        onCheckedChange = {
-                            choose(if (option.isOriginal) VideoQualityChoice.Original else VideoQualityChoice.Lines(option.lines))
-                        },
-                        text = { Text(qualityLabel(option)) },
-                        supportingText = supporting?.let { { Text(it) } },
-                        shapes = MenuDefaults.itemShape(index, menu.options.size),
+                        checked = menu.choice == VideoQualityChoice.Auto,
+                        onCheckedChange = { choose(VideoQualityChoice.Auto) },
+                        text = { Text(stringResource(Res.string.media_quality_auto)) },
+                        supportingText = { Text(stringResource(Res.string.media_quality_auto_hint, qualityLabel(menu.autoPick))) },
+                        shapes = MenuDefaults.itemShape(0, 1),
                         checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
                     )
+                }
+                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                    menu.options.forEachIndexed { index, option ->
+                        val size = option.sizeBytes.takeIf { it > 0 }?.let { fileSizeText(it) }
+                        val supporting = when {
+                            option.isOriginal && size != null ->
+                                stringResource(Res.string.media_quality_with_size, stringResource(Res.string.media_quality_original), size)
+                            option.isOriginal -> stringResource(Res.string.media_quality_original)
+                            else -> size
+                        }
+                        DropdownMenuItem(
+                            checked = menu.choice != VideoQualityChoice.Auto && option == menu.playing,
+                            onCheckedChange = {
+                                choose(if (option.isOriginal) VideoQualityChoice.Original else VideoQualityChoice.Lines(option.lines))
+                            },
+                            text = { Text(qualityLabel(option)) },
+                            supportingText = supporting?.let { { Text(it) } },
+                            shapes = MenuDefaults.itemShape(index, menu.options.size),
+                            checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
+                        )
+                    }
                 }
             }
         }

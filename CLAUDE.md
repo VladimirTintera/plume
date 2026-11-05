@@ -576,6 +576,8 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**
   (`MenuAction.destructive`), co k sobě patří, je v jedné. Nabídka s výběrem (období v hledání)
   bere položky s `checked` — vybraná je zaškrtnutá.
+  **Plocha nabídky je `surfaceContainerHighest`** (`MenuColors`, výchozí M3 má `surfaceContainerLow`,
+  tedy pod stránkou i řádky); kdo kreslí `DropdownMenuPopup` sám, obalí obsah do `MenuColors`.
   **Okno nabídky si nebere klávesnici** (`MenuPopupProperties`, výchozí v `ExpressiveMenu`):
   holé `DropdownMenuPopup` / `Popup` bez vstupního pole ho dostane taky, jinak nabídka nad
   otevřenou klávesnicí klávesnici utrhne a obsah pod ní skočí. Viz „Nabídky si neberou
