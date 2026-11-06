@@ -618,6 +618,13 @@ společné; nová je jen položka `LiteRtModel.AyaExpanse8B` a poskytovatel v Na
   — `llama_chat_apply_template` ji pozná ze šablony v souboru, nic vlastního není potřeba.
 - **V automatice za EuroLLM, před Qwenem** (`AUTOMATIC_ORDER`), jen proto, že EuroLLM přibyl
   dřív; kdo zapne oba, rozdělí si úlohy v „Co čím počítat".
+- **Ověřeno na Macu (M5, Metal)** dočasným testem nad `LlamaCppEngineFactory`: soubor sedí
+  (SHA-256 `9592bad9…`), načte se za 3,4 s. Shrnutí krátkého českého chatu (chata, auto, pivo,
+  odjezd v 9, předpověď) za 6,1 s **věcně správně a česky bez chyb**, jen pokyn „dvě až tři
+  věty ve druhé osobě" nedodržela a napsala odrážky. EuroMoE 2,6B na tomtéž za 0,45 s, ale
+  s chybami (pivo přisoudil čtenáři, počasí vynechal). llama.cpp při načtení hlásí
+  „special_eos_id is not in special_eog_ids" — odpověď přesto skončila sama, ne na stropu tokenů.
+  S EuroLLM 9B srovnané není; na telefonu a v přihlášené aplikaci neověřené.
 
 ### Víc modelů naráz a co čím počítat
 
