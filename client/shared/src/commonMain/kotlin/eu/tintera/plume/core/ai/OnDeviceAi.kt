@@ -120,21 +120,20 @@ interface OnDeviceAi {
  *   Bývá jen na novějších zařízeních a stahuje se zvlášť.
  * @property fast (jen Gemini Nano) rychlejší a méně přesná varianta místo plné.
  * @property gemma (jen Gemma) kterou velikost si aplikace stáhne.
+ * @property qwen (jen Qwen) kterou velikost si aplikace stáhne.
  */
 data class ModelVariant(
     val provider: AiProvider = AiProvider.GeminiNano,
     val preview: Boolean = false,
     val fast: Boolean = false,
     val gemma: LiteRtModel = LiteRtModel.E2B,
+    val qwen: LiteRtModel = LiteRtModel.Qwen3_4B,
 ) {
-    /**
-     * Soubor, který si aplikace stáhne a počítá přes LiteRT-LM; `null` u systémového modelu.
-     * Qwen má zatím jedinou velikost, takže volbu jako [gemma] nepotřebuje.
-     */
+    /** Soubor, který si aplikace stáhne a počítá přes LiteRT-LM; `null` u systémového modelu. */
     val model: LiteRtModel?
         get() = when (provider) {
             AiProvider.Gemma -> gemma
-            AiProvider.Qwen -> LiteRtModel.Qwen3_4B
+            AiProvider.Qwen -> qwen
             AiProvider.GeminiNano, AiProvider.Apple -> null
         }
 
@@ -172,8 +171,14 @@ enum class AiProvider {
  * nenabízí, protože by systém aplikaci při načítání zabil. Jména položek se ukládají
  * (`on_device_ai_gemma`, jméno úlohy stahování), takže se nepřejmenovávají.
  *
+ * Pořadí položek téhož poskytovatele je pořadí, ve kterém se hledá náhrada za velikost, na
+ * kterou zařízení nestačí (`supportedModels` v Nastavení). Qweny jdou od největšího, takže
+ * telefon dostane největší, který unese; u Gemmy je první výchozí menší E2B.
+ *
  * @property provider komu model patří: volba velikosti v Nastavení je jen mezi modely téhož.
  * @property multimodal bere i zvuk a obraz (přepis hlasovek, popis fotek), ne jen text.
+ * @property contextTokens kolik tokenů (vstup i výstup dohromady) soubor unese; víc engine
+ *   nedostane, ani když by aplikace chtěla delší kontext.
  */
 enum class LiteRtModel(
     val displayName: String,
@@ -184,6 +189,7 @@ enum class LiteRtModel(
     val sizeBytes: Long,
     val minMemoryGb: Int,
     val multimodal: Boolean,
+    val contextTokens: Int = 8_192,
 ) {
     // Gemma: soubor, commit, velikost i paměť z katalogu Google AI Edge Gallery
     // (`model_allowlists/1_0_19.json`).
@@ -223,12 +229,46 @@ enum class LiteRtModel(
         sizeBytes = 2_272_935_936,
         minMemoryGb = 12,
         multimodal = false,
+        contextTokens = 4_096,
+    ),
+
+    /** Qwen2.5 1,5B: soubor, commit, velikost i paměť z katalogu Gallery (`1_0_23.json`). */
+    Qwen2_5_1_5B(
+        displayName = "Qwen2.5 1.5B",
+        provider = AiProvider.Qwen,
+        repository = "litert-community/Qwen2.5-1.5B-Instruct",
+        fileName = "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+        commit = "5e6e7a58d03777898b31330a15d2e0a5a9107de3",
+        sizeBytes = 1_597_922_856,
+        minMemoryGb = 6,
+        multimodal = false,
+        contextTokens = 4_096,
+    ),
+
+    /*
+     * Qwen3 0,6B z litert-community, týž export jako Qwen3 4B (INT4, GPU kompozity, LiteRT-LM
+     * 0.19). Paměť: proces s ním podle karty modelu na Pixelu 8a sahá na ~1,9 GB, proto 4 GB.
+     */
+    Qwen3_0_6B(
+        displayName = "Qwen3 0.6B",
+        provider = AiProvider.Qwen,
+        repository = "litert-community/Qwen3-0.6B",
+        fileName = "Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm",
+        commit = "7c650468cc1598861b1a0deb0ab25be6b20cab13",
+        sizeBytes = 343_490_560,
+        minMemoryGb = 4,
+        multimodal = false,
+        contextTokens = 4_096,
     ),
     ;
 
     /** Varianta, která tenhle soubor počítá — na dotazy po souborech (Úložiště, dostupnost). */
     val variant: ModelVariant
-        get() = if (provider == AiProvider.Gemma) ModelVariant(provider = provider, gemma = this) else ModelVariant(provider = provider)
+        get() = when (provider) {
+            AiProvider.Gemma -> ModelVariant(provider = provider, gemma = this)
+            AiProvider.Qwen -> ModelVariant(provider = provider, qwen = this)
+            AiProvider.GeminiNano, AiProvider.Apple -> ModelVariant(provider = provider)
+        }
 
     val downloadUrl: String
         get() = "https://huggingface.co/$repository/resolve/$commit/$fileName?download=true"

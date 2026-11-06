@@ -53,12 +53,14 @@ class RoutingOnDeviceAiTest {
         val liteRt = Recorder(OnDeviceAiStatus.Downloadable)
         val ai = RoutingOnDeviceAi(nano, liteRt)
 
-        val status = ai.status(ModelVariant(provider = AiProvider.Qwen, fast = true, gemma = LiteRtModel.E4B))
+        val status = ai.status(
+            ModelVariant(provider = AiProvider.Qwen, fast = true, gemma = LiteRtModel.E4B, qwen = LiteRtModel.Qwen3_0_6B),
+        )
 
         assertEquals(OnDeviceAiStatus.Downloadable, status)
-        assertEquals(listOf(ModelVariant(provider = AiProvider.Qwen)), liteRt.seen)
+        assertEquals(listOf(ModelVariant(provider = AiProvider.Qwen, qwen = LiteRtModel.Qwen3_0_6B)), liteRt.seen)
         assertEquals(emptyList(), nano.seen)
-        assertEquals(LiteRtModel.Qwen3_4B, liteRt.seen.single().model)
+        assertEquals(LiteRtModel.Qwen3_0_6B, liteRt.seen.single().model)
     }
 
     @Test

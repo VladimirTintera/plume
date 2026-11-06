@@ -78,10 +78,12 @@ data class AiModels(
     val preview: Boolean = false,
     val fast: Boolean = false,
     val gemma: LiteRtModel = LiteRtModel.E2B,
+    val qwen: LiteRtModel = LiteRtModel.Qwen3_4B,
     val assigned: Map<AiTask, AiProvider> = emptyMap(),
 ) {
     /** Varianta, se kterou se volá [OnDeviceAi] pro model [provider]. */
-    fun variant(provider: AiProvider) = ModelVariant(provider = provider, preview = preview, fast = fast, gemma = gemma)
+    fun variant(provider: AiProvider) =
+        ModelVariant(provider = provider, preview = preview, fast = fast, gemma = gemma, qwen = qwen)
 
     /** Zapnuté modely, které úlohu zvládnou, v pořadí, ve kterém je bere „Automaticky". */
     fun candidates(task: AiTask): List<AiProvider> =

@@ -27,9 +27,19 @@ class LiteRtModelTest {
         LiteRtModel.entries.forEach { assertEquals(it.provider == AiProvider.Gemma, it.multimodal) }
     }
 
+    /** Qweny jdou od největšího — náhrada za nedostupnou velikost bere první, která jde. */
+    @Test
+    fun qwenyOdNejvetsiho() {
+        val sizes = LiteRtModel.entries.filter { it.provider == AiProvider.Qwen }.map { it.minMemoryGb }
+        assertEquals(sizes.sortedDescending(), sizes)
+    }
+
     /** Jména se ukládají (volba velikosti, úloha stahování) — přejmenování by volbu ztratilo. */
     @Test
     fun jmenaPolozekSeNemeni() {
-        assertEquals(listOf("E2B", "E4B", "Qwen3_4B"), LiteRtModel.entries.map { it.name })
+        assertEquals(
+            listOf("E2B", "E4B", "Qwen3_4B", "Qwen2_5_1_5B", "Qwen3_0_6B"),
+            LiteRtModel.entries.map { it.name },
+        )
     }
 }

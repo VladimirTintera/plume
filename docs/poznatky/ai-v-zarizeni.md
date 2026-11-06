@@ -11,7 +11,7 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
 
 ### Dva poskytovatelé: Gemini Nano a Gemma
 
-Zapnuté můžou být **Gemini Nano** v AICore (ML Kit, `MlKitOnDeviceAi`), **Gemma 4** a **Qwen3 4B**
+Zapnuté můžou být **Gemini Nano** v AICore (ML Kit, `MlKitOnDeviceAi`), **Gemma 4** a **Qwen**
 přes LiteRT-LM (`LiteRtOnDeviceAi`), které si stáhne aplikace, nebo víc naráz (`AiModels.enabled`).
 Každá funkce se ptá na model PRO SVOU ÚLOHU (`ai.variantFor(AiTask.Summary, settings)`,
 `core/ai/AiTasks.kt`, testy `AiTasksTest`) a hotové volání pak předá `RoutingOnDeviceAi` (testy
@@ -258,9 +258,26 @@ poskytovatelích nemusí vědět nic.
 
 ### Qwen a další modely přes LiteRT-LM
 
-LiteRT-LM spustí jakýkoli soubor `.litertlm`, ne jen Gemmu. Druhý stahovaný model je **Qwen3 4B**
-(`AiProvider.Qwen`, `LiteRtModel.Qwen3_4B`): jen text, Apache 2.0, kvůli češtině — jestli ji umí
-líp než Gemma, má ukázat „Porovnat s dalšími modely" na skutečné konverzaci.
+LiteRT-LM spustí jakýkoli soubor `.litertlm`, ne jen Gemmu. Druhý stahovaný model je **Qwen**
+(`AiProvider.Qwen`), jen text, Apache 2.0, ve třech velikostech jako volba u modelu (jako E2B / E4B
+u Gemmy): **Qwen3 4B** (2,1 GB, 12 GB paměti) kvůli češtině — jestli ji umí líp než Gemma, má
+ukázat „Porovnat s dalšími modely" na skutečné konverzaci —, **Qwen2.5 1,5B** (1,5 GB, 6 GB)
+a **Qwen3 0,6B** (328 MB, 4 GB) pro telefony, na které Gemma nestačí.
+
+- **Slabší telefon dostane sekci AI, i když se nevejde výchozí velikost.** Poskytovatel je
+  dostupný, když zařízení unese aspoň JEDNU jeho velikost (`availability`); dřív se ptalo na
+  výchozí variantu, a ta by Qwen na telefonu s 6 GB schovala celý. Uloženou velikost, na kterou
+  paměť nestačí, `supportedModels` vymění za první dostupnou téhož modelu — Qweny jsou v katalogu
+  od největšího, takže telefon dostane největší, který unese (test `SupportedModelsTest`).
+- **Kontext je vlastnost souboru** (`LiteRtModel.contextTokens`): Qweny mají 4 096 tokenů, Gemma
+  8 192. Engine dostane menší z obou (`maxNumTokens`) a podle toho i limit vstupu (`info`), takže
+  shrnutí u Qwenu dřív přejde na části. Soubor Qwen2.5 má KV keš pevně na 4 096 (`ekv4096`).
+- **Proč tyhle tři a ne jiné.** Qwen2.5 1,5B je z katalogu Gallery (`1_0_23.json`, 6 GB paměti),
+  Qwen3 0,6B týž export jako Qwen3 4B a v oficiální tabulce LiteRT-LM. **Gemma 3 1B** (z Gallery,
+  6 GB) je na Hugging Face za licenčním souhlasem — bez přihlášení vrací 401 a stahování ho neumí.
+  **Qwen3.5 0,8B** (litert-community) má vrstvy s rekurentním stavem a podle karty modelu chce
+  NOVÝ engine pro každou konverzaci, jinak navazuje na stav předchozí (LiteRT-LM#3165); aplikace
+  engine mezi dotazy drží, takže by odpovídal nesmysly.
 
 - **Katalog je jeden pro všechny stahované modely** (`LiteRtModel`, dřív `GemmaModel`): soubor,
   commit, velikost, paměť, komu patří (`provider`) a jestli bere zvuk a obraz (`multimodal`).
@@ -295,9 +312,10 @@ líp než Gemma, má ukázat „Porovnat s dalšími modely" na skutečné konve
   ve formátu LiteRT-LM nejsou (chtělo by to druhý runtime, např. llama.cpp). Nový model = řádek
   v `LiteRtModel`, a má-li vlastního poskytovatele, i v `AiProvider` (texty, pořadí automatiky).
 - **Ověřeno**: testy a vzhled Nastavení na emulátoru se sondou (x86_64 emulátor model nespustí,
-  kontrola zařízení dočasně vypnutá): Qwen v bloku Modely s velikostí 2,1 GB, „Automaticky
-  (Qwen3 4B)" u textových úloh vedle Gemmy, věta o Qwenu pod úlohami. **Na telefonu neověřené
-  nic: stažení Qwenu, jeho výstup a čeština, ani Gemma na nové verzi knihovny.**
+  kontrola zařízení dočasně podstrčená): Qwen v bloku Modely, „Automaticky (Qwen)" u textových
+  úloh vedle Gemmy, věta o Qwenu pod úlohami; jako telefon se 6 GB jen Qwen bez přepínače,
+  velikost sama na 1,5B, přepnutí na 0,6B („328 MB"). **Na telefonu neověřené nic: stažení
+  Qwenu, jeho výstup a čeština, ani Gemma na nové verzi knihovny.**
 
 ### Víc modelů naráz a co čím počítat
 

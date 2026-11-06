@@ -117,7 +117,7 @@ class LiteRtOnDeviceAi(
     override suspend fun info(variant: ModelVariant): ModelInfo? {
         val model = variant.model ?: return null
         if (!model.file().exists()) return null
-        return ModelInfo(name = model.displayName, tokenLimit = MAX_NUM_TOKENS - OUTPUT_RESERVE_TOKENS)
+        return ModelInfo(name = model.displayName, tokenLimit = model.maxTokens() - OUTPUT_RESERVE_TOKENS)
     }
 
     /**
@@ -351,6 +351,9 @@ class LiteRtOnDeviceAi(
             }
         }
 
+    /** Velikost KV keše: [MAX_NUM_TOKENS], nebo méně, když víc soubor neunese (Qwen 4 096). */
+    private fun LiteRtModel.maxTokens(): Int = minOf(MAX_NUM_TOKENS, contextTokens)
+
     /** Soubor modelu; varianta systémového modelu se sem dostat nemá (směrovač ji pošle jinam). */
     private fun ModelVariant.file(): LiteRtModel =
         model ?: throw OnDeviceAiException(AiFailureReason.Unavailable, provider)
@@ -425,7 +428,7 @@ class LiteRtOnDeviceAi(
                 visionBackend = if (vision) backend else null,
                 audioBackend = if (audio) Backend.CPU() else null,
                 maxNumImages = if (vision) 1 else null,
-                maxNumTokens = MAX_NUM_TOKENS,
+                maxNumTokens = model.maxTokens(),
                 // Keš zkompilovaného modelu zrychlí druhé načtení; do `cacheDir`, ať ji systém
                 // smí uklidit — soubor modelu vedle ní je drahý, keš ne.
                 cacheDir = context.cacheDir.absolutePath,

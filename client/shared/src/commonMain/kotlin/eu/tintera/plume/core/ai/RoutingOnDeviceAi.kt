@@ -71,5 +71,5 @@ internal fun ModelVariant.forGeminiNano() = ModelVariant(provider = AiProvider.G
 /** Jen to, co se týká Gemmy: který model. */
 internal fun ModelVariant.forGemma() = ModelVariant(provider = AiProvider.Gemma, gemma = gemma)
 
-/** U Qwenu se nevolí nic: má jedinou velikost. */
-internal fun ModelVariant.forQwen() = ModelVariant(provider = AiProvider.Qwen)
+/** Jen to, co se týká Qwenu: který model. */
+internal fun ModelVariant.forQwen() = ModelVariant(provider = AiProvider.Qwen, qwen = qwen)

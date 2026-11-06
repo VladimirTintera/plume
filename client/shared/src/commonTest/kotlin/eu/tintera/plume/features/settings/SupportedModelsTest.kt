@@ -4,6 +4,12 @@ import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.LiteRtModel
+import eu.tintera.plume.core.ai.ModelVariant
+import eu.tintera.plume.core.ai.NoopOnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -51,6 +57,33 @@ class SupportedModelsTest {
         assertEquals(
             AiModels(enabled = setOf(AiProvider.Gemma), gemma = LiteRtModel.E2B),
             supportedModels(AiModels(enabled = setOf(AiProvider.Gemma), gemma = LiteRtModel.E4B), smallOnly),
+        )
+    }
+
+    /** Na Qwen3 4B paměť nestačí: zvolí se největší Qwen, který zařízení unese. */
+    @Test
+    fun maloPametiVratiNejvetsiMensiQwen() {
+        val weak = AiAvailability(listOf(AiProvider.Qwen), listOf(LiteRtModel.Qwen2_5_1_5B, LiteRtModel.Qwen3_0_6B))
+        assertEquals(
+            AiModels(enabled = setOf(AiProvider.Qwen), qwen = LiteRtModel.Qwen2_5_1_5B),
+            supportedModels(AiModels(enabled = setOf(AiProvider.Qwen)), weak),
+        )
+    }
+
+    /**
+     * Slabší telefon bez AICore: Gemma ani Qwen3 4B se nevejdou, malé Qweny ano. Poskytovatel
+     * se nabídne podle NEJMENŠÍ velikosti, jinak by sekce AI na takovém telefonu chyběla celá.
+     */
+    @Test
+    fun dostupnostPodleNejmensiVelikosti() = runTest {
+        val small = setOf(LiteRtModel.Qwen2_5_1_5B, LiteRtModel.Qwen3_0_6B)
+        val weakPhone = object : OnDeviceAi by NoopOnDeviceAi {
+            override suspend fun status(variant: ModelVariant) =
+                if (variant.model in small) OnDeviceAiStatus.Downloadable else OnDeviceAiStatus.Unsupported
+        }
+        assertEquals(
+            AiAvailability(listOf(AiProvider.Qwen), listOf(LiteRtModel.Qwen2_5_1_5B, LiteRtModel.Qwen3_0_6B)),
+            weakPhone.availability().first(),
         )
     }
 

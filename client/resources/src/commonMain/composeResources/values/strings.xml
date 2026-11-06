@@ -2474,8 +2474,11 @@
     <string name="settings_ai_provider_gemma">Gemma 4</string>
     <string name="settings_ai_provider_gemma_summary">An open model the app downloads itself. It also transcribes voice messages and describes photos, but takes more memory.</string>
     <string name="settings_gemma_e2b_summary">Smaller and faster · %1$s</string>
-    <string name="settings_ai_provider_qwen">Qwen3 4B</string>
-    <string name="settings_ai_provider_qwen_summary">An open model by Alibaba the app downloads itself. Text only, strong in many languages, needs 12 GB of memory.</string>
+    <string name="settings_ai_provider_qwen">Qwen</string>
+    <string name="settings_ai_provider_qwen_summary">An open model by Alibaba the app downloads itself. Text only, in several sizes, the small ones also for weaker phones.</string>
+    <string name="settings_qwen_4b_summary">Largest and most accurate · %1$s, needs 12 GB of memory</string>
+    <string name="settings_qwen_1_5b_summary">Medium · %1$s, needs 6 GB of memory</string>
+    <string name="settings_qwen_0_6b_summary">Smallest and fastest, for weaker phones · %1$s, least accurate</string>
     <string name="settings_gemma_e4b_summary">Larger and more accurate · %1$s, needs 12 GB of memory</string>
     <string name="settings_gemma_under_load">In battery saver and when the phone is hot, Gemma doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
     <string name="settings_ai_models">Models</string>
