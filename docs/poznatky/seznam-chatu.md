@@ -558,7 +558,10 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   Změřeno ze snímků Chatu: světlý stránka #E6EDFF / řádek #F9F8FE, tmavý #0E192B / #060E1B
   (kontrast 1,10). Uživatelům tmavý seznam se světlejšími řádky (`surfaceBright`, jako systémová
   Nastavení: #2A2C34 na #181920) působil šedivě a rozsvíceně; ve světlém motivu se nezměnilo nic,
-  `surfaceBright` je tam totéž co `surface`.
+  `surfaceBright` je tam totéž co `surface`. **Na desktopu se třemi panely** mají teď řádky
+  seznamu, karta konverzace (`surface` odjakživa) i bloky profilu v obou motivech tentýž tón
+  a plocha okna je rámuje (paleta z výchozí barvy: tmavý okno #172026 / obsah #0D131B, světlý
+  #E6EFF7 / #F6FAFF). Dřív byly v tmavém řádky světlejší než karta konverzace vedle nich.
 - **`groupRow` čte `surface` přes `surfaceDim` / `surfaceBright`.** Pod stránkou je `surface`
   přemapovaný na stránku a jiná cesta k původní barvě přes `ColorScheme` nevede (`groupRow` se čte
   i mimo kompozici, v kreslení grafů). M3 definuje `surfaceDim` a `surfaceBright` jako nejtmavší
