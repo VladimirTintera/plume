@@ -32,6 +32,12 @@ interface LiteRtPlatform {
      */
     fun startDownload(model: LiteRtModel, run: suspend () -> Unit)
 
+    /**
+     * Text, který jde do modelu (pokyn i přepis zpráv), upravený tak, aby ho nativní strana
+     * přečetla. Výchozí beze změny.
+     */
+    fun modelText(text: String): String = text
+
     /** Zastaví stahování [model]; stažená část zůstává. */
     fun cancelDownload(model: LiteRtModel)
 

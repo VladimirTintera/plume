@@ -1172,6 +1172,18 @@ v `docs/poznatky/ai-v-zarizeni.md`.
 - **GPU na Windows s Intel UHD 770 nejde** („Failed to create engine" v
   `llm_litert_compiled_model_executor_factory.cc`) a jede se na procesoru; jiné grafiky a macOS
   (Metal) neověřené.
+- **Emoji ve vstupu shodí celou JVM** (`EXCEPTION_UNCAUGHT_CXX_EXCEPTION` v `KERNELBASE.dll`,
+  Java vlákno v `LiteRtLmJni.nativeSendMessageAsync`). HotSpot předává řetězec přes JNI
+  v „modifikovaném UTF-8": znak mimo základní rovinu Unicode (😊, 👍, 🌧) jako dvojici
+  náhradních znaků (CESU-8). Nativní strana LiteRT-LM na tom vyhodí výjimku C++, kterou nikdo
+  nechytí, a proces skončí bez šance na `catch`. Stačí jeden smajlík: „Ahoj 😊" spadne,
+  „Ahoj ☔" (základní rovina) projde. Shrnutí skutečného chatu tak zavřelo aplikaci hned
+  napoprvé. `DesktopLiteRtPlatform.modelText` proto znaky mimo základní rovinu z textu pro
+  model vypouští; odpověď modelu emoji obsahovat smí (opačný směr dorazí celý, ověřeno 😂 👍 ❤️).
+  ART na Androidu posílá standardní UTF-8 a shrnutí s emoji tam na Foldu fungovalo.
+  **Jak se na to přišlo:** v logu před pádem byl `mel_filterbank` a vypadalo to na přepis
+  hlasovky — jenže zvukový kodér Gemmy se hlásí při každém načtení enginu; spuštěné bylo
+  shrnutí. Rozhodla až sonda s krátkými prompty s emoji a bez nich.
 - **JavaCPP počítá do limitu i model.** FFmpeg (zvuk, video) jde přes JavaCPP, které odmítne
   alokovat, když FYZICKÁ paměť celého procesu přesáhne `maxPhysicalBytes` (výchozí dvojnásobek
   haldy). Načtený model leží mimo haldu, ale v procesu: po Qwen3 4B spadl dekodér hlasovky na

@@ -40,6 +40,7 @@ import kotlinx.coroutines.launch
  *   s JDK 21, `runtimeLauncher`).
  * - **Obraz přes ImageIO** (JPEG a PNG z Telegramu; WebP neumí a popis se pak nenabídne),
  *   **zvuk přes FFmpeg** ([FfmpegAudioDecoder], hlasovka Ogg/Opus i kolečko MP4).
+ * - **Emoji mimo základní rovinu Unicode do modelu nejdou** ([modelText]).
  */
 class DesktopLiteRtPlatform : LiteRtPlatform {
 
@@ -104,6 +105,23 @@ class DesktopLiteRtPlatform : LiteRtPlatform {
         val samples = mono.toArray()
         val clip = SAMPLE_RATE * MAX_CLIP_SECONDS
         return (samples.indices step clip).map { from -> wav(samples.copyOfRange(from, minOf(from + clip, samples.size))) }
+    }
+
+    /**
+     * Bez znaků mimo základní rovinu Unicode (😊, 👍, 🌧 — skoro všechna emoji).
+     *
+     * HotSpot je přes JNI předává v „modifikovaném UTF-8" jako dvojici náhradních znaků (CESU-8)
+     * a nativní strana LiteRT-LM na takovém textu vyhodí výjimku C++, kterou nikdo nechytí: spadne
+     * celá JVM (`EXCEPTION_UNCAUGHT_CXX_EXCEPTION` v `nativeSendMessageAsync`). Stačí jediný
+     * smajlík — „Ahoj 😊" shodí proces, „Ahoj ☔" (základní rovina) projde. Shrnutí chatu s emoji
+     * tak aplikaci zavřelo. ART na Androidu posílá standardní UTF-8, tam se nic nemění. Odpověď
+     * modelu emoji obsahovat smí, ta jde opačným směrem a dorazí celá.
+     */
+    override fun modelText(text: String): String {
+        if (text.none { it.isSurrogate() }) return text
+        return buildString(text.length) {
+            text.codePoints().forEach { if (it < Character.MIN_SUPPLEMENTARY_CODE_POINT) appendCodePoint(it) }
+        }
     }
 
     override fun startDownload(model: LiteRtModel, run: suspend () -> Unit) {

@@ -101,10 +101,17 @@ poskytovatelích nemusí vědět nic.
 - **GPU, a když nejde, CPU.** GPU backend potřebuje `libOpenCL.so` — `uses-native-library`
   v manifestu aplikace (`required=false`). Na emulátoru GPU selže na OpenGL (`GL_INVALID_ENUM`
   v `delegate_opengl.cc`) a CPU naskočí; na zařízení ověřené není, jestli se GPU chytí.
-- **LiteRT-LM v Kotlinu neumí počítat tokeny** (`countTokens` = `null`), takže se přepis jen
-  odhaduje z limitu. Limit je velikost KV keše (8 192, stejně jako Gemini Nano) minus místo na
-  odpověď — vstup i výstup se do keše musí vejít SPOLU. **Strop výstupu hlídá aplikace sama**
-  (`MAX_OUTPUT_CHARS`, pak `Generated.truncated`); konfigurace konverzace žádný nemá.
+- **LiteRT-LM v Kotlinu neumí tokeny spočítat předem** (`Conversation.getTokenCount` zná až
+  rozběhnutou konverzaci), proto `countTokens` vrací HORNÍ odhad z bajtů UTF-8
+  (`estimatedTokenCount`, 1,8 bajtu na token; testy `TokenEstimateTest`) a shrnutí podle něj
+  přepis zkrátí nebo rozdělí na části. **Dřív vracel `null` a jelo se s odhadem tří znaků na
+  token — a ten u češtiny neplatí**: změřeno na desktopu `getTokenCount` nad českým chatem
+  s odkazy Gemma 2,2 znaku na token, Qwen 2,0. Přepis, který aplikace pro Gemmu posílala
+  (16 330 znaků), měl 7 547 tokenů z keše 8 192, a na odpověď místo 1 536 tokenů zbylo ~650.
+  Platí i pro Android; na Foldu se to neukázalo, protože se zkoušely kratší chaty. Limit je
+  velikost KV keše (8 192 u Gemmy, 4 096 u Qwenu) minus místo na odpověď — vstup i výstup se do
+  keše musí vejít SPOLU. **Strop výstupu je dvojí**: `maxOutputToken` pro knihovnu (od 0.19)
+  a `MAX_OUTPUT_CHARS` pro obrazovku (pak `Generated.truncated`).
 - **Hugging Face model vydá bez přihlášení** (ověřeno `curl -IL`: 302 na CDN, 200, velikost
   sedí na bajt, `accept-ranges: bytes`). Licenční brána by se projevila 401/403 a tu prototyp
   hlásí jako selhání stahování.
@@ -174,7 +181,9 @@ poskytovatelích nemusí vědět nic.
   - **Sheet ukazuje průběh** („Čtu část 1 z 2…", `ChatSummaryState.ReadingParts`) a patička
     „Shrnuto po 2 částech" — jinak by dlouho jen „připravoval".
   - **U Gemmy na emulátoru nastanou části až nad ~24 000 znaků** (strop přepisu
-    `MAX_TRANSCRIPT_CHARS_CAP`, Gemma hlásí velký limit a tokeny nepočítá). 48 zpráv
+    `MAX_TRANSCRIPT_CHARS_CAP`, Gemma hlásí velký limit a tokeny nepočítá). **Platilo před
+    odhadem tokenů** (`estimatedTokenCount`): teď se Gemma rozdělí zhruba nad 11 000 znaků
+    českého přepisu. 48 zpráv
     (~12 000 znaků) se shrnulo jedním promptem, 108 zpráv (~27 000) ve dvou částech: „Čtu
     část 1 z 2…" ~25 s, část 2 ~55 s, složení ~30 s, pět celých odrážek.
   - **Mechanika funguje, kvalita E2B ne zcela** (ověřeno na emulátoru Fold, zkušební plánování

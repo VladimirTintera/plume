@@ -62,11 +62,13 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   a obraz a text počítá Nano, uvolní se dřív ([gemmaIdleUnloadMs]).
  * - **Generování je jedno po druhém** ([engineLock]). Shrnutí a návrh odpovědi se můžou
  *   potkat a dvě konverzace nad jedním enginem LiteRT-LM výslovně neslibuje.
- * - **Počítání tokenů LiteRT-LM v Kotlinu nemá** ([countTokens] = `null`), takže se délka
- *   přepisu jen odhaduje z limitu. Limit je velikost KV keše ([MAX_NUM_TOKENS]) minus místo
- *   na odpověď ([OUTPUT_RESERVE_TOKENS]) — vstup a výstup se do ní vejít musí SPOLU.
- * - **Strop výstupu hlídáme sami** ([MAX_OUTPUT_CHARS]). Konfigurace konverzace žádný nemá;
- *   model skončí sám koncem odpovědi, ale kdyby se zacyklil, psal by do zaplnění keše.
+ * - **Počítání tokenů LiteRT-LM v Kotlinu nemá**, [countTokens] proto vrací HORNÍ odhad
+ *   ([estimatedTokenCount]) a shrnutí podle něj přepis zkrátí nebo rozdělí. Limit je velikost
+ *   KV keše ([MAX_NUM_TOKENS]) minus místo na odpověď ([OUTPUT_RESERVE_TOKENS]) — vstup
+ *   a výstup se do ní vejít musí SPOLU.
+ * - **Strop výstupu je dvojí**: v tokenech pro knihovnu (`maxOutputToken` = [OUTPUT_RESERVE_TOKENS],
+ *   od LiteRT-LM 0.19), ať odpověď nepřeteče keš, a ve znacích pro obrazovku
+ *   ([MAX_OUTPUT_CHARS], pak `Generated.truncated`).
  *
  * Kde model nejde (paměť, systém, chybějící nativní knihovna), řekne platforma ([LiteRtPlatform.canRun]).
  * Selhání nese poskytovatele z varianty, takže hláška jmenuje model, který selhal.
@@ -207,7 +209,9 @@ class LiteRtOnDeviceAi(
         }
     }
 
-    override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = null
+    /** Horní odhad, ne přesný počet — viz [estimatedTokenCount]. */
+    override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? =
+        estimatedTokenCount(platform.modelText(prompt))
 
     override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> = flow {
         withEngine(variant.file()) { engine ->
@@ -224,7 +228,11 @@ class LiteRtOnDeviceAi(
                     // Každá zpráva streamu je PŘÍRŮSTEK (tak ho vypisuje i ukázka LiteRT-LM),
                     // rozhraní slibuje celý text. Přemýšlení (`enable_thinking`) je vypnuté:
                     // šlo by do samostatného kanálu a jen by prodloužilo čekání.
-                    conversation.sendMessageAsync(prompt, extraContext = mapOf("enable_thinking" to false))
+                    conversation.sendMessageAsync(
+                        platform.modelText(prompt),
+                        extraContext = mapOf("enable_thinking" to false),
+                        maxOutputToken = OUTPUT_RESERVE_TOKENS,
+                    )
                         .collect { message ->
                             text.append(message.toString())
                             if (text.length >= MAX_OUTPUT_CHARS) {
@@ -276,7 +284,7 @@ class LiteRtOnDeviceAi(
                 try {
                     val part = StringBuilder()
                     conversation.sendMessageAsync(
-                        Contents.of(Content.AudioBytes(clip), Content.Text(transcriptionPrompt(languageCode))),
+                        Contents.of(Content.AudioBytes(clip), Content.Text(platform.modelText(transcriptionPrompt(languageCode)))),
                         extraContext = mapOf("enable_thinking" to false),
                     ).collect { message ->
                         part.append(message.toString())
@@ -322,8 +330,9 @@ class LiteRtOnDeviceAi(
                 val text = StringBuilder()
                 try {
                     conversation.sendMessageAsync(
-                        Contents.of(Content.ImageBytes(image), Content.Text(prompt)),
+                        Contents.of(Content.ImageBytes(image), Content.Text(platform.modelText(prompt))),
                         extraContext = mapOf("enable_thinking" to false),
+                        maxOutputToken = OUTPUT_RESERVE_TOKENS,
                     ).collect { message ->
                         text.append(message.toString())
                         if (text.length >= MAX_OUTPUT_CHARS) {
