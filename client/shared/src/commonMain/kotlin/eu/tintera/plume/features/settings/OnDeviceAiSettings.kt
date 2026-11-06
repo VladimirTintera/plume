@@ -75,6 +75,7 @@ import eu.tintera.plume.core.ai.ModelDownload
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.NoMeteredNetwork
 import eu.tintera.plume.core.ai.NotEnoughSpaceException
+import eu.tintera.plume.core.ai.RuntimeInstallException
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
@@ -114,6 +115,8 @@ import eu.tintera.plume.resources.settings_on_device_ai_resume
 import eu.tintera.plume.resources.settings_on_device_ai_stop
 import eu.tintera.plume.resources.settings_on_device_ai_waiting_for_network
 import eu.tintera.plume.resources.settings_on_device_ai_download_failed
+import eu.tintera.plume.resources.settings_on_device_ai_runtime_failed
+import eu.tintera.plume.resources.settings_on_device_ai_runtime_failed_code
 import eu.tintera.plume.resources.settings_on_device_ai_downloadable
 import eu.tintera.plume.resources.settings_on_device_ai_downloading
 import eu.tintera.plume.resources.settings_on_device_ai_enable
@@ -165,6 +168,11 @@ sealed interface OnDeviceModelState {
     /** [progress] je `null`, dokud stahování neohlásí první bajty. */
     data class Downloading(val progress: ModelDownload?) : OnDeviceModelState
     data object DownloadFailed : OnDeviceModelState
+    /**
+     * Model se ani nezačal stahovat: runtime, na kterém běží (na Androidu součást z Google Play),
+     * se nepodařilo doinstalovat. [code] je kód od Google Play, když nějaký je.
+     */
+    data class RuntimeInstallFailed(val code: Int?) : OnDeviceModelState
     /** Model je stažený zčásti a stahování neběží (zastavené, nebo po selhání a restartu). */
     data object Paused : OnDeviceModelState
     data object NotEnoughSpace : OnDeviceModelState
@@ -428,6 +436,9 @@ class OnDeviceAiSettingsViewModel(
             } catch (e: NotEnoughSpaceException) {
                 logger.i(e) { "Na model není místo ($target)" }
                 if (isCurrent(target)) setState(provider, OnDeviceModelState.NotEnoughSpace)
+            } catch (e: RuntimeInstallException) {
+                logger.w(e) { "Runtime modelu se nepodařilo doinstalovat ($target)" }
+                if (isCurrent(target)) setState(provider, OnDeviceModelState.RuntimeInstallFailed(e.code))
             } catch (e: Exception) {
                 logger.w(e) { "Model se nepodařilo stáhnout ($target)" }
                 if (isCurrent(target)) setState(provider, OnDeviceModelState.DownloadFailed)
@@ -821,6 +832,13 @@ private fun ModelStatus(variant: ModelVariant, model: OnDeviceModelState, viewMo
                 stringResource(Res.string.settings_on_device_ai_downloading)
             }
             OnDeviceModelState.DownloadFailed -> stringResource(Res.string.settings_on_device_ai_download_failed)
+            /*
+             * Jiná věta než u stahování modelu: tady chybí kus aplikace, ne model, a kód od Play
+             * (APP_NOT_OWNED -15 i u aplikace z Play) je to, podle čeho se dá chyba dohledat.
+             */
+            is OnDeviceModelState.RuntimeInstallFailed -> model.code
+                ?.let { stringResource(Res.string.settings_on_device_ai_runtime_failed_code, it) }
+                ?: stringResource(Res.string.settings_on_device_ai_runtime_failed)
             OnDeviceModelState.Paused -> stringResource(Res.string.settings_on_device_ai_paused)
             OnDeviceModelState.NotEnoughSpace -> stringResource(Res.string.settings_on_device_ai_not_enough_space)
             is OnDeviceModelState.Ready -> model.name
@@ -877,11 +895,12 @@ private fun ModelStatus(variant: ModelVariant, model: OnDeviceModelState, viewMo
                 }
             }
             OnDeviceModelState.Downloadable, OnDeviceModelState.DownloadFailed, OnDeviceModelState.NotEnoughSpace,
-            OnDeviceModelState.Paused ->
+            OnDeviceModelState.Paused, is OnDeviceModelState.RuntimeInstallFailed ->
                 FilledTonalButton(onClick = { viewModel.download(provider) }, shapes = ButtonDefaults.shapes()) {
                     // Stažený kus se nezahazuje, takže po selhání i zastavení tlačítko slibuje navázání.
                     val resumes = variant.appManaged &&
-                        (model == OnDeviceModelState.DownloadFailed || model == OnDeviceModelState.Paused)
+                        (model == OnDeviceModelState.DownloadFailed || model == OnDeviceModelState.Paused ||
+                            model is OnDeviceModelState.RuntimeInstallFailed)
                     Text(
                         stringResource(
                             if (resumes) Res.string.settings_on_device_ai_resume

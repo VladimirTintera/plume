@@ -2412,6 +2412,8 @@
     <string name="settings_on_device_ai_download">Download model</string>
     <string name="settings_on_device_ai_downloading">Downloading the model…</string>
     <string name="settings_on_device_ai_download_failed">The model could not be downloaded.</string>
+    <string name="settings_on_device_ai_runtime_failed">The model was not downloaded: the part of the app it runs on could not be installed.</string>
+    <string name="settings_on_device_ai_runtime_failed_code">The model was not downloaded: Google Play did not deliver the part of the app it runs on (error %1$d).</string>
     <string name="settings_on_device_ai_ready">Model ready: %1$s</string>
     <string name="settings_on_device_ai_ready_unnamed">Model ready</string>
     <string name="summary_action">Summarize</string>

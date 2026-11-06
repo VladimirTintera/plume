@@ -31,10 +31,6 @@ interface LiteRtRuntime {
     fun engines(): LlmEngineFactory
 }
 
-/** Runtime se nepodařilo doinstalovat. [code] je kód od Google Play, když nějaký je. */
-class RuntimeInstallException(val code: Int? = null, cause: Throwable? = null) :
-    Exception("On-device AI runtime install failed" + (code?.let { " (code $it)" } ?: ""), cause)
-
 /**
  * Implementace z :client:ai-litert podle jména. Reflexe, protože na Androidu leží v součásti,
  * na kterou základ aplikace při překladu nevidí; na desktopu kvůli tomu, že by modul nad
