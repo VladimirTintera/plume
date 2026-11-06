@@ -2521,6 +2521,7 @@
     <string name="ai_failure_nano">Gemini Nano v telefonu selhal. Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → AI v zařízení.</string>
     <string name="ai_failure_nano_code">Gemini Nano v telefonu selhal (AICore, kód %1$s). Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → AI v zařízení.</string>
     <string name="ai_failure_gemma">Model Gemma selhal. Když to nepomůže znovu, smaž model v Nastavení → AI v zařízení a stáhni ho znovu.</string>
+    <string name="ai_failure_qwen">Model Qwen selhal. Když to nepomůže znovu, smaž model v Nastavení → AI v zařízení a stáhni ho znovu.</string>
     <string name="ai_failure_empty">Model nenapsal žádný text.</string>
     <string name="settings_on_device_ai_preview">Preview verze modelu</string>
     <string name="settings_on_device_ai_preview_summary">Nejnovější verze před stabilním vydáním. Pro tohle zařízení nemusí být a stahuje se zvlášť.</string>
@@ -2544,6 +2545,11 @@
     <string name="settings_ai_provider_gemma">Gemma 4</string>
     <string name="settings_ai_provider_gemma_summary">Otevřený model, který si stáhne aplikace. Přepíše i hlasovky a popíše fotky, ale bere víc paměti.</string>
     <string name="settings_gemma_e2b_summary">Menší a rychlejší · %1$s</string>
+    <string name="settings_ai_provider_qwen">Qwen</string>
+    <string name="settings_ai_provider_qwen_summary">Otevřený model od Alibaby, který si stáhne aplikace. Jen text, v několika velikostech, malé i pro slabší telefony.</string>
+    <string name="settings_qwen_4b_summary">Největší a nejpřesnější · %1$s, potřebuje 12 GB paměti</string>
+    <string name="settings_qwen_1_5b_summary">Střední · %1$s, potřebuje 6 GB paměti</string>
+    <string name="settings_qwen_0_6b_summary">Nejmenší a nejrychlejší, pro slabší telefony · %1$s, nejméně přesný</string>
     <string name="settings_gemma_e4b_summary">Větší a přesnější · %1$s, potřebuje 12 GB paměti</string>
     <string name="settings_gemma_under_load">V úsporném režimu a při přehřátí telefonu Gemma sama od sebe nic nepočítá: návrhy odpovědí, varování před podvodem a podobně počkají. Co si vyžádáš ťuknutím, funguje dál.</string>
     <string name="settings_ai_models">Modely</string>
@@ -2553,6 +2559,8 @@
     <string name="settings_ai_task_auto_named">Automaticky (%1$s)</string>
     <string name="settings_ai_task_not_ready">%1$s · model zatím není připravený</string>
     <string name="settings_ai_tasks_note">Automaticky jde text na Gemini Nano, který nebere paměť navíc. Přepis hlasovek a popis fotek umí jen Gemma, ty dělá vždycky ona.</string>
+    <string name="settings_ai_tasks_note_qwen">Automaticky jde text na Qwen. Přepis hlasovek a popis fotek umí jen Gemma, načte se jen kvůli nim.</string>
+    <string name="settings_qwen_under_load">V úsporném režimu a při přehřátí telefonu Qwen sám od sebe nic nepočítá: návrhy odpovědí, varování před podvodem a podobně počkají. Co si vyžádáš ťuknutím, funguje dál.</string>
     <string name="ai_task_summary">Shrnutí chatu</string>
     <string name="ai_task_explain">Vysvětlení zprávy</string>
     <string name="ai_task_replies">Návrhy odpovědí</string>

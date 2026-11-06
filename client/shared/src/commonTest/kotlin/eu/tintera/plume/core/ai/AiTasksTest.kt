@@ -39,6 +39,27 @@ class AiTasksTest {
         assertEquals(AiProvider.Gemma, chooseProvider(AiTask.Summary, both, nothingReady))
     }
 
+    /** Qwen umí jen text: vedle Gemmy dostane text, Gemma zůstane hlasovkám a fotkám. */
+    @Test
+    fun qwenTextGemmaZvukAObraz() = runTest {
+        val models = AiModels(enabled = setOf(AiProvider.Gemma, AiProvider.Qwen))
+        val ready = statuses(AiProvider.Gemma to OnDeviceAiStatus.Ready, AiProvider.Qwen to OnDeviceAiStatus.Ready)
+        assertEquals(AiProvider.Qwen, chooseProvider(AiTask.Summary, models, ready))
+        assertEquals(AiProvider.Gemma, chooseProvider(AiTask.Transcription, models, ready))
+        assertEquals(AiProvider.Gemma, chooseProvider(AiTask.PhotoDescription, models, ready))
+        assertEquals(false, AiProvider.Qwen.handles(AiTask.Transcription))
+    }
+
+    /** Systémový model má přednost i před Qwenem: nic nestahuje a nedrží paměť. */
+    @Test
+    fun nanoPredQwenem() = runTest {
+        val models = AiModels(enabled = setOf(AiProvider.GeminiNano, AiProvider.Qwen))
+        val ready = statuses(AiProvider.GeminiNano to OnDeviceAiStatus.Ready, AiProvider.Qwen to OnDeviceAiStatus.Ready)
+        assertEquals(AiProvider.GeminiNano, chooseProvider(AiTask.Summary, models, ready))
+        val assigned = models.copy(assigned = mapOf(AiTask.Summary to AiProvider.Qwen))
+        assertEquals(AiProvider.Qwen, chooseProvider(AiTask.Summary, assigned, ready))
+    }
+
     /** Ruční volba platí, i když model zrovna není připravený — nic se tiše nemění. */
     @Test
     fun rucniPrirazeniPlati() = runTest {
@@ -73,13 +94,13 @@ class AiTasksTest {
         val ai = object : OnDeviceAi by NoopOnDeviceAi {
             override suspend fun status(variant: ModelVariant) = OnDeviceAiStatus.Ready
         }
-        val models = both.copy(fast = true, gemma = GemmaModel.E4B)
+        val models = both.copy(fast = true, gemma = LiteRtModel.E4B)
         assertEquals(
-            ModelVariant(provider = AiProvider.GeminiNano, fast = true, gemma = GemmaModel.E4B),
+            ModelVariant(provider = AiProvider.GeminiNano, fast = true, gemma = LiteRtModel.E4B),
             ai.variantFor(AiTask.Summary, models),
         )
         assertEquals(
-            ModelVariant(provider = AiProvider.Gemma, fast = true, gemma = GemmaModel.E4B),
+            ModelVariant(provider = AiProvider.Gemma, fast = true, gemma = LiteRtModel.E4B),
             ai.variantFor(AiTask.Transcription, models),
         )
     }

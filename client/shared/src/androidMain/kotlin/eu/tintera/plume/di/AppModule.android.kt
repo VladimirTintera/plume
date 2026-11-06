@@ -2,6 +2,8 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ai.gemmaIdleUnloadMs
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.GEMMA_IDLE_TEXT_MS
 import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.ai.AndroidDeviceLoad
 import eu.tintera.plume.core.di.APP_SCOPE
@@ -97,9 +99,10 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
-    // Model v zařízení: Gemini Nano v AICore, nebo Gemma přes LiteRT-LM, podle volby uživatele
-    // (RoutingOnDeviceAi). Obojí jednou na proces — klienti ML Kitu i engine LiteRT-LM jsou drahé.
-    single<OnDeviceAi> { RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), gemma = get<LiteRtOnDeviceAi>()) }
+    // Model v zařízení: Gemini Nano v AICore, nebo Gemma a Qwen přes LiteRT-LM, podle volby
+    // uživatele (RoutingOnDeviceAi). Obojí jednou na proces — klienti ML Kitu i engine LiteRT-LM
+    // jsou drahé.
+    single<OnDeviceAi> { RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), liteRt = get<LiteRtOnDeviceAi>()) }
     // Zvlášť, protože ji potřebuje i úloha stahování (ModelDownloadWorker) — stav stahování,
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
     single {
@@ -107,7 +110,14 @@ actual fun Module.platformModule() {
             androidContext(),
             get(),
             // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
-            idleUnloadMs = { get<OnDeviceAi>().gemmaIdleUnloadMs(get<AppSettings>().onDeviceAiModels.value) },
+            // Qwen umí jen text, takže drží jako Gemma, která text počítá.
+            idleUnloadMs = { provider ->
+                if (provider == AiProvider.Gemma) {
+                    get<OnDeviceAi>().gemmaIdleUnloadMs(get<AppSettings>().onDeviceAiModels.value)
+                } else {
+                    GEMMA_IDLE_TEXT_MS
+                }
+            },
         )
     }
     // Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá (`proactiveVariant`).

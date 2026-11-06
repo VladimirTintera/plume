@@ -2450,6 +2450,7 @@
     <string name="ai_failure_nano">Gemini Nano on this phone failed. Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → On-device AI.</string>
     <string name="ai_failure_nano_code">Gemini Nano on this phone failed (AICore, code %1$s). Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → On-device AI.</string>
     <string name="ai_failure_gemma">The Gemma model failed. If trying again does not help, delete the model in Settings → On-device AI and download it again.</string>
+    <string name="ai_failure_qwen">The Qwen model failed. If trying again does not help, delete the model in Settings → On-device AI and download it again.</string>
     <string name="ai_failure_empty">The model did not write any text.</string>
     <string name="settings_on_device_ai_preview">Preview model version</string>
     <string name="settings_on_device_ai_preview_summary">The newest version before its stable release. It may not exist for this device and downloads separately.</string>
@@ -2473,6 +2474,11 @@
     <string name="settings_ai_provider_gemma">Gemma 4</string>
     <string name="settings_ai_provider_gemma_summary">An open model the app downloads itself. It also transcribes voice messages and describes photos, but takes more memory.</string>
     <string name="settings_gemma_e2b_summary">Smaller and faster · %1$s</string>
+    <string name="settings_ai_provider_qwen">Qwen</string>
+    <string name="settings_ai_provider_qwen_summary">An open model by Alibaba the app downloads itself. Text only, in several sizes, the small ones also for weaker phones.</string>
+    <string name="settings_qwen_4b_summary">Largest and most accurate · %1$s, needs 12 GB of memory</string>
+    <string name="settings_qwen_1_5b_summary">Medium · %1$s, needs 6 GB of memory</string>
+    <string name="settings_qwen_0_6b_summary">Smallest and fastest, for weaker phones · %1$s, least accurate</string>
     <string name="settings_gemma_e4b_summary">Larger and more accurate · %1$s, needs 12 GB of memory</string>
     <string name="settings_gemma_under_load">In battery saver and when the phone is hot, Gemma doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
     <string name="settings_ai_models">Models</string>
@@ -2482,6 +2488,8 @@
     <string name="settings_ai_task_auto_named">Automatically (%1$s)</string>
     <string name="settings_ai_task_not_ready">%1$s · model isn’t ready yet</string>
     <string name="settings_ai_tasks_note">Automatically, text goes to Gemini Nano, which takes no extra memory. Only Gemma can transcribe voice messages and describe photos, so it always does those.</string>
+    <string name="settings_ai_tasks_note_qwen">Automatically, text goes to Qwen. Only Gemma can transcribe voice messages and describe photos, so it loads just for those.</string>
+    <string name="settings_qwen_under_load">In battery saver and when the phone is hot, Qwen doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
     <string name="ai_task_summary">Chat summary</string>
     <string name="ai_task_explain">Explaining a message</string>
     <string name="ai_task_replies">Reply suggestions</string>

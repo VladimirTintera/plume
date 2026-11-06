@@ -81,7 +81,7 @@ class ModelDownloadWorker(
 
     override suspend fun doWork(): Result {
         val ai = GlobalContext.getOrNull()?.getOrNull<LiteRtOnDeviceAi>() ?: return Result.failure()
-        val model = inputData.getString(KEY_MODEL)?.let { name -> GemmaModel.entries.find { it.name == name } }
+        val model = inputData.getString(KEY_MODEL)?.let { name -> LiteRtModel.entries.find { it.name == name } }
             ?: return Result.failure()
         createModelDownloadChannel(applicationContext)
 
@@ -112,7 +112,7 @@ class ModelDownloadWorker(
         }
     }
 
-    private suspend fun showProgress(model: GemmaModel, progress: ModelDownload) {
+    private suspend fun showProgress(model: LiteRtModel, progress: ModelDownload) {
         val percent = progress.fraction?.let { (it * 100).toInt() } ?: -1
         val key = percent to progress.waitingForNetwork
         if (key == shown) return
@@ -137,7 +137,7 @@ class ModelDownloadWorker(
         notify(info.notificationId, info.notification)
     }
 
-    private suspend fun foregroundInfo(model: GemmaModel, progress: ModelDownload, percent: Int): ForegroundInfo {
+    private suspend fun foregroundInfo(model: LiteRtModel, progress: ModelDownload, percent: Int): ForegroundInfo {
         val total = progress.totalBytes
         val text = when {
             progress.waitingForNetwork -> readString(Res.string.model_download_notification_waiting)
@@ -178,7 +178,7 @@ class ModelDownloadWorker(
      * Notifikace průběhu po zastavení. Službu v popředí uklidí WorkManager sám; tohle je pro
      * případ, kdy úloha běžela bez ní a notifikaci ukazovala sama.
      */
-    private fun hideProgress(model: GemmaModel) {
+    private fun hideProgress(model: LiteRtModel) {
         if (!foreground) NotificationManagerCompat.from(applicationContext).cancel(PROGRESS_NOTIFICATION_ID + model.ordinal)
     }
 
@@ -186,7 +186,7 @@ class ModelDownloadWorker(
      * Výsledek, i když je aplikace zavřená: kdo stahování spustil a odešel, se jinak nedozví,
      * že model je připravený — nebo že se stahování zastavilo a čeká na něj.
      */
-    private suspend fun notifyResult(model: GemmaModel, error: Exception?) {
+    private suspend fun notifyResult(model: LiteRtModel, error: Exception?) {
         hideProgress(model)
         val (title, text) = when (error) {
             null -> readString(Res.string.model_download_notification_done, model.displayName) to
@@ -238,13 +238,13 @@ class ModelDownloadWorker(
         private const val RESULT_NOTIFICATION_ID = 0x6A20_0000
         private const val OPEN_APP_REQUEST_CODE = 0x6A30_0000
 
-        private fun workName(model: GemmaModel) = "ai-model-download-${model.name}"
+        private fun workName(model: LiteRtModel) = "ai-model-download-${model.name}"
 
         /**
          * `KEEP`: běžící i naplánovaná úloha (třeba čekající na síť) zůstává, druhá by stahovala
          * do téhož `.part` souběžně. Dokončená nebo zrušená úloha `KEEP` neblokuje.
          */
-        fun enqueue(context: Context, model: GemmaModel) {
+        fun enqueue(context: Context, model: LiteRtModel) {
             val request = OneTimeWorkRequestBuilder<ModelDownloadWorker>()
                 .setInputData(workDataOf(KEY_MODEL to model.name))
                 .setConstraints(Constraints(requiredNetworkType = NetworkType.CONNECTED))
@@ -252,12 +252,12 @@ class ModelDownloadWorker(
             WorkManager.getInstance(context).enqueueUniqueWork(workName(model), ExistingWorkPolicy.KEEP, request)
         }
 
-        fun cancel(context: Context, model: GemmaModel) {
+        fun cancel(context: Context, model: LiteRtModel) {
             WorkManager.getInstance(context).cancelUniqueWork(workName(model))
         }
 
         /** Je úloha naplánovaná nebo běží? Po zabití procesu ji WorkManager spustí sám. */
-        suspend fun isPending(context: Context, model: GemmaModel): Boolean =
+        suspend fun isPending(context: Context, model: LiteRtModel): Boolean =
             WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(workName(model)).first()
                 .any { !it.state.isFinished }
     }

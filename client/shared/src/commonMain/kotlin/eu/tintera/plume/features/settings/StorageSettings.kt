@@ -57,7 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.settings.CacheLimit
 import eu.tintera.plume.core.settings.KeepMedia
 import eu.tintera.plume.core.telegram.CategoryUsage
@@ -146,7 +146,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
     // Dialog mazání nese chat (`OTHER_CHATS`-ne, `null` = všude); obsah se bere ze stavu.
     var clearAll by rememberSaveable { mutableStateOf(false) }
     var clearChatId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var deleteModel by rememberSaveable { mutableStateOf<GemmaModel?>(null) }
+    var deleteModel by rememberSaveable { mutableStateOf<LiteRtModel?>(null) }
     var deletePack by rememberSaveable { mutableStateOf<String?>(null) }
 
     val notice = state.notice

@@ -1,6 +1,6 @@
 package eu.tintera.plume.core.settings
 
-import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiModels
@@ -525,7 +525,7 @@ class DataStoreAppSettingsTest {
         val models = AiModels(
             enabled = setOf(AiProvider.GeminiNano, AiProvider.Gemma),
             fast = true,
-            gemma = GemmaModel.E4B,
+            gemma = LiteRtModel.E4B,
             assigned = mapOf(AiTask.Summary to AiProvider.Gemma, AiTask.Replies to AiProvider.GeminiNano),
         )
         settings.setOnDeviceAiModels(models)

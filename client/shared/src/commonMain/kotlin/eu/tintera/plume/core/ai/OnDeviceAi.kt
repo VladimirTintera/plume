@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.flow
  * Jazykový model běžící v zařízení.
  *
  * Hranice stejně jako `core/telegram` nebo `core/logging`: za ní jsou na Androidu DVA runtime —
- * Gemini Nano v AICore přes ML Kit Prompt API (`com.google.mlkit.genai.*`) a Gemma přes
- * LiteRT-LM (`com.google.ai.edge.litertlm.*`); obojí smí být importované jen v
+ * Gemini Nano v AICore přes ML Kit Prompt API (`com.google.mlkit.genai.*`) a Gemma s Qwenem
+ * přes LiteRT-LM (`com.google.ai.edge.litertlm.*`); obojí smí být importované jen v
  * `androidMain/core/ai`. Který se použije, určuje [ModelVariant.provider] a rozhoduje o tom
  * [RoutingOnDeviceAi]. Variantu si funkce bere pro SVOU úlohu ([variantFor], [AiTask]): zapnuté
  * mohou být oba modely a každá úloha jde jinému — Nano na text, Gemma na zvuk a obraz.
@@ -119,16 +119,26 @@ interface OnDeviceAi {
  * @property preview (jen Gemini Nano) nejnovější verze v předběžném vydání místo stabilní.
  *   Bývá jen na novějších zařízeních a stahuje se zvlášť.
  * @property fast (jen Gemini Nano) rychlejší a méně přesná varianta místo plné.
- * @property gemma (jen Gemma) který model si aplikace stáhne.
+ * @property gemma (jen Gemma) kterou velikost si aplikace stáhne.
+ * @property qwen (jen Qwen) kterou velikost si aplikace stáhne.
  */
 data class ModelVariant(
     val provider: AiProvider = AiProvider.GeminiNano,
     val preview: Boolean = false,
     val fast: Boolean = false,
-    val gemma: GemmaModel = GemmaModel.E2B,
+    val gemma: LiteRtModel = LiteRtModel.E2B,
+    val qwen: LiteRtModel = LiteRtModel.Qwen3_4B,
 ) {
+    /** Soubor, který si aplikace stáhne a počítá přes LiteRT-LM; `null` u systémového modelu. */
+    val model: LiteRtModel?
+        get() = when (provider) {
+            AiProvider.Gemma -> gemma
+            AiProvider.Qwen -> qwen
+            AiProvider.GeminiNano, AiProvider.Apple -> null
+        }
+
     /** Model stahuje a maže aplikace sama, ne systém. */
-    val appManaged: Boolean get() = provider == AiProvider.Gemma
+    val appManaged: Boolean get() = model != null
 }
 
 /**
@@ -138,10 +148,13 @@ data class ModelVariant(
  *   nebalí, ale je jen na některých zařízeních a ML Kit nepustí k větším variantám.
  * - [Gemma]: otevřený model, který si stáhne aplikace (gigabajty) a počítá ho přes LiteRT-LM.
  *   Běží na každém dost silném telefonu a jde vybrat i větší E4B.
+ * - [Qwen]: druhý otevřený model přes tentýž runtime, jen na text. Je tu kvůli češtině — jestli
+ *   ji umí líp než Gemma, má ukázat porovnání modelů na skutečné konverzaci.
  */
 enum class AiProvider {
     GeminiNano,
     Gemma,
+    Qwen,
 
     /**
      * Apple Intelligence (Foundation Models) na iOS 26+: systémový model jako Gemini Nano —
@@ -151,39 +164,111 @@ enum class AiProvider {
 }
 
 /**
- * Modely Gemma, které si aplikace umí stáhnout.
+ * Modely, které si aplikace umí stáhnout a počítá je přes LiteRT-LM.
  *
- * Soubor, verze (commit na Hugging Face) i velikost jsou převzaté z katalogu Google AI Edge
- * Gallery (`model_allowlists/1_0_19.json`). **Commit je součást adresy**, takže se stahuje
- * pořád tentýž soubor, i když autor na Hugging Face nahraje novější — nová verze = nový řádek
- * tady, vědomě. [minMemoryGb] je doporučení Gallery; pod ním se model nenabízí, protože by
- * systém aplikaci při načítání zabil.
+ * **Commit je součást adresy**, takže se stahuje pořád tentýž soubor, i když autor na Hugging
+ * Face nahraje novější — nová verze = nový řádek tady, vědomě. Pod [minMemoryGb] se model
+ * nenabízí, protože by systém aplikaci při načítání zabil. Jména položek se ukládají
+ * (`on_device_ai_gemma`, jméno úlohy stahování), takže se nepřejmenovávají.
+ *
+ * Pořadí položek téhož poskytovatele je pořadí, ve kterém se hledá náhrada za velikost, na
+ * kterou zařízení nestačí (`supportedModels` v Nastavení). Qweny jdou od největšího, takže
+ * telefon dostane největší, který unese; u Gemmy je první výchozí menší E2B.
+ *
+ * @property provider komu model patří: volba velikosti v Nastavení je jen mezi modely téhož.
+ * @property multimodal bere i zvuk a obraz (přepis hlasovek, popis fotek), ne jen text.
+ * @property contextTokens kolik tokenů (vstup i výstup dohromady) soubor unese; víc engine
+ *   nedostane, ani když by aplikace chtěla delší kontext.
  */
-enum class GemmaModel(
+enum class LiteRtModel(
     val displayName: String,
+    val provider: AiProvider,
     val repository: String,
     val fileName: String,
     val commit: String,
     val sizeBytes: Long,
     val minMemoryGb: Int,
+    val multimodal: Boolean,
+    val contextTokens: Int = 8_192,
 ) {
+    // Gemma: soubor, commit, velikost i paměť z katalogu Google AI Edge Gallery
+    // (`model_allowlists/1_0_19.json`).
     E2B(
         displayName = "Gemma 4 E2B",
+        provider = AiProvider.Gemma,
         repository = "litert-community/gemma-4-E2B-it-litert-lm",
         fileName = "gemma-4-E2B-it.litertlm",
         commit = "6e5c4f1e395deb959c494953478fa5cec4b8008f",
         sizeBytes = 2_588_147_712,
         minMemoryGb = 8,
+        multimodal = true,
     ),
     E4B(
         displayName = "Gemma 4 E4B",
+        provider = AiProvider.Gemma,
         repository = "litert-community/gemma-4-E4B-it-litert-lm",
         fileName = "gemma-4-E4B-it.litertlm",
         commit = "28299f30ee4d43294517a4ac93abd6163412f07f",
         sizeBytes = 3_659_530_240,
         minMemoryGb = 12,
+        multimodal = true,
+    ),
+
+    /*
+     * Qwen3 4B v Gallery není; soubor je z litert-community (Apache 2.0, bez souhlasu s licencí).
+     * Dynamický INT4 s GPU kompozity (export z 31. 10. 2026) potřebuje LiteRT-LM 0.19 — se
+     * starší verzí GPU engine na souboru s vnějšími vahami spadne (LiteRT-LM#3986). Paměť podle
+     * karty modelu: na 8GB Pixelu 8a při prvním výpočtu došla, proto 12 GB jako u E4B.
+     */
+    Qwen3_4B(
+        displayName = "Qwen3 4B",
+        provider = AiProvider.Qwen,
+        repository = "litert-community/Qwen3-4B",
+        fileName = "qwen3_4b_mixed_int4.litertlm",
+        commit = "2e62465be458fb02f7a92e339f98270f42dc9b32",
+        sizeBytes = 2_272_935_936,
+        minMemoryGb = 12,
+        multimodal = false,
+        contextTokens = 4_096,
+    ),
+
+    /** Qwen2.5 1,5B: soubor, commit, velikost i paměť z katalogu Gallery (`1_0_23.json`). */
+    Qwen2_5_1_5B(
+        displayName = "Qwen2.5 1.5B",
+        provider = AiProvider.Qwen,
+        repository = "litert-community/Qwen2.5-1.5B-Instruct",
+        fileName = "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+        commit = "5e6e7a58d03777898b31330a15d2e0a5a9107de3",
+        sizeBytes = 1_597_922_856,
+        minMemoryGb = 6,
+        multimodal = false,
+        contextTokens = 4_096,
+    ),
+
+    /*
+     * Qwen3 0,6B z litert-community, týž export jako Qwen3 4B (INT4, GPU kompozity, LiteRT-LM
+     * 0.19). Paměť: proces s ním podle karty modelu na Pixelu 8a sahá na ~1,9 GB, proto 4 GB.
+     */
+    Qwen3_0_6B(
+        displayName = "Qwen3 0.6B",
+        provider = AiProvider.Qwen,
+        repository = "litert-community/Qwen3-0.6B",
+        fileName = "Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm",
+        commit = "7c650468cc1598861b1a0deb0ab25be6b20cab13",
+        sizeBytes = 343_490_560,
+        minMemoryGb = 4,
+        multimodal = false,
+        contextTokens = 4_096,
     ),
     ;
+
+    /** Varianta, která tenhle soubor počítá — na dotazy po souborech (Úložiště, dostupnost). */
+    val variant: ModelVariant
+        get() = when (provider) {
+            AiProvider.Gemma -> ModelVariant(provider = provider, gemma = this)
+            AiProvider.Qwen -> ModelVariant(provider = provider, qwen = this)
+            AiProvider.GeminiNano, AiProvider.Apple -> ModelVariant(provider = provider)
+        }
 
     val downloadUrl: String
         get() = "https://huggingface.co/$repository/resolve/$commit/$fileName?download=true"

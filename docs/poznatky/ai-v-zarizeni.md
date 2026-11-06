@@ -11,8 +11,8 @@ tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
 
 ### Dva poskytovatelé: Gemini Nano a Gemma
 
-Zapnuté můžou být **Gemini Nano** v AICore (ML Kit, `MlKitOnDeviceAi`), **Gemma 4** přes
-LiteRT-LM (`LiteRtOnDeviceAi`), kterou si stáhne aplikace, nebo oba naráz (`AiModels.enabled`).
+Zapnuté můžou být **Gemini Nano** v AICore (ML Kit, `MlKitOnDeviceAi`), **Gemma 4** a **Qwen**
+přes LiteRT-LM (`LiteRtOnDeviceAi`), které si stáhne aplikace, nebo víc naráz (`AiModels.enabled`).
 Každá funkce se ptá na model PRO SVOU ÚLOHU (`ai.variantFor(AiTask.Summary, settings)`,
 `core/ai/AiTasks.kt`, testy `AiTasksTest`) a hotové volání pak předá `RoutingOnDeviceAi` (testy
 `RoutingOnDeviceAiTest`). Nová funkce s modelem si tedy přidá řádek do `AiTask` a o
@@ -20,14 +20,14 @@ poskytovatelích nemusí vědět nic.
 
 - **Poskytovatel je pole varianty, ne druhé rozhraní.** Funkce dostane hotovou variantu pro
   svou úlohu; kdyby řešila poskytovatele sama, jedna by na to zapomněla.
-- **Router variantu NORMALIZUJE** (`forGeminiNano`, `forGemma`). ML Kit drží klienta na
+- **Router variantu NORMALIZUJE** (`forGeminiNano`, `forGemma`, `forQwen`). ML Kit drží klienta na
   variantu v mapě, takže by jinak změna modelu Gemmy vyrobila druhého klienta téhož Nano.
-- **Katalog Gemmy (`GemmaModel`) je převzatý z Google AI Edge Gallery**
+- **Katalog Gemmy (`LiteRtModel`) je převzatý z Google AI Edge Gallery**
   (`model_allowlists/1_0_19.json`): soubor, commit na Hugging Face, velikost a doporučená paměť.
   **Commit je součást adresy**, takže se stahuje pořád tentýž soubor; nová verze = vědomá změna
-  katalogu. Verze knihovny (`litertlm-android 0.11.0`) je taky z Gallery — **tagy na GitHubu
-  LiteRT-LM (v0.9.0) s verzemi na Google Maven nesedí**, a API se proto ověřovalo proti kódu
-  Gallery, který se proti 0.11.0 překládá.
+  katalogu. **Tagy na GitHubu LiteRT-LM s verzemi na Google Maven nesedí**; platné verze jsou
+  v `maven-metadata.xml` artefaktu. Knihovna byla napřed 0.11.0 z Gallery, kvůli Qwenu je 0.19.1
+  (viz „Qwen a další modely přes LiteRT-LM").
 - **Gemma se nenabízí pod Androidem 12, bez arm64 a pod `minMemoryGb`** (8 GB pro E2B, 12 GB
   pro E4B; `totalMem` s 15% rezervou, výrobce udává víc, než jádro nechá). Pod tím by systém
   aplikaci zabil při načítání modelu. Kde model nejde, je `Unsupported` a volba se vůbec neukáže.
@@ -255,6 +255,67 @@ poskytovatelích nemusí vědět nic.
   nespadne — viz „Návrhy odpovědí"), vzhled podstrčeným stavem a čisté funkce testy. Na zařízení
   zbývá kvalita výstupu, rychlost, limit tokenů a useknutí.
 
+
+### Qwen a další modely přes LiteRT-LM
+
+LiteRT-LM spustí jakýkoli soubor `.litertlm`, ne jen Gemmu. Druhý stahovaný model je **Qwen**
+(`AiProvider.Qwen`), jen text, Apache 2.0, ve třech velikostech jako volba u modelu (jako E2B / E4B
+u Gemmy): **Qwen3 4B** (2,1 GB, 12 GB paměti) kvůli češtině — jestli ji umí líp než Gemma, má
+ukázat „Porovnat s dalšími modely" na skutečné konverzaci —, **Qwen2.5 1,5B** (1,5 GB, 6 GB)
+a **Qwen3 0,6B** (328 MB, 4 GB) pro telefony, na které Gemma nestačí.
+
+- **Slabší telefon dostane sekci AI, i když se nevejde výchozí velikost.** Poskytovatel je
+  dostupný, když zařízení unese aspoň JEDNU jeho velikost (`availability`); dřív se ptalo na
+  výchozí variantu, a ta by Qwen na telefonu s 6 GB schovala celý. Uloženou velikost, na kterou
+  paměť nestačí, `supportedModels` vymění za první dostupnou téhož modelu — Qweny jsou v katalogu
+  od největšího, takže telefon dostane největší, který unese (test `SupportedModelsTest`).
+- **Kontext je vlastnost souboru** (`LiteRtModel.contextTokens`): Qweny mají 4 096 tokenů, Gemma
+  8 192. Engine dostane menší z obou (`maxNumTokens`) a podle toho i limit vstupu (`info`), takže
+  shrnutí u Qwenu dřív přejde na části. Soubor Qwen2.5 má KV keš pevně na 4 096 (`ekv4096`).
+- **Proč tyhle tři a ne jiné.** Qwen2.5 1,5B je z katalogu Gallery (`1_0_23.json`, 6 GB paměti),
+  Qwen3 0,6B týž export jako Qwen3 4B a v oficiální tabulce LiteRT-LM. **Gemma 3 1B** (z Gallery,
+  6 GB) je na Hugging Face za licenčním souhlasem — bez přihlášení vrací 401 a stahování ho neumí.
+  **Qwen3.5 0,8B** (litert-community) má vrstvy s rekurentním stavem a podle karty modelu chce
+  NOVÝ engine pro každou konverzaci, jinak navazuje na stav předchozí (LiteRT-LM#3165); aplikace
+  engine mezi dotazy drží, takže by odpovídal nesmysly.
+
+- **Katalog je jeden pro všechny stahované modely** (`LiteRtModel`, dřív `GemmaModel`): soubor,
+  commit, velikost, paměť, komu patří (`provider`) a jestli bere zvuk a obraz (`multimodal`).
+  Runtime pracuje se souborem (`ModelVariant.model`), poskytovatel jen vybírá, který to je.
+  **Jména položek se ukládají** (volba velikosti Gemmy, jméno úlohy stahování), proto zůstalo
+  `E2B` / `E4B`.
+- **Engine je pořád jeden.** Gemma a Qwen se v paměti střídají; přechod znamená zavřít jeden
+  a načíst druhý (až desítky sekund na CPU). Proto Qwen v automatice stojí PŘED Gemmou: kdo si
+  ho vedle Gemmy zapne, chce ho na text, a Gemma zůstane hlasovkám a fotkám, které se pouštějí
+  ťuknutím. Systémový model (Nano, Apple) má přednost před oběma.
+- **Qwen3 4B potřebuje LiteRT-LM 0.19.** Soubor `qwen3_4b_mixed_int4.litertlm` je od 31. 10. 2026
+  nový export (dynamický INT4, GPU kompozity, váhy v oddílu na konci souboru); GPU engine verzí
+  0.18.x na něm na Androidu spadne (SIGSEGV, LiteRT-LM#3986), CPU chce aspoň 0.18. Dřívější soubor
+  téhož jména (revize `a45912eb`) měl kontext jen 2 048 tokenů, na shrnutí málo. Všechno podle
+  karty modelu na Hugging Face; commit v katalogu je ten po výměně souboru.
+- **Bump 0.11 → 0.19.1 prošel bez jediné změny v kódu** (API `Engine`, `ConversationConfig`,
+  `sendMessageAsync` s `extraContext` zůstalo). Od 0.18 je v AAR jen `liblitertlm_jni.so`
+  (22,7 MB na arm64) bez samostatného `libLiteRtClGlAccelerator.so`; knihovna jména akcelerátorů
+  zná a OpenCL kód nese, Gallery (0.18.1) přibaluje taky jen ji. **Jestli se na telefonu chytí
+  GPU, ověřené není** — bez něj jede CPU (Qwen na Galaxy S26 ~10 tok/s místo ~20).
+  AAR nově nese i `x86_64`; model se přesto mimo arm64 nenabízí (`deviceCanRun`).
+- **Přemýšlení je vypnuté** (`enable_thinking = false` v `extraContext`, posílalo se už kvůli
+  Gemmě). Qwen3 by jinak psal úvahy do zvláštního kanálu a odpověď by přišla mnohem později.
+- **Paměť 12 GB jako E4B.** Na 8GB Pixelu 8a podle karty modelu při prvním výpočtu na GPU
+  zbylo 243 MB volné paměti a běh se zastavil.
+- **Pod zátěží čeká jako Gemma** (`avoidUnderLoad` podle `appManaged`, ne podle poskytovatele)
+  a selhání jmenuje Qwen (`ai_failure_qwen`) — výjimka nese poskytovatele z varianty.
+- **Úložiště a mazání jsou společné** (`LiteRtModel.variant`), Qwen se tam ukáže jako Gemma.
+- **Co dalšího jde** (stav 11/2026): oficiálně testované Gemma 3n, Gemma 3 1B, Phi-4-mini,
+  Qwen2.5 0,5B a 1,5B, Qwen3 0,6B; na litert-community Qwen3.5 0,8B a LFM3 od Liquid AI (vlastní
+  licence s omezením podle obratu). Malé modely česky slabě, Phi-4-mini pomalý. Llama ani Mistral
+  ve formátu LiteRT-LM nejsou (chtělo by to druhý runtime, např. llama.cpp). Nový model = řádek
+  v `LiteRtModel`, a má-li vlastního poskytovatele, i v `AiProvider` (texty, pořadí automatiky).
+- **Ověřeno**: testy a vzhled Nastavení na emulátoru se sondou (x86_64 emulátor model nespustí,
+  kontrola zařízení dočasně podstrčená): Qwen v bloku Modely, „Automaticky (Qwen)" u textových
+  úloh vedle Gemmy, věta o Qwenu pod úlohami; jako telefon se 6 GB jen Qwen bez přepínače,
+  velikost sama na 1,5B, přepnutí na 0,6B („328 MB"). **Na telefonu neověřené nic: stažení
+  Qwenu, jeho výstup a čeština, ani Gemma na nové verzi knihovny.**
 
 ### Víc modelů naráz a co čím počítat
 

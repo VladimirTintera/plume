@@ -35,6 +35,6 @@ object NoDeviceLoad : DeviceLoad {
 suspend fun OnDeviceAi.proactiveVariant(task: AiTask, settings: AppSettings, load: DeviceLoad): ModelVariant? =
     avoidUnderLoad(variantFor(task, settings), load.strained)
 
-/** [variant], pokud ji zátěž nevylučuje; Gemma pod zátěží ([strained]) = `null`. */
+/** [variant], pokud ji zátěž nevylučuje; Gemma nebo Qwen pod zátěží ([strained]) = `null`. */
 fun avoidUnderLoad(variant: ModelVariant, strained: Boolean): ModelVariant? =
-    variant.takeUnless { strained && it.provider == AiProvider.Gemma }
+    variant.takeUnless { strained && it.appManaged }

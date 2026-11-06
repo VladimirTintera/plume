@@ -3,6 +3,10 @@ package eu.tintera.plume.features.settings
 import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.resources.ai_task_folders
 import eu.tintera.plume.resources.settings_gemma_under_load
+import eu.tintera.plume.resources.settings_qwen_under_load
+import eu.tintera.plume.resources.settings_qwen_4b_summary
+import eu.tintera.plume.resources.settings_qwen_1_5b_summary
+import eu.tintera.plume.resources.settings_qwen_0_6b_summary
 import eu.tintera.plume.resources.ai_task_photo_description
 import eu.tintera.plume.resources.ai_task_transcription
 import eu.tintera.plume.resources.ai_task_search
@@ -14,6 +18,7 @@ import eu.tintera.plume.resources.ai_task_replies
 import eu.tintera.plume.resources.ai_task_explain
 import eu.tintera.plume.resources.ai_task_summary
 import eu.tintera.plume.resources.settings_ai_tasks_note
+import eu.tintera.plume.resources.settings_ai_tasks_note_qwen
 import eu.tintera.plume.resources.settings_ai_task_not_ready
 import eu.tintera.plume.resources.settings_ai_task_auto_named
 import eu.tintera.plume.resources.settings_ai_task_auto
@@ -58,7 +63,7 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.DownloadStoppedException
-import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.ai.ModelDownload
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.NotEnoughSpaceException
@@ -73,6 +78,8 @@ import eu.tintera.plume.resources.settings_ai_provider_apple
 import eu.tintera.plume.resources.settings_ai_provider_apple_summary
 import eu.tintera.plume.resources.settings_ai_provider_gemma
 import eu.tintera.plume.resources.settings_ai_provider_gemma_summary
+import eu.tintera.plume.resources.settings_ai_provider_qwen
+import eu.tintera.plume.resources.settings_ai_provider_qwen_summary
 import eu.tintera.plume.resources.settings_ai_provider_nano
 import eu.tintera.plume.resources.settings_ai_provider_nano_summary
 import eu.tintera.plume.resources.settings_gemma_e2b_summary
@@ -257,7 +264,13 @@ class OnDeviceAiSettingsViewModel(
 
     fun setFast(on: Boolean) = settings.setOnDeviceAiModels(models.value.copy(fast = on))
 
-    fun setGemmaModel(model: GemmaModel) = settings.setOnDeviceAiModels(models.value.copy(gemma = model))
+    /** Zvolí velikost modelu: soubor patří Gemmě, nebo Qwenu ([LiteRtModel.provider]). */
+    fun setSize(model: LiteRtModel) = settings.setOnDeviceAiModels(
+        when (model.provider) {
+            AiProvider.Qwen -> models.value.copy(qwen = model)
+            else -> models.value.copy(gemma = model)
+        },
+    )
 
     /**
      * Zapne nebo vypne model. **Poslední zapnutý vypnout nejde** (přepínač je pak neaktivní):
@@ -393,19 +406,26 @@ private fun OnDeviceModelState?.asStatus(): OnDeviceAiStatus = when (this) {
 }
 
 /**
- * Co zařízení umí: kteří poskytovatelé a které modely Gemma. Ptá se ho ViewModel sekce i seznam
- * sekcí Nastavení, který sekci AI v zařízení bez modelu vůbec nenabízí.
+ * Co zařízení umí: kteří poskytovatelé a které stahované modely. Ptá se ho ViewModel sekce
+ * i seznam sekcí Nastavení, který sekci AI v zařízení bez modelu vůbec nenabízí.
  *
  * U Gemini Nano se ptá na VÝCHOZÍ variantu, ne na tu zvolenou: preview nebo rychlá může chybět
- * zvlášť, a kvůli tomu by celá sekce zmizela uživateli, který model má.
+ * zvlášť, a kvůli tomu by celá sekce zmizela uživateli, který model má. **Stahovaný poskytovatel
+ * je tu, když zařízení unese aspoň jednu jeho velikost** — telefon se 6 GB na Qwen3 4B nestačí,
+ * na Qwen3 0,6B ano, a výchozí (největší) velikost by ho jinak schovala celý.
  */
 fun OnDeviceAi.availability(): Flow<AiAvailability> = flow {
+    val models = LiteRtModel.entries.filter { status(it.variant) != OnDeviceAiStatus.Unsupported }
     emit(
         AiAvailability(
-            providers = AiProvider.entries.filter { status(ModelVariant(provider = it)) != OnDeviceAiStatus.Unsupported },
-            gemmaModels = GemmaModel.entries.filter {
-                status(ModelVariant(provider = AiProvider.Gemma, gemma = it)) != OnDeviceAiStatus.Unsupported
+            providers = AiProvider.entries.filter { provider ->
+                if (LiteRtModel.entries.any { it.provider == provider }) {
+                    models.any { it.provider == provider }
+                } else {
+                    status(ModelVariant(provider = provider)) != OnDeviceAiStatus.Unsupported
+                }
             },
+            models = models,
         ),
     )
 }.catch { emit(AiAvailability(emptyList(), emptyList())) }
@@ -425,15 +445,18 @@ fun OnDeviceAi.availability(): Flow<AiAvailability> = flow {
 fun previewSameAsStable(previewName: String?, stableName: String?): Boolean =
     previewName != null && previewName == stableName
 
-/** Co zařízení umí: dostupní poskytovatelé a modely Gemma, které se tu dají pustit. */
-data class AiAvailability(val providers: List<AiProvider>, val gemmaModels: List<GemmaModel>)
+/** Co zařízení umí: dostupní poskytovatelé a stahované modely, které se tu dají pustit. */
+data class AiAvailability(val providers: List<AiProvider>, val models: List<LiteRtModel>) {
+    /** Velikosti modelu [provider], které zařízení unese, od největší. */
+    fun sizes(provider: AiProvider): List<LiteRtModel> = models.filter { it.provider == provider }
+}
 
 /**
  * Modely opravené na to, co zařízení umí, nebo `null`, když jsou v pořádku.
  *
  * Zapnutý model, který tu není (telefon bez AICore, uložená volba z jiného zařízení, výchozí
- * Gemini Nano na iOS), se vypustí; když tím nezbude žádný, zapne se první dostupný. Model Gemma,
- * na který nestačí paměť, se vymění za první, na který ano. Ruční přiřazení se nechávají —
+ * Gemini Nano na iOS), se vypustí; když tím nezbude žádný, zapne se první dostupný. Velikost
+ * Gemmy nebo Qwenu, na kterou nestačí paměť, se vymění za největší, na kterou ano. Ruční přiřazení se nechávají —
  * přiřazení k nezapnutému modelu se nepočítá ([AiModels.assignment]), a kdyby se model vrátil
  * (obnova zálohy), platí zase. Bez dostupného poskytovatele se nemění nic: sekce se pak vůbec
  * nenabízí a opravovat není co.
@@ -441,10 +464,10 @@ data class AiAvailability(val providers: List<AiProvider>, val gemmaModels: List
 fun supportedModels(current: AiModels, available: AiAvailability): AiModels? {
     val first = available.providers.firstOrNull() ?: return null
     val enabled = current.enabled.filterTo(LinkedHashSet()) { it in available.providers }.ifEmpty { setOf(first) }
-    val gemma = current.gemma.takeIf { it in available.gemmaModels }
-        ?: available.gemmaModels.firstOrNull()
-        ?: current.gemma
-    val fixed = current.copy(enabled = enabled, gemma = gemma)
+    fun size(chosen: LiteRtModel) = chosen.takeIf { it in available.models }
+        ?: available.sizes(chosen.provider).firstOrNull()
+        ?: chosen
+    val fixed = current.copy(enabled = enabled, gemma = size(current.gemma), qwen = size(current.qwen))
     return fixed.takeIf { it != current }
 }
 
@@ -588,9 +611,17 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     onSelect = { viewModel.assign(task, it) },
                 )
             }
-            if (AiProvider.Gemma in enabledHere) {
+            // Kam jde text automaticky, říká věta jen tam, kde to platí: Nano před Qwenem
+            // a Qwen před Gemmou (pořadí `chooseProvider`).
+            val note = when {
+                AiProvider.Gemma !in enabledHere -> null
+                AiProvider.GeminiNano in enabledHere -> Res.string.settings_ai_tasks_note
+                AiProvider.Qwen in enabledHere -> Res.string.settings_ai_tasks_note_qwen
+                else -> null
+            }
+            if (note != null) {
                 Text(
-                    stringResource(Res.string.settings_ai_tasks_note),
+                    stringResource(note),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -627,16 +658,7 @@ private fun ModelOptions(
         }
         // Větší model se nabídne jen tam, kde na něj stačí paměť.
         AiProvider.Gemma -> {
-            if (available.gemmaModels.size > 1) {
-                available.gemmaModels.forEach { gemma ->
-                    ModelChoiceRow(
-                        title = gemma.displayName,
-                        summary = stringResource(gemma.summary, fileSizeText(gemma.sizeBytes)),
-                        selected = models.gemma == gemma,
-                        onSelect = { viewModel.setGemmaModel(gemma) },
-                    )
-                }
-            }
+            SizeChoices(available.sizes(provider), models.gemma, viewModel::setSize)
             /*
              * Pod úsporným režimem a přehřátím Gemma sama nic nepočítá (`proactiveVariant`).
              * Bez téhle věty by uživatel s jedinou Gemmou nepoznal, proč návrhy a varování
@@ -644,6 +666,16 @@ private fun ModelOptions(
              */
             Text(
                 stringResource(Res.string.settings_gemma_under_load),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            )
+        }
+        // Velikosti jako u Gemmy; malé jsou pro telefony, na které Gemma nestačí.
+        AiProvider.Qwen -> {
+            SizeChoices(available.sizes(provider), models.qwen, viewModel::setSize)
+            Text(
+                stringResource(Res.string.settings_qwen_under_load),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -671,13 +703,13 @@ private fun ModelStatus(variant: ModelVariant, model: OnDeviceModelState, viewMo
              * stačí u systémového modelu, jehož velikost nám nikdo neřekne; tady ji víme
              * a pod 2,4 GB se uživatel podepisuje, ne pod „nějaké gigabajty".
              */
-            OnDeviceModelState.Downloadable -> if (variant.appManaged) {
+            OnDeviceModelState.Downloadable -> variant.model?.let { file ->
                 stringResource(
                     Res.string.settings_on_device_ai_downloadable_named,
-                    variant.gemma.displayName,
-                    fileSizeText(variant.gemma.sizeBytes),
+                    file.displayName,
+                    fileSizeText(file.sizeBytes),
                 )
-            } else {
+            } ?: run {
                 stringResource(Res.string.settings_on_device_ai_downloadable)
             }
             is OnDeviceModelState.Downloading -> if (model.progress?.waitingForNetwork == true) {
@@ -809,7 +841,21 @@ private fun VariantSwitch(
     )
 }
 
-/** Jedna volba z několika (model Gemma). Klikání nese celý řádek, jako u motivu. */
+/** Velikosti jednoho modelu, jen když je z čeho vybírat. */
+@Composable
+private fun SizeChoices(sizes: List<LiteRtModel>, selected: LiteRtModel, onSelect: (LiteRtModel) -> Unit) {
+    if (sizes.size < 2) return
+    sizes.forEach { size ->
+        ModelChoiceRow(
+            title = size.displayName,
+            summary = stringResource(size.summary, fileSizeText(size.sizeBytes)),
+            selected = selected == size,
+            onSelect = { onSelect(size) },
+        )
+    }
+}
+
+/** Jedna volba z několika (velikost modelu). Klikání nese celý řádek, jako u motivu. */
 @Composable
 private fun ModelChoiceRow(title: String, summary: String, selected: Boolean, onSelect: () -> Unit) {
     ListItem(
@@ -826,6 +872,7 @@ internal val AiProvider.title: StringResource
     get() = when (this) {
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma
+        AiProvider.Qwen -> Res.string.settings_ai_provider_qwen
         AiProvider.Apple -> Res.string.settings_ai_provider_apple
     }
 
@@ -833,13 +880,18 @@ private val AiProvider.summary: StringResource
     get() = when (this) {
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano_summary
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma_summary
+        AiProvider.Qwen -> Res.string.settings_ai_provider_qwen_summary
         AiProvider.Apple -> Res.string.settings_ai_provider_apple_summary
     }
 
-private val GemmaModel.summary: StringResource
+/** Popis velikosti u volby modelu. */
+private val LiteRtModel.summary: StringResource
     get() = when (this) {
-        GemmaModel.E2B -> Res.string.settings_gemma_e2b_summary
-        GemmaModel.E4B -> Res.string.settings_gemma_e4b_summary
+        LiteRtModel.E2B -> Res.string.settings_gemma_e2b_summary
+        LiteRtModel.E4B -> Res.string.settings_gemma_e4b_summary
+        LiteRtModel.Qwen3_4B -> Res.string.settings_qwen_4b_summary
+        LiteRtModel.Qwen2_5_1_5B -> Res.string.settings_qwen_1_5b_summary
+        LiteRtModel.Qwen3_0_6B -> Res.string.settings_qwen_0_6b_summary
     }
 
 /** Model stahuje a maže aplikace sama ([ModelVariant.appManaged]). */
