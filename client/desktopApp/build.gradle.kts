@@ -10,6 +10,8 @@ plugins {
     id("plume.tdlib-desktop")
     // Jar LiteRT-LM (model v zařízení) jen s nativní knihovnou tohoto systému (build-logic).
     id("plume.litertlm-desktop")
+    // Oprava insetů z Compose 1.13 v jaru foundation-layout: zúžení okna jinak shodí scénu (build-logic).
+    id("plume.compose-insets-desktop")
 }
 
 kotlin {
