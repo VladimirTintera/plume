@@ -1,19 +1,22 @@
 package eu.tintera.plume.core.ai
 
-import eu.tintera.plume.ai.engine.LITERT_ENGINE_FACTORY
 import eu.tintera.plume.ai.engine.LlmEngineFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 /**
- * Desktop: runtime LiteRT-LM je v balíčku aplikace (:client:desktopApp závisí na :client:ai-litert),
- * nic se nedoinstalovává. Chybí jen v buildu, který modul nepřibalil — pak se model nenabídne
- * stejně jako bez nativní knihovny (`DesktopLiteRtPlatform.canRun`).
+ * Desktop: runtime je v balíčku aplikace (:client:desktopApp závisí na :client:ai-litert
+ * a :client:ai-llamacpp-desktop), nic se nedoinstalovává. Chybí jen v buildu, který modul
+ * nepřibalil — pak se model nenabídne stejně jako bez nativní knihovny
+ * (`DesktopLiteRtPlatform.canRun`). Jedna instance na runtime ([factoryClass]).
  */
-class BundledLiteRtRuntime : LiteRtRuntime {
+class BundledLiteRtRuntime(
+    /** Implementace [LlmEngineFactory], viz konstanty v :client:ai-engine. */
+    private val factoryClass: String,
+) : LiteRtRuntime {
 
     private val engines: LlmEngineFactory? by lazy {
-        runCatching { loadEngineFactory(BundledLiteRtRuntime::class.java.classLoader) }.getOrNull()
+        runCatching { loadEngineFactory(BundledLiteRtRuntime::class.java.classLoader, factoryClass) }.getOrNull()
     }
 
     override fun installed(): Boolean = present
@@ -22,9 +25,9 @@ class BundledLiteRtRuntime : LiteRtRuntime {
         if (!present) throw RuntimeInstallException()
     }
 
-    override fun engines(): LlmEngineFactory = engines ?: throw IllegalStateException("$LITERT_ENGINE_FACTORY is missing")
+    override fun engines(): LlmEngineFactory = engines ?: throw IllegalStateException("$factoryClass is missing")
 
     private val present: Boolean by lazy {
-        runCatching { Class.forName(LITERT_ENGINE_FACTORY, false, BundledLiteRtRuntime::class.java.classLoader) }.isSuccess
+        runCatching { Class.forName(factoryClass, false, BundledLiteRtRuntime::class.java.classLoader) }.isSuccess
     }
 }

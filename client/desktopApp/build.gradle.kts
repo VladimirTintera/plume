@@ -21,6 +21,8 @@ dependencies {
     // Gemma a Qwen v zařízení (LiteRT-LM). Na Androidu je to součást z Google Play, tady přímo
     // v balíčku; `shared` si implementaci najde za běhu (`BundledLiteRtRuntime`).
     runtimeOnly(project(":client:ai-litert"))
+    // EuroLLM (llama.cpp), s nativní knihovnou přeloženou pro tenhle systém (client/ai-llamacpp-desktop).
+    runtimeOnly(project(":client:ai-llamacpp-desktop"))
     // Skia (Skiko) pro systém, na kterém se staví. Balí se taky jen pro něj — jpackage cizí
     // systém neumí, takže macOS balíček vzniká na Macu, Windows na Windows.
     implementation(compose.desktop.currentOs)

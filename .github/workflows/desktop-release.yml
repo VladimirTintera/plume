@@ -137,10 +137,11 @@ jobs:
 
       # Celá historie + tagy kvůli „Co je nového" zapečenému do aplikace (`generateChangelog`).
       # Mělký klon nad tagem stáhne jen ten jeden tag: build pak projde, ale seznam vydání v MSI
-      # je prázdný a nic to nenahlásí.
+      # je prázdný a nic to nenahlásí. Submodul llama.cpp kvůli EuroLLM (:client:ai-llamacpp-desktop).
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          submodules: true
 
       # Verze musí odpovídat `jvmToolchain(17)` v modulech — s jinou by ji Gradle přes foojay
       # resolver stahoval znovu při každém běhu. jpackage (MSI) je v JDK od 14.
@@ -172,12 +173,15 @@ jobs:
 
       # Desktop nepotřebuje Android, ale `:client:shared` je KMP knihovna s Android targetem
       # a AGP chce SDK s compileSdk už při konfiguraci. Hostovaný runner ho má předinstalovaný.
-      # POZOR: musí odpovídat android-compileSdk v gradle/libs.versions.toml.
+      # NDK chce AGP při konfiguraci :client:ai-llamacpp-android (`ndkVersion`), CMake z SDK
+      # překládá llama.cpp pro desktop (:client:ai-llamacpp-desktop); hostovaný runner má CMake
+      # na PATH a NDK si AGP stáhne samo.
+      # POZOR: musí odpovídat android-compileSdk, `ndk` a `cmake` v gradle/libs.versions.toml.
       - name: Install Android SDK platform
         if: runner.environment == 'self-hosted'
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37.0'
+          packages: 'platform-tools platforms;android-37.0 ndk;29.0.13846066 cmake;3.31.0'
 
       # Projektové gradle.properties počítá s vývojářským strojem; uživatelský
       # ~/.gradle/gradle.properties má přednost (stejně jako v android-release.yml).
@@ -252,10 +256,11 @@ jobs:
             exit 1
           fi
 
-      # Viz job windows: bez celé historie by „Co je nového" v aplikaci bylo prázdné.
+      # Viz job windows: bez celé historie by „Co je nového" v aplikaci bylo prázdné, bez submodulu EuroLLM.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          submodules: true
 
       - uses: actions/setup-java@v6
         with:
@@ -274,12 +279,12 @@ jobs:
           if command -v cygpath > /dev/null; then base="$(cygpath -m "$base")"; fi
           echo "GRADLE_OPTS=${GRADLE_OPTS:+$GRADLE_OPTS }-Dorg.gradle.daemon.registry.base=$base" >> "$GITHUB_ENV"
 
-      # Viz job windows: SDK kvůli Android targetu `:client:shared`, macos-latest ho má.
+      # Viz job windows: SDK kvůli Android targetu `:client:shared`, NDK a CMake kvůli llama.cpp; macos-latest je má.
       - name: Install Android SDK platform
         if: runner.environment == 'self-hosted'
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37.0'
+          packages: 'platform-tools platforms;android-37.0 ndk;29.0.13846066 cmake;3.31.0'
 
       # Jen na hostovaném — self-hosted Mac staví s projektovým nastavením jako lokálně
       # a ~/.gradle sdílí s lokální prací (viz job windows).

@@ -102,7 +102,7 @@ jobs:
       # potřebuje odsouhlasené licence). Instalujeme explicitně.
       # POZOR: musí odpovídat android-compileSdk v gradle/libs.versions.toml. Balíček pro
       # compileSdk 37 se jmenuje "platforms;android-37.0" — u minor verzí je nula součástí id.
-      # NDK a CMake potřebuje :client:ai-llamacpp a musí odpovídat `ndk` a `cmake` tamtéž.
+      # NDK a CMake potřebuje :client:ai-llamacpp-android a musí odpovídat `ndk` a `cmake` tamtéž.
       # NDK si AGP stáhne samo, CMake NE ([CXX1300] „CMake '…' was not found in SDK").
       - name: Install Android SDK platform
         uses: android-actions/setup-android@v4
