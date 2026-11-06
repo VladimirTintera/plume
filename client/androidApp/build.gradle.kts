@@ -41,6 +41,8 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     // Přihlášení hodinek z telefonu: hodinky pošlou odkaz z QR kódu (WatchLoginService).
     implementation(libs.play.services.wearable)
+    // SplitCompat: součást z Google Play doinstalovaná za běhu (:client:litertFeature).
+    implementation(libs.play.feature.delivery)
 }
 
 android {
@@ -62,6 +64,10 @@ android {
         // procesu, tedy dřív, než se v aplikaci dá cokoli spustit.
         manifestPlaceholders["crashlyticsCollectionEnabled"] = "false"
     }
+
+    // Součásti z Google Play stahované až na požádání (Play Feature Delivery). Runtime LiteRT-LM
+    // pro model v zařízení — viz client/litertFeature a docs/poznatky/ai-v-zarizeni.md.
+    dynamicFeatures += setOf(":client:litertFeature")
 
     packaging {
         resources {
@@ -94,24 +100,11 @@ android {
         }
     }
 
-    // Rozdělení podle ABI. Univerzální APK má kvůli TDLib přes 100 MB, protože nese nativní
-    // knihovnu pro všechny čtyři architektury; samostatné arm64 APK je zhruba třetinové.
-    //
-    // **Jen pro APK, u bundlu vypnuté.** S `isShrinkResources` vyrobí AGP zmenšené prostředky
-    // pro každou ABI variantu zvlášť a `bundleRelease` pak spadne na „Multiple shrunk-resources
-    // files found" (issuetracker 402800800). Bundlu splity stejně nic nedávají — APK pro
-    // konkrétní zařízení si z AAB skládá Play sám. Požadované úlohy jsou součástí klíče
-    // konfigurační keše, takže se `assembleRelease` a `bundleRelease` nepletou.
-    val buildsBundle = gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
-    splits {
-        abi {
-            isEnable = !buildsBundle
-            reset()
-            include("arm64-v8a", "armeabi-v7a")
-            // Univerzální varianta zůstává jako záloha pro případ, že by ABI nesedělo.
-            isUniversalApk = true
-        }
-    }
+    // **Bez rozdělení APK podle ABI** (`splits.abi`). Dřív bylo, protože univerzální APK má kvůli
+    // TDLib přes 100 MB; jenže se součástí z Google Play (`dynamicFeatures`) AGP součást
+    // nesestaví („Cannot find PROCESSED_RES output" — hledá výstup základu bez filtru ABI).
+    // Nic se tím neztratilo: do Play jde AAB, ze kterého si APK pro zařízení skládá Play sám,
+    // a na emulátor se instaluje univerzální APK.
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

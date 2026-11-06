@@ -10,8 +10,10 @@ import kotlinx.coroutines.flow.flow
  *
  * Hranice stejně jako `core/telegram` nebo `core/logging`: za ní jsou na Androidu DVA runtime —
  * Gemini Nano v AICore přes ML Kit Prompt API (`com.google.mlkit.genai.*`) a Gemma s Qwenem
- * přes LiteRT-LM (`com.google.ai.edge.litertlm.*`); obojí smí být importované jen v
- * `androidMain/core/ai`. Který se použije, určuje [ModelVariant.provider] a rozhoduje o tom
+ * přes LiteRT-LM (`com.google.ai.edge.litertlm.*`). ML Kit smí být importovaný jen v
+ * `androidMain/core/ai`, LiteRT-LM jen v :client:ai-litert — na Androidu je to součást z Google
+ * Play stahovaná až na požádání a `shared` vidí jen rozhraní enginu (:client:ai-engine,
+ * `LiteRtRuntime`). Který se použije, určuje [ModelVariant.provider] a rozhoduje o tom
  * [RoutingOnDeviceAi]. Variantu si funkce bere pro SVOU úlohu ([variantFor], [AiTask]): zapnuté
  * mohou být oba modely a každá úloha jde jinému — Nano na text, Gemma na zvuk a obraz.
  *

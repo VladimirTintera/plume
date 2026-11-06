@@ -1,4 +1,4 @@
-package eu.tintera.plume.core.ai
+package eu.tintera.plume.ai.litert
 
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -8,6 +8,9 @@ import kotlin.test.assertFailsWith
  * (`genai-prompt` 1.0.0-beta4 i beta5) — jinak strukturovaný výstup Gemini Nano spadne na
  * `ClassCastException` v inicializaci třídy. Proč a odkud se Gson bere: komentář u verze Gsonu
  * v `libs.versions.toml`. Test padne, když bump LiteRT-LM (nebo čehokoli jiného) připnutí obejde.
+ *
+ * Leží tady, ne v `shared`: Gson do aplikace přináší LiteRT-LM, tedy součást z Google Play, a ta
+ * se po instalaci načte do téhož classloaderu jako ML Kit v základu aplikace.
  */
 class GsonForMlKitTest {
 

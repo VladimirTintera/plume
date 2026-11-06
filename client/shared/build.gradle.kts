@@ -341,12 +341,15 @@ kotlin {
         val skiaMain by creating {
             dependsOn(commonMain.get())
         }
-        // Model v zařízení přes LiteRT-LM (Gemma, Qwen): Android a desktop. Obě knihovny mají
-        // shodné API, takže runtime (`core/ai/LiteRtOnDeviceAi`) je jeden. Knihovnu si bere každá
-        // platforma sama (`litertlm-android` / `litertlm-jvm`) — dvě kopie týchž tříd na jedné
-        // classpath by se srazily.
+        // Model v zařízení přes LiteRT-LM (Gemma, Qwen): Android a desktop. Stahování modelu
+        // a stav pro obrazovku (`core/ai/LiteRtOnDeviceAi`) jsou společné; samotnou knihovnu
+        // LiteRT-LM tu nevidíme, jen rozhraní enginu. Implementace (:client:ai-litert) přichází
+        // na Androidu jako součást z Google Play až na požádání, na desktopu z desktopApp.
         val liteRtMain by creating {
             dependsOn(commonMain.get())
+            dependencies {
+                implementation(projects.client.aiEngine)
+            }
         }
 
         commonMain {
@@ -452,11 +455,10 @@ kotlin {
             // Strukturovaný výstup Gemini Nano (`GenerableProvider` pro typy odpovědí). Jen popis
             // tvaru, KSP procesor ne — providery jsou ručně v core/ai.
             implementation(libs.mlkit.genai.schema)
-            // Gemma a Qwen v zařízení (LiteRT-LM). Taky jen v core/ai.
-            implementation(libs.litertlm.android)
-            // Gson z LiteRT-LM připnutý pod 2.14 — novější shazuje strukturovaný výstup ML Kitu,
-            // viz komentář u verze v libs.versions.toml.
-            implementation(libs.gson)
+            // Gemma a Qwen v zařízení: runtime LiteRT-LM se doinstaluje z Google Play až na
+            // požádání (core/ai/PlayLiteRtRuntime, součást :client:litertFeature). Knihovna sama
+            // tu NENÍ — jen v :client:ai-litert, na kterém visí ta součást.
+            implementation(libs.play.feature.delivery)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
         }
@@ -488,9 +490,8 @@ kotlin {
             implementation(libs.zxing.core)
             // Hovory: C API ntgcalls (`core/calls/NtgNative.kt`).
             implementation(libs.jna)
-            // Gemma a Qwen v zařízení, jako na Androidu (core/ai). Jar nese nativní knihovny všech
-            // systémů; do balíčku jde jen ta jeho (plugin `plume.litertlm-desktop` v desktopApp).
-            implementation(libs.litertlm.jvm)
+            // Gemma a Qwen v zařízení: runtime LiteRT-LM (:client:ai-litert) přidává až desktopApp,
+            // tady je jen rozhraní (liteRtMain). Najde se za běhu (`BundledLiteRtRuntime`).
             // Tmavý titulek okna na Windows (`WindowTitleBarAppearance`).
             implementation(libs.platformtools.darkmodedetector)
             // Dekodér videa (GIFy, `core/video/Video.jvm.kt`): FFmpeg přes JavaCPP. Nativní

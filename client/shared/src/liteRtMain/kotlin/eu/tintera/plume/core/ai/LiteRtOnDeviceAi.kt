@@ -1,13 +1,11 @@
 package eu.tintera.plume.core.ai
 
 import co.touchlab.kermit.Logger
-import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.Content
-import com.google.ai.edge.litertlm.Contents
-import com.google.ai.edge.litertlm.ConversationConfig
-import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
-import com.google.ai.edge.litertlm.SamplerConfig
+import eu.tintera.plume.ai.engine.LlmBackend
+import eu.tintera.plume.ai.engine.LlmContent
+import eu.tintera.plume.ai.engine.LlmEngine
+import eu.tintera.plume.ai.engine.LlmEngineConfig
+import eu.tintera.plume.ai.engine.LlmSampling
 import eu.tintera.plume.core.connectivity.NetworkKind
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import java.io.File
@@ -15,6 +13,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,9 +42,12 @@ import kotlinx.coroutines.withTimeoutOrNull
  *
  * Na rozdíl od Gemini Nano (`MlKitOnDeviceAi`) tu není systémová služba — soubor modelu (0,3 až
  * 3,7 GB) leží v adresáři od platformy ([LiteRtPlatform.modelsDir]) a počítá ho engine uvnitř
- * našeho procesu. **Kód je společný pro Android a desktop** (source set `liteRtMain`): obě
- * knihovny (`litertlm-android`, `litertlm-jvm`) mají shodné API; co se liší, je za [LiteRtPlatform].
+ * našeho procesu. **Kód je společný pro Android a desktop** (source set `liteRtMain`); co se
+ * liší, je za [LiteRtPlatform].
  *
+ * - **Samotnou knihovnu LiteRT-LM tu nevidíme**, jen rozhraní enginu (:client:ai-engine). Runtime
+ *   dává [LiteRtRuntime]: na desktopu přibalený, na Androidu součást z Google Play, která se
+ *   doinstaluje SPOLU s modelem ([download]). Model je připravený, až když je tu obojí.
  * - **Stahuje se do `.part` a přejmenovává až hotový.** Přítomnost výsledného souboru tedy
  *   znamená „kompletní model" a nic dalšího se kontrolovat nemusí. Přerušené stahování
  *   navazuje (`Range`) — u gigabajtů by začínat od nuly bylo nepoužitelné — a po výpadku
@@ -75,6 +77,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class LiteRtOnDeviceAi(
     private val platform: LiteRtPlatform,
+    private val runtime: LiteRtRuntime,
     private val networkMonitor: NetworkMonitor,
     /**
      * Za jak dlouho po poslední práci engine modelu (podle poskytovatele) uvolnit. Čte se po
@@ -96,6 +99,12 @@ class LiteRtOnDeviceAi(
 
     private fun stateOf(model: LiteRtModel) = downloads.getOrPut(model) { MutableStateFlow(DownloadState.Idle) }
 
+    /** Doinstalování runtime před stahováním modelu ([download]); [stopDownload] ho zastaví. */
+    private val runtimeInstalls = ConcurrentHashMap<LiteRtModel, Job>()
+
+    /** Runtime k už staženému modelu se doinstaloval sám ([restoreRuntime]); jednou za proces. */
+    private val runtimeRestoreStarted = AtomicBoolean(false)
+
     private val engineLock = Mutex()
     private var loaded: LoadedEngine? = null
     private var idleUnload: Job? = null
@@ -104,14 +113,36 @@ class LiteRtOnDeviceAi(
         val model = variant.model ?: return OnDeviceAiStatus.Unsupported
         return when {
             !platform.canRun(model) -> OnDeviceAiStatus.Unsupported
-            model.file().exists() -> OnDeviceAiStatus.Ready
+            model.file().exists() && runtime.installed() -> OnDeviceAiStatus.Ready
             // Úloha naplánovaná z minulého běhu procesu (zabitého uprostřed stahování) se
             // rozběhne sama, jen ještě nezapsala stav — pořád je to stahování.
             stateOf(model).value is DownloadState.Running ||
                 platform.downloadPending(model) -> OnDeviceAiStatus.Downloading
-            model.partFile().exists() -> OnDeviceAiStatus.Paused
+            model.file().exists() && restoreRuntime(model) -> OnDeviceAiStatus.Downloading
+            // Stažený model bez runtime, který se sám doinstalovat nepovedl (aplikace mimo
+            // Play, chyba): „Pokračovat ve stahování" doinstaluje jen runtime.
+            model.partFile().exists() || model.file().exists() -> OnDeviceAiStatus.Paused
             else -> OnDeviceAiStatus.Downloadable
         }
+    }
+
+    /**
+     * Model je stažený, ale runtime chybí — aktualizace z verze, která runtime nesla v sobě, nebo
+     * součást odinstalovaná. Uživatel si model už jednou vybral a stáhl, takže se runtime (desítka
+     * MB) doinstaluje SÁM, jakmile se na model někdo zeptá; ťukat na „Pokračovat ve stahování"
+     * kvůli aktualizaci aplikace by nedávalo smysl. Ptá se jen funkce se zapnutou AI, takže kdo
+     * AI vypnul, nic nestahuje.
+     *
+     * Jen jednou za proces: kdyby instalace selhávala (aplikace mimo Play), každý dotaz na stav
+     * by ji pouštěl znovu. Pak zůstává „Pokračovat ve stahování". Vrací, jestli se instaluje.
+     */
+    private fun restoreRuntime(model: LiteRtModel): Boolean {
+        if (!runtimeRestoreStarted.compareAndSet(false, true)) return false
+        logger.i { "Model ${model.displayName} je stažený bez runtime, doinstalovávám ho" }
+        val state = stateOf(model)
+        state.value = DownloadState.Running(ModelDownload(0, null))
+        runtimeInstalls[model] = scope.launch { installRuntimeThenDownload(model, state) }
+        return true
     }
 
     override suspend fun info(variant: ModelVariant): ModelInfo? {
@@ -123,6 +154,11 @@ class LiteRtOnDeviceAi(
     /**
      * Naplánuje stahování a sleduje jeho průběh. Běžící stahování (i úloha čekající na síť)
      * se jen sleduje; `KEEP` při plánování zaručí, že se nespustí podruhé.
+     *
+     * Chybí-li runtime ([LiteRtRuntime]), doinstaluje se NAPŘED, v [scope], aby přežil odchod
+     * z obrazovky. Je to desítka megabajtů proti gigabajtům modelu, a když selže (aplikace není
+     * z Google Play), má se to uživatel dozvědět hned, ne až po stažení modelu. Průběh se zatím
+     * ukazuje v bajtech runtime, pak v bajtech modelu.
      */
     override fun download(variant: ModelVariant): Flow<ModelDownload> = flow {
         val model = variant.file()
@@ -137,7 +173,11 @@ class LiteRtOnDeviceAi(
             state.value = DownloadState.Running(
                 ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = offline),
             )
-            platform.startDownload(model) { runDownload(model) }
+            if (runtime.installed()) {
+                platform.startDownload(model) { runDownload(model) }
+            } else {
+                runtimeInstalls[model] = scope.launch { installRuntimeThenDownload(model, state) }
+            }
         }
         state.transformWhile { current ->
             when (current) {
@@ -153,8 +193,30 @@ class LiteRtOnDeviceAi(
         }.collect { emit(it) }
     }
 
+    /** Doinstaluje runtime a pak naplánuje model, nebo rovnou skončí, když už je stažený. */
+    private suspend fun installRuntimeThenDownload(model: LiteRtModel, state: MutableStateFlow<DownloadState>) {
+        try {
+            runtime.install().collect { progress -> state.value = DownloadState.Running(progress) }
+            logger.i { "Runtime LiteRT-LM připravený (${model.displayName})" }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            state.value = if (e is DownloadStoppedException) DownloadState.Stopped else DownloadState.Failed(e)
+            return
+        } finally {
+            runtimeInstalls.remove(model)
+        }
+        if (model.file().exists()) {
+            state.value = DownloadState.Done
+        } else {
+            state.value = DownloadState.Running(ModelDownload(model.partFile().length(), model.sizeBytes))
+            platform.startDownload(model) { runDownload(model) }
+        }
+    }
+
     override suspend fun stopDownload(variant: ModelVariant) {
         val model = variant.file()
+        runtimeInstalls.remove(model)?.cancel()
         platform.cancelDownload(model)
         // Úloha to ohlásí taky ([onWorkerStopped]), jenže až doběhne zrušení; obrazovka má
         // odpovědět hned. Úloha, která ještě nezačala, neohlásí nic.
@@ -215,26 +277,17 @@ class LiteRtOnDeviceAi(
 
     override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> = flow {
         withEngine(variant.file()) { engine ->
-            val conversation = engine.createConversation(
-                ConversationConfig(
-                    // Shrnutí má držet fakta, ne vymýšlet — nízká teplota, jako u Gemini Nano.
-                    samplerConfig = SamplerConfig(topK = 40, topP = 0.95, temperature = 0.2),
-                ),
-            )
+            val conversation = engine.conversation(SAMPLING)
             var finished = false
             try {
                 val text = StringBuilder()
                 try {
                     // Každá zpráva streamu je PŘÍRŮSTEK (tak ho vypisuje i ukázka LiteRT-LM),
-                    // rozhraní slibuje celý text. Přemýšlení (`enable_thinking`) je vypnuté:
+                    // rozhraní slibuje celý text. Přemýšlení je vypnuté (`LlmConversation.send`):
                     // šlo by do samostatného kanálu a jen by prodloužilo čekání.
-                    conversation.sendMessageAsync(
-                        platform.modelText(prompt),
-                        extraContext = mapOf("enable_thinking" to false),
-                        maxOutputToken = OUTPUT_RESERVE_TOKENS,
-                    )
+                    conversation.send(listOf(LlmContent.Text(platform.modelText(prompt))), maxOutputTokens = OUTPUT_RESERVE_TOKENS)
                         .collect { message ->
-                            text.append(message.toString())
+                            text.append(message)
                             if (text.length >= MAX_OUTPUT_CHARS) {
                                 emit(Generated(text.substring(0, MAX_OUTPUT_CHARS), truncated = true))
                                 throw OutputLimitReached
@@ -247,7 +300,7 @@ class LiteRtOnDeviceAi(
                 }
             } finally {
                 // Zrušené nebo useknuté generování by nativní strana jinak dopočítala do konce.
-                if (!finished) quietly { conversation.cancelProcess() }
+                if (!finished) quietly { conversation.cancel() }
                 quietly { conversation.close() }
             }
         }
@@ -277,24 +330,21 @@ class LiteRtOnDeviceAi(
         withEngine(variant.file(), audio = true) { engine ->
             val done = StringBuilder()
             for (clip in clips) {
-                val conversation = engine.createConversation(
-                    ConversationConfig(samplerConfig = SamplerConfig(topK = 40, topP = 0.95, temperature = 0.2)),
-                )
+                val conversation = engine.conversation(SAMPLING)
                 var finished = false
                 try {
                     val part = StringBuilder()
-                    conversation.sendMessageAsync(
-                        Contents.of(Content.AudioBytes(clip), Content.Text(platform.modelText(transcriptionPrompt(languageCode)))),
-                        extraContext = mapOf("enable_thinking" to false),
+                    conversation.send(
+                        listOf(LlmContent.Audio(clip), LlmContent.Text(platform.modelText(transcriptionPrompt(languageCode)))),
                     ).collect { message ->
-                        part.append(message.toString())
+                        part.append(message)
                         emit(Generated(joinTranscript(done, part)))
                     }
                     finished = true
                     if (done.isNotEmpty() && part.isNotBlank()) done.append(' ')
                     done.append(part.trim())
                 } finally {
-                    if (!finished) quietly { conversation.cancelProcess() }
+                    if (!finished) quietly { conversation.cancel() }
                     quietly { conversation.close() }
                 }
             }
@@ -322,19 +372,16 @@ class LiteRtOnDeviceAi(
         val image = withContext(Dispatchers.IO) { platform.png(imagePath, MAX_IMAGE_SIDE) }
             ?: throw IOException("Image $imagePath cannot be decoded")
         withEngine(variant.file(), vision = true) { engine ->
-            val conversation = engine.createConversation(
-                ConversationConfig(samplerConfig = SamplerConfig(topK = 40, topP = 0.95, temperature = 0.2)),
-            )
+            val conversation = engine.conversation(SAMPLING)
             var finished = false
             try {
                 val text = StringBuilder()
                 try {
-                    conversation.sendMessageAsync(
-                        Contents.of(Content.ImageBytes(image), Content.Text(platform.modelText(prompt))),
-                        extraContext = mapOf("enable_thinking" to false),
-                        maxOutputToken = OUTPUT_RESERVE_TOKENS,
+                    conversation.send(
+                        listOf(LlmContent.Image(image), LlmContent.Text(platform.modelText(prompt))),
+                        maxOutputTokens = OUTPUT_RESERVE_TOKENS,
                     ).collect { message ->
-                        text.append(message.toString())
+                        text.append(message)
                         if (text.length >= MAX_OUTPUT_CHARS) {
                             emit(Generated(text.substring(0, MAX_OUTPUT_CHARS), truncated = true))
                             throw OutputLimitReached
@@ -346,7 +393,7 @@ class LiteRtOnDeviceAi(
                     // Useknutí je platný výsledek, ne chyba — `truncated` už odešlo.
                 }
             } finally {
-                if (!finished) quietly { conversation.cancelProcess() }
+                if (!finished) quietly { conversation.cancel() }
                 quietly { conversation.close() }
             }
         }
@@ -371,6 +418,7 @@ class LiteRtOnDeviceAi(
 
     override suspend fun delete(variant: ModelVariant) {
         val model = variant.file()
+        runtimeInstalls.remove(model)?.cancel()
         platform.cancelDownload(model)
         downloads.remove(model)
         engineLock.withLock {
@@ -396,7 +444,7 @@ class LiteRtOnDeviceAi(
         model: LiteRtModel,
         audio: Boolean = false,
         vision: Boolean = false,
-        block: suspend (Engine) -> T,
+        block: suspend (LlmEngine) -> T,
     ): T = engineLock.withLock {
         idleUnload?.cancel()
         // Engine se zvukem (obrazem) poslouží i textu; bez něj se pro přepis (popis) musí načíst
@@ -431,35 +479,34 @@ class LiteRtOnDeviceAi(
      * funguje. `LinkageError` se chytá kvůli nativní knihovně, stejně jako u ML Kitu: na zařízení,
      * kde se nenačte, nesmí aplikace spadnout jen proto, že si někdo zapnul volitelnou funkci.
      */
-    private suspend fun createEngine(model: LiteRtModel, audio: Boolean, vision: Boolean): Engine = withContext(Dispatchers.Default) {
-        fun start(backend: Backend) = Engine(
-            EngineConfig(
-                modelPath = model.file().absolutePath,
-                backend = backend,
-                // Obraz počítá týž backend jako text (Gallery: GPU, když jde) — na CPU se
-                // spadne spolu s ním.
-                visionBackend = if (vision) backend else null,
-                audioBackend = if (audio) Backend.CPU() else null,
-                maxNumImages = if (vision) 1 else null,
-                maxNumTokens = model.maxTokens(),
-                // Keš zkompilovaného modelu zrychlí druhé načtení; do keše platformy, ať ji
-                // systém smí uklidit — soubor modelu vedle ní je drahý, keš ne.
-                cacheDir = platform.cacheDir.apply { mkdirs() }.absolutePath,
-            ),
-        ).also { it.initialize() }
-
+    private suspend fun createEngine(model: LiteRtModel, audio: Boolean, vision: Boolean): LlmEngine = withContext(Dispatchers.Default) {
         try {
+            val engines = runtime.engines()
+            fun start(backend: LlmBackend) = engines.open(
+                LlmEngineConfig(
+                    modelPath = model.file().absolutePath,
+                    // Obraz počítá týž backend jako text (Gallery: GPU, když jde) — na CPU se
+                    // spadne spolu s ním.
+                    backend = backend,
+                    audio = audio,
+                    vision = vision,
+                    maxNumTokens = model.maxTokens(),
+                    // Keš zkompilovaného modelu zrychlí druhé načtení; do keše platformy, ať ji
+                    // systém smí uklidit — soubor modelu vedle ní je drahý, keš ne.
+                    cacheDir = platform.cacheDir.apply { mkdirs() }.absolutePath,
+                ),
+            )
             try {
-                start(Backend.GPU())
+                start(LlmBackend.Gpu)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 logger.i(e) { "GPU backend nejde, zkouším CPU (${model.displayName})" }
-                start(Backend.CPU())
+                start(LlmBackend.Cpu)
             }
         } catch (e: LinkageError) {
             // Error, ne výjimka: `catch (Exception)` volajících by ho nechytil a aplikace by spadla.
-            throw IOException("LiteRT-LM native library failed to load", e)
+            throw IOException("LiteRT-LM runtime failed to load", e)
         }
     }
 
@@ -597,6 +644,9 @@ class LiteRtOnDeviceAi(
     private object OutputLimitReached : RuntimeException()
 
     private companion object {
+        /** Shrnutí má držet fakta, ne vymýšlet — nízká teplota, jako u Gemini Nano. */
+        val SAMPLING = LlmSampling(topK = 40, topP = 0.95, temperature = 0.2)
+
         /**
          * Velikost KV keše = vstup a výstup DOHROMADY. Gemma 4 unese víc (Gallery uvádí kontext
          * 32 000), ale keš stojí paměť úměrně délce, a 8 192 je totéž, co dává Gemini Nano —
@@ -632,4 +682,4 @@ class LiteRtOnDeviceAi(
 }
 
 /** Načtený engine: který soubor a jestli má zvukový backend (jen ten umí přepis). */
-private class LoadedEngine(val model: LiteRtModel, val audio: Boolean, val vision: Boolean, val engine: Engine)
+private class LoadedEngine(val model: LiteRtModel, val audio: Boolean, val vision: Boolean, val engine: LlmEngine)

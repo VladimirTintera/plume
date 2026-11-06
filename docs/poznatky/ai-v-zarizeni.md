@@ -362,6 +362,71 @@ Androidu (`liteRtMain`, `LiteRtPlatform`); co je jinak (Java 21, nativní knihov
 balíčku, modely mimo Roaming, stahování v procesu), je v `docs/poznatky/desktop.md`, „Model
 v zařízení (LiteRT-LM)". Gemini Nano a Apple tam nejsou.
 
+### Runtime jako součást z Google Play
+
+Knihovna LiteRT-LM (nativní `liblitertlm_jni.so`, 23 MB na arm64, k tomu Gson a kotlin-reflect)
+není v základu aplikace. Na Androidu je to **součást z Google Play stahovaná až na požádání**
+(Play Feature Delivery, modul :client:litertFeature), na desktopu je přibalená. Model v zařízení
+si zapne málokdo, a každý další runtime (llama.cpp a spol.) by jinak zvětšoval aplikaci všem.
+Naměřeno `bundletool get-size` nad debug AAB pro arm64: základ 63,5 MB, se součástí 74,8 MB ke
+stažení.
+
+- **Tři moduly**: :client:ai-engine (rozhraní `LlmEngineFactory` / `LlmEngine` / `LlmConversation`,
+  bez závislostí), :client:ai-litert (implementace nad LiteRT-LM, jediné místo s
+  `com.google.ai.edge.litertlm`) a :client:litertFeature (dynamic-feature bez kódu, jen balí
+  ai-litert). `shared` vidí jen ai-engine: stahování modelu, stav a výběr modelu
+  (`LiteRtOnDeviceAi`) zůstaly, kde byly, vyčleněný je jen engine.
+- **Implementace se hledá REFLEXÍ podle jména** (`LITERT_ENGINE_FACTORY`, `loadEngineFactory`).
+  Základ na třídy součásti nevidí ani při překladu; na desktopu by ai-litert nad `shared` dělal
+  kruh. Keep pravidlo je v `androidApp/proguard-rules.pro` — R8 zpracovává základ i součást
+  dohromady. Bez něj by model po stažení hlásil chybu jen v release buildu.
+- **Runtime se stahuje SPOLU s modelem a NAPŘED** (`LiteRtOnDeviceAi.download`,
+  `installRuntimeThenDownload`, testy `LiteRtRuntimeTest`). Desítky MB proti gigabajtům: když
+  instalace selže (aplikace není z Play), uživatel to má vědět hned. Stav pro obrazovku je pořád
+  `Downloading`, průběh napřed v bajtech runtime, pak modelu. Instalace běží v `scope` runtime,
+  ne v obrazovce, a „Zastavit" ji zruší i v Play (`cancelInstall`).
+- **`Ready` = soubor modelu A runtime.** Stažený model bez runtime (aktualizace z verze, která
+  runtime nesla v sobě, nebo součást odinstalovaná) si runtime **doinstaluje sám**, jakmile se na
+  model zeptá funkce nebo Nastavení (`restoreRuntime` ve `status`): uživatel si model už vybral
+  a stáhl, ťukat kvůli aktualizaci aplikace by nedávalo smysl. Stav je mezitím `Downloading`.
+  Kdo má AI vypnutou, na model se nikdo neptá a nic se nestahuje. **Jen jednou za proces** —
+  selhávající instalace (aplikace mimo Play) by se jinak pouštěla s každým dotazem na stav; pak
+  zůstává `Paused` a „Pokračovat ve stahování" doinstaluje jen runtime.
+- **Instalaci dělá Play, aplikace poslouchá** (`PlayLiteRtRuntime`). Na instalaci, která běží
+  z minulého ťuknutí, se napojí přes `sessionStates` — druhou by Play odmítl. Po instalaci za
+  běhu je součást vidět až po `SplitCompat.install` (volá ho i `MainApplication`
+  v `attachBaseContext`) a nativní knihovnu napřed načte `SplitInstallHelper.loadLibrary`;
+  LiteRT-LM si ji bere `System.loadLibrary`, který v čerstvém splitu cestu najít nemusí, a už
+  načtenou knihovnu linker najde podle jména. Po restartu procesu je součást běžný split APK.
+- **Jméno modulu je jméno součásti** (`PlayLiteRtRuntime.MODULE` = `litertFeature`).
+  Přejmenování projektu by instalaci tiše rozbilo.
+- **bundletool chce stejnou sadu ABI ve všech modulech s nativními knihovnami** („All modules
+  with native libraries must support the same set of ABIs"). Základ má kvůli TDLib čtyři,
+  LiteRT-LM jen arm64-v8a a x86_64. Součást proto nese pro armeabi-v7a a x86 prázdný
+  `libplume_no_litertlm.so` (úloha `abiPlaceholders`); tam se model nenabízí (`canRun` chce
+  arm64), takže se součást nikdy nestáhne. AGP při buildu hlásí, že ho nejde ořezat — to je
+  v pořádku. Jestli prázdný soubor projde kontrolami Play Console, **ověřené není**.
+- **Rozdělení APK podle ABI (`splits.abi`) muselo pryč**: s `dynamicFeatures` AGP součást
+  nesestaví („Cannot find PROCESSED_RES output"). Debug APK je teď jedno univerzální,
+  `androidApp-debug.apk`.
+- **Mimo Play se součást nestáhne.** `assembleDebug` a `adb install` dají aplikaci bez runtime
+  a stažení modelu skončí chybou. Pro vývoj buď obojí naráz: `./gradlew
+  :client:androidApp:assembleDebug :client:litertFeature:assembleDebug` a `adb install-multiple
+  androidApp-debug.apk litertFeature-debug.apk` (součást je pak nainstalovaná rovnou), nebo
+  instalaci z Play napodobit: `bundleDebug`, `bundletool build-apks --local-testing` a
+  `install-apks` — aplikace dostane jen základ a součást „stáhne" `FakeSplitInstallManager`
+  z `/sdcard/Android/data/eu.tintera.plume/files/local_testing`. bundletool chce `--aapt2`
+  z build-tools a na classpath i kotlin-stdlib (jar z Maven není spustitelný).
+- **Ověřeno**: testy, obsah APK (`dexdump`: v základu žádné `com.google.ai.edge`, Gson ani
+  kotlin-reflect, v součásti všechno), R8 release (`LiteRtEngineFactory` pod svým jménem, jen
+  v dexu součásti), AAB a bundletool `--local-testing` na emulátoru se sondou (x86_64 v `canRun`):
+  aplikace se základem bez součásti nastartuje, „Stáhnout model" napřed doinstaluje součást
+  (`SplitCompat: Splits installed`, nativní knihovna přidaná do classloaderu), pak stáhne
+  Qwen3 0,6B, a shrnutí v témže procesu načte `liblitertlm_jni.so` ze splitu (`nativeloader …
+  ok`), otevře engine a pošle zprávu. Výstup modelu na emulátoru nevyšel kvůli GPU backendu bez
+  OpenCL, ne kvůli součásti. **Neověřené: skutečná instalace z Play (interní testování) a jestli
+  Play Console vezme prázdné knihovny pro armeabi-v7a a x86.**
+
 ### Víc modelů naráz a co čím počítat
 
 Nano zvuk ani obraz nebere, Gemma je umí, jenže drží gigabajty RAM. Kdo měl na všechno Gemmu
@@ -1097,7 +1162,9 @@ odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál t
   a přetypování na kopii z ML Kitu vyhodí `ClassCastException`. Zjištěno `javap -c` nad
   `classes.jar` z `genai-prompt` v keši Gradlu. Gson je proto připnutý `strictly` na 2.13.2
   (tu měl LiteRT-LM 0.11.0; LiteRT-LM bere jen stromové API) a hlídá to `GsonForMlKitTest`
-  v `androidHostTest` — s 2.14.0 padá. Kdo bumpuje ML Kit, ověří tím, že v `zzvk`/nástupci
+  v `androidHostTest` modulu :client:ai-litert — s 2.14.0 padá. Připnutí i test jsou tam, kde
+  je LiteRT-LM: Gson přichází se součástí z Google Play (viz „Runtime jako součást z Google
+  Play"), základ aplikace žádný nemá. Kdo bumpuje ML Kit, ověří tím, že v `zzvk`/nástupci
   řetězec zmizel nebo je přejmenovaný, a připnutí smaže.
 - **`generateStructured` chytá i `LinkageError`.** Rozbitá inicializace třídy v ML Kitu je
   `Error`, `catch (Exception)` ji minul a padla celá aplikace. Teď je to `StructuredOutputException`

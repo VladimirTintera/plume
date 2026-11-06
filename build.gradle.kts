@@ -1,6 +1,7 @@
 plugins {
     // Deklarované bez `apply`, aby se plugin classloader nenačítal v každém subprojektu znovu.
     alias(libs.plugins.androidApplication) apply false
+    alias(libs.plugins.androidDynamicFeature) apply false
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinJvm) apply false

@@ -18,6 +18,9 @@ kotlin {
 
 dependencies {
     implementation(project(":client:shared"))
+    // Gemma a Qwen v zařízení (LiteRT-LM). Na Androidu je to součást z Google Play, tady přímo
+    // v balíčku; `shared` si implementaci najde za běhu (`BundledLiteRtRuntime`).
+    runtimeOnly(project(":client:ai-litert"))
     // Skia (Skiko) pro systém, na kterém se staví. Balí se taky jen pro něj — jpackage cizí
     // systém neumí, takže macOS balíček vzniká na Macu, Windows na Windows.
     implementation(compose.desktop.currentOs)

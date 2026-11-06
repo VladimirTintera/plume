@@ -6,4 +6,7 @@
     <!-- Widget na plochu (výběr widgetů v launcheru). -->
     <string name="widget_chats_label">Chats</string>
     <string name="widget_chats_description">Pinned and unread chats at a glance</string>
+    <!-- Název součásti z Google Play s runtime modelu v zařízení (:client:litertFeature);
+         ukazuje ho Play, kdyby se na součást ptal. -->
+    <string name="litert_feature_title">On-device AI</string>
 </resources>
