@@ -117,12 +117,13 @@ class LiteRtOnDeviceAi(
     private var idleUnload: Job? = null
 
     /**
-     * GPU tu selhalo (při načtení, nebo při generování) a CPU uspělo. Do konce procesu se pak rovnou
-     * načítá CPU: zkoušet GPU znovu by každé načtení prodloužilo o načtení, které stejně spadne.
-     * Jen v paměti — po aktualizaci systému nebo ovladačů se GPU zkusí znovu.
+     * Runtime, kterým tu GPU selhalo (při načtení, nebo při generování) a CPU uspělo. Do konce
+     * procesu se jim pak rovnou načítá CPU: zkoušet GPU znovu by každé načtení prodloužilo
+     * o načtení, které stejně spadne. Jen v paměti — po aktualizaci systému nebo ovladačů se GPU
+     * zkusí znovu. **Pro každý runtime zvlášť**: Metal v llama.cpp a GPU v LiteRT-LM jsou různé
+     * backendy, selhání jednoho nic neříká o druhém.
      */
-    @Volatile
-    private var gpuFailed = false
+    private val gpuFailed: MutableSet<ModelRuntime> = ConcurrentHashMap.newKeySet()
 
     override suspend fun status(variant: ModelVariant): OnDeviceAiStatus {
         val model = variant.model ?: return OnDeviceAiStatus.Unsupported
@@ -484,11 +485,11 @@ class LiteRtOnDeviceAi(
                 logger.w(e) { "GPU selhalo při generování, zkouším CPU (${model.displayName})" }
                 try {
                     counting.block(loadLocked(model, audio, vision, cpuOnly = true).engine)
-                    gpuFailed = true
+                    gpuFailed += model.runtime
                 } catch (cpuError: Exception) {
                     // CPU už něco vydalo: GPU tu opravdu nejde. Selhalo-li CPU stejně brzy,
                     // chyba nejspíš na backendu nezávisí a GPU se příště zkusí znovu.
-                    if (emitted) gpuFailed = true
+                    if (emitted) gpuFailed += model.runtime
                     if (cpuError !is CancellationException) cpuError.addSuppressed(e)
                     throw cpuError
                 }
@@ -552,8 +553,7 @@ class LiteRtOnDeviceAi(
                         ),
                     ),
                 )
-                // llama.cpp GPU nemá; zkusit ho by jen vyrobilo selhání, které by GPU vzalo i Gemmě.
-                if (cpuOnly || gpuFailed || !model.runtime.gpu) return@withContext start(LlmBackend.Cpu)
+                if (cpuOnly || model.runtime in gpuFailed || !platform.gpu(model.runtime)) return@withContext start(LlmBackend.Cpu)
                 val gpu = try {
                     start(LlmBackend.Gpu)
                 } catch (e: CancellationException) {
@@ -562,7 +562,7 @@ class LiteRtOnDeviceAi(
                     logger.i(e) { "GPU backend nejde, zkouším CPU (${model.displayName})" }
                     null
                 }
-                gpu ?: start(LlmBackend.Cpu).also { gpuFailed = true }
+                gpu ?: start(LlmBackend.Cpu).also { gpuFailed += model.runtime }
             } catch (e: LinkageError) {
                 // Error, ne výjimka: `catch (Exception)` volajících by ho nechytil a aplikace by spadla.
                 throw IOException("${model.runtime} runtime failed to load", e)

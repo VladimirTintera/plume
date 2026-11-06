@@ -174,15 +174,14 @@ enum class AiProvider {
 
 /**
  * Čím se stahovaný model počítá. Na Androidu je každý runtime vlastní součást z Google Play.
- *
- * @property gpu runtime umí GPU; jinak se engine rovnou načítá na CPU.
+ * Jestli umí GPU, záleží na platformě (`LiteRtPlatform.gpu`).
  */
-enum class ModelRuntime(val gpu: Boolean) {
+enum class ModelRuntime {
     /** LiteRT-LM (soubory `.litertlm`): Gemma a Qwen, Android i desktop. */
-    LiteRt(gpu = true),
+    LiteRt,
 
-    /** llama.cpp (soubory GGUF): EuroLLM, Android i desktop, jen CPU. */
-    LlamaCpp(gpu = false),
+    /** llama.cpp (soubory GGUF): EuroLLM, Android i desktop; GPU jen Metal na Macu. */
+    LlamaCpp,
 }
 
 /**

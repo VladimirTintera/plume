@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
  * - **EuroLLM (llama.cpp) taky jen s knihovnou v balíčku** ([llamaCppBundled], přeloží ji
  *   :client:ai-llamacpp-desktop) **a jen na procesoru, pro který je přeložená**
  *   ([llamaCppCpuSupported]) — jinak by první shrnutí shodilo celou aplikaci na SIGILL.
+ *   Na Macu s Apple Silicon počítá na GPU přes Metal ([gpu]).
  * - **Obraz přes ImageIO** (JPEG a PNG z Telegramu; WebP neumí a popis se pak nenabídne),
  *   **zvuk přes FFmpeg** ([FfmpegAudioDecoder], hlasovka Ogg/Opus i kolečko MP4).
  * - **Emoji mimo základní rovinu Unicode do modelu nejdou** ([modelText]).
@@ -64,6 +65,12 @@ class DesktopLiteRtPlatform : LiteRtPlatform {
             ModelRuntime.LlamaCpp -> llamaCppBundled && llamaCppCpuSupported
         }
         return runtime && totalMemoryBytes() >= model.minMemoryGb * GIB * MEMORY_TOLERANCE
+    }
+
+    /** llama.cpp má GPU jen na Macu s Apple Silicon (Metal, client/ai-llamacpp/src/main/cpp). */
+    override fun gpu(runtime: ModelRuntime): Boolean = when (runtime) {
+        ModelRuntime.LiteRt -> true
+        ModelRuntime.LlamaCpp -> desktopOs == DesktopOs.MacOs && arch == "aarch64"
     }
 
     override fun png(path: String, maxSide: Int): ByteArray? {

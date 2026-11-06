@@ -18,6 +18,12 @@ interface LiteRtPlatform {
     /** Unese zařízení [model]? Paměť, systém, nativní knihovna runtime. Levný dotaz. */
     fun canRun(model: LiteRtModel): Boolean
 
+    /**
+     * Má [runtime] tady GPU backend? Když ne, engine se rovnou načítá na CPU: zkoušet GPU by
+     * jen vyrobilo selhání. Výchozí jen LiteRT-LM — llama.cpp má GPU jen na Macu (Metal).
+     */
+    fun gpu(runtime: ModelRuntime): Boolean = runtime == ModelRuntime.LiteRt
+
     /** PNG s delší stranou nejvýš [maxSide]; `null`, když soubor obrázek není. */
     fun png(path: String, maxSide: Int): ByteArray?
 
