@@ -217,54 +217,59 @@ poskytovatelích nemusí vědět nic.
   `MAX_OUTPUT_TOKENS = 800`, ne 400. Není to „čím víc, tím líp" — platí se delším generováním
   (na Foldu 12–35 s).
 - **Ověřeno na zařízení** (Pixel 11 Pro Fold, Android 17, AICore `thirdpartyexperimental`):
-  `nano-v4-full`, limit vstupu 8 192 tokenů, rychlejší varianta je opravdu jiný model
+  `nano-v4-full`, limit vstupu 8 192 tokenů (6. 11. už 32 768), rychlejší varianta je opravdu jiný model
   (`nano-v4-fast`) a je připravená hned. **Shrnutí funguje i v letovém režimu** — model počítá
   v telefonu, nic se neposílá.
-- **Preview varianta se tiše chová jako stabilní.** `checkStatus` vrátí `AVAILABLE` (ne
-  `DOWNLOADABLE`) a `getBaseModelName()` dá totéž jméno co stabilní verze, takže přepínač
-  nedělá nic. Porovnáno na zařízení všemi čtyřmi kombinacemi: jméno určuje VÝHRADNĚ `fast`
-  (`nano-v4-full` / `nano-v4-fast`), `preview` na ně nemá vliv a limit je pořád 8 192.
-  Proto `previewSameAsStable` — jména se porovnají a pod přepínač se připíše, že se nepoužije.
-- **Preview model v zařízení JE a přes ML Kit se k němu stejně nedostaneme — a je vidět
-  proč.** V AICore Labs (`aicore.demo.labs.thirdparty.ThirdPartyLabsActivity`) jde vybrat
-  „Gemini Nano 4 Full [Preview, TPU]" a odpoví na prompt; `getBaseModelName()` se zapnutým
-  `preview` přesto vrací dál `nano-v4-full`, i po `force-stop`. **V logcatu je příčina:**
+- **Preview varianta JEDE preview modelem — `getBaseModelName()` to jen neřekne.** S `preview`
+  vrací jméno dál `nano-v4-full` / `nano-v4-fast` (jméno určuje jen `fast`), `checkStatus` dá
+  `AVAILABLE` a limit je stejný jako u stabilní. Podle jména se proto preview poznat NEDÁ.
+  Rozhoduje plánovač úloh AICore, který do logcatu píše číslo i název featury každého požadavku:
+  ```
+  InferenceTaskScheduler: submit (… 636/1 - SAPI Open Prompt (Regenerative Mode))
+  InferenceTaskScheduler: submit (… 645/1 - SAPI Open Prompt Stable Fast Mode)
+  InferenceTaskScheduler: submit (… 647/1 - SAPI Open Prompt Preview Full Mode)
+  InferenceTaskScheduler: submit (… 646/1 - SAPI Open Prompt Preview Fast Mode)
+  ```
+  U 647 AICore načte jiný checkpoint (`ulm1b_ggml.cc: CreateModelFromCheckpoint`, delegát
+  EdgeTPU) a paměť modelů (`dmabuf_rss_kb_at_inference_start`) vyskočí z 1,30 na 2,44 GB;
+  první odpověď trvá ~2,4 s místo ~0,3 s. Ověřeno sondou 6. 11. 2026 (Pixel 11 Pro Fold,
+  AICore `26.10.15…thirdpartyexperimental`): samostatná aplikace s jiným balíčkem, která projde
+  čtyři varianty (`checkStatus`, `getBaseModelName`, `getTokenLimit`, jedna odpověď) — vedle
+  nainstalovaného Plume z Play, bez odinstalace. Limit vstupu tentokrát 32 768 u všech variant
+  (15. 10. bylo 8 192), mezitím se tedy změnil AICore nebo jeho model.
+- **Dřívější závěr „preview tiše jede stabilním modelem" byl MYLNÝ.** Opíral se o shodné jméno
+  a o tuhle chybu v logu s `genai-prompt` 1.0.0-beta4:
   ```
   GenAiProcessorKt: AICore failed with error type 3-PREPARATION_ERROR
     and error code 606-FEATURE_NOT_FOUND: Feature -1 is not available.
-  GenAiProcessorKt: checkFeatureStatus failed
   ```
-  ML Kit si konfiguraci překládá na číslo AICore „feature" a pro preview mu vyjde **-1**,
-  tedy žádné. Chybu spolkne a tiše použije stabilní model. Není to tedy chybějícím modelem
-  ani naším voláním — je to mezera v `genai-prompt` 1.0.0-beta4 (beta5 ji podle bajtkódu
-  zavírá, viz další bod). Hypotéza „stačí preview stáhnout" je vyvrácená
-  pokusem. **Má to i kontrolní měření:** totéž shrnutí s VYPNUTÝM preview nechá v logu
-  nula výskytů `FEATURE_NOT_FOUND`, model se načte normálně. Bez té kontroly by to bylo
-  jen pozorování vedle sebe, ne příčina.
-- **`genai-prompt` 1.0.0-beta5 má i pro preview platné číslo featury — zatím jen podle
-  bajtkódu.** Překlad dělá statická funkce `(GenerationConfig, typ požadavku) → Int`
-  (v beta4 `zzyt.zzb`, v beta5 `zzaaq.zzb`; najde ji `javap -c` jako jedinou s konstantami
-  `sipush 636…655`). Beta4 znala pět typů požadavků (bez mezipaměti, vytvoření mezipaměti,
-  s mezipamětí, strukturovaný bez a s mezipamětí); stabilní varianta měla číslo pro všech pět,
-  **preview jen pro dva bez mezipaměti** (plná 647 / 652, rychlá 646 / 653) a pro zbytek `-1`
-  — to je ten `Feature -1` z logu. Beta5 má typy jen dva (`NORMAL_INFERENCE`,
-  `STRUCTURED_OUTPUT_INFERENCE`) a čísla pro všechny kombinace: stabilní plná 636 / 648,
-  rychlá 645 / 651, preview plná 647 / 652, rychlá 646 / 653. Hodnoty `ModelReleaseStage`
-  (STABLE 0, PREVIEW 1) a `ModelPreference` (FAST 1, FULL 2) se nezměnily. Veřejné API se
-  jen rozšířilo (volání funkcí, role v `Content`, `sessionId`, `getAvailableFeatures()`
-  s `Feature.THINKING_MODE` aj.), `genai-schema` alpha2 přidal `GuideDetail.pattern`
-  s výchozí hodnotou a `GenerableProvider` se hledá dál přes `ServiceLoader` — ruční providery
-  se měnit nemusely. **Na Foldu NEOVĚŘENO:** jestli AICore featuru 647 opravdu obslouží, ukáže
-  až `getBaseModelName()` se zapnutým preview (jiné jméno než `nano-v4-full`) a log bez
-  `FEATURE_NOT_FOUND`. Až to projde, `previewSameAsStable` zůstává jako pojistka pro zařízení,
-  kde preview není.
+  Kontrolní běh sondy s beta4 ale ukázal, že generování i tak šlo na 647 (Preview Full Mode).
+  `-1` patří jiným typům požadavků: ML Kit si překládá (varianta, typ požadavku) na číslo
+  featury statickou funkcí (v beta4 `zzyt.zzb`, v beta5 `zzaaq.zzb`; `javap -c` ji najde jako
+  jedinou s konstantami `sipush 636…655`). Beta4 znala pět typů (bez mezipaměti, vytvoření
+  mezipaměti, s mezipamětí, strukturovaný bez a s mezipamětí) a preview měla číslo jen pro dva
+  bez mezipaměti (plná 647 / 652, rychlá 646 / 653), pro ostatní `-1` — to jsou kontroly, které
+  ML Kit spolkne. Beta5 má typy jen dva (`NORMAL_INFERENCE`, `STRUCTURED_OUTPUT_INFERENCE`)
+  a číslo pro všechny kombinace, takže chyba z logu zmizela. **Poučení:** jméno modelu ani
+  spolknutá chyba neříkají, čím AICore počítal — říká to `InferenceTaskScheduler`.
+- **Proto zmizelo `previewSameAsStable`** (porovnání jmen preview a stabilní varianty) i hláška
+  „Preview verze se tu nepoužije" pod přepínačem. Tvrdila opak pravdy přesně na zařízení, kde
+  preview je. Spolehlivý příznak, že zařízení preview nemá, API nedává; přepínač to říká
+  v popisku („pro tohle zařízení nemusí být").
+- **Bump na `genai-prompt` 1.0.0-beta5 a `genai-schema` 1.0.0-alpha2:** veřejné API se jen
+  rozšířilo (volání funkcí, role v `Content`, `sessionId`, `getAvailableFeatures()`
+  s `Feature.THINKING_MODE` aj.), `isStructuredOutputFeatureAvailable` je zastaralé ve prospěch
+  `getAvailableFeatures()`, `Candidate.text` už není nullable. `genai-schema` alpha2 přidal
+  `GuideDetail.pattern` s výchozí hodnotou a `GenerableProvider` se hledá dál přes
+  `ServiceLoader`, ruční providery se měnit nemusely. `ModelReleaseStage` (STABLE 0, PREVIEW 1)
+  a `ModelPreference` (FAST 1, FULL 2) beze změny.
 - **Labs nabízí čtyři modely, „Správa AI modelů" ukazuje jediný balík „Fast + Full [TPU]".**
   Proto je rychlá varianta připravená okamžitě a nic se nestahuje: full i fast jsou TENTÝŽ
   balík.
 - **Preview Full je postavený na Gemma 4 E4B**, zatímco stabilní na E2B — tedy větší model
-  a nejnadějnější směr pro kvalitu češtiny. **Cesta k němu přes ML Kit ale nevede** (viz výš)
-  a seznam modelů API nemá: `GenerativeModel` zná jen `getBaseModelName()` pro právě
-  nakonfigurovanou variantu. Kdo na E4B chce, potřebuje vlastní runtime (LiteRT-LM).
+  a nejnadějnější směr pro kvalitu češtiny. **Přes ML Kit k němu cesta vede** (přepínač preview,
+  viz výš); seznam modelů ale API nemá: `GenerativeModel` zná jen `getBaseModelName()` pro právě
+  nakonfigurovanou variantu, a to jméno preview neodliší.
 - **Na emulátoru se to vyzkoušet NEDÁ, ani v nejnovějším obrazu.** Android 17 (API 37,
   `google_apis_playstore_ps16k`) balíček `com.google.android.aicore` nemá; starší obrazy taky ne.
   **Řetězce „aicore" v `system.img` k ničemu neslouží jako důkaz** — `grep` jich najde desítky,
@@ -279,8 +284,8 @@ poskytovatelích nemusí vědět nic.
   `generate` selhalo — tedy **aplikace se zachová správně a nic nespadne**, což je to jediné, co
   se tím ověří.
 - **`Feature 636` versus `Feature -1` je rozdíl, který něco říká.** Tady si ML Kit číslo featury
-  odvodil správně a AICore ji nemá; u preview varianty na zařízení vyjde `-1`, tedy žádná. Je to
-  nezávislé potvrzení, že `-1` je mezera v `genai-prompt`, ne chybějící model.
+  odvodil správně a AICore ji nemá; `-1` u preview v beta4 je naopak mezera v převodu
+  v `genai-prompt` (jen u typů požadavků s mezipamětí, generování samo šlo na 647, viz výš).
 - **Detail k `info()`:** s doinstalovaným AICore vrátila `ModelInfo(name=null, tokenLimit=8192)`,
   tedy NENULOVÝ objekt bez jména. Na UI se to neprojeví (rozhoduje `status`), ale kdo by se ptal
   jen na `info() != null`, dostal by na nepodporovaném zařízení „model je".

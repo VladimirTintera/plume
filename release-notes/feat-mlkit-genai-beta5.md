@@ -1,4 +1,4 @@
-type: feat
+type: fix
 units: android
-cs: Preview verze Gemini Nano jde v Nastavení opravdu zapnout
-en: The Gemini Nano preview model can now really be turned on in Settings
+cs: Nastavení už mylně nehlásí, že se preview verze Gemini Nano nepoužije
+en: Settings no longer wrongly claim the Gemini Nano preview is not used

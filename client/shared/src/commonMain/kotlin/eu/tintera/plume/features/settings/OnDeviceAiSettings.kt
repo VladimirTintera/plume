@@ -104,7 +104,6 @@ import eu.tintera.plume.resources.settings_on_device_ai_enable_summary
 import eu.tintera.plume.resources.settings_on_device_ai_fast
 import eu.tintera.plume.resources.settings_on_device_ai_fast_summary
 import eu.tintera.plume.resources.settings_on_device_ai_preview
-import eu.tintera.plume.resources.settings_on_device_ai_preview_same
 import eu.tintera.plume.resources.settings_reply_suggestions
 import eu.tintera.plume.resources.settings_reply_suggestions_summary
 import eu.tintera.plume.resources.settings_chat_triage
@@ -189,10 +188,6 @@ class OnDeviceAiSettingsViewModel(
 
     /** Stav každého modelu, který zařízení umí. Chybí-li model, ještě se zjišťuje. */
     val states: StateFlow<Map<AiProvider, OnDeviceModelState>> = _states.asStateFlow()
-
-    /** Preview varianta vrací tentýž model jako stabilní — přepínač tedy nic nezmění. */
-    private val _previewIsStable = MutableStateFlow(false)
-    val previewIsStable: StateFlow<Boolean> = _previewIsStable.asStateFlow()
 
     /**
      * Co zařízení umí: kteří poskytovatelé a které modely Gemma. `null` = ještě nevíme.
@@ -374,29 +369,6 @@ class OnDeviceAiSettingsViewModel(
             OnDeviceAiStatus.Ready -> ai.info(variant).let { OnDeviceModelState.Ready(it?.name, it?.tokenLimit) }
         }
         setState(provider, state)
-        if (provider == AiProvider.GeminiNano) comparePreview(variant, state)
-    }
-
-    /**
-     * Porovná jméno modelu preview a stabilní varianty. Jen u připraveného modelu: u nestaženého
-     * jméno stejně nikdo neřekne. Selhání se polyká — je to doplňková informace, ne funkce.
-     */
-    private suspend fun comparePreview(variant: ModelVariant, state: OnDeviceModelState) {
-        if (state !is OnDeviceModelState.Ready) {
-            _previewIsStable.value = false
-            return
-        }
-        _previewIsStable.value = try {
-            previewSameAsStable(
-                previewName = ai.info(variant.copy(preview = true))?.name,
-                stableName = ai.info(variant.copy(preview = false))?.name,
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            logger.i(e) { "Nepovedlo se porovnat preview se stabilní variantou" }
-            false
-        }
     }
 }
 
@@ -436,21 +408,6 @@ fun OnDeviceAi.availability(): Flow<AiAvailability> = flow {
     )
 }.catch { emit(AiAvailability(emptyList(), emptyList())) }
 
-/**
- * Vrací preview varianta tentýž model jako stabilní?
- *
- * Preview se nechová jako nedostupná funkce: `checkStatus` vrátí `AVAILABLE` (ne
- * `DOWNLOADABLE`) a `getBaseModelName()` dá totéž jméno co stabilní verze. Ověřeno na
- * Pixelu 11 Pro Foldu — AICore tam preview varianty ZNÁ a nabízí je ve svém Labs, ale stažený
- * je jen balík „Fast + Full [TPU]“; ML Kit si o preview neřekne a tiše spadne na stabilní.
- * Přepínač tedy nedělá nic a uživateli to nikdo neřekne, proto se jména porovnávají.
- *
- * Neznámé jméno (model se ještě nestáhl, AICore ho neřekl) NEZNAMENÁ shodu — tvrdit
- * „preview tu není" na základě chybějícího údaje by bylo horší než mlčet.
- */
-fun previewSameAsStable(previewName: String?, stableName: String?): Boolean =
-    previewName != null && previewName == stableName
-
 /** Co zařízení umí: dostupní poskytovatelé a stahované modely, které se tu dají pustit. */
 data class AiAvailability(val providers: List<AiProvider>, val models: List<LiteRtModel>) {
     /** Velikosti modelu [provider], které zařízení unese, od největší. */
@@ -488,7 +445,6 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val models by viewModel.models.collectAsStateWithLifecycle()
     val states by viewModel.states.collectAsStateWithLifecycle()
     val automatic by viewModel.automatic.collectAsStateWithLifecycle()
-    val previewIsStable by viewModel.previewIsStable.collectAsStateWithLifecycle()
     val replySuggestions by viewModel.replySuggestions.collectAsStateWithLifecycle()
     val scamWarnings by viewModel.scamWarnings.collectAsStateWithLifecycle()
     val chatTriage by viewModel.chatTriage.collectAsStateWithLifecycle()
@@ -578,7 +534,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
             }
             val state = states[provider] ?: OnDeviceModelState.Checking
             if (on) {
-                ModelOptions(provider, models, available, previewIsStable, viewModel)
+                ModelOptions(provider, models, available, viewModel)
                 ModelStatus(models.variant(provider), state, viewModel)
             } else if (provider.appManaged && (state is OnDeviceModelState.Ready || state == OnDeviceModelState.Paused)) {
                 // Vypnutá, ale stažená Gemma pořád zabírá gigabajty — musí jít smazat i teď.
@@ -643,7 +599,6 @@ private fun ModelOptions(
     provider: AiProvider,
     models: AiModels,
     available: AiAvailability,
-    previewIsStable: Boolean,
     viewModel: OnDeviceAiSettingsViewModel,
 ) {
     when (provider) {
@@ -653,7 +608,6 @@ private fun ModelOptions(
                 summary = Res.string.settings_on_device_ai_preview_summary,
                 checked = models.preview,
                 onChange = { on -> viewModel.setPreview(on) },
-                note = Res.string.settings_on_device_ai_preview_same.takeIf { previewIsStable },
             )
             VariantSwitch(
                 title = Res.string.settings_on_device_ai_fast,
@@ -831,7 +785,6 @@ private fun VariantSwitch(
     summary: StringResource,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
-    note: StringResource? = null,
     enabled: Boolean = true,
 ) {
     SwitchListItem(
@@ -839,14 +792,7 @@ private fun VariantSwitch(
         onCheckedChange = onChange,
         headlineContent = { Text(stringResource(title)) },
         modifier = Modifier.highlightAnchor(stringResource(title)),
-        supportingContent = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(summary))
-                // Barva popředí ListItemu, ne onSurfaceVariant: ten je počítaný na surface
-                // role a řádek si barvy určuje sám (viz docs/poznatky/nastaveni.md, „Obrazovka nastavení").
-                note?.let { Text(stringResource(it), style = MaterialTheme.typography.labelLarge) }
-            }
-        },
+        supportingContent = { Text(stringResource(summary)) },
         enabled = enabled,
     )
 }

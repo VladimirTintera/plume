@@ -1213,8 +1213,7 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
 ### Co zbývá u toho, co běží
 
 - **Větší model: Gemma přes LiteRT-LM běží, ověřená na emulátoru (E2B na CPU).** Preview
-  varianta Gemini Nano (Gemma 4 **E4B**) přes ML Kit beta4 nešla (`Feature -1`, viz `docs/poznatky/ai-v-zarizeni.md`;
-  beta5 to snad opravuje, viz níž),
+  varianta Gemini Nano (Gemma 4 **E4B**) přes ML Kit tehdy vypadala nedostupná (mylně, viz níž),
   takže přibyl druhý poskytovatel — Gemma 4 E2B / E4B, kterou si stáhne aplikace
   (`LiteRtOnDeviceAi`). Stažení, navázání po výpadku sítě, smazání, shrnutí, návrhy i release
   build (s keep pravidlem) prošly. Zbývá:
@@ -1226,11 +1225,11 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
     `docs/poznatky/ai-v-zarizeni.md`, „AI v zařízení"). Zbývá ověřit v release buildu a na telefonu a **vyplnit
     v Play Console deklaraci služby v popředí `dataSync`** (checklist v „Než se dá vydat
     na veřejnost").
-- **Ověřit na Foldu preview Gemini Nano s `genai-prompt` 1.0.0-beta5.** Podle bajtkódu má
-  preview v beta5 platné číslo featury (647 / 646), takže `Feature -1` by zmizet měl
-  (`docs/poznatky/ai-v-zarizeni.md`, „Dva poskytovatelé: Gemini Nano a Gemma"). Zapnout
-  preview, `getBaseModelName()` musí vrátit jiné jméno než `nano-v4-full` a v logu nesmí
-  být `FEATURE_NOT_FOUND`; pak porovnat češtinu preview (E4B) se stabilní.
+- **Porovnat češtinu preview Gemini Nano (E4B) se stabilní (E2B).** Preview přes ML Kit
+  JEDE (featura 647, ověřeno na Foldu 6. 11. 2026 v logu `InferenceTaskScheduler`;
+  `docs/poznatky/ai-v-zarizeni.md`, „Dva poskytovatelé: Gemini Nano a Gemma"), takže na E4B
+  vlastní runtime potřeba není. Zbývá shrnutí a návrhy odpovědí v Plume s přepínačem preview
+  a bez něj; podle toho rozhodnout, jestli preview nabízet jako výchozí.
 - **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,
   `CachedContext`, `isCachingFeatureAvailable`) a u opakovaného shrnování téhož chatu by mohly
   ušetřit čas. Zatím netestované.

@@ -2525,7 +2525,6 @@
     <string name="ai_failure_empty">Model nenapsal žádný text.</string>
     <string name="settings_on_device_ai_preview">Preview verze modelu</string>
     <string name="settings_on_device_ai_preview_summary">Nejnovější verze před stabilním vydáním. Pro tohle zařízení nemusí být a stahuje se zvlášť.</string>
-    <string name="settings_on_device_ai_preview_same">Preview verze se tu nepoužije — tak jako tak běží stabilní model.</string>
     <string name="settings_on_device_ai_fast">Rychlejší varianta</string>
     <string name="settings_on_device_ai_fast_summary">Odpoví dřív, ale méně přesně.</string>
     <string name="settings_on_device_ai_token_limit">Limit vstupu: %1$s tokenů</string>
