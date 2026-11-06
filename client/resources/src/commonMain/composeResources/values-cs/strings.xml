@@ -2479,6 +2479,8 @@
     <string name="settings_on_device_ai_download">Stáhnout model</string>
     <string name="settings_on_device_ai_downloading">Stahuji model…</string>
     <string name="settings_on_device_ai_download_failed">Model se nepodařilo stáhnout.</string>
+    <string name="settings_on_device_ai_runtime_failed">Model se nestáhl: nepodařilo se nainstalovat část aplikace, na které běží.</string>
+    <string name="settings_on_device_ai_runtime_failed_code">Model se nestáhl: Google Play nedodal část aplikace, na které běží (chyba %1$d).</string>
     <string name="settings_on_device_ai_ready">Model připravený: %1$s</string>
     <string name="settings_on_device_ai_ready_unnamed">Model připravený</string>
     <string name="summary_action">Shrnout</string>

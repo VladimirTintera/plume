@@ -475,13 +475,28 @@ stažení.
   (`REQUIRES_USER_CONFIRMATION`; dokumentace jmenuje aplikaci, kterou nenainstaloval Play,
   a větší stahování přes mobilní data). Aplikace to brala jako selhání, a „Stáhnout model" tak
   hned ukázalo „Model se nepodařilo stáhnout" — uživatel to hlásil z telefonu na mobilních
-  datech (log z telefonu ověřený není, kód chyby tedy taky ne). Teď runtime žádost předá
+  datech (log z telefonu ověřený není, kód chyby tedy taky ne; pozdější log z Foldu ukázal -15,
+  viz níž). Teď runtime žádost předá
   `SplitInstallConfirmations` a dialog Play ukáže `SplitInstallConfirmationHost` v kořeni
   `MainActivity` (`startConfirmationDialogForResult` s launcherem, jako nabídka aktualizace).
   Souhlas instalaci rozběhne, odmítnutí stahování zastaví (`Paused`), dialog, který nejde
   ukázat, je chyba. Hostitel sedí v kořeni, ne v Nastavení: instalaci spouští i doinstalace
   u už staženého modelu (`restoreRuntime`) a dialog má naskočit, kde uživatel zrovna je; ukáže
   se, až je aktivita na obrazovce (`collectAsStateWithLifecycle`).
+- **Selhání součásti má vlastní hlášku, ne „Model se nepodařilo stáhnout"**
+  (`RuntimeInstallException` ve společném kódu, stav `OnDeviceModelState.RuntimeInstallFailed`):
+  „Model se nestáhl: Google Play nedodal část aplikace, na které běží (chyba -15)". Model se
+  v tu chvíli ještě ani nezačal stahovat a kdo chybu hlásí, má ze snímku poznat, která z nich to
+  je — kód od Play je to, podle čeho se dá dohledat (`SplitInstallErrorCode`). Ověřeno na
+  emulátoru s debug APK bez součásti (-15 jako mimo Play).
+- **-15 (`APP_NOT_OWNED`) přišlo i u aplikace z Play.** Fold s 0.3.125 z interního testování
+  (`installerPackageName=com.android.vending`, účet je tester a aplikaci v Play vlastní) dostal
+  na `startInstall([litertFeature])` -15 za 14 ms — Play rozhoduje z dat v telefonu, na server
+  se neptá, a důvod nezaloguje ani s `setprop log.tag.Finsky VERBOSE`. Součásti byly v Play
+  Console v balíčku (on demand). Byla to první vydání se součástmi (0.3.124 a 0.3.125 v týž den);
+  **příčina nezjištěná**, podezření na zpožděná data Play v telefonu. Další krok: zkusit znovu
+  s odstupem, pak vymazat mezipaměť Play Store, pak přeinstalovat z Play; pro srovnání tentýž
+  AAB přes Internal app sharing.
 - **Jméno modulu je jméno součásti** (`PlayLiteRtRuntime.MODULE` = `litertFeature`).
   Přejmenování projektu by instalaci tiše rozbilo.
 - **bundletool chce stejnou sadu ABI ve všech modulech s nativními knihovnami** („All modules

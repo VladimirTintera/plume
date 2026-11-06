@@ -373,6 +373,15 @@ class StructuredOutputException(val code: Int?, cause: Throwable? = null) :
 class NotEnoughSpaceException(val neededBytes: Long) : Exception("Not enough space: $neededBytes B")
 
 /**
+ * Runtime modelu se nepodařilo doinstalovat (na Androidu součást z Google Play, viz
+ * `PlayLiteRtRuntime`). Hlásí se ZVLÁŠŤ, ne jako selhání stahování modelu: model se ani nezačal
+ * stahovat, chyba je v doručení aplikace, a kdo ji hlásí, má z obrazovky poznat, kterou z nich
+ * vidí. [code] je kód od Google Play (`SplitInstallErrorCode`), když nějaký je.
+ */
+class RuntimeInstallException(val code: Int? = null, cause: Throwable? = null) :
+    Exception("On-device AI runtime install failed" + (code?.let { " (code $it)" } ?: ""), cause)
+
+/**
  * Stahování zastavil uživatel ([OnDeviceAi.stopDownload]). Není to selhání: stažená část
  * zůstává a obrazovka nabídne pokračování. Schválně ne `CancellationException` — tu volající
  * posílají dál a o zastavení by se nedozvěděli.
