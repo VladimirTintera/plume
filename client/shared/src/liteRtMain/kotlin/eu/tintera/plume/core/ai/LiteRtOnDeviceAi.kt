@@ -22,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filterIsInstance
@@ -64,6 +65,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *   a obraz a text počítá Nano, uvolní se dřív ([gemmaIdleUnloadMs]).
  * - **Generování je jedno po druhém** ([engineLock]). Shrnutí a návrh odpovědi se můžou
  *   potkat a dvě konverzace nad jedním enginem LiteRT-LM výslovně neslibuje.
+ * - **GPU, které selže až při generování, nahradí CPU** ([withEngine]): bez OpenCL se GPU engine
+ *   načte bez chyby a spadne až u první zprávy. Dotaz se pak na CPU zopakuje a GPU se do konce
+ *   procesu nezkouší ([gpuFailed]).
  * - **Počítání tokenů LiteRT-LM v Kotlinu nemá**, [countTokens] proto vrací HORNÍ odhad
  *   ([estimatedTokenCount]) a shrnutí podle něj přepis zkrátí nebo rozdělí. Limit je velikost
  *   KV keše ([MAX_NUM_TOKENS]) minus místo na odpověď ([OUTPUT_RESERVE_TOKENS]) — vstup
@@ -108,6 +112,14 @@ class LiteRtOnDeviceAi(
     private val engineLock = Mutex()
     private var loaded: LoadedEngine? = null
     private var idleUnload: Job? = null
+
+    /**
+     * GPU tu selhalo (při načtení, nebo při generování) a CPU uspělo. Do konce procesu se pak rovnou
+     * načítá CPU: zkoušet GPU znovu by každé načtení prodloužilo o načtení, které stejně spadne.
+     * Jen v paměti — po aktualizaci systému nebo ovladačů se GPU zkusí znovu.
+     */
+    @Volatile
+    private var gpuFailed = false
 
     override suspend fun status(variant: ModelVariant): OnDeviceAiStatus {
         val model = variant.model ?: return OnDeviceAiStatus.Unsupported
@@ -437,35 +449,69 @@ class LiteRtOnDeviceAi(
     }
 
     /**
-     * Engine pro [model]: načtený se použije, jiný se nejdřív zavře (dva by se do paměti
-     * nevešly). Po doběhnutí se naplánuje uvolnění — příští použití ho zase zruší.
+     * Generování nad enginem pro [model]: načtený se použije, jiný se nejdřív zavře (dva by se do
+     * paměti nevešly). Po doběhnutí se naplánuje uvolnění — příští použití ho zase zruší.
+     *
+     * **Selže-li [block] na GPU dřív, než cokoli vydal, zopakuje se jednou na CPU.** Bez OpenCL
+     * (emulátor x86_64, nejspíš i některé telefony) se GPU engine NAČTE BEZ CHYBY a spadne až u první
+     * zprávy (`Can not find OpenCL library on this device` z `onError` konverzace), takže to
+     * [createEngine] nepozná. Po prvním vydaném kusu se neopakuje: obrazovka už text ukazuje
+     * a odpověď by začala znovu. Zrušení se neopakuje nikdy.
      */
-    private suspend fun <T> withEngine(
+    private suspend fun FlowCollector<Generated>.withEngine(
         model: LiteRtModel,
         audio: Boolean = false,
         vision: Boolean = false,
-        block: suspend (LlmEngine) -> T,
-    ): T = engineLock.withLock {
+        block: suspend FlowCollector<Generated>.(LlmEngine) -> Unit,
+    ): Unit = engineLock.withLock {
         idleUnload?.cancel()
-        // Engine se zvukem (obrazem) poslouží i textu; bez něj se pro přepis (popis) musí načíst
-        // znovu. Při přenačtení si nechá i to, co uměl dosud, ať se přepis a popis nestřídají
-        // přenačítáním.
-        val current = loaded?.takeIf { it.model == model }
-        val engine = current?.takeIf { (it.audio || !audio) && (it.vision || !vision) }?.engine ?: run {
-            val withAudio = audio || current?.audio == true
-            val withVision = vision || current?.vision == true
-            unloadLocked()
-            if (!model.file().exists()) throw IOException("Model ${model.displayName} is not downloaded")
-            createEngine(model, withAudio, withVision).also { loaded = LoadedEngine(model, withAudio, withVision, it) }
+        var emitted = false
+        val counting = FlowCollector<Generated> { value ->
+            emitted = true
+            this@withEngine.emit(value)
         }
         try {
-            block(engine)
+            val first = loadLocked(model, audio, vision)
+            try {
+                counting.block(first.engine)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (first.backend != LlmBackend.Gpu || emitted) throw e
+                logger.w(e) { "GPU selhalo při generování, zkouším CPU (${model.displayName})" }
+                try {
+                    counting.block(loadLocked(model, audio, vision, cpuOnly = true).engine)
+                    gpuFailed = true
+                } catch (cpuError: Exception) {
+                    // CPU už něco vydalo: GPU tu opravdu nejde. Selhalo-li CPU stejně brzy,
+                    // chyba nejspíš na backendu nezávisí a GPU se příště zkusí znovu.
+                    if (emitted) gpuFailed = true
+                    if (cpuError !is CancellationException) cpuError.addSuppressed(e)
+                    throw cpuError
+                }
+            }
         } finally {
             idleUnload = scope.launch {
                 delay(runCatching { idleUnloadMs(model.provider) }.getOrDefault(GEMMA_IDLE_TEXT_MS))
                 engineLock.withLock { unloadLocked() }
             }
         }
+    }
+
+    /**
+     * Engine pro [model]; [cpuOnly] ho vynutí na CPU (načtený na GPU se zavře). Engine se
+     * zvukem (obrazem) poslouží i textu; bez něj se pro přepis (popis) musí načíst znovu. Při
+     * přenačtení si nechá i to, co uměl dosud, ať se přepis a popis nestřídají přenačítáním.
+     */
+    private suspend fun loadLocked(model: LiteRtModel, audio: Boolean, vision: Boolean, cpuOnly: Boolean = false): LoadedEngine {
+        val current = loaded?.takeIf { it.model == model }
+        current?.takeIf { (it.audio || !audio) && (it.vision || !vision) && (!cpuOnly || it.backend == LlmBackend.Cpu) }
+            ?.let { return it }
+        val withAudio = audio || current?.audio == true
+        val withVision = vision || current?.vision == true
+        unloadLocked()
+        if (!model.file().exists()) throw IOException("Model ${model.displayName} is not downloaded")
+        return createEngine(model, withAudio, withVision, cpuOnly).also { loaded = it }
     }
 
     private fun unloadLocked() {
@@ -476,39 +522,48 @@ class LiteRtOnDeviceAi(
     /**
      * GPU, a když nejde, CPU. GPU backend potřebuje `libOpenCL.so` (manifest aplikace,
      * `uses-native-library`), kterou některá zařízení nemají — na CPU je model pomalejší, ale
-     * funguje. `LinkageError` se chytá kvůli nativní knihovně, stejně jako u ML Kitu: na zařízení,
-     * kde se nenačte, nesmí aplikace spadnout jen proto, že si někdo zapnul volitelnou funkci.
+     * funguje. Že GPU nejde, se ale často ukáže až při generování ([withEngine]). Po selhání GPU
+     * (při načtení i při generování) se do konce procesu rovnou načítá CPU ([gpuFailed]), stejně
+     * jako s [cpuOnly]. `LinkageError` se chytá kvůli nativní
+     * knihovně, stejně jako u ML Kitu: na zařízení, kde se nenačte, nesmí aplikace spadnout jen
+     * proto, že si někdo zapnul volitelnou funkci.
      */
-    private suspend fun createEngine(model: LiteRtModel, audio: Boolean, vision: Boolean): LlmEngine = withContext(Dispatchers.Default) {
-        try {
-            val engines = runtime.engines()
-            fun start(backend: LlmBackend) = engines.open(
-                LlmEngineConfig(
-                    modelPath = model.file().absolutePath,
-                    // Obraz počítá týž backend jako text (Gallery: GPU, když jde) — na CPU se
-                    // spadne spolu s ním.
-                    backend = backend,
-                    audio = audio,
-                    vision = vision,
-                    maxNumTokens = model.maxTokens(),
-                    // Keš zkompilovaného modelu zrychlí druhé načtení; do keše platformy, ať ji
-                    // systém smí uklidit — soubor modelu vedle ní je drahý, keš ne.
-                    cacheDir = platform.cacheDir.apply { mkdirs() }.absolutePath,
-                ),
-            )
+    private suspend fun createEngine(model: LiteRtModel, audio: Boolean, vision: Boolean, cpuOnly: Boolean): LoadedEngine =
+        withContext(Dispatchers.Default) {
             try {
-                start(LlmBackend.Gpu)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.i(e) { "GPU backend nejde, zkouším CPU (${model.displayName})" }
-                start(LlmBackend.Cpu)
+                val engines = runtime.engines()
+                fun start(backend: LlmBackend) = LoadedEngine(
+                    model, audio, vision, backend,
+                    engines.open(
+                        LlmEngineConfig(
+                            modelPath = model.file().absolutePath,
+                            // Obraz počítá týž backend jako text (Gallery: GPU, když jde) — na CPU se
+                            // spadne spolu s ním.
+                            backend = backend,
+                            audio = audio,
+                            vision = vision,
+                            maxNumTokens = model.maxTokens(),
+                            // Keš zkompilovaného modelu zrychlí druhé načtení; do keše platformy, ať ji
+                            // systém smí uklidit — soubor modelu vedle ní je drahý, keš ne.
+                            cacheDir = platform.cacheDir.apply { mkdirs() }.absolutePath,
+                        ),
+                    ),
+                )
+                if (cpuOnly || gpuFailed) return@withContext start(LlmBackend.Cpu)
+                val gpu = try {
+                    start(LlmBackend.Gpu)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.i(e) { "GPU backend nejde, zkouším CPU (${model.displayName})" }
+                    null
+                }
+                gpu ?: start(LlmBackend.Cpu).also { gpuFailed = true }
+            } catch (e: LinkageError) {
+                // Error, ne výjimka: `catch (Exception)` volajících by ho nechytil a aplikace by spadla.
+                throw IOException("LiteRT-LM runtime failed to load", e)
             }
-        } catch (e: LinkageError) {
-            // Error, ne výjimka: `catch (Exception)` volajících by ho nechytil a aplikace by spadla.
-            throw IOException("LiteRT-LM runtime failed to load", e)
         }
-    }
 
     /**
      * Stáhne model a po výpadku sítě naváže SÁM, jakmile se připojení vrátí.
@@ -681,5 +736,11 @@ class LiteRtOnDeviceAi(
     }
 }
 
-/** Načtený engine: který soubor a jestli má zvukový backend (jen ten umí přepis). */
-private class LoadedEngine(val model: LiteRtModel, val audio: Boolean, val vision: Boolean, val engine: LlmEngine)
+/** Načtený engine: který soubor, jestli má zvukový (obrazový) backend a na čem počítá. */
+private class LoadedEngine(
+    val model: LiteRtModel,
+    val audio: Boolean,
+    val vision: Boolean,
+    val backend: LlmBackend,
+    val engine: LlmEngine,
+)

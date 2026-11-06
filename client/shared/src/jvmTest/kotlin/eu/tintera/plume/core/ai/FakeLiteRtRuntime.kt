@@ -8,8 +8,12 @@ import kotlinx.coroutines.flow.flow
 /**
  * Runtime LiteRT-LM pro testy [LiteRtOnDeviceAi]: [installed] přepíná test, instalace hlásí
  * [progress] a skončí, až test dokončí [finish] (nebo hned, když [finish] je hotový předem).
+ * Enginy dává [engines]; bez něj test model nenačítá.
  */
-class FakeLiteRtRuntime(var installed: Boolean = true) : LiteRtRuntime {
+class FakeLiteRtRuntime(
+    var installed: Boolean = true,
+    private val engines: LlmEngineFactory? = null,
+) : LiteRtRuntime {
 
     var installs = 0
         private set
@@ -28,5 +32,5 @@ class FakeLiteRtRuntime(var installed: Boolean = true) : LiteRtRuntime {
         installed = true
     }
 
-    override fun engines(): LlmEngineFactory = error("Tests never load a model")
+    override fun engines(): LlmEngineFactory = engines ?: error("This test never loads a model")
 }

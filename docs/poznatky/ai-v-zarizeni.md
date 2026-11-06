@@ -106,8 +106,32 @@ poskytovatelích nemusí vědět nic.
   načtení s přepisem ~11 s; jestli je 30 s na telefonu málo, ukáže až Fold.
   **Generování je jedno po druhém** (zámek): dvě konverzace nad jedním enginem LiteRT-LM neslibuje.
 - **GPU, a když nejde, CPU.** GPU backend potřebuje `libOpenCL.so` — `uses-native-library`
-  v manifestu aplikace (`required=false`). Na emulátoru GPU selže na OpenGL (`GL_INVALID_ENUM`
-  v `delegate_opengl.cc`) a CPU naskočí; na zařízení ověřené není, jestli se GPU chytí.
+  v manifestu aplikace (`required=false`). Na zařízení ověřené není, jestli se GPU chytí.
+- **Bez OpenCL se GPU engine NAČTE BEZ CHYBY a selže až u první zprávy.** Na emulátoru x86_64
+  s LiteRT-LM 0.19.1 prošlo `Engine.initialize()` s `Backend.GPU()` a teprve generování skončilo
+  `LiteRtLmJniException: … UNKNOWN: Can not find OpenCL library on this device` z
+  `Conversation$JniMessageCallbackImpl.onError`. Záloha jen kolem `initialize()` (tak to bylo do
+  té doby) tedy CPU nikdy nezkusila a uživatel viděl „Model Qwen selhal". (Se starší verzí
+  selhala už inicializace, na OpenGL v `delegate_opengl.cc`, a CPU naskočilo.) Týká se nejspíš
+  i telefonů bez OpenCL.
+  - **Selže-li generování na GPU dřív, než přišel první token, engine se zavře, načte na CPU
+    a dotaz se zopakuje jednou** (`withEngine` v `LiteRtOnDeviceAi`, testy
+    `LiteRtGpuFallbackTest` s falešným `LlmEngineFactory`). Platí pro shrnutí, přepis i popis
+    fotky; zvuk a obraz si engine přenese.
+  - **Po prvním tokenu ani po zrušení se neopakuje**: obrazovka už text ukazuje a odpověď by
+    začala znovu.
+  - **GPU se pak do konce procesu nezkouší** (`gpuFailed`, jen v paměti): každé další načtení
+    by jinak trvalo o neúspěšné načtení na GPU déle. Pamatuje se, jen když CPU uspělo (vydalo
+    token nebo doběhlo) — selže-li CPU stejně brzy, chyba na backendu nejspíš nezávisí a GPU
+    dostane příště šanci znovu. Totéž platí pro GPU, které selže už při načtení.
+  - **Test jede nad rozhraním enginu z `:client:ai-engine`** (`LlmEngineFactory`), falešný
+    engine dodá `FakeLiteRtRuntime(engines = …)`.
+  - **Ověřeno na emulátoru x86_64** (Qwen3 0.6B, sonda v `AndroidLiteRtPlatform.canRun`, jinak
+    se tam model nenabízí): shrnutí chatu napoprvé hlásí v logu „GPU selhalo při generování,
+    zkouším CPU" a doběhne na CPU. **Nezdařený pokus na GPU ale stojí ~24 s** — LiteRT-LM bez
+    OpenCL nejdřív sáhne po WebGPU („OpenCL not supported on this platform. Using WebGPU
+    instead.") a chybu ohlásí až po přípravě. Platí se to jednou za proces, právě proto
+    `gpuFailed`. Na telefonu neověřené.
 - **LiteRT-LM v Kotlinu neumí tokeny spočítat předem** (`Conversation.getTokenCount` zná až
   rozběhnutou konverzaci), proto `countTokens` vrací HORNÍ odhad z bajtů UTF-8
   (`estimatedTokenCount`, 1,8 bajtu na token; testy `TokenEstimateTest`) a shrnutí podle něj
@@ -424,7 +448,8 @@ stažení.
   (`SplitCompat: Splits installed`, nativní knihovna přidaná do classloaderu), pak stáhne
   Qwen3 0,6B, a shrnutí v témže procesu načte `liblitertlm_jni.so` ze splitu (`nativeloader …
   ok`), otevře engine a pošle zprávu. Výstup modelu na emulátoru nevyšel kvůli GPU backendu bez
-  OpenCL, ne kvůli součásti. **Neověřené: skutečná instalace z Play (interní testování) a jestli
+  OpenCL, ne kvůli součásti — to od té doby řeší náhrada CPU při generování (viz „Bez OpenCL
+  se GPU engine NAČTE BEZ CHYBY"). **Neověřené: skutečná instalace z Play (interní testování) a jestli
   Play Console vezme prázdné knihovny pro armeabi-v7a a x86.**
 
 ### Víc modelů naráz a co čím počítat
