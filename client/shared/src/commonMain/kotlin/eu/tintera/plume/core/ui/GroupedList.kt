@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.unit.Constraints
@@ -62,16 +63,20 @@ import androidx.compose.ui.unit.dp
 
 /**
  * **Plocha řádku bloku** a všeho, co stojí na stránce jako on (dlaždice, karta, pole formuláře).
- * Je vždycky světlejší než stránka ([asListPage]), ve světlém i tmavém motivu; tuhle dvojici rolí
- * používají i systémová Nastavení Androidu. `surfaceContainerLowest` to být nemůže: v tmavém
- * motivu je nejtmavší ze všech (na Androidu 16 čistá černá) a z řádků by byly díry do stránky.
+ * Je to M3 role `surface` na stránce `surfaceContainer` ([asListPage]), jako seznam v Google Chatu:
+ * ve světlém motivu je řádek světlejší než stránka, v tmavém tmavší.
+ *
+ * Pod stránkou je `surface` přemapovaný na stránku, proto se čte přes `surfaceBright`
+ * a `surfaceDim`, které přemapování nechává: M3 je definuje jako nejsvětlejší a nejtmavší plochu
+ * v každém motivu a ve světlém je `surface` totéž co `surfaceBright`, v tmavém totéž co
+ * `surfaceDim`. `surfaceContainerLowest` to být nemůže: v tmavém motivu je na Androidu 16 čistá
+ * černá a z řádků by byly díry do stránky.
  */
-val ColorScheme.groupRow: Color get() = surfaceBright
+val ColorScheme.groupRow: Color get() = if (onSurface.luminance() > 0.5f) surfaceDim else surfaceBright
 
 /**
  * Schéma **stránky s bloky řádků**: její `surface` a `background` jsou `surfaceContainer`, aby se
- * od ní řádek ([groupRow]) odlišil. Ve světlém motivu je `surfaceBright` totéž co `surface`, takže
- * na holém `surface` by řádek splynul se stránkou. Přemapování nese hlavičku i `Scaffold` každé
+ * od ní řádek ([groupRow], původní `surface`) odlišil. Přemapování nese hlavičku i `Scaffold` každé
  * obrazovky bez jediného parametru navíc; dává ho shell (`PaneCard`), výjimky hlásí
  * `Panes.ownSurface`.
  */
