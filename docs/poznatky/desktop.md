@@ -587,6 +587,36 @@ a mikrofon chce entitlementy `com.apple.security.device.camera` a
   (`infoPlist.extraKeysRawXml`): bez popisu macOS aplikaci při prvním sáhnutí na kameru
   ukončí. Text je anglicky, přeložit by šel jen přes `.lproj` v balíčku.
 
+## Insety při změně scény
+
+**Zúžení okna přes práh dvou panelů shazovalo okno**: tři okna „Error" — „visitSubtreeIf called
+on an unattached node" a za ním „Unknown error" (NPE bez zprávy). Je to tentýž pád jako na Foldu
+(Gotchas v CLAUDE.md), jen na desktopu ho nespouští hodnota z paddingu, ale **každé** čtení insetů.
+
+- **Na skiko (desktop i iOS) je `WindowInsets.safeDrawing`, `systemBars` a spol. při každém
+  čtení nový anonymní objekt bez `equals`** (`PlatformInsets.toWindowInsets()` v
+  `WindowInsets.skiko.kt`, CMP 1.12.2 i 1.13.0-beta02). Každá rekompozice `windowInsetsPadding`
+  proto zavolá `update` → `insetsInvalidated` → `traverseDescendants`, i když se nic nezměnilo.
+  Nad připojeným uzlem je to jen práce navíc; nad uzlem, který NavDisplay zrovna přesouvá do jiné
+  scény (`CopyNodesToNewAnchorLocation`, `LayoutNode.attach` → `applyModifier`), to spadne. Na
+  Androidu jsou insety stabilní objekty, proto tam stejný kód drží.
+- **Popis insetů místo čísel tu nepomůže** — vadí identita objektu, ne hodnota. A stejně čtou
+  insety i komponenty M3 (`TopAppBarDefaults.windowInsets`), na které se zvenku nedosáhne.
+- **Oprava je přenesená z CMP 1.13.0-alpha01**, kde `insetsInvalidated()` nad odpojeným uzlem
+  nedělá nic (připojený si insety přepočítá v `onAttach`). Plugin `plume.compose-insets-desktop`
+  (`build-logic/…/ComposeInsets.kt`) přepíše jar `foundation-layout-desktop` na
+  `runtimeClasspath` jako u TDLib a LiteRT: `InsetsConsumingModifierNode` a
+  `InsetsPaddingModifierNode` dostanou na začátek `insetsInvalidated()` `if (!isAttached) return`.
+  Když třídu nebo metodu po bumpu nenajde, build spadne — po přechodu na 1.13 plugin pryč.
+- **iOS opravu nemá** (klib přepsat nejde). Scéna se tam mění jen otočením nebo rozdělenou
+  obrazovkou na iPadu; padá-li to tam, pomůže až 1.13.
+- **Testy `jvmTest` běží nad nepřepsaným jarem** — transform je jen na `runtimeClasspath`
+  vstupního bodu.
+- **Reprodukce bez ruky na myši**: ladicí běh a `osascript -e 'tell application "System Events"
+  to tell process "java" to set size of window "Plume (dev)" to {500, 1000}'` v cyklu přes šířky
+  1400 → 400 a zpět (potřebuje oprávnění Zpřístupnění pro terminál). Bez opravy okna „Error"
+  hned v prvním průchodu, stack trace jde na stderr ladicího běhu.
+
 ## Okno mimo hlavní (okénko hovoru)
 
 Druhé okno (`IncomingCallWindow`) se skládá přímo v `application {}` vedle hlavního `Window`.
