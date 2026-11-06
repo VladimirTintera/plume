@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Runtime llama.cpp (EuroLLM a další modely GGUF v zařízení) jako součást z Google Play:
+     stahuje se až na požádání, když si uživatel stáhne takový model (core/ai/PlayLiteRtRuntime).
+     Kód tu není žádný, modul jen balí :client:ai-llamacpp s nativní knihovnou. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:dist="http://schemas.android.com/apk/distribution">
+
+    <dist:module
+        dist:instant="false"
+        dist:title="@string/llamacpp_feature_title">
+        <dist:delivery>
+            <dist:on-demand />
+        </dist:delivery>
+        <dist:fusing dist:include="true" />
+    </dist:module>
+</manifest>

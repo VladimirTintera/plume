@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.androidDynamicFeature)
+    // Prázdné knihovny pro armeabi-v7a a x86, které LiteRT-LM nemá (build-logic, AbiPlaceholders.kt).
+    id("plume.feature-abi-placeholders")
 }
 
 /**
@@ -31,38 +33,4 @@ android {
 dependencies {
     implementation(projects.client.androidApp)
     implementation(projects.client.aiLitert)
-}
-
-/**
- * Prázdné „knihovny" pro ABI, pro která LiteRT-LM nic nemá (armeabi-v7a, x86).
- *
- * bundletool chce, aby VŠECHNY moduly s nativními knihovnami podporovaly stejnou sadu ABI:
- * „All modules with native libraries must support the same set of ABIs" — základ má kvůli
- * TDLib čtyři, `litertlm-android` jen arm64-v8a a x86_64. Vypustit 32bitové telefony z Play kvůli
- * volitelné funkci nedává smysl. Tam se model stejně nenabízí (`AndroidLiteRtPlatform.canRun`
- * chce arm64), takže se tahle součást na takový telefon nikdy nestáhne a soubor nikdo nenačte.
- */
-abstract class AbiPlaceholders : DefaultTask() {
-    @get:OutputDirectory
-    abstract val outputDir: DirectoryProperty
-
-    @TaskAction
-    fun write() {
-        listOf("armeabi-v7a", "x86").forEach { abi ->
-            outputDir.file("$abi/libplume_no_litertlm.so").get().asFile.apply {
-                parentFile.mkdirs()
-                writeBytes(ByteArray(0))
-            }
-        }
-    }
-}
-
-val abiPlaceholders = tasks.register<AbiPlaceholders>("abiPlaceholders") {
-    outputDir.set(layout.buildDirectory.dir("generated/abiPlaceholders"))
-}
-
-androidComponents {
-    onVariants { variant ->
-        variant.sources.jniLibs?.addGeneratedSourceDirectory(abiPlaceholders, AbiPlaceholders::outputDir)
-    }
 }

@@ -66,8 +66,9 @@ android {
     }
 
     // Součásti z Google Play stahované až na požádání (Play Feature Delivery). Runtime LiteRT-LM
-    // pro model v zařízení — viz client/litertFeature a docs/poznatky/ai-v-zarizeni.md.
-    dynamicFeatures += setOf(":client:litertFeature")
+    // a llama.cpp pro modely v zařízení — viz client/litertFeature, client/llamacppFeature
+    // a docs/poznatky/ai-v-zarizeni.md.
+    dynamicFeatures += setOf(":client:litertFeature", ":client:llamacppFeature")
 
     packaging {
         resources {

@@ -76,6 +76,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # celá historie + tagy kvůli changelogu od předchozí verze
+          # llama.cpp (client/ai-llamacpp/llama.cpp) se překládá do součásti z Play pro EuroLLM.
+          submodules: true
 
       # Verze musí odpovídat `jvmToolchain(17)` v modulech — s jinou by ji Gradle přes foojay
       # resolver stahoval znovu při každém běhu.

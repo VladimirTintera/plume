@@ -1033,6 +1033,8 @@ class DataStoreAppSettings(
             // Výchozí je největší; na co zařízení nestačí, opraví `supportedModels`.
             qwen = LiteRtModel.entries.firstOrNull { it.provider == AiProvider.Qwen && it.name == preferences[ON_DEVICE_AI_QWEN] }
                 ?: LiteRtModel.Qwen3_4B,
+            euroLlm = LiteRtModel.entries.firstOrNull { it.provider == AiProvider.EuroLlm && it.name == preferences[ON_DEVICE_AI_EUROLLM] }
+                ?: LiteRtModel.EuroLlm9B,
             assigned = preferences[ON_DEVICE_AI_TASKS].orEmpty().split(' ').mapNotNull { entry ->
                 val parts = entry.split('=', limit = 2)
                 val task = AiTask.entries.firstOrNull { it.name == parts.getOrNull(0) }
@@ -1050,6 +1052,7 @@ class DataStoreAppSettings(
                 preferences[ON_DEVICE_AI_FAST] = models.fast
                 preferences[ON_DEVICE_AI_GEMMA] = models.gemma.name
                 preferences[ON_DEVICE_AI_QWEN] = models.qwen.name
+                preferences[ON_DEVICE_AI_EUROLLM] = models.euroLlm.name
                 preferences[ON_DEVICE_AI_TASKS] =
                     models.assigned.entries.joinToString(" ") { (task, provider) -> "${task.name}=${provider.name}" }
             }
@@ -1372,6 +1375,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_TASKS = stringPreferencesKey("on_device_ai_tasks")
         val ON_DEVICE_AI_GEMMA = stringPreferencesKey("on_device_ai_gemma")
         val ON_DEVICE_AI_QWEN = stringPreferencesKey("on_device_ai_qwen")
+        val ON_DEVICE_AI_EUROLLM = stringPreferencesKey("on_device_ai_eurollm")
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val VIDEO_SPEED = stringPreferencesKey("video_speed")
         val SKIP_SILENCE = booleanPreferencesKey("skip_silence")

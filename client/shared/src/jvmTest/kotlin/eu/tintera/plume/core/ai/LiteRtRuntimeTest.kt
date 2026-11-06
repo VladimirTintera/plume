@@ -52,7 +52,7 @@ class LiteRtRuntimeTest {
     fun stazenyModelSiRuntimeDoinstalujeSam() = runBlocking {
         modelFile().writeText("x")
         val runtime = FakeLiteRtRuntime(installed = false)
-        val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
+        val ai = LiteRtOnDeviceAi(platform, { runtime }, NetworkMonitor())
 
         assertEquals(OnDeviceAiStatus.Downloading, ai.status(model.variant))
         withTimeout(5.seconds) { while (runtime.installs == 0) delay(10) }
@@ -70,7 +70,7 @@ class LiteRtRuntimeTest {
         modelFile().writeText("x")
         val runtime = FakeLiteRtRuntime(installed = false)
         runtime.finish.complete(RuntimeInstallException(code = -2))
-        val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
+        val ai = LiteRtOnDeviceAi(platform, { runtime }, NetworkMonitor())
 
         ai.status(model.variant)
         withTimeout(5.seconds) { while (ai.status(model.variant) != OnDeviceAiStatus.Paused) delay(10) }
@@ -82,7 +82,7 @@ class LiteRtRuntimeTest {
     @Test
     fun runtimeSeStahujeNapredAModelAzPoNem() = runBlocking {
         val runtime = FakeLiteRtRuntime(installed = false)
-        val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
+        val ai = LiteRtOnDeviceAi(platform, { runtime }, NetworkMonitor())
         val seen: MutableList<ModelDownload> = Collections.synchronizedList(mutableListOf())
         val collecting = launch { ai.download(model.variant).collect { seen += it } }
 
@@ -102,7 +102,7 @@ class LiteRtRuntimeTest {
         modelFile().writeText("x")
         val runtime = FakeLiteRtRuntime(installed = false)
         runtime.finish.complete(null)
-        val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
+        val ai = LiteRtOnDeviceAi(platform, { runtime }, NetworkMonitor())
 
         withTimeout(5.seconds) { ai.download(model.variant).toList() }
 
@@ -110,10 +110,28 @@ class LiteRtRuntimeTest {
         assertEquals(OnDeviceAiStatus.Ready, ai.status(model.variant))
     }
 
+    /** EuroLLM (GGUF) si doinstaluje llama.cpp, ne LiteRT-LM — každý runtime je jiná součást. */
+    @Test
+    fun modelSiBereSvujRuntime() = runBlocking {
+        val liteRt = FakeLiteRtRuntime(installed = true)
+        val llamaCpp = FakeLiteRtRuntime(installed = false)
+        llamaCpp.finish.complete(null)
+        val runtimes = mapOf(ModelRuntime.LiteRt to liteRt, ModelRuntime.LlamaCpp to llamaCpp)
+        val ai = LiteRtOnDeviceAi(platform, runtimes::getValue, NetworkMonitor())
+        val euroMoe = LiteRtModel.EuroMoe2_6B
+        val collecting = launch { ai.download(euroMoe.variant).collect {} }
+
+        withTimeout(5.seconds) { while (started.isEmpty()) delay(10) }
+        assertEquals(listOf(euroMoe), started.toList())
+        assertEquals(1, llamaCpp.installs)
+        assertEquals(0, liteRt.installs)
+        collecting.cancel()
+    }
+
     @Test
     fun nainstalovanyRuntimeSeNestahuje() = runBlocking {
         val runtime = FakeLiteRtRuntime(installed = true)
-        val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
+        val ai = LiteRtOnDeviceAi(platform, { runtime }, NetworkMonitor())
         val collecting = launch { ai.download(model.variant).collect {} }
 
         withTimeout(5.seconds) { while (started.isEmpty()) delay(10) }
@@ -125,7 +143,7 @@ class LiteRtRuntimeTest {
     fun selhaniRuntimeUkonciStahovani() = runBlocking {
         val runtime = FakeLiteRtRuntime(installed = false)
         runtime.finish.complete(RuntimeInstallException(code = -2))
-        val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
+        val ai = LiteRtOnDeviceAi(platform, { runtime }, NetworkMonitor())
 
         assertFailsWith<RuntimeInstallException> {
             withTimeout(5.seconds) { ai.download(model.variant).toList() }
@@ -136,7 +154,7 @@ class LiteRtRuntimeTest {
     @Test
     fun zastaveniBehemInstalaceRuntime() = runBlocking {
         val runtime = FakeLiteRtRuntime(installed = false)
-        val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
+        val ai = LiteRtOnDeviceAi(platform, { runtime }, NetworkMonitor())
         val result = async { runCatching { ai.download(model.variant).toList() }.exceptionOrNull() }
 
         withTimeout(5.seconds) { while (runtime.installs == 0) delay(10) }

@@ -40,5 +40,5 @@ class RuntimeInstallException(val code: Int? = null, cause: Throwable? = null) :
  * na kterou základ aplikace při překladu nevidí; na desktopu kvůli tomu, že by modul nad
  * `shared` jinak tvořil kruh závislostí.
  */
-internal fun loadEngineFactory(classLoader: ClassLoader): LlmEngineFactory =
-    Class.forName(LITERT_ENGINE_FACTORY, true, classLoader).getDeclaredConstructor().newInstance() as LlmEngineFactory
+internal fun loadEngineFactory(classLoader: ClassLoader, className: String = LITERT_ENGINE_FACTORY): LlmEngineFactory =
+    Class.forName(className, true, classLoader).getDeclaredConstructor().newInstance() as LlmEngineFactory

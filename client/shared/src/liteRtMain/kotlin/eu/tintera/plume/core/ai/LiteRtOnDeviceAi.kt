@@ -13,7 +13,6 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,8 +37,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Gemma a Qwen přes LiteRT-LM: model si stáhne a spravuje aplikace sama. Který soubor, říká
- * [ModelVariant.model] ([LiteRtModel]); runtime je pro oba modely tentýž.
+ * Modely, které si stáhne a spravuje aplikace sama: Gemma a Qwen přes LiteRT-LM, EuroLLM přes
+ * llama.cpp. Který soubor, říká [ModelVariant.model] ([LiteRtModel]), a kterým runtime se počítá,
+ * [LiteRtModel.runtime]. Stahování, stav i správa enginu jsou pro oba runtime společné; jméno
+ * třídy zůstalo z doby, kdy byl jen LiteRT-LM.
  *
  * Na rozdíl od Gemini Nano (`MlKitOnDeviceAi`) tu není systémová služba — soubor modelu (0,3 až
  * 3,7 GB) leží v adresáři od platformy ([LiteRtPlatform.modelsDir]) a počítá ho engine uvnitř
@@ -81,7 +82,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  */
 class LiteRtOnDeviceAi(
     private val platform: LiteRtPlatform,
-    private val runtime: LiteRtRuntime,
+    /** Runtime pro model podle [LiteRtModel.runtime]; na Androidu každý jiná součást z Play. */
+    private val runtimes: (ModelRuntime) -> LiteRtRuntime,
     private val networkMonitor: NetworkMonitor,
     /**
      * Za jak dlouho po poslední práci engine modelu (podle poskytovatele) uvolnit. Čte se po
@@ -96,6 +98,7 @@ class LiteRtOnDeviceAi(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val modelsDir: File get() = platform.modelsDir
+    private fun runtimeOf(model: LiteRtModel): LiteRtRuntime = runtimes(model.runtime)
     private fun LiteRtModel.file() = File(modelsDir, fileName)
     private fun LiteRtModel.partFile() = File(modelsDir, "$fileName.part")
 
@@ -107,7 +110,7 @@ class LiteRtOnDeviceAi(
     private val runtimeInstalls = ConcurrentHashMap<LiteRtModel, Job>()
 
     /** Runtime k už staženému modelu se doinstaloval sám ([restoreRuntime]); jednou za proces. */
-    private val runtimeRestoreStarted = AtomicBoolean(false)
+    private val runtimeRestoreStarted: MutableSet<ModelRuntime> = ConcurrentHashMap.newKeySet()
 
     private val engineLock = Mutex()
     private var loaded: LoadedEngine? = null
@@ -125,7 +128,7 @@ class LiteRtOnDeviceAi(
         val model = variant.model ?: return OnDeviceAiStatus.Unsupported
         return when {
             !platform.canRun(model) -> OnDeviceAiStatus.Unsupported
-            model.file().exists() && runtime.installed() -> OnDeviceAiStatus.Ready
+            model.file().exists() && runtimeOf(model).installed() -> OnDeviceAiStatus.Ready
             // Úloha naplánovaná z minulého běhu procesu (zabitého uprostřed stahování) se
             // rozběhne sama, jen ještě nezapsala stav — pořád je to stahování.
             stateOf(model).value is DownloadState.Running ||
@@ -149,7 +152,7 @@ class LiteRtOnDeviceAi(
      * by ji pouštěl znovu. Pak zůstává „Pokračovat ve stahování". Vrací, jestli se instaluje.
      */
     private fun restoreRuntime(model: LiteRtModel): Boolean {
-        if (!runtimeRestoreStarted.compareAndSet(false, true)) return false
+        if (!runtimeRestoreStarted.add(model.runtime)) return false
         logger.i { "Model ${model.displayName} je stažený bez runtime, doinstalovávám ho" }
         val state = stateOf(model)
         state.value = DownloadState.Running(ModelDownload(0, null))
@@ -185,7 +188,7 @@ class LiteRtOnDeviceAi(
             state.value = DownloadState.Running(
                 ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = offline),
             )
-            if (runtime.installed()) {
+            if (runtimeOf(model).installed()) {
                 platform.startDownload(model) { runDownload(model) }
             } else {
                 runtimeInstalls[model] = scope.launch { installRuntimeThenDownload(model, state) }
@@ -208,8 +211,8 @@ class LiteRtOnDeviceAi(
     /** Doinstaluje runtime a pak naplánuje model, nebo rovnou skončí, když už je stažený. */
     private suspend fun installRuntimeThenDownload(model: LiteRtModel, state: MutableStateFlow<DownloadState>) {
         try {
-            runtime.install().collect { progress -> state.value = DownloadState.Running(progress) }
-            logger.i { "Runtime LiteRT-LM připravený (${model.displayName})" }
+            runtimeOf(model).install().collect { progress -> state.value = DownloadState.Running(progress) }
+            logger.i { "Runtime ${model.runtime} připravený (${model.displayName})" }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -531,7 +534,7 @@ class LiteRtOnDeviceAi(
     private suspend fun createEngine(model: LiteRtModel, audio: Boolean, vision: Boolean, cpuOnly: Boolean): LoadedEngine =
         withContext(Dispatchers.Default) {
             try {
-                val engines = runtime.engines()
+                val engines = runtimeOf(model).engines()
                 fun start(backend: LlmBackend) = LoadedEngine(
                     model, audio, vision, backend,
                     engines.open(
@@ -549,7 +552,8 @@ class LiteRtOnDeviceAi(
                         ),
                     ),
                 )
-                if (cpuOnly || gpuFailed) return@withContext start(LlmBackend.Cpu)
+                // llama.cpp GPU nemá; zkusit ho by jen vyrobilo selhání, které by GPU vzalo i Gemmě.
+                if (cpuOnly || gpuFailed || !model.runtime.gpu) return@withContext start(LlmBackend.Cpu)
                 val gpu = try {
                     start(LlmBackend.Gpu)
                 } catch (e: CancellationException) {
@@ -561,7 +565,7 @@ class LiteRtOnDeviceAi(
                 gpu ?: start(LlmBackend.Cpu).also { gpuFailed = true }
             } catch (e: LinkageError) {
                 // Error, ne výjimka: `catch (Exception)` volajících by ho nechytil a aplikace by spadla.
-                throw IOException("LiteRT-LM runtime failed to load", e)
+                throw IOException("${model.runtime} runtime failed to load", e)
             }
         }
 

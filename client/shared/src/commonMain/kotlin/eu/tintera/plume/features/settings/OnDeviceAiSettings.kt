@@ -4,6 +4,12 @@ import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.resources.ai_task_folders
 import eu.tintera.plume.resources.settings_gemma_under_load
 import eu.tintera.plume.resources.settings_qwen_under_load
+import eu.tintera.plume.resources.settings_eurollm_under_load
+import eu.tintera.plume.resources.settings_eurollm_9b_summary
+import eu.tintera.plume.resources.settings_euromoe_summary
+import eu.tintera.plume.resources.settings_ai_tasks_note_eurollm
+import eu.tintera.plume.resources.settings_ai_provider_eurollm
+import eu.tintera.plume.resources.settings_ai_provider_eurollm_summary
 import eu.tintera.plume.resources.settings_qwen_4b_summary
 import eu.tintera.plume.resources.settings_qwen_1_5b_summary
 import eu.tintera.plume.resources.settings_qwen_0_6b_summary
@@ -265,10 +271,11 @@ class OnDeviceAiSettingsViewModel(
 
     fun setFast(on: Boolean) = settings.setOnDeviceAiModels(models.value.copy(fast = on))
 
-    /** Zvolí velikost modelu: soubor patří Gemmě, nebo Qwenu ([LiteRtModel.provider]). */
+    /** Zvolí velikost modelu: soubor patří Gemmě, Qwenu, nebo EuroLLM ([LiteRtModel.provider]). */
     fun setSize(model: LiteRtModel) = settings.setOnDeviceAiModels(
         when (model.provider) {
             AiProvider.Qwen -> models.value.copy(qwen = model)
+            AiProvider.EuroLlm -> models.value.copy(euroLlm = model)
             else -> models.value.copy(gemma = model)
         },
     )
@@ -430,7 +437,12 @@ fun supportedModels(current: AiModels, available: AiAvailability): AiModels? {
     fun size(chosen: LiteRtModel) = chosen.takeIf { it in available.models }
         ?: available.sizes(chosen.provider).firstOrNull()
         ?: chosen
-    val fixed = current.copy(enabled = enabled, gemma = size(current.gemma), qwen = size(current.qwen))
+    val fixed = current.copy(
+        enabled = enabled,
+        gemma = size(current.gemma),
+        qwen = size(current.qwen),
+        euroLlm = size(current.euroLlm),
+    )
     return fixed.takeIf { it != current }
 }
 
@@ -573,11 +585,12 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     onSelect = { viewModel.assign(task, it) },
                 )
             }
-            // Kam jde text automaticky, říká věta jen tam, kde to platí: Nano před Qwenem
-            // a Qwen před Gemmou (pořadí `chooseProvider`).
+            // Kam jde text automaticky, říká věta jen tam, kde to platí: Nano před EuroLLM,
+            // EuroLLM před Qwenem a Qwen před Gemmou (pořadí `chooseProvider`).
             val note = when {
                 AiProvider.Gemma !in enabledHere -> null
                 AiProvider.GeminiNano in enabledHere -> Res.string.settings_ai_tasks_note
+                AiProvider.EuroLlm in enabledHere -> Res.string.settings_ai_tasks_note_eurollm
                 AiProvider.Qwen in enabledHere -> Res.string.settings_ai_tasks_note_qwen
                 else -> null
             }
@@ -639,6 +652,18 @@ private fun ModelOptions(
             if (viewModel.tracksLoad) {
                 Text(
                     stringResource(Res.string.settings_qwen_under_load),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                )
+            }
+        }
+        // Velikosti jako u Qwenu: 9B pro telefony s 16 GB, EuroMoE pro ostatní.
+        AiProvider.EuroLlm -> {
+            SizeChoices(available.sizes(provider), models.euroLlm, viewModel::setSize)
+            if (viewModel.tracksLoad) {
+                Text(
+                    stringResource(Res.string.settings_eurollm_under_load),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -829,6 +854,7 @@ internal val AiProvider.title: StringResource
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma
         AiProvider.Qwen -> Res.string.settings_ai_provider_qwen
+        AiProvider.EuroLlm -> Res.string.settings_ai_provider_eurollm
         AiProvider.Apple -> Res.string.settings_ai_provider_apple
     }
 
@@ -837,6 +863,7 @@ private val AiProvider.summary: StringResource
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano_summary
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma_summary
         AiProvider.Qwen -> Res.string.settings_ai_provider_qwen_summary
+        AiProvider.EuroLlm -> Res.string.settings_ai_provider_eurollm_summary
         AiProvider.Apple -> Res.string.settings_ai_provider_apple_summary
     }
 
@@ -848,6 +875,8 @@ private val LiteRtModel.summary: StringResource
         LiteRtModel.Qwen3_4B -> Res.string.settings_qwen_4b_summary
         LiteRtModel.Qwen2_5_1_5B -> Res.string.settings_qwen_1_5b_summary
         LiteRtModel.Qwen3_0_6B -> Res.string.settings_qwen_0_6b_summary
+        LiteRtModel.EuroLlm9B -> Res.string.settings_eurollm_9b_summary
+        LiteRtModel.EuroMoe2_6B -> Res.string.settings_euromoe_summary
     }
 
 /** Model stahuje a maže aplikace sama ([ModelVariant.appManaged]). */

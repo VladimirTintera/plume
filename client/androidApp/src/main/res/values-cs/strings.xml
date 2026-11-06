@@ -5,4 +5,5 @@
     <string name="widget_chats_label">Chaty</string>
     <string name="widget_chats_description">Připnuté a nepřečtené chaty na první pohled</string>
     <string name="litert_feature_title">AI v zařízení</string>
+    <string name="llamacpp_feature_title">AI v zařízení (modely GGUF)</string>
 </resources>

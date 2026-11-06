@@ -29,6 +29,7 @@
 # odkaz na něj by se nepřeložil. R8 zpracovává základ i součást dohromady, takže pravidlo patří
 # sem; bez něj by třídu přejmenoval nebo zahodil a model by po stažení hlásil chybu.
 -keep class eu.tintera.plume.ai.litert.LiteRtEngineFactory { public <init>(); }
+-keep class eu.tintera.plume.ai.llamacpp.LlamaCppEngineFactory { public <init>(); }
 
 # Strukturovaný výstup Gemini Nano (core/ai, `OnDeviceAi.generateStructured`): odpověď do typu
 # plní Gson přibalený v ML Kitu REFLEXÍ podle jmen polí, která jsou zároveň schématem pro model.

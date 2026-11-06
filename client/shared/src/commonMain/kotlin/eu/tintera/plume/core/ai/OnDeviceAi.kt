@@ -123,6 +123,7 @@ interface OnDeviceAi {
  * @property fast (jen Gemini Nano) rychlejší a méně přesná varianta místo plné.
  * @property gemma (jen Gemma) kterou velikost si aplikace stáhne.
  * @property qwen (jen Qwen) kterou velikost si aplikace stáhne.
+ * @property euroLlm (jen EuroLLM) kterou velikost si aplikace stáhne.
  */
 data class ModelVariant(
     val provider: AiProvider = AiProvider.GeminiNano,
@@ -130,12 +131,14 @@ data class ModelVariant(
     val fast: Boolean = false,
     val gemma: LiteRtModel = LiteRtModel.E2B,
     val qwen: LiteRtModel = LiteRtModel.Qwen3_4B,
+    val euroLlm: LiteRtModel = LiteRtModel.EuroLlm9B,
 ) {
-    /** Soubor, který si aplikace stáhne a počítá přes LiteRT-LM; `null` u systémového modelu. */
+    /** Soubor, který si aplikace stáhne a počítá sama; `null` u systémového modelu. */
     val model: LiteRtModel?
         get() = when (provider) {
             AiProvider.Gemma -> gemma
             AiProvider.Qwen -> qwen
+            AiProvider.EuroLlm -> euroLlm
             AiProvider.GeminiNano, AiProvider.Apple -> null
         }
 
@@ -152,11 +155,15 @@ data class ModelVariant(
  *   Běží na každém dost silném telefonu a jde vybrat i větší E4B.
  * - [Qwen]: druhý otevřený model přes tentýž runtime, jen na text. Je tu kvůli češtině — jestli
  *   ji umí líp než Gemma, má ukázat porovnání modelů na skutečné konverzaci.
+ * - [EuroLlm]: evropský otevřený model (EuroLLM a EuroMoE od utter-project), trénovaný na všech
+ *   jazycích EU včetně češtiny. Jen text, přes llama.cpp ([ModelRuntime.LlamaCpp]) — ve formátu
+ *   LiteRT-LM není. Jen Android.
  */
 enum class AiProvider {
     GeminiNano,
     Gemma,
     Qwen,
+    EuroLlm,
 
     /**
      * Apple Intelligence (Foundation Models) na iOS 26+: systémový model jako Gemini Nano —
@@ -166,7 +173,21 @@ enum class AiProvider {
 }
 
 /**
- * Modely, které si aplikace umí stáhnout a počítá je přes LiteRT-LM.
+ * Čím se stahovaný model počítá. Na Androidu je každý runtime vlastní součást z Google Play.
+ *
+ * @property gpu runtime umí GPU; jinak se engine rovnou načítá na CPU.
+ */
+enum class ModelRuntime(val gpu: Boolean) {
+    /** LiteRT-LM (soubory `.litertlm`): Gemma a Qwen, Android i desktop. */
+    LiteRt(gpu = true),
+
+    /** llama.cpp (soubory GGUF): EuroLLM, jen Android a jen CPU. */
+    LlamaCpp(gpu = false),
+}
+
+/**
+ * Modely, které si aplikace umí stáhnout a počítá je sama — přes LiteRT-LM, nebo llama.cpp
+ * ([runtime]). Jméno zůstalo z doby, kdy byl jen LiteRT-LM.
  *
  * **Commit je součást adresy**, takže se stahuje pořád tentýž soubor, i když autor na Hugging
  * Face nahraje novější — nová verze = nový řádek tady, vědomě. Pod [minMemoryGb] se model
@@ -181,6 +202,7 @@ enum class AiProvider {
  * @property multimodal bere i zvuk a obraz (přepis hlasovek, popis fotek), ne jen text.
  * @property contextTokens kolik tokenů (vstup i výstup dohromady) soubor unese; víc engine
  *   nedostane, ani když by aplikace chtěla delší kontext.
+ * @property runtime čím se soubor počítá.
  */
 enum class LiteRtModel(
     val displayName: String,
@@ -192,6 +214,7 @@ enum class LiteRtModel(
     val minMemoryGb: Int,
     val multimodal: Boolean,
     val contextTokens: Int = 8_192,
+    val runtime: ModelRuntime = ModelRuntime.LiteRt,
 ) {
     // Gemma: soubor, commit, velikost i paměť z katalogu Google AI Edge Gallery
     // (`model_allowlists/1_0_19.json`).
@@ -262,6 +285,42 @@ enum class LiteRtModel(
         multimodal = false,
         contextTokens = 4_096,
     ),
+
+    /*
+     * EuroLLM 9B Instruct (verze 2512) od utter-project, Apache 2.0, GGUF Q4_K_M od mradermacher
+     * (originál je za souhlasem, kvantizace ne). Kontext 4 096 kvůli paměti: KV keš 9B modelu roste
+     * s délkou a soubor sám má 5,6 GB. Paměť 16 GB — 12GB telefon by po načtení měl na zbytek
+     * systému a aplikace jen pár GB.
+     */
+    EuroLlm9B(
+        displayName = "EuroLLM 9B",
+        provider = AiProvider.EuroLlm,
+        repository = "mradermacher/EuroLLM-9B-Instruct-2512-GGUF",
+        fileName = "EuroLLM-9B-Instruct-2512.Q4_K_M.gguf",
+        commit = "5138603fccb9dc1f35c25cfd1a4981a78617e9ff",
+        sizeBytes = 5_582_838_912,
+        minMemoryGb = 16,
+        multimodal = false,
+        contextTokens = 4_096,
+        runtime = ModelRuntime.LlamaCpp,
+    ),
+
+    /*
+     * EuroMoE 2,6B (aktivních 0,6B) Instruct 2512 od utter-project: směs expertů, takže počítá
+     * rychlostí malého modelu a zná jazyky jako větší. Apache 2.0, GGUF Q4_K_M od mradermacher.
+     */
+    EuroMoe2_6B(
+        displayName = "EuroMoE 2.6B",
+        provider = AiProvider.EuroLlm,
+        repository = "mradermacher/EuroMoE-2.6B-A0.6B-Instruct-2512-GGUF",
+        fileName = "EuroMoE-2.6B-A0.6B-Instruct-2512.Q4_K_M.gguf",
+        commit = "11be4a9e68eb5aba18e4c3b341cbef2d018b2da0",
+        sizeBytes = 1_616_056_480,
+        minMemoryGb = 6,
+        multimodal = false,
+        contextTokens = 4_096,
+        runtime = ModelRuntime.LlamaCpp,
+    ),
     ;
 
     /** Varianta, která tenhle soubor počítá — na dotazy po souborech (Úložiště, dostupnost). */
@@ -269,6 +328,7 @@ enum class LiteRtModel(
         get() = when (provider) {
             AiProvider.Gemma -> ModelVariant(provider = provider, gemma = this)
             AiProvider.Qwen -> ModelVariant(provider = provider, qwen = this)
+            AiProvider.EuroLlm -> ModelVariant(provider = provider, euroLlm = this)
             AiProvider.GeminiNano, AiProvider.Apple -> ModelVariant(provider = provider)
         }
 
