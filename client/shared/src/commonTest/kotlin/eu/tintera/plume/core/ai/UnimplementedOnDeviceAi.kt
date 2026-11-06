@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.flow
 open class UnimplementedOnDeviceAi : OnDeviceAi {
     override suspend fun status(variant: ModelVariant) : OnDeviceAiStatus = error("status")
     override suspend fun info(variant: ModelVariant) : ModelInfo? = error("info")
-    override fun download(variant: ModelVariant) : Flow<ModelDownload> = error("download")
+    override fun download(variant: ModelVariant, mobileData: Boolean): Flow<ModelDownload> = error("download")
     override suspend fun countTokens(variant: ModelVariant, prompt: String) : Int? = error("countTokens")
     override fun generate(variant: ModelVariant, prompt: String) : Flow<Generated> = error("generate")
 }

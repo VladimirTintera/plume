@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
@@ -19,6 +20,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import co.touchlab.kermit.Logger
@@ -37,6 +39,8 @@ import eu.tintera.plume.resources.model_download_notification_title
 import eu.tintera.plume.resources.model_download_notification_waiting
 import eu.tintera.plume.resources.settings_on_device_ai_download_progress
 import eu.tintera.plume.resources.settings_on_device_ai_not_enough_space
+import java.util.UUID
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.conflate
@@ -57,7 +61,10 @@ import org.koin.core.context.GlobalContext
  *   průběh, ať stahování spustilo ťuknutí, nebo WorkManager po restartu procesu.
  * - **Podmínka sítě.** Bez připojení se úloha nespustí a když síť zmizí, WorkManager ji zastaví
  *   a po návratu spustí znovu — služba v popředí tak nevisí hodiny bez sítě. Krátký výpadek,
- *   o kterém systém ještě neví, dál přečká smyčka v [LiteRtOnDeviceAi].
+ *   o kterém systém ještě neví, dál přečká smyčka v [LiteRtOnDeviceAi]. „Jen přes Wi-Fi" je
+ *   tatáž podmínka, jen přísnější (`UNMETERED`, [request]).
+ * - **Zákaz dat za běhu** ([WifiRequiredException]) úlohu ukončí s `retry`: WorkManager ji pak
+ *   pustí znovu, až podmínka sítě (už přísnější) zase platí. Zrušení by znamenalo zastavení.
  * - **Služba v popředí typu `dataSync`.** Bez ní by běžná úloha skončila po deseti minutách.
  *   Od Androidu 12 se ale služba v popředí z pozadí spustit nesmí (úloha naplánovaná po zabití
  *   procesu běží právě tam) — pak se stahuje jako běžná úloha: po limitu ji systém zastaví,
@@ -106,6 +113,9 @@ class ModelDownloadWorker(
             )
             hideProgress(model)
             throw e
+        } catch (e: WifiRequiredException) {
+            hideProgress(model)
+            Result.retry()
         } catch (e: Exception) {
             notifyResult(model, error = e)
             Result.failure()
@@ -244,13 +254,39 @@ class ModelDownloadWorker(
          * `KEEP`: běžící i naplánovaná úloha (třeba čekající na síť) zůstává, druhá by stahovala
          * do téhož `.part` souběžně. Dokončená nebo zrušená úloha `KEEP` neblokuje.
          */
-        fun enqueue(context: Context, model: LiteRtModel) {
-            val request = OneTimeWorkRequestBuilder<ModelDownloadWorker>()
-                .setInputData(workDataOf(KEY_MODEL to model.name))
-                .setConstraints(Constraints(requiredNetworkType = NetworkType.CONNECTED))
-                .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(workName(model), ExistingWorkPolicy.KEEP, request)
+        fun enqueue(context: Context, model: LiteRtModel, unmeteredOnly: Boolean) {
+            WorkManager.getInstance(context).enqueueUniqueWork(workName(model), ExistingWorkPolicy.KEEP, request(model, unmeteredOnly))
         }
+
+        /**
+         * Změní podmínku sítě naplánované nebo běžící úlohy (`updateWork`), aniž by ji zrušil:
+         * zrušení by stav ohlásil jako zastavení uživatelem ([onStopped]) a obrazovka by
+         * ukázala „Pokračovat ve stahování". Úloha čekající na Wi-Fi se po povolení dat rozběhne
+         * hned. **Běžící úlohu ale nová podmínka nezastaví** (platí až pro příští běh) — to, že
+         * po zákazu dat na mobilu přestane, zařídí [LiteRtOnDeviceAi.setDownloadNetwork] sám.
+         */
+        fun updateNetwork(context: Context, model: LiteRtModel, unmeteredOnly: Boolean) {
+            val manager = WorkManager.getInstance(context)
+            val pending = manager.getWorkInfosForUniqueWork(workName(model)).get().firstOrNull { !it.state.isFinished } ?: return
+            manager.updateWork(request(model, unmeteredOnly, id = pending.id))
+        }
+
+        /**
+         * Podmínka sítě: `UNMETERED` stahuje jen na neplacené síti — Wi-Fi z hotspotu telefonu
+         * systém vede jako placenou, a právě o tu jde. Po návratu takové sítě se úloha rozběhne
+         * sama, stejně jako po výpadku připojení.
+         */
+        private fun request(model: LiteRtModel, unmeteredOnly: Boolean, id: UUID? = null) =
+            OneTimeWorkRequestBuilder<ModelDownloadWorker>()
+                .setInputData(workDataOf(KEY_MODEL to model.name))
+                .setConstraints(
+                    Constraints(requiredNetworkType = if (unmeteredOnly) NetworkType.UNMETERED else NetworkType.CONNECTED),
+                )
+                // Po zákazu dat za běhu ([WifiRequiredException]) se opakuje; výchozí exponenciální
+                // prodleva by stahování po návratu na Wi-Fi zdržela o desítky vteřin a víc.
+                .setBackoffCriteria(BackoffPolicy.LINEAR, WorkRequest.MIN_BACKOFF_MILLIS, TimeUnit.MILLISECONDS)
+                .apply { if (id != null) setId(id) }
+                .build()
 
         fun cancel(context: Context, model: LiteRtModel) {
             WorkManager.getInstance(context).cancelUniqueWork(workName(model))

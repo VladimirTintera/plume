@@ -96,7 +96,7 @@ class AppleOnDeviceAi(private val model: OnDeviceTextModel) : OnDeviceAi {
     override suspend fun info(variant: ModelVariant): ModelInfo? =
         if (variant.provider == AiProvider.Apple) ModelInfo(name = MODEL_NAME, tokenLimit = model.contextSize()) else null
 
-    override fun download(variant: ModelVariant): Flow<ModelDownload> = emptyFlow()
+    override fun download(variant: ModelVariant, mobileData: Boolean): Flow<ModelDownload> = emptyFlow()
 
     // Počítání tokenů je až od iOS 26.4 a jen asynchronně; délka se odhaduje z limitu.
     override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = null

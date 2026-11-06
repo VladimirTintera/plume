@@ -1,6 +1,8 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.MeteredNetwork
+import eu.tintera.plume.core.ai.NoMeteredNetwork
 import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.stickers.IosStickerMaker
 import eu.tintera.plume.core.stickers.StickerMaker
@@ -70,6 +72,8 @@ actual fun Module.platformModule() {
     single<OnDeviceAi> { IosOnDeviceModel.model?.let(::AppleOnDeviceAi) ?: NoopOnDeviceAi }
     // Gemma tu není, zátěž telefonu pro model v zařízení neřešíme.
     single<DeviceLoad> { NoDeviceLoad }
+    // Druh sítě se tu nepozná, volba „jen přes Wi-Fi" se nenabízí.
+    single<MeteredNetwork> { NoMeteredNetwork }
     single<AppLockStore> {
         object : AppLockStore, SecretStore by KeychainSecretStore(
             service = "eu.tintera.plume.applock", account = "pin", logTag = "AppLock",

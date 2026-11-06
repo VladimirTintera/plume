@@ -35,8 +35,17 @@ interface LiteRtPlatform {
      * (`LiteRtOnDeviceAi.runDownload`); platforma ho buď pustí sama (desktop), nebo spustí něco,
      * co ho zavolá (Android: úloha WorkManageru si runtime vezme z Koinu). Běžící stahování se
      * nespouští podruhé.
+     *
+     * [unmeteredOnly]: stahovat jen na neplacené síti a na placené počkat (Android: podmínka
+     * úlohy). Platforma, která placenou síť nepozná, ho přejde — Nastavení tam volbu nenabízí.
      */
-    fun startDownload(model: LiteRtModel, run: suspend () -> Unit)
+    fun startDownload(model: LiteRtModel, unmeteredOnly: Boolean, run: suspend () -> Unit)
+
+    /**
+     * Změní [unmeteredOnly] u naplánovaného nebo běžícího stahování [model], aniž by ho zastavila;
+     * nic neběží-li, nic nespustí. Výchozí nic: kde placenou síť nepoznáme, není co měnit.
+     */
+    fun setDownloadNetwork(model: LiteRtModel, unmeteredOnly: Boolean) {}
 
     /**
      * Text, který jde do modelu (pokyn i přepis zpráv), upravený tak, aby ho nativní strana

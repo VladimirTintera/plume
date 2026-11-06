@@ -18,7 +18,7 @@ class RoutingOnDeviceAiTest {
         val seen = mutableListOf<ModelVariant>()
         override suspend fun status(variant: ModelVariant): OnDeviceAiStatus = status.also { seen += variant }
         override suspend fun info(variant: ModelVariant): ModelInfo? = null.also { seen += variant }
-        override fun download(variant: ModelVariant): Flow<ModelDownload> = emptyFlow<ModelDownload>().also { seen += variant }
+        override fun download(variant: ModelVariant, mobileData: Boolean): Flow<ModelDownload> = emptyFlow<ModelDownload>().also { seen += variant }
         override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = null.also { seen += variant }
         override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> =
             flowOf(Generated(prompt)).also { seen += variant }

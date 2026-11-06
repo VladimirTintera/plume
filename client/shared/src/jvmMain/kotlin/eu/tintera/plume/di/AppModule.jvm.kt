@@ -1,6 +1,8 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.plume.core.ai.MeteredNetwork
+import eu.tintera.plume.core.ai.NoMeteredNetwork
 import eu.tintera.plume.core.ai.DeviceLoad
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
@@ -107,6 +109,8 @@ actual fun Module.platformModule() {
     }
     // Úsporný režim a teplotu počítače pro model v zařízení neřešíme.
     single<DeviceLoad> { NoDeviceLoad }
+    // Druh sítě se tu nepozná, volba „jen přes Wi-Fi" se nenabízí.
+    single<MeteredNetwork> { NoMeteredNetwork }
     // Hovory jen se zvukem přes ntgcalls; bez přibalené knihovny (Intel Mac, build bez sítě)
     // se CallMedia neregistruje a hovory se nenabídnou (`CallRepository.supported`).
     if (DesktopCallMedia.available()) {

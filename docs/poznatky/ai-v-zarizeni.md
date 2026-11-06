@@ -78,6 +78,33 @@ poskytovatelích nemusí vědět nic.
     držela službu v popředí hodiny naprázdno. Při ztrátě sítě ji WorkManager zastaví
     (`STOP_REASON_CONSTRAINT_CONNECTIVITY` → obrazovka „Čekám na připojení") a s návratem
     spustí znovu. Krátký výpadek, o kterém systém ještě neví, přečká smyčka jako dřív.
+  - **„Stahovat modely jen přes Wi-Fi"** (Nastavení → AI v zařízení, pod modely; výchozí
+    zapnuté, `AppSettings.modelDownloadWifiOnly`) je táž podmínka, jen `NetworkType.UNMETERED`.
+    Dřív stačilo jedno ťuknutí na mobilních datech a stahovaly se gigabajty.
+    - **Placenost, ne druh sítě** (`MeteredNetwork`, na Androidu `isActiveNetworkMetered`).
+      `NetworkMonitor` by Wi-Fi z hotspotu telefonu vedl jako Wi-Fi, systém i podmínka
+      `UNMETERED` ji vedou jako placenou. Dotaz a skutečné chování úlohy se tak shodnou. Bez
+      sítě vrací `false` (systém `true`): v letovém režimu se nemá na co ptát.
+    - **Mimo Wi-Fi se Stáhnout zeptá** (`ConfirmDialog`: „Stáhnout přes data" / „Počkat na
+      Wi-Fi", s velikostí modelu). Zavření dialogu mimo tlačítka = počkat: o model uživatel řekl
+      a čekání nic nestojí. „Přes data" platí jen pro to jedno stažení, Nastavení se nemění.
+      Připojení obrazovky k běžícímu stahování (`refresh` → `startDownload`) se neptá.
+    - **Stav „Čekám na Wi-Fi"** (`ModelDownload.wifiOnly` s `waitingForNetwork`). Úloha se na
+      datech vůbec nespustí, takže stav musí čekání říct sám hned při plánování
+      (`download`), jinak by tvrdil, že se stahuje.
+    - **Přepnutí volby za běhu úlohu neruší** (`setDownloadNetwork` → `WorkManager.updateWork`).
+      Zrušení by se ohlásilo jako zastavení uživatelem (`CANCELLED_BY_APP`) a obrazovka by
+      ukázala „Pokračovat". Čekající úloha se po povolení dat rozběhne. **Běžící úlohu nová
+      podmínka nezastaví** (platí až pro příští běh), proto se při zákazu dat na placené síti
+      zruší jen korutina stahování v `runDownload` a úloha skončí s `Result.retry()`
+      (`WifiRequiredException`). Opakování má lineární prodlevu 10 s: výchozí exponenciální
+      by návrat na Wi-Fi zdržela.
+    - **Runtime z Play volba neřídí.** Je to desítka MB a velké stahování přes data si Play
+      potvrdí sám (`SplitInstallConfirmations`). Gemini Nano stahuje AICore po svém.
+    - **Na desktopu se volba nenabízí** (`NoMeteredNetwork`): JVM druh sítě nehlásí
+      (`NetworkMonitor` tam vrací vždycky `Other`) a volba by slibovala něco, co se nestane.
+    - **Na zařízení ověřené není.** Testy `LiteRtDownloadNetworkTest`. Na emulátoru jde placenost
+      přepnout `adb shell cmd netpolicy set metered-network <ssid> true` nebo vypnutím Wi-Fi.
   - **Důvod zastavení rozhoduje, co ukázat** (`getStopReason`): `CANCELLED_BY_APP` = uživatel
     zastavil („Zastavit" v notifikaci je `createCancelPendingIntent`), cokoli jiného = systém
     a úloha se vrátí, takže pro obrazovku se pořád stahuje.

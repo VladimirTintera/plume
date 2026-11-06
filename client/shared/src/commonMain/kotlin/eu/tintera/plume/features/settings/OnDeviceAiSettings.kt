@@ -70,8 +70,10 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.DownloadStoppedException
 import eu.tintera.plume.core.ai.LiteRtModel
+import eu.tintera.plume.core.ai.MeteredNetwork
 import eu.tintera.plume.core.ai.ModelDownload
 import eu.tintera.plume.core.ai.ModelVariant
+import eu.tintera.plume.core.ai.NoMeteredNetwork
 import eu.tintera.plume.core.ai.NotEnoughSpaceException
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
@@ -95,6 +97,15 @@ import eu.tintera.plume.resources.settings_on_device_ai_delete
 import eu.tintera.plume.resources.settings_on_device_ai_not_enough_space
 import eu.tintera.plume.resources.settings_on_device_ai_checking
 import eu.tintera.plume.resources.settings_on_device_ai_download
+import eu.tintera.plume.resources.settings_ai_wifi_only
+import eu.tintera.plume.resources.settings_ai_wifi_only_summary
+import eu.tintera.plume.resources.settings_ai_mobile_data_title
+import eu.tintera.plume.resources.settings_ai_mobile_data_text
+import eu.tintera.plume.resources.settings_ai_mobile_data_confirm
+import eu.tintera.plume.resources.settings_ai_mobile_data_wait
+import eu.tintera.plume.resources.settings_on_device_ai_waiting_for_wifi
+import eu.tintera.plume.resources.signal_cellular_alt_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.settings_on_device_ai_download_progress
 import eu.tintera.plume.resources.settings_on_device_ai_downloadable_named
 import eu.tintera.plume.resources.settings_on_device_ai_discard_part
@@ -183,6 +194,8 @@ class OnDeviceAiSettingsViewModel(
      * se tam neděje.
      */
     val tracksLoad: Boolean = true,
+    /** Placená síť; [NoMeteredNetwork] = platforma ji nepozná a volba „jen přes Wi-Fi" se nenabízí. */
+    private val meteredNetwork: MeteredNetwork = NoMeteredNetwork,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("OnDeviceAi")
@@ -331,13 +344,80 @@ class OnDeviceAiSettingsViewModel(
         }
     }
 
+    /**
+     * Nabízí se volba „jen přes Wi-Fi"? Jen kde platforma placenou síť pozná (Android); na
+     * desktopu by slibovala něco, co se nestane.
+     */
+    val wifiOnlyOffered: Boolean = meteredNetwork !== NoMeteredNetwork
+
+    val wifiOnly: StateFlow<Boolean> = settings.modelDownloadWifiOnly
+
+    private val _mobileDataPrompt = MutableStateFlow<AiProvider?>(null)
+
+    /** Model, u kterého se mimo Wi-Fi ptáme, jestli stahovat přes data ([download]). */
+    val mobileDataPrompt: StateFlow<AiProvider?> = _mobileDataPrompt.asStateFlow()
+
+    /** Smí stahování podle Nastavení přes data? Bez volby (desktop) vždycky. */
+    private fun mobileDataAllowed() = !wifiOnlyOffered || !wifiOnly.value
+
+    /**
+     * Zapne/vypne stahování jen přes Wi-Fi. Platí i pro stahování, které právě běží nebo čeká
+     * na Wi-Fi: po povolení dat se čekající rozběhne, po zákazu na datech běžící počká.
+     */
+    fun setWifiOnly(on: Boolean) {
+        settings.setModelDownloadWifiOnly(on)
+        states.value.filterValues { it is OnDeviceModelState.Downloading }.keys.forEach { provider ->
+            val target = models.value.variant(provider)
+            if (!target.appManaged) return@forEach
+            appScope.launch {
+                try {
+                    ai.setDownloadNetwork(target, mobileData = !on)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.w(e) { "Síť stahování se nepodařilo změnit ($target)" }
+                }
+            }
+        }
+    }
+
+    /**
+     * Ťuknutí na Stáhnout. S volbou „jen přes Wi-Fi" na placené síti se napřed zeptá
+     * ([mobileDataPrompt]): gigabajty přes data jedním ťuknutím nikdo nechce omylem.
+     */
     fun download(provider: AiProvider) {
+        if (downloads[provider]?.isActive == true) return
+        if (models.value.variant(provider).appManaged && !mobileDataAllowed() && meteredNetwork.isMetered()) {
+            _mobileDataPrompt.value = provider
+            return
+        }
+        startDownload(provider, mobileData = mobileDataAllowed())
+    }
+
+    /** Odpověď na [mobileDataPrompt]: stáhnout hned, přes data (jen tohle stažení). */
+    fun downloadOverMobileData() {
+        val provider = _mobileDataPrompt.value ?: return
+        _mobileDataPrompt.value = null
+        startDownload(provider, mobileData = true)
+    }
+
+    /**
+     * Odpověď na [mobileDataPrompt]: stahování naplánovat a počkat na Wi-Fi. I při zavření
+     * dialogu mimo tlačítka — uživatel o model řekl a čekání na Wi-Fi nic nestojí.
+     */
+    fun downloadOnWifi() {
+        val provider = _mobileDataPrompt.value ?: return
+        _mobileDataPrompt.value = null
+        startDownload(provider, mobileData = false)
+    }
+
+    private fun startDownload(provider: AiProvider, mobileData: Boolean) {
         if (downloads[provider]?.isActive == true) return
         val target = models.value.variant(provider)
         setState(provider, OnDeviceModelState.Downloading(null))
         downloads[provider] = appScope.launch {
             try {
-                ai.download(target).collect { progress ->
+                ai.download(target, mobileData).collect { progress ->
                     if (isCurrent(target)) setState(provider, OnDeviceModelState.Downloading(progress))
                 }
                 if (isCurrent(target)) refresh(target)
@@ -369,8 +449,9 @@ class OnDeviceAiSettingsViewModel(
             OnDeviceAiStatus.Unsupported -> OnDeviceModelState.Unsupported
             OnDeviceAiStatus.Downloadable -> OnDeviceModelState.Downloadable
             OnDeviceAiStatus.Paused -> OnDeviceModelState.Paused
+            // Připojení k běžícímu stahování, ne nové ťuknutí: bez dotazu na síť.
             OnDeviceAiStatus.Downloading -> {
-                download(provider)
+                startDownload(provider, mobileData = mobileDataAllowed())
                 return
             }
             OnDeviceAiStatus.Ready -> ai.info(variant).let { OnDeviceModelState.Ready(it?.name, it?.tokenLimit) }
@@ -463,6 +544,8 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val backgroundPhotos by viewModel.backgroundPhotos.collectAsStateWithLifecycle()
     val canDescribePhotos by viewModel.canDescribePhotos.collectAsStateWithLifecycle()
     val availability by viewModel.availability.collectAsStateWithLifecycle()
+    val wifiOnly by viewModel.wifiOnly.collectAsStateWithLifecycle()
+    val mobileDataPrompt by viewModel.mobileDataPrompt.collectAsStateWithLifecycle()
 
     /*
      * Na zařízení bez AICore se celá sekce NENABÍZÍ. Dřív se vykreslila vždycky a uživatel
@@ -553,6 +636,34 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 ModelStatus(models.variant(provider), state, viewModel)
             }
         }
+        /*
+         * Síť pro stahování: jen u modelů, které stahuje aplikace (systémový model stahuje AICore
+         * po svém), a jen kde platforma placenou síť pozná. Pod modely, ne u každého zvlášť —
+         * volba platí pro všechny a u tří modelů by se opakovala třikrát.
+         */
+        if (viewModel.wifiOnlyOffered && available.providers.any { it.appManaged }) {
+            GroupBreak()
+            VariantSwitch(
+                title = Res.string.settings_ai_wifi_only,
+                summary = Res.string.settings_ai_wifi_only_summary,
+                checked = wifiOnly,
+                onChange = { on -> viewModel.setWifiOnly(on) },
+            )
+        }
+    }
+
+    mobileDataPrompt?.let { provider ->
+        val file = models.variant(provider).model
+        ConfirmDialog(
+            title = stringResource(Res.string.settings_ai_mobile_data_title),
+            text = file?.let { stringResource(Res.string.settings_ai_mobile_data_text, it.displayName, fileSizeText(it.sizeBytes)) },
+            confirmLabel = stringResource(Res.string.settings_ai_mobile_data_confirm),
+            onConfirm = viewModel::downloadOverMobileData,
+            // Zavření mimo tlačítka = počkat: o model uživatel řekl a čekání na Wi-Fi nic nestojí.
+            onDismiss = viewModel::downloadOnWifi,
+            dismissLabel = stringResource(Res.string.settings_ai_mobile_data_wait),
+            icon = Res.drawable.signal_cellular_alt_24dp,
+        )
     }
 
     /*
@@ -702,7 +813,10 @@ private fun ModelStatus(variant: ModelVariant, model: OnDeviceModelState, viewMo
                 stringResource(Res.string.settings_on_device_ai_downloadable)
             }
             is OnDeviceModelState.Downloading -> if (model.progress?.waitingForNetwork == true) {
-                stringResource(Res.string.settings_on_device_ai_waiting_for_network)
+                stringResource(
+                    if (model.progress?.wifiOnly == true) Res.string.settings_on_device_ai_waiting_for_wifi
+                    else Res.string.settings_on_device_ai_waiting_for_network,
+                )
             } else {
                 stringResource(Res.string.settings_on_device_ai_downloading)
             }
