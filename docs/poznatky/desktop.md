@@ -1128,6 +1128,83 @@ plátna (jako iOS), JPEG s `PHOTO_JPEG_QUALITY`.
   v konverzaci a ve sdílení (stejný renderer, testy `DesktopPhotoMarkupRendererTest`), fotka
   s EXIF orientací (jen testem), zvýrazňovač a začernění, Windows a Linux.
 
+## Model v zařízení (LiteRT-LM)
+
+Gemma a Qwen běží na desktopu stejně jako na Androidu: `litertlm-jvm` má tutéž sadu tříd jako
+`litertlm-android` (59, porovnáno výpisem jarů), takže runtime je jeden (`LiteRtOnDeviceAi`
+v source setu `liteRtMain`, sdíleném androidMain a jvmMain) a platforma dodá jen
+`LiteRtPlatform` (`DesktopLiteRtPlatform`). Gemini Nano tu není; směrovač na jeho místo dostane
+`NoopOnDeviceAi` a „Automaticky" ho přeskočí. Obecné poznatky k modelům jsou
+v `docs/poznatky/ai-v-zarizeni.md`.
+
+- **Source set `liteRtMain` bez vlastní závislosti.** Knihovnu si bere každá platforma sama
+  (`litertlm-android` v androidMain, `litertlm-jvm` v jvmMain); závislost na společném setu by
+  dala Androidu obě kopie týchž tříd. Překlad každé platformy vidí tu svou a stačí to.
+- **`litertlm-jvm` je přeložený pro Javu 21** (class file 65). Na Javě 17 se nenačte
+  (`UnsupportedClassVersionError`, je to `LinkageError`, takže skončí jako „nativní knihovna se
+  nenačetla" a selhání modelu). **Compose balí s JDK, na kterém běží Gradle**, a release běží
+  se `setup-java 17` — balíček by tedy dostal Javu 17. desktopApp proto bere pro jlink i `run`
+  JDK 21 z toolchainu (`runtimeLauncher`); kód zůstává na `jvmToolchain(17)`. Na starší Javě
+  se model vůbec nenabídne (`DesktopLiteRtPlatform.javaSupported`). Lokálně se balilo s JDK 25
+  (tím běžel Gradle) a chyba se neukázala — přišlo se na ni až testem na `jvmToolchain(17)`.
+- **Do balíčku jen nativní knihovna systému** (plugin `plume.litertlm-desktop`, `LiteRt.kt`
+  v build-logic): jar nese JNI pro Windows x64, macOS arm64 a Linux x64/arm64 (134 MB zabalených,
+  385 MB vybalených), po přepisu na Windows 19 MB (`litertlm_jni.dll` 53 MB vybalená). Vlastní
+  atribut vedle přepisu TDLib; Gradle oba přepisy zřetězí. Knihovnu za běhu vybaluje
+  `NativeLibraryLoader` z `com/google/ai/edge/litertlm/jni/<systém>-<arch>/` do `java.io.tmpdir`;
+  co v jaru není, aplikace pozná předem (`nativeLibraryBundled`) a model nenabídne — Intel Mac
+  knihovnu nemá vůbec.
+- **Modely v `%LOCALAPPDATA%\Plume`, ne v `%APPDATA%`.** Data aplikace jsou v Roaming, který se
+  v doménovém profilu synchronizuje mezi počítači; gigabajty modelu tam nepatří. Na macOS
+  a Linuxu ve složce dat, s `-Dplume.dataDir` (ladicí běh) pod ní.
+- **Stahování drží korutina procesu**, ne úloha jako WorkManager. Aplikace běží, dokud ji
+  uživatel neukončí (zavřené okno ji schová do oznamovací oblasti); po ukončení zůstane `.part`
+  a Nastavení nabídne „Pokračovat ve stahování".
+- **Paměť počítače z `com.sun.management.OperatingSystemMXBean`** — potřebuje modul
+  `jdk.management` v runtime z jlinku (přidaný do `modules(…)`).
+- **Obraz přes ImageIO, zvuk přes FFmpeg.** Fotka se zmenší a zakóduje do PNG (WebP ImageIO
+  nečte, popis se pak nenabídne). Zvuk dekóduje `FfmpegAudioDecoder` (48 kHz stereo pro
+  reproduktor) a na 16 kHz mono se dostane průměrem kanálů a tří vzorků — 48 000 je přesně
+  trojnásobek 16 000.
+- **Úsporný režim a přehřátí desktop nesleduje** (`NoDeviceLoad`), takže věta „v úsporném
+  režimu model sám nic nepočítá" se v Nastavení neukáže (`OnDeviceAiSettingsViewModel.tracksLoad`).
+  Texty AI mluví o „zařízení", ne o „telefonu".
+- **GPU na Windows s Intel UHD 770 nejde** („Failed to create engine" v
+  `llm_litert_compiled_model_executor_factory.cc`) a jede se na procesoru; jiné grafiky a macOS
+  (Metal) neověřené.
+- **Emoji ve vstupu shodí celou JVM** (`EXCEPTION_UNCAUGHT_CXX_EXCEPTION` v `KERNELBASE.dll`,
+  Java vlákno v `LiteRtLmJni.nativeSendMessageAsync`). HotSpot předává řetězec přes JNI
+  v „modifikovaném UTF-8": znak mimo základní rovinu Unicode (😊, 👍, 🌧) jako dvojici
+  náhradních znaků (CESU-8). Nativní strana LiteRT-LM na tom vyhodí výjimku C++, kterou nikdo
+  nechytí, a proces skončí bez šance na `catch`. Stačí jeden smajlík: „Ahoj 😊" spadne,
+  „Ahoj ☔" (základní rovina) projde. Shrnutí skutečného chatu tak zavřelo aplikaci hned
+  napoprvé. `DesktopLiteRtPlatform.modelText` proto znaky mimo základní rovinu z textu pro
+  model vypouští; odpověď modelu emoji obsahovat smí (opačný směr dorazí celý, ověřeno 😂 👍 ❤️).
+  ART na Androidu posílá standardní UTF-8 a shrnutí s emoji tam na Foldu fungovalo.
+  **Jak se na to přišlo:** v logu před pádem byl `mel_filterbank` a vypadalo to na přepis
+  hlasovky — jenže zvukový kodér Gemmy se hlásí při každém načtení enginu; spuštěné bylo
+  shrnutí. Rozhodla až sonda s krátkými prompty s emoji a bez nich.
+- **JavaCPP počítá do limitu i model.** FFmpeg (zvuk, video) jde přes JavaCPP, které odmítne
+  alokovat, když FYZICKÁ paměť celého procesu přesáhne `maxPhysicalBytes` (výchozí dvojnásobek
+  haldy). Načtený model leží mimo haldu, ale v procesu: po Qwen3 4B spadl dekodér hlasovky na
+  `OutOfMemoryError: Physical memory usage is too high: physicalBytes (2076M) > maxPhysicalBytes
+  (2048M)`. Na počítači s 8 GB (halda ~2 GB, limit ~4 GB) by po prvním shrnutí s Gemmou
+  přestaly hrát hlasovky i video. `main` proto limit vypíná
+  (`org.bytedeco.javacpp.maxPhysicalBytes=0`, musí být před první třídou JavaCPP); se stejnou
+  vlastností prošlo dekódování i po načtení modelu.
+- **Ověřeno na Windows (HQDEV50, i7-13700K, 64 GB, Intel UHD 770) dočasným testem na JVM**
+  nad skutečnými soubory a nativní knihovnou (bez přihlášení — ladicí data drží jiná instance):
+  stažení s kontrolou velikosti (Qwen3 0,6B 11 s, Gemma E2B 1:16, Qwen3 4B 1:48), načtení na
+  CPU po selhání GPU, druhá odpověď bez načítání. **Gemma E2B**: česká odpověď správně (12,5 s
+  s načtením, pak 3 s), popis obrázku skoro přesně („oficiální klient" místo neoficiálního),
+  přepis české hlasovky (syntéza hlasem Microsoft Jakub, WAV přes FFmpeg) bez chyby za 11 s.
+  **Qwen3 0,6B** česky nesmysly (10–13 s), **Qwen3 4B** taky („Protože zachrušíš auto před
+  deštníkem.", 15–47 s). **V přihlášené aplikaci** (ladicí běh z balíčku na JDK 21): stažení
+  Gemmy E4B z Nastavení, rada pod hlasovkou s výčtem modelů a shrnutí 30 zpráv česko-slovenského
+  chatu plného emoji s Qwen3 4B na CPU za 82 s (vstup 1 137 z 2 560 tokenů podle odhadu).
+  Qwen ve shrnutí nedodržel pokyn psát o čtenáři ve druhé osobě („Já řekl…") a ze slovenštiny
+  si vymyslel podrobnosti; Gemma pokyn drží. macOS a Linux neověřené.
+
 ## Co platforma (zatím) neumí
 
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez

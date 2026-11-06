@@ -26,6 +26,8 @@ import eu.tintera.plume.features.conversation.LocalTranscripts
 import eu.tintera.plume.features.conversation.OnDeviceTranscription
 import eu.tintera.plume.features.media.PhotoDescriptions
 import eu.tintera.plume.core.ai.BackgroundPhotoDescription
+import eu.tintera.plume.core.ai.DeviceLoad
+import eu.tintera.plume.core.ai.NoDeviceLoad
 import eu.tintera.plume.features.media.BackgroundPhotoDescriber
 import eu.tintera.plume.features.conversation.ScamWarnings
 import eu.tintera.plume.features.chats.ChatTriage
@@ -436,7 +438,14 @@ fun appModule() = module {
     viewModelOf(::EditProfileViewModel)
     viewModelOf(::OwnProfileMusicViewModel)
     // Model v zařízení (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
-    viewModel { OnDeviceAiSettingsViewModel(settings = get(), ai = get(), appScope = get(named(APP_SCOPE))) }
+    viewModel {
+        OnDeviceAiSettingsViewModel(
+            settings = get(),
+            ai = get(),
+            appScope = get(named(APP_SCOPE)),
+            tracksLoad = get<DeviceLoad>() !== NoDeviceLoad,
+        )
+    }
     viewModelOf(::ChatSummaryViewModel)
     // Kalendář zpráv v panelu: chat, téma Uložených zpráv, vlákno přímých zpráv a kotva z routy.
     viewModel { parameters ->

@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.telegram.OnDeviceFix
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.TranscribeOffer
@@ -43,6 +44,7 @@ import eu.tintera.plume.resources.transcript_download_language_action
 import eu.tintera.plume.resources.transcript_enable_ai
 import eu.tintera.plume.resources.transcript_failed
 import eu.tintera.plume.resources.transcript_hide
+import eu.tintera.plume.resources.transcript_models_and
 import eu.tintera.plume.resources.transcript_language_downloading
 import eu.tintera.plume.resources.transcript_pending
 import eu.tintera.plume.resources.transcript_premium_required
@@ -53,6 +55,8 @@ import eu.tintera.plume.resources.transcript_trial_too_long
 import eu.tintera.plume.resources.transcript_used_up
 import eu.tintera.plume.resources.transcript_used_up_until
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.PluralStringResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -180,16 +184,14 @@ internal fun TranscriptBody(state: TranscriptState, color: Color, modifier: Modi
             }
             is TranscribeOffer.TooLongOnDevice ->
                 stringResource(Res.string.transcript_device_too_long, formatDuration(offer.maxSeconds))
-            is TranscribeOffer.Unavailable -> stringResource(
-                when (offer.fix) {
-                    OnDeviceFix.DownloadSpeechLanguage -> Res.string.transcript_download_language
-                    OnDeviceFix.SpeechLanguageDownloading -> Res.string.transcript_language_downloading
-                    OnDeviceFix.EnableAi -> Res.string.transcript_enable_ai
-                    OnDeviceFix.SwitchToGemma -> Res.string.transcript_switch_gemma
-                    OnDeviceFix.DownloadGemma -> Res.string.transcript_download_gemma
-                    null -> Res.string.transcript_premium_required
-                },
-            )
+            is TranscribeOffer.Unavailable -> when (offer.fix) {
+                OnDeviceFix.DownloadSpeechLanguage -> stringResource(Res.string.transcript_download_language)
+                OnDeviceFix.SpeechLanguageDownloading -> stringResource(Res.string.transcript_language_downloading)
+                OnDeviceFix.EnableAi -> transcribingModelsHint(Res.plurals.transcript_enable_ai)
+                OnDeviceFix.SwitchToGemma -> transcribingModelsHint(Res.plurals.transcript_switch_gemma)
+                OnDeviceFix.DownloadGemma -> transcribingModelsHint(Res.plurals.transcript_download_gemma)
+                null -> stringResource(Res.string.transcript_premium_required)
+            }
             // Přepis odešel a čeká se na první úpravu zprávy.
             TranscribeOffer.Available, TranscribeOffer.OnDevice, TranscribeOffer.Hidden -> stringResource(Res.string.transcript_pending)
         } to muted
@@ -244,4 +246,20 @@ internal fun BelowWithSameWidth(
             belowPlaceables.forEach { it.place(0, topHeight + gap) }
         }
     }
+}
+
+/**
+ * Rada, kterým modelem jde hlasovku přepsat v zařízení, s výčtem modelů ze zvukovým vstupem
+ * ([LiteRtModel.multimodal]) — přibude-li model, rada ho vyjmenuje sama. Dřív rada mluvila
+ * o „telefonu" a o Gemini Nano, což na desktopu nedávalo smysl a neříkalo, CO zapnout.
+ */
+@Composable
+private fun transcribingModelsHint(hint: PluralStringResource): String {
+    val names = LiteRtModel.entries.filter { it.multimodal }.map { it.displayName }
+    val list = if (names.size < 2) {
+        names.joinToString()
+    } else {
+        stringResource(Res.string.transcript_models_and, names.dropLast(1).joinToString(", "), names.last())
+    }
+    return pluralStringResource(hint, names.size, list)
 }

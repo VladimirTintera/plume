@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.composeCompiler)
     // Jar wrapperu jen s nativní knihovnou tohoto systému a s hookem TdlibJsonRepair (build-logic).
     id("plume.tdlib-desktop")
+    // Jar LiteRT-LM (model v zařízení) jen s nativní knihovnou tohoto systému (build-logic).
+    id("plume.litertlm-desktop")
 }
 
 kotlin {
@@ -42,9 +44,18 @@ fun msiSafe(text: String): String {
     return Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
 }
 
+/**
+ * JDK, se kterým se aplikace balí (runtime z jlinku) i spouští (`run`). Compose jinak bere JDK,
+ * na kterém běží Gradle — release s `setup-java 17` by tak dostal Javu 17, a na ní se model
+ * v zařízení nenačte: `litertlm-jvm` je přeložený pro Javu 21 (class file 65,
+ * `UnsupportedClassVersionError`). Kód aplikace zůstává na `jvmToolchain(17)`.
+ */
+val runtimeLauncher: Provider<JavaLauncher> = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
+
 compose.desktop {
     application {
         mainClass = "eu.tintera.plume.desktop.MainKt"
+        javaHome = runtimeLauncher.get().metadata.installationPath.asFile.absolutePath
 
         // `-PdesktopDebug`: zabalená aplikace (`runDistributable`) v ladicím režimu nad týmiž
         // daty jako `run`. Oznámení na macOS fungují jen v `.app` balíčku, holý `java` z `run`
@@ -73,7 +84,8 @@ compose.desktop {
             // Moduly JDK pro jlink, podle `./gradlew :client:desktopApp:suggestRuntimeModules`.
             // `jdk.unsupported` je sun.misc.Unsafe (DataStore, kotlinx). Po nové závislosti
             // úlohu pustit znovu — chybějící modul se ukáže až za běhu zabalené aplikace.
-            modules("java.instrument", "jdk.unsupported")
+            // `jdk.management` je velikost paměti počítače pro model v zařízení (`DesktopLiteRtPlatform`).
+            modules("java.instrument", "jdk.unsupported", "jdk.management")
 
             // Ikony generuje `play/tools/icon.py desktop` z téže geometrie jako ostatní platformy.
             windows {
@@ -130,6 +142,7 @@ compose.desktop {
  */
 afterEvaluate {
     tasks.named<JavaExec>("run") {
+        javaLauncher.set(runtimeLauncher)
         systemProperty("plume.debug", "true")
         systemProperty("plume.dataDir", rootProject.layout.projectDirectory.dir(".desktop-data").asFile.path)
         systemProperty("apple.awt.application.name", "Plume")
