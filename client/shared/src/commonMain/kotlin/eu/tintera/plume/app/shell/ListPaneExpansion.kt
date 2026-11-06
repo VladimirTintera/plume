@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
 import eu.tintera.plume.core.adaptive.listPaneAnchors
 import eu.tintera.plume.core.adaptive.PANE_SPACING
+import eu.tintera.plume.core.adaptive.PROFILE_CARD_MARGINS
 import eu.tintera.plume.core.adaptive.PaneEdge
 import eu.tintera.plume.core.adaptive.PaneResize
 import eu.tintera.plume.core.adaptive.clampListBesideProfile
@@ -137,7 +138,7 @@ internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: 
     // Až kotvu potvrdí nastavení, místní už není potřeba (zápis až po kompozici).
     SideEffect { if (settled == expansion.anchor) settled = null }
     val anchor = settled ?: expansion.anchor
-    val width = dragged.value ?: listWidthBesideProfile(anchor, total, defaultWidth, PANE_SPACING)
+    val width = dragged.value ?: listWidthBesideProfile(anchor, total, defaultWidth, GAPS_BESIDE_PROFILE)
 
     val currentWidth by rememberUpdatedState(width)
     val currentTotal by rememberUpdatedState(total)
@@ -146,7 +147,7 @@ internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: 
     val label = stringResource(Res.string.list_pane_width)
     val resize = remember(label, settings, dragged) {
         val settle = { next: ListPaneAnchor ->
-            val target = listWidthBesideProfile(next, currentTotal, currentDefault, PANE_SPACING)
+            val target = listWidthBesideProfile(next, currentTotal, currentDefault, GAPS_BESIDE_PROFILE)
             dragged.settle(from = currentWidth, target = target) {
                 settled = next
                 settings.setListPaneAnchor(next)
@@ -156,10 +157,10 @@ internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: 
             edge = PaneEdge.End,
             // Seznam je vlevo: tah doprava (kladný posun) ho rozšiřuje.
             onDrag = { delta ->
-                dragged.drag(from = currentWidth, delta = delta) { clampListBesideProfile(it, currentTotal, currentDefault, PANE_SPACING) }
+                dragged.drag(from = currentWidth, delta = delta) { clampListBesideProfile(it, currentTotal, currentDefault, GAPS_BESIDE_PROFILE) }
             },
             onDragStopped = {
-                settle(nearestListAnchorBesideProfile(currentWidth, currentTotal, currentDefault, PANE_SPACING))
+                settle(nearestListAnchorBesideProfile(currentWidth, currentTotal, currentDefault, GAPS_BESIDE_PROFILE))
             },
             onCycle = {
                 val entries = ListPaneAnchor.entries
@@ -170,3 +171,6 @@ internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: 
     }
     return ListPaneWidth(width, resize, resizing = dragged.active)
 }
+
+/** Mezery ve třech panelech mimo seznam a obě karty: od seznamu ke konverzaci a okraje profilu. */
+private val GAPS_BESIDE_PROFILE = PANE_SPACING + PROFILE_CARD_MARGINS

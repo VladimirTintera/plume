@@ -34,7 +34,10 @@ import kotlin.math.roundToInt
 
 /** Na kterém okraji panelu, který hlásí svou polohu, táhlo stojí. */
 enum class PaneEdge {
-    /** Levý okraj: profil, předěl s konverzací. */
+    /**
+     * Uprostřed mezery před levým okrajem: profil, předěl s konverzací. Hlášená poloha je karta
+     * profilu, mezeru [PANE_SPACING] před ní dělá ona (`PaneCard`).
+     */
     Start,
 
     /**
@@ -121,11 +124,12 @@ fun PaneHandleOverlay(resizes: List<PaneResize>, modifier: Modifier = Modifier) 
     val density = LocalDensity.current
     // Střed viditelné mezery od řádků seznamu ke kartě konverzace (viz [PaneEdge.End]).
     val gapCenter = with(density) { ((PANE_SPACING - LIST_CONTENT_INSET) / 2).toPx() }
+    val halfSpacing = with(density) { (PANE_SPACING / 2).toPx() }
     Box(modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInWindow().topLeft }) {
         resizes.forEach { resize ->
             val pane = resize.paneBounds.value ?: return@forEach
             val edgeX = when (resize.edge) {
-                PaneEdge.Start -> pane.left
+                PaneEdge.Start -> pane.left - halfSpacing
                 PaneEdge.End -> pane.right + gapCenter
             }
             PaneHandle(

@@ -5,8 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,7 +21,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInWindow
@@ -33,8 +36,8 @@ import eu.tintera.plume.core.ui.asListPage
 import eu.tintera.plume.core.ui.groupRow
 
 /**
- * Co stojí vedle karty (konverzace, placeholder): seznam vlevo. Poskytuje shell podle počtu
- * panelů; karta podle toho volí okraj.
+ * Co stojí vedle karty (konverzace, placeholder): seznam vlevo, profil vpravo. Poskytuje shell
+ * podle počtu panelů; karta podle toho volí okraj.
  */
 @Immutable
 data class PaneNeighbours(
@@ -42,6 +45,11 @@ data class PaneNeighbours(
     val listBeside: Boolean = false,
     /** Vpravo od karty je profil (třetí panel). */
     val extraBeside: Boolean = false,
+    /**
+     * Třetí panel je karta jako konverzace (Chaty: profil a co se z něj otevírá), ne stránka na
+     * ploše okna (podstránka Nastavení vedle sekce, která kartou není).
+     */
+    val extraCard: Boolean = false,
 )
 
 val LocalPaneNeighbours = compositionLocalOf { PaneNeighbours() }
@@ -50,19 +58,25 @@ val LocalPaneNeighbours = compositionLocalOf { PaneNeighbours() }
  * Panel podle toho, co v něm je, když panely stojí vedle sebe ([LocalPanesSideBySide]):
  *
  * - **Stránka s bloky řádků leží přímo na ploše okna** (`surfaceContainer`, kreslí ji shell pod
- *   scénou), bez karty: seznam chatů, archiv, Nastavení i profil. Její `surface` a `background`
- *   jsou přemapované ([asListPage]) stejně jako na telefonu, řádky ([groupRow]) z ní vystupují.
+ *   scénou), bez karty: seznam chatů, archiv a Nastavení. Její `surface` a `background` jsou
+ *   přemapované ([asListPage]) stejně jako na telefonu, řádky ([groupRow]) z ní vystupují.
  *   Dřív byl každý panel kartou zvlášť a uvnitř seznamu i profilu byly další karty (řádky, bloky
  *   informací) — tři vrstvy zaoblených ploch do sebe a mezi nimi 24 dp prázdna.
- * - **Karta je jen obrazovka s vlastní plochou** ([ownSurface]: konverzace, článek, placeholder).
- *   Má `surface` a rohy `shapes.large` ze všech stran, i vedle profilu.
+ * - **Karta je obrazovka s vlastní plochou** ([ownSurface]: konverzace, článek, placeholder)
+ *   **a profil vedle ní** ([PaneNeighbours.extraCard]). Konverzace má `surface`, profil žádnou
+ *   plochu navíc nekreslí: v barvách aplikace je jeho stránka táž jako plocha okna a karta není
+ *   vidět, v barvě chatu (`ChatColorTheme`) je z něj zaoblená karta v odstínu chatu. Dřív stál
+ *   profil přes celou výšku bez rohů a v barvě chatu z něj byl obdélník u kraje okna.
+ * - **Karta má okraj [PANE_SPACING] ze všech stran**, i od kraje okna, a rohy `shapes.large`.
+ *   Okraj jen od seznamu nechával kartu narážet nahoru a dolů a zaoblený roh u spodního kraje
+ *   okna vypadal jako chyba. Mezi konverzací a profilem je mezera jedna (dělá ji profil).
  *
  * Mezera mezi panely proto NENÍ v direktivě scaffoldu (`horizontalPartitionSpacerSize = 0`):
- * mezera z knihovny je všude stejná a kreslit přes ni nejde (panely mají `clipToBounds`). Okraj
- * si dělá detail sám ([PANE_SPACING] od seznamu) a táhlo stojí na hranici panelů, tedy v té mezeře.
+ * mezera z knihovny je všude stejná a kreslit přes ni nejde (panely mají `clipToBounds`). Táhla
+ * stojí uprostřed mezer.
  *
  * Na telefonu obsah jde od kraje ke kraji jako dřív. **Struktura je ve všech případech táž**
- * (téma, `Box`) — kdyby se větvila, přišel by obsah při změně šířky okna o svůj stav.
+ * (téma, `Box`y) — kdyby se větvila, přišel by obsah při změně šířky okna o svůj stav.
  */
 @Composable
 fun PaneCard(
@@ -75,54 +89,95 @@ fun PaneCard(
 ) {
     val sideBySide = LocalPanesSideBySide.current
     val neighbours = LocalPaneNeighbours.current
-    val card = sideBySide && ownSurface
+    val card = sideBySide && (ownSurface || role == PaneRole.Extra && neighbours.extraCard)
+    val detail = sideBySide && role == PaneRole.Detail
+    val extra = sideBySide && role == PaneRole.Extra
+
+    // Boky u kraje okna karta odsadí o jeho inset, ostatní inset zkonzumuje (viz [edge]).
+    val start = when {
+        detail && neighbours.listBeside || extra -> PaneEdgeInsets.Consume
+        card -> PaneEdgeInsets.Pad
+        else -> PaneEdgeInsets.None
+    }
+    val end = when {
+        detail && neighbours.extraBeside -> PaneEdgeInsets.Consume
+        card -> PaneEdgeInsets.Pad
+        else -> PaneEdgeInsets.None
+    }
+    val spacing = if (card) PANE_SPACING else 0.dp
+    val startSpacing = if (card || detail && neighbours.listBeside) PANE_SPACING else 0.dp
+    // Mezeru mezi konverzací a profilem dělá profil, ať je jedna.
+    val endSpacing = if (detail && neighbours.extraBeside && neighbours.extraCard) 0.dp else spacing
     val shape = RoundedCornerShape(if (card) CARD_CORNER else 0.dp)
 
     PageTheme(ownSurface) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(start = if (sideBySide && role == PaneRole.Detail && neighbours.listBeside) PANE_SPACING else 0.dp)
-                .consumeSide(sideBySide && (role == PaneRole.Extra || role == PaneRole.Detail && neighbours.listBeside), WindowInsetsSides.Start)
-                .clip(shape)
-                .then(if (card) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier),
-        ) {
-            // Druhý bok ve vlastním uzlu: dvě konzumace v jednom řetězci by si při změně scény
-            // vyměnily místo a Compose by uzel přepsal jinými insety (viz `consumeSide`).
-            Box(Modifier.fillMaxSize().consumeSide(sideBySide && role == PaneRole.Detail && neighbours.extraBeside, WindowInsetsSides.End)) {
-                content()
-            }
-            // Kde panel leží — táhlo šířky na předělu kreslí shell nad panely
-            // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl. Jen karta zobrazené položky —
-            // odjíždějící scéna by táhlo přetáhla k sobě a po zániku smazala (`LocalPaneResizeOwners`).
-            val owned = entryKey != null && entryKey in LocalPaneResizeOwners.current
-            val resize = when {
-                !owned -> null
-                sideBySide && role == PaneRole.Extra -> LocalProfilePaneResize.current
-                sideBySide && role == PaneRole.List -> LocalListPaneResize.current
-                else -> null
-            }
-            if (resize != null) {
-                val token = remember { Any() }
-                Box(Modifier.matchParentSize().onGloballyPositioned { resize.report(token, it.boundsInWindow()) })
-                DisposableEffect(resize) { onDispose { resize.release(token) } }
+        // Každý bok ve vlastním uzlu: dvě úpravy insetů v jednom řetězci by si při změně scény
+        // vyměnily místo a Compose by uzel přepsal jinými insety (viz [edge]).
+        Box(Modifier.fillMaxSize().edge(start, WindowInsetsSides.Start)) {
+            Box(Modifier.fillMaxSize().edge(end, WindowInsetsSides.End)) {
+                Box(Modifier.fillMaxSize().edge(if (card) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Vertical)) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(start = startSpacing, end = endSpacing, top = spacing, bottom = spacing)
+                            .clip(shape)
+                            .then(if (sideBySide && ownSurface) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier),
+                    ) {
+                        content()
+                        // Kde panel leží — táhlo šířky na předělu kreslí shell nad panely
+                        // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl. Jen karta zobrazené položky —
+                        // odjíždějící scéna by táhlo přetáhla k sobě a po zániku smazala (`LocalPaneResizeOwners`).
+                        val owned = entryKey != null && entryKey in LocalPaneResizeOwners.current
+                        val resize = when {
+                            !owned -> null
+                            extra -> LocalProfilePaneResize.current
+                            sideBySide && role == PaneRole.List -> LocalListPaneResize.current
+                            else -> null
+                        }
+                        if (resize != null) {
+                            val token = remember { Any() }
+                            Box(Modifier.matchParentSize().onGloballyPositioned { resize.report(token, it.boundsInWindow()) })
+                            DisposableEffect(resize) { onDispose { resize.release(token) } }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
+/** Co panel udělá s insetem na jednom boku. */
+private enum class PaneEdgeInsets {
+    /** Nic — obsah si inset vezme sám (telefon, stránka u kraje okna). */
+    None,
+
+    /**
+     * Zkonzumuje: panel u toho okraje obrazovky nestojí. Insety nevědí, kde prvek leží:
+     * konverzace vpravo od seznamu dostávala naležato výřez kamery z LEVÉHO kraje obrazovky
+     * a hlavička, zprávy i pole od něj odskočily o jeho šířku. Seznam si pravý bok bere sám
+     * (`listPaneInsets` v shellu).
+     */
+    Consume,
+
+    /**
+     * Odsadí o něj kartu: karta u kraje okna nesmí zajet pod systémové lišty, jinak by její rohy
+     * ležely pod stavovou lištou. Klávesnice do něj nepatří — karta za ni zajede a vstupní pole
+     * nad ni posune konverzace sama, jako bez karty.
+     */
+    Pad,
+}
+
 /**
- * Zkonzumuje boční inset ([side]), když panel u toho okraje obrazovky nestojí. Insety nevědí, kde
- * prvek leží: konverzace vpravo od seznamu dostávala naležato výřez kamery z LEVÉHO kraje obrazovky
- * a hlavička, zprávy i pole od něj odskočily o jeho šířku. Seznam si pravý bok bere sám
- * (`listPaneInsets` v shellu), levý bok detailu a profilu do odstranění railu konzumoval rail.
- *
- * Podmínka přidá nebo odebere celý modifikátor, hodnota uvnitř je pořád tatáž: změněné insety
- * u uzlu, který NavDisplay zrovna přesouvá do jiné scény, shodí aplikaci (Gotchas v CLAUDE.md).
+ * Inset na boku [sides] podle [insets]. Každý druh je jiný modifikátor a podmínka ho celý přidá,
+ * odebere nebo vymění; hodnota uvnitř je pro tentýž druh pořád tatáž. Změněné insety u uzlu,
+ * který NavDisplay zrovna přesouvá do jiné scény, shodí aplikaci (Gotchas v CLAUDE.md).
  */
 @Composable
-private fun Modifier.consumeSide(consume: Boolean, side: WindowInsetsSides): Modifier =
-    if (consume) consumeWindowInsets(WindowInsets.safeDrawing.only(side)) else this
+private fun Modifier.edge(insets: PaneEdgeInsets, sides: WindowInsetsSides): Modifier = when (insets) {
+    PaneEdgeInsets.None -> this
+    PaneEdgeInsets.Consume -> consumeWindowInsets(WindowInsets.safeDrawing.only(sides))
+    PaneEdgeInsets.Pad -> windowInsetsPadding(WindowInsets.systemBars.union(WindowInsets.displayCutout).only(sides))
+}
 
 /** Téma obrazovky: stránka s bloky řádků ([asListPage]), nebo vlastní plocha. */
 @Composable
