@@ -553,18 +553,31 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
 
 ### Plocha stránky a řádku
 
-- **Stránka `surfaceContainer`, řádek `surfaceBright`, v obou motivech** (`groupRow`, `asListPage`
-  v `core/ui/GroupedList.kt`). Řádek je tak vždycky světlejší než stránka, „světlý panel na tónované
-  stránce". Tutéž dvojici mají systémová Nastavení Androidu (změřeno na API 37 proti
-  `cmd overlay dump`: stránka #181920 / #EEEDF6, řádek #2A2C34 / #FAF8FE).
+- **Stránka `surfaceContainer`, řádek `surface`** (`groupRow`, `asListPage` v `core/ui/GroupedList.kt`),
+  jako seznam v Google Chatu: ve světlém motivu světlejší řádek na tónované stránce, v tmavém tmavší.
+  Změřeno ze snímků Chatu: světlý stránka #E6EDFF / řádek #F9F8FE, tmavý #0E192B / #060E1B
+  (kontrast 1,10). Uživatelům tmavý seznam se světlejšími řádky (`surfaceBright`, jako systémová
+  Nastavení: #2A2C34 na #181920) působil šedivě a rozsvíceně; ve světlém motivu se nezměnilo nic,
+  `surfaceBright` je tam totéž co `surface`. **Na desktopu se třemi panely** mají teď řádky
+  seznamu, karta konverzace (`surface` odjakživa) i bloky profilu v obou motivech tentýž tón
+  a plocha okna je rámuje (paleta z výchozí barvy: tmavý okno #172026 / obsah #0D131B, světlý
+  #E6EFF7 / #F6FAFF). Dřív byly v tmavém řádky světlejší než karta konverzace vedle nich.
+- **`groupRow` čte `surface` přes `surfaceDim` / `surfaceBright`.** Pod stránkou je `surface`
+  přemapovaný na stránku a jiná cesta k původní barvě přes `ColorScheme` nevede (`groupRow` se čte
+  i mimo kompozici, v kreslení grafů). M3 definuje `surfaceDim` a `surfaceBright` jako nejtmavší
+  a nejsvětlejší plochu motivu; ve světlém je `surface` totéž co `surfaceBright`, v tmavém totéž co
+  `surfaceDim`, a přemapování je nechává. `background` to být nemůže, i když má tentýž tón: `Scaffold`
+  z něj bere výchozí `containerColor`, takže ho přemapování stránky nést musí.
 - **Řádky `surfaceContainerLowest` na `surface` se vyměnily, protože v tmavém motivu nesedly.** Do
   listopadu 2026 to tu tvrdilo, že se to „obrátí a je to správně", role prý drží hierarchii. Nedrží:
   `surfaceContainerLowest` je role nejnižšího důrazu a na Androidu 16 čistá černá, takže byly řádky
   #000000 na stránce #0D0E12 (kontrast 1,09), díry pod pilulkou hledání, která je světlejší.
   Vzniklo to laděním světlého motivu, předtím byly řádky `surfaceContainerHighest` a seznam působil
   těžce.
-- **Holý `surface` jako stránka pod řádky nejde:** ve světlém motivu je `surfaceBright` totéž co
-  `surface` a blok by zmizel. Proto stránku dává shell (`PaneCard`, `rememberPaneCardDecorator`)
+  Proti řádkům `surface` na stránce `surfaceContainer` je rozdíl ve stránce: tónovaná
+  `surfaceContainer` je od řádku dál než skoro černý `surface` od `surfaceContainerLowest`.
+- **Holý `surface` jako stránka pod řádky nejde:** řádek je sám `surface` a blok by zmizel.
+  Proto stránku dává shell (`PaneCard`, `rememberPaneCardDecorator`)
   přemapováním `surface` a `background` VŠEM položkám zásobníku; výjimky jsou `Panes.ownSurface`
   (konverzace, článek, prohlížeč, příběhy, hovor, mini aplikace). Nová obrazovka je tím stránka sama.
 - **Kdo schéma pod shellem vyměňuje, musí přemapování zopakovat.** `ChatColorTheme` staví schéma
