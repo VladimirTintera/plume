@@ -5,6 +5,7 @@ import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.common.GenAiException
 import com.google.mlkit.genai.prompt.Candidate
+import com.google.mlkit.genai.prompt.Feature
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
 import com.google.mlkit.genai.prompt.ModelPreference
@@ -112,9 +113,9 @@ class MlKitOnDeviceAi : OnDeviceAi {
              * a další už nepřijde.
              */
             if (candidate.finishReason == Candidate.FinishReason.MAX_TOKENS) truncated = true
-            // Kus BEZ textu nese jen finishReason, takže se nesmí přeskočit — jinak by se
-            // useknutí ztratilo právě u zprávy, která ho hlásí.
-            candidate.text?.let { text.append(it) }
+            // Kus BEZ textu (do beta4 `null`, od beta5 je pole nenullové) nese jen finishReason, takže se
+            // nesmí přeskočit — jinak by se useknutí ztratilo právě u zprávy, která ho hlásí.
+            text.append(candidate.text)
             emit(Generated(text.toString(), truncated))
         }
     }.catch { e ->
@@ -129,7 +130,7 @@ class MlKitOnDeviceAi : OnDeviceAi {
     override suspend fun supportsStructuredOutput(variant: ModelVariant): Boolean =
         !structuredOutputBroken &&
             status(variant) == OnDeviceAiStatus.Ready &&
-            quietly("structured output") { client(variant).isStructuredOutputFeatureAvailable() } == true
+            quietly("structured output") { Feature.STRUCTURED_OUTPUT in client(variant).getAvailableFeatures() } == true
 
     /**
      * Typ jde do ML Kitu jako `KClass` a ML Kit si k němu najde popis tvaru (`GenerableProvider`)

@@ -8,7 +8,7 @@ import kotlin.reflect.KClass
  * Popisy tvaru pro strukturovaný výstup Gemini Nano (`OnDeviceAi.generateStructured`).
  *
  * ML Kit k typu odpovědi hledá `GenerableProvider` přes `ServiceLoader` (mapa `targetClass` →
- * provider, ověřeno v bajtkódu `genai-prompt` 1.0.0-beta4) a z jeho popisu skládá schéma, které
+ * provider, ověřeno v bajtkódu `genai-prompt` 1.0.0-beta4 i beta5) a z jeho popisu skládá schéma, které
  * dá modelu. Normálně by providery vygeneroval KSP procesor `genai-schema-compiler` z anotací
  * `@Generable` / `@Guide` — jenže typy odpovědí leží v `commonMain` (čte je ViewModel) a anotace
  * ML Kitu tam být nemůžou. Providery jsou proto psané ručně, po vzoru toho, co procesor generuje,
