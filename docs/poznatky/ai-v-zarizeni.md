@@ -236,11 +236,28 @@ poskytovatelích nemusí vědět nic.
   ```
   ML Kit si konfiguraci překládá na číslo AICore „feature" a pro preview mu vyjde **-1**,
   tedy žádné. Chybu spolkne a tiše použije stabilní model. Není to tedy chybějícím modelem
-  ani naším voláním — je to mezera v `genai-prompt` (1.0.0-beta4 je nejnovější verze, další
-  alfa ani beta na Google Maven není). Hypotéza „stačí preview stáhnout" je vyvrácená
+  ani naším voláním — je to mezera v `genai-prompt` 1.0.0-beta4 (beta5 ji podle bajtkódu
+  zavírá, viz další bod). Hypotéza „stačí preview stáhnout" je vyvrácená
   pokusem. **Má to i kontrolní měření:** totéž shrnutí s VYPNUTÝM preview nechá v logu
   nula výskytů `FEATURE_NOT_FOUND`, model se načte normálně. Bez té kontroly by to bylo
   jen pozorování vedle sebe, ne příčina.
+- **`genai-prompt` 1.0.0-beta5 má i pro preview platné číslo featury — zatím jen podle
+  bajtkódu.** Překlad dělá statická funkce `(GenerationConfig, typ požadavku) → Int`
+  (v beta4 `zzyt.zzb`, v beta5 `zzaaq.zzb`; najde ji `javap -c` jako jedinou s konstantami
+  `sipush 636…655`). Beta4 znala pět typů požadavků (bez mezipaměti, vytvoření mezipaměti,
+  s mezipamětí, strukturovaný bez a s mezipamětí); stabilní varianta měla číslo pro všech pět,
+  **preview jen pro dva bez mezipaměti** (plná 647 / 652, rychlá 646 / 653) a pro zbytek `-1`
+  — to je ten `Feature -1` z logu. Beta5 má typy jen dva (`NORMAL_INFERENCE`,
+  `STRUCTURED_OUTPUT_INFERENCE`) a čísla pro všechny kombinace: stabilní plná 636 / 648,
+  rychlá 645 / 651, preview plná 647 / 652, rychlá 646 / 653. Hodnoty `ModelReleaseStage`
+  (STABLE 0, PREVIEW 1) a `ModelPreference` (FAST 1, FULL 2) se nezměnily. Veřejné API se
+  jen rozšířilo (volání funkcí, role v `Content`, `sessionId`, `getAvailableFeatures()`
+  s `Feature.THINKING_MODE` aj.), `genai-schema` alpha2 přidal `GuideDetail.pattern`
+  s výchozí hodnotou a `GenerableProvider` se hledá dál přes `ServiceLoader` — ruční providery
+  se měnit nemusely. **Na Foldu NEOVĚŘENO:** jestli AICore featuru 647 opravdu obslouží, ukáže
+  až `getBaseModelName()` se zapnutým preview (jiné jméno než `nano-v4-full`) a log bez
+  `FEATURE_NOT_FOUND`. Až to projde, `previewSameAsStable` zůstává jako pojistka pro zařízení,
+  kde preview není.
 - **Labs nabízí čtyři modely, „Správa AI modelů" ukazuje jediný balík „Fast + Full [TPU]".**
   Proto je rychlá varianta připravená okamžitě a nic se nestahuje: full i fast jsou TENTÝŽ
   balík.
@@ -1044,7 +1061,7 @@ odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál t
 
 - **Jen Gemini Nano.** Gemma přes LiteRT-LM 0.11.0 typovaný výstup nemá
   (`supportsStructuredOutput` = `false`) a AICore ho hlásí zvlášť
-  (`isStructuredOutputFeatureAvailable`) — ani každé Nano ho mít nemusí. **Textová cesta proto
+  (`getAvailableFeatures()` s `Feature.STRUCTURED_OUTPUT`, do beta4 `isStructuredOutputFeatureAvailable`) — ani každé Nano ho mít nemusí. **Textová cesta proto
   zůstává plnohodnotná**, ne jako náhradní řešení na odchodu.
 - **Popis tvaru je `GenerableProvider` a ML Kit ho hledá přes `ServiceLoader`** — ověřeno
   v bajtkódu `genai-prompt` 1.0.0-beta4 (`ServiceLoader.load(GenerableProvider…)` → mapa

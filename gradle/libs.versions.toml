@@ -103,11 +103,13 @@ playSubjectSegmentation = "16.0.0-beta1"
 # Překlad v telefonu (core/translation). Jen API; jazykové modely se stahují za běhu na pokyn uživatele.
 mlkitTranslate = "17.0.3"
 # Gemini Nano v zařízení (AICore) přes ML Kit Prompt API — viz core/ai. Beta, API se může měnit.
-# Verze je převzatá z oficiální ukázky googlesamples/mlkit (android/genai).
-mlkitGenaiPrompt = "1.0.0-beta4"
+# beta5 kvůli preview variantě: beta4 jí pro část požadavků přidělila featuru AICore -1 a tiše
+# jela stabilním modelem (docs/poznatky/ai-v-zarizeni.md, „Dva poskytovatelé: Gemini Nano a Gemma").
+mlkitGenaiPrompt = "1.0.0-beta5"
 # Anotace a popis tvaru pro strukturovaný výstup Prompt API (`GenerableProvider`). Procesor KSP
-# (`genai-schema-compiler`) se nepoužívá — providery jsou psané ručně, viz core/ai.
-mlkitGenaiSchema = "1.0.0-alpha1"
+# (`genai-schema-compiler`) se nepoužívá — providery jsou psané ručně, viz core/ai. Verze, kterou
+# chce `genai-prompt` (beta5 → alpha2), jinak by ji Gradle stejně zvedl.
+mlkitGenaiSchema = "1.0.0-alpha2"
 # Gemma a Qwen v zařízení přes LiteRT-LM — vedle Gemini Nano, viz core/ai. Dřív verze z Google
 # AI Edge Gallery (0.11.0); 0.19 kvůli souboru Qwen3 4B, jehož GPU cesta starší verzi shodí
 # (docs/poznatky/ai-v-zarizeni.md, „Qwen a další modely přes LiteRT-LM"). Verze se berou
@@ -115,7 +117,7 @@ mlkitGenaiSchema = "1.0.0-alpha1"
 litertlm = "0.19.1"
 # Gson NATVRDO pod 2.14, jinak padá strukturovaný výstup Gemini Nano. LiteRT-LM 0.19.1 si táhne
 # Gson 2.14.0 a ten přinesl třídu `com.google.gson.internal.bind.JavaTimeTypeAdapters`. Gson
-# přibalený v ML Kitu (`genai-prompt` 1.0.0-beta4, přejmenovaný do `mlkit_genai_prompt`) ji hledá
+# přibalený v ML Kitu (`genai-prompt` 1.0.0-beta4 i beta5, přejmenovaný do `mlkit_genai_prompt`) ji hledá
 # `Class.forName` pod PŮVODNÍM jménem — přejmenování řetězec minulo —, najde tu cizí a přetypování
 # na svou kopii vyhodí `ClassCastException` v inicializaci třídy. Chytá jen nenalezení, takže
 # s 2.13.x (třída tam není) jede dál. LiteRT-LM bere jen stromové API (`JsonParser`, `JsonObject`),
