@@ -2454,6 +2454,7 @@
     <string name="ai_failure_gemma">The Gemma model failed. If trying again does not help, delete the model in Settings → On-device AI and download it again.</string>
     <string name="ai_failure_qwen">The Qwen model failed. If trying again does not help, delete the model in Settings → On-device AI and download it again.</string>
     <string name="ai_failure_eurollm">The EuroLLM model failed. If trying again does not help, delete the model in Settings → On-device AI and download it again.</string>
+    <string name="ai_failure_aya">The Aya model failed. If trying again does not help, delete the model in Settings → On-device AI and download it again.</string>
     <string name="ai_failure_empty">The model did not write any text.</string>
     <string name="settings_on_device_ai_preview">Preview model version</string>
     <string name="settings_on_device_ai_preview_summary">The newest version before its stable release. It may not exist for this device and downloads separately.</string>
@@ -2485,6 +2486,10 @@
     <string name="settings_ai_provider_eurollm_summary">An open European model trained on all EU languages, including Czech. The app downloads it itself. Text only.</string>
     <string name="settings_eurollm_9b_summary">Largest and most accurate · %1$s, needs 16 GB of memory</string>
     <string name="settings_euromoe_summary">Smaller and fast, a mixture of experts · %1$s, needs 6 GB of memory</string>
+    <string name="settings_ai_provider_aya">Aya Expanse</string>
+    <string name="settings_ai_provider_aya_summary">A multilingual open model from Cohere Labs that knows 23 languages, including Czech. The app downloads it itself. Text only.</string>
+    <string name="settings_aya_8b_summary">%1$s, needs 16 GB of memory</string>
+    <string name="settings_aya_license">Aya Expanse by Cohere Labs is licensed under CC BY-NC 4.0, for non-commercial use only. By downloading it you accept the license and the Cohere Labs acceptable use policy.</string>
     <string name="settings_gemma_e4b_summary">Larger and more accurate · %1$s, needs 12 GB of memory</string>
     <string name="settings_gemma_under_load">In battery saver and when the phone is hot, Gemma doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
     <string name="settings_ai_models">Models</string>
@@ -2497,7 +2502,9 @@
     <string name="settings_ai_tasks_note_qwen">Automatically, text goes to Qwen. Only Gemma can transcribe voice messages and describe photos, so it loads just for those.</string>
     <string name="settings_qwen_under_load">In battery saver and when the phone is hot, Qwen doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
     <string name="settings_ai_tasks_note_eurollm">Automatically, text goes to EuroLLM. Only Gemma can transcribe voice messages and describe photos, so it loads just for those.</string>
+    <string name="settings_ai_tasks_note_aya">Automatically, text goes to Aya. Only Gemma can transcribe voice messages and describe photos, so it loads just for those.</string>
     <string name="settings_eurollm_under_load">In battery saver and when the phone is hot, EuroLLM doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
+    <string name="settings_aya_under_load">In battery saver and when the phone is hot, Aya doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
     <string name="ai_task_summary">Chat summary</string>
     <string name="ai_task_explain">Explaining a message</string>
     <string name="ai_task_replies">Reply suggestions</string>

@@ -7,6 +7,7 @@ import eu.tintera.plume.resources.ai_failure_empty
 import eu.tintera.plume.resources.ai_failure_apple
 import eu.tintera.plume.resources.ai_failure_gemma
 import eu.tintera.plume.resources.ai_failure_qwen
+import eu.tintera.plume.resources.ai_failure_aya
 import eu.tintera.plume.resources.ai_failure_eurollm
 import eu.tintera.plume.resources.ai_failure_nano
 import eu.tintera.plume.resources.ai_failure_nano_code
@@ -84,6 +85,7 @@ fun OnDeviceAiException.userMessage(): UiText = when (reason) {
         AiProvider.Gemma -> UiText(Res.string.ai_failure_gemma)
         AiProvider.Qwen -> UiText(Res.string.ai_failure_qwen)
         AiProvider.EuroLlm -> UiText(Res.string.ai_failure_eurollm)
+        AiProvider.Aya -> UiText(Res.string.ai_failure_aya)
         AiProvider.Apple -> UiText(Res.string.ai_failure_apple)
     }
 }

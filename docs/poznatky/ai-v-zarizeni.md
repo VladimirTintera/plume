@@ -595,6 +595,37 @@ je na Hugging Face za souhlasem, GGUF kopie ne.
   paměť) ani jestli je čeština opravdu lepší než u Gemmy a Qwenu — to má ukázat porovnání na
   skutečné konverzaci.
 
+### Aya Expanse (Cohere Labs)
+
+Čtvrtý stahovaný model, **Aya Expanse 8B** (`AiProvider.Aya`), kvůli češtině: Cohere Labs ho
+trénovali na 23 jazyků a čeština je mezi nimi výslovně. Jde stejnou cestou jako EuroLLM
+(GGUF přes llama.cpp, `ModelRuntime.LlamaCpp`), takže runtime, stahování i Metal na Macu jsou
+společné; nová je jen položka `LiteRtModel.AyaExpanse8B` a poskytovatel v Nastavení.
+
+- **Licence CC BY-NC 4.0 a pravidla použití Cohere Labs** — jen nekomerčně, s uvedením autora.
+  Plume nic nevydělává (sponzorované zprávy v kanálech jsou výnos Telegramu), ale **licenci
+  přijímá ten, kdo model stahuje**, tedy uživatel: aplikace soubor nebalí, stahuje ho na
+  požádání. Proto věta o licenci stojí v Nastavení přímo nad „Stáhnout model"
+  (`settings_aya_license`) a jméno Cohere Labs je v popisu poskytovatele. Kdo by Plume (MIT)
+  forkl komerčně, Ayu tak používat nesmí.
+- **Originál je za souhlasem** (`CohereLabs/aya-expanse-8b`, `gated: auto` — přihlášení
+  a sdílení kontaktu), aplikace to neumí. Stahuje se kvantizace od bartowski, která za souhlasem
+  není; licence nekomerční šíření kopií s uvedením autora dovoluje. Stejně jako u EuroLLM 9B.
+- **Jediná velikost.** Druhá je 32B (na telefon ani běžný počítač). 8B v Q4_K_M má 5,1 GB, paměť
+  16 GB a kontext 4 096 jako EuroLLM 9B; na menších zařízeních se Aya nenabídne vůbec
+  (`availability`). Volba velikosti se proto neukazuje (`SizeChoices` u jedné nic nekreslí).
+- **Architektura Command R** (`cohere` v llama.cpp) a šablona chatu s `<|START_OF_TURN_TOKEN|>`
+  — `llama_chat_apply_template` ji pozná ze šablony v souboru, nic vlastního není potřeba.
+- **V automatice za EuroLLM, před Qwenem** (`AUTOMATIC_ORDER`), jen proto, že EuroLLM přibyl
+  dřív; kdo zapne oba, rozdělí si úlohy v „Co čím počítat".
+- **Ověřeno na Macu (M5, Metal)** dočasným testem nad `LlamaCppEngineFactory`: soubor sedí
+  (SHA-256 `9592bad9…`), načte se za 3,4 s. Shrnutí krátkého českého chatu (chata, auto, pivo,
+  odjezd v 9, předpověď) za 6,1 s **věcně správně a česky bez chyb**, jen pokyn „dvě až tři
+  věty ve druhé osobě" nedodržela a napsala odrážky. EuroMoE 2,6B na tomtéž za 0,45 s, ale
+  s chybami (pivo přisoudil čtenáři, počasí vynechal). llama.cpp při načtení hlásí
+  „special_eos_id is not in special_eog_ids" — odpověď přesto skončila sama, ne na stropu tokenů.
+  S EuroLLM 9B srovnané není; na telefonu a v přihlášené aplikaci neověřené.
+
 ### Víc modelů naráz a co čím počítat
 
 Nano zvuk ani obraz nebere, Gemma je umí, jenže drží gigabajty RAM. Kdo měl na všechno Gemmu

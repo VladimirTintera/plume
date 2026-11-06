@@ -2525,6 +2525,7 @@
     <string name="ai_failure_gemma">Model Gemma selhal. Když to nepomůže znovu, smaž model v Nastavení → AI v zařízení a stáhni ho znovu.</string>
     <string name="ai_failure_qwen">Model Qwen selhal. Když to nepomůže znovu, smaž model v Nastavení → AI v zařízení a stáhni ho znovu.</string>
     <string name="ai_failure_eurollm">Model EuroLLM selhal. Když to nepomůže znovu, smaž model v Nastavení → AI v zařízení a stáhni ho znovu.</string>
+    <string name="ai_failure_aya">Model Aya selhal. Když to nepomůže znovu, smaž model v Nastavení → AI v zařízení a stáhni ho znovu.</string>
     <string name="ai_failure_empty">Model nenapsal žádný text.</string>
     <string name="settings_on_device_ai_preview">Preview verze modelu</string>
     <string name="settings_on_device_ai_preview_summary">Nejnovější verze před stabilním vydáním. Pro tohle zařízení nemusí být a stahuje se zvlášť.</string>
@@ -2556,6 +2557,10 @@
     <string name="settings_ai_provider_eurollm_summary">Otevřený evropský model trénovaný na všech jazycích EU včetně češtiny. Stáhne si ho aplikace. Jen text.</string>
     <string name="settings_eurollm_9b_summary">Největší a nejpřesnější · %1$s, potřebuje 16 GB paměti</string>
     <string name="settings_euromoe_summary">Menší a rychlý, směs expertů · %1$s, potřebuje 6 GB paměti</string>
+    <string name="settings_ai_provider_aya">Aya Expanse</string>
+    <string name="settings_ai_provider_aya_summary">Vícejazyčný otevřený model od Cohere Labs, umí 23 jazyků včetně češtiny. Stáhne si ho aplikace. Jen text.</string>
+    <string name="settings_aya_8b_summary">%1$s, potřebuje 16 GB paměti</string>
+    <string name="settings_aya_license">Aya Expanse od Cohere Labs má licenci CC BY-NC 4.0, jen pro nekomerční použití. Stažením s licencí a pravidly použití Cohere Labs souhlasíš.</string>
     <string name="settings_gemma_e4b_summary">Větší a přesnější · %1$s, potřebuje 12 GB paměti</string>
     <string name="settings_gemma_under_load">V úsporném režimu a při přehřátí telefonu Gemma sama od sebe nic nepočítá: návrhy odpovědí, varování před podvodem a podobně počkají. Co si vyžádáš ťuknutím, funguje dál.</string>
     <string name="settings_ai_models">Modely</string>
@@ -2568,7 +2573,9 @@
     <string name="settings_ai_tasks_note_qwen">Automaticky jde text na Qwen. Přepis hlasovek a popis fotek umí jen Gemma, načte se jen kvůli nim.</string>
     <string name="settings_qwen_under_load">V úsporném režimu a při přehřátí telefonu Qwen sám od sebe nic nepočítá: návrhy odpovědí, varování před podvodem a podobně počkají. Co si vyžádáš ťuknutím, funguje dál.</string>
     <string name="settings_ai_tasks_note_eurollm">Automaticky jde text na EuroLLM. Přepis hlasovek a popis fotek umí jen Gemma, načte se jen kvůli nim.</string>
+    <string name="settings_ai_tasks_note_aya">Automaticky jde text na Ayu. Přepis hlasovek a popis fotek umí jen Gemma, načte se jen kvůli nim.</string>
     <string name="settings_eurollm_under_load">V úsporném režimu a při přehřátí telefonu EuroLLM sám od sebe nic nepočítá: návrhy odpovědí, varování před podvodem a podobně počkají. Co si vyžádáš ťuknutím, funguje dál.</string>
+    <string name="settings_aya_under_load">V úsporném režimu a při přehřátí telefonu Aya sama od sebe nic nepočítá: návrhy odpovědí, varování před podvodem a podobně počkají. Co si vyžádáš ťuknutím, funguje dál.</string>
     <string name="ai_task_summary">Shrnutí chatu</string>
     <string name="ai_task_explain">Vysvětlení zprávy</string>
     <string name="ai_task_replies">Návrhy odpovědí</string>

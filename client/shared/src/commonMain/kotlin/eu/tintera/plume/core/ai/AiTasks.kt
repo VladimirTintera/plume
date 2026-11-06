@@ -80,11 +80,12 @@ data class AiModels(
     val gemma: LiteRtModel = LiteRtModel.E2B,
     val qwen: LiteRtModel = LiteRtModel.Qwen3_4B,
     val euroLlm: LiteRtModel = LiteRtModel.EuroLlm9B,
+    val aya: LiteRtModel = LiteRtModel.AyaExpanse8B,
     val assigned: Map<AiTask, AiProvider> = emptyMap(),
 ) {
     /** Varianta, se kterou se volá [OnDeviceAi] pro model [provider]. */
     fun variant(provider: AiProvider) =
-        ModelVariant(provider = provider, preview = preview, fast = fast, gemma = gemma, qwen = qwen, euroLlm = euroLlm)
+        ModelVariant(provider = provider, preview = preview, fast = fast, gemma = gemma, qwen = qwen, euroLlm = euroLlm, aya = aya)
 
     /** Zapnuté modely, které úlohu zvládnou, v pořadí, ve kterém je bere „Automaticky". */
     fun candidates(task: AiTask): List<AiProvider> =
@@ -106,10 +107,11 @@ data class AiModels(
  * **Qwen před Gemmou:** umí jen text, takže kdo si ho vedle Gemmy zapne, chce ho na text — Gemma
  * pak zůstane hlasovkám a fotkám a v paměti se drží kratší dobu ([gemmaIdleUnloadMs]).
  *
- * **EuroLLM před Qwenem:** je tu kvůli češtině, takže kdo si ho zapne, chce ho na text.
+ * **EuroLLM a Aya před Qwenem:** jsou tu kvůli češtině, takže kdo si je zapne, chce je na text.
+ * EuroLLM před Ayou jen proto, že přibyl dřív — kdo zapne oba, vybere si v „Co čím počítat".
  */
 private val AUTOMATIC_ORDER =
-    listOf(AiProvider.GeminiNano, AiProvider.Apple, AiProvider.EuroLlm, AiProvider.Qwen, AiProvider.Gemma)
+    listOf(AiProvider.GeminiNano, AiProvider.Apple, AiProvider.EuroLlm, AiProvider.Aya, AiProvider.Qwen, AiProvider.Gemma)
 
 /**
  * Kdo úlohu počítá.
