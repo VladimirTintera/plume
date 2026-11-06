@@ -379,6 +379,11 @@ class LiteRtOnDeviceAi(
         withContext(Dispatchers.IO) {
             model.file().delete()
             model.partFile().delete()
+            // Zkompilovaná keš modelu: skoro tak velká jako model a s ním k ničemu. Leží v keši
+            // platformy, kterou engine dostává, a ze sond bez `cacheDir` i vedle modelu.
+            listOf(platform.cacheDir, modelsDir).forEach { dir ->
+                dir.listFiles { file -> model.ownsCacheFile(file.name) }?.forEach { it.delete() }
+            }
         }
         logger.i { "Model smazán (${model.displayName})" }
     }

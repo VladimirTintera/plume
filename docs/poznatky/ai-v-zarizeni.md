@@ -52,6 +52,13 @@ poskytovatelích nemusí vědět nic.
   v chatu, takže je v GiB — katalog Gallery uvádí 2,6 GB v desítkových. Po selhání tlačítko
   slibuje „Pokračovat ve stahování": stažený kus se nezahazuje.
 - **Stahovaný model jde smazat, systémový ne** (`ModelVariant.appManaged`, `OnDeviceAi.delete`).
+  **Se souborem modelu jde i jeho zkompilovaná keš** (`LiteRtModel.ownsCacheFile`, testy
+  `ModelCacheFilesTest`, `LiteRtDeleteTest`). LiteRT-LM si při prvním načtení uloží model
+  přeložený pro procesor do `cacheDir` enginu (`<soubor>_<čas>_<velikost>.xnnpack_cache`,
+  u Gemmy i zvukový kodér a adaptér) — u Gemmy 4 E4B 2,3 GB, u Qwen3 4B taky. Dokud se mazal
+  jen model, zůstávala: na desktopu po smazání E4B a Qwenu 4,5 GB v `ai-cache`, které nikdo
+  neuklidí; na Androidu ji časem smaže systém, do té doby se počítá do místa aplikace.
+  Engine bez `cacheDir` (sondy) ji ukládá vedle modelu, proto se hledá v obou adresářích.
 - **Gemmu stahuje úloha WorkManageru, ne korutina v procesu** (`ModelDownloadWorker` v `core/ai`,
   vedle `LiteRtOnDeviceAi`). Dokud stahovala korutina, skončilo stahování se zabitým procesem
   a navázalo až dalším ťuknutím v Nastavení. Stahuje pořád `LiteRtOnDeviceAi` (i s čekáním na
