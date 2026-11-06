@@ -42,6 +42,9 @@ import eu.tintera.plume.core.ai.PhotoDescriptionSchedule
 import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
 import eu.tintera.plume.core.ai.AndroidLiteRtPlatform
 import eu.tintera.plume.core.ai.PlayLiteRtRuntime
+import eu.tintera.plume.core.ai.ModelRuntime
+import eu.tintera.plume.ai.engine.LITERT_ENGINE_FACTORY
+import eu.tintera.plume.ai.engine.LLAMACPP_ENGINE_FACTORY
 import eu.tintera.plume.core.ai.MlKitOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.RoutingOnDeviceAi
@@ -110,7 +113,21 @@ actual fun Module.platformModule() {
     single {
         LiteRtOnDeviceAi(
             AndroidLiteRtPlatform(androidContext()),
-            PlayLiteRtRuntime(androidContext()),
+            // Každý runtime je vlastní součást z Google Play (client/litertFeature, client/llamacppFeature).
+            mapOf(
+                ModelRuntime.LiteRt to PlayLiteRtRuntime(
+                    androidContext(),
+                    module = "litertFeature",
+                    nativeLibrary = "litertlm_jni",
+                    factoryClass = LITERT_ENGINE_FACTORY,
+                ),
+                ModelRuntime.LlamaCpp to PlayLiteRtRuntime(
+                    androidContext(),
+                    module = "llamacppFeature",
+                    nativeLibrary = "plume_llama",
+                    factoryClass = LLAMACPP_ENGINE_FACTORY,
+                ),
+            )::getValue,
             get(),
             // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
             // Qwen umí jen text, takže drží jako Gemma, která text počítá.

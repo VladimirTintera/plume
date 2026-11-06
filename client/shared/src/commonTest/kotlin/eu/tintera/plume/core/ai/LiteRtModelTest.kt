@@ -27,18 +27,30 @@ class LiteRtModelTest {
         LiteRtModel.entries.forEach { assertEquals(it.provider == AiProvider.Gemma, it.multimodal) }
     }
 
-    /** Qweny jdou od největšího — náhrada za nedostupnou velikost bere první, která jde. */
+    /** Qweny i EuroLLM jdou od největšího — náhrada za nedostupnou velikost bere první, která jde. */
     @Test
-    fun qwenyOdNejvetsiho() {
-        val sizes = LiteRtModel.entries.filter { it.provider == AiProvider.Qwen }.map { it.minMemoryGb }
-        assertEquals(sizes.sortedDescending(), sizes)
+    fun velikostiOdNejvetsi() {
+        listOf(AiProvider.Qwen, AiProvider.EuroLlm).forEach { provider ->
+            val sizes = LiteRtModel.entries.filter { it.provider == provider }.map { it.minMemoryGb }
+            assertEquals(sizes.sortedDescending(), sizes, "$provider")
+        }
+    }
+
+    /** EuroLLM je GGUF pro llama.cpp, Gemma a Qwen soubory LiteRT-LM — runtime se podle toho doinstaluje. */
+    @Test
+    fun runtimePodlePoskytovatele() {
+        LiteRtModel.entries.forEach { model ->
+            val expected = if (model.provider == AiProvider.EuroLlm) ModelRuntime.LlamaCpp else ModelRuntime.LiteRt
+            assertEquals(expected, model.runtime, model.name)
+            assertEquals(expected == ModelRuntime.LlamaCpp, model.fileName.endsWith(".gguf"), model.name)
+        }
     }
 
     /** Jména se ukládají (volba velikosti, úloha stahování) — přejmenování by volbu ztratilo. */
     @Test
     fun jmenaPolozekSeNemeni() {
         assertEquals(
-            listOf("E2B", "E4B", "Qwen3_4B", "Qwen2_5_1_5B", "Qwen3_0_6B"),
+            listOf("E2B", "E4B", "Qwen3_4B", "Qwen2_5_1_5B", "Qwen3_0_6B", "EuroLlm9B", "EuroMoe2_6B"),
             LiteRtModel.entries.map { it.name },
         )
     }

@@ -24,6 +24,7 @@ class RoutingOnDeviceAi(
         AiProvider.GeminiNano -> geminiNano to variant.forGeminiNano()
         AiProvider.Gemma -> liteRt to variant.forGemma()
         AiProvider.Qwen -> liteRt to variant.forQwen()
+        AiProvider.EuroLlm -> liteRt to variant.forEuroLlm()
         // Apple Intelligence je jen na iOS, kde se směrovač nepoužívá (`AppleOnDeviceAi`).
         AiProvider.Apple -> NoopOnDeviceAi to variant
     }
@@ -73,3 +74,6 @@ internal fun ModelVariant.forGemma() = ModelVariant(provider = AiProvider.Gemma,
 
 /** Jen to, co se týká Qwenu: který model. */
 internal fun ModelVariant.forQwen() = ModelVariant(provider = AiProvider.Qwen, qwen = qwen)
+
+/** Jen to, co se týká EuroLLM: který model. */
+internal fun ModelVariant.forEuroLlm() = ModelVariant(provider = AiProvider.EuroLlm, euroLlm = euroLlm)

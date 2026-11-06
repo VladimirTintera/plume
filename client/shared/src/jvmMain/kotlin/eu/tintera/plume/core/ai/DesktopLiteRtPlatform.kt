@@ -54,8 +54,10 @@ class DesktopLiteRtPlatform : LiteRtPlatform {
 
     override val cacheDir: File get() = File(localDirectory, CACHE_DIR)
 
+    /** Jen modely LiteRT-LM: llama.cpp (EuroLLM) desktop zatím nepřekládá. */
     override fun canRun(model: LiteRtModel): Boolean =
-        javaSupported && nativeLibraryBundled && totalMemoryBytes() >= model.minMemoryGb * GIB * MEMORY_TOLERANCE
+        model.runtime == ModelRuntime.LiteRt &&
+            javaSupported && nativeLibraryBundled && totalMemoryBytes() >= model.minMemoryGb * GIB * MEMORY_TOLERANCE
 
     override fun png(path: String, maxSide: Int): ByteArray? {
         val source = runCatching { ImageIO.read(File(path)) }.getOrNull() ?: return null

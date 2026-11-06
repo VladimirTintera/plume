@@ -9,4 +9,5 @@
     <!-- Název součásti z Google Play s runtime modelu v zařízení (:client:litertFeature);
          ukazuje ho Play, kdyby se na součást ptal. -->
     <string name="litert_feature_title">On-device AI</string>
+    <string name="llamacpp_feature_title">On-device AI (GGUF models)</string>
 </resources>

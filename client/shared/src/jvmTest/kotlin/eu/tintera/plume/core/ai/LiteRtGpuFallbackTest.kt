@@ -47,7 +47,7 @@ class LiteRtGpuFallbackTest {
     }
 
     private val engines = FakeEngines()
-    private val ai = LiteRtOnDeviceAi(platform, FakeLiteRtRuntime(engines = engines), NetworkMonitor())
+    private val ai = LiteRtOnDeviceAi(platform, { FakeLiteRtRuntime(engines = engines) }, NetworkMonitor())
 
     init {
         listOf(LiteRtModel.E4B, LiteRtModel.Qwen3_4B).forEach { File(models, it.fileName).writeText("x") }

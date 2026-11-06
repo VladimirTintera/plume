@@ -371,7 +371,7 @@ a **Qwen3 0,6B** (328 MB, 4 GB) pro telefony, na které Gemma nestačí.
 - **Co dalšího jde** (stav 11/2026): oficiálně testované Gemma 3n, Gemma 3 1B, Phi-4-mini,
   Qwen2.5 0,5B a 1,5B, Qwen3 0,6B; na litert-community Qwen3.5 0,8B a LFM3 od Liquid AI (vlastní
   licence s omezením podle obratu). Malé modely česky slabě, Phi-4-mini pomalý. Llama ani Mistral
-  ve formátu LiteRT-LM nejsou (chtělo by to druhý runtime, např. llama.cpp). Nový model = řádek
+  ve formátu LiteRT-LM nejsou — na ně je llama.cpp (viz „EuroLLM přes llama.cpp"). Nový model = řádek
   v `LiteRtModel`, a má-li vlastního poskytovatele, i v `AiProvider` (texty, pořadí automatiky).
 - **Ověřeno**: testy a vzhled Nastavení na emulátoru se sondou (x86_64 emulátor model nespustí,
   kontrola zařízení dočasně podstrčená): Qwen v bloku Modely, „Automaticky (Qwen)" u textových
@@ -427,7 +427,8 @@ stažení.
 - **bundletool chce stejnou sadu ABI ve všech modulech s nativními knihovnami** („All modules
   with native libraries must support the same set of ABIs"). Základ má kvůli TDLib čtyři,
   LiteRT-LM jen arm64-v8a a x86_64. Součást proto nese pro armeabi-v7a a x86 prázdný
-  `libplume_no_litertlm.so` (úloha `abiPlaceholders`); tam se model nenabízí (`canRun` chce
+  `libplume_no_<součást>.so` (plugin `plume.feature-abi-placeholders` v build-logic, sdílí ho
+  obě součásti); tam se model nenabízí (`canRun` chce
   arm64), takže se součást nikdy nestáhne. AGP při buildu hlásí, že ho nejde ořezat — to je
   v pořádku. Jestli prázdný soubor projde kontrolami Play Console, **ověřené není**.
 - **Rozdělení APK podle ABI (`splits.abi`) muselo pryč**: s `dynamicFeatures` AGP součást
@@ -451,6 +452,56 @@ stažení.
   OpenCL, ne kvůli součásti — to od té doby řeší náhrada CPU při generování (viz „Bez OpenCL
   se GPU engine NAČTE BEZ CHYBY"). **Neověřené: skutečná instalace z Play (interní testování) a jestli
   Play Console vezme prázdné knihovny pro armeabi-v7a a x86.**
+
+### EuroLLM přes llama.cpp
+
+Kvůli češtině je třetí stahovaný model **EuroLLM** (`AiProvider.EuroLlm`) od utter-project,
+trénovaný na všech jazycích EU, Apache 2.0. Ve formátu LiteRT-LM není, takže běží přes
+**llama.cpp** (soubory GGUF) — druhý runtime vedle LiteRT-LM, jen na Androidu a jen na CPU.
+Velikosti: **EuroLLM 9B** (verze 2512, Q4_K_M, 5,2 GiB, 16 GB paměti) a **EuroMoE 2,6B**
+(směs expertů, aktivních 0,6B, Q4_K_M, 1,5 GiB, 6 GB). Kvantizace od mradermacher — originál 9B
+je na Hugging Face za souhlasem, GGUF kopie ne.
+
+- **Runtime je vlastnost souboru** (`LiteRtModel.runtime`, `ModelRuntime`), ne poskytovatele.
+  `LiteRtOnDeviceAi` dostává runtime pro každý druh (`runtimes`), stahování, stav, uvolňování
+  i porovnání jsou společné; jméno třídy zůstalo z doby, kdy byl jen LiteRT-LM.
+- **llama.cpp je git submodul** (`client/ai-llamacpp/llama.cpp`, připnutý na vydání `b12170`,
+  mělký) a překládá se z NDK (r29, kvůli 16KB stránkám) přes CMake v :client:ai-llamacpp.
+  Release workflow Androidu proto dělá checkout se `submodules: true`; desktop ho nepotřebuje
+  (přeloží se i bez submodulu, ověřeno). Hotové wrappery z Maven jsou od jednotlivců — stejné
+  riziko jako wrapper TDLib, jen bez hranice kolem. Bump = `git -C client/ai-llamacpp/llama.cpp
+  fetch --depth 1 origin tag bNNNNN`, checkout a commit ukazatele submodulu.
+- **Jedna knihovna `libplume_llama.so` (6,6 MB na arm64)**: llama.cpp a ggml staticky, k tomu
+  vlastní JNI (`plume_llama.cpp`) jen nad C API z `llama.h`. Příklad `examples/llama.android`
+  staví backendy zvlášť (`GGML_BACKEND_DL`) a CPU variantu načítá z ADRESÁŘE knihoven — split
+  APK z Play je má uvnitř APK, takže by nebylo odkud. Knihovna `common` z příkladů se mění
+  s každým vydáním, proto jen `llama.h` (šablona chatu `llama_chat_apply_template`, vzorkování
+  řetězem `llama_sampler_*`).
+- **Bez OpenMP a KleidiAI.** OpenMP přidá sdílenou `libomp.so`, kterou by linker v součásti
+  doinstalované za běhu hledat nemusel; KleidiAI si zdrojáky stahuje z GitHubu při konfiguraci.
+  arm64 se staví pro `armv8.2-a+dotprod+fp16` (všechny telefony, na kterých se model nabízí);
+  i8mm a SVE by na starších jádrech skončily SIGILL.
+- **Text přes JNI jako bajty UTF-8**, ne `jstring`: `NewStringUTF` a `GetStringUTFChars` jedou
+  v „modified UTF-8", ve kterém emoji vypadají jinak a CheckJNI na ně aplikaci shodí. Token, který
+  nedotvoří znak, se drží, dokud znak nedokončí další (`completeUtf8Prefix`).
+- **Jen CPU** (`ModelRuntime.gpu = false`): aplikace o GPU nežádá a factory ho odmítne. Pokus
+  o GPU by skončil selháním, které si `LiteRtOnDeviceAi` pamatuje pro celý proces (`gpuFailed`),
+  a vzal by GPU i Gemmě.
+- **Ořez knihovny dělá modul, který ji balí** (:client:llamacppFeature), a jeho NDK: bez
+  `ndkVersion` v součásti AGP ořez přeskočil („Unable to strip") a do AAB šlo 55 MB místo 6,6 MB.
+- **Desktop EuroLLM nemá** (`DesktopLiteRtPlatform.canRun` jen pro LiteRT-LM). Tam by to chtělo
+  překlad knihovny pro každý systém v release workflow desktopu.
+- **V automatice stojí EuroLLM před Qwenem** (`AUTOMATIC_ORDER`): kdo si ho zapne, chce ho na
+  text kvůli češtině. Systémové modely mají přednost dál.
+- **Ověřeno na emulátoru x86_64** (8 GB RAM, `bundletool --local-testing`, sonda v `canRun`
+  pouštějící x86_64 a EuroMoE bez kontroly paměti, necommitovaná): zapnutí EuroLLM nabídne
+  EuroMoE 2,6B, „Stáhnout model" doinstaluje součást `llamacppFeature` a stáhne 1,5 GiB, shrnutí
+  testovacího chatu načte `libplume_llama.so` ze splitu a odpoví česky za 15 s; „Porovnat
+  s dalšími modely" pak v témže procesu přepne na Qwen přes LiteRT-LM. **Se 4 GB RAM emulátor
+  model jen stránkoval do swapu a nedopočítal** — pod `minMemoryGb` se model nenabízí právě
+  proto. **Na telefonu neověřené nic**: rychlost na arm64, EuroLLM 9B (emulátor na něj nemá
+  paměť) ani jestli je čeština opravdu lepší než u Gemmy a Qwenu — to má ukázat porovnání na
+  skutečné konverzaci.
 
 ### Víc modelů naráz a co čím počítat
 
