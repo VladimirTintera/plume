@@ -65,6 +65,13 @@ fun PaneScaffoldDirective.threePane(): PaneScaffoldDirective = withHorizontalPar
  */
 val PANE_SPACING = 12.dp
 
+/**
+ * Horní okraj karty pod stavovou lištou: tolik, kolik má nad sebou pilulka hledání v seznamu
+ * vedle (`AppBarWithSearch` ji odsadí o interní `AppBarWithSearchVerticalPadding`, 4 dp). S
+ * [PANE_SPACING] i nahoře začínala karta o 8 dp níž a hrany obou panelů nelícovaly.
+ */
+val PANE_TOP_SPACING = 4.dp
+
 /** Šířka seznamu chatů vedle konverzace — výchozí šířka panelu v M3. */
 val LIST_PANE_WIDTH = ContentWidth.Pane
 

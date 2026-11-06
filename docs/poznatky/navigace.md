@@ -276,9 +276,14 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     si pozadí kreslí samy přes `Scaffold`; bez přemapování by na ploše okna stál obdélník o tón
     jiný — karta bez rohů.
   - **Karta konverzace (`Panes.ownSurface`: konverzace, článek, placeholder) je `surface` se
-    `shapes.large`** a okrajem `PANE_SPACING` (12 dp) ze VŠECH stran, i od kraje okna. S okrajem
-    jen od seznamu narážela nahoru a dolů a zaoblený roh u spodního kraje okna, bez jediného bodu
-    mezery, vypadal jako chyba.
+    `shapes.large`** a okrajem `PANE_SPACING` (12 dp) ze stran a zdola, i od kraje okna (nahoře
+    viz níž). S okrajem jen od seznamu narážela nahoru a dolů a zaoblený roh u spodního kraje
+    okna, bez jediného bodu mezery, vypadal jako chyba.
+  - **Nahoře je okraj karty jen 4 dp** (`PANE_TOP_SPACING`), ať horní hrana lícuje s pilulkou
+    hledání v seznamu vedle: `AppBarWithSearch` ji odsadí pod stavovou lištou o interní
+    `AppBarWithSearchVerticalPadding` (4 dp v material3 1.5.0-alpha22). S 12 dp i nahoře
+    začínala karta o 8 dp níž a na Foldu to bylo vidět na první pohled. Posunout naopak pilulku
+    by seznamu vzalo 8 dp výšky. Po bumpu material3 hodnotu porovnat.
   - **Profil a co se z něj otevírá je v Chatech karta taky** (`PaneNeighbours.extraCard`), jen bez
     vlastní plochy: ořez a okraj stejný jako konverzace. V barvách aplikace je jeho stránka táž
     jako plocha okna, takže karta není vidět a profil zůstává stránkou na ploše. V barvě chatu
