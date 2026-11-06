@@ -123,7 +123,9 @@ poskytovatelích nemusí vědět nic.
   - **GPU se pak do konce procesu nezkouší** (`gpuFailed`, jen v paměti): každé další načtení
     by jinak trvalo o neúspěšné načtení na GPU déle. Pamatuje se, jen když CPU uspělo (vydalo
     token nebo doběhlo) — selže-li CPU stejně brzy, chyba na backendu nejspíš nezávisí a GPU
-    dostane příště šanci znovu. Totéž platí pro GPU, které selže už při načtení.
+    dostane příště šanci znovu. Totéž platí pro GPU, které selže už při načtení. **Pamatuje se
+    pro každý runtime zvlášť**: Metal v llama.cpp a GPU v LiteRT-LM jsou různé backendy
+    a selhání jednoho nesmí vzít GPU druhému (`LiteRtGpuFallbackTest`).
   - **Test jede nad rozhraním enginu z `:client:ai-engine`** (`LlmEngineFactory`), falešný
     engine dodá `FakeLiteRtRuntime(engines = …)`.
   - **Ověřeno na emulátoru x86_64** (Qwen3 0.6B, sonda v `AndroidLiteRtPlatform.canRun`, jinak
@@ -457,7 +459,8 @@ stažení.
 
 Kvůli češtině je třetí stahovaný model **EuroLLM** (`AiProvider.EuroLlm`) od utter-project,
 trénovaný na všech jazycích EU, Apache 2.0. Ve formátu LiteRT-LM není, takže běží přes
-**llama.cpp** (soubory GGUF) — druhý runtime vedle LiteRT-LM, na Androidu i desktopu, jen na CPU.
+**llama.cpp** (soubory GGUF) — druhý runtime vedle LiteRT-LM, na Androidu i desktopu; GPU jen
+přes Metal na Macu s Apple Silicon.
 Velikosti: **EuroLLM 9B** (verze 2512, Q4_K_M, 5,2 GiB, 16 GB paměti) a **EuroMoE 2,6B**
 (směs expertů, aktivních 0,6B, Q4_K_M, 1,5 GiB, 6 GB). Kvantizace od mradermacher — originál 9B
 je na Hugging Face za souhlasem, GGUF kopie ne.
@@ -495,9 +498,11 @@ je na Hugging Face za souhlasem, GGUF kopie ne.
   llama.cpp dostane standardní UTF-8 a „Ahoj 😊" projde. **Totéž cesta k modelu**: na Windows ji
   ggml otevírá jako UTF-8 (`ggml_fopen` → `_wfopen`) a jméno uživatele v `%LOCALAPPDATA%`
   bývá s diakritikou.
-- **Jen CPU** (`ModelRuntime.gpu = false`): aplikace o GPU nežádá a factory ho odmítne. Pokus
-  o GPU by skončil selháním, které si `LiteRtOnDeviceAi` pamatuje pro celý proces (`gpuFailed`),
-  a vzal by GPU i Gemmě.
+- **GPU jen Metal na Macu, jinde CPU.** Jestli runtime GPU má, říká platforma
+  (`LiteRtPlatform.gpu`, výchozí jen LiteRT-LM; desktop přidá llama.cpp na macOS arm64), ne
+  `ModelRuntime`. Na Androidu se o GPU nežádá: Vulkan ani OpenCL backend llama.cpp se nepřekládá.
+  Přijde-li přesto `LlmBackend.Gpu` a build GPU nemá (`LlamaNative.hasGpu`), factory vyhodí dřív,
+  než začne načítat. Podrobnosti v `docs/poznatky/desktop.md`, „EuroLLM na desktopu".
 - **Ořez knihovny dělá modul, který ji balí** (:client:llamacppFeature), a jeho NDK: bez
   `ndkVersion` v součásti AGP ořez přeskočil („Unable to strip") a do AAB šlo 55 MB místo 6,6 MB.
 - **Na desktopu EuroLLM je taky**, podrobnosti v `docs/poznatky/desktop.md`,

@@ -1232,8 +1232,19 @@ Kód je týž jako na Androidu (:client:ai-llamacpp, čistě JVM), knihovnu `lib
   desktop. **Bez NDK neprojde žádný Gradle build** („License for package NDK … not accepted",
   s `android.builder.sdkDownload=false` „NDK not configured"); NDK 29 chce licenci Android SDK
   Preview, kterou je třeba přijmout (`sdkmanager --licenses`).
-- **Jen CPU, i na Macu** (`GGML_METAL OFF`, `n_gpu_layers = 0`): aplikace o GPU nežádá
-  (`ModelRuntime.gpu`). Accelerate (BLAS) zůstává zapnutý, je to systémový framework.
+- **Na Macu s Apple Silicon GPU přes Metal**, jinde jen CPU (`DesktopLiteRtPlatform.gpu`).
+  Aplikace o GPU žádá stejně jako u Gemmy, a když Metal selže při načtení nebo před prvním
+  tokenem, spadne na CPU a do konce procesu si to pamatuje — pro llama.cpp zvlášť, GPU Gemmy
+  zůstává. Naměřeno na M5 s EuroMoE 2,6B a promptem kolem 2 000 tokenů (shrnutí 60 řádků chatu):
+  **první token 7,7 s na CPU, 0,58 s na Metalu** (13×), **generování 95 a 192 tokenů/s** (2×).
+  - **Shadery vložené v knihovně** (`GGML_METAL_EMBED_LIBRARY`), jinak by Metal hledal
+    `default.metallib` vedle knihovny — ta leží vybalená v keši. Překládají se při prvním
+    načtení (první odpověď o ~0,3 s delší). Knihovna tím narostla z 5,3 na 10,9 MB.
+  - **CPU musí být CPU**: s Metalem v buildu nestačí `n_gpu_layers = 0`. llama.cpp dá modelu
+    GPU sám (výchozí je „všechny vrstvy na GPU") a s `op_offload` tam posílá i velké dávky vah
+    z paměti CPU, takže by při náhradě po selhání Metalu jel zase přes Metal. Na CPU proto
+    prázdný seznam zařízení (`devices = {nullptr}`) a `op_offload` i `offload_kqv` vypnuté.
+  - Accelerate (BLAS) zůstává zapnutý, je to systémový framework.
 - **Instrukce procesoru jako na Androidu**: arm64 `armv8.2-a+dotprod+fp16` (všechna Apple
   Silicon), x86_64 výchozí sada ggml bez `GGML_NATIVE`, tedy AVX2, FMA, F16C a BMI2. Na starším
   procesoru by první shrnutí shodilo JVM na SIGILL, proto `DesktopLiteRtPlatform.llamaCppCpuSupported`:
@@ -1246,10 +1257,10 @@ Kód je týž jako na Androidu (:client:ai-llamacpp, čistě JVM), knihovnu `lib
   jader velkých procesorů.
 - **Emoji ve vstupu projdou** (JNI jede v bajtech UTF-8), na rozdíl od LiteRT-LM, které je
   z textu pro model vypouští — `modelText` se týká jen jeho.
-- **Ověřeno na macOS (Apple M5, 32 GB)**: knihovna 5,3 MB, `minos 14.0`, závisí jen na systému
-  a Accelerate. Test `LlamaCppDesktopTest` (`-PllamaCppTestModel=<soubor.gguf>`) s EuroMoE 2,6B:
+- **Ověřeno na macOS (Apple M5, 32 GB)**: knihovna `minos 14.0`, závisí jen na systému,
+  Accelerate a Metalu. Test `LlamaCppDesktopTest` (`-PllamaCppTestModel=<soubor.gguf>`) s EuroMoE 2,6B:
   načtení 1,8 s, odpověď na „Ahoj 😊 Napiš jednou větou česky, co je Praha." za 0,23 s, správně
-  česky. Dočasný test na classpath desktopApp: `canRun` pustí EuroMoE i EuroLLM 9B, runtime se
+  česky; od Metalu test pouští CPU i GPU. Dočasný test na classpath desktopApp: `canRun` pustí EuroMoE i EuroLLM 9B, runtime se
   najde reflexí a odpoví i na vstup s emoji. **Neověřené: Windows a Linux (ani překlad),
   zabalená aplikace (DMG, MSI) a stažení modelu z Nastavení v přihlášené aplikaci.**
 

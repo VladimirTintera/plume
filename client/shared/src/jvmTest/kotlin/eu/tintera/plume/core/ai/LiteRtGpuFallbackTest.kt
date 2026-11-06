@@ -33,12 +33,14 @@ import kotlinx.coroutines.runBlocking
 class LiteRtGpuFallbackTest {
 
     private val root = Files.createTempDirectory("plume-litert-gpu").toFile()
+    private var gpuRuntimes = setOf(ModelRuntime.LiteRt)
     private val models = File(root, "ai-models").apply { mkdirs() }
 
     private val platform = object : LiteRtPlatform {
         override val modelsDir = models
         override val cacheDir = File(root, "ai-cache")
         override fun canRun(model: LiteRtModel) = true
+        override fun gpu(runtime: ModelRuntime) = runtime in gpuRuntimes
         override fun png(path: String, maxSide: Int): ByteArray? = null
         override fun wavClips(path: String): List<ByteArray> = emptyList()
         override fun startDownload(model: LiteRtModel, run: suspend () -> Unit) {}
@@ -50,7 +52,7 @@ class LiteRtGpuFallbackTest {
     private val ai = LiteRtOnDeviceAi(platform, { FakeLiteRtRuntime(engines = engines) }, NetworkMonitor())
 
     init {
-        listOf(LiteRtModel.E4B, LiteRtModel.Qwen3_4B).forEach { File(models, it.fileName).writeText("x") }
+        listOf(LiteRtModel.E4B, LiteRtModel.Qwen3_4B, LiteRtModel.EuroMoe2_6B).forEach { File(models, it.fileName).writeText("x") }
     }
 
     @AfterTest
@@ -146,6 +148,30 @@ class LiteRtGpuFallbackTest {
         ai.generate(LiteRtModel.E4B.variant, "Shrň").last()
 
         assertEquals(listOf(LlmBackend.Gpu, LlmBackend.Cpu, LlmBackend.Cpu), engines.attempts)
+    }
+
+    @Test
+    fun runtimeBezGpu_seNaciteRovnouNaCpu() = runBlocking {
+        engines.reply = { flowOf("ok") }
+
+        ai.generate(LiteRtModel.EuroMoe2_6B.variant, "Shrň").last()
+
+        assertEquals(listOf(LlmBackend.Cpu), engines.attempts)
+    }
+
+    @Test
+    fun selhaniGpuJednohoRuntime_nevezmeGpuDruhemu() = runBlocking {
+        // Mac: Metal v llama.cpp selže, GPU v LiteRT-LM se pořád zkusí.
+        gpuRuntimes = setOf(ModelRuntime.LiteRt, ModelRuntime.LlamaCpp)
+        engines.failOpen = { it == LlmBackend.Gpu }
+        engines.reply = { flowOf("ok") }
+        ai.generate(LiteRtModel.EuroMoe2_6B.variant, "Shrň").last()
+
+        engines.failOpen = { false }
+        ai.generate(LiteRtModel.Qwen3_4B.variant, "Shrň").last()
+        ai.generate(LiteRtModel.EuroMoe2_6B.variant, "Shrň").last()
+
+        assertEquals(listOf(LlmBackend.Gpu, LlmBackend.Cpu, LlmBackend.Gpu, LlmBackend.Cpu), engines.attempts)
     }
 
     /** Tak to hlásí LiteRT-LM 0.19.1 na zařízení bez OpenCL, až z `onError` konverzace. */
