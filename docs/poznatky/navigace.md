@@ -303,9 +303,11 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     placeholder ji má zvlášť (`PaneCard(PaneRole.Detail)`), protože položkou není. Na telefonu
     je struktura táž (téma i `Box`y), jen bez ořezu, okrajů a přemapování — větvení by obsahu
     při změně šířky okna vzalo stav.
-  - Původní rozvržení ověřené na desktopu (Windows, tmavý motiv): seznam + placeholder a seznam |
-    konverzace | profil. **Okraje karet a profil jako karta (listopad 2026) jsou zatím jen
-    přeložené a otestované jednotkovými testy, na zařízení neověřené.**
+  - Ověřeno na desktopu (Windows, světlý motiv): seznam + placeholder, seznam | konverzace,
+    seznam | konverzace | profil v barvách aplikace i v barvě chatu (růžová) a konverzace | profil
+    v užším okně; táhlo profilu stojí uprostřed mezery. Původní rozvržení i v tmavém motivu.
+    **Tmavý motiv s okraji, tablet a Fold (insety lišt, rozložení) ověřené nejsou** — emulátor
+    při ověřování kreslil jen bílou plochu.
 - **Táhlo jen mezi HLAVNÍM seznamem chatů a konverzací** (`ListPaneExpansion.kt`). Stav táhla
   (`PaneExpansionState`) počítá šířku PRVNÍHO rozbaleného panelu, takže mezi konverzací
   a profilem (pod Large) by konverzaci zmáčkl na šířku sbaleného seznamu. Archiv, nová zpráva
