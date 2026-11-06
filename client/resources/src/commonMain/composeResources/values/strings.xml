@@ -2357,7 +2357,7 @@
     <!-- Model v zařízení (core/ai) -->
     <string name="settings_on_device_ai">On-device AI</string>
     <string name="settings_on_device_ai_enable">On-device model features (experimental)</string>
-    <string name="settings_on_device_ai_enable_summary">Chat summaries and reply suggestions are computed by a language model running on this phone. Messages never leave the device.</string>
+    <string name="settings_on_device_ai_enable_summary">Chat summaries and reply suggestions are computed by a language model running on this device. Messages never leave it.</string>
     <string name="settings_reply_suggestions">Reply suggestions</string>
     <string name="settings_reply_suggestions_summary">Short replies are offered above the input field when a message arrives and you have not started typing.</string>
     <string name="settings_scam_warnings">Scam warnings</string>
@@ -2401,11 +2401,11 @@
     <string name="settings_contact_sync_summary">Uploads your phone contacts so you see who uses Telegram. Off deletes them; Telegram contacts stay.</string>
     <string name="settings_contact_sync_denied">Without access to contacts there is nothing to sync. Allow it in the system settings.</string>
     <string name="settings_chat_triage">Awaiting reply</string>
-    <string name="settings_chat_triage_summary">The model on your phone marks unread private chats where someone is waiting for your answer. Messages are not sent anywhere.</string>
+    <string name="settings_chat_triage_summary">The model on this device marks unread private chats where someone is waiting for your answer. Messages are not sent anywhere.</string>
     <string name="settings_background_photos">Describe photos in the background</string>
     <string name="settings_background_photos_summary">While charging, the model describes new photos from your chats so you can find them in search by what is in them. Photos stay on the phone.</string>
     <string name="chats_search_section_photos">Photos by content</string>
-    <string name="settings_scam_warnings_summary">Incoming messages with links or phrases typical of scams are checked by the model on your phone. They are not sent anywhere.</string>
+    <string name="settings_scam_warnings_summary">Incoming messages with links or phrases typical of scams are checked by the model on this device. They are not sent anywhere.</string>
     <string name="settings_on_device_ai_checking">Checking the model…</string>
     <string name="settings_on_device_ai_unsupported">This device does not have the selected model.</string>
     <string name="settings_on_device_ai_downloadable">The model needs to be downloaded first. It takes up gigabytes.</string>
@@ -2444,9 +2444,9 @@
     <string name="summary_retry">Try again</string>
     <string name="ai_failure_busy">The model is busy right now. Try again in a moment.</string>
     <string name="ai_failure_too_large">The conversation is too long for the model.</string>
-    <string name="ai_failure_no_space">There is not enough space on the phone for the model.</string>
+    <string name="ai_failure_no_space">There is not enough space on this device for the model.</string>
     <string name="ai_failure_needs_update">The model needs a newer version of the system or of the AICore app.</string>
-    <string name="ai_failure_unavailable">The model on this phone is not available right now.</string>
+    <string name="ai_failure_unavailable">The model on this device is not available right now.</string>
     <string name="ai_failure_nano">Gemini Nano on this phone failed. Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → On-device AI.</string>
     <string name="ai_failure_nano_code">Gemini Nano on this phone failed (AICore, code %1$s). Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → On-device AI.</string>
     <string name="ai_failure_gemma">The Gemma model failed. If trying again does not help, delete the model in Settings → On-device AI and download it again.</string>
@@ -2475,10 +2475,10 @@
     <string name="settings_ai_provider_gemma_summary">An open model the app downloads itself. It also transcribes voice messages and describes photos, but takes more memory.</string>
     <string name="settings_gemma_e2b_summary">Smaller and faster · %1$s</string>
     <string name="settings_ai_provider_qwen">Qwen</string>
-    <string name="settings_ai_provider_qwen_summary">An open model by Alibaba the app downloads itself. Text only, in several sizes, the small ones also for weaker phones.</string>
+    <string name="settings_ai_provider_qwen_summary">An open model by Alibaba the app downloads itself. Text only, in several sizes, the small ones also for weaker devices.</string>
     <string name="settings_qwen_4b_summary">Largest and most accurate · %1$s, needs 12 GB of memory</string>
     <string name="settings_qwen_1_5b_summary">Medium · %1$s, needs 6 GB of memory</string>
-    <string name="settings_qwen_0_6b_summary">Smallest and fastest, for weaker phones · %1$s, least accurate</string>
+    <string name="settings_qwen_0_6b_summary">Smallest and fastest, for weaker devices · %1$s, least accurate</string>
     <string name="settings_gemma_e4b_summary">Larger and more accurate · %1$s, needs 12 GB of memory</string>
     <string name="settings_gemma_under_load">In battery saver and when the phone is hot, Gemma doesn’t run anything on its own: reply suggestions, scam warnings and the like wait. What you tap still works.</string>
     <string name="settings_ai_models">Models</string>
@@ -2510,7 +2510,7 @@
     <string name="folder_category_hobbies">Hobbies</string>
     <string name="chat_folders_ai">Suggested by on-device AI</string>
     <string name="chat_folders_ai_suggest">Suggest folders</string>
-    <string name="chat_folders_ai_suggest_summary">The model on your phone sorts your 40 latest chats. Nothing leaves the device.</string>
+    <string name="chat_folders_ai_suggest_summary">The model on this device sorts your 40 latest chats. Nothing leaves the device.</string>
     <string name="chat_folders_ai_working">Sorting chats…</string>
     <string name="chat_folders_ai_nothing">No folder to suggest: the chats could not be sorted sensibly.</string>
     <string name="chat_folders_ai_model_missing">The on-device model isn’t ready yet. Download it in Settings → On-device AI.</string>
@@ -2524,7 +2524,7 @@
     <string name="settings_on_device_ai_download_progress">%1$s of %2$s</string>
     <string name="settings_on_device_ai_waiting_for_network">Waiting for a connection, the download will resume on its own…</string>
     <string name="settings_on_device_ai_resume">Resume download</string>
-    <string name="settings_on_device_ai_not_enough_space">There is not enough free space on the phone for the model.</string>
+    <string name="settings_on_device_ai_not_enough_space">There is not enough free space on this device for the model.</string>
     <string name="settings_on_device_ai_stop">Stop download</string>
     <string name="settings_on_device_ai_discard_part">Discard the downloaded part</string>
     <string name="settings_on_device_ai_paused">The model is only partly downloaded. The download will continue from where it stopped.</string>

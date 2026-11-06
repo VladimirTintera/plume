@@ -35,5 +35,9 @@ gradlePlugin {
             id = "plume.tdlib-desktop"
             implementationClass = "eu.tintera.plume.gradle.TdlibDesktopPlugin"
         }
+        register("liteRtDesktop") {
+            id = "plume.litertlm-desktop"
+            implementationClass = "eu.tintera.plume.gradle.LiteRtDesktopPlugin"
+        }
     }
 }

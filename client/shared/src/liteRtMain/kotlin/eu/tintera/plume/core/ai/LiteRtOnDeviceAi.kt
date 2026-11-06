@@ -1,9 +1,5 @@
 package eu.tintera.plume.core.ai
 
-import android.app.ActivityManager
-import android.content.Context
-import android.os.Build
-import android.os.StatFs
 import co.touchlab.kermit.Logger
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
@@ -45,17 +41,19 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Gemma a Qwen přes LiteRT-LM: model si stáhne a spravuje aplikace sama. Který soubor, říká
  * [ModelVariant.model] ([LiteRtModel]); runtime je pro oba modely tentýž.
  *
- * Na rozdíl od Gemini Nano ([MlKitOnDeviceAi]) tu není systémová služba — soubor modelu (2,2 až
- * 3,7 GB) leží v `filesDir/ai-models` a počítá ho engine uvnitř našeho procesu.
+ * Na rozdíl od Gemini Nano (`MlKitOnDeviceAi`) tu není systémová služba — soubor modelu (0,3 až
+ * 3,7 GB) leží v adresáři od platformy ([LiteRtPlatform.modelsDir]) a počítá ho engine uvnitř
+ * našeho procesu. **Kód je společný pro Android a desktop** (source set `liteRtMain`): obě
+ * knihovny (`litertlm-android`, `litertlm-jvm`) mají shodné API; co se liší, je za [LiteRtPlatform].
  *
  * - **Stahuje se do `.part` a přejmenovává až hotový.** Přítomnost výsledného souboru tedy
  *   znamená „kompletní model" a nic dalšího se kontrolovat nemusí. Přerušené stahování
  *   navazuje (`Range`) — u gigabajtů by začínat od nuly bylo nepoužitelné — a po výpadku
  *   sítě naváže samo, když se připojení vrátí ([fetch]).
- * - **Stahuje úloha WorkManageru ([ModelDownloadWorker]), ne korutina téhle třídy.** Stahuje
- *   se minuty a proces aplikace v pozadí systém klidně zabije; úloha přežije i to a naváže
- *   na `.part`. Tahle třída drží jen stav pro obrazovku ([downloads]) — úloha běží v témže
- *   procesu a průběh do něj zapisuje přes [runDownload].
+ * - **Stahování drží naživu platforma** ([LiteRtPlatform.startDownload]): na Androidu úloha
+ *   WorkManageru, která přežije i zabití procesu a naváže na `.part`, na desktopu korutina
+ *   procesu (aplikace běží, dokud ji uživatel neukončí). Tahle třída drží jen stav pro
+ *   obrazovku ([downloads]) a stahuje v [runDownload].
  * - **Engine je v paměti nejvýš jeden**, i když jsou zapnuté oba modely — přechod z Qwenu na
  *   Gemmu ten první zavře. Po chvíli bez použití se uvolní ([idleUnloadMs]).
  *   Drží gigabajty RAM; nechat ho viset po jednom shrnutí by znamenalo, že systém dřív zabije
@@ -70,11 +68,11 @@ import kotlinx.coroutines.withTimeoutOrNull
  * - **Strop výstupu hlídáme sami** ([MAX_OUTPUT_CHARS]). Konfigurace konverzace žádný nemá;
  *   model skončí sám koncem odpovědi, ale kdyby se zacyklil, psal by do zaplnění keše.
  *
- * Nenabízí se pod Androidem 12 ([MIN_SDK]), bez arm64 a pod [LiteRtModel.minMemoryGb].
+ * Kde model nejde (paměť, systém, chybějící nativní knihovna), řekne platforma ([LiteRtPlatform.canRun]).
  * Selhání nese poskytovatele z varianty, takže hláška jmenuje model, který selhal.
  */
 class LiteRtOnDeviceAi(
-    private val context: Context,
+    private val platform: LiteRtPlatform,
     private val networkMonitor: NetworkMonitor,
     /**
      * Za jak dlouho po poslední práci engine modelu (podle poskytovatele) uvolnit. Čte se po
@@ -88,7 +86,7 @@ class LiteRtOnDeviceAi(
     /** Stahování a úklid enginu přežívají obrazovky; model je jeden na proces. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val modelsDir: File get() = File(context.filesDir, MODELS_DIR)
+    private val modelsDir: File get() = platform.modelsDir
     private fun LiteRtModel.file() = File(modelsDir, fileName)
     private fun LiteRtModel.partFile() = File(modelsDir, "$fileName.part")
 
@@ -103,12 +101,12 @@ class LiteRtOnDeviceAi(
     override suspend fun status(variant: ModelVariant): OnDeviceAiStatus {
         val model = variant.model ?: return OnDeviceAiStatus.Unsupported
         return when {
-            !deviceCanRun(model) -> OnDeviceAiStatus.Unsupported
+            !platform.canRun(model) -> OnDeviceAiStatus.Unsupported
             model.file().exists() -> OnDeviceAiStatus.Ready
             // Úloha naplánovaná z minulého běhu procesu (zabitého uprostřed stahování) se
             // rozběhne sama, jen ještě nezapsala stav — pořád je to stahování.
             stateOf(model).value is DownloadState.Running ||
-                ModelDownloadWorker.isPending(context, model) -> OnDeviceAiStatus.Downloading
+                platform.downloadPending(model) -> OnDeviceAiStatus.Downloading
             model.partFile().exists() -> OnDeviceAiStatus.Paused
             else -> OnDeviceAiStatus.Downloadable
         }
@@ -137,7 +135,7 @@ class LiteRtOnDeviceAi(
             state.value = DownloadState.Running(
                 ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = offline),
             )
-            ModelDownloadWorker.enqueue(context, model)
+            platform.startDownload(model) { runDownload(model) }
         }
         state.transformWhile { current ->
             when (current) {
@@ -155,7 +153,7 @@ class LiteRtOnDeviceAi(
 
     override suspend fun stopDownload(variant: ModelVariant) {
         val model = variant.file()
-        ModelDownloadWorker.cancel(context, model)
+        platform.cancelDownload(model)
         // Úloha to ohlásí taky ([onWorkerStopped]), jenže až doběhne zrušení; obrazovka má
         // odpovědět hned. Úloha, která ještě nezačala, neohlásí nic.
         stateOf(model).value = DownloadState.Stopped
@@ -167,7 +165,8 @@ class LiteRtOnDeviceAi(
         stateOf(model).filterIsInstance<DownloadState.Running>().map { it.progress }
 
     /**
-     * Stáhne [model]; volá ho [ModelDownloadWorker]. Vyhodí, když se stáhnout nepodařilo —
+     * Stáhne [model]; volá ho to, co stahování drží naživu ([LiteRtPlatform.startDownload]).
+     * Vyhodí, když se stáhnout nepodařilo —
      * stav pro obrazovku je pak už zapsaný. Zrušení (zastavení úlohy) jde dál beze změny
      * stavu; co znamená, ví až úloha podle důvodu zastavení ([onWorkerStopped]).
      */
@@ -259,13 +258,13 @@ class LiteRtOnDeviceAi(
         variant.model?.multimodal == true && status(variant) == OnDeviceAiStatus.Ready
 
     /**
-     * Přepis řeči: zvuk po kusech ([AudioClips], WAV 16 kHz mono, nejvýš 30 s — tak ho modelu dává
+     * Přepis řeči: zvuk po kusech ([LiteRtPlatform.wavClips], WAV 16 kHz mono, nejvýš 30 s — tak ho modelu dává
      * Gallery), každý kus vlastní konverzací, text se skládá za sebe. Engine musí mít zvukový
      * backend (`audioBackend`, CPU — pro Gemmu 3n „must be CPU" i v Gallery), proto se načte
      * se zvukem; pak poslouží i textovým funkcím, aby se nepřenačítal.
      */
     override fun transcribe(variant: ModelVariant, audioPath: String, languageCode: String): Flow<Generated> = flow {
-        val clips = withContext(Dispatchers.IO) { AudioClips.wavClips(audioPath) }
+        val clips = withContext(Dispatchers.IO) { platform.wavClips(audioPath) }
         if (clips.isEmpty()) throw IOException("No audio in $audioPath")
         withEngine(variant.file(), audio = true) { engine ->
             val done = StringBuilder()
@@ -307,12 +306,12 @@ class LiteRtOnDeviceAi(
         variant.model?.multimodal == true && status(variant) == OnDeviceAiStatus.Ready
 
     /**
-     * Popis fotky: obrázek zmenšený na [MAX_IMAGE_SIDE] ([ImageInput]) a pokyn vedle něj, jedna
+     * Popis fotky: obrázek zmenšený na [MAX_IMAGE_SIDE] ([LiteRtPlatform.png]) a pokyn vedle něj, jedna
      * konverzace. Engine musí mít obrazový backend (`visionBackend`), proto se načte s ním;
      * pak poslouží i textovým funkcím.
      */
     override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String, prompt: String): Flow<Generated> = flow {
-        val image = withContext(Dispatchers.IO) { ImageInput.png(imagePath, MAX_IMAGE_SIDE) }
+        val image = withContext(Dispatchers.IO) { platform.png(imagePath, MAX_IMAGE_SIDE) }
             ?: throw IOException("Image $imagePath cannot be decoded")
         withEngine(variant.file(), vision = true) { engine ->
             val conversation = engine.createConversation(
@@ -363,7 +362,7 @@ class LiteRtOnDeviceAi(
 
     override suspend fun delete(variant: ModelVariant) {
         val model = variant.file()
-        ModelDownloadWorker.cancel(context, model)
+        platform.cancelDownload(model)
         downloads.remove(model)
         engineLock.withLock {
             if (loaded?.model == model) unloadLocked()
@@ -429,9 +428,9 @@ class LiteRtOnDeviceAi(
                 audioBackend = if (audio) Backend.CPU() else null,
                 maxNumImages = if (vision) 1 else null,
                 maxNumTokens = model.maxTokens(),
-                // Keš zkompilovaného modelu zrychlí druhé načtení; do `cacheDir`, ať ji systém
-                // smí uklidit — soubor modelu vedle ní je drahý, keš ne.
-                cacheDir = context.cacheDir.absolutePath,
+                // Keš zkompilovaného modelu zrychlí druhé načtení; do keše platformy, ať ji
+                // systém smí uklidit — soubor modelu vedle ní je drahý, keš ne.
+                cacheDir = platform.cacheDir.apply { mkdirs() }.absolutePath,
             ),
         ).also { it.initialize() }
 
@@ -522,7 +521,7 @@ class LiteRtOnDeviceAi(
             val remaining = connection.contentLengthLong.takeIf { it > 0 } ?: (model.sizeBytes - offset)
             val total = offset + remaining
             // Rezerva nad velikost souboru: plný disk v půli stahování je horší než odmítnutí předem.
-            if (StatFs(modelsDir.absolutePath).availableBytes < remaining + FREE_SPACE_MARGIN) {
+            if (modelsDir.usableSpace < remaining + FREE_SPACE_MARGIN) {
                 throw NotEnoughSpaceException(remaining + FREE_SPACE_MARGIN)
             }
 
@@ -558,15 +557,6 @@ class LiteRtOnDeviceAi(
         check(model.partFile().renameTo(model.file())) { "Cannot move ${model.partFile().name}" }
     }
 
-    private fun deviceCanRun(model: LiteRtModel): Boolean {
-        if (Build.VERSION.SDK_INT < MIN_SDK) return false
-        if ("arm64-v8a" !in Build.SUPPORTED_ABIS) return false
-        val memory = ActivityManager.MemoryInfo()
-        (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(memory)
-        // `totalMem` hlásí o kus méně než udává výrobce (část si vezme jádro), proto rezerva.
-        return memory.totalMem >= model.minMemoryGb * GIB * MEMORY_TOLERANCE
-    }
-
     private inline fun quietly(block: () -> Unit) {
         try {
             block()
@@ -593,11 +583,6 @@ class LiteRtOnDeviceAi(
     private object OutputLimitReached : RuntimeException()
 
     private companion object {
-        const val MODELS_DIR = "ai-models"
-
-        /** Gallery, ze které je katalog modelů, jede od Androidu 12; níž to nikdo neověřil. */
-        const val MIN_SDK = 31
-
         /**
          * Velikost KV keše = vstup a výstup DOHROMADY. Gemma 4 unese víc (Gallery uvádí kontext
          * 32 000), ale keš stojí paměť úměrně délce, a 8 192 je totéž, co dává Gemini Nano —
@@ -629,8 +614,6 @@ class LiteRtOnDeviceAi(
         const val BUFFER_BYTES = 256 * 1024
         const val REPORT_EVERY_BYTES = 4L * 1024 * 1024
         const val FREE_SPACE_MARGIN = 500L * 1024 * 1024
-        const val GIB = 1024.0 * 1024 * 1024
-        const val MEMORY_TOLERANCE = 0.85
     }
 }
 

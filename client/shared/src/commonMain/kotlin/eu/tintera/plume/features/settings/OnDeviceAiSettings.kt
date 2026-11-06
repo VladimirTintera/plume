@@ -172,6 +172,12 @@ class OnDeviceAiSettingsViewModel(
     private val settings: AppSettings,
     private val ai: OnDeviceAi,
     private val appScope: CoroutineScope,
+    /**
+     * Hlídá platforma úsporný režim a přehřátí (`DeviceLoad`)? Jen pak má smysl věta, že pod nimi
+     * stahovaný model sám nic nepočítá; desktop zátěž nesleduje a věta by slibovala něco, co
+     * se tam neděje.
+     */
+    val tracksLoad: Boolean = true,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("OnDeviceAi")
@@ -664,22 +670,26 @@ private fun ModelOptions(
              * Bez téhle věty by uživatel s jedinou Gemmou nepoznal, proč návrhy a varování
              * zmizely — vypadalo by to jako rozbitý model.
              */
-            Text(
-                stringResource(Res.string.settings_gemma_under_load),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-            )
+            if (viewModel.tracksLoad) {
+                Text(
+                    stringResource(Res.string.settings_gemma_under_load),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                )
+            }
         }
         // Velikosti jako u Gemmy; malé jsou pro telefony, na které Gemma nestačí.
         AiProvider.Qwen -> {
             SizeChoices(available.sizes(provider), models.qwen, viewModel::setSize)
-            Text(
-                stringResource(Res.string.settings_qwen_under_load),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-            )
+            if (viewModel.tracksLoad) {
+                Text(
+                    stringResource(Res.string.settings_qwen_under_load),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                )
+            }
         }
         // Systémový model bez voleb: verzi i stahování řídí iOS.
         AiProvider.Apple -> Unit

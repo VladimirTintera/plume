@@ -317,6 +317,13 @@ a **Qwen3 0,6B** (328 MB, 4 GB) pro telefony, na které Gemma nestačí.
   velikost sama na 1,5B, přepnutí na 0,6B („328 MB"). **Na telefonu neověřené nic: stažení
   Qwenu, jeho výstup a čeština, ani Gemma na nové verzi knihovny.**
 
+### Desktop
+
+Gemma a Qwen běží i na desktopu (Windows x64, macOS arm64, Linux), stejným runtime jako na
+Androidu (`liteRtMain`, `LiteRtPlatform`); co je jinak (Java 21, nativní knihovna jen pro systém
+balíčku, modely mimo Roaming, stahování v procesu), je v `docs/poznatky/desktop.md`, „Model
+v zařízení (LiteRT-LM)". Gemini Nano a Apple tam nejsou.
+
 ### Víc modelů naráz a co čím počítat
 
 Nano zvuk ani obraz nebere, Gemma je umí, jenže drží gigabajty RAM. Kdo měl na všechno Gemmu

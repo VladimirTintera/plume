@@ -341,6 +341,13 @@ kotlin {
         val skiaMain by creating {
             dependsOn(commonMain.get())
         }
+        // Model v zařízení přes LiteRT-LM (Gemma, Qwen): Android a desktop. Obě knihovny mají
+        // shodné API, takže runtime (`core/ai/LiteRtOnDeviceAi`) je jeden. Knihovnu si bere každá
+        // platforma sama (`litertlm-android` / `litertlm-jvm`) — dvě kopie týchž tříd na jedné
+        // classpath by se srazily.
+        val liteRtMain by creating {
+            dependsOn(commonMain.get())
+        }
 
         commonMain {
             // „Co je nového" v Nastavení — poznámky z release-notes/ zapečené při buildu.
@@ -395,6 +402,10 @@ kotlin {
             // TDLib tu na classpath NENÍ — jen v :client:core (viz „Hranice kolem TDLib" v CLAUDE.md).
         }
 
+        androidMain {
+            dependsOn(liteRtMain)
+        }
+
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             // Widget s chaty na ploše (core/widget).
@@ -441,7 +452,7 @@ kotlin {
             // Strukturovaný výstup Gemini Nano (`GenerableProvider` pro typy odpovědí). Jen popis
             // tvaru, KSP procesor ne — providery jsou ručně v core/ai.
             implementation(libs.mlkit.genai.schema)
-            // Gemma v zařízení (LiteRT-LM). Taky jen v core/ai.
+            // Gemma a Qwen v zařízení (LiteRT-LM). Taky jen v core/ai.
             implementation(libs.litertlm.android)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
@@ -455,6 +466,7 @@ kotlin {
         jvmMain {
             dependsOn(nonDynamicThemeMain)
             dependsOn(skiaMain)
+            dependsOn(liteRtMain)
         }
 
         jvmMain {
@@ -473,6 +485,9 @@ kotlin {
             implementation(libs.zxing.core)
             // Hovory: C API ntgcalls (`core/calls/NtgNative.kt`).
             implementation(libs.jna)
+            // Gemma a Qwen v zařízení, jako na Androidu (core/ai). Jar nese nativní knihovny všech
+            // systémů; do balíčku jde jen ta jeho (plugin `plume.litertlm-desktop` v desktopApp).
+            implementation(libs.litertlm.jvm)
             // Tmavý titulek okna na Windows (`WindowTitleBarAppearance`).
             implementation(libs.platformtools.darkmodedetector)
             // Dekodér videa (GIFy, `core/video/Video.jvm.kt`): FFmpeg přes JavaCPP. Nativní

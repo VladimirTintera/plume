@@ -58,6 +58,11 @@ import javax.imageio.ImageIO
  * teprve pak `startKoin`, který TDLib hned spouští.
  */
 fun main(args: Array<String>) {
+    // JavaCPP (FFmpeg pro zvuk a video) odmítne alokovat, když FYZICKÁ paměť celého procesu
+    // přesáhne dvojnásobek haldy — a do ní se počítá i načtený model v zařízení (Gemma ~3 GB,
+    // mimo haldu). Na počítači s 8 GB by po prvním shrnutí přestaly hrát hlasovky i video
+    // (`OutOfMemoryError: Physical memory usage is too high`). Musí být před první třídou JavaCPP.
+    System.setProperty("org.bytedeco.javacpp.maxPhysicalBytes", "0")
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
     // Jazyk aplikace, jestli si ho uživatel zvolil — dřív, než se přečte první text.

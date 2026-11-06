@@ -9,6 +9,13 @@ import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.ui.UnsupportedStoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.DesktopLiteRtPlatform
+import eu.tintera.plume.core.ai.GEMMA_IDLE_TEXT_MS
+import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
+import eu.tintera.plume.core.ai.RoutingOnDeviceAi
+import eu.tintera.plume.core.ai.gemmaIdleUnloadMs
+import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.calls.CallMedia
@@ -72,8 +79,24 @@ import org.koin.core.module.Module
  * kód vede tak, aby „neumí" uměl ohlásit (viz docs/roadmap.md, sekce Desktop).
  */
 actual fun Module.platformModule() {
-    single<OnDeviceAi> { NoopOnDeviceAi }
-    // Gemma tu není, zátěž telefonu pro model v zařízení neřešíme.
+    // Model v zařízení: Gemma a Qwen přes LiteRT-LM jako na Androidu; Gemini Nano (AICore) tu
+    // není, směrovač na jeho místo dostane prázdný model a „Automaticky" ho přeskočí.
+    single<OnDeviceAi> { RoutingOnDeviceAi(geminiNano = NoopOnDeviceAi, liteRt = get<LiteRtOnDeviceAi>()) }
+    single {
+        LiteRtOnDeviceAi(
+            DesktopLiteRtPlatform(),
+            get(),
+            // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
+            idleUnloadMs = { provider ->
+                if (provider == AiProvider.Gemma) {
+                    get<OnDeviceAi>().gemmaIdleUnloadMs(get<AppSettings>().onDeviceAiModels.value)
+                } else {
+                    GEMMA_IDLE_TEXT_MS
+                }
+            },
+        )
+    }
+    // Úsporný režim a teplotu počítače pro model v zařízení neřešíme.
     single<DeviceLoad> { NoDeviceLoad }
     // Hovory jen se zvukem přes ntgcalls; bez přibalené knihovny (Intel Mac, build bez sítě)
     // se CallMedia neregistruje a hovory se nenabídnou (`CallRepository.supported`).

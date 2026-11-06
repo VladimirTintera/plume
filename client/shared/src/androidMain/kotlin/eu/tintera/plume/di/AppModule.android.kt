@@ -40,6 +40,7 @@ import eu.tintera.plume.core.snooze.AndroidSnoozeReminders
 import eu.tintera.plume.core.snooze.SnoozeReminders
 import eu.tintera.plume.core.ai.PhotoDescriptionSchedule
 import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
+import eu.tintera.plume.core.ai.AndroidLiteRtPlatform
 import eu.tintera.plume.core.ai.MlKitOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.RoutingOnDeviceAi
@@ -107,7 +108,7 @@ actual fun Module.platformModule() {
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
     single {
         LiteRtOnDeviceAi(
-            androidContext(),
+            AndroidLiteRtPlatform(androidContext()),
             get(),
             // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
             // Qwen umí jen text, takže drží jako Gemma, která text počítá.

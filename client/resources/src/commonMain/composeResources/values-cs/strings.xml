@@ -2422,7 +2422,7 @@
     <!-- Model v zařízení (core/ai) -->
     <string name="settings_on_device_ai">AI v zařízení</string>
     <string name="settings_on_device_ai_enable">Funkce s modelem v telefonu (experimentální)</string>
-    <string name="settings_on_device_ai_enable_summary">Shrnutí konverzace a návrhy odpovědí počítá jazykový model přímo v telefonu. Zprávy zařízení neopustí.</string>
+    <string name="settings_on_device_ai_enable_summary">Shrnutí konverzace a návrhy odpovědí počítá jazykový model přímo v tomhle zařízení. Zprávy ho neopustí.</string>
     <string name="settings_reply_suggestions">Návrhy odpovědí</string>
     <string name="settings_reply_suggestions_summary">Nad vstupním polem se nabídnou krátké odpovědi, když přijde zpráva a nemáš nic rozepsaného.</string>
     <string name="settings_scam_warnings">Varování před podvodem</string>
@@ -2468,11 +2468,11 @@
     <string name="settings_contact_sync_summary">Nahraje kontakty z telefonu, abys viděl, kdo má Telegram. Vypnutí je smaže, kontakty v Telegramu zůstanou.</string>
     <string name="settings_contact_sync_denied">Bez přístupu ke kontaktům není co synchronizovat. Povol ho v nastavení systému.</string>
     <string name="settings_chat_triage">Čeká na odpověď</string>
-    <string name="settings_chat_triage_summary">Model v telefonu označí nepřečtené soukromé chaty, ve kterých na tvou odpověď někdo čeká. Zprávy se nikam neposílají.</string>
+    <string name="settings_chat_triage_summary">Model v zařízení označí nepřečtené soukromé chaty, ve kterých na tvou odpověď někdo čeká. Zprávy se nikam neposílají.</string>
     <string name="settings_background_photos">Popisovat fotky na pozadí</string>
     <string name="settings_background_photos_summary">Při nabíjení model popíše nové fotky z chatů, aby šly v hledání najít podle toho, co na nich je. Fotky telefon neopustí.</string>
     <string name="chats_search_section_photos">Fotky podle obsahu</string>
-    <string name="settings_scam_warnings_summary">Příchozí zprávy s odkazy nebo frázemi typickými pro podvody posoudí model v telefonu. Nikam se neposílají.</string>
+    <string name="settings_scam_warnings_summary">Příchozí zprávy s odkazy nebo frázemi typickými pro podvody posoudí model v zařízení. Nikam se neposílají.</string>
     <string name="settings_on_device_ai_checking">Zjišťuji stav modelu…</string>
     <string name="settings_on_device_ai_unsupported">Tohle zařízení zvolený model nemá.</string>
     <string name="settings_on_device_ai_downloadable">Model je potřeba nejdřív stáhnout. Zabere gigabajty.</string>
@@ -2515,9 +2515,9 @@
     <string name="summary_retry">Zkusit znovu</string>
     <string name="ai_failure_busy">Model je teď vytížený. Zkus to za chvíli.</string>
     <string name="ai_failure_too_large">Konverzace je na model moc dlouhá.</string>
-    <string name="ai_failure_no_space">V telefonu není pro model dost místa.</string>
+    <string name="ai_failure_no_space">V zařízení není pro model dost místa.</string>
     <string name="ai_failure_needs_update">Model potřebuje novější verzi systému nebo aplikace AICore.</string>
-    <string name="ai_failure_unavailable">Model v telefonu teď není k dispozici.</string>
+    <string name="ai_failure_unavailable">Model v zařízení teď není k dispozici.</string>
     <string name="ai_failure_nano">Gemini Nano v telefonu selhal. Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → AI v zařízení.</string>
     <string name="ai_failure_nano_code">Gemini Nano v telefonu selhal (AICore, kód %1$s). Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → AI v zařízení.</string>
     <string name="ai_failure_gemma">Model Gemma selhal. Když to nepomůže znovu, smaž model v Nastavení → AI v zařízení a stáhni ho znovu.</string>
@@ -2546,10 +2546,10 @@
     <string name="settings_ai_provider_gemma_summary">Otevřený model, který si stáhne aplikace. Přepíše i hlasovky a popíše fotky, ale bere víc paměti.</string>
     <string name="settings_gemma_e2b_summary">Menší a rychlejší · %1$s</string>
     <string name="settings_ai_provider_qwen">Qwen</string>
-    <string name="settings_ai_provider_qwen_summary">Otevřený model od Alibaby, který si stáhne aplikace. Jen text, v několika velikostech, malé i pro slabší telefony.</string>
+    <string name="settings_ai_provider_qwen_summary">Otevřený model od Alibaby, který si stáhne aplikace. Jen text, v několika velikostech, malé i pro slabší zařízení.</string>
     <string name="settings_qwen_4b_summary">Největší a nejpřesnější · %1$s, potřebuje 12 GB paměti</string>
     <string name="settings_qwen_1_5b_summary">Střední · %1$s, potřebuje 6 GB paměti</string>
-    <string name="settings_qwen_0_6b_summary">Nejmenší a nejrychlejší, pro slabší telefony · %1$s, nejméně přesný</string>
+    <string name="settings_qwen_0_6b_summary">Nejmenší a nejrychlejší, pro slabší zařízení · %1$s, nejméně přesný</string>
     <string name="settings_gemma_e4b_summary">Větší a přesnější · %1$s, potřebuje 12 GB paměti</string>
     <string name="settings_gemma_under_load">V úsporném režimu a při přehřátí telefonu Gemma sama od sebe nic nepočítá: návrhy odpovědí, varování před podvodem a podobně počkají. Co si vyžádáš ťuknutím, funguje dál.</string>
     <string name="settings_ai_models">Modely</string>
@@ -2581,7 +2581,7 @@
     <string name="folder_category_hobbies">Koníčky</string>
     <string name="chat_folders_ai">Návrh od AI v zařízení</string>
     <string name="chat_folders_ai_suggest">Navrhnout složky</string>
-    <string name="chat_folders_ai_suggest_summary">Model v telefonu rozřadí posledních 40 chatů. Nic se nikam neposílá.</string>
+    <string name="chat_folders_ai_suggest_summary">Model v zařízení rozřadí posledních 40 chatů. Nic se nikam neposílá.</string>
     <string name="chat_folders_ai_working">Třídím chaty…</string>
     <string name="chat_folders_ai_nothing">Žádná složka se nenabízí: chaty se nedaly rozumně rozřadit.</string>
     <string name="chat_folders_ai_model_missing">Model v zařízení ještě není připravený. Stáhni ho v Nastavení → AI v zařízení.</string>
@@ -2596,7 +2596,7 @@
     <string name="settings_on_device_ai_download_progress">%1$s z %2$s</string>
     <string name="settings_on_device_ai_waiting_for_network">Čekám na připojení, stahování pak naváže samo…</string>
     <string name="settings_on_device_ai_resume">Pokračovat ve stahování</string>
-    <string name="settings_on_device_ai_not_enough_space">V telefonu není dost volného místa na model.</string>
+    <string name="settings_on_device_ai_not_enough_space">V zařízení není dost volného místa na model.</string>
     <string name="settings_on_device_ai_stop">Zastavit stahování</string>
     <string name="settings_on_device_ai_discard_part">Zahodit staženou část</string>
     <string name="settings_on_device_ai_paused">Model je stažený jen zčásti. Stahování naváže na to, co už je v telefonu.</string>
