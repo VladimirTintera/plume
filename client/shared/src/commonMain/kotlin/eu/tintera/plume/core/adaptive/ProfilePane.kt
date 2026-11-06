@@ -31,14 +31,22 @@ fun nearestProfileAnchor(width: Dp, defaultWidth: Dp): ProfilePaneAnchor =
     ProfilePaneAnchor.entries.minBy { abs((it.width(defaultWidth) - width).value) }
 
 /**
- * Šířka profilu tak, aby konverzaci vedle zbylo aspoň [MIN_CONVERSATION_WIDTH]. [total] je celá
- * plocha, [listWidth] šířka seznamu vlevo (ve třech panelech), nebo `null`, když seznam vidět
- * není. Nejužší je profil na výchozí šířce panelu — užší by se do něj nevešly ani dlaždice akcí.
+ * Šířka KARTY profilu tak, aby kartě konverzace vedle zbylo aspoň [MIN_CONVERSATION_WIDTH].
+ * [total] je celá plocha, [listWidth] šířka seznamu vlevo (ve třech panelech), nebo `null`, když
+ * seznam vidět není. Nejužší je profil na výchozí šířce panelu — užší by se do něj nevešly ani
+ * dlaždice akcí. Panel profilu je o okraje karty širší ([PROFILE_CARD_MARGINS]).
  */
 fun profileWidthBeside(wanted: Dp, total: Dp, listWidth: Dp?, defaultWidth: Dp): Dp {
-    val room = total - MIN_CONVERSATION_WIDTH - (listWidth?.let { it + PANE_SPACING } ?: 0.dp)
+    // Před kartou konverzace je mezera od seznamu, nebo okraj od kraje okna — v obou případech jedna.
+    val room = total - MIN_CONVERSATION_WIDTH - PANE_SPACING - PROFILE_CARD_MARGINS - (listWidth ?: 0.dp)
     return wanted.coerceAtMost(room).coerceAtLeast(defaultWidth.coerceAtMost(room))
 }
+
+/**
+ * O kolik je panel profilu širší než jeho karta: mezera od konverzace a okraj od kraje okna
+ * (`PaneCard`). Šířky kotev platí pro kartu, ať se dlaždice akcí vejdou i s okraji.
+ */
+val PROFILE_CARD_MARGINS: Dp = PANE_SPACING * 2
 
 private val PROFILE_MEDIUM_WIDTH = 480.dp
 private val PROFILE_WIDE_WIDTH = 600.dp

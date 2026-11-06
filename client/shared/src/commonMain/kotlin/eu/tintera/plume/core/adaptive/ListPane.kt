@@ -51,8 +51,8 @@ fun listPaneAnchors(defaultWidth: Dp): List<PaneExpansionAnchor> = listOf(
  * Sbalený zůstane sbalený. Širší seznam se zúží tak, aby vedle profilu (výchozí šířka) zbyla
  * konverzaci aspoň [MIN_CONVERSATION_WIDTH]: polovina plochy by ji jinak zmáčkla na pár slov.
  *
- * Mezi panely scaffold mezeru nedělá; [gap] je okraj karty od seznamu a jen jeden — konverzace
- * a profil jsou jedna karta (`PaneCard`).
+ * Mezi panely scaffold mezeru nedělá; [gap] jsou mezery, které si dělají karty (`PaneCard`):
+ * konverzace od seznamu a profil od konverzace i od kraje okna.
  */
 fun listWidthBesideProfile(anchor: ListPaneAnchor, total: Dp, defaultWidth: Dp, gap: Dp): Dp {
     val wanted = when (anchor) {

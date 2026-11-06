@@ -17,14 +17,14 @@ class ProfilePaneTest {
 
     @Test
     fun konverzaciZbydeAsponMinimum() {
-        // 1200 dp ve třech panelech: 1200 − seznam 360 − mezera 12 − konverzace 360 = 468 dp na profil.
-        assertEquals(1200.dp - 360.dp - PANE_SPACING - MIN_CONVERSATION_WIDTH, profileWidthBeside(600.dp, total = 1200.dp, listWidth = 360.dp, defaultWidth = default))
+        // 1200 dp ve třech panelech: 1200 − seznam 360 − mezera 12 − konverzace 360 − okraje profilu 24 = 444 dp na kartu profilu.
+        assertEquals(444.dp, profileWidthBeside(600.dp, total = 1200.dp, listWidth = 360.dp, defaultWidth = default))
     }
 
     @Test
     fun bezSeznamuJeVicMista() {
-        // 900 dp, seznam schovaný: 900 − 360 = 540 dp na profil.
-        assertEquals(540.dp, profileWidthBeside(600.dp, total = 900.dp, listWidth = null, defaultWidth = default))
+        // 900 dp, seznam schovaný: 900 − okraj 12 − konverzace 360 − okraje profilu 24 = 504 dp na kartu profilu.
+        assertEquals(504.dp, profileWidthBeside(600.dp, total = 900.dp, listWidth = null, defaultWidth = default))
     }
 
     @Test

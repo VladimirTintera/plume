@@ -267,29 +267,45 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 
 ### Táhlo, kotvy a sbalený seznam
 
-- **Stránky leží na ploše okna, karta je jen konverzace** (`PaneCard`, styl Gmailu / Google
-  Chatu). Dřív byl kartou každý panel zvlášť s mezerami 24 dp a uvnitř seznamu i profilu byly
-  další karty (řádky, bloky informací) — tři vrstvy zaoblených ploch do sebe, což na desktopu
-  působilo nepořádně. Plochu okna (`surfaceContainer`) kreslí shell pod scénou.
+- **Stránky leží na ploše okna, karty jsou jen konverzace a profil vedle ní** (`PaneCard`, styl
+  Gmailu / Google Chatu). Dřív byl kartou každý panel zvlášť s mezerami 24 dp a uvnitř seznamu
+  i profilu byly další karty (řádky, bloky informací) — tři vrstvy zaoblených ploch do sebe, což na
+  desktopu působilo nepořádně. Plochu okna (`surfaceContainer`) kreslí shell pod scénou.
   - **Stránkám se `surface` a `background` přemapují na `surfaceContainer`** (`asListPage`, téma
     v `PaneCard`, viz „Plocha stránky a řádku" v `seznam-chatu.md`), a to i na telefonu. Obrazovky
     si pozadí kreslí samy přes `Scaffold`; bez přemapování by na ploše okna stál obdélník o tón
     jiný — karta bez rohů.
-  - **Karta (`Panes.ownSurface`: konverzace, článek, placeholder) je `surface` se `shapes.large`**,
-    rohy má všechny, i vedle profilu. Do listopadu 2026 s ním tvořila jednu plochu (rovné rohy,
-    předěl `outlineVariant`); to s profilem na `surfaceContainer` neplatí a rovný okraj vedle plochy
-    okna by vypadal jako useknutý. Profil vedle ní žádný předěl nepotřebuje, bloky mají vlastní okraj.
+  - **Karta konverzace (`Panes.ownSurface`: konverzace, článek, placeholder) je `surface` se
+    `shapes.large`** a okrajem `PANE_SPACING` (12 dp) ze VŠECH stran, i od kraje okna. S okrajem
+    jen od seznamu narážela nahoru a dolů a zaoblený roh u spodního kraje okna, bez jediného bodu
+    mezery, vypadal jako chyba.
+  - **Profil a co se z něj otevírá je v Chatech karta taky** (`PaneNeighbours.extraCard`), jen bez
+    vlastní plochy: ořez a okraj stejný jako konverzace. V barvách aplikace je jeho stránka táž
+    jako plocha okna, takže karta není vidět a profil zůstává stránkou na ploše. V barvě chatu
+    (`ChatColorTheme` přebarví i `surfaceContainer`) je z něj zaoblená karta v odstínu chatu
+    a s konverzací tvoří dvojici; dřív stál přes celou výšku jako obdélník u kraje okna.
+    Podstránky Nastavení ve třetím panelu kartou nejsou — sekce vedle nich je stránka.
+    `extraCard` hlídá sekci, ne otevřený profil: zavíraný profil ještě odjíždí a s okraji by
+    uprostřed animace poskočil.
+  - **Do kotev se okraje profilu nepočítají** (`PROFILE_CARD_MARGINS`): šířka kotvy platí pro
+    kartu, panel je o mezeru od konverzace a okraj od kraje okna širší. Jinak by se na výchozí
+    šířce nevešly dlaždice akcí. `profileWidthBeside` a šířka seznamu ve třech panelech
+    (`GAPS_BESIDE_PROFILE`) s nimi počítají, aby kartě konverzace zbylo `MIN_CONVERSATION_WIDTH`.
+  - **Karta u kraje okna se odsadí o systémové lišty a výřez, ne o klávesnici** (`PaneEdgeInsets.Pad`).
+    Pod stavovou lištou by ležely její horní rohy; klávesnici dál řeší konverzace sama a karta za
+    ni zajede. Boky, které u kraje nestojí, inset jen zkonzumují. Každý bok je ve vlastním uzlu
+    a podmínka mění celý modifikátor, ne jeho hodnotu (Gotchas v CLAUDE.md, rozložení Foldu).
   - **Mezeru mezi panely nedělá scaffold** (`horizontalPartitionSpacerSize = 0`): jeho mezera je
-    všude stejná a přes ni kreslit nejde — panely mají `clipToBounds` (`AnimatedPane`). Okraj
-    `PANE_SPACING` (12 dp) si dělá detail zleva, když je vedle něj seznam, a táhlo stojí na hranici
-    panelů, tedy v té mezeře. Práh dvou panelů:
-    360 + 12 + 360 = 732 dp; ve třech panelech se mezera počítá jednou (`listWidthBesideProfile`).
+    všude stejná a přes ni kreslit nejde — panely mají `clipToBounds` (`AnimatedPane`). Okraj si
+    dělá karta; mezi konverzací a profilem je jeden (dělá ho profil). Táhla stojí uprostřed mezer
+    (`PaneEdge`). Práh dvou panelů: 360 + 12 + 360 + 12 = 744 dp.
   - Kartu dává dekorátor položek (`rememberPaneCardDecorator`) všemu, co má roli panelu;
     placeholder ji má zvlášť (`PaneCard(PaneRole.Detail)`), protože položkou není. Na telefonu
-    je struktura táž (téma i `Box`), jen bez ořezu a přemapování — větvení by obsahu při změně
-    šířky okna vzalo stav.
-  - Ověřeno na desktopu (Windows, tmavý motiv): seznam + placeholder a seznam | konverzace |
-    profil. **Světlý motiv a tablet/Fold ověřené nejsou.**
+    je struktura táž (téma i `Box`y), jen bez ořezu, okrajů a přemapování — větvení by obsahu
+    při změně šířky okna vzalo stav.
+  - Původní rozvržení ověřené na desktopu (Windows, tmavý motiv): seznam + placeholder a seznam |
+    konverzace | profil. **Okraje karet a profil jako karta (listopad 2026) jsou zatím jen
+    přeložené a otestované jednotkovými testy, na zařízení neověřené.**
 - **Táhlo jen mezi HLAVNÍM seznamem chatů a konverzací** (`ListPaneExpansion.kt`). Stav táhla
   (`PaneExpansionState`) počítá šířku PRVNÍHO rozbaleného panelu, takže mezi konverzací
   a profilem (pod Large) by konverzaci zmáčkl na šířku sbaleného seznamu. Archiv, nová zpráva
