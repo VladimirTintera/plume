@@ -59,9 +59,9 @@ fun PaneScaffoldDirective.twoPane(): PaneScaffoldDirective = withHorizontalParti
 fun PaneScaffoldDirective.threePane(): PaneScaffoldDirective = withHorizontalPartitions(3)
 
 /**
- * Mezera mezi seznamem a kartou vedle něj. Nedělá ji scaffold, ale karta (`PaneCard`): mezera
- * z direktivy by oddělila i konverzaci od profilu, které jsou jedna karta. Seznam leží na ploše
- * okna a jeho řádky mají vlastní okraj, takže stačí menší než 24 dp z M3.
+ * Okraj karty (`PaneCard`: konverzace, profil) od seznamu, od sousední karty i od kraje okna.
+ * Nedělá ho scaffold, ale karta: mezera z direktivy je všude stejná a seznam, který leží na ploše
+ * okna, by od kraje odsadila taky. Seznam má u řádků vlastní okraj, takže stačí menší než 24 dp z M3.
  */
 val PANE_SPACING = 12.dp
 
@@ -74,11 +74,11 @@ val MIN_CONVERSATION_WIDTH = 360.dp
 /**
  * Od téhle šířky content-oblasti má smysl ukázat seznam a konverzaci vedle sebe.
  *
- * Není to standardní práh M3 (dva panely dává až Expanded, od 840 dp), ale seznam, mezera a nejužší
- * konverzace (744 dp) — dva panely tak dostane i vnitřní displej Foldu naležato (Medium).
- * Standardní dvoupanel už od Medium (600 dp) by konverzaci nechal 216 dp.
+ * Není to standardní práh M3 (dva panely dává až Expanded, od 840 dp), ale seznam, nejužší karta
+ * konverzace a její okraje od seznamu a od kraje okna (744 dp) — dva panely tak dostane i vnitřní
+ * displej Foldu naležato (Medium). Standardní dvoupanel už od Medium (600 dp) by konverzaci nechal 216 dp.
  */
-val TWO_PANE_MIN_WIDTH = LIST_PANE_WIDTH + PANE_SPACING + MIN_CONVERSATION_WIDTH
+val TWO_PANE_MIN_WIDTH = LIST_PANE_WIDTH + PANE_SPACING * 2 + MIN_CONVERSATION_WIDTH
 
 /**
  * Od téhle šířky se profil otevírá jako třetí panel vedle seznamu a konverzace. Pod ní se seznam

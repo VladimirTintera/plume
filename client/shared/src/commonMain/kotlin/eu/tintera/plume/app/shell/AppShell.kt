@@ -123,6 +123,7 @@ import eu.tintera.plume.core.adaptive.PANE_SPACING
 import eu.tintera.plume.core.adaptive.LocalPaneNeighbours
 import eu.tintera.plume.core.adaptive.PaneCard
 import eu.tintera.plume.core.adaptive.PaneNeighbours
+import eu.tintera.plume.core.adaptive.PROFILE_CARD_MARGINS
 import eu.tintera.plume.core.adaptive.listWidthBesideProfile
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
 import eu.tintera.plume.core.adaptive.rememberWithLeavingExtras
@@ -545,6 +546,8 @@ private fun ShellContent(
         val paneNeighbours = PaneNeighbours(
             listBeside = twoPane && (!extraBeside || threePane),
             extraBeside = extraBeside,
+            // Nezávisle na tom, jestli je profil otevřený: zavíraný odjíždí ještě jako karta.
+            extraCard = navigation.section == ChatsRoute,
         )
 
         /*
@@ -558,7 +561,8 @@ private fun ShellContent(
             total = maxWidth,
             listWidth = if (threePane) listPaneWidth ?: base.defaultPanePreferredWidth else null,
         )
-        val profilePaneWidth = profileResize.width.takeIf { profileBeside }
+        // Šířka kotvy platí pro kartu profilu; panel nese navíc její okraje (`PaneCard`).
+        val profilePaneWidth = (profileResize.width + PROFILE_CARD_MARGINS).takeIf { profileBeside }
         // Za tahu vlastním táhlem a za jeho dojezdu řídí pohyb táhlo, ne pružina knihovny (`DraggedWidth`).
         val instantPaneBounds = (listResizeShown != null && listResize.resizing) || (profileBeside && profileResize.resizing)
         if (listPaneWidth != null || profilePaneWidth != null) {
