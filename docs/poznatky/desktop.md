@@ -1209,6 +1209,50 @@ v `docs/poznatky/ai-v-zarizeni.md`.
   Qwen ve shrnutí nedodržel pokyn psát o čtenáři ve druhé osobě („Já řekl…") a ze slovenštiny
   si vymyslel podrobnosti; Gemma pokyn drží. macOS a Linux neověřené.
 
+## EuroLLM na desktopu (llama.cpp)
+
+Druhý runtime vedle LiteRT-LM (obecně „EuroLLM přes llama.cpp" v `docs/poznatky/ai-v-zarizeni.md`).
+Kód je týž jako na Androidu (:client:ai-llamacpp, čistě JVM), knihovnu `libplume_llama.dylib` /
+`plume_llama.dll` / `libplume_llama.so` překládá :client:ai-llamacpp-desktop (úloha
+`buildLlamaCppDesktop`) ze stejného CMakeLists a dává ji do jaru, který desktopApp přibaluje
+(`runtimeOnly`). `shared` najde runtime jako LiteRT-LM (`BundledLiteRtRuntime(LLAMACPP_ENGINE_FACTORY)`).
+
+- **Jen pro systém a architekturu, na kterých se staví** (jako TDLib a LiteRT-LM), pod
+  `eu/tintera/plume/ai/llamacpp/native/<systém>-<arch>/` v jaru. `LlamaNative` ji vybalí do
+  `ai-cache/llamacpp/<otisk obsahu>/` a načte cestou; bez knihovny v jaru (Android) ji načte
+  jménem. **Složka podle otisku, ne přepis staré kopie**: nahranou DLL Windows nepřepíše ani
+  nesmaže, takže nová verze vedle běžící staré by jinak neměla kam; starší složky se uklidí,
+  když jdou smazat.
+- **CMake z Android SDK** (`cmake;3.31.0`, s ním Ninja), stejný jako pro Android; jinak `cmake`
+  z PATH. Překladač systémový: Xcode Command Line Tools, MSVC (`vswhere` + `vcvarsall`, statické
+  CRT, jako toasty), GCC/Clang. Bez submodulu, CMake nebo překladače se úloha lokálně přeskočí
+  s varováním (EuroLLM se pak nenabídne), **na CI je to chyba**. Release workflow proto dělá
+  checkout se submodulem a `setup-android` instaluje `cmake` — a taky `ndk`, protože AGP NDK
+  chce už při KONFIGURACI :client:ai-llamacpp-android (`ndkVersion`), i když se staví jen
+  desktop. **Bez NDK neprojde žádný Gradle build** („License for package NDK … not accepted",
+  s `android.builder.sdkDownload=false` „NDK not configured"); NDK 29 chce licenci Android SDK
+  Preview, kterou je třeba přijmout (`sdkmanager --licenses`).
+- **Jen CPU, i na Macu** (`GGML_METAL OFF`, `n_gpu_layers = 0`): aplikace o GPU nežádá
+  (`ModelRuntime.gpu`). Accelerate (BLAS) zůstává zapnutý, je to systémový framework.
+- **Instrukce procesoru jako na Androidu**: arm64 `armv8.2-a+dotprod+fp16` (všechna Apple
+  Silicon), x86_64 výchozí sada ggml bez `GGML_NATIVE`, tedy AVX2, FMA, F16C a BMI2. Na starším
+  procesoru by první shrnutí shodilo JVM na SIGILL, proto `DesktopLiteRtPlatform.llamaCppCpuSupported`:
+  na x86_64 se ptá HotSpotu na `UseAVX` (JVM ho při startu nastaví podle CPUID i podle toho, jestli
+  systém registry AVX ukládá; ≥ 2 = AVX2), na Linuxu arm64 na `asimddp` v `/proc/cpuinfo`.
+  Windows na ARM knihovnu nemá (MSVC pro ARM chce `GGML_NATIVE`).
+- **OpenMP vypnuté** i tady: na Windows by chtělo `vcomp140.dll` z VC++ Redistributable.
+- **Vlákna: polovina logických jader, nejvýš 8** (na Androidu 4). Polovina je zhruba počet
+  fyzických jader u procesorů se dvěma vlákny na jádro; strop drží výpočet pryč od úsporných
+  jader velkých procesorů.
+- **Emoji ve vstupu projdou** (JNI jede v bajtech UTF-8), na rozdíl od LiteRT-LM, které je
+  z textu pro model vypouští — `modelText` se týká jen jeho.
+- **Ověřeno na macOS (Apple M5, 32 GB)**: knihovna 5,3 MB, `minos 14.0`, závisí jen na systému
+  a Accelerate. Test `LlamaCppDesktopTest` (`-PllamaCppTestModel=<soubor.gguf>`) s EuroMoE 2,6B:
+  načtení 1,8 s, odpověď na „Ahoj 😊 Napiš jednou větou česky, co je Praha." za 0,23 s, správně
+  česky. Dočasný test na classpath desktopApp: `canRun` pustí EuroMoE i EuroLLM 9B, runtime se
+  najde reflexí a odpoví i na vstup s emoji. **Neověřené: Windows a Linux (ani překlad),
+  zabalená aplikace (DMG, MSI) a stažení modelu z Nastavení v přihlášené aplikaci.**
+
 ## Co platforma (zatím) neumí
 
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez

@@ -181,7 +181,7 @@ enum class ModelRuntime(val gpu: Boolean) {
     /** LiteRT-LM (soubory `.litertlm`): Gemma a Qwen, Android i desktop. */
     LiteRt(gpu = true),
 
-    /** llama.cpp (soubory GGUF): EuroLLM, jen Android a jen CPU. */
+    /** llama.cpp (soubory GGUF): EuroLLM, Android i desktop, jen CPU. */
     LlamaCpp(gpu = false),
 }
 

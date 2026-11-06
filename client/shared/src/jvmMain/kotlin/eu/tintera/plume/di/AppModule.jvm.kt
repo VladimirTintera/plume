@@ -10,6 +10,8 @@ import eu.tintera.plume.core.ui.UnsupportedStoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.ai.engine.LITERT_ENGINE_FACTORY
+import eu.tintera.plume.ai.engine.LLAMACPP_ENGINE_FACTORY
 import eu.tintera.plume.core.ai.BundledLiteRtRuntime
 import eu.tintera.plume.core.ai.ModelRuntime
 import eu.tintera.plume.core.ai.DesktopLiteRtPlatform
@@ -87,8 +89,11 @@ actual fun Module.platformModule() {
     single {
         LiteRtOnDeviceAi(
             DesktopLiteRtPlatform(),
-            // llama.cpp (EuroLLM) desktop nemá; model se tu nenabízí (`DesktopLiteRtPlatform.canRun`).
-            BundledLiteRtRuntime().let { liteRt -> { _: ModelRuntime -> liteRt } },
+            // Oba runtime jsou v balíčku (:client:ai-litert, :client:ai-llamacpp-desktop).
+            mapOf(
+                ModelRuntime.LiteRt to BundledLiteRtRuntime(LITERT_ENGINE_FACTORY),
+                ModelRuntime.LlamaCpp to BundledLiteRtRuntime(LLAMACPP_ENGINE_FACTORY),
+            )::getValue,
             get(),
             // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
             idleUnloadMs = { provider ->

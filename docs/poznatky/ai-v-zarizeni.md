@@ -457,7 +457,7 @@ stažení.
 
 Kvůli češtině je třetí stahovaný model **EuroLLM** (`AiProvider.EuroLlm`) od utter-project,
 trénovaný na všech jazycích EU, Apache 2.0. Ve formátu LiteRT-LM není, takže běží přes
-**llama.cpp** (soubory GGUF) — druhý runtime vedle LiteRT-LM, jen na Androidu a jen na CPU.
+**llama.cpp** (soubory GGUF) — druhý runtime vedle LiteRT-LM, na Androidu i desktopu, jen na CPU.
 Velikosti: **EuroLLM 9B** (verze 2512, Q4_K_M, 5,2 GiB, 16 GB paměti) a **EuroMoE 2,6B**
 (směs expertů, aktivních 0,6B, Q4_K_M, 1,5 GiB, 6 GB). Kvantizace od mradermacher — originál 9B
 je na Hugging Face za souhlasem, GGUF kopie ne.
@@ -466,11 +466,18 @@ je na Hugging Face za souhlasem, GGUF kopie ne.
   `LiteRtOnDeviceAi` dostává runtime pro každý druh (`runtimes`), stahování, stav, uvolňování
   i porovnání jsou společné; jméno třídy zůstalo z doby, kdy byl jen LiteRT-LM.
 - **llama.cpp je git submodul** (`client/ai-llamacpp/llama.cpp`, připnutý na vydání `b12170`,
-  mělký) a překládá se z NDK (r29, kvůli 16KB stránkám) přes CMake v :client:ai-llamacpp.
-  Release workflow Androidu proto dělá checkout se `submodules: true`; desktop ho nepotřebuje
-  (přeloží se i bez submodulu, ověřeno). Hotové wrappery z Maven jsou od jednotlivců — stejné
-  riziko jako wrapper TDLib, jen bez hranice kolem. Bump = `git -C client/ai-llamacpp/llama.cpp
-  fetch --depth 1 origin tag bNNNNN`, checkout a commit ukazatele submodulu.
+  mělký). Oba release workflow proto dělají checkout se `submodules: true`. Hotové wrappery
+  z Maven jsou od jednotlivců — stejné riziko jako wrapper TDLib, jen bez hranice kolem.
+  Bump = `git -C client/ai-llamacpp/llama.cpp fetch --depth 1 origin tag bNNNNN`, checkout
+  a commit ukazatele submodulu.
+- **Tři moduly: kód, knihovna pro Android, knihovna pro desktop.** :client:ai-llamacpp je čistě
+  JVM modul s kódem v Kotlinu (`LlamaCppEngineFactory`), JNI mostem a CMakeLists; knihovnu
+  z téhož CMakeLists staví :client:ai-llamacpp-android (NDK r29 kvůli 16KB stránkám, do součásti
+  z Play) a :client:ai-llamacpp-desktop (CMake systému, do jaru), viz „EuroLLM na desktopu"
+  v `docs/poznatky/desktop.md`. Kód nesmí stavět nic nativního sám: knihovna pro Mac by skončila
+  i v součásti pro Android. KMP to není, protože KMP plugin pro Android nativní build z CMake
+  neumí. Kód rozezná platformu jen podle toho, jestli knihovna leží v jaru
+  (`LlamaNative.loadLibrary`), a podle VM (počet vláken).
 - **Jedna knihovna `libplume_llama.so` (6,6 MB na arm64)**: llama.cpp a ggml staticky, k tomu
   vlastní JNI (`plume_llama.cpp`) jen nad C API z `llama.h`. Příklad `examples/llama.android`
   staví backendy zvlášť (`GGML_BACKEND_DL`) a CPU variantu načítá z ADRESÁŘE knihoven — split
@@ -483,14 +490,18 @@ je na Hugging Face za souhlasem, GGUF kopie ne.
   i8mm a SVE by na starších jádrech skončily SIGILL.
 - **Text přes JNI jako bajty UTF-8**, ne `jstring`: `NewStringUTF` a `GetStringUTFChars` jedou
   v „modified UTF-8", ve kterém emoji vypadají jinak a CheckJNI na ně aplikaci shodí. Token, který
-  nedotvoří znak, se drží, dokud znak nedokončí další (`completeUtf8Prefix`).
+  nedotvoří znak, se drží, dokud znak nedokončí další (`completeUtf8Prefix`). Proto na desktopu
+  NEPLATÍ obcházka LiteRT-LM, která emoji ze vstupu vypouští (`DesktopLiteRtPlatform.modelText`):
+  llama.cpp dostane standardní UTF-8 a „Ahoj 😊" projde. **Totéž cesta k modelu**: na Windows ji
+  ggml otevírá jako UTF-8 (`ggml_fopen` → `_wfopen`) a jméno uživatele v `%LOCALAPPDATA%`
+  bývá s diakritikou.
 - **Jen CPU** (`ModelRuntime.gpu = false`): aplikace o GPU nežádá a factory ho odmítne. Pokus
   o GPU by skončil selháním, které si `LiteRtOnDeviceAi` pamatuje pro celý proces (`gpuFailed`),
   a vzal by GPU i Gemmě.
 - **Ořez knihovny dělá modul, který ji balí** (:client:llamacppFeature), a jeho NDK: bez
   `ndkVersion` v součásti AGP ořez přeskočil („Unable to strip") a do AAB šlo 55 MB místo 6,6 MB.
-- **Desktop EuroLLM nemá** (`DesktopLiteRtPlatform.canRun` jen pro LiteRT-LM). Tam by to chtělo
-  překlad knihovny pro každý systém v release workflow desktopu.
+- **Na desktopu EuroLLM je taky**, podrobnosti v `docs/poznatky/desktop.md`,
+  „EuroLLM na desktopu (llama.cpp)".
 - **V automatice stojí EuroLLM před Qwenem** (`AUTOMATIC_ORDER`): kdo si ho zapne, chce ho na
   text kvůli češtině. Systémové modely mají přednost dál.
 - **Ověřeno na emulátoru x86_64** (8 GB RAM, `bundletool --local-testing`, sonda v `canRun`

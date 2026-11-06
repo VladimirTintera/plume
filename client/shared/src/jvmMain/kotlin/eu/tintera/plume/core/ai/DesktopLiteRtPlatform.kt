@@ -9,6 +9,7 @@ import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
 import java.io.File
+import com.sun.management.HotSpotDiagnosticMXBean
 import java.lang.management.ManagementFactory
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -38,6 +39,9 @@ import kotlinx.coroutines.launch
  *   nemá vůbec. **A jen na Javě 21+** ([javaSupported]): `litertlm-jvm` je pro ni přeložený
  *   a na starší by se model nabídl, ale při prvním použití selhal (desktopApp proto balí
  *   s JDK 21, `runtimeLauncher`).
+ * - **EuroLLM (llama.cpp) taky jen s knihovnou v balíčku** ([llamaCppBundled], přeloží ji
+ *   :client:ai-llamacpp-desktop) **a jen na procesoru, pro který je přeložená**
+ *   ([llamaCppCpuSupported]) — jinak by první shrnutí shodilo celou aplikaci na SIGILL.
  * - **Obraz přes ImageIO** (JPEG a PNG z Telegramu; WebP neumí a popis se pak nenabídne),
  *   **zvuk přes FFmpeg** ([FfmpegAudioDecoder], hlasovka Ogg/Opus i kolečko MP4).
  * - **Emoji mimo základní rovinu Unicode do modelu nejdou** ([modelText]).
@@ -54,10 +58,13 @@ class DesktopLiteRtPlatform : LiteRtPlatform {
 
     override val cacheDir: File get() = File(localDirectory, CACHE_DIR)
 
-    /** Jen modely LiteRT-LM: llama.cpp (EuroLLM) desktop zatím nepřekládá. */
-    override fun canRun(model: LiteRtModel): Boolean =
-        model.runtime == ModelRuntime.LiteRt &&
-            javaSupported && nativeLibraryBundled && totalMemoryBytes() >= model.minMemoryGb * GIB * MEMORY_TOLERANCE
+    override fun canRun(model: LiteRtModel): Boolean {
+        val runtime = when (model.runtime) {
+            ModelRuntime.LiteRt -> javaSupported && nativeLibraryBundled
+            ModelRuntime.LlamaCpp -> llamaCppBundled && llamaCppCpuSupported
+        }
+        return runtime && totalMemoryBytes() >= model.minMemoryGb * GIB * MEMORY_TOLERANCE
+    }
 
     override fun png(path: String, maxSide: Int): ByteArray? {
         val source = runCatching { ImageIO.read(File(path)) }.getOrNull() ?: return null
@@ -198,22 +205,64 @@ class DesktopLiteRtPlatform : LiteRtPlatform {
             }
         }
 
+        /** `aarch64` nebo `x86_64`, jak ji nesou složky nativních knihoven; `null` u jiné. */
+        val arch: String? = when (System.getProperty("os.arch").lowercase()) {
+            "amd64", "x86_64" -> "x86_64"
+            "aarch64", "arm64" -> "aarch64"
+            else -> null
+        }
+
+        /** `darwin`, `windows` nebo `linux` — první půlka jména složky s nativní knihovnou. */
+        val system: String get() = when (desktopOs) {
+            DesktopOs.Windows -> "windows"
+            DesktopOs.MacOs -> "darwin"
+            else -> "linux"
+        }
+
         /**
          * Nese balíček nativní knihovnu LiteRT-LM pro tenhle systém? Cesty jsou ty, odkud ji
          * knihovna sama vybaluje (`NativeLibraryLoader`): `jni/<systém>-<architektura>/`.
          */
         val nativeLibraryBundled: Boolean by lazy {
-            val arch = when (System.getProperty("os.arch").lowercase()) {
-                "amd64", "x86_64" -> "x86_64"
-                "aarch64", "arm64" -> "aarch64"
-                else -> return@lazy false
+            val cpu = arch ?: return@lazy false
+            val library = if (desktopOs == DesktopOs.Windows) "litertlm_jni.dll" else "liblitertlm_jni.so"
+            DesktopLiteRtPlatform::class.java.getResource("/com/google/ai/edge/litertlm/jni/$system-$cpu/$library") != null
+        }
+
+        /**
+         * Nese balíček knihovnu llama.cpp pro tenhle systém? Cesta je ta, odkud ji vybaluje
+         * `LlamaNative` (:client:ai-llamacpp), a kam ji dává :client:ai-llamacpp-desktop.
+         */
+        val llamaCppBundled: Boolean by lazy {
+            val cpu = arch ?: return@lazy false
+            val library = System.mapLibraryName("plume_llama")
+            DesktopLiteRtPlatform::class.java.getResource("/eu/tintera/plume/ai/llamacpp/native/$system-$cpu/$library") != null
+        }
+
+        /**
+         * Umí procesor instrukce, pro které je llama.cpp přeložená (client/ai-llamacpp/src/main/cpp)?
+         *
+         * - **x86_64: AVX2** (s ním FMA, F16C a BMI2 — všechny procesory s AVX2 je mají). Ptá se
+         *   HotSpotu: `UseAVX` si JVM při startu nastaví podle CPUID i podle toho, jestli registry
+         *   AVX ukládá systém, tedy totéž, co by chtěla vědět vlastní kontrola. Starší procesory
+         *   a Pentium či Celeron bez AVX tu vyjdou nulou. Bez `jdk.management` (v balíčku je,
+         *   `modules` v desktopApp) se nedá zjistit a model se nenabídne.
+         * - **arm64: dot product.** Mají ho všechna Apple Silicon (M1 a novější); na Linuxu se
+         *   čte z `/proc/cpuinfo` (`asimddp`). Pro Windows na ARM se knihovna nestaví.
+         */
+        val llamaCppCpuSupported: Boolean by lazy {
+            when (arch) {
+                "x86_64" -> runCatching {
+                    ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean::class.java)
+                        .getVMOption("UseAVX").value.toInt() >= 2
+                }.getOrDefault(false)
+                "aarch64" -> when (desktopOs) {
+                    DesktopOs.MacOs -> true
+                    DesktopOs.Windows -> false
+                    else -> runCatching { File("/proc/cpuinfo").readText().contains(" asimddp") }.getOrDefault(false)
+                }
+                else -> false
             }
-            val path = when (desktopOs) {
-                DesktopOs.Windows -> "windows-$arch/litertlm_jni.dll"
-                DesktopOs.MacOs -> "darwin-$arch/liblitertlm_jni.so"
-                else -> "linux-$arch/liblitertlm_jni.so"
-            }
-            DesktopLiteRtPlatform::class.java.getResource("/com/google/ai/edge/litertlm/jni/$path") != null
         }
     }
 }

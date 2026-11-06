@@ -30,9 +30,11 @@ Rozpracovaný detail chatu má vlastní seznam:
 open iosApp/iosApp.xcodeproj                         # iOS se staví z Xcode
 ```
 
-**llama.cpp je git submodul** (`client/ai-llamacpp/llama.cpp`, součást z Play pro EuroLLM):
+**llama.cpp je git submodul** (`client/ai-llamacpp/llama.cpp`, EuroLLM na Androidu i desktopu):
 po klonu `git submodule update --init --depth 1`, jinak build Androidu skončí na chybějícím
-`CMakeLists.txt`. Desktop ho nepotřebuje.
+`CMakeLists.txt`. Desktop se přeloží i bez něj (a bez CMake), jen EuroLLM nenabídne. **NDK
+a jeho licenci potřebuje KAŽDÝ build** (AGP ho chce při konfiguraci :client:ai-llamacpp-android),
+CMake `cmake;3.31.0` z SDK Manageru.
 
 Před prvním spuštěním doplň do `local.properties` (gitignorovaný):
 
@@ -204,8 +206,10 @@ client/
   ai-engine/   :client:ai-engine  – rozhraní runtime modelu v zařízení (LlmEngineFactory), bez závislostí
   ai-litert/   :client:ai-litert  – implementace nad LiteRT-LM; jediná s `com.google.ai.edge.litertlm`
   litertFeature/ :client:litertFeature – součást z Google Play na požádání, balí ai-litert (Android)
-  ai-llamacpp/ :client:ai-llamacpp – llama.cpp (submodul) a JNI pro modely GGUF; jen Android
-  llamacppFeature/ :client:llamacppFeature – součást z Google Play na požádání, balí ai-llamacpp
+  ai-llamacpp/ :client:ai-llamacpp – llama.cpp (submodul), JNI a kód pro modely GGUF; čistě JVM
+  ai-llamacpp-android/ :client:ai-llamacpp-android – knihovna llama.cpp z NDK
+  ai-llamacpp-desktop/ :client:ai-llamacpp-desktop – knihovna llama.cpp pro desktop (CMake systému)
+  llamacppFeature/ :client:llamacppFeature – součást z Google Play na požádání, balí ai-llamacpp-android
 iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:shared
 ```
 
