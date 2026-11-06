@@ -29,8 +29,10 @@ import kotlinx.coroutines.flow.callbackFlow
  * - **Nativní knihovnu načte [SplitInstallHelper.loadLibrary] dřív než runtime**: ten si ji
  *   bere `System.loadLibrary`, který v čerstvě doinstalovaném splitu cestu najít nemusí; už
  *   načtenou knihovnu pak linker najde podle jména.
- * - **Mimo Google Play to nejde** (APK z `assembleDebug`, jiný obchod) — instalace selže a model
- *   se nestáhne. Pro vývoj se součást instaluje spolu s aplikací, viz
+ * - **Souhlas, který si Play občas řekne** (`REQUIRES_USER_CONFIRMATION`), ukáže dialog Play
+ *   v aktivitě přes [SplitInstallConfirmations]; dokud uživatel neodpoví, instalace stojí.
+ * - **Mimo Google Play to nejde** (APK z `assembleDebug`, jiný obchod) — instalace selže
+ *   (`APP_NOT_OWNED`, -15) a model se nestáhne. Pro vývoj se součást instaluje spolu s aplikací, viz
  *   docs/poznatky/ai-v-zarizeni.md, „Runtime jako součást z Google Play".
  */
 class PlayLiteRtRuntime(
@@ -41,6 +43,8 @@ class PlayLiteRtRuntime(
     private val nativeLibrary: String,
     /** Implementace [LlmEngineFactory] v součásti, viz konstanty v :client:ai-engine. */
     private val factoryClass: String,
+    /** Kudy jde žádost Play o souhlas k aktivitě. */
+    private val confirmations: SplitInstallConfirmations,
 ) : LiteRtRuntime {
 
     private val context = context.applicationContext
@@ -60,6 +64,26 @@ class PlayLiteRtRuntime(
         }
         var sessionId = 0
         var done = false
+
+        /** Dialog souhlasu Play; odpověď rozhodne, jestli instalace pokračuje. */
+        fun confirm(state: SplitInstallSessionState) {
+            sessionId = state.sessionId()
+            logger.i { "Play chce před instalací $module souhlas" }
+            confirmations.request(
+                SplitInstallConfirmations.Request(
+                    state,
+                    declined = {
+                        done = true
+                        close(DownloadStoppedException())
+                    },
+                    failed = {
+                        done = true
+                        close(RuntimeInstallException(cause = IllegalStateException("Play confirmation dialog failed")))
+                    },
+                ),
+            )
+        }
+
         val listener = SplitInstallStateUpdatedListener { state ->
             if (module !in state.moduleNames()) return@SplitInstallStateUpdatedListener
             when (state.status()) {
@@ -79,12 +103,9 @@ class PlayLiteRtRuntime(
                     done = true
                     close(DownloadStoppedException())
                 }
-                // Play chce souhlas jen u součásti nad 150 MB; tahle má desítky MB. Kdyby
-                // přesto přišel, obrazovka by bez aktivity neměla jak ho ukázat.
-                SplitInstallSessionStatus.REQUIRES_USER_CONFIRMATION -> {
-                    done = true
-                    close(RuntimeInstallException(cause = IllegalStateException("Play requires user confirmation")))
-                }
+                // Souhlas ukáže dialog Play v aktivitě (SplitInstallConfirmationHost); po něm
+                // instalace pokračuje dalšími stavy, odmítnutí stahování zastaví.
+                SplitInstallSessionStatus.REQUIRES_USER_CONFIRMATION -> confirm(state)
                 else -> Unit
             }
         }
@@ -108,12 +129,19 @@ class PlayLiteRtRuntime(
         manager.sessionStates
             .addOnSuccessListener { states ->
                 val running = states.firstOrNull { module in it.moduleNames() && it.isActive() }
-                if (running != null) sessionId = running.sessionId() else start()
+                when {
+                    // Dialog z minulého ťuknutí zavřený bez odpovědi: sezení na souhlas pořád čeká
+                    // a nová instalace by narazila na limit sezení.
+                    running?.status() == SplitInstallSessionStatus.REQUIRES_USER_CONFIRMATION -> confirm(running)
+                    running != null -> sessionId = running.sessionId()
+                    else -> start()
+                }
             }
             .addOnFailureListener { start() }
 
         awaitClose {
             manager.unregisterListener(listener)
+            if (sessionId != 0) confirmations.withdraw(sessionId)
             // Zastavil uživatel (nebo odešel celý runtime) — Play by jinak stahoval dál.
             if (!done && sessionId != 0) manager.cancelInstall(sessionId)
         }
@@ -135,6 +163,7 @@ class PlayLiteRtRuntime(
             SplitInstallSessionStatus.DOWNLOADING,
             SplitInstallSessionStatus.DOWNLOADED,
             SplitInstallSessionStatus.INSTALLING,
+            SplitInstallSessionStatus.REQUIRES_USER_CONFIRMATION,
         )
     }
 }

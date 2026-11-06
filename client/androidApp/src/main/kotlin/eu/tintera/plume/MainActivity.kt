@@ -13,6 +13,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
+import eu.tintera.plume.core.ai.SplitInstallConfirmationHost
 import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.telegram.CallRepository
@@ -66,7 +67,11 @@ class MainActivity : ComponentActivity() {
 
         // O oprávnění k notifikacím se žádá až v přihlášené části aplikace, viz
         // NotificationPermissionPrompt — ne odsud, kde by dialog vyskočil nad přihlášením.
-        setContent { App() }
+        setContent {
+            App()
+            // Dialog Play, když si před instalací runtime modelu v zařízení řekne o souhlas.
+            SplitInstallConfirmationHost()
+        }
 
         lifecycleScope.launch { shortcutOverview = KeyboardShortcutOverview.load() }
     }

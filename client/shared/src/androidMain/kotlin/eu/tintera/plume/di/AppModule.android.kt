@@ -42,6 +42,7 @@ import eu.tintera.plume.core.ai.PhotoDescriptionSchedule
 import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
 import eu.tintera.plume.core.ai.AndroidLiteRtPlatform
 import eu.tintera.plume.core.ai.PlayLiteRtRuntime
+import eu.tintera.plume.core.ai.SplitInstallConfirmations
 import eu.tintera.plume.core.ai.ModelRuntime
 import eu.tintera.plume.ai.engine.LITERT_ENGINE_FACTORY
 import eu.tintera.plume.ai.engine.LLAMACPP_ENGINE_FACTORY
@@ -108,6 +109,8 @@ actual fun Module.platformModule() {
     // uživatele (RoutingOnDeviceAi). Obojí jednou na proces — klienti ML Kitu i engine LiteRT-LM
     // jsou drahé.
     single<OnDeviceAi> { RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), liteRt = get<LiteRtOnDeviceAi>()) }
+    // Souhlas Play před instalací runtime: runtime ho ohlásí, dialog ukáže MainActivity.
+    single { SplitInstallConfirmations() }
     // Zvlášť, protože ji potřebuje i úloha stahování (ModelDownloadWorker) — stav stahování,
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
     single {
@@ -120,12 +123,14 @@ actual fun Module.platformModule() {
                     module = "litertFeature",
                     nativeLibrary = "litertlm_jni",
                     factoryClass = LITERT_ENGINE_FACTORY,
+                    confirmations = get(),
                 ),
                 ModelRuntime.LlamaCpp to PlayLiteRtRuntime(
                     androidContext(),
                     module = "llamacppFeature",
                     nativeLibrary = "plume_llama",
                     factoryClass = LLAMACPP_ENGINE_FACTORY,
+                    confirmations = get(),
                 ),
             )::getValue,
             get(),

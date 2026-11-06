@@ -424,6 +424,17 @@ stažení.
   v `attachBaseContext`) a nativní knihovnu napřed načte `SplitInstallHelper.loadLibrary`;
   LiteRT-LM si ji bere `System.loadLibrary`, který v čerstvém splitu cestu najít nemusí, a už
   načtenou knihovnu linker najde podle jména. Po restartu procesu je součást běžný split APK.
+- **Souhlas Play není chyba.** Play si před instalací součásti může říct o souhlas uživatele
+  (`REQUIRES_USER_CONFIRMATION`; dokumentace jmenuje aplikaci, kterou nenainstaloval Play,
+  a větší stahování přes mobilní data). Aplikace to brala jako selhání, a „Stáhnout model" tak
+  hned ukázalo „Model se nepodařilo stáhnout" — uživatel to hlásil z telefonu na mobilních
+  datech (log z telefonu ověřený není, kód chyby tedy taky ne). Teď runtime žádost předá
+  `SplitInstallConfirmations` a dialog Play ukáže `SplitInstallConfirmationHost` v kořeni
+  `MainActivity` (`startConfirmationDialogForResult` s launcherem, jako nabídka aktualizace).
+  Souhlas instalaci rozběhne, odmítnutí stahování zastaví (`Paused`), dialog, který nejde
+  ukázat, je chyba. Hostitel sedí v kořeni, ne v Nastavení: instalaci spouští i doinstalace
+  u už staženého modelu (`restoreRuntime`) a dialog má naskočit, kde uživatel zrovna je; ukáže
+  se, až je aktivita na obrazovce (`collectAsStateWithLifecycle`).
 - **Jméno modulu je jméno součásti** (`PlayLiteRtRuntime.MODULE` = `litertFeature`).
   Přejmenování projektu by instalaci tiše rozbilo.
 - **bundletool chce stejnou sadu ABI ve všech modulech s nativními knihovnami** („All modules
@@ -437,7 +448,10 @@ stažení.
   nesestaví („Cannot find PROCESSED_RES output"). Debug APK je teď jedno univerzální,
   `androidApp-debug.apk`.
 - **Mimo Play se součást nestáhne.** `assembleDebug` a `adb install` dají aplikaci bez runtime
-  a stažení modelu skončí chybou. Pro vývoj buď obojí naráz: `./gradlew
+  a stažení modelu skončí chybou — Play vrátí `-15` (`APP_NOT_OWNED`, aplikaci nenainstaloval
+  on), v logcatu `SplitInstallService : onError(-15)`. Ověřeno na emulátoru s EuroLLM: hned
+  „Model se nepodařilo stáhnout", se součástí nainstalovanou spolu s aplikací
+  (`adb install-multiple`) se model začal stahovat. Pro vývoj buď obojí naráz: `./gradlew
   :client:androidApp:assembleDebug :client:litertFeature:assembleDebug` a `adb install-multiple
   androidApp-debug.apk litertFeature-debug.apk` (součást je pak nainstalovaná rovnou), nebo
   instalaci z Play napodobit: `bundleDebug`, `bundletool build-apks --local-testing` a
