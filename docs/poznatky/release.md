@@ -192,6 +192,10 @@ taky, přestože nic nestaví:
 - **Android SDK si job stáhne sám** (`setup-android` → `~/.android/sdk`; MSI i DMG ho potřebují
   kvůli Android targetu `:client:shared`). Runner nemá `ANDROID_HOME`, takže SDK ze Studia
   (`~/Library/Android/sdk`) zůstává nedotčené.
+- **Balíčky SDK, které build potřebuje, vyjmenuje krok `setup-android`** — i ty, které si AGP
+  stáhne samo. NDK pro `:client:ai-llamacpp` AGP stáhlo, CMake ne: první release s llama.cpp
+  (android-0.3.124-162) spadl na „[CXX1300] CMake '3.31.0' was not found in SDK". Verze
+  `ndk` a `cmake` v `libs.versions.toml` se proto mění spolu s workflow `android-release.yml`.
 - **Cache `setup-gradle` je na self-hosted vypnutá** — `~/.gradle` přetrvává a upload by jen
   tlačil gigabajty do cache GitHubu.
 - **Mac je pracovní stroj, ne build server.** Android release s projektovou pamětí (Gradle 4g

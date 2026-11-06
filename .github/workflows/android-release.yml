@@ -102,10 +102,12 @@ jobs:
       # potřebuje odsouhlasené licence). Instalujeme explicitně.
       # POZOR: musí odpovídat android-compileSdk v gradle/libs.versions.toml. Balíček pro
       # compileSdk 37 se jmenuje "platforms;android-37.0" — u minor verzí je nula součástí id.
+      # NDK a CMake potřebuje :client:ai-llamacpp a musí odpovídat `ndk` a `cmake` tamtéž.
+      # NDK si AGP stáhne samo, CMake NE ([CXX1300] „CMake '…' was not found in SDK").
       - name: Install Android SDK platform
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37.0'
+          packages: 'platform-tools platforms;android-37.0 ndk;29.0.13846066 cmake;3.31.0'
 
       # Privátní repo → hostovaný runner má 2 CPU / 7 GB RAM. Projektové gradle.properties počítá
       # s vývojářským strojem (Gradle 4 GB + Kotlin daemon 8 GB), což se sem nevejde. Uživatelský
