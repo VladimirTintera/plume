@@ -113,6 +113,14 @@ mlkitGenaiSchema = "1.0.0-alpha1"
 # (docs/poznatky/ai-v-zarizeni.md, „Qwen a další modely přes LiteRT-LM"). Verze se berou
 # z Google Maven (maven-metadata.xml), tagy na GitHubu s nimi nesedí.
 litertlm = "0.19.1"
+# Gson NATVRDO pod 2.14, jinak padá strukturovaný výstup Gemini Nano. LiteRT-LM 0.19.1 si táhne
+# Gson 2.14.0 a ten přinesl třídu `com.google.gson.internal.bind.JavaTimeTypeAdapters`. Gson
+# přibalený v ML Kitu (`genai-prompt` 1.0.0-beta4, přejmenovaný do `mlkit_genai_prompt`) ji hledá
+# `Class.forName` pod PŮVODNÍM jménem — přejmenování řetězec minulo —, najde tu cizí a přetypování
+# na svou kopii vyhodí `ClassCastException` v inicializaci třídy. Chytá jen nenalezení, takže
+# s 2.13.x (třída tam není) jede dál. LiteRT-LM bere jen stromové API (`JsonParser`, `JsonObject`),
+# které 2.13.2 má — tu měl i LiteRT-LM 0.11.0. Hlídá `GsonForMlKitTest`; pryč až s opraveným ML Kitem.
+gson = { strictly = "2.13.2" }
 
 # TDLib wrapper. Upstream TDLib dělá breaking changes i v patch verzích — proto je celý wrapper
 # schovaný za :client:shared/core/telegram a nikde jinde se jeho typy neobjevují.
@@ -213,6 +221,7 @@ firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 play-app-update = { module = "com.google.android.play:app-update", version.ref = "playAppUpdate" }
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 litertlm-jvm = { module = "com.google.ai.edge.litertlm:litertlm-jvm", version.ref = "litertlm" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 mlkit-genai-prompt = { module = "com.google.mlkit:genai-prompt", version.ref = "mlkitGenaiPrompt" }
 mlkit-genai-schema = { module = "com.google.mlkit:genai-schema", version.ref = "mlkitGenaiSchema" }
 play-services-wearable = { module = "com.google.android.gms:play-services-wearable", version.ref = "playServicesWearable" }

@@ -454,6 +454,9 @@ kotlin {
             implementation(libs.mlkit.genai.schema)
             // Gemma a Qwen v zařízení (LiteRT-LM). Taky jen v core/ai.
             implementation(libs.litertlm.android)
+            // Gson z LiteRT-LM připnutý pod 2.14 — novější shazuje strukturovaný výstup ML Kitu,
+            // viz komentář u verze v libs.versions.toml.
+            implementation(libs.gson)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
         }

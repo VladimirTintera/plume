@@ -1058,6 +1058,23 @@ odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál t
   bral jako nikdy nevytvořenou a getter z ní udělal abstraktní. **Provider pravidlo nepotřebuje:**
   R8 sloučil rozhraní `GenerableProvider` s jedinou implementací a soubor ve `services`
   přejmenoval souhlasně (`META-INF/services/pkb` → `pkb`), takže ho `ServiceLoader` najde.
+- **Gson v aplikaci musí zůstat pod 2.14, dokud ML Kit nevyjde opravený.** Release 0.3.122
+  padal při prvním strukturovaném dotazu (`ExceptionInInitializerError` ← `ClassCastException`
+  v `com.google.android.gms.internal.mlkit_genai_prompt.zzvk.zzc`). Gson přibalený v `genai-prompt`
+  1.0.0-beta4 je přejmenovaný, ale v metodě, která přidává adaptéry `java.time`, zůstal řetězec
+  `Class.forName("com.google.gson.internal.bind.JavaTimeTypeAdapters")` s PŮVODNÍM jménem.
+  Chytá jen `ReflectiveOperationException` a `LinkageError` — počítá s tím, že třída není.
+  Jenže LiteRT-LM 0.19.1 přitáhl skutečný Gson 2.14.0, který ji má: najde se cizí třída
+  a přetypování na kopii z ML Kitu vyhodí `ClassCastException`. Zjištěno `javap -c` nad
+  `classes.jar` z `genai-prompt` v keši Gradlu. Gson je proto připnutý `strictly` na 2.13.2
+  (tu měl LiteRT-LM 0.11.0; LiteRT-LM bere jen stromové API) a hlídá to `GsonForMlKitTest`
+  v `androidHostTest` — s 2.14.0 padá. Kdo bumpuje ML Kit, ověří tím, že v `zzvk`/nástupci
+  řetězec zmizel nebo je přejmenovaný, a připnutí smaže.
+- **`generateStructured` chytá i `LinkageError`.** Rozbitá inicializace třídy v ML Kitu je
+  `Error`, `catch (Exception)` ji minul a padla celá aplikace. Teď je to `StructuredOutputException`
+  (volající jde textem, ten tuhle část ML Kitu nepotřebuje), `logger.e` pro Crashlytics
+  a strukturovaný výstup se do konce procesu přestane nabízet — třída zůstane rozbitá
+  a každý další pokus by skončil `NoClassDefFoundError`.
 - **Špatný tvar není rozbitý model.** ML Kit ho hlásí kódy `STRUCTURED_OUTPUT_REQUEST_ERROR`,
   `…_RESPONSE_ERROR` a `…_MAX_TOKENS_ERROR`; ty se převádějí na `StructuredOutputException`
   a návrhy pak zkusí text. Do Crashlytics jako problém nejdou — tam patří jen `OnDeviceAiException`
