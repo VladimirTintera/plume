@@ -49,14 +49,34 @@ class LiteRtRuntimeTest {
     }
 
     @Test
-    fun stazenyModelBezRuntimeNeniPripraveny() = runBlocking {
+    fun stazenyModelSiRuntimeDoinstalujeSam() = runBlocking {
         modelFile().writeText("x")
         val runtime = FakeLiteRtRuntime(installed = false)
         val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
 
+        assertEquals(OnDeviceAiStatus.Downloading, ai.status(model.variant))
+        withTimeout(5.seconds) { while (runtime.installs == 0) delay(10) }
+        // Další dotazy na stav instalaci nepouštějí znovu.
+        assertEquals(OnDeviceAiStatus.Downloading, ai.status(model.variant))
+
+        runtime.finish.complete(null)
+        withTimeout(5.seconds) { while (ai.status(model.variant) != OnDeviceAiStatus.Ready) delay(10) }
+        assertEquals(1, runtime.installs)
+        assertTrue(started.isEmpty(), "model je stažený, stahovat se nemá")
+    }
+
+    @Test
+    fun nepovedenaSamoinstalaceSeNeopakuje() = runBlocking {
+        modelFile().writeText("x")
+        val runtime = FakeLiteRtRuntime(installed = false)
+        runtime.finish.complete(RuntimeInstallException(code = -2))
+        val ai = LiteRtOnDeviceAi(platform, runtime, NetworkMonitor())
+
+        ai.status(model.variant)
+        withTimeout(5.seconds) { while (ai.status(model.variant) != OnDeviceAiStatus.Paused) delay(10) }
+
         assertEquals(OnDeviceAiStatus.Paused, ai.status(model.variant))
-        runtime.installed = true
-        assertEquals(OnDeviceAiStatus.Ready, ai.status(model.variant))
+        assertEquals(1, runtime.installs)
     }
 
     @Test

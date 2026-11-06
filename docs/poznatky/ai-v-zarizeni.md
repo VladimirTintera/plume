@@ -386,7 +386,12 @@ stažení.
   `Downloading`, průběh napřed v bajtech runtime, pak modelu. Instalace běží v `scope` runtime,
   ne v obrazovce, a „Zastavit" ji zruší i v Play (`cancelInstall`).
 - **`Ready` = soubor modelu A runtime.** Stažený model bez runtime (aktualizace z verze, která
-  runtime nesla v sobě) je `Paused`: „Pokračovat ve stahování" doinstaluje jen runtime a skončí.
+  runtime nesla v sobě, nebo součást odinstalovaná) si runtime **doinstaluje sám**, jakmile se na
+  model zeptá funkce nebo Nastavení (`restoreRuntime` ve `status`): uživatel si model už vybral
+  a stáhl, ťukat kvůli aktualizaci aplikace by nedávalo smysl. Stav je mezitím `Downloading`.
+  Kdo má AI vypnutou, na model se nikdo neptá a nic se nestahuje. **Jen jednou za proces** —
+  selhávající instalace (aplikace mimo Play) by se jinak pouštěla s každým dotazem na stav; pak
+  zůstává `Paused` a „Pokračovat ve stahování" doinstaluje jen runtime.
 - **Instalaci dělá Play, aplikace poslouchá** (`PlayLiteRtRuntime`). Na instalaci, která běží
   z minulého ťuknutí, se napojí přes `sessionStates` — druhou by Play odmítl. Po instalaci za
   běhu je součást vidět až po `SplitCompat.install` (volá ho i `MainApplication`

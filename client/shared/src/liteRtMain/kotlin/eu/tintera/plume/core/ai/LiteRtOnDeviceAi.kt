@@ -13,6 +13,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -101,6 +102,9 @@ class LiteRtOnDeviceAi(
     /** Doinstalování runtime před stahováním modelu ([download]); [stopDownload] ho zastaví. */
     private val runtimeInstalls = ConcurrentHashMap<LiteRtModel, Job>()
 
+    /** Runtime k už staženému modelu se doinstaloval sám ([restoreRuntime]); jednou za proces. */
+    private val runtimeRestoreStarted = AtomicBoolean(false)
+
     private val engineLock = Mutex()
     private var loaded: LoadedEngine? = null
     private var idleUnload: Job? = null
@@ -114,11 +118,31 @@ class LiteRtOnDeviceAi(
             // rozběhne sama, jen ještě nezapsala stav — pořád je to stahování.
             stateOf(model).value is DownloadState.Running ||
                 platform.downloadPending(model) -> OnDeviceAiStatus.Downloading
-            // Stažený model bez runtime: aktualizace z verze, která runtime nesla v sobě, nebo
-            // součást odinstalovaná. „Pokračovat ve stahování" doinstaluje jen runtime.
+            model.file().exists() && restoreRuntime(model) -> OnDeviceAiStatus.Downloading
+            // Stažený model bez runtime, který se sám doinstalovat nepovedl (aplikace mimo
+            // Play, chyba): „Pokračovat ve stahování" doinstaluje jen runtime.
             model.partFile().exists() || model.file().exists() -> OnDeviceAiStatus.Paused
             else -> OnDeviceAiStatus.Downloadable
         }
+    }
+
+    /**
+     * Model je stažený, ale runtime chybí — aktualizace z verze, která runtime nesla v sobě, nebo
+     * součást odinstalovaná. Uživatel si model už jednou vybral a stáhl, takže se runtime (desítka
+     * MB) doinstaluje SÁM, jakmile se na model někdo zeptá; ťukat na „Pokračovat ve stahování"
+     * kvůli aktualizaci aplikace by nedávalo smysl. Ptá se jen funkce se zapnutou AI, takže kdo
+     * AI vypnul, nic nestahuje.
+     *
+     * Jen jednou za proces: kdyby instalace selhávala (aplikace mimo Play), každý dotaz na stav
+     * by ji pouštěl znovu. Pak zůstává „Pokračovat ve stahování". Vrací, jestli se instaluje.
+     */
+    private fun restoreRuntime(model: LiteRtModel): Boolean {
+        if (!runtimeRestoreStarted.compareAndSet(false, true)) return false
+        logger.i { "Model ${model.displayName} je stažený bez runtime, doinstalovávám ho" }
+        val state = stateOf(model)
+        state.value = DownloadState.Running(ModelDownload(0, null))
+        runtimeInstalls[model] = scope.launch { installRuntimeThenDownload(model, state) }
+        return true
     }
 
     override suspend fun info(variant: ModelVariant): ModelInfo? {
