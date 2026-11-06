@@ -70,6 +70,7 @@ val LocalPaneNeighbours = compositionLocalOf { PaneNeighbours() }
  * - **Karta má okraj [PANE_SPACING] ze všech stran**, i od kraje okna, a rohy `shapes.large`.
  *   Okraj jen od seznamu nechával kartu narážet nahoru a dolů a zaoblený roh u spodního kraje
  *   okna vypadal jako chyba. Mezi konverzací a profilem je mezera jedna (dělá ji profil).
+ *   **Nahoře jen [PANE_TOP_SPACING]**, ať horní hrana lícuje s pilulkou hledání v seznamu.
  *
  * Mezera mezi panely proto NENÍ v direktivě scaffoldu (`horizontalPartitionSpacerSize = 0`):
  * mezera z knihovny je všude stejná a kreslit přes ni nejde (panely mají `clipToBounds`). Táhla
@@ -105,6 +106,7 @@ fun PaneCard(
         else -> PaneEdgeInsets.None
     }
     val spacing = if (card) PANE_SPACING else 0.dp
+    val topSpacing = if (card) PANE_TOP_SPACING else 0.dp
     val startSpacing = if (card || detail && neighbours.listBeside) PANE_SPACING else 0.dp
     // Mezeru mezi konverzací a profilem dělá profil, ať je jedna.
     val endSpacing = if (detail && neighbours.extraBeside && neighbours.extraCard) 0.dp else spacing
@@ -119,7 +121,7 @@ fun PaneCard(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .padding(start = startSpacing, end = endSpacing, top = spacing, bottom = spacing)
+                            .padding(start = startSpacing, end = endSpacing, top = topSpacing, bottom = spacing)
                             .clip(shape)
                             .then(if (sideBySide && ownSurface) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier),
                     ) {
