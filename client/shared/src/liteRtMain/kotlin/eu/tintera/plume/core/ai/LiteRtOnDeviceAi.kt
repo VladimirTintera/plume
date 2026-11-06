@@ -21,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -706,6 +707,14 @@ class LiteRtOnDeviceAi(
             readTimeout = TIMEOUT_MS
             if (offset > 0) setRequestProperty("Range", "bytes=$offset-")
         }
+        /*
+         * Zrušení (Zastavit, zákaz dat za běhu) zavře spojení. Blokující `read` zrušení korutiny
+         * nepozná a na síti, která přestala posílat data, by čekal až do [TIMEOUT_MS]: zákaz dat
+         * na emulátoru se tak projevil až po 23 s.
+         */
+        val closeOnCancel = coroutineContext.job.invokeOnCompletion { cause ->
+            if (cause is CancellationException) connection.disconnect()
+        }
         try {
             val code = connection.responseCode
             if (code == HTTP_RANGE_NOT_SATISFIABLE && part.length() == model.sizeBytes) {
@@ -747,7 +756,12 @@ class LiteRtOnDeviceAi(
             if (written != total) throw IOException("Incomplete download: $written of $total B")
             moveFinished(model)
             onProgress(ModelDownload(total, total))
+        } catch (e: IOException) {
+            // Spojení zavřené zrušením není výpadek sítě: nečekat na síť, skončit jako zrušení.
+            ensureActive()
+            throw e
         } finally {
+            closeOnCancel.dispose()
             connection.disconnect()
         }
     }
