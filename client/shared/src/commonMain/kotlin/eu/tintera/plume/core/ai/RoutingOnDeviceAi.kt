@@ -7,21 +7,23 @@ import kotlinx.coroutines.flow.Flow
  * Předá volání tomu runtime, který uživatel zvolil ([ModelVariant.provider]).
  *
  * Díky tomu je poskytovatel jedna volba pro CELOU aplikaci: shrnutí, návrhy odpovědí i každá
- * další funkce jen předají variantu z nastavení a nemusí vědět, že runtime jsou dva.
+ * další funkce jen předají variantu z nastavení a nemusí vědět, že runtime jsou dva. Gemma
+ * i Qwen jdou do téhož runtime ([liteRt]); který soubor načíst, mu řekne [ModelVariant.model].
  *
- * **Variantu normalizuje** ([forGeminiNano], [forGemma]): každý runtime dostane jen pole, která
- * se ho týkají. ML Kit drží klienta na variantu v mapě, takže by jinak kvůli změně velikosti
- * Gemmy vznikl další klient Gemini Nano pro tentýž model.
+ * **Variantu normalizuje** ([forGeminiNano], [forGemma], [forQwen]): každý runtime dostane jen
+ * pole, která se ho týkají. ML Kit drží klienta na variantu v mapě, takže by jinak kvůli změně
+ * velikosti Gemmy vznikl další klient Gemini Nano pro tentýž model.
  */
 class RoutingOnDeviceAi(
     private val geminiNano: OnDeviceAi,
-    private val gemma: OnDeviceAi,
+    private val liteRt: OnDeviceAi,
 ) : OnDeviceAi {
 
     /** Runtime pro [variant] a varianta normalizovaná na jeho pole. */
     private fun target(variant: ModelVariant): Pair<OnDeviceAi, ModelVariant> = when (variant.provider) {
         AiProvider.GeminiNano -> geminiNano to variant.forGeminiNano()
-        AiProvider.Gemma -> gemma to variant.forGemma()
+        AiProvider.Gemma -> liteRt to variant.forGemma()
+        AiProvider.Qwen -> liteRt to variant.forQwen()
         // Apple Intelligence je jen na iOS, kde se směrovač nepoužívá (`AppleOnDeviceAi`).
         AiProvider.Apple -> NoopOnDeviceAi to variant
     }
@@ -68,3 +70,6 @@ internal fun ModelVariant.forGeminiNano() = ModelVariant(provider = AiProvider.G
 
 /** Jen to, co se týká Gemmy: který model. */
 internal fun ModelVariant.forGemma() = ModelVariant(provider = AiProvider.Gemma, gemma = gemma)
+
+/** U Qwenu se nevolí nic: má jedinou velikost. */
+internal fun ModelVariant.forQwen() = ModelVariant(provider = AiProvider.Qwen)

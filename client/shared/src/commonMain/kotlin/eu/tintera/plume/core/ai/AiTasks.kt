@@ -77,7 +77,7 @@ data class AiModels(
     val enabled: Set<AiProvider> = setOf(AiProvider.GeminiNano),
     val preview: Boolean = false,
     val fast: Boolean = false,
-    val gemma: GemmaModel = GemmaModel.E2B,
+    val gemma: LiteRtModel = LiteRtModel.E2B,
     val assigned: Map<AiTask, AiProvider> = emptyMap(),
 ) {
     /** Varianta, se kterou se volá [OnDeviceAi] pro model [provider]. */
@@ -96,11 +96,14 @@ data class AiModels(
 }
 
 /**
- * Pořadí pro „Automaticky": napřed systémový model (Nano, Apple), Gemma až za ním. Systémový
+ * Pořadí pro „Automaticky": napřed systémový model (Nano, Apple), stahované až za ním. Systémový
  * model nic nestojí — nestahuje se, paměť drží AICore —, kdežto Gemma zabere gigabajty RAM, než
  * se po dvou minutách uvolní. Úlohu, kterou umí jen Gemma (zvuk, obraz), dostane tak jako tak.
+ *
+ * **Qwen před Gemmou:** umí jen text, takže kdo si ho vedle Gemmy zapne, chce ho na text — Gemma
+ * pak zůstane hlasovkám a fotkám a v paměti se drží kratší dobu ([gemmaIdleUnloadMs]).
  */
-private val AUTOMATIC_ORDER = listOf(AiProvider.GeminiNano, AiProvider.Apple, AiProvider.Gemma)
+private val AUTOMATIC_ORDER = listOf(AiProvider.GeminiNano, AiProvider.Apple, AiProvider.Qwen, AiProvider.Gemma)
 
 /**
  * Kdo úlohu počítá.

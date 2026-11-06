@@ -3,7 +3,7 @@ package eu.tintera.plume.features.settings
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiTask
-import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -11,17 +11,17 @@ import kotlin.test.assertNull
 /** Uložené modely, které zařízení nesplní, se opraví na dostupné. */
 class SupportedModelsTest {
 
-    private val everything = AiAvailability(AiProvider.entries, GemmaModel.entries)
+    private val everything = AiAvailability(AiProvider.entries, LiteRtModel.entries)
 
     @Test
     fun dostupnaVolbaSeNemeni() {
-        val both = AiModels(enabled = setOf(AiProvider.GeminiNano, AiProvider.Gemma), gemma = GemmaModel.E4B)
+        val both = AiModels(enabled = setOf(AiProvider.GeminiNano, AiProvider.Gemma), gemma = LiteRtModel.E4B)
         assertNull(supportedModels(both, everything))
     }
 
     @Test
     fun bezAicoreSePrepneNaGemmu() {
-        val onlyGemma = AiAvailability(listOf(AiProvider.Gemma), GemmaModel.entries)
+        val onlyGemma = AiAvailability(listOf(AiProvider.Gemma), LiteRtModel.entries)
         assertEquals(
             AiModels(enabled = setOf(AiProvider.Gemma), fast = true),
             supportedModels(AiModels(enabled = setOf(AiProvider.GeminiNano), fast = true), onlyGemma),
@@ -31,7 +31,7 @@ class SupportedModelsTest {
     /** Z obou zapnutých zůstane ten, který tu je — nepřidá se žádný další. */
     @Test
     fun nedostupnyModelSeVypustiZeZapnutych() {
-        val onlyGemma = AiAvailability(listOf(AiProvider.Gemma), GemmaModel.entries)
+        val onlyGemma = AiAvailability(listOf(AiProvider.Gemma), LiteRtModel.entries)
         assertEquals(
             AiModels(enabled = setOf(AiProvider.Gemma)),
             supportedModels(AiModels(enabled = setOf(AiProvider.GeminiNano, AiProvider.Gemma)), onlyGemma),
@@ -47,10 +47,10 @@ class SupportedModelsTest {
 
     @Test
     fun maloPametiVratiMensiGemmu() {
-        val smallOnly = AiAvailability(AiProvider.entries, listOf(GemmaModel.E2B))
+        val smallOnly = AiAvailability(AiProvider.entries, listOf(LiteRtModel.E2B))
         assertEquals(
-            AiModels(enabled = setOf(AiProvider.Gemma), gemma = GemmaModel.E2B),
-            supportedModels(AiModels(enabled = setOf(AiProvider.Gemma), gemma = GemmaModel.E4B), smallOnly),
+            AiModels(enabled = setOf(AiProvider.Gemma), gemma = LiteRtModel.E2B),
+            supportedModels(AiModels(enabled = setOf(AiProvider.Gemma), gemma = LiteRtModel.E4B), smallOnly),
         )
     }
 

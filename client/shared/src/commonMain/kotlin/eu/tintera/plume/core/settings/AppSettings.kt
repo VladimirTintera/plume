@@ -9,7 +9,7 @@ import eu.tintera.plume.core.chatcolor.StoredChatColor
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiTask
-import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
 import eu.tintera.plume.core.adaptive.ProfilePaneAnchor
@@ -1028,8 +1028,8 @@ class DataStoreAppSettings(
             enabled = enabled,
             preview = preferences[ON_DEVICE_AI_PREVIEW] ?: false,
             fast = preferences[ON_DEVICE_AI_FAST] ?: false,
-            gemma = GemmaModel.entries.firstOrNull { it.name == preferences[ON_DEVICE_AI_GEMMA] }
-                ?: GemmaModel.E2B,
+            gemma = LiteRtModel.entries.firstOrNull { it.name == preferences[ON_DEVICE_AI_GEMMA] }
+                ?: LiteRtModel.E2B,
             assigned = preferences[ON_DEVICE_AI_TASKS].orEmpty().split(' ').mapNotNull { entry ->
                 val parts = entry.split('=', limit = 2)
                 val task = AiTask.entries.firstOrNull { it.name == parts.getOrNull(0) }

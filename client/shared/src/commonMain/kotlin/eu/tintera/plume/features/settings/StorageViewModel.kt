@@ -5,9 +5,7 @@ import eu.tintera.plume.core.translation.TranslationPack
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.ai.AiProvider
-import eu.tintera.plume.core.ai.GemmaModel
-import eu.tintera.plume.core.ai.ModelVariant
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
@@ -50,7 +48,7 @@ data class StorageState(
 )
 
 /** Model AI v telefonu. [complete] = stažený celý; jinak zbyla část po zastaveném stahování. */
-data class StoredModel(val model: GemmaModel, val complete: Boolean)
+data class StoredModel(val model: LiteRtModel, val complete: Boolean)
 
 sealed interface StorageNotice {
     /** Uvolněné místo; velikost se do věty skládá až v UI (jazyk a oddělovač patří jazyku). */
@@ -156,9 +154,9 @@ class StorageViewModel(
         }
     }
 
-    fun deleteModel(model: GemmaModel) {
+    fun deleteModel(model: LiteRtModel) {
         viewModelScope.launch {
-            runCatching { ai.delete(ModelVariant(provider = AiProvider.Gemma, gemma = model)) }
+            runCatching { ai.delete(model.variant) }
                 .onSuccess { _state.update { it.copy(notice = StorageNotice.ModelDeleted(model.displayName)) } }
                 .onFailure { failure ->
                     logger.w(failure) { "Model ${model.displayName} se nepodařilo smazat" }
@@ -207,12 +205,12 @@ class StorageViewModel(
     }
 
     /**
-     * Modely Gemmy v telefonu. Kde Gemma není (iOS, starý telefon), je stav `Unsupported`
-     * a řádek se neukáže; Gemini Nano spravuje systém a smazat ho aplikace nemůže.
+     * Stažené modely (Gemma, Qwen) v telefonu. Kde model není (iOS, starý telefon), je stav
+     * `Unsupported` a řádek se neukáže; Gemini Nano spravuje systém a smazat ho aplikace nemůže.
      */
     private suspend fun loadModels() {
-        val models = GemmaModel.entries.mapNotNull { model ->
-            val status = runCatching { ai.status(ModelVariant(provider = AiProvider.Gemma, gemma = model)) }
+        val models = LiteRtModel.entries.mapNotNull { model ->
+            val status = runCatching { ai.status(model.variant) }
                 .getOrDefault(OnDeviceAiStatus.Unsupported)
             when (status) {
                 OnDeviceAiStatus.Ready -> StoredModel(model, complete = true)

@@ -46,13 +46,28 @@ class RoutingOnDeviceAiTest {
         assertEquals(listOf(ModelVariant(provider = AiProvider.Gemma)), gemma.seen)
     }
 
+    /** Qwen jde do téhož runtime jako Gemma, bez voleb, které se ho netýkají. */
+    @Test
+    fun qwenJdeDoLiteRt() = runTest {
+        val nano = Recorder(OnDeviceAiStatus.Ready)
+        val liteRt = Recorder(OnDeviceAiStatus.Downloadable)
+        val ai = RoutingOnDeviceAi(nano, liteRt)
+
+        val status = ai.status(ModelVariant(provider = AiProvider.Qwen, fast = true, gemma = LiteRtModel.E4B))
+
+        assertEquals(OnDeviceAiStatus.Downloadable, status)
+        assertEquals(listOf(ModelVariant(provider = AiProvider.Qwen)), liteRt.seen)
+        assertEquals(emptyList(), nano.seen)
+        assertEquals(LiteRtModel.Qwen3_4B, liteRt.seen.single().model)
+    }
+
     @Test
     fun geminiNanoDostaneJenSvojeVolby() = runTest {
         val nano = Recorder(OnDeviceAiStatus.Ready)
         val gemma = Recorder(OnDeviceAiStatus.Downloadable)
         val ai = RoutingOnDeviceAi(nano, gemma)
 
-        val status = ai.status(ModelVariant(provider = AiProvider.GeminiNano, fast = true, gemma = GemmaModel.E4B))
+        val status = ai.status(ModelVariant(provider = AiProvider.GeminiNano, fast = true, gemma = LiteRtModel.E4B))
 
         assertEquals(OnDeviceAiStatus.Ready, status)
         // Model Gemmy do klíče klienta ML Kitu nepatří — jinak by vznikl druhý klient téhož modelu.
@@ -67,12 +82,12 @@ class RoutingOnDeviceAiTest {
         val ai = RoutingOnDeviceAi(nano, gemma)
 
         val text = ai.generate(
-            ModelVariant(provider = AiProvider.Gemma, preview = true, fast = true, gemma = GemmaModel.E4B),
+            ModelVariant(provider = AiProvider.Gemma, preview = true, fast = true, gemma = LiteRtModel.E4B),
             "ahoj",
         ).toList()
 
         assertEquals(listOf(Generated("ahoj")), text)
-        assertEquals(listOf(ModelVariant(provider = AiProvider.Gemma, gemma = GemmaModel.E4B)), gemma.seen)
+        assertEquals(listOf(ModelVariant(provider = AiProvider.Gemma, gemma = LiteRtModel.E4B)), gemma.seen)
         assertEquals(emptyList(), nano.seen)
     }
 
@@ -89,8 +104,8 @@ class RoutingOnDeviceAiTest {
     fun zastaveniStahovaniJdeZvolenemuPoskytovateli() = runTest {
         val nano = Recorder(OnDeviceAiStatus.Downloading)
         val gemma = Recorder(OnDeviceAiStatus.Downloading)
-        RoutingOnDeviceAi(nano, gemma).stopDownload(ModelVariant(provider = AiProvider.Gemma, fast = true, gemma = GemmaModel.E4B))
-        assertEquals(listOf(ModelVariant(provider = AiProvider.Gemma, gemma = GemmaModel.E4B)), gemma.seen)
+        RoutingOnDeviceAi(nano, gemma).stopDownload(ModelVariant(provider = AiProvider.Gemma, fast = true, gemma = LiteRtModel.E4B))
+        assertEquals(listOf(ModelVariant(provider = AiProvider.Gemma, gemma = LiteRtModel.E4B)), gemma.seen)
         assertEquals(emptyList(), nano.seen)
     }
 
@@ -106,7 +121,7 @@ class RoutingOnDeviceAiTest {
         assertEquals(
             "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/" +
                 "6e5c4f1e395deb959c494953478fa5cec4b8008f/gemma-4-E2B-it.litertlm?download=true",
-            GemmaModel.E2B.downloadUrl,
+            LiteRtModel.E2B.downloadUrl,
         )
     }
 }

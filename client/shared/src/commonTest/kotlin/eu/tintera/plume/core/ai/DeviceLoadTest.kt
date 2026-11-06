@@ -19,6 +19,7 @@ class DeviceLoadTest {
         assertNull(avoidUnderLoad(gemma, strained = true))
         assertEquals(nano, avoidUnderLoad(nano, strained = true))
         assertEquals(gemma, avoidUnderLoad(gemma, strained = false))
+        assertNull(avoidUnderLoad(ModelVariant(provider = AiProvider.Qwen), strained = true))
         assertEquals(ModelVariant(provider = AiProvider.Apple), avoidUnderLoad(ModelVariant(provider = AiProvider.Apple), strained = true))
     }
 

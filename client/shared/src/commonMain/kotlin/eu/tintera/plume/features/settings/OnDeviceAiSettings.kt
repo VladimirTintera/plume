@@ -3,6 +3,7 @@ package eu.tintera.plume.features.settings
 import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.resources.ai_task_folders
 import eu.tintera.plume.resources.settings_gemma_under_load
+import eu.tintera.plume.resources.settings_qwen_under_load
 import eu.tintera.plume.resources.ai_task_photo_description
 import eu.tintera.plume.resources.ai_task_transcription
 import eu.tintera.plume.resources.ai_task_search
@@ -14,6 +15,7 @@ import eu.tintera.plume.resources.ai_task_replies
 import eu.tintera.plume.resources.ai_task_explain
 import eu.tintera.plume.resources.ai_task_summary
 import eu.tintera.plume.resources.settings_ai_tasks_note
+import eu.tintera.plume.resources.settings_ai_tasks_note_qwen
 import eu.tintera.plume.resources.settings_ai_task_not_ready
 import eu.tintera.plume.resources.settings_ai_task_auto_named
 import eu.tintera.plume.resources.settings_ai_task_auto
@@ -58,7 +60,7 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.DownloadStoppedException
-import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.ai.ModelDownload
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.NotEnoughSpaceException
@@ -73,6 +75,8 @@ import eu.tintera.plume.resources.settings_ai_provider_apple
 import eu.tintera.plume.resources.settings_ai_provider_apple_summary
 import eu.tintera.plume.resources.settings_ai_provider_gemma
 import eu.tintera.plume.resources.settings_ai_provider_gemma_summary
+import eu.tintera.plume.resources.settings_ai_provider_qwen
+import eu.tintera.plume.resources.settings_ai_provider_qwen_summary
 import eu.tintera.plume.resources.settings_ai_provider_nano
 import eu.tintera.plume.resources.settings_ai_provider_nano_summary
 import eu.tintera.plume.resources.settings_gemma_e2b_summary
@@ -257,7 +261,7 @@ class OnDeviceAiSettingsViewModel(
 
     fun setFast(on: Boolean) = settings.setOnDeviceAiModels(models.value.copy(fast = on))
 
-    fun setGemmaModel(model: GemmaModel) = settings.setOnDeviceAiModels(models.value.copy(gemma = model))
+    fun setGemmaModel(model: LiteRtModel) = settings.setOnDeviceAiModels(models.value.copy(gemma = model))
 
     /**
      * Zapne nebo vypne model. **Poslední zapnutý vypnout nejde** (přepínač je pak neaktivní):
@@ -403,8 +407,8 @@ fun OnDeviceAi.availability(): Flow<AiAvailability> = flow {
     emit(
         AiAvailability(
             providers = AiProvider.entries.filter { status(ModelVariant(provider = it)) != OnDeviceAiStatus.Unsupported },
-            gemmaModels = GemmaModel.entries.filter {
-                status(ModelVariant(provider = AiProvider.Gemma, gemma = it)) != OnDeviceAiStatus.Unsupported
+            gemmaModels = LiteRtModel.entries.filter {
+                it.provider == AiProvider.Gemma && status(it.variant) != OnDeviceAiStatus.Unsupported
             },
         ),
     )
@@ -426,7 +430,7 @@ fun previewSameAsStable(previewName: String?, stableName: String?): Boolean =
     previewName != null && previewName == stableName
 
 /** Co zařízení umí: dostupní poskytovatelé a modely Gemma, které se tu dají pustit. */
-data class AiAvailability(val providers: List<AiProvider>, val gemmaModels: List<GemmaModel>)
+data class AiAvailability(val providers: List<AiProvider>, val gemmaModels: List<LiteRtModel>)
 
 /**
  * Modely opravené na to, co zařízení umí, nebo `null`, když jsou v pořádku.
@@ -588,9 +592,17 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                     onSelect = { viewModel.assign(task, it) },
                 )
             }
-            if (AiProvider.Gemma in enabledHere) {
+            // Kam jde text automaticky, říká věta jen tam, kde to platí: Nano před Qwenem
+            // a Qwen před Gemmou (pořadí `chooseProvider`).
+            val note = when {
+                AiProvider.Gemma !in enabledHere -> null
+                AiProvider.GeminiNano in enabledHere -> Res.string.settings_ai_tasks_note
+                AiProvider.Qwen in enabledHere -> Res.string.settings_ai_tasks_note_qwen
+                else -> null
+            }
+            if (note != null) {
                 Text(
-                    stringResource(Res.string.settings_ai_tasks_note),
+                    stringResource(note),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -631,7 +643,7 @@ private fun ModelOptions(
                 available.gemmaModels.forEach { gemma ->
                     ModelChoiceRow(
                         title = gemma.displayName,
-                        summary = stringResource(gemma.summary, fileSizeText(gemma.sizeBytes)),
+                        summary = gemma.summary?.let { stringResource(it, fileSizeText(gemma.sizeBytes)) }.orEmpty(),
                         selected = models.gemma == gemma,
                         onSelect = { viewModel.setGemmaModel(gemma) },
                     )
@@ -649,6 +661,13 @@ private fun ModelOptions(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
             )
         }
+        // Jediná velikost; zbývá jen věta o úsporném režimu, který platí stejně jako u Gemmy.
+        AiProvider.Qwen -> Text(
+            stringResource(Res.string.settings_qwen_under_load),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+        )
         // Systémový model bez voleb: verzi i stahování řídí iOS.
         AiProvider.Apple -> Unit
     }
@@ -671,13 +690,13 @@ private fun ModelStatus(variant: ModelVariant, model: OnDeviceModelState, viewMo
              * stačí u systémového modelu, jehož velikost nám nikdo neřekne; tady ji víme
              * a pod 2,4 GB se uživatel podepisuje, ne pod „nějaké gigabajty".
              */
-            OnDeviceModelState.Downloadable -> if (variant.appManaged) {
+            OnDeviceModelState.Downloadable -> variant.model?.let { file ->
                 stringResource(
                     Res.string.settings_on_device_ai_downloadable_named,
-                    variant.gemma.displayName,
-                    fileSizeText(variant.gemma.sizeBytes),
+                    file.displayName,
+                    fileSizeText(file.sizeBytes),
                 )
-            } else {
+            } ?: run {
                 stringResource(Res.string.settings_on_device_ai_downloadable)
             }
             is OnDeviceModelState.Downloading -> if (model.progress?.waitingForNetwork == true) {
@@ -826,6 +845,7 @@ internal val AiProvider.title: StringResource
     get() = when (this) {
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma
+        AiProvider.Qwen -> Res.string.settings_ai_provider_qwen
         AiProvider.Apple -> Res.string.settings_ai_provider_apple
     }
 
@@ -833,13 +853,16 @@ private val AiProvider.summary: StringResource
     get() = when (this) {
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano_summary
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma_summary
+        AiProvider.Qwen -> Res.string.settings_ai_provider_qwen_summary
         AiProvider.Apple -> Res.string.settings_ai_provider_apple_summary
     }
 
-private val GemmaModel.summary: StringResource
+/** Popis velikosti u volby modelu; `null` u modelu bez volby velikosti (Qwen). */
+private val LiteRtModel.summary: StringResource?
     get() = when (this) {
-        GemmaModel.E2B -> Res.string.settings_gemma_e2b_summary
-        GemmaModel.E4B -> Res.string.settings_gemma_e4b_summary
+        LiteRtModel.E2B -> Res.string.settings_gemma_e2b_summary
+        LiteRtModel.E4B -> Res.string.settings_gemma_e4b_summary
+        LiteRtModel.Qwen3_4B -> null
     }
 
 /** Model stahuje a maže aplikace sama ([ModelVariant.appManaged]). */
