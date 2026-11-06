@@ -413,9 +413,14 @@ stažení.
   z `/sdcard/Android/data/eu.tintera.plume/files/local_testing`. bundletool chce `--aapt2`
   z build-tools a na classpath i kotlin-stdlib (jar z Maven není spustitelný).
 - **Ověřeno**: testy, obsah APK (`dexdump`: v základu žádné `com.google.ai.edge`, Gson ani
-  kotlin-reflect, v součásti všechno), AAB, bundletool `--local-testing` na emulátoru — aplikace
-  se základem bez součásti nastartuje. **Stažení součásti přes Nastavení, načtení enginu po
-  instalaci za běhu a release build z Play neověřené.**
+  kotlin-reflect, v součásti všechno), R8 release (`LiteRtEngineFactory` pod svým jménem, jen
+  v dexu součásti), AAB a bundletool `--local-testing` na emulátoru se sondou (x86_64 v `canRun`):
+  aplikace se základem bez součásti nastartuje, „Stáhnout model" napřed doinstaluje součást
+  (`SplitCompat: Splits installed`, nativní knihovna přidaná do classloaderu), pak stáhne
+  Qwen3 0,6B, a shrnutí v témže procesu načte `liblitertlm_jni.so` ze splitu (`nativeloader …
+  ok`), otevře engine a pošle zprávu. Výstup modelu na emulátoru nevyšel kvůli GPU backendu bez
+  OpenCL, ne kvůli součásti. **Neověřené: skutečná instalace z Play (interní testování) a jestli
+  Play Console vezme prázdné knihovny pro armeabi-v7a a x86.**
 
 ### Víc modelů naráz a co čím počítat
 
