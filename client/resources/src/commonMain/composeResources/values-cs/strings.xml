@@ -3509,9 +3509,25 @@
     <string name="transcribe_failed">Přepis se nepodařilo spustit.</string>
     <string name="transcript_premium_required">Přepis do textu je v Telegramu jen s Premium.</string>
     <string name="transcript_device_too_long">Bez Premium jde v telefonu přepsat jen záznam do %1$s.</string>
-    <string name="transcript_enable_ai">Bez Premium přepíše Gemma přímo v telefonu. Zapni ji v Nastavení → AI v zařízení.</string>
-    <string name="transcript_switch_gemma">Bez Premium přepíše Gemma přímo v telefonu, Gemini Nano to neumí. Zapni si k němu Gemmu v Nastavení → AI v zařízení.</string>
-    <string name="transcript_download_gemma">Bez Premium přepíše Gemma přímo v telefonu. Stáhni ji v Nastavení → AI v zařízení.</string>
+    <plurals name="transcript_enable_ai">
+        <item quantity="one">Bez Premium jde hlasovku přepsat v zařízení jen modelem %1$s. Nejdřív si v Nastavení zapni AI v zařízení.</item>
+        <item quantity="few">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Nejdřív si v Nastavení zapni AI v zařízení.</item>
+        <item quantity="many">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Nejdřív si v Nastavení zapni AI v zařízení.</item>
+        <item quantity="other">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Nejdřív si v Nastavení zapni AI v zařízení.</item>
+    </plurals>
+    <plurals name="transcript_switch_gemma">
+        <item quantity="one">Bez Premium jde hlasovku přepsat v zařízení jen modelem %1$s. Zapnout ho můžeš v Nastavení → AI v zařízení.</item>
+        <item quantity="few">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Zapnout je můžeš v Nastavení → AI v zařízení.</item>
+        <item quantity="many">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Zapnout je můžeš v Nastavení → AI v zařízení.</item>
+        <item quantity="other">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Zapnout je můžeš v Nastavení → AI v zařízení.</item>
+    </plurals>
+    <plurals name="transcript_download_gemma">
+        <item quantity="one">Bez Premium jde hlasovku přepsat v zařízení jen modelem %1$s. Stáhnout ho můžeš v Nastavení → AI v zařízení.</item>
+        <item quantity="few">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Stáhnout si některý můžeš v Nastavení → AI v zařízení.</item>
+        <item quantity="many">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Stáhnout si některý můžeš v Nastavení → AI v zařízení.</item>
+        <item quantity="other">Bez Premium jde hlasovku přepsat v zařízení jen modely %1$s. Stáhnout si některý můžeš v Nastavení → AI v zařízení.</item>
+    </plurals>
+    <string name="transcript_models_and">%1$s a %2$s</string>
     <string name="transcript_download_language">Bez Premium přepíše řeč systém telefonu, jen mu chybí čeština pro rozpoznávání v zařízení.</string>
     <string name="transcript_download_language_action">Stáhnout češtinu</string>
     <string name="transcript_language_downloading">Čeština pro rozpoznávání řeči se stahuje. Až bude stažená, ťukni na přepis znovu.</string>

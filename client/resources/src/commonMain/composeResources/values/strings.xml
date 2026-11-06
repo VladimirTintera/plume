@@ -3394,9 +3394,19 @@
     <string name="transcribe_failed">Couldn’t start the transcription.</string>
     <string name="transcript_premium_required">Transcription needs Telegram Premium.</string>
     <string name="transcript_device_too_long">Without Premium, only recordings up to %1$s can be transcribed on your phone.</string>
-    <string name="transcript_enable_ai">Without Premium, Gemma can transcribe right on your phone. Turn it on in Settings → On-device AI.</string>
-    <string name="transcript_switch_gemma">Without Premium, Gemma can transcribe right on your phone, Gemini Nano can’t. Turn Gemma on next to it in Settings → On-device AI.</string>
-    <string name="transcript_download_gemma">Without Premium, Gemma can transcribe right on your phone. Download it in Settings → On-device AI.</string>
+    <plurals name="transcript_enable_ai">
+        <item quantity="one">Without Premium, only the %1$s model can transcribe voice messages on this device. Turn on On-device AI in Settings first.</item>
+        <item quantity="other">Without Premium, only the %1$s models can transcribe voice messages on this device. Turn on On-device AI in Settings first.</item>
+    </plurals>
+    <plurals name="transcript_switch_gemma">
+        <item quantity="one">Without Premium, only the %1$s model can transcribe voice messages on this device. You can turn it on in Settings → On-device AI.</item>
+        <item quantity="other">Without Premium, only the %1$s models can transcribe voice messages on this device. You can turn them on in Settings → On-device AI.</item>
+    </plurals>
+    <plurals name="transcript_download_gemma">
+        <item quantity="one">Without Premium, only the %1$s model can transcribe voice messages on this device. You can download it in Settings → On-device AI.</item>
+        <item quantity="other">Without Premium, only the %1$s models can transcribe voice messages on this device. You can download one in Settings → On-device AI.</item>
+    </plurals>
+    <string name="transcript_models_and">%1$s and %2$s</string>
     <string name="transcript_download_language">Without Premium, your phone can transcribe on its own. It just needs the offline English speech pack.</string>
     <string name="transcript_download_language_action">Download English</string>
     <string name="transcript_language_downloading">The English speech pack is downloading. Tap transcribe again when it’s done.</string>
