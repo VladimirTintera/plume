@@ -2,6 +2,7 @@ package eu.tintera.plume
 
 import android.app.Application
 import android.content.Context
+import com.google.android.play.core.splitcompat.SplitCompat
 import eu.tintera.plume.core.locale.LegacyAppLanguage
 import eu.tintera.plume.di.startKoin
 import org.koin.android.ext.koin.androidContext
@@ -14,6 +15,9 @@ class MainApplication : Application() {
     // `Locale` procesu (viz LegacyAppLanguage). Od 13 to vrátí kontext beze změny.
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(LegacyAppLanguage.wrapApplication(base))
+        // Součást z Google Play doinstalovaná za běhu (runtime modelu v zařízení) je bez tohohle
+        // vidět až po restartu procesu; viz core/ai/PlayLiteRtRuntime.
+        SplitCompat.install(this)
     }
 
     override fun onCreate() {

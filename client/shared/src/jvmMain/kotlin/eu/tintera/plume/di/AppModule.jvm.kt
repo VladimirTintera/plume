@@ -10,6 +10,7 @@ import eu.tintera.plume.core.ui.UnsupportedStoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.BundledLiteRtRuntime
 import eu.tintera.plume.core.ai.DesktopLiteRtPlatform
 import eu.tintera.plume.core.ai.GEMMA_IDLE_TEXT_MS
 import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
@@ -85,6 +86,7 @@ actual fun Module.platformModule() {
     single {
         LiteRtOnDeviceAi(
             DesktopLiteRtPlatform(),
+            BundledLiteRtRuntime(),
             get(),
             // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
             idleUnloadMs = { provider ->

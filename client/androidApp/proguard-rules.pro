@@ -24,6 +24,12 @@
 # a výčet by se při bumpu tiše rozešel. Až knihovna pravidla přibalí, tohle jde pryč.
 -keep class com.google.ai.edge.litertlm.** { *; }
 
+# Runtime modelu v zařízení (:client:ai-litert) leží v součásti z Google Play a základ aplikace
+# ho vytváří REFLEXÍ podle jména (`LITERT_ENGINE_FACTORY`, core/ai/LiteRtRuntime.kt) — přímý
+# odkaz na něj by se nepřeložil. R8 zpracovává základ i součást dohromady, takže pravidlo patří
+# sem; bez něj by třídu přejmenoval nebo zahodil a model by po stažení hlásil chybu.
+-keep class eu.tintera.plume.ai.litert.LiteRtEngineFactory { public <init>(); }
+
 # Strukturovaný výstup Gemini Nano (core/ai, `OnDeviceAi.generateStructured`): odpověď do typu
 # plní Gson přibalený v ML Kitu REFLEXÍ podle jmen polí, která jsou zároveň schématem pro model.
 # Ověřeno v dexu release buildu: bez tohohle pole `replies` v `ReplySuggestionsOutput` zmizí úplně

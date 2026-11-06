@@ -88,6 +88,9 @@ crashlytics = "3.0.8"
 # Play In-App Updates (karta s aktualizací v seznamu chatů). Jen základní artefakt, ne `-ktx`:
 # stačí Task API a ktx by táhl coroutines-play-services kvůli dvěma voláním.
 playAppUpdate = "2.1.0"
+# Play Feature Delivery: runtime LiteRT-LM (:client:litertFeature) se stahuje z Play až na požádání,
+# viz core/ai/PlayLiteRtRuntime. Jen základní artefakt s Task API, stejná úvaha jako playAppUpdate.
+playFeatureDelivery = "2.1.0"
 # Čtečka QR kódů (přihlášení jiného zařízení). Google code scanner: skenovací obrazovku dodá
 # Play služby, aplikace nepotřebuje oprávnění ke kameře ani vlastní CameraX + ML Kit.
 playCodeScanner = "16.1.0"
@@ -221,6 +224,7 @@ firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "fir
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 play-app-update = { module = "com.google.android.play:app-update", version.ref = "playAppUpdate" }
+play-feature-delivery = { module = "com.google.android.play:feature-delivery", version.ref = "playFeatureDelivery" }
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 litertlm-jvm = { module = "com.google.ai.edge.litertlm:litertlm-jvm", version.ref = "litertlm" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
@@ -238,6 +242,7 @@ tdl-coroutines = { module = "dev.g000sha256:tdl-coroutines", version.ref = "tdl"
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
+androidDynamicFeature = { id = "com.android.dynamic-feature", version.ref = "agp" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

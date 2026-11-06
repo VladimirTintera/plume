@@ -44,7 +44,7 @@ class LiteRtDeleteTest {
         )
         files.forEach { it.writeText("x") }
 
-        LiteRtOnDeviceAi(platform, NetworkMonitor()).delete(LiteRtModel.E4B.variant)
+        LiteRtOnDeviceAi(platform, FakeLiteRtRuntime(), NetworkMonitor()).delete(LiteRtModel.E4B.variant)
 
         assertEquals(
             setOf("gemma-4-E2B-it.litertlm", "gemma-4-E2B-it.litertlm_1793947572_2588147712.xnnpack_cache"),

@@ -1133,13 +1133,17 @@ plátna (jako iOS), JPEG s `PHOTO_JPEG_QUALITY`.
 Gemma a Qwen běží na desktopu stejně jako na Androidu: `litertlm-jvm` má tutéž sadu tříd jako
 `litertlm-android` (59, porovnáno výpisem jarů), takže runtime je jeden (`LiteRtOnDeviceAi`
 v source setu `liteRtMain`, sdíleném androidMain a jvmMain) a platforma dodá jen
-`LiteRtPlatform` (`DesktopLiteRtPlatform`). Gemini Nano tu není; směrovač na jeho místo dostane
+`LiteRtPlatform` (`DesktopLiteRtPlatform`). Samotnou knihovnu má modul :client:ai-litert, který
+desktopApp přibaluje přímo (`runtimeOnly`); `shared` ho najde za běhu (`BundledLiteRtRuntime`).
+Na Androidu je týž modul součást z Google Play, viz „Runtime jako součást z Google Play"
+v `docs/poznatky/ai-v-zarizeni.md`. Gemini Nano tu není; směrovač na jeho místo dostane
 `NoopOnDeviceAi` a „Automaticky" ho přeskočí. Obecné poznatky k modelům jsou
 v `docs/poznatky/ai-v-zarizeni.md`.
 
-- **Source set `liteRtMain` bez vlastní závislosti.** Knihovnu si bere každá platforma sama
-  (`litertlm-android` v androidMain, `litertlm-jvm` v jvmMain); závislost na společném setu by
-  dala Androidu obě kopie týchž tříd. Překlad každé platformy vidí tu svou a stačí to.
+- **Kód nad LiteRT-LM je v `commonMain` modulu :client:ai-litert, knihovnu si bere každá
+  platforma sama** (`litertlm-android` v androidMain, `litertlm-jvm` v jvmMain); závislost na
+  společném setu by dala Androidu obě kopie týchž tříd. Překlad každé platformy vidí tu svou
+  a stačí to.
 - **`litertlm-jvm` je přeložený pro Javu 21** (class file 65). Na Javě 17 se nenačte
   (`UnsupportedClassVersionError`, je to `LinkageError`, takže skončí jako „nativní knihovna se
   nenačetla" a selhání modelu). **Compose balí s JDK, na kterém běží Gradle**, a release běží
