@@ -36,11 +36,12 @@ class LiteRtModelTest {
         }
     }
 
-    /** EuroLLM je GGUF pro llama.cpp, Gemma a Qwen soubory LiteRT-LM — runtime se podle toho doinstaluje. */
+    /** EuroLLM a Aya jsou GGUF pro llama.cpp, Gemma a Qwen soubory LiteRT-LM — runtime se podle toho doinstaluje. */
     @Test
     fun runtimePodlePoskytovatele() {
         LiteRtModel.entries.forEach { model ->
-            val expected = if (model.provider == AiProvider.EuroLlm) ModelRuntime.LlamaCpp else ModelRuntime.LiteRt
+            val gguf = model.provider == AiProvider.EuroLlm || model.provider == AiProvider.Aya
+            val expected = if (gguf) ModelRuntime.LlamaCpp else ModelRuntime.LiteRt
             assertEquals(expected, model.runtime, model.name)
             assertEquals(expected == ModelRuntime.LlamaCpp, model.fileName.endsWith(".gguf"), model.name)
         }
@@ -50,7 +51,7 @@ class LiteRtModelTest {
     @Test
     fun jmenaPolozekSeNemeni() {
         assertEquals(
-            listOf("E2B", "E4B", "Qwen3_4B", "Qwen2_5_1_5B", "Qwen3_0_6B", "EuroLlm9B", "EuroMoe2_6B"),
+            listOf("E2B", "E4B", "Qwen3_4B", "Qwen2_5_1_5B", "Qwen3_0_6B", "EuroLlm9B", "EuroMoe2_6B", "AyaExpanse8B"),
             LiteRtModel.entries.map { it.name },
         )
     }

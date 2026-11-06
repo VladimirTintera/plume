@@ -30,9 +30,9 @@ Rozpracovaný detail chatu má vlastní seznam:
 open iosApp/iosApp.xcodeproj                         # iOS se staví z Xcode
 ```
 
-**llama.cpp je git submodul** (`client/ai-llamacpp/llama.cpp`, EuroLLM na Androidu i desktopu):
+**llama.cpp je git submodul** (`client/ai-llamacpp/llama.cpp`, EuroLLM a Aya na Androidu i desktopu):
 po klonu `git submodule update --init --depth 1`, jinak build Androidu skončí na chybějícím
-`CMakeLists.txt`. Desktop se přeloží i bez něj (a bez CMake), jen EuroLLM nenabídne. **NDK
+`CMakeLists.txt`. Desktop se přeloží i bez něj (a bez CMake), jen EuroLLM a Ayu nenabídne. **NDK
 a jeho licenci potřebuje KAŽDÝ build** (AGP ho chce při konfiguraci :client:ai-llamacpp-android),
 CMake `cmake;3.31.0` z SDK Manageru.
 
@@ -75,7 +75,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Systémová oznámení od Telegramu](docs/poznatky/systemova-oznameni.md) — oznámení od služby, nové podmínky služby, zmrazený účet, doporučené akce; proč se odebírají eagerně
 - [Nastavení](docs/poznatky/nastaveni.md) — AppSettings (DataStore), obrazovka nastavení, hledání v Nastavení, pomoc (Zeptat se), soukromí, úprava profilu a ořez fotky, narozeniny, osobní kanál, víc uživatelských jmen, dvoufázové ověření, přihlašovací e-mail, přístupové klíče, změna čísla, smazání účtu, velikost písma zpráv (i štípnutím v konverzaci), diskrétní čtení, zařízení, úložiště a přenesená data, „Co je nového“, jazykový balíček Telegramu, synchronizace bez backendu (WebApp CloudStorage)
 - [Zámek aplikace](docs/poznatky/zamek-aplikace.md) — PIN a biometrie, záznam v Keystore / Keychainu, kdy se zamyká, brzda pokusů, co zámek nechrání
-- [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — Gemini Nano, Gemma a Qwen (i víc naráz a co čím počítat, porovnání modelů, další modely přes LiteRT-LM, EuroLLM přes llama.cpp, runtime jako součást z Google Play), shrnutí hlasovky, úsporný režim a přehřátí, Apple Intelligence na iOS, stahování modelu, shrnutí a návrhy odpovědí, varování před podvodem, triáž chatů, přepis a kontrola tónu před odesláním (i úpravy od Telegramu na serveru), vysvětlení zprávy, popis fotky
+- [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — Gemini Nano, Gemma a Qwen (i víc naráz a co čím počítat, porovnání modelů, další modely přes LiteRT-LM, EuroLLM a Aya přes llama.cpp, runtime jako součást z Google Play), shrnutí hlasovky, úsporný režim a přehřátí, Apple Intelligence na iOS, stahování modelu, shrnutí a návrhy odpovědí, varování před podvodem, triáž chatů, přepis a kontrola tónu před odesláním (i úpravy od Telegramu na serveru), vysvětlení zprávy, popis fotky
 - [Release, R8 a hlášení pádů](docs/poznatky/release.md) — vydání do Play, self-hosted runnery (Mac a HQDEV50), R8 a keep pravidla, Crashlytics (i iOS přes Swift most), aktualizace z obchodu
 - [Výkon a paměť](docs/poznatky/vykon.md) — reporty Compose kompilátoru, LeakCanary, heap dumpy, composition tracing, měření ne-debuggable buildu, start a plynulost
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků

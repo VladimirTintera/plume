@@ -1045,6 +1045,8 @@ class DataStoreAppSettings(
                 ?: LiteRtModel.Qwen3_4B,
             euroLlm = LiteRtModel.entries.firstOrNull { it.provider == AiProvider.EuroLlm && it.name == preferences[ON_DEVICE_AI_EUROLLM] }
                 ?: LiteRtModel.EuroLlm9B,
+            aya = LiteRtModel.entries.firstOrNull { it.provider == AiProvider.Aya && it.name == preferences[ON_DEVICE_AI_AYA] }
+                ?: LiteRtModel.AyaExpanse8B,
             assigned = preferences[ON_DEVICE_AI_TASKS].orEmpty().split(' ').mapNotNull { entry ->
                 val parts = entry.split('=', limit = 2)
                 val task = AiTask.entries.firstOrNull { it.name == parts.getOrNull(0) }
@@ -1073,6 +1075,7 @@ class DataStoreAppSettings(
                 preferences[ON_DEVICE_AI_GEMMA] = models.gemma.name
                 preferences[ON_DEVICE_AI_QWEN] = models.qwen.name
                 preferences[ON_DEVICE_AI_EUROLLM] = models.euroLlm.name
+                preferences[ON_DEVICE_AI_AYA] = models.aya.name
                 preferences[ON_DEVICE_AI_TASKS] =
                     models.assigned.entries.joinToString(" ") { (task, provider) -> "${task.name}=${provider.name}" }
             }
@@ -1396,6 +1399,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_GEMMA = stringPreferencesKey("on_device_ai_gemma")
         val ON_DEVICE_AI_QWEN = stringPreferencesKey("on_device_ai_qwen")
         val ON_DEVICE_AI_EUROLLM = stringPreferencesKey("on_device_ai_eurollm")
+        val ON_DEVICE_AI_AYA = stringPreferencesKey("on_device_ai_aya")
         val MODEL_DOWNLOAD_WIFI_ONLY = booleanPreferencesKey("model_download_wifi_only")
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val VIDEO_SPEED = stringPreferencesKey("video_speed")

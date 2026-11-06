@@ -134,6 +134,7 @@ interface OnDeviceAi {
  * @property gemma (jen Gemma) kterou velikost si aplikace stáhne.
  * @property qwen (jen Qwen) kterou velikost si aplikace stáhne.
  * @property euroLlm (jen EuroLLM) kterou velikost si aplikace stáhne.
+ * @property aya (jen Aya) který soubor si aplikace stáhne; dnes je jediný.
  */
 data class ModelVariant(
     val provider: AiProvider = AiProvider.GeminiNano,
@@ -142,6 +143,7 @@ data class ModelVariant(
     val gemma: LiteRtModel = LiteRtModel.E2B,
     val qwen: LiteRtModel = LiteRtModel.Qwen3_4B,
     val euroLlm: LiteRtModel = LiteRtModel.EuroLlm9B,
+    val aya: LiteRtModel = LiteRtModel.AyaExpanse8B,
 ) {
     /** Soubor, který si aplikace stáhne a počítá sama; `null` u systémového modelu. */
     val model: LiteRtModel?
@@ -149,6 +151,7 @@ data class ModelVariant(
             AiProvider.Gemma -> gemma
             AiProvider.Qwen -> qwen
             AiProvider.EuroLlm -> euroLlm
+            AiProvider.Aya -> aya
             AiProvider.GeminiNano, AiProvider.Apple -> null
         }
 
@@ -167,13 +170,17 @@ data class ModelVariant(
  *   ji umí líp než Gemma, má ukázat porovnání modelů na skutečné konverzaci.
  * - [EuroLlm]: evropský otevřený model (EuroLLM a EuroMoE od utter-project), trénovaný na všech
  *   jazycích EU včetně češtiny. Jen text, přes llama.cpp ([ModelRuntime.LlamaCpp]) — ve formátu
- *   LiteRT-LM není. Jen Android.
+ *   LiteRT-LM není.
+ * - [Aya]: vícejazyčný model Aya Expanse od Cohere Labs, 23 jazyků včetně češtiny. Jen text, přes
+ *   llama.cpp. **Licence CC BY-NC 4.0** (jen nekomerčně, s uvedením autora) — Nastavení ji ukáže
+ *   před stažením, protože licenci přijímá uživatel, který si model stahuje.
  */
 enum class AiProvider {
     GeminiNano,
     Gemma,
     Qwen,
     EuroLlm,
+    Aya,
 
     /**
      * Apple Intelligence (Foundation Models) na iOS 26+: systémový model jako Gemini Nano —
@@ -190,7 +197,7 @@ enum class ModelRuntime {
     /** LiteRT-LM (soubory `.litertlm`): Gemma a Qwen, Android i desktop. */
     LiteRt,
 
-    /** llama.cpp (soubory GGUF): EuroLLM, Android i desktop; GPU jen Metal na Macu. */
+    /** llama.cpp (soubory GGUF): EuroLLM a Aya, Android i desktop; GPU jen Metal na Macu. */
     LlamaCpp,
 }
 
@@ -330,6 +337,25 @@ enum class LiteRtModel(
         contextTokens = 4_096,
         runtime = ModelRuntime.LlamaCpp,
     ),
+
+    /*
+     * Aya Expanse 8B od Cohere Labs (architektura Command R), CC BY-NC 4.0 a pravidla použití
+     * Cohere Labs. GGUF Q4_K_M od bartowski — originál je za souhlasem a sdílením kontaktu,
+     * kvantizace ne; licence nekomerční šíření s uvedením autora dovoluje. Jediná velikost
+     * (druhá je 32B), paměť a kontext jako EuroLLM 9B: soubor má 5,1 GB.
+     */
+    AyaExpanse8B(
+        displayName = "Aya Expanse 8B",
+        provider = AiProvider.Aya,
+        repository = "bartowski/aya-expanse-8b-GGUF",
+        fileName = "aya-expanse-8b-Q4_K_M.gguf",
+        commit = "f9d62ed0c58e6f2ae17975df990b1b8a4013b596",
+        sizeBytes = 5_056_982_720,
+        minMemoryGb = 16,
+        multimodal = false,
+        contextTokens = 4_096,
+        runtime = ModelRuntime.LlamaCpp,
+    ),
     ;
 
     /** Varianta, která tenhle soubor počítá — na dotazy po souborech (Úložiště, dostupnost). */
@@ -338,6 +364,7 @@ enum class LiteRtModel(
             AiProvider.Gemma -> ModelVariant(provider = provider, gemma = this)
             AiProvider.Qwen -> ModelVariant(provider = provider, qwen = this)
             AiProvider.EuroLlm -> ModelVariant(provider = provider, euroLlm = this)
+            AiProvider.Aya -> ModelVariant(provider = provider, aya = this)
             AiProvider.GeminiNano, AiProvider.Apple -> ModelVariant(provider = provider)
         }
 

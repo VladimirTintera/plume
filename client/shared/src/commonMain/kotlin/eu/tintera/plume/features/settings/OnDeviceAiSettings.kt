@@ -5,6 +5,12 @@ import eu.tintera.plume.resources.ai_task_folders
 import eu.tintera.plume.resources.settings_gemma_under_load
 import eu.tintera.plume.resources.settings_qwen_under_load
 import eu.tintera.plume.resources.settings_eurollm_under_load
+import eu.tintera.plume.resources.settings_aya_8b_summary
+import eu.tintera.plume.resources.settings_aya_license
+import eu.tintera.plume.resources.settings_aya_under_load
+import eu.tintera.plume.resources.settings_ai_tasks_note_aya
+import eu.tintera.plume.resources.settings_ai_provider_aya
+import eu.tintera.plume.resources.settings_ai_provider_aya_summary
 import eu.tintera.plume.resources.settings_eurollm_9b_summary
 import eu.tintera.plume.resources.settings_euromoe_summary
 import eu.tintera.plume.resources.settings_ai_tasks_note_eurollm
@@ -297,6 +303,7 @@ class OnDeviceAiSettingsViewModel(
         when (model.provider) {
             AiProvider.Qwen -> models.value.copy(qwen = model)
             AiProvider.EuroLlm -> models.value.copy(euroLlm = model)
+            AiProvider.Aya -> models.value.copy(aya = model)
             else -> models.value.copy(gemma = model)
         },
     )
@@ -534,6 +541,7 @@ fun supportedModels(current: AiModels, available: AiAvailability): AiModels? {
         gemma = size(current.gemma),
         qwen = size(current.qwen),
         euroLlm = size(current.euroLlm),
+        aya = size(current.aya),
     )
     return fixed.takeIf { it != current }
 }
@@ -708,11 +716,12 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 )
             }
             // Kam jde text automaticky, říká věta jen tam, kde to platí: Nano před EuroLLM,
-            // EuroLLM před Qwenem a Qwen před Gemmou (pořadí `chooseProvider`).
+            // EuroLLM před Ayou, Aya před Qwenem a Qwen před Gemmou (pořadí `chooseProvider`).
             val note = when {
                 AiProvider.Gemma !in enabledHere -> null
                 AiProvider.GeminiNano in enabledHere -> Res.string.settings_ai_tasks_note
                 AiProvider.EuroLlm in enabledHere -> Res.string.settings_ai_tasks_note_eurollm
+                AiProvider.Aya in enabledHere -> Res.string.settings_ai_tasks_note_aya
                 AiProvider.Qwen in enabledHere -> Res.string.settings_ai_tasks_note_qwen
                 else -> null
             }
@@ -786,6 +795,26 @@ private fun ModelOptions(
             if (viewModel.tracksLoad) {
                 Text(
                     stringResource(Res.string.settings_eurollm_under_load),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                )
+            }
+        }
+        /*
+         * Jediná velikost, tedy bez volby. Licence je nekomerční a přijímá ji ten, kdo model
+         * stahuje — proto je tady, nad tlačítkem „Stáhnout model", ne v nápovědě.
+         */
+        AiProvider.Aya -> {
+            Text(
+                stringResource(Res.string.settings_aya_license),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+            )
+            if (viewModel.tracksLoad) {
+                Text(
+                    stringResource(Res.string.settings_aya_under_load),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -988,6 +1017,7 @@ internal val AiProvider.title: StringResource
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma
         AiProvider.Qwen -> Res.string.settings_ai_provider_qwen
         AiProvider.EuroLlm -> Res.string.settings_ai_provider_eurollm
+        AiProvider.Aya -> Res.string.settings_ai_provider_aya
         AiProvider.Apple -> Res.string.settings_ai_provider_apple
     }
 
@@ -997,6 +1027,7 @@ private val AiProvider.summary: StringResource
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma_summary
         AiProvider.Qwen -> Res.string.settings_ai_provider_qwen_summary
         AiProvider.EuroLlm -> Res.string.settings_ai_provider_eurollm_summary
+        AiProvider.Aya -> Res.string.settings_ai_provider_aya_summary
         AiProvider.Apple -> Res.string.settings_ai_provider_apple_summary
     }
 
@@ -1010,6 +1041,7 @@ private val LiteRtModel.summary: StringResource
         LiteRtModel.Qwen3_0_6B -> Res.string.settings_qwen_0_6b_summary
         LiteRtModel.EuroLlm9B -> Res.string.settings_eurollm_9b_summary
         LiteRtModel.EuroMoe2_6B -> Res.string.settings_euromoe_summary
+        LiteRtModel.AyaExpanse8B -> Res.string.settings_aya_8b_summary
     }
 
 /** Model stahuje a maže aplikace sama ([ModelVariant.appManaged]). */
