@@ -1174,8 +1174,22 @@ v `docs/poznatky/ai-v-zarizeni.md`.
   režimu model sám nic nepočítá" se v Nastavení neukáže (`OnDeviceAiSettingsViewModel.tracksLoad`).
   Texty AI mluví o „zařízení", ne o „telefonu".
 - **GPU na Windows s Intel UHD 770 nejde** („Failed to create engine" v
-  `llm_litert_compiled_model_executor_factory.cc`) a jede se na procesoru; jiné grafiky a macOS
-  (Metal) neověřené.
+  `llm_litert_compiled_model_executor_factory.cc`) a jede se na procesoru; jiné grafiky
+  neověřené.
+- **Na Macu s Apple Silicon jede GPU přes WebGPU nad Metalem**, ne přes vlastní Metal backend.
+  Knihovna pro `darwin-aarch64` nese obojí (`ml_drift/metal` i Dawn), ale zaregistruje jen
+  akcelerátor „GPU WebGPU" a log pak říká `Selected adapter: Apple M5, arch=metal-3, …,
+  backend=Metal`. Hláška `Failed to create OpenCL context` vedle toho je neškodná, OpenCL na
+  Macu není a GPU jede dál.
+  - **Změřeno na M5 s Gemmou 4 E4B** (dočasná sonda nad `LiteRtEngineFactory`, JDK 21, tři
+    věty česky): GPU načtení 7,9 s napoprvé a 1,4 s z mezipaměti, první token 0,7–1,4 s,
+    ~34 tokenů/s. CPU načtení 2,4 s, první token 0,6 s, ~13 tokenů/s. GPU tedy generuje asi
+    2,7× rychleji a obě odpovědi byly správně česky.
+  - **Mezipaměť v `cacheDir` je zhruba velikost modelu ZA KAŽDÝ backend**: pro GPU
+    `…_mldrift_weight_cache.bin` (2,2 GB) a `…_mldrift_program_cache.bin` (17 MB), pro CPU
+    `….xnnpack_cache` (2,2 GB). Kdo vyzkouší oba backendy, má v `ai-cache` dvakrát víc než model.
+  - V přihlášené aplikaci neověřené. Aplikace o GPU u LiteRT-LM žádá vždy
+    (`DesktopLiteRtPlatform.gpu`), takže by měla jet tímtéž.
 - **Emoji ve vstupu shodí celou JVM** (`EXCEPTION_UNCAUGHT_CXX_EXCEPTION` v `KERNELBASE.dll`,
   Java vlákno v `LiteRtLmJni.nativeSendMessageAsync`). HotSpot předává řetězec přes JNI
   v „modifikovaném UTF-8": znak mimo základní rovinu Unicode (😊, 👍, 🌧) jako dvojici
