@@ -122,8 +122,13 @@ class MlKitOnDeviceAi : OnDeviceAi {
         throw if (e is Exception) e.toAiFailure() else e
     }
 
+    /** Strukturovaný výstup spadl na `LinkageError` (viz [generateStructured]) — do konce procesu jen text. */
+    @Volatile
+    private var structuredOutputBroken = false
+
     override suspend fun supportsStructuredOutput(variant: ModelVariant): Boolean =
-        status(variant) == OnDeviceAiStatus.Ready &&
+        !structuredOutputBroken &&
+            status(variant) == OnDeviceAiStatus.Ready &&
             quietly("structured output") { client(variant).isStructuredOutputFeatureAvailable() } == true
 
     /**
@@ -144,6 +149,19 @@ class MlKitOnDeviceAi : OnDeviceAi {
             throw if (e.errorCode in STRUCTURED_OUTPUT_ERRORS) StructuredOutputException(e.errorCode, e) else e.toAiFailure()
         } catch (e: Exception) {
             throw e.toAiFailure()
+        } catch (e: LinkageError) {
+            /*
+             * Strukturovaný výstup si v ML Kitu inicializuje vlastní kopii Gsonu a ta umí spadnout
+             * v inicializaci třídy (`ExceptionInInitializerError`, při dalším volání už
+             * `NoClassDefFoundError`) — tak to dopadlo s Gsonem 2.14 v aplikaci, viz komentář
+             * u verze Gsonu v libs.versions.toml. Je to `Error`, `catch (Exception)` ho nechytí
+             * a aplikace by spadla. Textová cesta tuhle část nepotřebuje, takže je to špatný
+             * tvar, ne rozbitý model; `logger.e`, ať je to v Crashlytics vidět. Třída zůstane
+             * rozbitá do konce procesu, proto se strukturovaný výstup přestane nabízet.
+             */
+            structuredOutputBroken = true
+            logger.e(e) { "Strukturovaný výstup ML Kitu nejde načíst ($variant)" }
+            throw StructuredOutputException(code = null, cause = e)
         }
         return response.candidates.firstOrNull()?.response ?: throw StructuredOutputException(code = null)
     }
