@@ -272,7 +272,17 @@ enum class LiteRtModel(
 
     val downloadUrl: String
         get() = "https://huggingface.co/$repository/resolve/$commit/$fileName?download=true"
+
+    /**
+     * Patří soubor [name] z keše runtime k tomuhle modelu? LiteRT-LM si při prvním načtení
+     * zkompiluje model pro procesor a uloží ho vedle (`<soubor>_<čas>_<velikost>.xnnpack_cache`,
+     * u Gemmy navíc `….audio_adapter.xnnpack_cache` a `….static_audio_encoder.xnnpack_cache`).
+     * Keš je velká skoro jako model (Gemma 4 E4B 2,3 GB) a bez smazání s modelem zůstávala.
+     */
+    fun ownsCacheFile(name: String): Boolean = name.startsWith("${fileName}_") && name.endsWith(CACHE_SUFFIX)
 }
+
+private const val CACHE_SUFFIX = ".xnnpack_cache"
 
 /**
  * Model odpověděl, ale ne v požadovaném tvaru ([OnDeviceAi.generateStructured]): JSON, který
