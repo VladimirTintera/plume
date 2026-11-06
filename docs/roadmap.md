@@ -211,8 +211,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   a náhledem kamery (ntgcalls přes JNA, `docs/poznatky/hovory.md`, „Desktop"); Windows
   a Linux neověřené. Co zbývá, je v sekci Hovory.
 - ~~**AI v zařízení**~~ — Gemma a Qwen přes `litertlm-jvm` (`docs/poznatky/desktop.md`,
-  „Model v zařízení (LiteRT-LM)"). Zbývá: Nastavení a funkce v přihlášené aplikaci, macOS
-  (Metal GPU) a Linux; GPU na Windows s Intel UHD nejde, jede procesor.
+  „Model v zařízení (LiteRT-LM)"). Na Windows ověřené i v přihlášené aplikaci (stažení,
+  shrnutí, rada u hlasovky). Zbývá macOS (Metal GPU) a Linux; GPU na Windows s Intel UHD nejde,
+  jede procesor.
 - **Zvuk**: ~~přehrávání hlasovek (Opus) a hudby~~ — hotovo přes FFmpeg a `javax.sound`
   (`docs/poznatky/desktop.md`, „Zvuk"), ~~nahrávání hlasovek~~ — hotovo (`javax.sound`
   a `libopus` z FFmpegu). Zbývá přeskakování ticha, ovládání hudby ze systému (Now Playing na

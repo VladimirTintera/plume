@@ -1199,8 +1199,11 @@ v `docs/poznatky/ai-v-zarizeni.md`.
   s načtením, pak 3 s), popis obrázku skoro přesně („oficiální klient" místo neoficiálního),
   přepis české hlasovky (syntéza hlasem Microsoft Jakub, WAV přes FFmpeg) bez chyby za 11 s.
   **Qwen3 0,6B** česky nesmysly (10–13 s), **Qwen3 4B** taky („Protože zachrušíš auto před
-  deštníkem.", 15–47 s) — jeden dotaz, jestli to drží i u shrnutí, neověřené. **Obrazovka
-  Nastavení na desktopu neověřená** (chce přihlášení), stejně jako macOS a Linux.
+  deštníkem.", 15–47 s). **V přihlášené aplikaci** (ladicí běh z balíčku na JDK 21): stažení
+  Gemmy E4B z Nastavení, rada pod hlasovkou s výčtem modelů a shrnutí 30 zpráv česko-slovenského
+  chatu plného emoji s Qwen3 4B na CPU za 82 s (vstup 1 137 z 2 560 tokenů podle odhadu).
+  Qwen ve shrnutí nedodržel pokyn psát o čtenáři ve druhé osobě („Já řekl…") a ze slovenštiny
+  si vymyslel podrobnosti; Gemma pokyn drží. macOS a Linux neověřené.
 
 ## Co platforma (zatím) neumí
 
