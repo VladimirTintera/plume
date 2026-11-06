@@ -344,6 +344,16 @@ interface AppSettings {
     fun setOnDeviceAiModels(models: AiModels)
 
     /**
+     * Stahovat modely v zařízení jen přes Wi-Fi (neplacenou síť)? Mají stovky megabajtů až
+     * gigabajty, takže výchozí `true`: mimo Wi-Fi se Nastavení před stažením zeptá a stahování
+     * jinak počká. Jen kde platforma placenou síť pozná (`MeteredNetwork`).
+     */
+    val modelDownloadWifiOnly: StateFlow<Boolean>
+
+    /** Zapne/vypne stahování modelů jen přes Wi-Fi. Neblokuje, jako [recordRecentEmoji]. */
+    fun setModelDownloadWifiOnly(enabled: Boolean)
+
+    /**
      * Rychlost přehrávání hlasovek. Platí pro celou aplikaci, ne pro jednu hlasovku: kdo poslouchá
      * na 1,5×, chce tak poslouchat i tu další. Výchozí [VoiceSpeed.Normal].
      */
@@ -1044,6 +1054,16 @@ class DataStoreAppSettings(
         )
     }
 
+    override val modelDownloadWifiOnly: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[MODEL_DOWNLOAD_WIFI_ONLY] ?: true
+    }
+
+    override fun setModelDownloadWifiOnly(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[MODEL_DOWNLOAD_WIFI_ONLY] = enabled }
+        }
+    }
+
     override fun setOnDeviceAiModels(models: AiModels) {
         scope.launch {
             edit { preferences ->
@@ -1376,6 +1396,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_GEMMA = stringPreferencesKey("on_device_ai_gemma")
         val ON_DEVICE_AI_QWEN = stringPreferencesKey("on_device_ai_qwen")
         val ON_DEVICE_AI_EUROLLM = stringPreferencesKey("on_device_ai_eurollm")
+        val MODEL_DOWNLOAD_WIFI_ONLY = booleanPreferencesKey("model_download_wifi_only")
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val VIDEO_SPEED = stringPreferencesKey("video_speed")
         val SKIP_SILENCE = booleanPreferencesKey("skip_silence")

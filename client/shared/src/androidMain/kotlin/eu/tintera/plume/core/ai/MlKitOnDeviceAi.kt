@@ -83,7 +83,7 @@ class MlKitOnDeviceAi : OnDeviceAi {
         return if (name == null && limit == null) null else ModelInfo(name, limit)
     }
 
-    override fun download(variant: ModelVariant): Flow<ModelDownload> = flow {
+    override fun download(variant: ModelVariant, mobileData: Boolean): Flow<ModelDownload> = flow {
         var total: Long? = null
         client(variant).download().collect { status ->
             when (status) {

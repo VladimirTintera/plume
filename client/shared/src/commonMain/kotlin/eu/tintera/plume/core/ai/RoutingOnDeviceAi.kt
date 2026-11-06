@@ -38,9 +38,13 @@ class RoutingOnDeviceAi(
 
     override suspend fun info(variant: ModelVariant): ModelInfo? = route(variant) { info(it) }
 
-    override fun download(variant: ModelVariant): Flow<ModelDownload> = route(variant) { download(it) }
+    override fun download(variant: ModelVariant, mobileData: Boolean): Flow<ModelDownload> =
+        route(variant) { download(it, mobileData) }
 
     override suspend fun stopDownload(variant: ModelVariant) = route(variant) { stopDownload(it) }
+
+    override suspend fun setDownloadNetwork(variant: ModelVariant, mobileData: Boolean) =
+        route(variant) { setDownloadNetwork(it, mobileData) }
 
     override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = route(variant) { countTokens(it, prompt) }
 

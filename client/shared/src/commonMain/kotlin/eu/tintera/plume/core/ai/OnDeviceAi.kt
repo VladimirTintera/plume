@@ -35,14 +35,24 @@ interface OnDeviceAi {
      * zastavení ([stopDownload]) jako [DownloadStoppedException]. Volání ve stavu
      * [OnDeviceAiStatus.Downloading] se připojí k běžícímu stahování, ve stavu
      * [OnDeviceAiStatus.Paused] naváže na staženou část.
+     *
+     * [mobileData] `false` = stahovat jen na neplacené síti (Wi-Fi), na placené počkat. Platí jen
+     * u modelu, který stahuje aplikace, a jen kde platforma placenou síť pozná ([MeteredNetwork]);
+     * stahování AICore řídí systém. U běžícího stahování se nemění, na to je [setDownloadNetwork].
      */
-    fun download(variant: ModelVariant): Flow<ModelDownload>
+    fun download(variant: ModelVariant, mobileData: Boolean = true): Flow<ModelDownload>
 
     /**
      * Zastaví stahování; stažená část zůstává a příští [download] na ni naváže. Jen tam, kde
      * model stahuje aplikace sama ([ModelVariant.appManaged]) — stahování AICore řídí systém.
      */
     suspend fun stopDownload(variant: ModelVariant) {}
+
+    /**
+     * Změní, přes jakou síť smí rozběhnuté (nebo na síť čekající) stahování jet — jako
+     * [download] s [mobileData]. Stahování, které neběží, se tím nespustí.
+     */
+    suspend fun setDownloadNetwork(variant: ModelVariant, mobileData: Boolean) {}
 
     /** Kolik tokenů zabere [prompt] na vstupu; `null`, když to model neumí říct. */
     suspend fun countTokens(variant: ModelVariant, prompt: String): Int?
@@ -408,11 +418,14 @@ enum class OnDeviceAiStatus {
  *
  * @property waitingForNetwork stahování se přerušilo se sítí a naváže samo, až se připojení
  *   vrátí. Pořád je to stahování, ne selhání: uživatel nemá nic dělat.
+ * @property wifiOnly stahuje se jen přes Wi-Fi; s [waitingForNetwork] tedy čeká na Wi-Fi, ne na
+ *   jakékoli připojení (na mobilních datech stojí).
  */
 data class ModelDownload(
     val downloadedBytes: Long,
     val totalBytes: Long?,
     val waitingForNetwork: Boolean = false,
+    val wifiOnly: Boolean = false,
 ) {
     val fraction: Float?
         get() = totalBytes?.takeIf { it > 0 }?.let { (downloadedBytes.toFloat() / it).coerceIn(0f, 1f) }
@@ -422,7 +435,7 @@ data class ModelDownload(
 object NoopOnDeviceAi : OnDeviceAi {
     override suspend fun status(variant: ModelVariant) = OnDeviceAiStatus.Unsupported
     override suspend fun info(variant: ModelVariant): ModelInfo? = null
-    override fun download(variant: ModelVariant): Flow<ModelDownload> = emptyFlow()
+    override fun download(variant: ModelVariant, mobileData: Boolean): Flow<ModelDownload> = emptyFlow()
     override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = null
     override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> = emptyFlow()
 }

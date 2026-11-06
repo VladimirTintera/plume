@@ -18,8 +18,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,6 +92,8 @@ class LiteRtOnDeviceAi(
      * každém použití, ne jednou: zapnutí Nano nebo jiné přiřazení úloh to mění za běhu.
      */
     private val idleUnloadMs: suspend (AiProvider) -> Long = { GEMMA_IDLE_TEXT_MS },
+    /** Je síť placená? Jen pro stav „čeká na Wi-Fi" a zákaz dat za běhu ([setDownloadNetwork]). */
+    private val meteredNetwork: MeteredNetwork = NoMeteredNetwork,
 ) : OnDeviceAi {
 
     private val logger = Logger.withTag("OnDeviceAi")
@@ -108,6 +112,21 @@ class LiteRtOnDeviceAi(
 
     /** Doinstalování runtime před stahováním modelu ([download]); [stopDownload] ho zastaví. */
     private val runtimeInstalls = ConcurrentHashMap<LiteRtModel, Job>()
+
+    /**
+     * Smí stahování modelu přes mobilní data ([download], [setDownloadNetwork])? Jen v paměti:
+     * úloha přežije proces i s podmínkou sítě, tohle je jen pro stav na obrazovce — po restartu
+     * ho obnoví první připojení obrazovky (`download` s volbou z Nastavení).
+     */
+    private val mobileData = ConcurrentHashMap<LiteRtModel, Boolean>()
+
+    private fun wifiOnly(model: LiteRtModel) = mobileData[model] == false
+
+    /** Běžící stahování souboru v [runDownload]; zákaz dat za běhu ho zruší. */
+    private val fetches = ConcurrentHashMap<LiteRtModel, Job>()
+
+    /** Stahování zrušené zákazem dat ([setDownloadNetwork]), ne zastavením úlohy. */
+    private val wifiRequired: MutableSet<LiteRtModel> = ConcurrentHashMap.newKeySet()
 
     /** Runtime k už staženému modelu se doinstaloval sám ([restoreRuntime]); jednou za proces. */
     private val runtimeRestoreStarted: MutableSet<ModelRuntime> = ConcurrentHashMap.newKeySet()
@@ -175,22 +194,31 @@ class LiteRtOnDeviceAi(
      * z obrazovky. Je to desítka megabajtů proti gigabajtům modelu, a když selže (aplikace není
      * z Google Play), má se to uživatel dozvědět hned, ne až po stažení modelu. Průběh se zatím
      * ukazuje v bajtech runtime, pak v bajtech modelu.
+     *
+     * Runtime z Play [mobileData] neřídí: je to desítka megabajtů a o síti rozhoduje Play (velké
+     * stahování přes data si potvrdí sám, `SplitInstallConfirmations`).
      */
-    override fun download(variant: ModelVariant): Flow<ModelDownload> = flow {
+    override fun download(variant: ModelVariant, mobileData: Boolean): Flow<ModelDownload> = flow {
         val model = variant.file()
         val state = stateOf(model)
         if (state.value !is DownloadState.Running) {
+            this@LiteRtOnDeviceAi.mobileData[model] = mobileData
             // Než se úloha rozběhne, ukazuje se, co už je stažené — a bez sítě rovnou čekání:
-            // úloha se bez připojení vůbec nespustí (podmínka sítě), takže by stav jinak tvrdil,
-            // že se stahuje.
+            // úloha se bez připojení (u „jen Wi-Fi" bez neplacené sítě) vůbec nespustí, takže by
+            // stav jinak tvrdil, že se stahuje.
             val offline = withTimeoutOrNull(NETWORK_CHECK_MS) {
                 networkMonitor.status.first().kind == NetworkKind.None
             } == true
             state.value = DownloadState.Running(
-                ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = offline),
+                ModelDownload(
+                    model.partFile().length(),
+                    model.sizeBytes,
+                    waitingForNetwork = offline || (!mobileData && meteredNetwork.isMetered()),
+                    wifiOnly = !mobileData,
+                ),
             )
             if (runtimeOf(model).installed()) {
-                platform.startDownload(model) { runDownload(model) }
+                platform.startDownload(model, unmeteredOnly = !mobileData) { runDownload(model) }
             } else {
                 runtimeInstalls[model] = scope.launch { installRuntimeThenDownload(model, state) }
             }
@@ -225,8 +253,15 @@ class LiteRtOnDeviceAi(
         if (model.file().exists()) {
             state.value = DownloadState.Done
         } else {
-            state.value = DownloadState.Running(ModelDownload(model.partFile().length(), model.sizeBytes))
-            platform.startDownload(model) { runDownload(model) }
+            state.value = DownloadState.Running(
+                ModelDownload(
+                    model.partFile().length(),
+                    model.sizeBytes,
+                    waitingForNetwork = wifiOnly(model) && meteredNetwork.isMetered(),
+                    wifiOnly = wifiOnly(model),
+                ),
+            )
+            platform.startDownload(model, unmeteredOnly = wifiOnly(model)) { runDownload(model) }
         }
     }
 
@@ -238,6 +273,34 @@ class LiteRtOnDeviceAi(
         // odpovědět hned. Úloha, která ještě nezačala, neohlásí nic.
         stateOf(model).value = DownloadState.Stopped
         logger.i { "Stahování zastavené (${model.displayName})" }
+    }
+
+    /**
+     * Změna „jen přes Wi-Fi" u stahování, které běží nebo čeká. Úloha dostane novou podmínku sítě
+     * bez zrušení ([LiteRtPlatform.setDownloadNetwork]) — čekající na Wi-Fi se po povolení dat
+     * rozběhne. Běžící úlohu nová podmínka nezastaví, takže když se data zakážou zrovna na
+     * placené síti, zruší se tu stahování souboru a úloha skončí s opakováním
+     * ([WifiRequiredException]): pustí ji znovu až Wi-Fi.
+     */
+    override suspend fun setDownloadNetwork(variant: ModelVariant, mobileData: Boolean) {
+        val model = variant.file()
+        this.mobileData[model] = mobileData
+        withContext(Dispatchers.IO) { platform.setDownloadNetwork(model, unmeteredOnly = !mobileData) }
+        val state = stateOf(model)
+        val current = state.value
+        val stopNow = !mobileData && meteredNetwork.isMetered()
+        if (current is DownloadState.Running) {
+            state.value = DownloadState.Running(
+                current.progress.copy(waitingForNetwork = current.progress.waitingForNetwork || stopNow, wifiOnly = !mobileData),
+            )
+        }
+        if (stopNow) {
+            fetches[model]?.let { fetch ->
+                wifiRequired += model
+                fetch.cancel()
+            }
+        }
+        logger.i { "Stahování ${model.displayName}: ${if (mobileData) "i přes data" else "jen přes Wi-Fi"}" }
     }
 
     /** Průběh stahování pro notifikaci úlohy. */
@@ -258,12 +321,29 @@ class LiteRtOnDeviceAi(
         }
         // Vždycky načisto: úloha se spouští jen s připojením, takže čekání na síť ze zastavené
         // úlohy už neplatí — a první hlášení průběhu přijde až po pár megabajtech.
-        state.value = DownloadState.Running(ModelDownload(model.partFile().length(), model.sizeBytes))
+        state.value = DownloadState.Running(ModelDownload(model.partFile().length(), model.sizeBytes, wifiOnly = wifiOnly(model)))
         try {
-            fetch(model, state)
+            // Ve vlastní korutině, aby šla zrušit jen ona ([setDownloadNetwork]); zastavení
+            // úlohy zruší celou [runDownload] a projde `join` jako dřív.
+            coroutineScope {
+                val fetch = launch { fetch(model, state) }
+                fetches[model] = fetch
+                try {
+                    fetch.join()
+                } finally {
+                    fetches.remove(model, fetch)
+                }
+                if (wifiRequired.remove(model)) throw WifiRequiredException()
+            }
             state.value = DownloadState.Done
             logger.i { "Model stažený (${model.displayName})" }
         } catch (e: CancellationException) {
+            throw e
+        } catch (e: WifiRequiredException) {
+            state.value = DownloadState.Running(
+                ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = true, wifiOnly = true),
+            )
+            logger.i { "Stahování ${model.displayName} počká na Wi-Fi" }
             throw e
         } catch (e: Exception) {
             state.value = DownloadState.Failed(e)
@@ -282,8 +362,9 @@ class LiteRtOnDeviceAi(
         val current = state.value
         when {
             byUser -> state.value = DownloadState.Stopped
-            current is DownloadState.Running ->
-                state.value = DownloadState.Running(current.progress.copy(waitingForNetwork = waitingForNetwork))
+            current is DownloadState.Running -> state.value = DownloadState.Running(
+                current.progress.copy(waitingForNetwork = waitingForNetwork, wifiOnly = wifiOnly(model)),
+            )
         }
     }
 
@@ -597,7 +678,7 @@ class LiteRtOnDeviceAi(
                 if (failures > MAX_RETRIES_WITHOUT_PROGRESS) throw e
                 logger.i { "Stahování přerušené (${e.message}), čekám na síť (${model.displayName})" }
                 state.value = DownloadState.Running(
-                    ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = true),
+                    ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = true, wifiOnly = wifiOnly(model)),
                 )
                 // Nejdřív síť, pak prodleva: po návratu sítě chvíli trvá, než opravdu vede
                 // ven, a výpadek, o kterém systém ještě neví, se tím nepřepálí na pokusy.
@@ -625,6 +706,14 @@ class LiteRtOnDeviceAi(
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS
             if (offset > 0) setRequestProperty("Range", "bytes=$offset-")
+        }
+        /*
+         * Zrušení (Zastavit, zákaz dat za běhu) zavře spojení. Blokující `read` zrušení korutiny
+         * nepozná a na síti, která přestala posílat data, by čekal až do [TIMEOUT_MS]: zákaz dat
+         * na emulátoru se tak projevil až po 23 s.
+         */
+        val closeOnCancel = coroutineContext.job.invokeOnCompletion { cause ->
+            if (cause is CancellationException) connection.disconnect()
         }
         try {
             val code = connection.responseCode
@@ -667,7 +756,12 @@ class LiteRtOnDeviceAi(
             if (written != total) throw IOException("Incomplete download: $written of $total B")
             moveFinished(model)
             onProgress(ModelDownload(total, total))
+        } catch (e: IOException) {
+            // Spojení zavřené zrušením není výpadek sítě: nečekat na síť, skončit jako zrušení.
+            ensureActive()
+            throw e
         } finally {
+            closeOnCancel.dispose()
             connection.disconnect()
         }
     }
@@ -748,3 +842,9 @@ private class LoadedEngine(
     val backend: LlmBackend,
     val engine: LlmEngine,
 )
+
+/**
+ * Data se zakázala uprostřed stahování na placené síti ([LiteRtOnDeviceAi.setDownloadNetwork]).
+ * Úloha s ním skončí s opakováním a WorkManager ji pustí znovu na Wi-Fi; stav už ukazuje čekání.
+ */
+internal class WifiRequiredException : Exception("Model download waits for an unmetered network")

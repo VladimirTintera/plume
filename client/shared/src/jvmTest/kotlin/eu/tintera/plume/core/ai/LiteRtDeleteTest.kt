@@ -21,7 +21,7 @@ class LiteRtDeleteTest {
         override fun canRun(model: LiteRtModel) = true
         override fun png(path: String, maxSide: Int): ByteArray? = null
         override fun wavClips(path: String): List<ByteArray> = emptyList()
-        override fun startDownload(model: LiteRtModel, run: suspend () -> Unit) {}
+        override fun startDownload(model: LiteRtModel, unmeteredOnly: Boolean, run: suspend () -> Unit) {}
         override fun cancelDownload(model: LiteRtModel) {}
         override suspend fun downloadPending(model: LiteRtModel) = false
     }

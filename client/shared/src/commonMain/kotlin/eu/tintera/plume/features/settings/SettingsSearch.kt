@@ -55,6 +55,7 @@ import eu.tintera.plume.resources.settings_app_lock
 import eu.tintera.plume.resources.settings_background_photos
 import eu.tintera.plume.resources.settings_blocked
 import eu.tintera.plume.resources.settings_chat_triage
+import eu.tintera.plume.resources.settings_ai_wifi_only
 import eu.tintera.plume.resources.settings_default_auto_delete
 import eu.tintera.plume.resources.settings_discreet_reading
 import eu.tintera.plume.resources.settings_login_email
@@ -223,6 +224,7 @@ internal val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = buildList {
         Res.string.settings_chat_triage,
         Res.string.settings_background_photos,
         Res.string.settings_ai_tasks,
+        Res.string.settings_ai_wifi_only,
     ).forEach { add(SettingsSearchEntry(it, section(ai))) }
 
     // Úprava profilu stojí nad seznamem místo sekce (karta účtu).

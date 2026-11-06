@@ -41,6 +41,8 @@ import eu.tintera.plume.core.snooze.SnoozeReminders
 import eu.tintera.plume.core.ai.PhotoDescriptionSchedule
 import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
 import eu.tintera.plume.core.ai.AndroidLiteRtPlatform
+import eu.tintera.plume.core.ai.AndroidMeteredNetwork
+import eu.tintera.plume.core.ai.MeteredNetwork
 import eu.tintera.plume.core.ai.PlayLiteRtRuntime
 import eu.tintera.plume.core.ai.SplitInstallConfirmations
 import eu.tintera.plume.core.ai.ModelRuntime
@@ -143,8 +145,11 @@ actual fun Module.platformModule() {
                     GEMMA_IDLE_TEXT_MS
                 }
             },
+            meteredNetwork = get(),
         )
     }
+    // Placená síť: modely se mimo Wi-Fi stahují jen po dotazu (Nastavení → AI v zařízení).
+    single<MeteredNetwork> { AndroidMeteredNetwork(androidContext()) }
     // Úsporný režim a teplota: Gemma pod nimi sama od sebe nic nepočítá (`proactiveVariant`).
     single<DeviceLoad> { AndroidDeviceLoad(androidContext()) }
     // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.

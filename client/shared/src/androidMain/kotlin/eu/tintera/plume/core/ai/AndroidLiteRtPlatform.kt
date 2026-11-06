@@ -32,8 +32,12 @@ class AndroidLiteRtPlatform(private val context: Context) : LiteRtPlatform {
     override fun wavClips(path: String): List<ByteArray> = AudioClips.wavClips(path)
 
     /** Úloha si runtime vezme z Koinu a stáhne model sama; [run] se tu nevolá. */
-    override fun startDownload(model: LiteRtModel, run: suspend () -> Unit) {
-        ModelDownloadWorker.enqueue(context, model)
+    override fun startDownload(model: LiteRtModel, unmeteredOnly: Boolean, run: suspend () -> Unit) {
+        ModelDownloadWorker.enqueue(context, model, unmeteredOnly)
+    }
+
+    override fun setDownloadNetwork(model: LiteRtModel, unmeteredOnly: Boolean) {
+        ModelDownloadWorker.updateNetwork(context, model, unmeteredOnly)
     }
 
     override fun cancelDownload(model: LiteRtModel) {

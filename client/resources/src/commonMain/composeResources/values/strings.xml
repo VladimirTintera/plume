@@ -2529,6 +2529,13 @@
     <string name="settings_on_device_ai_downloadable_named">%1$s needs to be downloaded first (%2$s).</string>
     <string name="settings_on_device_ai_download_progress">%1$s of %2$s</string>
     <string name="settings_on_device_ai_waiting_for_network">Waiting for a connection, the download will resume on its own…</string>
+    <string name="settings_on_device_ai_waiting_for_wifi">Waiting for Wi-Fi, the download will then continue on its own…</string>
+    <string name="settings_ai_wifi_only">Download models over Wi-Fi only</string>
+    <string name="settings_ai_wifi_only_summary">Models take hundreds of megabytes to gigabytes. Away from Wi-Fi, the download asks first and otherwise waits for Wi-Fi.</string>
+    <string name="settings_ai_mobile_data_title">Download over mobile data?</string>
+    <string name="settings_ai_mobile_data_text">%1$s is %2$s and the phone is not on Wi-Fi. Mobile data may cost you; otherwise the download waits until Wi-Fi is available.</string>
+    <string name="settings_ai_mobile_data_confirm">Use mobile data</string>
+    <string name="settings_ai_mobile_data_wait">Wait for Wi-Fi</string>
     <string name="settings_on_device_ai_resume">Resume download</string>
     <string name="settings_on_device_ai_not_enough_space">There is not enough free space on this device for the model.</string>
     <string name="settings_on_device_ai_stop">Stop download</string>

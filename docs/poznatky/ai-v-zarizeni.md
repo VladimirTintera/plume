@@ -78,6 +78,53 @@ poskytovatelích nemusí vědět nic.
     držela službu v popředí hodiny naprázdno. Při ztrátě sítě ji WorkManager zastaví
     (`STOP_REASON_CONSTRAINT_CONNECTIVITY` → obrazovka „Čekám na připojení") a s návratem
     spustí znovu. Krátký výpadek, o kterém systém ještě neví, přečká smyčka jako dřív.
+  - **„Stahovat modely jen přes Wi-Fi"** (Nastavení → AI v zařízení, pod modely; výchozí
+    zapnuté, `AppSettings.modelDownloadWifiOnly`) je táž podmínka, jen `NetworkType.UNMETERED`.
+    Dřív stačilo jedno ťuknutí na mobilních datech a stahovaly se gigabajty.
+    - **Placenost, ne druh sítě** (`MeteredNetwork`, na Androidu `isActiveNetworkMetered`).
+      `NetworkMonitor` by Wi-Fi z hotspotu telefonu vedl jako Wi-Fi, systém i podmínka
+      `UNMETERED` ji vedou jako placenou. Dotaz a skutečné chování úlohy se tak shodnou. Bez
+      sítě vrací `false` (systém `true`): v letovém režimu se nemá na co ptát.
+    - **Mimo Wi-Fi se Stáhnout zeptá** (`ConfirmDialog`: „Stáhnout přes data" / „Počkat na
+      Wi-Fi", s velikostí modelu). Zavření dialogu mimo tlačítka = počkat: o model uživatel řekl
+      a čekání nic nestojí. „Přes data" platí jen pro to jedno stažení, Nastavení se nemění.
+      Připojení obrazovky k běžícímu stahování (`refresh` → `startDownload`) se neptá.
+    - **Stav „Čekám na Wi-Fi"** (`ModelDownload.wifiOnly` s `waitingForNetwork`). Úloha se na
+      datech vůbec nespustí, takže stav musí čekání říct sám hned při plánování
+      (`download`), jinak by tvrdil, že se stahuje.
+    - **Přepnutí volby za běhu úlohu neruší** (`setDownloadNetwork` → `WorkManager.updateWork`).
+      Zrušení by se ohlásilo jako zastavení uživatelem (`CANCELLED_BY_APP`) a obrazovka by
+      ukázala „Pokračovat". Čekající úloha se po povolení dat rozběhne. **Běžící úlohu nová
+      podmínka nezastaví** (platí až pro příští běh), proto se při zákazu dat na placené síti
+      zruší jen korutina stahování v `runDownload` a úloha skončí s `Result.retry()`
+      (`WifiRequiredException`). Opakování má lineární prodlevu 10 s: výchozí exponenciální
+      by návrat na Wi-Fi zdržela.
+    - **Runtime z Play volba neřídí.** Je to desítka MB a velké stahování přes data si Play
+      potvrdí sám (`SplitInstallConfirmations`). Gemini Nano stahuje AICore po svém.
+    - **Na desktopu se volba nenabízí** (`NoMeteredNetwork`): JVM druh sítě nehlásí
+      (`NetworkMonitor` tam vrací vždycky `Other`) a volba by slibovala něco, co se nestane.
+    - **Zrušení stahování zavře spojení** (`invokeOnCompletion` v `fetchFile`). Blokující `read`
+      zrušení korutiny nepozná: na síti, která po změně přestala posílat data, čekal do
+      `readTimeout` a zákaz dat za běhu se na emulátoru projevil až po 23 s. Se zavřením
+      spojení za 0,1 s. `IOException` ze zavřeného spojení se hlásí jako zrušení
+      (`ensureActive`), ne jako výpadek sítě. Totéž zrychlilo „Zastavit".
+    - **Ověřeno na emulátoru** (Android 17, Qwen3 0,6B, síť zpomalená `adb emu network speed
+      hsdpa`, ať stahování nedoběhne hned):
+      - Na LTE dialog a „Počkat na Wi-Fi": úloha čeká v plánovači s `NOT_METERED`
+        (`dumpsys jobscheduler`), stav „Čekám na Wi-Fi".
+      - Zapnutí Wi-Fi úlohu rozběhne, ztráta Wi-Fi uprostřed ji zastaví (`.part` dál neroste).
+      - Vypnutí volby za čekání úlohu pustí bez „Pokračovat" (`updateWork`).
+      - Zapnutí volby za stahování na placené síti dá `RETRY` a čekání.
+      - Po zabití procesu (reinstalace) se stav čekání obnoví.
+      - „Pokračovat" na placené síti se zeptá a „Stáhnout přes data" model stáhne celý (velikost
+        sedí na bajt).
+    - **LTE emulátoru ven nevede**, i když ho systém hlásí jako ověřené (`ping` 100 % ztrát, se
+      zapnutou Wi-Fi i bez ní). Stahování „přes data" tam skončí na timeoutu. Placená síť se
+      proto simuluje Wi-Fi: `adb shell cmd netpolicy set metered-network '"AndroidWifi"' true`
+      (zpátky `undefined`, výchozí stav emulátoru). Změna placenosti Wi-Fi na chvíli shodí
+      (`onLost`) a WorkManager běžící úlohu zastaví a hned pustí znovu.
+    - **Snímek obrazovky Plume je na emulátoru bílý** (`screencap`), stav se čte z `uiautomator
+      dump`. Fyzický telefon ověřený není. Testy `LiteRtDownloadNetworkTest`.
   - **Důvod zastavení rozhoduje, co ukázat** (`getStopReason`): `CANCELLED_BY_APP` = uživatel
     zastavil („Zastavit" v notifikaci je `createCancelPendingIntent`), cokoli jiného = systém
     a úloha se vrátí, takže pro obrazovku se pořád stahuje.

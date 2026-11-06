@@ -105,6 +105,8 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setMessageContextEnabled(enabled: Boolean): Unit = error("setMessageContextEnabled")
     override val onDeviceAiModels: StateFlow<AiModels> get() = error("onDeviceAiModels")
     override fun setOnDeviceAiModels(models: AiModels): Unit = error("setOnDeviceAiModels")
+    override val modelDownloadWifiOnly: StateFlow<Boolean> get() = error("modelDownloadWifiOnly")
+    override fun setModelDownloadWifiOnly(enabled: Boolean): Unit = error("setModelDownloadWifiOnly")
     override val voiceSpeed: StateFlow<VoiceSpeed> get() = error("voiceSpeed")
     override fun setVoiceSpeed(speed: VoiceSpeed): Unit = error("setVoiceSpeed")
     override val videoSpeed: StateFlow<VoiceSpeed> get() = error("videoSpeed")

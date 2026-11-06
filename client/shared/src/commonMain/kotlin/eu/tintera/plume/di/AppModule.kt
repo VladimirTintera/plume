@@ -444,6 +444,7 @@ fun appModule() = module {
             ai = get(),
             appScope = get(named(APP_SCOPE)),
             tracksLoad = get<DeviceLoad>() !== NoDeviceLoad,
+            meteredNetwork = get(),
         )
     }
     viewModelOf(::ChatSummaryViewModel)

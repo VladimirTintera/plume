@@ -2601,6 +2601,13 @@
     <string name="settings_on_device_ai_downloadable_named">%1$s je potřeba nejdřív stáhnout (%2$s).</string>
     <string name="settings_on_device_ai_download_progress">%1$s z %2$s</string>
     <string name="settings_on_device_ai_waiting_for_network">Čekám na připojení, stahování pak naváže samo…</string>
+    <string name="settings_on_device_ai_waiting_for_wifi">Čekám na Wi-Fi, stahování pak poběží samo…</string>
+    <string name="settings_ai_wifi_only">Stahovat modely jen přes Wi-Fi</string>
+    <string name="settings_ai_wifi_only_summary">Modely mají stovky megabajtů až gigabajty. Mimo Wi-Fi se stahování nejdřív zeptá, jinak počká na Wi-Fi.</string>
+    <string name="settings_ai_mobile_data_title">Stáhnout přes mobilní data?</string>
+    <string name="settings_ai_mobile_data_text">%1$s má %2$s a telefon teď není na Wi-Fi. Mobilní data můžou stát peníze; jinak stahování počká, až bude Wi-Fi.</string>
+    <string name="settings_ai_mobile_data_confirm">Stáhnout přes data</string>
+    <string name="settings_ai_mobile_data_wait">Počkat na Wi-Fi</string>
     <string name="settings_on_device_ai_resume">Pokračovat ve stahování</string>
     <string name="settings_on_device_ai_not_enough_space">V zařízení není dost volného místa na model.</string>
     <string name="settings_on_device_ai_stop">Zastavit stahování</string>

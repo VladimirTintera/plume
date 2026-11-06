@@ -140,7 +140,8 @@ class DesktopLiteRtPlatform : LiteRtPlatform {
         }
     }
 
-    override fun startDownload(model: LiteRtModel, run: suspend () -> Unit) {
+    /** [unmeteredOnly] se přejde: druh sítě JVM nehlásí a Nastavení volbu na desktopu nenabízí. */
+    override fun startDownload(model: LiteRtModel, unmeteredOnly: Boolean, run: suspend () -> Unit) {
         downloads.compute(model) { _, running ->
             running?.takeIf { it.isActive } ?: scope.launch {
                 try {
