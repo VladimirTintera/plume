@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Runtime LiteRT-LM (Gemma a Qwen v zařízení) jako součást z Google Play: stahuje se až na
-     požádání, když si uživatel stáhne model (PlayLiteRtRuntime v :client:ai-core). Kód tu není žádný,
-     modul jen balí :client:ai-litert s nativní knihovnou. `fusing` = zařízení, které splity
+     požádání, když si uživatel stáhne model (PlayLiteRtRuntime v ai-engine :ai-core). Kód tu není žádný,
+     modul jen balí :ai-litert z ai-engine s nativní knihovnou. `fusing` = zařízení, které splity
      neumí (APK z bundletoolu bez Play), dostane součást rovnou v jednom APK. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:dist="http://schemas.android.com/apk/distribution">

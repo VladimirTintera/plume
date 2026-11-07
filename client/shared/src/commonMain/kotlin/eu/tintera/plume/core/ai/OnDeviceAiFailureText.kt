@@ -22,7 +22,7 @@ import eu.tintera.plume.resources.ai_failure_too_large
 import eu.tintera.plume.resources.ai_failure_unavailable
 
 /*
- * Věty k selháním modelu v zařízení. Důvod ([AiFailureReason]) určuje knihovna (:client:ai-core),
+ * Věty k selháním modelu v zařízení. Důvod ([AiFailureReason]) určuje knihovna (ai-engine :ai-core),
  * texty jsou Plume — knihovna je sdílená s aplikacemi, které mají vlastní prostředky.
  */
 

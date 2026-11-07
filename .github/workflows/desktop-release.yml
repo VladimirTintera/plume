@@ -137,11 +137,12 @@ jobs:
 
       # Celá historie + tagy kvůli „Co je nového" zapečenému do aplikace (`generateChangelog`).
       # Mělký klon nad tagem stáhne jen ten jeden tag: build pak projde, ale seznam vydání v MSI
-      # je prázdný a nic to nenahlásí. Submodul llama.cpp kvůli EuroLLM (:client:ai-llamacpp-desktop).
+      # je prázdný a nic to nenahlásí. Submodul ai-engine s vnořeným
+      # llama.cpp kvůli modelům v zařízení a EuroLLM (:ai-llamacpp-desktop), proto `recursive`.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          submodules: true
+          submodules: recursive
 
       # Verze musí odpovídat `jvmToolchain(17)` v modulech — s jinou by ji Gradle přes foojay
       # resolver stahoval znovu při každém běhu. jpackage (MSI) je v JDK od 14.
@@ -173,8 +174,8 @@ jobs:
 
       # Desktop nepotřebuje Android, ale `:client:shared` je KMP knihovna s Android targetem
       # a AGP chce SDK s compileSdk už při konfiguraci. Hostovaný runner ho má předinstalovaný.
-      # NDK chce AGP při konfiguraci :client:ai-llamacpp-android (`ndkVersion`), CMake z SDK
-      # překládá llama.cpp pro desktop (:client:ai-llamacpp-desktop); hostovaný runner má CMake
+      # NDK chce AGP při konfiguraci :ai-llamacpp-android z ai-engine (`ndkVersion`), CMake z SDK
+      # překládá llama.cpp pro desktop (:ai-llamacpp-desktop); hostovaný runner má CMake
       # na PATH a NDK si AGP stáhne samo.
       # POZOR: musí odpovídat android-compileSdk, `ndk` a `cmake` v gradle/libs.versions.toml.
       - name: Install Android SDK platform
@@ -256,11 +257,11 @@ jobs:
             exit 1
           fi
 
-      # Viz job windows: bez celé historie by „Co je nového" v aplikaci bylo prázdné, bez submodulu EuroLLM.
+      # Viz job windows: bez celé historie by „Co je nového" v aplikaci bylo prázdné, bez submodulů ai-engine a llama.cpp nic z AI.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          submodules: true
+          submodules: recursive
 
       - uses: actions/setup-java@v6
         with:

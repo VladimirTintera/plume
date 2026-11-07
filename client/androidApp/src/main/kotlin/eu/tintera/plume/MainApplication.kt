@@ -16,7 +16,7 @@ class MainApplication : Application() {
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(LegacyAppLanguage.wrapApplication(base))
         // Součást z Google Play doinstalovaná za běhu (runtime modelu v zařízení) je bez tohohle
-        // vidět až po restartu procesu; viz PlayLiteRtRuntime v :client:ai-core.
+        // vidět až po restartu procesu; viz PlayLiteRtRuntime v ai-engine :ai-core.
         SplitCompat.install(this)
     }
 

@@ -15,21 +15,11 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# LiteRT-LM (Gemma v zařízení) si keep pravidla NEPŘIBALUJE — AAR 0.11.0 nemá `proguard.txt`.
-# Nativní strana přitom sahá do Kotlinu podle JMÉNA: čte gettery konfigurace
-# (`SamplerConfig.getTopK()`), vyhazuje `LiteRtLmJniException` a volá zpátky do callbacků.
-# Ověřeno na emulátoru: bez tohohle release build při prvním použití Gemmy spadne na
-# `NoSuchMethodError … SamplerConfig.getTopK()` a SIGABRT (a GPU chyba přijde jako
-# `ClassNotFoundException`). Celý balíček, ne výčet tříd — JNI hranici určuje knihovna, ne my,
-# a výčet by se při bumpu tiše rozešel. Až knihovna pravidla přibalí, tohle jde pryč.
--keep class com.google.ai.edge.litertlm.** { *; }
-
-# Runtime modelu v zařízení (:client:ai-litert) leží v součásti z Google Play a základ aplikace
-# ho vytváří REFLEXÍ podle jména (`LITERT_ENGINE_FACTORY`, LiteRtRuntime.kt v :client:ai-core) — přímý
-# odkaz na něj by se nepřeložil. R8 zpracovává základ i součást dohromady, takže pravidlo patří
-# sem; bez něj by třídu přejmenoval nebo zahodil a model by po stažení hlásil chybu.
--keep class eu.tintera.plume.ai.litert.LiteRtEngineFactory { public <init>(); }
--keep class eu.tintera.plume.ai.llamacpp.LlamaCppEngineFactory { public <init>(); }
+# Model v zařízení (knihovna ai-engine, external/ai-engine): keep pravidla pro LiteRT-LM (JNI
+# sahá do Kotlinu podle jména) a pro továrny runtime, které základ vytváří REFLEXÍ ze součásti
+# z Google Play, si nese knihovna sama jako consumer rules (:ai-litert, :ai-core). Platí i pro
+# :ai-litert v součásti litertFeature — R8 zpracovává základ i součásti dohromady, s pravidly
+# jejich závislostí (ověřeno v `seeds.txt` release buildu). Sem je nekopírovat, rozešla by se.
 
 # Strukturovaný výstup Gemini Nano (core/ai, `OnDeviceAi.generateStructured`): odpověď do typu
 # plní Gson přibalený v ML Kitu REFLEXÍ podle jmen polí, která jsou zároveň schématem pro model.

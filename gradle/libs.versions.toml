@@ -3,8 +3,9 @@
 android-compileSdk = "37"
 android-minSdk = "26"
 android-targetSdk = "37"
-# Nativní build llama.cpp (client/ai-llamacpp-android, CMake i client/ai-llamacpp-desktop). NDK r28+ zarovnává knihovny na 16KB stránky,
-# které Play vyžaduje; CMake z SDK (verze, kterou má SDK Manager).
+# Nativní build llama.cpp je v knihovně ai-engine (external/ai-engine); `ndk` tu potřebuje llamacppFeature
+# k ořezu jejích knihoven a CI k instalaci SDK, takže MUSÍ odpovídat `ndk` a `cmake` v ai-engine.
+# NDK r28+ zarovnává knihovny na 16KB stránky, které Play vyžaduje; CMake z SDK (verze, kterou má SDK Manager).
 ndk = "29.0.13846066"
 cmake = "3.31.0"
 agp = "9.2.1"
