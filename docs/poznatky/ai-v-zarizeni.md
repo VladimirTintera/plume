@@ -7,7 +7,78 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 Experimentální „Shrnout" v hlavičce konverzace: shrnutí nepřečtených (jinak posledních 60 zpráv)
 jazykovým modelem v telefonu. Zapíná se v Nastavení → Obecné → AI v zařízení (výchozí vypnuto),
-tam se i stahuje model. Hranice je `core/ai` (`OnDeviceAi`).
+tam se i stahuje model. Hranice je `OnDeviceAi` v modulu `:client:ai-core`; co je čistě Plume
+(prompty, volba modelu pro úlohu, nastavení, texty), je v `core/ai` ve `shared`.
+
+### Modul :client:ai-core
+
+Poskytovatelé modelu v zařízení jsou vyčlenění do vlastního KMP modulu (balíček
+`eu.tintera.ai.core`), který **nezávisí na ničem z Plume** — jen na `:client:ai-engine`
+a knihovnách (ML Kit GenAI, WorkManager, Play Feature Delivery). Spolu s `ai-engine`, `ai-litert`
+a `ai-llamacpp*` se přesune do samostatné open-source knihovny **ai-engine** (Apache-2.0,
+github.com/VladimirTintera/ai-engine, balíčky `eu.tintera.ai.*`) sdílené s další aplikací
+(nápady na recept ze zásob); Plume ji pak vezme jako git submodul. Balíček `eu.tintera.ai.core`
+má proto už teď, ať se při přesunu nepřejmenovává podruhé; ostatní moduly zatím nesou
+`eu.tintera.plume.ai.*`. Hranici hlídá Gradle: `ai-core` na `shared` nevidí, takže import z Plume
+se nepřeloží (`grep -rn 'eu.tintera.plume\.' client/ai-core/src` najde jen `ai.engine`).
+
+- **V knihovně:** rozhraní `OnDeviceAi` s `ModelVariant`, `AiProvider`, katalogem `LiteRtModel`,
+  stavy a průběhem stahování; `RoutingOnDeviceAi`; typovaná chyba `OnDeviceAiException`
+  s `AiFailureReason` a `isReportable` (bez textů); `generateAnswer` (strukturovaně, jinak textem);
+  `estimatedTokenCount`; `MeteredNetwork`, `DeviceLoad` a `avoidUnderLoad` i s implementacemi pro
+  Android. Stahované modely: `LiteRtOnDeviceAi`, `LiteRtPlatform` (`AndroidLiteRtPlatform`,
+  `DesktopLiteRtPlatform`), `LiteRtRuntime` (`PlayLiteRtRuntime`, `BundledLiteRtRuntime`),
+  `SplitInstallConfirmations`, úloha stahování. Gemini Nano `MlKitOnDeviceAi` a pomůcka
+  `generableStringField` pro ruční `GenerableProvider`. Na iOS `AppleOnDeviceAi` s mostem
+  `OnDeviceTextModel` / `IosOnDeviceModel` (Swift `AppleTextModel` je v `iosApp`).
+- **V Plume (`shared`):** všechny `*Prompt.kt`, `AiTasks.kt` (`AiTask`, `variantFor`,
+  `chooseProvider`), `proactiveVariant`, `GemmaIdle.kt` (prodlevy podle úloh), typy odpovědí
+  (`StructuredAnswers.kt`) a jejich `GenerableProvider` s řádky v `META-INF/services`, věty
+  k chybám (`OnDeviceAiFailureText.kt`: `userMessage()`, `emptyOutputMessage`), nastavení,
+  hřiště, Koin a dialog Play `SplitInstallConfirmationHost`.
+- **Co knihovna bere od aplikace** (rozhraní, implementace dává Plume v Koinu):
+  - `Connectivity` — je síť? Pro „čeká na síť" a navázání po výpadku. Plume:
+    `NetworkConnectivity` nad `NetworkMonitor`.
+  - `AudioClipDecoder` — zvuk pro přepis hlasovky (WAV 16 kHz mono po 30 s). Plume: `AudioClips`
+    z `:client:core` (Android, používají ho i hodinky), `DesktopAudioClips` přes FFmpeg (desktop).
+  - `ModelDownloadNotifications` — kanál, ikona a texty notifikace stahování. Plume:
+    `PlumeModelDownloadNotifications`.
+  - Adresář modelů na desktopu (`DesktopLiteRtPlatform(localDirectory, …)`). Plume:
+    `aiModelsDirectory` (`%LOCALAPPDATA%\Plume` na Windows, jinak složka dat).
+  - Prodleva uvolnění enginu (`idleUnloadMs`), placená síť (`MeteredNetwork`), runtime pro
+    každý `ModelRuntime` — parametry `LiteRtOnDeviceAi` jako dřív.
+- **Prompt jde do každého volání.** `transcribe(variant, audioPath, prompt)`
+  a `describeImage(variant, imagePath, prompt)` berou hotový pokyn; dřív si přepis skládal
+  `transcriptionPrompt` sám uvnitř `LiteRtOnDeviceAi` a popis fotky měl výchozí
+  `imageDescriptionPrompt`. Jazyk je jen součást pokynu, proto parametr `languageCode` zmizel.
+  **Pozor při podobné změně signatury:** obě pole jsou `String`, takže by staré poziční volání
+  s kódem jazyka prošlo překladem a do modelu by šlo „cs" místo pokynu — volání se proto
+  měnila ručně a ověřila grepem `\.describeImage(\|\.transcribe(`.
+- **Úloha stahování je abstraktní (`AiModelDownloadWorker`), podtřídu dává aplikace.**
+  WorkManager si v naplánované úloze pamatuje JMÉNO třídy a po zabití procesu ji tvoří sám,
+  bez DI. Podtřída v Plume se proto jmenuje pořád `eu.tintera.plume.core.ai.ModelDownloadWorker`
+  — stahování rozběhnuté před aktualizací aplikace na novou verzi naváže — a v `dependencies()`
+  si z Koinu (`GlobalContext`) vezme `LiteRtOnDeviceAi` a notifikace. Plánuje
+  `ModelDownloadScheduler` s třídou, kterou mu dá `AndroidLiteRtPlatform(context, worker, audio)`.
+  Knihovna tak Koin nepotřebuje vůbec.
+- **Dialog souhlasu Play je v Plume, `SplitInstallConfirmations` v knihovně.** Composable by
+  knihovně přidal Compose, aktivitu a Koin; aplikace místo toho sleduje `pending`, před ukázáním
+  zavolá `markShown` a výsledek předá žádosti z `takeShown()`.
+- **Texty chyb zůstaly v Plume.** Knihovna hlásí jen důvod (`AiFailureReason`) a poskytovatele;
+  věty z `Res` skládá `userMessage()` ve `shared` — další aplikace má vlastní prostředky.
+- **iOS framework modul exportuje** (`export(projects.client.aiCore)` v `shared`, závislost
+  `api`). Swift implementuje `OnDeviceTextModel` a plní `IosOnDeviceModel`; bez exportu by je
+  framework nenesl (nebo jen pod jménem s předponou modulu) a `AppleTextModel.swift` by se
+  nepřeložil.
+- **Katalog modelů zůstal enum** (`LiteRtModel`) se všemi poskytovateli Plume, stejně jako pole
+  `gemma` / `qwen` / `euroLlm` / `aya` v `ModelVariant`. Jména položek se ukládají (nastavení,
+  jméno úlohy stahování) a pořadí určuje náhradu za velikost — převod na data, která předá
+  aplikace, by sahal do nastavení i UI. **Další krok** před sdílením s jinou aplikací: katalog
+  jako seznam od aplikace (repozitář, commit, soubor, velikost, paměť, kontext, runtime,
+  licence) a variantu nést jen jako odkaz na položku.
+- **Testy:** `./gradlew :client:ai-core:jvmTest` (router, katalog, stahování, GPU záloha,
+  runtime). Testy, které potřebují prompty Plume (`StructuredAnswersTest`, `TokenEstimateTest`,
+  `OnDeviceAiFailureTest`, `DeviceLoadTest`), zůstaly ve `shared`.
 
 ### Dva poskytovatelé: Gemini Nano a Gemma
 
@@ -38,7 +109,8 @@ poskytovatelích nemusí vědět nic.
   Přerušené stahování navazuje (`Range`). Před stahováním se kontroluje volné místo (velikost
   + 500 MB) a nedostatek má vlastní hlášku (`NotEnoughSpaceException`) — u gigabajtů je to
   nejčastější důvod selhání a jediný, se kterým uživatel může něco udělat.
-- **Po výpadku sítě stahování naváže SAMO** (`LiteRtOnDeviceAi.fetch` čeká na `NetworkMonitor`).
+- **Po výpadku sítě stahování naváže SAMO** (`LiteRtOnDeviceAi.fetch` čeká na `Connectivity`, v Plume
+  nad `NetworkMonitor`).
   Stahuje se minuty a přechod z Wi-Fi na data je za tu dobu běžný; dokud výpadek končil
   „nepodařilo se stáhnout", musel se uživatel vracet do Nastavení kvůli něčemu, co se vlastně
   nepokazilo. Mezitím nastavení říká „Čekám na připojení" (`ModelDownload.waitingForNetwork`).
@@ -59,8 +131,8 @@ poskytovatelích nemusí vědět nic.
   jen model, zůstávala: na desktopu po smazání E4B a Qwenu 4,5 GB v `ai-cache`, které nikdo
   neuklidí; na Androidu ji časem smaže systém, do té doby se počítá do místa aplikace.
   Engine bez `cacheDir` (sondy) ji ukládá vedle modelu, proto se hledá v obou adresářích.
-- **Gemmu stahuje úloha WorkManageru, ne korutina v procesu** (`ModelDownloadWorker` v `core/ai`,
-  vedle `LiteRtOnDeviceAi`). Dokud stahovala korutina, skončilo stahování se zabitým procesem
+- **Gemmu stahuje úloha WorkManageru, ne korutina v procesu** (`AiModelDownloadWorker`
+  v `:client:ai-core`, podtřída `ModelDownloadWorker` v `core/ai`, viz „Modul :client:ai-core"). Dokud stahovala korutina, skončilo stahování se zabitým procesem
   a navázalo až dalším ťuknutím v Nastavení. Stahuje pořád `LiteRtOnDeviceAi` (i s čekáním na
   síť), úloha jen drží proces a ukazuje notifikaci průběhu se „Zastavit"; stav pro obrazovku je
   v téže instanci (proto je `LiteRtOnDeviceAi` v Koinu samostatný `single`). WorkManager je kvůli
@@ -431,7 +503,7 @@ a **Qwen3 0,6B** (328 MB, 4 GB) pro telefony, na které Gemma nestačí.
 ### Desktop
 
 Gemma a Qwen běží i na desktopu (Windows x64, macOS arm64, Linux), stejným runtime jako na
-Androidu (`liteRtMain`, `LiteRtPlatform`); co je jinak (Java 21, nativní knihovna jen pro systém
+Androidu (`liteRtMain` v `:client:ai-core`, `LiteRtPlatform`); co je jinak (Java 21, nativní knihovna jen pro systém
 balíčku, modely mimo Roaming, stahování v procesu), je v `docs/poznatky/desktop.md`, „Model
 v zařízení (LiteRT-LM)". Gemini Nano a Apple tam nejsou.
 

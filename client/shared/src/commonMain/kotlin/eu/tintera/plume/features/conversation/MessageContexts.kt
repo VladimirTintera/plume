@@ -1,15 +1,15 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ai.proactiveVariant
-import eu.tintera.plume.core.ai.NoDeviceLoad
-import eu.tintera.plume.core.ai.DeviceLoad
+import eu.tintera.ai.core.NoDeviceLoad
+import eu.tintera.ai.core.DeviceLoad
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.eventDetailsOf
-import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.ai.core.generateAnswer
 import eu.tintera.plume.core.ai.EventAnswer
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.eventPrompt
 import eu.tintera.plume.core.ai.parseEventDetails
 import eu.tintera.plume.core.settings.AppSettings

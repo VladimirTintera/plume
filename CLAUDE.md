@@ -204,6 +204,9 @@ client/
   desktopApp/  :client:desktopApp – Compose Desktop (kotlin-jvm), jen vstupní bod a balení
   wearApp/     :client:wearApp    – Wear OS (com.android.application) jen nad :client:core
   ai-engine/   :client:ai-engine  – rozhraní runtime modelu v zařízení (LlmEngineFactory), bez závislostí
+  ai-core/     :client:ai-core    – model v zařízení bez vazby na Plume: OnDeviceAi, Gemini Nano (ML Kit),
+                                    stahování a engine LiteRT-LM / llama.cpp, Apple Intelligence; prompty,
+                                    volba úloh, texty a UI zůstávají ve `shared` (viz ai-v-zarizeni.md)
   ai-litert/   :client:ai-litert  – implementace nad LiteRT-LM; jediná s `com.google.ai.edge.litertlm`
   litertFeature/ :client:litertFeature – součást z Google Play na požádání, balí ai-litert (Android)
   ai-llamacpp/ :client:ai-llamacpp – llama.cpp (submodul), JNI a kód pro modely GGUF; čistě JVM
@@ -428,7 +431,8 @@ který uvidí uživatel.
   sekvence jsou na DATA, ne na prózu:** tabulka diakritiky v `SearchHighlight.kt` se čte
   strojem, kdežto prompt se ladí ČTENÍM a „tyk\u00e1n\u00ed" uprostřed anglické věty přečíst
   nejde. Výjimka visí na JMÉNU souboru, ne na balíčku, a **ověřila se sondami, ne úvahou**:
-  český literál v `core/ai/OnDeviceAi.kt` i `Text("…")` uvnitř `ReplyPrompt.kt` kontrolu dál
+  český literál v jiném souboru `core/ai` (sonda byla v `OnDeviceAi.kt`, ten je dnes
+  v `:client:ai-core`) i `Text("…")` uvnitř `ReplyPrompt.kt` kontrolu dál
   rozsvítí, takže se dírou nestalo nic než to, co se jí stát mělo.
 - **Že výjimka platí, říká hlavička KAŽDÉHO promptového souboru, stejnou větou.** Napřed to
   stálo jen v KDoc `formalityInstruction` — tedy u jedné funkce v jednom ze dvou souborů, které

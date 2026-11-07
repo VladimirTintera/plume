@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.plume.core.audio.MusicQueueControl
 import eu.tintera.plume.core.audio.NowPlaying
 import eu.tintera.plume.core.audio.VoiceKey

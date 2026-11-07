@@ -318,6 +318,9 @@ kotlin {
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
+            // Most k Apple Intelligence (`OnDeviceTextModel`, `IosOnDeviceModel`) implementuje
+            // Swift; bez exportu by ho framework nenesl, nebo jen pod jménem s předponou modulu.
+            export(projects.client.aiCore)
             // TDLib je statická knihovna; framework musí být statický, jinak se její symboly
             // nedostanou do výsledné binárky a link padne na undefined symbols _td_*.
             isStatic = true
@@ -341,17 +344,6 @@ kotlin {
         val skiaMain by creating {
             dependsOn(commonMain.get())
         }
-        // Model v zařízení přes LiteRT-LM (Gemma, Qwen): Android a desktop. Stahování modelu
-        // a stav pro obrazovku (`core/ai/LiteRtOnDeviceAi`) jsou společné; samotnou knihovnu
-        // LiteRT-LM tu nevidíme, jen rozhraní enginu. Implementace (:client:ai-litert) přichází
-        // na Androidu jako součást z Google Play až na požádání, na desktopu z desktopApp.
-        val liteRtMain by creating {
-            dependsOn(commonMain.get())
-            dependencies {
-                implementation(projects.client.aiEngine)
-            }
-        }
-
         commonMain {
             // „Co je nového" v Nastavení — poznámky z release-notes/ zapečené při buildu.
             kotlin.srcDir(generateChangelog)
@@ -368,6 +360,10 @@ kotlin {
             // Vrstva kolem TDLib (client/core). `api`: její typy (repository, ChatMessage…) jsou
             // v API shared a vstupní body je potřebují taky.
             api(projects.client.core)
+            // Model v zařízení (poskytovatelé, stahování, engine) bez vazby na Plume — viz
+            // client/ai-core. `api`: jeho typy (OnDeviceAi, ModelVariant…) nesou ViewModely
+            // i nastavení a iOS framework ho exportuje do Swiftu.
+            api(projects.client.aiCore)
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.compose.material3)
 
@@ -405,10 +401,6 @@ kotlin {
             // TDLib tu na classpath NENÍ — jen v :client:core (viz „Hranice kolem TDLib" v CLAUDE.md).
         }
 
-        androidMain {
-            dependsOn(liteRtMain)
-        }
-
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             // Widget s chaty na ploše (core/widget).
@@ -439,8 +431,8 @@ kotlin {
             implementation(libs.media3.ui)
             // Hudba na pozadí: MediaSession, notifikace s ovládáním a služba v popředí.
             implementation(libs.media3.session)
-            // Stahování modelu Gemma na pozadí (core/ai/ModelDownloadWorker). V aplikaci už je
-            // kvůli notifikacím, APK se tím nezvětší.
+            // Úlohy na pozadí: stahování modelu (podtřída `ModelDownloadWorker` úlohy z ai-core)
+            // a popisy fotek na nabíječce (core/ai/PhotoDescriptionWorker).
             implementation(libs.androidx.work.runtime)
             implementation(libs.play.app.update)
             // Čtečka QR kódů pro přihlášení jiného zařízení — viz core/ui/QrScanner.
@@ -450,14 +442,12 @@ kotlin {
             implementation(libs.play.subject.segmentation)
             // Překlad v telefonu — viz core/translation.
             implementation(libs.mlkit.translate)
-            // Gemini Nano v zařízení. Jediné místo v projektu, kde smí být ML Kit GenAI — viz core/ai.
-            implementation(libs.mlkit.genai.prompt)
-            // Strukturovaný výstup Gemini Nano (`GenerableProvider` pro typy odpovědí). Jen popis
-            // tvaru, KSP procesor ne — providery jsou ručně v core/ai.
+            // Strukturovaný výstup Gemini Nano (`GenerableProvider` pro typy odpovědí Plume). Jen
+            // popis tvaru, KSP procesor ne — providery jsou ručně v core/ai. Samotný ML Kit GenAI
+            // (Prompt API) je jen v :client:ai-core.
             implementation(libs.mlkit.genai.schema)
-            // Gemma a Qwen v zařízení: runtime LiteRT-LM se doinstaluje z Google Play až na
-            // požádání (core/ai/PlayLiteRtRuntime, součást :client:litertFeature). Knihovna sama
-            // tu NENÍ — jen v :client:ai-litert, na kterém visí ta součást.
+            // Dialog souhlasu Google Play před instalací runtime modelu (core/ai/
+            // SplitInstallConfirmationHost); runtime sám doinstalovává :client:ai-core.
             implementation(libs.play.feature.delivery)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
@@ -471,7 +461,6 @@ kotlin {
         jvmMain {
             dependsOn(nonDynamicThemeMain)
             dependsOn(skiaMain)
-            dependsOn(liteRtMain)
         }
 
         jvmMain {
@@ -491,7 +480,7 @@ kotlin {
             // Hovory: C API ntgcalls (`core/calls/NtgNative.kt`).
             implementation(libs.jna)
             // Gemma a Qwen v zařízení: runtime LiteRT-LM (:client:ai-litert) přidává až desktopApp,
-            // tady je jen rozhraní (liteRtMain). Najde se za běhu (`BundledLiteRtRuntime`).
+            // tady je jen rozhraní (přes :client:ai-core). Najde se za běhu (`BundledLiteRtRuntime`).
             // Tmavý titulek okna na Windows (`WindowTitleBarAppearance`).
             implementation(libs.platformtools.darkmodedetector)
             // Dekodér videa (GIFy, `core/video/Video.jvm.kt`): FFmpeg přes JavaCPP. Nativní

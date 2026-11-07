@@ -1,8 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.plume.core.ai.ModelVariant
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.UnimplementedOnDeviceAi
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.bookmarks.MessageBookmarks

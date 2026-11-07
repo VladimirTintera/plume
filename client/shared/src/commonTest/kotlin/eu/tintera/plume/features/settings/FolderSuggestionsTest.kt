@@ -2,11 +2,11 @@ package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.FolderCategory
-import eu.tintera.plume.core.ai.Generated
-import eu.tintera.plume.core.ai.ModelVariant
-import eu.tintera.plume.core.ai.NoopOnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.Generated
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.NoopOnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary

@@ -2,7 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiTask
-import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.plume.core.ai.cleanCaption
 import eu.tintera.plume.core.ai.photoCaptionPrompt
 import eu.tintera.plume.core.ai.variantFor
@@ -91,7 +91,7 @@ internal class ConversationCaption(
         job = scope.launch {
             val caption = try {
                 val variant = ai.variantFor(AiTask.PhotoDescription, settings)
-                ai.describeImage(variant, path, platformLanguageCode, photoCaptionPrompt(platformLanguageCode))
+                ai.describeImage(variant, path, photoCaptionPrompt(platformLanguageCode))
                     .lastOrNull()?.text?.let(::cleanCaption)
             } catch (e: CancellationException) {
                 throw e

@@ -4,10 +4,10 @@ import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.reminderTimeOf
-import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.ai.core.generateAnswer
 import eu.tintera.plume.core.ai.ReminderAnswer
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.parseReminderTime
 import eu.tintera.plume.core.ai.reminderPrompt
 import eu.tintera.plume.core.settings.AppSettings

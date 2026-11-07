@@ -57,7 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.tintera.plume.core.ai.LiteRtModel
+import eu.tintera.ai.core.LiteRtModel
 import eu.tintera.plume.core.settings.CacheLimit
 import eu.tintera.plume.core.settings.KeepMedia
 import eu.tintera.plume.core.telegram.CategoryUsage

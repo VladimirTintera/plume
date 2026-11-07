@@ -46,7 +46,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ControlledSearchPill

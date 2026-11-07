@@ -1,5 +1,12 @@
 package eu.tintera.plume.core.ai
 
+import eu.tintera.ai.core.AiFailureReason
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.Generated
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.OnDeviceAiException
+import eu.tintera.ai.core.StructuredOutputException
+import eu.tintera.ai.core.generateAnswer
 import kotlin.reflect.KClass
 import kotlin.test.Test
 import kotlin.test.assertEquals

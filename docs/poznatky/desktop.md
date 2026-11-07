@@ -1162,9 +1162,10 @@ plátna (jako iOS), JPEG s `PHOTO_JPEG_QUALITY`.
 
 Gemma a Qwen běží na desktopu stejně jako na Androidu: `litertlm-jvm` má tutéž sadu tříd jako
 `litertlm-android` (59, porovnáno výpisem jarů), takže runtime je jeden (`LiteRtOnDeviceAi`
-v source setu `liteRtMain`, sdíleném androidMain a jvmMain) a platforma dodá jen
-`LiteRtPlatform` (`DesktopLiteRtPlatform`). Samotnou knihovnu má modul :client:ai-litert, který
-desktopApp přibaluje přímo (`runtimeOnly`); `shared` ho najde za běhu (`BundledLiteRtRuntime`).
+v source setu `liteRtMain` modulu :client:ai-core, sdíleném androidMain a jvmMain) a platforma
+dodá jen `LiteRtPlatform` (`DesktopLiteRtPlatform`; adresář modelů a dekodér zvuku jí předá
+Plume, `core/ai/DesktopAiPlatform.kt`). Samotnou knihovnu má modul :client:ai-litert, který
+desktopApp přibaluje přímo (`runtimeOnly`); ai-core ho najde za běhu (`BundledLiteRtRuntime`).
 Na Androidu je týž modul součást z Google Play, viz „Runtime jako součást z Google Play"
 v `docs/poznatky/ai-v-zarizeni.md`. Gemini Nano tu není; směrovač na jeho místo dostane
 `NoopOnDeviceAi` a „Automaticky" ho přeskočí. Obecné poznatky k modelům jsou
@@ -1190,14 +1191,14 @@ v `docs/poznatky/ai-v-zarizeni.md`.
   knihovnu nemá vůbec.
 - **Modely v `%LOCALAPPDATA%\Plume`, ne v `%APPDATA%`.** Data aplikace jsou v Roaming, který se
   v doménovém profilu synchronizuje mezi počítači; gigabajty modelu tam nepatří. Na macOS
-  a Linuxu ve složce dat, s `-Dplume.dataDir` (ladicí běh) pod ní.
+  a Linuxu ve složce dat, s `-Dplume.dataDir` (ladicí běh) pod ní (`aiModelsDirectory`).
 - **Stahování drží korutina procesu**, ne úloha jako WorkManager. Aplikace běží, dokud ji
   uživatel neukončí (zavřené okno ji schová do oznamovací oblasti); po ukončení zůstane `.part`
   a Nastavení nabídne „Pokračovat ve stahování".
 - **Paměť počítače z `com.sun.management.OperatingSystemMXBean`** — potřebuje modul
   `jdk.management` v runtime z jlinku (přidaný do `modules(…)`).
 - **Obraz přes ImageIO, zvuk přes FFmpeg.** Fotka se zmenší a zakóduje do PNG (WebP ImageIO
-  nečte, popis se pak nenabídne). Zvuk dekóduje `FfmpegAudioDecoder` (48 kHz stereo pro
+  nečte, popis se pak nenabídne). Zvuk dekóduje `FfmpegAudioDecoder` (`DesktopAudioClips`, 48 kHz stereo pro
   reproduktor) a na 16 kHz mono se dostane průměrem kanálů a tří vzorků — 48 000 je přesně
   trojnásobek 16 000.
 - **Úsporný režim a přehřátí desktop nesleduje** (`NoDeviceLoad`), takže věta „v úsporném

@@ -10,7 +10,7 @@ plugins {
  * (23 MB na arm64). V základu aplikace by ji měl každý, přitom model v zařízení si zapne málokdo.
  *
  * Kód tu žádný není. Základ aplikace na třídy součásti nevidí ani při překladu, implementaci si
- * po instalaci najde podle jména (`core/ai/PlayLiteRtRuntime`); keep pravidlo pro R8 je proto
+ * po instalaci najde podle jména (`PlayLiteRtRuntime` v :client:ai-core); keep pravidlo pro R8 je proto
  * v androidApp, R8 zpracovává základ i součást dohromady.
  *
  * **Jméno modulu je jméno součásti** (`litertFeature` v `PlayLiteRtRuntime.MODULE`) — přejmenování

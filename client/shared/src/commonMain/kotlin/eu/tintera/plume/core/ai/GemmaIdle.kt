@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.ai
 
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.OnDeviceAi
+
 /**
  * Jak dlouho držet engine Gemmy v paměti po textové úloze. Návrhy odpovědí, triáž a podvod
  * chodí po sobě (každá nová zpráva), a načtení trvá i deset vteřin — uvolnit hned by znamenalo

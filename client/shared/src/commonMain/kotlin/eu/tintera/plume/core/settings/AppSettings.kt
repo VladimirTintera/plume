@@ -7,9 +7,9 @@ import eu.tintera.plume.core.snooze.ChatSnooze
 import eu.tintera.plume.core.video.VideoPosition
 import eu.tintera.plume.core.chatcolor.StoredChatColor
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.ai.core.AiProvider
 import eu.tintera.plume.core.ai.AiTask
-import eu.tintera.plume.core.ai.LiteRtModel
+import eu.tintera.ai.core.LiteRtModel
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
 import eu.tintera.plume.core.adaptive.ProfilePaneAnchor

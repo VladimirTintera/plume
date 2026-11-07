@@ -5,8 +5,8 @@ import eu.tintera.plume.core.ai.FolderCandidate
 import eu.tintera.plume.core.ai.FolderCategory
 import eu.tintera.plume.core.ai.FolderChatKind
 import eu.tintera.plume.core.ai.MAX_FOLDER_CHATS
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.folderPrompt
 import eu.tintera.plume.core.ai.parseFolderCategories
 import eu.tintera.plume.core.ai.variantFor
