@@ -709,6 +709,39 @@ shrnutí počítal jiný model nad jinou konverzací.
   Gemma pod Nano s vlastním časem. Nadpis nad hlavním výsledkem při porovnání přibyl až potom
   a na emulátoru vidět nebyl (nevešel se další APK). Češtinu porovnat zbývá na Foldu.
 
+### Vyzkoušet model (hřiště)
+
+Volný rozhovor s modelem v Nastavení → AI v zařízení → Vyzkoušet model (`features/aiplayground/`,
+`AiPlaygroundViewModel`, testy `AiPlaygroundViewModelTest`, prompt `ChatPrompt.kt`). Je to hlavně
+měřák: pod odpovědí model, čas do prvního slova, celkový čas a přibližné tokeny za vteřinu.
+Návrh a další fáze: [docs/navrh-konverzace-s-modelem.md](../navrh-konverzace-s-modelem.md).
+
+- **Každé kolo je jedno `generate` s celou historií v promptu**, žádná session v runtime. Gemini
+  Nano přes ML Kit session nemá a porovnání modelů má jet stejnou cestou. Daň: čas do prvního
+  slova roste s délkou rozhovoru (prefill celé historie), a právě to patička ukazuje.
+- **Ořez od nejstarších kol CELÝCH** podle `ModelInfo.tokenLimit` (u LiteRT-LM už bez rezervy na
+  výstup) a `countTokens` (jinak `estimatedTokenCount`). Nad prvním kolem, které model ještě
+  viděl, je předěl „Starší zprávy si model už nepamatuje" (`PlaygroundState.rememberedFromId`).
+  Kola bez odpovědi (chyba, chybějící model) se do historie nedávají.
+- **Model rád dopíše i repliku za uživatele** („User: …"). Prompt to zakazuje, a co proklouzne,
+  `chatReply` usekne; `transformWhile` nad tokem generování zastaví, jakmile se značka objeví
+  (zrušení toku u LiteRT-LM zavolá `conversation.cancel()`, nativní strana nedopočítává).
+  Useknutí za replikou se nehlásí jako „Nedomluvil".
+- **Rychlost bez načtení modelu**: tokeny / (konec − první slovo). Pod 200 ms psaní se neukazuje,
+  dělilo by jen zaokrouhlení. Tokeny jsou u LiteRT-LM a llama.cpp odhad, proto vlnovka.
+- **`AiTask.Chat`** dává výchozí model automatikou (`variantFor`) a řádek v „Co čím počítat";
+  čip v hlavičce ho mění jen pro tenhle rozhovor. „Odpovědět znovu" počítá poslední kolo
+  aktuálně vybraným modelem — přepnout čip a ťuknout je zatím jediné porovnání.
+- **Kopírování v obrazovce, ne ve ViewModelu**: `TextClipboard` je `expect class` s platformním
+  konstruktorem a ve společných testech by ViewModel nešel založit.
+- **Rozhovor se nikam neukládá** (jen ViewModel). Enter na klávesnici odešle, Shift+Enter zalomí.
+- **Ověřeno na emulátoru (Fold, česky)**: řádek v Nastavení, prázdný stav s náměty, otázka
+  a odpověď „Model ještě není stažený" s patičkou, nabídka modelů s „Automaticky" a stavem.
+  **Skutečné generování na zařízení NEOVĚŘENO**: na emulátoru se Gemma nedotáhne (runtime ze
+  součásti Play, chyba −15, adb instalace ho nemá) a ladicí desktop modely nemá. Ověřit na
+  telefonu s Nano, nebo na desktopu se staženou Gemmou: odpověď po slovech, Zastavit, předěl po
+  delším rozhovoru u Qwenu (4 096 tokenů), jestli malé modely nepíšou za uživatele.
+
 ### Shrnutí hlasovky
 
 „Shrnout přepis" v nabídce nad dlouhou příchozí hlasovkou nebo kolečkem

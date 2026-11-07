@@ -54,6 +54,8 @@ import eu.tintera.plume.features.settings.LoginEmailScreen
 import eu.tintera.plume.core.navigation.AppLockRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
+import eu.tintera.plume.core.navigation.AiPlaygroundRoute
+import eu.tintera.plume.features.aiplayground.AiPlaygroundScreen
 import eu.tintera.plume.core.navigation.StickerSetsRoute
 import eu.tintera.plume.core.navigation.EmojiSetsRoute
 import eu.tintera.plume.core.telegram.StickerSetKind
@@ -1873,7 +1875,15 @@ private fun shellEntryProvider(
             onOpenPasskeys = { settingsStack.openSubpage(route, PasskeysRoute) },
             onOpenNetworkUsage = { settingsStack.openSubpage(route, NetworkUsageRoute) },
             onOpenAppLock = { settingsStack.openSubpage(route, AppLockRoute) },
+            onOpenAiPlayground = { settingsStack.openSubpage(route, AiPlaygroundRoute) },
         )
+    }
+
+    // Vyzkoušet model nad sekcí AI v zařízení.
+    entry<AiPlaygroundRoute>(
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+    ) { route ->
+        AiPlaygroundScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Soukromí účtu nad sekcí Soukromí, jedno nastavení s výjimkami nad ním.
@@ -2280,7 +2290,7 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
         this == LoginEmailRoute || this == ChangePhoneRoute || this == PasskeysRoute || this == NetworkUsageRoute ||
-        this == AppLockRoute || this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
+        this == AppLockRoute || this == ChatFoldersRoute || this == AiPlaygroundRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
         this == StickerSetsRoute || this == EmojiSetsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute || this == DeleteAccountRoute
 

@@ -2,6 +2,13 @@ package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.highlightAnchor
 import eu.tintera.plume.resources.ai_task_folders
+import eu.tintera.plume.resources.ai_task_chat
+import eu.tintera.plume.resources.ai_playground_title
+import eu.tintera.plume.resources.ai_playground_row_help
+import eu.tintera.plume.resources.chat_bubble_24dp
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Icon
+import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.settings_gemma_under_load
 import eu.tintera.plume.resources.settings_qwen_under_load
 import eu.tintera.plume.resources.settings_eurollm_under_load
@@ -552,7 +559,7 @@ fun supportedModels(current: AiModels, available: AiAvailability): AiModels? {
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
+fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel, onOpenPlayground: () -> Unit) {
     val enabled by viewModel.enabled.collectAsStateWithLifecycle()
     val models by viewModel.models.collectAsStateWithLifecycle()
     val states by viewModel.states.collectAsStateWithLifecycle()
@@ -669,6 +676,18 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 onChange = { on -> viewModel.setWifiOnly(on) },
             )
         }
+        /*
+         * Hřiště pod modely, ne v seznamu funkcí nahoře: není to funkce, která se zapíná, ale
+         * místo, kde se zapnuté modely zkouší (a porovnávají přepnutím v jeho hlavičce).
+         */
+        GroupBreak()
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = { Icon(painterResource(Res.drawable.chat_bubble_24dp), contentDescription = null) },
+            headlineContent = { Text(stringResource(Res.string.ai_playground_title)) },
+            supportingContent = { Text(stringResource(Res.string.ai_playground_row_help)) },
+            modifier = Modifier.clickable(onClick = onOpenPlayground),
+        )
     }
 
     mobileDataPrompt?.let { provider ->
@@ -1058,6 +1077,7 @@ private val AiTask.title: StringResource
         AiTask.Triage -> Res.string.ai_task_triage
         AiTask.Search -> Res.string.ai_task_search
         AiTask.Folders -> Res.string.ai_task_folders
+        AiTask.Chat -> Res.string.ai_task_chat
         AiTask.Transcription -> Res.string.ai_task_transcription
         AiTask.PhotoDescription -> Res.string.ai_task_photo_description
     }

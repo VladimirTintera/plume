@@ -1,5 +1,9 @@
 # Návrh: konverzace s modelem v zařízení
 
+> **Stav:** MVP (fáze 1) je hotové — viz `docs/poznatky/ai-v-zarizeni.md`, „Vyzkoušet model
+> (hřiště)". Proti návrhu: Kopírovat a Odpovědět znovu jsou ikony pod odpovědí místo nabídky
+> po podržení (objevitelnější) a Nahlásit odpověď zatím chybí (roadmapa).
+
 Volný rozhovor s modelem, který počítá telefon. Má dva účely a **pořadí mezi nimi je vědomé**:
 
 1. **Hřiště na zkoušení modelů.** Dnes se modely porovnávají jen přes shrnutí a vysvětlení
