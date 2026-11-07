@@ -439,7 +439,8 @@ v zařízení (LiteRT-LM)". Gemini Nano a Apple tam nejsou.
 
 Knihovna LiteRT-LM (nativní `liblitertlm_jni.so`, 23 MB na arm64, k tomu Gson a kotlin-reflect)
 není v základu aplikace. Na Androidu je to **součást z Google Play stahovaná až na požádání**
-(Play Feature Delivery, modul :client:litertFeature), na desktopu je přibalená. Model v zařízení
+(Play Feature Delivery, modul :client:litertFeature; do publikace aplikace dočasně instalovaná
+s aplikací, viz níž), na desktopu je přibalená. Model v zařízení
 si zapne málokdo, a každý další runtime (llama.cpp a spol.) by jinak zvětšoval aplikaci všem.
 Naměřeno `bundletool get-size` nad debug AAB pro arm64: základ 63,5 MB, se součástí 74,8 MB ke
 stažení.
@@ -501,8 +502,18 @@ stažení.
   které Play před doinstalováním součásti ověřuje, u konceptu nejspíš nevzniká. **Výslovně to
   Google nikde nepíše** (návod k doručování na požádání interní test jako způsob testování
   uvádí); je to závěr z vyloučení ostatních příčin. Ověří se, až bude aplikace publikovaná
-  aspoň v uzavřeném testu (úkol v `docs/roadmap.md`, „Než se dá vydat na veřejnost"). Do té
-  doby runtime z Play nedostane nikdo; pro vývoj zůstává `adb install-multiple` se součástí.
+  aspoň v uzavřeném testu (úkol v `docs/roadmap.md`, „Než se dá vydat na veřejnost").
+- **Do publikace jsou proto obě součásti DOČASNĚ „s instalací"** (`<dist:install-time />`
+  místo `<dist:on-demand />` v manifestech `litertFeature` a `llamacppFeature`, komentář u nich).
+  Moduly zůstávají samostatné a kód se nemění: Play i bundletool nevyjímatelné součásti
+  s instalací **slučují do základního APK** (žádné `split_litertFeature.apk`, knihovny leží
+  v `split_config.arm64_v8a.apk`) a Play Core je hlásí v `installedModules` podle metadat
+  sloučených modulů, takže `installed()` vrátí `true` a doinstalace se vůbec nespustí. Stahování
+  z Play vzroste na arm64 z 63,2 na 76,9 MB (debug AAB, `bundletool get-size total`), na
+  armeabi-v7a jen o 1,3 MB (prázdné knihovny a dex). **Před produkcí vrátit `on-demand`** —
+  tím se vrátí i ověřování z odstavce výš. Ověřeno bundletoolem (`build-apks --connected-device`
+  a `install-apks`) na emulátoru s dříve staženou Gemmou: bez doinstalace „Model připravený",
+  shrnutí načetlo `liblitertlm_jni.so` ze základu (`nativeloader … ok`) a počítalo.
 - **Jméno modulu je jméno součásti** (`PlayLiteRtRuntime.MODULE` = `litertFeature`).
   Přejmenování projektu by instalaci tiše rozbilo.
 - **bundletool chce stejnou sadu ABI ve všech modulech s nativními knihovnami** („All modules
