@@ -139,6 +139,10 @@ data object ProxySettingsRoute : Route
 @Serializable
 data object ChatFoldersRoute : Route
 
+/** Vyzkoušet model (volný rozhovor s modelem v zařízení) — vrší se nad sekci AI v zařízení. */
+@Serializable
+data object AiPlaygroundRoute : Route
+
 /** Sady samolepek (pořadí, archiv) — vrší se nad sekci Chaty stejně jako složky chatů. */
 @Serializable
 data object StickerSetsRoute : Route
@@ -652,6 +656,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ChangePhoneRoute::class, ChangePhoneRoute.serializer())
             subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
+            subclass(AiPlaygroundRoute::class, AiPlaygroundRoute.serializer())
             subclass(StickerSetsRoute::class, StickerSetsRoute.serializer())
             subclass(EmojiSetsRoute::class, EmojiSetsRoute.serializer())
             subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())

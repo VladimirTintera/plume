@@ -41,6 +41,9 @@ enum class AiTask(val input: AiInput) {
     /** Návrh složek podle obsahu chatů (Nastavení → Složky chatů). */
     Folders(AiInput.Text),
 
+    /** Volný rozhovor s modelem (Nastavení → AI v zařízení → Vyzkoušet model). */
+    Chat(AiInput.Text),
+
     /** Přepis hlasovek a koleček. */
     Transcription(AiInput.Audio),
 

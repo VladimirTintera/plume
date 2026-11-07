@@ -160,6 +160,7 @@ import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import eu.tintera.plume.features.settings.OnDeviceAiSettingsViewModel
 import eu.tintera.plume.features.conversation.ChatCalendarViewModel
 import eu.tintera.plume.features.conversation.ChatSummaryViewModel
+import eu.tintera.plume.features.aiplayground.AiPlaygroundViewModel
 import eu.tintera.plume.features.conversation.ReplySuggestionsViewModel
 import eu.tintera.plume.features.conversation.DraftRewriteViewModel
 import eu.tintera.plume.features.conversation.EmojiSuggestionsViewModel
@@ -448,6 +449,7 @@ fun appModule() = module {
         )
     }
     viewModelOf(::ChatSummaryViewModel)
+    viewModelOf(::AiPlaygroundViewModel)
     // Kalendář zpráv v panelu: chat, téma Uložených zpráv, vlákno přímých zpráv a kotva z routy.
     viewModel { parameters ->
         val savedTopicId = parameters.values.getOrNull(1) as Long?
