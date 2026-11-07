@@ -8,8 +8,11 @@
     <dist:module
         dist:instant="false"
         dist:title="@string/llamacpp_feature_title">
+        <!-- DOČASNĚ s instalací, ne na požádání: dokud Plume v Play není publikovaná, Play
+             součást na požádání nedoinstaluje (APP_NOT_OWNED, -15). Před produkcí vrátit
+             `<dist:on-demand />`, viz docs/poznatky/ai-v-zarizeni.md. -->
         <dist:delivery>
-            <dist:on-demand />
+            <dist:install-time />
         </dist:delivery>
         <dist:fusing dist:include="true" />
     </dist:module>
