@@ -35,6 +35,13 @@ aplikaci, [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md) pro detail ch
 
 ## Rozjetí
 
+0. Stáhni submoduly — AI v zařízení je knihovna [ai-engine](https://github.com/VladimirTintera/ai-engine)
+   v `external/ai-engine` a v ní llama.cpp:
+
+   ```bash
+   git submodule update --init --recursive
+   ```
+
 1. Vygeneruj si `api_id` a `api_hash` na [my.telegram.org](https://my.telegram.org) → API development tools.
 2. Vlož je do `local.properties` (je v `.gitignore`):
 

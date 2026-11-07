@@ -6,7 +6,7 @@ plugins {
 
 /**
  * Součást z Google Play stahovaná až na požádání: runtime llama.cpp pro modely GGUF (EuroLLM),
- * tedy :client:ai-llamacpp s nativní knihovnou `libplume_llama.so` (:client:ai-llamacpp-android). Stejný princip jako
+ * tedy :ai-llamacpp z knihovny ai-engine s nativní knihovnou `libai_engine_llama.so` (:ai-llamacpp-android). Stejný princip jako
  * :client:litertFeature — viz tamní komentář a docs/poznatky/ai-v-zarizeni.md.
  *
  * **Jméno modulu je jméno součásti** (`llamacppFeature` v Koinu u `PlayLiteRtRuntime`) —
@@ -15,7 +15,7 @@ plugins {
 android {
     namespace = "eu.tintera.plume.llamacpp"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
-    // Knihovny z :client:ai-llamacpp-android ořezává (strip) až modul, který je balí — a tím NDK. Bez
+    // Knihovny z :ai-llamacpp-android ořezává (strip) až modul, který je balí — a tím NDK. Bez
     // téhle verze AGP ořez přeskočí („Unable to strip") a do součásti jde 55 MB místo 7 MB.
     ndkVersion = libs.versions.ndk.get()
 
@@ -31,5 +31,5 @@ android {
 
 dependencies {
     implementation(projects.client.androidApp)
-    implementation(projects.client.aiLlamacppAndroid)
+    implementation("eu.tintera.ai:ai-llamacpp-android")
 }

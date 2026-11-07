@@ -26,7 +26,7 @@ import eu.tintera.plume.resources.settings_on_device_ai_not_enough_space
 import org.koin.core.context.GlobalContext
 
 /**
- * Úloha stahování modelu v zařízení ([AiModelDownloadWorker] z :client:ai-core). Stahuje
+ * Úloha stahování modelu v zařízení ([AiModelDownloadWorker] z ai-engine :ai-core). Stahuje
  * knihovna; tady je jen to, odkud si vezme runtime a notifikace — z Koinu, i když ji WorkManager
  * pustí po zabití procesu bez obrazovky.
  *

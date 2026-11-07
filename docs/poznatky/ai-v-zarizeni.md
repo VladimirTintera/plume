@@ -7,20 +7,61 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 Experimentální „Shrnout" v hlavičce konverzace: shrnutí nepřečtených (jinak posledních 60 zpráv)
 jazykovým modelem v telefonu. Zapíná se v Nastavení → Obecné → AI v zařízení (výchozí vypnuto),
-tam se i stahuje model. Hranice je `OnDeviceAi` v modulu `:client:ai-core`; co je čistě Plume
-(prompty, volba modelu pro úlohu, nastavení, texty), je v `core/ai` ve `shared`.
+tam se i stahuje model. Hranice je `OnDeviceAi` v modulu `:ai-core` knihovny ai-engine; co je
+čistě Plume (prompty, volba modelu pro úlohu, nastavení, texty), je v `core/ai` ve `shared`.
 
-### Modul :client:ai-core
+### Knihovna ai-engine
 
-Poskytovatelé modelu v zařízení jsou vyčlenění do vlastního KMP modulu (balíček
-`eu.tintera.ai.core`), který **nezávisí na ničem z Plume** — jen na `:client:ai-engine`
-a knihovnách (ML Kit GenAI, WorkManager, Play Feature Delivery). Spolu s `ai-engine`, `ai-litert`
-a `ai-llamacpp*` se přesune do samostatné open-source knihovny **ai-engine** (Apache-2.0,
-github.com/VladimirTintera/ai-engine, balíčky `eu.tintera.ai.*`) sdílené s další aplikací
-(nápady na recept ze zásob); Plume ji pak vezme jako git submodul. Balíček `eu.tintera.ai.core`
-má proto už teď, ať se při přesunu nepřejmenovává podruhé; ostatní moduly zatím nesou
-`eu.tintera.plume.ai.*`. Hranici hlídá Gradle: `ai-core` na `shared` nevidí, takže import z Plume
-se nepřeloží (`grep -rn 'eu.tintera.plume\.' client/ai-core/src` najde jen `ai.engine`).
+Poskytovatelé modelu v zařízení, runtime a jejich nativní knihovny jsou v samostatné open-source
+knihovně **ai-engine** (Apache-2.0, [github.com/VladimirTintera/ai-engine](https://github.com/VladimirTintera/ai-engine),
+balíčky `eu.tintera.ai.*`), sdílené s další aplikací (nápady na recept ze zásob). Plume ji má
+jako **git submodul `external/ai-engine`** zapojený přes `includeBuild` v `settings.gradle.kts`;
+moduly mají souřadnice `eu.tintera.ai:<modul>` a Gradle je za ně dosadí sám:
+
+| Modul ai-engine | Co nese | Kdo ho v Plume bere |
+|---|---|---|
+| `:ai-engine` | rozhraní runtime (`LlmEngineFactory`, `LlmEngine`, `LlmConversation`), jména tříd pro reflexi (`LITERT_ENGINE_FACTORY`, `LLAMACPP_ENGINE_FACTORY`) a nativní knihovny (`LLAMACPP_NATIVE_LIBRARY` = `ai_engine_llama`) | přes `:ai-core` |
+| `:ai-core` | `OnDeviceAi` a poskytovatelé (Gemini Nano, LiteRT-LM / llama.cpp, Apple), stahování | `shared` (`api`, iOS `export`) |
+| `:ai-litert` | implementace nad LiteRT-LM, jediná s `com.google.ai.edge.litertlm` | `litertFeature`, desktopApp |
+| `:ai-llamacpp` | kód nad llama.cpp (JNI, GGUF), čistě JVM; submodul llama.cpp | přes `-android` / `-desktop` |
+| `:ai-llamacpp-android` | `libai_engine_llama.so` z NDK | `llamacppFeature` |
+| `:ai-llamacpp-desktop` | knihovna llama.cpp pro desktop v jaru (CMake systému) | desktopApp |
+
+- **Změna v knihovně = PR v ai-engine, pak posun submodulu v Plume.** V `external/ai-engine` jde
+  ladit přímo (Plume ji staví ze zdrojáků, žádná publikace), ale commit tam patří do větve
+  a PR v repozitáři ai-engine. Po sloučení: `git -C external/ai-engine fetch && git -C
+  external/ai-engine checkout origin/main`, v Plume commit ukazatele submodulu (`git add
+  external/ai-engine`) ve větvi s tím, co změnu používá. Plume nesmí ukazovat na commit, který
+  v ai-engine na GitHubu není — klon i CI by ho nestáhly.
+- **Klon chce `git submodule update --init --recursive`** — llama.cpp je submodul UVNITŘ
+  ai-engine (`external/ai-engine/ai-llamacpp/llama.cpp`, mělký). Bez ai-engine settings
+  skončí hláškou s tímhle příkazem, bez llama.cpp build Androidu na chybějícím `CMakeLists.txt`.
+  CI dělá checkout se `submodules: recursive`.
+- **AGP, Kotlin a Gradle musí být v ai-engine a v Plume STEJNÉ** (jeden build neunese dvě verze
+  AGP). Bump se dělá v obou naráz — a protože knihovnu bere i grocery, tak i tam. Stejně
+  `ndk` a `cmake`: Plume je potřebuje kvůli ořezu knihoven v `llamacppFeature` a instalaci SDK na CI.
+- **Kořen ai-engine se nejmenuje `ai-engine`** (`rootProject.name = "ai-engine-root"`). Feature
+  preview `TYPESAFE_PROJECT_ACCESSORS` z Plume platí pro celý strom buildů, tedy i pro included
+  build, a accessor kořene se jmenuje po něm — `getAiEngine()` se srazil s modulem `:ai-engine`
+  a konfigurace spadla na „method getAiEngine() is already defined" v `RootProjectAccessor.java`.
+  Jméno included buildu v `includeBuild { name = … }` na tom nic nemění, accessor bere jméno kořene.
+- **Android SDK pro included build:** AGP i překlad llama.cpp pro desktop čtou `local.properties`
+  z kořene ai-engine (jinak `ANDROID_HOME`). Android Studio ho zakládá jen pro Plume, proto
+  `settings.gradle.kts` přenese `sdk.dir` do `external/ai-engine/local.properties`, když chybí
+  (v ai-engine je gitignorovaný).
+- **Keep pravidla pro R8 nese knihovna** (consumer rules: továrny runtime v `:ai-core`, balíček
+  `com.google.ai.edge.litertlm` v `:ai-litert`). V `androidApp/proguard-rules.pro` zůstávají jen
+  typy odpovědí Plume pro strukturovaný výstup.
+- **Součásti z Google Play deklaruje aplikace** (`litertFeature`, `llamacppFeature`): jméno modulu
+  je jméno součásti a předává se `PlayLiteRtRuntime` v Koinu (`AppModule.android.kt`).
+- **Testy knihovny** se pouštějí v ai-engine (`./gradlew build` v `external/ai-engine` nebo
+  `./gradlew :ai-engine:ai-core:jvmTest` z Plume); `check` Plume je nespouští. Poznatky ke kódu
+  knihovny (llama.cpp, LiteRT-LM, GPU záloha) jsou dál níž, ale cesty v nich míří do ai-engine.
+
+#### Hranice mezi knihovnou a Plume
+
+Knihovna **nezávisí na ničem z Plume** — jen na knihovnách (ML Kit GenAI, WorkManager, Play
+Feature Delivery). Hranici hlídá Gradle: ai-engine je samostatný build a na `shared` nevidí.
 
 - **V knihovně:** rozhraní `OnDeviceAi` s `ModelVariant`, `AiProvider`, katalogem `LiteRtModel`,
   stavy a průběhem stahování; `RoutingOnDeviceAi`; typovaná chyba `OnDeviceAiException`
@@ -66,7 +107,7 @@ se nepřeloží (`grep -rn 'eu.tintera.plume\.' client/ai-core/src` najde jen `a
   zavolá `markShown` a výsledek předá žádosti z `takeShown()`.
 - **Texty chyb zůstaly v Plume.** Knihovna hlásí jen důvod (`AiFailureReason`) a poskytovatele;
   věty z `Res` skládá `userMessage()` ve `shared` — další aplikace má vlastní prostředky.
-- **iOS framework modul exportuje** (`export(projects.client.aiCore)` v `shared`, závislost
+- **iOS framework modul exportuje** (`export("eu.tintera.ai:ai-core")` v `shared`, závislost
   `api`). Swift implementuje `OnDeviceTextModel` a plní `IosOnDeviceModel`; bez exportu by je
   framework nenesl (nebo jen pod jménem s předponou modulu) a `AppleTextModel.swift` by se
   nepřeložil.
@@ -76,8 +117,8 @@ se nepřeloží (`grep -rn 'eu.tintera.plume\.' client/ai-core/src` najde jen `a
   aplikace, by sahal do nastavení i UI. **Další krok** před sdílením s jinou aplikací: katalog
   jako seznam od aplikace (repozitář, commit, soubor, velikost, paměť, kontext, runtime,
   licence) a variantu nést jen jako odkaz na položku.
-- **Testy:** `./gradlew :client:ai-core:jvmTest` (router, katalog, stahování, GPU záloha,
-  runtime). Testy, které potřebují prompty Plume (`StructuredAnswersTest`, `TokenEstimateTest`,
+- **Testy:** `./gradlew :ai-engine:ai-core:jvmTest` (router, katalog, stahování, GPU záloha,
+  runtime; v ai-engine). Testy, které potřebují prompty Plume (`StructuredAnswersTest`, `TokenEstimateTest`,
   `OnDeviceAiFailureTest`, `DeviceLoadTest`), zůstaly ve `shared`.
 
 ### Dva poskytovatelé: Gemini Nano a Gemma
@@ -139,7 +180,7 @@ poskytovatelích nemusí vědět nic.
   Novou verzi LiteRT-LM proto projít `strings … | grep -E '_cache|\.xnnpack'` — další
   backend znamená další příponu.
 - **Gemmu stahuje úloha WorkManageru, ne korutina v procesu** (`AiModelDownloadWorker`
-  v `:client:ai-core`, podtřída `ModelDownloadWorker` v `core/ai`, viz „Modul :client:ai-core"). Dokud stahovala korutina, skončilo stahování se zabitým procesem
+  v `:ai-core`, podtřída `ModelDownloadWorker` v `core/ai`, viz „Knihovna ai-engine"). Dokud stahovala korutina, skončilo stahování se zabitým procesem
   a navázalo až dalším ťuknutím v Nastavení. Stahuje pořád `LiteRtOnDeviceAi` (i s čekáním na
   síť), úloha jen drží proces a ukazuje notifikaci průběhu se „Zastavit"; stav pro obrazovku je
   v téže instanci (proto je `LiteRtOnDeviceAi` v Koinu samostatný `single`). WorkManager je kvůli
@@ -252,7 +293,7 @@ poskytovatelích nemusí vědět nic.
     dostane příště šanci znovu. Totéž platí pro GPU, které selže už při načtení. **Pamatuje se
     pro každý runtime zvlášť**: Metal v llama.cpp a GPU v LiteRT-LM jsou různé backendy
     a selhání jednoho nesmí vzít GPU druhému (`LiteRtGpuFallbackTest`).
-  - **Test jede nad rozhraním enginu z `:client:ai-engine`** (`LlmEngineFactory`), falešný
+  - **Test jede nad rozhraním enginu z `:ai-engine`** (`LlmEngineFactory`), falešný
     engine dodá `FakeLiteRtRuntime(engines = …)`.
   - **Ověřeno na emulátoru x86_64** (Qwen3 0.6B, sonda v `AndroidLiteRtPlatform.canRun`, jinak
     se tam model nenabízí): shrnutí chatu napoprvé hlásí v logu „GPU selhalo při generování,
@@ -510,7 +551,7 @@ a **Qwen3 0,6B** (328 MB, 4 GB) pro telefony, na které Gemma nestačí.
 ### Desktop
 
 Gemma a Qwen běží i na desktopu (Windows x64, macOS arm64, Linux), stejným runtime jako na
-Androidu (`liteRtMain` v `:client:ai-core`, `LiteRtPlatform`); co je jinak (Java 21, nativní knihovna jen pro systém
+Androidu (`liteRtMain` v `:ai-core`, `LiteRtPlatform`); co je jinak (Java 21, nativní knihovna jen pro systém
 balíčku, modely mimo Roaming, stahování v procesu), je v `docs/poznatky/desktop.md`, „Model
 v zařízení (LiteRT-LM)". Gemini Nano a Apple tam nejsou.
 
@@ -524,14 +565,14 @@ si zapne málokdo, a každý další runtime (llama.cpp a spol.) by jinak zvět�
 Naměřeno `bundletool get-size` nad debug AAB pro arm64: základ 63,5 MB, se součástí 74,8 MB ke
 stažení.
 
-- **Tři moduly**: :client:ai-engine (rozhraní `LlmEngineFactory` / `LlmEngine` / `LlmConversation`,
-  bez závislostí), :client:ai-litert (implementace nad LiteRT-LM, jediné místo s
+- **Tři moduly**: :ai-engine (rozhraní `LlmEngineFactory` / `LlmEngine` / `LlmConversation`,
+  bez závislostí), :ai-litert (implementace nad LiteRT-LM, jediné místo s
   `com.google.ai.edge.litertlm`) a :client:litertFeature (dynamic-feature bez kódu, jen balí
   ai-litert). `shared` vidí jen ai-engine: stahování modelu, stav a výběr modelu
   (`LiteRtOnDeviceAi`) zůstaly, kde byly, vyčleněný je jen engine.
 - **Implementace se hledá REFLEXÍ podle jména** (`LITERT_ENGINE_FACTORY`, `loadEngineFactory`).
   Základ na třídy součásti nevidí ani při překladu; na desktopu by ai-litert nad `shared` dělal
-  kruh. Keep pravidlo je v `androidApp/proguard-rules.pro` — R8 zpracovává základ i součást
+  kruh. Keep pravidlo nese knihovna (consumer rules `:ai-core`) — R8 zpracovává základ i součást
   dohromady. Bez něj by model po stažení hlásil chybu jen v release buildu.
 - **Runtime se stahuje SPOLU s modelem a NAPŘED** (`LiteRtOnDeviceAi.download`,
   `installRuntimeThenDownload`, testy `LiteRtRuntimeTest`). Desítky MB proti gigabajtům: když
@@ -640,21 +681,22 @@ je na Hugging Face za souhlasem, GGUF kopie ne.
 - **Runtime je vlastnost souboru** (`LiteRtModel.runtime`, `ModelRuntime`), ne poskytovatele.
   `LiteRtOnDeviceAi` dostává runtime pro každý druh (`runtimes`), stahování, stav, uvolňování
   i porovnání jsou společné; jméno třídy zůstalo z doby, kdy byl jen LiteRT-LM.
-- **llama.cpp je git submodul** (`client/ai-llamacpp/llama.cpp`, připnutý na vydání `b12170`,
-  mělký). Oba release workflow proto dělají checkout se `submodules: true`. Hotové wrappery
-  z Maven jsou od jednotlivců — stejné riziko jako wrapper TDLib, jen bez hranice kolem.
-  Bump = `git -C client/ai-llamacpp/llama.cpp fetch --depth 1 origin tag bNNNNN`, checkout
-  a commit ukazatele submodulu.
-- **Tři moduly: kód, knihovna pro Android, knihovna pro desktop.** :client:ai-llamacpp je čistě
+- **llama.cpp je git submodul uvnitř ai-engine** (`external/ai-engine/ai-llamacpp/llama.cpp`,
+  připnutý na vydání `b12170`, mělký). Oba release workflow proto dělají checkout se
+  `submodules: recursive`. Hotové wrappery z Maven jsou od jednotlivců — stejné riziko jako
+  wrapper TDLib, jen bez hranice kolem. Bump je PR v ai-engine (`git -C ai-llamacpp/llama.cpp
+  fetch --depth 1 origin tag bNNNNN`, checkout, commit ukazatele) a pak posun submodulu
+  ai-engine v Plume, viz „Knihovna ai-engine".
+- **Tři moduly: kód, knihovna pro Android, knihovna pro desktop.** :ai-llamacpp je čistě
   JVM modul s kódem v Kotlinu (`LlamaCppEngineFactory`), JNI mostem a CMakeLists; knihovnu
-  z téhož CMakeLists staví :client:ai-llamacpp-android (NDK r29 kvůli 16KB stránkám, do součásti
-  z Play) a :client:ai-llamacpp-desktop (CMake systému, do jaru), viz „EuroLLM na desktopu"
+  z téhož CMakeLists staví :ai-llamacpp-android (NDK r29 kvůli 16KB stránkám, do součásti
+  z Play) a :ai-llamacpp-desktop (CMake systému, do jaru), viz „EuroLLM na desktopu"
   v `docs/poznatky/desktop.md`. Kód nesmí stavět nic nativního sám: knihovna pro Mac by skončila
   i v součásti pro Android. KMP to není, protože KMP plugin pro Android nativní build z CMake
   neumí. Kód rozezná platformu jen podle toho, jestli knihovna leží v jaru
   (`LlamaNative.loadLibrary`), a podle VM (počet vláken).
-- **Jedna knihovna `libplume_llama.so` (6,6 MB na arm64)**: llama.cpp a ggml staticky, k tomu
-  vlastní JNI (`plume_llama.cpp`) jen nad C API z `llama.h`. Příklad `examples/llama.android`
+- **Jedna knihovna `libai_engine_llama.so` (6,6 MB na arm64)**: llama.cpp a ggml staticky, k tomu
+  vlastní JNI (`ai_engine_llama.cpp`) jen nad C API z `llama.h`. Příklad `examples/llama.android`
   staví backendy zvlášť (`GGML_BACKEND_DL`) a CPU variantu načítá z ADRESÁŘE knihoven — split
   APK z Play je má uvnitř APK, takže by nebylo odkud. Knihovna `common` z příkladů se mění
   s každým vydáním, proto jen `llama.h` (šablona chatu `llama_chat_apply_template`, vzorkování
@@ -684,7 +726,7 @@ je na Hugging Face za souhlasem, GGUF kopie ne.
 - **Ověřeno na emulátoru x86_64** (8 GB RAM, `bundletool --local-testing`, sonda v `canRun`
   pouštějící x86_64 a EuroMoE bez kontroly paměti, necommitovaná): zapnutí EuroLLM nabídne
   EuroMoE 2,6B, „Stáhnout model" doinstaluje součást `llamacppFeature` a stáhne 1,5 GiB, shrnutí
-  testovacího chatu načte `libplume_llama.so` ze splitu a odpoví česky za 15 s; „Porovnat
+  testovacího chatu načte `libai_engine_llama.so` ze splitu a odpoví česky za 15 s; „Porovnat
   s dalšími modely" pak v témže procesu přepne na Qwen přes LiteRT-LM. **Se 4 GB RAM emulátor
   model jen stránkoval do swapu a nedopočítal** — pod `minMemoryGb` se model nenabízí právě
   proto. **Na telefonu neověřené nic**: rychlost na arm64, EuroLLM 9B (emulátor na něj nemá
@@ -1490,7 +1532,7 @@ odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál t
   a přetypování na kopii z ML Kitu vyhodí `ClassCastException`. Zjištěno `javap -c` nad
   `classes.jar` z `genai-prompt` v keši Gradlu. Gson je proto připnutý `strictly` na 2.13.2
   (tu měl LiteRT-LM 0.11.0; LiteRT-LM bere jen stromové API) a hlídá to `GsonForMlKitTest`
-  v `androidHostTest` modulu :client:ai-litert — s 2.14.0 padá. Připnutí i test jsou tam, kde
+  v `androidHostTest` modulu :ai-litert — s 2.14.0 padá. Připnutí i test jsou tam, kde
   je LiteRT-LM: Gson přichází se součástí z Google Play (viz „Runtime jako součást z Google
   Play"), základ aplikace žádný nemá. Kdo bumpuje ML Kit, ověří tím, že v `zzvk`/nástupci
   řetězec zmizel nebo je přejmenovaný, a připnutí smaže.

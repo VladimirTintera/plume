@@ -1162,16 +1162,17 @@ plátna (jako iOS), JPEG s `PHOTO_JPEG_QUALITY`.
 
 Gemma a Qwen běží na desktopu stejně jako na Androidu: `litertlm-jvm` má tutéž sadu tříd jako
 `litertlm-android` (59, porovnáno výpisem jarů), takže runtime je jeden (`LiteRtOnDeviceAi`
-v source setu `liteRtMain` modulu :client:ai-core, sdíleném androidMain a jvmMain) a platforma
+v source setu `liteRtMain` modulu :ai-core, sdíleném androidMain a jvmMain) a platforma
 dodá jen `LiteRtPlatform` (`DesktopLiteRtPlatform`; adresář modelů a dekodér zvuku jí předá
-Plume, `core/ai/DesktopAiPlatform.kt`). Samotnou knihovnu má modul :client:ai-litert, který
+Plume, `core/ai/DesktopAiPlatform.kt`; moduly `:ai-*` jsou z knihovny ai-engine v `external/ai-engine`,
+viz „Knihovna ai-engine" v `docs/poznatky/ai-v-zarizeni.md`). Samotnou knihovnu má modul :ai-litert, který
 desktopApp přibaluje přímo (`runtimeOnly`); ai-core ho najde za běhu (`BundledLiteRtRuntime`).
 Na Androidu je týž modul součást z Google Play, viz „Runtime jako součást z Google Play"
 v `docs/poznatky/ai-v-zarizeni.md`. Gemini Nano tu není; směrovač na jeho místo dostane
 `NoopOnDeviceAi` a „Automaticky" ho přeskočí. Obecné poznatky k modelům jsou
 v `docs/poznatky/ai-v-zarizeni.md`.
 
-- **Kód nad LiteRT-LM je v `commonMain` modulu :client:ai-litert, knihovnu si bere každá
+- **Kód nad LiteRT-LM je v `commonMain` modulu :ai-litert, knihovnu si bere každá
   platforma sama** (`litertlm-android` v androidMain, `litertlm-jvm` v jvmMain); závislost na
   společném setu by dala Androidu obě kopie týchž tříd. Překlad každé platformy vidí tu svou
   a stačí to.
@@ -1257,13 +1258,13 @@ v `docs/poznatky/ai-v-zarizeni.md`.
 ## EuroLLM na desktopu (llama.cpp)
 
 Druhý runtime vedle LiteRT-LM (obecně „EuroLLM přes llama.cpp" v `docs/poznatky/ai-v-zarizeni.md`).
-Kód je týž jako na Androidu (:client:ai-llamacpp, čistě JVM), knihovnu `libplume_llama.dylib` /
-`plume_llama.dll` / `libplume_llama.so` překládá :client:ai-llamacpp-desktop (úloha
+Kód je týž jako na Androidu (:ai-llamacpp, čistě JVM), knihovnu `libai_engine_llama.dylib` /
+`ai_engine_llama.dll` / `libai_engine_llama.so` překládá :ai-llamacpp-desktop (úloha
 `buildLlamaCppDesktop`) ze stejného CMakeLists a dává ji do jaru, který desktopApp přibaluje
 (`runtimeOnly`). `shared` najde runtime jako LiteRT-LM (`BundledLiteRtRuntime(LLAMACPP_ENGINE_FACTORY)`).
 
 - **Jen pro systém a architekturu, na kterých se staví** (jako TDLib a LiteRT-LM), pod
-  `eu/tintera/plume/ai/llamacpp/native/<systém>-<arch>/` v jaru. `LlamaNative` ji vybalí do
+  `eu/tintera/ai/llamacpp/native/<systém>-<arch>/` v jaru. `LlamaNative` ji vybalí do
   `ai-cache/llamacpp/<otisk obsahu>/` a načte cestou; bez knihovny v jaru (Android) ji načte
   jménem. **Složka podle otisku, ne přepis staré kopie**: nahranou DLL Windows nepřepíše ani
   nesmaže, takže nová verze vedle běžící staré by jinak neměla kam; starší složky se uklidí,
@@ -1272,8 +1273,8 @@ Kód je týž jako na Androidu (:client:ai-llamacpp, čistě JVM), knihovnu `lib
   z PATH. Překladač systémový: Xcode Command Line Tools, MSVC (`vswhere` + `vcvarsall`, statické
   CRT, jako toasty), GCC/Clang. Bez submodulu, CMake nebo překladače se úloha lokálně přeskočí
   s varováním (EuroLLM se pak nenabídne), **na CI je to chyba**. Release workflow proto dělá
-  checkout se submodulem a `setup-android` instaluje `cmake` — a taky `ndk`, protože AGP NDK
-  chce už při KONFIGURACI :client:ai-llamacpp-android (`ndkVersion`), i když se staví jen
+  checkout se submoduly (`recursive`, llama.cpp je vnořený v ai-engine) a `setup-android` instaluje `cmake` — a taky `ndk`, protože AGP NDK
+  chce už při KONFIGURACI :ai-llamacpp-android (`ndkVersion`), i když se staví jen
   desktop. **Bez NDK neprojde žádný Gradle build** („License for package NDK … not accepted",
   s `android.builder.sdkDownload=false` „NDK not configured"); NDK 29 chce licenci Android SDK
   Preview, kterou je třeba přijmout (`sdkmanager --licenses`).

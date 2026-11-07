@@ -1217,10 +1217,12 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
 - **Generování textu k odeslání je ta nejslabší kategorie.** Shrnutí i našeptávání odpovědí
   z ní obě jsou; zajímavé věci leží v první a zatím z ní nemáme nic.
 
-### Sdílená knihovna (:client:ai-core)
+### Sdílená knihovna ai-engine
 
-Poskytovatelé jsou vyčlenění v `:client:ai-core` bez vazby na Plume (`docs/poznatky/ai-v-zarizeni.md`,
-„Modul :client:ai-core"). Dál podle dohodnutého plánu:
+Poskytovatelé, runtime a jejich nativní knihovny jsou v knihovně ai-engine
+(github.com/VladimirTintera/ai-engine), kterou Plume bere jako submodul `external/ai-engine`
+(`docs/poznatky/ai-v-zarizeni.md`, „Knihovna ai-engine"). Úkoly ke kódu knihovny patří do
+repozitáře ai-engine; tady zůstávají ty, které sahají i do Plume:
 
 - **Katalog modelů jako data od aplikace.** `LiteRtModel` je pořád enum se všemi modely Plume
   a `ModelVariant` nese pole `gemma` / `qwen` / `euroLlm` / `aya`. Pro jinou aplikaci: seznam
@@ -1228,17 +1230,11 @@ Poskytovatelé jsou vyčlenění v `:client:ai-core` bez vazby na Plume (`docs/p
   licence/upozornění) předaný aplikací a varianta s odkazem na položku. Pozor na uložená jména
   (nastavení `on_device_ai_*`, jméno úlohy stahování `ai-model-download-<jméno>`) a na pořadí
   náhrad v `supportedModels`.
-- **Přesun do knihovny ai-engine** (github.com/VladimirTintera/ai-engine, Apache-2.0):
-  `ai-engine`, `ai-litert`, `ai-llamacpp*` a `ai-core` přes `git filter-repo` s historií,
-  balíčky `eu.tintera.plume.ai.*` → `eu.tintera.ai.*` (`ai-core` už je), Plume ji pak vezme jako git submodul + `includeBuild`. Komponenty z Google Play
-  (`litertFeature`, `llamacppFeature`) deklaruje aplikace; keep pravidla pro továrny enginů
-  (`proguard-rules.pro` v androidApp) půjdou s knihovnou jako consumer rules.
-- **Testy ai-core i na Android hostu** — dnes `jvmTest`; `LiteRtOnDeviceAi` je sdílený
-  s Androidem, ale `MlKitOnDeviceAi` a úloha stahování testy nemají ani předtím neměly.
-- **Nestabilní `LiteRtGpuFallbackTest.chybaPoPrvnimTokenuSeNeopakuje`** — 7. 11. 2026 jednou
-  spadl při souběžném buildu (`emitted` prázdné místo `[Generated("Za")]`), samostatně prošel
-  5× z 5. Cesta `generate` se přesunem do ai-core neměnila; nejspíš souběh mezi vydáním prvního
-  tokenu a chybou za ním (`flowOn` / `catch`). Prověřit, než se na test začne spoléhat v CI.
+- **Testy ai-core i na Android hostu** (v ai-engine) — dnes `jvmTest`; `LiteRtOnDeviceAi` je
+  sdílený s Androidem, ale `MlKitOnDeviceAi` a úloha stahování testy nemají ani předtím neměly.
+- **AGP 9.5.0 kvůli grocery.** grocery (druhý uživatel knihovny) má AGP 9.5.0 a Gradle 9.7.0,
+  Plume a ai-engine 9.2.1 a 9.5.0; v jednom buildu dvě verze AGP být nesmí, takže před zapojením
+  do grocery se Plume i ai-engine zvednou spolu.
 
 ### Co zbývá u toho, co běží
 

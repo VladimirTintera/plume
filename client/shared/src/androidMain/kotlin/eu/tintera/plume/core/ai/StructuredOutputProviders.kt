@@ -15,7 +15,7 @@ import kotlin.reflect.KClass
  * ML Kitu tam být nemůžou. Providery jsou proto psané ručně, po vzoru toho, co procesor generuje,
  * a KSP v projektu není.
  *
- * Textová pole skládá `generableStringField` z :client:ai-core. Nový typ = třída tady, řádek
+ * Textová pole skládá `generableStringField` z ai-engine (:ai-core). Nový typ = třída tady, řádek
  * v `src/androidMain/resources/META-INF/services/com.google.mlkit.genai.schema.guided.GenerableProvider`
  * a keep pravidlo na jeho pole
  * v `proguard-rules.pro` (Gson ML Kitu plní objekt podle JMEN polí). Bez řádku ve services ML Kit

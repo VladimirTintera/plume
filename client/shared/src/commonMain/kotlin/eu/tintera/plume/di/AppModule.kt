@@ -440,7 +440,7 @@ fun appModule() = module {
     viewModelOf(::NotificationSettingsViewModel)
     viewModelOf(::EditProfileViewModel)
     viewModelOf(::OwnProfileMusicViewModel)
-    // Model v zařízení (:client:ai-core): stahování modelu bere stav sítě od Plume.
+    // Model v zařízení (ai-engine :ai-core): stahování modelu bere stav sítě od Plume.
     single<Connectivity> { NetworkConnectivity(get()) }
     // Nastavení modelu (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
     viewModel {

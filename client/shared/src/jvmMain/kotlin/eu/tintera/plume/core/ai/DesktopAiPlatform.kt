@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /*
- * Co desktopová platforma modelů v zařízení (`DesktopLiteRtPlatform` z :client:ai-core) bere od
+ * Co desktopová platforma modelů v zařízení (`DesktopLiteRtPlatform` z ai-engine :ai-core) bere od
  * Plume: adresář pro modely a dekodér zvuku.
  */
 

@@ -320,7 +320,7 @@ kotlin {
             baseName = "ComposeApp"
             // Most k Apple Intelligence (`OnDeviceTextModel`, `IosOnDeviceModel`) implementuje
             // Swift; bez exportu by ho framework nenesl, nebo jen pod jménem s předponou modulu.
-            export(projects.client.aiCore)
+            export("eu.tintera.ai:ai-core")
             // TDLib je statická knihovna; framework musí být statický, jinak se její symboly
             // nedostanou do výsledné binárky a link padne na undefined symbols _td_*.
             isStatic = true
@@ -360,10 +360,10 @@ kotlin {
             // Vrstva kolem TDLib (client/core). `api`: její typy (repository, ChatMessage…) jsou
             // v API shared a vstupní body je potřebují taky.
             api(projects.client.core)
-            // Model v zařízení (poskytovatelé, stahování, engine) bez vazby na Plume — viz
-            // client/ai-core. `api`: jeho typy (OnDeviceAi, ModelVariant…) nesou ViewModely
+            // Model v zařízení (poskytovatelé, stahování, engine) z knihovny ai-engine
+            // (submodul external/ai-engine, :ai-core). `api`: jeho typy (OnDeviceAi, ModelVariant…) nesou ViewModely
             // i nastavení a iOS framework ho exportuje do Swiftu.
-            api(projects.client.aiCore)
+            api("eu.tintera.ai:ai-core")
             implementation(libs.compose.ui.tooling.preview)
             implementation(libs.compose.material3)
 
@@ -444,10 +444,10 @@ kotlin {
             implementation(libs.mlkit.translate)
             // Strukturovaný výstup Gemini Nano (`GenerableProvider` pro typy odpovědí Plume). Jen
             // popis tvaru, KSP procesor ne — providery jsou ručně v core/ai. Samotný ML Kit GenAI
-            // (Prompt API) je jen v :client:ai-core.
+            // (Prompt API) je jen v knihovně ai-engine (:ai-core).
             implementation(libs.mlkit.genai.schema)
             // Dialog souhlasu Google Play před instalací runtime modelu (core/ai/
-            // SplitInstallConfirmationHost); runtime sám doinstalovává :client:ai-core.
+            // SplitInstallConfirmationHost); runtime sám doinstalovává ai-engine (:ai-core).
             implementation(libs.play.feature.delivery)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
             implementation(libs.koin.android)
@@ -479,8 +479,8 @@ kotlin {
             implementation(libs.zxing.core)
             // Hovory: C API ntgcalls (`core/calls/NtgNative.kt`).
             implementation(libs.jna)
-            // Gemma a Qwen v zařízení: runtime LiteRT-LM (:client:ai-litert) přidává až desktopApp,
-            // tady je jen rozhraní (přes :client:ai-core). Najde se za běhu (`BundledLiteRtRuntime`).
+            // Gemma a Qwen v zařízení: runtime LiteRT-LM (ai-engine :ai-litert) přidává až desktopApp,
+            // tady je jen rozhraní (přes :ai-core). Najde se za běhu (`BundledLiteRtRuntime`).
             // Tmavý titulek okna na Windows (`WindowTitleBarAppearance`).
             implementation(libs.platformtools.darkmodedetector)
             // Dekodér videa (GIFy, `core/video/Video.jvm.kt`): FFmpeg přes JavaCPP. Nativní

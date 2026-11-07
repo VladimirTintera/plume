@@ -193,7 +193,7 @@ taky, přestože nic nestaví:
   kvůli Android targetu `:client:shared`). Runner nemá `ANDROID_HOME`, takže SDK ze Studia
   (`~/Library/Android/sdk`) zůstává nedotčené.
 - **Balíčky SDK, které build potřebuje, vyjmenuje krok `setup-android`** — i ty, které si AGP
-  stáhne samo. NDK pro `:client:ai-llamacpp-android` AGP stáhlo, CMake ne: první release s llama.cpp
+  stáhne samo. NDK pro `:ai-llamacpp-android` (ai-engine) AGP stáhlo, CMake ne: první release s llama.cpp
   (android-0.3.124-162) spadl na „[CXX1300] CMake '3.31.0' was not found in SDK". Verze
   `ndk` a `cmake` v `libs.versions.toml` se proto mění spolu s workflow `android-release.yml`
   **i `desktop-release.yml`**: desktop CMake z SDK překládá llama.cpp a NDK chce AGP už při
@@ -273,7 +273,8 @@ API, které aplikace z drtivé většiny nevolá.
   by se opsaná kopie tiše rozešla s tím, co knihovna opravdu potřebuje.
 - **Do `proguard-rules.pro` patří jen to, co se ověřeně rozbilo na zařízení.** Preventivní
   `-keep` vypne zkracování tam, kde nemusí, a zakonzervuje chybu, která se mezitím opravila
-  jinde. Zatím tam kromě atributů pro čitelné stack trace je jediné pravidlo: LiteRT-LM.
+  jinde. Pravidla, která nese knihovna z repozitáře ai-engine (LiteRT-LM, továrny runtime), jsou
+  v ní jako consumer rules a do `proguard-rules.pro` Plume nepatří.
 - **LiteRT-LM (Gemma) si keep pravidla NEPŘIBALUJE** — AAR `litertlm-android 0.11.0` nemá
   `proguard.txt`, na rozdíl od TDLib wrapperu. Nativní strana přitom sahá do Kotlinu podle
   jména: release build při prvním použití Gemmy spadl na `NoSuchMethodError …
@@ -282,7 +283,9 @@ API, které aplikace z drtivé většiny nevolá.
   návrh odpovědi. Proto `-keep class com.google.ai.edge.litertlm.** { *; }` na celý balíček,
   ne výčet tříd — JNI hranici určuje knihovna a výčet by se při bumpu tiše rozešel. **Při
   bumpu knihovny zkontrolovat, jestli už `proguard.txt` nese** (`unzip -l` na AAR); pak
-  pravidlo pryč. Ověřeno na emulátoru: bez pravidla pád, s ním shrnutí i návrhy.
+  pravidlo pryč. Ověřeno na emulátoru: bez pravidla pád, s ním shrnutí i návrhy. Pravidlo je
+  dnes v consumer rules modulu `:ai-litert` knihovny ai-engine (`external/ai-engine`) a platí
+  i z dynamic feature `litertFeature` — R8 bere pravidla závislostí součástí (`seeds.txt`).
 - **`isShrinkResources` je zapnuté, ale až zvlášť po minifikaci** — zapínat obojí naráz by
   znamenalo nevědět, co z toho případný pád způsobilo.
   - **composeResources se ho NETÝKAJÍ.** Leží v `assets/` (v APK je jich před i po 180 souborů),

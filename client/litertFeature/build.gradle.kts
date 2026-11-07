@@ -6,12 +6,12 @@ plugins {
 
 /**
  * Součást z Google Play stahovaná až na požádání (Play Feature Delivery): runtime LiteRT-LM pro
- * Gemmu a Qwen v zařízení, tedy :client:ai-litert s nativní knihovnou `liblitertlm_jni.so`
+ * Gemmu a Qwen v zařízení, tedy :ai-litert z knihovny ai-engine s nativní knihovnou `liblitertlm_jni.so`
  * (23 MB na arm64). V základu aplikace by ji měl každý, přitom model v zařízení si zapne málokdo.
  *
  * Kód tu žádný není. Základ aplikace na třídy součásti nevidí ani při překladu, implementaci si
- * po instalaci najde podle jména (`PlayLiteRtRuntime` v :client:ai-core); keep pravidlo pro R8 je proto
- * v androidApp, R8 zpracovává základ i součást dohromady.
+ * po instalaci najde podle jména (`PlayLiteRtRuntime` v ai-engine :ai-core); keep pravidlo pro R8 nese knihovna
+ * (consumer rules :ai-core), R8 zpracovává základ i součást dohromady.
  *
  * **Jméno modulu je jméno součásti** (`litertFeature` v `PlayLiteRtRuntime.MODULE`) — přejmenování
  * by instalaci tiše rozbilo.
@@ -32,5 +32,5 @@ android {
 
 dependencies {
     implementation(projects.client.androidApp)
-    implementation(projects.client.aiLitert)
+    implementation("eu.tintera.ai:ai-litert")
 }

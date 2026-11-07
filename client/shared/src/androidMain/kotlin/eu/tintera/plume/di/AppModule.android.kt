@@ -50,9 +50,10 @@ import eu.tintera.ai.core.AndroidMeteredNetwork
 import eu.tintera.ai.core.MeteredNetwork
 import eu.tintera.ai.core.PlayLiteRtRuntime
 import eu.tintera.ai.core.SplitInstallConfirmations
+import eu.tintera.ai.engine.LITERT_ENGINE_FACTORY
+import eu.tintera.ai.engine.LLAMACPP_ENGINE_FACTORY
+import eu.tintera.ai.engine.LLAMACPP_NATIVE_LIBRARY
 import eu.tintera.ai.core.ModelRuntime
-import eu.tintera.plume.ai.engine.LITERT_ENGINE_FACTORY
-import eu.tintera.plume.ai.engine.LLAMACPP_ENGINE_FACTORY
 import eu.tintera.ai.core.MlKitOnDeviceAi
 import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.ai.core.RoutingOnDeviceAi
@@ -139,7 +140,7 @@ actual fun Module.platformModule() {
                 ModelRuntime.LlamaCpp to PlayLiteRtRuntime(
                     androidContext(),
                     module = "llamacppFeature",
-                    nativeLibrary = "plume_llama",
+                    nativeLibrary = LLAMACPP_NATIVE_LIBRARY,
                     factoryClass = LLAMACPP_ENGINE_FACTORY,
                     confirmations = get(),
                 ),

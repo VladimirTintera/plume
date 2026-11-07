@@ -30,11 +30,14 @@ Rozpracovaný detail chatu má vlastní seznam:
 open iosApp/iosApp.xcodeproj                         # iOS se staví z Xcode
 ```
 
-**llama.cpp je git submodul** (`client/ai-llamacpp/llama.cpp`, EuroLLM a Aya na Androidu i desktopu):
-po klonu `git submodule update --init --depth 1`, jinak build Androidu skončí na chybějícím
-`CMakeLists.txt`. Desktop se přeloží i bez něj (a bez CMake), jen EuroLLM a Ayu nenabídne. **NDK
-a jeho licenci potřebuje KAŽDÝ build** (AGP ho chce při konfiguraci :client:ai-llamacpp-android),
-CMake `cmake;3.31.0` z SDK Manageru.
+**AI v zařízení je knihovna ai-engine jako git submodul** (`external/ai-engine`,
+[VladimirTintera/ai-engine](https://github.com/VladimirTintera/ai-engine), `includeBuild`)
+a v ní je vnořený submodul llama.cpp (EuroLLM a Aya na Androidu i desktopu): po klonu
+`git submodule update --init --recursive`, jinak build skončí hláškou o chybějícím ai-engine,
+nebo (bez llama.cpp) na chybějícím `CMakeLists.txt`. **Změna v AI = PR v ai-engine, pak posun
+submodulu v Plume**; AGP, Kotlin a Gradle musí být v obou stejné — viz „Knihovna ai-engine"
+v `docs/poznatky/ai-v-zarizeni.md`. **NDK a jeho licenci potřebuje KAŽDÝ build** (AGP ho chce
+při konfiguraci :ai-llamacpp-android), CMake `cmake;3.31.0` z SDK Manageru.
 
 Před prvním spuštěním doplň do `local.properties` (gitignorovaný):
 
@@ -203,16 +206,13 @@ client/
   androidApp/  :client:androidApp – com.android.application, jen vstupní bod
   desktopApp/  :client:desktopApp – Compose Desktop (kotlin-jvm), jen vstupní bod a balení
   wearApp/     :client:wearApp    – Wear OS (com.android.application) jen nad :client:core
-  ai-engine/   :client:ai-engine  – rozhraní runtime modelu v zařízení (LlmEngineFactory), bez závislostí
-  ai-core/     :client:ai-core    – model v zařízení bez vazby na Plume: OnDeviceAi, Gemini Nano (ML Kit),
-                                    stahování a engine LiteRT-LM / llama.cpp, Apple Intelligence; prompty,
-                                    volba úloh, texty a UI zůstávají ve `shared` (viz ai-v-zarizeni.md)
-  ai-litert/   :client:ai-litert  – implementace nad LiteRT-LM; jediná s `com.google.ai.edge.litertlm`
-  litertFeature/ :client:litertFeature – součást z Google Play na požádání, balí ai-litert (Android)
-  ai-llamacpp/ :client:ai-llamacpp – llama.cpp (submodul), JNI a kód pro modely GGUF; čistě JVM
-  ai-llamacpp-android/ :client:ai-llamacpp-android – knihovna llama.cpp z NDK
-  ai-llamacpp-desktop/ :client:ai-llamacpp-desktop – knihovna llama.cpp pro desktop (CMake systému)
-  llamacppFeature/ :client:llamacppFeature – součást z Google Play na požádání, balí ai-llamacpp-android
+  litertFeature/ :client:litertFeature – součást z Google Play na požádání, balí :ai-litert (Android)
+  llamacppFeature/ :client:llamacppFeature – součást z Google Play na požádání, balí :ai-llamacpp-android
+external/
+  ai-engine/   – submodul knihovny ai-engine (included build, souřadnice `eu.tintera.ai:<modul>`):
+                 :ai-engine (rozhraní runtime), :ai-core (OnDeviceAi, Gemini Nano, stahování, LiteRT-LM
+                 / llama.cpp, Apple Intelligence), :ai-litert, :ai-llamacpp(-android/-desktop);
+                 prompty, volba úloh, texty a UI zůstávají ve `shared` (viz ai-v-zarizeni.md)
 iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:shared
 ```
 
@@ -432,7 +432,7 @@ který uvidí uživatel.
   strojem, kdežto prompt se ladí ČTENÍM a „tyk\u00e1n\u00ed" uprostřed anglické věty přečíst
   nejde. Výjimka visí na JMÉNU souboru, ne na balíčku, a **ověřila se sondami, ne úvahou**:
   český literál v jiném souboru `core/ai` (sonda byla v `OnDeviceAi.kt`, ten je dnes
-  v `:client:ai-core`) i `Text("…")` uvnitř `ReplyPrompt.kt` kontrolu dál
+  v `:ai-core` knihovny ai-engine) i `Text("…")` uvnitř `ReplyPrompt.kt` kontrolu dál
   rozsvítí, takže se dírou nestalo nic než to, co se jí stát mělo.
 - **Že výjimka platí, říká hlavička KAŽDÉHO promptového souboru, stejnou větou.** Napřed to
   stálo jen v KDoc `formalityInstruction` — tedy u jedné funkce v jednom ze dvou souborů, které
