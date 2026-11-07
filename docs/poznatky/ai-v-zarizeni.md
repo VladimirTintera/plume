@@ -489,14 +489,20 @@ stažení.
   v tu chvíli ještě ani nezačal stahovat a kdo chybu hlásí, má ze snímku poznat, která z nich to
   je — kód od Play je to, podle čeho se dá dohledat (`SplitInstallErrorCode`). Ověřeno na
   emulátoru s debug APK bez součásti (-15 jako mimo Play).
-- **-15 (`APP_NOT_OWNED`) přišlo i u aplikace z Play.** Fold s 0.3.125 z interního testování
-  (`installerPackageName=com.android.vending`, účet je tester a aplikaci v Play vlastní) dostal
-  na `startInstall([litertFeature])` -15 za 14 ms — Play rozhoduje z dat v telefonu, na server
-  se neptá, a důvod nezaloguje ani s `setprop log.tag.Finsky VERBOSE`. Součásti byly v Play
-  Console v balíčku (on demand). Byla to první vydání se součástmi (0.3.124 a 0.3.125 v týž den);
-  **příčina nezjištěná**, podezření na zpožděná data Play v telefonu. Další krok: zkusit znovu
-  s odstupem, pak vymazat mezipaměť Play Store, pak přeinstalovat z Play; pro srovnání tentýž
-  AAB přes Internal app sharing.
+- **-15 (`APP_NOT_OWNED`) přichází i u aplikace z Play, dokud Plume v Play není publikovaná.**
+  Fold s 0.3.125 z interního testování (`installerPackageName=com.android.vending`, účet je
+  tester a aplikaci v Play vlastní) dostal na `startInstall([litertFeature])` -15 za 14 ms —
+  Play rozhoduje z dat v telefonu, na server se neptá, a důvod nezaloguje ani s `setprop
+  log.tag.Finsky VERBOSE`. Součásti byly v Play Console v balíčku (on demand), knihovna je
+  aktuální (`feature-delivery` 2.1.0). **Nepomohlo vymazání mezipaměti Play Store ani
+  odinstalace a nová instalace z Play.** Klíčová stopa přišla z Play Console: Internal app
+  sharing odmítl s tím, že aplikaci je „potřeba publikovat". Plume je zatím jen koncept
+  s interním testováním — to instalaci z Play dovolí, ale publikací není, a „vlastnictví",
+  které Play před doinstalováním součásti ověřuje, u konceptu nejspíš nevzniká. **Výslovně to
+  Google nikde nepíše** (návod k doručování na požádání interní test jako způsob testování
+  uvádí); je to závěr z vyloučení ostatních příčin. Ověří se, až bude aplikace publikovaná
+  aspoň v uzavřeném testu (úkol v `docs/roadmap.md`, „Než se dá vydat na veřejnost"). Do té
+  doby runtime z Play nedostane nikdo; pro vývoj zůstává `adb install-multiple` se součástí.
 - **Jméno modulu je jméno součásti** (`PlayLiteRtRuntime.MODULE` = `litertFeature`).
   Přejmenování projektu by instalaci tiše rozbilo.
 - **bundletool chce stejnou sadu ABI ve všech modulech s nativními knihovnami** („All modules

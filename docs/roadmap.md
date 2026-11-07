@@ -23,6 +23,12 @@ Teď je prázdné.
 - **Záznam v Play dokončit mimo API.** Texty a grafika (cs, en) jsou nahrané, workflow Play
   Listing je nahrává z `play/`. Ručně v Play Console zbývá kategorie, zásady ochrany soukromí (URL),
   hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách.
+- **Po publikaci (stačí uzavřený test) ověřit modely v zařízení z Play.** Dokud je Plume
+  v Play jen koncept s interním testováním, Play odmítá doinstalovat součásti s runtime
+  (`litertFeature`, `llamacppFeature`) chybou -15 a model se z Play stáhnout nedá. Po publikaci
+  na Foldu z Play „Stáhnout model" a zkusit i Internal app sharing, který koncept taky nepustí
+  (`docs/poznatky/ai-v-zarizeni.md`, „Runtime jako součást z Google Play"). Kdyby publikace
+  trvala dlouho, jde součásti dočasně přepnout na instalaci s aplikací (~30 MB navíc všem).
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
 - **Název aplikace u `api_id` je „MGram"** — tak se Plume ukazuje v seznamu zařízení
