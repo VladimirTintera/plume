@@ -1256,6 +1256,10 @@ se kterou se musí počítat předem: inferenci pustí AICore jen aplikaci v POP
 ani z úlohy na pozadí tedy nic z toho běžet nemůže — featura, která má vyhodnotit zprávu
 v okamžiku, kdy přijde, narazí na tohle, ne na model.
 
+- **Konverzace s modelem (hřiště na zkoušení modelů).** Volný rozhovor s modelem v zařízení
+  v Nastavení → AI v zařízení: patička s měřením (čas do prvního slova, tok/s), předěl, kde
+  model zapomíná, později porovnání odpovědi jiným modelem. Návrh a fáze:
+  [navrh-konverzace-s-modelem.md](navrh-konverzace-s-modelem.md).
 - ~~**Strukturovaný výstup jako první krok.**~~ — hotovo pro návrhy odpovědí na Gemini Nano
   (`OnDeviceAi.generateStructured`, ručně psaný `GenerableProvider` bez KSP, náhrada textem;
   `docs/poznatky/ai-v-zarizeni.md`, „Strukturovaný výstup"). Gemma ho nemá, jde dál textem. Zbývá:
