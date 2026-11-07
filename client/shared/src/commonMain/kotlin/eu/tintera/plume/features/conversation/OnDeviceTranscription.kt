@@ -1,12 +1,13 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.transcriptionPrompt
 import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.AiModels
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.ai.AiProvider
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.speech.SpeechDownload
 import eu.tintera.plume.core.speech.SpeechLanguage
@@ -95,7 +96,7 @@ class OnDeviceTranscription(
             val speech = speechToText
             val chunks: Flow<String> = when {
                 ai != null && gemmaTranscribes(settings.onDeviceAiEnabled.value, models) ->
-                    ai.transcribe(ai.variantFor(AiTask.Transcription, models), path, platformLanguageCode).map { it.text }
+                    ai.transcribe(ai.variantFor(AiTask.Transcription, models), path, transcriptionPrompt(platformLanguageCode)).map { it.text }
                 speech != null && systemTranscribes() -> speech.transcribe(path, platformLanguageCode)
                 else -> throw IllegalStateException("Přepis v telefonu už není k dispozici")
             }

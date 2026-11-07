@@ -1,11 +1,11 @@
 package eu.tintera.plume.features.aiplayground
 
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.plume.core.ai.AiProvider
-import eu.tintera.plume.core.ai.Generated
-import eu.tintera.plume.core.ai.ModelInfo
-import eu.tintera.plume.core.ai.ModelVariant
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.Generated
+import eu.tintera.ai.core.ModelInfo
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.UnimplementedOnDeviceAi
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import kotlin.test.AfterTest

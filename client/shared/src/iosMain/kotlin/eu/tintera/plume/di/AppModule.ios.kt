@@ -1,9 +1,9 @@
 package eu.tintera.plume.di
 
-import eu.tintera.plume.core.ai.NoDeviceLoad
-import eu.tintera.plume.core.ai.MeteredNetwork
-import eu.tintera.plume.core.ai.NoMeteredNetwork
-import eu.tintera.plume.core.ai.DeviceLoad
+import eu.tintera.ai.core.NoDeviceLoad
+import eu.tintera.ai.core.MeteredNetwork
+import eu.tintera.ai.core.NoMeteredNetwork
+import eu.tintera.ai.core.DeviceLoad
 import eu.tintera.plume.core.stickers.IosStickerMaker
 import eu.tintera.plume.core.stickers.StickerMaker
 import eu.tintera.plume.core.di.APP_SCOPE
@@ -16,10 +16,10 @@ import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.ocr.VisionTextRecognizer
 import eu.tintera.plume.core.snooze.IosSnoozeReminders
 import eu.tintera.plume.core.snooze.SnoozeReminders
-import eu.tintera.plume.core.ai.AppleOnDeviceAi
-import eu.tintera.plume.core.ai.IosOnDeviceModel
-import eu.tintera.plume.core.ai.NoopOnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.ai.core.AppleOnDeviceAi
+import eu.tintera.ai.core.IosOnDeviceModel
+import eu.tintera.ai.core.NoopOnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.plume.core.ui.IosProfileVideo
 import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.IosSquarePhoto

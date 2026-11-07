@@ -1,15 +1,15 @@
 package eu.tintera.plume.features.conversation
 
-import eu.tintera.plume.core.ai.DeviceLoad
+import eu.tintera.ai.core.DeviceLoad
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.plume.core.ai.AiFailureReason
-import eu.tintera.plume.core.ai.AiProvider
-import eu.tintera.plume.core.ai.Generated
-import eu.tintera.plume.core.ai.ModelVariant
-import eu.tintera.plume.core.ai.OnDeviceAiException
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.AiFailureReason
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.Generated
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.OnDeviceAiException
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.ReplySuggestionsOutput
-import eu.tintera.plume.core.ai.StructuredOutputException
+import eu.tintera.ai.core.StructuredOutputException
 import eu.tintera.plume.core.ai.UnimplementedOnDeviceAi
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.ChatMessage

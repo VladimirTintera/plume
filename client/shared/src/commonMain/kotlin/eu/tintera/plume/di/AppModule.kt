@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.ai.core.Connectivity
+import eu.tintera.plume.core.ai.NetworkConnectivity
 import eu.tintera.plume.features.chats.PendingChatDeletes
 import eu.tintera.plume.features.settings.FolderSuggestions
 import eu.tintera.plume.core.di.APP_SCOPE
@@ -26,8 +28,8 @@ import eu.tintera.plume.features.conversation.LocalTranscripts
 import eu.tintera.plume.features.conversation.OnDeviceTranscription
 import eu.tintera.plume.features.media.PhotoDescriptions
 import eu.tintera.plume.core.ai.BackgroundPhotoDescription
-import eu.tintera.plume.core.ai.DeviceLoad
-import eu.tintera.plume.core.ai.NoDeviceLoad
+import eu.tintera.ai.core.DeviceLoad
+import eu.tintera.ai.core.NoDeviceLoad
 import eu.tintera.plume.features.media.BackgroundPhotoDescriber
 import eu.tintera.plume.features.conversation.ScamWarnings
 import eu.tintera.plume.features.chats.ChatTriage
@@ -438,7 +440,9 @@ fun appModule() = module {
     viewModelOf(::NotificationSettingsViewModel)
     viewModelOf(::EditProfileViewModel)
     viewModelOf(::OwnProfileMusicViewModel)
-    // Model v zařízení (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
+    // Model v zařízení (:client:ai-core): stahování modelu bere stav sítě od Plume.
+    single<Connectivity> { NetworkConnectivity(get()) }
+    // Nastavení modelu (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
     viewModel {
         OnDeviceAiSettingsViewModel(
             settings = get(),

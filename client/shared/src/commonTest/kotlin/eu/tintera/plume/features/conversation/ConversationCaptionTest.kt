@@ -2,12 +2,12 @@ package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.plume.core.ai.AiProvider
-import eu.tintera.plume.core.ai.Generated
-import eu.tintera.plume.core.ai.ModelVariant
-import eu.tintera.plume.core.ai.NoopOnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.Generated
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.NoopOnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,7 +40,7 @@ class ConversationCaptionTest {
         val prompts = mutableListOf<String>()
         override suspend fun status(variant: ModelVariant) = OnDeviceAiStatus.Ready
         override suspend fun canDescribeImage(variant: ModelVariant) = variant.provider == AiProvider.Gemma
-        override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String, prompt: String): Flow<Generated> {
+        override fun describeImage(variant: ModelVariant, imagePath: String, prompt: String): Flow<Generated> {
             prompts += prompt
             return flowOf(Generated(answer))
         }

@@ -9,8 +9,8 @@ import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.settings.AppSettings

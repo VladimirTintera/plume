@@ -1,5 +1,10 @@
 package eu.tintera.plume.core.ai
 
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.LiteRtModel
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow

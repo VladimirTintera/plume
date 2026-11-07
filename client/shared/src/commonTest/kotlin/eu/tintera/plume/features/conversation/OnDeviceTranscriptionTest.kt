@@ -1,11 +1,11 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.plume.core.ai.AiProvider
-import eu.tintera.plume.core.ai.ModelVariant
-import eu.tintera.plume.core.ai.NoopOnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.NoopOnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.speech.SpeechDownload

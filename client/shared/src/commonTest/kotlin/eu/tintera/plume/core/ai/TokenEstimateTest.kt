@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ai
 
+import eu.tintera.ai.core.estimatedTokenCount
 import kotlin.test.Test
 import kotlin.test.assertTrue
 

@@ -1,5 +1,11 @@
 package eu.tintera.plume.core.ai
 
+import eu.tintera.ai.core.Generated
+import eu.tintera.ai.core.ModelDownload
+import eu.tintera.ai.core.ModelInfo
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow

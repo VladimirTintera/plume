@@ -1,13 +1,14 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ai.imageDescriptionPrompt
 import eu.tintera.plume.core.ai.proactiveVariant
-import eu.tintera.plume.core.ai.NoDeviceLoad
-import eu.tintera.plume.core.ai.DeviceLoad
+import eu.tintera.ai.core.NoDeviceLoad
+import eu.tintera.ai.core.DeviceLoad
 import eu.tintera.plume.core.ai.AiTask
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.BackgroundPhotoDescription
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiException
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiException
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.FileRepository
@@ -71,7 +72,7 @@ class BackgroundPhotoDescriber(
             } as? FileState.Ready ?: continue
             val text = try {
                 var last = ""
-                ai.describeImage(variant, file.path, platformLanguageCode).collect { last = it.text }
+                ai.describeImage(variant, file.path, imageDescriptionPrompt(platformLanguageCode)).collect { last = it.text }
                 last.trim()
             } catch (e: OnDeviceAiException) {
                 // Model selhal (paměť, přerušení): zbytek dávky by dopadl stejně.

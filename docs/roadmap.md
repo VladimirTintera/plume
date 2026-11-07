@@ -1217,6 +1217,29 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
 - **Generování textu k odeslání je ta nejslabší kategorie.** Shrnutí i našeptávání odpovědí
   z ní obě jsou; zajímavé věci leží v první a zatím z ní nemáme nic.
 
+### Sdílená knihovna (:client:ai-core)
+
+Poskytovatelé jsou vyčlenění v `:client:ai-core` bez vazby na Plume (`docs/poznatky/ai-v-zarizeni.md`,
+„Modul :client:ai-core"). Dál podle dohodnutého plánu:
+
+- **Katalog modelů jako data od aplikace.** `LiteRtModel` je pořád enum se všemi modely Plume
+  a `ModelVariant` nese pole `gemma` / `qwen` / `euroLlm` / `aya`. Pro jinou aplikaci: seznam
+  položek (repozitář, commit, soubor, velikost, `minMemoryGb`, `contextTokens`, runtime,
+  licence/upozornění) předaný aplikací a varianta s odkazem na položku. Pozor na uložená jména
+  (nastavení `on_device_ai_*`, jméno úlohy stahování `ai-model-download-<jméno>`) a na pořadí
+  náhrad v `supportedModels`.
+- **Přesun do knihovny ai-engine** (github.com/VladimirTintera/ai-engine, Apache-2.0):
+  `ai-engine`, `ai-litert`, `ai-llamacpp*` a `ai-core` přes `git filter-repo` s historií,
+  balíčky `eu.tintera.plume.ai.*` → `eu.tintera.ai.*` (`ai-core` už je), Plume ji pak vezme jako git submodul + `includeBuild`. Komponenty z Google Play
+  (`litertFeature`, `llamacppFeature`) deklaruje aplikace; keep pravidla pro továrny enginů
+  (`proguard-rules.pro` v androidApp) půjdou s knihovnou jako consumer rules.
+- **Testy ai-core i na Android hostu** — dnes `jvmTest`; `LiteRtOnDeviceAi` je sdílený
+  s Androidem, ale `MlKitOnDeviceAi` a úloha stahování testy nemají ani předtím neměly.
+- **Nestabilní `LiteRtGpuFallbackTest.chybaPoPrvnimTokenuSeNeopakuje`** — 7. 11. 2026 jednou
+  spadl při souběžném buildu (`emitted` prázdné místo `[Generated("Za")]`), samostatně prošel
+  5× z 5. Cesta `generate` se přesunem do ai-core neměnila; nejspíš souběh mezi vydáním prvního
+  tokenu a chybou za ním (`flowOn` / `catch`). Prověřit, než se na test začne spoléhat v CI.
+
 ### Co zbývá u toho, co běží
 
 - **Větší model: Gemma přes LiteRT-LM běží, ověřená na emulátoru (E2B na CPU).** Preview

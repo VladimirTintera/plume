@@ -7,10 +7,10 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.DateTimeUnit
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.searchFieldsOf
-import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.ai.core.generateAnswer
 import eu.tintera.plume.core.ai.SearchAnswer
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.searchFields
 import eu.tintera.plume.core.ai.searchPrompt
 import eu.tintera.plume.core.settings.AppSettings

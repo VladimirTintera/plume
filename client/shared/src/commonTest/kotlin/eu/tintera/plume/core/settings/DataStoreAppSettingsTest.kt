@@ -1,8 +1,8 @@
 package eu.tintera.plume.core.settings
 
-import eu.tintera.plume.core.ai.LiteRtModel
+import eu.tintera.ai.core.LiteRtModel
 import eu.tintera.plume.core.ai.AiTask
-import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.ai.core.AiProvider
 import eu.tintera.plume.core.ai.AiModels
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey

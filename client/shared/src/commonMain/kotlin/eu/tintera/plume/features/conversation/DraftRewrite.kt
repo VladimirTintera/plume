@@ -33,7 +33,7 @@ import eu.tintera.plume.resources.tone_checking
 import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.core.ai.toneVerdictOf
-import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.ai.core.generateAnswer
 import eu.tintera.plume.core.ai.ToneAnswer
 import eu.tintera.plume.core.ai.tonePrompt
 import eu.tintera.plume.core.ai.parseTone
@@ -97,12 +97,12 @@ import eu.tintera.plume.resources.rewrite_server_translate_to
 import eu.tintera.plume.resources.rewrite_server_emoji
 import org.jetbrains.compose.resources.StringResource
 import eu.tintera.plume.core.ai.MAX_REWRITE_CHARS
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiException
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiException
+import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.RewriteStyle
 import eu.tintera.plume.core.ai.cleanRewrite
-import eu.tintera.plume.core.ai.isReportable
+import eu.tintera.ai.core.isReportable
 import eu.tintera.plume.core.ai.rewritePrompt
 import eu.tintera.plume.core.ai.userMessage
 import eu.tintera.plume.core.settings.AppSettings

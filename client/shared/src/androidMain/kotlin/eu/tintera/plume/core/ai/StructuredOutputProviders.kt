@@ -2,6 +2,7 @@ package eu.tintera.plume.core.ai
 
 import com.google.mlkit.genai.schema.guided.GenerableDetail
 import com.google.mlkit.genai.schema.guided.GenerableProvider
+import eu.tintera.ai.core.generableStringField
 import kotlin.reflect.KClass
 
 /*
@@ -14,8 +15,9 @@ import kotlin.reflect.KClass
  * ML Kitu tam být nemůžou. Providery jsou proto psané ručně, po vzoru toho, co procesor generuje,
  * a KSP v projektu není.
  *
- * Nový typ = třída tady, řádek v `src/androidMain/resources/META-INF/services/
- * com.google.mlkit.genai.schema.guided.GenerableProvider` a keep pravidlo na jeho pole
+ * Textová pole skládá `generableStringField` z :client:ai-core. Nový typ = třída tady, řádek
+ * v `src/androidMain/resources/META-INF/services/com.google.mlkit.genai.schema.guided.GenerableProvider`
+ * a keep pravidlo na jeho pole
  * v `proguard-rules.pro` (Gson ML Kitu plní objekt podle JMEN polí). Bez řádku ve services ML Kit
  * typ nezná a generování selže; bez keep pravidla R8 pole přejmenuje a objekt zůstane prázdný.
  */
@@ -49,22 +51,6 @@ class ReplySuggestionsOutputProvider : GenerableProvider {
     }
 }
 
-/** Textové pole schématu; [values] = povolené hodnoty, které model nesmí opustit. */
-private fun stringField(name: String, description: String, values: List<String>? = null) =
-    GenerableDetail.GuideDetail(
-        name = name,
-        type = String::class,
-        nullable = false,
-        isList = false,
-        listItemType = null,
-        description = description,
-        maxItems = null,
-        minItems = null,
-        maximum = null,
-        minimum = null,
-        enumValues = values?.toTypedArray(),
-    )
-
 /** Tvar [ScamAnswer]: jeden verdikt z výčtu (význam hodnot říká prompt). */
 class ScamAnswerProvider : GenerableProvider {
     override val targetClass: KClass<*> = ScamAnswer::class
@@ -75,7 +61,7 @@ class ScamAnswerProvider : GenerableProvider {
         val DETAIL = GenerableDetail<ScamAnswer>(
             description = "Verdict on whether the message is a scam",
             guideDetails = listOf(
-                stringField("verdict", "One verdict as described above", listOf("PHISHING", "PRIZE", "MONEY", "SAFE", "UNSURE")),
+                generableStringField("verdict", "One verdict as described above", listOf("PHISHING", "PRIZE", "MONEY", "SAFE", "UNSURE")),
             ),
         )
     }
@@ -91,7 +77,7 @@ class TriageAnswerProvider : GenerableProvider {
         val DETAIL = GenerableDetail<TriageAnswer>(
             description = "Whether the chat waits for the user's answer",
             guideDetails = listOf(
-                stringField("verdict", "One verdict as described above", listOf("REPLY", "INFO", "UNSURE")),
+                generableStringField("verdict", "One verdict as described above", listOf("REPLY", "INFO", "UNSURE")),
             ),
         )
     }
@@ -107,7 +93,7 @@ class ToneAnswerProvider : GenerableProvider {
         val DETAIL = GenerableDetail<ToneAnswer>(
             description = "How the message may come across to the reader",
             guideDetails = listOf(
-                stringField("verdict", "One verdict as described above", listOf("FINE", "IRRITATED", "RUDE", "UNSURE")),
+                generableStringField("verdict", "One verdict as described above", listOf("FINE", "IRRITATED", "RUDE", "UNSURE")),
             ),
         )
     }
@@ -123,7 +109,7 @@ class ReminderAnswerProvider : GenerableProvider {
         val DETAIL = GenerableDetail<ReminderAnswer>(
             description = "The moment the message refers to",
             guideDetails = listOf(
-                stringField("moment", "The moment as YYYY-MM-DD HH:MM in 24-hour time, or NONE"),
+                generableStringField("moment", "The moment as YYYY-MM-DD HH:MM in 24-hour time, or NONE"),
             ),
         )
     }
@@ -139,10 +125,10 @@ class EventAnswerProvider : GenerableProvider {
         val DETAIL = GenerableDetail<EventAnswer>(
             description = "Whether the message plans an event for the calendar",
             guideDetails = listOf(
-                stringField("when", "Whether that time is before (PAST) or after (FUTURE) the message was sent", listOf("PAST", "FUTURE")),
-                stringField("event", "YES if the message plans a meeting, appointment, deadline or event at that time", listOf("YES", "NO")),
-                stringField("title", "A short name for the calendar event in the language of the message, at most 5 words"),
-                stringField("place", "The place or address exactly as written in the message, or NONE"),
+                generableStringField("when", "Whether that time is before (PAST) or after (FUTURE) the message was sent", listOf("PAST", "FUTURE")),
+                generableStringField("event", "YES if the message plans a meeting, appointment, deadline or event at that time", listOf("YES", "NO")),
+                generableStringField("title", "A short name for the calendar event in the language of the message, at most 5 words"),
+                generableStringField("place", "The place or address exactly as written in the message, or NONE"),
             ),
         )
     }
@@ -158,11 +144,11 @@ class SearchAnswerProvider : GenerableProvider {
         val DETAIL = GenerableDetail<SearchAnswer>(
             description = "Search filters for a chat app",
             guideDetails = listOf(
-                stringField("text", "Only the topic words to look for inside the messages, copied as the user wrote them; empty if there is no topic"),
-                stringField("chats", "Which chats to search", listOf("PRIVATE", "GROUPS", "CHANNELS", "ANY")),
-                stringField("content", "Which content to search", listOf("PHOTOS", "VIDEOS", "FILES", "LINKS", "VOICE", "MUSIC", "ANY")),
-                stringField("from", "The first day as YYYY-MM-DD, or NONE"),
-                stringField("to", "The last day as YYYY-MM-DD, or NONE"),
+                generableStringField("text", "Only the topic words to look for inside the messages, copied as the user wrote them; empty if there is no topic"),
+                generableStringField("chats", "Which chats to search", listOf("PRIVATE", "GROUPS", "CHANNELS", "ANY")),
+                generableStringField("content", "Which content to search", listOf("PHOTOS", "VIDEOS", "FILES", "LINKS", "VOICE", "MUSIC", "ANY")),
+                generableStringField("from", "The first day as YYYY-MM-DD, or NONE"),
+                generableStringField("to", "The last day as YYYY-MM-DD, or NONE"),
             ),
         )
     }

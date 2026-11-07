@@ -44,9 +44,11 @@ include(":client:shared")
 include(":client:androidApp")
 include(":client:wearApp")
 include(":client:desktopApp")
-// Model v zařízení: rozhraní runtime, implementace nad LiteRT-LM a na Androidu součást z Google
-// Play, která ji přinese až na požádání (viz docs/poznatky/ai-v-zarizeni.md).
+// Model v zařízení: rozhraní runtime, poskytovatelé bez vazby na Plume (ai-core), implementace
+// nad LiteRT-LM a na Androidu součást z Google Play, která ji přinese až na požádání (viz
+// docs/poznatky/ai-v-zarizeni.md).
 include(":client:ai-engine")
+include(":client:ai-core")
 include(":client:ai-litert")
 include(":client:litertFeature")
 include(":client:ai-llamacpp")

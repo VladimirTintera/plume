@@ -1,5 +1,13 @@
 package eu.tintera.plume.core.ai
 
+import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.DeviceLoad
+import eu.tintera.ai.core.ModelVariant
+import eu.tintera.ai.core.NoDeviceLoad
+import eu.tintera.ai.core.NoopOnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiStatus
+import eu.tintera.ai.core.avoidUnderLoad
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

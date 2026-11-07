@@ -1,28 +1,30 @@
 package eu.tintera.plume.di
 
-import eu.tintera.plume.core.ai.NoDeviceLoad
-import eu.tintera.plume.core.ai.MeteredNetwork
-import eu.tintera.plume.core.ai.NoMeteredNetwork
-import eu.tintera.plume.core.ai.DeviceLoad
+import eu.tintera.ai.core.NoDeviceLoad
+import eu.tintera.ai.core.MeteredNetwork
+import eu.tintera.ai.core.NoMeteredNetwork
+import eu.tintera.ai.core.DeviceLoad
+import eu.tintera.plume.core.ai.DesktopAudioClips
+import eu.tintera.plume.core.ai.aiModelsDirectory
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
 import eu.tintera.plume.di.MINI_APP_STORAGE
 import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.ui.UnsupportedStoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
-import eu.tintera.plume.core.ai.NoopOnDeviceAi
-import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.ai.core.NoopOnDeviceAi
+import eu.tintera.ai.core.AiProvider
 import eu.tintera.plume.ai.engine.LITERT_ENGINE_FACTORY
 import eu.tintera.plume.ai.engine.LLAMACPP_ENGINE_FACTORY
-import eu.tintera.plume.core.ai.BundledLiteRtRuntime
-import eu.tintera.plume.core.ai.ModelRuntime
-import eu.tintera.plume.core.ai.DesktopLiteRtPlatform
+import eu.tintera.ai.core.BundledLiteRtRuntime
+import eu.tintera.ai.core.ModelRuntime
+import eu.tintera.ai.core.DesktopLiteRtPlatform
 import eu.tintera.plume.core.ai.GEMMA_IDLE_TEXT_MS
-import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
-import eu.tintera.plume.core.ai.RoutingOnDeviceAi
+import eu.tintera.ai.core.LiteRtOnDeviceAi
+import eu.tintera.ai.core.RoutingOnDeviceAi
 import eu.tintera.plume.core.ai.gemmaIdleUnloadMs
 import eu.tintera.plume.core.settings.AppSettings
-import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.DesktopCallMedia
@@ -90,7 +92,7 @@ actual fun Module.platformModule() {
     single<OnDeviceAi> { RoutingOnDeviceAi(geminiNano = NoopOnDeviceAi, liteRt = get<LiteRtOnDeviceAi>()) }
     single {
         LiteRtOnDeviceAi(
-            DesktopLiteRtPlatform(),
+            DesktopLiteRtPlatform(aiModelsDirectory, DesktopAudioClips),
             // Oba runtime jsou v balíčku (:client:ai-litert, :client:ai-llamacpp-desktop).
             mapOf(
                 ModelRuntime.LiteRt to BundledLiteRtRuntime(LITERT_ENGINE_FACTORY),

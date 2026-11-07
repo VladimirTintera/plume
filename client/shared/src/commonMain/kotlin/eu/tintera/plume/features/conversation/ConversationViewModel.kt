@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.ai.ScamKind
-import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
 import kotlin.time.Instant
 import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver

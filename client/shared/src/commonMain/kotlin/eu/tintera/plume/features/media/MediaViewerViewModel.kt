@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ai.imageDescriptionPrompt
 import eu.tintera.plume.core.ai.variantsFor
 import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
@@ -26,10 +27,10 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAiException
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.OnDeviceAiException
 import eu.tintera.plume.core.ai.emptyOutputMessage
-import eu.tintera.plume.core.ai.isReportable
+import eu.tintera.ai.core.isReportable
 import eu.tintera.plume.core.ai.userMessage
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.platformLanguageCode
@@ -989,7 +990,7 @@ class MediaViewerViewModel(
             _state.update { it.copy(photoDescription = PhotoDescription(messageId)) }
             try {
                 var text = ""
-                ai.describeImage(ai.variantFor(AiTask.PhotoDescription, settings), file.path, platformLanguageCode).collect { generated ->
+                ai.describeImage(ai.variantFor(AiTask.PhotoDescription, settings), file.path, imageDescriptionPrompt(platformLanguageCode)).collect { generated ->
                     text = generated.text
                     updateDescription(messageId) { it.copy(text = text) }
                 }

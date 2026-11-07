@@ -1,11 +1,16 @@
 package eu.tintera.plume.di
 
+import eu.tintera.ai.core.AudioClipDecoder
+import eu.tintera.ai.core.ModelDownloadNotifications
+import eu.tintera.plume.core.ai.AudioClips
+import eu.tintera.plume.core.ai.ModelDownloadWorker
+import eu.tintera.plume.core.ai.PlumeModelDownloadNotifications
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ai.gemmaIdleUnloadMs
-import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.ai.core.AiProvider
 import eu.tintera.plume.core.ai.GEMMA_IDLE_TEXT_MS
-import eu.tintera.plume.core.ai.DeviceLoad
-import eu.tintera.plume.core.ai.AndroidDeviceLoad
+import eu.tintera.ai.core.DeviceLoad
+import eu.tintera.ai.core.AndroidDeviceLoad
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
 import eu.tintera.plume.di.MINI_APP_STORAGE
@@ -39,18 +44,18 @@ import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.snooze.AndroidSnoozeReminders
 import eu.tintera.plume.core.snooze.SnoozeReminders
 import eu.tintera.plume.core.ai.PhotoDescriptionSchedule
-import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
-import eu.tintera.plume.core.ai.AndroidLiteRtPlatform
-import eu.tintera.plume.core.ai.AndroidMeteredNetwork
-import eu.tintera.plume.core.ai.MeteredNetwork
-import eu.tintera.plume.core.ai.PlayLiteRtRuntime
-import eu.tintera.plume.core.ai.SplitInstallConfirmations
-import eu.tintera.plume.core.ai.ModelRuntime
+import eu.tintera.ai.core.LiteRtOnDeviceAi
+import eu.tintera.ai.core.AndroidLiteRtPlatform
+import eu.tintera.ai.core.AndroidMeteredNetwork
+import eu.tintera.ai.core.MeteredNetwork
+import eu.tintera.ai.core.PlayLiteRtRuntime
+import eu.tintera.ai.core.SplitInstallConfirmations
+import eu.tintera.ai.core.ModelRuntime
 import eu.tintera.plume.ai.engine.LITERT_ENGINE_FACTORY
 import eu.tintera.plume.ai.engine.LLAMACPP_ENGINE_FACTORY
-import eu.tintera.plume.core.ai.MlKitOnDeviceAi
-import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.ai.RoutingOnDeviceAi
+import eu.tintera.ai.core.MlKitOnDeviceAi
+import eu.tintera.ai.core.OnDeviceAi
+import eu.tintera.ai.core.RoutingOnDeviceAi
 import eu.tintera.plume.core.ui.AndroidProfileVideo
 import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.AndroidSquarePhoto
@@ -113,11 +118,15 @@ actual fun Module.platformModule() {
     single<OnDeviceAi> { RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), liteRt = get<LiteRtOnDeviceAi>()) }
     // Souhlas Play před instalací runtime: runtime ho ohlásí, dialog ukáže MainActivity.
     single { SplitInstallConfirmations() }
+    // Notifikace stahování modelu (kanál, ikona, texty Plume) pro úlohu ModelDownloadWorker.
+    single<ModelDownloadNotifications> { PlumeModelDownloadNotifications() }
     // Zvlášť, protože ji potřebuje i úloha stahování (ModelDownloadWorker) — stav stahování,
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
     single {
         LiteRtOnDeviceAi(
-            AndroidLiteRtPlatform(androidContext()),
+            // Úloha stahování je podtřída v Plume (jméno si pamatuje WorkManager), zvuk dekóduje
+            // systém přes AudioClips z :client:core (používají ho i hodinky).
+            AndroidLiteRtPlatform(androidContext(), ModelDownloadWorker::class.java, AudioClipDecoder(AudioClips::wavClips)),
             // Každý runtime je vlastní součást z Google Play (client/litertFeature, client/llamacppFeature).
             mapOf(
                 ModelRuntime.LiteRt to PlayLiteRtRuntime(
