@@ -131,6 +131,13 @@ poskytovatelích nemusí vědět nic.
   jen model, zůstávala: na desktopu po smazání E4B a Qwenu 4,5 GB v `ai-cache`, které nikdo
   neuklidí; na Androidu ji časem smaže systém, do té doby se počítá do místa aplikace.
   Engine bez `cacheDir` (sondy) ji ukládá vedle modelu, proto se hledá v obou adresářích.
+  **Keš má i GPU, a vzniká i z NEÚSPĚŠNÉHO pokusu o něj**: `…_mldrift_weight_cache.bin`
+  a `…_mldrift_program_cache.bin` (přípony ověřené řetězci v `liblitertlm_jni.so` 0.19.1, kde
+  je i `_mldrift_compiled_cache.bin`). Na emulátoru bez OpenCL GPU selže a jede se na procesoru,
+  ale keš pro GPU do té doby zapíše (u Qwen3 0.6B 298 MB vah a 4 MB programů, model má
+  343 MB). Dokud se mazala jen `.xnnpack_cache`, zůstávala po smazání modelu v `cacheDir`.
+  Novou verzi LiteRT-LM proto projít `strings … | grep -E '_cache|\.xnnpack'` — další
+  backend znamená další příponu.
 - **Gemmu stahuje úloha WorkManageru, ne korutina v procesu** (`AiModelDownloadWorker`
   v `:client:ai-core`, podtřída `ModelDownloadWorker` v `core/ai`, viz „Modul :client:ai-core"). Dokud stahovala korutina, skončilo stahování se zabitým procesem
   a navázalo až dalším ťuknutím v Nastavení. Stahuje pořád `LiteRtOnDeviceAi` (i s čekáním na
