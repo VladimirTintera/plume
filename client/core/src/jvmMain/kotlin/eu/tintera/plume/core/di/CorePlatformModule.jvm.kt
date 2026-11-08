@@ -8,6 +8,7 @@ import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.secrets.desktopSecretStore
 import eu.tintera.plume.core.secrets.secretService
 import eu.tintera.plume.core.telegram.TelegramPaths
+import org.koin.core.Koin
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -16,7 +17,7 @@ internal actual fun corePlatformModule(): Module = module {
     single { AppForeground() }
 }
 
-internal actual fun accountPlatformModule(slot: AccountSlot): Module = module {
+internal actual fun accountPlatformModule(slot: AccountSlot, global: Koin): Module = module {
     single { TelegramPaths(slot) }
     single<DatabaseKeyStore> {
         object : DatabaseKeyStore, SecretStore by desktopSecretStore(

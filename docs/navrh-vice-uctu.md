@@ -435,7 +435,18 @@ Fáze 0 jde po krocích, každý v aplikaci beze změny chování:
      `accountModule(slot)` (klient, cesty a klíč slotu, session, všechny repository,
      `ConnectionController`, `RevealedSpoilers`, `SelfDestructTimers`). Obě části jsou zatím
      ve stejném, globálním Koinu.
-2. **Kontejner `Accounts`** s izolovaným Koinem pro primární účet a dočasný most z globálního
-   Koinu do něj (dokud routy slot nenesou).
+2. **Kontejner `Accounts`** — hotovo:
+   - `Accounts` a `AccountSession` (`core/accounts`): primární účet má izolovaný kontejner
+     (`koinApplication(createEagerInstances = true)` nad `accountModule`). `Accounts` je
+     v globálním Koinu eager, protože v kontejneru vznikají eager repository.
+   - **Most dovnitř** (`globalBridgeModule`): kontejner účtu globální definice nevidí, takže mu
+     scope aplikace, síť, popředí a mediální vrstvu hovorů podává tenhle modul. Volitelné
+     definice hovorů se přebírají jen, když je aplikace má, jinak by `getOrNull`
+     v `TdlCallRepository` přestal poznat, že hovory nejsou. Na Androidu si část účtu bere
+     `Context` z globálního Koinu, `androidContext()` izolovaný kontejner nemá.
+   - **Most ven** (`accountBridgeModule`, dočasný): všech 52 definic účtu je v globálním Koinu
+     jako `single { primary().get() }`, takže ViewModely, `koinInject` a služby fungují beze
+     změny. `AccountBridgeTest` porovná klíče mapování obou modulů (`Module.mappings`,
+     `@KoinInternalApi`); vynechaný řádek mostu test shodí (ověřeno sondou).
 3. **Keše podle `fileId` mimo repository** do kontejneru účtu.
 4. **Slot v routách, ViewModelech, `LocalAccount` a vstupních bodech**, most pryč.

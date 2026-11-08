@@ -1,11 +1,14 @@
 package eu.tintera.plume.core.di
 
+import eu.tintera.plume.core.accounts.AccountSession
 import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.CallPointerDisplay
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
+import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.telegram.AccountNotices
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.core.telegram.AiTextRepository
@@ -106,8 +109,11 @@ import eu.tintera.plume.core.telegram.WebAppRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import org.koin.core.Koin
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
+import org.koin.core.scope.Scope
+import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 
 /**
@@ -127,12 +133,20 @@ const val APP_SCOPE = "appScope"
  *   aplikace (ntgcalls do `core` nepatří); bez nich `CallRepository.supported` říká, že ne.
  * - **Eager definice (`createdAtStart`) jsou nutnost, ne optimalizace** — viz komentáře u nich
  *   a „Repository seznamu chatů MUSÍ vznikat eagerně" v CLAUDE.md.
- * - **Skládá se z globální části a části účtu** ([coreGlobalModule], [accountModule]), zatím
- *   s jediným, primárním účtem. Hranice mezi nimi je příprava na víc účtů
- *   (`docs/navrh-vice-uctu.md`): část účtu dostane každý účet ve vlastním kontejneru.
+ * - **Skládá se z globální části a kontejnerů účtů** (`docs/navrh-vice-uctu.md`): globální
+ *   část ([coreGlobalModule]) je v tomhle Koinu, část účtu ([accountModule]) v izolovaném
+ *   kontejneru každého účtu ([Accounts]). Zatím je účet jen primární a zbytek aplikace ho
+ *   dostává přes most ([accountBridgeModule]), dokud routy nenesou slot.
  */
 fun coreModule(): Module = module {
-    includes(coreGlobalModule(), accountModule(AccountSlot.Primary))
+    includes(coreGlobalModule(), accountBridgeModule())
+
+    // Eager: v kontejneru účtu vznikají eager repository, které musí odebírat updaty dřív, než
+    // TDLib pošle první dávku (viz `Accounts`).
+    single(createdAtStart = true) {
+        val global = getKoin()
+        Accounts { slot -> koinApplication(createEagerInstances = true) { modules(accountModule(slot, global)) } }
+    }
 }
 
 /**
@@ -148,14 +162,15 @@ internal fun coreGlobalModule(): Module = module {
 
 /**
  * Všechno, co patří jednomu účtu ([slot]): jeho klient TDLib, cesty a klíč databáze, přihlášení
- * a všechny repository. Smí sahat na [coreGlobalModule] (scope aplikace, síť, popředí).
+ * a všechny repository. Žije v izolovaném kontejneru účtu (`Accounts`); z globálního Koinu
+ * ([global]) bere jen to, co mu podá [globalBridgeModule].
  *
  * `ConnectionController` je tady, ne v globální části: typ sítě a příznak online se posílají
  * klientovi TDLib, a ten je u každého účtu jiný. Stejně tak `RevealedSpoilers`
  * a `SelfDestructTimers` — drží id zpráv a souborů, a ta jsou čísla jednoho klienta.
  */
-internal fun accountModule(slot: AccountSlot): Module = module {
-    includes(accountPlatformModule(slot))
+internal fun accountModule(slot: AccountSlot, global: Koin): Module = module {
+    includes(globalBridgeModule(global), accountPlatformModule(slot, global))
 
     // Jeden TDLib klient na účet; sdílí ho session i chat repository.
     single { TelegramClientHolder() }
@@ -345,5 +360,92 @@ internal fun accountModule(slot: AccountSlot): Module = module {
 /** Platformní část [coreGlobalModule]: sledování sítě a popředí. */
 internal expect fun corePlatformModule(): Module
 
-/** Platformní část [accountModule]: cesty TDLib a úložiště klíče databáze účtu [slot]. */
-internal expect fun accountPlatformModule(slot: AccountSlot): Module
+/**
+ * Platformní část [accountModule]: cesty TDLib a úložiště klíče databáze účtu [slot]. Co
+ * potřebuje z platformy (na Androidu `Context`), bere z globálního Koinu ([global]).
+ */
+internal expect fun accountPlatformModule(slot: AccountSlot, global: Koin): Module
+
+/**
+ * Co kontejner účtu bere z globálního Koinu: scope aplikace, síť, popředí a mediální vrstvu
+ * hovorů, kterou registruje aplikace. Izolovaný kontejner globální definice nevidí, takže
+ * každou, kterou [accountModule] potřebuje, musí podat tenhle modul.
+ *
+ * **Volitelné definice hovorů se přebírají jen, když je aplikace má** (`getOrNull` hned při
+ * skládání): definice, která by v kontejneru existovala a vracela chybu, by pokazila
+ * `getOrNull` v `TdlCallRepository`, podle kterého se hovory nabízejí.
+ */
+internal fun globalBridgeModule(global: Koin): Module = module {
+    single(named(APP_SCOPE)) { global.get<CoroutineScope>(named(APP_SCOPE)) }
+    single { global.get<NetworkMonitor>() }
+    single { global.get<AppForeground>() }
+    global.getOrNull<CallMedia>()?.let { media -> single<CallMedia> { media } }
+    global.getOrNull<CallPointerDisplay>()?.let { display -> single<CallPointerDisplay> { display } }
+    global.getOrNull<CallJournal>()?.let { journal -> single { journal } }
+}
+
+/**
+ * **Dočasný most** z globálního Koinu do kontejneru primárního účtu: zbytek aplikace (ViewModely,
+ * `koinInject`, služby) se dnes ptá globálního Koinu a slot zatím nenese. Zmizí, až ho ponesou
+ * routy a vstupní body (návrh, „Účet nese routa", krok 4 v „Postup").
+ *
+ * **Musí zrcadlit VŠECHNY definice [accountModule]** kromě těch z [globalBridgeModule]; chybějící
+ * by se projevila až za běhu („No definition found"). Hlídá to `AccountBridgeTest`.
+ */
+internal fun accountBridgeModule(): Module = module {
+    single<TelegramPaths> { primary().get() }
+    single<DatabaseKeyStore> { primary().get() }
+    single<TelegramClientHolder> { primary().get() }
+    single<TelegramSession> { primary().get() }
+    single<ContactSync> { primary().get() }
+    single<AiTextRepository> { primary().get() }
+    single<LiveUploads> { primary().get() }
+    single<ChatRepository> { primary().get() }
+    single<LiveStoryRepository> { primary().get() }
+    single<VideoChatRepository> { primary().get() }
+    single<StoryRepository> { primary().get() }
+    single<AccountNotices> { primary().get() }
+    single<AutosaveRepository> { primary().get() }
+    single<NotificationSoundRepository> { primary().get() }
+    single<DownloadsRepository> { primary().get() }
+    single<CallRepository> { primary().get() }
+    single<TopicDrafts> { primary().get() }
+    single<ThreadDrafts> { primary().get() }
+    single<ConversationRepository> { primary().get() }
+    single<ForumRepository> { primary().get() }
+    single<SavedTopicsRepository> { primary().get() }
+    single<DirectTopicsRepository> { primary().get() }
+    single<WebAppRepository> { primary().get() }
+    single<FileRepository> { primary().get() }
+    single<NotificationRepository> { primary().get() }
+    single<ConnectionRepository> { primary().get() }
+    single<ConnectionController> { primary().get() }
+    single<StickerRepository> { primary().get() }
+    single<CustomEmojiRepository> { primary().get() }
+    single<GifRepository> { primary().get() }
+    single<PlaceRepository> { primary().get() }
+    single<LiveLocationRepository> { primary().get() }
+    single<EmojiRepository> { primary().get() }
+    single<QuickReaction> { primary().get() }
+    single<InstantViewRepository> { primary().get() }
+    single<RevealedSpoilers> { primary().get() }
+    single<SelfDestructTimers> { primary().get() }
+    single<ProfileRepository> { primary().get() }
+    single<InviteLinkRepository> { primary().get() }
+    single<StatisticsRepository> { primary().get() }
+    single<ChatFolderRepository> { primary().get() }
+    single<NotificationSettingsRepository> { primary().get() }
+    single<SensitiveContentSettings> { primary().get() }
+    single<PrivacyRepository> { primary().get() }
+    single<DefaultAutoDeleteSettings> { primary().get() }
+    single<PasswordRepository> { primary().get() }
+    single<ChatCreation> { primary().get() }
+    single<AccountRepository> { primary().get() }
+    single<ProxyRepository> { primary().get() }
+    single<StorageRepository> { primary().get() }
+    single<AutoDownloadPresets> { primary().get() }
+    single<DeviceRepository> { primary().get() }
+}
+
+/** Kontejner primárního účtu pro [accountBridgeModule]. */
+private fun Scope.primary(): AccountSession = get<Accounts>().primary
