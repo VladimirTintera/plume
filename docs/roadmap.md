@@ -1274,6 +1274,10 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     (co se s nahlášením stane),
   - fáze 2–4 z [navrh-konverzace-s-modelem.md](navrh-konverzace-s-modelem.md): porovnání
     jiným modelem, vlastní pokyny, stavová konverzace s KV keší.
+- **Vlastní model vedle katalogu.** Odkaz na soubor GGUF nebo `.litertlm` na Hugging Face,
+  aplikace ho stáhne a počítá jako modely z katalogu (jen text, ruční přiřazení úloh a hřiště).
+  Návrh, změny v ai-engine, přemýšlení u llama.cpp a fáze:
+  [navrh-vlastni-model.md](navrh-vlastni-model.md).
 - ~~**Strukturovaný výstup jako první krok.**~~ — hotovo pro návrhy odpovědí na Gemini Nano
   (`OnDeviceAi.generateStructured`, ručně psaný `GenerableProvider` bez KSP, náhrada textem;
   `docs/poznatky/ai-v-zarizeni.md`, „Strukturovaný výstup"). Gemma ho nemá, jde dál textem. Zbývá:
