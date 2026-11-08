@@ -361,8 +361,6 @@
     <string name="settings_chat_preview_sample_title">Jane</string>
     <string name="settings_chat_preview_sample_text">I will stop by around ten tomorrow and bring the photos from the trip, along with the map. If anything changes, I will let you know in the morning so you do not have to wait for me.</string>
     <string name="settings_chats">Chat list</string>
-    <string name="settings_separate_unread">Unread in their own block</string>
-    <string name="settings_separate_unread_summary">Unread chats move above the rest. Off, the list keeps the order Telegram sends.</string>
     <string name="media_photo">Photo</string>
     <string name="media_self_destruct_photo">Self-destructing photo</string>
     <string name="media_self_destruct_video">Self-destructing video</string>

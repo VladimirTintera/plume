@@ -372,8 +372,6 @@
     <string name="settings_chat_preview_sample_title">Jana</string>
     <string name="settings_chat_preview_sample_text">Zítra se stavím kolem desáté a vezmu s sebou fotky z výletu i tu mapu. Kdyby se něco změnilo, napíšu ti ještě ráno, ať na mě nečekáš zbytečně.</string>
     <string name="settings_chats">Seznam chatů</string>
-    <string name="settings_separate_unread">Nepřečtené ve vlastním bloku</string>
-    <string name="settings_separate_unread_summary">Nepřečtené chaty se přesunou nad ostatní. Vypnuté drží pořadí, jak ho posílá Telegram.</string>
     <string name="media_photo">Fotka</string>
     <string name="media_self_destruct_photo">Mizející fotka</string>
     <string name="media_self_destruct_video">Mizející video</string>

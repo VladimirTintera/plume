@@ -90,7 +90,6 @@ import eu.tintera.plume.resources.settings_search_kw_text_size
 import eu.tintera.plume.resources.settings_search_kw_theme
 import eu.tintera.plume.resources.settings_search_kw_two_step
 import eu.tintera.plume.resources.settings_sensitive_content
-import eu.tintera.plume.resources.settings_separate_unread
 import eu.tintera.plume.resources.settings_skip_silence
 import eu.tintera.plume.resources.settings_strip_tracking_params
 import eu.tintera.plume.resources.settings_swipe_left
@@ -201,7 +200,6 @@ internal val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = buildList {
     add(SettingsSearchEntry(Res.string.settings_sticker_size, section(appearance), Res.string.settings_search_kw_sticker_size))
     add(SettingsSearchEntry(Res.string.settings_chat_preview_lines, section(appearance), Res.string.settings_search_kw_chat_preview_lines))
     add(SettingsSearchEntry(Res.string.settings_chat_row_gaps, section(appearance), Res.string.settings_search_kw_chat_row_gaps))
-    add(SettingsSearchEntry(Res.string.settings_separate_unread, section(appearance)))
 
     val storage = SettingsSection.Storage
     add(SettingsSearchEntry(Res.string.storage_used, section(storage), Res.string.settings_search_kw_storage))

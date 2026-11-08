@@ -98,7 +98,6 @@ internal fun ChatsSettings(
             supportingContent = { Text(stringResource(Res.string.chat_folders_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenFolders),
         )
-        SeparateUnreadRow(appearance)
         // Akce se nabízejí slovesem, jak je zná nabídka nad chatem; že se u chatu, kde už platí,
         // otočí, říká věta nad nimi — jinak by „Ztlumit" vypadalo, že tahem odtlumit nejde.
         SwipeSide.entries.forEach { side ->

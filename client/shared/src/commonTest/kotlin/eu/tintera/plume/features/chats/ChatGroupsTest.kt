@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
  * Seskupení seznamu chatů.
  *
  * Skupiny nesou zaoblení bloku, takže prázdná skupina by v seznamu nechala mezeru — a právě
- * hraniční kombinace (samé připnuté, žádné nepřečtené, prázdný seznam) se na zařízení poznají
+ * hraniční kombinace (samé připnuté, samé odložené, prázdný seznam) se na zařízení poznají
  * nejhůř.
  */
 class ChatGroupsTest {
@@ -21,16 +21,16 @@ class ChatGroupsTest {
         val saved = 9L
         assertEquals(
             listOf(listOf(2L, 3L)),
-            chatGroups(listOf(chat(2), chat(saved), chat(3)), separateUnread = false, savedMessagesChatId = saved).ids(),
+            chatGroups(listOf(chat(2), chat(saved), chat(3)), savedMessagesChatId = saved).ids(),
         )
         assertEquals(
             listOf(listOf(saved), listOf(2L)),
-            chatGroups(listOf(chat(saved, pinned = true), chat(2)), separateUnread = false, savedMessagesChatId = saved).ids(),
+            chatGroups(listOf(chat(saved, pinned = true), chat(2)), savedMessagesChatId = saved).ids(),
         )
     }
 
     /**
-     * Vynořený odložený chat má vlastní blok nad připnutými — i připnutý, i nepřečtený;
+     * Vynořený odložený chat má vlastní blok nad připnutými — i připnutý;
      * ve dvou skupinách naráz být nesmí.
      */
     @Test
@@ -39,41 +39,23 @@ class ChatGroupsTest {
 
         assertEquals(
             listOf(listOf(2L, 4L), listOf(1L), listOf(3L)),
-            chatGroups(chats, separateUnread = true, due = setOf(2L, 4L)).ids(),
+            chatGroups(chats, due = setOf(2L, 4L)).ids(),
         )
         // Odložený chat, který v seznamu není (jiná složka), blok nezaloží.
         assertEquals(
             listOf(listOf(1L, 4L), listOf(2L, 3L)),
-            chatGroups(chats, separateUnread = false, due = setOf(99L)).ids(),
+            chatGroups(chats, due = setOf(99L)).ids(),
         )
     }
 
+    /** Nepřečtené vlastní blok nemají: zůstávají mezi ostatními tam, kde je má TDLib. */
     @Test
-    fun bezVycleneniJsouPripnuteAOstatni() {
-        val chats = listOf(chat(1, pinned = true), chat(2, unread = 3), chat(3))
+    fun pripnuteAOstatniNeprecteneBezVlastnihoBloku() {
+        val chats = listOf(chat(1, pinned = true, unread = 5), chat(2, unread = 3), chat(3), chat(4, unread = 1))
 
-        val groups = chatGroups(chats, separateUnread = false)
+        val groups = chatGroups(chats)
 
-        assertEquals(listOf(listOf(1L), listOf(2L, 3L)), groups.ids())
-    }
-
-    @Test
-    fun sVyclenenimJsouTriSkupiny() {
-        val chats = listOf(chat(1, pinned = true), chat(2, unread = 3), chat(3))
-
-        val groups = chatGroups(chats, separateUnread = true)
-
-        assertEquals(listOf(listOf(1L), listOf(2L), listOf(3L)), groups.ids())
-    }
-
-    /** Připnutý chat patří mezi připnuté, i když je nepřečtený — jinak by byl ve dvou skupinách. */
-    @Test
-    fun pripnuteNepadajiMeziNeprectene() {
-        val chats = listOf(chat(1, pinned = true, unread = 5), chat(2, unread = 1))
-
-        val groups = chatGroups(chats, separateUnread = true)
-
-        assertEquals(listOf(listOf(1L), listOf(2L)), groups.ids())
+        assertEquals(listOf(listOf(1L), listOf(2L, 3L, 4L)), groups.ids())
     }
 
     /** Prázdná skupina by v seznamu nechala mezeru po ničem. */
@@ -81,13 +63,12 @@ class ChatGroupsTest {
     fun prazdneSkupinyVypadnou() {
         val chats = listOf(chat(1), chat(2))
 
-        assertEquals(listOf(listOf(1L, 2L)), chatGroups(chats, separateUnread = true).ids())
-        assertEquals(listOf(listOf(1L, 2L)), chatGroups(chats, separateUnread = false).ids())
+        assertEquals(listOf(listOf(1L, 2L)), chatGroups(chats).ids())
     }
 
     @Test
     fun prazdnySeznamNemaSkupiny() {
-        assertEquals(emptyList<List<Long>>(), chatGroups(emptyList(), separateUnread = true).ids())
+        assertEquals(emptyList<List<Long>>(), chatGroups(emptyList()).ids())
     }
 
     /** Uvnitř skupiny se nic nepřeskládává — pořadí je to od TDLib. */
@@ -95,7 +76,7 @@ class ChatGroupsTest {
     fun poradiUvnitrSkupinyZustava() {
         val chats = listOf(chat(3, unread = 1), chat(1, unread = 2), chat(2, unread = 1))
 
-        val groups = chatGroups(chats, separateUnread = true)
+        val groups = chatGroups(chats)
 
         assertEquals(listOf(listOf(3L, 1L, 2L)), groups.ids())
     }
@@ -109,7 +90,7 @@ class ChatGroupsTest {
         val rest = chat(2)
         assertEquals(
             listOf(listOf(sponsored), listOf(pinned), listOf(rest)),
-            chatGroups(listOf(pinned, sponsored, rest), separateUnread = false),
+            chatGroups(listOf(pinned, sponsored, rest)),
         )
     }
 

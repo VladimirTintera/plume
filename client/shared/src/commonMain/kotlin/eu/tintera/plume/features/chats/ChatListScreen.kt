@@ -948,7 +948,6 @@ internal fun ChatListContent(
     val storyRings by viewModel.storyRings.collectAsStateWithLifecycle()
     // Start je hotový, až seznam ukazuje chaty (nebo že žádné nejsou), ne s prvním snímkem.
     ReportDrawnWhen { state !is ChatListState.Loading }
-    val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val rowGaps = LocalChatRowGaps.current
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val swipeActions by viewModel.swipeActions.collectAsStateWithLifecycle()
@@ -995,8 +994,8 @@ internal fun ChatListContent(
     val awaitingReply by viewModel.awaitingReply.collectAsStateWithLifecycle()
     val chatAccents = rememberChatAccents(chatColors.values.toSet())
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
-        remember(chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due) {
-            chatGroups(chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due)
+        remember(chats, hiddenSavedMessagesChatId, snoozes.due) {
+            chatGroups(chats, hiddenSavedMessagesChatId, snoozes.due)
         }
     }.orEmpty()
 

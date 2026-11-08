@@ -257,8 +257,8 @@ jednomu účtu podle řádku.
 - **Archiv** v režimu Vše slučuje archivy všech účtů stejným pravidlem.
 - **„Čeká na odpověď" a odložené chaty** fungují nad sloučeným seznamem beze změny: pracují
   s řádky a každý řádek ví, čí je. **Blok nepřečtených** (`separate_unread_chats`) se nebude
-  řešit: je to nadstandard proti Telegramu a z aplikace zmizí samostatnou změnou ještě před
-  víc účty.
+  řešit: byl to nadstandard proti Telegramu a z aplikace zmizel ještě před víc účty
+  (`docs/poznatky/seznam-chatu.md`, „Blok nepřečtených zmizel").
 - **Výběr víc chatů** (archivovat, přečíst, ztlumit) smí míchat účty. Akce se rozdělí podle
   slotu řádků.
 - **Hledání** v režimu Vše hledá ve všech účtech a výsledky označí účtem. Globální hledání
@@ -413,7 +413,7 @@ intenty, zástupci a připomenutí fungují dál.
 - **Připnuté chaty všech účtů jsou nahoře i v režimu Vše.**
 - **Odznak nepřečtených na ikoně aplikace je součet všech účtů**, nezávisle na filtru.
 - **Chování seznamu a konverzace je společné** pro všechny účty. Blok nepřečtených
-  (`separate_unread_chats`) z aplikace zmizí samostatnou změnou.
+  (`separate_unread_chats`) z aplikace zmizel.
 
 ## Zbývá ověřit
 
