@@ -3,9 +3,24 @@
 > **Stav:** návrh, nic z toho není postavené. Vychází z kódu po #1166. Na roadmapě to stálo jako
 > „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
-Víc přihlášených účtů Telegramu v jedné aplikaci, jako v oficiálních klientech. Jeden účet je
-**aktivní** (ten na obrazovce), ostatní běží na pozadí: chodí z nich notifikace a vidět je jejich
-počet nepřečtených.
+Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
+žádný účet „aktivní":** seznam chatů umí ukázat chaty všech účtů najednou a filtr nad ním
+zúží pohled na jeden účet, na druhý, nebo nechá všechny. Notifikace chodí ze všech účtů
+pořád.
+
+**Jak to mají jiní** (stav 11/2026):
+- **Telegram pro Android a iOS** má víc účtů od roku 2017, přepíná je v bočním menu
+  a notifikace pouští ze všech účtů (výchozí volba).
+- **Telegram Desktop** má tři účty, s Premium čtyři. Od verze 4.6.3 umí otevřít další účet
+  v samostatném okně.
+- **Společný seznam chatů** z víc účtů žádný oficiální klient nemá. Nabízejí ho jen placené
+  nástroje pro firemní podporu nad API. Mimo Telegram je to běžné u e-mailu (společná
+  schránka).
+
+**Zvážená a zamítnutá varianta: jeden aktivní účet a přepínání**, jak to dělají oficiální
+klienti. Byla by levnější: ViewModely a routy by se neměnily, přepnutí by zahodilo celé UI.
+Zamítnutá je, protože nedovolí vidět všechno najednou. Navíc stojí na skrytém přesměrování
+„na aktivní účet", ve kterém se po chybě vrátí cizí účet a nic nespadne.
 
 ## Co umí TDLib
 
@@ -97,10 +112,10 @@ na účet ptá jeho prostřednictvím.
 
 ```kotlin
 class Accounts {
-    val all: StateFlow<List<AccountSession>>   // pořadí v menu účtu
-    val active: StateFlow<AccountSession?>     // null = žádný přihlášený
+    val all: StateFlow<List<AccountSession>>   // přihlášené účty v pořadí uživatele
+    val default: StateFlow<AccountSlot?>       // pro akce bez zdroje (nová zpráva, odkaz); null = nikdo
+    operator fun get(slot: AccountSlot): AccountSession
     fun add(): AccountSession                  // nový slot, přihlašovací obrazovka
-    fun switchTo(slot: AccountSlot)
     suspend fun remove(slot: AccountSlot)      // po odhlášení: kontejner zavřít, slot uklidit
 }
 
@@ -116,11 +131,10 @@ class AccountSession(val slot: AccountSlot, private val koin: KoinApplication) {
   (ověřeno `javap`), takže `createdAtStart` funguje i v izolovaném kontejneru. Na tom závisí
   odběr updatů: seznam chatů musí vzniknout dřív, než TDLib pošle první dávku.
 - **Proč ne Koin scopes:**
-  - Kdo chce instanci ze scope, musí scope znát, takže by se přes něj musel ptát každý
-    ViewModel a obrazovka.
-  - Splete-li se scope, vrátí se instance cizího účtu bez chyby. To je stejná past jako
-    ViewModel bez klíče s id chatu.
-  - `createdAtStart` ve scope nefunguje.
+  - `createdAtStart` ve scope nefunguje, a na něm stojí sklad stavu účtu (viz „Co musí žít
+    s účtem").
+  - Scope je uvnitř globálního Koinu, takže `get()` bez scope tiše vrátí globální instanci,
+    nebo spadne až za běhu. Izolovaný kontejner globální definice účtu vůbec nemá.
   - Scopes jsou stavěné na krátké životní cykly (obrazovka, tok). Účet je celý obsahový
     kontext, který žije, dokud je přihlášený.
 - **Proč ne ruční skládání:** 48 tříd s konstruktory, které se mění. Modul Koinu je už napsaný
@@ -134,28 +148,42 @@ class AccountSession(val slot: AccountSlot, private val koin: KoinApplication) {
     dnes visí mimo repository (`RevealedSpoilers`, `SelfDestructTimers`, `knownPaths`), se
     přesunou do kontejneru, nebo dostanou slot do klíče.
 
-### Dva druhy spotřebitelů
+### Účet nese routa
 
-1. **UI aktivního účtu.** ViewModely dál dostávají `ChatRepository` a ostatní z globálního
-   Koinu. Globální definice se jen přesměrují na aktivní účet:
-   `factory<ChatRepository> { get<Accounts>().requireActive().get() }`.
-   - **Přepnutí účtu zahodí celý strom obrazovek** včetně ViewModelů a zásobníků navigace:
-     kořen kompozice za přihlášením má jako klíč slot (`key(slot) { … }`). Takhle se chovají
-     i oficiální aplikace a ViewModely ani routy se nemusí měnit. Routa s holým `chatId` je
-     v pořádku, protože zásobník patří jednomu účtu.
-   - **Uložený stav navigace** (`rememberNavBackStack`) se ukládá pod slot, aby se po zabití
-     procesu neotevřel chat v jiném účtu.
-   - **Past:** ViewModel nebo singleton, který si repository zachytí do `val` a přežije
-     přepnutí, by dál mluvil se starým účtem. ViewModely to nehrozí, protože se zahodí se
-     stromem. Globální singletony v `appModule()` (`NotificationActions`, `ChatSwitcher`,
-     `ShareTargets`, `MusicQueue`…) je potřeba projít jeden po druhém: buď přejdou do kontejneru
-     účtu, nebo začnou pracovat se slotem výslovně.
-2. **Věci přes všechny účty** pracují s `accounts.all` a slot nesou výslovně:
-   - notifikace a směrování pushů,
-   - odznak nepřečtených a tečka u jiného účtu v pilulce,
-   - widget, cíle sdílení a menu účtu,
-   - hovory: jeden hovor naráz přes všechny účty, příchozí do jiného účtu během hovoru je
-     „obsazeno".
+**V globálním Koinu žádné repository účtu nejsou.** Kdo s účtem pracuje, má jeho slot
+výslovně: routa, položka seznamu, extra v intentu. Globální přesměrování „na aktivní účet"
+neexistuje, takže se nedá splést potichu: bez slotu se repository vůbec nedostane.
+
+- **Každá routa s obsahem účtu má `slot`** (`ConversationRoute(slot, chatId)`,
+  `ChatProfileRoute(slot, chatId)`, `AccountSettingsRoute(slot)`…). Dnes je v `Routes.kt`
+  48 rout s parametry, a ty s id chatu, uživatele, zprávy nebo souboru dostanou slot všechny.
+  Serializace (`NavSavedStateConfiguration`) ho uloží, takže chat po zabití procesu otevře
+  správný účet.
+- **ViewModel dostane repository z účtu své routy.** Definice v Koinu zůstanou globální
+  (ViewModel je věc obrazovky), jen repository berou ze slotu:
+  `viewModel { (route: ConversationRoute) -> ConversationViewModel(accounts[route.slot].get(), …) }`.
+  Na 91 definic `viewModel` v `AppModule` se vyplatí malý pomocník (`accountViewModel { account, params -> … }`),
+  ať se slot nevytahuje ručně. **Klíč ViewModelu obsahuje slot** (`conversation-$slot-$chatId`),
+  jinak by dva účty se stejným id chatu sdílely ViewModel (viz CLAUDE.md o klíči ViewModelu).
+- **`LocalAccount` pro composables.** Dekorátor položky `NavDisplay` ho nastaví ze slotu
+  routy. Composables, které si dnes berou repository samy (`RemoteImage` přes
+  `FileRepository`, avatary, vlastní emoji; `koinInject` je dnes ve sdíleném UI na 104
+  místech), ho čtou z `LocalAccount`. Ve společném seznamu ho
+  nastavuje každý řádek zvlášť, protože řádky jsou z různých účtů. **Bez `LocalAccount` je to
+  chyba** (`error()` v `current`), ne tichý návrat k výchozímu účtu.
+- **Globální singletony v `appModule()` se projdou jeden po druhém.** Ty, které drží stav účtu
+  (`ChatSwitcher`, `PendingChatDeletes`, `LoadedHistory`, `MessageContexts`…), přejdou do
+  kontejneru účtu. Ty, které jsou opravdu globální (`MusicQueue`: hraje jedna skladba, ať je
+  z kteréhokoli účtu), nesou slot u každé položky.
+- **Věci přes všechny účty** pracují s `accounts.all`:
+  - notifikace a směrování pushů,
+  - společný seznam chatů, odznak nepřečtených, widget a cíle sdílení,
+  - hovory: jeden hovor naráz přes všechny účty, příchozí do jiného účtu během hovoru je
+    „obsazeno".
+
+**Cena:** projít všechny ViewModely a routy s id. Je to mechanická práce a překladač ji
+vede. Když dostane routa povinný parametr `slot`, chyba překladu ukáže každé místo, které ji
+staví (stejný postup jako přejmenování `ChatMessage.text` u `UiText`).
 
 ## Co musí žít s účtem a co s obrazovkou
 
@@ -170,7 +198,7 @@ mají konkrétní důvod. Repository jsou trojího druhu:
      (CLAUDE.md, „Repository seznamu chatů MUSÍ vznikat eagerně"). Tyhle odběry proto nesmí
      záviset na routě. Musí běžet, dokud běží klient.
    - **Část jich pracuje bez obrazovky:** notifikace, příchozí hovor, widget, odznak
-     nepřečtených. U účtu na pozadí žádná obrazovka není nikdy.
+     nepřečtených. Účet mimo filtr seznamu chatů nemá na obrazovce nic, a notifikace z něj chodit musí.
 2. **Brána bez stavu** (statistiky, pozvánky, profil, nálepky…): požadavky na TDLib a studené
    toky přes `holder.updates`. **Odběr vzniká, až když ho sbírá ViewModel**, a končí s ním,
    takže už dnes se řídí routou. Že je instance `single`, nestojí skoro nic. Na délce života
@@ -196,14 +224,49 @@ mohly žít s obrazovkou. To je ale optimalizace paměti nezávislá na víc ú�
 - **Stejný účet dvakrát:**
   - U QR kódu to zastaví TDLib (`other_user_ids`).
   - U přihlášení číslem se to pozná až v `Ready`: user id se shoduje s jiným slotem. Nový slot
-    se pak odhlásí, aplikace přepne na existující účet a řekne proč.
+    se pak odhlásí a aplikace řekne, že ten účet už přihlášený je.
 - **Odhlášení jednoho účtu:**
   1. TDLib smaže data.
   2. Kontejner se zavře (`close()`).
   3. Smaže se adresář slotu, klíč a jeho kanály, zástupci a notifikace.
-  4. Aktivní je další účet.
+  4. Ze zásobníků navigace zmizí routy s jeho slotem. Byl-li výchozí, výchozím se stane
+     první zbylý.
   
   Přihlašovací obrazovka přijde až po odhlášení posledního účtu.
+
+## Společný seznam chatů
+
+Seznam chatů je jediná obrazovka, která míchá účty. Všechno, co se z ní otevře, už patří
+jednomu účtu podle řádku.
+
+- **Filtr účtů** nad seznamem: čipy s fotkou účtu (jeden, druhý…) a „Vše". Ukazuje se jen
+  s víc než jedním účtem. Volba se pamatuje (`AppSettings`, množina slotů).
+- **Řádek nese účet:** malá fotka účtu u avataru chatu (jako odznak), jen v režimu víc účtů.
+  Barva účtu by se pletla s barvami chatů (`ChatColors`), proto fotka.
+- **Stejný chat ve dvou účtech se ukáže dvakrát.** Společná skupina, nebo chat s Petrem
+  z obou účtů. Sloučit je nejde: mají jiný stav přečtení, jinou historii a u starých skupin
+  i jiná id zpráv. Odznak účtu je rozliší.
+- **Řazení podle data poslední zprávy.** `ChatPosition.order` z TDLib je číslo uvnitř jednoho
+  účtu a mezi účty se porovnat nedá.
+- **Připnuté chaty** v režimu Vše: napřed připnuté všech účtů (podle pořadí účtů a uvnitř
+  účtu podle TDLib), pak ostatní podle data. Alternativa je v režimu Vše nepřipínat
+  (otevřená otázka).
+- **Složky patří účtu** (jsou na serveru). Pilulky složek se ukazují, jen když filtr vybírá
+  jeden účet. V režimu Vše je hlavní seznam a archiv. Spojovat složky podle názvu by bylo
+  křehké.
+- **Archiv** v režimu Vše slučuje archivy všech účtů stejným pravidlem.
+- **Blok nepřečtených** (`separate_unread_chats`), „čeká na odpověď" a odložené chaty fungují
+  nad sloučeným seznamem beze změny: pracují s řádky a každý řádek ví, čí je.
+- **Výběr víc chatů** (archivovat, přečíst, ztlumit) smí míchat účty. Akce se rozdělí podle
+  slotu řádků.
+- **Hledání** v režimu Vše hledá ve všech účtech a výsledky označí účtem. Globální hledání
+  (veřejné chaty) a hledání zpráv přes server se pustí za každý účet zvlášť a výsledky se
+  slijí. Veřejný chat nalezený oběma účty se ukáže jednou, s výchozím účtem.
+- **Co nemá zdroj v řádku**, bere výchozí účet a dovolí ho změnit:
+  - nová zpráva a kontakty (výběr účtu nahoře, předvolený výchozí),
+  - Uložené zprávy, Moje příběhy, hovory a stahování v menu účtu (po účtech),
+  - hromádka příběhů v pilulce hledání (příběhy všech účtů ve filtru, odesílatel zná slot).
+- **Rychlý přepínač chatů** (`ChatSwitcher`) nese slot u každé položky.
 
 ## Notifikace
 
@@ -240,28 +303,38 @@ mohly žít s obrazovkou. To je ale optimalizace paměti nezávislá na víc ú�
 intenty, zástupci a připomenutí fungují dál.
 
 - **Intent extra** `eu.tintera.plume.extra.ACCOUNT` vedle `CHAT_ID`. `ChatOpenRequests`
-  a `ShareRequests` nesou slot. Je-li to jiný než aktivní účet, shell nejdřív přepne a pak
-  otevře chat.
-- **Zástupci Direct Share a připnutí** `chat_<slot>_<chatId>`, slot `0` beze změny. Navrhuje se
-  jen aktivní účet. Připnutí na plochu je vázané na účet a po jeho odhlášení se zakáže
-  (`disableShortcuts`), ne jen vynechá.
-- **Widget** v první fázi ukazuje aktivní účet. Volba účtu u widgetu (konfigurace) je fáze 2.
-  Avatary dostanou slot do jména souboru, protože `fileId` je číslo klienta.
-- **Odkazy `tg://` a `t.me`** otevře aktivní účet. Volba účtu u odkazu (pozvánka, přihlášení na
-  webu) může přijít později, pokud bude chybět.
+  a `ShareRequests` nesou slot a shell otevře routu s ním. Nic se nepřepíná.
+- **Zástupci Direct Share a připnutí** `chat_<slot>_<chatId>`, slot `0` beze změny. Navrhují
+  se chaty všech účtů a název zástupce nese jméno účtu, když je jich víc. Připnutí na plochu
+  je vázané na účet a po jeho odhlášení se zakáže (`disableShortcuts`), ne jen vynechá.
+- **Sdílení do aplikace** („Komu: …") ukáže společný seznam s odznakem účtu. Odešle se z účtu
+  vybraného chatu.
+- **Widget** ukazuje chaty podle filtru ze seznamu chatů. Volba účtů přímo u widgetu
+  (konfigurace) je fáze 2. Avatary dostanou slot do jména souboru, protože `fileId` je číslo
+  klienta.
+- **Odkazy `tg://` a `t.me`** otevře výchozí účet. Pozvánka do skupiny a přihlášení na webu
+  se s víc účty zeptají, kterým účtem (výchozí předvolený), protože tam na účtu záleží.
 - **Připomenutí odloženého chatu a bublina** nesou slot jako ostatní.
 
 ## UI
 
-- **Menu účtu** (pilulka s fotkou): nahoře přihlášené účty s tečkou nebo počtem nepřečtených,
-  ťuknutí přepne. Pod nimi „Přidat účet". Zkratka podržením fotky v pilulce (přepnout na další
-  účet) je možnost, ne podmínka.
+- **Menu účtu** (pilulka s fotkou): nahoře přihlášené účty s počtem nepřečtených. Ťuknutí na
+  účet nastaví filtr seznamu na něj (stejně jako čip nad seznamem). Pod nimi „Přidat účet"
+  a položky, které patří účtu (Uložené zprávy, Archiv, Hovory…), za výchozí účet nebo za účet
+  ve filtru, když je jeden.
+- **Fotka v pilulce** je fotka výchozího účtu, v režimu Vše s malou druhou fotkou za ní.
 - **Přidat účet** otevře přihlašovací obrazovku s tlačítkem zpět (dnes ho nemá, protože se z ní
   nebylo kam vrátit).
-- **Nastavení:** karta účtu patří aktivnímu účtu. Odhlášení odhlásí jen jeho a věta v dialogu
-  řekne, na který účet se přepne.
-- **Přepnutí** je prolnutí celé obrazovky (`AppMotion`), ne posun. Je to jiný obsah, ne
-  navigace.
+- **Hlavička konverzace** ukáže, kterým účtem píšeš, když je účtů víc (podtitul nebo fotka
+  účtu u vstupního pole). Bez toho se snadno odpoví ze špatného účtu ve skupině, kde jsou
+  oba.
+- **Nastavení:**
+  - Nahoře karty přihlášených účtů. Každá otevře nastavení toho účtu: profil, soukromí,
+    notifikace (rozsahy a výjimky jsou na serveru), zařízení, složky, blokovaní, úložiště
+    databáze a odhlášení.
+  - Pod nimi nastavení aplikace (vzhled, jazyk, AI v zařízení, zámek, tiché hodiny), společné
+    pro všechny účty.
+  - „Výchozí účet" jako volba v nastavení aplikace.
 
 ## Nastavení (`AppSettings`)
 
@@ -287,31 +360,41 @@ intenty, zástupci a připomenutí fungují dál.
 - **Každý účet je živý klient TDLib:** vlastní spojení, vlastní databáze a vlastní vlákno pro
   síť. Paměť i baterie rostou s počtem účtů. Kolik přesně, je potřeba změřit (heap dump
   a `dumpsys meminfo` s jedním a třemi účty, viz `docs/poznatky/vykon.md`).
-- **Online je jen aktivní účet** (volba `online`). Typ sítě (`setNetworkType`) dostávají všechny.
-  Při přihlášení nového klienta se pošle hned, ne až s další změnou sítě: tahle mezera je
-  i dnes po `recreate()`.
-- **Účet na pozadí nepotřebuje repository UI.** Stačí mu session, notifikace, počty
-  nepřečtených a hovory. Šetřit by šlo tak, že se zbytek vyrobí líně až při přepnutí. Napřed
-  ale měřit, ne předpokládat.
+- **Online (volba `online`) mají v popředí všechny účty ve filtru.** Uživatel jejich chaty
+  vidí, takže je online i pro protějšky. Účet mimo filtr online není. Typ sítě
+  (`setNetworkType`) dostávají všechny. Při přihlášení nového klienta se pošle hned, ne až
+  s další změnou sítě: tahle mezera je i dnes po `recreate()`.
+- **Všechny účty drží sklad stavu** (seznam chatů, soubory, notifikace, hovory), protože
+  společný seznam a notifikace ho potřebují pořád. Brány bez stavu nestojí nic, dokud je
+  neodebírá obrazovka. Úspora líným vytvářením tedy skoro není; napřed změřit, kolik stojí
+  jeden klient TDLib s velkým účtem.
 
 ## Fáze
 
-0. **Kontejner s jedním účtem, bez změny chování.** `Accounts`, rozdělení `coreModule()`,
-   globální definice přes aktivní účet, keše podle `fileId` do kontejneru, slot `0` na dnešních
-   cestách. Aplikace se chová stejně. Ověří se tím, že nikde nezůstal zachycený singleton.
+0. **Kontejner a slot v routách, s jedním účtem, bez změny chování:**
+   - `Accounts` a rozdělení `coreModule()` na globální a účetní část,
+   - slot v routách, ViewModelech, `LocalAccount` a ve vstupních bodech,
+   - keše podle `fileId` do kontejneru,
+   - slot `0` na dnešních cestách.
+   
+   Aplikace se chová stejně. Je to největší kus práce a ověří, že žádné repository nejde
+   dostat bez slotu.
 1. **Druhý účet na Androidu a desktopu:**
-   - přidání, přepnutí a odhlášení jednoho účtu,
-   - směrování pushů, tagy notifikací, slot ve vstupních bodech a v akcích z notifikací,
-   - widget a cíle sdílení pro aktivní účet,
+   - přidání a odhlášení jednoho účtu, výchozí účet,
+   - společný seznam s filtrem účtů a odznakem účtu u řádku,
+   - směrování pushů, tagy notifikací, slot v akcích z notifikací,
+   - nastavení po účtech, účet v hlavičce konverzace,
+   - widget a cíle sdílení přes všechny účty,
    - limit počtu účtů.
 2. **iOS** (rozšíření pro notifikace a sdílení, App Group po slotech, odznak jako součet),
-   volba účtu u widgetu a nastavení chování po účtech, pokud bude chtěné.
+   volba účtů u widgetu, sloučené hledání zpráv přes server.
 3. **Hodinky:** výběr účtu při přihlášení hodinek. Hodinky samy zůstanou na jednom účtu.
 
 ## Otevřené otázky
 
 - **Limit počtu účtů.** Navrhuju tři jako výchozí, podle změřené paměti.
+- **Připnuté chaty v režimu Vše:** připnuté všech účtů nahoře, nebo v režimu Vše nepřipínat?
 - **Nese APNs payload příjemce?** Bez toho iOS notifikaci k účtu nepřiřadí (fáze 2).
-- **Odznak nepřečtených na ikoně aplikace:** součet přes účty, nebo jen aktivní? Navrhuju
-  součet.
+- **Odznak nepřečtených na ikoně aplikace:** součet přes účty, nebo jen účty ve filtru?
+  Navrhuju součet všech.
 - **Nastavení chování po účtech** (seznam chatů, rychlá reakce): stačí globálně?
