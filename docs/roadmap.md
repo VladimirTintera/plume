@@ -1232,9 +1232,6 @@ repozitáře ai-engine; tady zůstávají ty, které sahají i do Plume:
   náhrad v `supportedModels`.
 - **Testy ai-core i na Android hostu** (v ai-engine) — dnes `jvmTest`; `LiteRtOnDeviceAi` je
   sdílený s Androidem, ale `MlKitOnDeviceAi` a úloha stahování testy nemají ani předtím neměly.
-- **AGP 9.5.0 kvůli grocery.** grocery (druhý uživatel knihovny) má AGP 9.5.0 a Gradle 9.7.0,
-  Plume a ai-engine 9.2.1 a 9.5.0; v jednom buildu dvě verze AGP být nesmí, takže před zapojením
-  do grocery se Plume i ai-engine zvednou spolu.
 
 ### Co zbývá u toho, co běží
 

@@ -40,6 +40,10 @@ moduly mají souřadnice `eu.tintera.ai:<modul>` a Gradle je za ně dosadí sám
 - **AGP, Kotlin a Gradle musí být v ai-engine a v Plume STEJNÉ** (jeden build neunese dvě verze
   AGP). Bump se dělá v obou naráz — a protože knihovnu bere i grocery, tak i tam. Stejně
   `ndk` a `cmake`: Plume je potřebuje kvůli ořezu knihoven v `llamacppFeature` a instalaci SDK na CI.
+  **AGP kontroluje minimální Gradle už při konfiguraci** (AGP 9.5 chce 9.6+), takže po zvednutí AGP
+  `./gradlew wrapper` na starém Gradlu nedoběhne: napřed ručně `distributionUrl` v
+  `gradle-wrapper.properties`, teprve pak `./gradlew wrapper --gradle-version <ver> --distribution-type bin`,
+  které obnoví i jar a skripty.
 - **Kořen ai-engine se nejmenuje `ai-engine`** (`rootProject.name = "ai-engine-root"`). Feature
   preview `TYPESAFE_PROJECT_ACCESSORS` z Plume platí pro celý strom buildů, tedy i pro included
   build, a accessor kořene se jmenuje po něm — `getAiEngine()` se srazil s modulem `:ai-engine`

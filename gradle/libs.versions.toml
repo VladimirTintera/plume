@@ -8,7 +8,7 @@ android-targetSdk = "37"
 # NDK r28+ zarovnává knihovny na 16KB stránky, které Play vyžaduje; CMake z SDK (verze, kterou má SDK Manager).
 ndk = "29.0.13846066"
 cmake = "3.31.0"
-agp = "9.2.1"
+agp = "9.5.0"
 
 # Kotlin — 2.4.21 je VYNUCENÁ hodnota, ne volba. `dev.g000sha256:tdl-coroutines:17.0.0` je
 # publikovaný z Kotlinu 2.4.21 a jeho iOS klib se starším kompilátorem nenačte. Při bumpu TDLib
