@@ -46,6 +46,7 @@ import coil3.request.ImageRequest
 import coil3.size.Size
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.core.telegram.KnownImagePaths
 import eu.tintera.plume.core.telegram.Minithumbnail
 import kotlinx.coroutines.flow.flowOf
 import org.koin.compose.koinInject
@@ -94,6 +95,7 @@ fun RemoteImage(
     val state = rememberFileState(fileId, download)
     val thumbnailState = rememberFileState(thumbnailFileId, download)
 
+    val knownPaths = koinInject<KnownImagePaths>()
     val readyPath = (state as? FileState.Ready)?.path
     val thumbnailPath = (thumbnailState as? FileState.Ready)?.path
 
@@ -103,7 +105,8 @@ fun RemoteImage(
     }
 
     // Dokud není ostrá verze, kreslí se náhled. Jakmile dorazí, Crossfade je prolne.
-    // Poslední známá cesta je až poslední záloha — pokryje ten jeden snímek, než odpoví flow.
+    // Poslední známá cesta (KnownImagePaths) je až poslední záloha — pokryje ten jeden snímek,
+    // než odpoví flow.
     val path = readyPath
         ?: thumbnailPath
         ?: knownPaths[fileId]
@@ -297,22 +300,3 @@ fun rememberFileState(fileId: Int?, download: Boolean = true): FileState {
     val state by flow.collectAsStateWithLifecycle(initialValue = FileState.Pending)
     return state
 }
-
-/**
- * Poslední známá cesta k souboru.
- *
- * [rememberFileState] startuje vždycky na [FileState.Pending] — flow odpovídá až z korutiny, takže
- * každý nově složený [RemoteImage] proletí aspoň jedním snímkem bez obrázku. U sdíleného prvku ze
- * seznamu do konverzace je to vidět: avatar odletí jako prázdný kruh a obrázek naskočí až na místě.
- *
- * Mapa se čte i zapisuje výhradně z kompozice (hlavní vlákno), takže nepotřebuje zámek. Cesty
- * v TDLib jednou hotovému souboru nemizí, takže se za běhu nic nezneplatňuje; roste to o jeden
- * krátký řetězec na zobrazený soubor. Výjimka je odhlášení, viz [forgetKnownImagePaths].
- */
-private val knownPaths = mutableMapOf<Int, String>()
-
-/**
- * Zahodí známé cesty. `fileId` platí jen v rámci jedné databáze TDLib — po odhlášení a přihlášení
- * by pod stejným id visel soubor předchozího účtu. Volat z kompozice (kvůli vláknu).
- */
-fun forgetKnownImagePaths() = knownPaths.clear()

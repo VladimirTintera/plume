@@ -133,8 +133,10 @@ private val parsing = Semaphore(PARALLEL_PARSES)
 private val stickerCompositions = LottieCompositionCache(STICKER_CACHE_SIZE)
 
 /**
- * Zahodí rozparsované animace. Klíčem je cesta k souboru a nový účet má vlastní databázi TDLib,
- * kde pod stejnou cestou může ležet jiná samolepka — stejný důvod jako u [forgetKnownImagePaths].
+ * Zahodí rozparsované animace. Klíčem je cesta k souboru a účet přihlášený po odhlášení má
+ * vlastní databázi TDLib ve stejném adresáři, kde pod stejnou cestou může ležet jiná samolepka.
+ * Mezi současně přihlášenými účty klíče kolidovat nemůžou: každý má vlastní adresář souborů
+ * (`AccountSlot.directory`), takže keš může zůstat společná.
  */
 suspend fun forgetStickerAnimations() = stickerCompositions.clear()
 

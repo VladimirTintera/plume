@@ -69,6 +69,7 @@ tdl-coroutines 15.0.0. Projekt jede na 17.0.0, ale engine má stejnou stavbu.
     takže by se obrázky a stavy promíchaly.
   - Dnes to nevadí jen proto, že se část keší maže při odhlášení. Ostatní (obrysy samolepek,
     odesílatelé) by po přihlášení jiného účtu vracely data předchozího už teď.
+  - Vyřešeno ve fázi 0 (krok 3 v „Postup").
 
 ### Aplikace (`:client:shared`, vstupní body)
 
@@ -144,9 +145,8 @@ class AccountSession(val slot: AccountSlot, private val koin: KoinApplication) {
     platformní bezpečné úložiště a `TdlibJsonRepair` (je pro celý proces, hook vidí odpovědi
     všech klientů).
   - **Účetní** (`accountModule(slot)`): holder, `TelegramPaths` slotu, klíč databáze slotu,
-    session a všechny repository. Sem patří i keše podle `fileId` z předchozí kapitoly. Ty, které
-    dnes visí mimo repository (`RevealedSpoilers`, `SelfDestructTimers`, `knownPaths`), se
-    přesunou do kontejneru, nebo dostanou slot do klíče.
+    session a všechny repository. Sem patří i keše podle `fileId` z předchozí kapitoly
+    (`RevealedSpoilers`, `SelfDestructTimers`, `KnownImagePaths`).
 
 ### Účet nese routa
 
@@ -448,5 +448,16 @@ Fáze 0 jde po krocích, každý v aplikaci beze změny chování:
      jako `single { primary().get() }`, takže ViewModely, `koinInject` a služby fungují beze
      změny. `AccountBridgeTest` porovná klíče mapování obou modulů (`Module.mappings`,
      `@KoinInternalApi`); vynechaný řádek mostu test shodí (ověřeno sondou).
-3. **Keše podle `fileId` mimo repository** do kontejneru účtu.
+3. **Keše podle `fileId`** — hotovo:
+   - `knownPaths` z `RemoteImage` (globální mapa v UI) je `KnownImagePaths` v kontejneru účtu.
+     `RemoteImage` si ho bere přes `koinInject` (zatím mostem), úklid po odhlášení a po
+     vyčištění úložiště volá `forget()` na instanci účtu.
+   - Obrysy samolepek a odesílatelé ve vysílání a ve videochatu jsou v `ClientCache`: pamatuje
+     si klienta, od kterého hodnoty má, a s jiným (po odhlášení a přihlášení jiného účtu) začne
+     od prázdna. Dřív tu vracely data předchozího účtu. Keš odesílatelů v konverzaci to už
+     uměla po svém.
+   - `RevealedSpoilers` a `SelfDestructTimers` jsou v kontejneru od kroku 2, ostatní keše podle
+     `fileId` jsou v repository, takže taky.
+   - Rozparsované animace samolepek (`AnimatedSticker`) zůstávají globální: klíčem je cesta
+     a každý slot má vlastní adresář souborů, takže se účty nepotkají.
 4. **Slot v routách, ViewModelech, `LocalAccount` a vstupních bodech**, most pryč.

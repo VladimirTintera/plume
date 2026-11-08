@@ -11,8 +11,6 @@ import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /** [VideoChatRepository] nad TDLib. */
 class TdlVideoChatRepository(private val holder: TelegramClientHolder) : VideoChatRepository {
@@ -106,24 +104,20 @@ class TdlVideoChatRepository(private val holder: TelegramClientHolder) : VideoCh
 
     private class Sender(val name: String, val avatarFileId: Int?)
 
-    private val senders = mutableMapOf<Long, Sender>()
-    private val sendersMutex = Mutex()
+    private val senders = ClientCache<Long, Sender>(holder)
 
     /** Jméno a fotka účastníka; updaty téhož účastníka chodí pořád dokola, proto mezipaměť. */
-    private suspend fun sender(id: MessageSender): Sender? {
-        val key = id.plainId()
-        sendersMutex.withLock { senders[key] }?.let { return it }
-        val resolved = when (id) {
-            is MessageSenderUser -> client.getUser(userId = id.userId).toResult().getOrNull()?.let { user ->
-                Sender(listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "), user.profilePhoto?.small?.id)
+    private suspend fun sender(id: MessageSender): Sender? =
+        senders.getOrLoad(id.plainId()) { client ->
+            when (id) {
+                is MessageSenderUser -> client.getUser(userId = id.userId).toResult().getOrNull()?.let { user ->
+                    Sender(listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "), user.profilePhoto?.small?.id)
+                }
+                is MessageSenderChat -> client.getChat(chatId = id.chatId).toResult().getOrNull()?.let { chat ->
+                    Sender(chat.title, chat.photo?.small?.id)
+                }
             }
-            is MessageSenderChat -> client.getChat(chatId = id.chatId).toResult().getOrNull()?.let { chat ->
-                Sender(chat.title, chat.photo?.small?.id)
-            }
-        } ?: return null
-        sendersMutex.withLock { senders[key] = resolved }
-        return resolved
-    }
+        }
 }
 
 private fun GroupCall.toVideoChatCall() = VideoChatCall(

@@ -32,6 +32,7 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.ForumRepository
 import eu.tintera.plume.core.telegram.GifRepository
 import eu.tintera.plume.core.telegram.InstantViewRepository
+import eu.tintera.plume.core.telegram.KnownImagePaths
 import eu.tintera.plume.core.telegram.InviteLinkRepository
 import eu.tintera.plume.core.telegram.LiveLocationRepository
 import eu.tintera.plume.core.telegram.LiveStoryRepository
@@ -166,8 +167,9 @@ internal fun coreGlobalModule(): Module = module {
  * ([global]) bere jen to, co mu podá [globalBridgeModule].
  *
  * `ConnectionController` je tady, ne v globální části: typ sítě a příznak online se posílají
- * klientovi TDLib, a ten je u každého účtu jiný. Stejně tak `RevealedSpoilers`
- * a `SelfDestructTimers` — drží id zpráv a souborů, a ta jsou čísla jednoho klienta.
+ * klientovi TDLib, a ten je u každého účtu jiný. Stejně tak `RevealedSpoilers`,
+ * `SelfDestructTimers` a `KnownImagePaths` — drží id zpráv a souborů, a ta jsou čísla jednoho
+ * klienta.
  */
 internal fun accountModule(slot: AccountSlot, global: Koin): Module = module {
     includes(globalBridgeModule(global), accountPlatformModule(slot, global))
@@ -323,6 +325,8 @@ internal fun accountModule(slot: AccountSlot, global: Koin): Module = module {
 
     single { SelfDestructTimers() }
 
+    single { KnownImagePaths() }
+
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
 
     single<InviteLinkRepository> { TdlInviteLinkRepository(holder = get()) }
@@ -430,6 +434,7 @@ internal fun accountBridgeModule(): Module = module {
     single<InstantViewRepository> { primary().get() }
     single<RevealedSpoilers> { primary().get() }
     single<SelfDestructTimers> { primary().get() }
+    single<KnownImagePaths> { primary().get() }
     single<ProfileRepository> { primary().get() }
     single<InviteLinkRepository> { primary().get() }
     single<StatisticsRepository> { primary().get() }

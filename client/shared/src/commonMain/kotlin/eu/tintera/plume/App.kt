@@ -27,11 +27,11 @@ import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.telegram.KnownImagePaths
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.ui.AppIconBadgeColors
 import eu.tintera.plume.core.ui.PrivacyCover
 import eu.tintera.plume.core.ui.SecureScreen
-import eu.tintera.plume.core.ui.forgetKnownImagePaths
 import eu.tintera.plume.core.ui.forgetStickerAnimations
 import eu.tintera.plume.features.auth.AuthScreen
 import eu.tintera.plume.features.auth.AuthViewModel
@@ -125,9 +125,10 @@ fun AppRoot(content: @Composable () -> Unit) {
             val stage by authViewModel.stage.collectAsStateWithLifecycle()
 
             // Přihlášená část je pryč z kompozice, takže je chvíle uklidit, co přežívá mimo ni.
+            val knownImagePaths = koinInject<KnownImagePaths>()
             LaunchedEffect(stage is AuthStage.Ready) {
                 if (stage !is AuthStage.Ready) {
-                    forgetKnownImagePaths()
+                    knownImagePaths.forget()
                     forgetStickerAnimations()
                 }
             }
