@@ -336,12 +336,12 @@ kotlin {
 
     sourceSets {
         // Platformy bez Material You (dynamic color ze systému): iOS a desktop.
-        val nonDynamicThemeMain by creating {
+        val nonDynamicThemeMain = create("nonDynamicThemeMain") {
             dependsOn(commonMain.get())
         }
         // Platformy, kde obrázky kreslí Skia přímo (Compose ji tam přibaluje): iOS a desktop.
         // Výroba samolepek (`SkiaStickers`) — WebP tam umí zakódovat jen Skia.
-        val skiaMain by creating {
+        val skiaMain = create("skiaMain") {
             dependsOn(commonMain.get())
         }
         commonMain {
