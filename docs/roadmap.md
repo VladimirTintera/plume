@@ -1753,8 +1753,10 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
   „Hledání v Nastavení").
 - ~~**QR kód a systémové sdílení** veřejného chatu, uživatele a pozvánky~~ — hotovo
   (`LinkQrSheet`; `docs/poznatky/hledani-a-zakladani-chatu.md`, „QR kód odkazu na chat a pozvánku").
-- **Víc účtů** (L). Menu účtu jiný účet nenabízí; dotkne se klienta TDLib na účet, notifikací
-  i widgetu. Rozhodnutí, jestli vůbec, zatím nepadlo.
+- **Víc účtů** (L). Rozhodnuto, že ano. Menu účtu jiný účet zatím nenabízí; dotkne se klienta
+  TDLib na účet, notifikací i widgetu. Návrh (společný seznam chatů s filtrem účtů, kontejner
+  účtů, slot v routách, směrování pushů, fáze):
+  [navrh-vice-uctu.md](navrh-vice-uctu.md).
 
 **Přeposílání**
 
