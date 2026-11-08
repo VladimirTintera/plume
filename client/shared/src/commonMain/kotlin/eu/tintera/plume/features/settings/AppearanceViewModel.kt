@@ -39,8 +39,6 @@ class AppearanceViewModel(
     /** `null` znamená „uživatel si nevybral" — výchozí je značková [ThemeColor.BLUE]. */
     val themeColor: StateFlow<ThemeColor?> = settings.themeColor
 
-    val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
-
     fun setThemeMode(mode: ThemeMode) = settings.setThemeMode(mode)
 
     fun setDynamicColor(enabled: Boolean) = settings.setDynamicColor(enabled)
@@ -54,8 +52,6 @@ class AppearanceViewModel(
         settings.setThemeColor(color)
         if (dynamicActive) settings.setDynamicColor(false)
     }
-
-    fun setSeparateUnreadChats(separate: Boolean) = settings.setSeparateUnreadChats(separate)
 
     val messageTextSize: StateFlow<Int> = settings.messageTextSize
 

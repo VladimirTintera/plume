@@ -56,8 +56,6 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setListPaneAnchor(anchor: ListPaneAnchor): Unit = error("setListPaneAnchor")
     override val profilePaneAnchor: StateFlow<ProfilePaneAnchor?> get() = error("profilePaneAnchor")
     override fun setProfilePaneAnchor(anchor: ProfilePaneAnchor): Unit = error("setProfilePaneAnchor")
-    override val separateUnreadChats: StateFlow<Boolean> get() = error("separateUnreadChats")
-    override fun setSeparateUnreadChats(separate: Boolean): Unit = error("setSeparateUnreadChats")
     override val savedMessagesAsChats: StateFlow<Boolean> get() = error("savedMessagesAsChats")
     override fun setSavedMessagesAsChats(asChats: Boolean): Unit = error("setSavedMessagesAsChats")
     override val chatSwipeActions: StateFlow<ChatSwipeActions> get() = error("chatSwipeActions")

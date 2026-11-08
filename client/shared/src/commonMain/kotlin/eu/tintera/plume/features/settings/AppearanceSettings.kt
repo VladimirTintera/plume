@@ -44,14 +44,11 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.brightness_medium_24dp
 import eu.tintera.plume.resources.dark_mode_24dp
 import eu.tintera.plume.resources.light_mode_24dp
-import eu.tintera.plume.resources.mark_chat_unread_24dp
 import eu.tintera.plume.resources.palette_24dp
 import eu.tintera.plume.resources.settings_chat_row_gaps
 import eu.tintera.plume.resources.settings_chat_row_gaps_summary
 import eu.tintera.plume.resources.settings_chats
 import eu.tintera.plume.resources.settings_messages
-import eu.tintera.plume.resources.settings_separate_unread
-import eu.tintera.plume.resources.settings_separate_unread_summary
 import eu.tintera.plume.resources.settings_theme
 import eu.tintera.plume.resources.settings_theme_color
 import eu.tintera.plume.resources.settings_theme_color_dynamic_note
@@ -143,22 +140,6 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
             onCheckedChange = viewModel::setChatRowGaps,
         )
     }
-}
-
-/**
- * Nepřečtené ve vlastním bloku. Řádek skupiny „Seznam chatů" v sekci Chaty — mění, jak se
- * seznam řadí, ne jak vypadá; volba žije v [AppearanceViewModel] kvůli `AppSettings`.
- */
-@Composable
-internal fun SeparateUnreadRow(viewModel: AppearanceViewModel) {
-    val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
-    SwitchListItem(
-        headline = stringResource(Res.string.settings_separate_unread),
-        checked = separateUnread,
-        supporting = stringResource(Res.string.settings_separate_unread_summary),
-        icon = Res.drawable.mark_chat_unread_24dp,
-        onCheckedChange = viewModel::setSeparateUnreadChats,
-    )
 }
 
 /** Widget s chaty na ploše: umístí ho launcher po potvrzení v jeho dialogu. Jen kde to launcher umí. */

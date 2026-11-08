@@ -19,7 +19,7 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
 - **Zápis z obrazovky jde přes `appScope`**, ne `viewModelScope` — přepnutí těsně před odchodem
   z chatu se musí uložit.
 - **Volby uživatele se od paměti aplikace neliší technikou, jen významem.** `ExpressionMode`,
-  nedávná emoji a odstíny pleti si aplikace pamatuje sama; motiv a vyčlenění nepřečtených
+  nedávná emoji a odstíny pleti si aplikace pamatuje sama; motiv a velikost písma zpráv
   uživatel vědomě nastavuje. Obojí leží ve stejném DataStore — **Proto DataStore by tu byl
   krok zpátky**: znamenal by generování schématu (v KMP vlastní serializer nad kotlinx) kvůli
   hrstce skalárů, migraci při každém přidání pole a konec toho, že se neznámý klíč prostě
@@ -938,7 +938,7 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z 
 ## Synchronizace nastavení mezi zařízeními bez vlastního backendu
 
 Stav: **průzkum, nic z toho v kódu není.** Jde o data, která má jen Plume (barva motivu,
-vyčlenění nepřečtených, rychlost hlasovek, viděné nápovědy gest…), ne o nastavení, které zná
+velikost písma zpráv, rychlost hlasovek, viděné nápovědy gest…), ne o nastavení, které zná
 Telegram sám.
 
 - **Napřed to, co Telegram synchronizuje sám.** Rychlá reakce (`setDefaultReactionType`,

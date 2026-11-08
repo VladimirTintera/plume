@@ -139,26 +139,6 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
-    fun vycleneniNeprectenychJeVychoziVypnute() = settingsTest { settings, _ ->
-        assertEquals(false, settings.separateUnreadChats.value)
-    }
-
-    @Test
-    fun vycleneniNeprectenychSeUloziAVrati() = settingsTest { settings, _ ->
-        settings.setSeparateUnreadChats(true)
-        assertEquals(
-            true,
-            settings.separateUnreadChats.awaitValue("zapnuté vyčlenění") { it },
-        )
-
-        settings.setSeparateUnreadChats(false)
-        assertEquals(
-            false,
-            settings.separateUnreadChats.awaitValue("vypnuté vyčlenění") { !it },
-        )
-    }
-
-    @Test
     fun akceTahuJsouVychoziArchivace() = settingsTest { settings, _ ->
         assertEquals(ChatSwipeActions(ChatSwipeAction.Archive, ChatSwipeAction.Archive), settings.chatSwipeActions.value)
     }
@@ -511,8 +491,8 @@ class DataStoreAppSettingsTest {
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
             try {
                 val settings = DataStoreAppSettings(createSettingsDataStore(tempPath()), scope)
-                settings.setSeparateUnreadChats(true)
-                settings.separateUnreadChats.awaitValue("zápis v kole $round") { it }
+                settings.setSavedMessagesAsChats(true)
+                settings.savedMessagesAsChats.awaitValue("zápis v kole $round") { it }
             } finally {
                 scope.cancel()
             }

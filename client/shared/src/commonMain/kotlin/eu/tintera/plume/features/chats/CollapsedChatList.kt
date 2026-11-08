@@ -158,7 +158,6 @@ internal fun CollapsedChatList(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
     val snoozes by viewModel.snoozeState.collectAsStateWithLifecycle()
     val selection by viewModel.selection.collectAsStateWithLifecycle()
@@ -196,8 +195,8 @@ internal fun CollapsedChatList(
 
         when (val current = state) {
             is ChatListState.Ready -> {
-                val chats = remember(current.chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due) {
-                    chatGroups(current.chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due).flatten()
+                val chats = remember(current.chats, hiddenSavedMessagesChatId, snoozes.due) {
+                    chatGroups(current.chats, hiddenSavedMessagesChatId, snoozes.due).flatten()
                 }
                 val picked = selection?.ids
                 Box(Modifier.fillMaxSize()) {

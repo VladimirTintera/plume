@@ -139,17 +139,6 @@ interface AppSettings {
     fun setListPaneAnchor(anchor: ListPaneAnchor)
 
     /**
-     * Mají nepřečtené chaty v seznamu vlastní blok?
-     *
-     * Výchozí je `false` — nepřečtený chat zůstane tam, kde ho uživatel zná z pořadí od TDLib.
-     * Vyčlenění je užitečné, jen když je chatů hodně; jinak seznam jen rozbíjí.
-     */
-    val separateUnreadChats: StateFlow<Boolean>
-
-    /** Zapne/vypne vlastní blok nepřečtených. Neblokuje, jako [recordRecentEmoji]. */
-    fun setSeparateUnreadChats(separate: Boolean)
-
-    /**
      * Otevírají se Uložené zprávy jako seznam chatů, ze kterých se ukládalo (témata), místo
      * jedné konverzace? Výchozí `false` — tak se aplikace chovala dřív; přepíná se v hlavičce
      * Uložených zpráv a pamatuje se, jako u oficiálních klientů.
@@ -711,16 +700,6 @@ class DataStoreAppSettings(
             edit { preferences ->
                 if (anchor == ListPaneAnchor.Default) preferences.remove(LIST_PANE_ANCHOR) else preferences[LIST_PANE_ANCHOR] = anchor.name
             }
-        }
-    }
-
-    override val separateUnreadChats: StateFlow<Boolean> = value(false) { preferences ->
-        preferences[SEPARATE_UNREAD_CHATS] ?: false
-    }
-
-    override fun setSeparateUnreadChats(separate: Boolean) {
-        scope.launch {
-            edit { preferences -> preferences[SEPARATE_UNREAD_CHATS] = separate }
         }
     }
 
@@ -1362,7 +1341,6 @@ class DataStoreAppSettings(
         val THEME_COLOR = stringPreferencesKey("theme_color")
         val LIST_PANE_ANCHOR = stringPreferencesKey("list_pane_anchor")
         val PROFILE_PANE_ANCHOR = stringPreferencesKey("profile_pane_anchor")
-        val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val CHAT_ROW_GAPS = booleanPreferencesKey("chat_row_gaps")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
         val TRANSLATE_ON_DEVICE = booleanPreferencesKey("translate_on_device")

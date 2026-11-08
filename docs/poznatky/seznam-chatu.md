@@ -23,8 +23,9 @@ dřív, než narazí na limit registrů jako kdysi `ConversationScreen` (viz CLA
 ## Seznam chatů
 
 Položky nejsou samostatné karty, ale **skupiny se společným zaoblením** — vzor, kterým M3
-Expressive nahrazuje karty per položku. Připnuté mají vlastní skupinu vždycky, nepřečtené jen
-když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí je vypnuto**).
+Expressive nahrazuje karty per položku. Připnuté mají vlastní skupinu vždycky, nad nimi
+sponzorovaný chat a vynořené odložené chaty. **Nepřečtené vlastní skupinu nemají** (viz níž,
+„Blok nepřečtených zmizel").
 
 - **Zaoblení nese krajní položka skupiny**: velké nahoře u první, velké dole u poslední, malé
   (4 dp) mezi nimi. S rozestupem 2 dp uvnitř skupiny a 14 dp mezi skupinami z toho vznikne blok.
@@ -32,19 +33,25 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
   a výběr cíle přeposlání, a tři kopie konstant by se rozešly.
 - **Vybraná položka je zaoblená celá**, jako skupina sama (dvoupanel, v seznamu chatů i sekcí
   nastavení). Vyčlení se tím z bloku — tvarem, nejen barvou. Sousedé si svá malá nároží nechávají.
-- **Zaoblení se animuje.** Skupiny se přeskládávají za běhu — přečtený chat přeskočí
-  z nepřečtených mezi ostatní — a tvary jeho sousedů se tím mění. Skoková změna by při
-  současném `animateItem()` působila jako chyba vykreslení.
-- **Prázdné skupiny se zahazují**, jinak by po nich zbyla mezera. Bez připnutých a bez
-  nepřečtených je z celého seznamu zase jeden souvislý blok.
+- **Zaoblení se animuje.** Skupiny se přeskládávají za běhu — chat se připne nebo odepne,
+  odložený se vynoří — a tvary jeho sousedů se tím mění. Skoková změna by při současném
+  `animateItem()` působila jako chyba vykreslení.
+- **Prázdné skupiny se zahazují**, jinak by po nich zbyla mezera. Bez připnutých je z celého
+  seznamu zase jeden souvislý blok.
 - **Pořadí uvnitř skupiny zůstává od TDLib.** Je to pořadí, na které je uživatel zvyklý
   z ostatních klientů; přeskládávat ho by znamenalo rozhodovat za něj.
-- **Důsledek, se kterým se počítá:** přečtení chatu ho přesune ze skupiny nepřečtených dolů mezi
-  ostatní. Při návratu z konverzace tedy chat nezůstane tam, kde na něj uživatel klikl. Právě
-  tohle je důvod, proč je vyčlenění volitelné a **výchozí vypnuté**: platí se za něj tím, že
-  seznam pod prstem uskočí, a vyplatí se to až u hodně chatů.
+- **Blok nepřečtených zmizel** (11/2026). Byla to volba „Nepřečtené ve vlastním bloku"
+  v Nastavení → Chaty (`separateUnreadChats`, výchozí vypnutá): nepřečtené chaty se přesunuly
+  nad ostatní. Odstranila se jako nadstandard proti oficiálním klientům:
+  - přečtení chat přesunulo dolů, takže při návratu z konverzace nezůstal tam, kde na něj
+    uživatel ťukl, a seznam pod prstem uskočil,
+  - ve společném seznamu přes víc účtů (`docs/navrh-vice-uctu.md`) by byl další blok, který
+    se musí slučovat.
+  
+  Uložená hodnota `separate_unread_chats` v DataStore zůstává nepoužitá; migrace ji mazat
+  nemusí.
 - **Pravidlo je čistá funkce `chatGroups`** (`ChatGroups.kt`, testy `ChatGroupsTest`), ne
-  `private fun` v obrazovce. Hraniční kombinace (samé připnuté, žádné nepřečtené, prázdný
+  `private fun` v obrazovce. Hraniční kombinace (samé připnuté, samé odložené, prázdný
   seznam) se uvnitř `@Composable` neověří a v seznamu se projeví mezerou po prázdné skupině.
 - **Mezera mezi skupinami se přidává u první položky skupiny**, ne ve `verticalArrangement` —
   `LazyColumn` o sousedech položky nic neví. Stejný postup jako u rozestupů zpráv v konverzaci.
