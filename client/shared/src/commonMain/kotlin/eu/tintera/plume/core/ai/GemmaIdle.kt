@@ -1,6 +1,5 @@
 package eu.tintera.plume.core.ai
 
-import eu.tintera.ai.core.AiProvider
 import eu.tintera.ai.core.OnDeviceAi
 
 /**

@@ -3,7 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.resources.voice_summary_title_video
 import eu.tintera.plume.resources.voice_summary_title
 import eu.tintera.plume.core.telegram.MessageMedia
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.resources.decimal_number
 import eu.tintera.plume.resources.summary_details_elapsed
 import eu.tintera.plume.resources.summary_compare

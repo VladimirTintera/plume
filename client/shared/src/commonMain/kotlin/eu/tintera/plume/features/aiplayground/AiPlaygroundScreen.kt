@@ -55,7 +55,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.adaptive.ContentWidth
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.GROUP_CORNER

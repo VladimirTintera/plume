@@ -5,7 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.provider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.ChatExchange
 import eu.tintera.ai.core.Generated

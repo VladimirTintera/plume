@@ -5,7 +5,7 @@ import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.AiModels
 import co.touchlab.kermit.Logger
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings

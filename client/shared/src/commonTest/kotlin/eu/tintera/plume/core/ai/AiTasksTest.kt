@@ -1,7 +1,5 @@
 package eu.tintera.plume.core.ai
 
-import eu.tintera.ai.core.AiProvider
-import eu.tintera.ai.core.LiteRtModel
 import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.NoopOnDeviceAi
 import eu.tintera.ai.core.OnDeviceAi
@@ -102,11 +100,11 @@ class AiTasksTest {
         }
         val models = both.copy(fast = true, gemma = LiteRtModel.E4B)
         assertEquals(
-            ModelVariant(provider = AiProvider.GeminiNano, fast = true, gemma = LiteRtModel.E4B),
+            ModelVariant.GeminiNano(fast = true),
             ai.variantFor(AiTask.Summary, models),
         )
         assertEquals(
-            ModelVariant(provider = AiProvider.Gemma, fast = true, gemma = LiteRtModel.E4B),
+            LiteRtModel.E4B.variant,
             ai.variantFor(AiTask.Transcription, models),
         )
     }

@@ -1,9 +1,9 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiTask
-import eu.tintera.ai.core.LiteRtModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.NoopOnDeviceAi
 import eu.tintera.ai.core.OnDeviceAi
@@ -79,7 +79,7 @@ class SupportedModelsTest {
         val small = setOf(LiteRtModel.Qwen2_5_1_5B, LiteRtModel.Qwen3_0_6B)
         val weakPhone = object : OnDeviceAi by NoopOnDeviceAi {
             override suspend fun status(variant: ModelVariant) =
-                if (variant.model in small) OnDeviceAiStatus.Downloadable else OnDeviceAiStatus.Unsupported
+                if (small.any { it.variant == variant }) OnDeviceAiStatus.Downloadable else OnDeviceAiStatus.Unsupported
         }
         assertEquals(
             AiAvailability(listOf(AiProvider.Qwen), listOf(LiteRtModel.Qwen2_5_1_5B, LiteRtModel.Qwen3_0_6B)),

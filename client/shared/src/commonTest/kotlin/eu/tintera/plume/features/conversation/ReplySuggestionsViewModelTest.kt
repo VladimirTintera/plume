@@ -3,7 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.ai.core.DeviceLoad
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.ai.core.AiFailureReason
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.ai.core.Generated
 import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.OnDeviceAiException
@@ -165,7 +165,7 @@ class ReplySuggestionsViewModelTest {
     @Test
     fun rozbityModelSeTextemNezkousi() = runTest {
         // Text by selhal stejně; hlášení rozbitého modelu nesmí spolknout pokus navíc.
-        val ai = FakeAi(structured = { throw OnDeviceAiException(AiFailureReason.ModelError, AiProvider.GeminiNano, 5) })
+        val ai = FakeAi(structured = { throw OnDeviceAiException(AiFailureReason.ModelError, ModelVariant.GeminiNano(), 5) })
         val viewModel = ReplySuggestionsViewModel(ai, FakeSettings())
 
         viewModel.suggestForIncoming()

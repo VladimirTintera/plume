@@ -1,7 +1,7 @@
 package eu.tintera.plume.core.ai
 
 import eu.tintera.ai.core.AiFailureReason
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.OnDeviceAiException
 import eu.tintera.ai.core.isReportable
 import eu.tintera.plume.core.ui.UiText
@@ -23,42 +23,42 @@ class OnDeviceAiFailureTest {
 
     @Test
     fun rozbityNanoRikaKodIKdeToSpravit() {
-        val e = OnDeviceAiException(AiFailureReason.ModelError, AiProvider.GeminiNano, code = 5)
+        val e = OnDeviceAiException(AiFailureReason.ModelError, ModelVariant.GeminiNano(), code = 5)
         assertEquals(UiText(Res.string.ai_failure_nano_code, "5"), e.userMessage())
     }
 
     @Test
     fun rozbityNanoBezKoduMaVetuBezCisla() {
-        val e = OnDeviceAiException(AiFailureReason.ModelError, AiProvider.GeminiNano)
+        val e = OnDeviceAiException(AiFailureReason.ModelError, ModelVariant.GeminiNano())
         assertEquals(UiText(Res.string.ai_failure_nano), e.userMessage())
     }
 
     @Test
     fun rozbitaGemmaRadiSmazatModelVAplikaci() {
         // Gemmu stahuje aplikace, takže náprava je u nás, ne v AICore.
-        val e = OnDeviceAiException(AiFailureReason.ModelError, AiProvider.Gemma)
+        val e = OnDeviceAiException(AiFailureReason.ModelError, LiteRtModel.E2B.variant)
         assertEquals(UiText(Res.string.ai_failure_gemma), e.userMessage())
     }
 
     @Test
     fun vytizenyModelMaVlastniVetuBezOhleduNaPoskytovatele() {
-        val e = OnDeviceAiException(AiFailureReason.Busy, AiProvider.GeminiNano, code = 9)
+        val e = OnDeviceAiException(AiFailureReason.Busy, ModelVariant.GeminiNano(), code = 9)
         assertEquals(UiText(Res.string.ai_failure_busy), e.userMessage())
     }
 
     @Test
     fun doCrashlyticsJenRozbityModelNeOcekavaneStavy() {
-        assertTrue(OnDeviceAiException(AiFailureReason.ModelError, AiProvider.GeminiNano).isReportable)
-        assertTrue(OnDeviceAiException(AiFailureReason.NeedsUpdate, AiProvider.GeminiNano).isReportable)
-        assertTrue(OnDeviceAiException(AiFailureReason.Unavailable, AiProvider.GeminiNano).isReportable)
-        assertFalse(OnDeviceAiException(AiFailureReason.Busy, AiProvider.GeminiNano).isReportable)
-        assertFalse(OnDeviceAiException(AiFailureReason.TooLarge, AiProvider.GeminiNano).isReportable)
-        assertFalse(OnDeviceAiException(AiFailureReason.NotEnoughSpace, AiProvider.Gemma).isReportable)
+        assertTrue(OnDeviceAiException(AiFailureReason.ModelError, ModelVariant.GeminiNano()).isReportable)
+        assertTrue(OnDeviceAiException(AiFailureReason.NeedsUpdate, ModelVariant.GeminiNano()).isReportable)
+        assertTrue(OnDeviceAiException(AiFailureReason.Unavailable, ModelVariant.GeminiNano()).isReportable)
+        assertFalse(OnDeviceAiException(AiFailureReason.Busy, ModelVariant.GeminiNano()).isReportable)
+        assertFalse(OnDeviceAiException(AiFailureReason.TooLarge, ModelVariant.GeminiNano()).isReportable)
+        assertFalse(OnDeviceAiException(AiFailureReason.NotEnoughSpace, LiteRtModel.E2B.variant).isReportable)
     }
 
     @Test
     fun zpravaVyjimkyJePodleCehoSeDaHledatVCrashlytics() {
-        val e = OnDeviceAiException(AiFailureReason.ModelError, AiProvider.GeminiNano, code = 5)
+        val e = OnDeviceAiException(AiFailureReason.ModelError, ModelVariant.GeminiNano(), code = 5)
         assertEquals("GeminiNano failed: ModelError (code 5)", e.message)
     }
 }

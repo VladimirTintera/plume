@@ -1,8 +1,8 @@
 package eu.tintera.plume.core.settings
 
-import eu.tintera.ai.core.LiteRtModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.ai.AiTask
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiModels
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -553,6 +553,46 @@ class DataStoreAppSettingsTest {
             }
             val read = settings.onDeviceAiModels.awaitValue("seznam bez neznámých") { it.enabled == setOf(AiProvider.GeminiNano) }
             assertEquals(mapOf(AiTask.Summary to AiProvider.Gemma), read.assigned)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    /**
+     * Klíče a hodnoty uložené dřívější verzí (katalog tehdy nesla knihovna) se čtou beze změny
+     * a stejně se i zapisují: změna by po aktualizaci vzala uživateli volbu modelu.
+     */
+    @Test
+    fun ulozeneModelyZDrivejsiVerze() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val dataStore = createSettingsDataStore(tempPath())
+            val stored = mapOf(
+                "on_device_ai_models" to "Qwen Gemma EuroLlm Aya",
+                "on_device_ai_gemma" to "E4B",
+                "on_device_ai_qwen" to "Qwen3_0_6B",
+                "on_device_ai_eurollm" to "EuroMoe2_6B",
+                "on_device_ai_aya" to "AyaExpanse8B",
+                "on_device_ai_tasks" to "Summary=Qwen Transcription=Gemma",
+            )
+            withTimeout(WAIT_MS) {
+                dataStore.edit { preferences -> stored.forEach { (key, value) -> preferences[stringPreferencesKey(key)] = value } }
+            }
+            val settings = DataStoreAppSettings(dataStore, scope)
+            val expected = AiModels(
+                enabled = setOf(AiProvider.Qwen, AiProvider.Gemma, AiProvider.EuroLlm, AiProvider.Aya),
+                gemma = LiteRtModel.E4B,
+                qwen = LiteRtModel.Qwen3_0_6B,
+                euroLlm = LiteRtModel.EuroMoe2_6B,
+                aya = LiteRtModel.AyaExpanse8B,
+                assigned = mapOf(AiTask.Summary to AiProvider.Qwen, AiTask.Transcription to AiProvider.Gemma),
+            )
+            assertEquals(expected, settings.onDeviceAiModels.awaitValue("uložené z dřívějška") { it == expected })
+
+            settings.setOnDeviceAiModels(expected.copy(fast = true))
+            settings.onDeviceAiModels.awaitValue("zápis") { it.fast }
+            val written = withTimeout(WAIT_MS) { dataStore.data.first() }
+            stored.forEach { (key, value) -> assertEquals(value, written[stringPreferencesKey(key)], key) }
         } finally {
             scope.cancel()
         }

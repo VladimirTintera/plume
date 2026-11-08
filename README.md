@@ -293,5 +293,10 @@ Použité cizí komponenty mají vlastní licence a MIT je nepřebíjí:
 - **TDLib** — [Boost Software License 1.0](https://github.com/tdlib/td/blob/master/LICENSE_1_0.txt).
   Permisivní, bez povinnosti zveřejnit zdrojáky.
 - **Material Symbols** (ikony v `composeResources`) — [Apache License 2.0](https://github.com/google/material-design-icons/blob/master/LICENSE).
+- **Modely v zařízení** aplikace nebalí, stahuje je na požádání uživatele z Hugging Face a licenci
+  přijímá ten, kdo si model stáhne: Gemma (podmínky na kartě modelu), Qwen, EuroLLM a EuroMoE
+  (Apache 2.0), **Aya Expanse 8B od Cohere Labs ([CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)
+  a pravidla použití Cohere Labs: jen nekomerčně, s uvedením autora)**. Licenci Ayi aplikace ukazuje
+  před stažením; komerční fork ji tak používat nesmí.
 - **Telegram API** se řídí [API Terms of Service](https://core.telegram.org/api/terms) nezávisle
   na licenci téhle aplikace — viz omezení výš.

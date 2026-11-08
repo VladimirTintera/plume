@@ -1,7 +1,8 @@
 package eu.tintera.plume.features.aiplayground
 
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.provider
 import eu.tintera.ai.core.Generated
 import eu.tintera.ai.core.ModelInfo
 import eu.tintera.ai.core.ModelVariant

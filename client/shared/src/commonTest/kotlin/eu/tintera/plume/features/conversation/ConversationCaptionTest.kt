@@ -2,7 +2,8 @@ package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiModels
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.provider
 import eu.tintera.ai.core.Generated
 import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.NoopOnDeviceAi

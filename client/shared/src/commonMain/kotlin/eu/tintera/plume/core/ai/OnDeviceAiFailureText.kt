@@ -1,7 +1,6 @@
 package eu.tintera.plume.core.ai
 
 import eu.tintera.ai.core.AiFailureReason
-import eu.tintera.ai.core.AiProvider
 import eu.tintera.ai.core.OnDeviceAiException
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -38,7 +37,7 @@ fun OnDeviceAiException.userMessage(): UiText = when (reason) {
     AiFailureReason.Unavailable -> UiText(Res.string.ai_failure_unavailable)
     AiFailureReason.UnsupportedLanguage -> UiText(Res.string.ai_failure_language)
     AiFailureReason.Refused -> UiText(Res.string.ai_failure_refused)
-    AiFailureReason.ModelError -> when (provider) {
+    AiFailureReason.ModelError -> when (variant.provider) {
         AiProvider.GeminiNano -> code
             ?.let { UiText(Res.string.ai_failure_nano_code, it.toString()) }
             ?: UiText(Res.string.ai_failure_nano)

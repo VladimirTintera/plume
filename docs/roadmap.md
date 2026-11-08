@@ -1224,12 +1224,6 @@ Poskytovatelé, runtime a jejich nativní knihovny jsou v knihovně ai-engine
 (`docs/poznatky/ai-v-zarizeni.md`, „Knihovna ai-engine"). Úkoly ke kódu knihovny patří do
 repozitáře ai-engine; tady zůstávají ty, které sahají i do Plume:
 
-- **Katalog modelů jako data od aplikace.** `LiteRtModel` je pořád enum se všemi modely Plume
-  a `ModelVariant` nese pole `gemma` / `qwen` / `euroLlm` / `aya`. Pro jinou aplikaci: seznam
-  položek (repozitář, commit, soubor, velikost, `minMemoryGb`, `contextTokens`, runtime,
-  licence/upozornění) předaný aplikací a varianta s odkazem na položku. Pozor na uložená jména
-  (nastavení `on_device_ai_*`, jméno úlohy stahování `ai-model-download-<jméno>`) a na pořadí
-  náhrad v `supportedModels`.
 - **Testy ai-core i na Android hostu** (v ai-engine) — dnes `jvmTest`; `LiteRtOnDeviceAi` je
   sdílený s Androidem, ale `MlKitOnDeviceAi` a úloha stahování testy nemají ani předtím neměly.
 

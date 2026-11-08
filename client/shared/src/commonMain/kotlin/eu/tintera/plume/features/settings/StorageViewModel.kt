@@ -5,7 +5,7 @@ import eu.tintera.plume.core.translation.TranslationPack
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
-import eu.tintera.ai.core.LiteRtModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.ai.core.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
