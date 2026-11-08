@@ -1,7 +1,7 @@
 # Návrh: víc účtů naráz
 
-> **Stav:** návrh, nic z toho není postavené. Vychází z kódu po #1166. Na roadmapě to stálo jako
-> „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
+> **Stav:** fáze 0 rozpracovaná (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
 žádný účet „aktivní":** seznam chatů umí ukázat chaty všech účtů najednou a filtr nad ním
@@ -420,3 +420,22 @@ intenty, zástupci a připomenutí fungují dál.
 - Kde přesně leží `user_id` v pushi na iOS (první skutečný push s certifikátem APNs).
 - Kolik paměti a baterie stojí další klient TDLib (fáze 1, s druhým účtem).
 - Že wrapper 17.0.0 dělí odpovědi podle klienta stejně jako 15.0.0 (fáze 0).
+
+## Postup
+
+Fáze 0 jde po krocích, každý v aplikaci beze změny chování:
+
+1. **Slot účtu a hranice modulů** — hotovo:
+   - `AccountSlot` (`core/accounts`): primární slot `0` dává dnešní jména (`tdlib`,
+     `tdlib-files`, `plume_tdlib_database`, `tdlib-key`, `database-key`), další sloty
+     `accounts/<slot>/…` a příponu. Test `AccountSlotTest` hlídá hlavně to první: jiné jméno
+     u primárního slotu by po aktualizaci ztratilo databázi i klíč a odhlásilo uživatele.
+   - `TelegramPaths` bere slot na všech platformách.
+   - `coreModule()` je `coreGlobalModule()` (scope aplikace, síť, popředí) a
+     `accountModule(slot)` (klient, cesty a klíč slotu, session, všechny repository,
+     `ConnectionController`, `RevealedSpoilers`, `SelfDestructTimers`). Obě části jsou zatím
+     ve stejném, globálním Koinu.
+2. **Kontejner `Accounts`** s izolovaným Koinem pro primární účet a dočasný most z globálního
+   Koinu do něj (dokud routy slot nenesou).
+3. **Keše podle `fileId` mimo repository** do kontejneru účtu.
+4. **Slot v routách, ViewModelech, `LocalAccount` a vstupních bodech**, most pryč.

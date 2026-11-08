@@ -1,14 +1,15 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.platform.desktopDataDirectory
 import eu.tintera.plume.core.platform.desktopDebugBuild
 import java.io.File
 import java.util.Locale
 
 /** Data aplikace podle systému, viz [desktopDataDirectory]. Zálohu desktop neřeší za aplikaci. */
-actual class TelegramPaths {
-    actual val databaseDirectory: String = File(desktopDataDirectory, "tdlib").path
-    actual val filesDirectory: String = File(desktopDataDirectory, "tdlib-files").path
+actual class TelegramPaths(slot: AccountSlot = AccountSlot.Primary) {
+    actual val databaseDirectory: String = File(desktopDataDirectory, slot.directory("tdlib")).path
+    actual val filesDirectory: String = File(desktopDataDirectory, slot.directory("tdlib-files")).path
 
     actual val isDebugBuild: Boolean = desktopDebugBuild
 

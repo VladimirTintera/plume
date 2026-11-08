@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.di
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.CallPointerDisplay
@@ -126,13 +127,37 @@ const val APP_SCOPE = "appScope"
  *   aplikace (ntgcalls do `core` nepatří); bez nich `CallRepository.supported` říká, že ne.
  * - **Eager definice (`createdAtStart`) jsou nutnost, ne optimalizace** — viz komentáře u nich
  *   a „Repository seznamu chatů MUSÍ vznikat eagerně" v CLAUDE.md.
+ * - **Skládá se z globální části a části účtu** ([coreGlobalModule], [accountModule]), zatím
+ *   s jediným, primárním účtem. Hranice mezi nimi je příprava na víc účtů
+ *   (`docs/navrh-vice-uctu.md`): část účtu dostane každý účet ve vlastním kontejneru.
  */
 fun coreModule(): Module = module {
+    includes(coreGlobalModule(), accountModule(AccountSlot.Primary))
+}
+
+/**
+ * Co je v procesu jednou, ať je účtů kolik chce: scope aplikace, sledování sítě a popředí.
+ * Nic odsud nesmí sáhnout na definici z [accountModule] — globální část nemá účet, ke kterému
+ * by ji vztáhla.
+ */
+internal fun coreGlobalModule(): Module = module {
     includes(corePlatformModule())
 
     single(named(APP_SCOPE)) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+}
 
-    // Jeden TDLib klient na proces; sdílí ho session i chat repository.
+/**
+ * Všechno, co patří jednomu účtu ([slot]): jeho klient TDLib, cesty a klíč databáze, přihlášení
+ * a všechny repository. Smí sahat na [coreGlobalModule] (scope aplikace, síť, popředí).
+ *
+ * `ConnectionController` je tady, ne v globální části: typ sítě a příznak online se posílají
+ * klientovi TDLib, a ten je u každého účtu jiný. Stejně tak `RevealedSpoilers`
+ * a `SelfDestructTimers` — drží id zpráv a souborů, a ta jsou čísla jednoho klienta.
+ */
+internal fun accountModule(slot: AccountSlot): Module = module {
+    includes(accountPlatformModule(slot))
+
+    // Jeden TDLib klient na účet; sdílí ho session i chat repository.
     single { TelegramClientHolder() }
 
     single<TelegramSession> {
@@ -317,5 +342,8 @@ fun coreModule(): Module = module {
     }
 }
 
-/** Platformní část [coreModule]: cesty TDLib, sledování sítě a popředí, úložiště klíče databáze. */
+/** Platformní část [coreGlobalModule]: sledování sítě a popředí. */
 internal expect fun corePlatformModule(): Module
+
+/** Platformní část [accountModule]: cesty TDLib a úložiště klíče databáze účtu [slot]. */
+internal expect fun accountPlatformModule(slot: AccountSlot): Module

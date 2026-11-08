@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.di
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
@@ -11,12 +12,18 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 
 internal actual fun corePlatformModule(): Module = module {
-    single { TelegramPaths(androidContext()) }
-    single<DatabaseKeyStore> {
-        object : DatabaseKeyStore, SecretStore by KeystoreSecretStore(
-            androidContext(), fileName = "tdlib-key", keyAlias = "plume_tdlib_database", logTag = "DatabaseKey",
-        ) {}
-    }
     single { NetworkMonitor(androidContext()) }
     single { AppForeground(androidContext()) }
+}
+
+internal actual fun accountPlatformModule(slot: AccountSlot): Module = module {
+    single { TelegramPaths(androidContext(), slot) }
+    single<DatabaseKeyStore> {
+        object : DatabaseKeyStore, SecretStore by KeystoreSecretStore(
+            androidContext(),
+            fileName = slot.secretName("tdlib-key", separator = "-"),
+            keyAlias = slot.secretName("plume_tdlib_database"),
+            logTag = "DatabaseKey",
+        ) {}
+    }
 }
