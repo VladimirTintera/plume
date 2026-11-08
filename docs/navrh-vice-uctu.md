@@ -248,15 +248,17 @@ jednomu účtu podle řádku.
   i jiná id zpráv. Odznak účtu je rozliší.
 - **Řazení podle data poslední zprávy.** `ChatPosition.order` z TDLib je číslo uvnitř jednoho
   účtu a mezi účty se porovnat nedá.
-- **Připnuté chaty** v režimu Vše: napřed připnuté všech účtů (podle pořadí účtů a uvnitř
-  účtu podle TDLib), pak ostatní podle data. Alternativa je v režimu Vše nepřipínat
-  (otevřená otázka).
+- **Připnuté chaty všech účtů jsou nahoře i v režimu Vše** (rozhodnuto): napřed připnuté
+  podle pořadí účtů a uvnitř účtu podle TDLib, pak ostatní podle data. Co si uživatel připne,
+  je pro něj důležité a nesmí to zmizet jen proto, že se dívá na všechny účty.
 - **Složky patří účtu** (jsou na serveru). Pilulky složek se ukazují, jen když filtr vybírá
   jeden účet. V režimu Vše je hlavní seznam a archiv. Spojovat složky podle názvu by bylo
   křehké.
 - **Archiv** v režimu Vše slučuje archivy všech účtů stejným pravidlem.
-- **Blok nepřečtených** (`separate_unread_chats`), „čeká na odpověď" a odložené chaty fungují
-  nad sloučeným seznamem beze změny: pracují s řádky a každý řádek ví, čí je.
+- **„Čeká na odpověď" a odložené chaty** fungují nad sloučeným seznamem beze změny: pracují
+  s řádky a každý řádek ví, čí je. **Blok nepřečtených** (`separate_unread_chats`) se nebude
+  řešit: je to nadstandard proti Telegramu a z aplikace zmizí samostatnou změnou ještě před
+  víc účty.
 - **Výběr víc chatů** (archivovat, přečíst, ztlumit) smí míchat účty. Akce se rozdělí podle
   slotu řádků.
 - **Hledání** v režimu Vše hledá ve všech účtech a výsledky označí účtem. Globální hledání
@@ -361,9 +363,12 @@ intenty, zástupci a připomenutí fungují dál.
 - **Záznamy, které už účet nesou** (záložky, odložené chaty, barvy, koncepty komentářů,
   výsledky modelů, úložiště mini aplikací), zůstávají, jak jsou. Klíčem je tam user id, které
   slot po přihlášení zná.
-- **Chování seznamu a konverzace** (`separate_unread_chats`, rychlá reakce, varování před
-  podvodem…) zůstane v první fázi globální. Rozdělit ho podle účtu je rozhodnutí o produktu,
-  ne podmínka.
+- **Chování seznamu a konverzace zůstane společné pro všechny účty** (rozhodnuto): gesta
+  tahem, dvojité ťuknutí, varování před podvodem, návrhy odpovědí, triáž. Je to chování
+  aplikace, ne účtu. Co účtu patří, drží server po účtech už teď: **kterou** reakci přidá
+  dvojité ťuknutí, je nastavení účtu (`setDefaultReactionType`, `QuickReaction`); Plume si
+  pamatuje jen to, jestli dvojité ťuknutí reaguje vůbec. Ztlumení a výjimky notifikací jsou
+  u chatu, tedy taky po účtech.
 - **Zámek aplikace se stane zámkem zařízení.** Maže se až s odhlášením posledního účtu. Únikovou
   cestou při zapomenutém PINu zůstává odhlášení, jen všech účtů.
 
@@ -397,15 +402,21 @@ intenty, zástupci a připomenutí fungují dál.
    - směrování pushů, tagy notifikací, slot v akcích z notifikací,
    - nastavení po účtech, účet v hlavičce konverzace,
    - widget a cíle sdílení přes všechny účty,
-   - limit počtu účtů.
+   - limit tří účtů (rozhodnuto; zvednout jde podle změřené paměti).
 2. **iOS** (rozšíření pro notifikace a sdílení, App Group po slotech, odznak jako součet),
    volba účtů u widgetu, sloučené hledání zpráv přes server.
 3. **Hodinky:** výběr účtu při přihlášení hodinek. Hodinky samy zůstanou na jednom účtu.
 
-## Otevřené otázky
+## Rozhodnuto
 
-- **Limit počtu účtů.** Navrhuju tři jako výchozí, podle změřené paměti.
-- **Připnuté chaty v režimu Vše:** připnuté všech účtů nahoře, nebo v režimu Vše nepřipínat?
-- **Odznak nepřečtených na ikoně aplikace:** součet přes účty, nebo jen účty ve filtru?
-  Navrhuju součet všech.
-- **Nastavení chování po účtech** (seznam chatů, rychlá reakce): stačí globálně?
+- **Nejvýš tři účty.** Zvednout jde, až bude změřené, kolik stojí další klient TDLib.
+- **Připnuté chaty všech účtů jsou nahoře i v režimu Vše.**
+- **Odznak nepřečtených na ikoně aplikace je součet všech účtů**, nezávisle na filtru.
+- **Chování seznamu a konverzace je společné** pro všechny účty. Blok nepřečtených
+  (`separate_unread_chats`) z aplikace zmizí samostatnou změnou.
+
+## Zbývá ověřit
+
+- Kde přesně leží `user_id` v pushi na iOS (první skutečný push s certifikátem APNs).
+- Kolik paměti a baterie stojí další klient TDLib (fáze 1, s druhým účtem).
+- Že wrapper 17.0.0 dělí odpovědi podle klienta stejně jako 15.0.0 (fáze 0).
