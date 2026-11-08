@@ -270,9 +270,17 @@ jednomu účtu podle řádku.
 
 ## Notifikace
 
+- **Push nese, komu patří.** Dokumentace pushů Telegramu
+  ([core.telegram.org/api/push-updates](https://core.telegram.org/api/push-updates)) má pole
+  `user_id`: „ID účtu, kterému se má notifikace doručit, pro klienty s víc účty aktivními
+  naráz". Šifrovaný push (`p`) nese na začátku id klíče, kterým je zašifrovaný, a klíč patří
+  jednomu účtu. Totéž čte TDLib v `NotificationManager::get_push_receiver_id` (zdroj z větve
+  master): u šifrovaného pushe id klíče z prvních 12 znaků `p`, jinak `user_id`.
 - **Směrování pushe:**
   1. `getPushReceiverId(payload)` (synchronně, na kterémkoli klientu).
-  2. Najde se slot, jehož uložený `PushReceiverId` z `registerDevice` se shoduje.
+  2. Najde se slot, jehož uložený `PushReceiverId` z `registerDevice` se shoduje. Na Androidu
+     dnes Plume push šifruje (`encrypt` u FCM), takže se porovnává id klíče. U nešifrovaného
+     pushe vrátí `getPushReceiverId` přímo user id a porovná se s user id slotu.
   3. Tomu slotu jde `processPushNotification`.
   
   `PushReceiverId` se ukládá ke slotu a každý účet se registruje s `other_user_ids` ostatních.
@@ -292,10 +300,14 @@ jednomu účtu podle řádku.
 - **Unikátní jména úloh WorkManageru** dostanou slot (`notification-reply-<slot>-<chat>-<msg>`,
   `notification-delivery-<slot>`).
 - **iOS:**
-  - APNs payload TDLib nešifruje a rozšíření pro notifikace z něj dnes čte jen chat.
-  - **Jestli payload nese příjemce, ověřené NENÍ.** Bez něj by klepnutí na notifikaci nevědělo,
-    do kterého účtu jít, a `threadIdentifier` by se mezi účty slil.
-  - Ověřit se to dá až s certifikátem APNs (viz poznatky k notifikacím).
+  - Běžný APNs push TDLib šifrovat neumí (`deviceTokenApplePush` nemá `encrypt`, na rozdíl od
+    FCM a VoIP). Rozšíření pro notifikace ho čte samo bez TDLib a dnes z něj bere jen chat
+    (`custom`).
+  - Účet určí `user_id` z pushe: `threadIdentifier` bude `<user_id>:<chatId>` a klepnutí
+    otevře chat ve slotu s tím user id.
+  - **Kde přesně `user_id` v APNs payloadu leží** (vedle `aps` a `custom`, nebo uvnitř), se
+    ověří až na skutečném pushi: rozšíření v ladicím buildu ukládá poslední push do App Group
+    (`push/last.json`), jen zatím čeká na certifikát APNs (viz poznatky k notifikacím).
 
 ## Vstupní body
 
@@ -394,7 +406,6 @@ intenty, zástupci a připomenutí fungují dál.
 
 - **Limit počtu účtů.** Navrhuju tři jako výchozí, podle změřené paměti.
 - **Připnuté chaty v režimu Vše:** připnuté všech účtů nahoře, nebo v režimu Vše nepřipínat?
-- **Nese APNs payload příjemce?** Bez toho iOS notifikaci k účtu nepřiřadí (fáze 2).
 - **Odznak nepřečtených na ikoně aplikace:** součet přes účty, nebo jen účty ve filtru?
   Navrhuju součet všech.
 - **Nastavení chování po účtech** (seznam chatů, rychlá reakce): stačí globálně?
