@@ -1,7 +1,6 @@
 package eu.tintera.plume.core.ai
 
 import eu.tintera.ai.core.AiFailureReason
-import eu.tintera.ai.core.AiProvider
 import eu.tintera.ai.core.Generated
 import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.OnDeviceAiException
@@ -45,7 +44,7 @@ class StructuredAnswersTest {
     }
 
     private suspend fun FakeAi.scam(): ScamKind? = generateAnswer(
-        ModelVariant(),
+        ModelVariant.GeminiNano(),
         ScamAnswer::class,
         prompt = { structured -> scamPrompt("Výhra! Klikni a přihlas se", structured) },
         fromStructured = ::scamVerdictOf,
@@ -86,7 +85,7 @@ class StructuredAnswersTest {
 
     @Test
     fun rozbityModelLetiVen() = runTest {
-        val ai = FakeAi(structured = { throw OnDeviceAiException(AiFailureReason.ModelError, AiProvider.GeminiNano, 5) })
+        val ai = FakeAi(structured = { throw OnDeviceAiException(AiFailureReason.ModelError, ModelVariant.GeminiNano(), 5) })
         assertFailsWith<OnDeviceAiException> { ai.scam() }
         assertEquals(0, ai.textCalls)
     }

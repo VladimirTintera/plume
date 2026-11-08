@@ -1,7 +1,5 @@
 package eu.tintera.plume.core.ai
 
-import eu.tintera.ai.core.AiProvider
-import eu.tintera.ai.core.LiteRtModel
 import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.ai.core.OnDeviceAiStatus
@@ -73,8 +71,8 @@ fun AiProvider.handles(task: AiTask): Boolean = when (task.input) {
  * Zapnuté modely, jejich volby a co čím počítat.
  *
  * Zapnutých může být víc najednou — model v paměti stojí jen tehdy, když zrovna počítá (Gemma
- * se po dvou minutách nečinnosti uvolní, Nano běží v procesu AICore). Volby modelů ([preview],
- * [fast], [gemma]) jsou tytéž jako dřív v [ModelVariant], jen se už nevybírá jediný poskytovatel.
+ * se po dvou minutách nečinnosti uvolní, Nano běží v procesu AICore). Volby modelů se drží všechny,
+ * i u vypnutého modelu; knihovní [ModelVariant] nese jen to, co patří tomu jednomu ([variant]).
  *
  * @property enabled zapnuté modely. Nikdy prázdné: aspoň jeden musí zůstat (Nastavení vypnutí
  *   posledního nedovolí, [supportedModels] doplní dostupný).
@@ -92,8 +90,14 @@ data class AiModels(
     val assigned: Map<AiTask, AiProvider> = emptyMap(),
 ) {
     /** Varianta, se kterou se volá [OnDeviceAi] pro model [provider]. */
-    fun variant(provider: AiProvider) =
-        ModelVariant(provider = provider, preview = preview, fast = fast, gemma = gemma, qwen = qwen, euroLlm = euroLlm, aya = aya)
+    fun variant(provider: AiProvider): ModelVariant = when (provider) {
+        AiProvider.GeminiNano -> ModelVariant.GeminiNano(preview = preview, fast = fast)
+        AiProvider.Apple -> ModelVariant.Apple
+        AiProvider.Gemma -> gemma.variant
+        AiProvider.Qwen -> qwen.variant
+        AiProvider.EuroLlm -> euroLlm.variant
+        AiProvider.Aya -> aya.variant
+    }
 
     /** Zapnuté modely, které úlohu zvládnou, v pořadí, ve kterém je bere „Automaticky". */
     fun candidates(task: AiTask): List<AiProvider> =

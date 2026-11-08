@@ -2,11 +2,12 @@ package eu.tintera.plume.features.conversation
 
 import kotlinx.datetime.LocalDate
 import eu.tintera.plume.core.ai.withoutIntro
+import eu.tintera.plume.core.ai.provider
 import eu.tintera.plume.core.ai.voiceSummaryPrompt
 import kotlin.time.TimeSource
 import kotlin.time.TimeMark
 import kotlinx.coroutines.flow.update
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.variantsFor
 import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask

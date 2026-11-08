@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import eu.tintera.plume.core.ui.ChoiceRow
 import eu.tintera.plume.core.ai.variantFor
+import eu.tintera.plume.core.ai.provider
 import eu.tintera.plume.core.ai.handles
 import eu.tintera.plume.core.ai.chooseProvider
 import eu.tintera.plume.core.ai.AiTask
@@ -80,9 +81,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.ai.core.DownloadStoppedException
-import eu.tintera.ai.core.LiteRtModel
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.ai.core.MeteredNetwork
 import eu.tintera.ai.core.ModelDownload
 import eu.tintera.ai.core.ModelVariant
@@ -513,7 +514,7 @@ fun OnDeviceAi.availability(): Flow<AiAvailability> = flow {
                 if (LiteRtModel.entries.any { it.provider == provider }) {
                     models.any { it.provider == provider }
                 } else {
-                    status(ModelVariant(provider = provider)) != OnDeviceAiStatus.Unsupported
+                    status(AiModels().variant(provider)) != OnDeviceAiStatus.Unsupported
                 }
             },
             models = models,
@@ -1064,7 +1065,7 @@ private val LiteRtModel.summary: StringResource
     }
 
 /** Model stahuje a maže aplikace sama ([ModelVariant.appManaged]). */
-private val AiProvider.appManaged: Boolean get() = ModelVariant(provider = this).appManaged
+private val AiProvider.appManaged: Boolean get() = AiModels().variant(this).appManaged
 
 private val AiTask.title: StringResource
     get() = when (this) {

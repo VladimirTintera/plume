@@ -3,7 +3,7 @@ package eu.tintera.plume.core.ai
 import android.content.Context
 import androidx.work.WorkerParameters
 import eu.tintera.ai.core.AiModelDownloadWorker
-import eu.tintera.ai.core.LiteRtModel
+import eu.tintera.ai.core.DownloadedModel
 import eu.tintera.ai.core.LiteRtOnDeviceAi
 import eu.tintera.ai.core.ModelDownload
 import eu.tintera.ai.core.ModelDownloadNotifications
@@ -40,7 +40,7 @@ class ModelDownloadWorker(context: Context, params: WorkerParameters) : AiModelD
         val koin = GlobalContext.getOrNull() ?: return null
         val ai = koin.getOrNull<LiteRtOnDeviceAi>() ?: return null
         val notifications = koin.getOrNull<ModelDownloadNotifications>() ?: return null
-        return Dependencies(ai, notifications)
+        return Dependencies(ai, notifications, modelById = { liteRtModelById(it)?.downloaded })
     }
 }
 
@@ -54,7 +54,7 @@ class PlumeModelDownloadNotifications : ModelDownloadNotifications {
         return MODEL_DOWNLOAD_CHANNEL_ID
     }
 
-    override suspend fun progressTitle(model: LiteRtModel): String =
+    override suspend fun progressTitle(model: DownloadedModel): String =
         readString(Res.string.model_download_notification_title, model.displayName)
 
     override suspend fun progressText(progress: ModelDownload): String? {
@@ -72,7 +72,7 @@ class PlumeModelDownloadNotifications : ModelDownloadNotifications {
 
     override suspend fun stopAction(): String = readString(Res.string.model_download_notification_stop)
 
-    override suspend fun result(model: LiteRtModel, error: Exception?): Pair<String, String> = when (error) {
+    override suspend fun result(model: DownloadedModel, error: Exception?): Pair<String, String> = when (error) {
         null -> readString(Res.string.model_download_notification_done, model.displayName) to
             readString(Res.string.model_download_notification_done_text)
         is NotEnoughSpaceException -> readString(Res.string.model_download_notification_failed, model.displayName) to

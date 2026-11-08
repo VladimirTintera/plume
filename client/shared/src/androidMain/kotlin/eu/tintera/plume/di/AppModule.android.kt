@@ -7,7 +7,8 @@ import eu.tintera.plume.core.ai.ModelDownloadWorker
 import eu.tintera.plume.core.ai.PlumeModelDownloadNotifications
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ai.gemmaIdleUnloadMs
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.provider
 import eu.tintera.plume.core.ai.GEMMA_IDLE_TEXT_MS
 import eu.tintera.ai.core.DeviceLoad
 import eu.tintera.ai.core.AndroidDeviceLoad
@@ -148,8 +149,8 @@ actual fun Module.platformModule() {
             get(),
             // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
             // Qwen umí jen text, takže drží jako Gemma, která text počítá.
-            idleUnloadMs = { provider ->
-                if (provider == AiProvider.Gemma) {
+            idleUnloadMs = { model ->
+                if (model.provider == AiProvider.Gemma) {
                     get<OnDeviceAi>().gemmaIdleUnloadMs(get<AppSettings>().onDeviceAiModels.value)
                 } else {
                     GEMMA_IDLE_TEXT_MS

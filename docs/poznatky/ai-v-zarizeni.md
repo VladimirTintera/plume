@@ -67,8 +67,8 @@ moduly mají souřadnice `eu.tintera.ai:<modul>` a Gradle je za ně dosadí sám
 Knihovna **nezávisí na ničem z Plume** — jen na knihovnách (ML Kit GenAI, WorkManager, Play
 Feature Delivery). Hranici hlídá Gradle: ai-engine je samostatný build a na `shared` nevidí.
 
-- **V knihovně:** rozhraní `OnDeviceAi` s `ModelVariant`, `AiProvider`, katalogem `LiteRtModel`,
-  stavy a průběhem stahování; `RoutingOnDeviceAi`; typovaná chyba `OnDeviceAiException`
+- **V knihovně:** rozhraní `OnDeviceAi` s `ModelVariant` (typ určuje runtime) a `DownloadedModel`
+  (co se dá stáhnout, popíše aplikace), stavy a průběhem stahování; `RoutingOnDeviceAi`; typovaná chyba `OnDeviceAiException`
   s `AiFailureReason` a `isReportable` (bez textů); `generateAnswer` (strukturovaně, jinak textem);
   `estimatedTokenCount`; `MeteredNetwork`, `DeviceLoad` a `avoidUnderLoad` i s implementacemi pro
   Android. Stahované modely: `LiteRtOnDeviceAi`, `LiteRtPlatform` (`AndroidLiteRtPlatform`,
@@ -76,7 +76,8 @@ Feature Delivery). Hranici hlídá Gradle: ai-engine je samostatný build a na `
   `SplitInstallConfirmations`, úloha stahování. Gemini Nano `MlKitOnDeviceAi` a pomůcka
   `generableStringField` pro ruční `GenerableProvider`. Na iOS `AppleOnDeviceAi` s mostem
   `OnDeviceTextModel` / `IosOnDeviceModel` (Swift `AppleTextModel` je v `iosApp`).
-- **V Plume (`shared`):** všechny `*Prompt.kt`, `AiTasks.kt` (`AiTask`, `variantFor`,
+- **V Plume (`shared`):** katalog modelů `ModelCatalog.kt` (`LiteRtModel`, `AiProvider`, převody
+  na typy knihovny), všechny `*Prompt.kt`, `AiTasks.kt` (`AiTask`, `AiModels`, `variantFor`,
   `chooseProvider`), `proactiveVariant`, `GemmaIdle.kt` (prodlevy podle úloh), typy odpovědí
   (`StructuredAnswers.kt`) a jejich `GenerableProvider` s řádky v `META-INF/services`, věty
   k chybám (`OnDeviceAiFailureText.kt`: `userMessage()`, `emptyOutputMessage`), nastavení,
@@ -90,6 +91,8 @@ Feature Delivery). Hranici hlídá Gradle: ai-engine je samostatný build a na `
     `PlumeModelDownloadNotifications`.
   - Adresář modelů na desktopu (`DesktopLiteRtPlatform(localDirectory, …)`). Plume:
     `aiModelsDirectory` (`%LOCALAPPDATA%\Plume` na Windows, jinak složka dat).
+  - Model podle id (`Dependencies.modelById`) — úloha stahování po zabití procesu nezná nic
+    jiného. Plume: `liteRtModelById` nad katalogem.
   - Prodleva uvolnění enginu (`idleUnloadMs`), placená síť (`MeteredNetwork`), runtime pro
     každý `ModelRuntime` — parametry `LiteRtOnDeviceAi` jako dřív.
 - **Prompt jde do každého volání.** `transcribe(variant, audioPath, prompt)`
@@ -109,21 +112,39 @@ Feature Delivery). Hranici hlídá Gradle: ai-engine je samostatný build a na `
 - **Dialog souhlasu Play je v Plume, `SplitInstallConfirmations` v knihovně.** Composable by
   knihovně přidal Compose, aktivitu a Koin; aplikace místo toho sleduje `pending`, před ukázáním
   zavolá `markShown` a výsledek předá žádosti z `takeShown()`.
-- **Texty chyb zůstaly v Plume.** Knihovna hlásí jen důvod (`AiFailureReason`) a poskytovatele;
+- **Texty chyb zůstaly v Plume.** Knihovna hlásí jen důvod (`AiFailureReason`) a variantu;
   věty z `Res` skládá `userMessage()` ve `shared` — další aplikace má vlastní prostředky.
 - **iOS framework modul exportuje** (`export("eu.tintera.ai:ai-core")` v `shared`, závislost
   `api`). Swift implementuje `OnDeviceTextModel` a plní `IosOnDeviceModel`; bez exportu by je
   framework nenesl (nebo jen pod jménem s předponou modulu) a `AppleTextModel.swift` by se
   nepřeložil.
-- **Katalog modelů zůstal enum** (`LiteRtModel`) se všemi poskytovateli Plume, stejně jako pole
-  `gemma` / `qwen` / `euroLlm` / `aya` v `ModelVariant`. Jména položek se ukládají (nastavení,
-  jméno úlohy stahování) a pořadí určuje náhradu za velikost — převod na data, která předá
-  aplikace, by sahal do nastavení i UI. **Další krok** před sdílením s jinou aplikací: katalog
-  jako seznam od aplikace (repozitář, commit, soubor, velikost, paměť, kontext, runtime,
-  licence) a variantu nést jen jako odkaz na položku.
-- **Testy:** `./gradlew :ai-engine:ai-core:jvmTest` (router, katalog, stahování, GPU záloha,
+- **Katalog modelů je v Plume, knihovna žádný model nejmenuje** (`core/ai/ModelCatalog.kt`).
+  `LiteRtModel` zůstal enum a nese repozitář, commit a velikost; pro knihovnu z toho skládá
+  `DownloadedModel` (`downloaded`, `variant`). Volby, úlohy a texty mluví o poskytovatelích
+  (`AiProvider`, `AiModels`), převod je na dvou místech: `AiModels.variant(provider)` tam
+  a rozšíření `ModelVariant.provider` zpátky.
+  - **`DownloadedModel.id` je přesně jméno položky enumu.** Ukládá se (`on_device_ai_gemma`…)
+    a je ve jméně úlohy stahování (`ai-model-download-<id>`) i v jejích datech; přejmenování by
+    ztratilo volbu i rozběhnuté stahování. Hlídá to `ModelCatalogTest.idSeNemeni`, uložené hodnoty
+    `DataStoreAppSettingsTest.ulozeneModelyZDrivejsiVerze`.
+  - **Varianta nese jen to, co patří jednomu modelu.** Dřív `ModelVariant` držela volby všech
+    (`gemma`, `qwen`…), takže změna velikosti Gemmy měnila i variantu Qwenu a klíč klienta Nano.
+    Tyhle volby jsou teď jen v `AiModels`; `isCurrent` v Nastavení tak zahodí výsledek jen
+    u modelu, kterého se změna týká.
+  - **Model mimo katalog je chyba v kódu** (`DownloadedModel.provider` vyhodí): do knihovny jdou
+    jen hodnoty z `LiteRtModel.downloaded`. Neznámé id z uložené úlohy řeší `liteRtModelById`
+    (`null`, úloha skončí selháním), ne tohle.
+  - **Licenci modelu hlídá aplikace.** NOTICE v ai-engine o žádném modelu nemluví, takže licence
+    Ayi (níž, „Aya Expanse") je věc Plume: věta nad „Stáhnout model" a README, oddíl Licence.
+  - **Ověřeno aktualizací na emulátoru** (`Plume_Galerie_Fold`, `-read-only`): sestavení z `main`
+    s katalogem v knihovně, spuštěné stahování Qwen3 0.6B a během něj `install-multiple -r` nové
+    verze. Úloha se rozběhla sama v novém procesu a navázala na `.part`, stejně po `kill -9`;
+    uložené hodnoty `on_device_ai_*` zůstaly a dřív stažená Gemma odpovídala. Rychlost stahování
+    brzdit nešlo (`adb emu network speed` na Wi-Fi emulátoru nezabral), Qwen 0.6B se stihne stáhnout
+    za 90 s, takže instalaci je třeba mít připravenou předem.
+- **Testy:** `./gradlew :ai-engine:ai-core:jvmTest` (router, stahování, GPU záloha,
   runtime; v ai-engine). Testy, které potřebují prompty Plume (`StructuredAnswersTest`, `TokenEstimateTest`,
-  `OnDeviceAiFailureTest`, `DeviceLoadTest`), zůstaly ve `shared`.
+  `OnDeviceAiFailureTest`, `DeviceLoadTest`) a katalog modelů (`ModelCatalogTest`), jsou ve `shared`.
 
 ### Dva poskytovatelé: Gemini Nano a Gemma
 
@@ -169,7 +190,7 @@ poskytovatelích nemusí vědět nic.
   v chatu, takže je v GiB — katalog Gallery uvádí 2,6 GB v desítkových. Po selhání tlačítko
   slibuje „Pokračovat ve stahování": stažený kus se nezahazuje.
 - **Stahovaný model jde smazat, systémový ne** (`ModelVariant.appManaged`, `OnDeviceAi.delete`).
-  **Se souborem modelu jde i jeho zkompilovaná keš** (`LiteRtModel.ownsCacheFile`, testy
+  **Se souborem modelu jde i jeho zkompilovaná keš** (`DownloadedModel.ownsCacheFile`, testy
   `ModelCacheFilesTest`, `LiteRtDeleteTest`). LiteRT-LM si při prvním načtení uloží model
   přeložený pro procesor do `cacheDir` enginu (`<soubor>_<čas>_<velikost>.xnnpack_cache`,
   u Gemmy i zvukový kodér a adaptér) — u Gemmy 4 E4B 2,3 GB, u Qwen3 4B taky. Dokud se mazal

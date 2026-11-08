@@ -13,7 +13,8 @@ import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.ui.UnsupportedStoryVideo
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.ai.core.NoopOnDeviceAi
-import eu.tintera.ai.core.AiProvider
+import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.provider
 import eu.tintera.ai.engine.LITERT_ENGINE_FACTORY
 import eu.tintera.ai.engine.LLAMACPP_ENGINE_FACTORY
 import eu.tintera.ai.core.BundledLiteRtRuntime
@@ -100,8 +101,8 @@ actual fun Module.platformModule() {
             )::getValue,
             get(),
             // Až po použití, ne při stavbě: směrovač (OnDeviceAi) tuhle instanci sám potřebuje.
-            idleUnloadMs = { provider ->
-                if (provider == AiProvider.Gemma) {
+            idleUnloadMs = { model ->
+                if (model.provider == AiProvider.Gemma) {
                     get<OnDeviceAi>().gemmaIdleUnloadMs(get<AppSettings>().onDeviceAiModels.value)
                 } else {
                     GEMMA_IDLE_TEXT_MS

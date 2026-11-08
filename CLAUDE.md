@@ -212,7 +212,7 @@ external/
   ai-engine/   – submodul knihovny ai-engine (included build, souřadnice `eu.tintera.ai:<modul>`):
                  :ai-engine (rozhraní runtime), :ai-core (OnDeviceAi, Gemini Nano, stahování, LiteRT-LM
                  / llama.cpp, Apple Intelligence), :ai-litert, :ai-llamacpp(-android/-desktop);
-                 prompty, volba úloh, texty a UI zůstávají ve `shared` (viz ai-v-zarizeni.md)
+                 katalog modelů, prompty, volba úloh, texty a UI zůstávají ve `shared` (viz ai-v-zarizeni.md)
 iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:shared
 ```
 

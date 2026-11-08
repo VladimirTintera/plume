@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ai.proactiveVariant
+import eu.tintera.plume.core.ai.provider
 import eu.tintera.ai.core.NoDeviceLoad
 import eu.tintera.ai.core.DeviceLoad
 import eu.tintera.plume.core.ai.AiTask

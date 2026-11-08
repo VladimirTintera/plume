@@ -1,6 +1,5 @@
 package eu.tintera.plume.core.ai
 
-import eu.tintera.ai.core.AiProvider
 import eu.tintera.ai.core.DeviceLoad
 import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.NoDeviceLoad
@@ -19,16 +18,16 @@ import kotlin.test.assertNull
 /** Úlohy, které běží samy, pod zátěží telefonu bez Gemmy ([proactiveVariant]). */
 class DeviceLoadTest {
 
-    private val nano = ModelVariant(provider = AiProvider.GeminiNano)
-    private val gemma = ModelVariant(provider = AiProvider.Gemma)
+    private val nano = ModelVariant.GeminiNano()
+    private val gemma = LiteRtModel.E2B.variant
 
     @Test
     fun podZatiziJenGemmaOdpadne() {
         assertNull(avoidUnderLoad(gemma, strained = true))
         assertEquals(nano, avoidUnderLoad(nano, strained = true))
         assertEquals(gemma, avoidUnderLoad(gemma, strained = false))
-        assertNull(avoidUnderLoad(ModelVariant(provider = AiProvider.Qwen), strained = true))
-        assertEquals(ModelVariant(provider = AiProvider.Apple), avoidUnderLoad(ModelVariant(provider = AiProvider.Apple), strained = true))
+        assertNull(avoidUnderLoad(LiteRtModel.Qwen3_4B.variant, strained = true))
+        assertEquals(ModelVariant.Apple, avoidUnderLoad(ModelVariant.Apple, strained = true))
     }
 
     private class Settings(models: AiModels) : UnimplementedAppSettings() {
