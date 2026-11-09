@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.share
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.FakeChatRepository
 import eu.tintera.plume.core.telegram.FileState
@@ -25,8 +26,8 @@ class ShareTargetsTest {
 
     private class Publisher(override val canPin: Boolean = true) : ShareTargetPublisher {
         val pinned = mutableListOf<Pinned>()
-        override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) = Unit
-        override fun pin(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): Boolean {
+        override fun publish(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) = Unit
+        override fun pin(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): Boolean {
             pinned += Pinned(chatId, title, avatarPath, isSavedMessages)
             return true
         }
@@ -63,7 +64,7 @@ class ShareTargetsTest {
     @Test
     fun pripneChatSNazvemAFotkou() = runTest {
         val publisher = Publisher()
-        val targets = ShareTargets(conversations, chats, files, publisher, backgroundScope)
+        val targets = ShareTargets(AccountSlot.Primary, conversations, chats, files, publisher, backgroundScope)
 
         assertTrue(targets.canPinToHomeScreen)
         targets.pinToHomeScreen(42)
@@ -75,7 +76,7 @@ class ShareTargetsTest {
 
     @Test
     fun bezLauncheruSeNenabizi() = runTest {
-        val targets = ShareTargets(conversations, chats, files, Publisher(canPin = false), backgroundScope)
+        val targets = ShareTargets(AccountSlot.Primary, conversations, chats, files, Publisher(canPin = false), backgroundScope)
         assertFalse(targets.canPinToHomeScreen)
     }
 }

@@ -92,7 +92,6 @@ import eu.tintera.plume.features.conversation.StagedAttachmentsStore
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.lock.AppLock
-import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -182,31 +181,82 @@ import org.koin.dsl.module
 /** Platformní část grafu — na Androidu potřebuje Context, na iOS ne. */
 expect fun Module.platformModule()
 
+/** Platformní část [appAccountModule]: co pracuje s repository účtu. */
+expect fun Module.platformAccountModule()
+
 
 /** DataStore úložiště mini aplikací (`DeviceStorage`), vedle nastavení aplikace. */
 internal const val MINI_APP_STORAGE = "miniAppStorage"
 
+/**
+ * Co je v procesu jednou, ať je účtů kolik chce. Všechno ostatní je v [appAccountModule].
+ *
+ * **Nic odsud nesmí při vzniku sáhnout na definici účtu** (repository, `TelegramSession`): tady
+ * žádné nejsou a ozvalo by se to až za běhu. Účty jsou v `Accounts`, a i na ten se smí až za běhu
+ * (viz `coreModule`).
+ */
 fun appModule() = module {
     // Vrstva kolem TDLib (klient, přihlášení, repository, APP_SCOPE) — client/core, `coreModule()`.
-    includes(coreModule())
+    includes(coreModule(accountModules = { listOf(appAccountModule()) }))
     platformModule()
 
     single { KeyboardShortcuts() }
     single(createdAtStart = true) { AutoDownloadPolicy(settings = get(), network = get(), scope = get(named(APP_SCOPE))) }
 
+    // Zámek aplikace musí znát stav dřív, než se složí první obrazovka, a sledovat popředí
+    // i bez UI — proto eager, start má `startKoin`. Klíč k databázi s ním nesouvisí, push jde
+    // dál bez ověření.
+    single(createdAtStart = true) { AppLock(store = get(), scope = get(named(APP_SCOPE))) }
+
+    // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
+    single<AppSettings>(createdAtStart = true) {
+        DataStoreAppSettings(dataStore = get(), scope = get(named(APP_SCOPE)))
+    }
+    single<MiniAppStorage> {
+        DataStoreMiniAppStorage(get(named(MINI_APP_STORAGE)))
+    }
+    // Trezor dodává platforma (`MiniAppSecretStore` v platformním modulu).
+    single<MiniAppSecureStorage> { SecretMiniAppSecureStorage(store = get<MiniAppSecretStore>()) }
+
+    // Jeden přehrávač hlasovek na aplikaci: hraje nejvýš jedna. Na hlavním vlákně, protože
+    // systémové přehrávače se ovládají z něj.
+    single {
+        VoicePlayer(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            // Nový engine na každou hlasovku; platformní konstruktor dodá Koin (Android chce Context).
+            newEngine = { get() },
+            settings = get(),
+            earSensor = get(),
+            positions = get(),
+        )
+    }
+    single { VideoPositions(settings = get()) }
+    single { ExchangeRates(TextDownloader()) }
+    // Model v zařízení (ai-engine :ai-core): stahování modelu bere stav sítě od Plume.
+    single<Connectivity> { NetworkConnectivity(get()) }
+
+    // Mosty mezi platformním vstupem (ťuknutí na notifikaci, sdílení, odkaz) a navigací.
+    single { CallRequests() }
+    single { ChatOpenRequests() }
+    single { LinkOpenRequests() }
+    // Na Androidu s úložištěm (`ShareStore`): sdílení na čipu přežije zabití procesu.
+    single { ShareRequests(store = getOrNull(), scope = get(named(APP_SCOPE))) }
+}
+
+/**
+ * Co patří jednomu účtu: stav nad jeho repository a ViewModely, které se z něj skládají. Žije
+ * v kontejneru účtu (`coreModule`); co tu není, Koin hledá v [appModule].
+ *
+ * ViewModely jsou tady, ne v globální části, protože si repository berou přes `get()`: obrazovka
+ * si je vyžádá z kontejneru svého účtu (`AccountScope`), a tím dostane repository toho účtu.
+ */
+fun appAccountModule() = module {
+    platformAccountModule()
+
     // Ořez nové profilovky drží stav pro jednu obrazovku, proto factory.
     factory { ProfilePhotoCrop(squarePhoto = get(), profileVideo = get()) }
 
 
-    // Zámek aplikace musí znát stav dřív, než se složí první obrazovka, a sledovat popředí
-    // i bez UI — proto eager. Klíč k databázi s ním nesouvisí, push jde dál bez ověření.
-    single(createdAtStart = true) {
-        AppLock(store = get(), scope = get(named(APP_SCOPE))).also {
-            it.start(foreground = get<AppForeground>().isForeground, authStage = get<TelegramSession>().authStage)
-        }
-    }
-
-    single { CallRequests() }
     if (autosavesToGallery) {
         single(createdAtStart = true) {
             val saver = get<MediaSaver>()
@@ -231,29 +281,6 @@ fun appModule() = module {
 
 
 
-    // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
-    single<AppSettings>(createdAtStart = true) {
-        DataStoreAppSettings(dataStore = get(), scope = get(named(APP_SCOPE)))
-    }
-    single<MiniAppStorage> {
-        DataStoreMiniAppStorage(get(named(MINI_APP_STORAGE)))
-    }
-    // Trezor dodává platforma (`MiniAppSecretStore` v platformním modulu).
-    single<MiniAppSecureStorage> { SecretMiniAppSecureStorage(store = get<MiniAppSecretStore>()) }
-
-    // Jeden přehrávač hlasovek na aplikaci: hraje nejvýš jedna. Na hlavním vlákně, protože
-    // systémové přehrávače se ovládají z něj.
-    single {
-        VoicePlayer(
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            // Nový engine na každou hlasovku; platformní konstruktor dodá Koin (Android chce Context).
-            newEngine = { get() },
-            settings = get(),
-            earSensor = get(),
-            positions = get(),
-        )
-    }
-
     // Hudba: fronta skladeb a systémové ovládání. Na týchž vláknech jako přehrávač — spoléhá na
     // to, že konec skladby a spuštění další uvidí ve stejném pořadí, v jakém se staly.
     single {
@@ -265,9 +292,6 @@ fun appModule() = module {
         )
     }
 
-    // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
-    single { ChatOpenRequests() }
-    single { LinkOpenRequests() }
     single { InstantViewRequests() }
     single { BotStartRequests() }
     single { ContactOffers() }
@@ -288,7 +312,6 @@ fun appModule() = module {
     single { ScamWarnings(ai = get(), settings = get(), appScope = get(named(APP_SCOPE)), load = get()) }
     single { ChatTriage(ai = get(), settings = get(), conversations = get(), appScope = get(named(APP_SCOPE)), load = get()) }
     single { MessageContexts(ai = get(), settings = get(), appScope = get(named(APP_SCOPE)), load = get()) }
-    single { ExchangeRates(TextDownloader()) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
     single { CommentDrafts(settings = get(), chats = get(), threads = get()) }
@@ -296,8 +319,7 @@ fun appModule() = module {
     single { PendingChatDeletes(repository = get(), scope = get(named(APP_SCOPE))) }
     // Odebrání ze Stahování s „Vrátit" doběhne i po odchodu z obrazovky.
     single { PendingDownloadRemovals(scope = get(named(APP_SCOPE))) }
-    single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
-    single { VideoPositions(settings = get()) }
+    single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull(), slot = get()) }
     single { ChatColors(settings = get(), chats = get()) }
     single { ConversationReplyRequests() }
     single { SponsoredLinkRequests() }
@@ -319,13 +341,11 @@ fun appModule() = module {
             scope = get(named(APP_SCOPE)),
         )
     }
-    // Na Androidu s úložištěm (`ShareStore`): sdílení na čipu přežije zabití procesu.
-    single { ShareRequests(store = getOrNull(), scope = get(named(APP_SCOPE))) }
     // Přílohy nad polem mezi odchodem z chatu a návratem; jedno úložiště na proces.
     single { StagedAttachmentsStore() }
     // Eager: po přihlášení zaregistruje Uložené zprávy jako cíl sdílení (viz init).
     single(createdAtStart = true) {
-        ShareTargets(repository = get(), chats = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
+        ShareTargets(slot = get(), repository = get(), chats = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
     }
 
     viewModelOf(::AuthViewModel)
@@ -435,13 +455,20 @@ fun appModule() = module {
     viewModel { QuickReactionSettingsViewModel(settings = get(), quickReaction = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::DevicesViewModel)
     // Překladač výslovně `getOrNull`: na iOS v DI není.
-    viewModel { StorageViewModel(repository = get(), cleaner = get(), settings = get(), ai = get(), translator = getOrNull()) }
+    viewModel {
+        StorageViewModel(
+            repository = get(),
+            cleaner = get(),
+            settings = get(),
+            ai = get(),
+            knownImagePaths = get(),
+            translator = getOrNull(),
+        )
+    }
     viewModelOf(::AutoDownloadViewModel)
     viewModelOf(::NotificationSettingsViewModel)
     viewModelOf(::EditProfileViewModel)
     viewModelOf(::OwnProfileMusicViewModel)
-    // Model v zařízení (ai-engine :ai-core): stahování modelu bere stav sítě od Plume.
-    single<Connectivity> { NetworkConnectivity(get()) }
     // Nastavení modelu (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
     viewModel {
         OnDeviceAiSettingsViewModel(
@@ -498,6 +525,7 @@ fun appModule() = module {
         // Šestý: vlákno přímých zpráv kanálu (správce s jedním odběratelem).
         val directTopicId = parameters.values.getOrNull(5) as Long?
         ConversationViewModel(
+            slot = get(),
             chatId = parameters.get(),
             initialMessageId = parameters.values.getOrNull(1) as Long?,
             threadRootId = threadRootId,
@@ -621,6 +649,7 @@ fun appModule() = module {
 
     viewModel { parameters ->
         ChatProfileViewModel(
+            slot = get(),
             chatId = parameters.get(),
             profiles = get(),
             chats = get(),
@@ -710,6 +739,7 @@ fun appModule() = module {
     // Potvrzení sdílení do jednoho chatu (Direct Share): chatId je z routy, tedy runtime parametr.
     viewModel { parameters ->
         ShareToChatViewModel(
+            slot = get(),
             chatId = parameters.get(),
             requests = get(),
             repository = get(),

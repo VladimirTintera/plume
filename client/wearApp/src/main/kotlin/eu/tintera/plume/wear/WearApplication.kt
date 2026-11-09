@@ -1,6 +1,7 @@
 package eu.tintera.plume.wear
 
 import android.app.Application
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
 import eu.tintera.plume.core.logging.configureLogging
@@ -30,16 +31,21 @@ class WearApplication : Application() {
         val koin = startKoin {
             androidContext(this@WearApplication)
             modules(
-                coreModule(),
-                // Presenter notifikací je jeden na proces: kreslí ho kolektor a akce z notifikace
-                // (WearNotificationReceiver) do něj připisují odpověď.
-                module {
-                    single { WearNotifications(androidContext(), get(named(APP_SCOPE))) }
-                    // Jeden na proces: automatický úklid a tlačítko v Nastavení se nesmí potkat.
-                    single { WearStorageCleaner(androidContext(), get(), get(named(APP_SCOPE))) }
-                },
+                coreModule(
+                    accountModules = {
+                        listOf(
+                            // Presenter notifikací je jeden na proces: kreslí ho kolektor a akce
+                            // z notifikace (WearNotificationReceiver) do něj připisují odpověď.
+                            module {
+                                single { WearNotifications(androidContext(), get(named(APP_SCOPE))) }
+                                // Jeden na proces: automatický úklid a tlačítko v Nastavení se nesmí potkat.
+                                single { WearStorageCleaner(androidContext(), get(), get(named(APP_SCOPE))) }
+                            },
+                        )
+                    },
+                ),
             )
-        }.koin
+        }.koin.primaryAccount()
 
         // TDLib se startuje s procesem, ne s první obrazovkou — stejně jako na telefonu
         // (`startKoin` ve shared): bez toho by zůstal ve WaitTdlibParameters.

@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.share
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -77,6 +78,7 @@ class ShareRequests(
                 id = id,
                 text = text?.takeIf { it.isNotBlank() },
                 attachments = if (hasFiles) null else emptyList(),
+                targetSlot = target?.slot,
                 targetChatId = target?.chatId,
                 awaitingConfirmation = target?.confirm ?: false,
                 carried = target == null,
@@ -123,8 +125,8 @@ class ShareRequests(
      * Uživatel vybral chat — u sdílení na čipu ťuknutím na „Vložit sem" v otevřené konverzaci.
      * Obsah si vyzvedne konverzace toho chatu, až bude připravený.
      */
-    fun choose(chatId: Long) {
-        current.update { it?.copy(targetChatId = chatId, awaitingConfirmation = false) }
+    fun choose(slot: AccountSlot, chatId: Long) {
+        current.update { it?.copy(targetSlot = slot, targetChatId = chatId, awaitingConfirmation = false) }
     }
 
     /**
@@ -134,8 +136,8 @@ class ShareRequests(
      * Od [choose] se liší právě tím: vybraný chat ho z konverzace nesmí vyzvednout
      * ([deliveries]), protože odesílá ta obrazovka sama.
      */
-    fun confirm(chatId: Long) {
-        current.update { it?.copy(targetChatId = chatId, awaitingConfirmation = true) }
+    fun confirm(slot: AccountSlot, chatId: Long) {
+        current.update { it?.copy(targetSlot = slot, targetChatId = chatId, awaitingConfirmation = true) }
     }
 
     /**
@@ -181,9 +183,9 @@ class ShareRequests(
      * Obsah pro chat [chatId], jakmile je vybraný a připravený. Kdo ho dostane, musí zavolat
      * [consume] — jinak by ho konverzace po otočení displeje vložila podruhé.
      */
-    fun deliveries(chatId: Long): Flow<SharedContent> = current
+    fun deliveries(slot: AccountSlot, chatId: Long): Flow<SharedContent> = current
         .filterNotNull()
-        .filter { it.targetChatId == chatId && it.attachments != null && !it.awaitingConfirmation }
+        .filter { it.targetSlot == slot && it.targetChatId == chatId && it.attachments != null && !it.awaitingConfirmation }
 
     /**
      * Vyřízeno — soubory si převzal ten, kdo je posílá, takže se NEmažou. Porovnává se id:
@@ -266,6 +268,7 @@ private fun SharedContent.toStored(): StoredShare? {
 
 /** Kam sdílení míří už při příchodu: chat z Direct Share, nebo z iOS rozšíření. */
 data class ShareTarget(
+    val slot: AccountSlot,
     val chatId: Long,
     /** Obsah čeká na obrazovce „Komu: …" ([ShareRequests.confirm]), ne v konverzaci. */
     val confirm: Boolean,
@@ -288,6 +291,8 @@ data class SharedContent(
     val sources: Map<String, String> = emptyMap(),
     /** Vybraný chat; `null`, dokud se vybírá. */
     val targetChatId: Long? = null,
+    /** Účet chatu [targetChatId]: id chatu samo o sobě účet neurčuje. */
+    val targetSlot: AccountSlot? = null,
     /**
      * Chat je vybraný, ale obsah čeká na obrazovce „Komu: …" ([ShareRequests.confirm]), ne
      * v konverzaci. Odesílá ta obrazovka, takže konverzace si ho vyzvednout nesmí.

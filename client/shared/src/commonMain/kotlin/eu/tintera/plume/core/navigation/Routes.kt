@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.navigation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.PrivacySetting
@@ -23,6 +24,26 @@ import kotlinx.serialization.modules.subclass
  * bez toho by se po zabití procesu uživatel vrátil na kořen místo tam, kde byl.
  */
 sealed interface Route : NavKey
+
+/**
+ * Verze uložených zásobníků, klíč v `rememberNavBackStack`. Zásobník uložený před změnou tvaru
+ * rout (povinný `slot`) by po aktualizaci šel přečíst jen s výjimkou a shodil by aplikaci. S jinou
+ * verzí se uložený stav nenajde a začne se od kořene. Zvednout s každou změnou, kterou stará data
+ * nepřečtou; přidání rout nebo parametru s výchozí hodnotou ji nepotřebuje.
+ */
+const val SAVED_ROUTES_VERSION = 2
+
+/**
+ * Routa s obsahem jednoho účtu: chat, zpráva, soubor nebo jiné id, které platí jen v jeho
+ * klientovi. Shell obsah takové routy skládá v kontejneru účtu [slot] (`AccountScope`), takže
+ * obrazovka dostane repository správného účtu a po zabití procesu se otevře zase v něm.
+ *
+ * Stránky bez id (nastavení účtu, archiv, seznam hovorů) slot zatím nemají a skládají se v účtu
+ * shellu; co s nimi, určí UI fáze 1 (`docs/navrh-vice-uctu.md`).
+ */
+sealed interface AccountRoute : Route {
+    val slot: AccountSlot
+}
 
 /** Sekce aplikace, každá s vlastním zásobníkem. Zásobník má vždycky právě jednu na dně. */
 sealed interface TopLevelRoute : Route
@@ -153,7 +174,7 @@ data object EmojiSetsRoute : Route
 
 /** Editor složky nad seznamem složek; [folderId] `0` = nová složka. */
 @Serializable
-data class ChatFolderEditRoute(val folderId: Int) : Route
+data class ChatFolderEditRoute(override val slot: AccountSlot, val folderId: Int) : AccountRoute
 
 /**
  * Archivované chaty. V list-detail rozvržení je to LIST panel scény archivu:
@@ -180,6 +201,7 @@ data object DownloadsRoute : Route
  */
 @Serializable
 data class ArchiveConversationRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     val messageId: Long? = null,
     /** Vlákno komentářů v diskusní skupině [chatId] (kořenová zpráva); `null` = celý chat. */
@@ -188,53 +210,53 @@ data class ArchiveConversationRoute(
     val topicId: Int? = null,
     /** Vlákno přímých zpráv kanálu (viz [ArchiveDirectTopicsRoute]); `null` = celý chat. */
     val directTopicId: Long? = null,
-) : Route
+) : AccountRoute
 
 /** Témata skupiny otevřené z archivu — obdoba [ForumTopicsRoute] v archivní větvi. */
 @Serializable
-data class ArchiveForumTopicsRoute(val chatId: Long) : Route
+data class ArchiveForumTopicsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Vlákna přímých zpráv kanálu otevřené z archivu — obdoba [DirectTopicsRoute] v archivní větvi. */
 @Serializable
-data class ArchiveDirectTopicsRoute(val chatId: Long) : Route
+data class ArchiveDirectTopicsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Profil chatu otevřený z archivní konverzace.
  */
 @Serializable
-data class ArchiveChatProfileRoute(val chatId: Long) : Route
+data class ArchiveChatProfileRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Úprava skupiny otevřená z profilu v archivní větvi. */
 @Serializable
-data class ArchiveEditChatRoute(val chatId: Long) : Route
+data class ArchiveEditChatRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Práva člena otevřená z profilu v archivní větvi. */
 @Serializable
-data class ArchiveMemberRightsRoute(val chatId: Long, val userId: Long, val admin: Boolean) : Route
+data class ArchiveMemberRightsRoute(override val slot: AccountSlot, val chatId: Long, val userId: Long, val admin: Boolean) : AccountRoute
 
 /** Pozvánky otevřené z úpravy skupiny v archivní větvi. */
 @Serializable
-data class ArchiveInviteLinksRoute(val chatId: Long) : Route
+data class ArchiveInviteLinksRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Žádosti o vstup otevřené z úpravy skupiny v archivní větvi. */
 @Serializable
-data class ArchiveJoinRequestsRoute(val chatId: Long) : Route
+data class ArchiveJoinRequestsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Omezení nebo vyhození členové otevření z úpravy skupiny v archivní větvi. */
 @Serializable
-data class ArchiveRemovedMembersRoute(val chatId: Long, val banned: Boolean) : Route
+data class ArchiveRemovedMembersRoute(override val slot: AccountSlot, val chatId: Long, val banned: Boolean) : AccountRoute
 
 /** Poslední akce otevřené z úpravy skupiny v archivní větvi. */
 @Serializable
-data class ArchiveEventLogRoute(val chatId: Long) : Route
+data class ArchiveEventLogRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Statistiky otevřené z úpravy kanálu nebo skupiny v archivní větvi. */
 @Serializable
-data class ArchiveChatStatisticsRoute(val chatId: Long) : Route
+data class ArchiveChatStatisticsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Statistika příspěvku otevřená v archivní větvi. */
 @Serializable
-data class ArchivePostStatisticsRoute(val chatId: Long, val messageId: Long) : Route
+data class ArchivePostStatisticsRoute(override val slot: AccountSlot, val chatId: Long, val messageId: Long) : AccountRoute
 
 /**
  * Konverzace. V list-detail rozvržení je to detail panel vedle seznamu.
@@ -244,6 +266,7 @@ data class ArchivePostStatisticsRoute(val chatId: Long, val messageId: Long) : R
  */
 @Serializable
 data class ConversationRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     val messageId: Long? = null,
     /**
@@ -257,7 +280,7 @@ data class ConversationRoute(
     val savedTopicId: Long? = null,
     /** Vlákno přímých zpráv kanálu (viz [DirectTopicsRoute]); `null` = celý chat. */
     val directTopicId: Long? = null,
-) : Route
+) : AccountRoute
 
 /**
  * Uložené zprávy rozdělené podle chatu, ze kterého se zpráva uložila. Stojí na místě konverzace
@@ -266,7 +289,7 @@ data class ConversationRoute(
  * nejdou.
  */
 @Serializable
-data class SavedTopicsRoute(val chatId: Long) : Route
+data class SavedTopicsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Seznam témat skupiny s tématy (fórum). Ťuknutí na takovou skupinu v seznamu chatů otevře
@@ -274,7 +297,7 @@ data class SavedTopicsRoute(val chatId: Long) : Route
  * Detailový panel jako konverzace: na širokém rozvržení stojí vpravo vedle seznamu chatů.
  */
 @Serializable
-data class ForumTopicsRoute(val chatId: Long) : Route
+data class ForumTopicsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Přímé zprávy kanálu, jak je vidí správce: vlákno na každého, kdo kanálu napsal. Stojí na místě
@@ -282,14 +305,14 @@ data class ForumTopicsRoute(val chatId: Long) : Route
  * s `directTopicId` nad ním.
  */
 @Serializable
-data class DirectTopicsRoute(val chatId: Long) : Route
+data class DirectTopicsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Profil chatu (ťuknutí na hlavičku konverzace). Třetí panel: na telefonu překryje konverzaci,
  * na široké ploše stojí vedle ní a při přepnutí chatu přejde na nový (`followProfile`).
  */
 @Serializable
-data class ChatProfileRoute(val chatId: Long) : Route
+data class ChatProfileRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Kalendář zpráv jako panel vedle konverzace (široká plocha; na telefonu je to sheet v konverzaci).
@@ -299,59 +322,60 @@ data class ChatProfileRoute(val chatId: Long) : Route
  */
 @Serializable
 data class ChatCalendarRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     val savedTopicId: Long? = null,
     val directTopicId: Long? = null,
     val anchor: Long? = null,
-) : Route
+) : AccountRoute
 
 /** Čtečka Instant View stránky [url] (z náhledu odkazu). Vrší se nad konverzací v zásobníku Chatů. */
 @Serializable
-data class InstantViewRoute(val url: String) : Route
+data class InstantViewRoute(override val slot: AccountSlot, val url: String) : AccountRoute
 
 /**
  * Úprava skupiny nebo kanálu (název, popis, fotka, práva členů). Vrší se nad profil a je to
  * taky třetí panel — na široké ploše profil v něm nahradí.
  */
 @Serializable
-data class EditChatRoute(val chatId: Long) : Route
+data class EditChatRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Práva jednoho člena: správcovská ([admin] `true`), nebo jeho omezení. Vrší se nad profil
  * stejně jako úprava skupiny.
  */
 @Serializable
-data class MemberRightsRoute(val chatId: Long, val userId: Long, val admin: Boolean) : Route
+data class MemberRightsRoute(override val slot: AccountSlot, val chatId: Long, val userId: Long, val admin: Boolean) : AccountRoute
 
 /** Pozvánky skupiny nebo kanálu. Vrší se nad úpravu, taky jako detailový panel. */
 @Serializable
-data class InviteLinksRoute(val chatId: Long) : Route
+data class InviteLinksRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Žádosti o vstup. Vrší se nad úpravu, taky jako detailový panel. */
 @Serializable
-data class JoinRequestsRoute(val chatId: Long) : Route
+data class JoinRequestsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Omezení ([banned] `false`), nebo vyhození členové. Vrší se nad úpravu, taky jako detailový
  * panel; ťuknutí na omezeného nad ně vrší [MemberRightsRoute].
  */
 @Serializable
-data class RemovedMembersRoute(val chatId: Long, val banned: Boolean) : Route
+data class RemovedMembersRoute(override val slot: AccountSlot, val chatId: Long, val banned: Boolean) : AccountRoute
 
 /** Poslední akce ve skupině nebo kanálu. Vrší se nad úpravu, taky jako detailový panel. */
 @Serializable
-data class EventLogRoute(val chatId: Long) : Route
+data class EventLogRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Statistiky kanálu nebo skupiny. Vrší se nad úpravu, taky jako detailový panel. */
 @Serializable
-data class ChatStatisticsRoute(val chatId: Long) : Route
+data class ChatStatisticsRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Statistika příspěvku v kanálu — ze statistik kanálu, nebo z „Informace o zprávě" nad
  * konverzací. Taky jako detailový panel.
  */
 @Serializable
-data class PostStatisticsRoute(val chatId: Long, val messageId: Long) : Route
+data class PostStatisticsRoute(override val slot: AccountSlot, val chatId: Long, val messageId: Long) : AccountRoute
 
 /**
  * Prohlížeč média přes celou obrazovku.
@@ -364,6 +388,7 @@ data class PostStatisticsRoute(val chatId: Long, val messageId: Long) : Route
  */
 @Serializable
 data class MediaRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     val messageId: Long,
     /**
@@ -403,7 +428,7 @@ data class MediaRoute(
      * obrazovku). Reklama není v historii chatu, prohlížeč ji načte ze seznamu reklam.
      */
     val sponsored: Boolean = false,
-) : Route
+) : AccountRoute
 
 /**
  * Prohlížeč příběhů přes celou obrazovku, otevřený u autora [chatId] (kroužek v řádku chatu,
@@ -411,18 +436,19 @@ data class MediaRoute(
  */
 @Serializable
 data class StoriesRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     /** Příběhy z profilu (mřížka „Příběhy"); prázdné = aktivní příběhy a přechod na další autory. */
     val storyIds: List<Int> = emptyList(),
     val startStoryId: Int = 0,
-) : Route
+) : AccountRoute
 
 /**
  * Videochat chatu [chatId] na poslech (ťuknutí na pruh nad konverzací). Přes celou plochu;
  * odchodem z obrazovky se z hovoru odchází.
  */
 @Serializable
-data class VideoChatRoute(val chatId: Long, val groupCallId: Int) : Route
+data class VideoChatRoute(override val slot: AccountSlot, val chatId: Long, val groupCallId: Int) : AccountRoute
 
 /**
  * Nový vlastní příběh z fotky nebo videa [path] (z výběru příloh, v cache aplikace). Vrší se
@@ -431,6 +457,7 @@ data class VideoChatRoute(val chatId: Long, val groupCallId: Int) : Route
  */
 @Serializable
 data class StoryComposerRoute(
+    override val slot: AccountSlot,
     val path: String,
     val video: Boolean = false,
     val editPosterChatId: Long? = null,
@@ -438,7 +465,7 @@ data class StoryComposerRoute(
     val editCaption: String = "",
     /** Jen obálka videa zveřejněného příběhu; [path] je stažené video toho příběhu. */
     val editCoverOnly: Boolean = false,
-) : Route
+) : AccountRoute
 
 /**
  * Tvorba samolepky ze stažené fotky [path] ([width] × [height]) — z prohlížeče médií.
@@ -446,16 +473,17 @@ data class StoryComposerRoute(
  */
 @Serializable
 data class StickerComposerRoute(
+    override val slot: AccountSlot,
     val path: String,
     val width: Int,
     val height: Int,
     /** Sada, do které má samolepka jít (z úpravy vlastní sady); `null` = výběr jako obvykle. */
     val targetSetId: Long? = null,
-) : Route
+) : AccountRoute
 
 /** Úprava vlastní sady samolepek [setId] (Nastavení → Sady samolepek → ⋮ → Upravit sadu). */
 @Serializable
-data class OwnedStickerSetRoute(val setId: Long) : Route
+data class OwnedStickerSetRoute(override val slot: AccountSlot, val setId: Long) : AccountRoute
 
 /** [MediaRoute.startSeconds] bez času v médiu. */
 const val NO_START = -1
@@ -470,11 +498,11 @@ const val NO_STORY = 0
  * S [storyId] se posílá příběh autora [fromChatId] a [messageIds] je prázdné.
  */
 @Serializable
-data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>, val storyId: Int = NO_STORY) : Route
+data class ForwardRoute(override val slot: AccountSlot, val fromChatId: Long, val messageIds: List<Long>, val storyId: Int = NO_STORY) : AccountRoute
 
 /** „Odpovědět v jiném chatu": výběr chatu, kde se odpoví na zprávu [messageId] z chatu [fromChatId]. */
 @Serializable
-data class ReplyElsewhereRoute(val fromChatId: Long, val messageId: Long) : Route
+data class ReplyElsewhereRoute(override val slot: AccountSlot, val fromChatId: Long, val messageId: Long) : AccountRoute
 
 /**
  * Výběr pro tlačítko klávesnice bota „vyber lidi" ([users] `true`) nebo „vyber chat" ve zprávě
@@ -484,6 +512,7 @@ data class ReplyElsewhereRoute(val fromChatId: Long, val messageId: Long) : Rout
  */
 @Serializable
 data class BotShareRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     val messageId: Long,
     val buttonId: Int,
@@ -496,25 +525,25 @@ data class BotShareRoute(
     val forum: Boolean? = null,
     val botIsMember: Boolean = false,
     val botAdministrator: Boolean = false,
-) : Route
+) : AccountRoute
 
 /**
  * Výběr lidí, které přidat do skupiny nebo kanálu [chatId] (pruh „Pozvat členy", ⋮ v profilu).
  * Bez metadat scény: jde přes celou plochu z obou větví, jako sdílení kontaktu.
  */
 @Serializable
-data class AddMembersRoute(val chatId: Long) : Route
+data class AddMembersRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /** Výběr chatů, do kterých poslat kontakt uživatele [userId] (z profilu, ⋮ → Sdílet kontakt). */
 @Serializable
-data class ShareContactRoute(val userId: Long) : Route
+data class ShareContactRoute(override val slot: AccountSlot, val userId: Long) : AccountRoute
 
 /**
  * Výběr skupiny, do které přidat bota ze startovacího odkazu (`t.me/bot?startgroup=…`). Bez
  * metadat scény, jako přeposílání; po přidání ho nahradí konverzace skupiny.
  */
 @Serializable
-data class AddBotToGroupRoute(val url: String, val botChatId: Long, val asAdmin: Boolean) : Route
+data class AddBotToGroupRoute(override val slot: AccountSlot, val url: String, val botChatId: Long, val asAdmin: Boolean) : AccountRoute
 
 /**
  * Výběr chatu pro tlačítko bota s inline dotazem do jiného chatu. Druhy chatu, které bot
@@ -522,13 +551,14 @@ data class AddBotToGroupRoute(val url: String, val botChatId: Long, val asAdmin:
  */
 @Serializable
 data class SwitchInlineRoute(
+    override val slot: AccountSlot,
     val bot: String,
     val query: String,
     val users: Boolean,
     val bots: Boolean,
     val groups: Boolean,
     val channels: Boolean,
-) : Route
+) : AccountRoute
 
 /**
  * Nová anketa do chatu. Bez metadat scény, jako výběr pro přeposílání: jde přes celou plochu
@@ -536,6 +566,7 @@ data class SwitchInlineRoute(
  */
 @Serializable
 data class PollComposerRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     /** Tlačítko bota si vynutilo jen kvíz ([quizOnly]), nebo jen běžnou anketu ([regularOnly]). */
     val quizOnly: Boolean = false,
@@ -545,7 +576,7 @@ data class PollComposerRoute(
     /** Citovaný úryvek té odpovědi; `null` = celá zpráva. */
     val quoteText: String? = null,
     val quotePosition: Int = 0,
-) : Route
+) : AccountRoute
 
 /**
  * Nový seznam úkolů do chatu. Jako formulář ankety: bez metadat scény, přes celou plochu
@@ -553,6 +584,7 @@ data class PollComposerRoute(
  */
 @Serializable
 data class ChecklistComposerRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     /** Seznam odejde jako odpověď na tuhle zprávu (rozepsaná odpověď v konverzaci). */
     val replyToMessageId: Long? = null,
@@ -561,7 +593,7 @@ data class ChecklistComposerRoute(
     val quotePosition: Int = 0,
     /** Upravit vlastní seznam v téhle zprávě; `null` = nový seznam. */
     val editMessageId: Long? = null,
-) : Route
+) : AccountRoute
 
 /**
  * Mini aplikace bota přes celou obrazovku. Bez metadat scény, jako formulář ankety: jde z hlavního
@@ -570,6 +602,7 @@ data class ChecklistComposerRoute(
  */
 @Serializable
 data class WebAppRoute(
+    override val slot: AccountSlot,
     val chatId: Long,
     val botUserId: Long,
     val url: String,
@@ -589,7 +622,7 @@ data class WebAppRoute(
      * id dotazu na vstup, jinak 0. [url] je pak prázdná, [botUserId] je strážní bot.
      */
     val guardQueryId: Long = 0,
-) : Route
+) : AccountRoute
 
 /**
  * Potvrzení sdílení do JEDNOHO chatu, vybraného už v systémové nabídce (Direct Share).
@@ -599,7 +632,7 @@ data class WebAppRoute(
  * sama odejde. Sdílení BEZ vybraného chatu obrazovku nemá — nese ho čip v shellu.
  */
 @Serializable
-data class ShareToChatRoute(val chatId: Long) : Route
+data class ShareToChatRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
  * Zahájení nové konverzace (výběr kontaktu nebo hledání).
@@ -620,7 +653,7 @@ data object NewGroupMembersRoute : Route
  * u kanálu popis.
  */
 @Serializable
-data class CreateChatRoute(val channel: Boolean, val memberChatIds: List<Long> = emptyList()) : Route
+data class CreateChatRoute(override val slot: AccountSlot, val channel: Boolean, val memberChatIds: List<Long> = emptyList()) : AccountRoute
 
 /**
  * Konfigurace pro ukládání navigačního zásobníku.

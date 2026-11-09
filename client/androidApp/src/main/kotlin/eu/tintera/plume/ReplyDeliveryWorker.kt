@@ -10,6 +10,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.account
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.notifications.PendingReply
 import eu.tintera.plume.core.notifications.ReplyState
@@ -33,7 +35,8 @@ class ReplyDeliveryWorker(
     private val logger = Logger.withTag("NotificationReply")
 
     override suspend fun doWork(): Result {
-        val koin = GlobalContext.getOrNull() ?: return Result.success()
+        val slot = AccountSlot.parse(inputData.getString(KEY_SLOT)) ?: return Result.success()
+        val koin = GlobalContext.getOrNull()?.account(slot) ?: return Result.success()
         val reply = PendingReply(
             chatId = inputData.getLong(KEY_CHAT_ID, 0L),
             messageId = inputData.getLong(KEY_MESSAGE_ID, 0L),
@@ -60,8 +63,9 @@ class ReplyDeliveryWorker(
         private const val KEY_READ_UP_TO = "readUpTo"
         private const val KEY_GROUP_ID = "groupId"
         private const val KEY_TEXT = "text"
+        private const val KEY_SLOT = "slot"
 
-        fun enqueue(context: Context, reply: PendingReply, groupId: Int, text: String) {
+        fun enqueue(context: Context, slot: AccountSlot, reply: PendingReply, groupId: Int, text: String) {
             val request = OneTimeWorkRequestBuilder<ReplyDeliveryWorker>()
                 .setInputData(
                     workDataOf(
@@ -70,6 +74,7 @@ class ReplyDeliveryWorker(
                         KEY_READ_UP_TO to (reply.readUpTo ?: 0L),
                         KEY_GROUP_ID to groupId,
                         KEY_TEXT to text,
+                        KEY_SLOT to slot.id.takeUnless { slot.isPrimary },
                     ),
                 )
                 .apply {
@@ -80,7 +85,11 @@ class ReplyDeliveryWorker(
                 .build()
             // Úloha na každou odpověď zvlášť: dvě rychle po sobě se nesmí přepsat.
             WorkManager.getInstance(context)
-                .enqueueUniqueWork("notification-reply-${reply.chatId}-${reply.messageId}", ExistingWorkPolicy.KEEP, request)
+                .enqueueUniqueWork(
+                    if (slot.isPrimary) "notification-reply-${reply.chatId}-${reply.messageId}" else "notification-reply-${slot.id}-${reply.chatId}-${reply.messageId}",
+                    ExistingWorkPolicy.KEEP,
+                    request,
+                )
         }
     }
 }

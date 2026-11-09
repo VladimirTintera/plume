@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.snooze
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -49,6 +50,7 @@ class ChatSnoozes(
     private val chats: ChatRepository,
     /** Upozornění v čase vynoření; bez něj se chat vynoří jen v seznamu. */
     private val reminders: SnoozeReminders? = null,
+    private val slot: AccountSlot = AccountSlot.Primary,
     private val now: () -> Instant = { Clock.System.now() },
 ) {
 
@@ -88,13 +90,13 @@ class ChatSnoozes(
         val account = chats.savedMessagesChatId.value ?: return
         val others = settings.chatSnoozes.value.filterNot { it.accountId == account && it.chatId == chatId }
         settings.setChatSnoozes(others + ChatSnooze(account, chatId, until.toEpochMilliseconds()))
-        reminders?.schedule(chatId, title, until)
+        reminders?.schedule(slot, chatId, title, until)
     }
 
     /** Zruší odložení, ať chat ještě spí, nebo se už vynořil, i s upozorněním. */
     fun clear(chatId: Long) {
         update(chatId) { true }
-        reminders?.cancel(chatId)
+        reminders?.cancel(slot, chatId)
     }
 
     /**
@@ -104,7 +106,7 @@ class ChatSnoozes(
     fun opened(chatId: Long) {
         val nowMs = now().toEpochMilliseconds()
         // Upozornění v liště splnilo účel spolu s připomínkou; spícímu chatu zůstává.
-        if (update(chatId) { it.until <= nowMs }) reminders?.cancel(chatId)
+        if (update(chatId) { it.until <= nowMs }) reminders?.cancel(slot, chatId)
     }
 
     /** Odebere odložení chatu, která vyhoví [remove]; vrací, jestli nějaké ubylo. */

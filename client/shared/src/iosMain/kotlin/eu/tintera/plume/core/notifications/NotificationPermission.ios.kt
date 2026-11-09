@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -79,7 +80,7 @@ actual class NotificationPermission {
     actual fun backgroundDataBlocked(): Boolean = false
 
     actual fun openBackgroundDataSettings() = Unit
-    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) = Unit
+    actual fun openConversationSettings(slot: AccountSlot, chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) = Unit
 
     private fun refresh() {
         UNUserNotificationCenter.currentNotificationCenter().getNotificationSettingsWithCompletionHandler { settings ->

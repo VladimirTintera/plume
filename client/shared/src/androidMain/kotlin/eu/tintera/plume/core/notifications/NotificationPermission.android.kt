@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.Manifest
 import android.content.Context
 import android.app.NotificationManager
@@ -74,9 +75,9 @@ actual class NotificationPermission(private val context: Context) {
      * toho tónu, a kanál konverzace pod výchozím kanálem by ho minul. Kanál tónu ale vzniká až
      * s první notifikací — dokud není, nezbývá než výchozí.
      */
-    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) {
+    actual fun openConversationSettings(slot: AccountSlot, chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) {
         val parent = existingSoundChannelId(context, channel, soundId)
-        val conversationId = ensureConversationChannel(context, parent, chatId, title)
+        val conversationId = ensureConversationChannel(context, slot, parent, chatId, title)
         val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
             .putExtra(Settings.EXTRA_CHANNEL_ID, parent)

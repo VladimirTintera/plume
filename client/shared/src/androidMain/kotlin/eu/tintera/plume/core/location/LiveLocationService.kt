@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.location
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
@@ -20,6 +21,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.notifications.NotificationIntents
@@ -45,6 +47,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
+import org.koin.core.context.GlobalContext
 import org.koin.core.component.inject
 
 /**
@@ -61,6 +64,10 @@ import org.koin.core.component.inject
  * služba skončí sama.
  */
 class LiveLocationService : Service(), KoinComponent {
+
+    override fun getKoin() = GlobalContext.get().primaryAccount()
+
+    private val slot: AccountSlot by inject()
 
     private val logger = Logger.withTag("LiveLocationService")
     private val repository: LiveLocationRepository by inject()
@@ -185,7 +192,7 @@ class LiveLocationService : Service(), KoinComponent {
     }
 
     private fun openChat(chatId: Long?): PendingIntent? {
-        val intent = chatId?.let { NotificationIntents.chatIntent(this, it) } ?: return null
+        val intent = chatId?.let { NotificationIntents.chatIntent(this, slot, it) } ?: return null
         return PendingIntent.getActivity(this, NOTIFICATION_ID, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 

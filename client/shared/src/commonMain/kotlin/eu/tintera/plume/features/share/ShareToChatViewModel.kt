@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.share
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
  * nevyzvedává (`ShareRequests.confirm`).
  */
 class ShareToChatViewModel(
+    private val slot: AccountSlot,
     private val chatId: Long,
     private val requests: ShareRequests,
     private val repository: ConversationRepository,
@@ -119,7 +121,7 @@ class ShareToChatViewModel(
                  * shell ji kvůli němu nahradí. Kdyby odešla sama, poslala by uživatele do
                  * předchozí aplikace a nové sdílení by se neukázalo vůbec.
                  */
-                if (content.targetChatId != chatId || !content.awaitingConfirmation) return@collect
+                if (content.targetSlot != slot || content.targetChatId != chatId || !content.awaitingConfirmation) return@collect
                 if (content.id != _state.value.contentId) {
                     /*
                      * Nové sdílení do TÉHOŽ chatu: shell obrazovku nechává (je to tatáž routa),

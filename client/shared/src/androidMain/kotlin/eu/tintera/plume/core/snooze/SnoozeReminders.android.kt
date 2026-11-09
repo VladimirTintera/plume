@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.snooze
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.Manifest
 import android.app.PendingIntent
 import android.content.Context
@@ -39,18 +40,18 @@ import kotlin.time.Instant
  */
 class AndroidSnoozeReminders(private val context: Context) : SnoozeReminders {
 
-    override fun schedule(chatId: Long, title: String, at: Instant) {
+    override fun schedule(slot: AccountSlot, chatId: Long, title: String, at: Instant) {
         val delay = (at - Clock.System.now()).inWholeMilliseconds.coerceAtLeast(0)
         val request = OneTimeWorkRequestBuilder<SnoozeReminderWorker>()
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-            .setInputData(workDataOf(KEY_CHAT_ID to chatId, KEY_TITLE to title))
+            .setInputData(workDataOf(KEY_CHAT_ID to chatId, KEY_TITLE to title, KEY_SLOT to slot.id.takeUnless { slot.isPrimary }))
             .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(workName(chatId), ExistingWorkPolicy.REPLACE, request)
+        WorkManager.getInstance(context).enqueueUniqueWork(workName(slot, chatId), ExistingWorkPolicy.REPLACE, request)
     }
 
-    override fun cancel(chatId: Long) {
-        WorkManager.getInstance(context).cancelUniqueWork(workName(chatId))
-        NotificationManagerCompat.from(context).cancel(notificationTag(chatId), NOTIFICATION_ID)
+    override fun cancel(slot: AccountSlot, chatId: Long) {
+        WorkManager.getInstance(context).cancelUniqueWork(workName(slot, chatId))
+        NotificationManagerCompat.from(context).cancel(notificationTag(slot, chatId), NOTIFICATION_ID)
     }
 }
 
@@ -59,6 +60,7 @@ class SnoozeReminderWorker(context: Context, params: WorkerParameters) : Corouti
 
     override suspend fun doWork(): Result {
         val chatId = inputData.getLong(KEY_CHAT_ID, 0L).takeIf { it != 0L } ?: return Result.success()
+        val slot = AccountSlot.parse(inputData.getString(KEY_SLOT)) ?: return Result.success()
         val title = inputData.getString(KEY_TITLE).orEmpty()
         // Od Androidu 13 bez oprávnění `notify` tiše nic neudělá; chat se vynoří aspoň v seznamu.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -74,9 +76,9 @@ class SnoozeReminderWorker(context: Context, params: WorkerParameters) : Corouti
             .setContentText(readString(Res.string.snooze_reminder_text))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
-            .setContentIntent(openChat(chatId))
+            .setContentIntent(openChat(slot, chatId))
             .build()
-        NotificationManagerCompat.from(applicationContext).notify(notificationTag(chatId), NOTIFICATION_ID, notification)
+        NotificationManagerCompat.from(applicationContext).notify(notificationTag(slot, chatId), NOTIFICATION_ID, notification)
         return Result.success()
     }
 
@@ -85,9 +87,9 @@ class SnoozeReminderWorker(context: Context, params: WorkerParameters) : Corouti
      * `filterEquals` — se společným request code by jinak všechna upozornění otevřela chat, který
      * se zaregistroval první (extras do rovnosti nevstupují, viz `NotificationIntents.openChat`).
      */
-    private fun openChat(chatId: Long): PendingIntent? {
-        val intent = NotificationIntents.chatIntent(applicationContext, chatId)
-            ?.setData(Uri.parse("plume-snooze://chat/$chatId"))
+    private fun openChat(slot: AccountSlot, chatId: Long): PendingIntent? {
+        val intent = NotificationIntents.chatIntent(applicationContext, slot, chatId)
+            ?.setData(Uri.parse("plume-snooze://chat/${scoped(slot, chatId)}"))
             ?: return null
         return PendingIntent.getActivity(
             applicationContext,
@@ -98,11 +100,15 @@ class SnoozeReminderWorker(context: Context, params: WorkerParameters) : Corouti
     }
 }
 
-private fun workName(chatId: Long) = "snooze-reminder-$chatId"
+/** Chat jednoznačně přes účty; u primárního účtu holé id, ať naplánované úlohy platí dál. */
+private fun scoped(slot: AccountSlot, chatId: Long) = if (slot.isPrimary) "$chatId" else "${slot.id}/$chatId"
+
+private fun workName(slot: AccountSlot, chatId: Long) = "snooze-reminder-${scoped(slot, chatId)}"
 
 /** Notifikace se odlišují tagem, ne id — id je Int a Long chatu by se do něj nevešlo bez kolizí. */
-private fun notificationTag(chatId: Long) = "snooze-reminder:$chatId"
+private fun notificationTag(slot: AccountSlot, chatId: Long) = "snooze-reminder:${scoped(slot, chatId)}"
 
 private const val NOTIFICATION_ID = 1
 private const val KEY_CHAT_ID = "chatId"
 private const val KEY_TITLE = "title"
+private const val KEY_SLOT = "slot"

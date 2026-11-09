@@ -12,13 +12,13 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.CacheLimit
 import eu.tintera.plume.core.settings.KeepMedia
 import eu.tintera.plume.core.storage.StorageCleaner
+import eu.tintera.plume.core.telegram.KnownImagePaths
 import eu.tintera.plume.core.telegram.StorageCategory
 import eu.tintera.plume.core.telegram.NetworkUsage
 import eu.tintera.plume.core.telegram.StorageRepository
 import eu.tintera.plume.core.telegram.StorageUsage
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
-import eu.tintera.plume.core.ui.forgetKnownImagePaths
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.storage_error_clear
 import eu.tintera.plume.resources.storage_error_load
@@ -74,6 +74,7 @@ class StorageViewModel(
     private val cleaner: StorageCleaner,
     private val settings: AppSettings,
     private val ai: OnDeviceAi,
+    private val knownImagePaths: KnownImagePaths,
     /** Překlad v telefonu; bez něj (iOS) skupina balíčků není. */
     private val translator: OnDeviceTranslator? = null,
 ) : ViewModel() {
@@ -189,7 +190,7 @@ class StorageViewModel(
         result
             .onSuccess { freed ->
                 // Obrázky, které si cestu pamatují, by jinak sahaly na smazaný soubor.
-                forgetKnownImagePaths()
+                knownImagePaths.forget()
                 _state.update { it.copy(clearing = false, notice = StorageNotice.Freed(freed)) }
             }
             .onFailure { failure ->

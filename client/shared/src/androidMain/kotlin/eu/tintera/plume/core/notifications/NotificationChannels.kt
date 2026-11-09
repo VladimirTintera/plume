@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -115,10 +116,10 @@ suspend fun createNotificationChannels(context: Context) {
  *
  * Vrací id zkratky, které se předá do nastavení; `null` pod Androidem 11.
  */
-fun ensureConversationChannel(context: Context, parent: String, chatId: Long, title: String): String? {
+fun ensureConversationChannel(context: Context, slot: AccountSlot, parent: String, chatId: Long, title: String): String? {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
     val manager = context.getSystemService(NotificationManager::class.java)
-    val conversationId = shortcutId(chatId)
+    val conversationId = shortcutId(slot, chatId)
     // Pozor: bez kanálu konverzace vrátí tohle volání NADŘAZENÝ kanál, ne `null`.
     if (manager.getNotificationChannel(parent, conversationId)?.conversationId == conversationId) return conversationId
     val source = manager.getNotificationChannel(parent) ?: return null

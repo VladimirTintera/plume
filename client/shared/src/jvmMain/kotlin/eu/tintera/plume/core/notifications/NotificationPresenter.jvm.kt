@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
@@ -64,6 +65,7 @@ import kotlinx.datetime.toLocalDateTime
 actual class NotificationPresenter internal constructor(
     private val chats: ChatRepository,
     private val settings: AppSettings,
+    private val slot: AccountSlot,
     private val chatOpenRequests: ChatOpenRequests,
     private val notifier: DesktopNotifier,
     private val scope: CoroutineScope,
@@ -101,7 +103,7 @@ actual class NotificationPresenter internal constructor(
             when (activation) {
                 is ToastActivation.Open -> {
                     logger.d { "Klik na oznámení: chat ${activation.chatId}, téma ${activation.topicId}." }
-                    chatOpenRequests.request(activation.chatId, activation.topicId)
+                    chatOpenRequests.request(slot, activation.chatId, activation.topicId)
                     DesktopWindow.activate()
                 }
                 else -> scope.launch { act(activation) }

@@ -7,6 +7,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -22,7 +23,7 @@ import java.util.concurrent.TimeUnit
 class PhotoDescriptionWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val describer = GlobalContext.getOrNull()?.getOrNull<BackgroundPhotoDescription>() ?: return Result.success()
+        val describer = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<BackgroundPhotoDescription>() ?: return Result.success()
         describer.describeBatch()
         return Result.success()
     }

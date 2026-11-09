@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
@@ -16,6 +17,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+
+private val slot = AccountSlot.Primary
 
 /**
  * Kde visí čip sdíleného obsahu ([showsShareChip]) a do které konverzace z něj jde vložit
@@ -39,40 +42,40 @@ class ShareChipPlacementTest {
     @Test
     fun cipVisiNadSeznamemKonverzaciIProfilem() {
         assertTrue(listOf<NavKey>(ChatsRoute).showsShareChip(paneOf))
-        assertTrue(listOf(ChatsRoute, ConversationRoute(1)).showsShareChip(paneOf))
-        assertTrue(listOf(ChatsRoute, ConversationRoute(1), ChatProfileRoute(1)).showsShareChip(paneOf))
+        assertTrue(listOf(ChatsRoute, ConversationRoute(slot, 1)).showsShareChip(paneOf))
+        assertTrue(listOf(ChatsRoute, ConversationRoute(slot, 1), ChatProfileRoute(slot, 1)).showsShareChip(paneOf))
     }
 
     @Test
     fun nadObrazovkouPresCelouPlochuCipNeni() {
-        assertFalse(listOf(ChatsRoute, ConversationRoute(1), MediaRoute(1, 5)).showsShareChip(paneOf))
-        assertFalse(listOf(ChatsRoute, ShareToChatRoute(1)).showsShareChip(paneOf))
+        assertFalse(listOf(ChatsRoute, ConversationRoute(slot, 1), MediaRoute(slot, 1, 5)).showsShareChip(paneOf))
+        assertFalse(listOf(ChatsRoute, ShareToChatRoute(slot, 1)).showsShareChip(paneOf))
     }
 
     @Test
     fun naTelefonuJenKonverzaceNavrchu() {
-        assertEquals(1, listOf(ChatsRoute, ConversationRoute(1)).shareInsertChat(paneOf, sideBySide = false))
-        assertEquals(2, listOf(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(2)).shareInsertChat(paneOf, sideBySide = false))
+        assertEquals(1, listOf(ChatsRoute, ConversationRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = false)?.chatId)
+        assertEquals(2, listOf(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, 2)).shareInsertChat(paneOf, sideBySide = false)?.chatId)
         // Profil konverzaci na telefonu zakrývá.
-        assertNull(listOf(ChatsRoute, ConversationRoute(1), ChatProfileRoute(1)).shareInsertChat(paneOf, sideBySide = false))
-        assertNull(listOf<NavKey>(ChatsRoute).shareInsertChat(paneOf, sideBySide = false))
-        assertNull(listOf(ChatsRoute, ForumTopicsRoute(3)).shareInsertChat(paneOf, sideBySide = false))
+        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), ChatProfileRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = false)?.chatId)
+        assertNull(listOf<NavKey>(ChatsRoute).shareInsertChat(paneOf, sideBySide = false)?.chatId)
+        assertNull(listOf(ChatsRoute, ForumTopicsRoute(slot, 3)).shareInsertChat(paneOf, sideBySide = false)?.chatId)
     }
 
     @Test
     fun vedleSeznamuIPodProfilem() {
-        val stack = listOf(ChatsRoute, ConversationRoute(1), ChatProfileRoute(1))
-        assertEquals(1, stack.shareInsertChat(paneOf, sideBySide = true))
-        assertEquals(1, listOf(ChatsRoute, ConversationRoute(1)).shareInsertChat(paneOf, sideBySide = true))
+        val stack = listOf(ChatsRoute, ConversationRoute(slot, 1), ChatProfileRoute(slot, 1))
+        assertEquals(1, stack.shareInsertChat(paneOf, sideBySide = true)?.chatId)
+        assertEquals(1, listOf(ChatsRoute, ConversationRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = true)?.chatId)
     }
 
     @Test
     fun vedleSeznamuBezKonverzaceNicNebo() {
         // Placeholder vpravo.
-        assertNull(listOf<NavKey>(ChatsRoute).shareInsertChat(paneOf, sideBySide = true))
+        assertNull(listOf<NavKey>(ChatsRoute).shareInsertChat(paneOf, sideBySide = true)?.chatId)
         // Archiv nad konverzací hlavního seznamu: ta vidět není, vpravo je placeholder archivu.
-        assertNull(listOf(ChatsRoute, ConversationRoute(1), ArchiveRoute).shareInsertChat(paneOf, sideBySide = true))
+        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), ArchiveRoute).shareInsertChat(paneOf, sideBySide = true)?.chatId)
         // Prohlížeč přes celou plochu konverzaci zakrývá.
-        assertNull(listOf(ChatsRoute, ConversationRoute(1), MediaRoute(1, 5)).shareInsertChat(paneOf, sideBySide = true))
+        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), MediaRoute(slot, 1, 5)).shareInsertChat(paneOf, sideBySide = true)?.chatId)
     }
 }

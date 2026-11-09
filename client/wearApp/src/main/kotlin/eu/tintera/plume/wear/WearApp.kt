@@ -1,5 +1,6 @@
 package eu.tintera.plume.wear
 
+import eu.tintera.plume.core.accounts.Accounts
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -28,7 +29,14 @@ import eu.tintera.plume.resources.connection_connecting
 import eu.tintera.plume.resources.wear_login_signed_in
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.KoinIsolatedContext
 import org.koin.compose.koinInject
+
+/** Hodinky mají jeden účet: `koinInject` míří do kontejneru primárního účtu (`Accounts`). */
+@Composable
+fun PrimaryAccountScope(content: @Composable () -> Unit) {
+    KoinIsolatedContext(koinInject<Accounts>().primary.application, content)
+}
 
 /**
  * Rozcestník podle stavu přihlášení: na hodinkách jen QR kód (a heslo), pak seznam chatů.

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
@@ -111,6 +112,7 @@ class ConversationBotsTest {
             override fun jumpToMessage(messageId: Long, fromSearch: Boolean, anchor: ScrollAnchor) = Unit
         }
         val links = ConversationLinks(
+            slot = AccountSlot.Primary,
             chatId = TEST_CHAT,
             forumTopicId = null,
             savedTopicId = null,

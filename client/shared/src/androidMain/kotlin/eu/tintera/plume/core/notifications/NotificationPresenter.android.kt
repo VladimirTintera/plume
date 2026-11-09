@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
@@ -69,6 +70,7 @@ import kotlinx.datetime.toLocalDateTime
  * a bez nich by se po přečtení jedné zprávy musela zahodit celá notifikace.
  */
 actual class NotificationPresenter(
+    private val slot: AccountSlot,
     private val context: Context,
     private val scope: CoroutineScope,
     private val settings: AppSettings,
@@ -244,7 +246,7 @@ actual class NotificationPresenter(
         val icon = avatarBitmap(conversation.avatarPath)?.let(IconCompat::createWithAdaptiveBitmap)
             ?: IconCompat.createWithResource(context, R.drawable.ic_notification)
         return NotificationCompat.BubbleMetadata.Builder(
-            NotificationIntents.bubble(context, groupId, conversation.chatId),
+            NotificationIntents.bubble(context, slot, groupId, conversation.chatId),
             icon,
         )
             .setDesiredHeight(BUBBLE_HEIGHT_DP)
@@ -446,6 +448,7 @@ actual class NotificationPresenter(
             .setContentIntent(
                 NotificationIntents.openChat(
                     context = context,
+                    slot = slot,
                     notificationId = groupId,
                     chatId = conversation.chatId,
                     topicId = conversation.topicId,
@@ -456,6 +459,7 @@ actual class NotificationPresenter(
             .setDeleteIntent(
                 NotificationIntents.dismiss(
                     context = context,
+                    slot = slot,
                     groupId = groupId,
                     chatId = conversation.chatId,
                     maxNotificationId = dismissUpTo(conversation.lines.map { it.notificationId }),
@@ -507,12 +511,12 @@ actual class NotificationPresenter(
                 NotificationCompat.Action.Builder(
                     IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
                     readString(Res.string.notification_call_decline),
-                    NotificationIntents.declineCall(context, call.groupId, call.chatId, call.callId, call.isVideo),
+                    NotificationIntents.declineCall(context, slot, call.groupId, call.chatId, call.callId, call.isVideo),
                 )
                     .setShowsUserInterface(false)
                     .build(),
             )
-            .setContentIntent(NotificationIntents.openChat(context = context, notificationId = call.groupId, chatId = call.chatId))
+            .setContentIntent(NotificationIntents.openChat(context = context, slot = slot, notificationId = call.groupId, chatId = call.chatId))
             .build()
         logger.d { "Zobrazuji příchozí hovor ${call.callId} (${if (call.isVideo) "video" else "hlas"})." }
         manager.notify(call.groupId, built)
@@ -538,7 +542,7 @@ actual class NotificationPresenter(
             .setIcon(avatarBitmap(call.avatarPath)?.let { IconCompat.createWithBitmap(it) })
             .setImportant(true)
             .build()
-        val decline = NotificationIntents.declineCall(context, call.groupId, call.chatId, call.callId, call.isVideo)
+        val decline = NotificationIntents.declineCall(context, slot, call.groupId, call.chatId, call.callId, call.isVideo)
         val answer = NotificationIntents.answerCall(context, call.groupId, call.callId) ?: return
         // Tichý kanál: zvoní `CallRinger` tónem ve smyčce, zvuk notifikace by ho zdvojil.
         val built = NotificationCompat.Builder(context, INCOMING_CALLS_CHANNEL_ID)
@@ -614,6 +618,7 @@ actual class NotificationPresenter(
     private suspend fun replyAction(groupId: Int, chatId: Long, replyToMessageId: Long?, topicId: Int?): NotificationCompat.Action? {
         val intent = NotificationIntents.reply(
             context,
+            slot = slot,
             groupId = groupId,
             chatId = chatId,
             replyToMessageId = replyToMessageId,
@@ -646,7 +651,7 @@ actual class NotificationPresenter(
         NotificationCompat.Action.Builder(
             IconCompat.createWithResource(context, R.drawable.ic_notification_mark_read),
             readString(Res.string.notification_mark_read),
-            NotificationIntents.markRead(context, groupId = groupId, chatId = chatId, messageId = messageId),
+            NotificationIntents.markRead(context, slot = slot, groupId = groupId, chatId = chatId, messageId = messageId),
         )
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
             .setShowsUserInterface(false)
@@ -659,7 +664,7 @@ actual class NotificationPresenter(
         NotificationCompat.Action.Builder(
             IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
             readString(Res.string.notification_mute_hour),
-            NotificationIntents.mute(context, groupId = groupId, chatId = chatId),
+            NotificationIntents.mute(context, slot = slot, groupId = groupId, chatId = chatId),
         )
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE)
             .setShowsUserInterface(false)
@@ -768,6 +773,7 @@ actual class NotificationPresenter(
         // Tatáž zkratka slouží i sdílení (Direct Share), viz `conversationShortcut`.
         val shortcut = conversationShortcut(
             context = context,
+            slot = slot,
             chatId = conversation.chatId,
             title = conversation.title,
             photo = if (conversation.isSavedMessages) bookmarkIcon(context) else avatarIcon(conversation.avatarPath),

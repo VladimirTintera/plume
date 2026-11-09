@@ -6,6 +6,7 @@ import android.os.PowerManager
 import co.touchlab.kermit.Logger
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.notifications.BackgroundDataWarning
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -54,10 +55,10 @@ class PlumeMessagingService : FirebaseMessagingService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val repository: NotificationRepository?
-        get() = GlobalContext.getOrNull()?.get()
+        get() = GlobalContext.getOrNull()?.primaryAccount()?.get()
 
     private val journal: CallJournal?
-        get() = GlobalContext.getOrNull()?.getOrNull()
+        get() = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull()
 
     override fun onNewToken(token: String) {
         logger.d { "Nový FCM token." }
@@ -152,7 +153,7 @@ class PlumeMessagingService : FirebaseMessagingService() {
      */
     private fun watchConnection() {
         val journal = journal ?: return
-        val connection = GlobalContext.getOrNull()?.getOrNull<ConnectionRepository>() ?: return
+        val connection = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<ConnectionRepository>() ?: return
         scope.launch {
             withTimeoutOrNull(CONNECTION_WATCH) {
                 connection.state.collect { journal.record("TDLib connection: $it") }
@@ -162,13 +163,13 @@ class PlumeMessagingService : FirebaseMessagingService() {
 
     private suspend fun checkBackgroundData() {
         val blocked = BackgroundDataWarning.check(applicationContext) ?: return
-        val permission = GlobalContext.getOrNull()?.getOrNull<NotificationPermission>() ?: return
+        val permission = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<NotificationPermission>() ?: return
         if (blocked) journal?.record("Background data blocked on a metered network: calls on mobile data cannot ring")
         if (BackgroundDataWarning.report(applicationContext, permission, blocked)) logger.i { "Upozornění na zablokovaná data na pozadí ukázané." }
     }
 
     private suspend fun reconnect() {
-        GlobalContext.getOrNull()?.getOrNull<ConnectionController>()?.reconnect("Push hovoru")
+        GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<ConnectionController>()?.reconnect("Push hovoru")
     }
 
     /**

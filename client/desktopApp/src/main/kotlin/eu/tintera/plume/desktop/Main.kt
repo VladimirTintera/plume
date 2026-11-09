@@ -40,6 +40,7 @@ import eu.tintera.plume.core.platform.desktopClosesToTray
 import eu.tintera.plume.core.ui.DesktopImageLoader
 import eu.tintera.plume.core.ui.rememberDesktopShortcutHandler
 import eu.tintera.plume.core.ui.DesktopMenuBar
+import eu.tintera.plume.core.accounts.PrimaryAccountScope
 import eu.tintera.plume.di.startKoin
 import eu.tintera.plume.core.video.DesktopPictureInPictureWindow
 import eu.tintera.plume.features.calls.IncomingCallWindow
@@ -120,10 +121,10 @@ fun main(args: Array<String>) {
         key(language) { DesktopTrayIcon(onOpen = DesktopWindow::activate, onQuit = { exitApplication() }) }
 
         // Příchozí hovor, když hlavní okno není vpředu: okénko navrchu s Přijmout / Odmítnout.
-        IncomingCallWindow()
+        PrimaryAccountScope { IncomingCallWindow() }
 
         // Video v okénku obrazu v obraze; přežije zavření prohlížeče, ze kterého přišlo.
-        DesktopPictureInPictureWindow()
+        PrimaryAccountScope { DesktopPictureInPictureWindow() }
 
         // Klávesové zkratky (Ctrl/⌘+K, Alt+šipky…) dřív, než klávesu dostane zaostřený prvek.
         val shortcuts = rememberDesktopShortcutHandler()

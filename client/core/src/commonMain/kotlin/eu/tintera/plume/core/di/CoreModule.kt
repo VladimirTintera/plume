@@ -1,10 +1,13 @@
 package eu.tintera.plume.core.di
 
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.CallPointerDisplay
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
+import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.telegram.AccountNotices
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.core.telegram.AiTextRepository
@@ -28,6 +31,7 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.ForumRepository
 import eu.tintera.plume.core.telegram.GifRepository
 import eu.tintera.plume.core.telegram.InstantViewRepository
+import eu.tintera.plume.core.telegram.KnownImagePaths
 import eu.tintera.plume.core.telegram.InviteLinkRepository
 import eu.tintera.plume.core.telegram.LiveLocationRepository
 import eu.tintera.plume.core.telegram.LiveStoryRepository
@@ -105,8 +109,15 @@ import eu.tintera.plume.core.telegram.WebAppRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import org.koin.core.Koin
+import org.koin.core.KoinApplication
+import org.koin.core.annotation.KoinExperimentalAPI
+import org.koin.core.instance.ResolutionContext
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
+import org.koin.core.resolution.ResolutionExtension
+import org.koin.core.scope.Scope
+import org.koin.dsl.koinApplication
 import org.koin.dsl.module
 
 /**
@@ -126,13 +137,84 @@ const val APP_SCOPE = "appScope"
  *   aplikace (ntgcalls do `core` nepatří); bez nich `CallRepository.supported` říká, že ne.
  * - **Eager definice (`createdAtStart`) jsou nutnost, ne optimalizace** — viz komentáře u nich
  *   a „Repository seznamu chatů MUSÍ vznikat eagerně" v CLAUDE.md.
+ * - **Skládá se z globální části a kontejnerů účtů** (`docs/navrh-vice-uctu.md`): globální
+ *   část ([coreGlobalModule]) je v tomhle Koinu, část účtu ([accountModule]) v izolovaném
+ *   kontejneru každého účtu ([Accounts]). V globálním Koinu žádné repository nejsou: kdo s účtem
+ *   pracuje, musí mít jeho kontejner.
+ *
+ * @param accountModules co do kontejneru účtu přidává aplikace nad tímhle modulem.
  */
-fun coreModule(): Module = module {
+fun coreModule(accountModules: (AccountSlot) -> List<Module> = { emptyList() }): Module = module {
+    includes(coreGlobalModule())
+
+    // Eager: v kontejneru účtu vznikají eager repository, které musí odebírat updaty dřív, než
+    // TDLib pošle první dávku (viz `Accounts`).
+    var opening = false
+    single(createdAtStart = true) {
+        // Globální definice, která si při vzniku řekne o `Accounts`, a kterou přitom potřebuje
+        // eager instance účtu, by otevřela druhý kontejner, a tím i druhého klienta TDLib nad
+        // tímtéž adresářem. Globální definice proto sahají na `Accounts` až za běhu.
+        check(!opening) { "Accounts se otevírá znovu: globální definice ho nesmí chtít při vzniku." }
+        opening = true
+        val global = getKoin()
+        Accounts { slot -> openAccount(global, listOf(accountModule(slot)) + accountModules(slot)) }
+            .also { opening = false }
+    }
+}
+
+/**
+ * Izolovaný kontejner účtu z [modules], i s eager instancemi.
+ *
+ * Co v něm není, hledá v globálním Koinu ([global]), naopak to nejde. Díky tomu účet vidí
+ * nastavení, síť nebo scope aplikace bez seznamu předávaných typů, a co patří účtu, se mimo jeho
+ * kontejner vůbec nedostane. Rozšíření musí být zapojené před `modules`: eager instance se vyrábí
+ * hned v [koinApplication].
+ */
+@OptIn(KoinExperimentalAPI::class)
+internal fun openAccount(global: Koin, modules: List<Module>): KoinApplication =
+    koinApplication(createEagerInstances = true) {
+        koin.addResolutionExtension(GlobalDefinitions(global))
+        modules(modules)
+    }
+
+private class GlobalDefinitions(private val global: Koin) : ResolutionExtension {
+    override val name = "global"
+
+    override fun resolve(scope: Scope, instanceContext: ResolutionContext): Any? =
+        global.getOrNull<Any>(
+            instanceContext.clazz,
+            instanceContext.qualifier,
+            instanceContext.parameters?.let { parameters -> { parameters } },
+        )
+}
+
+/**
+ * Co je v procesu jednou, ať je účtů kolik chce: scope aplikace, sledování sítě a popředí.
+ * Nic odsud nesmí sáhnout na definici z [accountModule] — globální část nemá účet, ke kterému
+ * by ji vztáhla.
+ */
+internal fun coreGlobalModule(): Module = module {
     includes(corePlatformModule())
 
     single(named(APP_SCOPE)) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+}
 
-    // Jeden TDLib klient na proces; sdílí ho session i chat repository.
+/**
+ * Všechno, co patří jednomu účtu ([slot]): jeho klient TDLib, cesty a klíč databáze, přihlášení
+ * a všechny repository. Žije v izolovaném kontejneru účtu ([openAccount]).
+ *
+ * `ConnectionController` je tady, ne v globální části: typ sítě a příznak online se posílají
+ * klientovi TDLib, a ten je u každého účtu jiný. Stejně tak `RevealedSpoilers`,
+ * `SelfDestructTimers` a `KnownImagePaths` — drží id zpráv a souborů, a ta jsou čísla jednoho
+ * klienta.
+ */
+internal fun accountModule(slot: AccountSlot): Module = module {
+    includes(accountPlatformModule(slot))
+
+    // Komu definice patří: kdo staví vstupní bod (intent, zástupce, sdílení), ho do něj dá.
+    single { slot }
+
+    // Jeden TDLib klient na účet; sdílí ho session i chat repository.
     single { TelegramClientHolder() }
 
     single<TelegramSession> {
@@ -283,6 +365,8 @@ fun coreModule(): Module = module {
 
     single { SelfDestructTimers() }
 
+    single { KnownImagePaths() }
+
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
 
     single<InviteLinkRepository> { TdlInviteLinkRepository(holder = get()) }
@@ -317,5 +401,8 @@ fun coreModule(): Module = module {
     }
 }
 
-/** Platformní část [coreModule]: cesty TDLib, sledování sítě a popředí, úložiště klíče databáze. */
+/** Platformní část [coreGlobalModule]: sledování sítě a popředí. */
 internal expect fun corePlatformModule(): Module
+
+/** Platformní část [accountModule]: cesty TDLib a úložiště klíče databáze účtu [slot]. */
+internal expect fun accountPlatformModule(slot: AccountSlot): Module

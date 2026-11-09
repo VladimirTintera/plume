@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.ui.readString
@@ -141,7 +142,7 @@ object IosNotificationCenter {
 
             // Ťuknutí na samotnou notifikaci otevře chat; aplikace jde do popředí sama.
             if (response.actionIdentifier == UNNotificationDefaultActionIdentifier) {
-                koin.get<ChatOpenRequests>().request(chatId)
+                koin.get<ChatOpenRequests>().request(koin.get<AccountSlot>(), chatId)
                 withCompletionHandler()
                 return
             }

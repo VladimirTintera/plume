@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.PushToken
@@ -71,7 +72,7 @@ class WearMessagingService : FirebaseMessagingService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val repository: NotificationRepository?
-        get() = GlobalContext.getOrNull()?.getOrNull()
+        get() = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull()
 
     override fun onNewToken(token: String) {
         val repository = repository ?: return

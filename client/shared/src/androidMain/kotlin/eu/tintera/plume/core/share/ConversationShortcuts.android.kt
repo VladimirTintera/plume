@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.share
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -23,9 +24,9 @@ import eu.tintera.plume.core.notifications.NotificationIntents
  * v `res/xml/shortcuts.xml` vstupního bodu. Bez kategorie by se zkratka ve sdílení neukázala,
  * bez `share-target` taky ne — a nic z toho nevyhodí chybu.
  */
-internal fun conversationShortcut(context: Context, chatId: Long, title: String, photo: IconCompat?): ShortcutInfoCompat? {
-    val intent = NotificationIntents.chatIntent(context, chatId) ?: return null
-    val id = shortcutId(chatId)
+internal fun conversationShortcut(context: Context, slot: AccountSlot, chatId: Long, title: String, photo: IconCompat?): ShortcutInfoCompat? {
+    val intent = NotificationIntents.chatIntent(context, slot, chatId) ?: return null
+    val id = shortcutId(slot, chatId)
     // Bez fotky iniciála, jako v aplikaci. Prázdné kolečko ve sdílení i v notifikaci vypadalo
     // jako nenačtený obrázek.
     val icon = photo ?: initialIcon(context, title)
@@ -115,15 +116,8 @@ internal fun pushConversationShortcut(context: Context, shortcut: ShortcutInfoCo
         .onFailure { Logger.withTag("Shortcuts").w(it) { "Zkratku konverzace se nepodařilo publikovat." } }
         .getOrDefault(false)
 
-internal fun shortcutId(chatId: Long): String = SHORTCUT_PREFIX + chatId
-
-/** Chat ze zkratky, přes kterou uživatel sdílel; `null` u cizího nebo nečitelného id. */
-internal fun chatIdFromShortcut(id: String?): Long? = id?.removePrefix(SHORTCUT_PREFIX)?.takeIf { it != id }?.toLongOrNull()
-
 /** Kategorie zkratek, které nabízí systémová nabídka „Sdílet". Stejná jako v `shortcuts.xml`. */
 const val SHARE_CATEGORY = "eu.tintera.plume.category.SHARE_TARGET"
-
-private const val SHORTCUT_PREFIX = "chat_"
 
 /**
  * Android: chat jako zkratka konverzace s kategorií ke sdílení — a táž zkratka připnutá na
@@ -131,26 +125,26 @@ private const val SHORTCUT_PREFIX = "chat_"
  * ve sdílení (název, fotka) a že notifikace i plocha otevírají tentýž chat stejnou cestou.
  */
 class AndroidShareTargetPublisher(private val context: Context) : ShareTargetPublisher {
-    override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) {
-        shortcut(chatId, title, avatarPath, isSavedMessages)?.let { pushConversationShortcut(context, it) }
+    override fun publish(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) {
+        shortcut(slot, chatId, title, avatarPath, isSavedMessages)?.let { pushConversationShortcut(context, it) }
     }
 
     override val canPin: Boolean get() = ShortcutManagerCompat.isRequestPinShortcutSupported(context)
 
-    override fun pin(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): Boolean {
+    override fun pin(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): Boolean {
         if (!canPin) return false
-        val shortcut = shortcut(chatId, title, avatarPath, isSavedMessages) ?: return false
+        val shortcut = shortcut(slot, chatId, title, avatarPath, isSavedMessages) ?: return false
         return runCatching { ShortcutManagerCompat.requestPinShortcut(context, shortcut, null) }
             .onFailure { Logger.withTag("Shortcuts").w(it) { "Zástupce chatu $chatId se nepodařilo připnout." } }
             .getOrDefault(false)
     }
 
-    private fun shortcut(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): ShortcutInfoCompat? {
-        if (isSavedMessages) return conversationShortcut(context, chatId, title, bookmarkIcon(context))
+    private fun shortcut(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): ShortcutInfoCompat? {
+        if (isSavedMessages) return conversationShortcut(context, slot, chatId, title, bookmarkIcon(context))
         // Kulatý ořez jako u notifikací — Android zkratky kreslí v kruhu.
         val icon = avatarPath
             ?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() }
             ?.let(IconCompat::createWithAdaptiveBitmap)
-        return conversationShortcut(context, chatId, title, icon)
+        return conversationShortcut(context, slot, chatId, title, icon)
     }
 }

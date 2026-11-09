@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.os.Build
+import eu.tintera.plume.core.accounts.AccountSlot
 import java.io.File
 import java.util.Locale
 
@@ -11,9 +12,9 @@ import java.util.Locale
  * pro šifrovanou databázi zpráv je to správné místo. Cache adresář by byl špatně: systém ho
  * může kdykoli vymazat a TDLib by přišel o stav.
  */
-actual class TelegramPaths(context: Context) {
-    actual val databaseDirectory: String = context.filesDir.resolve("tdlib").absolutePath
-    actual val filesDirectory: String = context.filesDir.resolve("tdlib-files").absolutePath
+actual class TelegramPaths(context: Context, slot: AccountSlot = AccountSlot.Primary) {
+    actual val databaseDirectory: String = context.filesDir.resolve(slot.directory("tdlib")).absolutePath
+    actual val filesDirectory: String = context.filesDir.resolve(slot.directory("tdlib-files")).absolutePath
 
     /** Z manifestu aplikace, ne z knihovny: `:client:shared` se staví stejně pro debug i release. */
     actual val isDebugBuild: Boolean = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0

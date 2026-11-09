@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import kotlin.experimental.ExperimentalNativeApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSApplicationSupportDirectory
@@ -19,9 +20,9 @@ import platform.UIKit.UIDevice
  * Šifrovaná databáze zpráv tam nepatří — patří do Application Support, který systém považuje
  * za data spravovaná aplikací.
  */
-actual class TelegramPaths {
-    actual val databaseDirectory: String = applicationSupportDirectory() + "/tdlib"
-    actual val filesDirectory: String = applicationSupportDirectory() + "/tdlib-files"
+actual class TelegramPaths(slot: AccountSlot = AccountSlot.Primary) {
+    actual val databaseDirectory: String = applicationSupportDirectory() + "/" + slot.directory("tdlib")
+    actual val filesDirectory: String = applicationSupportDirectory() + "/" + slot.directory("tdlib-files")
 
     /** Debug framework (`linkDebugFramework…`), tedy build z Xcode v konfiguraci Debug. */
     @OptIn(ExperimentalNativeApi::class)

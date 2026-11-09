@@ -5,6 +5,9 @@ package eu.tintera.plume.core.telegram
  *
  * Musí to být zapisovatelný adresář privátní pro aplikaci — TDLib si tam drží šifrovanou databázi
  * zpráv, takže to nesmí být sdílené ani zálohované úložiště.
+ *
+ * **Adresáře patří jednomu účtu** (slot v konstruktoru platformní třídy, `AccountSlot.directory`).
+ * Primární účet je na dnešních cestách `tdlib` a `tdlib-files`, další v `accounts/<slot>/…`.
  */
 expect class TelegramPaths {
     val databaseDirectory: String

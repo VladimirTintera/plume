@@ -1,5 +1,7 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.share.InsertChat
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.navigation.ArchiveChatStatisticsRoute
 import eu.tintera.plume.core.navigation.ArchiveEventLogRoute
 import eu.tintera.plume.core.navigation.ArchivePostStatisticsRoute
@@ -116,7 +118,7 @@ internal fun MutableList<NavKey>.closeConversationOf(change: ArchiveChange) {
  * ze seznamu.
  */
 internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
-    if (none { (it as? ArchiveConversationRoute)?.chatId == chatId }) return
+    val slot = firstNotNullOfOrNull { route -> (route as? ArchiveConversationRoute)?.takeIf { it.chatId == chatId }?.slot } ?: return
     removeAll {
         when (it) {
             // Celá archivní větev, i úpravy a práva členů nad profilem.
@@ -134,7 +136,7 @@ internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
             else -> false
         }
     }
-    add(ConversationRoute(chatId))
+    add(ConversationRoute(slot, chatId))
 }
 
 /**
@@ -211,10 +213,10 @@ internal fun MutableList<NavKey>.replaceUpgradedChat(old: Long, new: Long) {
     for (index in indices) {
         val route = this[index]
         val replaced = when (route) {
-            is ConversationRoute -> if (route.chatId == old) ConversationRoute(new) else route
-            is ArchiveConversationRoute -> if (route.chatId == old) ArchiveConversationRoute(new) else route
-            is ChatProfileRoute -> if (route.chatId == old) ChatProfileRoute(new) else route
-            is ArchiveChatProfileRoute -> if (route.chatId == old) ArchiveChatProfileRoute(new) else route
+            is ConversationRoute -> if (route.chatId == old) ConversationRoute(route.slot, new) else route
+            is ArchiveConversationRoute -> if (route.chatId == old) ArchiveConversationRoute(route.slot, new) else route
+            is ChatProfileRoute -> if (route.chatId == old) ChatProfileRoute(route.slot, new) else route
+            is ArchiveChatProfileRoute -> if (route.chatId == old) ArchiveChatProfileRoute(route.slot, new) else route
             else -> route
         }
         if (replaced != route) this[index] = replaced
@@ -229,10 +231,10 @@ internal fun MutableList<NavKey>.replaceUpgradedChat(old: Long, new: Long) {
  * Téma se přidává rovnou, bez seznamu témat pod sebou: zpět z něj má vést tam, odkud uživatel
  * přišel, ne do seznamu, který nikdy neviděl. [archive] vybírá větev, do které se píše.
  */
-internal fun MutableList<NavKey>.openTarget(target: ChatTarget, archive: Boolean) {
+internal fun MutableList<NavKey>.openTarget(slot: AccountSlot, target: ChatTarget, archive: Boolean) {
     val chatId = target.chatId
     when {
-        target.threadId != null -> add(conversation(archive, chatId, threadId = target.threadId))
+        target.threadId != null -> add(conversation(slot, archive, chatId, threadId = target.threadId))
         target.topicId != null -> {
             val top = lastOrNull()
             val sameTopic = if (archive) {
@@ -240,10 +242,10 @@ internal fun MutableList<NavKey>.openTarget(target: ChatTarget, archive: Boolean
             } else {
                 top is ConversationRoute && top.chatId == chatId && top.topicId == target.topicId
             }
-            if (!sameTopic) add(conversation(archive, chatId, target.messageId, topicId = target.topicId))
+            if (!sameTopic) add(conversation(slot, archive, chatId, target.messageId, topicId = target.topicId))
         }
         target.forum -> {
-            val topics: NavKey = if (archive) ArchiveForumTopicsRoute(chatId) else ForumTopicsRoute(chatId)
+            val topics: NavKey = if (archive) ArchiveForumTopicsRoute(slot, chatId) else ForumTopicsRoute(slot, chatId)
             if (lastOrNull() != topics) add(topics)
         }
         else -> {
@@ -254,7 +256,7 @@ internal fun MutableList<NavKey>.openTarget(target: ChatTarget, archive: Boolean
             } else {
                 top is ConversationRoute && top.chatId == chatId && top.topicId == null && top.threadId == null
             }
-            if (!open) add(conversation(archive, chatId, target.messageId))
+            if (!open) add(conversation(slot, archive, chatId, target.messageId))
         }
     }
 }
@@ -265,26 +267,26 @@ internal fun MutableList<NavKey>.openTarget(target: ChatTarget, archive: Boolean
  * ze seznamu chatů — zpět tak vede tam, kam by vedl z tématu otevřeného ručně. Bez [messageId]
  * se téma jen otevře (koncept v tématu z přehledu konceptů).
  */
-internal fun MutableList<NavKey>.openFoundMessage(chatId: Long, messageId: Long?, topicId: Int?) {
+internal fun MutableList<NavKey>.openFoundMessage(slot: AccountSlot, chatId: Long, messageId: Long?, topicId: Int?) {
     removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
-    if (topicId != null) add(ForumTopicsRoute(chatId))
-    add(ConversationRoute(chatId, messageId, topicId = topicId))
+    if (topicId != null) add(ForumTopicsRoute(slot, chatId))
+    add(ConversationRoute(slot, chatId, messageId, topicId = topicId))
 }
 
 /**
  * Vlákno komentářů z přehledu konceptů: nahradí otevřenou konverzaci jako výběr chatu. Kanál
  * pod ním není — zpět vede do seznamu chatů, odkud uživatel přišel, ne do kanálu, který neotevřel.
  */
-internal fun MutableList<NavKey>.openCommentThread(chatId: Long, threadId: Long) {
+internal fun MutableList<NavKey>.openCommentThread(slot: AccountSlot, chatId: Long, threadId: Long) {
     removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
-    add(ConversationRoute(chatId, threadId = threadId))
+    add(ConversationRoute(slot, chatId, threadId = threadId))
 }
 
-private fun conversation(archive: Boolean, chatId: Long, messageId: Long? = null, threadId: Long? = null, topicId: Int? = null): NavKey =
+private fun conversation(slot: AccountSlot, archive: Boolean, chatId: Long, messageId: Long? = null, threadId: Long? = null, topicId: Int? = null): NavKey =
     if (archive) {
-        ArchiveConversationRoute(chatId, messageId, threadId = threadId, topicId = topicId)
+        ArchiveConversationRoute(slot, chatId, messageId, threadId = threadId, topicId = topicId)
     } else {
-        ConversationRoute(chatId, messageId, threadId = threadId, topicId = topicId)
+        ConversationRoute(slot, chatId, messageId, threadId = threadId, topicId = topicId)
     }
 
 /** Přidá routu, jen když už nahoře není — dvojí ťuknutí nesmí obrazovku otevřít dvakrát. */
@@ -397,19 +399,19 @@ internal fun List<NavKey>.withProfileFollowing(paneOf: (NavKey) -> PaneInfo?): L
  * seznamu, kde jde skok na datum (ne vlákno a téma skupiny) — archiv má kalendář jako sheet.
  */
 private fun NavKey.calendarRoute(): NavKey? = when (this) {
-    is ConversationRoute -> ChatCalendarRoute(chatId, savedTopicId = savedTopicId, directTopicId = directTopicId)
+    is ConversationRoute -> ChatCalendarRoute(slot, chatId, savedTopicId = savedTopicId, directTopicId = directTopicId)
         .takeIf { threadId == null && topicId == null }
     else -> null
 }
 
 /** Profil chatu, který stojí v detailu; `null` = obrazovka bez profilu. */
 private fun NavKey.profileRoute(): NavKey? = when (this) {
-    is ConversationRoute -> ChatProfileRoute(chatId)
-    is ForumTopicsRoute -> ChatProfileRoute(chatId)
-    is DirectTopicsRoute -> ChatProfileRoute(chatId)
-    is ArchiveConversationRoute -> ArchiveChatProfileRoute(chatId)
-    is ArchiveForumTopicsRoute -> ArchiveChatProfileRoute(chatId)
-    is ArchiveDirectTopicsRoute -> ArchiveChatProfileRoute(chatId)
+    is ConversationRoute -> ChatProfileRoute(slot, chatId)
+    is ForumTopicsRoute -> ChatProfileRoute(slot, chatId)
+    is DirectTopicsRoute -> ChatProfileRoute(slot, chatId)
+    is ArchiveConversationRoute -> ArchiveChatProfileRoute(slot, chatId)
+    is ArchiveForumTopicsRoute -> ArchiveChatProfileRoute(slot, chatId)
+    is ArchiveDirectTopicsRoute -> ArchiveChatProfileRoute(slot, chatId)
     else -> null
 }
 
@@ -427,23 +429,23 @@ internal fun List<NavKey>.showsShareChip(paneOf: (NavKey) -> PaneInfo?): Boolean
  * profil (třetí panel, konverzace zůstává vidět); seznam navrchu naopak znamená, že vpravo je
  * placeholder, nebo konverzace jiné větve (hlavní seznam pod archivem), která vidět není.
  */
-internal fun List<NavKey>.shareInsertChat(paneOf: (NavKey) -> PaneInfo?, sideBySide: Boolean): Long? {
+internal fun List<NavKey>.shareInsertChat(paneOf: (NavKey) -> PaneInfo?, sideBySide: Boolean): InsertChat? {
     val top = lastOrNull() ?: return null
-    if (!sideBySide) return top.conversationChatId()
+    if (!sideBySide) return top.conversationChat()
     if (paneOf(top) == null) return null
     for (key in asReversed()) {
         when (paneOf(key)?.role) {
             PaneRole.Extra -> continue
-            PaneRole.Detail -> return key.conversationChatId()
+            PaneRole.Detail -> return key.conversationChat()
             else -> return null
         }
     }
     return null
 }
 
-private fun NavKey.conversationChatId(): Long? = when (this) {
-    is ConversationRoute -> chatId
-    is ArchiveConversationRoute -> chatId
+private fun NavKey.conversationChat(): InsertChat? = when (this) {
+    is ConversationRoute -> InsertChat(slot, chatId)
+    is ArchiveConversationRoute -> InsertChat(slot, chatId)
     else -> null
 }
 

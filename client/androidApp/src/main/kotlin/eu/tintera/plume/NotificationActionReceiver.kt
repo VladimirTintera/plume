@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.RemoteInput
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.account
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.notifications.ReplyState
@@ -34,7 +36,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val chatId = intent.getLongExtra(NotificationIntents.EXTRA_CHAT_ID, 0L)
         val groupId = intent.getIntExtra(NotificationIntents.EXTRA_GROUP_ID, 0)
         if (chatId == 0L) return
-        val koin = GlobalContext.getOrNull() ?: return
+        // Účet z notifikace, ne výchozí: id chatu i skupiny znamená něco jen v něm. Mezitím
+        // odhlášený účet už nemá komu odpovědět.
+        val slot = NotificationIntents.accountOf(intent) ?: return
+        val koin = GlobalContext.getOrNull()?.account(slot) ?: return
 
         when (intent.action) {
             NotificationIntents.ACTION_REPLY -> {
@@ -45,7 +50,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 if (text.isNullOrEmpty()) return
                 val replyTo = intent.longExtra(NotificationIntents.EXTRA_REPLY_TO_MESSAGE_ID)
                 val topicId = intent.intExtra(NotificationIntents.EXTRA_TOPIC_ID)
-                runAsync { reply(context.applicationContext, koin, chatId, groupId, text, replyTo, topicId) }
+                runAsync { reply(context.applicationContext, koin, slot, chatId, groupId, text, replyTo, topicId) }
             }
 
             NotificationIntents.ACTION_MARK_READ -> {
@@ -102,6 +107,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
     private suspend fun reply(
         context: Context,
         koin: Koin,
+        slot: AccountSlot,
         chatId: Long,
         groupId: Int,
         text: String,
@@ -123,7 +129,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             ReplyState.Failed -> presenter.showReplyFailed(groupId, text)
             ReplyState.Pending -> {
                 logger.i { "Odpověď se nestihla potvrdit, dočkám se v úloze." }
-                ReplyDeliveryWorker.enqueue(context, reply, groupId, text)
+                ReplyDeliveryWorker.enqueue(context, slot, reply, groupId, text)
             }
         }
     }

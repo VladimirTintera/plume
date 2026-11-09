@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Po obnově procesu (savedInstanceState) už chat otevřený je, podruhé se nenaviguje.
         if (savedInstanceState == null) openChat.value = chatIdOf(intent)
-        setContent { WearApp(openChat = openChat.value, onChatOpened = { openChat.value = null }) }
+        setContent { PrimaryAccountScope { WearApp(openChat = openChat.value, onChatOpened = { openChat.value = null }) } }
     }
 
     override fun onNewIntent(intent: Intent) {

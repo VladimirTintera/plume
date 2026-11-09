@@ -16,6 +16,11 @@ import eu.tintera.plume.features.conversation.SponsoredLinkRequests
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
+import eu.tintera.plume.core.navigation.SAVED_ROUTES_VERSION
+import androidx.compose.runtime.key
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.features.conversation.ConversationNavigation
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.core.ui.LocalArticleMediaFlight
@@ -39,8 +44,18 @@ import org.koin.core.parameter.parametersOf
  * `LocalNavAnimatedContentScope`, který mimo něj neexistuje.
  */
 @Composable
-fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -> Unit) {
-    val backStack = rememberNavBackStack(NavSavedStateConfiguration, ConversationRoute(chatId))
+fun BubbleShell(slot: AccountSlot, chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -> Unit) {
+    val accounts = koinInject<Accounts>()
+    // Účet mezitím odhlášený: bublina systému dožije, není co v ní ukázat.
+    val account = accounts.find(slot) ?: return
+    AccountScope(account) { BubbleContent(accounts, slot, chatId, onOpenInApp, onClose) }
+}
+
+@Composable
+private fun BubbleContent(accounts: Accounts, slot: AccountSlot, chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -> Unit) {
+    val backStack = key(SAVED_ROUTES_VERSION) {
+        rememberNavBackStack(NavSavedStateConfiguration, ConversationRoute(slot, chatId))
+    }
     val replyRequests = koinInject<ConversationReplyRequests>()
     val sponsoredLinks = koinInject<SponsoredLinkRequests>()
     val decorators = listOf<NavEntryDecorator<NavKey>>(
@@ -58,11 +73,11 @@ fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -
                     navigation = ConversationNavigation(
                         // Šipka zpět v bublině: konverzace je kořen, pod ní nic není — bublinu sbalí.
                         onBack = onClose,
-                        onOpenMedia = { messageId -> backStack.add(MediaRoute(route.chatId, messageId)) },
-                        onOpenMediaAt = { messageId, seconds -> backStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds)) },
-                        onOpenPollMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, pollMedia = index)) },
-                        onOpenArticleMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, articleMedia = index)) },
-                        onOpenSponsoredMedia = { messageId -> backStack.add(MediaRoute(route.chatId, messageId, sponsored = true)) },
+                        onOpenMedia = { messageId -> backStack.add(MediaRoute(route.slot, route.chatId, messageId)) },
+                        onOpenMediaAt = { messageId, seconds -> backStack.add(MediaRoute(route.slot, route.chatId, messageId, startSeconds = seconds)) },
+                        onOpenPollMedia = { messageId, index -> backStack.add(MediaRoute(route.slot, route.chatId, messageId, pollMedia = index)) },
+                        onOpenArticleMedia = { messageId, index -> backStack.add(MediaRoute(route.slot, route.chatId, messageId, articleMedia = index)) },
+                        onOpenSponsoredMedia = { messageId -> backStack.add(MediaRoute(route.slot, route.chatId, messageId, sponsored = true)) },
                         onForward = { onOpenInApp(route.chatId) },
                         onOpenChat = { target -> onOpenInApp(target.chatId) },
                         onSearch = { onOpenInApp(route.chatId) },
@@ -116,7 +131,7 @@ fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -
                 )
             }
         }
-    }
+    }.inRouteAccount(accounts)
     val transitions = rememberNavTransitions(chatContainer = false)
     NavDisplay(
         entries = rememberDecoratedNavEntries(backStack, decorators, provider),

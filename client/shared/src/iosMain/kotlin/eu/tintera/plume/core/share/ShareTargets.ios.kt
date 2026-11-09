@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.share
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.Res
@@ -218,7 +219,7 @@ class IosShareSnapshot(
 class IosShareTargetPublisher(private val snapshot: IosShareSnapshot) : ShareTargetPublisher {
     private val logger = Logger.withTag("Share")
 
-    override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) {
+    override fun publish(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) {
         snapshot.markUsed(chatId)
         // Konverzace jako „skupina" s názvem a obrázkem i u soukromého chatu: INPerson by chtěl
         // kontakt nebo handle, které o protějšku nemáme, a název s fotkou systém ukáže stejně.
@@ -301,9 +302,9 @@ class IosShareInbox(
         val id = requests.start(
             text = manifest.text,
             hasFiles = moved.isNotEmpty(),
-            target = ShareTarget(manifest.chatId, confirm = false),
+            target = ShareTarget(AccountSlot.Primary, manifest.chatId, confirm = false),
         )
-        chatOpenRequests.request(manifest.chatId)
+        chatOpenRequests.request(AccountSlot.Primary, manifest.chatId)
         if (moved.isEmpty()) return
 
         // Fotky a videa jako média, jen když jsou médii všechny — stejné pravidlo jako Android.

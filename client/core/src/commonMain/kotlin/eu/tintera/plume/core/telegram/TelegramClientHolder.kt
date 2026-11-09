@@ -9,11 +9,12 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 
 /**
- * Drží aktuální instanci [TdlClient] pro celý proces.
+ * Drží aktuální instanci [TdlClient] jednoho účtu.
  *
- * TDLib klient je jeden na aplikaci — má vlastní spojení, lokální databázi a vlákno na updaty.
- * Víc instancí by si šláplo na stejný databázový adresář. Holder existuje proto, aby ho mohly
- * sdílet všechny implementace nad TDLib a přitom zůstal privátní vůči zbytku aplikace.
+ * TDLib klient je jeden na účet — má vlastní spojení a lokální databázi v adresáři účtu
+ * (`TelegramPaths` podle slotu). Dva klienti nad týmž adresářem by si databázi poškodili, proto
+ * holder vzniká jednou v části účtu (`accountModule`). Existuje proto, aby klienta mohly sdílet
+ * všechny implementace nad TDLib a přitom zůstal privátní vůči zbytku aplikace.
  *
  * **Instance se po odhlášení mění.** Odhlášením TDLib klienta zavře (`AuthorizationStateClosed`)
  * a wrapper ukončí všechny jeho update flows — dalšího přihlášení se zavřený klient nedočká.
