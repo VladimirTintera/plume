@@ -11,6 +11,7 @@ import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.WATCH_LOGIN_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createWatchLoginChannel
@@ -66,7 +67,7 @@ class WatchLoginService : WearableListenerService() {
             logger.w { "Od hodinek ${event.sourceNodeId} nepřišel přihlašovací odkaz." }
             return
         }
-        val koin = GlobalContext.getOrNull() ?: return
+        val koin = GlobalContext.getOrNull()?.primaryAccount() ?: return
         val session = koin.get<TelegramSession>()
         val stage = runBlocking { withTimeoutOrNull(READY_TIMEOUT) { session.authStage.first { it != AuthStage.Connecting } } }
         when (stage) {
@@ -110,7 +111,7 @@ class WatchLoginReceiver : BroadcastReceiver() {
     }
 
     private suspend fun confirm(context: Context, link: String, nodeId: String) {
-        val koin = GlobalContext.getOrNull() ?: return
+        val koin = GlobalContext.getOrNull()?.primaryAccount() ?: return
         val session = koin.get<TelegramSession>()
         val ready = withTimeoutOrNull(READY_TIMEOUT) { session.authStage.first { it == AuthStage.Ready } } != null
         val result = if (ready) koin.get<DeviceRepository>().confirmQrLogin(link) else Result.failure(IllegalStateException("TDLib není přihlášený."))

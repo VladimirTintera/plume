@@ -15,7 +15,7 @@ import org.koin.core.KoinApplication
  * (`createdAtStart`): odběry updatů musí běžet dřív, než TDLib pošle první dávku (CLAUDE.md,
  * „Repository seznamu chatů MUSÍ vznikat eagerně"). Proto je i `Accounts` v Koinu eager.
  *
- * @param open vyrobí izolovaný kontejner Koinu pro slot (`accountModule`), i s eager instancemi.
+ * @param open vyrobí izolovaný kontejner Koinu pro slot (`openAccount`), i s eager instancemi.
  */
 class Accounts internal constructor(open: (AccountSlot) -> KoinApplication) {
 
@@ -36,10 +36,16 @@ class Accounts internal constructor(open: (AccountSlot) -> KoinApplication) {
  * byl uvnitř globálního Koinu, takže by `get()` bez scope tiše vrátil globální instanci,
  * a `createdAtStart` ve scope nefunguje (návrh, „Proč ne Koin scopes").
  */
-class AccountSession internal constructor(val slot: AccountSlot, private val application: KoinApplication) {
+class AccountSession internal constructor(val slot: AccountSlot, val application: KoinApplication) {
 
-    /** Kontejner účtu. Mimo `core` jen přes [get], ať se nesahá na jeho vnitřek. */
+    /** Kontejner účtu. Co v něm není, hledá v globálním Koinu (`openAccount`). */
     val koin: Koin get() = application.koin
 
     inline fun <reified T : Any> get(): T = koin.get()
 }
+
+/**
+ * Kontejner primárního účtu pro vstupní bod bez kompozice a bez slotu (služba, přijímač, úloha).
+ * Slot ve vstupních bodech je další krok návrhu, „Postup".
+ */
+fun Koin.primaryAccount(): Koin = get<Accounts>().primary.koin

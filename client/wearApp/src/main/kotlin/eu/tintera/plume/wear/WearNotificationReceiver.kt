@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.RemoteInput
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -43,7 +44,7 @@ private val CONFIRM_POLL = 300.milliseconds
 class WearNotificationReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val koin = GlobalContext.getOrNull() ?: return
+        val koin = GlobalContext.getOrNull()?.primaryAccount() ?: return
         val groupId = intent.getIntExtra(EXTRA_GROUP_ID, 0)
         val chatId = intent.getLongExtra(EXTRA_CHAT_ID, 0L)
         val newestMessageId = intent.getLongExtra(EXTRA_MESSAGE_ID, 0L)

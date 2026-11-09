@@ -51,7 +51,7 @@ class QuickNoteActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { WearTheme { QuickNoteScreen(onFinish = ::finish) } }
+        setContent { PrimaryAccountScope { WearTheme { QuickNoteScreen(onFinish = ::finish) } } }
     }
 
     companion object {

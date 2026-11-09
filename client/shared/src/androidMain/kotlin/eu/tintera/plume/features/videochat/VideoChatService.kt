@@ -16,6 +16,7 @@ import androidx.core.app.Person
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.CALLS_CHANNEL_ID
 import eu.tintera.plume.core.notifications.NotificationIntents
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
+import org.koin.core.context.GlobalContext
 import org.koin.core.component.inject
 
 /**
@@ -46,6 +48,8 @@ import org.koin.core.component.inject
  * - **Skončí sama**, když posluchač odejde, nebo videochat skončí.
  */
 class VideoChatService : Service(), KoinComponent {
+
+    override fun getKoin() = GlobalContext.get().primaryAccount()
 
     private val logger = Logger.withTag("VideoChatService")
     private val session: VideoChatSession by inject()

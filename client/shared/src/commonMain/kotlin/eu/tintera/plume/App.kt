@@ -1,5 +1,6 @@
 package eu.tintera.plume
 
+import eu.tintera.plume.core.accounts.PrimaryAccountScope
 import eu.tintera.plume.features.notices.AccountNoticesHost
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.focusGroup
@@ -102,6 +103,11 @@ fun SettingsTheme(content: @Composable () -> Unit) {
  */
 @Composable
 fun AppRoot(content: @Composable () -> Unit) {
+    PrimaryAccountScope { AppRootContent(content) }
+}
+
+@Composable
+private fun AppRootContent(content: @Composable () -> Unit) {
     val settings = koinInject<AppSettings>()
     val messageTextSize by settings.messageTextSize.collectAsStateWithLifecycle()
     val chatPreviewLines by settings.chatPreviewLines.collectAsStateWithLifecycle()

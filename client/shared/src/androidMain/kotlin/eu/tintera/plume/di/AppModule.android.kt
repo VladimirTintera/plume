@@ -2,6 +2,7 @@ package eu.tintera.plume.di
 
 import eu.tintera.ai.core.AudioClipDecoder
 import eu.tintera.ai.core.ModelDownloadNotifications
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.ai.AudioClips
 import eu.tintera.plume.core.ai.ModelDownloadWorker
 import eu.tintera.plume.core.ai.PlumeModelDownloadNotifications
@@ -165,15 +166,11 @@ actual fun Module.platformModule() {
     single<DeviceLoad> { AndroidDeviceLoad(androidContext()) }
     // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.
     // Zvuk hovoru vede systémový Telecom (most níž), náhradně Plume sám.
-    single<CallMedia> { NtgCallMedia(androidContext(), routes = { get<TelecomCallBridge>().routes() }) }
+    single<CallMedia> { NtgCallMedia(androidContext(), routes = { get<Accounts>().primary.get<TelecomCallBridge>().routes() }) }
     // Živé příběhy: skupinový hovor jen na příjem, vlastní instance knihovny.
     single<LiveStreamMedia> { NtgLiveStreamMedia(androidContext(), scope = get(named(APP_SCOPE))) }
     // Deník hovorů pro diagnostiku (Nastavení → Pomoc, `docs/poznatky/hovory.md`, „Deník hovorů").
     single { CallJournal(androidContext().filesDir.resolve(CALL_JOURNAL_DIRECTORY).absolutePath, scope = get(named(APP_SCOPE))) }
-    // Hovory přihlášené do systémového telefonu: souběh s GSM, auto, hodinky, výstup zvuku.
-    single(createdAtStart = true) {
-        TelecomCallBridge(context = androidContext(), calls = get(), chats = get(), scope = get(named(APP_SCOPE))).also { it.start() }
-    }
     single<AppLockStore> {
         object : AppLockStore, SecretStore by KeystoreSecretStore(
             androidContext(), fileName = "app-lock", keyAlias = "plume_app_lock", logTag = "AppLock",
@@ -210,18 +207,6 @@ actual fun Module.platformModule() {
     single { CalendarEvents(androidContext()) }
     single { ContactSaver(androidContext()) }
     single<PhoneContacts> { AndroidPhoneContacts(androidContext()) }
-    // Eagerně: synchronizace se má rozběhnout po přihlášení a návratu do popředí sama,
-    // ne až s první obrazovkou, která si ji vyžádá.
-    single(createdAtStart = true) {
-        ContactSyncer(
-            settings = get(),
-            contacts = get(),
-            sync = get(),
-            session = get(),
-            foreground = get(),
-            scope = get(named(APP_SCOPE)),
-        )
-    }
     single { WifiJoiner(androidContext()) }
     single { HomeRegion(androidContext()) }
     single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
@@ -242,6 +227,32 @@ actual fun Module.platformModule() {
     factory { AudioEngine(androidContext()) }
     // Senzory u ucha: jeden na aplikaci, protože hraje nejvýš jedna hlasovka.
     single { EarSensor(androidContext()) }
+
+    // `filesDir`, ne cache: nastavení se nesmí ztratit, když systém uklízí místo.
+    single { createSettingsDataStore(androidContext().filesDir.resolve(SETTINGS_FILE_NAME).absolutePath) }
+    single(named(MINI_APP_STORAGE)) { createSettingsDataStore(androidContext().filesDir.resolve(MINI_APP_STORAGE_FILE_NAME).absolutePath) }
+
+    // Ukazovátko protistrany přes jiné aplikace, když sdílíme obrazovku.
+    single<CallPointerDisplay> { AndroidCallPointerDisplay(androidContext()) }
+}
+
+actual fun Module.platformAccountModule() {
+    // Hovory přihlášené do systémového telefonu: souběh s GSM, auto, hodinky, výstup zvuku.
+    single(createdAtStart = true) {
+        TelecomCallBridge(context = androidContext(), calls = get(), chats = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+    }
+    // Eagerně: synchronizace se má rozběhnout po přihlášení a návratu do popředí sama,
+    // ne až s první obrazovkou, která si ji vyžádá.
+    single(createdAtStart = true) {
+        ContactSyncer(
+            settings = get(),
+            contacts = get(),
+            sync = get(),
+            session = get(),
+            foreground = get(),
+            scope = get(named(APP_SCOPE)),
+        )
+    }
     // Hudba na pozadí: spustí službu s MediaSession, když začne hrát skladba.
     single(createdAtStart = true) {
         MusicControls(androidContext(), queue = get(), scope = get(named(APP_SCOPE))).also { it.start() }
@@ -250,11 +261,6 @@ actual fun Module.platformModule() {
     single(createdAtStart = true) {
         LiveLocationControls(androidContext(), repository = get(), foreground = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
-
-    // `filesDir`, ne cache: nastavení se nesmí ztratit, když systém uklízí místo.
-    single { createSettingsDataStore(androidContext().filesDir.resolve(SETTINGS_FILE_NAME).absolutePath) }
-    single(named(MINI_APP_STORAGE)) { createSettingsDataStore(androidContext().filesDir.resolve(MINI_APP_STORAGE_FILE_NAME).absolutePath) }
-
     // Widget s chaty na ploše: podklady se musí psát od startu procesu, ne až se složí UI —
     // aplikaci často budí jen push a widget má i pak ukázat čerstvý stav.
     single(createdAtStart = true) {
@@ -288,8 +294,6 @@ actual fun Module.platformModule() {
     single(createdAtStart = true) {
         VideoChatServiceControls(context = androidContext(), session = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
-    // Ukazovátko protistrany přes jiné aplikace, když sdílíme obrazovku.
-    single<CallPointerDisplay> { AndroidCallPointerDisplay(androidContext()) }
     // Vyzvánění příchozího hovoru a tón protistrany u odchozího.
     single(createdAtStart = true) {
         CallRinger(context = androidContext(), calls = get(), scope = get(named(APP_SCOPE))).also { it.start() }

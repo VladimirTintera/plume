@@ -1,6 +1,9 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.di.APP_SCOPE
+import eu.tintera.plume.core.lock.AppLock
 import eu.tintera.plume.core.logging.configureLogging
 import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.core.storage.StorageCleaner
@@ -28,6 +31,12 @@ fun startKoin(configure: KoinApplication.() -> Unit = {}): KoinApplication {
         // taková definice by si odvodila vlastní typ a resolvovala sama sebe (StackOverflowError).
         // Musí běžet od startu procesu, aby notifikace chodily i mimo obrazovku konverzace.
         val koin = application.koin
+        val account = koin.get<Accounts>().primary
+
+        koin.get<AppLock>().start(
+            foreground = koin.get<AppForeground>().isForeground,
+            authStage = account.get<TelegramSession>().authStage,
+        )
 
         // TDLib se MUSÍ nastartovat tady, ne až v AuthViewModel.
         //
@@ -36,21 +45,21 @@ fun startKoin(configure: KoinApplication.() -> Unit = {}): KoinApplication {
         // zůstal by TDLib ve WaitTdlibParameters a `processPushNotification` by nemělo co
         // rozšifrovat. Push by dorazil a tiše nic neudělal.
         val appScope = koin.get<CoroutineScope>(named(APP_SCOPE))
-        appScope.launch { koin.get<TelegramSession>().start() }
+        appScope.launch { account.get<TelegramSession>().start() }
 
-        koin.get<NotificationPresenter>().start(koin.get<NotificationRepository>())
+        account.get<NotificationPresenter>().start(account.get<NotificationRepository>())
 
         // Hlášení sítě a popředí. Taky musí běžet od startu procesu, ne od první obrazovky:
         // síť se mění i tehdy, když se žádné UI neskládá, a návrat do popředí je jediná chvíle,
         // kdy se dá poznat spojení, které systém mezitím zabil.
-        koin.get<ConnectionController>().start()
+        account.get<ConnectionController>().start()
 
         // Úklid starých médií podle „Uchovávat média". Od startu procesu ze stejného důvodu:
         // aplikace může běžet dny, aniž by se otevřelo Nastavení.
-        koin.get<StorageCleaner>().start()
+        account.get<StorageCleaner>().start()
 
         // Automatické stahování ze serveru po přihlášení. Od startu, protože přihlášení
         // (a odhlášení, po kterém se má příště stáhnout) se nesmí propásnout.
-        koin.get<AutoDownloadSync>().start()
+        account.get<AutoDownloadSync>().start()
     }
 }

@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.telegram.NotificationRepository
 import org.koin.core.context.GlobalContext
@@ -37,13 +38,13 @@ class NotificationDeliveryWorker(
     private val logger = Logger.withTag("Push")
 
     override suspend fun doWork(): Result {
-        val repository = GlobalContext.getOrNull()?.getOrNull<NotificationRepository>()
+        val repository = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<NotificationRepository>()
             ?: return Result.success()
 
         val started = TimeSource.Monotonic.markNow()
         // Hovor napřed musí přijít od serveru; notifikaci k němu vydá TDLib až potom.
         if (inputData.getBoolean(KEY_CALL, false)) {
-            val journal = GlobalContext.getOrNull()?.getOrNull<CallJournal>()
+            val journal = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<CallJournal>()
             if (!repository.awaitIncomingCall(TIMEOUT)) {
                 logger.w { "Hovor z pushe nepřišel do $TIMEOUT." }
                 journal?.record("Background job: no call within $TIMEOUT")

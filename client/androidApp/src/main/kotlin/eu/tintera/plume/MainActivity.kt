@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.view.WindowManager
 import android.os.Bundle
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.locale.LegacyAppLanguage
 import android.content.Context
 import android.view.KeyEvent
@@ -27,6 +28,7 @@ import eu.tintera.plume.core.ui.handleEscape
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.getKoin
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
@@ -36,7 +38,7 @@ class MainActivity : ComponentActivity() {
     private val shareIntake: ShareIntake by inject()
     private val keyboardShortcuts: KeyboardShortcuts by inject()
     private val callRequests: CallRequests by inject()
-    private val calls: CallRepository by inject()
+    private val calls: CallRepository by lazy { getKoin().primaryAccount().get() }
 
     /** Texty pro systémový přehled zkratek; do načtení přehled Plume neukáže nic. */
     private var shortcutOverview: KeyboardShortcutOverview? = null

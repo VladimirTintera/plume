@@ -86,7 +86,6 @@ actual fun Module.platformModule() {
     }
     single { NotificationPermission() }
     single { LaunchAtLogin() }
-    single { NotificationPresenter(chats = get()) }
     single { UrlOpener(settings = get()) }
     single { AppLanguage() }
     single { FileOpener() }
@@ -94,11 +93,6 @@ actual fun Module.platformModule() {
     single { MediaSaver() }
     single<TextRecognizer> { VisionTextRecognizer() }
     single { MediaSharer() }
-    // Sdílení přes rozšíření: snímek chatů pro výběr v něm a vyzvednutí toho, co v něm uživatel sdílel.
-    single(createdAtStart = true) {
-        IosShareSnapshot(chats = get(), files = get(), holder = get(), scope = get(named(APP_SCOPE))).also { it.start() }
-    }
-    single<ShareTargetPublisher> { IosShareTargetPublisher(get()) }
     single(createdAtStart = true) {
         IosShareInbox(requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))
             .also { it.start(get<AppForeground>().isForeground) }
@@ -123,13 +117,21 @@ actual fun Module.platformModule() {
     factory { AudioEngine() }
     // Senzory u ucha: jeden na aplikaci, protože hraje nejvýš jedna hlasovka.
     single { EarSensor() }
+    // Application Support, stejně jako databáze TDLib: data aplikace, ne dokumenty uživatele.
+    single { createSettingsDataStore(applicationSupportDirectory() + "/" + SETTINGS_FILE_NAME) }
+    single(named(MINI_APP_STORAGE)) { createSettingsDataStore(applicationSupportDirectory() + "/" + MINI_APP_STORAGE_FILE_NAME) }
+}
+
+actual fun Module.platformAccountModule() {
+    single { NotificationPresenter(chats = get()) }
+    // Sdílení přes rozšíření: snímek chatů pro výběr v něm a vyzvednutí toho, co v něm uživatel sdílel.
+    single(createdAtStart = true) {
+        IosShareSnapshot(chats = get(), files = get(), holder = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+    }
+    single<ShareTargetPublisher> { IosShareTargetPublisher(get()) }
     // Hudba na zamykací obrazovce a v Ovládacím centru. Na hlavním vlákně — z něj chodí povely
     // systému a z něj se ovládá přehrávač.
     single(createdAtStart = true) {
         NowPlayingControls(queue = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)).also { it.start() }
     }
-
-    // Application Support, stejně jako databáze TDLib: data aplikace, ne dokumenty uživatele.
-    single { createSettingsDataStore(applicationSupportDirectory() + "/" + SETTINGS_FILE_NAME) }
-    single(named(MINI_APP_STORAGE)) { createSettingsDataStore(applicationSupportDirectory() + "/" + MINI_APP_STORAGE_FILE_NAME) }
 }

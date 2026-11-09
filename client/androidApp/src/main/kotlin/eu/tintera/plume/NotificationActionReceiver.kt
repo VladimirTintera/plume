@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.RemoteInput
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.notifications.ReplyState
@@ -34,7 +35,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val chatId = intent.getLongExtra(NotificationIntents.EXTRA_CHAT_ID, 0L)
         val groupId = intent.getIntExtra(NotificationIntents.EXTRA_GROUP_ID, 0)
         if (chatId == 0L) return
-        val koin = GlobalContext.getOrNull() ?: return
+        val koin = GlobalContext.getOrNull()?.primaryAccount() ?: return
 
         when (intent.action) {
             NotificationIntents.ACTION_REPLY -> {

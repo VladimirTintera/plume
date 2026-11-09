@@ -1,6 +1,5 @@
 package eu.tintera.plume.core.di
 
-import eu.tintera.plume.core.accounts.AccountSession
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.calls.CallJournal
@@ -111,8 +110,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.Koin
+import org.koin.core.KoinApplication
+import org.koin.core.annotation.KoinExperimentalAPI
+import org.koin.core.instance.ResolutionContext
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
+import org.koin.core.resolution.ResolutionExtension
 import org.koin.core.scope.Scope
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
@@ -136,18 +139,53 @@ const val APP_SCOPE = "appScope"
  *   a „Repository seznamu chatů MUSÍ vznikat eagerně" v CLAUDE.md.
  * - **Skládá se z globální části a kontejnerů účtů** (`docs/navrh-vice-uctu.md`): globální
  *   část ([coreGlobalModule]) je v tomhle Koinu, část účtu ([accountModule]) v izolovaném
- *   kontejneru každého účtu ([Accounts]). Zatím je účet jen primární a zbytek aplikace ho
- *   dostává přes most ([accountBridgeModule]), dokud routy nenesou slot.
+ *   kontejneru každého účtu ([Accounts]). V globálním Koinu žádné repository nejsou: kdo s účtem
+ *   pracuje, musí mít jeho kontejner.
+ *
+ * @param accountModules co do kontejneru účtu přidává aplikace nad tímhle modulem.
  */
-fun coreModule(): Module = module {
-    includes(coreGlobalModule(), accountBridgeModule())
+fun coreModule(accountModules: (AccountSlot) -> List<Module> = { emptyList() }): Module = module {
+    includes(coreGlobalModule())
 
     // Eager: v kontejneru účtu vznikají eager repository, které musí odebírat updaty dřív, než
     // TDLib pošle první dávku (viz `Accounts`).
+    var opening = false
     single(createdAtStart = true) {
+        // Globální definice, která si při vzniku řekne o `Accounts`, a kterou přitom potřebuje
+        // eager instance účtu, by otevřela druhý kontejner, a tím i druhého klienta TDLib nad
+        // tímtéž adresářem. Globální definice proto sahají na `Accounts` až za běhu.
+        check(!opening) { "Accounts se otevírá znovu: globální definice ho nesmí chtít při vzniku." }
+        opening = true
         val global = getKoin()
-        Accounts { slot -> koinApplication(createEagerInstances = true) { modules(accountModule(slot, global)) } }
+        Accounts { slot -> openAccount(global, listOf(accountModule(slot)) + accountModules(slot)) }
+            .also { opening = false }
     }
+}
+
+/**
+ * Izolovaný kontejner účtu z [modules], i s eager instancemi.
+ *
+ * Co v něm není, hledá v globálním Koinu ([global]), naopak to nejde. Díky tomu účet vidí
+ * nastavení, síť nebo scope aplikace bez seznamu předávaných typů, a co patří účtu, se mimo jeho
+ * kontejner vůbec nedostane. Rozšíření musí být zapojené před `modules`: eager instance se vyrábí
+ * hned v [koinApplication].
+ */
+@OptIn(KoinExperimentalAPI::class)
+internal fun openAccount(global: Koin, modules: List<Module>): KoinApplication =
+    koinApplication(createEagerInstances = true) {
+        koin.addResolutionExtension(GlobalDefinitions(global))
+        modules(modules)
+    }
+
+private class GlobalDefinitions(private val global: Koin) : ResolutionExtension {
+    override val name = "global"
+
+    override fun resolve(scope: Scope, instanceContext: ResolutionContext): Any? =
+        global.getOrNull<Any>(
+            instanceContext.clazz,
+            instanceContext.qualifier,
+            instanceContext.parameters?.let { parameters -> { parameters } },
+        )
 }
 
 /**
@@ -163,16 +201,15 @@ internal fun coreGlobalModule(): Module = module {
 
 /**
  * Všechno, co patří jednomu účtu ([slot]): jeho klient TDLib, cesty a klíč databáze, přihlášení
- * a všechny repository. Žije v izolovaném kontejneru účtu (`Accounts`); z globálního Koinu
- * ([global]) bere jen to, co mu podá [globalBridgeModule].
+ * a všechny repository. Žije v izolovaném kontejneru účtu ([openAccount]).
  *
  * `ConnectionController` je tady, ne v globální části: typ sítě a příznak online se posílají
  * klientovi TDLib, a ten je u každého účtu jiný. Stejně tak `RevealedSpoilers`,
  * `SelfDestructTimers` a `KnownImagePaths` — drží id zpráv a souborů, a ta jsou čísla jednoho
  * klienta.
  */
-internal fun accountModule(slot: AccountSlot, global: Koin): Module = module {
-    includes(globalBridgeModule(global), accountPlatformModule(slot, global))
+internal fun accountModule(slot: AccountSlot): Module = module {
+    includes(accountPlatformModule(slot))
 
     // Jeden TDLib klient na účet; sdílí ho session i chat repository.
     single { TelegramClientHolder() }
@@ -364,93 +401,5 @@ internal fun accountModule(slot: AccountSlot, global: Koin): Module = module {
 /** Platformní část [coreGlobalModule]: sledování sítě a popředí. */
 internal expect fun corePlatformModule(): Module
 
-/**
- * Platformní část [accountModule]: cesty TDLib a úložiště klíče databáze účtu [slot]. Co
- * potřebuje z platformy (na Androidu `Context`), bere z globálního Koinu ([global]).
- */
-internal expect fun accountPlatformModule(slot: AccountSlot, global: Koin): Module
-
-/**
- * Co kontejner účtu bere z globálního Koinu: scope aplikace, síť, popředí a mediální vrstvu
- * hovorů, kterou registruje aplikace. Izolovaný kontejner globální definice nevidí, takže
- * každou, kterou [accountModule] potřebuje, musí podat tenhle modul.
- *
- * **Volitelné definice hovorů se přebírají jen, když je aplikace má** (`getOrNull` hned při
- * skládání): definice, která by v kontejneru existovala a vracela chybu, by pokazila
- * `getOrNull` v `TdlCallRepository`, podle kterého se hovory nabízejí.
- */
-internal fun globalBridgeModule(global: Koin): Module = module {
-    single(named(APP_SCOPE)) { global.get<CoroutineScope>(named(APP_SCOPE)) }
-    single { global.get<NetworkMonitor>() }
-    single { global.get<AppForeground>() }
-    global.getOrNull<CallMedia>()?.let { media -> single<CallMedia> { media } }
-    global.getOrNull<CallPointerDisplay>()?.let { display -> single<CallPointerDisplay> { display } }
-    global.getOrNull<CallJournal>()?.let { journal -> single { journal } }
-}
-
-/**
- * **Dočasný most** z globálního Koinu do kontejneru primárního účtu: zbytek aplikace (ViewModely,
- * `koinInject`, služby) se dnes ptá globálního Koinu a slot zatím nenese. Zmizí, až ho ponesou
- * routy a vstupní body (návrh, „Účet nese routa", krok 4 v „Postup").
- *
- * **Musí zrcadlit VŠECHNY definice [accountModule]** kromě těch z [globalBridgeModule]; chybějící
- * by se projevila až za běhu („No definition found"). Hlídá to `AccountBridgeTest`.
- */
-internal fun accountBridgeModule(): Module = module {
-    single<TelegramPaths> { primary().get() }
-    single<DatabaseKeyStore> { primary().get() }
-    single<TelegramClientHolder> { primary().get() }
-    single<TelegramSession> { primary().get() }
-    single<ContactSync> { primary().get() }
-    single<AiTextRepository> { primary().get() }
-    single<LiveUploads> { primary().get() }
-    single<ChatRepository> { primary().get() }
-    single<LiveStoryRepository> { primary().get() }
-    single<VideoChatRepository> { primary().get() }
-    single<StoryRepository> { primary().get() }
-    single<AccountNotices> { primary().get() }
-    single<AutosaveRepository> { primary().get() }
-    single<NotificationSoundRepository> { primary().get() }
-    single<DownloadsRepository> { primary().get() }
-    single<CallRepository> { primary().get() }
-    single<TopicDrafts> { primary().get() }
-    single<ThreadDrafts> { primary().get() }
-    single<ConversationRepository> { primary().get() }
-    single<ForumRepository> { primary().get() }
-    single<SavedTopicsRepository> { primary().get() }
-    single<DirectTopicsRepository> { primary().get() }
-    single<WebAppRepository> { primary().get() }
-    single<FileRepository> { primary().get() }
-    single<NotificationRepository> { primary().get() }
-    single<ConnectionRepository> { primary().get() }
-    single<ConnectionController> { primary().get() }
-    single<StickerRepository> { primary().get() }
-    single<CustomEmojiRepository> { primary().get() }
-    single<GifRepository> { primary().get() }
-    single<PlaceRepository> { primary().get() }
-    single<LiveLocationRepository> { primary().get() }
-    single<EmojiRepository> { primary().get() }
-    single<QuickReaction> { primary().get() }
-    single<InstantViewRepository> { primary().get() }
-    single<RevealedSpoilers> { primary().get() }
-    single<SelfDestructTimers> { primary().get() }
-    single<KnownImagePaths> { primary().get() }
-    single<ProfileRepository> { primary().get() }
-    single<InviteLinkRepository> { primary().get() }
-    single<StatisticsRepository> { primary().get() }
-    single<ChatFolderRepository> { primary().get() }
-    single<NotificationSettingsRepository> { primary().get() }
-    single<SensitiveContentSettings> { primary().get() }
-    single<PrivacyRepository> { primary().get() }
-    single<DefaultAutoDeleteSettings> { primary().get() }
-    single<PasswordRepository> { primary().get() }
-    single<ChatCreation> { primary().get() }
-    single<AccountRepository> { primary().get() }
-    single<ProxyRepository> { primary().get() }
-    single<StorageRepository> { primary().get() }
-    single<AutoDownloadPresets> { primary().get() }
-    single<DeviceRepository> { primary().get() }
-}
-
-/** Kontejner primárního účtu pro [accountBridgeModule]. */
-private fun Scope.primary(): AccountSession = get<Accounts>().primary
+/** Platformní část [accountModule]: cesty TDLib a úložiště klíče databáze účtu [slot]. */
+internal expect fun accountPlatformModule(slot: AccountSlot): Module

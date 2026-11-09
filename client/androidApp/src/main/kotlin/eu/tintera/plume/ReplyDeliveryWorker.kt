@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.notifications.PendingReply
 import eu.tintera.plume.core.notifications.ReplyState
@@ -33,7 +34,7 @@ class ReplyDeliveryWorker(
     private val logger = Logger.withTag("NotificationReply")
 
     override suspend fun doWork(): Result {
-        val koin = GlobalContext.getOrNull() ?: return Result.success()
+        val koin = GlobalContext.getOrNull()?.primaryAccount() ?: return Result.success()
         val reply = PendingReply(
             chatId = inputData.getLong(KEY_CHAT_ID, 0L),
             messageId = inputData.getLong(KEY_MESSAGE_ID, 0L),

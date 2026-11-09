@@ -9,6 +9,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.primaryAccount
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
+import org.koin.core.context.GlobalContext
 import org.koin.core.component.inject
 
 /**
@@ -34,6 +36,8 @@ import org.koin.core.component.inject
  */
 @OptIn(UnstableApi::class)
 class MusicPlaybackService : MediaSessionService(), KoinComponent {
+
+    override fun getKoin() = GlobalContext.get().primaryAccount()
 
     private val queue: MusicQueue by inject()
     private val scope = MainScope()
