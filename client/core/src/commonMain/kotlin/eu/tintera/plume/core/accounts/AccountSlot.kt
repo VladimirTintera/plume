@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.accounts
 
+import kotlinx.serialization.Serializable
+
 /**
  * Místní id účtu v aplikaci (návrh `docs/navrh-vice-uctu.md`, „Identita účtu: slot").
  *
@@ -15,6 +17,7 @@ package eu.tintera.plume.core.accounts
  * Id smí obsahovat jen malá písmena a číslice: skládá se do cest, aliasů v Keystore a jmen
  * v Klíčence, kde by lomítko nebo tečka udělaly něco jiného, než se čeká.
  */
+@Serializable
 data class AccountSlot(val id: String) {
 
     init {

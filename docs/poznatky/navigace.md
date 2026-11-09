@@ -496,6 +496,18 @@ Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na koře
 - Vybraná sekce přežije zabití procesu (`rememberSaveable` podle názvu `TopLevelDestination`),
   zásobníky taky (`rememberNavBackStack`).
 
+### Routy s účtem
+
+- **Routa s id chatu, zprávy nebo souboru je `AccountRoute` s povinným `slot`** na prvním místě.
+  Id platí jen v klientovi jednoho účtu. Shell její obsah skládá v kontejneru účtu
+  (`inRouteAccount`), takže obrazovka nic dalšího řešit nemusí; `koinInject` a `koinViewModel` míří
+  do správného kontejneru samy.
+- **Staví-li obrazovka další routu, bere slot z té svojí** (`route.slot`, `LocalAccount.current.slot`).
+  Pomocníci nad zásobníkem (`openTarget`, `openFoundMessage`…) ho dostávají parametrem.
+- **Změna tvaru routy, kterou stará data nepřečtou, zvedá `SAVED_ROUTES_VERSION`.** Je to klíč
+  kolem `rememberNavBackStack`: uložený stav se s jinou verzí nenajde a začne se od kořene. Bez
+  toho by obnova po aktualizaci skončila výjimkou (chybějící povinné pole).
+
 ### Klávesové zkratky
 
 Desktop, Fold, tablet nebo Chromebook s fyzickou klávesnicí: **Ctrl+K** hledání chatů, **Ctrl+F** hledání

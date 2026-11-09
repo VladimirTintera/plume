@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.navigation.ArchiveChatProfileRoute
 import eu.tintera.plume.core.navigation.ArchiveConversationRoute
@@ -24,19 +25,21 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+private val slot = AccountSlot.Primary
+
 /** Pravidla nad zásobníkem Chatů — viz `ChatsStack.kt`. */
 class ChatsStackTest {
 
     @Test
     fun bezArchivuJeVidetHlavniSeznam() {
-        val stack = listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+        val stack = listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1))
 
         assertEquals(ChatFolder.Main, stack.shownChatFolder())
     }
 
     @Test
     fun sArchivemNahoreJeVidetArchiv() {
-        val stack = listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1), ArchiveRoute)
+        val stack = listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1), ArchiveRoute)
 
         assertEquals(ChatFolder.Archive, stack.shownChatFolder())
     }
@@ -47,8 +50,8 @@ class ChatsStackTest {
         val stack = listOf<NavKey>(
             ChatsRoute,
             ArchiveRoute,
-            ArchiveConversationRoute(chatId = 2),
-            ArchiveChatProfileRoute(chatId = 2),
+            ArchiveConversationRoute(slot, chatId = 2),
+            ArchiveChatProfileRoute(slot, chatId = 2),
         )
 
         assertEquals(ChatFolder.Archive, stack.shownChatFolder())
@@ -58,7 +61,7 @@ class ChatsStackTest {
     fun otevrenaKonverzaceHlavnihoSeznamuNeniOtevrenaKonverzaceArchivu() {
         // Regrese: prázdný archiv nad otevřenou konverzací hlavního seznamu musí dostat
         // celou šířku, jinak vedle prázdného stavu stojí placeholder „vyber chat vlevo".
-        val stack = listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1), ArchiveRoute)
+        val stack = listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1), ArchiveRoute)
 
         assertFalse(stack.hasOpenConversation(ChatFolder.Archive))
         assertTrue(stack.hasOpenConversation(ChatFolder.Main))
@@ -66,7 +69,7 @@ class ChatsStackTest {
 
     @Test
     fun otevrenaKonverzaceArchivuNeniOtevrenaKonverzaceHlavnihoSeznamu() {
-        val stack = listOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(chatId = 2))
+        val stack = listOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, chatId = 2))
 
         assertTrue(stack.hasOpenConversation(ChatFolder.Archive))
         assertFalse(stack.hasOpenConversation(ChatFolder.Main))
@@ -74,13 +77,13 @@ class ChatsStackTest {
 
     @Test
     fun zpetZArchivuOdebereCelouJehoVetevAZanechaOtevrenyChat() {
-        val mainChat = ConversationRoute(chatId = 1)
+        val mainChat = ConversationRoute(slot, chatId = 1)
         val stack = mutableListOf<NavKey>(
             ChatsRoute,
             mainChat,
             ArchiveRoute,
-            ArchiveConversationRoute(chatId = 2),
-            ArchiveChatProfileRoute(chatId = 2),
+            ArchiveConversationRoute(slot, chatId = 2),
+            ArchiveChatProfileRoute(slot, chatId = 2),
         )
 
         stack.closeArchive()
@@ -90,7 +93,7 @@ class ChatsStackTest {
 
     @Test
     fun archivaceZavreKonverzaciVHlavnimSeznamu() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1))
 
         stack.closeConversationOf(ArchiveChange(chatId = 1, archived = true))
 
@@ -100,7 +103,7 @@ class ChatsStackTest {
     /** Výběr víc chatů archivuje naráz — zavře se konverzace kteréhokoli z nich. */
     @Test
     fun archivaceVyberuZavreKonverzaciKterehokoliChatu() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 3))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 3))
 
         stack.closeConversationOf(ArchiveChange(chatIds = listOf(1, 3), archived = true))
 
@@ -109,7 +112,7 @@ class ChatsStackTest {
 
     @Test
     fun vraceniZArchivuZavreKonverzaciVArchivu() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(chatId = 2))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, chatId = 2))
 
         stack.closeConversationOf(ArchiveChange(chatId = 2, archived = false))
 
@@ -118,8 +121,8 @@ class ChatsStackTest {
 
     @Test
     fun zaviraSeJenVetevZeKtereChatOdesel() {
-        val mainChat = ConversationRoute(chatId = 2)
-        val archiveChat = ArchiveConversationRoute(chatId = 2)
+        val mainChat = ConversationRoute(slot, chatId = 2)
+        val archiveChat = ArchiveConversationRoute(slot, chatId = 2)
 
         // Archivace se týká hlavního seznamu, archivní konverzace téhož chatu zůstane.
         val archiving = mutableListOf<NavKey>(ChatsRoute, mainChat, ArchiveRoute, archiveChat)
@@ -137,34 +140,34 @@ class ChatsStackTest {
     fun vraceniZPruhuPrestehujeKonverzaciDoHlavnihoSeznamu() {
         val stack = mutableListOf<NavKey>(
             ChatsRoute,
-            ConversationRoute(chatId = 1),
-            ChatProfileRoute(chatId = 1),
+            ConversationRoute(slot, chatId = 1),
+            ChatProfileRoute(slot, chatId = 1),
             ArchiveRoute,
-            ArchiveChatProfileRoute(chatId = 3),
-            ArchiveEditChatRoute(chatId = 3),
-            ArchiveConversationRoute(chatId = 2),
+            ArchiveChatProfileRoute(slot, chatId = 3),
+            ArchiveEditChatRoute(slot, chatId = 3),
+            ArchiveConversationRoute(slot, chatId = 2),
         )
 
         stack.moveConversationToMain(chatId = 2)
 
         // Z archivu nezbylo nic a konverzace hlavního seznamu (i s profilem) je nahrazená.
-        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2)), stack)
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 2)), stack)
     }
 
     @Test
     fun vraceniZPruhuMimoArchivNicNemeni() {
         // Chat z archivu otevřený z hledání nebo notifikace stojí v hlavní větvi; tam není kam stěhovat.
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 2))
 
         stack.moveConversationToMain(chatId = 2)
 
-        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2)), stack)
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 2)), stack)
     }
 
     @Test
     fun jinyChatSeNezavira() {
-        val mainChat = ConversationRoute(chatId = 1)
-        val profile = ChatProfileRoute(chatId = 1)
+        val mainChat = ConversationRoute(slot, chatId = 1)
+        val profile = ChatProfileRoute(slot, chatId = 1)
         val stack = mutableListOf<NavKey>(ChatsRoute, mainChat, profile)
 
         stack.closeConversationOf(ArchiveChange(chatId = 99, archived = true))
@@ -177,29 +180,29 @@ class ChatsStackTest {
     fun zavreniChatuOdeberJenJehoRouty() {
         val stack = mutableListOf<NavKey>(
             ChatsRoute,
-            ConversationRoute(chatId = 1),
-            ChatProfileRoute(chatId = 2),
-            ConversationRoute(chatId = 2),
-            ChatProfileRoute(chatId = 1),
-            MediaRoute(chatId = 1, messageId = 5),
+            ConversationRoute(slot, chatId = 1),
+            ChatProfileRoute(slot, chatId = 2),
+            ConversationRoute(slot, chatId = 2),
+            ChatProfileRoute(slot, chatId = 1),
+            MediaRoute(slot, chatId = 1, messageId = 5),
             ArchiveRoute,
-            ArchiveConversationRoute(chatId = 1),
-            ArchiveChatProfileRoute(chatId = 1),
+            ArchiveConversationRoute(slot, chatId = 1),
+            ArchiveChatProfileRoute(slot, chatId = 1),
         )
 
         stack.closeChat(1)
 
-        assertEquals(listOf<NavKey>(ChatsRoute, ChatProfileRoute(chatId = 2), ConversationRoute(chatId = 2), ArchiveRoute), stack)
+        assertEquals(listOf<NavKey>(ChatsRoute, ChatProfileRoute(slot, chatId = 2), ConversationRoute(slot, chatId = 2), ArchiveRoute), stack)
     }
 
     @Test
     fun seznamTematJeOtevrenaKonverzaceSveVetve() {
         // Nad prázdným archivem se podle toho rozhoduje, jestli zůstane dvoupanel.
-        val main = listOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), ArchiveRoute)
+        val main = listOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 1), ArchiveRoute)
         assertTrue(main.hasOpenConversation(ChatFolder.Main))
         assertFalse(main.hasOpenConversation(ChatFolder.Archive))
 
-        val archive = listOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveForumTopicsRoute(chatId = 1))
+        val archive = listOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveForumTopicsRoute(slot, chatId = 1))
         assertTrue(archive.hasOpenConversation(ChatFolder.Archive))
     }
 
@@ -208,8 +211,8 @@ class ChatsStackTest {
         val stack = mutableListOf<NavKey>(
             ChatsRoute,
             ArchiveRoute,
-            ArchiveForumTopicsRoute(chatId = 2),
-            ArchiveConversationRoute(chatId = 2, topicId = 7),
+            ArchiveForumTopicsRoute(slot, chatId = 2),
+            ArchiveConversationRoute(slot, chatId = 2, topicId = 7),
         )
 
         stack.closeArchive()
@@ -219,7 +222,7 @@ class ChatsStackTest {
 
     @Test
     fun zavreniChatuOdeberITemata() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), ConversationRoute(chatId = 1, topicId = 3))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 1), ConversationRoute(slot, chatId = 1, topicId = 3))
 
         stack.closeChat(1)
 
@@ -228,7 +231,7 @@ class ChatsStackTest {
 
     @Test
     fun archivaceForaZavreJehoTemata() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), ConversationRoute(chatId = 1, topicId = 3))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 1), ConversationRoute(slot, chatId = 1, topicId = 3))
 
         stack.closeConversationOf(ArchiveChange(chatId = 1, archived = true))
 
@@ -237,86 +240,86 @@ class ChatsStackTest {
 
     @Test
     fun odkazNaTemaOtevreTemaNadKonverzaci() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1))
 
-        stack.openTarget(ChatTarget(chatId = 2, messageId = 50, topicId = 7), archive = false)
+        stack.openTarget(slot, ChatTarget(chatId = 2, messageId = 50, topicId = 7), archive = false)
 
         assertEquals(
-            listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1), ConversationRoute(chatId = 2, messageId = 50, topicId = 7)),
+            listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1), ConversationRoute(slot, chatId = 2, messageId = 50, topicId = 7)),
             stack,
         )
     }
 
     @Test
     fun odkazDoOtevrenehoTematuHoNezdvoji() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 2), ConversationRoute(chatId = 2, topicId = 7))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 2), ConversationRoute(slot, chatId = 2, topicId = 7))
 
-        stack.openTarget(ChatTarget(chatId = 2, messageId = 50, topicId = 7), archive = false)
+        stack.openTarget(slot, ChatTarget(chatId = 2, messageId = 50, topicId = 7), archive = false)
 
         assertEquals(3, stack.size)
     }
 
     @Test
     fun odkazDoJinehoTematuTeheSkupinyHoPrida() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 2), ConversationRoute(chatId = 2, topicId = 7))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 2), ConversationRoute(slot, chatId = 2, topicId = 7))
 
-        stack.openTarget(ChatTarget(chatId = 2, topicId = 8), archive = false)
+        stack.openTarget(slot, ChatTarget(chatId = 2, topicId = 8), archive = false)
 
-        assertEquals(ConversationRoute(chatId = 2, topicId = 8), stack.last())
+        assertEquals(ConversationRoute(slot, chatId = 2, topicId = 8), stack.last())
     }
 
     @Test
     fun skupinaSTematyBezTematuOtevreSeznamTemat() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1))
 
-        stack.openTarget(ChatTarget(chatId = 2, forum = true), archive = false)
-        stack.openTarget(ChatTarget(chatId = 2, forum = true), archive = false)
+        stack.openTarget(slot, ChatTarget(chatId = 2, forum = true), archive = false)
+        stack.openTarget(slot, ChatTarget(chatId = 2, forum = true), archive = false)
 
-        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1), ForumTopicsRoute(chatId = 2)), stack)
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1), ForumTopicsRoute(slot, chatId = 2)), stack)
     }
 
     @Test
     fun obycejnyChatSeNezdvoji() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1))
 
-        stack.openTarget(ChatTarget(chatId = 1), archive = false)
+        stack.openTarget(slot, ChatTarget(chatId = 1), archive = false)
 
-        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1)), stack)
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1)), stack)
     }
 
     @Test
     fun zTematuVedeOdkazDoCeleSkupiny() {
         // Téma téže skupiny není „otevřený chat": zpráva mimo téma se musí otevřít.
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2, topicId = 7))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 2, topicId = 7))
 
-        stack.openTarget(ChatTarget(chatId = 2, messageId = 50), archive = false)
+        stack.openTarget(slot, ChatTarget(chatId = 2, messageId = 50), archive = false)
 
-        assertEquals(ConversationRoute(chatId = 2, messageId = 50), stack.last())
+        assertEquals(ConversationRoute(slot, chatId = 2, messageId = 50), stack.last())
     }
 
     @Test
     fun vlaknoKomentaruSeOteviraVzdy() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1))
 
-        stack.openTarget(ChatTarget(chatId = 3, threadId = 9), archive = false)
+        stack.openTarget(slot, ChatTarget(chatId = 3, threadId = 9), archive = false)
 
-        assertEquals(ConversationRoute(chatId = 3, threadId = 9), stack.last())
+        assertEquals(ConversationRoute(slot, chatId = 3, threadId = 9), stack.last())
     }
 
     @Test
     fun vArchivuSeOteviraArchivniVetev() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(chatId = 1))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, chatId = 1))
 
-        stack.openTarget(ChatTarget(chatId = 2, topicId = 7), archive = true)
-        stack.openTarget(ChatTarget(chatId = 4, forum = true), archive = true)
+        stack.openTarget(slot, ChatTarget(chatId = 2, topicId = 7), archive = true)
+        stack.openTarget(slot, ChatTarget(chatId = 4, forum = true), archive = true)
 
         assertEquals(
             listOf<NavKey>(
                 ChatsRoute,
                 ArchiveRoute,
-                ArchiveConversationRoute(chatId = 1),
-                ArchiveConversationRoute(chatId = 2, topicId = 7),
-                ArchiveForumTopicsRoute(chatId = 4),
+                ArchiveConversationRoute(slot, chatId = 1),
+                ArchiveConversationRoute(slot, chatId = 2, topicId = 7),
+                ArchiveForumTopicsRoute(slot, chatId = 4),
             ),
             stack,
         )
@@ -324,66 +327,66 @@ class ChatsStackTest {
 
     @Test
     fun nalezenaZpravaVTematuMaPodSebouSeznamTemat() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), ConversationRoute(chatId = 1, topicId = 3))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 1), ConversationRoute(slot, chatId = 1, topicId = 3))
 
-        stack.openFoundMessage(chatId = 2, messageId = 50, topicId = 7)
+        stack.openFoundMessage(slot, chatId = 2, messageId = 50, topicId = 7)
 
         assertEquals(
-            listOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 2), ConversationRoute(chatId = 2, messageId = 50, topicId = 7)),
+            listOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 2), ConversationRoute(slot, chatId = 2, messageId = 50, topicId = 7)),
             stack,
         )
     }
 
     @Test
     fun nalezenaZpravaMimoTemaNahradiKonverzaci() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 1))
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1))
 
-        stack.openFoundMessage(chatId = 2, messageId = 50, topicId = null)
+        stack.openFoundMessage(slot, chatId = 2, messageId = 50, topicId = null)
 
-        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2, messageId = 50)), stack)
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 2, messageId = 50)), stack)
     }
 
     @Test
     fun prevedenaSkupinaPrepiseKonverzaciAProfilUpravaZustava() {
         val stack = mutableListOf<NavKey>(
             ChatsRoute,
-            ConversationRoute(chatId = 5, messageId = 7),
-            MediaRoute(chatId = 5, messageId = 7),
-            ChatProfileRoute(5),
-            EditChatRoute(5),
-            InviteLinksRoute(5),
+            ConversationRoute(slot, chatId = 5, messageId = 7),
+            MediaRoute(slot, chatId = 5, messageId = 7),
+            ChatProfileRoute(slot, 5),
+            EditChatRoute(slot, 5),
+            InviteLinksRoute(slot, 5),
         )
 
         stack.replaceUpgradedChat(old = 5, new = 9)
 
         // Bez skoku na zprávu: id zpráv v nové skupině jsou jiná. Úprava zůstává se starým id,
         // její ViewModel se přepnul sám.
-        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(9), ChatProfileRoute(9), EditChatRoute(5)), stack)
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 9), ChatProfileRoute(slot, 9), EditChatRoute(slot, 5)), stack)
     }
 
     @Test
     fun prevodSkupinyVArchivuNesahaNaJineChaty() {
         val stack = mutableListOf<NavKey>(
             ChatsRoute,
-            ConversationRoute(chatId = 1),
+            ConversationRoute(slot, chatId = 1),
             ArchiveRoute,
-            ArchiveConversationRoute(chatId = 5),
-            ArchiveChatProfileRoute(5),
-            ArchiveEditChatRoute(5),
+            ArchiveConversationRoute(slot, chatId = 5),
+            ArchiveChatProfileRoute(slot, 5),
+            ArchiveEditChatRoute(slot, 5),
         )
 
         stack.replaceUpgradedChat(old = 5, new = 9)
 
         assertEquals(
-            listOf<NavKey>(ChatsRoute, ConversationRoute(1), ArchiveRoute, ArchiveConversationRoute(9), ArchiveChatProfileRoute(9), ArchiveEditChatRoute(5)),
+            listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 1), ArchiveRoute, ArchiveConversationRoute(slot, 9), ArchiveChatProfileRoute(slot, 9), ArchiveEditChatRoute(slot, 5)),
             stack,
         )
     }
 
     @Test
     fun konverzacePrimoNaSeznamuVyrustaZRadku() {
-        val conversation = ConversationRoute(chatId = 1)
-        val archived = ArchiveConversationRoute(chatId = 9)
+        val conversation = ConversationRoute(slot, chatId = 1)
+        val archived = ArchiveConversationRoute(slot, chatId = 9)
 
         assertTrue(listOf<NavKey>(ChatsRoute, conversation).liesOnChatList(conversation))
         assertTrue(listOf<NavKey>(ChatsRoute, ArchiveRoute, archived).liesOnChatList(archived))
@@ -391,17 +394,17 @@ class ChatsStackTest {
 
     @Test
     fun tematoNadSeznamemTematNevyrustaZRadku() {
-        val topic = ConversationRoute(chatId = 1, topicId = 5)
-        val stack = listOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), topic)
+        val topic = ConversationRoute(slot, chatId = 1, topicId = 5)
+        val stack = listOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 1), topic)
 
-        assertTrue(stack.liesOnChatList(ForumTopicsRoute(chatId = 1)))
+        assertTrue(stack.liesOnChatList(ForumTopicsRoute(slot, chatId = 1)))
         assertFalse(stack.liesOnChatList(topic))
     }
 
     @Test
     fun odebranaPolozkaNeleziNaSeznamu() {
-        assertFalse(listOf<NavKey>(ChatsRoute).liesOnChatList(ConversationRoute(chatId = 1)))
-        assertFalse(listOf<NavKey>(ConversationRoute(chatId = 1)).liesOnChatList(ConversationRoute(chatId = 1)))
+        assertFalse(listOf<NavKey>(ChatsRoute).liesOnChatList(ConversationRoute(slot, chatId = 1)))
+        assertFalse(listOf<NavKey>(ConversationRoute(slot, chatId = 1)).liesOnChatList(ConversationRoute(slot, chatId = 1)))
     }
 
     /** Skupina smazaná pro všechny se maže z úpravy — zmizet musí i ta a všechno nad ní. */
@@ -409,12 +412,12 @@ class ChatsStackTest {
     fun smazanyChatZavreIUpravuAObrazovkyNadNi() {
         val stack = mutableListOf<NavKey>(
             ChatsRoute,
-            ConversationRoute(chatId = 1),
-            ChatProfileRoute(chatId = 1),
-            EditChatRoute(chatId = 1),
-            RemovedMembersRoute(chatId = 1, banned = true),
-            MemberRightsRoute(chatId = 1, userId = 5, admin = false),
-            EventLogRoute(chatId = 1),
+            ConversationRoute(slot, chatId = 1),
+            ChatProfileRoute(slot, chatId = 1),
+            EditChatRoute(slot, chatId = 1),
+            RemovedMembersRoute(slot, chatId = 1, banned = true),
+            MemberRightsRoute(slot, chatId = 1, userId = 5, admin = false),
+            EventLogRoute(slot, chatId = 1),
         )
 
         stack.closeChat(1)

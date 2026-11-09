@@ -1,5 +1,9 @@
 package eu.tintera.plume.app.shell
 
+import androidx.navigation3.runtime.NavEntry
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
@@ -32,6 +36,8 @@ import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
+import eu.tintera.plume.core.navigation.SAVED_ROUTES_VERSION
+import eu.tintera.plume.core.navigation.AccountRoute
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
 import eu.tintera.plume.core.navigation.SavedTopicsRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
@@ -111,7 +117,7 @@ class AppNavigation internal constructor(
      * proklikal sám. Nová konverzace, skupina a kanál se otevřou nad otevřeným chatem, jako
      * zmínka — zpět vede do něj. Hledání v dvoupanelu ([twoPane]) konverzaci nechá.
      */
-    fun openScreen(screen: AppScreen, twoPane: Boolean) {
+    fun openScreen(slot: AccountSlot, screen: AppScreen, twoPane: Boolean) {
         when (screen) {
             AppScreen.Settings -> openSettings()
             AppScreen.Privacy -> openSettingsAt(SettingsSection.Privacy)
@@ -125,10 +131,10 @@ class AppNavigation internal constructor(
             AppScreen.LoginEmail -> openSettingsAt(SettingsSection.Privacy, LoginEmailRoute)
             AppScreen.Passkeys -> openSettingsAt(SettingsSection.Privacy, PasskeysRoute)
             AppScreen.ChangePhone -> openSettingsWith(EditProfileRoute, ChangePhoneRoute)
-            AppScreen.ChatFolders -> openChatFolders()
+            AppScreen.ChatFolders -> openChatFolders(slot)
             AppScreen.NewChat -> openInChats(NewChatRoute)
             AppScreen.NewGroup -> openInChats(NewGroupMembersRoute)
-            AppScreen.NewChannel -> openInChats(CreateChatRoute(channel = true))
+            AppScreen.NewChannel -> openInChats(CreateChatRoute(slot, channel = true))
             AppScreen.Search -> openSearch("", keepConversation = twoPane)
         }
     }
@@ -161,18 +167,18 @@ class AppNavigation internal constructor(
      * Složky chatů zvenčí („+" v řádku složek nad seznamem chatů): Nastavení → Chaty → Složky
      * chatů, s [create] rovnou i editor nové složky. Zpět vede po krocích, jako u proxy.
      */
-    fun openChatFolders(create: Boolean = false) {
+    fun openChatFolders(slot: AccountSlot, create: Boolean = false) {
         openSettingsAt(SettingsSection.Chats, ChatFoldersRoute)
-        if (create) stack(SettingsRoute).add(ChatFolderEditRoute(0))
+        if (create) stack(SettingsRoute).add(ChatFolderEditRoute(slot, 0))
     }
 
     /**
      * Editor jedné složky z lišty složek (podržení záložky, prázdná složka): Nastavení → Chaty →
      * Složky chatů → složka [folderId]. Zpět vede přes správu složek, jako u nové složky.
      */
-    fun openChatFolder(folderId: Int) {
+    fun openChatFolder(slot: AccountSlot, folderId: Int) {
         openSettingsAt(SettingsSection.Chats, ChatFoldersRoute)
-        stack(SettingsRoute).add(ChatFolderEditRoute(folderId))
+        stack(SettingsRoute).add(ChatFolderEditRoute(slot, folderId))
     }
 
     /**
@@ -205,22 +211,22 @@ class AppNavigation internal constructor(
      * S [topicId] se pod konverzaci tématu vloží seznam témat skupiny, takže zpět z tématu vede
      * do skupiny, jako když se do něj uživatel proklikal sám.
      */
-    fun openChat(chatId: Long, topicId: Int? = null) {
+    fun openChat(slot: AccountSlot, chatId: Long, topicId: Int? = null) {
         selected.value = ChatsRoute
         popToRoot(ChatsRoute)
         val chats = stack(ChatsRoute)
-        if (topicId != null) chats.add(ForumTopicsRoute(chatId))
-        chats.add(ConversationRoute(chatId, topicId = topicId))
+        if (topicId != null) chats.add(ForumTopicsRoute(slot, chatId))
+        chats.add(ConversationRoute(slot, chatId, topicId = topicId))
     }
 
     /**
      * Videochat z pruhu nad aplikací: obrazovka se položí nad to, co je otevřené, takže zpět
      * vede tam, odkud se na pruh ťuklo. Je-li nahoře už on, nic.
      */
-    fun openVideoChat(chatId: Long, groupCallId: Int) {
+    fun openVideoChat(slot: AccountSlot, chatId: Long, groupCallId: Int) {
         selected.value = ChatsRoute
         val chats = stack(ChatsRoute)
-        if ((chats.lastOrNull() as? VideoChatRoute)?.groupCallId != groupCallId) chats.add(VideoChatRoute(chatId, groupCallId))
+        if ((chats.lastOrNull() as? VideoChatRoute)?.groupCallId != groupCallId) chats.add(VideoChatRoute(slot, chatId, groupCallId))
     }
 
     /**
@@ -242,14 +248,14 @@ class AppNavigation internal constructor(
      * Skupina s tématy otevře seznam témat a Uložené zprávy po chatech ([savedTopics]) seznam
      * svých témat, stejně jako ze seznamu chatů.
      */
-    fun switchChat(chatId: Long, forum: Boolean, savedTopics: Boolean) {
+    fun switchChat(slot: AccountSlot, chatId: Long, forum: Boolean, savedTopics: Boolean) {
         selected.value = ChatsRoute
         popToRoot(ChatsRoute)
         stack(ChatsRoute).add(
             when {
-                forum -> ForumTopicsRoute(chatId)
-                savedTopics -> SavedTopicsRoute(chatId)
-                else -> ConversationRoute(chatId)
+                forum -> ForumTopicsRoute(slot, chatId)
+                savedTopics -> SavedTopicsRoute(slot, chatId)
+                else -> ConversationRoute(slot, chatId)
             },
         )
     }
@@ -268,13 +274,13 @@ class AppNavigation internal constructor(
      * Sdílení do chatu vybraného v systémové nabídce (Direct Share): potvrzovací obrazovka nad
      * srovnaným zásobníkem Chatů, jako [showChatList]. Po odeslání ji nahradí ta konverzace.
      */
-    fun openShareTo(chatId: Long) {
+    fun openShareTo(slot: AccountSlot, chatId: Long) {
         selected.value = ChatsRoute
         // Otevřená obrazovka zůstává, ze stejného důvodu jako u výběru: její odchod sdílení
         // zahazuje, takže odebrat a vrátit by zahodilo právě ten nový obsah.
-        if (stack(ChatsRoute).lastOrNull() == ShareToChatRoute(chatId)) return
+        if (stack(ChatsRoute).lastOrNull() == ShareToChatRoute(slot, chatId)) return
         popToRoot(ChatsRoute)
-        stack(ChatsRoute).add(ShareToChatRoute(chatId))
+        stack(ChatsRoute).add(ShareToChatRoute(slot, chatId))
     }
 
     /**
@@ -330,7 +336,7 @@ fun rememberAppNavigation(): AppNavigation {
     // Overload bez konfigurace existuje jen na Androidu; konfigurace navíc MUSÍ znát podtypy
     // NavKey — viz NavSavedStateConfiguration. `key` drží každý zásobník na jeho sekci.
     val stacks = TopLevelDestination.entries.associate { destination ->
-        destination.route to key(destination) {
+        destination.route to key(destination, SAVED_ROUTES_VERSION) {
             rememberNavBackStack(NavSavedStateConfiguration, destination.route)
         }
     }
@@ -385,4 +391,18 @@ internal fun MutableList<NavKey>.openSubpage(opener: NavKey, subpage: NavKey) {
     val keep = if (getOrNull(index + 1) == subpage) index + 2 else index + 1
     while (size > keep) removeAt(lastIndex)
     if (size == index + 1) add(subpage)
+}
+
+/**
+ * Obsah routy s účtem ([AccountRoute]) se skládá v kontejneru toho účtu, takže `koinInject`
+ * a `koinViewModel` obrazovky míří do něj. Klíč a metadata položky zůstávají. Ostatní routy se
+ * skládají v účtu shellu.
+ */
+internal fun ((NavKey) -> NavEntry<NavKey>).inRouteAccount(accounts: Accounts): (NavKey) -> NavEntry<NavKey> = { key ->
+    val entry = this(key)
+    if (key is AccountRoute) {
+        NavEntry(key, entry.contentKey, entry.metadata) { AccountScope(accounts[key.slot]) { entry.Content() } }
+    } else {
+        entry
+    }
 }

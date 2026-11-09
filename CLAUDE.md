@@ -260,7 +260,13 @@ Modul `:client:core` (balíček `core/telegram`) je **jediné místo, kde smí b
 `implementation` závislost, jinde se import nepřeloží. Zbytek
 aplikace vidí jen doménová rozhraní: `TelegramSession` (přihlášení), `ChatRepository` (seznam
 chatů), `ConversationRepository` (obsah konverzace), `FileRepository` (soubory a média). Klienta
-sdílí přes `TelegramClientHolder` — TDLib klient je jeden na proces.
+sdílí přes `TelegramClientHolder` — TDLib klient je jeden na účet.
+
+**Repository a všechno nad nimi patří do kontejneru účtu, ne do globálního Koinu**
+(`docs/navrh-vice-uctu.md`). Nová definice, která si bere repository nebo drží stav účtu (id
+chatů, zpráv, souborů), jde do `accountModule` nebo `appAccountModule`; do globálního `appModule`
+jen to, co je v procesu opravdu jednou. Kontejner účtu vidí do globálního Koinu, naopak to nejde,
+a **chyba se ozve až za běhu**. Mimo kompozici se na účet jde přes `Accounts`.
 
 Proč to tak striktně:
 

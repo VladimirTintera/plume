@@ -1,5 +1,8 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.features.stories.StoryEditTarget
 import eu.tintera.plume.features.profile.EventLogScreen
 import eu.tintera.plume.core.navigation.ArchiveChatStatisticsRoute
@@ -272,6 +275,8 @@ import org.koin.compose.viewmodel.koinViewModel
  */
 @Composable
 fun AppShell(modifier: Modifier = Modifier) {
+    // Účet shellu (`AppRoot`): komu patří požadavky zvenčí, dokud nenesou slot.
+    val slot = LocalAccount.current.slot
     val navigation = rememberAppNavigation()
 
     /*
@@ -302,7 +307,7 @@ fun AppShell(modifier: Modifier = Modifier) {
 
     LaunchedEffect(openRequest) {
         val request = openRequest ?: return@LaunchedEffect
-        navigation.openChat(request.chatId, request.topicId)
+        navigation.openChat(slot, request.chatId, request.topicId)
         chatOpenRequests.consume(request)
     }
 
@@ -339,7 +344,7 @@ fun AppShell(modifier: Modifier = Modifier) {
 
     LaunchedEffect(confirmShareKey) {
         val chatId = confirmShare?.targetChatId ?: return@LaunchedEffect
-        navigation.openShareTo(chatId)
+        navigation.openShareTo(slot, chatId)
     }
 
     // Výška pruhu hovoru / videochatu i se stavovou lištou; 0 = pruh není. Naráz je jen jeden
@@ -374,7 +379,7 @@ fun AppShell(modifier: Modifier = Modifier) {
         CallOverlay(Modifier.align(Alignment.TopCenter), onBarHeight = { callBarHeight = it })
         // Videochat, ze kterého uživatel odešel jen z obrazovky — pruh na stejném místě.
         VideoChatOverlay(
-            onOpen = navigation::openVideoChat,
+            onOpen = { chatId, groupCallId -> navigation.openVideoChat(slot, chatId, groupCallId) },
             modifier = Modifier.align(Alignment.TopCenter).onSizeChanged { videoChatBarHeight = it.height },
         )
         // Hodnocení po hovoru, o které server požádal; až obrazovka hovoru zmizí.
@@ -397,6 +402,8 @@ private fun ShellContent(
     shareRequests: ShareRequests,
     modifier: Modifier = Modifier,
 ) {
+    val slot = LocalAccount.current.slot
+    val accounts = koinInject<Accounts>()
     BoxWithConstraints(modifier) {
         val base = contentPaneScaffoldDirective(maxWidth, maxHeight)
         val wide = maxWidth >= TWO_PANE_MIN_WIDTH
@@ -489,7 +496,7 @@ private fun ShellContent(
                 navigation = navigation,
             )
         }
-        entryProvider = buildEntryProvider(null, null, false)
+        entryProvider = buildEntryProvider(null, null, false).inRouteAccount(accounts)
 
         /*
          * Profil ve třetím panelu patří ke konverzaci pod sebou. Otevře-li se nad ním jiná
@@ -568,7 +575,7 @@ private fun ShellContent(
         // Za tahu vlastním táhlem a za jeho dojezdu řídí pohyb táhlo, ne pružina knihovny (`DraggedWidth`).
         val instantPaneBounds = (listResizeShown != null && listResize.resizing) || (profileBeside && profileResize.resizing)
         if (listPaneWidth != null || profilePaneWidth != null) {
-            entryProvider = buildEntryProvider(listPaneWidth, profilePaneWidth, instantPaneBounds)
+            entryProvider = buildEntryProvider(listPaneWidth, profilePaneWidth, instantPaneBounds).inRouteAccount(accounts)
         }
         // Čí karta hlásí polohu táhlům: jen to, co je v Chatech opravdu vidět (`LocalPaneResizeOwners`).
         val paneResizeOwners = setOfNotNull(
@@ -714,12 +721,12 @@ private fun ShellContent(
         LaunchedEffect(instantView) {
             val request = instantView ?: return@LaunchedEffect
             instantViews.consume(request)
-            navigation.stack(ChatsRoute).add(InstantViewRoute(request.url))
+            navigation.stack(ChatsRoute).add(InstantViewRoute(slot, request.url))
         }
 
         ExternalLinkHost(
             viewModel = koinViewModel(),
-            onNavigate = { destination -> navigation.openExternal(destination, twoPane) },
+            onNavigate = { destination -> navigation.openExternal(slot, destination, twoPane) },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
         // Limit skupin a kanálů: přijít může ze vstupu i založení kdekoli, sheet patří nad vše.
@@ -753,6 +760,7 @@ private fun shellEntryProvider(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ) + ChatListMetadata + Panes.width(listPaneWidth) + Panes.instantBounds(instantPaneBounds),
     ) {
+        val slot = LocalAccount.current.slot
         val settings = koinInject<AppSettings>()
         val savedMessagesChatId = LocalSavedMessagesChatId.current
         ChatListScreen(
@@ -772,16 +780,16 @@ private fun shellEntryProvider(
                 onChatClick = { chatId ->
                     // Uložené zprávy po chatech, když si to uživatel zvolil („Zobrazit jako chaty").
                     if (chatId == savedMessagesChatId && settings.savedMessagesAsChats.value) {
-                        chatsStack.openSavedTopics(chatId)
+                        chatsStack.openSavedTopics(slot, chatId)
                     } else {
-                        chatsStack.openConversation(chatId)
+                        chatsStack.openConversation(slot, chatId)
                     }
                 },
-                onForumClick = { chatId -> chatsStack.openForum(chatId) },
+                onForumClick = { chatId -> chatsStack.openForum(slot, chatId) },
                 // Koncept v tématu z přehledu konceptů: téma a pod ním seznam témat, jako u nalezené zprávy.
-                onTopicClick = { chatId, topicId -> chatsStack.openFoundMessage(chatId, messageId = null, topicId = topicId) },
-                onThreadClick = { chatId, threadId -> chatsStack.openCommentThread(chatId, threadId) },
-                onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(chatId, messageId, topicId) },
+                onTopicClick = { chatId, topicId -> chatsStack.openFoundMessage(slot, chatId, messageId = null, topicId = topicId) },
+                onThreadClick = { chatId, threadId -> chatsStack.openCommentThread(slot, chatId, threadId) },
+                onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(slot, chatId, messageId, topicId) },
                 onOpenArchive = {
                     if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
                 },
@@ -793,17 +801,17 @@ private fun shellEntryProvider(
                     if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
                 },
                 onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
-                onNewChannel = { chatsStack.add(CreateChatRoute(channel = true)) },
+                onNewChannel = { chatsStack.add(CreateChatRoute(slot, channel = true)) },
                 onChatArchived = chatsStack::closeConversationOf,
                 onOpenSettings = navigation::openSettings,
                 onOpenProxySettings = navigation::openProxySettings,
-                onCreateFolder = { navigation.openChatFolders(create = true) },
-                onManageFolders = { navigation.openChatFolders() },
-                onEditFolder = { id -> navigation.openChatFolder(id) },
-                onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
+                onCreateFolder = { navigation.openChatFolders(slot, create = true) },
+                onManageFolders = { navigation.openChatFolders(slot) },
+                onEditFolder = { id -> navigation.openChatFolder(slot, id) },
+                onOpenScreen = { screen -> navigation.openScreen(slot, screen, twoPane) },
                 onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
-                onOpenStories = { chatId -> chatsStack.openStories(chatId) },
-                onComposeStory = { path, video -> chatsStack.add(StoryComposerRoute(path, video)) },
+                onOpenStories = { chatId -> chatsStack.openStories(slot, chatId) },
+                onComposeStory = { path, video -> chatsStack.add(StoryComposerRoute(slot, path, video)) },
             ),
             searchRequest = navigation.searchRequest,
             onSearchRequestHandled = navigation::consumeSearchRequest,
@@ -822,6 +830,7 @@ private fun shellEntryProvider(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ) + ChatListMetadata + Panes.instantBounds(instantPaneBounds),
     ) {
+        val slot = LocalAccount.current.slot
         ArchiveScreen(
             // Klíč se složkou: ViewModel se cachuje podle klíče a Koin by u cachované instance
             // parametr ignoroval (viz konverzace).
@@ -835,12 +844,12 @@ private fun shellEntryProvider(
                         ?: (it as ArchiveDirectTopicsRoute).chatId
                 }
                 ?.takeIf { twoPane },
-            onChatClick = { chatId -> chatsStack.openArchiveConversation(chatId) },
-            onForumClick = { chatId -> chatsStack.openArchiveForum(chatId) },
+            onChatClick = { chatId -> chatsStack.openArchiveConversation(slot, chatId) },
+            onForumClick = { chatId -> chatsStack.openArchiveForum(slot, chatId) },
             onBack = chatsStack::closeArchive,
             onChatArchived = chatsStack::closeConversationOf,
             modifier = Modifier.listPaneInsets(twoPane),
-            onOpenStories = { chatId -> chatsStack.openStories(chatId) },
+            onOpenStories = { chatId -> chatsStack.openStories(slot, chatId) },
         )
     }
 
@@ -854,10 +863,11 @@ private fun shellEntryProvider(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
+        val slot = LocalAccount.current.slot
         CallsScreen(
             viewModel = koinViewModel(),
             onBack = { chatsStack.remove(CallsRoute) },
-            onOpenChat = { chatId -> chatsStack.openConversation(chatId) },
+            onOpenChat = { chatId -> chatsStack.openConversation(slot, chatId) },
         )
     }
 
@@ -868,11 +878,12 @@ private fun shellEntryProvider(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
+        val slot = LocalAccount.current.slot
         DownloadsScreen(
             viewModel = koinViewModel(),
             onBack = { chatsStack.remove(DownloadsRoute) },
-            onOpenMessage = { chatId, messageId -> chatsStack.openFoundMessage(chatId, messageId, topicId = null) },
-            onOpenMedia = { chatId, messageId -> chatsStack.add(MediaRoute(chatId, messageId)) },
+            onOpenMessage = { chatId, messageId -> chatsStack.openFoundMessage(slot, chatId, messageId, topicId = null) },
+            onOpenMedia = { chatId, messageId -> chatsStack.add(MediaRoute(slot, chatId, messageId)) },
         )
     }
 
@@ -882,10 +893,11 @@ private fun shellEntryProvider(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
+        val slot = LocalAccount.current.slot
         MyStoriesScreen(
             viewModel = koinViewModel(),
             onBack = { chatsStack.remove(MyStoriesRoute) },
-            onOpenStories = { chatId, storyIds, start -> chatsStack.openStories(chatId, storyIds, start) },
+            onOpenStories = { chatId, storyIds, start -> chatsStack.openStories(slot, chatId, storyIds, start) },
         )
     }
 
@@ -894,15 +906,16 @@ private fun shellEntryProvider(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
+        val slot = LocalAccount.current.slot
         NewChatScreen(
             viewModel = koinViewModel(),
             onBack = { chatsStack.remove(NewChatRoute) },
             onChatSelected = { chatId ->
                 chatsStack.remove(NewChatRoute)
-                chatsStack.openConversation(chatId)
+                chatsStack.openConversation(slot, chatId)
             },
             onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
-            onNewChannel = { chatsStack.add(CreateChatRoute(channel = true)) },
+            onNewChannel = { chatsStack.add(CreateChatRoute(slot, channel = true)) },
             onNewContact = { if (chatsStack.lastOrNull() != NewContactRoute) chatsStack.add(NewContactRoute) },
             modifier = Modifier.listPaneInsets(twoPane),
         )
@@ -913,12 +926,13 @@ private fun shellEntryProvider(
      * i „Nová zpráva" pod ním a otevře se konverzace — zpět z ní vede do seznamu.
      */
     entry<NewContactRoute> {
+        val slot = LocalAccount.current.slot
         NewContactScreen(
             viewModel = koinViewModel(),
             onBack = { chatsStack.remove(NewContactRoute) },
             onAdded = { chatId ->
                 chatsStack.removeAll { it == NewContactRoute || it == NewChatRoute }
-                chatsStack.openConversation(chatId)
+                chatsStack.openConversation(slot, chatId)
             },
         )
     }
@@ -929,15 +943,17 @@ private fun shellEntryProvider(
      * odebere a otevře se nový chat — zpět z něj vede do seznamu, ne zpátky do formuláře.
      */
     entry<NewGroupMembersRoute> {
+        val slot = LocalAccount.current.slot
         NewGroupMembersScreen(
             // Vlastní klíč: výběr členů nesmí sdílet hledání s „Novou zprávou" pod sebou.
             viewModel = koinViewModel(key = "new-group-members"),
             onBack = { chatsStack.remove(NewGroupMembersRoute) },
-            onNext = { members -> chatsStack.add(CreateChatRoute(channel = false, memberChatIds = members)) },
+            onNext = { members -> chatsStack.add(CreateChatRoute(slot, channel = false, memberChatIds = members)) },
         )
     }
 
     entry<CreateChatRoute> { route ->
+        val slot = LocalAccount.current.slot
         CreateChatScreen(
             viewModel = koinViewModel(
                 key = "create-chat-${route.channel}-${route.memberChatIds.joinToString(",")}",
@@ -946,12 +962,13 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onCreated = { chatId ->
                 chatsStack.removeAll { it is CreateChatRoute || it == NewGroupMembersRoute || it == NewChatRoute }
-                chatsStack.openConversation(chatId)
+                chatsStack.openConversation(slot, chatId)
             },
         )
     }
 
     entry<ConversationRoute>(metadata = Panes.detail() + Panes.ownSurface() + ChatScreenMetadata) { route ->
+        val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val settings = koinInject<AppSettings>()
             val sideBySide = LocalPanesSideBySide.current
@@ -971,35 +988,35 @@ private fun shellEntryProvider(
                     onBack = { chatsStack.closeConversation(route, list = ChatsRoute, sideBySide = sideBySide) },
                     onChatGone = { chatsStack.closeChat(route.chatId) },
                     onOpenMedia = { messageId ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId))
                     },
                     onOpenMediaAt = { messageId, seconds ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId, startSeconds = seconds))
                     },
                     onOpenPollMedia = { messageId, index ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId, pollMedia = index))
                     },
                     onOpenArticleMedia = { messageId, index ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId, articleMedia = index))
                     },
                     onOpenSponsoredMedia = { messageId ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId, sponsored = true))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId, sponsored = true))
                     },
                     onOpenStory = { story ->
-                        chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
+                        chatsStack.add(MediaRoute(slot, story.posterChatId, messageId = 0, storyId = story.storyId))
                     },
-                    onOpenVideoChat = { groupCallId -> chatsStack.openVideoChat(route.chatId, groupCallId) },
+                    onOpenVideoChat = { groupCallId -> chatsStack.openVideoChat(slot, route.chatId, groupCallId) },
                     onForward = { messageIds ->
-                        chatsStack.add(ForwardRoute(route.chatId, messageIds))
+                        chatsStack.add(ForwardRoute(slot, route.chatId, messageIds))
                     },
-                    onReplyElsewhere = { messageId -> chatsStack.add(ReplyElsewhereRoute(route.chatId, messageId)) },
+                    onReplyElsewhere = { messageId -> chatsStack.add(ReplyElsewhereRoute(slot, route.chatId, messageId)) },
                     // Zmínka i odkaz otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
                     // Odkaz na zprávu nese její id a konverzace na ni po otevření skočí.
                     // Komentáře jsou vlákno diskusní skupiny nad kanálem, téma jde rovnou do tématu
                     // a skupina s tématy do seznamu témat (`openTarget`).
-                    onOpenChat = { target -> chatsStack.openTarget(target, archive = false) },
+                    onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = false) },
                     onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
-                    onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
+                    onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(slot, route.chatId), sideBySide = wide) },
                     // Kalendář zpráv jako panel vedle konverzace — jen když panely stojí vedle sebe
                     // a tam, kde jde skok na datum (ne vlákno komentářů, ne téma skupiny); jinak
                     // sheet. `sideBySide` se čte při každé kompozici; poskytovatel vstupů s `wide`
@@ -1008,32 +1025,32 @@ private fun shellEntryProvider(
                         { anchor ->
                             chatsStack.toggleCalendar(
                                 route,
-                                ChatCalendarRoute(route.chatId, savedTopicId = route.savedTopicId, directTopicId = route.directTopicId, anchor = anchor),
+                                ChatCalendarRoute(slot, route.chatId, savedTopicId = route.savedTopicId, directTopicId = route.directTopicId, anchor = anchor),
                             )
                         }
                     } else {
                         null
                     },
-                    onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
-                    onOpenPostStatistics = { messageId -> chatsStack.addOnce(PostStatisticsRoute(route.chatId, messageId)) },
-                    onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
-                    onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(route.chatId, request)) },
-                    onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
-                    onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
-                    onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
-                    onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
-                    onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
-                    onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
-                    onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
+                    onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(slot, chatId)) },
+                    onOpenPostStatistics = { messageId -> chatsStack.addOnce(PostStatisticsRoute(slot, route.chatId, messageId)) },
+                    onCreatePoll = { request -> chatsStack.add(pollComposerRoute(slot, route.chatId, request)) },
+                    onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(slot, route.chatId, request)) },
+                    onOpenWebApp = { request -> chatsStack.add(webAppRoute(slot, route.chatId, request, archive = false)) },
+                    onOpenBotShare = { request -> chatsStack.add(botShareRoute(slot, route.chatId, request)) },
+                    onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(slot, link.url, link.botChatId, link.asAdmin)) },
+                    onOpenScreen = { screen -> navigation.openScreen(slot, screen, twoPane) },
+                    onSwitchInline = { pick -> chatsStack.add(pick.toRoute(slot)) },
+                    onAddMembers = { chatsStack.addOnce(AddMembersRoute(slot, route.chatId)) },
+                    onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(slot, route.chatId)) },
                     // Uložené zprávy po chatech: volba se pamatuje a seznam témat nahradí konverzaci.
                     onViewAsChats = {
                         settings.setSavedMessagesAsChats(true)
-                        chatsStack.openSavedTopics(route.chatId)
+                        chatsStack.openSavedTopics(slot, route.chatId)
                     },
                     // Skupina s tématy otevřená jako zprávy: volbu uloží ViewModel, seznam témat nahradí konverzaci.
-                    onViewAsTopics = { chatsStack.openForum(route.chatId) },
+                    onViewAsTopics = { chatsStack.openForum(slot, route.chatId) },
                     // Spravované přímé zprávy kanálu: konverzaci nahradí seznam vláken na TÉMŽE místě.
-                    onViewAsDirectTopics = { chatsStack.replaceRoute(route, DirectTopicsRoute(route.chatId)) },
+                    onViewAsDirectTopics = { chatsStack.replaceRoute(route, DirectTopicsRoute(slot, route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
                 ),
             )
@@ -1045,16 +1062,17 @@ private fun shellEntryProvider(
      * téma se otevře jako konverzace nad nimi.
      */
     entry<SavedTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
+        val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             SavedTopicsScreen(
                 viewModel = koinViewModel(key = "saved-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
                 onOpenTopic = { topicId ->
                     if ((chatsStack.lastOrNull() as? ConversationRoute)?.savedTopicId != topicId) {
-                        chatsStack.add(ConversationRoute(route.chatId, savedTopicId = topicId))
+                        chatsStack.add(ConversationRoute(slot, route.chatId, savedTopicId = topicId))
                     }
                 },
-                onViewAsMessages = { chatsStack.openConversation(route.chatId) },
+                onViewAsMessages = { chatsStack.openConversation(slot, route.chatId) },
             )
         }
     }
@@ -1064,16 +1082,17 @@ private fun shellEntryProvider(
      * vlákno se otevře jako konverzace nad nimi.
      */
     entry<DirectTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
+        val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             DirectTopicsScreen(
                 viewModel = koinViewModel(key = "direct-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
                 onOpenTopic = { topicId ->
                     if ((chatsStack.lastOrNull() as? ConversationRoute)?.directTopicId != topicId) {
-                        chatsStack.add(ConversationRoute(route.chatId, directTopicId = topicId))
+                        chatsStack.add(ConversationRoute(slot, route.chatId, directTopicId = topicId))
                     }
                 },
-                onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
+                onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(slot, route.chatId), sideBySide = wide) },
             )
         }
     }
@@ -1083,51 +1102,54 @@ private fun shellEntryProvider(
      * konverzace NAD nimi, takže zpět vede do seznamu témat.
      */
     entry<ForumTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
+        val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             ForumTopicsScreen(
                 viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
                 onOpenTopic = { topicId ->
                     if ((chatsStack.lastOrNull() as? ConversationRoute)?.topicId != topicId) {
-                        chatsStack.add(ConversationRoute(route.chatId, topicId = topicId))
+                        chatsStack.add(ConversationRoute(slot, route.chatId, topicId = topicId))
                     }
                 },
-                onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
+                onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(slot, route.chatId), sideBySide = wide) },
                 // Volba se pamatuje (na serveru) a konverzace seznam témat nahradí, jako u Uložených zpráv.
-                onViewAsMessages = { chatsStack.openConversation(route.chatId) },
-                onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
+                onViewAsMessages = { chatsStack.openConversation(slot, route.chatId) },
+                onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(slot, route.chatId)) },
             )
         }
     }
 
     entry<ArchiveDirectTopicsRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
+        val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             DirectTopicsScreen(
                 viewModel = koinViewModel(key = "direct-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
                 onOpenTopic = { topicId ->
                     if ((chatsStack.lastOrNull() as? ArchiveConversationRoute)?.directTopicId != topicId) {
-                        chatsStack.add(ArchiveConversationRoute(route.chatId, directTopicId = topicId))
+                        chatsStack.add(ArchiveConversationRoute(slot, route.chatId, directTopicId = topicId))
                     }
                 },
-                onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
+                onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(slot, route.chatId), sideBySide = wide) },
             )
         }
     }
 
     entry<ArchiveForumTopicsRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
+        val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             ForumTopicsScreen(
                 viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
                 onOpenTopic = { topicId ->
                     if ((chatsStack.lastOrNull() as? ArchiveConversationRoute)?.topicId != topicId) {
-                        chatsStack.add(ArchiveConversationRoute(route.chatId, topicId = topicId))
+                        chatsStack.add(ArchiveConversationRoute(slot, route.chatId, topicId = topicId))
                     }
                 },
-                onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
-                onViewAsMessages = { chatsStack.openArchiveConversation(route.chatId) },
-                onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
+                onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(slot, route.chatId), sideBySide = wide) },
+                onViewAsMessages = { chatsStack.openArchiveConversation(slot, route.chatId) },
+                onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(slot, route.chatId)) },
             )
         }
     }
@@ -1159,45 +1181,46 @@ private fun shellEntryProvider(
      * otevřená nad profilem ho na široké ploše vystřídá profilem té nové (`followProfile`).
      */
     entry<ChatProfileRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatColorTheme(route.chatId) {
             ChatProfileScreen(
                 viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
-                onOpenStories = { storyIds, start -> chatsStack.openStories(route.chatId, storyIds, start) },
+                onOpenStories = { storyIds, start -> chatsStack.openStories(slot, route.chatId, storyIds, start) },
                 // Hledat patří konverzaci: profil se zavře a konverzace pod ním otevře hledání.
                 // Profil odesílatele otevřený ze skupiny má pod sebou SKUPINU — pak se místo ní
                 // otevře konverzace s ním, jinak by hledání čekalo na chat, který není vidět.
                 onSearch = {
                     searchRequests.request(route.chatId)
                     chatsStack.pop(route)
-                    if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId))
+                    if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(slot, route.chatId))
                 },
                 onOpenChat = { chatId ->
-                    if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
+                    if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(slot, chatId))
                 },
                 // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
                 onOpenMedia = { messageId, articleMedia ->
-                    chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
+                    chatsStack.add(MediaRoute(slot, route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
                 },
-                onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
-                onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
-                onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
-                onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+                onOpenPhotos = { chatsStack.add(MediaRoute(slot, route.chatId, messageId = 0L, profilePhotos = true)) },
+                onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(slot, route.chatId)) chatsStack.add(EditChatRoute(slot, route.chatId)) },
+                onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(slot, userId)) },
+                onAddMembers = { chatsStack.addOnce(AddMembersRoute(slot, route.chatId)) },
                 onOpenMemberRights = { userId, admin ->
-                    chatsStack.add(MemberRightsRoute(route.chatId, userId, admin))
+                    chatsStack.add(MemberRightsRoute(slot, route.chatId, userId, admin))
                 },
                 // Soukromý chat s botem má id bota, takže chat je zároveň bot.
                 onOpenMainWebApp = {
-                    chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = false, main = true))
+                    chatsStack.add(WebAppRoute(slot, route.chatId, route.chatId, url = "", launch = false, archive = false, main = true))
                 },
                 // Záložka: profil se zavře a konverzace pod ním skočí na zprávu (`ConversationJumpRequests`).
                 // Bez konverzace pod profilem se otevře rovnou na té zprávě.
                 onOpenMessage = { messageId ->
                     jumpRequests.request(route.chatId, messageId)
                     chatsStack.pop(route)
-                    if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId, messageId))
+                    if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(slot, route.chatId, messageId))
                 },
                 closeIcon = LocalPanesSideBySide.current,
             )
@@ -1206,28 +1229,30 @@ private fun shellEntryProvider(
 
     // Úprava se vrší nad profil, ve třetím panelu ho nahradí.
     entry<EditChatRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
-            onOpenInviteLinks = { chatsStack.addOnce(InviteLinksRoute(route.chatId)) },
-            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
-            onOpenRemoved = { banned -> chatsStack.addOnce(RemovedMembersRoute(route.chatId, banned)) },
-            onOpenEventLog = { chatsStack.addOnce(EventLogRoute(route.chatId)) },
-            onOpenStatistics = { chatsStack.addOnce(ChatStatisticsRoute(route.chatId)) },
+            onOpenInviteLinks = { chatsStack.addOnce(InviteLinksRoute(slot, route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(slot, route.chatId)) },
+            onOpenRemoved = { banned -> chatsStack.addOnce(RemovedMembersRoute(slot, route.chatId, banned)) },
+            onOpenEventLog = { chatsStack.addOnce(EventLogRoute(slot, route.chatId)) },
+            onOpenStatistics = { chatsStack.addOnce(ChatStatisticsRoute(slot, route.chatId)) },
             onDeleted = { chatsStack.closeChat(route.chatId) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
     }
 
     entry<ArchiveEditChatRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
-            onOpenInviteLinks = { chatsStack.addOnce(ArchiveInviteLinksRoute(route.chatId)) },
-            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
-            onOpenRemoved = { banned -> chatsStack.addOnce(ArchiveRemovedMembersRoute(route.chatId, banned)) },
-            onOpenEventLog = { chatsStack.addOnce(ArchiveEventLogRoute(route.chatId)) },
-            onOpenStatistics = { chatsStack.addOnce(ArchiveChatStatisticsRoute(route.chatId)) },
+            onOpenInviteLinks = { chatsStack.addOnce(ArchiveInviteLinksRoute(slot, route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(slot, route.chatId)) },
+            onOpenRemoved = { banned -> chatsStack.addOnce(ArchiveRemovedMembersRoute(slot, route.chatId, banned)) },
+            onOpenEventLog = { chatsStack.addOnce(ArchiveEventLogRoute(slot, route.chatId)) },
+            onOpenStatistics = { chatsStack.addOnce(ArchiveChatStatisticsRoute(slot, route.chatId)) },
             onDeleted = { chatsStack.closeChat(route.chatId) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
@@ -1278,40 +1303,44 @@ private fun shellEntryProvider(
 
     // Statistiky se vrší nad úpravu, statistika příspěvku nad ně nebo nad konverzaci.
     entry<ChatStatisticsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         ChatStatisticsScreen(
             viewModel = koinViewModel(key = "chat-statistics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
-            onOpenPost = { messageId -> chatsStack.addOnce(PostStatisticsRoute(route.chatId, messageId)) },
+            onOpenPost = { messageId -> chatsStack.addOnce(PostStatisticsRoute(slot, route.chatId, messageId)) },
         )
     }
 
     entry<ArchiveChatStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         ChatStatisticsScreen(
             viewModel = koinViewModel(key = "chat-statistics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
-            onOpenPost = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(route.chatId, messageId)) },
+            onOpenPost = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(slot, route.chatId, messageId)) },
         )
     }
 
     entry<PostStatisticsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         PostStatisticsScreen(
             viewModel = koinViewModel(
                 key = "post-statistics-${route.chatId}-${route.messageId}",
                 parameters = { parametersOf(route.chatId, route.messageId) },
             ),
             onBack = { chatsStack.pop(route) },
-            onOpenMessage = { chatId, messageId -> chatsStack.openTarget(ChatTarget(chatId, messageId), archive = false) },
+            onOpenMessage = { chatId, messageId -> chatsStack.openTarget(slot, ChatTarget(chatId, messageId), archive = false) },
         )
     }
 
     entry<ArchivePostStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         PostStatisticsScreen(
             viewModel = koinViewModel(
                 key = "post-statistics-${route.chatId}-${route.messageId}",
                 parameters = { parametersOf(route.chatId, route.messageId) },
             ),
             onBack = { chatsStack.pop(route) },
-            onOpenMessage = { chatId, messageId -> chatsStack.openTarget(ChatTarget(chatId, messageId), archive = true) },
+            onOpenMessage = { chatId, messageId -> chatsStack.openTarget(slot, ChatTarget(chatId, messageId), archive = true) },
         )
     }
 
@@ -1320,24 +1349,26 @@ private fun shellEntryProvider(
      * podle klíče a Koin u cachované instance ignoruje nové parametry.
      */
     entry<RemovedMembersRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         RemovedMembersScreen(
             viewModel = koinViewModel(
                 key = "removed-members-${route.chatId}-${route.banned}",
                 parameters = { parametersOf(route.chatId, route.banned) },
             ),
             onBack = { chatsStack.pop(route) },
-            onOpenRestriction = { userId -> chatsStack.addOnce(MemberRightsRoute(route.chatId, userId, admin = false)) },
+            onOpenRestriction = { userId -> chatsStack.addOnce(MemberRightsRoute(slot, route.chatId, userId, admin = false)) },
         )
     }
 
     entry<ArchiveRemovedMembersRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         RemovedMembersScreen(
             viewModel = koinViewModel(
                 key = "removed-members-${route.chatId}-${route.banned}",
                 parameters = { parametersOf(route.chatId, route.banned) },
             ),
             onBack = { chatsStack.pop(route) },
-            onOpenRestriction = { userId -> chatsStack.addOnce(ArchiveMemberRightsRoute(route.chatId, userId, admin = false)) },
+            onOpenRestriction = { userId -> chatsStack.addOnce(ArchiveMemberRightsRoute(slot, route.chatId, userId, admin = false)) },
         )
     }
 
@@ -1367,6 +1398,7 @@ private fun shellEntryProvider(
     }
 
     entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + Panes.ownSurface() + ChatScreenMetadata) { route ->
+        val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
@@ -1381,45 +1413,45 @@ private fun shellEntryProvider(
                     onBack = { chatsStack.closeConversation(route, list = ArchiveRoute, sideBySide = sideBySide) },
                     onChatGone = { chatsStack.closeChat(route.chatId) },
                     onOpenMedia = { messageId ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId))
                     },
                     onOpenMediaAt = { messageId, seconds ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId, startSeconds = seconds))
                     },
                     onOpenPollMedia = { messageId, index ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId, pollMedia = index))
                     },
                     onOpenArticleMedia = { messageId, index ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId, articleMedia = index))
                     },
                     onOpenSponsoredMedia = { messageId ->
-                        chatsStack.add(MediaRoute(route.chatId, messageId, sponsored = true))
+                        chatsStack.add(MediaRoute(slot, route.chatId, messageId, sponsored = true))
                     },
                     onOpenStory = { story ->
-                        chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
+                        chatsStack.add(MediaRoute(slot, story.posterChatId, messageId = 0, storyId = story.storyId))
                     },
-                    onOpenVideoChat = { groupCallId -> chatsStack.openVideoChat(route.chatId, groupCallId) },
+                    onOpenVideoChat = { groupCallId -> chatsStack.openVideoChat(slot, route.chatId, groupCallId) },
                     onForward = { messageIds ->
-                        chatsStack.add(ForwardRoute(route.chatId, messageIds))
+                        chatsStack.add(ForwardRoute(slot, route.chatId, messageIds))
                     },
-                    onReplyElsewhere = { messageId -> chatsStack.add(ReplyElsewhereRoute(route.chatId, messageId)) },
-                    onOpenChat = { target -> chatsStack.openTarget(target, archive = true) },
+                    onReplyElsewhere = { messageId -> chatsStack.add(ReplyElsewhereRoute(slot, route.chatId, messageId)) },
+                    onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = true) },
                     onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
-                    onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
-                    onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
-                    onOpenPostStatistics = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(route.chatId, messageId)) },
+                    onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(slot, route.chatId), sideBySide = wide) },
+                    onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(slot, chatId)) },
+                    onOpenPostStatistics = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(slot, route.chatId, messageId)) },
                     onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
-                    onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
-                    onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(route.chatId, request)) },
-                    onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = true)) },
-                    onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
-                    onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
-                    onOpenScreen = { screen -> navigation.openScreen(screen, twoPane = false) },
-                    onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
-                    onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
-                    onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
-                    onViewAsTopics = { chatsStack.openArchiveForum(route.chatId) },
-                    onViewAsDirectTopics = { chatsStack.replaceRoute(route, ArchiveDirectTopicsRoute(route.chatId)) },
+                    onCreatePoll = { request -> chatsStack.add(pollComposerRoute(slot, route.chatId, request)) },
+                    onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(slot, route.chatId, request)) },
+                    onOpenWebApp = { request -> chatsStack.add(webAppRoute(slot, route.chatId, request, archive = true)) },
+                    onOpenBotShare = { request -> chatsStack.add(botShareRoute(slot, route.chatId, request)) },
+                    onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(slot, link.url, link.botChatId, link.asAdmin)) },
+                    onOpenScreen = { screen -> navigation.openScreen(slot, screen, twoPane = false) },
+                    onSwitchInline = { pick -> chatsStack.add(pick.toRoute(slot)) },
+                    onAddMembers = { chatsStack.addOnce(AddMembersRoute(slot, route.chatId)) },
+                    onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(slot, route.chatId)) },
+                    onViewAsTopics = { chatsStack.openArchiveForum(slot, route.chatId) },
+                    onViewAsDirectTopics = { chatsStack.replaceRoute(route, ArchiveDirectTopicsRoute(slot, route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
                 ),
             )
@@ -1427,49 +1459,50 @@ private fun shellEntryProvider(
     }
 
     entry<ArchiveChatProfileRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        val slot = LocalAccount.current.slot
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatColorTheme(route.chatId) {
             ChatProfileScreen(
                 viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
-                onOpenStories = { storyIds, start -> chatsStack.openStories(route.chatId, storyIds, start) },
+                onOpenStories = { storyIds, start -> chatsStack.openStories(slot, route.chatId, storyIds, start) },
                 onSearch = {
                     searchRequests.request(route.chatId)
                     chatsStack.pop(route)
                     if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
-                        chatsStack.add(ArchiveConversationRoute(route.chatId))
+                        chatsStack.add(ArchiveConversationRoute(slot, route.chatId))
                     }
                 },
                 onOpenChat = { chatId ->
                     if (!chatsStack.isOpenArchiveConversation(chatId)) {
-                        chatsStack.add(ArchiveConversationRoute(chatId))
+                        chatsStack.add(ArchiveConversationRoute(slot, chatId))
                     }
                 },
                 // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
                 onOpenMedia = { messageId, articleMedia ->
-                    chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
+                    chatsStack.add(MediaRoute(slot, route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
                 },
-                onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
+                onOpenPhotos = { chatsStack.add(MediaRoute(slot, route.chatId, messageId = 0L, profilePhotos = true)) },
                 onEdit = {
-                    if (chatsStack.lastOrNull() != ArchiveEditChatRoute(route.chatId)) {
-                        chatsStack.add(ArchiveEditChatRoute(route.chatId))
+                    if (chatsStack.lastOrNull() != ArchiveEditChatRoute(slot, route.chatId)) {
+                        chatsStack.add(ArchiveEditChatRoute(slot, route.chatId))
                     }
                 },
-                onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
-                onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+                onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(slot, userId)) },
+                onAddMembers = { chatsStack.addOnce(AddMembersRoute(slot, route.chatId)) },
                 onOpenMemberRights = { userId, admin ->
-                    chatsStack.add(ArchiveMemberRightsRoute(route.chatId, userId, admin))
+                    chatsStack.add(ArchiveMemberRightsRoute(slot, route.chatId, userId, admin))
                 },
                 // Soukromý chat s botem má id bota, takže chat je zároveň bot.
                 onOpenMainWebApp = {
-                    chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = true, main = true))
+                    chatsStack.add(WebAppRoute(slot, route.chatId, route.chatId, url = "", launch = false, archive = true, main = true))
                 },
                 onOpenMessage = { messageId ->
                     jumpRequests.request(route.chatId, messageId)
                     chatsStack.pop(route)
                     if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
-                        chatsStack.add(ArchiveConversationRoute(route.chatId, messageId))
+                        chatsStack.add(ArchiveConversationRoute(slot, route.chatId, messageId))
                     }
                 },
                 closeIcon = LocalPanesSideBySide.current,
@@ -1483,6 +1516,7 @@ private fun shellEntryProvider(
      * kde by panel vedle seznamu chatů neměl co dělat.
      */
     entry<MediaRoute>(metadata = Panes.ownSurface()) { route ->
+        val slot = LocalAccount.current.slot
         val replyRequests = koinInject<ConversationReplyRequests>()
         val sponsoredLinks = koinInject<SponsoredLinkRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
@@ -1518,12 +1552,12 @@ private fun shellEntryProvider(
                 // Profilovky vlastního účtu se otevírají z Nastavení, všechno ostatní z Chatů.
                 onBack = { chatsStack.pop(route) || settingsStack.pop(route) },
                 onForward = { messageId ->
-                    chatsStack.add(ForwardRoute(route.chatId, listOf(messageId)))
+                    chatsStack.add(ForwardRoute(slot, route.chatId, listOf(messageId)))
                 },
                 // Samolepka z fotky: nad prohlížeč, zpět z ní vede k fotce.
                 onMakeSticker = { path, width, height ->
                     val stack = if (chatsStack.lastOrNull() == route) chatsStack else settingsStack
-                    stack.add(StickerComposerRoute(path, width, height))
+                    stack.add(StickerComposerRoute(slot, path, width, height))
                 },
                 // Odpovědět jde jen tehdy, když prohlížeč leží přímo nad konverzací téhož chatu:
                 // z profilu (mřížka médií) nebo ankety by nebylo kam se vrátit.
@@ -1604,6 +1638,7 @@ private fun shellEntryProvider(
     }
 
     entry<StoriesRoute>(metadata = Panes.ownSurface()) { route ->
+        val slot = LocalAccount.current.slot
         StoriesScreen(
             // Klíč s autorem ze stejného důvodu jako u prohlížeče médií (cachovaný ViewModel).
             viewModel = koinViewModel(
@@ -1611,10 +1646,10 @@ private fun shellEntryProvider(
                 parameters = { parametersOf(route.chatId, route.storyIds, route.startStoryId) },
             ),
             onBack = { chatsStack.pop(route) },
-            onForward = { posterChatId, storyId -> chatsStack.add(ForwardRoute(posterChatId, emptyList(), storyId)) },
+            onForward = { posterChatId, storyId -> chatsStack.add(ForwardRoute(slot, posterChatId, emptyList(), storyId)) },
             onReplaceMedia = { target, path, video ->
                 chatsStack.add(
-                    StoryComposerRoute(
+                    StoryComposerRoute(slot, 
                         path = path,
                         video = video,
                         editPosterChatId = target.posterChatId,
@@ -1634,6 +1669,7 @@ private fun shellEntryProvider(
      */
     // Mini aplikace bota. Odkaz na chat z ní zavře ji a otevře chat nad konverzací pod ní.
     entry<WebAppRoute>(metadata = Panes.ownSurface()) { route ->
+        val slot = LocalAccount.current.slot
         WebAppScreen(
             viewModel = koinViewModel(
                 key = "web-app-${route.chatId}-${route.botUserId}-${route.url.hashCode()}-${route.main}-${route.shortName}-" +
@@ -1648,7 +1684,7 @@ private fun shellEntryProvider(
             onClose = { chatsStack.pop(route) },
             onOpenChat = { target ->
                 chatsStack.pop(route)
-                chatsStack.openTarget(target, archive = route.archive)
+                chatsStack.openTarget(slot, target, archive = route.archive)
             },
         )
     }
@@ -1699,6 +1735,7 @@ private fun shellEntryProvider(
      * nahradí skupina, kde bot právě odpověděl — jako u přeposílání.
      */
     entry<AddBotToGroupRoute> { route ->
+        val slot = LocalAccount.current.slot
         AddBotToGroupScreen(
             viewModel = koinViewModel(
                 key = "add-bot-${route.url}-${route.asAdmin}",
@@ -1707,7 +1744,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onAdded = { chatId ->
                 if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
-                    chatsStack.add(ConversationRoute(chatId))
+                    chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
         )
@@ -1719,6 +1756,7 @@ private fun shellEntryProvider(
      * pod výběrem.
      */
     entry<SwitchInlineRoute> { route ->
+        val slot = LocalAccount.current.slot
         val inlineQueryRequests = koinInject<InlineQueryRequests>()
         SwitchInlinePickerScreen(
             viewModel = koinViewModel(
@@ -1732,7 +1770,7 @@ private fun shellEntryProvider(
             onPick = { chatId ->
                 inlineQueryRequests.request(chatId, route.bot, route.query)
                 if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
-                    chatsStack.add(ConversationRoute(chatId))
+                    chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
         )
@@ -1763,13 +1801,14 @@ private fun shellEntryProvider(
     }
 
     entry<ShareContactRoute> { route ->
+        val slot = LocalAccount.current.slot
         ShareContactScreen(
             viewModel = koinViewModel(key = "share-contact-${route.userId}", parameters = { parametersOf(route.userId) }),
             onBack = { chatsStack.pop(route) },
             // Jako po přeposlání: otevře se první vybraný chat, je vidět, že kontakt dorazil.
             onSent = { chatId ->
                 if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
-                    chatsStack.add(ConversationRoute(chatId))
+                    chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
         )
@@ -1778,6 +1817,7 @@ private fun shellEntryProvider(
     // Odpovědět v jiném chatu: výběr cíle zmizí a otevře se vybraný chat s rozepsanou odpovědí
     // (`ConversationReplyRequests`); zpět vede do původní konverzace, jako po přeposlání.
     entry<ReplyElsewhereRoute> { route ->
+        val slot = LocalAccount.current.slot
         val replyRequests = koinInject<ConversationReplyRequests>()
         ReplyElsewhereScreen(
             viewModel = koinViewModel(key = "reply-elsewhere-${route.fromChatId}-${route.messageId}", parameters = { parametersOf(route.fromChatId) }),
@@ -1785,13 +1825,14 @@ private fun shellEntryProvider(
             onPicked = { chatId ->
                 replyRequests.request(chatId, route.messageId, fromChatId = route.fromChatId)
                 if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
-                    chatsStack.add(ConversationRoute(chatId))
+                    chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
         )
     }
 
     entry<ForwardRoute> { route ->
+        val slot = LocalAccount.current.slot
         ForwardScreen(
             viewModel = koinViewModel(
                 key = "forward-${route.fromChatId}-${route.messageIds.joinToString("-")}-${route.storyId}",
@@ -1801,7 +1842,7 @@ private fun shellEntryProvider(
             onForwarded = { chatId ->
                 // Výběr už v zásobníku není (odchází) — cíl otevřel předchozí volání.
                 if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
-                    chatsStack.add(ConversationRoute(chatId))
+                    chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
         )
@@ -1812,6 +1853,7 @@ private fun shellEntryProvider(
      * nahradí ta konverzace — je tím vidět, že zpráva dorazila, jako u přeposílání.
      */
     entry<ShareToChatRoute> { route ->
+        val slot = LocalAccount.current.slot
         ShareToChatScreen(
             viewModel = koinViewModel(
                 key = "share-to-chat-${'$'}{route.chatId}",
@@ -1821,13 +1863,14 @@ private fun shellEntryProvider(
             onSent = {
                 chatsStack.removeAll { it is ShareToChatRoute }
                 if (!chatsStack.isOpenConversation(route.chatId)) {
-                    chatsStack.add(ConversationRoute(route.chatId))
+                    chatsStack.add(ConversationRoute(slot, route.chatId))
                 }
             },
         )
     }
 
     entry<SettingsRoute>(metadata = Panes.list(SETTINGS_SCENE)) {
+        val slot = LocalAccount.current.slot
         SettingsScreen(
             selectedSection = selectedSettingsSection,
             accountSelected = settingsStack.getOrNull(1) == EditProfileRoute,
@@ -1838,7 +1881,7 @@ private fun shellEntryProvider(
             // Sem se chodí z menu účtu na každé šířce, takže šipka zpět do Chatů je vždycky.
             // Zavírá Nastavení celá — v dvoupanelu je sekce otevřená pořád, viz `closeSettings`.
             onBack = navigation::closeSettings,
-            onOpenChat = { chatId -> navigation.openChat(chatId) },
+            onOpenChat = { chatId -> navigation.openChat(slot, chatId) },
             onOpenSearchResult = navigation::openSettingsSearchResult,
             searchResetKey = navigation.settingsOpenings,
             modifier = Modifier.listPaneInsets(twoPane),
@@ -1923,10 +1966,11 @@ private fun shellEntryProvider(
     entry<ChatFoldersRoute>(
         metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
+        val slot = LocalAccount.current.slot
         ChatFoldersScreen(
             viewModel = koinViewModel(),
             onBack = { settingsStack.pop(route) },
-            onEdit = { id -> if (settingsStack.lastOrNull() !is ChatFolderEditRoute) settingsStack.add(ChatFolderEditRoute(id)) },
+            onEdit = { id -> if (settingsStack.lastOrNull() !is ChatFolderEditRoute) settingsStack.add(ChatFolderEditRoute(slot, id)) },
         )
     }
 
@@ -1934,6 +1978,7 @@ private fun shellEntryProvider(
     entry<StickerSetsRoute>(
         metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
+        val slot = LocalAccount.current.slot
         val stickersCanBeMade = getKoin().getOrNull<StickerMaker>() != null
         StickerSetsScreen(
             kind = StickerSetKind.Stickers,
@@ -1941,11 +1986,11 @@ private fun shellEntryProvider(
             onBack = { settingsStack.pop(route) },
             // Jen kde samolepku z fotky jde vyrobit (Android).
             onCreateSticker = if (stickersCanBeMade) {
-                { path, width, height -> settingsStack.add(StickerComposerRoute(path, width, height)) }
+                { path, width, height -> settingsStack.add(StickerComposerRoute(slot, path, width, height)) }
             } else {
                 null
             },
-            onEditSet = { setId -> settingsStack.add(OwnedStickerSetRoute(setId)) },
+            onEditSet = { setId -> settingsStack.add(OwnedStickerSetRoute(slot, setId)) },
         )
     }
 
@@ -1953,12 +1998,13 @@ private fun shellEntryProvider(
     entry<OwnedStickerSetRoute>(
         metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
+        val slot = LocalAccount.current.slot
         val stickersCanBeMade = getKoin().getOrNull<StickerMaker>() != null
         OwnedStickerSetScreen(
             viewModel = koinViewModel(key = "owned-sticker-set-${route.setId}") { parametersOf(route.setId) },
             onBack = { settingsStack.pop(route) },
             onAddSticker = if (stickersCanBeMade) {
-                { path, width, height, setId -> settingsStack.add(StickerComposerRoute(path, width, height, targetSetId = setId)) }
+                { path, width, height, setId -> settingsStack.add(StickerComposerRoute(slot, path, width, height, targetSetId = setId)) }
             } else {
                 null
             },
@@ -2045,12 +2091,13 @@ private fun shellEntryProvider(
     entry<EditProfileRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
+        val slot = LocalAccount.current.slot
         val close: () -> Unit = { settingsStack.pop(route) }
         EditProfileScreen(
             viewModel = koinViewModel(),
             onBack = close.takeUnless { LocalPanesSideBySide.current },
             // Prohlížeč se vrší nad Nastavení; zavírá se z toho zásobníku, ve kterém leží.
-            onOpenPhotos = { userId -> settingsStack.add(MediaRoute(userId, messageId = 0L, profilePhotos = true)) },
+            onOpenPhotos = { userId -> settingsStack.add(MediaRoute(slot, userId, messageId = 0L, profilePhotos = true)) },
             onChangePhone = { settingsStack.openSubpage(route, ChangePhoneRoute) },
         )
     }
@@ -2076,11 +2123,12 @@ private fun List<NavKey>.isOpenConversation(chatId: Long): Boolean =
  */
 @Composable
 private fun rememberSwitchChat(navigation: AppNavigation): (ChatSummary) -> Unit {
+    val slot = LocalAccount.current.slot
     val settings = koinInject<AppSettings>()
     val savedMessagesChatId = LocalSavedMessagesChatId.current
-    return remember(navigation, settings, savedMessagesChatId) {
+    return remember(navigation, slot, settings, savedMessagesChatId) {
         { chat ->
-            navigation.switchChat(
+            navigation.switchChat(slot, 
                 chatId = chat.id,
                 forum = chat.opensAsTopics,
                 savedTopics = chat.id == savedMessagesChatId && settings.savedMessagesAsChats.value,
@@ -2093,31 +2141,31 @@ private fun rememberSwitchChat(navigation: AppNavigation): (ChatSummary) -> Unit
  * Otevření chatu z hlavního seznamu NAHRADÍ otevřenou konverzaci, nevrší se zásobník — stejně
  * jako sekce v Nastavení.
  */
-private fun MutableList<NavKey>.openConversation(chatId: Long, messageId: Long? = null) {
+private fun MutableList<NavKey>.openConversation(slot: AccountSlot, chatId: Long, messageId: Long? = null) {
     removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
-    add(ConversationRoute(chatId, messageId))
+    add(ConversationRoute(slot, chatId, messageId))
 }
 
 /** Skupina s tématy: místo konverzace seznam témat, jinak totéž co [openConversation]. */
-private fun MutableList<NavKey>.openForum(chatId: Long) {
+private fun MutableList<NavKey>.openForum(slot: AccountSlot, chatId: Long) {
     removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
-    add(ForumTopicsRoute(chatId))
+    add(ForumTopicsRoute(slot, chatId))
 }
 
 /** Uložené zprávy po chatech: místo konverzace seznam témat, jinak totéž co [openConversation]. */
-private fun MutableList<NavKey>.openSavedTopics(chatId: Long) {
+private fun MutableList<NavKey>.openSavedTopics(slot: AccountSlot, chatId: Long) {
     removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
-    add(SavedTopicsRoute(chatId))
+    add(SavedTopicsRoute(slot, chatId))
 }
 
 /** Videochat nad konverzací; druhé ťuknutí na pruh ho nezdvojí. */
-private fun MutableList<NavKey>.openVideoChat(chatId: Long, groupCallId: Int) {
-    if (lastOrNull() !is VideoChatRoute) add(VideoChatRoute(chatId, groupCallId))
+private fun MutableList<NavKey>.openVideoChat(slot: AccountSlot, chatId: Long, groupCallId: Int) {
+    if (lastOrNull() !is VideoChatRoute) add(VideoChatRoute(slot, chatId, groupCallId))
 }
 
 /** Prohlížeč příběhů nad čímkoli; druhé ťuknutí (dvojité) ho nezdvojí. */
-private fun MutableList<NavKey>.openStories(chatId: Long, storyIds: List<Int> = emptyList(), startStoryId: Int = 0) {
-    if (lastOrNull() !is StoriesRoute) add(StoriesRoute(chatId, storyIds, startStoryId))
+private fun MutableList<NavKey>.openStories(slot: AccountSlot, chatId: Long, storyIds: List<Int> = emptyList(), startStoryId: Int = 0) {
+    if (lastOrNull() !is StoriesRoute) add(StoriesRoute(slot, chatId, storyIds, startStoryId))
 }
 
 /** Totéž co [isOpenConversation], ale pro větev archivu. */
@@ -2128,15 +2176,15 @@ private fun List<NavKey>.isOpenArchiveConversation(chatId: Long): Boolean =
  * Totéž co [openConversation], ale pro větev archivu: nahrazuje se jen archivní konverzace,
  * takže chat otevřený z hlavního seznamu zůstane, kde byl.
  */
-private fun MutableList<NavKey>.openArchiveConversation(chatId: Long, messageId: Long? = null) {
+private fun MutableList<NavKey>.openArchiveConversation(slot: AccountSlot, chatId: Long, messageId: Long? = null) {
     removeAll { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute || it is ArchiveDirectTopicsRoute }
-    add(ArchiveConversationRoute(chatId, messageId))
+    add(ArchiveConversationRoute(slot, chatId, messageId))
 }
 
 /** Totéž co [openForum], ale pro větev archivu. */
-private fun MutableList<NavKey>.openArchiveForum(chatId: Long) {
+private fun MutableList<NavKey>.openArchiveForum(slot: AccountSlot, chatId: Long) {
     removeAll { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute || it is ArchiveDirectTopicsRoute }
-    add(ArchiveForumTopicsRoute(chatId))
+    add(ArchiveForumTopicsRoute(slot, chatId))
 }
 
 /**
@@ -2166,7 +2214,7 @@ private const val ARCHIVE_SCENE = "archive"
  */
 private const val SETTINGS_SCENE = "settings"
 
-private fun botShareRoute(chatId: Long, request: BotShareRequest) = BotShareRoute(
+private fun botShareRoute(slot: AccountSlot, chatId: Long, request: BotShareRequest) = BotShareRoute(slot, 
     chatId = chatId,
     messageId = request.messageId,
     buttonId = request.users?.buttonId ?: request.chat?.buttonId ?: 0,
@@ -2184,7 +2232,7 @@ private fun BotShareRoute.usersRequest() = BotUsersRequest(buttonId, bots, maxQu
 private fun BotShareRoute.chatRequest() =
     BotChatRequest(buttonId, channel, forum, botIsMember, botAdministrator).takeUnless { users }
 
-internal fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean) = WebAppRoute(
+internal fun webAppRoute(slot: AccountSlot, chatId: Long, request: WebAppRequest, archive: Boolean) = WebAppRoute(slot, 
     chatId = chatId,
     botUserId = request.botUserId,
     url = request.url,
@@ -2197,7 +2245,7 @@ internal fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean)
     guardQueryId = request.guardQueryId,
 )
 
-private fun SwitchInlinePick.toRoute() = SwitchInlineRoute(
+private fun SwitchInlinePick.toRoute(slot: AccountSlot) = SwitchInlineRoute(slot, 
     bot = bot,
     query = query,
     users = target.users,
@@ -2206,7 +2254,7 @@ private fun SwitchInlinePick.toRoute() = SwitchInlineRoute(
     channels = target.channels,
 )
 
-private fun checklistComposerRoute(chatId: Long, request: ChecklistComposerRequest) = ChecklistComposerRoute(
+private fun checklistComposerRoute(slot: AccountSlot, chatId: Long, request: ChecklistComposerRequest) = ChecklistComposerRoute(slot, 
     chatId = chatId,
     replyToMessageId = request.replyToMessageId,
     quoteText = request.quote?.text,
@@ -2214,7 +2262,7 @@ private fun checklistComposerRoute(chatId: Long, request: ChecklistComposerReque
     editMessageId = request.editMessageId,
 )
 
-private fun pollComposerRoute(chatId: Long, request: PollComposerRequest) = PollComposerRoute(
+private fun pollComposerRoute(slot: AccountSlot, chatId: Long, request: PollComposerRequest) = PollComposerRoute(slot, 
     chatId = chatId,
     quizOnly = request.mode == PollComposerMode.QuizOnly,
     regularOnly = request.mode == PollComposerMode.RegularOnly,
@@ -2240,8 +2288,8 @@ internal fun MutableList<NavKey>.showInChat(route: MediaRoute, messageId: Long, 
     jumps.request(route.chatId, messageId)
     when {
         isOpenConversation(route.chatId) || isOpenArchiveConversation(route.chatId) -> Unit
-        archive -> add(ArchiveConversationRoute(route.chatId, messageId))
-        else -> add(ConversationRoute(route.chatId, messageId))
+        archive -> add(ArchiveConversationRoute(route.slot, route.chatId, messageId))
+        else -> add(ConversationRoute(route.slot, route.chatId, messageId))
     }
 }
 
@@ -2258,12 +2306,12 @@ internal fun MutableList<NavKey>.showAllMedia(route: MediaRoute, tabs: ProfileTa
         is ChatProfileRoute -> if (below.chatId == route.chatId) return
         is ArchiveChatProfileRoute -> if (below.chatId == route.chatId) return
         is ArchiveConversationRoute -> if (below.chatId == route.chatId) {
-            add(ArchiveChatProfileRoute(route.chatId))
+            add(ArchiveChatProfileRoute(route.slot, route.chatId))
             return
         }
         else -> Unit
     }
-    add(ChatProfileRoute(route.chatId))
+    add(ChatProfileRoute(route.slot, route.chatId))
 }
 
 /** Stránky prohlížeče jsou zprávy chatu [MediaRoute.chatId] — jde na ně skočit v konverzaci. */

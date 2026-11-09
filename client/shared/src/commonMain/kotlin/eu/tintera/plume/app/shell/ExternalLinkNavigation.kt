@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.navigation.AddBotToGroupRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
@@ -13,27 +14,27 @@ import eu.tintera.plume.features.links.ExternalDestination
  * to, odkud by se k nim uživatel proklikal sám (seznam témat, chat s botem), aby zpět vedlo tam.
  * Obrazovka aplikace (`tg://settings/…`) jde cestou odkazu ze zprávy ([AppNavigation.openScreen]).
  */
-internal fun AppNavigation.openExternal(destination: ExternalDestination, twoPane: Boolean) {
+internal fun AppNavigation.openExternal(slot: AccountSlot, destination: ExternalDestination, twoPane: Boolean) {
     when (destination) {
-        is ExternalDestination.Screen -> openScreen(destination.screen, twoPane)
+        is ExternalDestination.Screen -> openScreen(slot, destination.screen, twoPane)
         is ExternalDestination.Chat -> openOverChats {
             val target = destination.target
-            if (target.topicId != null) add(ForumTopicsRoute(target.chatId))
-            openTarget(target, archive = false)
-            if (destination.profile) add(ChatProfileRoute(target.chatId))
+            if (target.topicId != null) add(ForumTopicsRoute(slot, target.chatId))
+            openTarget(slot, target, archive = false)
+            if (destination.profile) add(ChatProfileRoute(slot, target.chatId))
         }
         is ExternalDestination.Story -> openOverChats {
-            add(MediaRoute(destination.posterChatId, messageId = 0, storyId = destination.storyId))
+            add(MediaRoute(slot, destination.posterChatId, messageId = 0, storyId = destination.storyId))
         }
         is ExternalDestination.WebApp -> openOverChats {
             val bot = destination.request.botUserId
             // Strážní bot jen schvaluje vstup do cizího chatu — jeho vlastní chat pod ním nemá co dělat.
-            if (destination.request.guardQueryId == 0L) add(ConversationRoute(bot))
-            add(webAppRoute(bot, destination.request, archive = false))
+            if (destination.request.guardQueryId == 0L) add(ConversationRoute(slot, bot))
+            add(webAppRoute(slot, bot, destination.request, archive = false))
         }
         is ExternalDestination.AddBotToGroup -> openOverChats {
             val link = destination.link
-            add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin))
+            add(AddBotToGroupRoute(slot, link.url, link.botChatId, link.asAdmin))
         }
     }
 }

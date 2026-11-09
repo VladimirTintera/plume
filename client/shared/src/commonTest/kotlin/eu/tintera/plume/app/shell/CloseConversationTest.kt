@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.navigation.ArchiveConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
@@ -11,14 +12,16 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
+private val slot = AccountSlot.Primary
+
 /**
  * Šipka zpět v konverzaci ([closeConversation]): vedle seznamu zavře celou větev nad ním,
  * na telefonu vede o krok zpět.
  */
 class CloseConversationTest {
 
-    private val a = ConversationRoute(chatId = 1)
-    private val b = ConversationRoute(chatId = 2)
+    private val a = ConversationRoute(slot, chatId = 1)
+    private val b = ConversationRoute(slot, chatId = 2)
 
     @Test
     fun vedleSeznamuZavreKonverzaceOtevreneZminkou() {
@@ -29,7 +32,7 @@ class CloseConversationTest {
 
     @Test
     fun vedleSeznamuZavreIProfil() {
-        val stack = mutableListOf<NavKey>(ChatsRoute, a, ChatProfileRoute(chatId = 1))
+        val stack = mutableListOf<NavKey>(ChatsRoute, a, ChatProfileRoute(slot, chatId = 1))
         stack.closeConversation(a, list = ChatsRoute, sideBySide = true)
         assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }
@@ -43,15 +46,15 @@ class CloseConversationTest {
 
     @Test
     fun temaSeVraciDoSeznamuTemat() {
-        val topic = ConversationRoute(chatId = 3, topicId = 7)
-        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 3), topic)
+        val topic = ConversationRoute(slot, chatId = 3, topicId = 7)
+        val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 3), topic)
         stack.closeConversation(topic, list = ChatsRoute, sideBySide = true)
-        assertEquals(listOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 3)), stack)
+        assertEquals(listOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 3)), stack)
     }
 
     @Test
     fun archivNechaHlavniKonverzaciPodSebou() {
-        val y = ArchiveConversationRoute(chatId = 9)
+        val y = ArchiveConversationRoute(slot, chatId = 9)
         val stack = mutableListOf<NavKey>(ChatsRoute, a, ArchiveRoute, y)
         stack.closeConversation(y, list = ArchiveRoute, sideBySide = true)
         assertEquals(listOf<NavKey>(ChatsRoute, a, ArchiveRoute), stack)

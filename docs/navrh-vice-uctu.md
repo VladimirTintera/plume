@@ -1,6 +1,6 @@
 # Návrh: víc účtů naráz
 
-> **Stav:** fáze 0 rozpracovaná (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> **Stav:** fáze 0 hotová až na slot ve vstupních bodech (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
 > stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
@@ -159,18 +159,25 @@ neexistuje, takže se nedá splést potichu: bez slotu se repository vůbec nedo
   48 rout s parametry, a ty s id chatu, uživatele, zprávy nebo souboru dostanou slot všechny.
   Serializace (`NavSavedStateConfiguration`) ho uloží, takže chat po zabití procesu otevře
   správný účet.
-- **ViewModel dostane repository z účtu své routy.** Definice v Koinu zůstanou globální
-  (ViewModel je věc obrazovky), jen repository berou ze slotu:
-  `viewModel { (route: ConversationRoute) -> ConversationViewModel(accounts[route.slot].get(), …) }`.
-  Na 91 definic `viewModel` v `AppModule` se vyplatí malý pomocník (`accountViewModel { account, params -> … }`),
-  ať se slot nevytahuje ručně. **Klíč ViewModelu obsahuje slot** (`conversation-$slot-$chatId`),
-  jinak by dva účty se stejným id chatu sdílely ViewModel (viz CLAUDE.md o klíči ViewModelu).
-- **`LocalAccount` pro composables.** Dekorátor položky `NavDisplay` ho nastaví ze slotu
-  routy. Composables, které si dnes berou repository samy (`RemoteImage` přes
-  `FileRepository`, avatary, vlastní emoji; `koinInject` je dnes ve sdíleném UI na 104
-  místech), ho čtou z `LocalAccount`. Ve společném seznamu ho
-  nastavuje každý řádek zvlášť, protože řádky jsou z různých účtů. **Bez `LocalAccount` je to
-  chyba** (`error()` v `current`), ne tichý návrat k výchozímu účtu.
+- **ViewModel dostane repository z účtu své routy, protože v jeho kontejneru vzniká.** Definice
+  `viewModel` jsou v části účtu (`appAccountModule`) a dál si berou repository přes `get()`.
+  Původně měly zůstat globální s pomocníkem `accountViewModel { account, params -> … }`; to by
+  znamenalo přepsat 91 definic a nic by to nepřineslo.
+  **Klíč ViewModelu slot obsahovat nemusí**: úložiště ViewModelů má každá položka zásobníku
+  vlastní a v klíči položky (`contentKey`) slot je, protože je součástí routy. Slot do klíče
+  přijde až tam, kde jedna položka skládá obsah víc účtů (společný seznam).
+- **`AccountScope` pro composables.** Shell skládá obsah každé `AccountRoute` v kontejneru jejího
+  účtu (`inRouteAccount`, přes `KoinIsolatedContext`), takže `koinInject` a `koinViewModel`
+  (přes 230 míst) zůstaly beze změny a míří do správného kontejneru. `LocalAccount` nese účet
+  pro ty, kdo se ptají na slot nebo staví routu. Ve společném seznamu ho nastaví každý řádek
+  zvlášť, protože řádky jsou z různých účtů. **Bez `AccountScope` je to chyba:** `LocalAccount`
+  vyhodí výjimku a `koinInject` repository v globálním Koinu nenajde, tichý návrat k výchozímu
+  účtu neexistuje.
+- **Kontejner účtu vidí do globálního Koinu, naopak to nejde** (`openAccount`, rozšíření
+  `ResolutionExtension` z Koinu). Účet tak dostane nastavení, síť nebo scope aplikace bez seznamu
+  předávaných typů. Globální definice proto nesmí při vzniku sáhnout na repository ani na
+  `Accounts`: druhé otevření kontejneru by znamenalo druhého klienta TDLib nad tímtéž adresářem,
+  a tak ho `coreModule` odmítne výjimkou.
 - **Globální singletony v `appModule()` se projdou jeden po druhém.** Ty, které drží stav účtu
   (`ChatSwitcher`, `PendingChatDeletes`, `LoadedHistory`, `MessageContexts`…), přejdou do
   kontejneru účtu. Ty, které jsou opravdu globální (`MusicQueue`: hraje jedna skladba, ať je
@@ -460,4 +467,26 @@ Fáze 0 jde po krocích, každý v aplikaci beze změny chování:
      `fileId` jsou v repository, takže taky.
    - Rozparsované animace samolepek (`AnimatedSticker`) zůstávají globální: klíčem je cesta
      a každý slot má vlastní adresář souborů, takže se účty nepotkají.
-4. **Slot v routách, ViewModelech, `LocalAccount` a vstupních bodech**, most pryč.
+4. **Repository jen v kontejneru účtu a slot v routách** — hotovo:
+   - Oba mosty z kroku 2 jsou pryč. V globálním Koinu (`appModule`) zbylo jen to, co je v procesu
+     opravdu jednou: nastavení, zámek, model v zařízení, přehrávač hlasovek, média hovorů
+     a mosty od platformy (`ChatOpenRequests`, `LinkOpenRequests`, `CallRequests`,
+     `ShareRequests`). Všechno ostatní, i ViewModely, je v `appAccountModule`.
+   - Routy s id (45 tříd) jsou `AccountRoute` s povinným `slot`, takže překladač našel všechna
+     místa, která je staví. `RouteSlotTest` projde zásobník s jiným než primárním slotem: s jedním
+     účtem by se špatně předaný slot jinak nikde neukázal.
+   - `SAVED_ROUTES_VERSION`: zásobník uložený před změnou by se přečetl jen s výjimkou, takže se
+     po aktualizaci začíná od kořene.
+5. **Slot ve vstupních bodech** — zbývá, patří k fázi 1:
+   - Kořeny bez slotu berou primární účet výslovně a dají se najít podle jména: `primaryAccount()`
+     (služby, přijímače, úlohy, iOS) a `PrimaryAccountScope` (shell, bublina, okna na desktopu,
+     hodinky). Požadavky zvenčí (`ChatOpenRequests`, extra `CHAT_ID`, akce z notifikací) slot
+     nenesou.
+   - Stránky bez id zatím slot nemají a skládají se v účtu shellu: stránky nastavení účtu
+     (`EditProfileRoute`, `TwoStepRoute`…), `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`,
+     `MyStoriesRoute`, `NewChatRoute`. Určí to UI nastavení po účtech.
+   - **Hledání a mazání v zásobníku porovnává jen id chatu** (`closeChat`, `isOpenConversation`…).
+     Se dvěma účty musí porovnávat i slot.
+   - **V části účtu je pár věcí, které mají být jednou na proces**: `MusicQueue` (návrh: hraje
+     jedna skladba, položka nese slot), `TelecomCallBridge` a služby hovoru (jeden hovor přes
+     všechny účty). S jedním účtem to nevadí, s druhým by hrály a zvonily dvakrát.
