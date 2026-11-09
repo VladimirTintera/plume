@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.net.Uri
 import android.app.PendingIntent
 import android.content.Context
@@ -16,6 +17,25 @@ import android.content.Intent
 object NotificationIntents {
 
     const val EXTRA_CHAT_ID = "eu.tintera.plume.extra.CHAT_ID"
+
+    /**
+     * Účet chatu z [EXTRA_CHAT_ID]. Primární účet ho nenese, takže intenty a zkratky vytvořené
+     * dřív znamenají totéž co dnešní. Čte se přes [accountOf].
+     */
+    const val EXTRA_ACCOUNT = "eu.tintera.plume.extra.ACCOUNT"
+
+    /** Účet z intentu; `null` u nečitelného extra (aktivita je exportovaná). */
+    fun accountOf(intent: Intent): AccountSlot? = AccountSlot.parse(intent.getStringExtra(EXTRA_ACCOUNT))
+
+    private fun Intent.putAccount(slot: AccountSlot): Intent =
+        if (slot.isPrimary) this else putExtra(EXTRA_ACCOUNT, slot.id)
+
+    /**
+     * Request code PendingIntentu: extras do rovnosti nevstupují (viz [openChat]) a [id] od TDLib
+     * je unikátní jen v rámci účtu. Primární účet má dál holé [id].
+     */
+    private fun requestCode(slot: AccountSlot, id: Int): Int =
+        if (slot.isPrimary) id else 31 * slot.id.hashCode() + id
 
     /** Téma skupiny s tématy, které má notifikace otevřít; chybí = celý chat. */
     const val EXTRA_TOPIC_ID = "eu.tintera.plume.extra.TOPIC_ID"
@@ -58,7 +78,7 @@ object NotificationIntents {
      * Potřebuje ho zkratka konverzace (`ShortcutInfo`), která na rozdíl od notifikace nechce
      * `PendingIntent`. **Musí mít nastavenou akci** — bez ní `pushDynamicShortcut` vyhodí výjimku.
      */
-    fun chatIntent(context: Context, chatId: Long, topicId: Int? = null): Intent? {
+    fun chatIntent(context: Context, slot: AccountSlot, chatId: Long, topicId: Int? = null): Intent? {
         val component = context.packageManager
             .getLaunchIntentForPackage(context.packageName)
             ?.component
@@ -67,14 +87,15 @@ object NotificationIntents {
         return Intent(Intent.ACTION_VIEW)
             .setComponent(component)
             .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
             .apply { topicId?.let { putExtra(EXTRA_TOPIC_ID, it) } }
             // Běžící aplikace dostane intent do `onNewIntent` (launchMode singleTask v manifestu)
             // místo toho, aby se activity složila znovu a ztratila stav.
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 
-    fun openChat(context: Context, notificationId: Int, chatId: Long, topicId: Int? = null): PendingIntent? {
-        val intent = chatIntent(context, chatId, topicId) ?: return null
+    fun openChat(context: Context, slot: AccountSlot, notificationId: Int, chatId: Long, topicId: Int? = null): PendingIntent? {
+        val intent = chatIntent(context, slot, chatId, topicId) ?: return null
 
         return PendingIntent.getActivity(
             context,
@@ -83,7 +104,7 @@ object NotificationIntents {
             // všechny notifikace otevřely ten chat, který se zaregistroval první. Bere se
             // `notificationId` od TDLib, ne `chatId.hashCode()`: Long se do Intu nevejde bez
             // ztráty a kolize dvou chatů by tiše otevřela ten cizí.
-            notificationId,
+            requestCode(slot, notificationId),
             intent,
             // UPDATE_CURRENT: existující intent pro tentýž chat se přepíše, ne zduplikuje.
             // IMMUTABLE je od Androidu 12 povinné, když intent nemá měnit příjemce.
@@ -103,14 +124,15 @@ object NotificationIntents {
      * - **`FLAG_MUTABLE` je pro bublinu povinné** (Android 12+): systém do intentu doplňuje
      *   údaje o okně bubliny. S `IMMUTABLE` notifikace bublinu nedostane vůbec.
      */
-    fun bubble(context: Context, notificationId: Int, chatId: Long): PendingIntent {
+    fun bubble(context: Context, slot: AccountSlot, notificationId: Int, chatId: Long): PendingIntent {
         val intent = Intent(ACTION_BUBBLE)
             .setPackage(context.packageName)
-            .setData(Uri.parse("plume-bubble://chat/$chatId"))
+            .setData(Uri.parse(if (slot.isPrimary) "plume-bubble://chat/$chatId" else "plume-bubble://chat/${slot.id}/$chatId"))
             .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
         return PendingIntent.getActivity(
             context,
-            notificationId,
+            requestCode(slot, notificationId),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
@@ -123,10 +145,11 @@ object NotificationIntents {
      * ne třídou — `:client:shared` ho nezná, stejně jako `MainActivity`. Broadcast s balíčkem
      * je explicitní a dorazí i příjemci deklarovanému v manifestu.
      */
-    fun reply(context: Context, groupId: Int, chatId: Long, replyToMessageId: Long?, topicId: Int? = null): PendingIntent {
+    fun reply(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, replyToMessageId: Long?, topicId: Int? = null): PendingIntent {
         val intent = Intent(ACTION_REPLY)
             .setPackage(context.packageName)
             .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
             .putExtra(EXTRA_GROUP_ID, groupId)
             // Bez tématu by odpověď ve skupině s tématy skončila v obecném tématu. Extras se
             // přepíšou každým překreslením, jinak by u odpovědi zůstalo téma předchozí zprávy.
@@ -139,7 +162,7 @@ object NotificationIntents {
             context,
             // Jedinečný kód z téhož důvodu jako u [openChat]; broadcast a activity se
             // navzájem nepřepíšou, typ PendingIntentu vstupuje do rovnosti.
-            groupId,
+            requestCode(slot, groupId),
             intent,
             // MUTABLE je u `RemoteInput` povinné: systém do intentu vkládá napsaný text.
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
@@ -151,33 +174,35 @@ object NotificationIntents {
      * takže IMMUTABLE. Se stejným request code jako odpověď se nepřepíšou — akce intentu
      * vstupuje do `filterEquals`.
      */
-    fun markRead(context: Context, groupId: Int, chatId: Long, messageId: Long?): PendingIntent {
+    fun markRead(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, messageId: Long?): PendingIntent {
         val intent = Intent(ACTION_MARK_READ)
             .setPackage(context.packageName)
             .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
             .putExtra(EXTRA_GROUP_ID, groupId)
             .apply { messageId?.let { putExtra(EXTRA_MESSAGE_ID, it) } }
 
         return PendingIntent.getBroadcast(
             context,
-            groupId,
+            requestCode(slot, groupId),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 
     /** Broadcast „Odmítnout" hovor. IMMUTABLE — do intentu nikdo nic nevkládá. */
-    fun declineCall(context: Context, groupId: Int, chatId: Long, callId: Int, isVideo: Boolean): PendingIntent {
+    fun declineCall(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, callId: Int, isVideo: Boolean): PendingIntent {
         val intent = Intent(ACTION_DECLINE_CALL)
             .setPackage(context.packageName)
             .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
             .putExtra(EXTRA_GROUP_ID, groupId)
             .putExtra(EXTRA_CALL_ID, callId)
             .putExtra(EXTRA_IS_VIDEO, isVideo)
 
         return PendingIntent.getBroadcast(
             context,
-            groupId,
+            requestCode(slot, groupId),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -235,31 +260,33 @@ object NotificationIntents {
      * [maxNotificationId] jede v intentu, ne v paměti presenteru: notifikace přežije proces,
      * a odhrnout ji jde i po restartu. UPDATE_CURRENT ho přepíše každým překreslením.
      */
-    fun dismiss(context: Context, groupId: Int, chatId: Long, maxNotificationId: Int?): PendingIntent {
+    fun dismiss(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, maxNotificationId: Int?): PendingIntent {
         val intent = Intent(ACTION_DISMISS)
             .setPackage(context.packageName)
             .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
             .putExtra(EXTRA_GROUP_ID, groupId)
             .apply { if (maxNotificationId != null) putExtra(EXTRA_MAX_NOTIFICATION_ID, maxNotificationId) else removeExtra(EXTRA_MAX_NOTIFICATION_ID) }
 
         return PendingIntent.getBroadcast(
             context,
-            groupId,
+            requestCode(slot, groupId),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
 
     /** Broadcast „Ztlumit". IMMUTABLE — do intentu nikdo nic nevkládá. */
-    fun mute(context: Context, groupId: Int, chatId: Long): PendingIntent {
+    fun mute(context: Context, slot: AccountSlot, groupId: Int, chatId: Long): PendingIntent {
         val intent = Intent(ACTION_MUTE)
             .setPackage(context.packageName)
             .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
             .putExtra(EXTRA_GROUP_ID, groupId)
 
         return PendingIntent.getBroadcast(
             context,
-            groupId,
+            requestCode(slot, groupId),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

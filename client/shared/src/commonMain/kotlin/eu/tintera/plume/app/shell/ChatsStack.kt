@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.share.InsertChat
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.navigation.ArchiveChatStatisticsRoute
 import eu.tintera.plume.core.navigation.ArchiveEventLogRoute
@@ -428,23 +429,23 @@ internal fun List<NavKey>.showsShareChip(paneOf: (NavKey) -> PaneInfo?): Boolean
  * profil (třetí panel, konverzace zůstává vidět); seznam navrchu naopak znamená, že vpravo je
  * placeholder, nebo konverzace jiné větve (hlavní seznam pod archivem), která vidět není.
  */
-internal fun List<NavKey>.shareInsertChat(paneOf: (NavKey) -> PaneInfo?, sideBySide: Boolean): Long? {
+internal fun List<NavKey>.shareInsertChat(paneOf: (NavKey) -> PaneInfo?, sideBySide: Boolean): InsertChat? {
     val top = lastOrNull() ?: return null
-    if (!sideBySide) return top.conversationChatId()
+    if (!sideBySide) return top.conversationChat()
     if (paneOf(top) == null) return null
     for (key in asReversed()) {
         when (paneOf(key)?.role) {
             PaneRole.Extra -> continue
-            PaneRole.Detail -> return key.conversationChatId()
+            PaneRole.Detail -> return key.conversationChat()
             else -> return null
         }
     }
     return null
 }
 
-private fun NavKey.conversationChatId(): Long? = when (this) {
-    is ConversationRoute -> chatId
-    is ArchiveConversationRoute -> chatId
+private fun NavKey.conversationChat(): InsertChat? = when (this) {
+    is ConversationRoute -> InsertChat(slot, chatId)
+    is ArchiveConversationRoute -> InsertChat(slot, chatId)
     else -> null
 }
 

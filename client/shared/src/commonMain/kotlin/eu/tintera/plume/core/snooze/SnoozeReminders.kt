@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.snooze
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import kotlin.time.Instant
 
 /**
@@ -11,8 +12,8 @@ import kotlin.time.Instant
  */
 interface SnoozeReminders {
     /** Naplánuje upozornění na [at]; dřívější téhož chatu nahradí. */
-    fun schedule(chatId: Long, title: String, at: Instant)
+    fun schedule(slot: AccountSlot, chatId: Long, title: String, at: Instant)
 
     /** Zruší naplánované upozornění i to, které už visí v liště. */
-    fun cancel(chatId: Long)
+    fun cancel(slot: AccountSlot, chatId: Long)
 }

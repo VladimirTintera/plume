@@ -277,6 +277,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun AppShell(modifier: Modifier = Modifier) {
     // Účet shellu (`AppRoot`): komu patří požadavky zvenčí, dokud nenesou slot.
     val slot = LocalAccount.current.slot
+    val accounts = koinInject<Accounts>()
     val navigation = rememberAppNavigation()
 
     /*
@@ -307,7 +308,8 @@ fun AppShell(modifier: Modifier = Modifier) {
 
     LaunchedEffect(openRequest) {
         val request = openRequest ?: return@LaunchedEffect
-        navigation.openChat(slot, request.chatId, request.topicId)
+        // Notifikace nebo zástupce můžou přežít odhlášení svého účtu; pak není co otevřít.
+        if (accounts.find(request.slot) != null) navigation.openChat(request.slot, request.chatId, request.topicId)
         chatOpenRequests.consume(request)
     }
 
@@ -339,12 +341,18 @@ fun AppShell(modifier: Modifier = Modifier) {
      * potvrzení („Komu: …" s náhledem a popiskem). Klíčem je id sdílení i chat — dvě sdílení
      * po sobě do téhož chatu jsou tatáž obrazovka, do jiného ne.
      */
-    val confirmShare = incomingShare?.takeIf { it.awaitingConfirmation }
+    // Zástupce může přežít odhlášení svého účtu; sdílení do něj nemá kam dojít.
+    val orphanedShare = incomingShare?.takeIf { share -> share.targetSlot?.let { accounts.find(it) == null } == true }
+    LaunchedEffect(orphanedShare?.id) {
+        orphanedShare?.let { shareRequests.discard(it.id) }
+    }
+
+    val confirmShare = incomingShare?.takeIf { it.awaitingConfirmation && it !== orphanedShare }
     val confirmShareKey = confirmShare?.let { it.id to it.targetChatId }
 
     LaunchedEffect(confirmShareKey) {
         val chatId = confirmShare?.targetChatId ?: return@LaunchedEffect
-        navigation.openShareTo(slot, chatId)
+        navigation.openShareTo(confirmShare.targetSlot ?: slot, chatId)
     }
 
     // Výška pruhu hovoru / videochatu i se stavovou lištou; 0 = pruh není. Naráz je jen jeden
@@ -612,8 +620,8 @@ private fun ShellContent(
                 SharedContentStrip(
                     visibleState = chipState,
                     content = sharedContent,
-                    insertChatId = chatsDisplayed.shareInsertChat(paneOf, sideBySide = twoPane),
-                    onInsert = shareRequests::choose,
+                    insertChat = chatsDisplayed.shareInsertChat(paneOf, sideBySide = twoPane),
+                    onInsert = { chat -> shareRequests.choose(chat.slot, chat.chatId) },
                     onDiscard = shareRequests::discard,
                     // Na široké ploše leží pruh na ploše okna, na telefonu nad obrazovkou jako lišta.
                     background = if (wide) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,

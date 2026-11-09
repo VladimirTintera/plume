@@ -1,5 +1,6 @@
 package eu.tintera.plume
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.os.Bundle
 import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
@@ -34,9 +35,10 @@ class BubbleActivity : ComponentActivity() {
         // Změna jazyka do Androidu 12: přeloží se až nově vytvořená aktivita (od 13 to dělá systém).
         lifecycleScope.launch { LegacyAppLanguage.changes.collect { recreate() } }
 
+        val slot = NotificationIntents.accountOf(intent)
         val chatId = intent.getLongExtra(NotificationIntents.EXTRA_CHAT_ID, 0L).takeIf { it != 0L }
             ?: intent.data?.lastPathSegment?.toLongOrNull()
-        if (chatId == null) {
+        if (chatId == null || slot == null) {
             finish()
             return
         }
@@ -44,8 +46,9 @@ class BubbleActivity : ComponentActivity() {
         setContent {
             AppRoot {
                 BubbleShell(
+                    slot = slot,
                     chatId = chatId,
-                    onOpenInApp = ::openInApp,
+                    onOpenInApp = { openInApp(slot, it) },
                     // Šipka zpět bublinu SBALÍ, nezruší. `finish()` by ukončil úlohu bubliny
                     // a systém by bublinu odebral úplně (`reason=TASK_FINISHED`); přesun úlohy
                     // dozadu je totéž, co od Androidu 12 dělá systémové Zpět na kořeni.
@@ -56,7 +59,7 @@ class BubbleActivity : ComponentActivity() {
     }
 
     /** Co bublina neumí (profil, přeposlání, jiný chat…), pokračuje v plné aplikaci na tom chatu. */
-    private fun openInApp(chatId: Long) {
-        NotificationIntents.chatIntent(this, chatId)?.let(::startActivity)
+    private fun openInApp(slot: AccountSlot, chatId: Long) {
+        NotificationIntents.chatIntent(this, slot, chatId)?.let(::startActivity)
     }
 }

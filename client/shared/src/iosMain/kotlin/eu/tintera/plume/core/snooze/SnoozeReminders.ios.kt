@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.snooze
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationCategories
 import eu.tintera.plume.core.ui.readString
@@ -30,7 +31,7 @@ class IosSnoozeReminders : SnoozeReminders {
     private val logger = Logger.withTag("SnoozeReminders")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    override fun schedule(chatId: Long, title: String, at: Instant) {
+    override fun schedule(slot: AccountSlot, chatId: Long, title: String, at: Instant) {
         // Text se čte z prostředků suspend funkcí, proto to celé běží v korutině.
         scope.launch {
             val seconds = (at - Clock.System.now()).inWholeSeconds.coerceAtLeast(1).toDouble()
@@ -49,7 +50,7 @@ class IosSnoozeReminders : SnoozeReminders {
         }
     }
 
-    override fun cancel(chatId: Long) {
+    override fun cancel(slot: AccountSlot, chatId: Long) {
         val center = UNUserNotificationCenter.currentNotificationCenter()
         val ids = listOf(identifier(chatId))
         center.removePendingNotificationRequestsWithIdentifiers(ids)

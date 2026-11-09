@@ -265,6 +265,7 @@ actual fun Module.platformAccountModule() {
     // aplikaci často budí jen push a widget má i pak ukázat čerstvý stav.
     single(createdAtStart = true) {
         ChatsWidgetUpdater(
+            slot = get(),
             context = androidContext(),
             chats = get(),
             files = get(),
@@ -276,6 +277,7 @@ actual fun Module.platformAccountModule() {
 
     single {
         NotificationPresenter(
+            slot = get(),
             context = androidContext(),
             // Vlastní scope: notifikace musí sbírat po celou dobu běhu procesu, ne po dobu
             // života obrazovky.

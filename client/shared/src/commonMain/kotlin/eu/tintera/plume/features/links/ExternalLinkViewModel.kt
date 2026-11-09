@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.links
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.navigation.ChannelLimitRequests
 import eu.tintera.plume.core.navigation.ContactOffers
 import androidx.lifecycle.ViewModel
@@ -62,6 +63,7 @@ import org.jetbrains.compose.resources.StringResource
  *   by ho jinak mohl vrátit zase Plume, protože Plume adresy `t.me` přijímá.
  */
 class ExternalLinkViewModel(
+    private val slot: AccountSlot,
     private val requests: LinkOpenRequests,
     private val chats: ChatRepository,
     private val shareRequests: ShareRequests,
@@ -100,7 +102,7 @@ class ExternalLinkViewModel(
                     }
                     is InternalLink.Chat -> {
                         link.draftText?.let { text ->
-                            shareRequests.start(text, hasFiles = false, target = ShareTarget(link.chatId, confirm = false))
+                            shareRequests.start(text, hasFiles = false, target = ShareTarget(slot, link.chatId, confirm = false))
                         }
                         if (link.offerContact) contactOffers.offer(link.chatId)
                         navigate(ExternalDestination.Chat(chatTarget(link.chatId), profile = link.openProfile))

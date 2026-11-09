@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.share
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.expandHorizontally
@@ -68,6 +69,9 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
+/** Konverzace, kam jde sdílený obsah vložit. */
+data class InsertChat(val slot: AccountSlot, val chatId: Long)
+
 /**
  * Pruh s čipem „Sdílíte: …" nahoře v shellu — obsah sdílený bez vybraného chatu, který se
  * s uživatelem nese po aplikaci (seznam chatů, archiv, konverzace, profil).
@@ -82,15 +86,15 @@ import org.jetbrains.compose.resources.stringResource
  * (`Spacer`) drží po celou dobu, kdy je ve stromu — obrazovka pod ním tak na začátku ani na konci
  * animace neposkočí o výšku stavové lišty.
  *
- * [insertChatId] je konverzace, která je zrovna vidět: jen tam má čip „Vložit sem" ([onInsert]).
+ * [insertChat] je konverzace, která je zrovna vidět: jen tam má čip „Vložit sem" ([onInsert]).
  * Jinde jen připomíná, co se sdílí. ✕ ([onDiscard]) obsah zahodí i s kopiemi souborů.
  */
 @Composable
 fun SharedContentStrip(
     visibleState: MutableTransitionState<Boolean>,
     content: SharedContent?,
-    insertChatId: Long?,
-    onInsert: (chatId: Long) -> Unit,
+    insertChat: InsertChat?,
+    onInsert: (InsertChat) -> Unit,
     onDiscard: (id: Long) -> Unit,
     background: Color,
     modifier: Modifier = Modifier,
@@ -99,8 +103,8 @@ fun SharedContentStrip(
     val last = remember { arrayOfNulls<SharedContent>(1) }
     if (content != null) last[0] = content
     val shown = last[0] ?: return
-    val lastInsert = remember { arrayOfNulls<Long>(1) }
-    if (insertChatId != null) lastInsert[0] = insertChatId
+    val lastInsert = remember { arrayOfNulls<InsertChat>(1) }
+    if (insertChat != null) lastInsert[0] = insertChat
 
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntSize>()
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -120,7 +124,7 @@ fun SharedContentStrip(
             ) {
                 SharedContentChip(
                     content = shown,
-                    canInsert = insertChatId != null,
+                    canInsert = insertChat != null,
                     onInsert = { lastInsert[0]?.let(onInsert) },
                     onDiscard = { onDiscard(shown.id) },
                     modifier = Modifier.widthIn(max = ContentWidth.Sheet).fillMaxWidth(),

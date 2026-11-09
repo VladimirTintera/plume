@@ -59,7 +59,7 @@ class ConversationImportTest {
     private fun share(vararg paths: Path) = shares.run {
         val id = start(text = null, hasFiles = true)
         prepared(id, attachments = paths.map { OutgoingAttachment.Document(it.toString()) }, failed = 0)
-        choose(TEST_CHAT)
+        choose(eu.tintera.plume.core.accounts.AccountSlot.Primary, TEST_CHAT)
         incoming.value!!
     }
 

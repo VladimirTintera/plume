@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.share
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.distinctUntilChanged
 import eu.tintera.plume.core.ui.readString
@@ -23,6 +24,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * a signály; „občas nefunguje" je vlastnost Androidu, ne chyba tady.
  */
 class ShareTargets(
+    private val slot: AccountSlot,
     private val repository: ConversationRepository,
     private val chats: ChatRepository,
     private val files: FileRepository,
@@ -47,7 +49,7 @@ class ShareTargets(
     fun reportUsed(chatId: Long) {
         scope.launch {
             val chat = shortcutChat(chatId, AVATAR_WAIT_MS) ?: return@launch
-            publisher.publish(chat.chatId, chat.title, chat.avatarPath, chat.isSavedMessages)
+            publisher.publish(slot, chat.chatId, chat.title, chat.avatarPath, chat.isSavedMessages)
         }
     }
 
@@ -64,7 +66,7 @@ class ShareTargets(
             // Na plochu jde fotka napořád a uživatel o ni výslovně požádal: na stažení se
             // počká déle než u zkratky ke sdílení.
             val chat = shortcutChat(chatId, PIN_AVATAR_WAIT_MS) ?: return@launch
-            if (!publisher.pin(chat.chatId, chat.title, chat.avatarPath, chat.isSavedMessages)) {
+            if (!publisher.pin(slot, chat.chatId, chat.title, chat.avatarPath, chat.isSavedMessages)) {
                 logger.w { "Launcher zástupce chatu $chatId nepřijal." }
             }
         }
@@ -101,11 +103,11 @@ class ShareTargets(
 
 /** Platformní publikace chatu jako cíle sdílení a jeho zástupce na ploše. */
 interface ShareTargetPublisher {
-    fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean)
+    fun publish(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean)
 
     /** Jde chat připnout na plochu ([pin]); jinde než na Androidu ne. */
     val canPin: Boolean get() = false
 
     /** Požádá launcher o připnutí zástupce chatu; `false`, když žádost neodešla. */
-    fun pin(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): Boolean = false
+    fun pin(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean): Boolean = false
 }

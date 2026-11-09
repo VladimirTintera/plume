@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.ProxyConfig
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.navigation.BotStartRequests
@@ -55,6 +56,7 @@ import kotlinx.coroutines.launch
  * Část [ConversationViewModel] — ten na ni deleguje.
  */
 internal class ConversationLinks(
+    private val slot: AccountSlot,
     private val chatId: Long,
     /** Téma skupiny: odkaz na zprávu mimo něj otevře chat, ne skok. */
     private val forumTopicId: Int?,
@@ -163,7 +165,7 @@ internal class ConversationLinks(
             return
         }
         link.draftText?.let { text ->
-            shareRequests.start(text, hasFiles = false, target = ShareTarget(link.chatId, confirm = false))
+            shareRequests.start(text, hasFiles = false, target = ShareTarget(slot, link.chatId, confirm = false))
         }
         if (link.chatId != chatId) openTarget(ChatTarget(link.chatId))
     }

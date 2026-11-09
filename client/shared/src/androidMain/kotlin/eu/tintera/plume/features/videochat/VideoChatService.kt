@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.videochat
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
@@ -50,6 +51,8 @@ import org.koin.core.component.inject
 class VideoChatService : Service(), KoinComponent {
 
     override fun getKoin() = GlobalContext.get().primaryAccount()
+
+    private val slot: AccountSlot by inject()
 
     private val logger = Logger.withTag("VideoChatService")
     private val session: VideoChatSession by inject()
@@ -125,7 +128,7 @@ class VideoChatService : Service(), KoinComponent {
             .setContentText(
                 readString(if (chat.state.micOn) Res.string.video_chat_bar_speaking else Res.string.video_chat_notification_listening),
             )
-            .setContentIntent(NotificationIntents.openChat(this, NOTIFICATION_ID, chat.chatId))
+            .setContentIntent(NotificationIntents.openChat(this, slot, NOTIFICATION_ID, chat.chatId))
             .build()
     }
 

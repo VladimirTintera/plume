@@ -26,7 +26,10 @@ class Accounts internal constructor(open: (AccountSlot) -> KoinApplication) {
 
     /** Účet podle slotu. Neznámý slot je chyba v kódu, ne stav: slot se dostane jen od účtu. */
     operator fun get(slot: AccountSlot): AccountSession =
-        all.firstOrNull { it.slot == slot } ?: error("Neznámý slot účtu: ${slot.id}")
+        find(slot) ?: error("Neznámý slot účtu: ${slot.id}")
+
+    /** Účet podle slotu ze vstupního bodu: notifikace nebo zástupce můžou přežít odhlášení účtu. */
+    fun find(slot: AccountSlot): AccountSession? = all.firstOrNull { it.slot == slot }
 }
 
 /**
@@ -46,6 +49,9 @@ class AccountSession internal constructor(val slot: AccountSlot, val application
 
 /**
  * Kontejner primárního účtu pro vstupní bod bez kompozice a bez slotu (služba, přijímač, úloha).
- * Slot ve vstupních bodech je další krok návrhu, „Postup".
+ * Patří sem push a co má být přes všechny účty jednou (služby hovoru, hudby): řeší je fáze 1.
  */
 fun Koin.primaryAccount(): Koin = get<Accounts>().primary.koin
+
+/** Kontejner účtu [slot] pro vstupní bod bez kompozice; `null`, když už není přihlášený. */
+fun Koin.account(slot: AccountSlot): Koin? = get<Accounts>().find(slot)?.koin

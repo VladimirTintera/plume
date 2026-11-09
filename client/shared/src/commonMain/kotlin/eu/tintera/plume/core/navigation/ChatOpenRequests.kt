@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.navigation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,8 +20,8 @@ class ChatOpenRequests {
     val request: StateFlow<ChatOpenRequest?> = pending.asStateFlow()
 
     /** [topicId]: téma skupiny s tématy, které se má otevřít místo celé skupiny. */
-    fun request(chatId: Long, topicId: Int? = null) {
-        pending.value = ChatOpenRequest(chatId, topicId)
+    fun request(slot: AccountSlot, chatId: Long, topicId: Int? = null) {
+        pending.value = ChatOpenRequest(slot, chatId, topicId)
     }
 
     /**
@@ -32,5 +33,5 @@ class ChatOpenRequests {
     }
 }
 
-/** Co se má otevřít: chat, u skupiny s tématy případně rovnou jedno téma. */
-data class ChatOpenRequest(val chatId: Long, val topicId: Int? = null)
+/** Co se má otevřít: chat účtu [slot], u skupiny s tématy případně rovnou jedno téma. */
+data class ChatOpenRequest(val slot: AccountSlot, val chatId: Long, val topicId: Int? = null)

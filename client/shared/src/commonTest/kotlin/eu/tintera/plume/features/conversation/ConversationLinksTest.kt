@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.share.ShareRequests
@@ -97,6 +98,7 @@ class ConversationLinksTest {
         chats: FakeChats,
         forumTopicId: Int? = null,
     ) = ConversationLinks(
+            slot = AccountSlot.Primary,
         chatId = TEST_CHAT,
         forumTopicId = forumTopicId,
         savedTopicId = null,

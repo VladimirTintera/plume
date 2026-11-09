@@ -319,7 +319,7 @@ fun appAccountModule() = module {
     single { PendingChatDeletes(repository = get(), scope = get(named(APP_SCOPE))) }
     // Odebrání ze Stahování s „Vrátit" doběhne i po odchodu z obrazovky.
     single { PendingDownloadRemovals(scope = get(named(APP_SCOPE))) }
-    single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
+    single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull(), slot = get()) }
     single { ChatColors(settings = get(), chats = get()) }
     single { ConversationReplyRequests() }
     single { SponsoredLinkRequests() }
@@ -345,7 +345,7 @@ fun appAccountModule() = module {
     single { StagedAttachmentsStore() }
     // Eager: po přihlášení zaregistruje Uložené zprávy jako cíl sdílení (viz init).
     single(createdAtStart = true) {
-        ShareTargets(repository = get(), chats = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
+        ShareTargets(slot = get(), repository = get(), chats = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
     }
 
     viewModelOf(::AuthViewModel)
@@ -525,6 +525,7 @@ fun appAccountModule() = module {
         // Šestý: vlákno přímých zpráv kanálu (správce s jedním odběratelem).
         val directTopicId = parameters.values.getOrNull(5) as Long?
         ConversationViewModel(
+            slot = get(),
             chatId = parameters.get(),
             initialMessageId = parameters.values.getOrNull(1) as Long?,
             threadRootId = threadRootId,
@@ -648,6 +649,7 @@ fun appAccountModule() = module {
 
     viewModel { parameters ->
         ChatProfileViewModel(
+            slot = get(),
             chatId = parameters.get(),
             profiles = get(),
             chats = get(),
@@ -737,6 +739,7 @@ fun appAccountModule() = module {
     // Potvrzení sdílení do jednoho chatu (Direct Share): chatId je z routy, tedy runtime parametr.
     viewModel { parameters ->
         ShareToChatViewModel(
+            slot = get(),
             chatId = parameters.get(),
             requests = get(),
             repository = get(),

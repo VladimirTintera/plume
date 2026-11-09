@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.widget
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.ChatSummary
 import kotlinx.serialization.Serializable
 
@@ -23,6 +24,8 @@ data class WidgetChat(
     val avatar: String? = null,
     /** Uložené zprávy — kreslí se se záložkou místo fotky účtu, jako v seznamu chatů. */
     val savedMessages: Boolean = false,
+    /** Účet chatu, id slotu; chybí u podkladů zapsaných před víc účty. */
+    val slot: String = AccountSlot.Primary.id,
 )
 
 /** Co widget ukazuje: chaty a jestli je vůbec někdo přihlášený. */

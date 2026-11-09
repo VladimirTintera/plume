@@ -63,12 +63,12 @@ class ShareIntake(
         val limited = uris.take(if (exportLike) EXPORT_FILE_LIMIT else PICK_LIMIT)
         val declared = declaredTypes(intent)
         val visual = limited.isNotEmpty() && limited.all { isVisual(typeOf(it) ?: declared) }
-        val shortcutChat = chatIdFromShortcut(intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID))
+        val shortcutChat = shortcutChat(intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID))
         // Chat se zakládá rovnou s obsahem, ne dalším voláním — viz `ShareRequests.start`.
         val id = requests.start(
             text = text,
             hasFiles = limited.isNotEmpty(),
-            target = shortcutChat?.let { ShareTarget(it, confirm = visual) },
+            target = shortcutChat?.let { ShareTarget(it.slot, it.chatId, confirm = visual) },
         )
 
         /*
@@ -81,7 +81,7 @@ class ShareIntake(
          * a čeká nad vstupním polem jako dřív: u odkazu není co ukazovat a pole na popisek
          * k němu je krok navíc.
          */
-        if (shortcutChat != null && !visual) chatOpenRequests.request(shortcutChat)
+        if (shortcutChat != null && !visual) chatOpenRequests.request(shortcutChat.slot, shortcutChat.chatId)
 
         if (limited.isEmpty()) return true
 

@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.share
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -29,20 +30,20 @@ class ShareRequestsTest {
         val id = requests.start(text = "popisek", hasFiles = true)
 
         // Nevybraný chat: nic.
-        assertNull(withTimeoutOrNull(50) { requests.deliveries(7).first() })
+        assertNull(withTimeoutOrNull(50) { requests.deliveries(AccountSlot.Primary, 7).first() })
 
         // Vybraný, ale soubory se ještě připravují: pořád nic.
-        requests.choose(7)
-        assertNull(withTimeoutOrNull(50) { requests.deliveries(7).first() })
+        requests.choose(AccountSlot.Primary, 7)
+        assertNull(withTimeoutOrNull(50) { requests.deliveries(AccountSlot.Primary, 7).first() })
 
         requests.prepared(id, listOf(photo), failed = 1)
-        val delivered = withTimeout(1_000) { requests.deliveries(7).first() }
+        val delivered = withTimeout(1_000) { requests.deliveries(AccountSlot.Primary, 7).first() }
         assertEquals(listOf(photo), delivered.attachments)
         assertEquals("popisek", delivered.text)
         assertEquals(1, delivered.failed)
 
         // Jiný chat ho nedostane.
-        assertNull(withTimeoutOrNull(50) { requests.deliveries(8).first() })
+        assertNull(withTimeoutOrNull(50) { requests.deliveries(AccountSlot.Primary, 8).first() })
 
         requests.consume(id)
         assertNull(requests.incoming.value)
@@ -52,8 +53,8 @@ class ShareRequestsTest {
     fun textBezSouboruJeHotovyHned() = runBlocking {
         val requests = ShareRequests()
         requests.start(text = "https://example.com", hasFiles = false)
-        requests.choose(7)
-        assertEquals(emptyList(), withTimeout(1_000) { requests.deliveries(7).first() }.attachments)
+        requests.choose(AccountSlot.Primary, 7)
+        assertEquals(emptyList(), withTimeout(1_000) { requests.deliveries(AccountSlot.Primary, 7).first() }.attachments)
     }
 
     @Test
@@ -78,11 +79,21 @@ class ShareRequestsTest {
         // konverzace, naskočil by jí nad vstupní pole a odešel by dvakrát.
         val requests = ShareRequests()
         val id = requests.start(text = null, hasFiles = true)
-        requests.confirm(7)
+        requests.confirm(AccountSlot.Primary, 7)
         requests.prepared(id, listOf(photo), failed = 0)
 
-        assertNull(withTimeoutOrNull(50) { requests.deliveries(7).first() })
+        assertNull(withTimeoutOrNull(50) { requests.deliveries(AccountSlot.Primary, 7).first() })
         assertEquals(listOf(photo), requests.incoming.value?.attachments)
+    }
+
+    /** Soukromý chat má v obou účtech totéž id: obsah si smí vyzvednout jen konverzace jeho účtu. */
+    @Test
+    fun sdileniJdeJenDoUctuVybranehoChatu() = runBlocking {
+        val requests = ShareRequests()
+        requests.start(text = "x", hasFiles = false, target = ShareTarget(AccountSlot("a1b2"), 7, confirm = false))
+
+        assertNull(withTimeoutOrNull(50) { requests.deliveries(AccountSlot.Primary, 7).first() })
+        assertEquals("x", requests.deliveries(AccountSlot("a1b2"), 7).first().text)
     }
 
     @Test
@@ -90,7 +101,7 @@ class ShareRequestsTest {
         // Odejít z obrazovky „Komu: …" znamená „nechci to poslat" — a bez zahození by se obsah
         // vložil do konverzace, kterou uživatel neotevřel.
         val requests = ShareRequests()
-        val id = requests.start(text = "x", hasFiles = false, target = ShareTarget(7, confirm = true))
+        val id = requests.start(text = "x", hasFiles = false, target = ShareTarget(AccountSlot.Primary, 7, confirm = true))
         requests.abandon(id)
         assertNull(requests.incoming.value)
     }
@@ -102,7 +113,7 @@ class ShareRequestsTest {
         val requests = ShareRequests()
         val seen = mutableListOf<SharedContent?>()
         val watching = launch(Dispatchers.Unconfined) { requests.incoming.collect { seen += it } }
-        requests.start(text = null, hasFiles = true, target = ShareTarget(7, confirm = true))
+        requests.start(text = null, hasFiles = true, target = ShareTarget(AccountSlot.Primary, 7, confirm = true))
         watching.cancel()
 
         val content = seen.filterNotNull().single()
@@ -115,8 +126,8 @@ class ShareRequestsTest {
         // Opakované sdílení: kvůli novému obsahu shell starou obrazovku nahrazuje, a její odchod
         // zahazuje JEN to, co ukazovala. Dřív zahodil to nové a nové sdílení se neukázalo vůbec.
         val requests = ShareRequests()
-        val old = requests.start(text = null, hasFiles = true, target = ShareTarget(7, confirm = true))
-        val new = requests.start(text = null, hasFiles = true, target = ShareTarget(8, confirm = true))
+        val old = requests.start(text = null, hasFiles = true, target = ShareTarget(AccountSlot.Primary, 7, confirm = true))
+        val new = requests.start(text = null, hasFiles = true, target = ShareTarget(AccountSlot.Primary, 8, confirm = true))
 
         requests.abandon(old)
         assertEquals(new, requests.incoming.value?.id)
@@ -162,7 +173,7 @@ class ShareRequestsTest {
         val requests = ShareRequests()
         requests.start(text = "x", hasFiles = false)
         assertTrue(requests.incoming.value!!.carried)
-        requests.start(text = "y", hasFiles = false, target = ShareTarget(7, confirm = false))
+        requests.start(text = "y", hasFiles = false, target = ShareTarget(AccountSlot.Primary, 7, confirm = false))
         assertFalse(requests.incoming.value!!.carried)
     }
 
@@ -175,7 +186,7 @@ class ShareRequestsTest {
         assertNull(requests.arrival.value)
 
         // Direct Share seznam chatů neukazuje — má vlastní obrazovku.
-        requests.start(text = null, hasFiles = true, target = ShareTarget(7, confirm = true))
+        requests.start(text = null, hasFiles = true, target = ShareTarget(AccountSlot.Primary, 7, confirm = true))
         assertNull(requests.arrival.value)
     }
 
@@ -184,7 +195,7 @@ class ShareRequestsTest {
         // Po „Vložit sem" je obsah na cestě do konverzace — nic ho zahodit nesmí.
         val requests = ShareRequests()
         val id = requests.start(text = "x", hasFiles = false)
-        requests.choose(7)
+        requests.choose(AccountSlot.Primary, 7)
         requests.abandon(id)
         assertEquals(id, requests.incoming.value?.id)
         assertTrue(requests.incoming.value!!.carried, "čip nezmizí, dokud si ho konverzace nevyzvedne")
@@ -232,8 +243,8 @@ class ShareRequestsTest {
         requests.prepared(id, listOf(photo), failed = 0)
 
         // „Vložit sem": konverzace si obsah vyzvedne a vyřídí.
-        requests.choose(7)
-        val delivered = withTimeout(1_000) { requests.deliveries(7).first() }
+        requests.choose(AccountSlot.Primary, 7)
+        val delivered = withTimeout(1_000) { requests.deliveries(AccountSlot.Primary, 7).first() }
         assertTrue(requests.consume(delivered.id))
 
         assertNull(process().incoming.value)
@@ -245,7 +256,7 @@ class ShareRequestsTest {
     fun vlozeniJenJednou() {
         val requests = ShareRequests()
         val id = requests.start(text = "x", hasFiles = false)
-        requests.choose(7)
+        requests.choose(AccountSlot.Primary, 7)
         assertTrue(requests.consume(id))
         assertFalse(requests.consume(id), "druhá konverzace téhož chatu už nic nevloží")
     }
@@ -254,7 +265,7 @@ class ShareRequestsTest {
     fun vybranyAleNevyzvednutyCipSeObnoviZnovuNaCipu() {
         val requests = process()
         requests.start(text = "x", hasFiles = false)
-        requests.choose(7)
+        requests.choose(AccountSlot.Primary, 7)
 
         val restored = process().incoming.value
         assertNotNull(restored)
@@ -362,7 +373,7 @@ class ShareRequestsTest {
     fun directShareSeNeukladaAChovaSeJakDriv() = runBlocking {
         val photo = copiedPhoto()
         val requests = process()
-        val id = requests.start(text = null, hasFiles = true, target = ShareTarget(7, confirm = true))
+        val id = requests.start(text = null, hasFiles = true, target = ShareTarget(AccountSlot.Primary, 7, confirm = true))
         requests.prepared(id, listOf(photo), failed = 0)
 
         // Neuloží se: obrazovka „Komu: …" se po zabití procesu stejně zavře.
@@ -370,7 +381,7 @@ class ShareRequestsTest {
         assertFalse(requests.incoming.value!!.carried)
         assertNull(requests.arrival.value)
         // Konverzace si potvrzovaný obsah nevyzvedne, odchod z obrazovky ho zahodí.
-        assertNull(withTimeoutOrNull(50) { requests.deliveries(7).first() })
+        assertNull(withTimeoutOrNull(50) { requests.deliveries(AccountSlot.Primary, 7).first() })
         requests.abandon(id)
         assertNull(requests.incoming.value)
     }
@@ -382,7 +393,7 @@ class ShareRequestsTest {
         val chip = requests.start(text = null, hasFiles = true)
         requests.prepared(chip, listOf(photo), failed = 0)
 
-        val direct = requests.start(text = null, hasFiles = true, target = ShareTarget(7, confirm = true))
+        val direct = requests.start(text = null, hasFiles = true, target = ShareTarget(AccountSlot.Primary, 7, confirm = true))
 
         assertEquals(direct, requests.incoming.value?.id)
         assertFalse(exists(photo.path), "kopie z čipu už nikdo nepošle")

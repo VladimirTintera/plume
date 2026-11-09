@@ -46,4 +46,17 @@ class AccountSlotTest {
             assertFailsWith<IllegalArgumentException>(id) { AccountSlot(id) }
         }
     }
+
+    /** Staré intenty a zástupci slot nenesou a patří primárnímu účtu. */
+    @Test
+    fun chybejiciSlotJePrimarni() {
+        assertEquals(AccountSlot.Primary, AccountSlot.parse(null))
+        assertEquals(AccountSlot("a1b2"), AccountSlot.parse("a1b2"))
+    }
+
+    /** Extra do exportované aktivity může poslat kdokoli, aplikace kvůli němu nesmí spadnout. */
+    @Test
+    fun necitelnySlotNeniVyjimka() {
+        listOf("", "../x", "A1").forEach { assertEquals(null, AccountSlot.parse(it)) }
+    }
 }

@@ -1,6 +1,6 @@
 # Návrh: víc účtů naráz
 
-> **Stav:** fáze 0 hotová až na slot ve vstupních bodech (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> **Stav:** fáze 0 hotová (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
 > stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
@@ -477,11 +477,30 @@ Fáze 0 jde po krocích, každý v aplikaci beze změny chování:
      účtem by se špatně předaný slot jinak nikde neukázal.
    - `SAVED_ROUTES_VERSION`: zásobník uložený před změnou by se přečetl jen s výjimkou, takže se
      po aktualizaci začíná od kořene.
-5. **Slot ve vstupních bodech** — zbývá, patří k fázi 1:
-   - Kořeny bez slotu berou primární účet výslovně a dají se najít podle jména: `primaryAccount()`
-     (služby, přijímače, úlohy, iOS) a `PrimaryAccountScope` (shell, bublina, okna na desktopu,
-     hodinky). Požadavky zvenčí (`ChatOpenRequests`, extra `CHAT_ID`, akce z notifikací) slot
-     nenesou.
+5. **Slot ve vstupních bodech** — hotovo, přesně podle kapitoly „Vstupní body":
+   - Extra `eu.tintera.plume.extra.ACCOUNT` nesou ťuknutí na notifikaci, její akce (odpověď,
+     přečteno, ztlumit, odhrnout, odmítnout hovor), bublina, připomenutí odloženého chatu, widget
+     a zástupci. **Primární účet ho nenese**, takže staré intenty, zástupci a naplánované úlohy
+     znamenají totéž co dřív. Totéž platí pro id zkratek (`chat_<chatId>`, jinak
+     `chat_<slot>_<chatId>`), jména úloh a data intentů.
+   - `ChatOpenRequests` a `ShareRequests` nesou slot, konverzace si sdílený obsah vyzvedne jen
+     ve svém účtu. Soukromý chat má v obou účtech totéž id, proto i request code PendingIntentu
+     a miniatura widgetu slot obsahují.
+   - **Účet, který už není, nic neotevře a nic neshodí** (`Accounts.find`, `AccountSlot.parse`):
+     notifikace a zástupce můžou přežít odhlášení a extra do exportované aktivity může poslat
+     kdokoli. Sdílení přes takového zástupce se zahodí.
+   - Komu definice patří, řekne `get<AccountSlot>()` v kontejneru účtu.
+
+**Zbývá pro fázi 1:**
+   - **Kdo bere primární účet výslovně, je najít podle jména** `primaryAccount()`:
+     push a registrace zařízení (směrování podle `PushReceiverId`), služby hovoru, hudby, polohy
+     a videochatu, úlohy na pozadí (popis fotek), přijímače hodinek. `PrimaryAccountScope` berou
+     shell a okna na desktopu. Hovor z notifikace (`CallRequests`) slot nenese, patří k hovorům
+     přes všechny účty.
+   - Odkazy `tg://` a `t.me` jdou do účtu shellu, později výchozího (podle návrhu).
+   - Tag notifikace a zvukové kanály slot ještě nemají, konverzační kanál ho má přes id zkratky.
+   - Widget má jeden soubor podkladů a miniatury maže jeden updater: se dvěma účty by se přepisovaly.
+   - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu: stránky nastavení účtu
      (`EditProfileRoute`, `TwoStepRoute`…), `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`,
      `MyStoriesRoute`, `NewChatRoute`. Určí to UI nastavení po účtech.

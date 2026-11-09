@@ -169,11 +169,12 @@ class MainActivity : ComponentActivity() {
         val topicId = NotificationIntents.EXTRA_TOPIC_ID
             .takeIf { intent.hasExtra(it) }
             ?.let { intent.getIntExtra(it, 0) }
-        chatOpenRequests.request(chatId, topicId)
+        NotificationIntents.accountOf(intent)?.let { slot -> chatOpenRequests.request(slot, chatId, topicId) }
 
         // Jednorázové: po otočení displeje se `onCreate` spustí znovu nad týmž intentem a chat
         // by se otevřel podruhé — i kdyby se mezitím uživatel proklikal jinam.
         intent.removeExtra(NotificationIntents.EXTRA_CHAT_ID)
+        intent.removeExtra(NotificationIntents.EXTRA_ACCOUNT)
         intent.removeExtra(NotificationIntents.EXTRA_TOPIC_ID)
     }
 

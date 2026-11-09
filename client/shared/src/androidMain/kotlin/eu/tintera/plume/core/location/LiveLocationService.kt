@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.location
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
@@ -65,6 +66,8 @@ import org.koin.core.component.inject
 class LiveLocationService : Service(), KoinComponent {
 
     override fun getKoin() = GlobalContext.get().primaryAccount()
+
+    private val slot: AccountSlot by inject()
 
     private val logger = Logger.withTag("LiveLocationService")
     private val repository: LiveLocationRepository by inject()
@@ -189,7 +192,7 @@ class LiveLocationService : Service(), KoinComponent {
     }
 
     private fun openChat(chatId: Long?): PendingIntent? {
-        val intent = chatId?.let { NotificationIntents.chatIntent(this, it) } ?: return null
+        val intent = chatId?.let { NotificationIntents.chatIntent(this, slot, it) } ?: return null
         return PendingIntent.getActivity(this, NOTIFICATION_ID, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 

@@ -41,6 +41,14 @@ data class AccountSlot(val id: String) {
     companion object {
         /** Účet, se kterým aplikace pracovala odjakživa — dnes jediný. */
         val Primary = AccountSlot("0")
+
+        /**
+         * Slot ze vstupního bodu (extra v intentu, id zástupce). Chybějící je primární, takže staré
+         * intenty, zástupci a naplánované úlohy fungují dál. Nečitelný je `null`, ne výjimka: extra
+         * do exportované aktivity může poslat kdokoli.
+         */
+        fun parse(id: String?): AccountSlot? =
+            if (id == null) Primary else runCatching { AccountSlot(id) }.getOrNull()
     }
 }
 

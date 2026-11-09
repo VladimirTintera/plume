@@ -54,28 +54,28 @@ class ShareChipPlacementTest {
 
     @Test
     fun naTelefonuJenKonverzaceNavrchu() {
-        assertEquals(1, listOf(ChatsRoute, ConversationRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = false))
-        assertEquals(2, listOf(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, 2)).shareInsertChat(paneOf, sideBySide = false))
+        assertEquals(1, listOf(ChatsRoute, ConversationRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = false)?.chatId)
+        assertEquals(2, listOf(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, 2)).shareInsertChat(paneOf, sideBySide = false)?.chatId)
         // Profil konverzaci na telefonu zakrývá.
-        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), ChatProfileRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = false))
-        assertNull(listOf<NavKey>(ChatsRoute).shareInsertChat(paneOf, sideBySide = false))
-        assertNull(listOf(ChatsRoute, ForumTopicsRoute(slot, 3)).shareInsertChat(paneOf, sideBySide = false))
+        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), ChatProfileRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = false)?.chatId)
+        assertNull(listOf<NavKey>(ChatsRoute).shareInsertChat(paneOf, sideBySide = false)?.chatId)
+        assertNull(listOf(ChatsRoute, ForumTopicsRoute(slot, 3)).shareInsertChat(paneOf, sideBySide = false)?.chatId)
     }
 
     @Test
     fun vedleSeznamuIPodProfilem() {
         val stack = listOf(ChatsRoute, ConversationRoute(slot, 1), ChatProfileRoute(slot, 1))
-        assertEquals(1, stack.shareInsertChat(paneOf, sideBySide = true))
-        assertEquals(1, listOf(ChatsRoute, ConversationRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = true))
+        assertEquals(1, stack.shareInsertChat(paneOf, sideBySide = true)?.chatId)
+        assertEquals(1, listOf(ChatsRoute, ConversationRoute(slot, 1)).shareInsertChat(paneOf, sideBySide = true)?.chatId)
     }
 
     @Test
     fun vedleSeznamuBezKonverzaceNicNebo() {
         // Placeholder vpravo.
-        assertNull(listOf<NavKey>(ChatsRoute).shareInsertChat(paneOf, sideBySide = true))
+        assertNull(listOf<NavKey>(ChatsRoute).shareInsertChat(paneOf, sideBySide = true)?.chatId)
         // Archiv nad konverzací hlavního seznamu: ta vidět není, vpravo je placeholder archivu.
-        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), ArchiveRoute).shareInsertChat(paneOf, sideBySide = true))
+        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), ArchiveRoute).shareInsertChat(paneOf, sideBySide = true)?.chatId)
         // Prohlížeč přes celou plochu konverzaci zakrývá.
-        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), MediaRoute(slot, 1, 5)).shareInsertChat(paneOf, sideBySide = true))
+        assertNull(listOf(ChatsRoute, ConversationRoute(slot, 1), MediaRoute(slot, 1, 5)).shareInsertChat(paneOf, sideBySide = true)?.chatId)
     }
 }

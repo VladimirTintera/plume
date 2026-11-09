@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.widget
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -20,22 +21,23 @@ import kotlin.math.max
  * a dvanáct dekódování plné fotky (stovky kB) by to brzdilo; miniatura 128 px je pár kB
  * a ořez do kruhu je v ní už hotový — Glance obrázek do kruhu oříznout neumí.
  *
- * Soubor se jmenuje podle `fileId`: nová fotka chatu má nové id, takže stará miniatura se nikdy
- * nepoužije omylem. Nepoužívané se po každém zápisu smažou ([prune]).
+ * Soubor se jmenuje podle `fileId` (u dalších účtů se slotem, `fileId` je číslo jednoho klienta):
+ * nová fotka chatu má nové id, takže stará miniatura se nikdy nepoužije omylem. Nepoužívané se po každém zápisu smažou ([prune]).
  */
 internal object WidgetAvatars {
 
     private fun directory(context: Context) = File(context.filesDir, "widget/avatars")
 
     /** Miniatura fotky [sourcePath] s id [fileId]; vytvoří ji, když ještě není. `null` = nejde. */
-    suspend fun thumbnail(context: Context, fileId: Int, sourcePath: String): String? = withContext(Dispatchers.IO) {
-        val target = File(directory(context), "$fileId.png")
+    suspend fun thumbnail(context: Context, slot: AccountSlot, fileId: Int, sourcePath: String): String? = withContext(Dispatchers.IO) {
+        val name = if (slot.isPrimary) "$fileId" else "${slot.id}_$fileId"
+        val target = File(directory(context), "$name.png")
         if (target.exists()) return@withContext target.absolutePath
         runCatching {
             val bitmap = decodeSampled(sourcePath, EDGE) ?: return@runCatching null
             val round = circle(bitmap, EDGE)
             target.parentFile?.mkdirs()
-            val temp = File(target.parentFile, "$fileId.png.tmp")
+            val temp = File(target.parentFile, "$name.png.tmp")
             temp.outputStream().use { round.compress(Bitmap.CompressFormat.PNG, 100, it) }
             temp.renameTo(target)
             target.absolutePath

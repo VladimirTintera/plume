@@ -211,6 +211,9 @@ internal fun coreGlobalModule(): Module = module {
 internal fun accountModule(slot: AccountSlot): Module = module {
     includes(accountPlatformModule(slot))
 
+    // Komu definice patří: kdo staví vstupní bod (intent, zástupce, sdílení), ho do něj dá.
+    single { slot }
+
     // Jeden TDLib klient na účet; sdílí ho session i chat repository.
     single { TelegramClientHolder() }
 

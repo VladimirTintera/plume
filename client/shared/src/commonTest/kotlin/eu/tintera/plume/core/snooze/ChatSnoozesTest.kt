@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.snooze
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.telegram.FakeChatRepository
@@ -31,11 +32,11 @@ class ChatSnoozesTest {
     private val scheduled = mutableMapOf<Long, Instant>()
     private val cancelled = mutableListOf<Long>()
     private val reminders = object : SnoozeReminders {
-        override fun schedule(chatId: Long, title: String, at: Instant) {
+        override fun schedule(slot: AccountSlot, chatId: Long, title: String, at: Instant) {
             scheduled[chatId] = at
         }
 
-        override fun cancel(chatId: Long) {
+        override fun cancel(slot: AccountSlot, chatId: Long) {
             scheduled -= chatId
             cancelled += chatId
         }

@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.widget
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.content.Context
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -53,6 +54,7 @@ import java.io.File
  *   než se TDLib rozběhne, zůstává poslední známý stav.
  */
 class ChatsWidgetUpdater(
+    private val slot: AccountSlot,
     private val context: Context,
     private val chats: ChatRepository,
     private val files: FileRepository,
@@ -107,6 +109,7 @@ class ChatsWidgetUpdater(
                             async {
                                 val saved = chat.id == input.savedMessagesChatId
                                 WidgetChat(
+                                    slot = slot.id,
                                     id = chat.id,
                                     // Uložené zprávy jménem, ne jménem účtu — jako v seznamu chatů.
                                     title = if (saved) savedTitle else chat.title,
@@ -137,7 +140,7 @@ class ChatsWidgetUpdater(
             files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
         }
         val path = (state as? FileState.Ready)?.path ?: return null
-        return WidgetAvatars.thumbnail(context, fileId, path)
+        return WidgetAvatars.thumbnail(context, slot, fileId, path)
     }
 
     private sealed interface Input {

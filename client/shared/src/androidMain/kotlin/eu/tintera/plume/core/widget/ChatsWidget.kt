@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.widget
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -154,7 +155,7 @@ private fun ChatRow(context: Context, chat: WidgetChat, time: String?) {
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .cornerRadius(16.dp)
-            .clickable(openChat(context, chat.id)),
+            .clickable(AccountSlot.parse(chat.slot)?.let { openChat(context, it, chat.id) } ?: openApp(context)),
     ) {
         ChatAvatar(chat)
         Spacer(GlanceModifier.width(12.dp))
@@ -288,9 +289,9 @@ private fun widgetTime(timestamp: Int): String {
  * Otevře chat stejnou cestou jako notifikace. **Data nesou chatId**, aby byl intent každého
  * řádku jiný podle `filterEquals` — jinak by se intenty řádků slily a všechny by otevřely týž chat.
  */
-private fun openChat(context: Context, chatId: Long): Action {
-    val intent = NotificationIntents.chatIntent(context, chatId)
-        ?.setData(Uri.parse("plume-widget://chat/$chatId"))
+private fun openChat(context: Context, slot: AccountSlot, chatId: Long): Action {
+    val intent = NotificationIntents.chatIntent(context, slot, chatId)
+        ?.setData(Uri.parse(if (slot.isPrimary) "plume-widget://chat/$chatId" else "plume-widget://chat/${slot.id}/$chatId"))
         ?: return openApp(context)
     return actionStartActivity(intent)
 }

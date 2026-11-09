@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.CollectibleInfo
 import eu.tintera.plume.core.telegram.CollectibleItem
@@ -120,6 +121,7 @@ import org.jetbrains.compose.resources.StringResource
  * Členové skupiny se dotahují až po profilu — jen když je server vydá.
  */
 class ChatProfileViewModel(
+    private val slot: AccountSlot,
     val chatId: Long,
     private val profiles: ProfileRepository,
     private val chats: ChatRepository,
@@ -711,7 +713,7 @@ class ChatProfileViewModel(
     fun openConversationSettings() {
         val prefs = _state.value.notifications ?: return
         val title = _state.value.profile?.title ?: return
-        notificationPermission.openConversationSettings(chatId, title, prefs.scope.channel, prefs.soundId)
+        notificationPermission.openConversationSettings(slot, chatId, title, prefs.scope.channel, prefs.soundId)
     }
 
     /** Odkaz na chat (veřejné jméno, jinak pozvánka) do schránky. */

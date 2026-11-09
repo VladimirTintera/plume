@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.audio
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -38,6 +39,8 @@ import org.koin.core.component.inject
 class MusicPlaybackService : MediaSessionService(), KoinComponent {
 
     override fun getKoin() = GlobalContext.get().primaryAccount()
+
+    private val slot: AccountSlot by inject()
 
     private val queue: MusicQueue by inject()
     private val scope = MainScope()
@@ -83,7 +86,7 @@ class MusicPlaybackService : MediaSessionService(), KoinComponent {
     }
 
     private fun openChat(chatId: Long): PendingIntent? {
-        val intent = NotificationIntents.chatIntent(this, chatId) ?: return null
+        val intent = NotificationIntents.chatIntent(this, slot, chatId) ?: return null
         return PendingIntent.getActivity(
             this,
             chatId.hashCode(),

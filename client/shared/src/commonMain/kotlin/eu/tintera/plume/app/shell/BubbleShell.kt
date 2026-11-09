@@ -19,7 +19,8 @@ import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.SAVED_ROUTES_VERSION
 import androidx.compose.runtime.key
 import eu.tintera.plume.core.accounts.Accounts
-import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.features.conversation.ConversationNavigation
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.core.ui.LocalArticleMediaFlight
@@ -43,11 +44,17 @@ import org.koin.core.parameter.parametersOf
  * `LocalNavAnimatedContentScope`, který mimo něj neexistuje.
  */
 @Composable
-fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -> Unit) {
-    val account = LocalAccount.current
+fun BubbleShell(slot: AccountSlot, chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -> Unit) {
     val accounts = koinInject<Accounts>()
+    // Účet mezitím odhlášený: bublina systému dožije, není co v ní ukázat.
+    val account = accounts.find(slot) ?: return
+    AccountScope(account) { BubbleContent(accounts, slot, chatId, onOpenInApp, onClose) }
+}
+
+@Composable
+private fun BubbleContent(accounts: Accounts, slot: AccountSlot, chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -> Unit) {
     val backStack = key(SAVED_ROUTES_VERSION) {
-        rememberNavBackStack(NavSavedStateConfiguration, ConversationRoute(account.slot, chatId))
+        rememberNavBackStack(NavSavedStateConfiguration, ConversationRoute(slot, chatId))
     }
     val replyRequests = koinInject<ConversationReplyRequests>()
     val sponsoredLinks = koinInject<SponsoredLinkRequests>()

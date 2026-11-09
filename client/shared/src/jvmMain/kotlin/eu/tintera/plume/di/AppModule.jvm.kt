@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.ai.core.NoDeviceLoad
 import eu.tintera.ai.core.MeteredNetwork
 import eu.tintera.ai.core.NoMeteredNetwork
@@ -148,7 +149,7 @@ actual fun Module.platformModule() {
     single { MediaSharer() }
     single<ShareTargetPublisher> {
         object : ShareTargetPublisher {
-            override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) = Unit
+            override fun publish(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) = Unit
         }
     }
     single { AppUpdates() }
@@ -162,9 +163,9 @@ actual fun Module.platformModule() {
     single<StoryPhoto> { DesktopStoryPhoto() }
     single<SnoozeReminders> {
         object : SnoozeReminders {
-            override fun schedule(chatId: Long, title: String, at: Instant) = Unit
+            override fun schedule(slot: AccountSlot, chatId: Long, title: String, at: Instant) = Unit
 
-            override fun cancel(chatId: Long) = Unit
+            override fun cancel(slot: AccountSlot, chatId: Long) = Unit
         }
     }
     single<PhotoMarkupRenderer> { DesktopPhotoMarkupRenderer() }
@@ -201,6 +202,7 @@ actual fun Module.platformAccountModule() {
         NotificationPresenter(
             chats = get(),
             settings = get(),
+            slot = get(),
             chatOpenRequests = get(),
             notifier = get(),
             // Vlastní scope: oznámení se sbírají po celou dobu běhu procesu.

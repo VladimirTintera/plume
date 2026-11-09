@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.Composable
 import eu.tintera.plume.core.telegram.DEFAULT_SOUND_ID
 import eu.tintera.plume.core.telegram.NotificationChannelKind
@@ -71,7 +72,7 @@ expect class NotificationPermission {
      * neumí (Android do 10), otevře kanál [channel], pod který konverzace patří. [soundId] je
      * zvuk z Telegramu, kterým chat zní — s tónem visí konverzace pod kanálem toho tónu.
      */
-    fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID)
+    fun openConversationSettings(slot: AccountSlot, chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID)
 }
 
 /**

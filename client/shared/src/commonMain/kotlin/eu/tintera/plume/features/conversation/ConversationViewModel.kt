@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.GifRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -162,6 +163,7 @@ import eu.tintera.plume.core.location.GeoPoint
  * Mapa částí: „Skladba ViewModelu" v `docs/poznatky/konverzace-zobrazeni.md`.
  */
 class ConversationViewModel(
+    private val slot: AccountSlot,
     val chatId: Long,
     /** Zpráva, na kterou se po otevření skočí místo na první nepřečtenou (nalezená v hledání). */
     private val initialMessageId: Long?,
@@ -645,6 +647,7 @@ class ConversationViewModel(
 
     /** Kam vedou odkazy a ťuknutí: chaty, zprávy, příběhy, pozvánky, mini aplikace — viz [ConversationLinks]. */
     private val links: ConversationLinks = ConversationLinks(
+        slot = slot,
         chatId = chatId,
         forumTopicId = forumTopicId,
         // Vlákno přímých zpráv odkaz na zprávu nenese, takže se s ním zachází jako s tématem
@@ -1262,7 +1265,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             // Sdílení do tohohle chatu. Odběr trvá po celou dobu konverzace: obsah z čipu
             // v shellu přijde, až uživatel v otevřené konverzaci ťukne na „Vložit sem".
-            shareRequests.deliveries(chatId).collect { content ->
+            shareRequests.deliveries(slot, chatId).collect { content ->
                 composer.draftRestored.await()
                 // Export chatu z jiné aplikace se nabídne k importu, ne jako příloha.
                 if (!chatImport.offer(content)) attachments.receiveShared(content)
