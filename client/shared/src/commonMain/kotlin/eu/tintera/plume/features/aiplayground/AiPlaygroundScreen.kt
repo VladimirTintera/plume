@@ -55,7 +55,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.adaptive.ContentWidth
-import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.ai.core.ModelVariant
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.GROUP_CORNER
@@ -213,7 +213,7 @@ private fun ModelChip(
     current: CurrentModel?,
     models: List<PlaygroundModel>,
     onOpen: () -> Unit,
-    onChoose: (AiProvider?) -> Unit,
+    onChoose: (ModelVariant?) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val check: @Composable () -> Unit = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
@@ -223,12 +223,11 @@ private fun ModelChip(
                 onOpen()
                 expanded = true
             },
-            label = { Text(current?.provider?.let { stringResource(it.title) }.orEmpty()) },
+            label = { Text(current?.let { it.name ?: stringResource(it.provider.title) }.orEmpty()) },
             trailingIcon = {
                 Icon(painterResource(Res.drawable.expand_more_24dp), contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
             },
         )
-        val notReady = models.associate { it.provider to !it.ready }
         ExpressiveMenu(
             expanded = expanded,
             onDismiss = { expanded = false },
@@ -241,12 +240,12 @@ private fun ModelChip(
                     ),
                 ),
                 models.map { model ->
-                    val name = stringResource(model.provider.title)
+                    val name = model.name ?: stringResource(model.provider.title)
                     MenuAction(
                         // Nepřipravený model jde vybrat taky — odpověď pak řekne, že chybí, a kde ho stáhnout.
-                        label = if (notReady[model.provider] == true) stringResource(Res.string.settings_ai_task_not_ready, name) else name,
-                        trailing = check.takeIf { current?.automatic == false && current.provider == model.provider },
-                        onClick = { onChoose(model.provider) },
+                        label = if (!model.ready) stringResource(Res.string.settings_ai_task_not_ready, name) else name,
+                        trailing = check.takeIf { current?.automatic == false && current.variant == model.variant },
+                        onClick = { onChoose(model.variant) },
                     )
                 },
             ),

@@ -2,6 +2,7 @@ package eu.tintera.plume.features.aiplayground
 
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.ai.provider
 import eu.tintera.ai.core.Generated
 import eu.tintera.ai.core.ModelInfo
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -46,22 +48,29 @@ class AiPlaygroundViewModelTest {
 
     /**
      * Model, který odpoví [reply] na každou otázku; tokeny = znaky promptu, takže [limit] je
-     * limit vstupu ve znacích. Gemma je nestažená, když [gemmaReady] není.
+     * limit vstupu ve znacích. Gemma je nestažená, když [gemmaReady] není; stahované modely
+     * mimo Gemmu jsou stažené jen ty z [downloaded].
      */
     private class FakeAi(
         val limit: Int? = null,
         val gemmaReady: Boolean = true,
+        val downloaded: Set<LiteRtModel> = emptySet(),
         val reply: (String) -> Flow<Generated> = { flow { emit(Generated("Odpověď")) } },
     ) : UnimplementedOnDeviceAi() {
         val prompts = mutableListOf<String>()
         val generatedBy = mutableListOf<AiProvider>()
-        override suspend fun status(variant: ModelVariant) =
-            if (variant.provider == AiProvider.Gemma && !gemmaReady) OnDeviceAiStatus.Downloadable else OnDeviceAiStatus.Ready
+        val generatedVariants = mutableListOf<ModelVariant>()
+        override suspend fun status(variant: ModelVariant) = when {
+            variant.provider == AiProvider.Gemma -> if (gemmaReady) OnDeviceAiStatus.Ready else OnDeviceAiStatus.Downloadable
+            variant.appManaged -> if (downloaded.any { it.variant == variant }) OnDeviceAiStatus.Ready else OnDeviceAiStatus.Downloadable
+            else -> OnDeviceAiStatus.Ready
+        }
         override suspend fun info(variant: ModelVariant) = ModelInfo(variant.provider.name, limit)
         override suspend fun countTokens(variant: ModelVariant, prompt: String): Int = prompt.length
         override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> {
             prompts += prompt
             generatedBy += variant.provider
+            generatedVariants += variant
             return reply(prompt)
         }
     }
@@ -184,7 +193,7 @@ class AiPlaygroundViewModelTest {
         val ai = FakeAi(gemmaReady = false)
         val viewModel = AiPlaygroundViewModel(ai, FakeSettings(both))
 
-        viewModel.choose(AiProvider.Gemma)
+        viewModel.choose(both.variant(AiProvider.Gemma))
         viewModel.send("Ahoj")
         advanceUntilIdle()
 
@@ -200,7 +209,7 @@ class AiPlaygroundViewModelTest {
 
         viewModel.send("Ahoj")
         advanceUntilIdle()
-        viewModel.choose(AiProvider.Gemma)
+        viewModel.choose(both.variant(AiProvider.Gemma))
         viewModel.regenerate()
         advanceUntilIdle()
 
@@ -209,6 +218,55 @@ class AiPlaygroundViewModelTest {
         assertEquals(AiProvider.Gemma, turn.answer.provider)
         // Znovu se ptá na totéž, bez staré odpovědi v historii.
         assertFalse("Assistant: Odpověď" in ai.prompts.last())
+    }
+
+    /**
+     * Dvě stažené velikosti Qwenu jsou v nabídce obě, i když Nastavení drží jen jednu; nestažená
+     * velikost tam není, ledaže je to ta zvolená. Vybraná velikost pak opravdu odpovídá.
+     */
+    @Test
+    fun nabidkaUkazeVsechnyStazeneVelikosti() = runTest {
+        val models = AiModels(enabled = setOf(AiProvider.GeminiNano, AiProvider.Qwen), qwen = LiteRtModel.Qwen2_5_1_5B)
+        val ai = FakeAi(downloaded = setOf(LiteRtModel.Qwen3_4B, LiteRtModel.Qwen3_0_6B))
+        val viewModel = AiPlaygroundViewModel(ai, FakeSettings(models))
+        backgroundScope.launch { viewModel.models.collect {} }
+        backgroundScope.launch { viewModel.current.collect {} }
+        advanceUntilIdle()
+
+        val offered = viewModel.models.value
+        assertEquals(
+            listOf(models.variant(AiProvider.GeminiNano), LiteRtModel.Qwen3_4B.variant, LiteRtModel.Qwen2_5_1_5B.variant, LiteRtModel.Qwen3_0_6B.variant),
+            offered.map { it.variant },
+        )
+        assertEquals(listOf(true, true, false, true), offered.map { it.ready })
+        assertEquals(listOf(null, "Qwen3 4B", "Qwen2.5 1.5B", "Qwen3 0.6B"), offered.map { it.name })
+
+        viewModel.choose(LiteRtModel.Qwen3_0_6B.variant)
+        advanceUntilIdle()
+        assertEquals(CurrentModel(LiteRtModel.Qwen3_0_6B.variant, automatic = false), viewModel.current.value)
+        viewModel.send("Ahoj")
+        advanceUntilIdle()
+        viewModel.choose(LiteRtModel.Qwen3_4B.variant)
+        viewModel.regenerate()
+        advanceUntilIdle()
+
+        assertEquals(listOf(LiteRtModel.Qwen3_0_6B.variant, LiteRtModel.Qwen3_4B.variant), ai.generatedVariants)
+    }
+
+    /** Velikost vypnutého modelu neplatí: odpovídá automatika. */
+    @Test
+    fun velikostVypnutehoModeluNeplati() = runTest {
+        val ai = FakeAi(downloaded = setOf(LiteRtModel.Qwen3_0_6B))
+        val viewModel = AiPlaygroundViewModel(ai, FakeSettings(nano))
+        backgroundScope.launch { viewModel.models.collect {} }
+        advanceUntilIdle()
+        assertEquals(listOf(AiProvider.GeminiNano), viewModel.models.value.map { it.provider })
+
+        viewModel.choose(LiteRtModel.Qwen3_0_6B.variant)
+        viewModel.send("Ahoj")
+        advanceUntilIdle()
+
+        assertEquals(listOf(AiProvider.GeminiNano), ai.generatedBy)
     }
 
     @Test

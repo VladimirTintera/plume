@@ -9,6 +9,7 @@ import eu.tintera.plume.core.ai.provider
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.ChatExchange
+import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.ai.core.Generated
 import eu.tintera.ai.core.ModelVariant
 import eu.tintera.ai.core.OnDeviceAi
@@ -106,8 +107,18 @@ data class PlaygroundState(
     val generating: Boolean get() = turns.lastOrNull()?.answer?.running == true
 }
 
-/** Zapnutý model v nabídce hřiště a jestli jde hned použít. */
-data class PlaygroundModel(val provider: AiProvider, val ready: Boolean)
+/**
+ * Model v nabídce hřiště a jestli jde hned použít.
+ *
+ * Položka je VARIANTA, ne poskytovatel: kdo má stažené dvě velikosti Qwenu, chce je porovnat
+ * proti sobě, a úlohy v „Co čím počítat" přitom zůstávají po poskytovatelích ([playgroundModels]).
+ */
+data class PlaygroundModel(val variant: ModelVariant, val ready: Boolean) {
+    val provider: AiProvider get() = variant.provider
+
+    /** Jméno souboru u stahovaného modelu („Qwen3 4B"); `null` u systémového, ten nese jméno poskytovatele. */
+    val name: String? get() = variant.model?.displayName
+}
 
 /**
  * Volný rozhovor s modelem v zařízení (Nastavení → AI v zařízení → Vyzkoušet model).
@@ -130,23 +141,21 @@ class AiPlaygroundViewModel(
     val state: StateFlow<PlaygroundState> = _state.asStateFlow()
 
     /** Ručně vybraný model; `null` = ten, komu úlohu dá automatika ([variantFor]). */
-    private val chosen = MutableStateFlow<AiProvider?>(null)
+    private val chosen = MutableStateFlow<ModelVariant?>(null)
 
     /** Stav modelů se čte znovu s každým odesláním a otevřením nabídky — dostahovaný model tok sám nepozná. */
     private val statusTick = MutableStateFlow(0)
 
-    /** Zapnuté modely v pořadí automatiky. */
+    /** Zapnuté modely v pořadí automatiky, u stahovaných i další stažené velikosti ([playgroundModels]). */
     val models: StateFlow<List<PlaygroundModel>> = combine(settings.onDeviceAiModels, statusTick) { models, _ -> models }
-        .mapLatest { models ->
-            models.candidates(AiTask.Chat).map { provider -> PlaygroundModel(provider, ready = isReady(models.variant(provider))) }
-        }
+        .mapLatest { models -> playgroundModels(models) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Kdo odpoví na příští zprávu a jestli je vybraný ručně. */
     val current: StateFlow<CurrentModel?> = combine(chosen, settings.onDeviceAiModels, statusTick) { chosen, models, _ -> chosen to models }
         .mapLatest { (chosen, models) ->
-            val manual = chosen?.takeIf { it in models.enabled }
-            CurrentModel(manual ?: variantOf(null, models).provider, automatic = manual == null)
+            val manual = models.manual(chosen)
+            CurrentModel(manual ?: variantOf(null, models), automatic = manual == null)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -154,8 +163,8 @@ class AiPlaygroundViewModel(
     private var nextId = 1L
 
     /** Model pro další odpovědi; `null` vrátí automatiku. Rozběhnutou odpověď nemění. */
-    fun choose(provider: AiProvider?) {
-        chosen.value = provider
+    fun choose(variant: ModelVariant?) {
+        chosen.value = variant
     }
 
     /** Přečte stav modelů znovu — volá se při otevření nabídky modelů. */
@@ -289,8 +298,37 @@ class AiPlaygroundViewModel(
         }
     }
 
-    private suspend fun variantOf(chosen: AiProvider?, models: AiModels): ModelVariant =
-        chosen?.takeIf { it in models.enabled }?.let(models::variant) ?: ai.variantFor(AiTask.Chat, models)
+    /**
+     * Co nabídnout: zapnuté modely v pořadí automatiky a u stahovaných VŠECHNY velikosti, které
+     * jsou stažené, ne jen ta zvolená v Nastavení. Zvolená je v nabídce i nestažená — odpověď pak
+     * řekne, že chybí —, ostatní jen stažené: nabízet ke zkoušení soubory, které nejsou, by z hřiště
+     * dělalo druhé Nastavení. Velikosti jdou v pořadí katalogu (od největší).
+     */
+    private suspend fun playgroundModels(models: AiModels): List<PlaygroundModel> =
+        models.candidates(AiTask.Chat).flatMap { provider ->
+            val selected = models.variant(provider)
+            val sizes = LiteRtModel.entries.filter { it.provider == provider }.map { it.variant }
+            if (selected !in sizes) {
+                listOf(PlaygroundModel(selected, ready = isReady(selected)))
+            } else {
+                sizes.mapNotNull { variant ->
+                    val ready = isReady(variant)
+                    if (ready || variant == selected) PlaygroundModel(variant, ready) else null
+                }
+            }
+        }
+
+    /**
+     * Ruční volba, která ještě platí: model je zapnutý. Systémový se bere s volbami z Nastavení
+     * (Nano náhled / rychlý), stahovaný s velikostí z nabídky — ta smí být jiná než v Nastavení.
+     */
+    private fun AiModels.manual(chosen: ModelVariant?): ModelVariant? {
+        if (chosen == null || chosen.provider !in enabled) return null
+        return if (chosen.appManaged) chosen else variant(chosen.provider)
+    }
+
+    private suspend fun variantOf(chosen: ModelVariant?, models: AiModels): ModelVariant =
+        models.manual(chosen) ?: ai.variantFor(AiTask.Chat, models)
 
     private suspend fun isReady(variant: ModelVariant): Boolean =
         runCatching { ai.status(variant) }.getOrNull() == OnDeviceAiStatus.Ready
@@ -306,7 +344,12 @@ class AiPlaygroundViewModel(
 }
 
 /** Model pro příští odpověď; [automatic] = vybrala ho automatika, ne uživatel. */
-data class CurrentModel(val provider: AiProvider, val automatic: Boolean)
+data class CurrentModel(val variant: ModelVariant, val automatic: Boolean) {
+    val provider: AiProvider get() = variant.provider
+
+    /** Viz [PlaygroundModel.name]. */
+    val name: String? get() = variant.model?.displayName
+}
 
 /** Kratší psaní se neměří: pár desítek milisekund dělí jen zaokrouhlení a rychlost by vyšla nesmyslná. */
 private const val MIN_MEASURED_MS = 200L
