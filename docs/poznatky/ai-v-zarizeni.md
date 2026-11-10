@@ -878,6 +878,19 @@ Návrh a další fáze: [docs/navrh-konverzace-s-modelem.md](../navrh-konverzace
 - **`AiTask.Chat`** dává výchozí model automatikou (`variantFor`) a řádek v „Co čím počítat";
   čip v hlavičce ho mění jen pro tenhle rozhovor. „Odpovědět znovu" počítá poslední kolo
   aktuálně vybraným modelem — přepnout čip a ťuknout je zatím jediné porovnání.
+- **Nabídka čipu je po SOUBORECH, ne po poskytovatelích** (`playgroundModels`, test
+  `nabidkaUkazeVsechnyStazeneVelikosti`). Zbytek aplikace zná u stahovaného modelu jen jednu
+  velikost — tu z Nastavení (`AiModels.qwen`, `gemma`…) — a „aktivní" znamená zapnutý
+  poskytovatel (`AiModels.enabled`). Kdo si stáhl Qwen3 4B, přepnul na 0,6B a stáhl i ten, měl
+  na disku dva Qweny, ale v hřišti jen „Qwen", a porovnat je nešlo. Teď se u každého zapnutého
+  poskytovatele nabídnou všechny STAŽENÉ velikosti z katalogu (`LiteRtModel`, pořadí katalogu)
+  plus ta zvolená, i nestažená. Ruční volba je `ModelVariant`; u systémového modelu se bere
+  s volbami z Nastavení (Nano náhled / rychlý), u stahovaného přesně ta velikost. Vypnutý
+  poskytovatel se nenabízí, ani když je jeho soubor stažený — zapnout ho je věc Nastavení.
+  Úlohy („Co čím počítat") i „Porovnat s dalšími modely" zůstávají po poskytovatelích: velikost
+  je pro ně volba v Nastavení, ne další model. Engine je jeden, takže přepnutí velikosti znamená
+  model znovu načíst — první odpověď po přepnutí má delší čas do prvního slova.
+  **Neověřeno na zařízení ani přeložením** (kontejner bez Android SDK); jen testy napsané.
 - **Kopírování v obrazovce, ne ve ViewModelu**: `TextClipboard` je `expect class` s platformním
   konstruktorem a ve společných testech by ViewModel nešel založit.
 - **Rozhovor se nikam neukládá** (jen ViewModel). Enter na klávesnici odešle, Shift+Enter zalomí.
