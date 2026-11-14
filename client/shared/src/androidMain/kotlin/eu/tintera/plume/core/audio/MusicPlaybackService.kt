@@ -10,7 +10,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.ServiceOwner
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
-import org.koin.core.context.GlobalContext
 import org.koin.core.component.inject
 
 /**
@@ -38,7 +37,10 @@ import org.koin.core.component.inject
 @OptIn(UnstableApi::class)
 class MusicPlaybackService : MediaSessionService(), KoinComponent {
 
-    override fun getKoin() = GlobalContext.get().primaryAccount()
+    /** Účet, který službu spustil (viz [ServiceOwner]); nastaví ho [MusicControls]. */
+    object Owner : ServiceOwner()
+
+    override fun getKoin() = Owner.koin()
 
     private val slot: AccountSlot by inject()
 
@@ -104,7 +106,9 @@ class MusicPlaybackService : MediaSessionService(), KoinComponent {
  * tedy s aplikací v popředí, a do popředí službu přepne Media3, až skladba hraje. Kdyby se
  * přesto startovalo z pozadí, systém to odmítne výjimkou — ta se jen zaloguje.
  */
-class MusicControls(private val context: Context, private val queue: MusicQueue, private val scope: CoroutineScope) {
+class MusicControls(
+    private val slot: AccountSlot,
+    private val context: Context, private val queue: MusicQueue, private val scope: CoroutineScope) {
 
     private val logger = Logger.withTag("MusicControls")
 
@@ -112,7 +116,8 @@ class MusicControls(private val context: Context, private val queue: MusicQueue,
         scope.launch {
             queue.nowPlaying.map { it != null }.distinctUntilChanged().collect { active ->
                 if (!active) return@collect
-                runCatching { context.startService(Intent(context, MusicPlaybackService::class.java)) }
+                MusicPlaybackService.Owner.slot = slot
+                    runCatching { context.startService(Intent(context, MusicPlaybackService::class.java)) }
                     .onFailure { failure -> logger.w(failure) { "Službu pro hudbu nejde spustit." } }
             }
         }

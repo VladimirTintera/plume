@@ -397,11 +397,14 @@ internal fun MutableList<NavKey>.openSubpage(opener: NavKey, subpage: NavKey) {
  * Obsah routy s účtem ([AccountRoute]) se skládá v kontejneru toho účtu, takže `koinInject`
  * a `koinViewModel` obrazovky míří do něj. Klíč a metadata položky zůstávají. Ostatní routy se
  * skládají v účtu shellu.
+ *
+ * Routa účtu, který mezitím zmizel (odhlášený), neukáže nic: na snímek se může stát, že ji shell
+ * ještě skládá, než se složí znovu pro jiný výchozí účet.
  */
 internal fun ((NavKey) -> NavEntry<NavKey>).inRouteAccount(accounts: Accounts): (NavKey) -> NavEntry<NavKey> = { key ->
     val entry = this(key)
     if (key is AccountRoute) {
-        NavEntry(key, entry.contentKey, entry.metadata) { AccountScope(accounts[key.slot]) { entry.Content() } }
+        NavEntry(key, entry.contentKey, entry.metadata) { accounts.find(key.slot)?.let { AccountScope(it) { entry.Content() } } }
     } else {
         entry
     }

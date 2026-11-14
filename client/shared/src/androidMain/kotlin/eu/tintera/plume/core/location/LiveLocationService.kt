@@ -21,7 +21,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.ServiceOwner
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.notifications.NotificationIntents
@@ -47,7 +47,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
-import org.koin.core.context.GlobalContext
 import org.koin.core.component.inject
 
 /**
@@ -65,7 +64,10 @@ import org.koin.core.component.inject
  */
 class LiveLocationService : Service(), KoinComponent {
 
-    override fun getKoin() = GlobalContext.get().primaryAccount()
+    /** Účet, který službu spustil (viz [ServiceOwner]); nastaví ho [LiveLocationControls]. */
+    object Owner : ServiceOwner()
+
+    override fun getKoin() = Owner.koin()
 
     private val slot: AccountSlot by inject()
 
@@ -241,6 +243,7 @@ class LiveLocationService : Service(), KoinComponent {
  * na pozadí počká, až uživatel aplikaci otevře; do té doby poloha stojí.
  */
 class LiveLocationControls(
+    private val slot: AccountSlot,
     private val context: Context,
     private val repository: LiveLocationRepository,
     private val foreground: AppForeground,
@@ -254,6 +257,7 @@ class LiveLocationControls(
                 .distinctUntilChanged()
                 .collect { start ->
                     if (!start) return@collect
+                    LiveLocationService.Owner.slot = slot
                     runCatching { ContextCompat.startForegroundService(context, Intent(context, LiveLocationService::class.java)) }
                         .onFailure { failure -> logger.w(failure) { "Službu polohy nejde spustit." } }
                 }

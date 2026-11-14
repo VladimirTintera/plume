@@ -2083,6 +2083,9 @@
     <string name="chat_folder_delete_failed">The folder could not be deleted</string>
     <string name="chat_action_folders">Add to folder</string>
     <string name="chats_account">Account and more</string>
+    <string name="accounts_add">Add account</string>
+    <string name="accounts_shown">Shown in the chat list</string>
+    <string name="accounts_already_signed_in">This account is already signed in</string>
     <string name="chats_new">New message</string>
     <string name="chats_create">Create</string>
     <string name="new_chat_title">New message</string>

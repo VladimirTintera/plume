@@ -6,7 +6,8 @@ import android.os.PowerManager
 import co.touchlab.kermit.Logger
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.AccountSession
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.notifications.BackgroundDataWarning
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -14,7 +15,6 @@ import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.PushKind
-import eu.tintera.plume.core.telegram.PushToken
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,11 +54,11 @@ class PlumeMessagingService : FirebaseMessagingService() {
     // Vlastní scope: služba může být systémem zrušená dřív, než TDLib dokončí zpracování.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val repository: NotificationRepository?
-        get() = GlobalContext.getOrNull()?.primaryAccount()?.get()
+    private val accounts: Accounts?
+        get() = GlobalContext.getOrNull()?.getOrNull()
 
     private val journal: CallJournal?
-        get() = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull()
+        get() = GlobalContext.getOrNull()?.getOrNull()
 
     override fun onNewToken(token: String) {
         logger.d { "Nový FCM token." }
@@ -73,10 +73,16 @@ class PlumeMessagingService : FirebaseMessagingService() {
         }
         val payload = message.toTdlibPayload()
 
-        val repository = repository ?: run {
+        val accounts = accounts ?: run {
             logger.w { "Push dorazil dřív, než se nastartoval Koin — ignoruji." }
             return
         }
+        // Komu push patří: s víc účty podle příjemce, se kterým se účet registroval.
+        val account = runBlocking { accounts.pushTarget(accounts.default.value.get<NotificationRepository>().pushReceiverId(payload)) } ?: run {
+            logger.i { "Push nepatří žádnému přihlášenému účtu — ignoruji." }
+            return
+        }
+        val repository = account.get<NotificationRepository>()
 
         // Telegram posílá s vysokou prioritou. Když aplikace po takových pushích opakovaně
         // neukáže notifikaci, FCM jí prioritu sníží a v dozu pak zprávy čekají na údržbové okno.
@@ -98,13 +104,13 @@ class PlumeMessagingService : FirebaseMessagingService() {
             // od pushe, který přišel pozdě, nebo vůbec (`docs/poznatky/notifikace.md`).
             if (call) {
                 journal?.record("Call push, sent ${System.currentTimeMillis() - message.sentTime} ms ago, priority ${message.priority}/${message.originalPriority}; ${environment()}")
-                watchConnection()
+                watchConnection(account)
             }
             // Hovor zvoní jen do zvednutí (desítky vteřin) a dozvědět se o něm jde jen od serveru:
             // spojení se otevře hned, ne až na timeout mrtvých soketů z doby před zmrazením.
             if (call && !repository.awaitIncomingCall(Duration.ZERO)) {
                 journal?.record("Call not known yet, reconnecting")
-                reconnect()
+                reconnect(account)
             }
             val callKnown = !call || repository.awaitIncomingCall(DELIVERY_TIMEOUT - started.elapsedNow())
             if (call) {
@@ -121,7 +127,7 @@ class PlumeMessagingService : FirebaseMessagingService() {
                 // hovor, ke kterému se spojení ještě neotevřelo — na obojí se čeká v úloze, ve
                 // které systém proces nezmrazí.
                 logger.i { "Push${if (call) " hovoru" else ""} se nestihl vyřídit do $DELIVERY_TIMEOUT, dočkám se v úloze." }
-                NotificationDeliveryWorker.enqueue(applicationContext, call = call && !callKnown)
+                NotificationDeliveryWorker.enqueue(applicationContext, account.slot, call = call && !callKnown)
             }
         }
     }
@@ -151,9 +157,9 @@ class PlumeMessagingService : FirebaseMessagingService() {
      * Stav spojení TDLib do deníku po dobu, kdy se na hovor z pushe čeká (služba, pak úloha) —
      * ať je u zmeškaného hovoru vidět, jestli se TDLib k serveru vůbec dostal.
      */
-    private fun watchConnection() {
+    private fun watchConnection(account: AccountSession) {
         val journal = journal ?: return
-        val connection = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<ConnectionRepository>() ?: return
+        val connection = account.get<ConnectionRepository>()
         scope.launch {
             withTimeoutOrNull(CONNECTION_WATCH) {
                 connection.state.collect { journal.record("TDLib connection: $it") }
@@ -163,13 +169,13 @@ class PlumeMessagingService : FirebaseMessagingService() {
 
     private suspend fun checkBackgroundData() {
         val blocked = BackgroundDataWarning.check(applicationContext) ?: return
-        val permission = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<NotificationPermission>() ?: return
+        val permission = GlobalContext.getOrNull()?.getOrNull<NotificationPermission>() ?: return
         if (blocked) journal?.record("Background data blocked on a metered network: calls on mobile data cannot ring")
         if (BackgroundDataWarning.report(applicationContext, permission, blocked)) logger.i { "Upozornění na zablokovaná data na pozadí ukázané." }
     }
 
-    private suspend fun reconnect() {
-        GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<ConnectionController>()?.reconnect("Push hovoru")
+    private suspend fun reconnect(account: AccountSession) {
+        account.get<ConnectionController>().reconnect("Push hovoru")
     }
 
     /**
@@ -186,9 +192,10 @@ class PlumeMessagingService : FirebaseMessagingService() {
         return json.toString()
     }
 
+    /** Nový token pro všechny účty; každý s vlastní registrací ([PushRegistrar]). */
     private fun registerToken(token: String) {
-        val repository = repository ?: return
-        scope.launch { repository.registerDevice(PushToken.Firebase(token)) }
+        val accounts = accounts ?: return
+        accounts.all.value.forEach { account -> scope.launch { PushRegistrar(accounts, account).register(token) } }
     }
 
     private companion object {

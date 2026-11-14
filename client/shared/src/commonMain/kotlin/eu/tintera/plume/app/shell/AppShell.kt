@@ -1,6 +1,7 @@
 package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.CallAccountScope
 import eu.tintera.plume.core.accounts.LocalAccount
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.features.stories.StoryEditTarget
@@ -308,7 +309,13 @@ fun AppShell(modifier: Modifier = Modifier) {
 
     LaunchedEffect(openRequest) {
         val request = openRequest ?: return@LaunchedEffect
+        // Chat jiného účtu: shell ukazuje výchozí účet, takže se výchozím stane účet chatu
+        // a požadavek vyřídí jeho shell (tenhle se se změnou výchozího účtu složí znovu).
         // Notifikace nebo zástupce můžou přežít odhlášení svého účtu; pak není co otevřít.
+        if (request.slot != slot && accounts.all.value.any { it.slot == request.slot }) {
+            accounts.setDefault(request.slot)
+            return@LaunchedEffect
+        }
         if (accounts.find(request.slot) != null) navigation.openChat(request.slot, request.chatId, request.topicId)
         chatOpenRequests.consume(request)
     }
@@ -352,7 +359,13 @@ fun AppShell(modifier: Modifier = Modifier) {
 
     LaunchedEffect(confirmShareKey) {
         val chatId = confirmShare?.targetChatId ?: return@LaunchedEffect
-        navigation.openShareTo(confirmShare.targetSlot ?: slot, chatId)
+        // Sdílení do chatu jiného účtu vyřídí shell toho účtu, jako otevření chatu výš.
+        val target = confirmShare.targetSlot ?: slot
+        if (target != slot) {
+            accounts.setDefault(target)
+            return@LaunchedEffect
+        }
+        navigation.openShareTo(target, chatId)
     }
 
     // Výška pruhu hovoru / videochatu i se stavovou lištou; 0 = pruh není. Naráz je jen jeden
@@ -384,14 +397,15 @@ fun AppShell(modifier: Modifier = Modifier) {
             ),
         )
         // Probíhající hovor nad vším — přes celou obrazovku, nebo zmenšený do pruhu nahoře.
-        CallOverlay(Modifier.align(Alignment.TopCenter), onBarHeight = { callBarHeight = it })
+        // Hovor může patřit jinému účtu než shellu; je jen jeden naráz.
+        CallAccountScope { CallOverlay(Modifier.align(Alignment.TopCenter), onBarHeight = { callBarHeight = it }) }
         // Videochat, ze kterého uživatel odešel jen z obrazovky — pruh na stejném místě.
         VideoChatOverlay(
             onOpen = { chatId, groupCallId -> navigation.openVideoChat(slot, chatId, groupCallId) },
             modifier = Modifier.align(Alignment.TopCenter).onSizeChanged { videoChatBarHeight = it.height },
         )
         // Hodnocení po hovoru, o které server požádal; až obrazovka hovoru zmizí.
-        CallRatingHost()
+        CallAccountScope { CallRatingHost() }
     }
 }
 

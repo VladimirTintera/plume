@@ -35,7 +35,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import eu.tintera.plume.resources.common_close
+import eu.tintera.plume.resources.close_24dp
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -173,10 +178,16 @@ import org.jetbrains.compose.resources.stringResource
  * Obsah se scrolluje a bere `safeDrawing` i `imePadding`: na nízkém okně naležato se
  * s otevřenou klávesnicí nevejde ani samotné pole s tlačítkem.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AuthScreen(
     viewModel: AuthViewModel,
     modifier: Modifier = Modifier,
+    /**
+     * Zavřít přihlášení: jen u přidávaného účtu, odkud je kam se vrátit. Přihlášení jediného
+     * účtu ho nemá, za ním žádná aplikace není.
+     */
+    onClose: (() -> Unit)? = null,
 ) {
     val stage by viewModel.stage.collectAsStateWithLifecycle()
     // Text polí je Compose stav ve ViewModelu, ne StateFlow — viz `AuthViewModel.input`.
@@ -230,6 +241,16 @@ fun AuthScreen(
         isBackEnabled = showingProxy,
         onBackCompleted = { showingProxy = false },
     )
+
+    // Přidávaný účet: zpět z prvního kroku přidání zruší. Z dalších kroků se jde nejdřív zpátky
+    // k číslu (handler výš), podmínky se proto vylučují.
+    if (onClose != null) {
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            isBackEnabled = !stage.canGoBack() && !busy && !showingProxy,
+            onBackCompleted = { if (imeVisible) keyboard?.hide() else onClose() },
+        )
+    }
 
     Box(modifier.fillMaxSize()) {
     // Plocha okna aplikace (`surfaceContainer`, na ní leží i seznam chatů), ne `surface`: na
@@ -414,6 +435,17 @@ fun AuthScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (onClose != null && !showingProxy) {
+        IconButton(
+            onClick = onClose,
+            enabled = !busy,
+            shapes = IconButtonDefaults.shapes(),
+            modifier = Modifier.safeDrawingPadding().padding(8.dp),
+        ) {
+            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
         }
     }
 

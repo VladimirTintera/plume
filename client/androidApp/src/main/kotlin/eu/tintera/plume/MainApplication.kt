@@ -3,7 +3,7 @@ package eu.tintera.plume
 import android.app.Application
 import android.content.Context
 import com.google.android.play.core.splitcompat.SplitCompat
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.locale.LegacyAppLanguage
 import eu.tintera.plume.di.startKoin
 import org.koin.android.ext.koin.androidContext
@@ -33,7 +33,7 @@ class MainApplication : Application() {
 
         // Registrace pro push je Android specifická (potřebuje Firebase), takže žije tady,
         // ne ve sdíleném modulu.
-        val koin = GlobalContext.get().primaryAccount()
-        PushRegistrar(session = koin.get(), repository = koin.get()).start()
+        val accounts = GlobalContext.get().get<Accounts>()
+        accounts.forEachOpened { account -> PushRegistrar(accounts, account).start() }
     }
 }

@@ -124,6 +124,14 @@ interface TelegramSession {
 
     suspend fun logOut(): Result<Unit>
 
+    /**
+     * Ukončí klienta účtu natrvalo, bez náhrady: účet z aplikace mizí (odhlášený vedle jiných
+     * účtů, nebo zrušené přidání účtu). S [destroy] TDLib zahodí i data, jinak klienta jen
+     * zavře. Vrátí se, až je klient zavřený (nejdéle po pár sekundách), takže pak jde smazat
+     * jeho adresář.
+     */
+    suspend fun shutdown(destroy: Boolean) {}
+
     /** Přihlášený účet. Dává smysl až v [AuthStage.Ready]. */
     suspend fun me(): Result<AccountInfo>
 }

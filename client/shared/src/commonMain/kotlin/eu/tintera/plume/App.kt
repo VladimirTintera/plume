@@ -1,6 +1,8 @@
 package eu.tintera.plume
 
-import eu.tintera.plume.core.accounts.PrimaryAccountScope
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.DefaultAccountScope
 import eu.tintera.plume.features.notices.AccountNoticesHost
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.focusGroup
@@ -12,6 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.platform.LocalFocusManager
@@ -103,7 +108,7 @@ fun SettingsTheme(content: @Composable () -> Unit) {
  */
 @Composable
 fun AppRoot(content: @Composable () -> Unit) {
-    PrimaryAccountScope { AppRootContent(content) }
+    AppRootContent(content)
 }
 
 @Composable
@@ -127,74 +132,100 @@ private fun AppRootContent(content: @Composable () -> Unit) {
             PrivacyCover(enabled = lockSettings != null, color = MaterialTheme.colorScheme.background)
             // Desktop: odznak nepřečtených na hlavním panelu v barvách motivu.
             AppIconBadgeColors()
-            val authViewModel: AuthViewModel = koinViewModel()
-            val stage by authViewModel.stage.collectAsStateWithLifecycle()
+            // Obsah po přihlášení patří výchozímu účtu; se změnou výchozího účtu se složí znovu.
+            DefaultAccountScope {
+                val authViewModel: AuthViewModel = koinViewModel()
+                val stage by authViewModel.stage.collectAsStateWithLifecycle()
 
-            // Přihlášená část je pryč z kompozice, takže je chvíle uklidit, co přežívá mimo ni.
-            val knownImagePaths = koinInject<KnownImagePaths>()
-            LaunchedEffect(stage is AuthStage.Ready) {
-                if (stage !is AuthStage.Ready) {
-                    knownImagePaths.forget()
-                    forgetStickerAnimations()
-                }
-            }
-
-            // Jazykový balíček Telegramu podle jazyka aplikace — po přihlášení i po změně jazyka
-            // (proces ji přežije, mění se jen konfigurace a s ní `Locale.current`).
-            val session = koinInject<TelegramSession>()
-            val language = androidx.compose.ui.text.intl.Locale.current.toLanguageTag()
-            LaunchedEffect(stage is AuthStage.Ready, language) {
-                if (stage is AuthStage.Ready) session.syncLanguagePack(language)
-            }
-
-            AnimatedContent(
-                targetState = stage is AuthStage.Ready,
-                label = "root",
-            ) { signedIn ->
-                if (signedIn) {
-                    Box(Modifier.fillMaxSize()) {
-                        val covered = lockState is AppLockState.Locked || lockState == AppLockState.Unknown
-                        // Fokus, který už v obsahu je (rozepsaná zpráva), `Inert` nevyžene.
-                        val focusManager = LocalFocusManager.current
-                        LaunchedEffect(covered) { if (covered) focusManager.clearFocus(force = true) }
-                        val autoDownload by koinInject<AutoDownloadPolicy>().limits.collectAsStateWithLifecycle()
-                        Box(Modifier.fillMaxSize().then(if (covered) Inert else Modifier)) {
-                            CompositionLocalProvider(
-                                LocalAutoDownload provides autoDownload,
-                                LocalMessageTextSize provides messageTextSize,
-                                LocalChatPreviewLines provides chatPreviewLines,
-                                LocalChatRowGaps provides chatRowGaps,
-                                LocalStickerSize provides stickerSize,
-                            ) {
-                                content()
-                            }
-                        }
-
-                        // Dialogy od Telegramu (oznámení, podmínky) až nad odemčený obsah — pod
-                        // zámkem by z nich byl vidět text, který zámek chrání.
-                        if (!covered) AccountNoticesHost()
-
-                        if (covered) {
-                            // Kryt v hlavním okně: okno zámku se ukáže až s animací a během
-                            // prvního čtení záznamu (Unknown) žádné není. Obsah pod ním se
-                            // nesmí mihnout.
-                            Surface(
-                                modifier = Modifier.fillMaxSize(),
-                                color = MaterialTheme.colorScheme.background,
-                            ) {}
-                        }
-                        if (lockState is AppLockState.Locked) {
-                            val returnToCaller = rememberReturnToCaller()
-                            LockWindow(onBack = returnToCaller) {
-                                LockScreen(appLock = appLock)
-                            }
-                        }
+                // Přihlášená část je pryč z kompozice, takže je chvíle uklidit, co přežívá mimo ni.
+                val knownImagePaths = koinInject<KnownImagePaths>()
+                LaunchedEffect(stage is AuthStage.Ready) {
+                    if (stage !is AuthStage.Ready) {
+                        knownImagePaths.forget()
+                        forgetStickerAnimations()
                     }
-                } else {
-                    AuthScreen(viewModel = authViewModel)
+                }
+
+                // Jazykový balíček Telegramu podle jazyka aplikace — po přihlášení i po změně jazyka
+                // (proces ji přežije, mění se jen konfigurace a s ní `Locale.current`).
+                val session = koinInject<TelegramSession>()
+                val language = androidx.compose.ui.text.intl.Locale.current.toLanguageTag()
+                LaunchedEffect(stage is AuthStage.Ready, language) {
+                    if (stage is AuthStage.Ready) session.syncLanguagePack(language)
+                }
+
+                AnimatedContent(
+                    targetState = stage is AuthStage.Ready,
+                    label = "root",
+                ) { signedIn ->
+                    if (signedIn) {
+                        Box(Modifier.fillMaxSize()) {
+                            val covered = lockState is AppLockState.Locked || lockState == AppLockState.Unknown
+                            // Fokus, který už v obsahu je (rozepsaná zpráva), `Inert` nevyžene.
+                            val focusManager = LocalFocusManager.current
+                            LaunchedEffect(covered) { if (covered) focusManager.clearFocus(force = true) }
+                            val autoDownload by koinInject<AutoDownloadPolicy>().limits.collectAsStateWithLifecycle()
+                            Box(Modifier.fillMaxSize().then(if (covered) Inert else Modifier)) {
+                                CompositionLocalProvider(
+                                    LocalAutoDownload provides autoDownload,
+                                    LocalMessageTextSize provides messageTextSize,
+                                    LocalChatPreviewLines provides chatPreviewLines,
+                                    LocalChatRowGaps provides chatRowGaps,
+                                    LocalStickerSize provides stickerSize,
+                                ) {
+                                    content()
+                                }
+                                // Přihlášení dalšího účtu přes obsah; pod zámkem s ním (Inert, kryt).
+                                AddAccountHost()
+                            }
+
+                            // Dialogy od Telegramu (oznámení, podmínky) až nad odemčený obsah — pod
+                            // zámkem by z nich byl vidět text, který zámek chrání.
+                            if (!covered) AccountNoticesHost()
+
+                            if (covered) {
+                                // Kryt v hlavním okně: okno zámku se ukáže až s animací a během
+                                // prvního čtení záznamu (Unknown) žádné není. Obsah pod ním se
+                                // nesmí mihnout.
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = MaterialTheme.colorScheme.background,
+                                ) {}
+                            }
+                            if (lockState is AppLockState.Locked) {
+                                val returnToCaller = rememberReturnToCaller()
+                                LockWindow(onBack = returnToCaller) {
+                                    LockScreen(appLock = appLock)
+                                }
+                            }
+                        }
+                    } else {
+                        AuthScreen(viewModel = authViewModel)
+                    }
                 }
             }
         }
     }
 }
 
+
+/**
+ * Přihlášení přidávaného účtu (`Accounts.adding`) přes celou plochu, se zavřením, které přidání
+ * zruší. Žije v kontejneru přidávaného účtu; ViewModel přihlášení má klíč se slotem, jinak by
+ * našel ViewModel přihlášení výchozího účtu.
+ */
+@Composable
+private fun AddAccountHost() {
+    val accounts = koinInject<Accounts>()
+    val adding by accounts.adding.collectAsStateWithLifecycle()
+    val account = adding ?: return
+    val scope = rememberCoroutineScope()
+    key(account.slot) {
+        AccountScope(account) {
+            AuthScreen(
+                viewModel = koinViewModel(key = "auth-${account.slot.id}"),
+                onClose = { scope.launch { accounts.cancelAdd() } },
+            )
+        }
+    }
+}

@@ -10,7 +10,7 @@ import eu.tintera.plume.core.logging.CrashlyticsBridge
 import eu.tintera.plume.core.logging.IosCrashReporter
 import eu.tintera.plume.core.logging.IosCrashReporting
 import eu.tintera.plume.core.navigation.IosLinks
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.defaultAccount
 import eu.tintera.plume.di.startKoin
 
 /**
@@ -45,8 +45,8 @@ fun initKoin(crashlytics: CrashlyticsBridge?) {
         reporter.installUnhandledExceptionHook()
         IosCrashReporting.reporter = reporter
     }
-    // Kontejner primárního účtu: co v něm není, Koin hledá v globální části.
-    val koin = startKoin { }.koin.primaryAccount()
+    // Kontejner výchozího účtu (víc účtů na iOS je fáze 2): co v něm není, Koin hledá v globální části.
+    val koin = startKoin { }.koin.defaultAccount()
     IosNotificationCenter.install(koin)
     IosPush.start(koin)
     IosLinks.start(koin)

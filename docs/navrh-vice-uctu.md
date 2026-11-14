@@ -1,6 +1,6 @@
 # Návrh: víc účtů naráz
 
-> **Stav:** fáze 0 hotová (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> **Stav:** fáze 0 hotová, z fáze 1 přidání, odebrání a přepnutí účtu (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
 > stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
@@ -491,21 +491,82 @@ Fáze 0 jde po krocích, každý v aplikaci beze změny chování:
      kdokoli. Sdílení přes takového zástupce se zahodí.
    - Komu definice patří, řekne `get<AccountSlot>()` v kontejneru účtu.
 
+Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
+
+1. **Start po účtech a služby přes všechny účty** — hotovo:
+   - Klienta TDLib startuje `Accounts` s kontejnerem účtu; co má běžet s účtem od startu procesu
+     (presenter notifikací, `ConnectionController`, úklid úložiště, automatické stahování,
+     registrace pushů), startuje aplikace přes `Accounts.forEachOpened`, i pro účet přidaný
+     později.
+   - **Každý účet má vlastní scope** podaný v kontejneru jako `APP_SCOPE`
+     (`accountScopeModule`), takže se s odebraným účtem zastaví i jeho odběry. Globální scope
+     by je nechal běžet nad zavřeným klientem.
+   - Služby v popředí (hovor, hudba, poloha, videochat) berou účet, který je spustil
+     (`ServiceOwner`): ovládání v kontejneru účtu nastaví slot těsně před `startService`, protože
+     služba si závislosti bere líně už v `onCreate`, dřív než dorazí intent.
+   - Push: `registerDevice` za každý účet s `other_user_ids` ostatních, `PushReceiverId` se ukládá
+     ke slotu (do seznamu účtů, push budí i mrtvý proces). Push jde účtu podle
+     `getPushReceiverId`, s jediným účtem jako dřív i bez známého příjemce. Ověřeno na Pixelu 5
+     se dvěma účty: zpráva od bota do zabitého procesu přišla každému účtu jako jeho notifikace
+     (druhý účet s tagem slotu, primární bez tagu), obě vedle sebe.
+   - Notifikace mají tag podle slotu (primární bez tagu), úklid po odhlášení maže jen notifikace,
+     kanály konverzací a zkratky toho účtu. Zvukové kanály účet v názvu nenesou, takže se mažou
+     až s posledním účtem.
+   - Zámek aplikace patří zařízení: zahodí se až s odhlášením posledního účtu.
+   - Okna a pruhy hovoru (`CallAccountScope`) se skládají v účtu, který volá.
+2. **Seznam účtů, přidání a odebrání** — hotovo (`Accounts`, `AccountsTest`):
+   - Seznam je v `accounts/accounts.json` (`AccountRegistry`), ne v `AppSettings`: potřebuje
+     ho vrstva kolem TDLib dřív, než vznikne cokoli z aplikace. Chybějící nebo nečitelný soubor
+     znamená jen primární účet, takže se dnešní instalace nemusí nikam stěhovat.
+   - Přidávaný účet (`adding`) má vlastní slot a kontejner, ale do seznamu přijde až v `Ready`.
+     Účet, který v aplikaci už je, se pozná podle user id a odhlásí se (`alreadySignedIn`); QR kód
+     to zastaví sám (`other_user_ids` z `TelegramSession`).
+   - Odhlášený účet vedle jiných zmizí: po odhlášení TDLib vyrobí klienta u zadání čísla
+     (`WaitPhoneNumber`), ten se ukončí (`TelegramSession.shutdown`, `destroy`) a smažou se
+     adresáře i klíč. Poslední účet zůstává a ukáže přihlášení jako dřív.
+   - **Kontejner se nezavírá** (`KoinApplication.close`): obrazovka, která ho ještě skládá, by si
+     z něj při rekompozici brala instance a spadla. Práci zastaví zrušený scope, zbytek uklidí GC.
+   - Globální definice nesmí `Accounts` chtít při vzniku, ani nepřímo: `CallMedia` vzniká uvnitř
+     otevírání kontejneru (eager `TdlCallRepository` si ho bere z globálu) a sahala na `Accounts`
+     hned. Aplikace pak padala při startu na kontrole „Accounts se otevírá znovu".
+3. **Menu účtů a přepnutí** — hotovo:
+   - Menu účtu ukáže s víc účty přihlášené účty (fotka, jméno, fajfka u zobrazeného) a „Přidat
+     účet" vedle Můj QR kód. Ťuknutí na účet ho nastaví jako výchozí. Na iOS „Přidat účet" není
+     (`canAddAccounts`, fáze 2).
+   - **Seznam chatů zatím ukazuje jen výchozí účet**: filtr s režimem Vše je krok 4. Shell se
+     skládá ve `DefaultAccountScope` a se změnou výchozího účtu se složí znovu od kořene.
+   - **ViewModely mají úložiště po účtech** (`AccountViewModels`): `koinViewModel()` bez klíče
+     hledá podle třídy a kořenové obrazovky by po přepnutí dostaly ViewModel předchozího účtu.
+   - Otevření chatu a sdílení do chatu jiného účtu (notifikace, zástupce) napřed přepne výchozí
+     účet; požadavek pak vyřídí shell toho účtu. Díky tomu jsou v zásobníku jen routy jednoho
+     účtu a porovnávání podle id chatu (`closeChat`, `isOpenConversation`) zatím stačí.
+   - Přihlášení přidávaného účtu jde přes celou plochu nad shellem a zavírá se křížkem nebo zpět
+     z prvního kroku (`AuthScreen(onClose)`), což přidání zruší i s daty.
+   - **Ověřeno na Pixelu 5** (účty …527 a …029): aktualizace přes stávající instalaci nechala
+     účet jako primární slot, přidání druhého účtu číslem, přepínání v menu oběma směry,
+     notifikace druhého účtu a ťuknutí na ni (přepne účet a otevře chat), zrušení přidání
+     i úklid osiřelého slotu při startu. Odhlášení druhého účtu z jeho Nastavení: TDLib ho
+     odhlásil, úklid smazal jeho notifikace a zkratky, nový klient u zadání čísla se ukončil
+     natrvalo, slot zmizel ze seznamu i z disku a shell se složil znovu pro zbylý účet.
+     **Neověřené:** desktop.
+
 **Zbývá pro fázi 1:**
-   - **Kdo bere primární účet výslovně, je najít podle jména** `primaryAccount()`:
-     push a registrace zařízení (směrování podle `PushReceiverId`), služby hovoru, hudby, polohy
-     a videochatu, úlohy na pozadí (popis fotek), přijímače hodinek. `PrimaryAccountScope` berou
-     shell a okna na desktopu. Hovor z notifikace (`CallRequests`) slot nenese, patří k hovorům
-     přes všechny účty.
-   - Odkazy `tg://` a `t.me` jdou do účtu shellu, později výchozího (podle návrhu).
-   - Tag notifikace a zvukové kanály slot ještě nemají, konverzační kanál ho má přes id zkratky.
-   - Widget má jeden soubor podkladů a miniatury maže jeden updater: se dvěma účty by se přepisovaly.
+   - **Krok 4: společný seznam chatů** (filtr účtů, režim Vše, odznak účtu u řádku). S ním
+     musí hledání a mazání v zásobníku porovnávat i slot (`closeChat`, `isOpenConversation`…)
+     a routy odebraného účtu ze zásobníku zmizet.
+   - **Text notifikace má jmenovat účet** (`setSubText`) a zvukové kanály dostat slot do jména.
+   - Odkazy `tg://` a `t.me` jdou do výchozího účtu; pozvánka a přihlášení na webu se mají ptát.
+   - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
+     účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
+     Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
+     výchozí účet.
+   - **Hovor přes všechny účty je jeden**, ale nic to nevynucuje: příchozí hovor do druhého účtu
+     během hovoru má být „obsazeno". `MusicQueue` je v každém účtu vlastní a hraje jedním
+     přehrávačem; dvě fronty naráz se přetahují. Videochat jiného účtu než výchozího nemá pruh.
+   - Widget má jeden soubor podkladů a miniatury maže jeden updater: se dvěma účty by se
+     přepisovaly. Cíle sdílení (Direct Share) se publikují za každý účet zvlášť.
+   - Online (`setOption online`) mají v popředí všechny účty, ne jen ty ve filtru.
+   - Volby `AppSettings`, které patří účtu (`confirmed_web_app_bots`…), zatím slot nemají.
+   - Hodinky si přihlášení potvrzují výchozím účtem telefonu.
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
-   - Stránky bez id zatím slot nemají a skládají se v účtu shellu: stránky nastavení účtu
-     (`EditProfileRoute`, `TwoStepRoute`…), `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`,
-     `MyStoriesRoute`, `NewChatRoute`. Určí to UI nastavení po účtech.
-   - **Hledání a mazání v zásobníku porovnává jen id chatu** (`closeChat`, `isOpenConversation`…).
-     Se dvěma účty musí porovnávat i slot.
-   - **V části účtu je pár věcí, které mají být jednou na proces**: `MusicQueue` (návrh: hraje
-     jedna skladba, položka nese slot), `TelecomCallBridge` a služby hovoru (jeden hovor přes
-     všechny účty). S jedním účtem to nevadí, s druhým by hrály a zvonily dvakrát.
+   - Kolik paměti a baterie stojí další klient TDLib, změřit.
