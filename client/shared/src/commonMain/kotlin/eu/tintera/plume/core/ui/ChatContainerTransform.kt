@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.core.accounts.LocalAccount
+
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -36,8 +38,12 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
  * a obrazovka chatu je celá v ní.
  */
 
-/** Klíč páru řádek seznamu ↔ obrazovka chatu. */
-fun chatContainerKey(chatId: Long): String = "chat-container-$chatId"
+/**
+ * Klíč páru řádek seznamu ↔ obrazovka chatu, s účtem: ve společném seznamu víc účtů je tentýž
+ * chat dvakrát (chat s týmž člověkem, společná skupina), jako u [chatAvatarKey].
+ */
+@Composable
+fun chatContainerKey(chatId: Long): String = "chat-container-${LocalAccount.current.slot.id}-$chatId"
 
 /**
  * Řádek seznamu chatů, ze kterého se chat otevírá: [container] patří na plochu řádku,
@@ -67,7 +73,7 @@ fun rememberChatContainerSource(chatId: Long): ChatContainerSource {
     val shared = LocalSharedTransitionScope.current ?: return NoChatContainerSource
     if (LocalPanesSideBySide.current) return NoChatContainerSource
     val scope = LocalNavAnimatedContentScope.current
-    val state = with(shared) { rememberSharedContentState(key = chatContainerKey(chatId)) }
+    val state = with(shared) { rememberSharedContentState(key = sharedKey(chatContainerKey(chatId))) }
     val contentAlpha = scope.transition.animateFloat(
         transitionSpec = {
             if (targetState == EnterExitState.Visible) {
@@ -150,7 +156,7 @@ fun ChatContainer(chatId: Long, fromList: Boolean, content: @Composable () -> Un
         label = "chat-container-plain-alpha",
     ) { if (it == EnterExitState.Visible) 1f else 0f }
     val transition = scope.transition
-    val state = with(shared) { rememberSharedContentState(key = chatContainerKey(chatId)) }
+    val state = with(shared) { rememberSharedContentState(key = sharedKey(chatContainerKey(chatId))) }
     val modifier = with(shared) {
         Modifier.fillMaxSize().sharedBounds(
             sharedContentState = state,

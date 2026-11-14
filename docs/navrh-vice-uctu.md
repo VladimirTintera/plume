@@ -384,8 +384,8 @@ intenty, zástupci a připomenutí fungují dál.
 ## Výkon a paměť
 
 - **Každý účet je živý klient TDLib:** vlastní spojení, vlastní databáze a vlastní vlákno pro
-  síť. Paměť i baterie rostou s počtem účtů. Kolik přesně, je potřeba změřit (heap dump
-  a `dumpsys meminfo` s jedním a třemi účty, viz `docs/poznatky/vykon.md`).
+  síť. Paměť i baterie rostou s počtem účtů — změřeno v kroku 15 (asi 22 MB nativní paměti
+  a desítky milisekund startu na účet; baterie změřená není).
 - **Online (volba `online`) mají v popředí všechny účty ve filtru.** Uživatel jejich chaty
   vidí, takže je online i pro protějšky. Účet mimo filtr online není. Typ sítě
   (`setNetworkType`) dostávají všechny. Při přihlášení nového klienta se pošle hned, ne až
@@ -791,6 +791,38 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       Opustit → pruh i služba pryč. Ve skupině po sondě zůstanou servisní zprávy. Souběh
       s hovorem a „Zavěsit" v notifikaci vyzkoušené nejsou.
 
+15. **Měření paměti a startu** — hotovo (Pixel 5, Android 14, 7,3 GB RAM; postupy viz
+    `docs/poznatky/vykon.md`, „Víc účtů: paměť a start"):
+
+    | | 2 účty | 3 účty |
+    |---|---|---|
+    | Nativní halda (`alloc`, debug build po GC) | ~61 MB | ~83 MB |
+    | Java halda | ~21 MB | ~21 MB |
+    | PSS procesu | ~294 MB | ~320 MB |
+    | Seznam chatů hotový („Fully drawn", medián) | 971 ms | 1 037 ms |
+    | Všechny TDLib připravené (`AuthorizationState -> Ready`) | 328 ms | 402 ms |
+    | Všechny účty připojené (`ConnectionState -> Ready`) | 530 ms | 646 ms |
+
+    - **Další účet stojí asi 22 MB nativní paměti** (klient TDLib s databází a spojeními);
+      Java halda se nemění. Třetí účet (osobní) byl čerstvě přihlášený s databází 21 MB, takže
+      u účtu s načtenými chaty bude číslo o něco vyšší.
+    - **Start se s účty skoro neprodlužuje**: klienti startují souběžně, třetí účet přidal
+      ~70 ms do připravenosti a ~120 ms do připojení. Dřívější „3,7 s do Ready" bylo naměřené na
+      debug buildu a se studeným startem bez `speed` kompilace — srovnatelné není.
+    - **Společný seznam proti seznamu jednoho účtu** (dva účty, týž build): hotový za 971 proti
+      833 ms; rozdíl je v rozptylu měření (jednotlivé běhy 767–1076 ms).
+    - Limit tří účtů tím pádem není otázka paměti; zvednout ho jde, až bude proč.
+    - **Měřením se našly dvě chyby, opravené tamtéž:**
+      - Společný seznam neohlásil „Fully drawn" (`ReportDrawnWhen` měl jen seznam jednoho
+        účtu) — v režimu Všechny účty Play vitals start nikdy neviděly hotový.
+      - **Změna výchozího účtu v režimu Všechny účty shodila aplikaci** (volba účtu v menu
+        i přihlášení dalšího účtu, které ho udělá výchozím): `DefaultAccountScope` přes
+        `key(slot)` složí celý shell znovu a starý i nový shell měly ve snímku výměny stejné
+        klíče sdílených prvků (avatar, název, plocha řádku). `SharedTransitionStateMachine.
+        configureActiveMatch` pak spadl na `targetBoundsProvider!!`. Klíče teď nesou instanci
+        shellu (`LocalSharedElementGeneration`, `sharedKey`) a klíč plochy řádku i účet
+        (`chatContainerKey`), jako avatar a název.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
@@ -804,6 +836,4 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
    - Volby `AppSettings`, které patří účtu (`confirmed_web_app_bots`…), zatím slot nemají.
    - Hodinky si přihlášení potvrzují výchozím účtem telefonu.
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
-   - Kolik paměti a baterie stojí další klient TDLib, změřit. I start: na Pixelu 5 (debug build)
-     se dvěma účty došly oba klienty do `Ready` za 3,7 s od startu a do té doby je vidět
-     „Připojování"; srovnání s jedním účtem na tomtéž zařízení chybí.
+   - Kolik baterie stojí další klient TDLib, změřené není (paměť a start viz krok 15).
