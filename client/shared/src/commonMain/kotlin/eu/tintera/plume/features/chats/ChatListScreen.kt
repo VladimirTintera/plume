@@ -623,7 +623,7 @@ fun ChatListScreen(
             val padding = PaddingValues(
                 top = scaffoldPadding.calculateTopPadding(),
                 bottom = scaffoldPadding.calculateBottomPadding() +
-                    (if (folderTabs.isEmpty()) FAB_CLEARANCE else FAB_CLEARANCE_WITH_FOLDERS) +
+                    FAB_CLEARANCE +
                     with(LocalDensity.current) { playerHeight.toDp() },
             )
             Box(Modifier.fillMaxSize()) {
@@ -1376,17 +1376,10 @@ private val FAB_MARGIN = 16.dp
 
 
 /**
- * O kolik se prodlužuje spodek seznamu kvůli FAB: jeho výška (56 dp), odsazení od okraje
- * a trochu vzduchu, aby poslední chat nekončil těsně pod ním.
+ * O kolik se prodlužuje spodek seznamu kvůli FAB: jeho pás (80 dp, se složkami i bez nich, viz
+ * `NewChatFabMenu`), odsazení od okraje a trochu vzduchu, aby poslední chat nekončil těsně pod ním.
  */
-private val FAB_CLEARANCE = 56.dp + FAB_MARGIN + 8.dp
-
-
-/**
- * Totéž s lištou složek: lišta s FAB je vysoká jako sbalený FAB (80 dp), aby při jeho
- * nafouknutí neposkočila.
- */
-private val FAB_CLEARANCE_WITH_FOLDERS = TOOLBAR_FAB_COLLAPSED_SIZE + FAB_MARGIN + 8.dp
+private val FAB_CLEARANCE = TOOLBAR_FAB_COLLAPSED_SIZE + FAB_MARGIN + 8.dp
 
 /**
  * Alt+↓ / Alt+↑ (a Ctrl+Tab) z klávesnice: další a předchozí chat v pořadí, jak je vidět —

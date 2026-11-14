@@ -40,6 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.resources.chats_new_story
@@ -83,6 +84,7 @@ internal fun FabMenuScrim(visible: Boolean, onDismiss: () -> Unit, modifier: Mod
  *
  * Se složkami je přepínač ve slotu lišty ([toolbar] dostane FAB a postaví kolem něj
  * `ChatFolderToolbar`) a „tlačítkem" menu je celá lišta, takže položky vyjedou nad ní.
+ * Bez složek stojí FAB ve stejně vysokém pásu, aby byl na obou místech stejně vysoko.
  */
 @Composable
 internal fun NewChatFabMenu(
@@ -127,7 +129,18 @@ internal fun NewChatFabMenu(
     FloatingActionButtonMenu(
         expanded = expanded,
         button = {
-            if (toolbar == null) fab(ToggleFloatingActionButtonDefaults.containerSize()) else toolbar { ToolbarSlotFab(fab) }
+            if (toolbar == null) {
+                /*
+                 * Stejný pás jako lišta se složkami (ta má od M3 výšku sbaleného FAB, 80 dp,
+                 * a 56dp FAB v ní centruje). Holý FAB by seděl o 12 dp níž a při přepnutí na
+                 * účet se složkami (nebo z archivu zpět) by poskočil.
+                 */
+                Box(Modifier.height(TOOLBAR_FAB_COLLAPSED_SIZE), contentAlignment = Alignment.Center) {
+                    fab(ToggleFloatingActionButtonDefaults.containerSize())
+                }
+            } else {
+                toolbar { ToolbarSlotFab(fab) }
+            }
         },
     ) {
         items.forEachIndexed { index, (icon, label, onClick) ->
