@@ -161,9 +161,13 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
   - **Při otevřeném menu se lišta sbalí** (`expanded = false`): obsah zajede do FAB a přepínač se
     z nafouknutého slotu morfuje do kruhu „Zavřít" v jeho horním rohu (zarovnání přepínače
     `TopEnd`, výchozí M3, stejně jako u středního FAB menu).
-  - **Lišta s FAB je vysoká 80 dp** (`defaultMinSize` na velikost sbaleného FAB), aby při
-    nafouknutí neposkočila. FAB je proto o 12 dp výš než bez složek a seznam má dole větší rezervu
-    (`FAB_CLEARANCE_WITH_FOLDERS`).
+  - **Lišta s FAB je vysoká 80 dp** (`defaultMinSize` na velikost sbaleného FAB uvnitř M3,
+    `HorizontalFloatingToolbarWithFabLayout`), aby při nafouknutí neposkočila; 56dp FAB v ní
+    M3 svisle centruje, takže jeho spodek je 28 dp nad okrajem, ne 16 dp jako u holého FAB menu.
+    **Holý FAB (účet bez složek, archiv) proto stojí ve stejném 80dp pásu** (`NewChatFabMenu`)
+    a seznam má jednu rezervu (`FAB_CLEARANCE`). Dřív byl holý FAB o 12 dp níž a při přepnutí
+    na účet se složkami (i při návratu z archivu) poskočil. Ověřeno na Pixelu 5 (bez složek)
+    a Pixelu 7 Pro (se složkami): spodek FAB v obou 28 dp nad navigační lištou, zprava 16 dp.
   - S čtečkou obrazovky se lišta nesbaluje vůbec (M3 to dělá sama), ani při otevřeném menu.
 - **Ikona FAB po rozložení Foldu**: přepínač kreslil po rozložení jen plochu bez tužky
   a ikona se vrátila až po otevření a zavření menu. Za to může `animateIcon` z M3: ikonu
