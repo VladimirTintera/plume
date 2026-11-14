@@ -13,6 +13,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
+import eu.tintera.plume.core.adaptive.isWindowHeightCompact
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
@@ -56,6 +58,12 @@ internal fun Modifier.settingsScroll(behavior: TopAppBarScrollBehavior?): Modifi
  * **Sbalený bar NEMĚNÍ barvu** (`scrolledContainerColor = surface`). Výchozí `surfaceContainer`
  * dělá ze sbalené hlavičky tónovaný pruh přes celou šířku — role, která jinde na obrazovce není;
  * seznam chatů i výběr chatu to mají stejně.
+ *
+ * **Na nízkém okně je to rovnou malá lišta** ([isWindowHeightCompact]). Telefon naležato má
+ * panely vedle sebe, a tam se velký nadpis nesbaluje (viz [settingsScrollBehavior]): bral přes
+ * 150 dp z asi 360, takže na stránce s PINem nezbylo na klávesnici skoro nic a u sekcí se
+ * vešly dva řádky. Malá lišta je ve všech panelech stejně vysoká, takže důvod, proč se
+ * v dvoupanelu nesbaluje, platí dál.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -65,25 +73,37 @@ internal fun SettingsTopBar(
     scrollBehavior: TopAppBarScrollBehavior?,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    LargeFlexibleTopAppBar(
-        title = { Text(title) },
-        navigationIcon = {
-            if (onBack != null) {
-                IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                    Icon(
-                        painterResource(Res.drawable.arrow_back_24dp),
-                        contentDescription = stringResource(Res.string.common_back),
-                    )
-                }
+    val navigationIcon: @Composable () -> Unit = {
+        if (onBack != null) {
+            IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                Icon(
+                    painterResource(Res.drawable.arrow_back_24dp),
+                    contentDescription = stringResource(Res.string.common_back),
+                )
             }
-        },
-        actions = actions,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-        ),
-        scrollBehavior = scrollBehavior,
+        }
+    }
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrolledContainerColor = MaterialTheme.colorScheme.surface,
     )
+    if (isWindowHeightCompact()) {
+        TopAppBar(
+            title = { Text(title) },
+            navigationIcon = navigationIcon,
+            actions = actions,
+            colors = colors,
+            scrollBehavior = scrollBehavior,
+        )
+    } else {
+        LargeFlexibleTopAppBar(
+            title = { Text(title) },
+            navigationIcon = navigationIcon,
+            actions = actions,
+            colors = colors,
+            scrollBehavior = scrollBehavior,
+        )
+    }
 }
 
 /**

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
@@ -68,6 +69,7 @@ internal fun VideoQualityChip(
             description = stringResource(Res.string.media_quality_description, label),
         )
         DropdownMenuPopup(
+            modifier = Modifier.menuScroll(),
             expanded = expanded,
             onDismissRequest = { onExpandedChange(false) },
             properties = MenuPopupProperties,

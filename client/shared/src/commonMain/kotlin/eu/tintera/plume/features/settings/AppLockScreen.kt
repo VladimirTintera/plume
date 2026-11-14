@@ -38,6 +38,7 @@ import eu.tintera.plume.core.lock.SystemLockClock
 import eu.tintera.plume.core.lock.rememberBiometricAuth
 import eu.tintera.plume.core.ui.PinDots
 import eu.tintera.plume.core.ui.PinKeypad
+import eu.tintera.plume.core.ui.PinLayout
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.app_lock_biometrics_prompt
 import eu.tintera.plume.resources.app_lock_blocked
@@ -220,51 +221,49 @@ private fun PinStep(
     enabled: Boolean = true,
     onCancel: (() -> Unit)? = null,
 ) {
-    Column(
+    // Naležato vedle sebe a se zmenšenou klávesnicí — viz [PinLayout].
+    PinLayout(
         modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 16.dp),
-        ) {
-            Text(text = title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        header = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = title, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
 
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
 
-            if (errorText != null) {
-                Text(
-                    text = errorText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                )
-            } else {
-                Spacer(Modifier.height(20.dp))
+                if (errorText != null) {
+                    Text(
+                        text = errorText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                    )
+                } else {
+                    Spacer(Modifier.height(20.dp))
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                PinDots(filledCount = filledCount, errorTrigger = errorTrigger, isError = isError)
             }
-
-            Spacer(Modifier.height(24.dp))
-
-            PinDots(filledCount = filledCount, errorTrigger = errorTrigger, isError = isError)
-        }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        },
+        keypad = { keySize ->
             PinKeypad(
                 onDigit = onDigit,
                 onDelete = onDelete,
                 onBiometrics = onBiometrics,
                 isBiometricsEnabled = onBiometrics != null,
                 isEnabled = enabled,
-                modifier = Modifier.padding(bottom = if (onCancel == null) 16.dp else 8.dp),
+                keySize = keySize,
             )
-            if (onCancel != null) {
-                TextButton(onClick = onCancel, shapes = ButtonDefaults.shapes()) {
+        },
+        footer = onCancel?.let { cancel ->
+            {
+                TextButton(onClick = cancel, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.common_cancel))
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 /**

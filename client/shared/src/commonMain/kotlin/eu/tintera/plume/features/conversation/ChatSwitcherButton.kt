@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
@@ -200,6 +201,7 @@ internal fun ChatSwitcherBackButton(
         }
 
         DropdownMenuPopup(
+            modifier = Modifier.menuScroll(),
             expanded = state.expanded && canSwitch,
             onDismissRequest = state::dismiss,
             popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below),

@@ -734,11 +734,19 @@ fun ChatListScreen(
                  *
                  * FAB a snackbar nejsou ve slotech Scaffoldu: Scaffold by je postavil jen nad
                  * systémové lišty, ne nad klávesnici.
+                 *
+                 * **Shora končí pod hlavičkou.** Obsah Scaffoldu sahá až pod hledání, takže FAB
+                 * menu si myslelo, že má celou výšku, a na telefonu naležato horní položka (Nový
+                 * příběh) vyjela pod lištu hledání, kde na ni nešlo ťuknout. S výškou jen pod
+                 * hlavičkou menu pozná, že se nevejde, a rozroluje se samo (material3 to umí).
+                 * Obyčejný `padding`, ne modifikátor insetů — past s rozložením Foldu výš se ho
+                 * netýká.
                  */
                 Column(
                     horizontalAlignment = Alignment.End,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        .padding(top = scaffoldPadding.calculateTopPadding())
                         .windowInsetsPadding(
                             ScaffoldDefaults.contentWindowInsets
                                 .only(WindowInsetsSides.Bottom)

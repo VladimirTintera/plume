@@ -44,6 +44,7 @@ class SourceChecksPlugin : Plugin<Project> {
         register("verifyTooltipsThroughRoot", VerifyTooltipsThroughRoot::class.java)
         register("verifyContextClickable", VerifyContextClickable::class.java)
         register("verifyExpandedSheets", VerifyExpandedSheets::class.java)
+        register("verifyMenuScroll", VerifyMenuScroll::class.java)
         register("verifyButtonShapes", VerifyButtonShapes::class.java)
         register("verifyShapeTokens", VerifyShapeTokens::class.java)
         register("verifyMotionSpecs", VerifyMotionSpecs::class.java)
@@ -271,6 +272,35 @@ abstract class VerifyExpandedSheets : SourceCheckTask() {
             }
         }
         return offenders
+    }
+}
+
+/**
+ * Obsah nabídky roluje (`menuScroll()`, core/ui/ExpressiveMenu.kt). `DropdownMenuPopup`
+ * z material3 Expressive to na rozdíl od starého `DropdownMenu` nedělá: okno nabídky je nejvýš
+ * tak vysoké jako obrazovka a co přeteče, zůstane pod okrajem bez cesty k němu. Na telefonu
+ * naležato tak z menu účtu zmizelo Nastavení. Kontrola chce `menuScroll` mezi argumenty každého
+ * volání `DropdownMenuPopup`.
+ */
+abstract class VerifyMenuScroll : SourceCheckTask() {
+    init {
+        description = "Ověří, že obsah nabídek roluje (modifier = Modifier.menuScroll())."
+    }
+
+    override fun failureMessage() = "Obsah nabídky roluje: DropdownMenuPopup(modifier = Modifier.menuScroll(), …) (core/ui/ExpressiveMenu.kt)."
+
+    private val popupCall = Regex("""\bDropdownMenuPopup\(""")
+
+    override fun offenders(file: File, path: String): List<String> {
+        val text = file.readText()
+        return popupCall.findAll(text).mapNotNull { match ->
+            val end = argumentsEnd(text, match.range.last)
+            if ("menuScroll()" in text.substring(match.range.last + 1, end)) {
+                null
+            } else {
+                "$path:${lineOf(text, match.range.first)}: DropdownMenuPopup bez menuScroll()"
+            }
+        }.toList()
     }
 }
 

@@ -459,6 +459,54 @@ obrazovkách (420 přihlášení, 560 bublina, 680 článek) jsou z ní.
   registrů v dexu nezvedla. Main ale stál na 274 (z 268 ho zvedly tooltipy v #684), viz
   Gotchas v `CLAUDE.md`.
 
+### Nízké okno (telefon naležato)
+
+Telefon naležato má po odečtení lišt kolem 360 dp výšky (emulátor Pixel 7: 862 × 359 dp)
+a panely vedle sebe. Obrazovky stavěné na výšku se do toho nevešly a nerolovaly, takže kus
+z nich nebyl vidět vůbec. Prošlo se to na emulátoru naležato (11/2026) a opravilo:
+
+- **Nabídky nerolovaly** — `DropdownMenuPopup` z material3 Expressive (1.12) obsah neroluje,
+  na rozdíl od starého `DropdownMenu`. Z menu účtu tak naležato zmizelo **Nastavení** (poslední
+  položka) a jinudy se k němu nejde. Každé volání dostane `modifier = Modifier.menuScroll()`
+  (`core/ui/ExpressiveMenu.kt`), hlídá to `verifyMenuScroll`. Nabídka nad zprávou si výšku
+  počítá sama a rolovala odjakživa.
+- **Nastavení má na nízkém okně malou lištu** (`SettingsTopBar`, `isWindowHeightCompact`
+  v `core/adaptive/WindowHeight.kt`). V panelech vedle sebe se velký nadpis nesbaluje a bral
+  přes 150 dp ze 360.
+- **PIN: hlavička vedle klávesnice** (`PinLayout` v `core/ui/PinPad.kt`, zamykací obrazovka
+  i zadávání v Nastavení). Dřív z klávesnice zbyla první řada a tečky ležely přes ni, PIN nešel
+  nastavit. Vedle sebe jen tam, kde je místo do šířky; v úzkém panelu Nastavení (asi 330 dp)
+  zůstává pod sebou se zmenšenými tlačítky a roluje — poslední řada se tam dorolovává.
+  Zamykací obrazovka se na snímku ukáže černá (zámek zakazuje snímky), ověřuje se výpisem
+  `uiautomator dump`.
+- **Prázdný stav se zmenší a roluje** (`IntroEmptyState` pod 400 dp výšky plochy). Prázdné
+  Stahování pod horní lištou ukázalo jen tvar, nadpis a text byly pod okrajem.
+- **Můj QR kód: kód vlevo, zbytek vpravo.** Na výšku nad kódem stojí profil, takže naležato
+  byla vidět jen horní půlka kódu a naskenovat nešel.
+- **FAB menu seznamu chatů schovalo horní položku pod hledání** (Nový příběh). Obsah Scaffoldu
+  sahá až pod hlavičku, takže menu dostalo celou výšku a nevědělo, že se nevejde. Sloupec
+  s FAB má shora `padding` o výšku hlavičky a menu se pak rozroluje samo — `FloatingActionButtonMenu`
+  z material3 roluje, jen když mu výška nestačí.
+- **Náhledy v tvorbě příběhu (360 dp) a samolepky (240 dp) jsou na nízkém okně menší**; obě
+  obrazovky rolovaly i předtím, náhled ale zabral celé okno.
+- **V pořádku bez změny:** prohlížeč fotek (s ovládáním je fotka mezi lištami), nahrávání
+  kolečka (průměr počítá i z výšky), úprava fotky, nabídka nad zprávou, konverzace.
+- **Přihlášení** má dva sloupce od dřív (`docs/poznatky/prihlaseni.md`, „Naležato a na širokém
+  okně").
+- **Neověřené naživo:** prohlížeč příběhů (testovací účet žádné nevidí; kód drží poměr 9 : 16
+  podle výšky), tvorba příběhu (účet bez Premium ji nepustí), videochat (chce běžící hovor ve
+  skupině; mřížka roluje), hřiště AI (emulátor nemá sekci AI v zařízení), hovor (vlastní větev).
+
+**Rozhoduje místo, které obrazovka dostane, ne natočení** (`BoxWithConstraints`), s hranicemi
+tříd okna M3: nízké okno pod 480 dp, Medium od 600 dp. Vedle sebe jen tam, kde je široko
+i do šířky — úzký panel naležato je pořád „širší než vysoký". Celé okno (`isWindowHeightCompact`)
+jen tam, kde má rozhodnutí platit pro všechny panely naráz (výška hlavičky Nastavení).
+
+**Jak hledat další:** obrazovka s pevným rozvržením (`Arrangement.SpaceBetween` / `Center` přes
+celou výšku) bez rolování, nebo obsah, který na výšku zabere přes ~350 dp. Lišta systému zamyká
+natočení: `adb shell settings put system accelerometer_rotation 0` a `wm user-rotation lock 1`;
+spouštěč umí jen na výšku a po návratu do něj se natočení vrátí, zamyká se proto znovu.
+
 ### Zásobník pro každou sekci
 
 Každá sekce aplikace (Chaty, Nastavení) má **vlastní zásobník** a všechny drží jeden stav,

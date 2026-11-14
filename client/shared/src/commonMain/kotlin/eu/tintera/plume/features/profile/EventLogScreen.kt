@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -272,7 +273,7 @@ private fun AuthorChip(
                 )
             },
         )
-        DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
+        DropdownMenuPopup(modifier = Modifier.menuScroll(), expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
             MenuColors {
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
                     DropdownMenuItem(

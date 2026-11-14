@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.adaptive.isWindowHeightCompact
 import eu.tintera.plume.resources.story_cover_title
 import eu.tintera.plume.resources.story_cover_hint
 import eu.tintera.plume.core.telegram.StoryPoster
@@ -372,10 +373,13 @@ fun StoryComposerScreen(
  */
 @Composable
 private fun StoryPreview(path: String?, fill: Boolean) {
+    // Na telefonu naležato (kolem 360 dp) by 360dp náhled zabral celé okno i s lištou a k volbám
+    // pod ním by se rolovalo přes něj; menší je pořád dost velký na kontrolu ořezu.
+    val height = if (isWindowHeightCompact()) PREVIEW_HEIGHT_COMPACT else PREVIEW_HEIGHT
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Box(
             Modifier
-                .height(PREVIEW_HEIGHT)
+                .height(height)
                 .aspectRatio(STORY_PREVIEW_ASPECT)
                 .clip(ShapeDefaults.Large)
                 // Černá, ne role schématu: tak bude plátno vypadat v příběhu u všech.
@@ -444,5 +448,6 @@ internal fun StoryAudiencePicker(
 }
 
 private val PREVIEW_HEIGHT = 360.dp
+private val PREVIEW_HEIGHT_COMPACT = 200.dp
 private const val STORY_PREVIEW_ASPECT = 9f / 16f
 private const val CAPTION_MAX_LINES = 4

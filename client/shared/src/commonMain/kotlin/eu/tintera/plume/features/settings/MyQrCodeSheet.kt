@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
 import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
@@ -96,114 +98,152 @@ fun MyQrCodeSheet(onDismiss: () -> Unit, viewModel: MyQrCodeViewModel = koinView
         },
     )
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
-        ) {
-            account?.let { me ->
-                Avatar(chatId = me.id, title = me.displayName, avatarFileId = me.photoFileId, size = 72.dp)
+    // Části listu: pod sebou na výšku, naležato kód vlevo a zbytek vpravo.
+    val profile: @Composable () -> Unit = {
+        account?.let { me ->
+            Avatar(chatId = me.id, title = me.displayName, avatarFileId = me.photoFileId, size = 72.dp)
+            Text(
+                text = me.displayName,
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            me.username?.let { username ->
                 Text(
-                    text = me.displayName,
-                    style = MaterialTheme.typography.headlineSmall,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp),
+                    "@$username",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                me.username?.let { username ->
+            }
+        }
+    }
+    val qrCode: @Composable (Modifier) -> Unit = { modifier ->
+        Box(contentAlignment = Alignment.Center, modifier = modifier) {
+            val link = state.link
+            when {
+                state.failed -> Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(
-                        "@$username",
+                        stringResource(Res.string.my_qr_failed),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                     )
+                    TextButton(onClick = viewModel::retry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
                 }
+                link != null -> QrCode(
+                    content = link.url,
+                    contentDescription = stringResource(Res.string.my_qr_description),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                else -> LoadingIndicator()
             }
-
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.padding(vertical = 8.dp).widthIn(max = QR_MAX_SIZE).fillMaxWidth(QR_WIDTH).aspectRatio(1f),
-            ) {
-                val link = state.link
-                when {
-                    state.failed -> Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            stringResource(Res.string.my_qr_failed),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                        TextButton(onClick = viewModel::retry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
-                    }
-                    link != null -> QrCode(
-                        content = link.url,
-                        contentDescription = stringResource(Res.string.my_qr_description),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    else -> LoadingIndicator()
-                }
-            }
-
+        }
+    }
+    val info: @Composable () -> Unit = {
+        Text(
+            stringResource(Res.string.my_qr_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
+        val expiresAt = state.expiresAt
+        if (!state.failed && state.link != null) {
             Text(
-                stringResource(Res.string.my_qr_hint),
-                style = MaterialTheme.typography.bodyMedium,
+                text = if (expiresAt != null) {
+                    stringResource(Res.string.my_qr_expires, expiresAt.toInt().asTimeOfDay())
+                } else {
+                    stringResource(Res.string.my_qr_permanent)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            val expiresAt = state.expiresAt
-            if (!state.failed && state.link != null) {
-                Text(
-                    text = if (expiresAt != null) {
-                        stringResource(Res.string.my_qr_expires, expiresAt.toInt().asTimeOfDay())
-                    } else {
-                        stringResource(Res.string.my_qr_permanent)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
+        }
+    }
+    val actions: @Composable () -> Unit = {
+        val ready = state.link != null && !state.failed
+        val share = stringResource(Res.string.my_qr_share)
+        // Zkopírováno nese tlačítko samo (fajfka), ne hláška — je to stav ovládacího prvku.
+        val copy = stringResource(if (state.copied) Res.string.my_qr_copied else Res.string.my_qr_copy)
+        ActionButtonGroup(
+            listOf(
+                GroupAction(share, viewModel::share, ready, weight = 1f) { modifier, source ->
+                    OutlinedButton(onClick = viewModel::share, modifier = modifier, enabled = ready, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                        ButtonIcon(Res.drawable.share_24dp)
+                        GroupActionText(share)
+                    }
+                },
+                GroupAction(copy, viewModel::copy, ready, weight = 1f) { modifier, source ->
+                    OutlinedButton(onClick = viewModel::copy, modifier = modifier, enabled = ready, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                        ButtonIcon(if (state.copied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp)
+                        GroupActionText(copy)
+                    }
+                },
+            ),
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        )
+        if (qrScannerSupported) {
+            MediumButton(onClick = startScan, modifier = Modifier.fillMaxWidth(), emphasis = ButtonEmphasis.Tonal) {
+                MediumButtonIcon(Res.drawable.qr_code_scanner_24dp)
+                Text(stringResource(Res.string.my_qr_scan))
             }
-
-            val ready = state.link != null && !state.failed
-            val share = stringResource(Res.string.my_qr_share)
-            // Zkopírováno nese tlačítko samo (fajfka), ne hláška — je to stav ovládacího prvku.
-            val copy = stringResource(if (state.copied) Res.string.my_qr_copied else Res.string.my_qr_copy)
-            ActionButtonGroup(
-                listOf(
-                    GroupAction(share, viewModel::share, ready, weight = 1f) { modifier, source ->
-                        OutlinedButton(onClick = viewModel::share, modifier = modifier, enabled = ready, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                            ButtonIcon(Res.drawable.share_24dp)
-                            GroupActionText(share)
-                        }
-                    },
-                    GroupAction(copy, viewModel::copy, ready, weight = 1f) { modifier, source ->
-                        OutlinedButton(onClick = viewModel::copy, modifier = modifier, enabled = ready, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                            ButtonIcon(if (state.copied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp)
-                            GroupActionText(copy)
-                        }
-                    },
-                ),
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        }
+    }
+    val message: @Composable () -> Unit = {
+        state.message?.let { message ->
+            Text(
+                message.resolve(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
             )
-            if (qrScannerSupported) {
-                MediumButton(onClick = startScan, modifier = Modifier.fillMaxWidth(), emphasis = ButtonEmphasis.Tonal) {
-                    MediumButtonIcon(Res.drawable.qr_code_scanner_24dp)
-                    Text(stringResource(Res.string.my_qr_scan))
-                }
-            }
+        }
+    }
 
-            state.message?.let { message ->
-                Text(
-                    message.resolve(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                )
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        BoxWithConstraints {
+            if (maxWidth > maxHeight && maxHeight < LANDSCAPE_MAX_HEIGHT) {
+                /*
+                 * Naležato se kód nikdy nevešel celý: profil nad ním a kód přes 80 % šířky listu
+                 * na výšku 360 dp, takže z něj byla vidět horní půlka a dolní se dala jen
+                 * dorolovat — naskenovat ho druhý nemohl. Vedle sebe je kód tak velký, jak
+                 * dovolí výška, a zbytek se roluje vedle něj.
+                 */
+                val qrSize = (maxHeight - 48.dp).coerceIn(QR_MIN_SIZE, QR_MAX_SIZE)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                ) {
+                    qrCode(Modifier.size(qrSize))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f).heightIn(max = qrSize).verticalScroll(rememberScrollState()),
+                    ) {
+                        profile()
+                        info()
+                        actions()
+                        message()
+                    }
+                }
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
+                ) {
+                    profile()
+                    qrCode(Modifier.padding(vertical = 8.dp).widthIn(max = QR_MAX_SIZE).fillMaxWidth(QR_WIDTH).aspectRatio(1f))
+                    info()
+                    actions()
+                    message()
+                }
             }
         }
     }
@@ -221,3 +261,7 @@ private fun ButtonIcon(icon: DrawableResource) {
 /** Kód přes většinu šířky sheetu, na tabletu ne přes celou. */
 private const val QR_WIDTH = 0.8f
 private val QR_MAX_SIZE = 320.dp
+private val QR_MIN_SIZE = 200.dp
+
+/** Pod touhle výškou okna naležato jde kód vedle zbytku; nad ní se pod sebou vejde. */
+private val LANDSCAPE_MAX_HEIGHT = 560.dp

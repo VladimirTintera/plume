@@ -63,7 +63,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Přímé zprávy kanálu](docs/poznatky/prime-zpravy-kanalu.md) — zapnutí v nastavení kanálu, „Napsat" u odběratele, vlákna po odběratelích u správce, navrhované příspěvky, proč se historie vlákna nečte od nuly
 - [Spam, nahlášení a blokování](docs/poznatky/spam-a-blokovani.md) — průvodce nahlášením, úklid spamu, pruh nad konverzací (ChatActionBar), seznam blokovaných
 - [Seznam chatů](docs/poznatky/seznam-chatu.md) — skupiny řádků, složky a FAB menu, návrh složek modelem, ověření, hlavička s pilulkou, Uložené zprávy, přehled konceptů, archiv a tah do archivu, akce, odložení a výběr víc chatů, čeká na odpověď, společný seznam víc účtů, widget na ploše
-- [Navigace](docs/poznatky/navigace.md) — Navigation3, list-detail scény, insety, přechody a predictive back, zásobník pro každou sekci
+- [Navigace](docs/poznatky/navigace.md) — Navigation3, list-detail scény, insety, přechody a predictive back, zásobník pro každou sekci, nízké okno (telefon naležato)
 - [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, společné skupiny, podobné kanály a boti, ukázky mini aplikace, omezení a vyhození, poslední akce správců a omyl antispamu, statistiky kanálu, skupiny a příspěvku (grafy a proč pevná paleta), nastavení skupiny a kanálu (pomalý režim, reakce, přepínače, boosty, reklamy, hlavní záložka, smazání pro všechny), úprava skupiny, gigaskupina, pozvánky, uvítací zprávy, témata, sdílená média, historie fotek a jejich nahlášení, návrh profilové fotky, fotka z emoji, úprava kontaktu (jméno, poznámka, vlastní fotka), hudba a dárky v profilu, profil firmy a jeho úvodní stránka, sběratelská jména a čísla z Fragmentu
 - [Prohlížeč médií a média](docs/poznatky/prohlizec-medii.md) — prohlížeč, video a PiP, kvalita videa, reklamy ve videu, GIFy, kolečka a jejich nahrávání, automatické ukládání do galerie, seznam stahování, poloha a mapy, spoilery, mizející a citlivý obsah, text z fotky, popis fotky a hledání fotek podle obsahu, FileRepository
 - [Hlasovky a hudba](docs/poznatky/zvuk.md) — přehrávání, u ucha, nahrávání a náhled hlasovky, nahrávání hlasovky a kolečka do Telegramu během záznamu (fragmentované MP4), hudba na pozadí a dock přehrávače
@@ -598,6 +598,8 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**
   (`MenuAction.destructive`), co k sobě patří, je v jedné. Nabídka s výběrem (období v hledání)
   bere položky s `checked` — vybraná je zaškrtnutá.
+  **Obsah nabídky roluje** (`modifier = Modifier.menuScroll()`, hlídá `verifyMenuScroll`):
+  `DropdownMenuPopup` to sám nedělá a naležato z menu účtu zmizelo Nastavení.
   **Plocha nabídky je `surfaceContainerHighest`** (`MenuColors`, výchozí M3 má `surfaceContainerLow`,
   tedy pod stránkou i řádky); kdo kreslí `DropdownMenuPopup` sám, obalí obsah do `MenuColors`.
   **Okno nabídky si nebere klávesnici** (`MenuPopupProperties`, výchozí v `ExpressiveMenu`):

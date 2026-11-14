@@ -119,6 +119,7 @@ fun <T> ChoiceMenu(
     optionSupporting: (@Composable (T) -> String)? = null,
 ) {
     DropdownMenuPopup(
+        modifier = Modifier.menuScroll(),
         expanded = expanded,
         onDismissRequest = onDismiss,
         popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below),

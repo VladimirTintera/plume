@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -199,6 +200,7 @@ internal fun ActionMenu(
                 )
                 if (cascade) {
                     DropdownMenuPopup(
+                        modifier = Modifier.menuScroll(),
                         expanded = open && (showMore || moreHovered),
                         onDismissRequest = { onShowMore(false) },
                         popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.End),
