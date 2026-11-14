@@ -3,6 +3,7 @@ package eu.tintera.plume.di
 import eu.tintera.ai.core.AudioClipDecoder
 import eu.tintera.ai.core.ModelDownloadNotifications
 import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.notificationName
 import eu.tintera.plume.core.ai.AudioClips
 import eu.tintera.plume.core.ai.ModelDownloadWorker
 import eu.tintera.plume.core.ai.PlumeModelDownloadNotifications
@@ -295,6 +296,7 @@ actual fun Module.platformAccountModule() {
             callsSupported = get<CallRepository>().supported,
             journal = getOrNull<CallJournal>(),
             otherAccounts = { get<Accounts>().all.value.size - 1 },
+            accountName = { get<Accounts>().notificationName(get()) },
         )
     }
     // Služba v popředí po dobu hovoru — spouští se z popředí, jakmile hovor vytáčí nebo běží.

@@ -21,7 +21,7 @@ import kotlin.time.Instant
  *   dovolí vytáhnout okno) a Odmítnout (na pozadí). Zvoní aplikace sama, toast je tichý.
  */
 internal fun toastXml(notification: DesktopNotification): String {
-    val launch = escape(activationArguments(notification.chatId, notification.topicId))
+    val launch = escape(activationArguments(notification.chatId, notification.topicId, notification.account))
     return buildString {
         append("<toast launch=\"").append(launch).append('"')
         if (notification.call != null) append(" scenario=\"incomingCall\"")
@@ -51,7 +51,7 @@ internal fun toastXml(notification: DesktopNotification): String {
 }
 
 private fun StringBuilder.appendActions(notification: DesktopNotification, buttons: NotificationButtons) {
-    val chat = "chat=${notification.chatId}"
+    val chat = "chat=${notification.chatId}" + accountArgument(notification.account)
     append("<actions>")
     if (buttons.canReply) {
         append("<input id=\"").append(REPLY_INPUT).append("\" type=\"text\" placeHolderContent=\"")
@@ -66,7 +66,7 @@ private fun StringBuilder.appendActions(notification: DesktopNotification, butto
 }
 
 private fun StringBuilder.appendCallActions(notification: DesktopNotification, call: CallButtons) {
-    val arguments = "chat=${notification.chatId}&call=${call.callId}"
+    val arguments = "chat=${notification.chatId}&call=${call.callId}" + accountArgument(notification.account)
     append("<actions>")
     appendAction(call.answer, "action=$ACTION_ANSWER&$arguments", activation = "foreground")
     appendAction(call.decline, "action=$ACTION_DECLINE&$arguments")
@@ -81,8 +81,15 @@ private fun StringBuilder.appendAction(label: String, arguments: String, inputId
     append("/>")
 }
 
-/** Co toast vrátí po kliknutí na sebe nebo hlavičku; čte [parseActivation]. */
-internal fun activationArguments(chatId: Long, topicId: Int?): String = "chat=$chatId&topic=${topicId ?: 0}"
+/**
+ * Co toast vrátí po kliknutí na sebe nebo hlavičku; čte [parseActivation]. [account] je slot
+ * účtu, kterému oznámení patří (primární účet ho nenese): kliknutí, odpověď i Přečteno musí
+ * jít do účtu, ze kterého oznámení přišlo, ne do toho, který zrovna poslouchá.
+ */
+internal fun activationArguments(chatId: Long, topicId: Int?, account: String? = null): String =
+    "chat=$chatId&topic=${topicId ?: 0}" + accountArgument(account)
+
+private fun accountArgument(account: String?): String = account?.let { "&account=$it" }.orEmpty()
 
 /**
  * Argumenty oznámení na macOS: všechno, co jeho tlačítka potřebují, v jednom řetězci. Toast nese
@@ -90,7 +97,7 @@ internal fun activationArguments(chatId: Long, topicId: Int?): String = "chat=$c
  * tlačítka — ten se přidá až při odpovědi ([parseNotificationResponse]).
  */
 internal fun notificationArguments(notification: DesktopNotification): String = buildString {
-    append(activationArguments(notification.chatId, notification.topicId))
+    append(activationArguments(notification.chatId, notification.topicId, notification.account))
     notification.buttons?.let { append("&msg=").append(it.messageId ?: 0).append("&quote=").append(it.quoteMessageId ?: 0) }
     notification.call?.let { append("&call=").append(it.callId) }
 }
@@ -111,14 +118,15 @@ internal fun parseActivation(arguments: String, reply: String? = null): ToastAct
     val chatId = values["chat"]?.toLongOrNull() ?: return null
     fun long(key: String) = values[key]?.toLongOrNull()?.takeIf { it != 0L }
     val topicId = values["topic"]?.toIntOrNull()?.takeIf { it != 0 }
+    val account = values["account"]?.takeIf { it.isNotEmpty() }
     return when (values["action"]) {
-        null -> ToastActivation.Open(chatId, topicId)
+        null -> ToastActivation.Open(chatId, topicId, account)
         ACTION_REPLY -> reply?.trim()?.takeIf { it.isNotEmpty() }
-            ?.let { ToastActivation.Reply(chatId, topicId, quoteMessageId = long("quote"), text = it) }
-        ACTION_READ -> ToastActivation.MarkRead(chatId, messageId = long("msg"))
-        ACTION_MUTE -> ToastActivation.Mute(chatId)
-        ACTION_ANSWER -> values["call"]?.toIntOrNull()?.let { ToastActivation.AnswerCall(chatId, it) }
-        ACTION_DECLINE -> values["call"]?.toIntOrNull()?.let { ToastActivation.DeclineCall(chatId, it) }
+            ?.let { ToastActivation.Reply(chatId, topicId, quoteMessageId = long("quote"), text = it, account = account) }
+        ACTION_READ -> ToastActivation.MarkRead(chatId, messageId = long("msg"), account = account)
+        ACTION_MUTE -> ToastActivation.Mute(chatId, account)
+        ACTION_ANSWER -> values["call"]?.toIntOrNull()?.let { ToastActivation.AnswerCall(chatId, it, account) }
+        ACTION_DECLINE -> values["call"]?.toIntOrNull()?.let { ToastActivation.DeclineCall(chatId, it, account) }
         else -> null
     }
 }
@@ -127,19 +135,28 @@ internal fun parseActivation(arguments: String, reply: String? = null): ToastAct
 internal sealed interface ToastActivation {
     val chatId: Long
 
-    data class Open(override val chatId: Long, val topicId: Int?) : ToastActivation
+    /** Slot účtu oznámení; `null` = primární účet (i oznámení z doby před víc účty). */
+    val account: String?
 
-    data class Reply(override val chatId: Long, val topicId: Int?, val quoteMessageId: Long?, val text: String) : ToastActivation
+    data class Open(override val chatId: Long, val topicId: Int?, override val account: String? = null) : ToastActivation
+
+    data class Reply(
+        override val chatId: Long,
+        val topicId: Int?,
+        val quoteMessageId: Long?,
+        val text: String,
+        override val account: String? = null,
+    ) : ToastActivation
 
     /** [messageId] = nejnovější zpráva oznámení; `null` = po nejnovější v chatu. */
-    data class MarkRead(override val chatId: Long, val messageId: Long?) : ToastActivation
+    data class MarkRead(override val chatId: Long, val messageId: Long?, override val account: String? = null) : ToastActivation
 
-    data class Mute(override val chatId: Long) : ToastActivation
+    data class Mute(override val chatId: Long, override val account: String? = null) : ToastActivation
 
     /** Přijmout příchozí hovor: přijímá obrazovka hovoru (po dotazu na mikrofon), okno jde dopředu. */
-    data class AnswerCall(override val chatId: Long, val callId: Int) : ToastActivation
+    data class AnswerCall(override val chatId: Long, val callId: Int, override val account: String? = null) : ToastActivation
 
-    data class DeclineCall(override val chatId: Long, val callId: Int) : ToastActivation
+    data class DeclineCall(override val chatId: Long, val callId: Int, override val account: String? = null) : ToastActivation
 }
 
 /** Klíč pole odpovědi; tentýž hledá aktivátor v `PlumeToasts.cpp`. */

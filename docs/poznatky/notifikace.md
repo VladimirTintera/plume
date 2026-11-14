@@ -798,6 +798,24 @@ Cesta: `setDeleteIntent` → `NotificationIntents.dismiss` → `NotificationActi
 - **iOS a desktop odhrnutí TDLib nehlásí.** Na iOS notifikace skládá rozšíření bez TDLib
   (APNs) a zavření by chtělo kategorii s `customDismissAction`; desktop notifikace jen ukazuje.
 
+### Víc účtů
+
+Celé rozhodnutí je v `docs/navrh-vice-uctu.md` („Notifikace", kroky 1 a 6 fáze 1). Co se tu dá
+snadno rozbít:
+
+- **`notificationGroupId` je jedinečné jen v rámci účtu.** Android notifikace účtu značí tagem
+  (slot, primární účet bez tagu), desktop prefixem slotu v id a vlákně oznámení. Kdo přidává
+  `notify`, `cancel` nebo hledání v `activeNotifications`, bere i tag.
+- **Push jde účtu podle `getPushReceiverId`**, ne prvnímu účtu; registrace (`registerDevice`)
+  je za každý účet zvlášť a id příjemce se ukládá ke slotu.
+- **Jméno účtu v konverzační notifikaci je jméno zkratky**: Android 11+ bere jméno konverzace
+  ze zkratky a podtext (`setSubText`) u konverzací nekreslí. Název zkratky skládá
+  `shortcutLabel` a musí ho stejně skládat každý, kdo zkratku publikuje (notifikace, Sdílet,
+  plocha).
+- **Desktop: `DesktopNotifier` je v procesu jeden**, aktivace se rozdělují podle slotu
+  v argumentech oznámení (`NotificationActivations`). Presenter účtu si `onActivated` sám
+  nastavovat nesmí.
+
 ### Notifikace na iOS (APNs)
 
 Na iOS notifikace **zobrazuje systém přímo z APNs pushe od Telegramu**, ne aplikace. Zařízení se

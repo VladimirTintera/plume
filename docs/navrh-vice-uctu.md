@@ -1,7 +1,7 @@
 # Návrh: víc účtů naráz
 
 > **Stav:** fáze 0 hotová, z fáze 1 přidání, odebrání a přepnutí účtu, společný seznam chatů
-> a účet v konverzaci (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> účet v konverzaci a v notifikacích (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
 > stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
@@ -604,11 +604,32 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      a hlavička bez odznaku (`rememberShownAccount` vrací `null`); na zařízení s jedním účtem
      tenhle build vyzkoušený není.
 
+6. **Komu notifikace patří** — hotovo:
+   - **Android: jméno účtu je ve jménu konverzace** („Notifikator · VT2", `shortcutLabel`).
+     Podtext (`setSubText`) konverzační notifikace nekreslí, ve skupině ani rozbalená, a jméno
+     konverzace bere Android 11+ ze zkratky, ne z `conversationTitle` (ověřeno na Pixelu 5,
+     Android 14). Proto má účet i název zkratky, a tutéž zkratku skládá stejně i nabídka Sdílet
+     (`ShareTargets`) a zástupce na ploše — jinak by se název přepisoval tam a zpátky. Podtext
+     a `conversationTitle` účet nesou taky (hodinky, auto, starší Android). Po odhlášení účtu
+     zůstanou zkratkám ostatních účtů jejich názvy s účtem, dokud je notifikace nebo sdílení
+     nepřepíše.
+   - **Desktop: jméno účtu v podtitulu oznámení** (za jménem odesílatele ve skupině).
+   - **Desktop měl s víc účty chybu v oznámeních**, opravená tady:
+     - `DesktopNotifier` je v procesu jeden a `onActivated` si přepisoval presenter každého účtu,
+       takže odpověď, Přečteno nebo Ztlumit z oznámení šlo do účtu, který se nastartoval poslední.
+       Oznámení teď nese slot v argumentech (`account=…`, primární účet nic, testy
+       v `ToastXmlTest`) a aktivace jde přes rozcestník `NotificationActivations`.
+     - Id a vlákno oznámení nesou slot (`groupId` je jedinečné jen v rámci účtu).
+     - Odhlášení jednoho účtu stáhne jen jeho oznámení, ne všechna.
+     - Odznak nepřečtených na hlavním panelu je součet účtů (`DesktopTaskbar.setUnread(slot, …)`),
+       dřív ho každý účet přepisoval svým číslem.
+   - **Ověřeno na Pixelu 5** se dvěma účty. Desktop jen přeložený a otestovaný testy.
+
 **Zbývá pro fázi 1:**
    - **V režimu Vše zbývá sloučit archiv a hledání** (veřejné chaty a zprávy přes server za
      každý účet, výsledky označené účtem) a klávesové zkratky Alt+↓/↑ přes společný seznam.
    - Ve sbaleném sloupci seznamu (`CollapsedChatList`) režim Vše není, ukazuje výchozí účet.
-   - **Text notifikace má jmenovat účet** (`setSubText`) a zvukové kanály dostat slot do jména.
+   - Zvukové kanály notifikací mají dostat slot do jména (tón patří účtu).
    - Odkazy `tg://` a `t.me` jdou do výchozího účtu; pozvánka a přihlášení na webu se mají ptát.
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.

@@ -31,6 +31,8 @@ internal data class DesktopNotification(
     val buttons: NotificationButtons? = null,
     /** Příchozí hovor, který jde přijmout tady: Přijmout a Odmítnout; `null` = není hovor. */
     val call: CallButtons? = null,
+    /** Slot účtu, kterému oznámení patří; `null` = primární účet. Vrací se v aktivaci. */
+    val account: String? = null,
 )
 
 /** Tlačítka oznámení příchozího hovoru, popisky přeložené v okamžiku zobrazení. */
@@ -247,7 +249,7 @@ private class TrayNotifier : DesktopNotifier {
                 ?: BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
             TrayIcon(image, "Plume").apply {
                 isImageAutoSize = true
-                addActionListener { last?.let { onActivated?.invoke(ToastActivation.Open(it.chatId, it.topicId)) } }
+                addActionListener { last?.let { onActivated?.invoke(ToastActivation.Open(it.chatId, it.topicId, it.account)) } }
                 SystemTray.getSystemTray().add(this)
             }
         }.onFailure { logger.w(it) { "Ikonu v oznamovací oblasti nejde přidat." } }.getOrNull()

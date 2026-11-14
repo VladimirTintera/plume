@@ -30,6 +30,8 @@ class ShareTargets(
     private val files: FileRepository,
     private val publisher: ShareTargetPublisher,
     private val scope: CoroutineScope,
+    /** Jméno účtu do názvu zkratky, když je účtů víc ([shortcutLabel]); jinak `null`. */
+    private val accountName: suspend () -> String? = { null },
 ) {
 
     private val logger = Logger.withTag("Share")
@@ -49,7 +51,7 @@ class ShareTargets(
     fun reportUsed(chatId: Long) {
         scope.launch {
             val chat = shortcutChat(chatId, AVATAR_WAIT_MS) ?: return@launch
-            publisher.publish(slot, chat.chatId, chat.title, chat.avatarPath, chat.isSavedMessages)
+            publisher.publish(slot, chat.chatId, shortcutLabel(chat.title, accountName()), chat.avatarPath, chat.isSavedMessages)
         }
     }
 
@@ -66,7 +68,7 @@ class ShareTargets(
             // Na plochu jde fotka napořád a uživatel o ni výslovně požádal: na stažení se
             // počká déle než u zkratky ke sdílení.
             val chat = shortcutChat(chatId, PIN_AVATAR_WAIT_MS) ?: return@launch
-            if (!publisher.pin(slot, chat.chatId, chat.title, chat.avatarPath, chat.isSavedMessages)) {
+            if (!publisher.pin(slot, chat.chatId, shortcutLabel(chat.title, accountName()), chat.avatarPath, chat.isSavedMessages)) {
                 logger.w { "Launcher zástupce chatu $chatId nepřijal." }
             }
         }

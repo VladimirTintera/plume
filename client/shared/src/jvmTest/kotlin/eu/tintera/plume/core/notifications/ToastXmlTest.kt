@@ -27,6 +27,7 @@ class ToastXmlTest {
         timestamp: Long? = null,
         buttons: NotificationButtons? = null,
         call: CallButtons? = null,
+        account: String? = null,
     ) = DesktopNotification(
         id = "g1-n2",
         thread = "chat-42",
@@ -41,6 +42,7 @@ class ToastXmlTest {
         timestamp = timestamp,
         buttons = buttons,
         call = call,
+        account = account,
     )
 
     private val labels = NotificationButtons.Labels(reply = "Odpovědět", send = "Odeslat", markRead = "Přečteno", mute = "Ztlumit & dost")
@@ -135,6 +137,30 @@ class ToastXmlTest {
         )
         assertEquals(ToastActivation.MarkRead(chatId = 42, messageId = 99), parseActivation(actions[1].getAttribute("arguments")))
         assertEquals(ToastActivation.Mute(chatId = 42), parseActivation(actions[2].getAttribute("arguments")))
+    }
+
+    /** Oznámení dalšího účtu vrací v každé aktivaci jeho slot, aby odpověď odešla z něj. */
+    @Test
+    fun accountTravelsWithEveryActivation() {
+        val document = parse(toastXml(notification(topicId = 7, buttons = buttons(quote = 55), account = "ab12cd")))
+        assertEquals(ToastActivation.Open(42, 7, account = "ab12cd"), parseActivation(document.documentElement.getAttribute("launch")))
+        val actions = document.actions()
+        assertEquals("ab12cd", parseActivation(actions[0].getAttribute("arguments"), reply = "x")?.account)
+        assertEquals("ab12cd", parseActivation(actions[1].getAttribute("arguments"))?.account)
+        assertEquals("ab12cd", parseActivation(actions[2].getAttribute("arguments"))?.account)
+
+        val call = parse(toastXml(notification(call = CallButtons(callId = 1, answer = "A", decline = "D"), account = "ab12cd"))).actions()
+        assertTrue(call.all { parseActivation(it.getAttribute("arguments"))?.account == "ab12cd" })
+
+        // macOS: argumenty oznámení a identifikátor tlačítka zvlášť.
+        val mac = notificationArguments(notification(buttons = buttons(), account = "ab12cd"))
+        assertEquals("ab12cd", parseNotificationResponse(mac, action = null, reply = null)?.account)
+    }
+
+    /** Primární účet slot nenese: oznámení z doby před víc účty znamenají totéž co dřív. */
+    @Test
+    fun primaryAccountCarriesNoSlot() {
+        assertNull(parseActivation(parse(toastXml(notification())).documentElement.getAttribute("launch"))?.account)
     }
 
     @Test

@@ -51,3 +51,12 @@ fun AccountBadge(account: AccountInfo, rim: Color, modifier: Modifier = Modifier
             .padding(2.dp),
     )
 }
+
+/**
+ * Jméno účtu [slot] do notifikace, když je v aplikaci víc účtů; s jedním `null`. Bez něj není
+ * z notifikace poznat, komu zpráva přišla.
+ */
+suspend fun Accounts.notificationName(slot: AccountSlot): String? {
+    if (all.value.size < 2) return null
+    return find(slot)?.session?.me()?.getOrNull()?.displayName?.takeIf { it.isNotBlank() }
+}
