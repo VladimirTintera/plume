@@ -1330,6 +1330,8 @@ rozhodnutí je v `docs/navrh-vice-uctu.md`
   Řádky výsledků, které nemají slot (návrhy, reklamy), patří účtu obrazovky. Kdo přidává do
   výsledků další druh řádku, předá slot do ťuknutí i do klíče (`resultKey`) — veřejný chat
   i zprávy ze společné skupiny se jinak srazí.
+- **Sbalený sloupec má režim Vše taky** (`CollapsedAccounts`): bez něj by po sbalení táhlem
+  zmizely chaty ostatních účtů, i když je pilulka ukazuje jako „Všechny účty".
 - **Archiv má ViewModel za účet A složku** (klíč `chats-all-archive-<slot>`): sdílet ho
   s hlavním seznamem by přepínalo složku pod rukama.
 

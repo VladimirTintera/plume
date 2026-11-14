@@ -40,6 +40,13 @@ import eu.tintera.plume.core.ui.RootTooltipBox
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.key
+import eu.tintera.plume.core.accounts.AccountBadge
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountSession
+import eu.tintera.plume.core.telegram.AccountInfo
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -59,7 +66,6 @@ import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.telegram.ChatSummary
-import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_new_story
 import eu.tintera.plume.resources.photo_camera_24dp
@@ -136,14 +142,17 @@ import org.jetbrains.compose.resources.stringResource
  *   ViewModelu, takže přežije rozbalení i sbalení táhlem.
  * - **Snackbar (archivace s „Vrátit") stojí z kořene okna vlevo dole** ([CollapsedSnackbar]):
  *   do sloupce se nevejde a hostitel plného seznamu tu není.
+ * - **V režimu Všechny účty jsou ve sloupci chaty všech účtů** ([CollapsedAccounts.sources]),
+ *   ve stejném pořadí jako ve společném seznamu ([mergedChatGroups]) a s odznakem účtu na
+ *   avataru. Výběr víc chatů patří jednomu účtu: po dobu výběru sloupec ukazuje jen jeho chaty
+ *   ([viewModel] je pak ViewModel toho účtu).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CollapsedChatList(
+    /** ViewModel účtu, jehož chaty sloupec ukazuje mimo společný seznam (i výběr víc chatů). */
     viewModel: ChatsViewModel,
-    selectedChatId: Long?,
-    onChatClick: (Long) -> Unit,
-    onForumClick: (Long) -> Unit,
+    accounts: CollapsedAccounts,
     onSearch: () -> Unit,
     onNewChat: () -> Unit,
     onNewGroup: () -> Unit,
@@ -193,6 +202,10 @@ internal fun CollapsedChatList(
             }
         }
 
+        if (accounts.sources.isNotEmpty()) {
+            MergedCollapsedChats(accounts)
+        } else AccountScope(accounts.listAccount) {
+        val listSlot = accounts.listAccount.slot
         when (val current = state) {
             is ChatListState.Ready -> {
                 val chats = remember(current.chats, hiddenSavedMessagesChatId, snoozes.due) {
@@ -215,13 +228,13 @@ internal fun CollapsedChatList(
                             CollapsedChat(
                                 chat = chat,
                                 // Ve výběru zvýrazňuje výběr, ne chat otevřený vedle (jako plný seznam).
-                                selected = if (selecting) mark == true else chat.id == selectedChatId,
+                                selected = if (selecting) mark == true else accounts.selected == listSlot to chat.id,
                                 selectionMark = mark,
                                 onClick = {
-                                    when {
-                                        selecting -> if (chat.isSelectable()) viewModel.toggleSelected(chat)
-                                        chat.opensAsTopics -> onForumClick(chat.id)
-                                        else -> onChatClick(chat.id)
+                                    if (selecting) {
+                                        if (chat.isSelectable()) viewModel.toggleSelected(chat)
+                                    } else {
+                                        accounts.onOpen(listSlot, chat)
                                     }
                                 },
                                 // Ve výběru i podržení jen přepíná — nabídka nad jedním chatem by z výběru vytrhla.
@@ -251,9 +264,69 @@ internal fun CollapsedChatList(
             // Chybu i s tlačítkem „Zkusit znovu" ukáže plný seznam; do sloupce se nevejde.
             is ChatListState.Failed -> Unit
         }
+        }
     }
 
     CollapsedSnackbar(snackbarHostState)
+}
+
+/**
+ * Účty sbaleného sloupce: společný seznam víc účtů ([sources], prázdný mimo režim Všechny účty
+ * a po dobu výběru víc chatů), účet seznamu mimo něj ([listAccount]: výchozí, nebo ten
+ * s výběrem) a otevřený chat s účtem — totéž id má chat ve dvou účtech.
+ */
+@Immutable
+internal data class CollapsedAccounts(
+    val sources: List<ChatSource>,
+    val listAccount: AccountSession,
+    val selected: Pair<AccountSlot, Long>?,
+    /** Otevře chat (nebo témata) v účtu řádku. */
+    val onOpen: (AccountSlot, ChatSummary) -> Unit,
+)
+
+/**
+ * Sloupec v režimu Všechny účty: avatary všech účtů v pořadí společného seznamu, každý
+ * v kontejneru svého účtu (fotky z jeho souborů) a s odznakem účtu. Podržení otevře nabídku
+ * nad chatem v ViewModelu účtu řádku; tu kreslí `MergedChatActionsHosts` nad sloupcem.
+ */
+@Composable
+private fun MergedCollapsedChats(accounts: CollapsedAccounts) {
+    val sources = accounts.sources
+    val states = sources.map { source -> key(source.account.slot) { source.viewModel.state.collectAsStateWithLifecycle().value } }
+    val hidden = sources.map { source -> key(source.account.slot) { source.viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle().value } }
+    val due = sources.map { source -> key(source.account.slot) { source.viewModel.snoozeState.collectAsStateWithLifecycle().value.due } }
+    val ready = states.map { (it as? ChatListState.Ready)?.chats }
+    if (ready.all { it == null }) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
+        return
+    }
+    val chats = remember(ready, hidden, due) {
+        mergedChatGroups(ready.mapIndexed { index, chats -> MergeSource(chats.orEmpty(), hidden[index], due[index]) }).flatten()
+    }
+    LazyColumn(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        contentPadding = PaddingValues(bottom = 16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+    ) {
+        items(chats, key = { it.key }) { merged ->
+            val source = sources[merged.source]
+            val slot = source.account.slot
+            AccountScope(source.account) {
+                CollapsedChat(
+                    chat = merged.chat,
+                    selected = accounts.selected == slot to merged.chat.id,
+                    selectionMark = null,
+                    onClick = { accounts.onOpen(slot, merged.chat) },
+                    onLongClick = { source.viewModel.showActions(merged.chat) },
+                    account = source.info,
+                    modifier = Modifier.animateItem(),
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -352,6 +425,8 @@ private fun CollapsedChat(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Účet chatu ve společném seznamu víc účtů: odznak vlevo dole na avataru. */
+    account: AccountInfo? = null,
 ) {
     val title = chatTitle(chat.id, chat.title)
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
@@ -412,6 +487,9 @@ private fun CollapsedChat(
                     ) {
                         RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())
                     }
+                }
+                if (account != null) {
+                    AccountBadge(account, rim = container, modifier = Modifier.align(Alignment.BottomStart))
                 }
                 if (selectionMark != null) {
                     SelectionMark(
