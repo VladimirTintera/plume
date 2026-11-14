@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.di
 
+import kotlinx.coroutines.flow.flowOf
+import eu.tintera.plume.core.accounts.AccountVisibility
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.calls.CallJournal
@@ -355,6 +357,8 @@ internal fun accountModule(slot: AccountSlot): Module = module {
             network = get(),
             foreground = get(),
             scope = get(named(APP_SCOPE)),
+            // Online jen účet, který seznam chatů ukazuje (filtr dodává aplikace, hodinky ne).
+            shown = getOrNull<AccountVisibility>()?.shown(slot) ?: flowOf(true),
         )
     }
 

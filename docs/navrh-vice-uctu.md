@@ -866,6 +866,20 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       osobního účtu přinesla jeho kontakty, volba VT a Uložené zprávy otevřely Uložené zprávy
       VT („Zpráva jako VT"), zpět vedlo do seznamu chatů.
 
+18. **Online jen účty ve filtru** — hotovo:
+    - `ConnectionController` posílá `setOption online` jen v popředí a jen za účet, který seznam
+      chatů ukazuje (`AccountVisibility`): v režimu Všechny účty všechny, jinak výchozí. Dřív
+      byly v popředí online všechny přihlášené účty, takže protějšky viděly online i účet, který
+      uživatel zrovna nepoužíval.
+    - **Filtr je v `:client:shared`** (`AppSettings.chatListAllAccounts`, výchozí účet), kam `core`
+      nevidí: rozhraní `AccountVisibility` je v `core`, implementace v globálním `appModule`.
+      Hodinky ji nemají a účet je tam online v popředí jako dřív.
+    - Obnova spojení při návratu do popředí (`setNetworkType`) zůstává pro všechny účty — jde
+      o síť, ne o to, kdo je vidět.
+    - **Ověřeno na Pixelu 5**: seznam jen s osobním účtem — v jeho chatu s VT hlavička „naposledy
+      dnes ve 20:08" (VT po přepnutí přestal být online); režim Všechny účty — VT má na avataru
+      tečku online. Stav viděl osobní účet, tedy server, ne Plume samo.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`.
@@ -873,7 +887,6 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      výchozí účet.
    - `VoicePlayer` klíčuje přehrávání `VoiceKey(chatId, messageId)` bez účtu: hlasovka se stejným
      klíčem v jiném účtu (společný kanál) by v bublině ukázala, že hraje.
-   - Online (`setOption online`) mají v popředí všechny účty, ne jen ty ve filtru.
    - Volby `AppSettings`, které patří účtu (`confirmed_web_app_bots`…), zatím slot nemají.
    - Hodinky si přihlášení potvrzují výchozím účtem telefonu.
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.

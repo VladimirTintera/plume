@@ -172,6 +172,10 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   druhé je ten případ z dozu, kdy se síť nezměnila a spojení přesto nestojí.
 - **Hlásí to `ConnectionController`, startovaný ze `startKoin`**, ne z UI: síť se mění i tehdy,
   když se žádná obrazovka neskládá.
+- **Online (`setOption online`) je jen účet v popředí, který seznam chatů ukazuje**
+  (`AccountVisibility`; s víc účty v režimu Všechny účty všechny, jinak výchozí). Síť
+  (`setNetworkType`) dostávají všechny účty bez ohledu na filtr (`docs/navrh-vice-uctu.md`,
+  krok 18).
 - **Šum ze sítě se musí odfiltrovat, skutečná výměna ne.** Android posílá `onCapabilitiesChanged`
   i několikrát za minutu (kvalita signálu, ověření připojení) a vynucovat kvůli tomu znovuotevření
   všech spojení je horší než nedělat nic. Naopak přelezení mezi dvěma Wi-Fi je změna, kterou
