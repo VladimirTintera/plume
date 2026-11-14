@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.new_chat_account
+import eu.tintera.plume.core.ui.ChoiceRow
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -86,9 +90,13 @@ fun NewChatScreen(
     onNewGroup: () -> Unit,
     onNewChannel: () -> Unit,
     onNewContact: () -> Unit,
+    /** Jiný účet z řádku „Psát jako" (jen s víc účty); obrazovka se pak složí v jeho kontejneru. */
+    onSwitchAccount: (AccountSlot) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val accounts = rememberAccountSwitcher().accounts
+    val currentSlot = LocalAccount.current.slot
     val blankQuery = state.query.isBlank()
     val openSecretChat by viewModel.openSecretChat.collectAsStateWithLifecycle()
     val currentOnChatSelected by rememberUpdatedState(onChatSelected)
@@ -148,18 +156,49 @@ fun NewChatScreen(
         onBack = { if (!viewModel.leaveSecretMode()) onBack() },
         error = state.error?.let { PickerError(it, viewModel::consumeError) },
         header = {
-            if (blankQuery && !state.secretMode) {
-                CreateChatRows(
-                    onNewGroup = onNewGroup,
-                    onNewChannel = onNewChannel,
-                    onNewSecretChat = viewModel::startSecretMode,
-                    onNewContact = onNewContact,
-                    onScanQr = startScan.takeIf { qrScannerSupported },
-                )
+            // Hlavička leží v `Box` (ChatPicker), tak sloupec — jinak by se bloky překryly.
+            Column {
+                // S víc účty nahoře, odkud se píše — kontakty, hledání i nová skupina jsou toho
+                // účtu. Výchozí účet předvybraný; při výběru pro tajný chat se účet už nemění.
+                if (accounts.size > 1 && !state.secretMode) {
+                    AccountChoiceRow(accounts = accounts, selected = currentSlot, onSelect = onSwitchAccount)
+                }
+                if (blankQuery && !state.secretMode) {
+                    CreateChatRows(
+                        onNewGroup = onNewGroup,
+                        onNewChannel = onNewChannel,
+                        onNewSecretChat = viewModel::startSecretMode,
+                        onNewContact = onNewContact,
+                        onScanQr = startScan.takeIf { qrScannerSupported },
+                    )
+                }
             }
         },
         modifier = modifier,
     )
+}
+
+/**
+ * Účet, ze kterého se píše (návrh `docs/navrh-vice-uctu.md`, „Co nemá zdroj v řádku"): řádek
+ * s nabídkou účtů ([ChoiceRow]) jako samostatný blok nad řádky založení chatu.
+ */
+@Composable
+private fun AccountChoiceRow(accounts: List<AccountEntry>, selected: AccountSlot, onSelect: (AccountSlot) -> Unit) {
+    val names = accounts.associate { it.account.slot to it.title }
+    Surface(
+        shape = groupItemShape(0, count = 1),
+        color = MaterialTheme.colorScheme.groupRow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = GROUP_SPACING),
+    ) {
+        ChoiceRow(
+            headline = stringResource(Res.string.new_chat_account),
+            icon = Res.drawable.person_24dp,
+            options = accounts.map { it.account.slot },
+            selected = selected,
+            label = { slot -> names[slot].orEmpty() },
+            onSelect = onSelect,
+        )
+    }
 }
 
 /**

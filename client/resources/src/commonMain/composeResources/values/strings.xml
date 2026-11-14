@@ -2095,6 +2095,7 @@
     <string name="link_account_text">The invite, shared folder or mini app will act on behalf of the account you choose.</string>
     <string name="chats_new">New message</string>
     <string name="chats_create">Create</string>
+    <string name="new_chat_account">Write as</string>
     <string name="new_chat_title">New message</string>
     <string name="new_chat_search">Search contacts or @username</string>
     <string name="new_chat_contacts">Contacts</string>

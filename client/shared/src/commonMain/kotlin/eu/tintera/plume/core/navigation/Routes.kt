@@ -635,18 +635,22 @@ data class WebAppRoute(
 data class ShareToChatRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
- * Zahájení nové konverzace (výběr kontaktu nebo hledání).
+ * Zahájení nové konverzace (výběr kontaktu nebo hledání) z účtu [slot]; účet jde na obrazovce
+ * změnit (řádek „Psát jako"), routa se pak vymění za routu jiného účtu.
+ *
+ * `slot` má výchozí hodnotu, ne kvůli pohodlí: dřív to byl `data object` a zásobník uložený
+ * starou verzí se tak přečte bez zvednutí `SAVED_ROUTES_VERSION`.
  */
 @Serializable
-data object NewChatRoute : Route
+data class NewChatRoute(override val slot: AccountSlot = AccountSlot.Primary) : AccountRoute
 
 /** Nový kontakt podle telefonního čísla; po přidání se otevře konverzace s ním. */
 @Serializable
-data object NewContactRoute : Route
+data class NewContactRoute(override val slot: AccountSlot = AccountSlot.Primary) : AccountRoute
 
 /** Výběr členů nové skupiny; „Další" vede na [CreateChatRoute]. */
 @Serializable
-data object NewGroupMembersRoute : Route
+data class NewGroupMembersRoute(override val slot: AccountSlot = AccountSlot.Primary) : AccountRoute
 
 /**
  * Založení skupiny ([channel] = `false`, s vybranými [memberChatIds]) nebo kanálu: název, fotka,

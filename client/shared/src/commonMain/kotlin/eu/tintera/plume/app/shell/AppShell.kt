@@ -867,9 +867,9 @@ private fun shellEntryProvider(
                 onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
                 onOpenMyStories = { if (chatsStack.lastOrNull() != MyStoriesRoute) chatsStack.add(MyStoriesRoute) },
                 onNewChat = {
-                    if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
+                    if (chatsStack.lastOrNull() !is NewChatRoute) chatsStack.add(NewChatRoute(slot))
                 },
-                onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
+                onNewGroup = { if (chatsStack.lastOrNull() !is NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute(slot)) },
                 onNewChannel = { chatsStack.add(CreateChatRoute(slot, channel = true)) },
                 onChatArchived = chatsStack::closeConversationOf,
                 onOpenSettings = navigation::openSettings,
@@ -978,18 +978,25 @@ private fun shellEntryProvider(
         metadata = Panes.list(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
-    ) {
-        val slot = LocalAccount.current.slot
+    ) { route ->
+        val slot = route.slot
         NewChatScreen(
-            viewModel = koinViewModel(),
-            onBack = { chatsStack.remove(NewChatRoute) },
+            // Klíč s účtem: po změně účtu je to jiná routa, ale ať se ViewModel jiného účtu
+            // nepotká s tímhle ani mimo úložiště položky.
+            viewModel = koinViewModel(key = "new-chat-${slot.id}"),
+            onBack = { chatsStack.remove(route) },
             onChatSelected = { chatId ->
-                chatsStack.remove(NewChatRoute)
+                chatsStack.remove(route)
                 chatsStack.openConversation(slot, chatId)
             },
-            onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
+            onNewGroup = { if (chatsStack.lastOrNull() !is NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute(slot)) },
             onNewChannel = { chatsStack.add(CreateChatRoute(slot, channel = true)) },
-            onNewContact = { if (chatsStack.lastOrNull() != NewContactRoute) chatsStack.add(NewContactRoute) },
+            onNewContact = { if (chatsStack.lastOrNull() !is NewContactRoute) chatsStack.add(NewContactRoute(slot)) },
+            // Jiný účet = jiná routa na tomtéž místě zásobníku; obrazovka se složí v jeho kontejneru.
+            onSwitchAccount = { other ->
+                val index = chatsStack.indexOf(route)
+                if (index >= 0 && other != slot) chatsStack[index] = NewChatRoute(other)
+            },
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
@@ -998,13 +1005,13 @@ private fun shellEntryProvider(
      * Nový kontakt. Formulář přes celou plochu jako založení skupiny; po přidání se odebere
      * i „Nová zpráva" pod ním a otevře se konverzace — zpět z ní vede do seznamu.
      */
-    entry<NewContactRoute> {
-        val slot = LocalAccount.current.slot
+    entry<NewContactRoute> { route ->
+        val slot = route.slot
         NewContactScreen(
             viewModel = koinViewModel(),
-            onBack = { chatsStack.remove(NewContactRoute) },
+            onBack = { chatsStack.remove(route) },
             onAdded = { chatId ->
-                chatsStack.removeAll { it == NewContactRoute || it == NewChatRoute }
+                chatsStack.removeAll { it is NewContactRoute || it is NewChatRoute }
                 chatsStack.openConversation(slot, chatId)
             },
         )
@@ -1015,12 +1022,12 @@ private fun shellEntryProvider(
      * plochu i na široké obrazovce. Po založení se celá větev (nová zpráva, členové, formulář)
      * odebere a otevře se nový chat — zpět z něj vede do seznamu, ne zpátky do formuláře.
      */
-    entry<NewGroupMembersRoute> {
-        val slot = LocalAccount.current.slot
+    entry<NewGroupMembersRoute> { route ->
+        val slot = route.slot
         NewGroupMembersScreen(
             // Vlastní klíč: výběr členů nesmí sdílet hledání s „Novou zprávou" pod sebou.
-            viewModel = koinViewModel(key = "new-group-members"),
-            onBack = { chatsStack.remove(NewGroupMembersRoute) },
+            viewModel = koinViewModel(key = "new-group-members-${slot.id}"),
+            onBack = { chatsStack.remove(route) },
             onNext = { members -> chatsStack.add(CreateChatRoute(slot, channel = false, memberChatIds = members)) },
         )
     }
@@ -1034,7 +1041,7 @@ private fun shellEntryProvider(
             ),
             onBack = { chatsStack.pop(route) },
             onCreated = { chatId ->
-                chatsStack.removeAll { it is CreateChatRoute || it == NewGroupMembersRoute || it == NewChatRoute }
+                chatsStack.removeAll { it is CreateChatRoute || it is NewGroupMembersRoute || it is NewChatRoute }
                 chatsStack.openConversation(slot, chatId)
             },
         )
