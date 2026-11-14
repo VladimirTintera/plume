@@ -2,6 +2,7 @@ package eu.tintera.plume.core.notifications
 
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.share.shortcutChat
+import eu.tintera.plume.core.share.shortcutLabel
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
@@ -84,6 +85,11 @@ actual class NotificationPresenter(
     private val journal: CallJournal? = null,
     /** Kolik je v aplikaci jiných účtů; úklid po odhlášení podle toho nechá společné kanály být. */
     private val otherAccounts: () -> Int = { 0 },
+    /**
+     * Jméno účtu, když je účtů víc; jinak `null`. Jde do podtextu notifikace (`setSubText`),
+     * který systém ukáže v záhlaví vedle názvu aplikace — jinak není poznat, komu zpráva přišla.
+     */
+    private val accountName: suspend () -> String? = { null },
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -387,11 +393,22 @@ actual class NotificationPresenter(
         // co bychom dopočítávali z id chatu.
         val isGroup = conversation.lines.any { !it.isOwn && it.sender != null }
 
+        // S víc účty nese jméno konverzace i účet („Notifikator · VT2"). Podtext (`setSubText`)
+        // konverzační notifikace nekreslí, ve skupině ani rozbalená, a jméno konverzace bere
+        // Android 11+ ze zkratky (`publishShortcut`), ne z `conversationTitle` — ověřeno na
+        // Pixelu 5 (Android 14). Do `conversationTitle` jde účet pro starší Android bez zkratek.
+        val account = accountName()
         val style = NotificationCompat.MessagingStyle(Person.Builder().setName(readString(Res.string.notification_self_name)).build())
             .setGroupConversation(isGroup)
             // V soukromém chatu je název chatu totéž co jméno odesílatele u každého řádku —
-            // vypsat ho i do hlavičky by ho zdvojilo.
-            .setConversationTitle(conversation.title.takeIf { isGroup })
+            // vypsat ho i do hlavičky by ho zdvojilo. Účet se tam ale vejít musí.
+            .setConversationTitle(
+                when {
+                    account != null -> shortcutLabel(conversation.title, account)
+                    isGroup -> conversation.title
+                    else -> null
+                },
+            )
 
         conversation.lines.forEach { line ->
             val message = NotificationCompat.MessagingStyle.Message(
@@ -424,7 +441,7 @@ actual class NotificationPresenter(
             .setLargeIcon(avatarBitmap(conversation.avatarPath))
             // Bez zkratky není notifikace „konverzace": Android pak do velkého kruhu dosadí
             // ikonu aplikace a notifikace skončí mimo sekci konverzací.
-            .setShortcutId(publishShortcut(conversation))
+            .setShortcutId(publishShortcut(conversation, account))
             .setStyle(style)
             // Bublina (Android 11+): konverzace v plovoucím okně (`BubbleShell`). Jestli se
             // nabídne, rozhoduje uživatel v systému (u aplikace / konverzace); aplikace ji jen
@@ -436,6 +453,7 @@ actual class NotificationPresenter(
             // Systém si titulek a text doplní z `MessagingStyle`, ticker ne — a starší čtenáři
             // notifikací berou text právě odsud.
             .setTicker(conversation.lines.lastOrNull()?.let { "${it.sender ?: conversation.title}: ${it.text}" })
+            .setSubText(account)
             .setSilent(silent)
             .setAutoCancel(true)
             .apply {
@@ -508,6 +526,7 @@ actual class NotificationPresenter(
             .setLargeIcon(avatarBitmap(call.avatarPath))
             .setContentTitle(name)
             .setContentText(readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
+            .setSubText(accountName())
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
                     readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice) +
@@ -561,6 +580,7 @@ actual class NotificationPresenter(
             .setSmallIcon(R.drawable.ic_notification)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer).setIsVideo(call.isVideo))
             .setContentText(readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
+            .setSubText(accountName())
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setOngoing(true)
@@ -781,13 +801,14 @@ actual class NotificationPresenter(
      * `pushDynamicShortcut` sám hlídá systémový strop na počet zkratek a nejstarší odsouvá,
      * takže se tu nic nepočítá.
      */
-    private fun publishShortcut(conversation: Conversation): String? {
-        // Tatáž zkratka slouží i sdílení (Direct Share), viz `conversationShortcut`.
+    private fun publishShortcut(conversation: Conversation, account: String?): String? {
+        // Tatáž zkratka slouží i sdílení (Direct Share), viz `conversationShortcut`. Z jejího
+        // názvu bere Android jméno konverzace, takže v něm je i účet ([shortcutLabel]).
         val shortcut = conversationShortcut(
             context = context,
             slot = slot,
             chatId = conversation.chatId,
-            title = conversation.title,
+            title = shortcutLabel(conversation.title, account),
             photo = if (conversation.isSavedMessages) bookmarkIcon(context) else avatarIcon(conversation.avatarPath),
         ) ?: return null
         return shortcut.id.takeIf { pushConversationShortcut(context, shortcut) }

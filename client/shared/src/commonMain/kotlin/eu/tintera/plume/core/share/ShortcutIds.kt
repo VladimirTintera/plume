@@ -21,3 +21,11 @@ internal fun shortcutChat(id: String?): ShortcutTarget? {
 internal data class ShortcutTarget(val slot: AccountSlot, val chatId: Long)
 
 private const val SHORTCUT_PREFIX = "chat_"
+
+/**
+ * Název zkratky konverzace: název chatu, s víc účty i jméno účtu („Notifikator · VT2"). Tutéž
+ * zkratku sdílí notifikace (Android 11+ z ní bere jméno konverzace, `conversationTitle`
+ * ignoruje), nabídka Sdílet a zástupce na ploše, takže všichni musí skládat stejný název —
+ * jinak by se přepisoval tam a zpátky.
+ */
+internal fun shortcutLabel(title: String, account: String?): String = if (account == null) title else "$title · $account"

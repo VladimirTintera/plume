@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.accounts.notificationName
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.ai.core.Connectivity
 import eu.tintera.plume.core.ai.NetworkConnectivity
 import eu.tintera.plume.features.chats.PendingChatDeletes
@@ -345,7 +347,15 @@ fun appAccountModule() = module {
     single { StagedAttachmentsStore() }
     // Eager: po přihlášení zaregistruje Uložené zprávy jako cíl sdílení (viz init).
     single(createdAtStart = true) {
-        ShareTargets(slot = get(), repository = get(), chats = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
+        ShareTargets(
+            slot = get(),
+            repository = get(),
+            chats = get(),
+            files = get(),
+            publisher = get(),
+            scope = get(named(APP_SCOPE)),
+            accountName = { get<Accounts>().notificationName(get()) },
+        )
     }
 
     viewModelOf(::AuthViewModel)

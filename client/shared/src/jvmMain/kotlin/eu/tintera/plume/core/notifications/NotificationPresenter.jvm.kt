@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.notifications
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
 import eu.tintera.plume.core.accounts.AccountSlot
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.calls.CallRequests
@@ -77,6 +79,10 @@ actual class NotificationPresenter internal constructor(
     private val callRequests: CallRequests? = null,
     /** Hovory tu jde přijmout (ntgcalls je přibalená). */
     private val callsSupported: Boolean = false,
+    /** Jméno účtu do podtitulu oznámení, když je účtů víc; jinak `null`. */
+    private val accountName: suspend () -> String? = { null },
+    /** Kolik je v aplikaci jiných účtů; úklid po odhlášení podle toho nechá jejich oznámení být. */
+    private val otherAccounts: () -> Int = { 0 },
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -93,13 +99,30 @@ actual class NotificationPresenter internal constructor(
     /** Ukázané příchozí hovory podle id hovoru — Odmítnout potřebuje vědět, jestli šlo o video. */
     private val incoming = mutableMapOf<Int, IncomingCall>()
 
+    /**
+     * Slot účtu v oznámení a jeho id; primární účet nic nenese, takže oznámení z doby před víc
+     * účty i jejich vlákna zůstávají, jak byla. `groupId` je jedinečné jen v rámci účtu, a se
+     * dvěma účty by se oznámení přepisovala.
+     */
+    private val accountKey: String? = slot.id.takeUnless { slot.isPrimary }
+    private val idPrefix: String = accountKey?.let { "$it-" }.orEmpty()
+
+    /** Id všech ukázaných oznámení — úklid po odhlášení vedle jiných účtů stáhne jen ta. */
+    private val shown: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
+
+    private fun show(notification: DesktopNotification) {
+        shown += notification.id
+        notifier.show(notification)
+    }
+
     /** Názvy chatů z ukázaných oznámení — pro toast o neodeslané odpovědi. Jen z [dispatcher]. */
     private val titles = mutableMapOf<Long, String>()
 
     private val dispatcher = Dispatchers.Default.limitedParallelism(1)
 
     actual fun start(repository: NotificationRepository) {
-        notifier.onActivated = { activation ->
+        // Oznamovač je v procesu jeden; aktivace jde účtu, kterému oznámení patří.
+        NotificationActivations.register(notifier, slot) { activation ->
             when (activation) {
                 is ToastActivation.Open -> {
                     logger.d { "Klik na oznámení: chat ${activation.chatId}, téma ${activation.topicId}." }
@@ -147,12 +170,14 @@ actual class NotificationPresenter internal constructor(
             logger.d { "Oznámení skupiny $groupId (${fresh.size} nových), potichu=${newest.isSilent || quiet}." }
             if (!newest.isSilent && !quiet) attention = true
             titles[newest.chatId] = newest.chatTitle
-            notifier.show(
+            show(
                 DesktopNotification(
                     id = id(groupId, newest.notificationId),
-                    thread = "chat-${newest.chatId}",
+                    thread = thread(newest.chatId),
                     title = newest.chatTitle,
-                    subtitle = newest.senderName,
+                    // S víc účty i jméno účtu: jinak není poznat, komu zpráva přišla.
+                    subtitle = listOfNotNull(newest.senderName, accountName()).joinToString(" · ").ifEmpty { null },
+                    account = accountKey,
                     body = newest.text,
                     chatId = newest.chatId,
                     topicId = newest.topicId,
@@ -241,12 +266,13 @@ actual class NotificationPresenter internal constructor(
 
     private suspend fun replyFailed(reply: ToastActivation.Reply) {
         val title = withContext(dispatcher) { titles[reply.chatId] } ?: return
-        notifier.show(
+        show(
             DesktopNotification(
-                id = "reply-failed-${reply.chatId}-${Clock.System.now().toEpochMilliseconds()}",
-                thread = "chat-${reply.chatId}",
+                id = "${idPrefix}reply-failed-${reply.chatId}-${Clock.System.now().toEpochMilliseconds()}",
+                thread = thread(reply.chatId),
                 title = title,
-                subtitle = null,
+                subtitle = accountName(),
+                account = accountKey,
                 body = readString(Res.string.notification_reply_failed, reply.text),
                 chatId = reply.chatId,
                 topicId = reply.topicId,
@@ -286,12 +312,13 @@ actual class NotificationPresenter internal constructor(
         } else {
             null
         }
-        notifier.show(
+        show(
             DesktopNotification(
                 id = callId(call.groupId),
-                thread = "chat-${call.chatId}",
+                thread = thread(call.chatId),
                 title = call.callerName.ifBlank { readString(Res.string.notification_call_unknown) },
-                subtitle = null,
+                subtitle = accountName(),
+                account = accountKey,
                 body = readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice),
                 chatId = call.chatId,
                 topicId = null,
@@ -316,8 +343,10 @@ actual class NotificationPresenter internal constructor(
         known.clear()
         calls.clear()
         incoming.clear()
-        notifier.removeAll()
-        DesktopTaskbar.setUnread(0)
+        // Jsou-li jiné účty, jen oznámení tohoto; jinak všechna, i z minulého běhu procesu.
+        if (otherAccounts() == 0) notifier.removeAll() else notifier.remove(synchronized(shown) { shown.toList() })
+        shown.clear()
+        DesktopTaskbar.setUnread(slot.id, 0)
     }
 
     private fun startBadge() {
@@ -327,7 +356,7 @@ actual class NotificationPresenter internal constructor(
             chats.unreadMessages
                 .filterNotNull()
                 .distinctUntilChanged()
-                .collect(DesktopTaskbar::setUnread)
+                .collect { count -> DesktopTaskbar.setUnread(slot.id, count) }
         }
     }
 
@@ -336,9 +365,11 @@ actual class NotificationPresenter internal constructor(
         return time.hour * 60 + time.minute
     }
 
-    private fun id(groupId: Int, notificationId: Int) = "g$groupId-n$notificationId"
+    private fun id(groupId: Int, notificationId: Int) = "${idPrefix}g$groupId-n$notificationId"
 
-    private fun callId(groupId: Int) = "call-$groupId"
+    private fun callId(groupId: Int) = "${idPrefix}call-$groupId"
+
+    private fun thread(chatId: Long) = "chat-$idPrefix$chatId"
 
     private companion object {
         /** Na přihlášení TDLib po studeném startu z toastu. */
@@ -346,5 +377,21 @@ actual class NotificationPresenter internal constructor(
 
         /** Na potvrzení odpovědi od serveru. */
         val DELIVERY_TIMEOUT = 1.minutes
+    }
+}
+
+/**
+ * Rozcestník aktivací oznámení podle účtu. [DesktopNotifier] je v procesu jeden a aktivaci hlásí
+ * jediným `onActivated`; dokud si ho přepisoval presenter každého účtu, šla odpověď z oznámení
+ * prvního účtu do toho, který se nastartoval poslední. Účet nese aktivace sama
+ * ([ToastActivation.account]), oznámení bez něj patří primárnímu účtu.
+ */
+internal object NotificationActivations {
+
+    private val handlers = ConcurrentHashMap<String, (ToastActivation) -> Unit>()
+
+    fun register(notifier: DesktopNotifier, slot: AccountSlot, handler: (ToastActivation) -> Unit) {
+        handlers[slot.id] = handler
+        notifier.onActivated = { activation -> handlers[activation.account ?: AccountSlot.Primary.id]?.invoke(activation) }
     }
 }

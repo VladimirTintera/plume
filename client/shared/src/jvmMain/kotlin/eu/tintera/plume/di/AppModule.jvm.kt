@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.accounts.notificationName
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.ai.core.NoDeviceLoad
 import eu.tintera.ai.core.MeteredNetwork
@@ -211,6 +213,8 @@ actual fun Module.platformAccountModule() {
             actions = get(),
             callRequests = get(),
             callsSupported = get<CallRepository>().supported,
+            accountName = { get<Accounts>().notificationName(get()) },
+            otherAccounts = { get<Accounts>().all.value.size - 1 },
         )
     }
 }

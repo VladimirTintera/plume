@@ -41,6 +41,11 @@ internal object DesktopTaskbar {
 
     private val unread = MutableStateFlow(0)
 
+    /** Nepřečtené po účtech (slot → počet); odznak je jejich součet, nezávisle na filtru seznamu. */
+    private val unreadByAccount = mutableMapOf<String, Int>()
+
+    private var started = false
+
     /** Barvy odznaku z motivu aplikace; do první kompozice motivu se overlay nekreslí. */
     private val colors = MutableStateFlow<BadgeColors?>(null)
 
@@ -48,15 +53,21 @@ internal object DesktopTaskbar {
 
     private data class Badge(val count: Int, val colors: BadgeColors?, val onScreen: Boolean)
 
-    fun setUnread(count: Int) {
-        unread.value = count
+    /** Nepřečtené účtu [account] (slot); odznak ukazuje součet všech účtů. */
+    fun setUnread(account: String, count: Int) {
+        unread.value = synchronized(unreadByAccount) {
+            unreadByAccount[account] = count
+            unreadByAccount.values.sum()
+        }
     }
 
     fun setColors(container: Int, content: Int) {
         colors.value = BadgeColors(container, content)
     }
 
+    /** Spustí kreslení odznaku; volá ho presenter každého účtu, kreslí se jednou. */
     fun start(scope: CoroutineScope) {
+        if (synchronized(this) { started.also { started = true } }) return
         val text = supports(Taskbar.Feature.ICON_BADGE_TEXT)
         val image = supports(Taskbar.Feature.ICON_BADGE_IMAGE_WINDOW)
         if (!text && !image) return
