@@ -1,6 +1,8 @@
 package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountViewModels
 import eu.tintera.plume.core.accounts.CallAccountScope
 import eu.tintera.plume.core.navigation.AccountRoute
 import eu.tintera.plume.core.accounts.LocalAccount
@@ -109,6 +111,7 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -762,11 +765,22 @@ private fun ShellContent(
             navigation.stack(ChatsRoute).add(InstantViewRoute(slot, request.url))
         }
 
-        ExternalLinkHost(
-            viewModel = koinViewModel(),
-            onNavigate = { destination -> navigation.openExternal(slot, destination, twoPane) },
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
+        // Za každý účet: zvolí-li uživatel u pozvánky jiný účet, vyřídí ji ViewModel z jeho
+        // kontejneru. Odkaz bez účtu (zvenčí) bere výchozí účet, tedy tenhle shell.
+        val signedIn by accounts.all.collectAsStateWithLifecycle()
+        signedIn.forEach { session ->
+            key(session.slot) {
+                val host: @Composable () -> Unit = {
+                    ExternalLinkHost(
+                        viewModel = koinViewModel(),
+                        accepts = { request -> request.slot == session.slot || (request.slot == null && session.slot == slot) },
+                        onNavigate = { destination -> navigation.openExternal(session.slot, destination, twoPane) },
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
+                if (session.slot == slot) host() else AccountScope(session) { AccountViewModels(session.slot, host) }
+            }
+        }
         // Limit skupin a kanálů: přijít může ze vstupu i založení kdekoli, sheet patří nad vše.
         ChannelLimitHost()
     }

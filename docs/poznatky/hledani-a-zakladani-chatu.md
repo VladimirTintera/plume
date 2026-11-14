@@ -407,6 +407,10 @@ přihlašovacím odkazem), kreslí host sám, i s vlastním snackbarem.
   nabídne výběr aplikací sám, `tg://` nepotřebuje nic. S nainstalovaným oficiálním klientem,
   který doménu ověřenou má, jde `t.me` z fotoaparátu do něj — Plume dostane `tg://` z jeho
   výběru, nebo kód naskenovaný ve vlastní čtečce.
+- **S víc účty se pozvánka, sdílená složka a mini aplikace ptají kterým účtem**
+  (`AccountChoiceSheet`), ostatní odkazy otevře výchozí účet. Host je za každý účet a odkaz
+  nese slot (`LinkOpenRequest.slot`, `null` = zvenčí); kdo posílá odkaz z obrazovky jednoho
+  účtu, předá její slot. Viz `docs/navrh-vice-uctu.md`, krok 12.
 - **Odkaz se z intentu po předání maže** (`MainActivity.receiveLink`), jinak by ho otočení
   displeje otevřelo podruhé; studený start ho čte jen bez `savedInstanceState`.
 - **Kontaktní odkaz otevře PROFIL s „Přidat do kontaktů" jako hlavní akcí**, ne chat — viz

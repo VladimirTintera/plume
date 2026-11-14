@@ -2155,6 +2155,8 @@
     <string name="accounts_shown">Zobrazený v seznamu chatů</string>
     <string name="accounts_already_signed_in">Tenhle účet už v aplikaci přihlášený je</string>
     <string name="accounts_filter_all">Všechny účty</string>
+    <string name="link_account_title">Kterým účtem otevřít?</string>
+    <string name="link_account_text">Pozvánka, sdílená složka i mini aplikace budou jednat za účet, který vybereš.</string>
     <string name="chats_new">Nová zpráva</string>
     <string name="chats_create">Vytvořit</string>
     <string name="new_chat_title">Nová zpráva</string>

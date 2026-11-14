@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -39,6 +40,8 @@ data class NewChatState(
 class NewChatViewModel(
     private val chatRepository: ChatRepository,
     private val linkRequests: LinkOpenRequests = LinkOpenRequests(),
+    /** Účet nové konverzace: naskenovaný odkaz se otevře v něm, bez ptaní na účet. */
+    private val slot: AccountSlot? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("NewChatViewModel")
@@ -181,7 +184,7 @@ class NewChatViewModel(
      */
     fun onScanned(content: String) {
         val text = content.trim()
-        if (isTelegramLink(text)) linkRequests.request(text) else error.value = UiText(Res.string.my_qr_not_telegram)
+        if (isTelegramLink(text)) linkRequests.request(text, slot) else error.value = UiText(Res.string.my_qr_not_telegram)
     }
 
     fun onScanFailed(message: UiText) {

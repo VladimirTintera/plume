@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.links
 
 import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.navigation.ChannelLimitRequests
 import eu.tintera.plume.core.navigation.ContactOffers
 import androidx.lifecycle.ViewModel
@@ -61,6 +62,10 @@ import org.jetbrains.compose.resources.StringResource
  *   mohl poslat kdokoli a uživatel ho v Plume ještě neviděl.
  * - **Neznámý webový odkaz jde VÝSLOVNĚ do prohlížeče** ([UrlOpener.openInBrowser]). Systém
  *   by ho jinak mohl vrátit zase Plume, protože Plume adresy `t.me` přijímá.
+ * - **S víc účty se pozvánka, sdílená složka a mini aplikace zeptají, kterým účtem**
+ *   ([actsAsAccount], [ExternalLinkState.accountChoice]); ostatní odkazy otevře tenhle účet.
+ *   Zvolený jiný účet dostane odkaz znovu přes [LinkOpenRequests] se svým slotem — jeho
+ *   ViewModel ho vyřídí ve svém kontejneru.
  */
 class ExternalLinkViewModel(
     private val slot: AccountSlot,
@@ -74,6 +79,7 @@ class ExternalLinkViewModel(
     private val contactOffers: ContactOffers,
     /** Limit skupin a kanálů při vstupu: sheet s neaktivními k opuštění ukazuje shell. */
     private val channelLimit: ChannelLimitRequests,
+    private val accounts: Accounts,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ExternalLink")
@@ -89,59 +95,19 @@ class ExternalLinkViewModel(
      */
     fun open(request: LinkOpenRequest) {
         requests.consume(request)
-        viewModelScope.launch { resolve(request.url) }
+        viewModelScope.launch { resolve(request.url, ask = request.slot == null && severalAccounts()) }
     }
 
-    private suspend fun resolve(url: String) {
+    private fun severalAccounts() = accounts.all.value.size > 1
+
+    /** [ask] = odkaz zvenčí s víc účty: u odkazu, který jedná za účet, se napřed zeptat kterým. */
+    private suspend fun resolve(url: String, ask: Boolean) {
         chats.resolveLink(url)
             .onSuccess { link ->
-                when (link) {
-                    // Druh, který Plume neumí (platby, dárky…): webový do prohlížeče, `tg://` nikam.
-                    null -> if (!url.isWebUrl() || !urlOpener.openInBrowser(url)) {
-                        _state.update { it.copy(message = UiText(Res.string.conversation_link_failed)) }
-                    }
-                    is InternalLink.Chat -> {
-                        link.draftText?.let { text ->
-                            shareRequests.start(text, hasFiles = false, target = ShareTarget(slot, link.chatId, confirm = false))
-                        }
-                        if (link.offerContact) contactOffers.offer(link.chatId)
-                        navigate(ExternalDestination.Chat(chatTarget(link.chatId), profile = link.openProfile))
-                    }
-                    is InternalLink.Message ->
-                        navigate(ExternalDestination.Chat(ChatTarget(link.chatId, link.messageId, topicId = link.topicId)))
-                    // Sdílení bez vybraného chatu: obsah nese čip v shellu (viz ShareRequests).
-                    is InternalLink.ShareText -> shareRequests.start(link.text, hasFiles = false)
-                    is InternalLink.Proxy -> proxyLinkFlow.open(link.config)
-                    is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
-                    is InternalLink.FolderInvite -> _state.update {
-                        it.copy(folderInvite = FolderInviteSheetState(link.link, link.preview))
-                    }
-                    is InternalLink.StickerSet -> _state.update { it.copy(stickerSet = link.setId) }
-                    is InternalLink.BotStart -> {
-                        botStartRequests.request(link.chatId, link.parameter)
-                        navigate(ExternalDestination.Chat(ChatTarget(link.chatId)))
-                    }
-                    is InternalLink.BotStartInGroup -> navigate(ExternalDestination.AddBotToGroup(link))
-                    is InternalLink.MainWebApp -> navigate(
-                        ExternalDestination.WebApp(
-                            WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
-                        ),
-                    )
-                    is InternalLink.WebApp -> navigate(
-                        ExternalDestination.WebApp(
-                            WebAppRequest(
-                                link.botUserId,
-                                url = "",
-                                launch = false,
-                                startParameter = link.startParameter,
-                                shortName = link.shortName,
-                            ),
-                        ),
-                    )
-                    is InternalLink.Screen -> navigate(ExternalDestination.Screen(link.screen))
-                    is InternalLink.LoginWarning -> _state.update { it.copy(loginWarning = link.kind) }
-                    is InternalLink.DeepLinkInfo -> _state.update { it.copy(deepLinkInfo = link) }
-                    is InternalLink.Story -> navigate(ExternalDestination.Story(link.posterChatId, link.storyId))
+                if (ask && link != null && link.actsAsAccount()) {
+                    _state.update { it.copy(accountChoice = AccountChoice(url, link)) }
+                } else {
+                    handle(url, link)
                 }
             }
             .onFailure { failure ->
@@ -153,6 +119,70 @@ class ExternalLinkViewModel(
                 }
                 _state.update { it.copy(message = message) }
             }
+    }
+
+    /**
+     * Účet pro odkaz z [ExternalLinkState.accountChoice]: tenhle účet odkaz vyřídí hned (je už
+     * rozparsovaný), jiný ho dostane znovu se svým slotem — náhled pozvánky i to, jestli je už
+     * členem, se liší podle účtu, takže si ho rozparsuje sám.
+     */
+    fun chooseAccount(target: AccountSlot) {
+        val choice = _state.value.accountChoice ?: return
+        _state.update { it.copy(accountChoice = null) }
+        if (target == slot) viewModelScope.launch { handle(choice.url, choice.link) } else requests.request(choice.url, target)
+    }
+
+    fun dismissAccountChoice() = _state.update { it.copy(accountChoice = null) }
+
+    private suspend fun handle(url: String, link: InternalLink?) {
+        when (link) {
+            // Druh, který Plume neumí (platby, dárky…): webový do prohlížeče, `tg://` nikam.
+            null -> if (!url.isWebUrl() || !urlOpener.openInBrowser(url)) {
+                _state.update { it.copy(message = UiText(Res.string.conversation_link_failed)) }
+            }
+            is InternalLink.Chat -> {
+                link.draftText?.let { text ->
+                    shareRequests.start(text, hasFiles = false, target = ShareTarget(slot, link.chatId, confirm = false))
+                }
+                if (link.offerContact) contactOffers.offer(link.chatId)
+                navigate(ExternalDestination.Chat(chatTarget(link.chatId), profile = link.openProfile))
+            }
+            is InternalLink.Message ->
+                navigate(ExternalDestination.Chat(ChatTarget(link.chatId, link.messageId, topicId = link.topicId)))
+            // Sdílení bez vybraného chatu: obsah nese čip v shellu (viz ShareRequests).
+            is InternalLink.ShareText -> shareRequests.start(link.text, hasFiles = false)
+            is InternalLink.Proxy -> proxyLinkFlow.open(link.config)
+            is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
+            is InternalLink.FolderInvite -> _state.update {
+                it.copy(folderInvite = FolderInviteSheetState(link.link, link.preview))
+            }
+            is InternalLink.StickerSet -> _state.update { it.copy(stickerSet = link.setId) }
+            is InternalLink.BotStart -> {
+                botStartRequests.request(link.chatId, link.parameter)
+                navigate(ExternalDestination.Chat(ChatTarget(link.chatId)))
+            }
+            is InternalLink.BotStartInGroup -> navigate(ExternalDestination.AddBotToGroup(link))
+            is InternalLink.MainWebApp -> navigate(
+                ExternalDestination.WebApp(
+                    WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
+                ),
+            )
+            is InternalLink.WebApp -> navigate(
+                ExternalDestination.WebApp(
+                    WebAppRequest(
+                        link.botUserId,
+                        url = "",
+                        launch = false,
+                        startParameter = link.startParameter,
+                        shortName = link.shortName,
+                    ),
+                ),
+            )
+            is InternalLink.Screen -> navigate(ExternalDestination.Screen(link.screen))
+            is InternalLink.LoginWarning -> _state.update { it.copy(loginWarning = link.kind) }
+            is InternalLink.DeepLinkInfo -> _state.update { it.copy(deepLinkInfo = link) }
+            is InternalLink.Story -> navigate(ExternalDestination.Story(link.posterChatId, link.storyId))
+        }
     }
 
     /** Skupina s tématy bez určeného tématu se otevře seznamem témat, jako ze seznamu chatů. */
@@ -259,7 +289,7 @@ class ExternalLinkViewModel(
     /** Odkaz uvnitř vysvětlení od serveru: zavře dialog a otevře se jako odkaz zvenčí. */
     fun openDeepLinkInfoLink(url: String) {
         dismissDeepLinkInfo()
-        viewModelScope.launch { resolve(url) }
+        viewModelScope.launch { resolve(url, ask = severalAccounts()) }
     }
 
     private fun Throwable.reported(fallback: StringResource): UiText {
@@ -267,6 +297,15 @@ class ExternalLinkViewModel(
         return userMessage(fallback)
     }
 }
+
+/**
+ * Jedná odkaz za účet, kterým se otevře? Pozvánka a sdílená složka do něj přidají chaty, mini
+ * aplikace se přihlásí jeho jménem (i přihlášení na webu z odkazu `t.me/oauth`, které TDLib
+ * otevírá jako mini aplikaci). U takového se s víc účty ptá kterým; chat, zpráva nebo profil
+ * se otevřou výchozím účtem.
+ */
+internal fun InternalLink.actsAsAccount(): Boolean =
+    this is InternalLink.Invite || this is InternalLink.FolderInvite || this is InternalLink.WebApp || this is InternalLink.MainWebApp
 
 private fun String.isWebUrl(): Boolean {
     val scheme = substringBefore(':', missingDelimiterValue = "").lowercase()
@@ -284,7 +323,12 @@ data class ExternalLinkState(
     val deepLinkInfo: InternalLink.DeepLinkInfo? = null,
     /** Jednorázová hláška pro snackbar shellu. */
     val message: UiText? = null,
+    /** Odkaz zvenčí, který jedná za účet: s víc účty čeká na volbu kterým ([ExternalLinkViewModel.chooseAccount]). */
+    val accountChoice: AccountChoice? = null,
 )
+
+/** Rozparsovaný odkaz zvenčí čekající na volbu účtu. */
+data class AccountChoice(val url: String, val link: InternalLink)
 
 /** Obrazovka, na kterou odkaz zvenčí vede. Navigaci dělá shell, ViewModel jen říká kam. */
 sealed interface ExternalDestination {
