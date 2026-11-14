@@ -116,6 +116,11 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
+    // Služba v popředí po dobu videochatu — i se zavřenou obrazovkou a aplikací na pozadí. Jedna
+    // přes všechny účty (`VideoChats`), jako služba hudby.
+    single(createdAtStart = true) {
+        VideoChatServiceControls(context = androidContext(), videoChats = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)).also { it.start() }
+    }
     // Hudba na pozadí: spustí službu s MediaSession, když začne hrát skladba. Jedna přes všechny
     // účty, jako fronta (`MusicQueue`); vlastní scope, APP_SCOPE je v kontejneru účtu.
     single(createdAtStart = true) {
@@ -306,10 +311,6 @@ actual fun Module.platformAccountModule() {
     // Služba v popředí po dobu hovoru — spouští se z popředí, jakmile hovor vytáčí nebo běží.
     single(createdAtStart = true) {
         CallServiceControls(slot = get(), context = androidContext(), calls = get(), scope = get(named(APP_SCOPE))).also { it.start() }
-    }
-    // Služba v popředí po dobu videochatu — i se zavřenou obrazovkou a aplikací na pozadí.
-    single(createdAtStart = true) {
-        VideoChatServiceControls(slot = get(), context = androidContext(), session = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
     // Vyzvánění příchozího hovoru a tón protistrany u odchozího.
     single(createdAtStart = true) {

@@ -1225,6 +1225,9 @@ má každý účet svoje.
   výzvou.
 - **Odmítnutí nevolá `media.stop()`** (`declineBusy`, ne `hangUp`): zastavilo by hovor druhého
   účtu, který v týchž médiích běží. Kdo přidává další cestu k ukončení hovoru, musí to hlídat taky.
+- **Videochat je přes účty taky jeden** (`VideoChats`, krok 14 návrhu): připojení v jednom účtu
+  opustí videochat v ostatních, pruh se skládá v účtu videochatu (`VideoChatAccountScope`)
+  a `VideoChatService` žádnému účtu nepatří. Pruh videochatu ustoupí hovoru v kterémkoli účtu.
 - Vytočit hovor, když hovor má jiný účet, nejde: dialog u ťuknutí (`rememberStartCall`). Pruh
   hovoru ukazuje účet s živým hovorem, selhání druhého účtu by v něm vidět nebylo.
 

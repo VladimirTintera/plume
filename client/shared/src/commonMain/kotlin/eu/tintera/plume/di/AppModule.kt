@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.accounts.notificationName
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.ai.core.Connectivity
 import eu.tintera.plume.core.ai.NetworkConnectivity
@@ -132,6 +133,7 @@ import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.stories.StoriesViewModel
 import eu.tintera.plume.features.videochat.VideoChatSession
+import eu.tintera.plume.features.videochat.VideoChats
 import eu.tintera.plume.features.videochat.VideoChatViewModel
 import eu.tintera.plume.features.stories.StoryComposerViewModel
 import eu.tintera.plume.features.stickers.OwnedStickerSetViewModel
@@ -246,6 +248,11 @@ fun appModule() = module {
         )
     }
     single { VideoPositions(settings = get()) }
+    // Běžící videochat přes všechny účty: pruh nad aplikací a služba v popředí podle něj.
+    single {
+        val koin = getKoin()
+        VideoChats(accounts = { koin.get() }, scope = CoroutineScope(SupervisorJob() + Dispatchers.Main))
+    }
     single { ExchangeRates(TextDownloader()) }
     // Model v zařízení (ai-engine :ai-core): stahování modelu bere stav sítě od Plume.
     single<Connectivity> { NetworkConnectivity(get()) }
@@ -872,7 +879,19 @@ fun appAccountModule() = module {
         OwnedStickerSetViewModel(setId = parameters.get(), stickers = get(), files = get(), maker = getOrNull())
     }
     // Videochat žije s aplikací, ne s obrazovkou: posluchač v něm zůstává i mimo ni.
-    single { VideoChatSession(repository = get(), media = getOrNull(), appScope = get(named(APP_SCOPE))) }
+    // Videochat má každý účet vlastní, přenos je jeden: připojení opustí videochat v ostatních.
+    single {
+        val slot = get<AccountSlot>()
+        val koin = getKoin()
+        VideoChatSession(
+            repository = get(),
+            media = getOrNull(),
+            appScope = get(named(APP_SCOPE)),
+            leaveElsewhere = {
+                koin.get<Accounts>().all.value.filter { it.slot != slot }.forEach { it.get<VideoChatSession>().leave() }
+            },
+        )
+    }
     viewModel { parameters ->
         VideoChatViewModel(
             chatId = parameters.get(),

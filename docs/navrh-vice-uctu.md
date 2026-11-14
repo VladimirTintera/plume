@@ -770,13 +770,32 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       a poslech skladby VT se nahlásil (6 s). Dock konverzace VT skladbu VT2 neukázal.
       Ťuknutí na notifikaci a iOS vyzkoušené nejsou.
 
+14. **Videochat přes všechny účty** — hotovo:
+    - **Pruh nad aplikací se skládá v účtu videochatu** (`VideoChatAccountScope`, jako
+      `CallAccountScope` u hovoru); dřív ho skládal shell, tedy výchozí účet, a videochat jiného
+      účtu pruh neměl. Ťuknutí otevře obrazovku videochatu v jeho účtu.
+    - **Běží nejvýš jeden videochat** (`VideoChats.running`): sezení má každý účet vlastní, přenos
+      (`LiveStreamMedia`) je ale v procesu jeden. `VideoChatSession.join` napřed opustí videochat
+      v ostatních účtech (`leaveElsewhere`, test `joiningLeavesVideoChatElsewhere`).
+    - **Služba v popředí žádnému účtu nepatří** (bez `ServiceOwner`): řídí ji `VideoChats.running`
+      přes všechny účty, „Zavěsit" opustí videochat účtu, ve kterém posluchač je, a ťuknutí
+      otevře skupinu v jeho účtu. Se službou vázanou na účet by připojení ve druhém účtu
+      skončilo bez služby (stejná past jako u hudby, krok 13).
+    - **Pruh ustoupí hovoru v kterémkoli účtu**, ne jen ve svém — pruh hovoru leží na tomtéž
+      místě a skládá se v účtu hovoru. Hovor a videochat se dál navzájem neblokují, stejně jako
+      v jednom účtu.
+    - **Ověřeno na Pixelu 5** (výchozí VT2) se sondou, která ve VT založila videochat v „Plume test
+      moderace" a za 10 minut ho ukončila (necommituje se): připojení ve VT a zpět → pruh nad
+      aplikací (dřív by chyběl), služba v popředí; připojení téhož videochatu ve VT2 → VT odešel
+      (1 účastník, na obrazovce „Vy" za VT2), služba tatáž (`dumpsys activity services`);
+      Opustit → pruh i služba pryč. Ve skupině po sondě zůstanou servisní zprávy. Souběh
+      s hovorem a „Zavěsit" v notifikaci vyzkoušené nejsou.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
      Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
      výchozí účet.
-   - Videochat jiného účtu než výchozího nemá pruh a s hovorem druhého účtu se nehlídá
-     (videochat není `CallRepository`).
    - `VoicePlayer` klíčuje přehrávání `VoiceKey(chatId, messageId)` bez účtu: hlasovka se stejným
      klíčem v jiném účtu (společný kanál) by v bublině ukázala, že hraje.
    - Widget má jeden soubor podkladů a miniatury maže jeden updater: se dvěma účty by se

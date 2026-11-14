@@ -1,6 +1,5 @@
 package eu.tintera.plume.features.videochat
 
-import eu.tintera.plume.core.accounts.AccountSlot
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
@@ -17,7 +16,6 @@ import androidx.core.app.Person
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.accounts.ServiceOwner
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.CALLS_CHANNEL_ID
 import eu.tintera.plume.core.notifications.NotificationIntents
@@ -46,18 +44,14 @@ import org.koin.core.component.inject
  * - **Notifikace je `CallStyle`** s názvem videochatu a „Zavěsit" od systému, které videochat
  *   opustí; ťuknutí otevře skupinu (nad ní je pruh videochatu).
  * - **Skončí sama**, když posluchač odejde, nebo videochat skončí.
+ * - **Nepatří žádnému účtu** ([VideoChats]): běží nejvýš jeden videochat přes všechny účty,
+ *   a připojení v jiném účtu tak jde touž službou. Dokud ji vlastnil účet, který ji spustil,
+ *   skončila by s jeho videochatem i pod videochatem druhého účtu.
  */
 class VideoChatService : Service(), KoinComponent {
 
-    /** Účet, který službu spustil (viz [ServiceOwner]); nastaví ho [VideoChatServiceControls]. */
-    object Owner : ServiceOwner()
-
-    override fun getKoin() = Owner.koin()
-
-    private val slot: AccountSlot by inject()
-
     private val logger = Logger.withTag("VideoChatService")
-    private val session: VideoChatSession by inject()
+    private val videoChats: VideoChats by inject()
     private val scope = MainScope()
 
     /** Typ, se kterým služba běží — mikrofon se přidá a ubere s mluvením. */
@@ -68,23 +62,23 @@ class VideoChatService : Service(), KoinComponent {
     override fun onCreate() {
         super.onCreate()
         scope.launch {
-            session.active.collect { chat ->
-                if (chat == null || !chat.running) {
+            videoChats.running.collect { running ->
+                if (running == null) {
                     stop()
                     return@collect
                 }
-                updateMicrophone(chat)
-                runCatching { getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification(chat)) }
+                updateMicrophone(running)
+                runCatching { getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification(running)) }
             }
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_LEAVE) {
-            session.leave()
+            videoChats.running.value?.session?.leave()
             return START_NOT_STICKY
         }
-        val chat = session.active.value?.takeIf { it.running }
+        val chat = videoChats.running.value
         if (chat == null) {
             stopSelf()
             return START_NOT_STICKY
@@ -108,16 +102,17 @@ class VideoChatService : Service(), KoinComponent {
         else -> 0
     }
 
-    private suspend fun updateMicrophone(chat: ActiveVideoChat) {
-        val microphone = chat.state.micOn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+    private suspend fun updateMicrophone(running: AccountVideoChat) {
+        val microphone = running.chat.state.micOn && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (microphone == runningWithMicrophone) return
-        runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(chat), foregroundTypes(microphone)) }
+        runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(running), foregroundTypes(microphone)) }
             .onSuccess { runningWithMicrophone = microphone }
             .onFailure { logger.w(it) { "Typ služby videochatu (mikrofon: $microphone) nejde změnit." } }
     }
 
-    private suspend fun notification(chat: ActiveVideoChat): Notification {
+    private suspend fun notification(running: AccountVideoChat): Notification {
+        val chat = running.chat
         val person = Person.Builder().setName(chat.title).setImportant(true).build()
         return NotificationCompat.Builder(this, CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -130,7 +125,7 @@ class VideoChatService : Service(), KoinComponent {
             .setContentText(
                 readString(if (chat.state.micOn) Res.string.video_chat_bar_speaking else Res.string.video_chat_notification_listening),
             )
-            .setContentIntent(NotificationIntents.openChat(this, slot, NOTIFICATION_ID, chat.chatId))
+            .setContentIntent(NotificationIntents.openChat(this, running.account.slot, NOTIFICATION_ID, chat.chatId))
             .build()
     }
 
@@ -158,25 +153,23 @@ class VideoChatService : Service(), KoinComponent {
 }
 
 /**
- * Spouští [VideoChatService], když se posluchač k videochatu připojuje nebo v něm je.
- * Připojení je vždycky ťuknutí na pruh v aplikaci, tedy z popředí.
+ * Spouští [VideoChatService], když se posluchač k videochatu připojuje nebo v něm je — v kterémkoli
+ * účtu ([VideoChats]). Připojení je vždycky ťuknutí na pruh v aplikaci, tedy z popředí.
  */
 class VideoChatServiceControls(
-    private val slot: AccountSlot,
     private val context: Context,
-    private val session: VideoChatSession,
+    private val videoChats: VideoChats,
     private val scope: CoroutineScope,
 ) {
     private val logger = Logger.withTag("VideoChatService")
 
     fun start() {
         scope.launch {
-            session.active
-                .map { chat -> chat?.takeIf { it.running }?.groupCallId }
+            videoChats.running
+                .map { it?.chat?.groupCallId }
                 .distinctUntilChanged()
                 .collect { groupCallId ->
                     if (groupCallId == null) return@collect
-                    VideoChatService.Owner.slot = slot
                     runCatching { ContextCompat.startForegroundService(context, Intent(context, VideoChatService::class.java)) }
                         .onFailure { failure -> logger.w(failure) { "Službu videochatu nejde spustit." } }
                 }
