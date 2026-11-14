@@ -93,6 +93,15 @@ class KeyboardShortcutsTest {
         assertNull(neighbourChat(ids, current = 1L, next = false))
     }
 
+    /** Společný seznam víc účtů: totéž id ve dvou účtech jsou dva chaty, rozliší je účet. */
+    @Test
+    fun sousedniChatSUctem() {
+        val ids = listOf("a" to 7L, "b" to 7L, "a" to 3L)
+        assertEquals("b" to 7L, neighbourChat(ids, current = "a" to 7L, next = true))
+        assertEquals("a" to 3L, neighbourChat(ids, current = "b" to 7L, next = true))
+        assertEquals("a" to 7L, neighbourChat(ids, current = "b" to 7L, next = false))
+    }
+
     /** Bez otevřeného chatu (nebo s chatem mimo seznam) se začíná od kraje. */
     @Test
     fun bezOtevrenehoChatuOdKraje() {

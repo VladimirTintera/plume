@@ -73,9 +73,10 @@ fun keyboardShortcut(
 /**
  * Sousední chat v pořadí [ids], jak je uživatel vidí; [current] je otevřený chat. Bez otevřeného
  * (nebo s chatem, který v seznamu není) začne další chat od prvního a předchozí od posledního.
- * Na krajích se nezacyklí — skok z posledního na první by vypadal jako chyba.
+ * Na krajích se nezacyklí — skok z posledního na první by vypadal jako chyba. Klíč je id chatu,
+ * ve společném seznamu víc účtů id s účtem (totéž id má chat ve dvou účtech).
  */
-fun neighbourChat(ids: List<Long>, current: Long?, next: Boolean): Long? {
+fun <K> neighbourChat(ids: List<K>, current: K?, next: Boolean): K? {
     if (ids.isEmpty()) return null
     val index = ids.indexOf(current)
     if (index < 0) return if (next) ids.first() else ids.last()

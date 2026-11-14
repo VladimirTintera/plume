@@ -674,8 +674,19 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      s VT2. Archiv ukáže archivované chaty obou účtů (chat VT2 archivovaný tahem přibyl vedle
      chatu VT) a tah ho vrátí. Desktop jen přeložený.
 
+9. **Zkratky Alt+↓/↑ a Ctrl+Tab ve společném seznamu** — hotovo:
+   - Procházejí společný seznam v pořadí, jak je vidět (hlavní seznam i archiv), a chat otevřou
+     v účtu řádku. `ChatSwitchShortcuts` a `neighbourChat` jsou obecné nad klíčem: v seznamu
+     jednoho účtu je klíčem id chatu, ve společném id s účtem — Notifikátor ve VT a ve VT2 jsou
+     dva sousední chaty, ne jeden (test `sousedniChatSUctem`).
+   - Seznam za chatem otevřeným zkratkou dojede jako v seznamu jednoho účtu; index počítá za
+     kartami nahoře (`headerItemCount`).
+   - **Ověřeno na Pixelu 5 na šířku** (list-detail, zkratky přes `adb shell input
+     keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_DOWN`): Pixel 7 Pro (VT) → Pixel 5 (VT2) →
+     … → Notifikátor VT pod okrajem (seznam dojel), Alt+↑ zpět na Notifikátor VT2; pole zprávy
+     ukazuje vždy účet otevřeného chatu.
+
 **Zbývá pro fázi 1:**
-   - Klávesové zkratky Alt+↓/↑ přes společný seznam.
    - Ve sbaleném sloupci seznamu (`CollapsedChatList`) režim Vše není, ukazuje výchozí účet.
    - Zvukové kanály notifikací mají dostat slot do jména (tón patří účtu).
    - Odkazy `tg://` a `t.me` jdou do výchozího účtu; pozvánka a přihlášení na webu se mají ptát.

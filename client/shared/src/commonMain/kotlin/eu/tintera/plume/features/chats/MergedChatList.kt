@@ -25,8 +25,10 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -243,6 +245,8 @@ internal fun MergedChatListContent(
     padding: PaddingValues,
     listState: LazyListState,
     empty: @Composable BoxScope.() -> Unit,
+    /** Kolik položek přidá [header]; dojetí za chatem otevřeným zkratkou počítá index za nimi. */
+    headerItemCount: Int = 0,
     header: LazyListScope.() -> Unit = {},
 ) {
     val rowGaps = LocalChatRowGaps.current
@@ -270,6 +274,34 @@ internal fun MergedChatListContent(
     }
     LaunchedEffect(listState, sources) {
         snapshotFlow { shouldLoadMore }.collect { if (it) sources.forEach { source -> source.viewModel.loadMore() } }
+    }
+
+    // Alt+↓ / Alt+↑ v pořadí společného seznamu; chat se otevře v účtu řádku a seznam za ním
+    // dojede, není-li celý vidět (jako v seznamu jednoho účtu).
+    var shortcutTarget by remember { mutableStateOf<String?>(null) }
+    ChatSwitchShortcuts(
+        enabled = true,
+        chats = groups,
+        key = { sources[it.source].account.slot to it.chat.id },
+        selected = selectedChat,
+        sponsored = { it.chat.sponsor != null },
+        onOpen = { merged ->
+            shortcutTarget = merged.key
+            onOpen(sources[merged.source].account.slot, merged.chat)
+        },
+    )
+    LaunchedEffect(shortcutTarget, groups) {
+        val target = shortcutTarget ?: return@LaunchedEffect
+        val position = groups.flatten().indexOfFirst { it.key == target }
+        if (position >= 0) {
+            val info = listState.layoutInfo
+            val fullyVisible = info.visibleItemsInfo.any {
+                it.key == target && it.offset >= info.viewportStartOffset + info.beforeContentPadding &&
+                    it.offset + it.size <= info.viewportEndOffset - info.afterContentPadding
+            }
+            if (!fullyVisible) listState.animateScrollToItem(headerItemCount + position)
+        }
+        shortcutTarget = null
     }
 
     when {
