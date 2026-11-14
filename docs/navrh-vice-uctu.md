@@ -1,7 +1,7 @@
 # Návrh: víc účtů naráz
 
-> **Stav:** fáze 0 hotová, z fáze 1 přidání, odebrání a přepnutí účtu a společný seznam chatů
-> (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> **Stav:** fáze 0 hotová, z fáze 1 přidání, odebrání a přepnutí účtu, společný seznam chatů
+> a účet v konverzaci (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
 > stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
@@ -591,9 +591,20 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      restart, otevření konverzace jiného účtu, nabídka nad chatem jiného účtu, výběr v něm (seznam
      jen jeho chaty) a návrat, notifikace jiného účtu v režimu Vše. Desktop jen přeložený.
 
+5. **Kterým účtem se píše** — hotovo:
+   - S víc účty má avatar v hlavičce konverzace odznak účtu (`AccountBadge`, tentýž jako v řádku
+     společného seznamu) a vstupní pole napíše „Zpráva jako VT" (`rememberShownAccount`). Ve
+     skupině, kde jsou oba účty, se tak neodpoví ze špatného.
+   - Pole proto, že avatar v hlavičce u tématu ani vlákna komentářů není, a do pole se píše vždycky.
+     Účet se čte nad nápovědou, ne v ní: nápověda se skládá znovu s každým vymazáním pole a jméno
+     by pokaždé naskočilo se zpožděním.
+   - Platí s víc účty v obou režimech, ne jen v režimu Vše: konverzace otevřená z notifikace
+     nebo odkazu patří účtu, o kterém uživatel nemusí vědět.
+   - **Ověřeno na Pixelu 5** se dvěma účty (chat VT i VT2). S jedním účtem má zůstat pole „Zpráva"
+     a hlavička bez odznaku (`rememberShownAccount` vrací `null`); na zařízení s jedním účtem
+     tenhle build vyzkoušený není.
+
 **Zbývá pro fázi 1:**
-   - **Hlavička konverzace má ukázat, kterým účtem se píše** (podtitul nebo fotka účtu), hlavně
-     v režimu Vše: ve skupině, kde jsou oba účty, se jinak snadno odpoví ze špatného.
    - **V režimu Vše zbývá sloučit archiv a hledání** (veřejné chaty a zprávy přes server za
      každý účet, výsledky označené účtem) a klávesové zkratky Alt+↓/↑ přes společný seznam.
    - Ve sbaleném sloupci seznamu (`CollapsedChatList`) režim Vše není, ukazuje výchozí účet.

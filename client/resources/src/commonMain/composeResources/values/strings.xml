@@ -842,6 +842,7 @@
     <string name="conversation_undo">Undo</string>
     <string name="conversation_cancel_reply">Cancel the reply</string>
     <string name="conversation_input_message">Message</string>
+    <string name="conversation_input_message_as">Message as %1$s</string>
     <string name="conversation_input_caption">Caption</string>
     <string name="conversation_save_edit">Save the edit</string>
     <string name="conversation_record_voice">Record a voice message</string>

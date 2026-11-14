@@ -864,6 +864,7 @@
     <string name="conversation_undo">Vrátit</string>
     <string name="conversation_cancel_reply">Zrušit odpověď</string>
     <string name="conversation_input_message">Zpráva</string>
+    <string name="conversation_input_message_as">Zpráva jako %1$s</string>
     <string name="conversation_input_caption">Popisek</string>
     <string name="conversation_save_edit">Uložit úpravu</string>
     <string name="conversation_record_voice">Nahrát hlasovou zprávu</string>

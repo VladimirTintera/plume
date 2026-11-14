@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.accounts.AccountBadge
 import androidx.compose.foundation.shape.CircleShape
 import eu.tintera.plume.core.telegram.AccountInfo
 import androidx.compose.runtime.Immutable
@@ -594,17 +595,7 @@ internal fun ChatRow(
                 }
                 // Odznak účtu naproti tečce dostupnosti, s obroučkou barvou řádku jako ona.
                 marks.account?.let { account ->
-                    Avatar(
-                        chatId = account.id,
-                        title = account.displayName,
-                        avatarFileId = account.photoFileId,
-                        size = ACCOUNT_BADGE_SIZE,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .offset(x = (-4).dp, y = 4.dp)
-                            .background(containerColor, CircleShape)
-                            .padding(2.dp),
-                    )
+                    AccountBadge(account, rim = containerColor, modifier = Modifier.align(Alignment.BottomStart))
                 }
             }
 
@@ -927,6 +918,3 @@ internal val CHAT_ROW_AVATAR_SIZE = 52.dp
 
 /** Jak daleko za okraj avataru sahá kroužek příběhů (mezera a čára, `storyRing`). */
 private val STORY_RING_OUTSET = 5.dp
-
-/** Fotka účtu na avataru chatu ve společném seznamu víc účtů (bez obroučky). */
-private val ACCOUNT_BADGE_SIZE = 18.dp

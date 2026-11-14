@@ -209,6 +209,8 @@ import eu.tintera.plume.resources.conversation_open_gifs
 import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.conversation_input_caption
 import eu.tintera.plume.resources.conversation_input_message
+import eu.tintera.plume.resources.conversation_input_message_as
+import eu.tintera.plume.core.accounts.rememberShownAccount
 import eu.tintera.plume.resources.conversation_open_emoji
 import eu.tintera.plume.resources.conversation_open_stickers
 import eu.tintera.plume.resources.conversation_record_voice
@@ -660,6 +662,10 @@ internal fun MessageInput(
              * mezera skoro 30 dp, než začal text. U ikony stačí 4 dp — glyf má svůj vzduch.
              * Vlevo je ikona vždycky — sponka, nebo „Aa" (i při úpravě zprávy).
              */
+            // S víc účty říká pole, kterým účtem zpráva odejde: odznak v hlavičce u tématu ani
+            // vlákna není a psát se dá do skupiny z obou účtů. Tady, ne v nápovědě: ta se skládá
+            // znovu s každým vymazáním pole a jméno by pokaždé naskočilo se zpožděním.
+            val shownAccount = rememberShownAccount()
             val fieldColors = TextFieldDefaults.colors(
                 // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
                 focusedContainerColor = Color.Transparent,
@@ -769,6 +775,7 @@ internal fun MessageInput(
                                     when {
                                         withAttachments -> stringResource(Res.string.conversation_input_caption)
                                         field.placeholder != null && editing == null -> field.placeholder
+                                        shownAccount != null -> stringResource(Res.string.conversation_input_message_as, shownAccount.displayName)
                                         else -> stringResource(Res.string.conversation_input_message)
                                     },
                                     maxLines = 1,
