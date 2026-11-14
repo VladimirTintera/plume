@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.foundation.lazy.LazyItemScope
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.resources.accounts_already_signed_in
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.features.conversation.ClearHistorySheet
@@ -172,6 +177,8 @@ fun ChatListScreen(
     viewModel: ChatsViewModel,
     selectedChatId: Long?,
     navigation: ChatListNavigation,
+    /** Účet chatu otevřeného vedle seznamu; totéž id může mít chat v jiném účtu. */
+    selectedChatSlot: AccountSlot? = null,
     /** Dotaz, se kterým otevřít hledání (hashtag z konverzace); po otevření [onSearchRequestHandled]. */
     searchRequest: String?,
     onSearchRequestHandled: () -> Unit,
@@ -181,6 +188,37 @@ fun ChatListScreen(
     modifier: Modifier = Modifier,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
+
+    /*
+     * Víc účtů: filtr nad seznamem a společný seznam (režim Vše, `docs/navrh-vice-uctu.md`,
+     * „Společný seznam chatů"). Obrazovka zůstává obrazovkou výchozího účtu — hledání, složky,
+     * menu a karty nahoře jsou jeho —, společné jsou jen řádky. Výběr víc chatů a uspořádání
+     * připnutých patří jednomu účtu: po dobu, co běží, ukazuje seznam jen chaty toho účtu.
+     */
+    val screenAccount = LocalAccount.current
+    val accounts = koinInject<Accounts>()
+    val listSettings = koinInject<AppSettings>()
+    val accountSwitcher = rememberAccountSwitcher()
+    val showAllAccounts by listSettings.chatListAllAccounts.collectAsStateWithLifecycle()
+    val signedIn by accounts.all.collectAsStateWithLifecycle()
+    val sources = if (showAllAccounts && signedIn.size > 1) {
+        rememberChatSources(accountSwitcher.accounts)
+    } else {
+        emptyList()
+    }
+    val busySource = sources
+        .map { source ->
+            key(source.account.slot) {
+                val selecting = source.viewModel.selection.collectAsStateWithLifecycle().value != null
+                val reordering = source.viewModel.reorder.collectAsStateWithLifecycle().value != null
+                source.takeIf { selecting || reordering }
+            }
+        }
+        .firstNotNullOfOrNull { it }
+    val merged = sources.isNotEmpty() && busySource == null
+    // Čí řádky ukazuje seznam jednoho účtu: obrazovky, nebo účtu, ve kterém běží výběr.
+    val listViewModel = busySource?.viewModel ?: viewModel
+    val listAccount = busySource?.account ?: screenAccount
     val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
     val storyNotice by viewModel.storyNotice.collectAsStateWithLifecycle()
     val storyVideoSupported = koinInject<StoryVideo>().supported
@@ -234,12 +272,13 @@ fun ChatListScreen(
     val bookmarkTitles by viewModel.foundChatTitles.collectAsStateWithLifecycle()
     val describedPhotos by viewModel.describedPhotos.collectAsStateWithLifecycle()
     var showMyQrCode by rememberSaveable { mutableStateOf(false) }
-    val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
+    // Složky jsou po účtech na serveru; společný seznam je jen hlavní seznam, pilulky nemá.
+    val folderTabs = viewModel.folderTabs.collectAsStateWithLifecycle().value.takeIf { sources.isEmpty() }.orEmpty()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
-    val reorder by viewModel.reorder.collectAsStateWithLifecycle()
-    val selection by viewModel.selection.collectAsStateWithLifecycle()
-    val selectionActions by viewModel.selectionActions.collectAsStateWithLifecycle()
-    val allSelected by viewModel.allSelected.collectAsStateWithLifecycle()
+    val reorder by listViewModel.reorder.collectAsStateWithLifecycle()
+    val selection by listViewModel.selection.collectAsStateWithLifecycle()
+    val selectionActions by listViewModel.selectionActions.collectAsStateWithLifecycle()
+    val allSelected by listViewModel.allSelected.collectAsStateWithLifecycle()
     val folderActions = remember(viewModel, navigation) {
         FolderTabActions(
             onReadAll = viewModel::readFolder,
@@ -319,9 +358,22 @@ fun ChatListScreen(
     ChatActionsHost(
         viewModel,
         snackbarHostState,
-        onArchived = navigation.onChatArchived,
+        onArchived = navigation.onChatArchived?.let { archived -> { change -> archived(screenAccount.slot, change) } },
         onOpenProxySettings = navigation.onOpenProxySettings,
     )
+    // Nabídka nad chatem a hlášky z řádků společného seznamu: každý účet má svůj ViewModel.
+    sources.forEach { source ->
+        key(source.account.slot) {
+            AccountScope(source.account) {
+                ChatActionsHost(
+                    source.viewModel,
+                    snackbarHostState,
+                    onArchived = navigation.onChatArchived?.let { archived -> { change -> archived(source.account.slot, change) } },
+                    onOpenProxySettings = navigation.onOpenProxySettings,
+                )
+            }
+        }
+    }
     // Až s načtenými koncepty: obnovený sheet (po zániku procesu) by se jinak nad prázdným
     // seznamem hned zavřel.
     val loadedDrafts = drafts
@@ -406,9 +458,7 @@ fun ChatListScreen(
         onPauseOrDispose { }
     }
 
-    val accountSwitcher = rememberAccountSwitcher()
     // Přidávaný účet už v aplikaci je: přihlášení se zahodilo, tak to říct, ať uživatel neváhá.
-    val accounts = koinInject<Accounts>()
     LaunchedEffect(accounts) {
         accounts.alreadySignedIn.collect { snackbarHostState.showSnackbar(readString(Res.string.accounts_already_signed_in)) }
     }
@@ -578,19 +628,7 @@ fun ChatListScreen(
             )
             Box(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxSize().hazeSource(listHaze)) {
-                    ChatListContent(
-                        viewModel = viewModel,
-                        selectedChatId = selectedChatId,
-                        onChatClick = navigation.onChatClick,
-                        onForumClick = navigation.onForumClick,
-                        onOpenStories = navigation.onOpenStories,
-                        padding = padding,
-                        scrollToChat = scrollToChat,
-                        onScrolledToChat = { scrollToChat = null },
-                        listState = listState,
-                        // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                        headerItemCount = cards.count,
-                        empty = {
+                    val emptyContent: @Composable BoxScope.() -> Unit = {
                             /*
                              * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
                              * „Nepřečtené" se vším přečteným). Tentýž animovaný stav jako archiv, s ikonou
@@ -623,9 +661,59 @@ fun ChatListScreen(
                                     text = stringResource(Res.string.chats_empty),
                                 )
                             }
-                        },
-                    ) {
-                        chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate)
+                        }
+                    // Filtr účtů nad kartami, jen s víc účty; ťuknutí na účet ho udělá výchozím.
+                    val filter: LazyListScope.() -> Unit = {
+                        if (signedIn.size > 1) {
+                            accountFilterChips(
+                                accounts = accountSwitcher.accounts,
+                                allAccounts = showAllAccounts,
+                                shownSlot = screenAccount.slot,
+                                onSelectAll = { listSettings.setChatListAllAccounts(true) },
+                                onSelectAccount = { slot ->
+                                    listSettings.setChatListAllAccounts(false)
+                                    accounts.setDefault(slot)
+                                },
+                            )
+                        }
+                    }
+                    if (merged) {
+                        MergedChatListContent(
+                            sources = sources,
+                            selectedChat = selectedChatId?.let { id -> selectedChatSlot?.let { it to id } },
+                            onOpen = { slot, chat ->
+                                if (chat.opensAsTopics) navigation.onAccountForumClick(slot, chat.id) else navigation.onAccountChatClick(slot, chat.id)
+                            },
+                            onOpenStories = navigation.onOpenStories,
+                            storiesSlot = screenAccount.slot,
+                            padding = padding,
+                            listState = listState,
+                            empty = emptyContent,
+                        ) {
+                            filter()
+                            chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate)
+                        }
+                    } else AccountScope(listAccount) {
+                        // Výběr nebo uspořádání v jiném účtu: chat se otevírá v jeho účtu.
+                        val otherAccount = listAccount.slot != screenAccount.slot
+                        ChatListContent(
+                            viewModel = listViewModel,
+                            selectedChatId = selectedChatId,
+                            selectedChatSlot = selectedChatSlot,
+                            onChatClick = if (otherAccount) { id -> navigation.onAccountChatClick(listAccount.slot, id) } else navigation.onChatClick,
+                            onForumClick = if (otherAccount) { id -> navigation.onAccountForumClick(listAccount.slot, id) } else navigation.onForumClick,
+                            onOpenStories = navigation.onOpenStories.takeUnless { otherAccount },
+                            padding = padding,
+                            scrollToChat = scrollToChat,
+                            onScrolledToChat = { scrollToChat = null },
+                            listState = listState,
+                            // Položky hlavičky: filtr účtů, nové přihlášení a karta s aktualizací.
+                            headerItemCount = cards.count + if (signedIn.size > 1) 1 else 0,
+                            empty = emptyContent,
+                        ) {
+                            filter()
+                            chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate)
+                        }
                     }
 
                 }
@@ -685,7 +773,7 @@ fun ChatListScreen(
                     // vybírání nedává smysl a obojí by se o spodek obrazovky přetahovalo.
                     ChatSelectionToolbar(
                         actions = selectionActions,
-                        callbacks = viewModel.selectionCallbacks,
+                        callbacks = listViewModel.selectionCallbacks,
                         count = selection?.count ?: 0,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
@@ -941,6 +1029,8 @@ internal fun ChatActionsHost(
 internal fun ChatListContent(
     viewModel: ChatsViewModel,
     selectedChatId: Long?,
+    /** Účet vybraného chatu: totéž id může mít chat v jiném účtu. `null` = jen podle id. */
+    selectedChatSlot: AccountSlot? = null,
     onChatClick: (Long) -> Unit,
     onForumClick: (Long) -> Unit,
     padding: PaddingValues,
@@ -1002,6 +1092,18 @@ internal fun ChatListContent(
     val chatColors by viewModel.chatColors.collectAsStateWithLifecycle()
     val awaitingReply by viewModel.awaitingReply.collectAsStateWithLifecycle()
     val chatAccents = rememberChatAccents(chatColors.values.toSet())
+    val rows = ChatRowsContext(
+        viewModel = viewModel,
+        selection = selection,
+        savedMessagesChatId = savedMessagesChatId,
+        swipeActions = swipeActions,
+        snoozes = snoozes,
+        awaitingReply = awaitingReply,
+        storyRings = storyRings,
+        chatColors = chatColors,
+        chatAccents = chatAccents,
+        rowGaps = rowGaps,
+    )
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
         remember(chats, hiddenSavedMessagesChatId, snoozes.due) {
             chatGroups(chats, hiddenSavedMessagesChatId, snoozes.due)
@@ -1139,109 +1241,132 @@ internal fun ChatListContent(
 
                 groups.forEachIndexed { groupIndex, group ->
                     itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
-                        // Ve výběru zvýrazňuje řádek výběr, ne chat otevřený v detailu vedle —
-                        // dvě různé barvy pro „vybraný" by se v jednom seznamu pletly.
-                        val selecting = selection != null
-                        val picked = selection?.ids?.contains(chat.id) == true
-                        val highlighted = if (selecting) picked else chat.id == selectedChatId
-                        // Krajní položky skupiny nesou její zaoblení, prostřední se drží u sebe;
-                        // stisknutý řádek se z bloku vyčlení (M3 Expressive). Stisk hlásí klikání
-                        // řádku, v posouvaném seznamu se zpožděním, takže scroll tvar nemění.
-                        val interaction = remember { MutableInteractionSource() }
-                        val pressed by interaction.collectIsPressedAsState()
-                        val shape = animatedGroupItemShape(
-                            first = index == 0,
-                            last = index == group.lastIndex,
-                            selected = highlighted,
-                            pressed = pressed,
-                            inner = if (rowGaps) INNER_CORNER else 0.dp,
+                        ChatListItem(
+                            rows = rows,
+                            chat = chat,
+                            position = GroupPosition(index, group.size, groupIndex),
+                            selected = chat.id == selectedChatId && (selectedChatSlot == null || selectedChatSlot == LocalAccount.current.slot),
+                            onOpen = { if (it.opensAsTopics) onForumClick(it.id) else onChatClick(it.id) },
+                            onOpenStories = onOpenStories,
                         )
-                        SwipeableChat(
-                            // Ve výběru tah nejde: akce jdou lištou a tah by mířil jen na jeden chat.
-                            // Co tah s chatem udělá (a jestli vůbec), řeší `chatSwipeEffect`.
-                            right = chatSwipeEffect(swipeActions.right, chat, savedMessagesChatId, chat.id in snoozes.sleeping).takeUnless { selecting },
-                            left = chatSwipeEffect(swipeActions.left, chat, savedMessagesChatId, chat.id in snoozes.sleeping).takeUnless { selecting },
-                            shape = shape,
-                            onSwipe = { effect -> viewModel.swipe(chat, effect) },
-                            // Animace přeskládání při změně pořadí — bez toho by chaty
-                            // při nové zprávě skákaly. `animateItem` musí být na kořeni
-                            // položky, takže sedí na tahu, ne na řádku uvnitř.
-                            modifier = Modifier
-                                .animateItem()
-                                .padding(
-                                    top = if (index == 0 && groupIndex > 0) GROUP_SPACING
-                                    else 0.dp,
-                                )
-                                // Bez mezer drží panel podklad: v rozích stisknutého a vybraného
-                                // řádku má prosvítat on, ne stránka.
-                                .then(
-                                    if (rowGaps) {
-                                        Modifier
-                                    } else {
-                                        Modifier.background(
-                                            MaterialTheme.colorScheme.groupRow,
-                                            RoundedCornerShape(
-                                                topStart = if (index == 0) GROUP_CORNER else 0.dp,
-                                                topEnd = if (index == 0) GROUP_CORNER else 0.dp,
-                                                bottomStart = if (index == group.lastIndex) GROUP_CORNER else 0.dp,
-                                                bottomEnd = if (index == group.lastIndex) GROUP_CORNER else 0.dp,
-                                            ),
-                                        )
-                                    },
-                                ),
-                        ) { swipeActions ->
-                            ChatRow(
-                                chat = chat,
-                                selected = highlighted,
-                                marks = ChatRowMarks(
-                                    selectionMark = picked.takeIf { selecting && chat.isSelectable() },
-                                    snooze = when {
-                                        chat.id in snoozes.due -> RowSnooze.Due
-                                        else -> snoozes.sleeping[chat.id]?.let(RowSnooze::Sleeping)
-                                    },
-                                    // Odznak patří poslední zprávě, nad kterou to model řekl; nová
-                                    // zpráva ho schová, dokud se neposoudí znovu.
-                                    awaitingReply = chat.unreadCount > 0 &&
-                                        chat.lastMessageId != null && awaitingReply[chat.id] == chat.lastMessageId,
-                                    stories = storyRings[chat.id]?.let {
-                                        // Skrytý autor se mimo archiv nehlásí: lem jen tenký a šedý,
-                                        // jako by bylo zhlédnuté — příběhy jdou otevřít, ale nevolají.
-                                        val quiet = it.isHidden && viewModel.folder != ChatFolder.Archive
-                                        StoryRingState(
-                                            total = it.stories.size,
-                                            unread = if (quiet) 0 else it.unreadCount,
-                                            closeFriends = !quiet && it.hasUnreadForCloseFriends,
-                                        )
-                                    },
-                                ),
-                                shape = shape,
-                                interactionSource = interaction,
-                                accent = chatColors[chat.id]?.let(chatAccents::get),
-                                onClick = {
-                                    if (!selecting) viewModel.opened(chat.id)
-                                    when {
-                                        selecting -> viewModel.toggleSelected(chat)
-                                        chat.opensAsTopics -> onForumClick(chat.id)
-                                        else -> onChatClick(chat.id)
-                                    }
-                                },
-                                // Ve výběru i dlouhý stisk jen přepíná — nabídka nad jedním chatem
-                                // by z výběru vytrhla.
-                                onLongClick = {
-                                    if (selecting) viewModel.toggleSelected(chat) else viewModel.showActions(chat)
-                                },
-                                // Ve výběru avatar přepíná výběr jako zbytek řádku.
-                                onAvatarClick = onOpenStories
-                                    ?.takeIf { !selecting && chat.id in storyRings }
-                                    ?.let { open -> { open(chat.id) } },
-                                // Akce tahu pro čtečku obrazovky — na uzel řádku, ne na obal.
-                                modifier = swipeActions,
-                            )
-                        }
                     }
                 }
             }
         }
+    }
+}
+
+
+/**
+ * Řádek seznamu chatů: tah do stran, tvar v bloku, značky a akce. Sdílí ho seznam jednoho účtu
+ * ([ChatListContent]) i společný seznam víc účtů ([MergedChatListContent]); co patří účtu řádku
+ * (ViewModel, odložení, barvy, příběhy), nese [rows].
+ */
+@Composable
+internal fun LazyItemScope.ChatListItem(
+    rows: ChatRowsContext,
+    chat: ChatSummary,
+    position: GroupPosition,
+    /** Chat je otevřený v detailu vedle seznamu. */
+    selected: Boolean,
+    onOpen: (ChatSummary) -> Unit,
+    onOpenStories: ((Long) -> Unit)?,
+) {
+    // Ve výběru zvýrazňuje řádek výběr, ne chat otevřený v detailu vedle —
+    // dvě různé barvy pro „vybraný" by se v jednom seznamu pletly.
+    val selecting = rows.selection != null
+    val picked = rows.selection?.ids?.contains(chat.id) == true
+    val highlighted = if (selecting) picked else selected
+    // Krajní položky skupiny nesou její zaoblení, prostřední se drží u sebe;
+    // stisknutý řádek se z bloku vyčlení (M3 Expressive). Stisk hlásí klikání
+    // řádku, v posouvaném seznamu se zpožděním, takže scroll tvar nemění.
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = animatedGroupItemShape(
+        first = position.index == 0,
+        last = position.index == position.size - 1,
+        selected = highlighted,
+        pressed = pressed,
+        inner = if (rows.rowGaps) INNER_CORNER else 0.dp,
+    )
+    SwipeableChat(
+        // Ve výběru tah nejde: akce jdou lištou a tah by mířil jen na jeden chat.
+        // Co tah s chatem udělá (a jestli vůbec), řeší `chatSwipeEffect`.
+        right = chatSwipeEffect(rows.swipeActions.right, chat, rows.savedMessagesChatId, chat.id in rows.snoozes.sleeping).takeUnless { selecting },
+        left = chatSwipeEffect(rows.swipeActions.left, chat, rows.savedMessagesChatId, chat.id in rows.snoozes.sleeping).takeUnless { selecting },
+        shape = shape,
+        onSwipe = { effect -> rows.viewModel.swipe(chat, effect) },
+        // Animace přeskládání při změně pořadí — bez toho by chaty
+        // při nové zprávě skákaly. `animateItem` musí být na kořeni
+        // položky, takže sedí na tahu, ne na řádku uvnitř.
+        modifier = Modifier
+            .animateItem()
+            .padding(
+                top = if (position.index == 0 && position.groupIndex > 0) GROUP_SPACING
+                else 0.dp,
+            )
+            // Bez mezer drží panel podklad: v rozích stisknutého a vybraného
+            // řádku má prosvítat on, ne stránka.
+            .then(
+                if (rows.rowGaps) {
+                    Modifier
+                } else {
+                    Modifier.background(
+                        MaterialTheme.colorScheme.groupRow,
+                        RoundedCornerShape(
+                            topStart = if (position.index == 0) GROUP_CORNER else 0.dp,
+                            topEnd = if (position.index == 0) GROUP_CORNER else 0.dp,
+                            bottomStart = if (position.index == position.size - 1) GROUP_CORNER else 0.dp,
+                            bottomEnd = if (position.index == position.size - 1) GROUP_CORNER else 0.dp,
+                        ),
+                    )
+                },
+            ),
+    ) { swipeSemantics ->
+        ChatRow(
+            chat = chat,
+            selected = highlighted,
+            marks = ChatRowMarks(
+                selectionMark = picked.takeIf { selecting && chat.isSelectable() },
+                snooze = when {
+                    chat.id in rows.snoozes.due -> RowSnooze.Due
+                    else -> rows.snoozes.sleeping[chat.id]?.let(RowSnooze::Sleeping)
+                },
+                // Odznak patří poslední zprávě, nad kterou to model řekl; nová
+                // zpráva ho schová, dokud se neposoudí znovu.
+                awaitingReply = chat.unreadCount > 0 &&
+                    chat.lastMessageId != null && rows.awaitingReply[chat.id] == chat.lastMessageId,
+                account = rows.account,
+                stories = rows.storyRings[chat.id]?.let {
+                    // Skrytý autor se mimo archiv nehlásí: lem jen tenký a šedý,
+                    // jako by bylo zhlédnuté — příběhy jdou otevřít, ale nevolají.
+                    val quiet = it.isHidden && rows.viewModel.folder != ChatFolder.Archive
+                    StoryRingState(
+                        total = it.stories.size,
+                        unread = if (quiet) 0 else it.unreadCount,
+                        closeFriends = !quiet && it.hasUnreadForCloseFriends,
+                    )
+                },
+            ),
+            shape = shape,
+            interactionSource = interaction,
+            accent = rows.chatColors[chat.id]?.let(rows.chatAccents::get),
+            onClick = {
+                if (!selecting) rows.viewModel.opened(chat.id)
+                if (selecting) rows.viewModel.toggleSelected(chat) else onOpen(chat)
+            },
+            // Ve výběru i dlouhý stisk jen přepíná — nabídka nad jedním chatem
+            // by z výběru vytrhla.
+            onLongClick = {
+                if (selecting) rows.viewModel.toggleSelected(chat) else rows.viewModel.showActions(chat)
+            },
+            // Ve výběru avatar přepíná výběr jako zbytek řádku.
+            onAvatarClick = onOpenStories
+                ?.takeIf { !selecting && chat.id in rows.storyRings }
+                ?.let { open -> { open(chat.id) } },
+            // Akce tahu pro čtečku obrazovky — na uzel řádku, ne na obal.
+            modifier = swipeSemantics,
+        )
     }
 }
 

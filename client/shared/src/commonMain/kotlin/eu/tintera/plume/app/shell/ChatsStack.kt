@@ -2,6 +2,7 @@ package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.features.share.InsertChat
 import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.navigation.AccountRoute
 import eu.tintera.plume.core.navigation.ArchiveChatStatisticsRoute
 import eu.tintera.plume.core.navigation.ArchiveEventLogRoute
 import eu.tintera.plume.core.navigation.ArchivePostStatisticsRoute
@@ -93,15 +94,15 @@ internal fun MutableList<NavKey>.closeArchive() {
  * [ArchiveChange.archived]; zavírá se vždycky ta druhá větev, takže jedna funkce obslouží
  * hlavní seznam i archiv.
  */
-internal fun MutableList<NavKey>.closeConversationOf(change: ArchiveChange) {
+internal fun MutableList<NavKey>.closeConversationOf(slot: AccountSlot, change: ArchiveChange) {
     val ids: Set<Long?> = change.chatIds.toSet()
     if (change.archived) {
         removeAll {
-            ((it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId ?: (it as? DirectTopicsRoute)?.chatId) in ids
+            it.belongsTo(slot) && ((it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId ?: (it as? DirectTopicsRoute)?.chatId) in ids
         }
     } else {
         removeAll {
-            ((it as? ArchiveConversationRoute)?.chatId ?: (it as? ArchiveForumTopicsRoute)?.chatId
+            it.belongsTo(slot) && ((it as? ArchiveConversationRoute)?.chatId ?: (it as? ArchiveForumTopicsRoute)?.chatId
                 ?: (it as? ArchiveDirectTopicsRoute)?.chatId) in ids
         }
     }
@@ -117,8 +118,8 @@ internal fun MutableList<NavKey>.closeConversationOf(change: ArchiveChange) {
  * Konverzace otevřená v hlavním seznamu nahradí tu, která tam byla — stejně jako výběr chatu
  * ze seznamu.
  */
-internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
-    val slot = firstNotNullOfOrNull { route -> (route as? ArchiveConversationRoute)?.takeIf { it.chatId == chatId }?.slot } ?: return
+internal fun MutableList<NavKey>.moveConversationToMain(slot: AccountSlot, chatId: Long) {
+    if (none { route -> route is ArchiveConversationRoute && route.slot == slot && route.chatId == chatId }) return
     removeAll {
         when (it) {
             // Celá archivní větev, i úpravy a práva členů nad profilem.
@@ -144,9 +145,9 @@ internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
  * a prohlížeč jeho médií, v hlavním seznamu i v archivu. Zůstat by po něm nemělo nic, co by
  * šlo zpátky otevřít jen proto, aby se ukázalo prázdné.
  */
-internal fun MutableList<NavKey>.closeChat(chatId: Long) {
+internal fun MutableList<NavKey>.closeChat(slot: AccountSlot, chatId: Long) {
     removeAll {
-        when (it) {
+        it.belongsTo(slot) && when (it) {
             is ConversationRoute -> it.chatId == chatId
             is ArchiveConversationRoute -> it.chatId == chatId
             is ForumTopicsRoute -> it.chatId == chatId
@@ -188,9 +189,9 @@ internal fun MutableList<NavKey>.closeChat(chatId: Long) {
  * ViewModel se na nové id přepnul sám (`EditChatViewModel.confirmUpgrade`) — nahradit ji by
  * zahodilo rozepsané texty i hlášku o výsledku.
  */
-internal fun MutableList<NavKey>.replaceUpgradedChat(old: Long, new: Long) {
+internal fun MutableList<NavKey>.replaceUpgradedChat(slot: AccountSlot, old: Long, new: Long) {
     removeAll {
-        when (it) {
+        it.belongsTo(slot) && when (it) {
             is MediaRoute -> it.chatId == old
             // Kalendář počítal historii staré skupiny; nová má jiná id zpráv.
             is ChatCalendarRoute -> it.chatId == old
@@ -212,6 +213,7 @@ internal fun MutableList<NavKey>.replaceUpgradedChat(old: Long, new: Long) {
     // Po indexech: `MutableList.replaceAll` je na Kotlin/Native experimentální.
     for (index in indices) {
         val route = this[index]
+        if (!route.belongsTo(slot)) continue
         val replaced = when (route) {
             is ConversationRoute -> if (route.chatId == old) ConversationRoute(route.slot, new) else route
             is ArchiveConversationRoute -> if (route.chatId == old) ArchiveConversationRoute(route.slot, new) else route
@@ -458,3 +460,10 @@ internal fun MutableList<NavKey>.replaceRoute(route: NavKey, replacement: NavKey
     val index = lastIndexOf(route)
     if (index >= 0) set(index, replacement)
 }
+
+/**
+ * Patří routa účtu [slot]? Id chatu je číslo jednoho účtu: soukromý chat má v obou účtech id
+ * protějšku a společná skupina totéž id, takže se zásobník nesmí prohledávat jen podle id —
+ * v režimu Vše v něm leží chaty víc účtů (`docs/navrh-vice-uctu.md`, „Společný seznam chatů").
+ */
+internal fun NavKey.belongsTo(slot: AccountSlot): Boolean = (this as? AccountRoute)?.slot == slot

@@ -8,6 +8,7 @@ import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountSession
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.accounts.canAddAccounts
 import eu.tintera.plume.resources.accounts_add
 import eu.tintera.plume.resources.accounts_shown
@@ -306,6 +307,7 @@ internal data class AccountEntry(
 @Composable
 internal fun rememberAccountSwitcher(): AccountSwitcher {
     val accounts = koinInject<Accounts>()
+    val settings = koinInject<AppSettings>()
     val all by accounts.all.collectAsStateWithLifecycle()
     val default by accounts.default.collectAsStateWithLifecycle()
     // `me()` je dotaz do místní databáze TDLib, ne na síť; účtů jsou nejvýš tři.
@@ -316,7 +318,11 @@ internal fun rememberAccountSwitcher(): AccountSwitcher {
     return AccountSwitcher(
         accounts = all.map { AccountEntry(it, infos[it.slot], shown = it === default) },
         canAdd = canAddAccounts && all.size < Accounts.MAX_ACCOUNTS,
-        onSelect = accounts::setDefault,
+        // Účet z menu ukáže jeho chaty, i když byl seznam v režimu Vše.
+        onSelect = { slot ->
+            settings.setChatListAllAccounts(false)
+            accounts.setDefault(slot)
+        },
         onAdd = { scope.launch { accounts.add() } },
     )
 }

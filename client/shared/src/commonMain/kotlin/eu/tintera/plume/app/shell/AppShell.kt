@@ -2,6 +2,7 @@ package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.CallAccountScope
+import eu.tintera.plume.core.navigation.AccountRoute
 import eu.tintera.plume.core.accounts.LocalAccount
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.features.stories.StoryEditTarget
@@ -307,12 +308,15 @@ fun AppShell(modifier: Modifier = Modifier) {
     val chatOpenRequests = koinInject<ChatOpenRequests>()
     val openRequest by chatOpenRequests.request.collectAsStateWithLifecycle()
 
+    val shellSettings = koinInject<AppSettings>()
     LaunchedEffect(openRequest) {
         val request = openRequest ?: return@LaunchedEffect
-        // Chat jiného účtu: shell ukazuje výchozí účet, takže se výchozím stane účet chatu
+        // Chat jiného účtu: seznam ukazuje výchozí účet, takže se výchozím stane účet chatu
         // a požadavek vyřídí jeho shell (tenhle se se změnou výchozího účtu složí znovu).
+        // Společný seznam (režim Vše) ukazuje všechny účty, tam se chat otevře rovnou.
         // Notifikace nebo zástupce můžou přežít odhlášení svého účtu; pak není co otevřít.
-        if (request.slot != slot && accounts.all.value.any { it.slot == request.slot }) {
+        val switchAccount = !shellSettings.chatListAllAccounts.value
+        if (switchAccount && request.slot != slot && accounts.all.value.any { it.slot == request.slot }) {
             accounts.setDefault(request.slot)
             return@LaunchedEffect
         }
@@ -361,11 +365,23 @@ fun AppShell(modifier: Modifier = Modifier) {
         val chatId = confirmShare?.targetChatId ?: return@LaunchedEffect
         // Sdílení do chatu jiného účtu vyřídí shell toho účtu, jako otevření chatu výš.
         val target = confirmShare.targetSlot ?: slot
-        if (target != slot) {
+        if (target != slot && !shellSettings.chatListAllAccounts.value) {
             accounts.setDefault(target)
             return@LaunchedEffect
         }
         navigation.openShareTo(target, chatId)
+    }
+
+    /*
+     * Odhlášený účet: jeho routy ze zásobníků pryč. Ve společném seznamu v nich můžou ležet chaty
+     * jiného účtu než shellu, a ty by po odhlášení zůstaly prázdné (`inRouteAccount` je nesloží).
+     */
+    val signedIn by accounts.all.collectAsStateWithLifecycle()
+    LaunchedEffect(signedIn) {
+        val slots = signedIn.map { it.slot }.toSet()
+        listOf(ChatsRoute, SettingsRoute).forEach { section ->
+            navigation.stack(section).removeAll { it is AccountRoute && it.slot !in slots }
+        }
     }
 
     // Výška pruhu hovoru / videochatu i se stavovou lištou; 0 = pruh není. Naráz je jen jeden
@@ -798,6 +814,8 @@ private fun shellEntryProvider(
                         ?: (it as? DirectTopicsRoute)?.chatId ?: (it as SavedTopicsRoute).chatId
                 }
                 ?.takeIf { twoPane },
+            // Ve společném seznamu má totéž id chat ve dvou účtech; vybraný je jen ten z účtu routy.
+            selectedChatSlot = (chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute } as? AccountRoute)?.slot,
             navigation = ChatListNavigation(
                 onChatClick = { chatId ->
                     // Uložené zprávy po chatech, když si to uživatel zvolil („Zobrazit jako chaty").
@@ -808,6 +826,16 @@ private fun shellEntryProvider(
                     }
                 },
                 onForumClick = { chatId -> chatsStack.openForum(slot, chatId) },
+                // Řádek jiného účtu ve společném seznamu. Uložené zprávy po chatech jsou volba
+                // účtu shellu; Uložené zprávy jiného účtu se otevřou jako konverzace.
+                onAccountChatClick = { chatSlot, chatId ->
+                    if (chatSlot == slot && chatId == savedMessagesChatId && settings.savedMessagesAsChats.value) {
+                        chatsStack.openSavedTopics(slot, chatId)
+                    } else {
+                        chatsStack.openConversation(chatSlot, chatId)
+                    }
+                },
+                onAccountForumClick = { chatSlot, chatId -> chatsStack.openForum(chatSlot, chatId) },
                 // Koncept v tématu z přehledu konceptů: téma a pod ním seznam témat, jako u nalezené zprávy.
                 onTopicClick = { chatId, topicId -> chatsStack.openFoundMessage(slot, chatId, messageId = null, topicId = topicId) },
                 onThreadClick = { chatId, threadId -> chatsStack.openCommentThread(slot, chatId, threadId) },
@@ -869,7 +897,7 @@ private fun shellEntryProvider(
             onChatClick = { chatId -> chatsStack.openArchiveConversation(slot, chatId) },
             onForumClick = { chatId -> chatsStack.openArchiveForum(slot, chatId) },
             onBack = chatsStack::closeArchive,
-            onChatArchived = chatsStack::closeConversationOf,
+            onChatArchived = { change -> chatsStack.closeConversationOf(slot, change) },
             modifier = Modifier.listPaneInsets(twoPane),
             onOpenStories = { chatId -> chatsStack.openStories(slot, chatId) },
         )
@@ -1008,7 +1036,7 @@ private fun shellEntryProvider(
                 navigation = ConversationNavigation(
                     // Odebírá SVOU položku, ne poslední — viz `pop`. Vedle seznamu zavře celou větev nad ním.
                     onBack = { chatsStack.closeConversation(route, list = ChatsRoute, sideBySide = sideBySide) },
-                    onChatGone = { chatsStack.closeChat(route.chatId) },
+                    onChatGone = { chatsStack.closeChat(route.slot, route.chatId) },
                     onOpenMedia = { messageId ->
                         chatsStack.add(MediaRoute(slot, route.chatId, messageId))
                     },
@@ -1217,10 +1245,10 @@ private fun shellEntryProvider(
                 onSearch = {
                     searchRequests.request(route.chatId)
                     chatsStack.pop(route)
-                    if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(slot, route.chatId))
+                    if (!chatsStack.isOpenConversation(slot, route.chatId)) chatsStack.add(ConversationRoute(slot, route.chatId))
                 },
                 onOpenChat = { chatId ->
-                    if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(slot, chatId))
+                    if (!chatsStack.isOpenConversation(slot, chatId)) chatsStack.add(ConversationRoute(slot, chatId))
                 },
                 // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
                 onOpenMedia = { messageId, articleMedia ->
@@ -1242,7 +1270,7 @@ private fun shellEntryProvider(
                 onOpenMessage = { messageId ->
                     jumpRequests.request(route.chatId, messageId)
                     chatsStack.pop(route)
-                    if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(slot, route.chatId, messageId))
+                    if (!chatsStack.isOpenConversation(slot, route.chatId)) chatsStack.add(ConversationRoute(slot, route.chatId, messageId))
                 },
                 closeIcon = LocalPanesSideBySide.current,
             )
@@ -1260,8 +1288,8 @@ private fun shellEntryProvider(
             onOpenRemoved = { banned -> chatsStack.addOnce(RemovedMembersRoute(slot, route.chatId, banned)) },
             onOpenEventLog = { chatsStack.addOnce(EventLogRoute(slot, route.chatId)) },
             onOpenStatistics = { chatsStack.addOnce(ChatStatisticsRoute(slot, route.chatId)) },
-            onDeleted = { chatsStack.closeChat(route.chatId) },
-            onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
+            onDeleted = { chatsStack.closeChat(route.slot, route.chatId) },
+            onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(route.slot, old, new) },
         )
     }
 
@@ -1275,8 +1303,8 @@ private fun shellEntryProvider(
             onOpenRemoved = { banned -> chatsStack.addOnce(ArchiveRemovedMembersRoute(slot, route.chatId, banned)) },
             onOpenEventLog = { chatsStack.addOnce(ArchiveEventLogRoute(slot, route.chatId)) },
             onOpenStatistics = { chatsStack.addOnce(ArchiveChatStatisticsRoute(slot, route.chatId)) },
-            onDeleted = { chatsStack.closeChat(route.chatId) },
-            onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
+            onDeleted = { chatsStack.closeChat(route.slot, route.chatId) },
+            onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(route.slot, old, new) },
         )
     }
 
@@ -1433,7 +1461,7 @@ private fun shellEntryProvider(
                 ),
                 navigation = ConversationNavigation(
                     onBack = { chatsStack.closeConversation(route, list = ArchiveRoute, sideBySide = sideBySide) },
-                    onChatGone = { chatsStack.closeChat(route.chatId) },
+                    onChatGone = { chatsStack.closeChat(route.slot, route.chatId) },
                     onOpenMedia = { messageId ->
                         chatsStack.add(MediaRoute(slot, route.chatId, messageId))
                     },
@@ -1462,7 +1490,7 @@ private fun shellEntryProvider(
                     onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(slot, route.chatId), sideBySide = wide) },
                     onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(slot, chatId)) },
                     onOpenPostStatistics = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(slot, route.chatId, messageId)) },
-                    onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
+                    onUnarchived = { chatsStack.moveConversationToMain(route.slot, route.chatId) },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(slot, route.chatId, request)) },
                     onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(slot, route.chatId, request)) },
                     onOpenWebApp = { request -> chatsStack.add(webAppRoute(slot, route.chatId, request, archive = true)) },
@@ -1492,12 +1520,12 @@ private fun shellEntryProvider(
                 onSearch = {
                     searchRequests.request(route.chatId)
                     chatsStack.pop(route)
-                    if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
+                    if (!chatsStack.isOpenArchiveConversation(slot, route.chatId)) {
                         chatsStack.add(ArchiveConversationRoute(slot, route.chatId))
                     }
                 },
                 onOpenChat = { chatId ->
-                    if (!chatsStack.isOpenArchiveConversation(chatId)) {
+                    if (!chatsStack.isOpenArchiveConversation(slot, chatId)) {
                         chatsStack.add(ArchiveConversationRoute(slot, chatId))
                     }
                 },
@@ -1523,7 +1551,7 @@ private fun shellEntryProvider(
                 onOpenMessage = { messageId ->
                     jumpRequests.request(route.chatId, messageId)
                     chatsStack.pop(route)
-                    if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
+                    if (!chatsStack.isOpenArchiveConversation(slot, route.chatId)) {
                         chatsStack.add(ArchiveConversationRoute(slot, route.chatId, messageId))
                     }
                 },
@@ -1765,7 +1793,7 @@ private fun shellEntryProvider(
             ),
             onBack = { chatsStack.pop(route) },
             onAdded = { chatId ->
-                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(slot, chatId)) {
                     chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
@@ -1791,7 +1819,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onPick = { chatId ->
                 inlineQueryRequests.request(chatId, route.bot, route.query)
-                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(slot, chatId)) {
                     chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
@@ -1829,7 +1857,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             // Jako po přeposlání: otevře se první vybraný chat, je vidět, že kontakt dorazil.
             onSent = { chatId ->
-                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(slot, chatId)) {
                     chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
@@ -1846,7 +1874,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onPicked = { chatId ->
                 replyRequests.request(chatId, route.messageId, fromChatId = route.fromChatId)
-                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(slot, chatId)) {
                     chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
@@ -1863,7 +1891,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onForwarded = { chatId ->
                 // Výběr už v zásobníku není (odchází) — cíl otevřel předchozí volání.
-                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(chatId)) {
+                if (chatsStack.pop(route) && !chatsStack.isOpenConversation(slot, chatId)) {
                     chatsStack.add(ConversationRoute(slot, chatId))
                 }
             },
@@ -1884,7 +1912,7 @@ private fun shellEntryProvider(
             onClose = closeShare,
             onSent = {
                 chatsStack.removeAll { it is ShareToChatRoute }
-                if (!chatsStack.isOpenConversation(route.chatId)) {
+                if (!chatsStack.isOpenConversation(slot, route.chatId)) {
                     chatsStack.add(ConversationRoute(slot, route.chatId))
                 }
             },
@@ -2136,8 +2164,8 @@ private fun shellEntryProvider(
  * Je na vrcholu zásobníku konverzace [chatId]? Porovnává se jen chat — routa může nést i zprávu
  * ze hledání, a rovnost celé routy by pak přidala tutéž konverzaci podruhé.
  */
-private fun List<NavKey>.isOpenConversation(chatId: Long): Boolean =
-    (lastOrNull() as? ConversationRoute)?.chatId == chatId
+private fun List<NavKey>.isOpenConversation(slot: AccountSlot, chatId: Long): Boolean =
+    (lastOrNull() as? ConversationRoute)?.let { it.slot == slot && it.chatId == chatId } == true
 
 /**
  * Rychlý přepínač v konverzaci: chat jako po ťuknutí v seznamu — i s Uloženými zprávami po
@@ -2191,8 +2219,8 @@ private fun MutableList<NavKey>.openStories(slot: AccountSlot, chatId: Long, sto
 }
 
 /** Totéž co [isOpenConversation], ale pro větev archivu. */
-private fun List<NavKey>.isOpenArchiveConversation(chatId: Long): Boolean =
-    (lastOrNull() as? ArchiveConversationRoute)?.chatId == chatId
+private fun List<NavKey>.isOpenArchiveConversation(slot: AccountSlot, chatId: Long): Boolean =
+    (lastOrNull() as? ArchiveConversationRoute)?.let { it.slot == slot && it.chatId == chatId } == true
 
 /**
  * Totéž co [openConversation], ale pro větev archivu: nahrazuje se jen archivní konverzace,
@@ -2304,12 +2332,13 @@ internal fun MutableList<NavKey>.showInChat(route: MediaRoute, messageId: Long, 
     if (!pop(route)) return
     val below = lastOrNull()
     val archive = below is ArchiveChatProfileRoute
-    if ((below as? ChatProfileRoute)?.chatId == route.chatId || (below as? ArchiveChatProfileRoute)?.chatId == route.chatId) {
+    val profileBelow = (below as? ChatProfileRoute)?.chatId == route.chatId || (below as? ArchiveChatProfileRoute)?.chatId == route.chatId
+    if (profileBelow && below?.belongsTo(route.slot) == true) {
         pop(below)
     }
     jumps.request(route.chatId, messageId)
     when {
-        isOpenConversation(route.chatId) || isOpenArchiveConversation(route.chatId) -> Unit
+        isOpenConversation(route.slot, route.chatId) || isOpenArchiveConversation(route.slot, route.chatId) -> Unit
         archive -> add(ArchiveConversationRoute(route.slot, route.chatId, messageId))
         else -> add(ConversationRoute(route.slot, route.chatId, messageId))
     }
@@ -2324,7 +2353,7 @@ internal fun MutableList<NavKey>.showInChat(route: MediaRoute, messageId: Long, 
 internal fun MutableList<NavKey>.showAllMedia(route: MediaRoute, tabs: ProfileTabRequests) {
     if (!pop(route)) return
     tabs.request(route.chatId, SharedMediaKind.Media)
-    when (val below = lastOrNull()) {
+    when (val below = lastOrNull()?.takeIf { it.belongsTo(route.slot) }) {
         is ChatProfileRoute -> if (below.chatId == route.chatId) return
         is ArchiveChatProfileRoute -> if (below.chatId == route.chatId) return
         is ArchiveConversationRoute -> if (below.chatId == route.chatId) {

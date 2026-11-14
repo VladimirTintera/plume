@@ -148,6 +148,15 @@ interface AppSettings {
     fun setSavedMessagesAsChats(asChats: Boolean)
 
     /**
+     * Ukazuje seznam chatů chaty všech účtů naráz (režim Vše), nebo jen výchozího účtu? Výchozí
+     * `false`: s jedním účtem je to totéž a s druhým účtem je to, co uživatel znal.
+     * Viz `docs/navrh-vice-uctu.md`, „Společný seznam chatů".
+     */
+    val chatListAllAccounts: StateFlow<Boolean>
+
+    fun setChatListAllAccounts(all: Boolean)
+
+    /**
      * Co dělá tah chatem doprava a doleva v seznamu chatů (Nastavení → Chaty).
      * Výchozí je archivace na obou stranách; výchozí hodnota strany se neukládá, jako u motivu.
      */
@@ -710,6 +719,16 @@ class DataStoreAppSettings(
     override fun setSavedMessagesAsChats(asChats: Boolean) {
         scope.launch {
             edit { preferences -> preferences[SAVED_MESSAGES_AS_CHATS] = asChats }
+        }
+    }
+
+    override val chatListAllAccounts: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[CHAT_LIST_ALL_ACCOUNTS] ?: false
+    }
+
+    override fun setChatListAllAccounts(all: Boolean) {
+        scope.launch {
+            edit { preferences -> if (all) preferences[CHAT_LIST_ALL_ACCOUNTS] = true else preferences.remove(CHAT_LIST_ALL_ACCOUNTS) }
         }
     }
 
@@ -1343,6 +1362,7 @@ class DataStoreAppSettings(
         val PROFILE_PANE_ANCHOR = stringPreferencesKey("profile_pane_anchor")
         val CHAT_ROW_GAPS = booleanPreferencesKey("chat_row_gaps")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
+        val CHAT_LIST_ALL_ACCOUNTS = booleanPreferencesKey("chat_list_all_accounts")
         val TRANSLATE_ON_DEVICE = booleanPreferencesKey("translate_on_device")
         val CHAT_SWIPE_RIGHT = stringPreferencesKey("chat_swipe_right")
         val CHAT_SWIPE_LEFT = stringPreferencesKey("chat_swipe_left")

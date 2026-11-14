@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.foundation.shape.CircleShape
+import eu.tintera.plume.core.telegram.AccountInfo
 import androidx.compose.runtime.Immutable
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -452,6 +454,11 @@ internal data class ChatRowMarks(
     val awaitingReply: Boolean,
     /** Kroužek příběhů kolem avataru; `null` = autor žádné nemá. */
     val stories: StoryRingState? = null,
+    /**
+     * Účet, kterému chat patří, ve společném seznamu víc účtů; `null` = jeden účet. Fotka účtu,
+     * ne barva: barvy už nesou chaty (`ChatColors`) a pletly by se.
+     */
+    val account: AccountInfo? = null,
 )
 
 @Composable
@@ -584,6 +591,20 @@ internal fun ChatRow(
                     )
                 } else if (chat.presence is Presence.Online) {
                     OnlineDot(rim = containerColor, modifier = Modifier.align(Alignment.BottomEnd), chatId = chat.id)
+                }
+                // Odznak účtu naproti tečce dostupnosti, s obroučkou barvou řádku jako ona.
+                marks.account?.let { account ->
+                    Avatar(
+                        chatId = account.id,
+                        title = account.displayName,
+                        avatarFileId = account.photoFileId,
+                        size = ACCOUNT_BADGE_SIZE,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .offset(x = (-4).dp, y = 4.dp)
+                            .background(containerColor, CircleShape)
+                            .padding(2.dp),
+                    )
                 }
             }
 
@@ -906,3 +927,6 @@ internal val CHAT_ROW_AVATAR_SIZE = 52.dp
 
 /** Jak daleko za okraj avataru sahá kroužek příběhů (mezera a čára, `storyRing`). */
 private val STORY_RING_OUTSET = 5.dp
+
+/** Fotka účtu na avataru chatu ve společném seznamu víc účtů (bez obroučky). */
+private val ACCOUNT_BADGE_SIZE = 18.dp
