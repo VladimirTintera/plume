@@ -1601,7 +1601,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
   „Uložit", „Přidat", „Vytvořit", „Hotovo" jako `SaveActionButton` i v novém kontaktu, nové skupině
   a řazení; VladimirTintera/telegram#840).
 - ~~**Obrazovka hovoru**~~ — hotovo: ikony `mic_off` / `videocam_off` podle stavu, široké zavěšení
-  probíhajícího hovoru, dýchající svatozář `ShapeMorphs.Live` za fotkou, dokud hovor čeká
+  probíhajícího hovoru, fotka dýchající v tvaru `ShapeMorphs.Live`, dokud hovor čeká
   (`docs/poznatky/hovory.md`, „Vzhled obrazovky hovoru"; VladimirTintera/telegram#843).
 - ~~**Tokeny tvarů místo dp**~~ — hotovo: 69 zaoblení ze škály na `ShapeDefaults`, kopie
   `GROUP_CORNER`/`INNER_CORNER` sloučené, `verifyShapeTokens` na `check` (VladimirTintera/telegram#845). Hodnoty mimo škálu
