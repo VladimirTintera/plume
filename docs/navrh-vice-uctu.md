@@ -895,6 +895,14 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       obrazovky, a pod ním je v ostatních účtech soukromý chat s ním — ten teď nezmizí. Řádek
       „Uložené zprávy" dává hledání účtu obrazovky jako dřív; název chatu ve výsledku se bere
       až v kontejneru jeho účtu (`chatTitle`).
+    - **Další účty po aktualizaci stav synchronizace stahování nemají** (`null`), takže se
+      zachovají jako aktualizace z verze bez synchronizace: vybrané úrovně pošlou na svůj server,
+      výchozí úrovně nahradí předvolbami ze svého serveru. Na Pixelu 5 si oba další účty stáhly
+      předvolby shodné s výchozími (`auto_download_sync_<slot>` v souboru nastavení).
+    - **Ověřeno na Pixelu 5** (režim Všechny účty): hledání „VT" ukázalo soukromé chaty
+      osobního účtu s VT a VT2 s jejich fotkami (dřív Uložené zprávy obou účtů se záložkou),
+      hledání „Saved" jeden řádek Uložených zpráv. Přepínač synchronizace adresáře se na
+      zařízení nezapínal (nahrál by kontakty); rozdělení klíčů hlídá `DataStoreAppSettingsTest`.
 
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
