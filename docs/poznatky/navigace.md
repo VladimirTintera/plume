@@ -532,6 +532,9 @@ v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** d
   na rozloženém Foldu se prochází chat za chatem a vpravo se mění konverzace; na telefonu
   s otevřenou konverzací seznam složený není a zkratka nedělá nic. Na krajích se nezacyklí,
   sponzorovaný chat přeskočí, ve výběru a v uspořádání připnutých nic.
+  Ve společném seznamu víc účtů obsluhuje zkratky `MergedChatListContent` a sousedy hledá
+  podle id S ÚČTEM: totéž id má chat ve dvou účtech a podle samotného id by zkratka mezi nimi
+  nepřešla (`docs/navrh-vice-uctu.md`, krok 9).
 - **Esc = Zpět je výslovně v `MainActivity`** (`handleEscape`), ne systémová záložní akce. Mapa
   kláves systému sice Esc převede na Zpět, ale jen když klávesu nikdo nezpracuje — a zaostřené
   vstupní pole ji spolkne: z konverzace s kurzorem v poli Esc nedělal nic. Zpět se volá až při

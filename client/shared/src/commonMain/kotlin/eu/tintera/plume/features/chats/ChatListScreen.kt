@@ -666,6 +666,7 @@ fun ChatListScreen(
                             storiesSlot = screenAccount.slot,
                             padding = padding,
                             listState = listState,
+                            headerItemCount = cards.count,
                             empty = emptyContent,
                         ) {
                             chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate)
@@ -1097,7 +1098,9 @@ internal fun ChatListContent(
     ChatSwitchShortcuts(
         enabled = reorder == null && selection == null,
         chats = groups,
-        selectedChatId = selectedChatId,
+        key = { it.id },
+        selected = selectedChatId,
+        sponsored = { it.sponsor != null },
         onOpen = { chat ->
             shortcutTarget = chat.id
             if (chat.opensAsTopics) onForumClick(chat.id) else onChatClick(chat.id)
@@ -1380,18 +1383,25 @@ private val FAB_CLEARANCE = TOOLBAR_FAB_COLLAPSED_SIZE + FAB_MARGIN + 8.dp
  * telefonu s otevřenou konverzací ho konverzace překrývá a zkratka nedělá nic; na rozloženém
  * Foldu se tak prochází chat za chatem a vpravo se mění konverzace. Ve výběru a v uspořádání
  * připnutých ne — tam by otevření chatu z režimu vytrhlo.
+ *
+ * Položkou je chat jednoho účtu i chat společného seznamu víc účtů; [key] ho porovná
+ * s [selected] (ve společném seznamu i s účtem), [sponsored] se přeskakují.
  */
 @Composable
-private fun ChatSwitchShortcuts(
+internal fun <T, K> ChatSwitchShortcuts(
     enabled: Boolean,
-    chats: List<List<ChatSummary>>,
-    selectedChatId: Long?,
-    onOpen: (ChatSummary) -> Unit,
+    chats: List<List<T>>,
+    key: (T) -> K,
+    selected: K?,
+    sponsored: (T) -> Boolean,
+    onOpen: (T) -> Unit,
 ) {
     val shortcuts = koinInject<KeyboardShortcuts>()
     val currentEnabled by rememberUpdatedState(enabled)
     val currentChats by rememberUpdatedState(chats)
-    val currentSelected by rememberUpdatedState(selectedChatId)
+    val currentKey by rememberUpdatedState(key)
+    val currentSelected by rememberUpdatedState(selected)
+    val currentSponsored by rememberUpdatedState(sponsored)
     val currentOnOpen by rememberUpdatedState(onOpen)
     LaunchedEffect(shortcuts) {
         shortcuts.shortcuts.collect { shortcut ->
@@ -1401,9 +1411,9 @@ private fun ChatSwitchShortcuts(
                 else -> return@collect
             }
             if (!currentEnabled) return@collect
-            val flat = currentChats.flatten().filter { it.sponsor == null }
-            val id = neighbourChat(flat.map { it.id }, currentSelected, next) ?: return@collect
-            flat.firstOrNull { it.id == id }?.let(currentOnOpen)
+            val flat = currentChats.flatten().filterNot(currentSponsored)
+            val target = neighbourChat(flat.map(currentKey), currentSelected, next) ?: return@collect
+            flat.firstOrNull { currentKey(it) == target }?.let(currentOnOpen)
         }
     }
 }
