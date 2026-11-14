@@ -153,9 +153,31 @@ až od serveru".
 - **Zavěšení probíhajícího hovoru je široké** (`IconButtonWidthOption.Wide`, `HangUpButton(wide =
   true)`). Při zvonění a v okénku příchozího hovoru na desktopu ne: tam stojí vedle přijetí
   a širší odmítnutí by bylo výraznější než přijetí.
-- **Dokud hovor čeká** (zvoní, vytáčí se, spojuje), dýchá za fotkou protějšku svatozář
-  `ShapeMorphs.Live` (kruh ↔ SoftBurst, `tertiaryContainer`, půlperioda 1,4 s). Fotka sama zůstává
-  kulatá — obličej v měnícím se tvaru by se kroutil. Po spojení svatozář zmizí (`slowEffectsSpec`).
+- **Dokud hovor čeká** (zvoní, vytáčí se, spojuje), dýchá fotka protějšku v tvaru
+  `ShapeMorphs.Live` (kruh ↔ SoftBurst, půlperioda 1,4 s). Tvar je OŘEZ fotky, ne
+  plocha za ní: dřív dýchala za kulatou fotkou svatozář v `tertiaryContainer` s odůvodněním, že by
+  se obličej v měnícím se tvaru kroutil — jenže ořez fotku nedeformuje, mění jen průběh okraje,
+  a vlastní plocha kolem fotky působila jako cizí prvek. Po spojení tvar plynule dosedne do kruhu
+  (dýchání se násobí silou, která jede `slowEffectsSpec` k nule), fotka zůstává stejně velká.
+- **Dech je mělký a střídá směr.** Celý morf ke SoftBurstu byl na fotce zubatý, proto jen půl
+  cesty (`CALL_BREATH_DEPTH`). Otočení svázané s průběhem (`rotation`) točilo tvarem při každém
+  nádechu stejně a působilo jako točení jedním směrem; dnes jeden cyklus nese dva nádechy
+  (`(1 − cos 2φ) / 2`) a úhel `sin φ`, takže první nádech se pootočí o 20° doprava, druhý doleva
+  a v kruhu je úhel nulový. Úhel jde do `MorphShape(angle = …)` mimo průběh.
+- **Fotka je to nejvýraznější na obrazovce**: 70 % šířky, nejvýš polovina plochy nad
+  tlačítky a nejvýš 320 dp (tablet, desktop). Velikost se počítá z vážené plochy sloupce
+  (`BoxWithConstraints` s `weight(1f)`), takže na nízkém okně se zmenší, místo aby ovládání
+  vytlačila pod okraj. Dřív měla pevných 128 dp a na telefonu zabírala sotva třetinu šířky.
+- **Na šířku (okno širší než vyšší) stojí fotka vlevo a jméno s ovládáním vpravo**, jako
+  v systémovém vytáčení. Pod sebou by se fotka do telefonu naležato vešla jen malá. Pravý
+  sloupec má strop `ContentWidth.Form` a posun pro jistotu: na telefonu naležato se jméno,
+  emoji a tlačítka vejdou tak tak. S videem zůstává rozvržení pod sebou — obraz je přes celou
+  plochu a ovládání leží přes něj. Tlačítka jsou v kódu jednou (`controlPanel`).
+  Ověřeno na Pixelu 7 Pro na výšku i naležato; desktop jen přeložený.
+- **Tvar ořezu se čte až při kreslení** (`graphicsLayer { shape = MorphShape(…); clip = true }`
+  a `Avatar(shape = RectangleShape)`): předaný `shape = MorphShape(…)` by byl nová instance
+  v každém snímku a fotka i iniciály by se každý snímek sestavovaly znovu. Kruh z avataru by tvar
+  seřízl, proto obdélník.
 - Ověřeno na Pixelu 7 Pro a Pixelu 5 hovorem mezi testovacími účty (vyzvánění, příchozí hovor,
   ztlumení); stav po spojení na zařízení neověřený.
 

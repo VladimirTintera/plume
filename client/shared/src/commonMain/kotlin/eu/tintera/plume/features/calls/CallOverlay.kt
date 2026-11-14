@@ -13,9 +13,12 @@ import eu.tintera.plume.resources.mic_off_24dp
 import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.MorphShape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.animation.core.RepeatMode
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.animation.core.LinearEasing
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.animateFloat
@@ -26,6 +29,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import eu.tintera.plume.core.adaptive.ContentWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -66,6 +75,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
@@ -105,6 +115,7 @@ import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.calls.CallAudioOutput
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import eu.tintera.plume.core.telegram.ActiveCall
 import eu.tintera.plume.core.telegram.CallPhase
 import eu.tintera.plume.core.telegram.CallRepository
@@ -325,6 +336,84 @@ private fun CallScreen(
     val overlay = rememberPointerOverlayPermission()
     var askOverlay by remember { mutableStateOf(false) }
     val startSharing = { screenShare?.request { granted -> if (granted) calls.setScreenSharing(true) } }
+    // Podržení a tlačítka hovoru: pod fotkou, nebo na šířku vpravo vedle ní.
+    val controlPanel: @Composable ColumnScope.() -> Unit = {
+        if (call.held && ongoing) {
+            // Po GSM hovoru systém hovor sám nevrátí; bez tlačítka by zůstal viset podržený.
+            Button(onClick = { scope.launch { calls.resume() } }, modifier = Modifier.padding(bottom = 24.dp), shapes = ButtonDefaults.shapes()) {
+                Text(stringResource(Res.string.call_resume))
+            }
+        }
+        CallControlsVisibility(controls.visible) {
+            Surface(color = veil, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.fillMaxWidth()) {
+                when {
+                    call.phase == CallPhase.Ringing -> Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                        LabeledButton(stringResource(Res.string.notification_call_decline)) {
+                            HangUpButton(stringResource(Res.string.notification_call_decline)) { scope.launch { calls.hangUp() } }
+                        }
+                        LabeledButton(stringResource(Res.string.call_answer)) {
+                            FilledIconButton(
+                                onClick = { accept(call) },
+                                shapes = IconButtonDefaults.shapes(),
+                                modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
+                            ) {
+                                Icon(
+                                    painterResource(if (call.isVideo) Res.drawable.videocam_24dp else Res.drawable.call_24dp),
+                                    contentDescription = stringResource(Res.string.call_answer),
+                                    modifier = Modifier.size(IconButtonDefaults.largeIconSize),
+                                )
+                            }
+                        }
+                    }
+                    ongoing -> Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                        // Jediný výstup (desktop: vybírá systém) není co přepínat.
+                        if (call.outputs.size > 1) AudioOutputButton(call, calls, Modifier.weight(1f))
+                        if (calls.supportsVideo) LabeledButton(stringResource(Res.string.call_camera), Modifier.weight(1f)) {
+                            FilledIconToggleButton(
+                                checked = call.camera,
+                                onCheckedChange = { on ->
+                                    if (!on) {
+                                        calls.setCamera(false)
+                                    } else {
+                                        cameraPermission.request { granted -> if (granted) calls.setCamera(true) }
+                                    }
+                                },
+                                shapes = IconButtonDefaults.toggleableShapes(),
+                                modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
+                            ) {
+                                // Stav nese i ikona, ne jen barva a tvar: přeškrtnutá kamera = protějšek nás nevidí.
+                                Icon(
+                                    painterResource(if (call.camera) Res.drawable.videocam_24dp else Res.drawable.videocam_off_24dp),
+                                    contentDescription = stringResource(Res.string.call_camera),
+                                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                                )
+                            }
+                        }
+                        LabeledButton(stringResource(Res.string.call_mute), Modifier.weight(1f)) {
+                            FilledIconToggleButton(
+                                checked = call.muted,
+                                onCheckedChange = calls::setMuted,
+                                shapes = IconButtonDefaults.toggleableShapes(),
+                                modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
+                            ) {
+                                // Ztlumený = přeškrtnutý mikrofon, jako v systémovém vytáčení.
+                                Icon(
+                                    painterResource(if (call.muted) Res.drawable.mic_off_24dp else Res.drawable.mic_24dp),
+                                    contentDescription = stringResource(Res.string.call_mute),
+                                    modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
+                                )
+                            }
+                        }
+                        LabeledButton(stringResource(Res.string.call_hang_up), Modifier.weight(1f)) {
+                            HangUpButton(stringResource(Res.string.call_hang_up), large = false, wide = true) { scope.launch { calls.hangUp() } }
+                        }
+                    }
+                    // Konec: ovládání zmizí, plocha pod ním taky.
+                    else -> Unit
+                }
+            }
+        }
+    }
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().then(controls.modifier)) {
             full?.let { source ->
@@ -347,155 +436,109 @@ private fun CallScreen(
                     CallPointerFinger(pointer)
                 }
             }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
-            ) {
-                CallControlsVisibility(controls.visible) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        FilledTonalIconButton(onClick = onMinimize, shapes = IconButtonDefaults.shapes()) {
-                            Icon(painterResource(Res.drawable.keyboard_arrow_down_24dp), contentDescription = stringResource(Res.string.call_minimize))
-                        }
-                        Spacer(Modifier.weight(1f))
-                        // Sdílení obrazovky jen ve spojeném hovoru: posílá se místo kamery.
-                        if (screenShare != null && call.phase == CallPhase.Active) {
-                            FilledTonalIconToggleButton(
-                                checked = call.screenSharing,
-                                onCheckedChange = { on ->
-                                    if (!on) {
-                                        calls.setScreenSharing(false)
-                                    } else if (overlay != null && !overlay.granted && !PointerOverlayAsk.asked) {
-                                        askOverlay = true
-                                    } else {
-                                        startSharing()
-                                    }
-                                },
-                                shapes = IconButtonDefaults.toggleableShapes(),
-                            ) {
-                                Icon(painterResource(Res.drawable.screen_share_24dp), contentDescription = stringResource(Res.string.call_share_screen))
-                            }
-                        }
-                        if (ongoing && call.camera && calls.canSwitchCamera) {
-                            FilledTonalIconButton(onClick = calls::switchCamera, shapes = IconButtonDefaults.shapes()) {
-                                Icon(painterResource(Res.drawable.cameraswitch_24dp), contentDescription = stringResource(Res.string.call_switch_camera))
-                            }
-                        }
-                    }
-                }
-                if (full == null) {
-                    Spacer(Modifier.weight(0.6f))
-                    CallAvatar(call, name, avatarFileId)
-                    Spacer(Modifier.height(24.dp))
-                    CallHeadline(call, name)
-                    Spacer(Modifier.weight(1f))
-                } else {
+            BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp)) {
+                // Na šířku (telefon naležato, desktop) fotka vlevo, jméno s ovládáním vpravo —
+                // pod sebou by se fotka do nízkého okna vešla jen malá. S obrazem ne: video
+                // je přes celou plochu a ovládání leží přes něj.
+                val sideBySide = full == null && maxWidth > maxHeight
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
                     CallControlsVisibility(controls.visible) {
-                        Surface(color = veil, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(top = 16.dp)) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                                CallHeadline(call, name, compact = true)
-                                if (pointing) {
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        stringResource(Res.string.call_pointer_hint),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center,
-                                    )
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            FilledTonalIconButton(onClick = onMinimize, shapes = IconButtonDefaults.shapes()) {
+                                Icon(painterResource(Res.drawable.keyboard_arrow_down_24dp), contentDescription = stringResource(Res.string.call_minimize))
+                            }
+                            Spacer(Modifier.weight(1f))
+                            // Sdílení obrazovky jen ve spojeném hovoru: posílá se místo kamery.
+                            if (screenShare != null && call.phase == CallPhase.Active) {
+                                FilledTonalIconToggleButton(
+                                    checked = call.screenSharing,
+                                    onCheckedChange = { on ->
+                                        if (!on) {
+                                            calls.setScreenSharing(false)
+                                        } else if (overlay != null && !overlay.granted && !PointerOverlayAsk.asked) {
+                                            askOverlay = true
+                                        } else {
+                                            startSharing()
+                                        }
+                                    },
+                                    shapes = IconButtonDefaults.toggleableShapes(),
+                                ) {
+                                    Icon(painterResource(Res.drawable.screen_share_24dp), contentDescription = stringResource(Res.string.call_share_screen))
+                                }
+                            }
+                            if (ongoing && call.camera && calls.canSwitchCamera) {
+                                FilledTonalIconButton(onClick = calls::switchCamera, shapes = IconButtonDefaults.shapes()) {
+                                    Icon(painterResource(Res.drawable.cameraswitch_24dp), contentDescription = stringResource(Res.string.call_switch_camera))
                                 }
                             }
                         }
                     }
-                    Spacer(Modifier.weight(1f))
-                }
-                // Náš náhled vedle obrazu protistrany: vpravo dole nad ovládáním, kde nepřekáží
-                // jménu ani tlačítkům nahoře.
-                corner?.let { source ->
-                    CallVideo(
-                        source,
-                        mirror = call.frontCamera,
-                        modifier = Modifier
-                            .align(Alignment.End)
-                            .padding(bottom = 16.dp)
-                            .size(width = 108.dp, height = 192.dp)
-                            .clip(MaterialTheme.shapes.large),
-                    )
-                }
-                if (call.held && ongoing) {
-                    // Po GSM hovoru systém hovor sám nevrátí; bez tlačítka by zůstal viset podržený.
-                    Button(onClick = { scope.launch { calls.resume() } }, modifier = Modifier.padding(bottom = 24.dp), shapes = ButtonDefaults.shapes()) {
-                        Text(stringResource(Res.string.call_resume))
-                    }
-                }
-                CallControlsVisibility(controls.visible) {
-                    Surface(color = veil, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.fillMaxWidth()) {
-                        when {
-                            call.phase == CallPhase.Ringing -> Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                                LabeledButton(stringResource(Res.string.notification_call_decline)) {
-                                    HangUpButton(stringResource(Res.string.notification_call_decline)) { scope.launch { calls.hangUp() } }
-                                }
-                                LabeledButton(stringResource(Res.string.call_answer)) {
-                                    FilledIconButton(
-                                        onClick = { accept(call) },
-                                        shapes = IconButtonDefaults.shapes(),
-                                        modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
-                                    ) {
-                                        Icon(
-                                            painterResource(if (call.isVideo) Res.drawable.videocam_24dp else Res.drawable.call_24dp),
-                                            contentDescription = stringResource(Res.string.call_answer),
-                                            modifier = Modifier.size(IconButtonDefaults.largeIconSize),
-                                        )
-                                    }
-                                }
+                    if (sideBySide) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            BoxWithConstraints(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                CallAvatar(call, name, avatarFileId, minOf(maxWidth * CALL_AVATAR_WIDTH_FRACTION, maxHeight, CALL_AVATAR_MAX_SIZE))
                             }
-                            ongoing -> Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                                // Jediný výstup (desktop: vybírá systém) není co přepínat.
-                                if (call.outputs.size > 1) AudioOutputButton(call, calls, Modifier.weight(1f))
-                                if (calls.supportsVideo) LabeledButton(stringResource(Res.string.call_camera), Modifier.weight(1f)) {
-                                    FilledIconToggleButton(
-                                        checked = call.camera,
-                                        onCheckedChange = { on ->
-                                            if (!on) {
-                                                calls.setCamera(false)
-                                            } else {
-                                                cameraPermission.request { granted -> if (granted) calls.setCamera(true) }
-                                            }
-                                        },
-                                        shapes = IconButtonDefaults.toggleableShapes(),
-                                        modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
-                                    ) {
-                                        // Stav nese i ikona, ne jen barva a tvar: přeškrtnutá kamera = protějšek nás nevidí.
-                                        Icon(
-                                            painterResource(if (call.camera) Res.drawable.videocam_24dp else Res.drawable.videocam_off_24dp),
-                                            contentDescription = stringResource(Res.string.call_camera),
-                                            modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
-                                        )
-                                    }
-                                }
-                                LabeledButton(stringResource(Res.string.call_mute), Modifier.weight(1f)) {
-                                    FilledIconToggleButton(
-                                        checked = call.muted,
-                                        onCheckedChange = calls::setMuted,
-                                        shapes = IconButtonDefaults.toggleableShapes(),
-                                        modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
-                                    ) {
-                                        // Ztlumený = přeškrtnutý mikrofon, jako v systémovém vytáčení.
-                                        Icon(
-                                            painterResource(if (call.muted) Res.drawable.mic_off_24dp else Res.drawable.mic_24dp),
-                                            contentDescription = stringResource(Res.string.call_mute),
-                                            modifier = Modifier.size(IconButtonDefaults.mediumIconSize),
-                                        )
-                                    }
-                                }
-                                LabeledButton(stringResource(Res.string.call_hang_up), Modifier.weight(1f)) {
-                                    HangUpButton(stringResource(Res.string.call_hang_up), large = false, wide = true) { scope.launch { calls.hangUp() } }
-                                }
+                            // Posun jen pro jistotu: na nízkém telefonu naležato se jméno s emoji
+                            // a tlačítky vejdou tak tak.
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.weight(1f).widthIn(max = ContentWidth.Form).verticalScroll(rememberScrollState()),
+                            ) {
+                                CallHeadline(call, name)
+                                Spacer(Modifier.height(24.dp))
+                                controlPanel()
                             }
-                            // Konec: ovládání zmizí, plocha pod ním taky.
-                            else -> Unit
                         }
+                    } else {
+                        if (full == null) {
+                            // Fotka je to hlavní, podle čeho se protějšek pozná: bere většinu šířky,
+                            // ale nejvýš polovinu plochy nad tlačítky — pod ní musí být vidět jméno a stav.
+                            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                                val size = minOf(maxWidth * CALL_AVATAR_WIDTH_FRACTION, maxHeight * CALL_AVATAR_HEIGHT_FRACTION, CALL_AVATAR_MAX_SIZE)
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
+                                    Spacer(Modifier.weight(0.6f))
+                                    CallAvatar(call, name, avatarFileId, size)
+                                    Spacer(Modifier.height(24.dp))
+                                    CallHeadline(call, name)
+                                    Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        } else {
+                            CallControlsVisibility(controls.visible) {
+                                Surface(color = veil, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(top = 16.dp)) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                                        CallHeadline(call, name, compact = true)
+                                        if (pointing) {
+                                            Spacer(Modifier.height(8.dp))
+                                            Text(
+                                                stringResource(Res.string.call_pointer_hint),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                textAlign = TextAlign.Center,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.weight(1f))
+                        }
+                        // Náš náhled vedle obrazu protistrany: vpravo dole nad ovládáním, kde nepřekáží
+                        // jménu ani tlačítkům nahoře.
+                        corner?.let { source ->
+                            CallVideo(
+                                source,
+                                mirror = call.frontCamera,
+                                modifier = Modifier
+                                    .align(Alignment.End)
+                                    .padding(bottom = 16.dp)
+                                    .size(width = 108.dp, height = 192.dp)
+                                    .clip(MaterialTheme.shapes.large),
+                            )
+                        }
+                        controlPanel()
                     }
+                    Spacer(Modifier.height(8.dp))
                 }
-                Spacer(Modifier.height(8.dp))
             }
         }
     }
@@ -717,54 +760,78 @@ internal fun HangUpButton(
 }
 
 /**
- * Fotka protějšku. **Dokud hovor čeká** (zvoní, vytáčí se, spojuje), za ní dýchá tvar
+ * Fotka protějšku. **Dokud hovor čeká** (zvoní, vytáčí se, spojuje), dýchá v tvaru
  * [ShapeMorphs.Live] — kruh ↔ SoftBurst, tentýž „živý signál" jako tlačítko při nahrávání.
- * Fotka sama zůstává kulatá: obličej v měnícím se tvaru by se kroutil. Po spojení svatozář
- * zmizí — hovor už nečeká, a co se hýbe pořád, přestane cokoli znamenat.
+ * Tvar je ořez fotky, ne plocha za ní: fotka se nedeformuje, mění se jen to, kudy vede její
+ * okraj. Po spojení fotka dosedne zpátky do kruhu — hovor už nečeká, a co se hýbe pořád,
+ * přestane cokoli znamenat.
+ *
+ * Dech je mělký ([CALL_BREATH_DEPTH], jen půl cesty k SoftBurstu — celý byl na fotce zubatý)
+ * a střídá směr: jeden nádech se tvar pootočí doprava, další doleva, takže se fotka netočí
+ * pořád jedním směrem. Obojí jede po sinusoidě z jednoho cyklu o dvou nádeších, a tak sedí
+ * v kroku: vrchol otočení připadne na vrchol nádechu a v kruhu je úhel nulový.
+ *
+ * Průběh se čte až při kreslení (`graphicsLayer`), takže se fotka ani iniciály každý snímek
+ * nesestavují znovu.
  */
 @Composable
-private fun CallAvatar(call: ActiveCall, name: String, avatarFileId: Int?) {
+private fun CallAvatar(call: ActiveCall, name: String, avatarFileId: Int?, size: Dp) {
     val waiting = call.phase == CallPhase.Ringing || call.phase == CallPhase.Calling || call.phase == CallPhase.Connecting
-    val haloAlpha by animateFloatAsState(
+    // Násobí dýchání: po spojení tvar plynule dojede do kruhu, místo aby skočil z půlky morfu.
+    val strength = animateFloatAsState(
         targetValue = if (waiting) 1f else 0f,
         animationSpec = MaterialTheme.motionScheme.slowEffectsSpec(),
-        label = "call-halo",
+        label = "call-breath-strength",
     )
-    val breathing = if (haloAlpha > 0f) {
+    val breathes by remember { derivedStateOf { strength.value > 0f } }
+    // Fáze cyklu dvou nádechů, 0..1.
+    val cycle = if (breathes) {
         rememberInfiniteTransition(label = "call-breath").animateFloat(
             initialValue = 0f,
             targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(CALL_BREATH_MS), RepeatMode.Reverse),
-            label = "call-breath-progress",
-        ).value
-    } else {
-        0f
-    }
-    val haloColor = MaterialTheme.colorScheme.tertiaryContainer
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(CALL_HALO_SIZE)) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .graphicsLayer { alpha = haloAlpha }
-                .drawBehind {
-                    val outline = MorphShape(ShapeMorphs.Live, breathing, rotation = CALL_BREATH_ROTATION)
-                        .createOutline(size, layoutDirection, this)
-                    drawOutline(outline, haloColor)
-                },
+            animationSpec = infiniteRepeatable(tween(CALL_BREATH_MS * 4, easing = LinearEasing)),
+            label = "call-breath-cycle",
         )
-        Avatar(chatId = call.userId, title = name, avatarFileId = avatarFileId, size = CALL_AVATAR_SIZE)
+    } else {
+        null
     }
+    Avatar(
+        chatId = call.userId,
+        title = name,
+        avatarFileId = avatarFileId,
+        size = size,
+        // Ořez dělá vrstva; kruh z avataru by tvar seřízl na kruh.
+        shape = RectangleShape,
+        modifier = Modifier.graphicsLayer {
+            val phase = 2f * PI.toFloat() * (cycle?.value ?: 0f)
+            val inhale = (1f - cos(2f * phase)) / 2f
+            shape = MorphShape(
+                ShapeMorphs.Live,
+                progress = strength.value * CALL_BREATH_DEPTH * inhale,
+                angle = strength.value * CALL_BREATH_ROTATION * sin(phase),
+            )
+            clip = true
+        },
+    )
 }
 
-private val CALL_AVATAR_SIZE = 128.dp
+/** Podíl šířky obrazovky pro fotku protějšku. */
+private const val CALL_AVATAR_WIDTH_FRACTION = 0.7f
 
-/** Svatozář přesahuje fotku, aby ji i nejužší místo SoftBurstu obkreslilo. */
-private val CALL_HALO_SIZE = 168.dp
+/** Na výšku nejvýš tolik z plochy nad tlačítky; zbytek patří jménu, stavu a emoji. */
+private const val CALL_AVATAR_HEIGHT_FRACTION = 0.5f
+
+/** Strop na tabletu a desktopu, kde by 70 % šířky byla obří fotka. */
+private val CALL_AVATAR_MAX_SIZE = 320.dp
 
 /** Půlperioda dýchání — pomalejší než nahrávání (900 ms): čekání na hovor není spěch. */
 private const val CALL_BREATH_MS = 1400
 
-private const val CALL_BREATH_ROTATION = 30f
+/** Nejvyšší průběh morfu: polovina cesty ke SoftBurstu, vlny tak zůstanou mělké. */
+private const val CALL_BREATH_DEPTH = 0.5f
+
+/** Úhel ve vrcholu nádechu, střídavě na obě strany. */
+private const val CALL_BREATH_ROTATION = 20f
 
 /**
  * Zmenšený hovor: pruh nahoře, ťuknutí ho rozbalí. Svou výšku hlásí ([onHeight]) — i s okraji

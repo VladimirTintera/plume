@@ -26,8 +26,8 @@ import androidx.graphics.shapes.star
  * význam, aby se jazyk nerozmělnil:
  * - [ShapeMorphs.Rest] kruh ↔ šestistranná „sušenka": sušenka je klid / připraveno (mikrofon, pozastavené
  *   přehrávání), kruh probíhající akce (odeslat, hraje).
- * - [ShapeMorphs.Live] kruh ↔ SoftBurst: živý signál, tlačítko při nahrávání dýchá; za fotkou
- *   protějšku dýchá, dokud hovor čeká (zvoní, vytáčí se, spojuje) — fotka sama zůstává kulatá.
+ * - [ShapeMorphs.Live] kruh ↔ SoftBurst: živý signál, tlačítko při nahrávání dýchá; fotka
+ *   protějšku v hovoru v něm dýchá (ořez), dokud hovor čeká (zvoní, vytáčí se, spojuje).
  * - [ShapeMorphs.Highlight] kruh ↔ dvanáctistranná sušenka: podbarvení podržené samolepky,
  *   vybraný vzorek barvy (`ColorSwatch`: barva motivu, chatu, nového tématu ve fóru).
  * - [ShapeMorphs.Intro] kruh → čtyřlístek → pětiúhelník → zaoblená hvězda: uvítání prázdného
@@ -42,31 +42,35 @@ import androidx.graphics.shapes.star
  *
  * Tam, kde se stav nemění (avatary, položky seznamu, reakce), se morfy nepoužívají — kdyby se
  * hýbalo všechno, přestalo by to cokoli znamenat. Avatary mají jen STATICKÝ tvar podle druhu
- * chatu (`avatarShape`), a to z tvarů, které tady žádný stav neznamenají. Řádek bloku při stisku
- * jen změní zaoblení (`animatedGroupItemShape`), stejně jako stisknuté tlačítko — to je odezva
- * na prst, ne tvar z [MaterialShapes] s vlastním významem.
+ * chatu (`avatarShape`), a to z tvarů, které tady žádný stav neznamenají. Jediná výjimka je
+ * fotka na obrazovce hovoru (`CallAvatar`): je tam sama, nese stav hovoru, ne chatu v seznamu,
+ * a hýbe se jen do spojení — výpadek spojení naopak visel na každém avataru v aplikaci. Řádek
+ * bloku při stisku jen změní zaoblení (`animatedGroupItemShape`), stejně jako stisknuté
+ * tlačítko — to je odezva na prst, ne tvar z [MaterialShapes] s vlastním významem.
  *
  * Instance je pro jednu hodnotu [progress]: Compose si obrys drží podle instance a velikosti,
  * takže tvar, který by průběh četl sám, by se nepřekreslil. Kde se průběh čte až při kreslení,
  * stačí zavolat [createOutline] na nové instanci v `drawBehind`.
  *
  * [rotation] ve stupních při plném tvaru (progress 1); kruh se otáčením nemění, takže začátek
- * sedí vždy.
+ * sedí vždy. Kdo otáčení vede nezávisle na průběhu (dech v hovoru střídá směr), předá rovnou
+ * výsledný úhel [angle].
  */
 class MorphShape(
     private val morph: Morph,
     private val progress: Float,
-    private val rotation: Float = 0f,
+    rotation: Float = 0f,
+    private val angle: Float = progress * rotation,
 ) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val path = morph.toPath(progress.coerceIn(0f, 1f), Path())
         path.transform(Matrix().apply { scale(x = size.width, y = size.height) })
         path.translate(size.center - path.getBounds().center)
-        if (rotation != 0f) {
+        if (angle != 0f) {
             path.transform(
                 Matrix().apply {
                     translate(size.width / 2f, size.height / 2f)
-                    rotateZ(progress * rotation)
+                    rotateZ(angle)
                     translate(-size.width / 2f, -size.height / 2f)
                 },
             )
