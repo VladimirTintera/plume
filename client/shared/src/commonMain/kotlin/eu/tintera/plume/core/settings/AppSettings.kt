@@ -13,6 +13,7 @@ import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
 import eu.tintera.plume.core.adaptive.ProfilePaneAnchor
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -23,12 +24,14 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toPath
 
@@ -181,15 +184,6 @@ interface AppSettings {
      */
     suspend fun loadedAutoDownload(): AutoDownloadSettings
 
-    /**
-     * Kde stojí automatické stahování vůči serveru Telegramu. `null` = ještě nikdy: čerstvá
-     * instalace, nebo aktualizace z verze, která nesynchronizovala. Čeká na načtení souboru.
-     */
-    suspend fun autoDownloadSync(): SettingsSync?
-
-    /** Zapíše [autoDownloadSync]. Na rozdíl od ostatních zápisů čeká, až je zapsáno. */
-    suspend fun setAutoDownloadSync(state: SettingsSync)
-
     /** Záložky zpráv všech účtů; filtruje a spravuje je [eu.tintera.plume.core.bookmarks.MessageBookmarks]. */
     val messageBookmarks: StateFlow<List<MessageBookmark>>
 
@@ -312,15 +306,6 @@ interface AppSettings {
     fun setChatTriageEnabled(enabled: Boolean)
 
     /**
-     * Synchronizovat adresář telefonu s Telegramem (`ContactSyncer`). Nahrává čísla na server,
-     * proto výchozí `false` a zapíná se vědomě (s oprávněním ke kontaktům).
-     */
-    val contactSyncEnabled: StateFlow<Boolean>
-
-    /** Zapne/vypne synchronizaci adresáře. Neblokuje. */
-    fun setContactSyncEnabled(enabled: Boolean)
-
-    /**
      * Ikonka u zprávy, ve které je termín, číslo účtu nebo zásilky, a sheet s akcemi
      * (`findMessageContext`). Na rozdíl od [scamWarningsEnabled] výchozí `true`: rozpoznávají
      * pravidla v telefonu, nic se nestahuje ani neposílá a model se přidá, jen když si AI
@@ -389,14 +374,6 @@ interface AppSettings {
     fun dismissUpdate(versionCode: Int)
 
     /**
-     * Boti, u jejichž mini aplikace už uživatel potvrdil, že jí posílá data. TDLib chce to
-     * upozornění ukázat pro každého bota jednou (dokumentace `openWebApp`).
-     */
-    val confirmedWebAppBots: StateFlow<Set<Long>>
-
-    fun confirmWebAppBot(botUserId: Long)
-
-    /**
      * Nápovědy gest, které uživatel už viděl (nebo gesto použil sám). Každá se ukáže jednou
      * za instalaci — kdo gesto zná, nemá ho mít vysvětlované dokola.
      */
@@ -405,15 +382,8 @@ interface AppSettings {
     /** Zapamatuje nápovědu jako viděnou. Neblokuje. */
     fun markGestureHintSeen(hint: GestureHint)
 
-    /**
-     * Použité jednorázové klávesnice botů: chat → zpráva, ze které klávesnice pochází. Klávesnice
-     * po použití v chatu ZŮSTÁVÁ (Bot API ji jen schová) a TDLib si nepamatuje, že byla použitá —
-     * bez tohohle by se při každém otevření chatu ukázala zase rozbalená. Tak to drží i oficiální
-     * klient (`hidekeyboard_<chat>` v nastavení).
-     */
-    val usedOneTimeKeyboards: StateFlow<Map<Long, Long>>
-
-    fun markOneTimeKeyboardUsed(chatId: Long, messageId: Long)
+    /** Volby, které patří jednomu účtu ([AccountSettings]); stejný [slot] vrací tutéž instanci. */
+    fun forAccount(slot: AccountSlot): AccountSettings
 
     /**
      * Do jakého jazyka se překládají zprávy; `null` = jazyk aplikace (výchozí). Platí pro celou
@@ -468,15 +438,6 @@ interface AppSettings {
 
     /** Uloží strop mezipaměti. Neblokuje. */
     fun setCacheLimit(limit: CacheLimit)
-
-    /**
-     * Kdy naposledy proběhl automatický úklid médií (sekundy od epochy), `null` = nikdy.
-     * Úklid podle [keepMedia] stačí jednou denně, ne při každém startu.
-     */
-    val lastStorageCleanup: StateFlow<Long?>
-
-    /** Zapíše čas posledního úklidu. Neblokuje. */
-    fun setLastStorageCleanup(epochSeconds: Long)
 
     /**
      * Velikost písma textu zpráv v sp (Nastavení → Vzhled), v rozsahu [MESSAGE_TEXT_SIZES].
@@ -766,16 +727,6 @@ class DataStoreAppSettings(
     override suspend fun loadedAutoDownload(): AutoDownloadSettings =
         readAutoDownload(preferences.filterNotNull().first())
 
-    override suspend fun autoDownloadSync(): SettingsSync? {
-        val stored = preferences.filterNotNull().first()[AUTO_DOWNLOAD_SYNC] ?: return null
-        // Neznámý název z novější verze: stáhnout ze serveru je bezpečné, nic se neztratí.
-        return SettingsSync.entries.firstOrNull { it.name == stored } ?: SettingsSync.Pull
-    }
-
-    override suspend fun setAutoDownloadSync(state: SettingsSync) {
-        edit { preferences -> preferences[AUTO_DOWNLOAD_SYNC] = state.name }
-    }
-
     override fun setAutoDownload(settings: AutoDownloadSettings) {
         val default = AutoDownloadSettings()
         scope.launch {
@@ -985,16 +936,6 @@ class DataStoreAppSettings(
         }
     }
 
-    override val contactSyncEnabled: StateFlow<Boolean> = value(false) { preferences ->
-        preferences[CONTACT_SYNC_ENABLED] ?: false
-    }
-
-    override fun setContactSyncEnabled(enabled: Boolean) {
-        scope.launch {
-            edit { preferences -> preferences[CONTACT_SYNC_ENABLED] = enabled }
-        }
-    }
-
     override val chatTriageEnabled: StateFlow<Boolean> = value(false) { preferences ->
         preferences[CHAT_TRIAGE_ENABLED] ?: false
     }
@@ -1114,19 +1055,6 @@ class DataStoreAppSettings(
         preferences[DISMISSED_UPDATE_VERSION_CODE]
     }
 
-    override val confirmedWebAppBots: StateFlow<Set<Long>> = value(emptySet()) { preferences ->
-        preferences[CONFIRMED_WEB_APP_BOTS]?.split(' ')?.mapNotNullTo(HashSet()) { it.toLongOrNull() }.orEmpty()
-    }
-
-    override fun confirmWebAppBot(botUserId: Long) {
-        scope.launch {
-            edit { preferences ->
-                val current = preferences[CONFIRMED_WEB_APP_BOTS]?.split(' ')?.filter { it.isNotBlank() }.orEmpty()
-                preferences[CONFIRMED_WEB_APP_BOTS] = (current + botUserId.toString()).distinct().joinToString(" ")
-            }
-        }
-    }
-
     override val seenGestureHints: StateFlow<Set<GestureHint>> = value(emptySet()) { preferences ->
         preferences[SEEN_GESTURE_HINTS].decodeHints()
     }
@@ -1144,32 +1072,6 @@ class DataStoreAppSettings(
     /** Názvy oddělené mezerou; neznámý název (novější verze aplikace) se zahodí. */
     private fun String?.decodeHints(): Set<GestureHint> =
         orEmpty().split(' ').mapNotNullTo(LinkedHashSet()) { name -> GestureHint.entries.firstOrNull { it.name == name } }
-
-    override val usedOneTimeKeyboards: StateFlow<Map<Long, Long>> = value(emptyMap()) { preferences ->
-        preferences[USED_ONE_TIME_KEYBOARDS]?.decodeKeyboards().orEmpty()
-    }
-
-    override fun markOneTimeKeyboardUsed(chatId: Long, messageId: Long) {
-        scope.launch {
-            edit { preferences ->
-                // Nejnovější na konec; nejstarší chaty vypadnou, aby záznam nerostl donekonečna.
-                val current = preferences[USED_ONE_TIME_KEYBOARDS]?.decodeKeyboards().orEmpty() - chatId
-                preferences[USED_ONE_TIME_KEYBOARDS] = (current + (chatId to messageId)).entries
-                    .toList()
-                    .takeLast(MAX_USED_KEYBOARDS)
-                    .joinToString(KEYBOARD_ENTRY_SEPARATOR) { "${it.key}$TONE_PAIR_SEPARATOR${it.value}" }
-            }
-        }
-    }
-
-    /** `chat:zpráva` oddělené mezerou, v pořadí od nejstaršího. */
-    private fun String.decodeKeyboards(): Map<Long, Long> =
-        split(KEYBOARD_ENTRY_SEPARATOR).mapNotNull { entry ->
-            val parts = entry.split(TONE_PAIR_SEPARATOR, limit = 2)
-            val chat = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
-            val message = parts.getOrNull(1)?.toLongOrNull() ?: return@mapNotNull null
-            chat to message
-        }.toMap(LinkedHashMap())
 
     override fun dismissUpdate(versionCode: Int) {
         scope.launch {
@@ -1236,16 +1138,6 @@ class DataStoreAppSettings(
     override fun setCacheLimit(limit: CacheLimit) {
         scope.launch {
             edit { preferences -> preferences[CACHE_LIMIT] = limit.name }
-        }
-    }
-
-    override val lastStorageCleanup: StateFlow<Long?> = value(null) { preferences ->
-        preferences[LAST_STORAGE_CLEANUP]
-    }
-
-    override fun setLastStorageCleanup(epochSeconds: Long) {
-        scope.launch {
-            edit { preferences -> preferences[LAST_STORAGE_CLEANUP] = epochSeconds }
         }
     }
 
@@ -1343,6 +1235,93 @@ class DataStoreAppSettings(
             }
             .toMap()
 
+    private val accounts = MutableStateFlow<Map<AccountSlot, AccountSettings>>(emptyMap())
+
+    /** Kontejner účtu se ptá jednou; mapa jen hlídá, aby dva dotazy neodebíraly soubor dvakrát. */
+    override fun forAccount(slot: AccountSlot): AccountSettings =
+        accounts.updateAndGet { if (slot in it) it else it + (slot to DataStoreAccountSettings(slot)) }.getValue(slot)
+
+    /**
+     * Volby účtu v tomtéž souboru, klíč s příponou slotu ([AccountSlot.secretName]). Primární účet
+     * má klíče beze změny, takže to, co si uložil před víc účty, platí dál.
+     */
+    private inner class DataStoreAccountSettings(slot: AccountSlot) : AccountSettings {
+        private val autoDownloadSyncKey = stringPreferencesKey(slot.secretName("auto_download_sync"))
+        private val contactSyncKey = booleanPreferencesKey(slot.secretName("contact_sync_enabled"))
+        private val webAppBotsKey = stringPreferencesKey(slot.secretName("confirmed_web_app_bots"))
+        private val keyboardsKey = stringPreferencesKey(slot.secretName("used_one_time_keyboards"))
+        private val storageCleanupKey = longPreferencesKey(slot.secretName("last_storage_cleanup"))
+
+        override suspend fun autoDownloadSync(): SettingsSync? {
+            val stored = preferences.filterNotNull().first()[autoDownloadSyncKey] ?: return null
+            // Neznámý název z novější verze: stáhnout ze serveru je bezpečné, nic se neztratí.
+            return SettingsSync.entries.firstOrNull { it.name == stored } ?: SettingsSync.Pull
+        }
+
+        override suspend fun setAutoDownloadSync(state: SettingsSync) {
+            edit { preferences -> preferences[autoDownloadSyncKey] = state.name }
+        }
+
+        override val contactSyncEnabled: StateFlow<Boolean> = value(false) { preferences ->
+            preferences[contactSyncKey] ?: false
+        }
+
+        override fun setContactSyncEnabled(enabled: Boolean) {
+            scope.launch {
+                edit { preferences -> preferences[contactSyncKey] = enabled }
+            }
+        }
+
+        override val confirmedWebAppBots: StateFlow<Set<Long>> = value(emptySet()) { preferences ->
+            preferences[webAppBotsKey]?.split(' ')?.mapNotNullTo(HashSet()) { it.toLongOrNull() }.orEmpty()
+        }
+
+        override fun confirmWebAppBot(botUserId: Long) {
+            scope.launch {
+                edit { preferences ->
+                    val current = preferences[webAppBotsKey]?.split(' ')?.filter { it.isNotBlank() }.orEmpty()
+                    preferences[webAppBotsKey] = (current + botUserId.toString()).distinct().joinToString(" ")
+                }
+            }
+        }
+
+        override val usedOneTimeKeyboards: StateFlow<Map<Long, Long>> = value(emptyMap()) { preferences ->
+            preferences[keyboardsKey]?.decodeKeyboards().orEmpty()
+        }
+
+        override fun markOneTimeKeyboardUsed(chatId: Long, messageId: Long) {
+            scope.launch {
+                edit { preferences ->
+                    // Nejnovější na konec; nejstarší chaty vypadnou, aby záznam nerostl donekonečna.
+                    val current = preferences[keyboardsKey]?.decodeKeyboards().orEmpty() - chatId
+                    preferences[keyboardsKey] = (current + (chatId to messageId)).entries
+                        .toList()
+                        .takeLast(MAX_USED_KEYBOARDS)
+                        .joinToString(KEYBOARD_ENTRY_SEPARATOR) { "${it.key}$TONE_PAIR_SEPARATOR${it.value}" }
+                }
+            }
+        }
+
+        override val lastStorageCleanup: StateFlow<Long?> = value(null) { preferences ->
+            preferences[storageCleanupKey]
+        }
+
+        override fun setLastStorageCleanup(epochSeconds: Long) {
+            scope.launch {
+                edit { preferences -> preferences[storageCleanupKey] = epochSeconds }
+            }
+        }
+
+        /** `chat:zpráva` oddělené mezerou, v pořadí od nejstaršího. */
+        private fun String.decodeKeyboards(): Map<Long, Long> =
+            split(KEYBOARD_ENTRY_SEPARATOR).mapNotNull { entry ->
+                val parts = entry.split(TONE_PAIR_SEPARATOR, limit = 2)
+                val chat = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
+                val message = parts.getOrNull(1)?.toLongOrNull() ?: return@mapNotNull null
+                chat to message
+            }.toMap(LinkedHashMap())
+    }
+
     /*
      * Seznam jako jeden řetězec oddělený mezerou. `stringSetPreferencesKey` by ztratil pořadí,
      * a na tom tady záleží. Mezera v žádném emoji není (ani ve složeninách přes ZWJ).
@@ -1369,7 +1348,6 @@ class DataStoreAppSettings(
         val AUTO_DOWNLOAD_WIFI = stringPreferencesKey("auto_download_wifi")
         val AUTO_DOWNLOAD_MOBILE = stringPreferencesKey("auto_download_mobile")
         val AUTO_DOWNLOAD_ROAMING = stringPreferencesKey("auto_download_roaming")
-        val AUTO_DOWNLOAD_SYNC = stringPreferencesKey("auto_download_sync")
         val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
         val MESSAGE_BOOKMARKS = stringPreferencesKey("message_bookmarks")
         val COMMENT_DRAFT_THREADS = stringPreferencesKey("comment_draft_threads")
@@ -1386,7 +1364,6 @@ class DataStoreAppSettings(
         val SCAM_WARNINGS_ENABLED = booleanPreferencesKey("scam_warnings_enabled")
         val BACKGROUND_PHOTO_DESCRIPTIONS = booleanPreferencesKey("background_photo_descriptions")
         val CHAT_TRIAGE_ENABLED = booleanPreferencesKey("chat_triage_enabled")
-        val CONTACT_SYNC_ENABLED = booleanPreferencesKey("contact_sync_enabled")
         val MESSAGE_CONTEXT_ENABLED = booleanPreferencesKey("message_context_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
         val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")
@@ -1403,15 +1380,12 @@ class DataStoreAppSettings(
         val VIDEO_SPEED = stringPreferencesKey("video_speed")
         val SKIP_SILENCE = booleanPreferencesKey("skip_silence")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
-        val CONFIRMED_WEB_APP_BOTS = stringPreferencesKey("confirmed_web_app_bots")
         val TRANSLATION_LANGUAGE = stringPreferencesKey("translation_language")
-        val USED_ONE_TIME_KEYBOARDS = stringPreferencesKey("used_one_time_keyboards")
         val SEEN_GESTURE_HINTS = stringPreferencesKey("seen_gesture_hints")
         val STRIP_TRACKING_PARAMETERS = booleanPreferencesKey("strip_tracking_parameters")
         val DISCREET_READING = booleanPreferencesKey("discreet_reading")
         val KEEP_MEDIA = stringPreferencesKey("keep_media")
         val CACHE_LIMIT = stringPreferencesKey("cache_limit")
-        val LAST_STORAGE_CLEANUP = longPreferencesKey("last_storage_cleanup")
         val MESSAGE_TEXT_SIZE = intPreferencesKey("message_text_size")
         val CHAT_PREVIEW_LINES_KEY = intPreferencesKey("chat_preview_lines")
         val STICKER_SIZE = intPreferencesKey("sticker_size")

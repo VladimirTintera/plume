@@ -2,6 +2,7 @@ package eu.tintera.plume.core.storage
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.connectivity.AppForeground
+import eu.tintera.plume.core.settings.AccountSettings
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.CacheLimit
 import eu.tintera.plume.core.settings.KeepMedia
@@ -32,6 +33,8 @@ import kotlin.time.Clock
 class StorageCleaner(
     private val repository: StorageRepository,
     private val settings: AppSettings,
+    /** Čas posledního úklidu je po účtech, jako databáze. */
+    private val account: AccountSettings,
     private val session: TelegramSession,
     private val foreground: AppForeground,
     private val scope: CoroutineScope,
@@ -62,7 +65,7 @@ class StorageCleaner(
         mutex.withLock {
             val keep = settings.keepMedia.value
             val limit = settings.cacheLimit.value
-            if (cleanupDue(keep, limit, settings.lastStorageCleanup.value, now())) clean(keep, limit)
+            if (cleanupDue(keep, limit, account.lastStorageCleanup.value, now())) clean(keep, limit)
         }
     }
 
@@ -76,7 +79,7 @@ class StorageCleaner(
     private suspend fun clean(keep: KeepMedia, limit: CacheLimit): Result<Long> {
         if (keep.seconds == null && limit.bytes == null) return Result.success(0)
         return repository.cleanUp(olderThanSeconds = keep.seconds, maxBytes = limit.bytes).onSuccess { freed ->
-            settings.setLastStorageCleanup(now())
+            account.setLastStorageCleanup(now())
             logger.i { "Úklid podle voleb $keep / $limit uvolnil $freed B" }
         }
     }

@@ -80,6 +80,7 @@ import eu.tintera.plume.features.settings.PrivacySettingViewModel
 import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.settings.StorageViewModel
 import eu.tintera.plume.core.storage.StorageCleaner
+import eu.tintera.plume.core.settings.AccountSettings
 import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.SponsoredLinkRequests
@@ -290,6 +291,9 @@ fun appModule() = module {
 fun appAccountModule() = module {
     platformAccountModule()
 
+    // Volby účtu (adresář, souhlasy s mini aplikacemi, klávesnice botů) — viz `AccountSettings`.
+    single<AccountSettings> { get<AppSettings>().forAccount(get()) }
+
     // Ořez nové profilovky drží stav pro jednu obrazovku, proto factory.
     factory { ProfilePhotoCrop(squarePhoto = get(), profileVideo = get()) }
 
@@ -353,6 +357,7 @@ fun appAccountModule() = module {
     single {
         AutoDownloadSync(
             settings = get(),
+            account = get(),
             presets = get(),
             authStage = get<TelegramSession>().authStage,
             scope = get(named(APP_SCOPE)),
@@ -362,6 +367,7 @@ fun appAccountModule() = module {
         StorageCleaner(
             repository = get(),
             settings = get(),
+            account = get(),
             session = get(),
             foreground = get(),
             scope = get(named(APP_SCOPE)),
@@ -581,6 +587,7 @@ fun appAccountModule() = module {
             chatRepository = get(),
             stickerRepository = get(),
             settings = get(),
+            accountSettings = get(),
             appScope = get(named(APP_SCOPE)),
             urlOpener = get(),
             clipboard = get(),

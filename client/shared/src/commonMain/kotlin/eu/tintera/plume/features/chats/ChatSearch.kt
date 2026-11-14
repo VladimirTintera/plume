@@ -375,15 +375,25 @@ data class PickerChats(val chats: List<ChatSummary>, val loading: Boolean)
  * - **Veřejné chaty** jen jednou: kanál najdou oba účty a otevřít ho jde kterýmkoli, bere se
  *   účet, který je v pořadí první.
  * - **Zprávy** podle data, nejnovější nahoře, napříč účty.
+ * - **Uložené zprávy** ([savedMessages], id podle účtu) mezi vlastními chaty nejsou: TDLib je
+ *   najde pod jménem účtu, takže by hledání „Jan" vrátilo Uložené zprávy každého Janova účtu.
+ *   Řádek Uložených zpráv přidává hledání samo, jako u jednoho účtu. Vyřazuje je merge, ne
+ *   obrazovka — ta zná jen id účtu obrazovky a pod ním je v ostatních účtech chat s ním.
  */
-fun mergedSearchState(screen: ChatSearchState, sources: List<Pair<AccountSlot, ChatSearchState>>): ChatSearchState {
+fun mergedSearchState(
+    screen: ChatSearchState,
+    sources: List<Pair<AccountSlot, ChatSearchState>>,
+    savedMessages: Map<AccountSlot, Long> = emptyMap(),
+): ChatSearchState {
     val first = sources.firstOrNull()?.second ?: return screen
     val global = LinkedHashMap<Long, ChatSummary>()
     sources.forEach { (slot, state) -> state.global.forEach { chat -> global.getOrPut(chat.id) { chat.copy(slot = slot) } } }
     return screen.copy(
         query = first.query,
         filter = first.filter,
-        results = sources.flatMap { (slot, state) -> state.results.map { it.copy(slot = slot) } },
+        results = sources.flatMap { (slot, state) ->
+            state.results.filter { it.id != savedMessages[slot] }.map { it.copy(slot = slot) }
+        },
         searching = sources.any { it.second.searching },
         global = global.values.toList(),
         messages = sources

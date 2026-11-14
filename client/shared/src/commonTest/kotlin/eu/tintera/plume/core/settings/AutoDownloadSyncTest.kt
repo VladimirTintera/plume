@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.settings
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.AutoDownloadPresets
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +50,7 @@ class AutoDownloadSyncTest {
 
     private class Env(
         val settings: DataStoreAppSettings,
+        val account: AccountSettings,
         val presets: FakePresets,
         val stage: MutableStateFlow<AuthStage>,
         val sync: AutoDownloadSync,
@@ -66,9 +68,9 @@ class AutoDownloadSyncTest {
             prepare(settings)
             val presets = FakePresets(server)
             val stages = MutableStateFlow(stage)
-            val sync = AutoDownloadSync(settings, presets, stages, scope)
+            val sync = AutoDownloadSync(settings, settings.forAccount(AccountSlot.Primary), presets, stages, scope)
             sync.start()
-            Env(settings, presets, stages, sync).block()
+            Env(settings, settings.forAccount(AccountSlot.Primary), presets, stages, sync).block()
         } finally {
             scope.cancel()
         }
@@ -84,10 +86,10 @@ class AutoDownloadSyncTest {
 
     @Test
     fun prihlaseniStahneNastaveniZeServeru() = syncTest(AuthStage.WaitPhoneNumber) {
-        await("Pull po přihlašovací obrazovce") { settings.autoDownloadSync() == SettingsSync.Pull }
+        await("Pull po přihlašovací obrazovce") { account.autoDownloadSync() == SettingsSync.Pull }
         stage.value = AuthStage.Ready
         await("nastavení ze serveru") { settings.autoDownload.value == server }
-        await("Synced") { settings.autoDownloadSync() == SettingsSync.Synced }
+        await("Synced") { account.autoDownloadSync() == SettingsSync.Synced }
         assertTrue(presets.saved.isEmpty(), "Stažené nastavení se nesmí vracet na server: ${presets.saved}")
     }
 
@@ -95,7 +97,7 @@ class AutoDownloadSyncTest {
     @Test
     fun dalsiStartNecteServer() = syncTest(
         AuthStage.Connecting,
-        prepare = { it.setAutoDownloadSync(SettingsSync.Synced) },
+        prepare = { it.forAccount(AccountSlot.Primary).setAutoDownloadSync(SettingsSync.Synced) },
     ) {
         stage.value = AuthStage.Ready
         delay(200)
@@ -108,12 +110,12 @@ class AutoDownloadSyncTest {
      * kdežto `Synced` jde do DataStore až po něm. Mezi tím stav pořád drží `Push`.
      */
     @Test
-    fun zmenaJdeNaServer() = syncTest(AuthStage.Ready, prepare = { it.setAutoDownloadSync(SettingsSync.Synced) }) {
+    fun zmenaJdeNaServer() = syncTest(AuthStage.Ready, prepare = { it.forAccount(AccountSlot.Primary).setAutoDownloadSync(SettingsSync.Synced) }) {
         val new = AutoDownloadSettings(wifi = AutoDownloadLevel.Low)
         sync.change(new)
         await("zápis na server") { presets.saved.lastOrNull() == new }
         await("lokálně") { settings.autoDownload.value == new }
-        await("Synced") { settings.autoDownloadSync() == SettingsSync.Synced }
+        await("Synced") { account.autoDownloadSync() == SettingsSync.Synced }
     }
 
     /**
@@ -121,17 +123,17 @@ class AutoDownloadSyncTest {
      * hodnotou. Mezi stavy se čeká: `StateFlow` by rychlou dvojici sloučil a Ready by se neopakoval.
      */
     @Test
-    fun nepovedenyZapisSeZopakuje() = syncTest(AuthStage.Ready, prepare = { it.setAutoDownloadSync(SettingsSync.Synced) }) {
+    fun nepovedenyZapisSeZopakuje() = syncTest(AuthStage.Ready, prepare = { it.forAccount(AccountSlot.Primary).setAutoDownloadSync(SettingsSync.Synced) }) {
         presets.fail = true
         val new = AutoDownloadSettings(mobile = AutoDownloadLevel.High)
         sync.change(new)
-        await("Push") { settings.autoDownloadSync() == SettingsSync.Push }
+        await("Push") { account.autoDownloadSync() == SettingsSync.Push }
         presets.fail = false
         stage.value = AuthStage.Connecting
         delay(100)
         stage.value = AuthStage.Ready
         await("zápis po návratu") { presets.saved.lastOrNull() == new }
-        await("Synced") { settings.autoDownloadSync() == SettingsSync.Synced }
+        await("Synced") { account.autoDownloadSync() == SettingsSync.Synced }
     }
 
     /** Aktualizace z verze bez synchronizace: vlastní volba se nepřepíše, jde na server. */
@@ -154,9 +156,9 @@ class AutoDownloadSyncTest {
 
     /** Odhlášení přepne na Pull — další účet (nebo týž po změně jinde) dostane stav ze serveru. */
     @Test
-    fun odhlaseniPripraviStazeni() = syncTest(AuthStage.Ready, prepare = { it.setAutoDownloadSync(SettingsSync.Synced) }) {
+    fun odhlaseniPripraviStazeni() = syncTest(AuthStage.Ready, prepare = { it.forAccount(AccountSlot.Primary).setAutoDownloadSync(SettingsSync.Synced) }) {
         stage.value = AuthStage.LoggingOut
-        await("Pull") { settings.autoDownloadSync() == SettingsSync.Pull }
+        await("Pull") { account.autoDownloadSync() == SettingsSync.Pull }
     }
 
     private companion object {

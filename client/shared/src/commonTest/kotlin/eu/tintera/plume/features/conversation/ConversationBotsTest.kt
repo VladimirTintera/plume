@@ -3,7 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.navigation.ContactOffers
-import eu.tintera.plume.core.settings.UnimplementedAppSettings
+import eu.tintera.plume.core.settings.UnimplementedAccountSettings
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.telegram.BotAnswer
 import eu.tintera.plume.core.telegram.BotButton
@@ -91,7 +91,7 @@ class ConversationBotsTest {
         override suspend fun resolveLink(url: String) = Result.success<InternalLink?>(null)
     }
 
-    private class FakeSettings : UnimplementedAppSettings() {
+    private class FakeSettings : UnimplementedAccountSettings() {
         val usedKeyboards = mutableListOf<Long>()
         override fun markOneTimeKeyboardUsed(chatId: Long, messageId: Long) {
             usedKeyboards += messageId

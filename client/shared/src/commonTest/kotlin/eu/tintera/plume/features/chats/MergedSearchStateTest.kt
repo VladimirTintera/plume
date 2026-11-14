@@ -27,6 +27,21 @@ class MergedSearchStateTest {
         assertEquals("a", merged.query)
     }
 
+    /**
+     * Uložené zprávy účtu se z jeho vlastních chatů vyřadí; chat s týmž id v jiném účtu (soukromý
+     * chat s prvním účtem) zůstane.
+     */
+    @Test
+    fun ulozeneZpravyKazdehoUctuVen() {
+        val merged = mergedSearchState(
+            ChatSearchState(),
+            listOf(first to ChatSearchState(results = listOf(chat(1), chat(3))), second to ChatSearchState(results = listOf(chat(1), chat(2)))),
+            savedMessages = mapOf(first to 1L, second to 2L),
+        )
+
+        assertEquals(listOf(first to 3L, second to 1L), merged.results.map { it.slot to it.id })
+    }
+
     /** Veřejný kanál najdou oba účty; otevřít ho jde kterýmkoli, bere se první. */
     @Test
     fun verejnyChatJenJednou() {

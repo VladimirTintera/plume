@@ -18,6 +18,21 @@ aplikace pamatuje o uživateli; data z Telegramu drží TDLib.
   uložených dat; neznámý název (z novější verze aplikace) spadne na výchozí.
 - **Zápis z obrazovky jde přes `appScope`**, ne `viewModelScope` — přepnutí těsně před odchodem
   z chatu se musí uložit.
+- **Volby, které patří účtu, jsou `AccountSettings`** (`AppSettings.forAccount(slot)`, v kontejneru
+  účtu jako `single`): synchronizace adresáře, souhlasy s mini aplikacemi, použité jednorázové
+  klávesnice, stav synchronizace automatického stahování a čas posledního úklidu médií. Leží ve
+  stejném souboru, klíč nese příponu slotu (`AccountSlot.secretName`), **primární účet má klíče
+  beze změny** — co si uložil před víc účty, platí dál a nic se nemigruje.
+  - **Rozhoduje, čeho se volba týká, ne kde se nastavuje.** Synchronizace adresáře se zapíná
+    v Nastavení výchozího účtu, ale nahrává čísla do JEDNOHO účtu; jako volba aplikace by
+    zapnutí nahrálo kontakty do všech přihlášených účtů a vypnutí smazalo čísla jen z jednoho.
+    Souhlas s mini aplikací dává botovi data účtu, ne zařízení. Úklid médií jde nad databází
+    účtu: se společným časem by úklid prvního účtu odložil úklid ostatních o den.
+  - **Záznamy, které id účtu nesou samy** (záložky, odložení, barvy chatů, přepisy, popisy
+    fotek, triáž, koncepty komentářů), zůstaly v `AppSettings`: filtruje je jejich třída podle id
+    Uložených zpráv. Pozice ve videu jsou záměrně společné — klíč je soubor na serveru.
+  - **Chování aplikace zůstává společné** (gesta, dvojité ťuknutí, AI, úrovně automatického
+    stahování): popisuje zařízení, ne účet. Viz „Nastavení (`AppSettings`)" v `docs/navrh-vice-uctu.md`.
 - **Volby uživatele se od paměti aplikace neliší technikou, jen významem.** `ExpressionMode`,
   nedávná emoji a odstíny pleti si aplikace pamatuje sama; motiv a velikost písma zpráv
   uživatel vědomě nastavuje. Obojí leží ve stejném DataStore — **Proto DataStore by tu byl

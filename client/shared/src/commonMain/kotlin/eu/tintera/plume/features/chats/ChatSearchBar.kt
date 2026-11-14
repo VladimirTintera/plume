@@ -547,7 +547,9 @@ private fun SearchResults(
     // nemají co ukázat.
     val chatsShown = filter.period == null && filter.content == null
     val chats = if (current && chatsShown) {
-        search.results.filter { it.id != savedMessagesChatId && (filter.chatKind == null || it.kind == filter.chatKind) }
+        // Výsledek z hledání přes víc účtů (se slotem) má Uložené zprávy vyřazené už z merge
+        // (`mergedSearchState`); id účtu obrazovky je v ostatních účtech chat s ním.
+        search.results.filter { (it.slot != null || it.id != savedMessagesChatId) && (filter.chatKind == null || it.kind == filter.chatKind) }
     } else {
         emptyList()
     }
@@ -1168,7 +1170,8 @@ private fun ChatResultRow(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (secret) SecretChatLock()
-                Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Až v kontejneru účtu výsledku: Uložené zprávy jiného účtu se poznají jen tady.
+                Text(chatTitle(chatId, title), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         },
         // Archiv se v hlavním seznamu nevidí, takže nalezený archivovaný chat by jinak

@@ -4,7 +4,9 @@ import eu.tintera.plume.core.ai.LiteRtModel
 import eu.tintera.plume.core.ai.AiTask
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.AiModels
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +21,7 @@ import okio.FileSystem
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.fail
 
 /**
@@ -194,6 +197,35 @@ class DataStoreAppSettingsTest {
         assertEquals(42, settings.dismissedUpdateVersionCode.awaitValue("zavřená verze 42") { it == 42 })
     }
 
+    /**
+     * Volby účtu: primární účet čte klíče z doby před víc účty (synchronizace adresáře zapnutá
+     * dřív zůstane zapnutá), další účet má vlastní a zapnutí u něj primární nezmění.
+     */
+    @Test
+    fun volbyUctuJsouPoUctech() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val store = createSettingsDataStore(tempPath())
+            withTimeout(WAIT_MS) { store.edit { it[booleanPreferencesKey("contact_sync_enabled")] = true } }
+            val settings = DataStoreAppSettings(store, scope)
+            val primary = settings.forAccount(AccountSlot.Primary)
+            val second = settings.forAccount(AccountSlot("abc"))
+
+            primary.contactSyncEnabled.awaitValue("staré zapnutí u primárního") { it }
+            assertEquals(false, second.contactSyncEnabled.value)
+            assertSame(primary, settings.forAccount(AccountSlot.Primary))
+
+            second.confirmWebAppBot(7)
+            second.markOneTimeKeyboardUsed(chatId = 5, messageId = 50)
+            second.confirmedWebAppBots.awaitValue("bot 7 u druhého účtu") { 7L in it }
+            second.usedOneTimeKeyboards.awaitValue("klávesnice u druhého účtu") { it[5L] == 50L }
+            assertEquals(emptySet(), primary.confirmedWebAppBots.value)
+            assertEquals(emptyMap(), primary.usedOneTimeKeyboards.value)
+        } finally {
+            scope.cancel()
+        }
+    }
+
     /** `null` znamená „uživatel si nevybral" — výchozí motiv se podle platformy dopočítá až v UI. */
     @Test
     fun motivJeVychoziNevybrany() = settingsTest { settings, _ ->
@@ -313,17 +345,18 @@ class DataStoreAppSettingsTest {
     @Test
     fun uchovaniMediiJeVychoziNavzdy() = settingsTest { settings, _ ->
         assertEquals(KeepMedia.Forever, settings.keepMedia.value)
-        assertEquals(null, settings.lastStorageCleanup.value)
+        assertEquals(null, settings.forAccount(AccountSlot.Primary).lastStorageCleanup.value)
     }
 
     @Test
     fun uchovaniMediiACasUklidSeUlozi() = settingsTest { settings, _ ->
         settings.setKeepMedia(KeepMedia.Week)
-        settings.setLastStorageCleanup(1_700_000_000)
+        val account = settings.forAccount(AccountSlot.Primary)
+        account.setLastStorageCleanup(1_700_000_000)
         assertEquals(KeepMedia.Week, settings.keepMedia.awaitValue("uložený týden") { it == KeepMedia.Week })
         assertEquals(
             1_700_000_000L,
-            settings.lastStorageCleanup.awaitValue("čas úklidu") { it == 1_700_000_000L },
+            account.lastStorageCleanup.awaitValue("čas úklidu") { it == 1_700_000_000L },
         )
     }
 
