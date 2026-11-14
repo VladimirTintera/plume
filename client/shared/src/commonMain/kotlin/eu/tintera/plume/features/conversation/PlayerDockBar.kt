@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -68,16 +69,17 @@ internal data class DockedPlayer(
 )
 
 /**
- * Patří hrající zvuk do docku konverzace [chatId]?
+ * Patří hrající zvuk do docku konverzace [chatId] účtu [slot]?
  *
  * Hlasovka a skladba z tohohle chatu ano, náhled vlastní nahrávky ne (ten má vlastní pruh nad
  * polem). Skladba z JINÉHO chatu taky: hraje dál i po odchodu z něj a v aplikaci by ji jinak
  * nešlo zastavit. Hlasovka z jiného chatu nastat nemá — odchod z chatu ji zastaví.
+ * **Skladba z jiného účtu ne**: otevřít ji jde jen v jejím účtu, ovládá ji dock nad seznamem chatů.
  */
-internal fun VoicePlayback.docksIn(chatId: Long): Boolean = when {
+internal fun VoicePlayback.docksIn(slot: AccountSlot, chatId: Long): Boolean = when {
     key.isVoicePreview -> false
-    key.chatId == chatId -> true
-    else -> music
+    key.isIn(slot, chatId) -> true
+    else -> music && key.slot == slot
 }
 
 /**

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.accounts.LocalAccount
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -60,7 +61,7 @@ internal fun rememberSoundingVideoNote(
     onEnded: (messageId: Long) -> Unit,
 ): SoundingVideoNote? {
     if (messageId == null || note == null) return null
-    return key(messageId) { soundingVideoNote(VoiceKey(chatId, messageId), note, startMs, onEnded) }
+    return key(messageId) { soundingVideoNote(VoiceKey(LocalAccount.current.slot, chatId, messageId), note, startMs, onEnded) }
 }
 
 @Composable

@@ -672,7 +672,7 @@ internal fun ConversationBottomBar(
         voicePreview = recording.voicePreview?.let { preview ->
             VoicePreviewControls(
                 preview = preview,
-                playback = { voicePlayback.value?.takeIf { it.key.isVoicePreview } },
+                playback = { voicePlayback.value?.takeIf { it.key == voicePreviewKey(viewModel.slot, viewModel.chatId) } },
                 onToggle = viewModel::toggleVoicePreview,
                 onSeek = viewModel::seekVoicePreview,
                 onDiscard = {

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.accounts.LocalAccount
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -92,7 +93,7 @@ internal fun ProfileMusic(
             shown.forEachIndexed { index, audio ->
                 ProfileAudioRow(
                     audio = audio,
-                    playback = playback?.takeIf { it.key == VoiceKey(chatId, profileAudioKey(audio.fileId)) },
+                    playback = playback?.takeIf { it.key == VoiceKey(LocalAccount.current.slot, chatId, profileAudioKey(audio.fileId)) },
                     shape = groupItemShape(index, shown.size),
                     onToggle = { onToggle(index) },
                     onRemove = onRemove?.let { remove -> { remove(audio.fileId) } },

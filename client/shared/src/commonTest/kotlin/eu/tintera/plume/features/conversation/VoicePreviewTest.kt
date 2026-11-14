@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.audio.RecordedVoice
 import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.encodeWaveform
@@ -13,8 +14,8 @@ class VoicePreviewTest {
     /** Po dohrání náhledu se nesmí řetězit „další neposlechnutá po zprávě −1". */
     @Test
     fun nahledNeniZprava() {
-        assertTrue(voicePreviewKey(chatId = 7).isVoicePreview)
-        assertFalse(VoiceKey(chatId = 7, messageId = 42).isVoicePreview)
+        assertTrue(voicePreviewKey(AccountSlot.Primary, chatId = 7).isVoicePreview)
+        assertFalse(VoiceKey(AccountSlot.Primary, chatId = 7, messageId = 42).isVoicePreview)
     }
 
     @Test

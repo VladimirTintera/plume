@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -14,6 +15,9 @@ import kotlinx.coroutines.test.TestScope
 
 /** Chat, ve kterém se testy částí [ConversationViewModel] odehrávají. */
 internal const val TEST_CHAT = 42L
+
+/** Účet konverzace v testech částí; na klíči hlasovky záleží (`VoiceKey.slot`). */
+internal val TEST_SLOT = AccountSlot.Primary
 
 internal val testLogger = Logger.withTag("Test")
 

@@ -145,8 +145,8 @@ class MusicQueue(
             playing = own?.playing ?: false,
             durationMs = own?.durationMs ?: 0L,
             speed = speed.rate,
-            previous = current.previous?.id?.let { VoiceKey(current.key.chatId, it) },
-            next = current.next?.id?.let { VoiceKey(current.key.chatId, it) },
+            previous = current.previous?.id?.let { current.key.copy(messageId = it) },
+            next = current.next?.id?.let { current.key.copy(messageId = it) },
         )
     }
         // Pozice se mění dvacetkrát za vteřinu, a ta v tomhle stavu není — beze změny nic dál.
@@ -198,7 +198,7 @@ class MusicQueue(
      * nechávat nemá, proto [rememberPosition].
      */
     fun toggle(slot: AccountSlot, chatId: Long, messageId: Long, audio: MessageMedia.Audio, rememberPosition: Boolean = true) {
-        val key = VoiceKey(chatId, messageId)
+        val key = VoiceKey(slot, chatId, messageId)
         val playback = player.state.value
         if (playback?.key == key && current.value?.slot == slot) {
             when {
@@ -214,12 +214,12 @@ class MusicQueue(
     /**
      * Skladba z vlastního seznamu [tracks] (hudba v profilu): pustí [index], nebo u hrající přepne
      * pauzu. Sousedé se berou ze seznamu, ne z chatu — skladby v profilu nejsou zprávy. Klíč je
-     * `VoiceKey(chatId, track.id)`; [chatId] je chat, který otevře ťuknutí na přehrávač
+     * `VoiceKey(slot, chatId, track.id)`; [chatId] je chat, který otevře ťuknutí na přehrávač
      * v notifikaci, a id skladeb se nesmí potkat s id zpráv v něm (proto záporná).
      */
     fun togglePlaylist(slot: AccountSlot, chatId: Long, tracks: List<QueueTrack>, index: Int) {
         val track = tracks.getOrNull(index) ?: return
-        val key = VoiceKey(chatId, track.id)
+        val key = VoiceKey(slot, chatId, track.id)
         val playback = player.state.value
         if (playback?.key == key && current.value?.slot == slot) {
             when {
@@ -234,7 +234,7 @@ class MusicQueue(
 
     /** Pustí skladbu od začátku, nebo od [startMs] (čas v médiu, „1:23"). */
     fun play(slot: AccountSlot, chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long = 0L, rememberPosition: Boolean = true) =
-        play(slot, VoiceKey(chatId, messageId), audio, startMs, rememberPosition)
+        play(slot, VoiceKey(slot, chatId, messageId), audio, startMs, rememberPosition)
 
     /**
      * Fronta pro obrazovku účtu [slot] (konverzace): spouští skladby jeho účtem. Stav i ovládání
@@ -273,7 +273,7 @@ class MusicQueue(
     fun skipToPrevious() {
         val playing = current.value ?: return
         val previous = playing.previous ?: return
-        play(playing.slot, VoiceKey(playing.key.chatId, previous.id), previous.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
+        play(playing.slot, playing.key.copy(messageId = previous.id), previous.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
     }
 
     /**
@@ -302,7 +302,7 @@ class MusicQueue(
                 if (finishedKey != null) current.value = null
                 return@launch
             }
-            play(playing.slot, VoiceKey(playing.key.chatId, next.id), next.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
+            play(playing.slot, playing.key.copy(messageId = next.id), next.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
         }
     }
 

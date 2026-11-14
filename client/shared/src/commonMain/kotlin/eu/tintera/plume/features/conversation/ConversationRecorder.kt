@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.audio.MediaCapture
 import eu.tintera.plume.core.audio.MIN_DURATION_MS
@@ -46,6 +47,7 @@ import org.jetbrains.compose.resources.StringResource
  * Část [ConversationViewModel] — ten na ni deleguje a drží její toky ve veřejném API.
  */
 internal class ConversationRecorder(
+    private val slot: AccountSlot,
     private val chatId: Long,
     private val state: MutableStateFlow<ConversationState>,
     private val scope: CoroutineScope,
@@ -271,11 +273,11 @@ internal class ConversationRecorder(
     /** Pustí nebo pozastaví náhled. Hrající hlasovka v konverzaci se tím zastaví, jako vždy. */
     fun toggleVoicePreview() {
         val voice = _voicePreview.value?.voice ?: return
-        voicePlayer.toggle(voicePreviewKey(chatId)) { voice.path }
+        voicePlayer.toggle(voicePreviewKey(slot, chatId)) { voice.path }
     }
 
     fun seekVoicePreview(fraction: Float) {
-        voicePlayer.seek(voicePreviewKey(chatId), fraction)
+        voicePlayer.seek(voicePreviewKey(slot, chatId), fraction)
     }
 
     /**
@@ -320,7 +322,7 @@ internal class ConversationRecorder(
 
     /** Hraje-li právě náhled, zastaví ho; cizí hlasovky ani hudby se to netýká. */
     private fun stopVoicePreviewPlayback() {
-        if (voicePlayer.state.value?.key == voicePreviewKey(chatId)) voicePlayer.stop()
+        if (voicePlayer.state.value?.key == voicePreviewKey(slot, chatId)) voicePlayer.stop()
     }
 
     /**

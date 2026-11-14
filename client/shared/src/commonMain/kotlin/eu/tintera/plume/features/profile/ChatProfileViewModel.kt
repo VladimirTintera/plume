@@ -511,7 +511,7 @@ class ChatProfileViewModel(
         val voice = _state.value.sharedMessage(messageId)?.media as? MessageMedia.VoiceNote ?: return
         // Pozice v dlouhé hlasovce se pamatuje jako v konverzaci, v tajném chatu ne.
         val secret = _state.value.profile?.isSecretChat == true
-        voicePlayer.toggle(VoiceKey(chatId, messageId), resumeKey = voice.fileKey.takeUnless { secret }) {
+        voicePlayer.toggle(VoiceKey(slot, chatId, messageId), resumeKey = voice.fileKey.takeUnless { secret }) {
             when (val file = files.file(voice.fileId).first { it is FileState.Ready || it is FileState.Failed }) {
                 is FileState.Ready -> file.path
                 is FileState.Failed -> error(file.message)

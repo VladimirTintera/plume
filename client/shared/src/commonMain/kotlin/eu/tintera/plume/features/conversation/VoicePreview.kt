@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.audio.RecordedVoice
 import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.decodeWaveform
@@ -24,7 +25,7 @@ class VoicePreview(val voice: RecordedVoice?, val canContinue: Boolean = false) 
  * takže id je záporné — skutečné id zprávy je vždycky kladné. **Po dohrání se od něj nesmí
  * řetězit další neposlechnutá** ([isVoicePreview]): „další po −1" by byla nejstarší hlasovka v chatu.
  */
-internal fun voicePreviewKey(chatId: Long) = VoiceKey(chatId, VOICE_PREVIEW_MESSAGE_ID)
+internal fun voicePreviewKey(slot: AccountSlot, chatId: Long) = VoiceKey(slot, chatId, VOICE_PREVIEW_MESSAGE_ID)
 
 internal val VoiceKey.isVoicePreview: Boolean get() = messageId == VOICE_PREVIEW_MESSAGE_ID
 

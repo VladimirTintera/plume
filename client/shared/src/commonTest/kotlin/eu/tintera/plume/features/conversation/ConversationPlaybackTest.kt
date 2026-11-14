@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.ai.AiModels
 import eu.tintera.plume.core.audio.MusicQueueControl
 import eu.tintera.plume.core.audio.NowPlaying
@@ -67,7 +68,7 @@ class ConversationPlaybackTest {
             calls += "seek ${key.messageId} $fraction"
         }
 
-        override fun stop(chatId: Long?, keepMusic: Boolean) {
+        override fun stop(chat: Pair<AccountSlot, Long>?, keepMusic: Boolean) {
             calls += "stop"
         }
 
@@ -137,6 +138,7 @@ class ConversationPlaybackTest {
         discreet: Boolean = false,
         premium: Boolean = true,
     ) = ConversationPlayback(
+        slot = TEST_SLOT,
         chatId = TEST_CHAT,
         state = state,
         navigate = navigated::add,
@@ -258,7 +260,7 @@ class ConversationPlaybackTest {
         val announced = mutableListOf<ResumedAudio>()
         val collector = detachedScope().launch { playback.resumes.collect { announced += it } }
 
-        val resumed = VoicePlayback(VoiceKey(TEST_CHAT, 1), loading = false, positionMs = 754_000, durationMs = 1_800_000, resumedFromMs = 754_000)
+        val resumed = VoicePlayback(VoiceKey(TEST_SLOT, TEST_CHAT, 1), loading = false, positionMs = 754_000, durationMs = 1_800_000, resumedFromMs = 754_000)
         player.state.value = resumed
         advanceUntilIdle()
         // Pauza a znovu: hlášení se neopakuje.
@@ -266,7 +268,7 @@ class ConversationPlaybackTest {
         player.state.value = resumed.copy(playing = true, positionMs = 755_000)
         advanceUntilIdle()
         // Jiný chat se netýká.
-        player.state.value = resumed.copy(key = VoiceKey(TEST_CHAT + 1, 1))
+        player.state.value = resumed.copy(key = VoiceKey(TEST_SLOT, TEST_CHAT + 1, 1))
         advanceUntilIdle()
 
         assertEquals(listOf(ResumedAudio(1, 754_000)), announced)
@@ -276,7 +278,7 @@ class ConversationPlaybackTest {
     @Test
     fun nahravkaPustenaOdZacatkuSePoNavratuDoChatuNehlasi() = runTest {
         // Nahrávka pokračovala od 12:34, uživatel ji pustil od začátku a vrátil se do chatu.
-        player.state.value = VoicePlayback(VoiceKey(TEST_CHAT, 1), loading = false, positionMs = 60_000, durationMs = 1_800_000, resumedFromMs = 754_000)
+        player.state.value = VoicePlayback(VoiceKey(TEST_SLOT, TEST_CHAT, 1), loading = false, positionMs = 60_000, durationMs = 1_800_000, resumedFromMs = 754_000)
         val playback = playback(testState(voice(1)))
         val announced = mutableListOf<ResumedAudio>()
         val collector = detachedScope().launch { playback.resumes.collect { announced += it } }
@@ -386,11 +388,11 @@ class ConversationPlaybackTest {
         val state = testState()
         val playback = playback(state)
 
-        player.state.value = VoicePlayback(VoiceKey(TEST_CHAT, 1), loading = false, playing = true)
+        player.state.value = VoicePlayback(VoiceKey(TEST_SLOT, TEST_CHAT, 1), loading = false, playing = true)
         playback.togglePlaying()
-        player.state.value = VoicePlayback(VoiceKey(TEST_CHAT, 1), loading = false, playing = false)
+        player.state.value = VoicePlayback(VoiceKey(TEST_SLOT, TEST_CHAT, 1), loading = false, playing = false)
         playback.togglePlaying()
-        player.state.value = VoicePlayback(VoiceKey(TEST_CHAT, 1), loading = true)
+        player.state.value = VoicePlayback(VoiceKey(TEST_SLOT, TEST_CHAT, 1), loading = true)
         playback.togglePlaying()
 
         assertEquals(listOf("pause", "resume"), player.calls, "během načítání se nepřepíná")
@@ -401,9 +403,9 @@ class ConversationPlaybackTest {
         val state = testState()
         val playback = playback(state)
 
-        player.state.value = VoicePlayback(VoiceKey(TEST_CHAT, 1), music = true)
+        player.state.value = VoicePlayback(VoiceKey(TEST_SLOT, TEST_CHAT, 1), music = true)
         playback.stopPlaying()
-        player.state.value = VoicePlayback(VoiceKey(TEST_CHAT, 2))
+        player.state.value = VoicePlayback(VoiceKey(TEST_SLOT, TEST_CHAT, 2))
         playback.stopPlaying()
 
         assertEquals(listOf("stop"), music.calls)
