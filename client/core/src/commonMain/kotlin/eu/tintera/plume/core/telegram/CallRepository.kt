@@ -172,5 +172,8 @@ enum class CallPhase {
     Failed,
 }
 
+/** Hovor ještě neskončil: zvoní, vytáčí se, spojuje, nebo běží. */
+val CallPhase.isLive: Boolean get() = this != CallPhase.Ended && this != CallPhase.Failed
+
 /** Výchozí [CallRepository.ratingRequest] pro implementace, které hodnocení neznají. */
 private val NoRatingRequest: StateFlow<CallRatingRequest?> = MutableStateFlow(null)

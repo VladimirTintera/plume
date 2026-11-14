@@ -83,6 +83,11 @@ actual class NotificationPresenter internal constructor(
     private val accountName: suspend () -> String? = { null },
     /** Kolik je v aplikaci jiných účtů; úklid po odhlášení podle toho nechá jejich oznámení být. */
     private val otherAccounts: () -> Int = { 0 },
+    /**
+     * Má hovor jiný účet? Příchozí hovor pak repository účtu odmítne (hovor je přes účty jeden),
+     * oznámení hovoru ale vydá TDLib vlastní cestou — to se pak neukazuje.
+     */
+    private val callBusy: () -> Boolean = { false },
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -299,6 +304,10 @@ actual class NotificationPresenter internal constructor(
      * otevře chat.
      */
     private suspend fun showCall(call: IncomingCall) {
+        if (callBusy()) {
+            logger.d { "Hovor ${call.callId} odmítnutý kvůli hovoru v jiném účtu se neoznamuje." }
+            return
+        }
         if (DesktopWindow.focused.value) {
             logger.d { "Okno je aktivní, příchozí hovor ${call.callId} se neoznamuje." }
             return

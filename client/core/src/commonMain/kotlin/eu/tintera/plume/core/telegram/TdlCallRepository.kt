@@ -45,6 +45,7 @@ import eu.tintera.plume.core.calls.sideChannelKey
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_bar_failed
+import eu.tintera.plume.resources.call_busy_other_account
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -93,6 +94,12 @@ class TdlCallRepository(
     foreground: Flow<Boolean>? = null,
     /** Verze aplikace do ladicích dat pro Telegram. */
     private val applicationVersion: String = "",
+    /**
+     * Má hovor jiný účet v aplikaci? Hovor je přes všechny účty jeden, jako u telefonu: média
+     * (mikrofon, přenos) jsou v procesu jedna a dva hovory by se o ně přetahovaly. Příchozí hovor
+     * se pak odmítne (obsazeno nastavit nejde, viz [declineBusy]) a odchozí se nevytočí.
+     */
+    private val busyElsewhere: () -> Boolean = { false },
 ) : CallRepository {
 
     /** Telefon je bez sítě; nový hovor si stav převezme. */
@@ -216,6 +223,11 @@ class TdlCallRepository(
     override suspend fun call(userId: Long, video: Boolean): Result<Unit> {
         // Desktop umí jen zvuk: videohovor se tam vytočí jako hlasový.
         val withVideo = video && supportsVideo
+        if (busyElsewhere()) {
+            note("Not dialing: a call is running in another account", callId = null)
+            showFailed(userId, withVideo, UiText.Resource(Res.string.call_busy_other_account))
+            return Result.failure(IllegalStateException("A call is running in another account."))
+        }
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
         logger.i { "Protokol: ${protocol.libraryVersions.joinToString()} vrstvy ${protocol.minLayer}..${protocol.maxLayer}" }
         // Zvuk napřed: tón protistrany a reproduktor fungují už při vytáčení.
@@ -280,6 +292,28 @@ class TdlCallRepository(
     }
 
     override suspend fun hangUp() = hangUp(disconnected = false)
+
+    /** Příchozí hovory odmítnuté kvůli hovoru v jiném účtu; jejich další stavy se zahodí. */
+    private val busyDeclined = mutableSetOf<Int>()
+
+    /**
+     * Odmítne příchozí hovor kvůli hovoru v jiném účtu. Volající ho uvidí jako odmítnutý, ne
+     * obsazený: `discardCall` důvod nastavit nedovolí a nepřijatý příchozí hovor TDLib odešle jako
+     * odmítnutý (ověřeno na zařízení, `Discarded: declined`). **Bez `media.stop()`**, na rozdíl od [hangUp]: média
+     * jsou v procesu jedna a běží v nich hovor jiného účtu, který by se tím přerušil. Odmítnutý
+     * hovor média nikdy nespustil, takže zastavovat není co.
+     */
+    private suspend fun declineBusy(call: Call) {
+        note("Declined as busy: a call is running in another account", call.id)
+        holder.client.discardCall(
+            callId = call.id,
+            isDisconnected = false,
+            inviteLink = "",
+            duration = 0,
+            isVideo = call.isVideo,
+            connectionId = 0L,
+        ).toResult().onFailure { logger.w(it) { "Hovor ${call.id} se nepodařilo odmítnout." } }
+    }
 
     /**
      * [disconnected] = hovor ukončil výpadek přenosu, ne člověk. TDLib to pošle serveru
@@ -414,6 +448,14 @@ class TdlCallRepository(
         val current = _active.value
         // Druhý hovor během hovoru neřešíme — server ho druhé straně ohlásí jako obsazeno.
         if (current != null && current.id != call.id && current.phase !in ENDED) return
+        // Hovor v jiném účtu: server o něm neví, obsazeno neohlásí, takže se příchozí odmítne.
+        // Hovor se vůbec neukáže — nezazvoní, nevznikne notifikace ani systémový hovor.
+        if (call.id in busyDeclined) return
+        if (current?.id != call.id && !call.isOutgoing && call.state is CallStatePending && busyElsewhere()) {
+            busyDeclined += call.id
+            declineBusy(call)
+            return
+        }
         noteState(call, current)
         when (val state = call.state) {
             // `Pending` chodí víckrát (vytvořen, doručen) — stav téhož hovoru se nezakládá znovu,

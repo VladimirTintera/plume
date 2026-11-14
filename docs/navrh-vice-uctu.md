@@ -1,7 +1,7 @@
 # Návrh: víc účtů naráz
 
 > **Stav:** fáze 0 hotová, z fáze 1 přidání, odebrání a přepnutí účtu, společný seznam chatů
-> účet v konverzaci a v notifikacích (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> účet v konverzaci a v notifikacích, jeden hovor přes všechny účty (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
 > stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
@@ -187,7 +187,7 @@ neexistuje, takže se nedá splést potichu: bez slotu se repository vůbec nedo
   - notifikace a směrování pushů,
   - společný seznam chatů, odznak nepřečtených, widget a cíle sdílení,
   - hovory: jeden hovor naráz přes všechny účty, příchozí do jiného účtu během hovoru je
-    „obsazeno".
+    „obsazeno" (vyšlo „odmítnuto", viz krok 7 v „Postup").
 
 **Cena:** projít všechny ViewModely a routy s id. Je to mechanická práce a překladač ji
 vede. Když dostane routa povinný parametr `slot`, chyba překladu ukáže každé místo, které ji
@@ -625,6 +625,30 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
        dřív ho každý účet přepisoval svým číslem.
    - **Ověřeno na Pixelu 5** se dvěma účty. Desktop jen přeložený a otestovaný testy.
 
+7. **Jeden hovor přes všechny účty** — hotovo:
+   - Má-li hovor jiný účet (zvoní, vytáčí se, spojuje, běží; `Accounts.inCallElsewhere`), příchozí
+     hovor se odmítne, ještě než se ukáže (`TdlCallRepository.busyElsewhere`): nezazvoní,
+     nevznikne systémový hovor a notifikaci hovoru, kterou TDLib vydá vlastní cestou, presenter
+     zahodí (`callBusy`).
+   - **Volající uvidí „odmítnuto", ne „obsazeno".** Server o hovoru druhého účtu neví, takže
+     obsazeno sám neohlásí jako v rámci jednoho účtu, a `discardCall` důvod nastavit nedovolí:
+     nepřijatý příchozí hovor TDLib odešle jako odmítnutý.
+   - **Hovor jde všem zařízením účtu**: odmítnutí z Plume ho ukončí i jinde, kde je účet
+     přihlášený. Tam stihne na okamžik zazvonit (ověřeno: Pixel 7 s týmž účtem prozvonil
+     a přestal).
+   - **Odmítnutí nesmí zastavit média** (`declineBusy` bez `media.stop()`, na rozdíl od
+     `hangUp`): `CallMedia` je v procesu jedna a běží v ní hovor druhého účtu.
+   - Vytočit hovor, když hovor má jiný účet, nejde: ťuknutí na Zavolat ukáže dialog „Už máš
+     hovor v jiném účtu" (`rememberStartCall`). Selhání v repository by se zapsalo do pruhu
+     hovoru, jenže ten ukazuje účet s živým hovorem, takže by ťuknutí nic neudělalo (ověřeno).
+   - Testy `AccountsTest` (které fáze blokují). **Ověřeno na Pixelu 5 a Pixelu 7**:
+     - hovor z VT na VT2 v téže aplikaci: odchozí hovor VT je živý, příchozí pro VT2 se odmítl
+       bez notifikace (deník `Declined as busy`, `Ringing notification skipped`, u VT
+       `Discarded: declined`),
+     - Pixel 7 (VT2) volá VT, Pixel 5 zvoní, a Zavolat v chatu VT2 ukáže dialog místo vytáčení.
+   - **Oficiální Telegram na tomtéž telefonu se do zkoušek plete**: je-li v něm přihlášený
+     tentýž účet, zvoní taky a jeho oznámení hovoru překrývá horní část obrazovky.
+
 **Zbývá pro fázi 1:**
    - **V režimu Vše zbývá sloučit archiv a hledání** (veřejné chaty a zprávy přes server za
      každý účet, výsledky označené účtem) a klávesové zkratky Alt+↓/↑ přes společný seznam.
@@ -635,9 +659,9 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
      Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
      výchozí účet.
-   - **Hovor přes všechny účty je jeden**, ale nic to nevynucuje: příchozí hovor do druhého účtu
-     během hovoru má být „obsazeno". `MusicQueue` je v každém účtu vlastní a hraje jedním
-     přehrávačem; dvě fronty naráz se přetahují. Videochat jiného účtu než výchozího nemá pruh.
+   - `MusicQueue` je v každém účtu vlastní a hraje jedním přehrávačem; dvě fronty naráz se
+     přetahují. Videochat jiného účtu než výchozího nemá pruh a s hovorem druhého účtu se
+     nehlídá (videochat není `CallRepository`).
    - Widget má jeden soubor podkladů a miniatury maže jeden updater: se dvěma účty by se
      přepisovaly. Cíle sdílení (Direct Share) se publikují za každý účet zvlášť.
    - Online (`setOption online`) mají v popředí všechny účty, ne jen ty ve filtru.

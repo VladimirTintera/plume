@@ -297,6 +297,7 @@ actual fun Module.platformAccountModule() {
             journal = getOrNull<CallJournal>(),
             otherAccounts = { get<Accounts>().all.value.size - 1 },
             accountName = { get<Accounts>().notificationName(get()) },
+            callBusy = { get<Accounts>().inCallElsewhere(get()) },
         )
     }
     // Služba v popředí po dobu hovoru — spouští se z popředí, jakmile hovor vytáčí nebo běží.

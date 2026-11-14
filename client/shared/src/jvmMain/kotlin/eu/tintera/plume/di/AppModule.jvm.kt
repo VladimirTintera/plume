@@ -215,6 +215,7 @@ actual fun Module.platformAccountModule() {
             callsSupported = get<CallRepository>().supported,
             accountName = { get<Accounts>().notificationName(get()) },
             otherAccounts = { get<Accounts>().all.value.size - 1 },
+            callBusy = { get<Accounts>().inCallElsewhere(get()) },
         )
     }
 }

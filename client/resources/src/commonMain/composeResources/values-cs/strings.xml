@@ -1227,6 +1227,9 @@
     <string name="call_bar_ended">Hovor skončil</string>
     <string name="call_bar_dropped">Hovor se přerušil</string>
     <string name="call_bar_failed">Hovor se nepodařilo spojit</string>
+    <string name="call_busy_other_account">Už máš hovor v jiném účtu</string>
+    <string name="call_busy_other_account_text">Nový hovor půjde zahájit, až ten skončí.</string>
+    <string name="call_busy_other_account_ok">OK</string>
     <string name="call_answer">Přijmout</string>
     <string name="call_hang_up">Zavěsit</string>
     <string name="call_mute">Ztlumit mikrofon</string>

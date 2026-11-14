@@ -3,6 +3,8 @@ package eu.tintera.plume.core.accounts
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.telegram.CallRepository
+import eu.tintera.plume.core.telegram.isLive
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.telegram.TelegramSession
 import kotlinx.coroutines.CoroutineDispatcher
@@ -126,6 +128,16 @@ class Accounts internal constructor(
      */
     fun find(slot: AccountSlot): AccountSession? =
         _all.value.firstOrNull { it.slot == slot } ?: _adding.value?.takeIf { it.slot == slot }
+
+    /**
+     * Má hovor (zvoní, vytáčí se, běží) jiný účet než [slot]? Hovor je přes všechny účty jeden
+     * (`TdlCallRepository.busyElsewhere`). Přidávaný účet se počítá taky: hovor se mu do přihlášení
+     * nepřidá, ale ani jeho kontejner nesmí rozjet druhý.
+     */
+    fun inCallElsewhere(slot: AccountSlot): Boolean =
+        opened.value.any { account ->
+            account.slot != slot && account.koin.getOrNull<CallRepository>()?.active?.value?.phase.let { it != null && it.isLive }
+        }
 
     /** User id ostatních přihlášených účtů než [slot] (QR přihlášení je posílá serveru). */
     fun otherUserIds(slot: AccountSlot): List<Long> =
