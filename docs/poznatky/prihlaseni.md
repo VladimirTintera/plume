@@ -62,6 +62,35 @@ Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `Anima
   než 10 s; přetížený emulátor (1 s na znak) konec fronty nestihne. Poznáš to podle té hlášky;
   pomůže psát po třech čtyřech znacích (`for c in 777 123 456; do input text $c; done`).
 
+### Naležato a na širokém okně
+
+Telefon naležato, okno na ploše a rozložená skládačka dostanou dva sloupce: uvítací tvar
+s nadpisem a větou vlevo, formulář vpravo (`AuthLayout`, `StageHeader` v `AuthScreen`).
+
+- **Proč:** jeden sloupec měl přes 700 dp na výšku. Telefon naležato (emulátor Pixel 7,
+  862 × 359 dp po odečtení lišt) ukázal jen tvar, nadpis a větu; pole s číslem i „Pokračovat"
+  byly pod okrajem a dalo se k nim jen dorolovat. Na ploše zase úzký sloupec uprostřed okna
+  1200 × 800 vypadal jako telefon na monitoru. Takhle to dělá i přihlášení Googlu na širokém
+  displeji.
+- **Rozhoduje tvar okna, ne natočení:** dva sloupce od šířky 600 dp (třída Medium) a jen tehdy,
+  když je okno širší než vysoké. Tablet nastojato je přes 600 dp široký, ale jeden sloupec
+  uprostřed mu sedí líp než dvě úzké poloviny nad prázdnou výškou.
+- **Měří se PŘED `imePadding`** (`BoxWithConstraints` jen se `safeDrawingPadding`). Pod
+  klávesnicí by okno „zmenšilo výšku" a rozvržení by při otevření klávesnice přeskočilo
+  a při zavření zase zpátky — formulář by pod prsty dvakrát změnil tvar.
+- **Nízké okno (pod 480 dp) zmenší tvar na 112 dp, nadpis na `headlineLarge` a okraje.** Se
+  176 dp a `displaySmall` by levý sloupec naležato nevešel.
+- **QR kód ve dvou sloupcích nepřeroste výšku okna** (`AuthLayout.qrMaxSize`): je to celý pravý
+  sloupec a kus kódu pod okrajem by nešel naskenovat. V jednom sloupci zůstává strop 280 dp
+  a roluje se.
+- **Obě poloviny mají vlastní `AnimatedContent` nad týmž `AuthView`** se stejným `contentKey`
+  a přechodem, takže se krok vymění vlevo i vpravo naráz.
+- **Ověřeno na emulátoru** (Plume_A14, odhlášený): telefon naležato anglicky i česky (číslo,
+  klávesnice, QR), na výšku beze změny, `wm size 1600x2560` + `wm density 320` jako tablet
+  nastojato (jeden sloupec) a naležato (dva). **Kód, heslo a e-mail naležato vidět nebyly**
+  (chtějí skutečné přihlašování) a desktop se nespouštěl — ladicí desktop je přihlášený;
+  tablet naležato je stejná třída okna jako výchozí okno desktopu.
+
 ### Zadání kódu
 
 Číselný kód se píše do políček — jedno na číslici, počet podle toho, co hlásí server
