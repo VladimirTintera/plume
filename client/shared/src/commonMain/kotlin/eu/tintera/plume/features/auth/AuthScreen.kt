@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -64,7 +65,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
@@ -77,6 +80,7 @@ import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.CodeDelivery
 import eu.tintera.plume.core.telegram.EmailReset
 import eu.tintera.plume.core.ui.INTRO_ICON_SIZE
+import eu.tintera.plume.core.ui.INTRO_SHAPE_SIZE
 import eu.tintera.plume.core.ui.IntroShape
 import eu.tintera.plume.core.ui.QrCode
 import eu.tintera.plume.core.ui.UiText
@@ -177,6 +181,8 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Obsah se scrolluje a bere `safeDrawing` i `imePadding`: na nízkém okně naležato se
  * s otevřenou klávesnicí nevejde ani samotné pole s tlačítkem.
+ *
+ * Naležato a na širokém okně stojí uvítání vlevo a formulář vpravo (viz [AuthLayout]).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -256,23 +262,21 @@ fun AuthScreen(
     // Plocha okna aplikace (`surfaceContainer`, na ní leží i seznam chatů), ne `surface`: na
     // desktopu má titulek okna barvu `surfaceContainer` a s přihlášením by jinak nesplynul.
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainer) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp),
-                modifier = Modifier.widthIn(max = CONTENT_MAX_WIDTH),
-            ) {
-                // Tvar se proanimuje při každé změně kroku — nad měnícím se obsahem by jinak
-                // stál jako obrázek, a přitom je to jediné, co drží souvislost mezi kroky.
-                IntroShape(replayKey = view.phase()) {
+        // Měří se PŘED `imePadding`: rozvržení se řídí oknem, ne klávesnicí. Kdyby se počítalo
+        // až pod ní, přeskočila by otevřená klávesnice na tabletu naležato rozvržení do jednoho
+        // sloupce a zavřená zpátky — formulář by pod prsty dvakrát změnil tvar.
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+            val layout = AuthLayout.of(maxWidth, maxHeight)
+            // `transitionSpec` není @Composable, motionScheme se čte tady.
+            val motion = MaterialTheme.motionScheme
+
+            // Tvar se proanimuje při každé změně kroku — nad měnícím se obsahem by jinak
+            // stál jako obrázek, a přitom je to jediné, co drží souvislost mezi kroky.
+            val introShape: @Composable () -> Unit = {
+                IntroShape(
+                    replayKey = view.phase(),
+                    shapeSize = if (layout.compactHeight) COMPACT_SHAPE_SIZE else INTRO_SHAPE_SIZE,
+                ) {
                     // Ikona říká, v jaké fázi přihlášení uživatel je. Vyměňuje se prolnutím,
                     // aby se tvar pod ní nehýbal.
                     AnimatedContent(targetState = view.phase().icon, label = "auth-icon") { icon ->
@@ -280,150 +284,123 @@ fun AuthScreen(
                             painterResource(icon),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(INTRO_ICON_SIZE),
+                            modifier = Modifier.size(if (layout.compactHeight) COMPACT_ICON_SIZE else INTRO_ICON_SIZE),
                         )
                     }
                 }
+            }
 
-                // `transitionSpec` není @Composable, motionScheme se čte tady.
-                val motion = MaterialTheme.motionScheme
-                AnimatedContent(
-                    targetState = view,
-                    transitionSpec = { phaseTransition(motion) },
-                    contentKey = { it.key },
-                    label = "auth-stage",
-                ) { shown ->
-                    val current = shown.stage
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(
-                            text = stringResource(shown.headline()),
-                            style = MaterialTheme.typography.displaySmallEmphasized,
-                            textAlign = TextAlign.Center,
+            val form: @Composable (AuthView) -> Unit = { shown ->
+                val current = shown.stage
+                when (current) {
+                    AuthStage.WaitPhoneNumber -> PhoneForm(
+                        phone = phone,
+                        error = error,
+                        busy = busy,
+                        onPhoneChange = viewModel::onPhoneChange,
+                        onPickCountry = { pickingCountry = true },
+                        onSubmit = viewModel::submit,
+                        onQrLogin = viewModel::startQrLogin,
+                    )
+
+                    is AuthStage.WaitCode -> CodeForm(
+                        code = current.code,
+                        next = current.next,
+                        resendIn = resendIn,
+                        value = input,
+                        error = error,
+                        busy = busy,
+                        onValueChange = viewModel::onInputChange,
+                        onSubmit = viewModel::submit,
+                        onResend = viewModel::resendCode,
+                        onQrLogin = viewModel::startQrLogin,
+                        onChangeNumber = viewModel::restartLogin,
+                    )
+
+                    AuthStage.WaitEmailAddress -> EmailAddressForm(
+                        value = input,
+                        error = error,
+                        busy = busy,
+                        onValueChange = viewModel::onInputChange,
+                        onSubmit = viewModel::submit,
+                        onBackToCode = null,
+                        onChangeNumber = viewModel::restartLogin,
+                    )
+
+                    is AuthStage.WaitEmailCode -> if (shown.changingEmail) {
+                        EmailAddressForm(
+                            value = input,
+                            error = error,
+                            busy = busy,
+                            onValueChange = viewModel::onInputChange,
+                            onSubmit = viewModel::submit,
+                            onBackToCode = viewModel::back,
+                            onChangeNumber = viewModel::restartLogin,
+                        )
+                    } else {
+                        EmailCodeForm(
+                            stage = current,
+                            resetIn = emailResetIn,
+                            value = input,
+                            error = error,
+                            busy = busy,
+                            onValueChange = viewModel::onInputChange,
+                            onSubmit = viewModel::submit,
+                            onResend = viewModel::resendEmailCode,
+                            onChangeEmail = viewModel::changeEmail,
+                            onReset = { confirmingEmailReset = true },
+                            onFinishReset = viewModel::resetEmail,
+                            onChangeNumber = viewModel::restartLogin,
+                        )
+                    }
+
+                    is AuthStage.WaitPassword -> when (shown.step) {
+                        PasswordStep.Password -> PasswordForm(
+                            value = input,
+                            error = error,
+                            busy = busy,
+                            onValueChange = viewModel::onInputChange,
+                            onSubmit = viewModel::submit,
+                            onForgot = viewModel::forgotPassword,
+                            onChangeNumber = viewModel::restartLogin,
                         )
 
-                        shown.supportingText()?.let {
-                            Text(
-                                text = it.resolve(),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                            )
-                        }
+                        PasswordStep.RecoveryCode -> RecoveryCodeForm(
+                            value = input,
+                            error = error,
+                            busy = busy,
+                            onValueChange = viewModel::onInputChange,
+                            onSubmit = viewModel::submit,
+                            onResend = viewModel::forgotPassword,
+                            onBack = viewModel::back,
+                        )
 
-                        Spacer(Modifier.height(8.dp))
-
-                        when (current) {
-                            AuthStage.WaitPhoneNumber -> PhoneForm(
-                                phone = phone,
-                                error = error,
-                                busy = busy,
-                                onPhoneChange = viewModel::onPhoneChange,
-                                onPickCountry = { pickingCountry = true },
-                                onSubmit = viewModel::submit,
-                                onQrLogin = viewModel::startQrLogin,
-                            )
-
-                            is AuthStage.WaitCode -> CodeForm(
-                                code = current.code,
-                                next = current.next,
-                                resendIn = resendIn,
-                                value = input,
-                                error = error,
-                                busy = busy,
-                                onValueChange = viewModel::onInputChange,
-                                onSubmit = viewModel::submit,
-                                onResend = viewModel::resendCode,
-                                onQrLogin = viewModel::startQrLogin,
-                                onChangeNumber = viewModel::restartLogin,
-                            )
-
-                            AuthStage.WaitEmailAddress -> EmailAddressForm(
-                                value = input,
-                                error = error,
-                                busy = busy,
-                                onValueChange = viewModel::onInputChange,
-                                onSubmit = viewModel::submit,
-                                onBackToCode = null,
-                                onChangeNumber = viewModel::restartLogin,
-                            )
-
-                            is AuthStage.WaitEmailCode -> if (shown.changingEmail) {
-                                EmailAddressForm(
-                                    value = input,
-                                    error = error,
-                                    busy = busy,
-                                    onValueChange = viewModel::onInputChange,
-                                    onSubmit = viewModel::submit,
-                                    onBackToCode = viewModel::back,
-                                    onChangeNumber = viewModel::restartLogin,
-                                )
-                            } else {
-                                EmailCodeForm(
-                                    stage = current,
-                                    resetIn = emailResetIn,
-                                    value = input,
-                                    error = error,
-                                    busy = busy,
-                                    onValueChange = viewModel::onInputChange,
-                                    onSubmit = viewModel::submit,
-                                    onResend = viewModel::resendEmailCode,
-                                    onChangeEmail = viewModel::changeEmail,
-                                    onReset = { confirmingEmailReset = true },
-                                    onFinishReset = viewModel::resetEmail,
-                                    onChangeNumber = viewModel::restartLogin,
-                                )
-                            }
-
-                            is AuthStage.WaitPassword -> when (shown.step) {
-                                PasswordStep.Password -> PasswordForm(
-                                    value = input,
-                                    error = error,
-                                    busy = busy,
-                                    onValueChange = viewModel::onInputChange,
-                                    onSubmit = viewModel::submit,
-                                    onForgot = viewModel::forgotPassword,
-                                    onChangeNumber = viewModel::restartLogin,
-                                )
-
-                                PasswordStep.RecoveryCode -> RecoveryCodeForm(
-                                    value = input,
-                                    error = error,
-                                    busy = busy,
-                                    onValueChange = viewModel::onInputChange,
-                                    onSubmit = viewModel::submit,
-                                    onResend = viewModel::forgotPassword,
-                                    onBack = viewModel::back,
-                                )
-
-                                PasswordStep.NewPassword -> NewPasswordForm(
-                                    password = input,
-                                    hint = hint,
-                                    error = error,
-                                    busy = busy,
-                                    onPasswordChange = viewModel::onInputChange,
-                                    onHintChange = viewModel::onHintChange,
-                                    onSubmit = viewModel::submit,
-                                )
-                            }
-
-                            is AuthStage.WaitQrConfirmation -> QrForm(
-                                link = current.link,
-                                error = error,
-                                busy = busy,
-                                onUsePhoneNumber = viewModel::restartLogin,
-                            )
-
-                            AuthStage.Connecting, AuthStage.LoggingOut -> LoadingIndicator()
-
-                            else -> Unit
-                        }
+                        PasswordStep.NewPassword -> NewPasswordForm(
+                            password = input,
+                            hint = hint,
+                            error = error,
+                            busy = busy,
+                            onPasswordChange = viewModel::onInputChange,
+                            onHintChange = viewModel::onHintChange,
+                            onSubmit = viewModel::submit,
+                        )
                     }
-                }
 
+                    is AuthStage.WaitQrConfirmation -> QrForm(
+                        link = current.link,
+                        error = error,
+                        busy = busy,
+                        maxSize = layout.qrMaxSize,
+                        onUsePhoneNumber = viewModel::restartLogin,
+                    )
+
+                    AuthStage.Connecting, AuthStage.LoggingOut -> LoadingIndicator()
+
+                    else -> Unit
+                }
+            }
+
+            val proxyButton: @Composable () -> Unit = {
                 if (stage.offersProxy()) {
                     TextButton(onClick = { showingProxy = true }, shapes = ButtonDefaults.shapes()) {
                         Icon(
@@ -432,6 +409,86 @@ fun AuthScreen(
                             modifier = Modifier.padding(end = 8.dp).size(18.dp),
                         )
                         Text(stringResource(Res.string.auth_proxy))
+                    }
+                }
+            }
+
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = layout.verticalPadding),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (layout.twoPane) {
+                    /*
+                     * Naležato a na širokém okně: uvítání vlevo, formulář vpravo. V jednom sloupci
+                     * měla obrazovka přes 700 dp na výšku, takže telefon naležato ukázal jen tvar
+                     * a nadpis a pole s tlačítkem bylo pod okrajem — přesně to, kvůli čemu tam
+                     * uživatel je. Na ploše zase úzký sloupec uprostřed širokého okna působil
+                     * jako telefon na monitoru. Obě poloviny jedou na tomtéž stavu a téže animaci,
+                     * takže se krok vymění vlevo i vpravo naráz.
+                     */
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(TWO_PANE_GAP),
+                        modifier = Modifier.widthIn(max = CONTENT_MAX_WIDTH * 2 + TWO_PANE_GAP),
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(layout.shapeGap),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            introShape()
+                            AnimatedContent(
+                                targetState = view,
+                                transitionSpec = { phaseTransition(motion) },
+                                contentKey = { it.key },
+                                label = "auth-header",
+                            ) { shown ->
+                                StageHeader(shown, layout, TextAlign.Start)
+                            }
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            AnimatedContent(
+                                targetState = view,
+                                transitionSpec = { phaseTransition(motion) },
+                                contentKey = { it.key },
+                                label = "auth-form",
+                            ) { shown ->
+                                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { form(shown) }
+                            }
+                            proxyButton()
+                        }
+                    }
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(layout.shapeGap),
+                        modifier = Modifier.widthIn(max = CONTENT_MAX_WIDTH),
+                    ) {
+                        introShape()
+                        AnimatedContent(
+                            targetState = view,
+                            transitionSpec = { phaseTransition(motion) },
+                            contentKey = { it.key },
+                            label = "auth-stage",
+                        ) { shown ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                StageHeader(shown, layout, TextAlign.Center)
+                                Spacer(Modifier.height(8.dp))
+                                form(shown)
+                            }
+                        }
+                        proxyButton()
                     }
                 }
             }
@@ -482,6 +539,72 @@ fun AuthScreen(
             },
             onDismiss = { pickingCountry = false },
         )
+    }
+}
+
+/**
+ * Rozvržení podle místa, které přihlášení dostane, ne podle natočení zařízení — rozhoduje
+ * tvar okna (telefon naležato, okno na ploše, rozložená skládačka, rozdělená obrazovka).
+ *
+ * **Dva sloupce, když je okno aspoň středně široké a širší než vysoké.** Šířka sama nestačí:
+ * tablet nastojato je široký přes 600 dp, a jeden sloupec uprostřed mu sedí líp než dvě úzké
+ * poloviny pod sebou nevyužité výšky. Hranice jsou třídy okna M3 (Medium od 600 dp na šířku,
+ * nízké okno pod 480 dp na výšku), stejně jako je počítá `WindowSizeClass`.
+ *
+ * **Na nízkém okně se zmenší tvar, nadpis i okraje.** Telefon naležato má po odečtení lišt kolem
+ * 350 dp výšky a uvítací tvar 176 dp s nadpisem `displaySmall` by vzal skoro všechno.
+ */
+private data class AuthLayout(val twoPane: Boolean, val compactHeight: Boolean, val height: Dp) {
+    val verticalPadding: Dp get() = if (compactHeight) 16.dp else 32.dp
+    val shapeGap: Dp get() = if (compactHeight) 16.dp else 24.dp
+
+    /**
+     * QR kód ve dvou sloupcích nesmí přerůst výšku okna: je to celý pravý sloupec a kus kódu pod
+     * okrajem by se nedal naskenovat. V jednom sloupci se roluje a strop zůstává.
+     */
+    val qrMaxSize: Dp
+        get() = if (twoPane) {
+            min(QR_MAX_WIDTH, height - verticalPadding * 2 - QR_ACTIONS_HEIGHT).coerceAtLeast(QR_MIN_WIDTH)
+        } else {
+            QR_MAX_WIDTH
+        }
+
+    companion object {
+        fun of(width: Dp, height: Dp) = AuthLayout(
+            twoPane = width >= TWO_PANE_MIN_WIDTH && width > height,
+            compactHeight = height < COMPACT_HEIGHT,
+            height = height,
+        )
+    }
+}
+
+/** Nadpis a věta pod ním — v jednom sloupci na střed, ve dvou zarovnané k okraji levého sloupce. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun StageHeader(shown: AuthView, layout: AuthLayout, align: TextAlign) {
+    Column(
+        horizontalAlignment = if (align == TextAlign.Start) Alignment.Start else Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(if (layout.compactHeight) 8.dp else 16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = stringResource(shown.headline()),
+            style = if (layout.compactHeight) {
+                MaterialTheme.typography.headlineLargeEmphasized
+            } else {
+                MaterialTheme.typography.displaySmallEmphasized
+            },
+            textAlign = align,
+        )
+
+        shown.supportingText()?.let {
+            Text(
+                text = it.resolve(),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = align,
+            )
+        }
     }
 }
 
@@ -656,6 +779,7 @@ private fun QrForm(
     link: String,
     error: UiText?,
     busy: Boolean,
+    maxSize: Dp,
     onUsePhoneNumber: () -> Unit,
 ) {
     Column(
@@ -666,7 +790,7 @@ private fun QrForm(
         QrCode(
             content = link,
             contentDescription = stringResource(Res.string.auth_qr_content_description),
-            modifier = Modifier.widthIn(max = QR_MAX_WIDTH).fillMaxWidth(),
+            modifier = Modifier.widthIn(max = maxSize).fillMaxWidth(),
         )
 
         FormError(error)
@@ -1131,4 +1255,13 @@ private fun PhoneForm(
 
 private val CONTENT_MAX_WIDTH = ContentWidth.Form
 private val QR_MAX_WIDTH = 280.dp
+private val QR_MIN_WIDTH = 160.dp
+
+/** Co je ve sloupci pod QR kódem: „Přihlásit se číslem" a proxy, každé 48 dp s mezerou. */
+private val QR_ACTIONS_HEIGHT = 128.dp
+private val TWO_PANE_MIN_WIDTH = 600.dp
+private val COMPACT_HEIGHT = 480.dp
+private val TWO_PANE_GAP = 48.dp
+private val COMPACT_SHAPE_SIZE = 112.dp
+private val COMPACT_ICON_SIZE = 40.dp
 private const val PHASE_SLIDE_FRACTION = 4

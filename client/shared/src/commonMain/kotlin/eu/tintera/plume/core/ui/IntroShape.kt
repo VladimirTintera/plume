@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun IntroShape(
     modifier: Modifier = Modifier,
-    shapeSize: Dp = DEFAULT_SHAPE_SIZE,
+    shapeSize: Dp = INTRO_SHAPE_SIZE,
     color: Color = MaterialTheme.colorScheme.primaryContainer,
     /**
      * Změna hodnoty tvar znovu proanimuje, kratčeji než při prvním zobrazení. Bez ní by tvar
@@ -119,7 +119,8 @@ fun IntroShape(
 /** Zpomalení na konci podle M3 „emphasized decelerate". */
 internal val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
 
-private val DEFAULT_SHAPE_SIZE = 176.dp
+/** Velikost tvaru, když ji volající nemění. */
+val INTRO_SHAPE_SIZE = 176.dp
 
 /** Velikost ikony uvnitř tvaru, když ji volající nemění. */
 val INTRO_ICON_SIZE = 56.dp
