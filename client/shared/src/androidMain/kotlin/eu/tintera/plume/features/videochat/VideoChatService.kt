@@ -17,7 +17,7 @@ import androidx.core.app.Person
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.ServiceOwner
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.CALLS_CHANNEL_ID
 import eu.tintera.plume.core.notifications.NotificationIntents
@@ -33,7 +33,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
-import org.koin.core.context.GlobalContext
 import org.koin.core.component.inject
 
 /**
@@ -50,7 +49,10 @@ import org.koin.core.component.inject
  */
 class VideoChatService : Service(), KoinComponent {
 
-    override fun getKoin() = GlobalContext.get().primaryAccount()
+    /** Účet, který službu spustil (viz [ServiceOwner]); nastaví ho [VideoChatServiceControls]. */
+    object Owner : ServiceOwner()
+
+    override fun getKoin() = Owner.koin()
 
     private val slot: AccountSlot by inject()
 
@@ -160,6 +162,7 @@ class VideoChatService : Service(), KoinComponent {
  * Připojení je vždycky ťuknutí na pruh v aplikaci, tedy z popředí.
  */
 class VideoChatServiceControls(
+    private val slot: AccountSlot,
     private val context: Context,
     private val session: VideoChatSession,
     private val scope: CoroutineScope,
@@ -173,6 +176,7 @@ class VideoChatServiceControls(
                 .distinctUntilChanged()
                 .collect { groupCallId ->
                     if (groupCallId == null) return@collect
+                    VideoChatService.Owner.slot = slot
                     runCatching { ContextCompat.startForegroundService(context, Intent(context, VideoChatService::class.java)) }
                         .onFailure { failure -> logger.w(failure) { "Službu videochatu nejde spustit." } }
                 }

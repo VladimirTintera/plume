@@ -1,5 +1,19 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountSession
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.resources.accounts_add
+import eu.tintera.plume.resources.accounts_shown
+import eu.tintera.plume.resources.check_24dp
+import eu.tintera.plume.resources.person_add_24dp
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import eu.tintera.plume.resources.history_toggle_off_24dp
 import eu.tintera.plume.resources.my_stories_title
 import eu.tintera.plume.resources.chats_bookmarks_count
@@ -92,6 +106,8 @@ internal fun AccountMenu(
     onBookmarks: () -> Unit,
     onMyQrCode: () -> Unit,
     onSettings: () -> Unit,
+    /** Přihlášené účty, přepnutí a přidání účtu. */
+    switcher: AccountSwitcher,
 ) {
     var open by remember { mutableStateOf(false) }
     val label = stringResource(Res.string.chats_account)
@@ -165,6 +181,33 @@ internal fun AccountMenu(
             expanded = open,
             onDismiss = { open = false },
             groups = listOf(
+                // Účty nahoře, jako v Telegramu, a jen když je jich víc: s jedním účtem by tu byl
+                // řádek, který nikam nevede.
+                if (switcher.accounts.size > 1) {
+                    switcher.accounts.map { entry ->
+                        MenuAction(
+                            label = entry.title,
+                            leading = {
+                                AccountScope(entry.account) {
+                                    Avatar(
+                                        chatId = entry.info?.id ?: 0L,
+                                        title = entry.title,
+                                        avatarFileId = entry.info?.photoFileId,
+                                        size = ACCOUNT_ROW_AVATAR_SIZE,
+                                    )
+                                }
+                            },
+                            trailing = if (entry.shown) {
+                                { Icon(painterResource(Res.drawable.check_24dp), contentDescription = stringResource(Res.string.accounts_shown)) }
+                            } else {
+                                null
+                            },
+                            onClick = { switcher.onSelect(entry.account.slot) },
+                        )
+                    }
+                } else {
+                    emptyList()
+                },
                 listOfNotNull(
                     MenuAction(stringResource(Res.string.saved_messages), Res.drawable.bookmark_24dp, onClick = onSavedMessages),
                     MenuAction(
@@ -221,14 +264,64 @@ internal fun AccountMenu(
                         null
                     },
                 ),
-                listOf(
+                listOfNotNull(
                     MenuAction(stringResource(Res.string.my_qr_title), Res.drawable.qr_code_24dp, onClick = onMyQrCode),
+                    // Přidat účet patří k vlastnímu účtu, ne k místům v chatech; u limitu zmizí.
+                    if (switcher.canAdd) MenuAction(stringResource(Res.string.accounts_add), Res.drawable.person_add_24dp, onClick = switcher.onAdd) else null,
                     MenuAction(stringResource(Res.string.nav_settings), Res.drawable.settings_24dp, onClick = onSettings),
                 ),
             ),
         )
     }
 }
+
+/**
+ * Účty v menu účtu ([AccountMenu]). [accounts] jsou v pořadí, ve kterém přibyly; [canAdd] je
+ * `false` u limitu účtů.
+ */
+@Immutable
+internal data class AccountSwitcher(
+    val accounts: List<AccountEntry>,
+    val canAdd: Boolean,
+    val onSelect: (AccountSlot) -> Unit,
+    val onAdd: () -> Unit,
+)
+
+/** Účet v menu: [info] se dočte z jeho klienta, do té doby je [title] prázdný. */
+@Immutable
+internal data class AccountEntry(
+    val account: AccountSession,
+    val info: AccountInfo?,
+    /** Jeho chaty ukazuje seznam (výchozí účet). */
+    val shown: Boolean,
+) {
+    val title: String get() = info?.displayName.orEmpty()
+}
+
+/**
+ * Účty pro [AccountMenu] z `Accounts`: jména a fotky z klienta každého účtu, výběr nastaví
+ * výchozí účet, přidání otevře přihlášení dalšího účtu.
+ */
+@Composable
+internal fun rememberAccountSwitcher(): AccountSwitcher {
+    val accounts = koinInject<Accounts>()
+    val all by accounts.all.collectAsStateWithLifecycle()
+    val default by accounts.default.collectAsStateWithLifecycle()
+    // `me()` je dotaz do místní databáze TDLib, ne na síť; účtů jsou nejvýš tři.
+    val infos by produceState(emptyMap<AccountSlot, AccountInfo>(), all) {
+        value = all.mapNotNull { account -> account.session.me().getOrNull()?.let { account.slot to it } }.toMap()
+    }
+    val scope = rememberCoroutineScope()
+    return AccountSwitcher(
+        accounts = all.map { AccountEntry(it, infos[it.slot], shown = it === default) },
+        canAdd = all.size < Accounts.MAX_ACCOUNTS,
+        onSelect = accounts::setDefault,
+        onAdd = { scope.launch { accounts.add() } },
+    )
+}
+
+/** Fotka účtu v řádku menu — velikost ikony položky. */
+private val ACCOUNT_ROW_AVATAR_SIZE = 24.dp
 
 /** Fotka účtu v pilulce — o kus menší než ikona, ať pilulku nevyboulí. */
 private val ACCOUNT_AVATAR_SIZE = 30.dp

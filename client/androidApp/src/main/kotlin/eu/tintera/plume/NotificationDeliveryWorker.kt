@@ -10,7 +10,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.account
 import eu.tintera.plume.core.calls.CallJournal
 import eu.tintera.plume.core.telegram.NotificationRepository
 import org.koin.core.context.GlobalContext
@@ -38,13 +39,14 @@ class NotificationDeliveryWorker(
     private val logger = Logger.withTag("Push")
 
     override suspend fun doWork(): Result {
-        val repository = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<NotificationRepository>()
-            ?: return Result.success()
+        val slot = AccountSlot.parse(inputData.getString(KEY_ACCOUNT)) ?: return Result.success()
+        val account = GlobalContext.getOrNull()?.account(slot) ?: return Result.success()
+        val repository = account.getOrNull<NotificationRepository>() ?: return Result.success()
 
         val started = TimeSource.Monotonic.markNow()
         // Hovor napřed musí přijít od serveru; notifikaci k němu vydá TDLib až potom.
         if (inputData.getBoolean(KEY_CALL, false)) {
-            val journal = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<CallJournal>()
+            val journal = account.getOrNull<CallJournal>()
             if (!repository.awaitIncomingCall(TIMEOUT)) {
                 logger.w { "Hovor z pushe nepřišel do $TIMEOUT." }
                 journal?.record("Background job: no call within $TIMEOUT")
@@ -71,14 +73,18 @@ class NotificationDeliveryWorker(
 
         private const val KEY_CALL = "call"
 
+        /** Slot účtu, kterému push patřil; primární účet ho nenese (úlohy z dřívějška). */
+        private const val KEY_ACCOUNT = "account"
+
         /**
          * `REPLACE`: nový push znamená novou odloženou notifikaci, takže se čeká znovu od začátku.
          * Stav, na který se čeká, je společný, takže zrušená úloha nic neztratí. [call] = čekat
-         * napřed na hovor z pushe ([NotificationRepository.awaitIncomingCall]).
+         * napřed na hovor z pushe ([NotificationRepository.awaitIncomingCall]). Každý účet má
+         * úlohu vlastní: čeká se na notifikace jeho klienta.
          */
-        fun enqueue(context: Context, call: Boolean = false) {
+        fun enqueue(context: Context, slot: AccountSlot, call: Boolean = false) {
             val request = OneTimeWorkRequestBuilder<NotificationDeliveryWorker>()
-                .setInputData(workDataOf(KEY_CALL to call))
+                .setInputData(workDataOf(KEY_CALL to call, KEY_ACCOUNT to slot.id.takeUnless { slot.isPrimary }))
                 .apply {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
@@ -86,7 +92,7 @@ class NotificationDeliveryWorker(
                 }
                 .build()
             // Hovor má vlastní jméno, ať čekání na něj nezruší push obyčejné zprávy, který přijde hned po něm.
-            val name = if (call) CALL_WORK_NAME else WORK_NAME
+            val name = (if (call) CALL_WORK_NAME else WORK_NAME) + if (slot.isPrimary) "" else "-${slot.id}"
             WorkManager.getInstance(context).enqueueUniqueWork(name, ExistingWorkPolicy.REPLACE, request)
         }
     }

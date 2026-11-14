@@ -107,9 +107,6 @@ import eu.tintera.plume.core.wifi.WifiJoiner
 import eu.tintera.plume.core.currency.HomeRegion
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.language.AndroidLanguageDetector
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.core.qualifier.named
@@ -166,7 +163,17 @@ actual fun Module.platformModule() {
     single<DeviceLoad> { AndroidDeviceLoad(androidContext()) }
     // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.
     // Zvuk hovoru vede systémový Telecom (most níž), náhradně Plume sám.
-    single<CallMedia> { NtgCallMedia(androidContext(), routes = { get<Accounts>().primary.get<TelecomCallBridge>().routes() }) }
+    // Zvuk vede systémový hovor toho účtu, který právě volá; hovor je přes všechny účty jeden.
+    single<CallMedia> {
+        val accounts = get<Accounts>()
+        NtgCallMedia(
+            androidContext(),
+            routes = {
+                val calling = accounts.all.value.firstOrNull { it.get<CallRepository>().active.value != null } ?: accounts.default.value
+                calling.get<TelecomCallBridge>().routes()
+            },
+        )
+    }
     // Živé příběhy: skupinový hovor jen na příjem, vlastní instance knihovny.
     single<LiveStreamMedia> { NtgLiveStreamMedia(androidContext(), scope = get(named(APP_SCOPE))) }
     // Deník hovorů pro diagnostiku (Nastavení → Pomoc, `docs/poznatky/hovory.md`, „Deník hovorů").
@@ -255,11 +262,11 @@ actual fun Module.platformAccountModule() {
     }
     // Hudba na pozadí: spustí službu s MediaSession, když začne hrát skladba.
     single(createdAtStart = true) {
-        MusicControls(androidContext(), queue = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+        MusicControls(slot = get(), context = androidContext(), queue = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
     // Sdílení živé polohy: spustí službu, když je co posouvat a aplikace je v popředí.
     single(createdAtStart = true) {
-        LiveLocationControls(androidContext(), repository = get(), foreground = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+        LiveLocationControls(slot = get(), context = androidContext(), repository = get(), foreground = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
     // Widget s chaty na ploše: podklady se musí psát od startu procesu, ne až se složí UI —
     // aplikaci často budí jen push a widget má i pak ukázat čerstvý stav.
@@ -279,22 +286,22 @@ actual fun Module.platformAccountModule() {
         NotificationPresenter(
             slot = get(),
             context = androidContext(),
-            // Vlastní scope: notifikace musí sbírat po celou dobu běhu procesu, ne po dobu
-            // života obrazovky.
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            // Scope účtu, ne obrazovky: notifikace musí sbírat po celou dobu života účtu.
+            scope = get(named(APP_SCOPE)),
             settings = get(),
             snoozes = get(),
             callsSupported = get<CallRepository>().supported,
             journal = getOrNull<CallJournal>(),
+            otherAccounts = { get<Accounts>().all.value.size - 1 },
         )
     }
     // Služba v popředí po dobu hovoru — spouští se z popředí, jakmile hovor vytáčí nebo běží.
     single(createdAtStart = true) {
-        CallServiceControls(context = androidContext(), calls = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+        CallServiceControls(slot = get(), context = androidContext(), calls = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
     // Služba v popředí po dobu videochatu — i se zavřenou obrazovkou a aplikací na pozadí.
     single(createdAtStart = true) {
-        VideoChatServiceControls(context = androidContext(), session = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+        VideoChatServiceControls(slot = get(), context = androidContext(), session = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
     // Vyzvánění příchozího hovoru a tón protistrany u odchozího.
     single(createdAtStart = true) {

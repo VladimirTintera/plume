@@ -22,8 +22,17 @@ interface NotificationRepository {
      *
      * Musí se opakovat po každém startu aplikace (Telegram doporučuje i jednou za 24 hodin),
      * protože platformní token se může kdykoli změnit.
+     *
+     * Vrací id příjemce pushů tohoto účtu (`PushReceiverId`); podle něj se push s víc účty
+     * pozná ([pushReceiverId]). [otherUserIds] jsou ostatní účty v aplikaci.
      */
-    suspend fun registerDevice(token: PushToken): Result<Unit>
+    suspend fun registerDevice(token: PushToken, otherUserIds: List<Long> = emptyList()): Result<Long>
+
+    /**
+     * Komu push patří: id příjemce (u šifrovaného pushe id klíče, jinak user id), nebo `null`,
+     * když to z obsahu poznat nejde. Čte se bez sítě a jde na kterémkoli účtu.
+     */
+    suspend fun pushReceiverId(payload: String): Long? = null
 
     /**
      * Předá TDLib zašifrovaný obsah pushe; ten ho rozšifruje a vydá [NotificationUpdate].

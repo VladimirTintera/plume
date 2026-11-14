@@ -39,6 +39,7 @@ import dev.g000sha256.tdl.dto.OptionValueString
 import dev.g000sha256.tdl.dto.ResendCodeReasonUserRequest
 import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +48,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.seconds
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
@@ -69,6 +72,11 @@ class TdlTelegramSession(
     private val paths: TelegramPaths,
     private val keys: DatabaseKeyStore,
     private val scope: CoroutineScope,
+    /**
+     * User id ostatních účtů v aplikaci. QR kód je posílá serveru (`other_user_ids`), aby se
+     * nepřihlásil účet, který už v aplikaci je.
+     */
+    private val otherUserIds: () -> List<Long> = { emptyList() },
 ) : TelegramSession {
 
     private val logger = Logger.withTag("Telegram")
@@ -95,6 +103,10 @@ class TdlTelegramSession(
      * procesu uprostřed kroku se oprava adresy nenabídne, kód ani „Jiné číslo" tím nepřijdou.
      */
     private var emailSetup = false
+
+    /** Klient se ukončuje natrvalo ([shutdown]): po zavření nevznikne nový. */
+    private var shuttingDown = false
+    private val shutDown = CompletableDeferred<Unit>()
 
     override suspend fun start() {
         if (started) return
@@ -271,6 +283,11 @@ class TdlTelegramSession(
      */
     private suspend fun onClientClosed(target: TdlClient) {
         if (holder.client !== target) return
+        if (shuttingDown) {
+            logger.i { "Klient TDLib zavřený natrvalo." }
+            shutDown.complete(Unit)
+            return
+        }
         logger.i { "Klient TDLib zavřený, zakládám nový." }
         _authStage.value = closingStage()
         restartingLogin = false
@@ -540,7 +557,7 @@ class TdlTelegramSession(
             .map { }
 
     override suspend fun startQrLogin(): Result<Unit> =
-        client.requestQrCodeAuthentication(otherUserIds = LongArray(0))
+        client.requestQrCodeAuthentication(otherUserIds = otherUserIds().toLongArray())
             .toResult()
             .map { }
 
@@ -617,6 +634,20 @@ class TdlTelegramSession(
             .toResult()
             .map { }
 
+    /**
+     * Klient nemusí být přihlášený (zrušené přidání účtu) a po odhlášení už je to nový klient
+     * u zadání čísla, takže `close` / `destroy`, ne `logOut`: obojí funguje v kterémkoli stavu
+     * i bez připojení. Konec se pozná podle konce odběru stavu, jako u odhlášení
+     * ([onClientClosed]); strop je pojistka, kdyby zavření nedoběhlo.
+     */
+    override suspend fun shutdown(destroy: Boolean) {
+        shuttingDown = true
+        val result = if (destroy) client.destroy() else client.close()
+        result.toResult()
+            .onFailure { logger.w(it) { "Klienta TDLib se nepodařilo ukončit." } }
+            .onSuccess { withTimeoutOrNull(SHUTDOWN_TIMEOUT) { shutDown.await() } }
+    }
+
     override suspend fun me(): Result<AccountInfo> =
         client.getMe()
             .toResult()
@@ -686,6 +717,9 @@ internal fun digitsOrNull(length: Int): Int? = length.takeIf { it in CODE_DIGITS
  * horní mez je na to, aby se políčka vešla i na úzký telefon.
  */
 private val CODE_DIGITS = 1..8
+
+/** Jak dlouho se čeká na zavření klienta při [TdlTelegramSession.shutdown]. */
+private val SHUTDOWN_TIMEOUT = 10.seconds
 
 /** Kód poslaný na telefonní číslo: podoba, jiná cesta a lhůta — přihlášení i změna čísla. */
 internal fun AuthenticationCodeInfo.toPhoneChangeCode(): PhoneChangeCode = PhoneChangeCode(

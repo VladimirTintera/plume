@@ -2147,6 +2147,9 @@
     <string name="chat_folder_delete_failed">Složku se nepodařilo smazat</string>
     <string name="chat_action_folders">Přidat do složky</string>
     <string name="chats_account">Účet a další</string>
+    <string name="accounts_add">Přidat účet</string>
+    <string name="accounts_shown">Zobrazený v seznamu chatů</string>
+    <string name="accounts_already_signed_in">Tenhle účet už v aplikaci přihlášený je</string>
     <string name="chats_new">Nová zpráva</string>
     <string name="chats_create">Vytvořit</string>
     <string name="new_chat_title">Nová zpráva</string>

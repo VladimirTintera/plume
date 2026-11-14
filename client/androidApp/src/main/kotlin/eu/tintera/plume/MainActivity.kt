@@ -4,7 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.view.WindowManager
 import android.os.Bundle
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.locale.LegacyAppLanguage
 import android.content.Context
 import android.view.KeyEvent
@@ -26,6 +26,10 @@ import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.core.ui.handle
 import eu.tintera.plume.core.ui.handleEscape
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.getKoin
@@ -38,7 +42,7 @@ class MainActivity : ComponentActivity() {
     private val shareIntake: ShareIntake by inject()
     private val keyboardShortcuts: KeyboardShortcuts by inject()
     private val callRequests: CallRequests by inject()
-    private val calls: CallRepository by lazy { getKoin().primaryAccount().get() }
+    private val accounts: Accounts by lazy { getKoin().get() }
 
     /** Texty pro systémový přehled zkratek; do načtení přehled Plume neukáže nic. */
     private var shortcutOverview: KeyboardShortcutOverview? = null
@@ -117,9 +121,14 @@ class MainActivity : ComponentActivity() {
      * displej — celoobrazovková výzva hovoru by jinak otevřela jen zámek. Po hovoru zpět, ať se
      * Plume nad zámkem neukazuje jindy.
      */
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun showOverLockScreenDuringCalls() {
         lifecycleScope.launch {
-            calls.active.map { it != null }.distinctUntilChanged().collect { inCall ->
+            // Hovor může mít kterýkoli účet.
+            accounts.all
+                .flatMapLatest { all -> combine(all.map { account -> account.get<CallRepository>().active }) { calls -> calls.any { it != null } } }
+                .distinctUntilChanged()
+                .collect { inCall ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                     setShowWhenLocked(inCall)
                     setTurnScreenOn(inCall)

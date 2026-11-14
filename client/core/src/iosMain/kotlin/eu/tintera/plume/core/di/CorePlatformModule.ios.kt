@@ -1,6 +1,9 @@
 package eu.tintera.plume.core.di
 
 import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.ACCOUNTS_REGISTRY_FILE
+import eu.tintera.plume.core.accounts.AccountRegistry
+import eu.tintera.plume.core.telegram.applicationSupportDirectory
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
@@ -13,6 +16,7 @@ import org.koin.dsl.module
 internal actual fun corePlatformModule(): Module = module {
     single { NetworkMonitor() }
     single { AppForeground() }
+    single { AccountRegistry(applicationSupportDirectory() + "/" + ACCOUNTS_REGISTRY_FILE) }
 }
 
 internal actual fun accountPlatformModule(slot: AccountSlot): Module = module {

@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.notifications
 
 import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.share.shortcutChat
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
@@ -81,11 +82,20 @@ actual class NotificationPresenter(
     private val now: () -> Instant = { Clock.System.now() },
     /** Deník hovorů: zvonění bez celoobrazovkové výzvy je stopa k „zamčený telefon jen zvonil". */
     private val journal: CallJournal? = null,
+    /** Kolik je v aplikaci jiných účtů; úklid po odhlášení podle toho nechá společné kanály být. */
+    private val otherAccounts: () -> Int = { 0 },
 ) {
 
     private val logger = Logger.withTag("Notifications")
 
     private val manager = NotificationManagerCompat.from(context)
+
+    /**
+     * Tag systémových notifikací účtu: `notificationGroupId` je jedinečné jen v rámci účtu, a se
+     * dvěma účty by se notifikace přepisovaly. Primární účet tag nemá, takže jeho notifikace
+     * z dřívějška (a z bublin) zůstávají tytéž.
+     */
+    private val tag: String? = slot.id.takeUnless { slot.isPrimary }
 
     /**
      * Rozepsané notifikace podle `groupId`.
@@ -217,7 +227,7 @@ actual class NotificationPresenter(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
         val platform = context.getSystemService(NotificationManager::class.java) ?: return false
         val active = platform.activeNotifications.firstOrNull {
-            it.id == groupId && it.notification.flags and Notification.FLAG_BUBBLE != 0
+            it.id == groupId && it.tag == tag && it.notification.flags and Notification.FLAG_BUBBLE != 0
         } ?: return false
         val bubble = active.notification.bubbleMetadata ?: return false
         if (bubble.isNotificationSuppressed) return true
@@ -233,7 +243,7 @@ actual class NotificationPresenter(
             // Přepis existující notifikace nesmí znovu upozornit.
             .setOnlyAlertOnce(true)
             .build()
-        platform.notify(groupId, suppressed)
+        platform.notify(tag, groupId, suppressed)
         return true
     }
 
@@ -285,24 +295,26 @@ actual class NotificationPresenter(
      * a visí v nabídce ikony aplikace — po odhlášení by tam zůstaly chaty cizího účtu.
      */
     private fun clear() {
-        conversations.keys.forEach { manager.cancel(it) }
+        conversations.keys.forEach { manager.cancel(tag, it) }
         conversations.clear()
         bitmaps.clear()
         // Fotky z notifikací odhlášeného účtu nemají v cache co dělat.
         imagesDirectory.deleteRecursively()
         recentlyRemoved.clear()
-        // Notifikace z minulého běhu procesu v `conversations` nejsou.
-        manager.cancelAll()
-        runCatching { deleteConversationChannels(context) }
-        runCatching { deleteSoundChannels(context) }
+        // Notifikace z minulého běhu procesu v `conversations` nejsou. Jen tohoto účtu (podle
+        // tagu): ostatní účty zůstávají přihlášené.
+        manager.activeNotifications.filter { it.tag == tag }.forEach { manager.cancel(tag, it.id) }
+        runCatching { deleteConversationChannels(context, slot) }
             .onFailure { logger.w(it) { "Kanály konverzací se nepodařilo smazat." } }
+        // Zvukové kanály účet v názvu nenesou; jsou-li jiné účty, můžou jim patřit.
+        if (otherAccounts() == 0) runCatching { deleteSoundChannels(context) }
         // Dlouhověké zkratky si systém drží i mimo dynamické, `removeAllDynamicShortcuts` by
         // je v keši nechal.
         runCatching {
             val ids = ShortcutManagerCompat.getShortcuts(
                 context,
                 ShortcutManagerCompat.FLAG_MATCH_DYNAMIC or ShortcutManagerCompat.FLAG_MATCH_CACHED,
-            ).map { it.id }
+            ).map { it.id }.filter { shortcutChat(it)?.slot == slot }
             ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
         }
             .onFailure { logger.w(it) { "Zkratky konverzací se nepodařilo odebrat." } }
@@ -316,7 +328,7 @@ actual class NotificationPresenter(
         // spárovat, takže jde pryč celá; TDLib stejně ruší po přečtení celý chat naráz.
         if (conversation == null) {
             logger.d { "Skupina ${update.groupId} není v paměti, ruším celou notifikaci." }
-            if (!keepBubble(update.groupId)) manager.cancel(update.groupId)
+            if (!keepBubble(update.groupId)) manager.cancel(tag, update.groupId)
             return
         }
 
@@ -347,7 +359,7 @@ actual class NotificationPresenter(
                     if (keepBubble(update.groupId)) {
                         logger.d { "Skupina ${update.groupId} zůstala prázdná, ale je z ní bublina — jen ji schovávám z lišty." }
                     } else {
-                        manager.cancel(update.groupId)
+                        manager.cancel(tag, update.groupId)
                         logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
                     }
                 }
@@ -468,7 +480,7 @@ actual class NotificationPresenter(
             .build()
 
         logger.d { "Zobrazuji $groupId: ${conversation.lines.size} zpráv z ${conversation.chatId}." }
-        manager.notify(groupId, built)
+        manager.notify(tag, groupId, built)
     }
 
     /**
@@ -519,7 +531,7 @@ actual class NotificationPresenter(
             .setContentIntent(NotificationIntents.openChat(context = context, slot = slot, notificationId = call.groupId, chatId = call.chatId))
             .build()
         logger.d { "Zobrazuji příchozí hovor ${call.callId} (${if (call.isVideo) "video" else "hlas"})." }
-        manager.notify(call.groupId, built)
+        manager.notify(tag, call.groupId, built)
     }
 
     /**
@@ -559,7 +571,7 @@ actual class NotificationPresenter(
         logger.d { "Zobrazuji příchozí hovor ${call.callId}, přijmout jde v Plume." }
         val fullScreen = manager.canUseFullScreenIntent()
         journal?.record("Ringing notification${if (fullScreen) "" else " WITHOUT full-screen intent (not allowed)"}", call.callId)
-        manager.notify(call.groupId, built)
+        manager.notify(tag, call.groupId, built)
     }
 
     /**
@@ -597,7 +609,7 @@ actual class NotificationPresenter(
          * probudit, takže to je běžný případ. Poskládat ji znovu z `ChatNotification` nejde (fotku
          * chatu ani zkratku už nemáme), přestaví se tedy z té, která je v liště.
          */
-        val existing = manager.activeNotifications.firstOrNull { it.id == groupId }?.notification ?: return
+        val existing = manager.activeNotifications.firstOrNull { it.id == groupId && it.tag == tag }?.notification ?: return
         val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(existing) ?: return
         if (replacing != null) style.messages.removeAll { it.person == null && it.text?.toString() == replacing }
         style.addMessage(text, now, null as Person?)
@@ -605,7 +617,7 @@ actual class NotificationPresenter(
             .setStyle(style)
             .setSilent(silent)
             .build()
-        manager.notify(groupId, rebuilt)
+        manager.notify(tag, groupId, rebuilt)
     }
 
     /**
@@ -730,7 +742,7 @@ actual class NotificationPresenter(
      * do notifikace nepředává — takže se jednotlivě zrušit nedají a odejdou až s celou notifikací.
      */
     private fun recoverLines(groupId: Int): List<Line> {
-        val existing = manager.activeNotifications.firstOrNull { it.id == groupId } ?: return emptyList()
+        val existing = manager.activeNotifications.firstOrNull { it.id == groupId && it.tag == tag } ?: return emptyList()
 
         val style = NotificationCompat.MessagingStyle
             .extractMessagingStyleFromNotification(existing.notification)

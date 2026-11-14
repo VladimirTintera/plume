@@ -157,9 +157,23 @@ fun coreModule(accountModules: (AccountSlot) -> List<Module> = { emptyList() }):
         check(!opening) { "Accounts se otevírá znovu: globální definice ho nesmí chtít při vzniku." }
         opening = true
         val global = getKoin()
-        Accounts { slot -> openAccount(global, listOf(accountModule(slot)) + accountModules(slot)) }
-            .also { opening = false }
+        Accounts(
+            open = { slot, accountScope ->
+                openAccount(global, listOf(accountScopeModule(accountScope), accountModule(slot)) + accountModules(slot))
+            },
+            registry = getOrNull(),
+            scope = get(named(APP_SCOPE)),
+        ).also { opening = false }
     }
+}
+
+/**
+ * Scope účtu pod jménem scope aplikace: repository a služby účtu si berou `APP_SCOPE`, a uvnitř
+ * kontejneru tak dostanou scope, který se s odebráním účtu zruší ([Accounts]). Globální scope
+ * aplikace by jejich odběry nechal běžet nad zavřeným klientem.
+ */
+private fun accountScopeModule(scope: CoroutineScope): Module = module {
+    single(named(APP_SCOPE)) { scope }
 }
 
 /**
@@ -218,11 +232,14 @@ internal fun accountModule(slot: AccountSlot): Module = module {
     single { TelegramClientHolder() }
 
     single<TelegramSession> {
+        val koin = getKoin()
         TdlTelegramSession(
             holder = get(),
             paths = get(),
             keys = get(),
             scope = get(named(APP_SCOPE)),
+            // Až za běhu: `Accounts` kontejner účtu teprve staví.
+            otherUserIds = { koin.getOrNull<Accounts>()?.otherUserIds(slot).orEmpty() },
         )
     }
 

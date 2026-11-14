@@ -7,7 +7,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -23,8 +23,9 @@ import java.util.concurrent.TimeUnit
 class PhotoDescriptionWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val describer = GlobalContext.getOrNull()?.primaryAccount()?.getOrNull<BackgroundPhotoDescription>() ?: return Result.success()
-        describer.describeBatch()
+        // Fotky všech účtů; model v zařízení je jeden, takže po sobě, ne naráz.
+        val accounts = GlobalContext.getOrNull()?.getOrNull<Accounts>() ?: return Result.success()
+        accounts.all.value.forEach { account -> account.koin.getOrNull<BackgroundPhotoDescription>()?.describeBatch() }
         return Result.success()
     }
 }

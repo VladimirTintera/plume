@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.notifications
 
 import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.share.shortcutChat
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -140,14 +141,14 @@ fun ensureConversationChannel(context: Context, slot: AccountSlot, parent: Strin
 }
 
 /**
- * Po odhlášení pryč i kanály konverzací — nesou názvy chatů odhlášeného účtu a v systémovém
- * nastavení by po něm visely.
+ * Po odhlášení pryč i kanály konverzací účtu [slot] — nesou názvy chatů odhlášeného účtu
+ * a v systémovém nastavení by po něm visely. Účet se pozná z id konverzace (id zkratky).
  */
-fun deleteConversationChannels(context: Context) {
+fun deleteConversationChannels(context: Context, slot: AccountSlot) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
     val manager = context.getSystemService(NotificationManager::class.java)
     manager.notificationChannels
-        .filter { it.conversationId != null }
+        .filter { channel -> channel.conversationId?.let { shortcutChat(it)?.slot } == slot }
         .forEach { manager.deleteNotificationChannel(it.id) }
 }
 

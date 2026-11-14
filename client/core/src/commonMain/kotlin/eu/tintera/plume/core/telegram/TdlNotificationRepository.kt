@@ -370,7 +370,7 @@ class TdlNotificationRepository(
             .map { }
             .onFailure { logger.w(it) { "Odhrnutou skupinu notifikací $groupId se nepodařilo odebrat." } }
 
-    override suspend fun registerDevice(token: PushToken): Result<Unit> {
+    override suspend fun registerDevice(token: PushToken, otherUserIds: List<Long>): Result<Long> {
         val deviceToken: DeviceToken = when (token) {
             is PushToken.Firebase ->
                 DeviceTokenFirebaseCloudMessaging(token = token.token, encrypt = token.encrypt)
@@ -381,13 +381,19 @@ class TdlNotificationRepository(
 
         return client.registerDevice(
             deviceToken = deviceToken,
-            // Ostatní účty na zařízení (multi-account) zatím nepodporujeme.
-            otherUserIds = LongArray(0),
+            otherUserIds = otherUserIds.toLongArray(),
         )
             .toResult()
-            .map { }
+            .map { it.id }
             .onFailure { logger.e(it) { "registerDevice selhalo." } }
     }
+
+    override suspend fun pushReceiverId(payload: String): Long? =
+        client.getPushReceiverId(payload = payload)
+            .toResult()
+            .onFailure { logger.w(it) { "Příjemce pushe se nepodařilo zjistit." } }
+            .getOrNull()
+            ?.id
 
     override suspend fun processPush(payload: String): Result<PushKind> {
         val mark = callUpdateCount.value

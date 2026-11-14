@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.accounts_already_signed_in
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.features.conversation.ClearHistorySheet
 import eu.tintera.plume.core.ui.CountdownSnackbarHost
 import eu.tintera.plume.core.ui.UNDO_COUNTDOWN_MS
@@ -404,6 +406,12 @@ fun ChatListScreen(
         onPauseOrDispose { }
     }
 
+    val accountSwitcher = rememberAccountSwitcher()
+    // Přidávaný účet už v aplikaci je: přihlášení se zahodilo, tak to říct, ať uživatel neváhá.
+    val accounts = koinInject<Accounts>()
+    LaunchedEffect(accounts) {
+        accounts.alreadySignedIn.collect { snackbarHostState.showSnackbar(readString(Res.string.accounts_already_signed_in)) }
+    }
     val accountMenu: @Composable () -> Unit = {
         AccountMenu(
             account = account,
@@ -419,6 +427,7 @@ fun ChatListScreen(
             onBookmarks = { showBookmarks = true },
             onMyQrCode = { showMyQrCode = true },
             onSettings = navigation.onOpenSettings,
+            switcher = accountSwitcher,
         )
     }
 

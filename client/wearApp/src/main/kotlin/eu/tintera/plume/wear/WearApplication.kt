@@ -1,7 +1,7 @@
 package eu.tintera.plume.wear
 
 import android.app.Application
-import eu.tintera.plume.core.accounts.primaryAccount
+import eu.tintera.plume.core.accounts.defaultAccount
 import eu.tintera.plume.core.di.APP_SCOPE
 import eu.tintera.plume.core.di.coreModule
 import eu.tintera.plume.core.logging.configureLogging
@@ -45,7 +45,7 @@ class WearApplication : Application() {
                     },
                 ),
             )
-        }.koin.primaryAccount()
+        }.koin.defaultAccount()
 
         // TDLib se startuje s procesem, ne s první obrazovkou — stejně jako na telefonu
         // (`startKoin` ve shared): bez toho by zůstal ve WaitTdlibParameters.

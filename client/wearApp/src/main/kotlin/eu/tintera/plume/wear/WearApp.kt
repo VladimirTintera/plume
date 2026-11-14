@@ -35,7 +35,7 @@ import org.koin.compose.koinInject
 /** Hodinky mají jeden účet: `koinInject` míří do kontejneru primárního účtu (`Accounts`). */
 @Composable
 fun PrimaryAccountScope(content: @Composable () -> Unit) {
-    KoinIsolatedContext(koinInject<Accounts>().primary.application, content)
+    KoinIsolatedContext(koinInject<Accounts>().default.value.application, content)
 }
 
 /**

@@ -35,6 +35,8 @@ class MenuAction(
     val destructive: Boolean = false,
     val trailing: (@Composable () -> Unit)? = null,
     val supporting: String? = null,
+    /** Vlastní obsah místo [icon] (fotka účtu v menu účtu). */
+    val leading: (@Composable () -> Unit)? = null,
     val onClick: () -> Unit,
 )
 
@@ -89,7 +91,7 @@ fun ExpressiveMenu(
                             },
                             text = { Text(action.label) },
                             shape = MenuDefaults.itemShape(index, group.size).shape,
-                            leadingIcon = action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
+                            leadingIcon = action.leading ?: action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
                             trailingIcon = action.trailing,
                             supportingText = action.supporting?.let { text -> { Text(text) } },
                             colors = colors,
