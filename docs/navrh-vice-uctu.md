@@ -748,14 +748,37 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       ptaní. Úklid: VT ze skupiny odebraný botem, testovací pozvánka zrušená. Mini aplikace
       z odkazu a sdílená složka na zařízení vyzkoušené nejsou.
 
+13. **Jedna hudební fronta přes všechny účty** — hotovo:
+    - `MusicQueue` je v globálním Koinu vedle `VoicePlayer`, jako `MusicControls` (Android)
+      a `NowPlayingControls` (iOS). Skladba nese účet (`Current.slot`, `NowPlaying.slot`)
+      a sousedy, soubory i hlášení poslechu bere fronta z repository toho účtu
+      (`MusicRepositories` přes `Accounts.find`, až za běhu — v globálním modulu se na účty při
+      vzniku definice sahat nesmí). Poslech se hlásí s účtem (`ListeningTracker<ListenedFile>`):
+      `fileId` je číslo klienta.
+    - **Proč:** fronta za každý účet se přetahovala o jeden přehrávač a jednu službu. Skladba
+      z druhého účtu zastavila frontu prvního, služba (vázaná na frontu, která ji spustila)
+      viděla konec hudby a skončila — hudba druhého účtu hrála bez notifikace i bez služby
+      v popředí. `MusicPlaybackService` teď žádnému účtu nepatří (bez `ServiceOwner`), chat
+      v notifikaci otevře v účtu skladby.
+    - Konverzace frontu dostává přes `forAccount(slot)` (stejné `MusicQueueControl`, testy
+      konverzace beze změny), profil a hudba v profilu předávají slot samy.
+    - **Dock v konverzaci skladbu jiného účtu neukazuje**: id chatu se mezi účty potkávají (chat
+      s týmž člověkem) a z konverzace jde chat otevřít jen v jejím účtu. Ovládá se z docku nad
+      seznamem chatů (otevře chat v účtu skladby, `onAccountMessageClick`) a ze systému.
+    - **Ověřeno na Pixelu 5**: bot poslal oběma účtům skladbu; puštěná ve VT, hned potom ve VT2 —
+      služba zůstala tatáž (`dumpsys activity services`), relace přepnula na „Skladba VT2"
+      a poslech skladby VT se nahlásil (6 s). Dock konverzace VT skladbu VT2 neukázal.
+      Ťuknutí na notifikaci a iOS vyzkoušené nejsou.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
      Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
      výchozí účet.
-   - `MusicQueue` je v každém účtu vlastní a hraje jedním přehrávačem; dvě fronty naráz se
-     přetahují. Videochat jiného účtu než výchozího nemá pruh a s hovorem druhého účtu se
-     nehlídá (videochat není `CallRepository`).
+   - Videochat jiného účtu než výchozího nemá pruh a s hovorem druhého účtu se nehlídá
+     (videochat není `CallRepository`).
+   - `VoicePlayer` klíčuje přehrávání `VoiceKey(chatId, messageId)` bez účtu: hlasovka se stejným
+     klíčem v jiném účtu (společný kanál) by v bublině ukázala, že hraje.
    - Widget má jeden soubor podkladů a miniatury maže jeden updater: se dvěma účty by se
      přepisovaly. Cíle sdílení (Direct Share) se publikují za každý účet zvlášť.
    - Online (`setOption online`) mají v popředí všechny účty, ne jen ty ve filtru.

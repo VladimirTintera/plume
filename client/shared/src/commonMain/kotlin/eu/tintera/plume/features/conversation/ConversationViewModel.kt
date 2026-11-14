@@ -163,7 +163,8 @@ import eu.tintera.plume.core.location.GeoPoint
  * Mapa částí: „Skladba ViewModelu" v `docs/poznatky/konverzace-zobrazeni.md`.
  */
 class ConversationViewModel(
-    private val slot: AccountSlot,
+    /** Účet konverzace; dock podle něj pozná skladbu z jiného účtu. */
+    internal val slot: AccountSlot,
     val chatId: Long,
     /** Zpráva, na kterou se po otevření skočí místo na první nepřečtenou (nalezená v hledání). */
     private val initialMessageId: Long?,
@@ -422,7 +423,7 @@ class ConversationViewModel(
         chatRepository = chatRepository,
         settings = settings,
         voicePlayer = voicePlayer,
-        musicQueue = musicQueue,
+        musicQueue = musicQueue.forAccount(slot),
         fileRepository = fileRepository,
         localTranscripts = localTranscripts,
         onDeviceAi = onDeviceAi,

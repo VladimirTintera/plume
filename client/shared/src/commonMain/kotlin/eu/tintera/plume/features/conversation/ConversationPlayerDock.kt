@@ -75,8 +75,13 @@ internal fun rememberPlayerDock(
     val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val docked by remember(viewModel.chatId) {
         derivedStateOf(structuralEqualityPolicy()) {
+            // Skladba z jiného účtu do konverzace nepatří: id chatu se mezi účty potkávají (chat
+            // s týmž člověkem) a otevřít ji jde jen v jejím účtu — z docku nad seznamem chatů.
+            val otherAccount = nowPlaying?.let { it.slot != viewModel.slot && it.key == voicePlayback.value?.key } == true
             soundingVideoNote.value?.let { it.key to false }
-                ?: voicePlayback.value?.takeIf { it.docksIn(viewModel.chatId) }?.let { it.key to it.music }
+                ?: voicePlayback.value
+                    ?.takeIf { it.docksIn(viewModel.chatId) && !(it.music && otherAccount) }
+                    ?.let { it.key to it.music }
         }
     }
     val target by remember(listState) {

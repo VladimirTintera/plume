@@ -70,6 +70,9 @@ import eu.tintera.plume.core.ui.PhotoMarkupRenderer
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.audio.MusicControls
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CoroutineScope
 import eu.tintera.plume.core.location.LiveLocationControls
 import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.audio.AudioRecorder
@@ -113,6 +116,11 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
+    // Hudba na pozadí: spustí službu s MediaSession, když začne hrát skladba. Jedna přes všechny
+    // účty, jako fronta (`MusicQueue`); vlastní scope, APP_SCOPE je v kontejneru účtu.
+    single(createdAtStart = true) {
+        MusicControls(context = androidContext(), queue = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)).also { it.start() }
+    }
     // Model v zařízení: Gemini Nano v AICore, nebo Gemma a Qwen přes LiteRT-LM, podle volby
     // uživatele (RoutingOnDeviceAi). Obojí jednou na proces — klienti ML Kitu i engine LiteRT-LM
     // jsou drahé.
@@ -262,10 +270,6 @@ actual fun Module.platformAccountModule() {
             foreground = get(),
             scope = get(named(APP_SCOPE)),
         )
-    }
-    // Hudba na pozadí: spustí službu s MediaSession, když začne hrát skladba.
-    single(createdAtStart = true) {
-        MusicControls(slot = get(), context = androidContext(), queue = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
     // Sdílení živé polohy: spustí službu, když je co posouvat a aplikace je v popředí.
     single(createdAtStart = true) {

@@ -10,7 +10,6 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.accounts.ServiceOwner
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import kotlinx.coroutines.CoroutineScope
@@ -33,16 +32,13 @@ import org.koin.core.component.inject
  *
  * Deklarovaná je v manifestu vstupního bodu (`:client:androidApp`), jako ostatní komponenty;
  * spouští ji [MusicControls], když začne hrát hudba.
+ *
+ * **Nepatří žádnému účtu**, na rozdíl od ostatních služeb (`ServiceOwner`): fronta je přes
+ * všechny účty jedna, a skladba druhého účtu tak jde touž službou a toutéž notifikací. Účet
+ * pro otevření chatu nese hrající skladba ([NowPlaying.slot]).
  */
 @OptIn(UnstableApi::class)
 class MusicPlaybackService : MediaSessionService(), KoinComponent {
-
-    /** Účet, který službu spustil (viz [ServiceOwner]); nastaví ho [MusicControls]. */
-    object Owner : ServiceOwner()
-
-    override fun getKoin() = Owner.koin()
-
-    private val slot: AccountSlot by inject()
 
     private val queue: MusicQueue by inject()
     private val scope = MainScope()
@@ -67,10 +63,10 @@ class MusicPlaybackService : MediaSessionService(), KoinComponent {
                 if (playing == null) stopSelf()
             }
         }
-        // Ťuknutí na notifikaci otevře chat, ze kterého skladba hraje.
+        // Ťuknutí na notifikaci otevře chat, ze kterého skladba hraje, v jejím účtu.
         scope.launch {
-            queue.nowPlaying.map { it?.key?.chatId }.distinctUntilChanged().collect { chatId ->
-                chatId?.let { openChat(it) }?.let(created::setSessionActivity)
+            queue.nowPlaying.map { playing -> playing?.let { it.slot to it.key.chatId } }.distinctUntilChanged().collect { target ->
+                target?.let { (slot, chatId) -> openChat(slot, chatId) }?.let(created::setSessionActivity)
             }
         }
     }
@@ -87,7 +83,7 @@ class MusicPlaybackService : MediaSessionService(), KoinComponent {
         super.onDestroy()
     }
 
-    private fun openChat(chatId: Long): PendingIntent? {
+    private fun openChat(slot: AccountSlot, chatId: Long): PendingIntent? {
         val intent = NotificationIntents.chatIntent(this, slot, chatId) ?: return null
         return PendingIntent.getActivity(
             this,
@@ -106,9 +102,7 @@ class MusicPlaybackService : MediaSessionService(), KoinComponent {
  * tedy s aplikací v popředí, a do popředí službu přepne Media3, až skladba hraje. Kdyby se
  * přesto startovalo z pozadí, systém to odmítne výjimkou — ta se jen zaloguje.
  */
-class MusicControls(
-    private val slot: AccountSlot,
-    private val context: Context, private val queue: MusicQueue, private val scope: CoroutineScope) {
+class MusicControls(private val context: Context, private val queue: MusicQueue, private val scope: CoroutineScope) {
 
     private val logger = Logger.withTag("MusicControls")
 
@@ -116,8 +110,7 @@ class MusicControls(
         scope.launch {
             queue.nowPlaying.map { it != null }.distinctUntilChanged().collect { active ->
                 if (!active) return@collect
-                MusicPlaybackService.Owner.slot = slot
-                    runCatching { context.startService(Intent(context, MusicPlaybackService::class.java)) }
+                runCatching { context.startService(Intent(context, MusicPlaybackService::class.java)) }
                     .onFailure { failure -> logger.w(failure) { "Službu pro hudbu nejde spustit." } }
             }
         }

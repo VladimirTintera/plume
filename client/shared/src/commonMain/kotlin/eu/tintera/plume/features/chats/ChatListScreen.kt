@@ -817,7 +817,11 @@ fun ChatListScreen(
                                 onToggle = nowPlayingViewModel::togglePlaying,
                                 onNext = nowPlayingViewModel::skipToNext,
                                 onStop = nowPlayingViewModel::stop,
-                                onShow = { navigation.onMessageClick(player.key.chatId, player.key.messageId, null) },
+                                // Chat skladby v jejím účtu (fronta je přes všechny účty jedna).
+                                onShow = {
+                                    val slot = nowPlaying?.slot ?: screenAccount.slot
+                                    navigation.onAccountMessageClick(slot, player.key.chatId, player.key.messageId, null)
+                                },
                                 glass = Modifier.hazeBlur(
                                     input = HazeInput.Sources(listHaze),
                                     style = glassStyle(

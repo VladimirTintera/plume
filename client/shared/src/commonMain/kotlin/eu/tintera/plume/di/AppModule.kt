@@ -174,6 +174,7 @@ import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
+import eu.tintera.plume.core.audio.MusicRepositories
 import eu.tintera.plume.features.forward.ForwardViewModel
 import eu.tintera.plume.features.forward.ReplyElsewhereViewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -232,6 +233,18 @@ fun appModule() = module {
             positions = get(),
         )
     }
+    // Hudba: fronta skladeb a systémové ovládání, jedna přes všechny účty jako přehrávač. Na
+    // týchž vláknech jako přehrávač — spoléhá na to, že konec skladby a spuštění další uvidí ve
+    // stejném pořadí, v jakém se staly. Sousedy a soubory bere z účtu skladby.
+    single {
+        // `Accounts` až při spuštění skladby, ne při vzniku fronty (viz výš).
+        val koin = getKoin()
+        MusicQueue(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
+            player = get(),
+            repositories = { slot -> koin.get<Accounts>().find(slot)?.let { MusicRepositories(it.get(), it.get()) } },
+        )
+    }
     single { VideoPositions(settings = get()) }
     single { ExchangeRates(TextDownloader()) }
     // Model v zařízení (ai-engine :ai-core): stahování modelu bere stav sítě od Plume.
@@ -282,17 +295,6 @@ fun appAccountModule() = module {
 
 
 
-
-    // Hudba: fronta skladeb a systémové ovládání. Na týchž vláknech jako přehrávač — spoléhá na
-    // to, že konec skladby a spuštění další uvidí ve stejném pořadí, v jakém se staly.
-    single {
-        MusicQueue(
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main),
-            player = get(),
-            conversations = get(),
-            files = get(),
-        )
-    }
 
     single { InstantViewRequests() }
     single { BotStartRequests() }

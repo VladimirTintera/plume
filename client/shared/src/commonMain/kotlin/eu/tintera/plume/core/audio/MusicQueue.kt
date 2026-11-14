@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.audio
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
@@ -37,6 +38,8 @@ data class TrackInfo(
  * něco stane (spuštění, pauza, další skladba), takže podle něj jde překreslovat notifikaci.
  */
 data class NowPlaying(
+    /** Účet, ze kterého skladba hraje: jeho chat otevře ťuknutí na přehrávač. */
+    val slot: AccountSlot,
     val key: VoiceKey,
     val track: TrackInfo,
     val loading: Boolean,
@@ -54,8 +57,8 @@ data class NowPlaying(
 data class QueueTrack(val id: Long, val audio: MessageMedia.Audio)
 
 /**
- * Co z fronty hudby potřebuje konverzace ([MusicQueue]); rozhraní kvůli testům, jako
- * [VoicePlayerControl].
+ * Co z fronty hudby potřebuje konverzace ([MusicQueue.forAccount], účet je v něm už daný);
+ * rozhraní kvůli testům, jako [VoicePlayerControl].
  */
 interface MusicQueueControl {
     val nowPlaying: StateFlow<NowPlaying?>
@@ -80,18 +83,27 @@ interface MusicQueueControl {
  * Zvuk dál hraje [VoicePlayer] — v aplikaci je jeden, hlasovka skladbu zastaví a naopak.
  * Tahle třída jen přidává to, co je navíc u hudby: popis skladby, sousedy a navázání další
  * skladby po dohrání.
+ *
+ * **Fronta je v procesu jedna, přes všechny účty** (`docs/navrh-vice-uctu.md`, krok 13), jako
+ * přehrávač a služba se systémovým ovládáním. Skladba nese účet ([NowPlaying.slot]) a sousedy,
+ * soubory i hlášení poslechu bere fronta z repository toho účtu ([repositories]). Dokud měl
+ * frontu každý účet, přetahovaly se dvě o jeden přehrávač a jednu službu: skladba z druhého
+ * účtu zastavila frontu prvního a s ní i službu, které notifikace patřila.
  */
 /** Počátek hodin pro [ListeningTracker]; na absolutním čase nezáleží, jen na rozdílech. */
 private val monotonicStart = TimeSource.Monotonic.markNow()
 
+/** Co fronta potřebuje od účtu skladby. */
+class MusicRepositories(val conversations: ConversationRepository, val files: FileRepository)
+
 class MusicQueue(
     private val scope: CoroutineScope,
     private val player: VoicePlayer,
-    private val conversations: ConversationRepository,
-    private val files: FileRepository,
+    /** Repository účtu; `null` = účet mezitím odešel (odhlášení), skladba nemá kde pokračovat. */
+    private val repositories: (AccountSlot) -> MusicRepositories?,
     /** Hodiny pro počítání poslechu; v testech virtuální. */
     now: () -> Duration = { monotonicStart.elapsedNow() },
-) : MusicQueueControl {
+) {
 
     /**
      * [advancing]: skladba se právě spouští a přehrávač ji ještě nemá (dohrála předchozí, hledá
@@ -100,6 +112,7 @@ class MusicQueue(
      * a z pozadí ji systém spustit znovu nedovolí.
      */
     private data class Current(
+        val slot: AccountSlot,
         val key: VoiceKey,
         val track: TrackInfo,
         /** Sousedi jsou známí ([previous] a [next] platí, i když jsou `null` = není). */
@@ -120,11 +133,12 @@ class MusicQueue(
     private val logger = Logger.withTag("MusicQueue")
 
     /** Hrající skladba, `null`, když hudba nehraje (hraje hlasovka, nebo nic). */
-    override val nowPlaying: StateFlow<NowPlaying?> = combine(player.state, current, player.speed) { playback, current, speed ->
+    val nowPlaying: StateFlow<NowPlaying?> = combine(player.state, current, player.speed) { playback, current, speed ->
         if (current == null) return@combine null
         val own = playback?.takeIf { it.key == current.key && it.music }
         if (own == null && !current.advancing) return@combine null
         NowPlaying(
+            slot = current.slot,
             key = current.key,
             track = current.track,
             loading = own?.loading ?: true,
@@ -146,18 +160,20 @@ class MusicQueue(
      * Hlášení poslechu (`listenToAudio`): kolik skladba opravdu hrála, nahlášené po jejím konci,
      * přepnutí nebo zastavení. Selhání se jen zaloguje — nic z toho uživatel nevidí.
      */
-    private val listening = ListeningTracker(now) { fileId, seconds ->
-        logger.d { "Poslech skladby $fileId: $seconds s" }
+    private val listening = ListeningTracker<ListenedFile>(now) { file, seconds ->
+        logger.d { "Poslech skladby ${file.fileId}: $seconds s" }
+        val conversations = repositories(file.slot)?.conversations ?: return@ListeningTracker
         scope.launch {
-            conversations.listenToAudio(fileId, seconds)
-                .onFailure { logger.w(it) { "listenToAudio($fileId, $seconds s) selhalo." } }
+            conversations.listenToAudio(file.fileId, seconds)
+                .onFailure { logger.w(it) { "listenToAudio(${file.fileId}, $seconds s) selhalo." } }
         }
     }
 
     init {
         scope.launch {
             nowPlaying.collect { playing ->
-                listening.update(fileId = playing?.let { current.value?.fileId }, playing = playing?.playing == true)
+                val file = playing?.let { current.value }?.let { c -> c.fileId?.let { ListenedFile(c.slot, it) } }
+                listening.update(file, playing = playing?.playing == true)
             }
         }
         // Skladba, kterou přehrávač přestal hrát bez navázání (zastavila ji hlasovka, video,
@@ -181,10 +197,10 @@ class MusicQueue(
      * přehrávač nechá jen u dlouhé (podcast, přednáška), viz [VoicePlayer]. Tajný chat stopu
      * nechávat nemá, proto [rememberPosition].
      */
-    override fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio, rememberPosition: Boolean) {
+    fun toggle(slot: AccountSlot, chatId: Long, messageId: Long, audio: MessageMedia.Audio, rememberPosition: Boolean = true) {
         val key = VoiceKey(chatId, messageId)
         val playback = player.state.value
-        if (playback?.key == key) {
+        if (playback?.key == key && current.value?.slot == slot) {
             when {
                 playback.loading -> Unit
                 playback.playing -> player.pause()
@@ -192,7 +208,7 @@ class MusicQueue(
             }
             return
         }
-        play(key, audio, rememberPosition = rememberPosition)
+        play(slot, key, audio, rememberPosition = rememberPosition)
     }
 
     /**
@@ -201,11 +217,11 @@ class MusicQueue(
      * `VoiceKey(chatId, track.id)`; [chatId] je chat, který otevře ťuknutí na přehrávač
      * v notifikaci, a id skladeb se nesmí potkat s id zpráv v něm (proto záporná).
      */
-    fun togglePlaylist(chatId: Long, tracks: List<QueueTrack>, index: Int) {
+    fun togglePlaylist(slot: AccountSlot, chatId: Long, tracks: List<QueueTrack>, index: Int) {
         val track = tracks.getOrNull(index) ?: return
         val key = VoiceKey(chatId, track.id)
         val playback = player.state.value
-        if (playback?.key == key) {
+        if (playback?.key == key && current.value?.slot == slot) {
             when {
                 playback.loading -> Unit
                 playback.playing -> player.pause()
@@ -213,12 +229,30 @@ class MusicQueue(
             }
             return
         }
-        play(key, track.audio, playlist = tracks)
+        play(slot, key, track.audio, playlist = tracks)
     }
 
     /** Pustí skladbu od začátku, nebo od [startMs] (čas v médiu, „1:23"). */
-    override fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long, rememberPosition: Boolean) =
-        play(VoiceKey(chatId, messageId), audio, startMs, rememberPosition)
+    fun play(slot: AccountSlot, chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long = 0L, rememberPosition: Boolean = true) =
+        play(slot, VoiceKey(chatId, messageId), audio, startMs, rememberPosition)
+
+    /**
+     * Fronta pro obrazovku účtu [slot] (konverzace): spouští skladby jeho účtem. Stav i ovládání
+     * jsou společné — hraje jedna skladba, ať ji pustil kterýkoli účet.
+     */
+    fun forAccount(slot: AccountSlot): MusicQueueControl = object : MusicQueueControl {
+        override val nowPlaying: StateFlow<NowPlaying?> get() = this@MusicQueue.nowPlaying
+
+        override fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio, rememberPosition: Boolean) =
+            this@MusicQueue.toggle(slot, chatId, messageId, audio, rememberPosition)
+
+        override fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long, rememberPosition: Boolean) =
+            this@MusicQueue.play(slot, chatId, messageId, audio, startMs, rememberPosition)
+
+        override fun stop() = this@MusicQueue.stop()
+
+        override fun skipToNext() = this@MusicQueue.skipToNext()
+    }
 
     fun pause() = player.pause()
 
@@ -229,17 +263,17 @@ class MusicQueue(
         player.seekTo(key, positionMs)
     }
 
-    override fun stop() {
+    fun stop() {
         if (player.state.value?.music == true) player.stop()
         current.value = null
     }
 
-    override fun skipToNext() = skipToNext(finishedKey = null)
+    fun skipToNext() = skipToNext(finishedKey = null)
 
     fun skipToPrevious() {
         val playing = current.value ?: return
         val previous = playing.previous ?: return
-        play(VoiceKey(playing.key.chatId, previous.id), previous.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
+        play(playing.slot, VoiceKey(playing.key.chatId, previous.id), previous.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
     }
 
     /**
@@ -253,9 +287,10 @@ class MusicQueue(
             val next = if (playing.neighborsKnown) {
                 playing.next
             } else {
-                conversations.musicNeighbors(playing.key.chatId, playing.key.messageId)
-                    .onFailure { logger.w(it) { "Další skladbu nejde najít." } }
-                    .getOrNull()
+                val conversations = repositories(playing.slot)?.conversations
+                conversations?.musicNeighbors(playing.key.chatId, playing.key.messageId)
+                    ?.onFailure { logger.w(it) { "Další skladbu nejde najít." } }
+                    ?.getOrNull()
                     ?.queueTracks()
                     ?.second
             }
@@ -267,11 +302,12 @@ class MusicQueue(
                 if (finishedKey != null) current.value = null
                 return@launch
             }
-            play(VoiceKey(playing.key.chatId, next.id), next.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
+            play(playing.slot, VoiceKey(playing.key.chatId, next.id), next.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
         }
     }
 
     private fun play(
+        slot: AccountSlot,
         key: VoiceKey,
         audio: MessageMedia.Audio,
         startMs: Long = 0L,
@@ -288,6 +324,7 @@ class MusicQueue(
         // Ve vlastním seznamu jsou sousedi známí hned; v chatu je dohledá [loadDetails].
         val index = playlist?.indexOfFirst { it.id == key.messageId } ?: -1
         current.value = Current(
+            slot,
             key,
             track,
             neighborsKnown = playlist != null,
@@ -305,19 +342,20 @@ class MusicQueue(
             resumeKey = audio.fileKey?.takeIf { rememberPosition },
             onFinished = { skipToNext(finishedKey = key) },
         ) {
-            path(audio.fileId)
+            path(slot, audio.fileId)
         }
-        loadDetails(key, audio, findNeighbors = playlist == null)
+        loadDetails(slot, key, audio, findNeighbors = playlist == null)
     }
 
     /**
      * Sousedi a obal alba — obojí dorazí až po chvíli a systémové ovládání se podle toho
      * překreslí. Do té doby notifikace ukazuje skladbu bez obalu a bez tlačítka „další".
      */
-    private fun loadDetails(key: VoiceKey, audio: MessageMedia.Audio, findNeighbors: Boolean) {
+    private fun loadDetails(slot: AccountSlot, key: VoiceKey, audio: MessageMedia.Audio, findNeighbors: Boolean) {
         detailsJob?.cancel()
         detailsJob = scope.launch {
             if (findNeighbors) launch {
+                val conversations = repositories(slot)?.conversations ?: return@launch
                 conversations.musicNeighbors(key.chatId, key.messageId)
                     .onSuccess { neighbors ->
                         val (previous, next) = neighbors.queueTracks()
@@ -333,7 +371,7 @@ class MusicQueue(
             }
             launch {
                 val cover = audio.coverFileId ?: return@launch
-                val path = withTimeoutOrNull(ARTWORK_TIMEOUT_MS) { runCatching { path(cover) }.getOrNull() } ?: return@launch
+                val path = withTimeoutOrNull(ARTWORK_TIMEOUT_MS) { runCatching { path(slot, cover) }.getOrNull() } ?: return@launch
                 current.update {
                     if (it?.key == key) it.copy(track = it.track.copy(artworkPath = path), advancing = false) else it
                 }
@@ -341,14 +379,19 @@ class MusicQueue(
         }
     }
 
-    /** Počká na stažený soubor; stahování začne až tímhle odběrem. */
-    private suspend fun path(fileId: Int): String =
-        when (val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }) {
+    /** Počká na stažený soubor účtu [slot]; stahování začne až tímhle odběrem. */
+    private suspend fun path(slot: AccountSlot, fileId: Int): String {
+        val files = repositories(slot)?.files ?: error("Účet skladby už v aplikaci není.")
+        return when (val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }) {
             is FileState.Ready -> file.path
             is FileState.Failed -> error(file.message)
             else -> error("Nedosažitelné")
         }
+    }
 }
+
+/** Soubor skladby pro hlášení poslechu; `fileId` je číslo klienta TDLib, takže s účtem. */
+private data class ListenedFile(val slot: AccountSlot, val fileId: Int)
 
 /** Sousední zprávy chatu jako skladby fronty (předchozí, další); zpráva bez skladby = žádná. */
 private fun MusicNeighbors.queueTracks(): Pair<QueueTrack?, QueueTrack?> =
