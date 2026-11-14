@@ -190,8 +190,8 @@ fun ChatListScreen(
     val search by viewModel.search.state.collectAsStateWithLifecycle()
 
     /*
-     * Víc účtů: filtr nad seznamem a společný seznam (režim Vše, `docs/navrh-vice-uctu.md`,
-     * „Společný seznam chatů"). Obrazovka zůstává obrazovkou výchozího účtu — hledání, složky,
+     * Víc účtů: společný seznam (režim Vše, `docs/navrh-vice-uctu.md`, „Společný seznam
+     * chatů"); zapíná se v menu účtu. Obrazovka zůstává obrazovkou výchozího účtu — hledání, složky,
      * menu a karty nahoře jsou jeho —, společné jsou jen řádky. Výběr víc chatů a uspořádání
      * připnutých patří jednomu účtu: po dobu, co běží, ukazuje seznam jen chaty toho účtu.
      */
@@ -662,21 +662,6 @@ fun ChatListScreen(
                                 )
                             }
                         }
-                    // Filtr účtů nad kartami, jen s víc účty; ťuknutí na účet ho udělá výchozím.
-                    val filter: LazyListScope.() -> Unit = {
-                        if (signedIn.size > 1) {
-                            accountFilterChips(
-                                accounts = accountSwitcher.accounts,
-                                allAccounts = showAllAccounts,
-                                shownSlot = screenAccount.slot,
-                                onSelectAll = { listSettings.setChatListAllAccounts(true) },
-                                onSelectAccount = { slot ->
-                                    listSettings.setChatListAllAccounts(false)
-                                    accounts.setDefault(slot)
-                                },
-                            )
-                        }
-                    }
                     if (merged) {
                         MergedChatListContent(
                             sources = sources,
@@ -690,7 +675,6 @@ fun ChatListScreen(
                             listState = listState,
                             empty = emptyContent,
                         ) {
-                            filter()
                             chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate)
                         }
                     } else AccountScope(listAccount) {
@@ -707,11 +691,10 @@ fun ChatListScreen(
                             scrollToChat = scrollToChat,
                             onScrolledToChat = { scrollToChat = null },
                             listState = listState,
-                            // Položky hlavičky: filtr účtů, nové přihlášení a karta s aktualizací.
-                            headerItemCount = cards.count + if (signedIn.size > 1) 1 else 0,
+                            // Položky hlavičky: nové přihlášení a karta s aktualizací.
+                            headerItemCount = cards.count,
                             empty = emptyContent,
                         ) {
-                            filter()
                             chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate)
                         }
                     }

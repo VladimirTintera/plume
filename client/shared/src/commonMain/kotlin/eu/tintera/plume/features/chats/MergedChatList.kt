@@ -1,26 +1,19 @@
 package eu.tintera.plume.features.chats
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,12 +37,9 @@ import eu.tintera.plume.core.telegram.ActiveStories
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.adaptive.LIST_CONTENT_INSET
-import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.LocalChatRowGaps
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.accounts_filter_all
-import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.annotation.KoinInternalApi
 
@@ -265,58 +255,6 @@ private fun rememberRowsContext(source: ChatSource, rowGaps: Boolean): ChatRowsC
         account = source.info,
     )
 }
-
-/**
- * Filtr účtů nad seznamem chatů: „Všechny účty" a čip s fotkou každého účtu. Jen s víc účty.
- * Čip účtu ukáže jeho chaty (a udělá ho výchozím), „Všechny účty" společný seznam.
- */
-internal fun LazyListScope.accountFilterChips(
-    accounts: List<AccountEntry>,
-    allAccounts: Boolean,
-    shownSlot: AccountSlot,
-    onSelectAll: () -> Unit,
-    onSelectAccount: (AccountSlot) -> Unit,
-) {
-    item(key = ACCOUNT_FILTER_KEY, contentType = ACCOUNT_FILTER_KEY) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 4.dp),
-        ) {
-            FilterChip(
-                selected = allAccounts,
-                onClick = onSelectAll,
-                label = { Text(stringResource(Res.string.accounts_filter_all)) },
-            )
-            accounts.forEach { entry ->
-                FilterChip(
-                    selected = !allAccounts && entry.account.slot == shownSlot,
-                    onClick = { onSelectAccount(entry.account.slot) },
-                    label = { Text(entry.title) },
-                    leadingIcon = {
-                        AccountScope(entry.account) {
-                            Avatar(
-                                chatId = entry.info?.id ?: 0L,
-                                title = entry.title,
-                                avatarFileId = entry.info?.photoFileId,
-                                size = FILTER_AVATAR_SIZE,
-                            )
-                        }
-                    },
-                )
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-    }
-}
-
-/** Klíč řádku s filtrem účtů v seznamu chatů. */
-private const val ACCOUNT_FILTER_KEY = "account-filter"
-
-/** Fotka účtu v čipu filtru — velikost ikony čipu. */
-private val FILTER_AVATAR_SIZE = 18.dp
 
 /** Kolik položek před koncem společného seznamu se dotahují další chaty. */
 private const val MERGED_LOAD_MORE_THRESHOLD = 5

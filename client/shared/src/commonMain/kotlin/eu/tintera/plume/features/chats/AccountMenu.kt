@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
@@ -11,6 +13,7 @@ import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.accounts.canAddAccounts
 import eu.tintera.plume.resources.accounts_add
+import eu.tintera.plume.resources.accounts_filter_all
 import eu.tintera.plume.resources.accounts_shown
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.person_add_24dp
@@ -149,7 +152,11 @@ internal fun AccountMenu(
             modifier = Modifier.semantics { contentDescription = label },
             // Bez tvaru při stisku: obsahem je kulatá fotka, hranatá vlnka by kolem ní trčela.
         ) {
-            if (account != null) {
+            if (switcher.allAccounts) {
+                // Režim Všechny účty: fotky všech účtů přes sebe, ať je z pilulky vidět, že seznam
+                // ukazuje víc účtů, ne jen ten jeden.
+                StackedAccountAvatars(switcher.accounts, size = ACCOUNT_AVATAR_SIZE, rim = MaterialTheme.colorScheme.surfaceContainerHigh)
+            } else if (account != null) {
                 Avatar(
                     chatId = account.id,
                     title = account.displayName,
@@ -184,9 +191,27 @@ internal fun AccountMenu(
             onDismiss = { open = false },
             groups = listOf(
                 // Účty nahoře, jako v Telegramu, a jen když je jich víc: s jedním účtem by tu byl
-                // řádek, který nikam nevede.
+                // řádek, který nikam nevede. Nad nimi společný seznam všech účtů; fajfka říká, co
+                // seznam chatů právě ukazuje.
                 if (switcher.accounts.size > 1) {
-                    switcher.accounts.map { entry ->
+                    listOf(
+                        MenuAction(
+                            label = stringResource(Res.string.accounts_filter_all),
+                            leading = {
+                                StackedAccountAvatars(
+                                    switcher.accounts,
+                                    size = ACCOUNT_ROW_AVATAR_SIZE,
+                                    rim = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                )
+                            },
+                            trailing = if (switcher.allAccounts) {
+                                { Icon(painterResource(Res.drawable.check_24dp), contentDescription = stringResource(Res.string.accounts_shown)) }
+                            } else {
+                                null
+                            },
+                            onClick = switcher.onSelectAll,
+                        ),
+                    ) + switcher.accounts.map { entry ->
                         MenuAction(
                             label = entry.title,
                             leading = {
@@ -285,7 +310,10 @@ internal fun AccountMenu(
 internal data class AccountSwitcher(
     val accounts: List<AccountEntry>,
     val canAdd: Boolean,
+    /** Seznam chatů ukazuje chaty všech účtů (režim Vše), ne jen výchozího. */
+    val allAccounts: Boolean,
     val onSelect: (AccountSlot) -> Unit,
+    val onSelectAll: () -> Unit,
     val onAdd: () -> Unit,
 )
 
@@ -294,7 +322,7 @@ internal data class AccountSwitcher(
 internal data class AccountEntry(
     val account: AccountSession,
     val info: AccountInfo?,
-    /** Jeho chaty ukazuje seznam (výchozí účet). */
+    /** Seznam ukazuje jen jeho chaty (výchozí účet mimo režim Vše). */
     val shown: Boolean,
 ) {
     val title: String get() = info?.displayName.orEmpty()
@@ -310,22 +338,59 @@ internal fun rememberAccountSwitcher(): AccountSwitcher {
     val settings = koinInject<AppSettings>()
     val all by accounts.all.collectAsStateWithLifecycle()
     val default by accounts.default.collectAsStateWithLifecycle()
+    val allAccounts = settings.chatListAllAccounts.collectAsStateWithLifecycle().value && all.size > 1
     // `me()` je dotaz do místní databáze TDLib, ne na síť; účtů jsou nejvýš tři.
     val infos by produceState(emptyMap<AccountSlot, AccountInfo>(), all) {
         value = all.mapNotNull { account -> account.session.me().getOrNull()?.let { account.slot to it } }.toMap()
     }
     val scope = rememberCoroutineScope()
     return AccountSwitcher(
-        accounts = all.map { AccountEntry(it, infos[it.slot], shown = it === default) },
+        accounts = all.map { AccountEntry(it, infos[it.slot], shown = !allAccounts && it === default) },
         canAdd = canAddAccounts && all.size < Accounts.MAX_ACCOUNTS,
+        allAccounts = allAccounts,
         // Účet z menu ukáže jeho chaty, i když byl seznam v režimu Vše.
         onSelect = { slot ->
             settings.setChatListAllAccounts(false)
             accounts.setDefault(slot)
         },
+        onSelectAll = { settings.setChatListAllAccounts(true) },
         onAdd = { scope.launch { accounts.add() } },
     )
 }
+
+/**
+ * Fotky víc účtů přes sebe ve čtverci [size]: dvě po úhlopříčce, tři do trojúhelníku. Každá
+ * z kontejneru svého účtu a s obroučkou barvou plochy ([rim]), ať se od sebe oddělí.
+ */
+@Composable
+internal fun StackedAccountAvatars(accounts: List<AccountEntry>, size: Dp, rim: Color) {
+    val shown = accounts.take(MAX_STACKED)
+    val small = size * if (shown.size > 2) 0.6f else 0.7f
+    val alignments = if (shown.size > 2) {
+        listOf(Alignment.TopStart, Alignment.TopEnd, Alignment.BottomCenter)
+    } else {
+        listOf(Alignment.TopStart, Alignment.BottomEnd)
+    }
+    Box(Modifier.size(size)) {
+        shown.forEachIndexed { index, entry ->
+            AccountScope(entry.account) {
+                Avatar(
+                    chatId = entry.info?.id ?: 0L,
+                    title = entry.title,
+                    avatarFileId = entry.info?.photoFileId,
+                    size = small,
+                    modifier = Modifier
+                        .align(alignments[index])
+                        .background(rim, CircleShape)
+                        .padding(1.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Nejvíc fotek přes sebe; víc účtů aplikace nedovolí (`Accounts.MAX_ACCOUNTS`). */
+private const val MAX_STACKED = 3
 
 /** Fotka účtu v řádku menu — velikost ikony položky. */
 private val ACCOUNT_ROW_AVATAR_SIZE = 24.dp

@@ -1306,7 +1306,8 @@ v `ChatSelection.kt` (testy `ChatSelectionTest`).
 
 ### Společný seznam víc účtů
 
-Režim „Všechny účty" a filtr účtů nad seznamem; celé rozhodnutí je v `docs/navrh-vice-uctu.md`
+Režim „Všechny účty" (zapíná se v menu účtu, fotka v pilulce je pak složená z fotek účtů); celé
+rozhodnutí je v `docs/navrh-vice-uctu.md`
 („Společný seznam chatů", krok 4 v „Postup"). Co se tu dá snadno rozbít:
 
 - **Id chatu je číslo jednoho účtu.** Soukromý chat má id protějšku a společná skupina totéž id

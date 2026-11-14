@@ -247,8 +247,9 @@ mohly žít s obrazovkou. To je ale optimalizace paměti nezávislá na víc ú�
 Seznam chatů je jediná obrazovka, která míchá účty. Všechno, co se z ní otevře, už patří
 jednomu účtu podle řádku.
 
-- **Filtr účtů** nad seznamem: čipy s fotkou účtu (jeden, druhý…) a „Vše". Ukazuje se jen
-  s víc než jedním účtem. Volba se pamatuje (`AppSettings`, množina slotů).
+- **Filtr účtů** je v menu účtu: „Všechny účty" a jednotlivé účty (původně čipy nad seznamem,
+  viz krok 4 v „Postup"). Ukazuje se jen s víc než jedním účtem. Volba se pamatuje
+  (`AppSettings`).
 - **Řádek nese účet:** malá fotka účtu u avataru chatu (jako odznak), jen v režimu víc účtů.
   Barva účtu by se pletla s barvami chatů (`ChatColors`), proto fotka.
 - **Stejný chat ve dvou účtech se ukáže dvakrát.** Společná skupina, nebo chat s Petrem
@@ -552,10 +553,13 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      **Neověřené:** desktop.
 
 4. **Společný seznam chatů** — hotovo:
-   - **Filtr nad seznamem** (`accountFilterChips`, jen s víc účty): „Všechny účty" a čip s fotkou
-     každého účtu. Čip účtu (i účet v menu) ho udělá výchozím a vypne režim Vše. Režim Vše je
-     jedna volba (`AppSettings.chatListAllAccounts`), ne množina slotů, jak počítal návrh:
-     s nejvýš třemi účty stačí „všechny, nebo výchozí".
+   - **Výběr je v menu účtu, ne čipy nad seznamem**: nahoře „Všechny účty" (fotky účtů přes
+     sebe), pod tím jednotlivé účty, fajfka u toho, co seznam ukazuje. Čipy nad seznamem první
+     verze jen opakovaly, co menu účtu už umělo. V režimu Vše má i fotka v pilulce podobu
+     fotek všech účtů přes sebe (`StackedAccountAvatars`), ať je bez otevření menu vidět, že
+     seznam ukazuje víc účtů. Účet z menu ho udělá výchozím a režim Vše vypne. Režim Vše je jedna
+     volba (`AppSettings.chatListAllAccounts`), ne množina slotů, jak počítal návrh: s nejvýš
+     třemi účty stačí „všechny, nebo výchozí".
    - **Obrazovka zůstává obrazovkou výchozího účtu**, společné jsou jen řádky
      (`MergedChatListContent`). Hledání, složky, menu, karty nahoře a archiv jsou výchozího účtu.
      `ChatsViewModel` je velký a skoro všechno v něm patří jednomu účtu; slučovat ho celý by
@@ -582,7 +586,8 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      se stejným id. Routy odhlášeného účtu z obou zásobníků zmizí.
    - V režimu Vše notifikace a sdílení do chatu jiného účtu výchozí účet nepřepínají, chat se
      otevře rovnou.
-   - **Ověřeno na Pixelu 5** se dvěma účty: filtr, společný seznam s odznaky, režim Vše přežije
+   - **Ověřeno na Pixelu 5** se dvěma účty: výběr v menu (i složená fotka v pilulce), společný
+     seznam s odznaky, režim Vše přežije
      restart, otevření konverzace jiného účtu, nabídka nad chatem jiného účtu, výběr v něm (seznam
      jen jeho chaty) a návrat, notifikace jiného účtu v režimu Vše. Desktop jen přeložený.
 
