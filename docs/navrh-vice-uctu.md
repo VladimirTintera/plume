@@ -851,9 +851,24 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       týž chat ve dvou účtech má stejné id a `LazyColumn` widgetu chce klíče jedinečné.
     - Ověřeno na ploše Pixelu 5: odznaky fotek VT a osobního účtu, iniciála „V" u VT2.
 
+17. **Nová zpráva s výběrem účtu** — hotovo:
+    - `NewChatRoute`, `NewContactRoute` a `NewGroupMembersRoute` jsou `AccountRoute`, takže se celá
+      větev nové konverzace (kontakty, hledání, tajný chat, nový kontakt, nová skupina i kanál)
+      skládá v kontejneru zvoleného účtu. **`slot` má výchozí hodnotu** (primární účet): dřív
+      to byly `data object` a uložený zásobník se tak přečte bez zvednutí `SAVED_ROUTES_VERSION`.
+    - **Řádek „Psát jako"** nahoře v Nové zprávě (jen s víc účty, `ChoiceRow` s nabídkou účtů),
+      výchozí účet předvybraný. Jiný účet vymění routu na tomtéž místě zásobníku za routu
+      s jeho slotem; zpět pak vede rovnou do seznamu, ne přes Novou zprávu každého účtu.
+      Při výběru pro tajný chat se nenabízí — chat se zakládá v účtu, ve kterém výběr začal.
+    - Nová skupina a nový kanál přímo z FAB menu jdou dál výchozím účtem; z Nové zprávy účtem
+      zvoleným v ní.
+    - **Ověřeno na Pixelu 5** (výchozí VT2): Nová zpráva z FAB ukázala „Psát jako VT2", volba
+      osobního účtu přinesla jeho kontakty, volba VT a Uložené zprávy otevřely Uložené zprávy
+      VT („Zpráva jako VT"), zpět vedlo do seznamu chatů.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
-     účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
+     účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`.
      Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
      výchozí účet.
    - `VoicePlayer` klíčuje přehrávání `VoiceKey(chatId, messageId)` bez účtu: hlasovka se stejným

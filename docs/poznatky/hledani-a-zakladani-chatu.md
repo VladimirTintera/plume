@@ -265,6 +265,10 @@ a filtry nad výsledky — chybu je vidět hned v čipech a opraví se ťuknutí
   — TDLib tak pro kontakt založí chat objekt (lokálně v paměti/databázi, bez odesílání zpráv)
   a do seznamu se dostane kompletní `ChatSummary` s avatarem i dostupností (`withPresence()`).
 - **Uložené zprávy jsou i tady nahoře**, jako samostatná karta v `primaryContainer`.
+- **S víc účty nahoře řádek „Psát jako"** s nabídkou účtů: routy Nové zprávy, nového kontaktu
+  a výběru členů skupiny nesou účet (`AccountRoute`), jiný účet routu vymění za routu s jeho
+  slotem (`docs/navrh-vice-uctu.md`, krok 17). Hlavička `ChatPicker` leží v `Box`, takže víc
+  bloků v ní musí být ve sloupci, jinak se překryjí.
 - **Vyhledávání kombinuje tři vrstvy:** lokální kontakty (filtrace podle jména), existující známé chaty
   z `searchChats` a veřejné Telegram uživatele / skupiny z `searchPublicChats` (podle `@username`).
 - **Prázdno má dvě podoby.** Bez dotazu „Žádné kontakty" s radou hledat podle `@jména`,

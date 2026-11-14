@@ -132,8 +132,8 @@ class AppNavigation internal constructor(
             AppScreen.Passkeys -> openSettingsAt(SettingsSection.Privacy, PasskeysRoute)
             AppScreen.ChangePhone -> openSettingsWith(EditProfileRoute, ChangePhoneRoute)
             AppScreen.ChatFolders -> openChatFolders(slot)
-            AppScreen.NewChat -> openInChats(NewChatRoute)
-            AppScreen.NewGroup -> openInChats(NewGroupMembersRoute)
+            AppScreen.NewChat -> openInChats(NewChatRoute(slot))
+            AppScreen.NewGroup -> openInChats(NewGroupMembersRoute(slot))
             AppScreen.NewChannel -> openInChats(CreateChatRoute(slot, channel = true))
             AppScreen.Search -> openSearch("", keepConversation = twoPane)
         }
