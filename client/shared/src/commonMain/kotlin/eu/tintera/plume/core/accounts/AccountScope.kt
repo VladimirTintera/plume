@@ -14,6 +14,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import eu.tintera.plume.core.telegram.CallRepository
+import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import org.koin.compose.KoinIsolatedContext
@@ -28,11 +30,21 @@ val LocalAccount = staticCompositionLocalOf<AccountSession> {
     error("Composable pracuje s účtem mimo AccountScope.")
 }
 
-/** [content] pracuje s účtem [account]: `koinInject` a `koinViewModel` míří do jeho kontejneru. */
+/**
+ * [content] pracuje s účtem [account]: `koinInject` a `koinViewModel` míří do jeho kontejneru.
+ *
+ * Podává i id Uložených zpráv toho účtu (`LocalSavedMessagesChatId`): je to vlastní user id,
+ * a chat jednoho účtu s druhým má právě tohle id. Dokud ho podával jen shell, ukázal společný
+ * seznam chat VT s VT2 jako „Uložené zprávy" (ověřeno na zařízení).
+ */
 @Composable
 fun AccountScope(account: AccountSession, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalAccount provides account) {
-        KoinIsolatedContext(account.application, content)
+        KoinIsolatedContext(account.application) {
+            val savedMessages = remember(account) { account.koin.getOrNull<ChatRepository>()?.savedMessagesChatId }
+                ?.collectAsStateWithLifecycle()?.value
+            CompositionLocalProvider(LocalSavedMessagesChatId provides savedMessages, content = content)
+        }
     }
 }
 

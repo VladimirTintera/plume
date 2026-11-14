@@ -1,6 +1,7 @@
 # Návrh: víc účtů naráz
 
-> **Stav:** fáze 0 hotová, z fáze 1 přidání, odebrání a přepnutí účtu (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> **Stav:** fáze 0 hotová, z fáze 1 přidání, odebrání a přepnutí účtu a společný seznam chatů
+> (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
 > stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
@@ -550,10 +551,47 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      natrvalo, slot zmizel ze seznamu i z disku a shell se složil znovu pro zbylý účet.
      **Neověřené:** desktop.
 
+4. **Společný seznam chatů** — hotovo:
+   - **Filtr nad seznamem** (`accountFilterChips`, jen s víc účty): „Všechny účty" a čip s fotkou
+     každého účtu. Čip účtu (i účet v menu) ho udělá výchozím a vypne režim Vše. Režim Vše je
+     jedna volba (`AppSettings.chatListAllAccounts`), ne množina slotů, jak počítal návrh:
+     s nejvýš třemi účty stačí „všechny, nebo výchozí".
+   - **Obrazovka zůstává obrazovkou výchozího účtu**, společné jsou jen řádky
+     (`MergedChatListContent`). Hledání, složky, menu, karty nahoře a archiv jsou výchozího účtu.
+     `ChatsViewModel` je velký a skoro všechno v něm patří jednomu účtu; slučovat ho celý by
+     znamenalo přepsat obrazovku.
+   - **Každý účet má v režimu Vše vlastní `ChatsViewModel`** z kontejneru svého účtu
+     (`rememberChatSources`, klíč se slotem). Akce řádku (ťuknutí, nabídka, tah, výběr) jdou do
+     něj a nabídka nad chatem i hlášky („Vrátit") se kreslí za každý účet (`ChatActionsHost`).
+     Kořenový scope kontejneru je interní API Koinu (`scopeRegistry.rootScope`, opt-in
+     s komentářem): `AccountScope` podá kontejner jen obsahu uvnitř sebe, ne jako hodnotu.
+   - **Řádek se kreslí v `AccountScope` svého účtu**, takže fotky jdou z jeho souborů; odznak účtu
+     je malá fotka účtu vlevo dole na avataru (`ChatRowMarks.account`). Klíč položky i klíče letu
+     avataru a názvu (`chatAvatarKey`, `chatTitleKey`) nesou slot: společná skupina je v seznamu
+     dvakrát.
+   - **`AccountScope` podává id Uložených zpráv svého účtu** (`LocalSavedMessagesChatId`). Dokud
+     ho podával jen shell, ukázal společný seznam chat VT s VT2 jako „Uložené zprávy": Uložené
+     zprávy mají id vlastního účtu, a chat druhého účtu s ním má právě tohle id.
+   - Řazení `mergedChatGroups` (testy `MergedChatGroupsTest`): sponzorované a vynořené nahoře,
+     pak připnuté všech účtů v pořadí účtů, pak ostatní podle data poslední zprávy.
+   - **Výběr víc chatů a uspořádání připnutých patří jednomu účtu**: když běží v některém účtu,
+     seznam po tu dobu ukazuje jen jeho chaty (`busySource`) a lišta výběru jde do jeho
+     ViewModelu. Míchat účty ve výběru (návrh to dovoloval) by znamenalo rozdělit akce lišty.
+   - **Zásobník porovnává slot** (`belongsTo`, `closeChat`, `closeConversationOf`,
+     `isOpenConversation`…; testy v `RouteSlotTest`), protože v něm můžou ležet chaty dvou účtů
+     se stejným id. Routy odhlášeného účtu z obou zásobníků zmizí.
+   - V režimu Vše notifikace a sdílení do chatu jiného účtu výchozí účet nepřepínají, chat se
+     otevře rovnou.
+   - **Ověřeno na Pixelu 5** se dvěma účty: filtr, společný seznam s odznaky, režim Vše přežije
+     restart, otevření konverzace jiného účtu, nabídka nad chatem jiného účtu, výběr v něm (seznam
+     jen jeho chaty) a návrat, notifikace jiného účtu v režimu Vše. Desktop jen přeložený.
+
 **Zbývá pro fázi 1:**
-   - **Krok 4: společný seznam chatů** (filtr účtů, režim Vše, odznak účtu u řádku). S ním
-     musí hledání a mazání v zásobníku porovnávat i slot (`closeChat`, `isOpenConversation`…)
-     a routy odebraného účtu ze zásobníku zmizet.
+   - **Hlavička konverzace má ukázat, kterým účtem se píše** (podtitul nebo fotka účtu), hlavně
+     v režimu Vše: ve skupině, kde jsou oba účty, se jinak snadno odpoví ze špatného.
+   - **V režimu Vše zbývá sloučit archiv a hledání** (veřejné chaty a zprávy přes server za
+     každý účet, výsledky označené účtem) a klávesové zkratky Alt+↓/↑ přes společný seznam.
+   - Ve sbaleném sloupci seznamu (`CollapsedChatList`) režim Vše není, ukazuje výchozí účet.
    - **Text notifikace má jmenovat účet** (`setSubText`) a zvukové kanály dostat slot do jména.
    - Odkazy `tg://` a `t.me` jdou do výchozího účtu; pozvánka a přihlášení na webu se mají ptát.
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
@@ -569,4 +607,6 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
    - Volby `AppSettings`, které patří účtu (`confirmed_web_app_bots`…), zatím slot nemají.
    - Hodinky si přihlášení potvrzují výchozím účtem telefonu.
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
-   - Kolik paměti a baterie stojí další klient TDLib, změřit.
+   - Kolik paměti a baterie stojí další klient TDLib, změřit. I start: na Pixelu 5 (debug build)
+     se dvěma účty došly oba klienty do `Ready` za 3,7 s od startu a do té doby je vidět
+     „Připojování"; srovnání s jedním účtem na tomtéž zařízení chybí.
