@@ -1332,6 +1332,11 @@ rozhodnutí je v `docs/navrh-vice-uctu.md`
   i zprávy ze společné skupiny se jinak srazí.
 - **Sbalený sloupec má režim Vše taky** (`CollapsedAccounts`): bez něj by po sbalení táhlem
   zmizely chaty ostatních účtů, i když je pilulka ukazuje jako „Všechny účty".
+- **Klíče sdílených prvků nesou účet i instanci shellu** (`chatAvatarKey`, `chatTitleKey`,
+  `chatContainerKey`, `sharedKey`): výměna výchozího účtu skládá shell znovu a starý i nový
+  seznam se ve snímku výměny potkají v jednom `SharedTransitionLayout`. Se stejnými klíči
+  aplikace padala (`docs/navrh-vice-uctu.md`, krok 15). Kdo přidává sdílený prvek, bere klíč
+  přes `sharedKey`.
 - **Archiv má ViewModel za účet A složku** (klíč `chats-all-archive-<slot>`): sdílet ho
   s hlavním seznamem by přepínalo složku pod rukama.
 

@@ -16,6 +16,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
+import eu.tintera.plume.core.ui.LocalSharedElementGeneration
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import org.koin.compose.KoinIsolatedContext
@@ -57,8 +58,12 @@ fun AccountScope(account: AccountSession, content: @Composable () -> Unit) {
 fun DefaultAccountScope(content: @Composable () -> Unit) {
     val account by koinInject<Accounts>().default.collectAsStateWithLifecycle()
     key(account.slot) {
-        AccountScope(account) {
-            AccountViewModels(account.slot, content)
+        // Nová instance shellu = nové klíče sdílených prvků (viz LocalSharedElementGeneration).
+        val generation = remember { Any() }
+        CompositionLocalProvider(LocalSharedElementGeneration provides generation) {
+            AccountScope(account) {
+                AccountViewModels(account.slot, content)
+            }
         }
     }
 }

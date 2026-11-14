@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.ui.ReportDrawnWhen
 import eu.tintera.plume.core.accounts.AccountSession
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.settings.ChatSwipeActions
@@ -255,6 +256,10 @@ internal fun MergedChatListContent(
     val hidden = sources.map { source -> key(source.account.slot) { source.viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle().value } }
 
     val ready = states.map { (it as? ChatListState.Ready)?.chats }
+    // Start je hotový, jakmile aspoň jeden účet opustí načítání (chaty, prázdno nebo chyba), jako
+    // u seznamu jednoho účtu (`ChatListContent`). Bez toho se v režimu Všechny účty „Fully drawn"
+    // neohlásil vůbec (Play vitals, měření startu).
+    ReportDrawnWhen { states.any { it !is ChatListState.Loading } }
     val groups = remember(ready, hidden, contexts.map { it.snoozes.due }) {
         mergedChatGroups(
             ready.mapIndexed { index, chats ->

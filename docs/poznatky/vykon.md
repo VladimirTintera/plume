@@ -261,6 +261,24 @@ Výsledky:
   proto hledá Perfettem (`trace.cfg` funguje i s release buildem, `Choreographer#doFrame`
   zaznamená atrace kategorie `view`), ne přes `gfxinfo`.
 
+### Víc účtů: paměť a start
+
+Výsledky jsou v `docs/navrh-vice-uctu.md`, krok 15 (Pixel 5, dva a tři účty). Postup:
+
+- **Paměť na debug buildu, start na buildu bez `debuggable`.** `mem_sample.sh` vynucuje GC přes
+  `run-as`, a to ne-debuggable build nedovolí; na paměť má `debuggable` malý vliv, na čas
+  výpočtů velký (viz výš). Vzorek po minutě od studeného startu, tři po 30 s.
+- **Ne-debuggable build potřebuje `isDebuggable = false` i v dynamických součástech**
+  (`client/litertFeature`, `client/llamacppFeature`), jinak build spadne na
+  `processDebugMainManifest`: „Dynamic Feature … is debuggable, and the corresponding build type
+  in the base application is not". Dočasně v jejich `build.gradle.kts`, jako v základní aplikaci.
+- **Časy od startu procesu z logcatu** (`-v epoch`): `Start proc … eu.tintera.plume`
+  (ActivityManager), `AuthorizationState -> Ready` a `ConnectionState -> Ready` (tag `Telegram`,
+  řádek za každý účet) a `Fully drawn` (ActivityTaskManager, od spuštění aktivity). Řádky
+  logcatu `-v epoch` začínají mezerami — skript, který čeká číslo na začátku řádku, nenajde nic.
+- **„Fully drawn" musí hlásit i společný seznam víc účtů** (`MergedChatListContent`); dokud
+  nehlásil, v režimu Všechny účty se start jako hotový neohlásil nikdy.
+
 ### Výsledky první analýzy
 
 Říjen 2026, emulátor Plume_Galerie_Fold (Android 17), debug build, cykly v testovacích

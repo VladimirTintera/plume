@@ -15,6 +15,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,24 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
 val LocalSharedTransitionScope = compositionLocalOf<SharedTransitionScope?> { null }
 
 /**
+ * Instance shellu, ve které sdílené prvky létají; podává ji `DefaultAccountScope` s každou
+ * výměnou výchozího účtu nově. Klíč sdíleného prvku ji nese ([sharedKey]), protože
+ * `SharedTransitionLayout` je jeden v kořeni a starý shell se ve snímku výměny ještě rozkládá,
+ * zatímco nový se skládá: ve společném seznamu víc účtů mají oba řádky se stejnými klíči
+ * (avatar, název, plocha řádku téhož chatu) a Compose je spároval bez cíle —
+ * `SharedTransitionStateMachine.configureActiveMatch` spadl na `targetBoundsProvider!!`
+ * (Compose 1.12, ověřeno na zařízení: volba účtu z menu v režimu Všechny účty i přihlášení
+ * dalšího účtu aplikaci shodily). Let mezi seznamem a konverzací je uvnitř jednoho shellu.
+ */
+val LocalSharedElementGeneration = staticCompositionLocalOf<Any?> { null }
+
+/** Klíč sdíleného prvku v instanci shellu ([LocalSharedElementGeneration]). */
+@Composable
+fun sharedKey(key: Any): Any = LocalSharedElementGeneration.current?.let { SharedKey(it, key) } ?: key
+
+private data class SharedKey(val generation: Any, val key: Any)
+
+/**
  * Sdílený prvek, jehož viditelnost řídí volající.
  *
  * Běžné `sharedElement` chce `AnimatedVisibilityScope`, který vzniká jen uvnitř `AnimatedVisibility`
@@ -62,7 +81,7 @@ fun Modifier.sharedFlight(key: String, visible: Boolean): Modifier {
 
     return with(scope) {
         this@sharedFlight.sharedElementWithCallerManagedVisibility(
-            sharedContentState = rememberSharedContentState(key = key),
+            sharedContentState = rememberSharedContentState(key = sharedKey(key)),
             visible = visible,
             boundsTransform = { _, _ -> flightSpec },
         )
@@ -240,7 +259,7 @@ fun Modifier.sharedNavElement(
     val area = LocalSharedElementClip.current
 
     return with(shared) {
-        val state = rememberSharedContentState(key = key)
+        val state = rememberSharedContentState(key = sharedKey(key))
         // Kreslí se prvek, který se stává viditelným, takže jeho přechod jde PreEnter → Visible.
         // Táž pružina jako let, aby ořez i rohy dosedly ve stejnou chvíli jako prvek sám.
         val settled = scope.transition.animateFloat(
@@ -389,7 +408,7 @@ fun Modifier.sharedNavText(key: String): Modifier {
 
     return with(shared) {
         this@sharedNavText.sharedBounds(
-            sharedContentState = rememberSharedContentState(key = key),
+            sharedContentState = rememberSharedContentState(key = sharedKey(key)),
             animatedVisibilityScope = LocalNavAnimatedContentScope.current,
             boundsTransform = { _, _ -> flightSpec },
             resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
