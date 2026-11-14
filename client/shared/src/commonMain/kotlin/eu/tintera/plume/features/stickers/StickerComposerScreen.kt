@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stickers
 
+import eu.tintera.plume.core.adaptive.isWindowHeightCompact
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -176,9 +177,11 @@ fun StickerComposerScreen(viewModel: StickerComposerViewModel, onBack: () -> Uni
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             val done = state.done
+            // Naležato (nízké okno) menší náhledy: mezi lištou a tlačítkem Přidat zbývá kolem 215 dp.
+            val compact = isWindowHeightCompact()
             if (done != null) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(max = ContentWidth.Form)) {
-                    StickerPreview(state, Modifier.padding(top = 24.dp).size(PREVIEW_DONE_SIZE))
+                    StickerPreview(state, Modifier.padding(top = 24.dp).size(if (compact) PREVIEW_DONE_SIZE_COMPACT else PREVIEW_DONE_SIZE))
                     IntroEmptyState(
                         icon = Res.drawable.sticker_24dp,
                         title = stringResource(Res.string.sticker_added_title),
@@ -207,7 +210,7 @@ private fun StickerForm(
     ) {
         item(key = "preview") {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                StickerPreview(state, Modifier.size(PREVIEW_SIZE))
+                StickerPreview(state, Modifier.size(if (isWindowHeightCompact()) PREVIEW_SIZE_COMPACT else PREVIEW_SIZE))
                 if (state.prepareError != null && !state.preparing) {
                     TextButton(onClick = viewModel::retry, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.sticker_retry))
@@ -425,4 +428,6 @@ private val SUGGESTED_EMOJI = listOf("😀", "😂", "😍", "😎", "🥳", "�
 
 private val PREVIEW_SIZE = 240.dp
 private val PREVIEW_DONE_SIZE = 160.dp
+private val PREVIEW_SIZE_COMPACT = 160.dp
+private val PREVIEW_DONE_SIZE_COMPACT = 96.dp
 private val CHECKER_CELL = 12.dp

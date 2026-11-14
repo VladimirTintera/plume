@@ -1504,12 +1504,11 @@ seznam". Zbývá:
 1. **Drobnosti.**
    - ~~Sbalený seznam nemá FAB ani výběr víc chatů~~ — hotovo (`feat/sbaleny-seznam-fab-vyber`;
      karty nad seznamem hlásí tlačítko s tečkou).
-2. **Naležato neprošlé obrazovky.** Telefon naležato prošel (`feat/obrazovky-nalezato`,
-   `docs/poznatky/navigace.md`, „Nízké okno"): seznam chatů, konverzace, nabídky, Nastavení,
-   PIN, prázdné stavy, Můj QR kód, přihlášení. Neprošlé zůstaly prohlížeč příběhů, prohlížeč
-   médií, nahrávání kolečka, videochat, tvorba samolepky a příběhu, hřiště AI a hovor (ten
-   upravuje vlastní větev). Zadávání PINu v úzkém panelu Nastavení naležato roluje, vedle sebe
-   se tam nevejde.
+2. **Naležato neověřené naživo.** Telefon naležato prošel (`feat/obrazovky-nalezato`,
+   `docs/poznatky/navigace.md`, „Nízké okno"). Naživo zbývá prohlížeč příběhů (účet, který
+   příběhy vidí), tvorba příběhu (Premium), videochat (běžící hovor), hřiště AI (zařízení
+   s modelem) a hovor. Zadávání PINu v úzkém panelu Nastavení naležato roluje, vedle sebe se tam
+   nevejde.
 
 **Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
 tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna

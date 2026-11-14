@@ -483,8 +483,19 @@ z nich nebyl vidět vůbec. Prošlo se to na emulátoru naležato (11/2026) a op
   Stahování pod horní lištou ukázalo jen tvar, nadpis a text byly pod okrajem.
 - **Můj QR kód: kód vlevo, zbytek vpravo.** Na výšku nad kódem stojí profil, takže naležato
   byla vidět jen horní půlka kódu a naskenovat nešel.
+- **FAB menu seznamu chatů schovalo horní položku pod hledání** (Nový příběh). Obsah Scaffoldu
+  sahá až pod hlavičku, takže menu dostalo celou výšku a nevědělo, že se nevejde. Sloupec
+  s FAB má shora `padding` o výšku hlavičky a menu se pak rozroluje samo — `FloatingActionButtonMenu`
+  z material3 roluje, jen když mu výška nestačí.
+- **Náhledy v tvorbě příběhu (360 dp) a samolepky (240 dp) jsou na nízkém okně menší**; obě
+  obrazovky rolovaly i předtím, náhled ale zabral celé okno.
+- **V pořádku bez změny:** prohlížeč fotek (s ovládáním je fotka mezi lištami), nahrávání
+  kolečka (průměr počítá i z výšky), úprava fotky, nabídka nad zprávou, konverzace.
 - **Přihlášení** má dva sloupce od dřív (`docs/poznatky/prihlaseni.md`, „Naležato a na širokém
   okně").
+- **Neověřené naživo:** prohlížeč příběhů (testovací účet žádné nevidí; kód drží poměr 9 : 16
+  podle výšky), tvorba příběhu (účet bez Premium ji nepustí), videochat (chce běžící hovor ve
+  skupině; mřížka roluje), hřiště AI (emulátor nemá sekci AI v zařízení), hovor (vlastní větev).
 
 **Rozhoduje místo, které obrazovka dostane, ne natočení** (`BoxWithConstraints`), s hranicemi
 tříd okna M3: nízké okno pod 480 dp, Medium od 600 dp. Vedle sebe jen tam, kde je široko
