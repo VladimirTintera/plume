@@ -1,5 +1,10 @@
 package eu.tintera.plume.di
 
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.combine
+import eu.tintera.plume.core.accounts.AccountVisibility
 import eu.tintera.plume.core.accounts.notificationName
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.Accounts
@@ -206,6 +211,16 @@ fun appModule() = module {
     platformModule()
 
     single { KeyboardShortcuts() }
+    // Online jen účty, které seznam chatů ukazuje: v režimu Všechny účty všechny, jinak výchozí
+    // (`ConnectionController`). `Accounts` až za běhu, v toku (viz výš).
+    single<AccountVisibility> {
+        val koin = getKoin()
+        val allAccounts = get<AppSettings>().chatListAllAccounts
+        AccountVisibility { slot ->
+            combine(allAccounts, flow { emitAll(koin.get<Accounts>().default) }) { all, default -> all || default.slot == slot }
+                .distinctUntilChanged()
+        }
+    }
     single(createdAtStart = true) { AutoDownloadPolicy(settings = get(), network = get(), scope = get(named(APP_SCOPE))) }
 
     // Zámek aplikace musí znát stav dřív, než se složí první obrazovka, a sledovat popředí

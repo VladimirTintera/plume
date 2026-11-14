@@ -6,8 +6,11 @@ import eu.tintera.plume.core.connectivity.NetworkKind
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.connectivity.NetworkStatus
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 /**
@@ -25,6 +28,11 @@ class ConnectionController(
     private val network: NetworkMonitor,
     private val foreground: AppForeground,
     private val scope: CoroutineScope,
+    /**
+     * Ukazuje seznam chatů tenhle účet (`AccountVisibility`)? Online je jen účet v popředí, jehož
+     * chaty uživatel vidí; s jedním účtem pořád `true`.
+     */
+    private val shown: Flow<Boolean> = flowOf(true),
 ) {
 
     private val logger = Logger.withTag("Telegram")
@@ -47,9 +55,13 @@ class ConnectionController(
         }
 
         scope.launch {
-            foreground.isForeground.distinctUntilChanged().collect { inForeground ->
-                connection.setOnline(inForeground)
+            combine(foreground.isForeground, shown) { inForeground, visible -> inForeground && visible }
+                .distinctUntilChanged()
+                .collect { online -> connection.setOnline(online) }
+        }
 
+        scope.launch {
+            foreground.isForeground.distinctUntilChanged().collect { inForeground ->
                 /*
                  * Nejdůležitější řádek celé třídy. Síť se nezměnila — změnilo se jen to, že se
                  * uživatel dívá — a přesto se hlásí znovu, protože `setNetworkType` je jediný
