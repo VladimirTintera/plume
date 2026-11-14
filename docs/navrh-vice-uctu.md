@@ -838,8 +838,12 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       takže zkratky víc účtů jsou vedle sebe (systém hlídá jen strop počtu).
     - **Ověřeno na Pixelu 5** (tři účty) podle podkladů widgetu (`run-as … cat
       files/widget/chats.json`): v režimu Všechny účty 12 chatů ze tří účtů a miniatury fotek
-      všech účtů; po volbě VT2 jen jeho chaty a miniatury; po návratu zase všechny. Widget na ploše
-      vyzkoušený není — kreslení se nemění, mění se jen podklady.
+      všech účtů; po volbě VT2 jen jeho chaty a miniatury; po návratu zase všechny. **Widget na
+      ploše** ukázal chaty tří účtů a součet nepřečtených, ťuknutí otevřelo chat ve správném
+      účtu a po přečtení se widget sám přerovnal. Při tom se našla starší chyba: ťuknutí
+      ukazovalo nad chatem „odkaz nejde otevřít" (`receiveLink`, viz poznatky k widgetu).
+    - **Řádky téhož chatu ve dvou účtech (Telegram, společná skupina) ve widgetu nejdou
+      rozlišit** — odznak účtu na avataru widget nemá.
 
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
