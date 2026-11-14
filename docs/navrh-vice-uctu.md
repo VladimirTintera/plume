@@ -545,8 +545,10 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
    - **Ověřeno na Pixelu 5** (účty …527 a …029): aktualizace přes stávající instalaci nechala
      účet jako primární slot, přidání druhého účtu číslem, přepínání v menu oběma směry,
      notifikace druhého účtu a ťuknutí na ni (přepne účet a otevře chat), zrušení přidání
-     i úklid osiřelého slotu při startu. **Neověřené:** odhlášení jednoho ze dvou účtů na
-     zařízení (pokrývá `AccountsTest`), desktop.
+     i úklid osiřelého slotu při startu. Odhlášení druhého účtu z jeho Nastavení: TDLib ho
+     odhlásil, úklid smazal jeho notifikace a zkratky, nový klient u zadání čísla se ukončil
+     natrvalo, slot zmizel ze seznamu i z disku a shell se složil znovu pro zbylý účet.
+     **Neověřené:** desktop.
 
 **Zbývá pro fázi 1:**
    - **Krok 4: společný seznam chatů** (filtr účtů, režim Vše, odznak účtu u řádku). S ním
