@@ -19,6 +19,7 @@ import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.navigation.LinkOpenRequests
+import eu.tintera.plume.core.navigation.isTelegramLink
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.share.ShareIntake
 import eu.tintera.plume.core.ui.KeyboardShortcutOverview
@@ -166,6 +167,10 @@ class MainActivity : ComponentActivity() {
     private fun receiveLink(intent: Intent) {
         if (intent.action != Intent.ACTION_VIEW) return
         val url = intent.dataString ?: return
+        // Jen odkaz na Telegram. Vlastní intenty chodí s `ACTION_VIEW` taky — řádek widgetu nese
+        // data `plume-widget://chat/…`, ať se jeho `PendingIntent` neslije s ostatními řádky —
+        // a jako odkaz by skončily hláškou „odkaz nejde otevřít" nad otevřeným chatem.
+        if (!isTelegramLink(url)) return
         linkOpenRequests.request(url)
         intent.action = null
         intent.data = null

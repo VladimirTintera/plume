@@ -1359,6 +1359,14 @@ nabídky widgetů launcheru.
   slouží jen prvnímu kreslení nového widgetu.
 - **Se zámkem aplikace bez náhledů zpráv** — jen jména a počty. Widget vidí každý, kdo drží
   telefon, a zámek, který chrání obsah chatů, by měl díru hned vedle ikony aplikace.
+- **Ťuknutí na řádek ukazovalo hlášku „odkaz nejde otevřít"**: intent řádku nese data
+  `plume-widget://chat/…` (jinak by se `PendingIntent` řádků slily) a `MainActivity.receiveLink`
+  bral jakákoli data z `ACTION_VIEW` jako odkaz na Telegram. Bere teď jen `isTelegramLink`.
+- **S víc účty má řádek odznak účtu** (fotka účtu nebo iniciála v kroužku barvy pozadí)
+  a klíč řádku nese účet (`WidgetChat.itemId`) — týž chat ve dvou účtech má stejné id.
+- **Updater je jeden přes všechny účty** a ukazuje chaty podle filtru seznamu (režim Všechny
+  účty → `mergedWidgetChats`). Updater za každý účet si soubor, stav widgetu i miniatury
+  přepisoval (`docs/navrh-vice-uctu.md`, krok 16).
 - **Odhlášení widget vyprázdní** („Přihlas se v aplikaci Plume"). Zapisuje se jen v jasných
   stavech (přihlášeno a seznam načtený, nebo odhlášeno) — při startu, než se TDLib rozběhne,
   zůstává poslední známý stav, jinak by widget při každém studeném startu problikl prázdnem.

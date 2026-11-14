@@ -26,7 +26,18 @@ data class WidgetChat(
     val savedMessages: Boolean = false,
     /** Účet chatu, id slotu; chybí u podkladů zapsaných před víc účty. */
     val slot: String = AccountSlot.Primary.id,
-)
+    /**
+     * Odznak účtu na avataru, když widget ukazuje chaty víc účtů (režim Všechny účty): iniciála
+     * účtu, `null` = odznak se nekreslí. Bez něj nejdou rozlišit řádky téhož chatu ve dvou
+     * účtech (Telegram, společná skupina).
+     */
+    val accountInitial: String? = null,
+    /** Kulatá miniatura fotky účtu k odznaku; `null` = iniciála [accountInitial]. */
+    val accountAvatar: String? = null,
+) {
+    /** Klíč řádku v seznamu widgetu: totéž id má chat ve dvou účtech. */
+    val itemId: Long get() = if (slot == AccountSlot.Primary.id) id else "$slot:$id".hashCode().toLong()
+}
 
 /** Co widget ukazuje: chaty a jestli je vůbec někdo přihlášený. */
 @Serializable
@@ -46,9 +57,38 @@ data class WidgetSnapshot(
  * stejné pravidlo jako v seznamu chatů (`chatGroups`).
  */
 fun widgetChats(chats: List<ChatSummary>, savedMessagesChatId: Long?, max: Int = WIDGET_MAX_CHATS): List<ChatSummary> {
-    val visible = chats.filter { it.sponsor == null && (it.id != savedMessagesChatId || it.isPinned) }
-    val (important, rest) = visible.partition { it.isPinned || (it.hasUnread && !it.isMuted) }
+    val (important, rest) = visibleInWidget(chats, savedMessagesChatId).partition { it.isPinned || (it.hasUnread && !it.isMuted) }
     return (important + rest).take(max)
+}
+
+private fun visibleInWidget(chats: List<ChatSummary>, savedMessagesChatId: Long?): List<ChatSummary> =
+    chats.filter { it.sponsor == null && (it.id != savedMessagesChatId || it.isPinned) }
+
+/** Chaty jednoho účtu pro widget víc účtů ([mergedWidgetChats]). */
+data class WidgetAccountChats(val slot: AccountSlot, val chats: List<ChatSummary>, val savedMessagesChatId: Long?)
+
+/**
+ * Chaty do widgetu z víc účtů (režim Všechny účty): totéž pravidlo jako [widgetChats], jen přes
+ * všechny účty — napřed připnuté (po účtech, uvnitř účtu v pořadí od TDLib), pak nepřečtené všech
+ * účtů a nakonec zbytek, obojí podle času poslední zprávy. `order` z TDLib se mezi účty porovnat
+ * nedá, stejně jako ve společném seznamu chatů. S jedním účtem přesně [widgetChats].
+ */
+fun mergedWidgetChats(accounts: List<WidgetAccountChats>, max: Int = WIDGET_MAX_CHATS): List<Pair<AccountSlot, ChatSummary>> {
+    accounts.singleOrNull()?.let { one -> return widgetChats(one.chats, one.savedMessagesChatId, max).map { one.slot to it } }
+    val pinned = mutableListOf<Pair<AccountSlot, ChatSummary>>()
+    val unread = mutableListOf<Pair<AccountSlot, ChatSummary>>()
+    val rest = mutableListOf<Pair<AccountSlot, ChatSummary>>()
+    accounts.forEach { account ->
+        visibleInWidget(account.chats, account.savedMessagesChatId).forEach { chat ->
+            when {
+                chat.isPinned -> pinned += account.slot to chat
+                chat.hasUnread && !chat.isMuted -> unread += account.slot to chat
+                else -> rest += account.slot to chat
+            }
+        }
+    }
+    val newestFirst = compareByDescending<Pair<AccountSlot, ChatSummary>> { it.second.lastMessageTimestamp ?: Int.MIN_VALUE }
+    return (pinned + unread.sortedWith(newestFirst) + rest.sortedWith(newestFirst)).take(max)
 }
 
 /** Víc chatů se do widgetu rozumné velikosti nevejde; seznam ve widgetu jde posouvat. */

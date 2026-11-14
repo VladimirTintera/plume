@@ -823,6 +823,34 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
         shellu (`LocalSharedElementGeneration`, `sharedKey`) a klíč plochy řádku i účet
         (`chatContainerKey`), jako avatar a název.
 
+16. **Widget s chaty přes všechny účty** — hotovo:
+    - **`ChatsWidgetUpdater` je jeden v globálním Koinu**, ne za každý účet. Soubor podkladů
+      (`widget/chats.json`) i stav widgetu v Glance jsou jedny a updatery po účtech si je
+      přepisovaly: widget ukazoval chaty účtu, který se změnil naposled, a každý mazal miniatury
+      fotek ostatních účtů (`WidgetAvatars.prune` jen podle svých chatů).
+    - **Widget ukazuje chaty podle filtru seznamu**, jak návrh určil: v režimu Všechny účty všech
+      účtů (`mergedWidgetChats`: připnuté po účtech, pak nepřečtené a zbytek podle času přes účty;
+      s jedním účtem přesně `widgetChats`, testy `WidgetChatsTest`), jinak výchozího účtu.
+      Zapisuje se, až mají seznam všechny zobrazené účty, jinak by widget na chvíli ukázal jen
+      část chatů. Odhlášený účet se vynechá; odhlášení všech widget vyprázdní jako dřív.
+    - Ťuknutí na chat ve widgetu otevíralo chat v jeho účtu už dřív (`WidgetChat.slot`).
+    - **Cíle sdílení (Direct Share) se nepřepisují**: `pushDynamicShortcut` zkratky přidává,
+      takže zkratky víc účtů jsou vedle sebe (systém hlídá jen strop počtu).
+    - **Ověřeno na Pixelu 5** (tři účty) podle podkladů widgetu (`run-as … cat
+      files/widget/chats.json`): v režimu Všechny účty 12 chatů ze tří účtů a miniatury fotek
+      všech účtů; po volbě VT2 jen jeho chaty a miniatury; po návratu zase všechny. **Widget na
+      ploše** ukázal chaty tří účtů a součet nepřečtených, ťuknutí otevřelo chat ve správném
+      účtu a po přečtení se widget sám přerovnal. Při tom se našla starší chyba: ťuknutí
+      ukazovalo nad chatem „odkaz nejde otevřít" (`receiveLink`, viz poznatky k widgetu).
+    - **Odznak účtu na avataru**, když widget ukazuje víc účtů (`WidgetChat.accountInitial`,
+      `accountAvatar`): fotka účtu jako kulatá miniatura (`WidgetAvatars`, maže se spolu
+      s miniaturami chatů), bez fotky iniciála, v kroužku barvy pozadí widgetu — jako v seznamu
+      chatů. Bez něj nešly rozlišit řádky téhož chatu ve dvou účtech (Telegram, společná
+      skupina). S jedním účtem se nekreslí.
+    - **Klíč řádku widgetu nese účet** (`WidgetChat.itemId`; primární účet má dál id chatu):
+      týž chat ve dvou účtech má stejné id a `LazyColumn` widgetu chce klíče jedinečné.
+    - Ověřeno na ploše Pixelu 5: odznaky fotek VT a osobního účtu, iniciála „V" u VT2.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
@@ -830,8 +858,6 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      výchozí účet.
    - `VoicePlayer` klíčuje přehrávání `VoiceKey(chatId, messageId)` bez účtu: hlasovka se stejným
      klíčem v jiném účtu (společný kanál) by v bublině ukázala, že hraje.
-   - Widget má jeden soubor podkladů a miniatury maže jeden updater: se dvěma účty by se
-     přepisovaly. Cíle sdílení (Direct Share) se publikují za každý účet zvlášť.
    - Online (`setOption online`) mají v popředí všechny účty, ne jen ty ve filtru.
    - Volby `AppSettings`, které patří účtu (`confirmed_web_app_bots`…), zatím slot nemají.
    - Hodinky si přihlášení potvrzují výchozím účtem telefonu.

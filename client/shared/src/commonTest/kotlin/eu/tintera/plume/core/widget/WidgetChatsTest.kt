@@ -1,10 +1,12 @@
 package eu.tintera.plume.core.widget
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSponsor
 import eu.tintera.plume.core.telegram.ChatSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 /** Výběr chatů do widgetu na ploše. */
 class WidgetChatsTest {
@@ -38,12 +40,47 @@ class WidgetChatsTest {
         assertEquals(3, snapshot.unread)
     }
 
+    /** Víc účtů: připnuté napřed po účtech, pak nepřečtené a zbytek podle času přes účty. */
+    @Test
+    fun viceUctuDulezitePrvniPodleCasu() {
+        val a = AccountSlot.Primary
+        val b = AccountSlot("abc")
+        val merged = mergedWidgetChats(
+            listOf(
+                WidgetAccountChats(a, listOf(chat(1, time = 10), chat(2, unread = 1, time = 20), chat(3, pinned = true, time = 1)), savedMessagesChatId = null),
+                WidgetAccountChats(b, listOf(chat(1, time = 30), chat(4, unread = 2, time = 40), chat(5, pinned = true, time = 2)), savedMessagesChatId = null),
+            ),
+        )
+        assertEquals(listOf(a to 3L, b to 5L, b to 4L, a to 2L, b to 1L, a to 1L), merged.map { it.first to it.second.id })
+        assertEquals(3, mergedWidgetChats(listOf(WidgetAccountChats(a, listOf(chat(1), chat(2), chat(3), chat(4)), null), WidgetAccountChats(b, emptyList(), null)), max = 3).size)
+    }
+
+    /** Klíč řádku widgetu: týž chat ve dvou účtech jsou dva řádky; primární účet má klíč jako dřív. */
+    @Test
+    fun klicRadkuSUctem() {
+        val primary = WidgetChat(7, "A", null, unread = 0, muted = false, timestamp = null)
+        val other = primary.copy(slot = "abc")
+        assertEquals(7L, primary.itemId)
+        assertNotEquals(primary.itemId, other.itemId)
+    }
+
+    /** S jedním účtem přesně pravidlo jednoho účtu, i s pořadím od TDLib. */
+    @Test
+    fun jedenUcetJakoDriv() {
+        val chats = listOf(chat(1), chat(2, unread = 3), chat(3, pinned = true), chat(9))
+        assertEquals(
+            widgetChats(chats, savedMessagesChatId = 9).map { it.id },
+            mergedWidgetChats(listOf(WidgetAccountChats(AccountSlot.Primary, chats, savedMessagesChatId = 9))).map { it.second.id },
+        )
+    }
+
     private fun chat(
         id: Long,
         unread: Int = 0,
         pinned: Boolean = false,
         muted: Boolean = false,
         sponsor: ChatSponsor? = null,
+        time: Int? = null,
     ) = ChatSummary(
         id = id,
         title = "Chat $id",
@@ -55,7 +92,7 @@ class WidgetChatsTest {
         isMuted = muted,
         isMarkedAsUnread = false,
         kind = ChatKind.Private,
-        lastMessageTimestamp = null,
+        lastMessageTimestamp = time,
         presence = null,
         activity = null,
         draft = null,
