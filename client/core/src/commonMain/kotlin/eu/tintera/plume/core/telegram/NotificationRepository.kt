@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 
@@ -214,15 +215,39 @@ enum class NotificationChannelKind { Private, Groups, Channels, Mentions }
  * Id kanálu pro zvuk [soundId] pod výchozím kanálem [baseId]: výchozí zvuk (záporné id) = výchozí
  * kanál, bez zvuku `<base>_silent`, tón `<base>_tone_<id>`. Id musí být stabilní — stejný zvuk
  * se musí trefit do téhož kanálu, i s tím, co si v něm uživatel nastavil.
+ *
+ * **Kanál se zvukem patří účtu [slot]**: tón i volba „bez zvuku" jsou nastavení účtu, takže
+ * odhlášení jednoho účtu smí smazat jen jeho kanály. Primární účet nemá v id nic navíc (kanály
+ * dnešních instalací zůstanou i s tím, co si v nich uživatel nastavil), další účty `@<slot>`
+ * za zvukem (`private_tone_5@fs2gc9`). `@` není v id slotu ani v základu kanálu, takže účet jde
+ * z id přečíst jednoznačně ([soundChannelSlot]).
  */
-fun soundChannelKey(baseId: String, soundId: Long): String = when {
-    soundId < 0 -> baseId
-    soundId == NO_SOUND_ID -> "${baseId}_silent"
-    else -> "${baseId}_tone_$soundId"
+fun soundChannelKey(baseId: String, soundId: Long, slot: AccountSlot = AccountSlot.Primary): String {
+    val sound = when {
+        soundId < 0 -> return baseId
+        soundId == NO_SOUND_ID -> "${baseId}_silent"
+        else -> "${baseId}_tone_$soundId"
+    }
+    return if (slot.isPrimary) sound else "$sound@${slot.id}"
+}
+
+/**
+ * Účet kanálu se zvukem z Telegramu ([soundChannelKey]), i kanálu konverzace, který pod ním
+ * visí (`<kanál>_<id zkratky>`); `null` = výchozí kanál, nebo kanál bez zvuku z Telegramu.
+ */
+fun soundChannelSlot(id: String): AccountSlot? {
+    val match = SOUND_CHANNEL.matchEntire(id) ?: return null
+    return match.groups[2]?.value?.let(::AccountSlot) ?: AccountSlot.Primary
 }
 
 /** Je kanál [id] kanálem se zvukem z Telegramu (ne výchozí)? Takové se po odhlášení mažou. */
-fun isSoundChannel(id: String): Boolean = id.endsWith("_silent") || id.contains("_tone_")
+fun isSoundChannel(id: String): Boolean = soundChannelSlot(id) != null
+
+/** Id tónu v kanálu [id] se zvukem z Telegramu; `null` u výchozího a tichého kanálu. */
+fun soundChannelTone(id: String): Long? = SOUND_CHANNEL.matchEntire(id)?.groups?.get(1)?.value?.toLongOrNull()
+
+/** `<základ>_silent` nebo `<základ>_tone_<id>`, volitelně `@<slot>` a za tím id konverzace. */
+private val SOUND_CHANNEL = Regex("""[a-z]+_(?:silent|tone_(\d+))(?:@([a-z0-9]+))?(?:_.*)?""")
 
 /** Zvuk notifikace podle Telegramu. */
 sealed interface NotificationSoundChoice {

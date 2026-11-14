@@ -83,8 +83,6 @@ actual class NotificationPresenter(
     private val now: () -> Instant = { Clock.System.now() },
     /** Deník hovorů: zvonění bez celoobrazovkové výzvy je stopa k „zamčený telefon jen zvonil". */
     private val journal: CallJournal? = null,
-    /** Kolik je v aplikaci jiných účtů; úklid po odhlášení podle toho nechá společné kanály být. */
-    private val otherAccounts: () -> Int = { 0 },
     /**
      * Jméno účtu, když je účtů víc; jinak `null`. Jde do podtextu notifikace (`setSubText`),
      * který systém ukáže v záhlaví vedle názvu aplikace — jinak není poznat, komu zpráva přišla.
@@ -318,8 +316,9 @@ actual class NotificationPresenter(
         manager.activeNotifications.filter { it.tag == tag }.forEach { manager.cancel(tag, it.id) }
         runCatching { deleteConversationChannels(context, slot) }
             .onFailure { logger.w(it) { "Kanály konverzací se nepodařilo smazat." } }
-        // Zvukové kanály účet v názvu nenesou; jsou-li jiné účty, můžou jim patřit.
-        if (otherAccounts() == 0) runCatching { deleteSoundChannels(context) }
+        // Zvukové kanály tohoto účtu (nesou slot v id, primární účet bez něj).
+        runCatching { deleteSoundChannels(context, slot) }
+            .onFailure { logger.w(it) { "Kanály se zvukem se nepodařilo smazat." } }
         // Dlouhověké zkratky si systém drží i mimo dynamické, `removeAllDynamicShortcuts` by
         // je v keši nechal.
         runCatching {
@@ -439,7 +438,7 @@ actual class NotificationPresenter(
             }
         }
 
-        val built = NotificationCompat.Builder(context, soundChannelId(context, conversation.channel, conversation.sound))
+        val built = NotificationCompat.Builder(context, soundChannelId(context, slot, conversation.channel, conversation.sound, account))
             .setSmallIcon(R.drawable.ic_notification)
             // Velká ikona je záloha. U `MessagingStyle` si ji Android bere ze ZKRATKY (viz
             // `publishShortcut`) a tuhle ignoruje — uplatní se, jen když se zkratku nepodaří

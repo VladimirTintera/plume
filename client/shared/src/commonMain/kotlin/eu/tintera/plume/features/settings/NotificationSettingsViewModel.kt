@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.DEFAULT_SOUND_ID
 import androidx.lifecycle.ViewModel
@@ -56,6 +57,8 @@ class NotificationSettingsViewModel(
     private val settings: AppSettings,
     private val launchAtLogin: LaunchAtLogin,
     private val calls: CallRepository,
+    /** Účet nastavení: „Zvuk a vibrace" otevírá kanál se zvukem tohoto účtu. */
+    private val slot: AccountSlot,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(
@@ -215,7 +218,7 @@ class NotificationSettingsViewModel(
 
     private fun readFullScreenCalls(): Boolean? = if (calls.supported) permission.fullScreenCallsAllowed() else null
 
-    fun openChannelSettings(channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID) = permission.openChannelSettings(channel, soundId)
+    fun openChannelSettings(channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID) = permission.openChannelSettings(slot, channel, soundId)
 
     fun noticeShown() = local.update { it.copy(notice = null) }
 

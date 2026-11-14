@@ -512,8 +512,8 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      se dvěma účty: zpráva od bota do zabitého procesu přišla každému účtu jako jeho notifikace
      (druhý účet s tagem slotu, primární bez tagu), obě vedle sebe.
    - Notifikace mají tag podle slotu (primární bez tagu), úklid po odhlášení maže jen notifikace,
-     kanály konverzací a zkratky toho účtu. Zvukové kanály účet v názvu nenesou, takže se mažou
-     až s posledním účtem.
+     kanály konverzací a zkratky toho účtu. Zvukové kanály od kroku 11 nesou slot taky a mažou
+     se s účtem.
    - Zámek aplikace patří zařízení: zahodí se až s odhlášením posledního účtu.
    - Okna a pruhy hovoru (`CallAccountScope`) se skládají v účtu, který volá.
 2. **Seznam účtů, přidání a odebrání** — hotovo (`Accounts`, `AccountsTest`):
@@ -701,8 +701,33 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       ťuknutí otevře chat ve správném účtu („Zpráva jako VT" / „VT2") a zvýraznění jde za ním,
       podržení chatu VT2 → Vybrat ukáže jen chaty VT2, ✕ vrátí společný sloupec.
 
+11. **Zvukové kanály po účtech** — hotovo:
+    - Kanál se zvukem z Telegramu (bez zvuku, tón účtu) nese slot: primární účet beze změny
+      (`private_tone_5`, kanály dnešních instalací i s nastavením zůstávají), další účty
+      `@<slot>` za zvukem (`private_tone_5@fs2gc9`, `soundChannelKey`). `@` není v id slotu ani
+      v základu kanálu, takže `soundChannelSlot` přečte účet z id jednoznačně, i u kanálu
+      konverzace pod ním (testy `SoundChannelTest`). Výchozí kanály druhů chatů zůstávají
+      společné, jak návrh určil.
+    - Odhlášení smaže kanály se zvukem jen toho účtu (`deleteSoundChannels(slot)`), dřív se
+      mazaly až s posledním účtem. Smazání tónu bere kanály tónu jen u účtu, který ho smazal.
+    - **Kopie tónu je jedna pro všechny účty** (`notification_sounds/<id>`): id tónu je id
+      dokumentu, takže tentýž tón ve dvou účtech je tentýž soubor. Maže se, až ho nepoužívá
+      žádný kanál (`deleteUnusedTones`).
+    - S víc účty nese název kanálu se zvukem i jméno účtu („Soukromé chaty · bez zvuku · VT2"):
+      v systémovém nastavení by jinak byly dva stejně pojmenované kanály. Název se dává jen při
+      založení; kanál, který vznikl s jedním účtem, jméno nemá.
+    - „Zvuk a vibrace" v Nastavení i v profilu chatu otevírá kanál se zvukem svého účtu
+      (`openChannelSettings(slot, …)`, `NotificationSettingsViewModel` a
+      `NotificationSoundsViewModel` dostávají slot z kontejneru účtu).
+    - **Přechod:** kanály, které druhý účet založil před touhle změnou (`private_silent` bez
+      slotu), zůstanou a mazat je bude až odhlášení primárního účtu; druhý účet si založí nové.
+      Co si v nich uživatel nastavil, se nepřenese.
+    - **Ověřeno na Pixelu 5**: chatu Notifikátor ve VT2 nastavený „Bez zvuku", zpráva od bota
+      přišla kanálem `private_silent@fs2gc9` s názvem „Private chats · no sound · VT2" (tag
+      notifikace `fs2gc9`); nastavení chatu vráceno na výchozí. **Úklid po odhlášení na zařízení
+      ověřený není** (znamenal by odhlásit testovací účet) — jen testy, které z id čtou účet.
+
 **Zbývá pro fázi 1:**
-   - Zvukové kanály notifikací mají dostat slot do jména (tón patří účtu).
    - Odkazy `tg://` a `t.me` jdou do výchozího účtu; pozvánka a přihlášení na webu se mají ptát.
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.

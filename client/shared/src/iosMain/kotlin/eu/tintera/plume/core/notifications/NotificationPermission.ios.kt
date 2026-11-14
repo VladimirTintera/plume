@@ -67,9 +67,9 @@ actual class NotificationPermission {
 
     /** Notifikace z APNs ukazuje systém a rozšíření notifikací zvuk neovládne podle času; obdobou je režim Soustředění. */
     actual val supportsQuietHours: Boolean = false
-    actual fun openChannelSettings(channel: NotificationChannelKind, soundId: Long) = Unit
+    actual fun openChannelSettings(slot: AccountSlot, channel: NotificationChannelKind, soundId: Long) = Unit
 
-    actual fun forgetTone(soundId: Long) = Unit
+    actual fun forgetTone(slot: AccountSlot, soundId: Long) = Unit
 
     /** Výzvu hovoru tu systém nepovoluje zvlášť. */
     actual fun fullScreenCallsAllowed(): Boolean? = null

@@ -584,7 +584,8 @@ aplikacích, a tóny jsou na serveru.
   notifikace jde výchozím kanálem — zazní, jen ne tím tónem.
 - **Ukázku tónu přehrává `AudioEngine`** hlasovek; s výběrem se uvolní.
 - **Smazání tónu chce potvrzení** (zmizí ze všech zařízení účtu) a smaže i jeho kanály a kopii
-  (`forgetTone`). Po odhlášení mizí všechny kanály se zvukem (`deleteSoundChannels`).
+  (`forgetTone`). Po odhlášení mizí kanály se zvukem toho účtu (`deleteSoundChannels(slot)`,
+  viz „Víc účtů").
 - „Zvuk a vibrace" otevírá kanál, kterým rozsah opravdu zní — s tónem jeho kanál, když už vznikl
   (`existingSoundChannelId`).
 - **Ověřeno**: `SoundChannelTest`, `NotificationSoundsViewModelTest`; na emulátoru výběr se
@@ -812,6 +813,9 @@ snadno rozbít:
   ze zkratky a podtext (`setSubText`) u konverzací nekreslí. Název zkratky skládá
   `shortcutLabel` a musí ho stejně skládat každý, kdo zkratku publikuje (notifikace, Sdílet,
   plocha).
+- **Kanál se zvukem patří účtu** (`soundChannelKey(…, slot)`, `@<slot>` za zvukem, primární
+  účet beze změny). Kdo zakládá nebo hledá kanál se zvukem, předá slot; výchozí kanály druhů
+  chatů jsou společné. Kopie tónu je společná a maže se, až ji nepoužívá žádný kanál.
 - **Desktop: `DesktopNotifier` je v procesu jeden**, aktivace se rozdělují podle slotu
   v argumentech oznámení (`NotificationActivations`). Presenter účtu si `onActivated` sám
   nastavovat nesmí.
