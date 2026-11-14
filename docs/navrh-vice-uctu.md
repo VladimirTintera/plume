@@ -506,8 +506,9 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      služba si závislosti bere líně už v `onCreate`, dřív než dorazí intent.
    - Push: `registerDevice` za každý účet s `other_user_ids` ostatních, `PushReceiverId` se ukládá
      ke slotu (do seznamu účtů, push budí i mrtvý proces). Push jde účtu podle
-     `getPushReceiverId`, s jediným účtem jako dřív i bez známého příjemce.
-     **Na skutečném pushi s víc účty zatím neověřené.**
+     `getPushReceiverId`, s jediným účtem jako dřív i bez známého příjemce. Ověřeno na Pixelu 5
+     se dvěma účty: zpráva od bota do zabitého procesu přišla každému účtu jako jeho notifikace
+     (druhý účet s tagem slotu, primární bez tagu), obě vedle sebe.
    - Notifikace mají tag podle slotu (primární bez tagu), úklid po odhlášení maže jen notifikace,
      kanály konverzací a zkratky toho účtu. Zvukové kanály účet v názvu nenesou, takže se mažou
      až s posledním účtem.
@@ -541,6 +542,11 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      účtu a porovnávání podle id chatu (`closeChat`, `isOpenConversation`) zatím stačí.
    - Přihlášení přidávaného účtu jde přes celou plochu nad shellem a zavírá se křížkem nebo zpět
      z prvního kroku (`AuthScreen(onClose)`), což přidání zruší i s daty.
+   - **Ověřeno na Pixelu 5** (účty …527 a …029): aktualizace přes stávající instalaci nechala
+     účet jako primární slot, přidání druhého účtu číslem, přepínání v menu oběma směry,
+     notifikace druhého účtu a ťuknutí na ni (přepne účet a otevře chat), zrušení přidání
+     i úklid osiřelého slotu při startu. **Neověřené:** odhlášení jednoho ze dvou účtů na
+     zařízení (pokrývá `AccountsTest`), desktop.
 
 **Zbývá pro fázi 1:**
    - **Krok 4: společný seznam chatů** (filtr účtů, režim Vše, odznak účtu u řádku). S ním
