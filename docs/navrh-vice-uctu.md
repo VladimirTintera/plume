@@ -187,7 +187,7 @@ neexistuje, takže se nedá splést potichu: bez slotu se repository vůbec nedo
   - notifikace a směrování pushů,
   - společný seznam chatů, odznak nepřečtených, widget a cíle sdílení,
   - hovory: jeden hovor naráz přes všechny účty, příchozí do jiného účtu během hovoru je
-    „obsazeno".
+    „obsazeno" (vyšlo „odmítnuto", viz krok 7 v „Postup").
 
 **Cena:** projít všechny ViewModely a routy s id. Je to mechanická práce a překladač ji
 vede. Když dostane routa povinný parametr `slot`, chyba překladu ukáže každé místo, které ji
@@ -627,15 +627,27 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
 
 7. **Jeden hovor přes všechny účty** — hotovo:
    - Má-li hovor jiný účet (zvoní, vytáčí se, spojuje, běží; `Accounts.inCallElsewhere`), příchozí
-     hovor se odmítne jako obsazeno, ještě než se ukáže (`TdlCallRepository.busyElsewhere`):
-     nezazvoní, nevznikne notifikace ani systémový hovor. Server o hovoru druhého účtu neví,
-     takže obsazeno sám neohlásí, jako to dělá v rámci jednoho účtu.
+     hovor se odmítne, ještě než se ukáže (`TdlCallRepository.busyElsewhere`): nezazvoní,
+     nevznikne systémový hovor a notifikaci hovoru, kterou TDLib vydá vlastní cestou, presenter
+     zahodí (`callBusy`).
+   - **Volající uvidí „odmítnuto", ne „obsazeno".** Server o hovoru druhého účtu neví, takže
+     obsazeno sám neohlásí jako v rámci jednoho účtu, a `discardCall` důvod nastavit nedovolí:
+     nepřijatý příchozí hovor TDLib odešle jako odmítnutý.
+   - **Hovor jde všem zařízením účtu**: odmítnutí z Plume ho ukončí i jinde, kde je účet
+     přihlášený. Tam stihne na okamžik zazvonit (ověřeno: Pixel 7 s týmž účtem prozvonil
+     a přestal).
    - **Odmítnutí nesmí zastavit média** (`declineBusy` bez `media.stop()`, na rozdíl od
      `hangUp`): `CallMedia` je v procesu jedna a běží v ní hovor druhého účtu.
-   - Vytočit hovor, když hovor má jiný účet, nejde: pruh hovoru ukáže „Už máš hovor v jiném
-     účtu".
-   - Testy `AccountsTest` (které fáze blokují). **Na skutečných hovorech neověřené**: chce to
-     hovor v jednom účtu a někoho, kdo současně volá druhému, tedy tři strany.
+   - Vytočit hovor, když hovor má jiný účet, nejde: ťuknutí na Zavolat ukáže dialog „Už máš
+     hovor v jiném účtu" (`rememberStartCall`). Selhání v repository by se zapsalo do pruhu
+     hovoru, jenže ten ukazuje účet s živým hovorem, takže by ťuknutí nic neudělalo (ověřeno).
+   - Testy `AccountsTest` (které fáze blokují). **Ověřeno na Pixelu 5 a Pixelu 7**:
+     - hovor z VT na VT2 v téže aplikaci: odchozí hovor VT je živý, příchozí pro VT2 se odmítl
+       bez notifikace (deník `Declined as busy`, `Ringing notification skipped`, u VT
+       `Discarded: declined`),
+     - Pixel 7 (VT2) volá VT, Pixel 5 zvoní, a Zavolat v chatu VT2 ukáže dialog místo vytáčení.
+   - **Oficiální Telegram na tomtéž telefonu se do zkoušek plete**: je-li v něm přihlášený
+     tentýž účet, zvoní taky a jeho oznámení hovoru překrývá horní část obrazovky.
 
 **Zbývá pro fázi 1:**
    - **V režimu Vše zbývá sloučit archiv a hledání** (veřejné chaty a zprávy přes server za

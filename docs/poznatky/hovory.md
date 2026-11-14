@@ -1195,10 +1195,14 @@ S víc účty je hovor jeden pro celou aplikaci, jako u telefonu (`docs/navrh-vi
 fáze 1). Média (`CallMedia`, mikrofon, přenos) jsou v procesu jedna, kdežto `TdlCallRepository`
 má každý účet svoje.
 
-- **Příchozí hovor během hovoru v jiném účtu se odmítne jako obsazeno**, ještě než se ukáže
-  (`busyElsewhere`, `Accounts.inCallElsewhere`). V rámci jednoho účtu obsazeno ohlásí server
-  sám; o hovoru jiného účtu ale neví.
+- **Příchozí hovor během hovoru v jiném účtu se odmítne**, ještě než se ukáže (`busyElsewhere`,
+  `Accounts.inCallElsewhere`). V rámci jednoho účtu ohlásí obsazeno server sám; o hovoru jiného
+  účtu ale neví, a `discardCall` důvod nastavit nedovolí — volající uvidí „odmítnuto".
+- **Notifikaci hovoru vydává TDLib vlastní cestou**, nezávisle na `CallRepository`: presenter ji
+  při hovoru v jiném účtu zahodí (`callBusy`), jinak se na okamžik ukázala i s celoobrazovkovou
+  výzvou.
 - **Odmítnutí nevolá `media.stop()`** (`declineBusy`, ne `hangUp`): zastavilo by hovor druhého
   účtu, který v týchž médiích běží. Kdo přidává další cestu k ukončení hovoru, musí to hlídat taky.
-- Vytočit hovor, když hovor má jiný účet, nejde (pruh „Už máš hovor v jiném účtu").
+- Vytočit hovor, když hovor má jiný účet, nejde: dialog u ťuknutí (`rememberStartCall`). Pruh
+  hovoru ukazuje účet s živým hovorem, selhání druhého účtu by v něm vidět nebylo.
 

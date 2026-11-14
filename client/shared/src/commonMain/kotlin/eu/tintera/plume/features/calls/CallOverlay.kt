@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.calls
 
+import eu.tintera.plume.resources.call_busy_other_account_ok
+import eu.tintera.plume.resources.call_busy_other_account_text
+import eu.tintera.plume.resources.call_busy_other_account
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.core.accounts.Accounts
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.animation.AnimatedContent
@@ -833,8 +838,32 @@ fun rememberStartCall(userId: Long?): ((video: Boolean) -> Unit)? {
     val scope = rememberCoroutineScope()
     val microphone = rememberCallMicrophonePermission()
     val camera = rememberCallCameraPermission()
-    return remember(userId, microphone, camera) {
-        { requested ->
+    /*
+     * Hovor je přes všechny účty jeden. Repository by se vytočit nedalo a selhání by zapsala
+     * do pruhu hovoru, jenže pruh ukazuje účet, ve kterém hovor běží — ťuknutí by pak nic
+     * neudělalo. Proto se to řekne hned u ťuknutí (ověřeno na Pixelu 5).
+     */
+    val accounts = koinInject<Accounts>()
+    val slot = LocalAccount.current.slot
+    var busyElsewhere by remember { mutableStateOf(false) }
+    if (busyElsewhere) {
+        AlertDialog(
+            onDismissRequest = { busyElsewhere = false },
+            title = { Text(stringResource(Res.string.call_busy_other_account)) },
+            text = { Text(stringResource(Res.string.call_busy_other_account_text)) },
+            confirmButton = {
+                TextButton(onClick = { busyElsewhere = false }, shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(Res.string.call_busy_other_account_ok))
+                }
+            },
+        )
+    }
+    return remember(userId, microphone, camera, slot) {
+        start@{ requested ->
+            if (accounts.inCallElsewhere(slot)) {
+                busyElsewhere = true
+                return@start
+            }
             // Bez obrazu (desktop) se videohovor vytočí jako hlasový — kamera tam ani není.
             val video = requested && calls.supportsVideo
             (if (video) camera else microphone).request { granted ->

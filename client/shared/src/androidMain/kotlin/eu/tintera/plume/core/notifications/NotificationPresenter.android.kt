@@ -90,6 +90,12 @@ actual class NotificationPresenter(
      * který systém ukáže v záhlaví vedle názvu aplikace — jinak není poznat, komu zpráva přišla.
      */
     private val accountName: suspend () -> String? = { null },
+    /**
+     * Má hovor jiný účet? Příchozí hovor pak repository účtu odmítne (hovor je přes účty jeden),
+     * ale notifikaci hovoru vydá TDLib vlastní cestou, nezávisle na ní — bez tohohle se na
+     * okamžik ukázala i s celoobrazovkovou výzvou (ověřeno na Pixelu 5).
+     */
+    private val callBusy: () -> Boolean = { false },
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -513,6 +519,10 @@ actual class NotificationPresenter(
      *   z nějakého důvodu ztratilo.
      */
     private suspend fun showCall(call: IncomingCall) {
+        if (callBusy()) {
+            journal?.record("Ringing notification skipped: a call is running in another account", call.callId)
+            return
+        }
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) return

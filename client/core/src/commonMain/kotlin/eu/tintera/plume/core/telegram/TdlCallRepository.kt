@@ -97,7 +97,7 @@ class TdlCallRepository(
     /**
      * Má hovor jiný účet v aplikaci? Hovor je přes všechny účty jeden, jako u telefonu: média
      * (mikrofon, přenos) jsou v procesu jedna a dva hovory by se o ně přetahovaly. Příchozí hovor
-     * se pak odmítne jako obsazeno a odchozí se nevytočí.
+     * se pak odmítne (obsazeno nastavit nejde, viz [declineBusy]) a odchozí se nevytočí.
      */
     private val busyElsewhere: () -> Boolean = { false },
 ) : CallRepository {
@@ -293,11 +293,13 @@ class TdlCallRepository(
 
     override suspend fun hangUp() = hangUp(disconnected = false)
 
-    /** Příchozí hovory odmítnuté jako obsazeno kvůli hovoru v jiném účtu; jejich další stavy se zahodí. */
+    /** Příchozí hovory odmítnuté kvůli hovoru v jiném účtu; jejich další stavy se zahodí. */
     private val busyDeclined = mutableSetOf<Int>()
 
     /**
-     * Odmítne příchozí hovor jako obsazeno. **Bez `media.stop()`**, na rozdíl od [hangUp]: média
+     * Odmítne příchozí hovor kvůli hovoru v jiném účtu. Volající ho uvidí jako odmítnutý, ne
+     * obsazený: `discardCall` důvod nastavit nedovolí a nepřijatý příchozí hovor TDLib odešle jako
+     * odmítnutý (ověřeno na zařízení, `Discarded: declined`). **Bez `media.stop()`**, na rozdíl od [hangUp]: média
      * jsou v procesu jedna a běží v nich hovor jiného účtu, který by se tím přerušil. Odmítnutý
      * hovor média nikdy nespustil, takže zastavovat není co.
      */
@@ -310,7 +312,7 @@ class TdlCallRepository(
             duration = 0,
             isVideo = call.isVideo,
             connectionId = 0L,
-        ).toResult().onFailure { logger.w(it) { "Hovor ${call.id} se nepodařilo odmítnout jako obsazeno." } }
+        ).toResult().onFailure { logger.w(it) { "Hovor ${call.id} se nepodařilo odmítnout." } }
     }
 
     /**
@@ -446,8 +448,8 @@ class TdlCallRepository(
         val current = _active.value
         // Druhý hovor během hovoru neřešíme — server ho druhé straně ohlásí jako obsazeno.
         if (current != null && current.id != call.id && current.phase !in ENDED) return
-        // Hovor v jiném účtu: server o něm neví, takže obsazeno ohlásí až odmítnutí. Hovor se
-        // vůbec neukáže — nezazvoní, nevznikne notifikace ani systémový hovor.
+        // Hovor v jiném účtu: server o něm neví, obsazeno neohlásí, takže se příchozí odmítne.
+        // Hovor se vůbec neukáže — nezazvoní, nevznikne notifikace ani systémový hovor.
         if (call.id in busyDeclined) return
         if (current?.id != call.id && !call.isOutgoing && call.state is CallStatePending && busyElsewhere()) {
             busyDeclined += call.id

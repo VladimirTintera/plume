@@ -1199,6 +1199,8 @@
     <string name="call_bar_dropped">Call dropped</string>
     <string name="call_bar_failed">Couldn't connect the call</string>
     <string name="call_busy_other_account">You are already in a call on another account</string>
+    <string name="call_busy_other_account_text">A new call can start once that one ends.</string>
+    <string name="call_busy_other_account_ok">OK</string>
     <string name="call_answer">Answer</string>
     <string name="call_hang_up">Hang up</string>
     <string name="call_mute">Mute microphone</string>
