@@ -165,10 +165,12 @@ actual fun Module.platformModule() {
     // Zvuk hovoru vede systémový Telecom (most níž), náhradně Plume sám.
     // Zvuk vede systémový hovor toho účtu, který právě volá; hovor je přes všechny účty jeden.
     single<CallMedia> {
-        val accounts = get<Accounts>()
+        // `Accounts` až za běhu: média vznikají uvnitř kontejneru účtu, který se teprve otevírá.
+        val koin = getKoin()
         NtgCallMedia(
             androidContext(),
             routes = {
+                val accounts = koin.get<Accounts>()
                 val calling = accounts.all.value.firstOrNull { it.get<CallRepository>().active.value != null } ?: accounts.default.value
                 calling.get<TelecomCallBridge>().routes()
             },

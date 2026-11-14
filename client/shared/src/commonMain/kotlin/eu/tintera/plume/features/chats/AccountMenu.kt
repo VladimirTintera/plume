@@ -8,6 +8,7 @@ import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.AccountSession
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.canAddAccounts
 import eu.tintera.plume.resources.accounts_add
 import eu.tintera.plume.resources.accounts_shown
 import eu.tintera.plume.resources.check_24dp
@@ -314,7 +315,7 @@ internal fun rememberAccountSwitcher(): AccountSwitcher {
     val scope = rememberCoroutineScope()
     return AccountSwitcher(
         accounts = all.map { AccountEntry(it, infos[it.slot], shown = it === default) },
-        canAdd = all.size < Accounts.MAX_ACCOUNTS,
+        canAdd = canAddAccounts && all.size < Accounts.MAX_ACCOUNTS,
         onSelect = accounts::setDefault,
         onAdd = { scope.launch { accounts.add() } },
     )

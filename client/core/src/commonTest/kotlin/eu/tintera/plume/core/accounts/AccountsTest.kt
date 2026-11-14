@@ -162,6 +162,19 @@ class AccountsTest {
     }
 
     @Test
+    fun adresarSlotuMimoSeznamSePriStartuSmaze() = runTest {
+        registry.save(SavedAccounts(listOf(SavedAccount("0", 1), SavedAccount("bbbbbb", 2))))
+        FileSystem.SYSTEM.createDirectories(directory / "bbbbbb" / "tdlib")
+        FileSystem.SYSTEM.createDirectories(directory / "zzzzzz" / "tdlib")
+
+        accounts()
+
+        assertTrue(FileSystem.SYSTEM.exists(directory / "bbbbbb"))
+        assertTrue(!FileSystem.SYSTEM.exists(directory / "zzzzzz"))
+        assertTrue(FileSystem.SYSTEM.exists(directory / "accounts.json"))
+    }
+
+    @Test
     fun pushDostaneUcetPodlePrijemce() = runTest {
         registry.save(
             SavedAccounts(listOf(SavedAccount("0", 1, pushReceiverId = 101), SavedAccount("bbbbbb", 2, pushReceiverId = 202))),

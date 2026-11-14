@@ -42,6 +42,20 @@ class AccountRegistry(
         fileSystem.atomicMove(temporary, path)
     }
 
+    /**
+     * Smaže adresáře slotů vedle seznamu, které v něm nejsou ([keep]): přidání účtu přerušené
+     * zabitím procesu po sobě nechá adresář TDLib, ke kterému se už nikdo nedostane.
+     */
+    internal fun removeOrphans(keep: Set<String>) {
+        val directory = path.parent ?: return
+        val orphans = runCatching { fileSystem.list(directory) }.getOrDefault(emptyList())
+            .filter { it != path && it.name !in keep && fileSystem.metadataOrNull(it)?.isDirectory == true }
+        orphans.forEach { orphan ->
+            logger.i { "Mažu adresář slotu ${orphan.name}, který v seznamu účtů není." }
+            runCatching { fileSystem.deleteRecursively(orphan) }
+        }
+    }
+
     private companion object {
         val json = Json { ignoreUnknownKeys = true }
     }

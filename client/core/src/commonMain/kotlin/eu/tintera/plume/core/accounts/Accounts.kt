@@ -112,6 +112,7 @@ class Accounts internal constructor(
         _default = MutableStateFlow(sessions.firstOrNull { it.slot == defaultSlot } ?: sessions.first())
         default = _default.asStateFlow()
         sessions.forEach(::watch)
+        registry?.removeOrphans(sessions.map { it.slot.id }.toSet())
     }
 
     /** Účet podle slotu. Neznámý slot je chyba v kódu, ne stav: slot se dostane jen od účtu. */
@@ -197,11 +198,17 @@ class Accounts internal constructor(
         }
     }
 
-    /** Zruší rozdělané přidání účtu (zpět z přihlašovací obrazovky): klient i data jdou pryč. */
+    /**
+     * Zruší rozdělané přidání účtu (zpět z přihlašovací obrazovky): klient i data jdou pryč.
+     *
+     * Úklid běží ve scope aplikace, ne volajícího: volá to přihlašovací obrazovka, která
+     * s přidáváním zmizí, a s ní by se úklid přerušil uprostřed čekání na zavření klienta
+     * (ověřeno na zařízení: adresář slotu zůstal).
+     */
     suspend fun cancelAdd() {
         val account = mutex.withLock { _adding.value?.also { _adding.value = null } } ?: return
         logger.i { "Přidání účtu ${account.slot.id} zrušeno." }
-        discard(account, destroy = true)
+        scope.launch { discard(account, destroy = true) }
     }
 
     private fun openSession(slot: AccountSlot, userId: Long?): AccountSession {
@@ -374,5 +381,5 @@ fun Koin.account(slot: AccountSlot): Koin? = get<Accounts>().find(slot)?.koin
 
 private fun randomSlotId(): String {
     val alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
-    return String(CharArray(6) { alphabet[Random.nextInt(alphabet.length)] })
+    return CharArray(6) { alphabet[Random.nextInt(alphabet.length)] }.concatToString()
 }
