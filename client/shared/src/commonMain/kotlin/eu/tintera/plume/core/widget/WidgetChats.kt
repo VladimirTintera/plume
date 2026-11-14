@@ -26,7 +26,18 @@ data class WidgetChat(
     val savedMessages: Boolean = false,
     /** Účet chatu, id slotu; chybí u podkladů zapsaných před víc účty. */
     val slot: String = AccountSlot.Primary.id,
-)
+    /**
+     * Odznak účtu na avataru, když widget ukazuje chaty víc účtů (režim Všechny účty): iniciála
+     * účtu, `null` = odznak se nekreslí. Bez něj nejdou rozlišit řádky téhož chatu ve dvou
+     * účtech (Telegram, společná skupina).
+     */
+    val accountInitial: String? = null,
+    /** Kulatá miniatura fotky účtu k odznaku; `null` = iniciála [accountInitial]. */
+    val accountAvatar: String? = null,
+) {
+    /** Klíč řádku v seznamu widgetu: totéž id má chat ve dvou účtech. */
+    val itemId: Long get() = if (slot == AccountSlot.Primary.id) id else "$slot:$id".hashCode().toLong()
+}
 
 /** Co widget ukazuje: chaty a jestli je vůbec někdo přihlášený. */
 @Serializable

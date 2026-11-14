@@ -111,7 +111,7 @@ class ChatsWidgetUpdater(
             when {
                 stage is AuthStage.WaitPhoneNumber || stage is AuthStage.LoggingOut -> Part.LoggedOut
                 stage is AuthStage.Ready && state is ChatListState.Ready ->
-                    Part.Chats(WidgetAccountChats(account.slot, state.chats, saved), account.get())
+                    Part.Chats(WidgetAccountChats(account.slot, state.chats, saved), account)
                 else -> null
             }
         }
@@ -141,6 +141,12 @@ class ChatsWidgetUpdater(
                     is Input.Chats -> {
                         val savedTitle = readString(Res.string.saved_messages)
                         val bySlot = input.parts.associateBy { it.chats.slot }
+                        // Odznak účtu jen s víc účty ve widgetu; s jedním by jen zabíral avatar.
+                        val badges = if (input.parts.size > 1) {
+                            input.parts.associate { part -> part.chats.slot to accountBadge(part) }
+                        } else {
+                            emptyMap()
+                        }
                         val widgetChats = coroutineScope {
                             mergedWidgetChats(input.parts.map { it.chats }).map { (slot, chat) ->
                                 async {
@@ -159,12 +165,14 @@ class ChatsWidgetUpdater(
                                         timestamp = chat.lastMessageTimestamp,
                                         avatar = if (saved) null else chat.avatarFileId?.let { avatar(part.files, slot, it) },
                                         savedMessages = saved,
+                                        accountInitial = badges[slot]?.initial,
+                                        accountAvatar = badges[slot]?.avatar,
                                     )
                                 }
                             }.awaitAll()
                         }
                         // Miniatury všech zobrazených účtů najednou — po účtech by se mazaly navzájem.
-                        WidgetAvatars.prune(context, keep = widgetChats.mapNotNull { it.avatar }.toSet())
+                        WidgetAvatars.prune(context, keep = widgetChats.flatMap { listOfNotNull(it.avatar, it.accountAvatar) }.toSet())
                         WidgetSnapshot(loggedIn = true, chats = widgetChats)
                     }
                 }
@@ -182,9 +190,20 @@ class ChatsWidgetUpdater(
         return WidgetAvatars.thumbnail(context, slot, fileId, path)
     }
 
+    /** Iniciála a miniatura fotky účtu pro odznak na avataru řádku. */
+    private suspend fun accountBadge(part: Part.Chats): Badge {
+        val me = part.account.session.me().getOrNull()
+        val photo = me?.photoFileId?.let { avatar(part.files, part.chats.slot, it) }
+        return Badge(initial = me?.displayName?.trim()?.firstOrNull()?.uppercase() ?: "?", avatar = photo)
+    }
+
+    private data class Badge(val initial: String, val avatar: String?)
+
     private sealed interface Part {
         data object LoggedOut : Part
-        data class Chats(val chats: WidgetAccountChats, val files: FileRepository) : Part
+        data class Chats(val chats: WidgetAccountChats, val account: AccountSession) : Part {
+            val files: FileRepository get() = account.get()
+        }
     }
 
     private sealed interface Input {

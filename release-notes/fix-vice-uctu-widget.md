@@ -1,4 +1,4 @@
 type: fix
 units: android
-cs: Víc účtů: widget na ploše ukazuje chaty podle výběru účtů, už nepřeskakuje mezi účty
-en: Multiple accounts: the home screen widget follows the account filter instead of flipping
+cs: Víc účtů: widget ukazuje chaty podle výběru účtů a u každého chatu jeho účet
+en: Multiple accounts: the widget follows the account filter and shows each chat's account

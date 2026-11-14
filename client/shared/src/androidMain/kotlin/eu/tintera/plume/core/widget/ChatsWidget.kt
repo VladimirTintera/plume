@@ -138,7 +138,7 @@ private fun ChatsWidgetContent(context: Context, snapshot: WidgetSnapshot, texts
             !snapshot.loggedIn -> Message(texts.loggedOut, context)
             snapshot.chats.isEmpty() -> Message(texts.empty, context)
             else -> LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
-                items(snapshot.chats, itemId = { it.id }) { chat ->
+                items(snapshot.chats, itemId = { it.itemId }) { chat ->
                     ChatRow(context, chat, chat.timestamp?.let(::widgetTime))
                 }
             }
@@ -157,7 +157,10 @@ private fun ChatRow(context: Context, chat: WidgetChat, time: String?) {
             .cornerRadius(16.dp)
             .clickable(AccountSlot.parse(chat.slot)?.let { openChat(context, it, chat.id) } ?: openApp(context)),
     ) {
-        ChatAvatar(chat)
+        Box(contentAlignment = Alignment.BottomStart, modifier = GlanceModifier.size(AVATAR_SIZE)) {
+            ChatAvatar(chat)
+            chat.accountInitial?.let { AccountBadge(it, chat.accountAvatar) }
+        }
         Spacer(GlanceModifier.width(12.dp))
         Column(modifier = GlanceModifier.defaultWeight()) {
             // Řádek přes celou šířku, jinak se jméno nevyplní a čas se na něj nalepí.
@@ -229,6 +232,34 @@ private fun ChatAvatar(chat: WidgetChat) {
                 text = initial(chat.title),
                 style = TextStyle(color = GlanceTheme.colors.onPrimaryContainer, fontSize = 16.sp, fontWeight = FontWeight.Medium),
             )
+        }
+    }
+}
+
+/**
+ * Odznak účtu vlevo dole na avataru, jako v seznamu chatů víc účtů: fotka účtu (miniatura už
+ * v kruhu), jinak iniciála, v kroužku barvy pozadí widgetu, ať se od avataru oddělí.
+ */
+@Composable
+private fun AccountBadge(initial: String, avatar: String?) {
+    val bitmap = remember(avatar) { avatar?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() } }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = GlanceModifier
+            .size(BADGE_SIZE + BADGE_RIM * 2)
+            .cornerRadius(BADGE_SIZE / 2 + BADGE_RIM)
+            .background(GlanceTheme.colors.widgetBackground),
+    ) {
+        val inner = GlanceModifier.size(BADGE_SIZE).cornerRadius(BADGE_SIZE / 2)
+        if (bitmap != null) {
+            Image(provider = ImageProvider(bitmap), contentDescription = null, modifier = inner)
+        } else {
+            Box(contentAlignment = Alignment.Center, modifier = inner.background(GlanceTheme.colors.secondaryContainer)) {
+                Text(
+                    text = initial,
+                    style = TextStyle(color = GlanceTheme.colors.onSecondaryContainer, fontSize = 9.sp, fontWeight = FontWeight.Medium),
+                )
+            }
         }
     }
 }
@@ -305,3 +336,7 @@ private fun openApp(context: Context): Action {
 private const val MAX_BADGE = 999
 
 private val AVATAR_SIZE = 40.dp
+
+/** Odznak účtu na avataru: fotka 16 dp a kroužek 2 dp, jako v seznamu chatů. */
+private val BADGE_SIZE = 16.dp
+private val BADGE_RIM = 2.dp

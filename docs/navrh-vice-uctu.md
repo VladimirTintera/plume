@@ -842,8 +842,14 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       ploše** ukázal chaty tří účtů a součet nepřečtených, ťuknutí otevřelo chat ve správném
       účtu a po přečtení se widget sám přerovnal. Při tom se našla starší chyba: ťuknutí
       ukazovalo nad chatem „odkaz nejde otevřít" (`receiveLink`, viz poznatky k widgetu).
-    - **Řádky téhož chatu ve dvou účtech (Telegram, společná skupina) ve widgetu nejdou
-      rozlišit** — odznak účtu na avataru widget nemá.
+    - **Odznak účtu na avataru**, když widget ukazuje víc účtů (`WidgetChat.accountInitial`,
+      `accountAvatar`): fotka účtu jako kulatá miniatura (`WidgetAvatars`, maže se spolu
+      s miniaturami chatů), bez fotky iniciála, v kroužku barvy pozadí widgetu — jako v seznamu
+      chatů. Bez něj nešly rozlišit řádky téhož chatu ve dvou účtech (Telegram, společná
+      skupina). S jedním účtem se nekreslí.
+    - **Klíč řádku widgetu nese účet** (`WidgetChat.itemId`; primární účet má dál id chatu):
+      týž chat ve dvou účtech má stejné id a `LazyColumn` widgetu chce klíče jedinečné.
+    - Ověřeno na ploše Pixelu 5: odznaky fotek VT a osobního účtu, iniciála „V" u VT2.
 
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení

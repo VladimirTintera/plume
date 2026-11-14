@@ -1362,6 +1362,8 @@ nabídky widgetů launcheru.
 - **Ťuknutí na řádek ukazovalo hlášku „odkaz nejde otevřít"**: intent řádku nese data
   `plume-widget://chat/…` (jinak by se `PendingIntent` řádků slily) a `MainActivity.receiveLink`
   bral jakákoli data z `ACTION_VIEW` jako odkaz na Telegram. Bere teď jen `isTelegramLink`.
+- **S víc účty má řádek odznak účtu** (fotka účtu nebo iniciála v kroužku barvy pozadí)
+  a klíč řádku nese účet (`WidgetChat.itemId`) — týž chat ve dvou účtech má stejné id.
 - **Updater je jeden přes všechny účty** a ukazuje chaty podle filtru seznamu (režim Všechny
   účty → `mergedWidgetChats`). Updater za každý účet si soubor, stav widgetu i miniatury
   přepisoval (`docs/navrh-vice-uctu.md`, krok 16).

@@ -6,6 +6,7 @@ import eu.tintera.plume.core.telegram.ChatSponsor
 import eu.tintera.plume.core.telegram.ChatSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 /** Výběr chatů do widgetu na ploše. */
 class WidgetChatsTest {
@@ -52,6 +53,15 @@ class WidgetChatsTest {
         )
         assertEquals(listOf(a to 3L, b to 5L, b to 4L, a to 2L, b to 1L, a to 1L), merged.map { it.first to it.second.id })
         assertEquals(3, mergedWidgetChats(listOf(WidgetAccountChats(a, listOf(chat(1), chat(2), chat(3), chat(4)), null), WidgetAccountChats(b, emptyList(), null)), max = 3).size)
+    }
+
+    /** Klíč řádku widgetu: týž chat ve dvou účtech jsou dva řádky; primární účet má klíč jako dřív. */
+    @Test
+    fun klicRadkuSUctem() {
+        val primary = WidgetChat(7, "A", null, unread = 0, muted = false, timestamp = null)
+        val other = primary.copy(slot = "abc")
+        assertEquals(7L, primary.itemId)
+        assertNotEquals(primary.itemId, other.itemId)
     }
 
     /** S jedním účtem přesně pravidlo jednoho účtu, i s pořadím od TDLib. */
