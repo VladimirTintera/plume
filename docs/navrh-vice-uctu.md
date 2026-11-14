@@ -880,6 +880,30 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       dnes ve 20:08" (VT po přepnutí přestal být online); režim Všechny účty — VT má na avataru
       tečku online. Stav viděl osobní účet, tedy server, ne Plume samo.
 
+19. **Volby, které patří účtu** — hotovo:
+    - `AccountSettings` (`AppSettings.forAccount(slot)`, `single` v kontejneru účtu): souhlas
+      s mini aplikací (`confirmed_web_app_bots`), použité jednorázové klávesnice, synchronizace
+      adresáře, stav synchronizace automatického stahování a čas posledního úklidu médií. Klíč
+      s příponou slotu, primární účet na dnešních klíčích.
+    - Nejhorší byla synchronizace adresáře: jedna volba pro všechny `ContactSyncer`y znamenala,
+      že zapnutí v Nastavení nahrálo kontakty do všech přihlášených účtů.
+    - Jednorázová klávesnice: chat s botem má v každém účtu totéž id (id bota), ale jiné zprávy,
+      takže použití v jednom účtu přepsalo záznam druhého a klávesnice se tam rozbalila znovu.
+    - **Uložené zprávy ve výsledcích hledání přes víc účtů:** TDLib je najde pod jménem účtu,
+      takže hledání „VT" vracelo „VT" a „VT2" se záložkou místo fotky. Vyřazuje je
+      `mergedSearchState` podle id Uložených zpráv každého účtu; obrazovka znala jen id účtu
+      obrazovky, a pod ním je v ostatních účtech soukromý chat s ním — ten teď nezmizí. Řádek
+      „Uložené zprávy" dává hledání účtu obrazovky jako dřív; název chatu ve výsledku se bere
+      až v kontejneru jeho účtu (`chatTitle`).
+    - **Další účty po aktualizaci stav synchronizace stahování nemají** (`null`), takže se
+      zachovají jako aktualizace z verze bez synchronizace: vybrané úrovně pošlou na svůj server,
+      výchozí úrovně nahradí předvolbami ze svého serveru. Na Pixelu 5 si oba další účty stáhly
+      předvolby shodné s výchozími (`auto_download_sync_<slot>` v souboru nastavení).
+    - **Ověřeno na Pixelu 5** (režim Všechny účty): hledání „VT" ukázalo soukromé chaty
+      osobního účtu s VT a VT2 s jejich fotkami (dřív Uložené zprávy obou účtů se záložkou),
+      hledání „Saved" jeden řádek Uložených zpráv. Přepínač synchronizace adresáře se na
+      zařízení nezapínal (nahrál by kontakty); rozdělení klíčů hlídá `DataStoreAppSettingsTest`.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`.
@@ -887,7 +911,6 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      výchozí účet.
    - `VoicePlayer` klíčuje přehrávání `VoiceKey(chatId, messageId)` bez účtu: hlasovka se stejným
      klíčem v jiném účtu (společný kanál) by v bublině ukázala, že hraje.
-   - Volby `AppSettings`, které patří účtu (`confirmed_web_app_bots`…), zatím slot nemají.
    - Hodinky si přihlášení potvrzují výchozím účtem telefonu.
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
    - Kolik baterie stojí další klient TDLib, změřené není (paměť a start viz krok 15).

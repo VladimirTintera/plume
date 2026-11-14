@@ -2,11 +2,12 @@ package eu.tintera.plume.core.contacts
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.connectivity.AppForeground
-import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.AccountSettings
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.ContactSync
 import eu.tintera.plume.core.telegram.TelegramSession
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -17,7 +18,7 @@ import kotlin.time.Clock
 
 /**
  * Synchronizace adresáře telefonu s Telegramem — jen se zapnutou volbou
- * ([AppSettings.contactSyncEnabled], výchozí vypnuto) a s oprávněním ke kontaktům.
+ * ([AccountSettings.contactSyncEnabled], po účtech, výchozí vypnuto) a s oprávněním ke kontaktům.
  *
  * - **Kdy**: po přihlášení a při každém návratu aplikace do popředí, nejvýš jednou za
  *   [MIN_INTERVAL_MS]. Změnu adresáře systém hlásí jen živému procesu (`ContentObserver`),
@@ -28,7 +29,7 @@ import kotlin.time.Clock
  * - **Jen jedno volání naráz** ([lock]): dokumentace `changeImportedContacts` to výslovně chce.
  */
 class ContactSyncer(
-    private val settings: AppSettings,
+    private val settings: AccountSettings,
     private val contacts: PhoneContacts,
     private val sync: ContactSync,
     session: TelegramSession,
@@ -38,6 +39,9 @@ class ContactSyncer(
     private val logger = Logger.withTag("ContactSync")
     private val lock = Mutex()
     private var lastSyncAt = 0L
+
+    /** Je synchronizace zapnutá u tohoto účtu (řádek v Nastavení). */
+    val enabled: StateFlow<Boolean> get() = settings.contactSyncEnabled
 
     init {
         scope.launch {

@@ -159,9 +159,8 @@ internal fun PrivacySettings(
 private fun ContactSyncRow() {
     val syncer = org.koin.compose.getKoin().getOrNull<eu.tintera.plume.core.contacts.ContactSyncer>() ?: return
     val permission = eu.tintera.plume.core.contacts.rememberContactsPermission() ?: return
-    val settings = org.koin.compose.koinInject<eu.tintera.plume.core.settings.AppSettings>()
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val enabled by settings.contactSyncEnabled.collectAsStateWithLifecycle()
+    val enabled by syncer.enabled.collectAsStateWithLifecycle()
     var denied by remember { androidx.compose.runtime.mutableStateOf(false) }
     val toggle: (Boolean) -> Unit = { on ->
         if (on) {

@@ -207,7 +207,11 @@ fun ChatListScreen(
     val searchSources = sources.map { source ->
         key(source.account.slot) { source.account.slot to source.viewModel.search.state.collectAsStateWithLifecycle().value }
     }.sortedByDescending { it.first == screenAccount.slot }
-    val search = if (sources.isEmpty()) screenSearch else mergedSearchState(screenSearch, searchSources)
+    val savedMessagesBySlot = sources.mapNotNull { source ->
+        key(source.account.slot) { source.viewModel.savedMessagesChatId.collectAsStateWithLifecycle().value }
+            ?.let { source.account.slot to it }
+    }.toMap()
+    val search = if (sources.isEmpty()) screenSearch else mergedSearchState(screenSearch, searchSources, savedMessagesBySlot)
     // Čí řádky ukazuje seznam jednoho účtu: obrazovky, nebo účtu, ve kterém běží výběr.
     val listViewModel = busySource?.viewModel ?: viewModel
     val listAccount = busySource?.account ?: screenAccount

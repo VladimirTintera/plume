@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.location.GeoPoint
 import eu.tintera.plume.core.navigation.BotStartRequests
-import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.AccountSettings
 import eu.tintera.plume.core.telegram.BotButtonKind
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
@@ -60,7 +60,7 @@ internal class ConversationBots(
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
-    private val settings: AppSettings,
+    private val settings: AccountSettings,
     /** Odkaz ven (prohlížeč); `UrlOpener` je `expect class`, v testu ho nahradit nejde. */
     private val openUrl: (url: String) -> Unit,
     /** Zápis do schránky (`TextClipboard.copy`); `TextClipboard` je `expect class`. */

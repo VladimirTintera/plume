@@ -61,6 +61,7 @@ import eu.tintera.plume.core.files.fileShareSupported
 import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
+import eu.tintera.plume.core.settings.AccountSettings
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.settings.GestureHint
@@ -196,6 +197,8 @@ class ConversationViewModel(
     /** Jen kvůli oblíbeným samolepkám v nabídce nad zprávou. */
     private val stickerRepository: StickerRepository,
     private val settings: AppSettings,
+    /** Volby účtu: použité jednorázové klávesnice botů. */
+    private val accountSettings: AccountSettings,
     /**
      * Rozsah aplikace, jen pro ukládání konceptu. `viewModelScope` se při odchodu z chatu zruší
      * dřív, než by poslední úprava stihla odejít — a právě ta je nejdůležitější.
@@ -316,11 +319,11 @@ class ConversationViewModel(
 
     /**
      * Zpráva s jednorázovou klávesnicí bota, kterou uživatel v tomhle chatu už použil — panel
-     * se pak otevře sbalený (viz `AppSettings.usedOneTimeKeyboards`).
+     * se pak otevře sbalený (viz `AccountSettings.usedOneTimeKeyboards`).
      */
-    val usedKeyboardMessageId: StateFlow<Long?> = settings.usedOneTimeKeyboards
+    val usedKeyboardMessageId: StateFlow<Long?> = accountSettings.usedOneTimeKeyboards
         .map { it[chatId] }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, settings.usedOneTimeKeyboards.value[chatId])
+        .stateIn(viewModelScope, SharingStarted.Eagerly, accountSettings.usedOneTimeKeyboards.value[chatId])
 
     private val _state = MutableStateFlow(ConversationState(
             threadRootId = threadRootId,
@@ -697,7 +700,7 @@ class ConversationViewModel(
         scope = viewModelScope,
         repository = repository,
         chatRepository = chatRepository,
-        settings = settings,
+        settings = accountSettings,
         openUrl = urlOpener::open,
         copyToClipboard = clipboard::copy,
         clipboardConfirmsCopy = clipboard.confirmsCopy,

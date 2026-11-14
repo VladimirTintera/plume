@@ -42,6 +42,8 @@ enum class SettingsSync {
  */
 class AutoDownloadSync(
     private val settings: AppSettings,
+    /** Stav synchronizace je po účtech: každý účet má na serveru své předvolby. */
+    private val account: AccountSettings,
     private val presets: AutoDownloadPresets,
     /** `TelegramSession.authStage`. */
     private val authStage: StateFlow<AuthStage>,
@@ -62,7 +64,7 @@ class AutoDownloadSync(
                 when {
                     stage == AuthStage.Ready -> mutex.withLock { afterReady() }
                     stage.signedOut -> mutex.withLock {
-                        if (settings.autoDownloadSync() != SettingsSync.Pull) settings.setAutoDownloadSync(SettingsSync.Pull)
+                        if (account.autoDownloadSync() != SettingsSync.Pull) account.setAutoDownloadSync(SettingsSync.Pull)
                     }
                     else -> Unit
                 }
@@ -79,14 +81,14 @@ class AutoDownloadSync(
                 val target = pending.value ?: return@withLock
                 // Odhlášený účet nemá kam zapisovat; po přihlášení se nastavení stejně stáhne.
                 if (authStage.value != AuthStage.Ready) return@withLock
-                settings.setAutoDownloadSync(SettingsSync.Push)
+                account.setAutoDownloadSync(SettingsSync.Push)
                 push(target)
             }
         }
     }
 
     private suspend fun afterReady() {
-        when (settings.autoDownloadSync()) {
+        when (account.autoDownloadSync()) {
             SettingsSync.Synced -> Unit
             SettingsSync.Push -> push(settings.loadedAutoDownload())
             SettingsSync.Pull -> pull()
@@ -104,7 +106,7 @@ class AutoDownloadSync(
             .onSuccess { server ->
                 logger.i { "Ze serveru: $server" }
                 settings.setAutoDownload(server)
-                settings.setAutoDownloadSync(SettingsSync.Synced)
+                account.setAutoDownloadSync(SettingsSync.Synced)
             }
             .onFailure { logger.w(it) { "Předvolby automatického stahování se nenačetly." } }
     }
@@ -114,7 +116,7 @@ class AutoDownloadSync(
             .onSuccess {
                 if (pending.value == target) pending.value = null
                 // Novější změna čeká za zámkem a stav nastaví sama.
-                if (pending.value == null) settings.setAutoDownloadSync(SettingsSync.Synced)
+                if (pending.value == null) account.setAutoDownloadSync(SettingsSync.Synced)
             }
             .onFailure { logger.w(it) { "Automatické stahování se na server nezapsalo." } }
     }

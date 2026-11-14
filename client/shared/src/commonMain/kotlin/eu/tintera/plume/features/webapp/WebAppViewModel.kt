@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.files.WebFileDownloader
-import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.AccountSettings
 import eu.tintera.plume.core.telegram.PreparedButton
 import eu.tintera.plume.core.telegram.PreparedMessage
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -99,7 +99,7 @@ sealed interface WebAppEffect {
  *   stránka dostane údaje o účtu a co v ní uživatel udělá, může dostat i bot. Ptá se tady, ne
  *   u tlačítka, které mini aplikaci otevřelo: vstupů je víc (tlačítko pod zprávou, klávesnice,
  *   nabídka bota, profil, odkaz) a každý by na souhlas musel myslet zvlášť. Potvrzení se pamatuje
- *   ([AppSettings.confirmedWebAppBots]).
+ *   ([AccountSettings.confirmedWebAppBots]).
  * - **Spuštění se musí zavřít** (`closeWebApp`) — v `onCleared`, přes [appScope], ať proběhne
  *   i s odchodem obrazovky.
  * - **Data botovi** (`web_app_data_send`) smí poslat jen mini aplikace z vlastní klávesnice
@@ -126,7 +126,7 @@ class WebAppViewModel(
     /** Strážní bot schvalující vstup do chatu (`getGuardBotWebAppUrl`): id dotazu, jinak 0. */
     private val guardQueryId: Long,
     private val repository: WebAppRepository,
-    private val settings: AppSettings,
+    private val settings: AccountSettings,
     private val chats: ChatRepository,
     private val urlOpener: UrlOpener,
     private val downloader: WebFileDownloader,
