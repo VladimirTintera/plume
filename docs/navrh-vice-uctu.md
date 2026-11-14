@@ -686,8 +686,22 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      … → Notifikátor VT pod okrajem (seznam dojel), Alt+↑ zpět na Notifikátor VT2; pole zprávy
      ukazuje vždy účet otevřeného chatu.
 
+10. **Sbalený sloupec seznamu v režimu Vše** — hotovo:
+    - Sloupec (`CollapsedChatList`) ukazuje avatary všech účtů v pořadí společného seznamu
+      (`mergedChatGroups`), každý v kontejneru svého účtu a s odznakem účtu. Ťuknutí otevře chat
+      v účtu řádku, podržení nabídku nad chatem z ViewModelu toho účtu (kreslí ji
+      `MergedChatActionsHosts`, ten je nad sloupcem i nad plným seznamem).
+    - Výběr víc chatů patří jednomu účtu jako v plném seznamu: po dobu výběru sloupec ukazuje
+      jen chaty toho účtu (ViewModel `listViewModel`, `CollapsedAccounts.listAccount`).
+    - Vybraný chat se porovnává i s účtem. Dřív sloupec bral jen id, takže chat se stejným id
+      v jiném účtu (otevřený z notifikace) by se zvýraznil i mimo režim Vše.
+    - `AccountBadge` si posun přes okraj avataru nese sám. Druhý posun navíc ho zasunul do
+      zaobleného rohu dlaždice (72 dp, ořez `LargeIncreased`) a ořez odznak usekl (ověřeno).
+    - **Ověřeno na Pixelu 5 na šířku**, seznam sbalený táhlem: avatary VT i VT2 s odznaky,
+      ťuknutí otevře chat ve správném účtu („Zpráva jako VT" / „VT2") a zvýraznění jde za ním,
+      podržení chatu VT2 → Vybrat ukáže jen chaty VT2, ✕ vrátí společný sloupec.
+
 **Zbývá pro fázi 1:**
-   - Ve sbaleném sloupci seznamu (`CollapsedChatList`) režim Vše není, ukazuje výchozí účet.
    - Zvukové kanály notifikací mají dostat slot do jména (tón patří účtu).
    - Odkazy `tg://` a `t.me` jdou do výchozího účtu; pozvánka a přihlášení na webu se mají ptát.
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení

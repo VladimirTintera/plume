@@ -472,10 +472,15 @@ fun ChatListScreen(
     BoxWithConstraints(modifier) {
         if (maxWidth < COLLAPSED_LIST_MAX_WIDTH) {
             CollapsedChatList(
-                viewModel = viewModel,
-                selectedChatId = selectedChatId,
-                onChatClick = navigation.onChatClick,
-                onForumClick = navigation.onForumClick,
+                viewModel = listViewModel,
+                accounts = CollapsedAccounts(
+                    sources = if (merged) sources else emptyList(),
+                    listAccount = listAccount,
+                    selected = selectedChatId?.let { id -> (selectedChatSlot ?: screenAccount.slot) to id },
+                    onOpen = { slot, chat ->
+                        if (chat.opensAsTopics) navigation.onAccountForumClick(slot, chat.id) else navigation.onAccountChatClick(slot, chat.id)
+                    },
+                ),
                 onSearch = {
                     expandListPane?.invoke()
                     navigation.onOpenSearch()
