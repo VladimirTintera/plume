@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.remember
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.foundation.layout.Spacer
@@ -52,7 +54,7 @@ class MenuAction(
  * a nemusí hlídat, jestli v ní něco zbylo. Nabídka zavře sebe sama před akcí ([onDismiss]).
  *
  * Okno nabídky si nebere klávesnici ([MenuPopupProperties]): nabídka nad vstupním polem ji
- * nechá otevřenou a konverzace pod ní neposkočí.
+ * nechá otevřenou a konverzace pod ní neposkočí. Obsah roluje ([menuScroll]).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -68,6 +70,7 @@ fun ExpressiveMenu(
     DropdownMenuPopup(
         expanded = expanded,
         onDismissRequest = onDismiss,
+        modifier = Modifier.menuScroll(),
         popupPositionProvider = popupPositionProvider,
         properties = properties,
     ) {
@@ -102,6 +105,18 @@ fun ExpressiveMenu(
         }
     }
 }
+
+/**
+ * Obsah nabídky roluje, když se nevejde do okna. `DropdownMenuPopup` z material3 Expressive to
+ * na rozdíl od starého `DropdownMenu` nedělá sám (1.12: `DropdownMenuPopupContent` je holý
+ * `Column`): okno nabídky je nejvýš tak vysoké jako obrazovka a co přeteče, je pod okrajem bez
+ * cesty k němu. Telefon naležato má kolem 360 dp, takže z menu účtu zmizelo Nastavení — poslední
+ * položka, a jinudy se k němu nejde.
+ *
+ * Patří do `modifier` každého `DropdownMenuPopup`; hlídá to `verifyMenuScroll`.
+ */
+@Composable
+fun Modifier.menuScroll(): Modifier = verticalScroll(rememberScrollState())
 
 /**
  * Barvy nabídky: plocha skupin i položek je `surfaceContainerHighest`, ne výchozí

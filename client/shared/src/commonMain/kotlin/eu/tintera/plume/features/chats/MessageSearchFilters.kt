@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import eu.tintera.plume.core.ui.horizontalScrollWithWheel
 import androidx.compose.material3.MaterialTheme
@@ -186,7 +187,7 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
              * Expressive menu: vybrané období je zaškrtnuté. Předvolby a vlastní rozsah jsou dvě
              * skupiny — rozsah otevírá další krok (výběr dat) a pod sebou ukazuje, jaký je.
              */
-            DropdownMenuPopup(expanded = periodMenu, onDismissRequest = { periodMenu = false }, properties = MenuPopupProperties) {
+            DropdownMenuPopup(modifier = Modifier.menuScroll(), expanded = periodMenu, onDismissRequest = { periodMenu = false }, properties = MenuPopupProperties) {
                 MenuColors {
                     DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
                         PERIODS.forEachIndexed { index, (period, label) ->
@@ -293,7 +294,7 @@ private fun ContentFilterButton(filter: MessageSearchFilter, onChange: (MessageS
                 }
             },
         )
-        DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
+        DropdownMenuPopup(modifier = Modifier.menuScroll(), expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
             MenuColors {
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
                     SearchContent.entries.forEachIndexed { index, content ->

@@ -1,5 +1,10 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -10,6 +15,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
@@ -31,6 +41,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
@@ -146,6 +157,8 @@ fun PinDots(
  *
  * Tlačítka používají standardní `IconButtonDefaults.shapes()`, které při stisku
  * plynule morphují z kruhu do squircle tvaru dle M3 Expressive standardu.
+ *
+ * [keySize] zmenšuje klávesnici na nízkém okně (viz [PinLayout]); mezery se zmenšují s ní.
  */
 @Composable
 fun PinKeypad(
@@ -155,12 +168,16 @@ fun PinKeypad(
     onBiometrics: (() -> Unit)? = null,
     isBiometricsEnabled: Boolean = false,
     isEnabled: Boolean = true,
+    keySize: Dp = PIN_KEY_SIZE,
 ) {
     val haptics = LocalHapticFeedback.current
+    val scale = keySize / PIN_KEY_SIZE
+    val rowGap = PIN_ROW_GAP * scale
+    val keyGap = PIN_KEY_GAP * scale
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(rowGap),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         val rows = listOf(
@@ -170,10 +187,11 @@ fun PinKeypad(
         )
 
         for (row in rows) {
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(keyGap)) {
                 for (digit in row) {
                     PinDigitButton(
                         text = digit.toString(),
+                        size = keySize,
                         enabled = isEnabled,
                         onClick = {
                             haptics.tick()
@@ -184,10 +202,11 @@ fun PinKeypad(
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(keyGap)) {
             // Vlevo: biometrie nebo prázdné místo
             if (isBiometricsEnabled && onBiometrics != null) {
                 PinIconButton(
+                    size = keySize,
                     enabled = true,
                     onClick = {
                         haptics.tick()
@@ -202,13 +221,14 @@ fun PinKeypad(
                     )
                 }
             } else {
-                Box(Modifier.size(76.dp))
+                Box(Modifier.size(keySize))
             }
 
             // Uprostřed: nula
             PinDigitButton(
                 // Číslice jako u ostatních tlačítek, ne literál — ten `verifyNoHardcodedText` nepustí.
                 text = 0.toString(),
+                size = keySize,
                 enabled = isEnabled,
                 onClick = {
                     haptics.tick()
@@ -218,6 +238,7 @@ fun PinKeypad(
 
             // Vpravo: smazání
             PinIconButton(
+                size = keySize,
                 enabled = isEnabled,
                 onClick = {
                     haptics.tick()
@@ -238,13 +259,14 @@ fun PinKeypad(
 @Composable
 private fun PinDigitButton(
     text: String,
+    size: Dp,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
     FilledTonalIconButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.size(76.dp),
+        modifier = Modifier.size(size),
         shapes = IconButtonDefaults.shapes(),
         colors = IconButtonDefaults.filledTonalIconButtonColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -260,6 +282,7 @@ private fun PinDigitButton(
 
 @Composable
 private fun PinIconButton(
+    size: Dp,
     enabled: Boolean,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
@@ -267,10 +290,103 @@ private fun PinIconButton(
     IconButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = Modifier.size(76.dp),
+        modifier = Modifier.size(size),
         shapes = IconButtonDefaults.shapes(),
     ) {
         content()
     }
 }
 
+
+/**
+ * Rozvržení obrazovky s PINem: [header] (nadpis, hláška, tečky) a pod ním klávesnice — na nízkém
+ * širokém okně vedle sebe. Sdílí ho zamykací obrazovka i zadávání PINu v Nastavení.
+ *
+ * **Pod sebou se to vejde až od zhruba 560 dp výšky** (hlavička kolem 170 dp, klávesnice čtyři
+ * řady po 76 dp s mezerami 352 dp). Telefon naležato má po odečtení lišt kolem 360 dp: dřív
+ * z klávesnice zbyla jen první řada a tečky ležely přes ni, PIN tak nešel nastavit ani zadat.
+ *
+ * - **Vedle sebe** jen tam, kde je místo do šířky: hlavička [PIN_HEADER_WIDTH] a klávesnice
+ *   zmenšená na výšku okna ([PinKeypad.keySize]). Rozhodovat jen podle poměru stran nestačilo:
+ *   úzký panel Nastavení naležato (kolem 330 dp) je pořád širší než vysoký a klávesnice z něj
+ *   přetekla do strany.
+ * - **Pod sebou** se klávesnice zmenší tak, aby se vešla pod hlavičku, a když ani to nestačí
+ *   (úzký a nízký panel), obsah roluje.
+ * - Tlačítko je nejméně [PIN_KEY_MIN_SIZE] — pod tím by bylo menší než dotykový cíl M3.
+ *
+ * [footer] (Zrušit) jde pod klávesnici, vedle sebe pod hlavičku: pod klávesnicí by ji vytlačil
+ * z výšky. [headerTopPadding] odsazuje hlavičku jen pod sebou; vedle sebe je na střed výšky.
+ */
+@Composable
+fun PinLayout(
+    header: @Composable () -> Unit,
+    keypad: @Composable (keySize: Dp) -> Unit,
+    modifier: Modifier = Modifier,
+    headerTopPadding: Dp = 16.dp,
+    footer: (@Composable () -> Unit)? = null,
+) {
+    BoxWithConstraints(modifier) {
+        val fullHeight = maxHeight
+        val sideKey = keySizeFor(fullHeight)
+        val sideBySide = maxWidth > maxHeight &&
+            maxHeight < PIN_COLUMN_MIN_HEIGHT &&
+            maxWidth >= PIN_HEADER_WIDTH + PIN_KEY_GAP + keypadWidth(sideKey)
+        if (sideBySide) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(max = PIN_HEADER_WIDTH)) {
+                    header()
+                    if (footer != null) {
+                        Spacer(Modifier.height(16.dp))
+                        footer()
+                    }
+                }
+                keypad(sideKey)
+            }
+        } else {
+            val footerHeight = if (footer == null) 16.dp else 8.dp + PIN_FOOTER_HEIGHT
+            val columnKey = keySizeFor(maxHeight - headerTopPadding - PIN_HEADER_HEIGHT - footerHeight)
+            // Pod sebou roluje, kdyby se nevešlo ani se zmenšenou klávesnicí; jinak stojí.
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = fullHeight),
+                ) {
+                    Box(Modifier.padding(top = headerTopPadding)) { header() }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.padding(bottom = if (footer == null) 16.dp else 8.dp)) { keypad(columnKey) }
+                        footer?.invoke()
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Největší tlačítko, se kterým se čtyři řady klávesnice vejdou do [height]. */
+private fun keySizeFor(height: Dp): Dp {
+    // Řada je tlačítko a mezera úměrná tlačítku (PIN_ROW_GAP na PIN_KEY_SIZE): 4k + 3k·g/K ≤ h.
+    val perKey = 4f + 3f * (PIN_ROW_GAP / PIN_KEY_SIZE)
+    return (height / perKey).coerceIn(PIN_KEY_MIN_SIZE, PIN_KEY_SIZE)
+}
+
+private fun keypadWidth(keySize: Dp): Dp = keySize * 3 + PIN_KEY_GAP * (keySize / PIN_KEY_SIZE) * 2
+
+private val PIN_KEY_SIZE = 76.dp
+private val PIN_KEY_MIN_SIZE = 48.dp
+private val PIN_ROW_GAP = 16.dp
+private val PIN_KEY_GAP = 24.dp
+private val PIN_COLUMN_MIN_HEIGHT = 560.dp
+
+/** Šířka hlavičky vedle klávesnice: vejde se do ní nadpis kroku („Zadej nový 4místný PIN“). */
+private val PIN_HEADER_WIDTH = 280.dp
+
+/** Odhad výšky hlavičky pod sebou (nadpis, hláška, tečky) pro velikost klávesnice pod ní. */
+private val PIN_HEADER_HEIGHT = 140.dp
+
+/** Tlačítko pod klávesnicí (Zrušit). */
+private val PIN_FOOTER_HEIGHT = 48.dp

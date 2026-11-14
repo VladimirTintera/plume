@@ -45,6 +45,7 @@ import eu.tintera.plume.core.lock.SystemLockClock
 import eu.tintera.plume.core.lock.rememberBiometricAuth
 import eu.tintera.plume.core.ui.PinDots
 import eu.tintera.plume.core.ui.PinKeypad
+import eu.tintera.plume.core.ui.PinLayout
 import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.ui.reject
@@ -127,109 +128,109 @@ fun LockScreen(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
-        Column(
+        // Naležato vedle sebe a se zmenšenou klávesnicí — viz [PinLayout].
+        PinLayout(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(horizontal = 24.dp, vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            // Hlavička s ikonou a nadpisem
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(top = 32.dp),
-            ) {
-                SecurityBadge(Res.drawable.lock_24dp)
+            headerTopPadding = 32.dp,
+            header = {
+                // Hlavička s ikonou a nadpisem
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    SecurityBadge(Res.drawable.lock_24dp)
 
-                Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(24.dp))
 
-                Text(
-                    text = stringResource(Res.string.app_lock_enter_pin),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                val subtitle = when {
-                    isBlocked -> stringResource(Res.string.app_lock_blocked, remainingSeconds)
-                    errorMessage != null -> errorMessage
-                    else -> null
-                }
-
-                if (subtitle != null) {
                     Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
+                        text = stringResource(Res.string.app_lock_enter_pin),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
-                } else if (biometricsRevoked) {
-                    // Není to chyba uživatele, takže ne v chybové barvě.
-                    Text(
-                        text = stringResource(Res.string.app_lock_biometrics_revoked),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
+
+                    Spacer(Modifier.height(12.dp))
+
+                    val subtitle = when {
+                        isBlocked -> stringResource(Res.string.app_lock_blocked, remainingSeconds)
+                        errorMessage != null -> errorMessage
+                        else -> null
+                    }
+
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    } else if (biometricsRevoked) {
+                        // Není to chyba uživatele, takže ne v chybové barvě.
+                        Text(
+                            text = stringResource(Res.string.app_lock_biometrics_revoked),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    } else {
+                        Spacer(Modifier.height(20.dp))
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+
+                    PinDots(
+                        filledCount = enteredPin.length,
+                        errorTrigger = errorTrigger,
+                        isError = isBlocked || errorMessage != null,
                     )
-                } else {
-                    Spacer(Modifier.height(20.dp))
                 }
+            },
+            keypad = { keySize ->
+                PinKeypad(
+                    onDigit = { digit ->
+                        if (isBlocked || isChecking || enteredPin.length >= APP_LOCK_PIN_LENGTH) return@PinKeypad
+                        errorMessage = null
+                        val next = enteredPin + digit
+                        enteredPin = next
 
-                Spacer(Modifier.height(24.dp))
-
-                PinDots(
-                    filledCount = enteredPin.length,
-                    errorTrigger = errorTrigger,
-                    isError = isBlocked || errorMessage != null,
-                )
-            }
-
-            // Klávesnice
-            PinKeypad(
-                onDigit = { digit ->
-                    if (isBlocked || isChecking || enteredPin.length >= APP_LOCK_PIN_LENGTH) return@PinKeypad
-                    errorMessage = null
-                    val next = enteredPin + digit
-                    enteredPin = next
-
-                    if (next.length == APP_LOCK_PIN_LENGTH) {
-                        isChecking = true
-                        scope.launch {
-                            when (val result = appLock.unlock(next)) {
-                                PinResult.Success -> {
-                                    haptics.confirm()
-                                }
-                                is PinResult.Wrong -> {
-                                    haptics.reject()
-                                    errorTrigger++
-                                    errorMessage = readString(Res.string.app_lock_wrong_pin)
-                                    enteredPin = ""
-                                    isChecking = false
-                                }
-                                is PinResult.Blocked -> {
-                                    haptics.reject()
-                                    errorTrigger++
-                                    enteredPin = ""
-                                    isChecking = false
+                        if (next.length == APP_LOCK_PIN_LENGTH) {
+                            isChecking = true
+                            scope.launch {
+                                when (val result = appLock.unlock(next)) {
+                                    PinResult.Success -> {
+                                        haptics.confirm()
+                                    }
+                                    is PinResult.Wrong -> {
+                                        haptics.reject()
+                                        errorTrigger++
+                                        errorMessage = readString(Res.string.app_lock_wrong_pin)
+                                        enteredPin = ""
+                                        isChecking = false
+                                    }
+                                    is PinResult.Blocked -> {
+                                        haptics.reject()
+                                        errorTrigger++
+                                        enteredPin = ""
+                                        isChecking = false
+                                    }
                                 }
                             }
                         }
-                    }
-                },
-                onDelete = {
-                    if (isBlocked || isChecking) return@PinKeypad
-                    if (enteredPin.isNotEmpty()) {
-                        enteredPin = enteredPin.dropLast(1)
-                        errorMessage = null
-                    }
-                },
-                onBiometrics = { scope.launch { tryBiometrics() } },
-                isBiometricsEnabled = lockedState.biometrics && biometricAuth.isSupported,
-                isEnabled = !isBlocked && !isChecking,
-                modifier = Modifier.padding(bottom = 16.dp),
-            )
-        }
+                    },
+                    onDelete = {
+                        if (isBlocked || isChecking) return@PinKeypad
+                        if (enteredPin.isNotEmpty()) {
+                            enteredPin = enteredPin.dropLast(1)
+                            errorMessage = null
+                        }
+                    },
+                    onBiometrics = { scope.launch { tryBiometrics() } },
+                    isBiometricsEnabled = lockedState.biometrics && biometricAuth.isSupported,
+                    isEnabled = !isBlocked && !isChecking,
+                    keySize = keySize,
+                )
+            },
+        )
     }
 }

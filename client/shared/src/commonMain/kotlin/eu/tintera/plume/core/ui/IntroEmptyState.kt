@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -37,6 +40,11 @@ import org.jetbrains.compose.resources.DrawableResource
  * PODSEZNAM uprostřed obrazovky (pozvánky, moje samolepky) je [GroupEmptyRow], ne tohle.
  *
  * Plocha je `surface` jako konverzace i seznam, takže výměna za obsah nemění pozadí.
+ *
+ * **Na nízké ploše se zmenší a roluje.** Tvar 176 dp s nadpisem a větou potřebuje kolem 330 dp;
+ * panel pod horní lištou na telefonu naležato má necelých 300, takže prázdné Stahování ukázalo
+ * jen tvar a nadpis s textem byly pod okrajem, bez rolování. Pod [COMPACT_HEIGHT] je tvar menší
+ * a mezery užší; kdyby se nevešel ani tak (velké písmo), obsah roluje.
  */
 @Composable
 fun IntroEmptyState(
@@ -57,42 +65,52 @@ fun IntroEmptyState(
     }
 
     Surface(modifier = modifier.fillMaxSize(), color = containerColor) {
-        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(32.dp),
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val compact = maxHeight < COMPACT_HEIGHT
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    // Rolovat jde jen s konečnou výškou; v neomezené (položka seznamu) obsah prostě vyroste.
+                    .then(if (constraints.hasBoundedHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                IntroShape {
-                    Icon(
-                        painterResource(icon),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(INTRO_ICON_SIZE),
-                    )
-                }
-
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.graphicsLayer {
-                        alpha = textReveal.value
-                        translationY = (1f - textReveal.value) * TEXT_RISE.toPx()
-                    },
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 16.dp else 32.dp),
                 ) {
-                    Text(
-                        title,
-                        // Zvýrazněný řez: nadpis je to jediné, co se na prázdné ploše čte napřed.
-                        style = MaterialTheme.typography.headlineSmallEmphasized,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                    if (action != null) Box(Modifier.padding(top = 16.dp)) { action() }
+                    IntroShape(shapeSize = if (compact) COMPACT_SHAPE_SIZE else INTRO_SHAPE_SIZE) {
+                        Icon(
+                            painterResource(icon),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(if (compact) COMPACT_ICON_SIZE else INTRO_ICON_SIZE),
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.graphicsLayer {
+                            alpha = textReveal.value
+                            translationY = (1f - textReveal.value) * TEXT_RISE.toPx()
+                        },
+                    ) {
+                        Text(
+                            title,
+                            // Zvýrazněný řez: nadpis je to jediné, co se na prázdné ploše čte napřed.
+                            style = MaterialTheme.typography.headlineSmallEmphasized,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                        if (action != null) Box(Modifier.padding(top = 16.dp)) { action() }
+                    }
                 }
             }
         }
@@ -100,6 +118,11 @@ fun IntroEmptyState(
 }
 
 private val TEXT_RISE = 16.dp
+
+/** Pod touhle výškou plochy se stav zmenší; nad ní se vejde celý (tvar, nadpis, dva řádky textu). */
+private val COMPACT_HEIGHT = 400.dp
+private val COMPACT_SHAPE_SIZE = 112.dp
+private val COMPACT_ICON_SIZE = 40.dp
 
 private const val TEXT_DELAY_MILLIS = 650L
 private const val TEXT_MILLIS = 500
