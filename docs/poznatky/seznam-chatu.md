@@ -1359,6 +1359,9 @@ nabídky widgetů launcheru.
   slouží jen prvnímu kreslení nového widgetu.
 - **Se zámkem aplikace bez náhledů zpráv** — jen jména a počty. Widget vidí každý, kdo drží
   telefon, a zámek, který chrání obsah chatů, by měl díru hned vedle ikony aplikace.
+- **Updater je jeden přes všechny účty** a ukazuje chaty podle filtru seznamu (režim Všechny
+  účty → `mergedWidgetChats`). Updater za každý účet si soubor, stav widgetu i miniatury
+  přepisoval (`docs/navrh-vice-uctu.md`, krok 16).
 - **Odhlášení widget vyprázdní** („Přihlas se v aplikaci Plume"). Zapisuje se jen v jasných
   stavech (přihlášeno a seznam načtený, nebo odhlášeno) — při startu, než se TDLib rozběhne,
   zůstává poslední známý stav, jinak by widget při každém studeném startu problikl prázdnem.

@@ -1,6 +1,11 @@
 package eu.tintera.plume.core.widget
 
 import eu.tintera.plume.core.accounts.AccountSlot
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.emitAll
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.AccountSession
 import android.content.Context
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -52,13 +57,16 @@ import java.io.File
  * - **Odhlášení widget vyprázdní** (jen věta „přihlas se"), ať po účtu na ploše nic nezůstane.
  *   Zapisuje se jen v jasných stavech (přihlášeno a seznam načtený, nebo odhlášeno) — při startu,
  *   než se TDLib rozběhne, zůstává poslední známý stav.
+ * - **Jeden přes všechny účty** (`docs/navrh-vice-uctu.md`, krok 16), ne za každý účet: soubor
+ *   i stav widgetu jsou jedny a updatery po účtech si je přepisovaly — widget ukazoval chaty
+ *   toho účtu, který se změnil naposled, a miniatury ostatních účtů mazal. Ukazuje chaty podle
+ *   filtru seznamu: v režimu Všechny účty všech účtů ([mergedWidgetChats]), jinak výchozího.
  */
 class ChatsWidgetUpdater(
-    private val slot: AccountSlot,
     private val context: Context,
-    private val chats: ChatRepository,
-    private val files: FileRepository,
-    private val authStage: StateFlow<AuthStage>,
+    /** Až za běhu: v globálním Koinu se na účty při vzniku definice sahat nesmí. */
+    private val accounts: () -> Accounts,
+    private val allAccounts: StateFlow<Boolean>,
     private val lockSettings: StateFlow<AppLockSettings?>,
     private val scope: CoroutineScope,
 ) {
@@ -87,55 +95,86 @@ class ChatsWidgetUpdater(
         }
     }
 
+    /** Účty, jejichž chaty widget ukazuje: všechny v režimu Všechny účty, jinak výchozí. */
     @OptIn(ExperimentalCoroutinesApi::class)
-    private fun snapshots(): Flow<WidgetSnapshot> =
-        combine(authStage, chats.chats(ChatFolder.Main), chats.savedMessagesChatId, lockSettings) { stage, state, saved, lock ->
+    private fun shownAccounts(): Flow<List<AccountSession>> =
+        flow { emitAll(accounts().all) }
+            .flatMapLatest { all ->
+                combine(accounts().default, allAccounts) { default, showAll -> if (showAll && all.size > 1) all else listOf(default) }
+            }
+            .distinctUntilChanged()
+
+    /** Stav jednoho účtu pro widget; `null` = ještě se neví (TDLib startuje, seznam se načítá). */
+    private fun accountPart(account: AccountSession): Flow<Part?> {
+        val chats = account.get<ChatRepository>()
+        return combine(account.session.authStage, chats.chats(ChatFolder.Main), chats.savedMessagesChatId) { stage, state, saved ->
             when {
-                stage is AuthStage.WaitPhoneNumber || stage is AuthStage.LoggingOut -> Input.LoggedOut
-                stage is AuthStage.Ready && state is ChatListState.Ready -> Input.Chats(state, saved, showPreviews = lock == null)
+                stage is AuthStage.WaitPhoneNumber || stage is AuthStage.LoggingOut -> Part.LoggedOut
+                stage is AuthStage.Ready && state is ChatListState.Ready ->
+                    Part.Chats(WidgetAccountChats(account.slot, state.chats, saved), account.get())
                 else -> null
             }
-        }.filterNotNull().mapLatest { input ->
-            // `mapLatest`: příprava fotek může chvíli trvat a novější seznam tu starší přebíjí.
-            when (input) {
-                Input.LoggedOut -> {
-                    WidgetAvatars.prune(context, keep = emptySet())
-                    WidgetSnapshot(loggedIn = false)
-                }
-                is Input.Chats -> {
-                    val savedTitle = readString(Res.string.saved_messages)
-                    val widgetChats = coroutineScope {
-                        widgetChats(input.state.chats, input.savedMessagesChatId).map { chat ->
-                            async {
-                                val saved = chat.id == input.savedMessagesChatId
-                                WidgetChat(
-                                    slot = slot.id,
-                                    id = chat.id,
-                                    // Uložené zprávy jménem, ne jménem účtu — jako v seznamu chatů.
-                                    title = if (saved) savedTitle else chat.title,
-                                    // Text se překládá teď, v jazyce platném při zápisu; po změně
-                                    // jazyka ho přepíše další změna seznamu.
-                                    preview = if (input.showPreviews) chat.lastMessagePreview?.resolveNow() else null,
-                                    unread = chat.unreadCount,
-                                    muted = chat.isMuted,
-                                    timestamp = chat.lastMessageTimestamp,
-                                    avatar = if (saved) null else chat.avatarFileId?.let { avatar(it) },
-                                    savedMessages = saved,
-                                )
-                            }
-                        }.awaitAll()
-                    }
-                    WidgetAvatars.prune(context, keep = widgetChats.mapNotNull { it.avatar }.toSet())
-                    WidgetSnapshot(loggedIn = true, chats = widgetChats)
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun snapshots(): Flow<WidgetSnapshot> =
+        shownAccounts()
+            .flatMapLatest { shown -> combine(shown.map(::accountPart)) { parts -> parts.toList() } }
+            .combine(lockSettings) { parts, lock ->
+                when {
+                    // Účet, který se ještě načítá: zapsat až s ním, jinak by widget na chvíli
+                    // ukázal jen část chatů.
+                    parts.any { it == null } -> null
+                    parts.all { it == Part.LoggedOut } -> Input.LoggedOut
+                    else -> Input.Chats(parts.filterIsInstance<Part.Chats>(), showPreviews = lock == null)
                 }
             }
-        }
+            .filterNotNull()
+            .mapLatest { input ->
+                // `mapLatest`: příprava fotek může chvíli trvat a novější seznam tu starší přebíjí.
+                when (input) {
+                    Input.LoggedOut -> {
+                        WidgetAvatars.prune(context, keep = emptySet())
+                        WidgetSnapshot(loggedIn = false)
+                    }
+                    is Input.Chats -> {
+                        val savedTitle = readString(Res.string.saved_messages)
+                        val bySlot = input.parts.associateBy { it.chats.slot }
+                        val widgetChats = coroutineScope {
+                            mergedWidgetChats(input.parts.map { it.chats }).map { (slot, chat) ->
+                                async {
+                                    val part = bySlot.getValue(slot)
+                                    val saved = chat.id == part.chats.savedMessagesChatId
+                                    WidgetChat(
+                                        slot = slot.id,
+                                        id = chat.id,
+                                        // Uložené zprávy jménem, ne jménem účtu — jako v seznamu chatů.
+                                        title = if (saved) savedTitle else chat.title,
+                                        // Text se překládá teď, v jazyce platném při zápisu; po změně
+                                        // jazyka ho přepíše další změna seznamu.
+                                        preview = if (input.showPreviews) chat.lastMessagePreview?.resolveNow() else null,
+                                        unread = chat.unreadCount,
+                                        muted = chat.isMuted,
+                                        timestamp = chat.lastMessageTimestamp,
+                                        avatar = if (saved) null else chat.avatarFileId?.let { avatar(part.files, slot, it) },
+                                        savedMessages = saved,
+                                    )
+                                }
+                            }.awaitAll()
+                        }
+                        // Miniatury všech zobrazených účtů najednou — po účtech by se mazaly navzájem.
+                        WidgetAvatars.prune(context, keep = widgetChats.mapNotNull { it.avatar }.toSet())
+                        WidgetSnapshot(loggedIn = true, chats = widgetChats)
+                    }
+                }
+            }
 
     /**
      * Miniatura fotky chatu. Fotku stáhne TDLib, pokud ještě není na disku (je malá); na stažení
      * se čeká jen chvíli — widget s iniciálou je lepší než widget, který se neobnoví.
      */
-    private suspend fun avatar(fileId: Int): String? {
+    private suspend fun avatar(files: FileRepository, slot: AccountSlot, fileId: Int): String? {
         val state = withTimeoutOrNull(AVATAR_WAIT_MS) {
             files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
         }
@@ -143,9 +182,14 @@ class ChatsWidgetUpdater(
         return WidgetAvatars.thumbnail(context, slot, fileId, path)
     }
 
+    private sealed interface Part {
+        data object LoggedOut : Part
+        data class Chats(val chats: WidgetAccountChats, val files: FileRepository) : Part
+    }
+
     private sealed interface Input {
         data object LoggedOut : Input
-        data class Chats(val state: ChatListState.Ready, val savedMessagesChatId: Long?, val showPreviews: Boolean) : Input
+        data class Chats(val parts: List<Part.Chats>, val showPreviews: Boolean) : Input
     }
 
     private companion object {

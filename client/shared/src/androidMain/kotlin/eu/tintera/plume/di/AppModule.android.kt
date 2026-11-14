@@ -116,6 +116,19 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
+    // Widget s chaty na ploše: podklady se musí psát od startu procesu, ne až se složí UI —
+    // aplikaci často budí jen push a widget má i pak ukázat čerstvý stav. Jeden přes všechny
+    // účty: soubor i stav widgetu jsou jedny.
+    single(createdAtStart = true) {
+        val koin = getKoin()
+        ChatsWidgetUpdater(
+            context = androidContext(),
+            accounts = { koin.get() },
+            allAccounts = get<AppSettings>().chatListAllAccounts,
+            lockSettings = get<AppLock>().settings,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        ).also { it.start() }
+    }
     // Služba v popředí po dobu videochatu — i se zavřenou obrazovkou a aplikací na pozadí. Jedna
     // přes všechny účty (`VideoChats`), jako služba hudby.
     single(createdAtStart = true) {
@@ -279,19 +292,6 @@ actual fun Module.platformAccountModule() {
     // Sdílení živé polohy: spustí službu, když je co posouvat a aplikace je v popředí.
     single(createdAtStart = true) {
         LiveLocationControls(slot = get(), context = androidContext(), repository = get(), foreground = get(), scope = get(named(APP_SCOPE))).also { it.start() }
-    }
-    // Widget s chaty na ploše: podklady se musí psát od startu procesu, ne až se složí UI —
-    // aplikaci často budí jen push a widget má i pak ukázat čerstvý stav.
-    single(createdAtStart = true) {
-        ChatsWidgetUpdater(
-            slot = get(),
-            context = androidContext(),
-            chats = get(),
-            files = get(),
-            authStage = get<TelegramSession>().authStage,
-            lockSettings = get<AppLock>().settings,
-            scope = get(named(APP_SCOPE)),
-        ).also { it.start() }
     }
 
     single {
