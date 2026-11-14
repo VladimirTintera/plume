@@ -727,8 +727,28 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       notifikace `fs2gc9`); nastavení chatu vráceno na výchozí. **Úklid po odhlášení na zařízení
       ověřený není** (znamenal by odhlásit testovací účet) — jen testy, které z id čtou účet.
 
+12. **Odkazy `tg://` a `t.me` s víc účty** — hotovo:
+    - Odkaz zvenčí (`LinkOpenRequest.slot == null`) rozparsuje výchozí účet. Pozvánka, sdílená
+      složka a mini aplikace (`actsAsAccount`, testy `LinkAccountTest`) se s víc účty zeptají,
+      kterým účtem (`AccountChoiceSheet`, výchozí předvybraný); ostatní (chat, zpráva, příběh,
+      samolepky) otevře výchozí účet bez ptaní.
+    - **Přihlášení na webu z odkazu je mini aplikace**: `t.me/oauth?startapp=…` TDLib rozpozná
+      jako mini aplikaci „OAuth Bot" (`docs/poznatky/prihlaseni.md`), takže se ptá s ní. Ptá se
+      i u ostatních mini aplikací — jednají za účet (přihlášení, platby, data bota).
+    - **Host odkazů je za každý účet** (`ExternalLinkHost` v shellu, ViewModel z kontejneru účtu
+      přes `AccountScope` + `AccountViewModels`). Zvolený jiný účet dostane odkaz znovu přes
+      `LinkOpenRequests` se svým slotem a rozparsuje si ho sám: náhled pozvánky i to, jestli je
+      už členem, se liší podle účtu. Cíl se otevře v jeho zásobníku (`openExternal(slot, …)`).
+    - **Odkaz z obrazovky účtu nese její slot** a na účet se neptá: Instant View, oznámení účtu
+      (`rememberNoticeLinkOpener`) a čtečka QR v nové konverzaci. Dřív šel do výchozího účtu.
+    - **Ověřeno na Pixelu 5** (výchozí VT2): pozvánka do testovací skupiny zvenčí (`am start -a
+      VIEW -d https://t.me/+…`) ukázala výběr s předvybraným VT2; VT2 → náhled s „Join"; znovu
+      a VT → náhled, „Join" přidal do skupiny VT (Bot API `getChatMember`: VT `member`, VT2
+      `left`) a otevřela se skupina s tématy. `tg://resolve?domain=…` otevřel chat ve VT2 bez
+      ptaní. Úklid: VT ze skupiny odebraný botem, testovací pozvánka zrušená. Mini aplikace
+      z odkazu a sdílená složka na zařízení vyzkoušené nejsou.
+
 **Zbývá pro fázi 1:**
-   - Odkazy `tg://` a `t.me` jdou do výchozího účtu; pozvánka a přihlášení na webu se mají ptát.
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
      Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky

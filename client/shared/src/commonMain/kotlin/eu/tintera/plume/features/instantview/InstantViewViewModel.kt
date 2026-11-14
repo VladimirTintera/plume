@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.instantview
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.navigation.LinkOpenRequests
@@ -32,6 +33,8 @@ class InstantViewViewModel(
     private val repository: InstantViewRepository,
     private val urlOpener: UrlOpener,
     private val linkRequests: LinkOpenRequests,
+    /** Účet čtečky: odkaz na Telegram z článku se otevře v něm, bez ptaní na účet. */
+    private val slot: AccountSlot,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(InstantViewState())
@@ -59,7 +62,7 @@ class InstantViewViewModel(
 
     /** Odkaz ve stránce: na Telegram do Plume (jako odkaz zvenčí), jinam do prohlížeče. */
     fun openLink(link: String) {
-        if (isTelegramLink(link)) linkRequests.request(link) else urlOpener.open(link)
+        if (isTelegramLink(link)) linkRequests.request(link, slot) else urlOpener.open(link)
     }
 
     fun openInBrowser() = urlOpener.open(url)

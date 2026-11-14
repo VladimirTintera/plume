@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.notices
 
+import eu.tintera.plume.core.accounts.LocalAccount
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
@@ -160,8 +161,10 @@ private fun TermsDialog(
 fun rememberNoticeLinkOpener(): (String) -> Unit {
     val urlOpener = koinInject<UrlOpener>()
     val linkRequests = koinInject<LinkOpenRequests>()
-    return remember(urlOpener, linkRequests) {
-        { url: String -> if (isTelegramLink(url)) linkRequests.request(url) else urlOpener.open(url) }
+    // Odkaz z oznámení účtu se otevře v tom účtu, ne ve výchozím.
+    val slot = LocalAccount.current.slot
+    return remember(urlOpener, linkRequests, slot) {
+        { url: String -> if (isTelegramLink(url)) linkRequests.request(url, slot) else urlOpener.open(url) }
     }
 }
 

@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.navigation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,6 +13,11 @@ import kotlinx.coroutines.flow.asStateFlow
  * Stav, ne událost, ze stejného důvodu jako [ChatOpenRequests]: odkaz může přijít do aplikace,
  * která teprve naběhla nebo visí na přihlášení, a musí si počkat, až ho bude mít kdo otevřít.
  * Čeká vždy jen jeden — novější přepíše starší, jako druhé ťuknutí na odkaz.
+ *
+ * **Účet odkazu** ([LinkOpenRequest.slot]): odkaz z jiné aplikace účet nemá (`null`) a otevře
+ * ho výchozí účet, u pozvánky a mini aplikace se s víc účty zeptá kterým. Odkaz z obrazovky
+ * jednoho účtu (Instant View, oznámení účtu, čtečka v nové konverzaci) nese její slot
+ * a otevře se v ní bez ptaní.
  */
 class LinkOpenRequests {
 
@@ -19,8 +25,8 @@ class LinkOpenRequests {
 
     val request: StateFlow<LinkOpenRequest?> = pending.asStateFlow()
 
-    fun request(url: String) {
-        pending.value = LinkOpenRequest(url, serial++)
+    fun request(url: String, slot: AccountSlot? = null) {
+        pending.value = LinkOpenRequest(url, serial++, slot)
     }
 
     /** Vyřízeno; porovnává se s tím, co volající opravdu vyzvedl (viz [ChatOpenRequests.consume]). */
@@ -33,9 +39,10 @@ class LinkOpenRequests {
 
 /**
  * Odkaz k otevření. [serial] odliší dvakrát po sobě poslaný tentýž odkaz — druhé naskenování
- * stejného kódu se má otevřít znovu, ne splynout s prvním.
+ * stejného kódu se má otevřít znovu, ne splynout s prvním. [slot] je účet, kterým se odkaz
+ * otevře; `null` = odkaz zvenčí, rozhodne výchozí účet.
  */
-data class LinkOpenRequest(val url: String, val serial: Long)
+data class LinkOpenRequest(val url: String, val serial: Long, val slot: AccountSlot? = null)
 
 /**
  * Vypadá text jako odkaz na Telegram? Hrubé síto pro přečtený QR kód: co odkaz doopravdy

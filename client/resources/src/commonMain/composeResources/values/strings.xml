@@ -2091,6 +2091,8 @@
     <string name="accounts_shown">Shown in the chat list</string>
     <string name="accounts_already_signed_in">This account is already signed in</string>
     <string name="accounts_filter_all">All accounts</string>
+    <string name="link_account_title">Open with which account?</string>
+    <string name="link_account_text">The invite, shared folder or mini app will act on behalf of the account you choose.</string>
     <string name="chats_new">New message</string>
     <string name="chats_create">Create</string>
     <string name="new_chat_title">New message</string>

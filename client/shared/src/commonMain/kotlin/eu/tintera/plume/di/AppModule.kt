@@ -455,7 +455,7 @@ fun appAccountModule() = module {
     viewModel { PasskeysViewModel(accounts = get()) }
     viewModel { NetworkUsageViewModel(storage = get()) }
     viewModel { AutosaveViewModel(autosave = get(), chats = get()) }
-    viewModel { parameters -> InstantViewViewModel(url = parameters.get(), repository = get(), urlOpener = get(), linkRequests = get()) }
+    viewModel { parameters -> InstantViewViewModel(url = parameters.get(), repository = get(), urlOpener = get(), linkRequests = get(), slot = get()) }
     viewModel { NotificationSoundsViewModel(sounds = get(), settings = get(), permission = get(), slot = get()) }
     viewModel { DeleteAccountViewModel(accounts = get(), passwords = get()) }
     viewModelOf(::AppLockViewModel)
