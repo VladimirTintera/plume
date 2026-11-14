@@ -351,6 +351,10 @@ obrazovky, sluchátek a hodinek. Na Androidu přes Media3 MediaSession, na iOS p
   `SearchMessagesFilterAudio`), ne v načtené historii. Konverzace i záložka Hudba v profilu
   pouštějí skladby přes ni. `onCleared` konverzace zastavuje jen hlasovku
   (`stop(chatId, keepMusic = true)`).
+- **Fronta je v procesu jedna, přes všechny účty** (`docs/navrh-vice-uctu.md`, krok 13):
+  skladba nese účet a repository bere fronta z něj. Kdo frontu volá mimo konverzaci, předá slot
+  (`toggle(slot, …)`, `togglePlaylist(slot, …)`), konverzace dostává `forAccount(slot)`. Služba
+  s notifikací účtu nepatří a chat otevírá podle `NowPlaying.slot`.
 - **Fronta umí i vlastní seznam skladeb** (`togglePlaylist`, hudba v profilu): sousedé jsou
   `QueueTrack` (id + skladba) a u seznamu jsou známí hned (`Current.neighborsKnown`), v chatu je
   dohledá `musicNeighbors`. Id ve vlastním seznamu nesmí potkat id zprávy v chatu klíče — hudba

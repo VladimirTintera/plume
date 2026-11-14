@@ -9,7 +9,7 @@ class ListeningTrackerTest {
 
     private var clock = Duration.ZERO
     private val reports = mutableListOf<Pair<Int, Int>>()
-    private val tracker = ListeningTracker(now = { clock }, report = { id, s -> reports += id to s })
+    private val tracker = ListeningTracker<Int>(now = { clock }, report = { id, s -> reports += id to s })
 
     @Test
     fun poslechSeNahlasiPriPrepnutiNaJinouSkladbu() {

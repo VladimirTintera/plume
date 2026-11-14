@@ -67,6 +67,11 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
+    // Hudba na zamykací obrazovce a v Ovládacím centru, jedna přes všechny účty jako fronta. Na
+    // hlavním vlákně — z něj chodí povely systému a z něj se ovládá přehrávač.
+    single(createdAtStart = true) {
+        NowPlayingControls(queue = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)).also { it.start() }
+    }
     // Apple Intelligence (Foundation Models), kterou Swift zaregistruje před `initKoin`; bez ní
     // (iOS pod 26) model v zařízení na iOS není.
     single<OnDeviceAi> { IosOnDeviceModel.model?.let(::AppleOnDeviceAi) ?: NoopOnDeviceAi }
@@ -129,9 +134,4 @@ actual fun Module.platformAccountModule() {
         IosShareSnapshot(chats = get(), files = get(), holder = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
     single<ShareTargetPublisher> { IosShareTargetPublisher(get()) }
-    // Hudba na zamykací obrazovce a v Ovládacím centru. Na hlavním vlákně — z něj chodí povely
-    // systému a z něj se ovládá přehrávač.
-    single(createdAtStart = true) {
-        NowPlayingControls(queue = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)).also { it.start() }
-    }
 }

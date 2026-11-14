@@ -500,7 +500,7 @@ class ChatProfileViewModel(
      */
     fun toggleMusic(messageId: Long) {
         val audio = _state.value.sharedMessage(messageId)?.media as? MessageMedia.Audio ?: return
-        musicQueue.toggle(chatId, messageId, audio, rememberPosition = _state.value.profile?.isSecretChat != true)
+        musicQueue.toggle(slot, chatId, messageId, audio, rememberPosition = _state.value.profile?.isSecretChat != true)
     }
 
     /**
@@ -1388,7 +1388,7 @@ class ChatProfileViewModel(
      */
     fun toggleProfileAudio(index: Int) {
         val audios = _state.value.profileAudios ?: return
-        musicQueue.togglePlaylist(chatId, audios.map { QueueTrack(profileAudioKey(it.fileId), it) }, index)
+        musicQueue.togglePlaylist(slot, chatId, audios.map { QueueTrack(profileAudioKey(it.fileId), it) }, index)
     }
 
     fun openLink(url: String) {

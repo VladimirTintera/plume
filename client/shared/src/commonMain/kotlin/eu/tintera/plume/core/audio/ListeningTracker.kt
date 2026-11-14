@@ -9,16 +9,16 @@ import kotlin.time.Duration
  *
  * Čistá třída s vlastními hodinami ([now]) kvůli testům; [MusicQueue] jí podává stav fronty.
  */
-internal class ListeningTracker(
+internal class ListeningTracker<K : Any>(
     private val now: () -> Duration,
-    private val report: (fileId: Int, seconds: Int) -> Unit,
+    private val report: (file: K, seconds: Int) -> Unit,
 ) {
-    private var fileId: Int? = null
+    private var fileId: K? = null
     private var startedAt: Duration? = null
     private var listened = Duration.ZERO
 
     /** Co hraje teď: soubor skladby ([fileId], `null` = nic) a jestli zrovna zní. */
-    fun update(fileId: Int?, playing: Boolean) {
+    fun update(fileId: K?, playing: Boolean) {
         if (fileId != this.fileId) {
             flush()
             this.fileId = fileId

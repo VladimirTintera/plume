@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
@@ -96,6 +97,8 @@ class OwnProfileMusicViewModel(
     private val accounts: AccountRepository,
     private val profiles: ProfileRepository,
     private val musicQueue: MusicQueue,
+    /** Účet profilu: skladby z něj hraje fronta jeho účtem. */
+    private val slot: AccountSlot,
     voicePlayer: VoicePlayer,
 ) : ViewModel() {
 
@@ -196,7 +199,7 @@ class OwnProfileMusicViewModel(
     fun toggle(index: Int) {
         val id = _userId.value ?: return
         val audios = _audios.value ?: return
-        musicQueue.togglePlaylist(id, audios.map { QueueTrack(profileAudioKey(it.fileId), it) }, index)
+        musicQueue.togglePlaylist(slot, id, audios.map { QueueTrack(profileAudioKey(it.fileId), it) }, index)
     }
 
     fun remove(fileId: Int) {
