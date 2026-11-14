@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.chats.ArchiveChange
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.adaptive.PaneInfo
@@ -62,15 +63,30 @@ class RouteSlotTest {
     @Test
     fun povysenaSkupinaZustavaVUctu() {
         val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(other, 7), ChatProfileRoute(other, 7))
-        stack.replaceUpgradedChat(7, 8)
+        stack.replaceUpgradedChat(other, 7, 8)
         assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(other, 8), ChatProfileRoute(other, 8)), stack)
     }
 
     @Test
     fun presunZArchivuZustavaVUctu() {
         val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(other, 7))
-        stack.moveConversationToMain(7)
+        stack.moveConversationToMain(other, 7)
         assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(other, 7)), stack)
+    }
+
+    /** Soukromý chat má v obou účtech id protějšku: zavřít se smí jen ten z účtu, kterého se to týká. */
+    @Test
+    fun zavreniChatuNechaStejneIdJinehoUctu() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(AccountSlot.Primary, 7), ConversationRoute(other, 7))
+        stack.closeChat(other, 7)
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(AccountSlot.Primary, 7)), stack)
+    }
+
+    @Test
+    fun archivaceZaviraJenKonverzaciSvehoUctu() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(AccountSlot.Primary, 7), ConversationRoute(other, 7))
+        stack.closeConversationOf(other, ArchiveChange(chatId = 7, archived = true))
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(AccountSlot.Primary, 7)), stack)
     }
 
     @Test

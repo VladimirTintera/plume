@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.telegram.AppScreen
 
 /**
@@ -14,6 +15,13 @@ data class ChatListNavigation(
     val onChatClick: (Long) -> Unit,
     /** Skupina s tématy: otevře se seznam témat, ne konverzace. */
     val onForumClick: (Long) -> Unit,
+    /**
+     * Chat účtu řádku ve společném seznamu (režim Vše); [onChatClick] otevírá chat účtu
+     * obrazovky. Bez něj se chat jiného účtu otevřít nedá.
+     */
+    val onAccountChatClick: (AccountSlot, Long) -> Unit = { _, chatId -> onChatClick(chatId) },
+    /** Totéž pro skupinu s tématy. */
+    val onAccountForumClick: (AccountSlot, Long) -> Unit = { _, chatId -> onForumClick(chatId) },
     /** Téma skupiny (koncept v něm z přehledu konceptů); bez něj se otevře seznam témat. */
     val onTopicClick: (chatId: Long, topicId: Int) -> Unit = { chatId, _ -> onForumClick(chatId) },
     /** Vlákno komentářů v diskusní skupině (koncept v něm z přehledu konceptů). */
@@ -29,7 +37,8 @@ data class ChatListNavigation(
     val onNewChat: () -> Unit = {},
     val onNewGroup: () -> Unit = {},
     val onNewChannel: () -> Unit = {},
-    val onChatArchived: ((ArchiveChange) -> Unit)? = null,
+    /** Chat změnil složku; slot je účet chatu (ve společném seznamu nemusí být účtem obrazovky). */
+    val onChatArchived: ((AccountSlot, ArchiveChange) -> Unit)? = null,
     /** Menu účtu → Nastavení. Na telefonu jediný vstup, spodní lišta není. */
     val onOpenSettings: () -> Unit = {},
     val onOpenProxySettings: () -> Unit = {},

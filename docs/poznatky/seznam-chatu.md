@@ -1304,6 +1304,25 @@ v `ChatSelection.kt` (testy `ChatSelectionTest`).
   ukončí výběr. **Nejisté je čtení skupiny s tématy** (nepřečtené se tam vedou po tématech
   a nejnovější zpráva patří jen jednomu) **— neověřené, stejně jako iOS.**
 
+### Společný seznam víc účtů
+
+Režim „Všechny účty" (zapíná se v menu účtu, fotka v pilulce je pak složená z fotek účtů); celé
+rozhodnutí je v `docs/navrh-vice-uctu.md`
+(„Společný seznam chatů", krok 4 v „Postup"). Co se tu dá snadno rozbít:
+
+- **Id chatu je číslo jednoho účtu.** Soukromý chat má id protějšku a společná skupina totéž id
+  v obou účtech, takže klíč položky (`MergedChat.key`), vybraný řádek (`selectedChatSlot`),
+  klíče letu avataru a názvu i hledání v zásobníku (`belongsTo`) nesou účet. Kdo přidává další
+  porovnání podle id chatu, přidá i slot.
+- **Uložené zprávy jsou id vlastního účtu**, a chat druhého účtu s ním má právě tohle id. Proto
+  `LocalSavedMessagesChatId` podává `AccountScope` za svůj účet, ne shell; jinak se chat VT s VT2
+  ukázal jako „Uložené zprávy".
+- **Řádek patří ViewModelu svého účtu** (`ChatRowsContext`): akce nad chatem, tah, odložení,
+  barvy a příběhy. Sdílený řádek je `ChatListItem`, ať seznam jednoho účtu a společný seznam
+  nekreslí řádek každý jinak.
+- **Výběr víc chatů a uspořádání připnutých jen v jednom účtu**: po dobu výběru seznam ukazuje
+  jen chaty toho účtu.
+
 ### Widget na ploše (Android)
 
 Widget s chaty (`ChatsWidget`, Glance, `core/widget` v `androidMain`): připnuté a nepřečtené

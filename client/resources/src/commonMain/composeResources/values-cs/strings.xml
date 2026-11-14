@@ -2150,6 +2150,7 @@
     <string name="accounts_add">Přidat účet</string>
     <string name="accounts_shown">Zobrazený v seznamu chatů</string>
     <string name="accounts_already_signed_in">Tenhle účet už v aplikaci přihlášený je</string>
+    <string name="accounts_filter_all">Všechny účty</string>
     <string name="chats_new">Nová zpráva</string>
     <string name="chats_create">Vytvořit</string>
     <string name="new_chat_title">Nová zpráva</string>

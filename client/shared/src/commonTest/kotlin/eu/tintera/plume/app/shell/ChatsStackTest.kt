@@ -95,7 +95,7 @@ class ChatsStackTest {
     fun archivaceZavreKonverzaciVHlavnimSeznamu() {
         val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 1))
 
-        stack.closeConversationOf(ArchiveChange(chatId = 1, archived = true))
+        stack.closeConversationOf(slot, ArchiveChange(chatId = 1, archived = true))
 
         assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }
@@ -105,7 +105,7 @@ class ChatsStackTest {
     fun archivaceVyberuZavreKonverzaciKterehokoliChatu() {
         val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 3))
 
-        stack.closeConversationOf(ArchiveChange(chatIds = listOf(1, 3), archived = true))
+        stack.closeConversationOf(slot, ArchiveChange(chatIds = listOf(1, 3), archived = true))
 
         assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }
@@ -114,7 +114,7 @@ class ChatsStackTest {
     fun vraceniZArchivuZavreKonverzaciVArchivu() {
         val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, chatId = 2))
 
-        stack.closeConversationOf(ArchiveChange(chatId = 2, archived = false))
+        stack.closeConversationOf(slot, ArchiveChange(chatId = 2, archived = false))
 
         assertEquals(listOf<NavKey>(ChatsRoute, ArchiveRoute), stack)
     }
@@ -126,12 +126,12 @@ class ChatsStackTest {
 
         // Archivace se týká hlavního seznamu, archivní konverzace téhož chatu zůstane.
         val archiving = mutableListOf<NavKey>(ChatsRoute, mainChat, ArchiveRoute, archiveChat)
-        archiving.closeConversationOf(ArchiveChange(chatId = 2, archived = true))
+        archiving.closeConversationOf(slot, ArchiveChange(chatId = 2, archived = true))
         assertEquals(listOf<NavKey>(ChatsRoute, ArchiveRoute, archiveChat), archiving)
 
         // A naopak.
         val unarchiving = mutableListOf<NavKey>(ChatsRoute, mainChat, ArchiveRoute, archiveChat)
-        unarchiving.closeConversationOf(ArchiveChange(chatId = 2, archived = false))
+        unarchiving.closeConversationOf(slot, ArchiveChange(chatId = 2, archived = false))
         assertEquals(listOf<NavKey>(ChatsRoute, mainChat, ArchiveRoute), unarchiving)
     }
 
@@ -148,7 +148,7 @@ class ChatsStackTest {
             ArchiveConversationRoute(slot, chatId = 2),
         )
 
-        stack.moveConversationToMain(chatId = 2)
+        stack.moveConversationToMain(slot, chatId = 2)
 
         // Z archivu nezbylo nic a konverzace hlavního seznamu (i s profilem) je nahrazená.
         assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 2)), stack)
@@ -159,7 +159,7 @@ class ChatsStackTest {
         // Chat z archivu otevřený z hledání nebo notifikace stojí v hlavní větvi; tam není kam stěhovat.
         val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 2))
 
-        stack.moveConversationToMain(chatId = 2)
+        stack.moveConversationToMain(slot, chatId = 2)
 
         assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, chatId = 2)), stack)
     }
@@ -170,7 +170,7 @@ class ChatsStackTest {
         val profile = ChatProfileRoute(slot, chatId = 1)
         val stack = mutableListOf<NavKey>(ChatsRoute, mainChat, profile)
 
-        stack.closeConversationOf(ArchiveChange(chatId = 99, archived = true))
+        stack.closeConversationOf(slot, ArchiveChange(chatId = 99, archived = true))
 
         assertEquals(listOf<NavKey>(ChatsRoute, mainChat, profile), stack)
     }
@@ -190,7 +190,7 @@ class ChatsStackTest {
             ArchiveChatProfileRoute(slot, chatId = 1),
         )
 
-        stack.closeChat(1)
+        stack.closeChat(slot, 1)
 
         assertEquals(listOf<NavKey>(ChatsRoute, ChatProfileRoute(slot, chatId = 2), ConversationRoute(slot, chatId = 2), ArchiveRoute), stack)
     }
@@ -224,7 +224,7 @@ class ChatsStackTest {
     fun zavreniChatuOdeberITemata() {
         val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 1), ConversationRoute(slot, chatId = 1, topicId = 3))
 
-        stack.closeChat(1)
+        stack.closeChat(slot, 1)
 
         assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }
@@ -233,7 +233,7 @@ class ChatsStackTest {
     fun archivaceForaZavreJehoTemata() {
         val stack = mutableListOf<NavKey>(ChatsRoute, ForumTopicsRoute(slot, chatId = 1), ConversationRoute(slot, chatId = 1, topicId = 3))
 
-        stack.closeConversationOf(ArchiveChange(chatId = 1, archived = true))
+        stack.closeConversationOf(slot, ArchiveChange(chatId = 1, archived = true))
 
         assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }
@@ -357,7 +357,7 @@ class ChatsStackTest {
             InviteLinksRoute(slot, 5),
         )
 
-        stack.replaceUpgradedChat(old = 5, new = 9)
+        stack.replaceUpgradedChat(slot, old = 5, new = 9)
 
         // Bez skoku na zprávu: id zpráv v nové skupině jsou jiná. Úprava zůstává se starým id,
         // její ViewModel se přepnul sám.
@@ -375,7 +375,7 @@ class ChatsStackTest {
             ArchiveEditChatRoute(slot, 5),
         )
 
-        stack.replaceUpgradedChat(old = 5, new = 9)
+        stack.replaceUpgradedChat(slot, old = 5, new = 9)
 
         assertEquals(
             listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 1), ArchiveRoute, ArchiveConversationRoute(slot, 9), ArchiveChatProfileRoute(slot, 9), ArchiveEditChatRoute(slot, 5)),
@@ -420,7 +420,7 @@ class ChatsStackTest {
             EventLogRoute(slot, chatId = 1),
         )
 
-        stack.closeChat(1)
+        stack.closeChat(slot, 1)
 
         assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }

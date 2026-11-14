@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.core.accounts.LocalAccount
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
@@ -403,9 +404,16 @@ fun Modifier.sharedNavText(key: String): Modifier {
  * Klíče páru seznam ↔ konverzace. Obsahují id chatu, jinak by se při rychlém přepnutí mezi chaty
  * spároval avatar jednoho chatu s avatarem druhého.
  */
-fun chatAvatarKey(chatId: Long): String = "chat-avatar-$chatId"
+/**
+ * Klíče letu avataru a názvu chatu. Nesou slot účtu: ve společném seznamu chatů je tentýž chat
+ * (společná skupina, soukromý chat s týmž člověkem) dvakrát, z každého účtu jednou, a dva prvky
+ * s jedním klíčem by letěly jako jeden.
+ */
+@Composable
+fun chatAvatarKey(chatId: Long): String = "chat-avatar-${LocalAccount.current.slot.id}-$chatId"
 
-fun chatTitleKey(chatId: Long): String = "chat-title-$chatId"
+@Composable
+fun chatTitleKey(chatId: Long): String = "chat-title-${LocalAccount.current.slot.id}-$chatId"
 
 /**
  * Tečka „je online" na avataru letí VLASTNÍM sdíleným prvkem, ne s avatarem. Avatar se sdílí

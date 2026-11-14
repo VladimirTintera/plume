@@ -2086,6 +2086,7 @@
     <string name="accounts_add">Add account</string>
     <string name="accounts_shown">Shown in the chat list</string>
     <string name="accounts_already_signed_in">This account is already signed in</string>
+    <string name="accounts_filter_all">All accounts</string>
     <string name="chats_new">New message</string>
     <string name="chats_create">Create</string>
     <string name="new_chat_title">New message</string>
