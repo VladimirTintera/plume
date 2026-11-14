@@ -257,6 +257,7 @@ import eu.tintera.plume.features.media.MediaViewerScreen
 import eu.tintera.plume.features.stickers.OwnedStickerSetScreen
 import eu.tintera.plume.features.stickers.StickerComposerScreen
 import eu.tintera.plume.features.stories.StoriesScreen
+import eu.tintera.plume.features.videochat.VideoChatAccountScope
 import eu.tintera.plume.features.videochat.VideoChatOverlay
 import eu.tintera.plume.features.videochat.VideoChatScreen
 import eu.tintera.plume.features.stories.StoryComposerScreen
@@ -418,11 +419,14 @@ fun AppShell(modifier: Modifier = Modifier) {
         // Probíhající hovor nad vším — přes celou obrazovku, nebo zmenšený do pruhu nahoře.
         // Hovor může patřit jinému účtu než shellu; je jen jeden naráz.
         CallAccountScope { CallOverlay(Modifier.align(Alignment.TopCenter), onBarHeight = { callBarHeight = it }) }
-        // Videochat, ze kterého uživatel odešel jen z obrazovky — pruh na stejném místě.
-        VideoChatOverlay(
-            onOpen = { chatId, groupCallId -> navigation.openVideoChat(slot, chatId, groupCallId) },
-            modifier = Modifier.align(Alignment.TopCenter).onSizeChanged { videoChatBarHeight = it.height },
-        )
+        // Videochat, ze kterého uživatel odešel jen z obrazovky — pruh na stejném místě. Může
+        // patřit jinému účtu než shellu; běží nejvýš jeden.
+        VideoChatAccountScope {
+            VideoChatOverlay(
+                onOpen = { chatSlot, chatId, groupCallId -> navigation.openVideoChat(chatSlot, chatId, groupCallId) },
+                modifier = Modifier.align(Alignment.TopCenter).onSizeChanged { videoChatBarHeight = it.height },
+            )
+        }
         // Hodnocení po hovoru, o které server požádal; až obrazovka hovoru zmizí.
         CallAccountScope { CallRatingHost() }
     }

@@ -117,6 +117,25 @@ class VideoChatSessionTest {
         app.cancel()
     }
 
+    /** Přenos je přes účty jeden: připojení napřed opustí videochat v ostatních účtech, téhož ne. */
+    @Test
+    fun joiningLeavesVideoChatElsewhere() = runTest {
+        val app = CoroutineScope(coroutineContext + Job())
+        var left = 0
+        val session = VideoChatSession(FakeRepository(), FakeMedia(), appScope = app, leaveElsewhere = { left++ })
+        session.join(chatId = -100, groupCallId = 5)
+        advanceUntilIdle()
+        assertEquals(1, left)
+        session.join(chatId = -100, groupCallId = 5)
+        advanceUntilIdle()
+        assertEquals(1, left, "k témuž videochatu se jen připojuje obrazovka")
+        session.join(chatId = -200, groupCallId = 6)
+        advanceUntilIdle()
+        assertEquals(2, left)
+        session.leave()
+        app.cancel()
+    }
+
     @Test
     fun withoutMediaNothingJoins() = runTest {
         val app = CoroutineScope(coroutineContext + Job())

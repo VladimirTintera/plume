@@ -1,6 +1,11 @@
 package eu.tintera.plume.features.videochat
 
 import androidx.compose.animation.AnimatedVisibility
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.combine
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,16 +60,23 @@ import org.koin.compose.koinInject
  * mikrofon (jen kdo smí mluvit) a Opustit.
  *
  * Není vidět, dokud je obrazovka videochatu otevřená, a ustoupí hovoru ve dvou — jeho pruh
- * leží na tomtéž místě.
+ * leží na tomtéž místě. Hovoru v kterémkoli účtu: hovor je přes účty jeden a jeho pruh
+ * (`CallAccountScope`) se skládá v jeho účtu, ne v účtu videochatu.
+ *
+ * Skládá se v účtu videochatu ([VideoChatAccountScope]); [onOpen] dostane i ten účet.
  */
 @Composable
-fun VideoChatOverlay(onOpen: (chatId: Long, groupCallId: Int) -> Unit, modifier: Modifier = Modifier) {
+fun VideoChatOverlay(onOpen: (slot: AccountSlot, chatId: Long, groupCallId: Int) -> Unit, modifier: Modifier = Modifier) {
     val session = koinInject<VideoChatSession>()
-    val calls = koinInject<CallRepository>()
+    val slot = LocalAccount.current.slot
     val active by session.active.collectAsStateWithLifecycle()
     val screenShown by session.screenShown.collectAsStateWithLifecycle()
-    val call by calls.active.collectAsStateWithLifecycle()
-    val current = active?.takeIf { it.running && !screenShown && call == null }
+    val accounts = koinInject<Accounts>()
+    val signedIn by accounts.all.collectAsStateWithLifecycle()
+    val call by remember(signedIn) {
+        if (signedIn.isEmpty()) flowOf(false) else combine(signedIn.map { it.get<CallRepository>().active }) { calls -> calls.any { it != null } }
+    }.collectAsStateWithLifecycle(false)
+    val current = active?.takeIf { it.running && !screenShown && !call }
     // Poslední videochat zůstává i během odjezdu, kdy už je `current` null.
     val last = remember { arrayOf<ActiveVideoChat?>(null) }
     if (current != null) last[0] = current
@@ -74,7 +86,7 @@ fun VideoChatOverlay(onOpen: (chatId: Long, groupCallId: Int) -> Unit, modifier:
         exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = modifier,
     ) {
-        last[0]?.let { chat -> VideoChatBar(chat, session, onOpen = { onOpen(chat.chatId, chat.groupCallId) }) }
+        last[0]?.let { chat -> VideoChatBar(chat, session, onOpen = { onOpen(slot, chat.chatId, chat.groupCallId) }) }
     }
 }
 

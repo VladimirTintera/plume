@@ -38,11 +38,15 @@ data class ActiveVideoChat(
  * - **Skončený videochat zůstává ve stavu**, dokud ho uživatel nezavře nebo neotevře jiný:
  *   obrazovka pak řekne „skončil", pruh i služba podle [ActiveVideoChat.running] zmizí samy.
  * - **Pruh nad aplikací se schová, dokud je obrazovka videochatu vidět** ([screenShown]).
+ * - **Jeden videochat i přes účty**: sezení má každý účet vlastní, přenos je ale v procesu
+ *   jeden — [join] napřed opustí videochat v ostatních účtech ([leaveElsewhere], [VideoChats]).
  */
 class VideoChatSession(
     private val repository: VideoChatRepository,
     media: LiveStreamMedia?,
     private val appScope: CoroutineScope,
+    /** Opustí videochat v ostatních účtech; volá se před připojením k jinému. */
+    private val leaveElsewhere: () -> Unit = {},
 ) {
     private val watch = media?.let { VideoChatWatch(repository, it, appScope, appScope) }
 
@@ -69,6 +73,7 @@ class VideoChatSession(
     fun join(chatId: Long, groupCallId: Int) {
         val watch = watch ?: return
         if (target.value?.groupCallId == groupCallId && watch.state.value != null) return
+        leaveElsewhere()
         target.value = Target(chatId, groupCallId)
         watch.watch(groupCallId)
         appScope.launch {
