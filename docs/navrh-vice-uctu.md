@@ -1,7 +1,7 @@
 # Návrh: víc účtů naráz
 
 > **Stav:** fáze 0 hotová, z fáze 1 přidání, odebrání a přepnutí účtu, společný seznam chatů
-> účet v konverzaci a v notifikacích (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
+> účet v konverzaci a v notifikacích, jeden hovor přes všechny účty (viz „Postup" na konci). Vychází z kódu po #1166. Na roadmapě to
 > stálo jako „Víc účtů (L), rozhodnutí, jestli vůbec, zatím nepadlo". Rozhodnutí padlo: chceme to.
 
 Víc přihlášených účtů Telegramu v jedné aplikaci. **Na rozdíl od oficiálních klientů není
@@ -625,6 +625,18 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
        dřív ho každý účet přepisoval svým číslem.
    - **Ověřeno na Pixelu 5** se dvěma účty. Desktop jen přeložený a otestovaný testy.
 
+7. **Jeden hovor přes všechny účty** — hotovo:
+   - Má-li hovor jiný účet (zvoní, vytáčí se, spojuje, běží; `Accounts.inCallElsewhere`), příchozí
+     hovor se odmítne jako obsazeno, ještě než se ukáže (`TdlCallRepository.busyElsewhere`):
+     nezazvoní, nevznikne notifikace ani systémový hovor. Server o hovoru druhého účtu neví,
+     takže obsazeno sám neohlásí, jako to dělá v rámci jednoho účtu.
+   - **Odmítnutí nesmí zastavit média** (`declineBusy` bez `media.stop()`, na rozdíl od
+     `hangUp`): `CallMedia` je v procesu jedna a běží v ní hovor druhého účtu.
+   - Vytočit hovor, když hovor má jiný účet, nejde: pruh hovoru ukáže „Už máš hovor v jiném
+     účtu".
+   - Testy `AccountsTest` (které fáze blokují). **Na skutečných hovorech neověřené**: chce to
+     hovor v jednom účtu a někoho, kdo současně volá druhému, tedy tři strany.
+
 **Zbývá pro fázi 1:**
    - **V režimu Vše zbývá sloučit archiv a hledání** (veřejné chaty a zprávy přes server za
      každý účet, výsledky označené účtem) a klávesové zkratky Alt+↓/↑ přes společný seznam.
@@ -635,9 +647,9 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`, `NewChatRoute`.
      Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
      výchozí účet.
-   - **Hovor přes všechny účty je jeden**, ale nic to nevynucuje: příchozí hovor do druhého účtu
-     během hovoru má být „obsazeno". `MusicQueue` je v každém účtu vlastní a hraje jedním
-     přehrávačem; dvě fronty naráz se přetahují. Videochat jiného účtu než výchozího nemá pruh.
+   - `MusicQueue` je v každém účtu vlastní a hraje jedním přehrávačem; dvě fronty naráz se
+     přetahují. Videochat jiného účtu než výchozího nemá pruh a s hovorem druhého účtu se
+     nehlídá (videochat není `CallRepository`).
    - Widget má jeden soubor podkladů a miniatury maže jeden updater: se dvěma účty by se
      přepisovaly. Cíle sdílení (Direct Share) se publikují za každý účet zvlášť.
    - Online (`setOption online`) mají v popředí všechny účty, ne jen ty ve filtru.

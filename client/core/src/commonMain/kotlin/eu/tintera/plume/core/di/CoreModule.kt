@@ -290,6 +290,7 @@ internal fun accountModule(slot: AccountSlot): Module = module {
     // Eager: příchozí hovor chodí updatem a nesmí se minout. Mediální vrstva je jen tam,
     // kde ji platformní modul aplikace zaregistruje (`CallMedia`); jinde jsou hovory nedostupné.
     single<CallRepository>(createdAtStart = true) {
+        val koin = getKoin()
         TdlCallRepository(
             holder = get(),
             media = getOrNull<CallMedia>(),
@@ -299,6 +300,8 @@ internal fun accountModule(slot: AccountSlot): Module = module {
             journal = getOrNull<CallJournal>(),
             foreground = getOrNull<AppForeground>()?.isForeground,
             applicationVersion = getOrNull<TelegramPaths>()?.applicationVersion.orEmpty(),
+            // Až za běhu: `Accounts` kontejner účtu teprve staví.
+            busyElsewhere = { koin.getOrNull<Accounts>()?.inCallElsewhere(slot) == true },
         )
     }
 

@@ -1,6 +1,12 @@
 package eu.tintera.plume.core.accounts
 
 import eu.tintera.plume.core.telegram.AccountInfo
+import kotlin.test.assertFalse
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.telegram.CallRepository
+import eu.tintera.plume.core.telegram.CallPhase
+import eu.tintera.plume.core.calls.CallAudioOutput
+import eu.tintera.plume.core.telegram.ActiveCall
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.Country
 import eu.tintera.plume.core.telegram.PhoneNumberDetails
@@ -36,6 +42,9 @@ class AccountsTest {
     private val directory: Path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "accounts-test-${Random.nextLong()}"
     private val registry = AccountRegistry(directory / "accounts.json")
     private val sessions = mutableMapOf<AccountSlot, FakeSession>()
+    private val calls = mutableMapOf<AccountSlot, FakeCalls>()
+
+    private fun calls(slot: AccountSlot) = calls.getOrPut(slot) { FakeCalls() }
 
     /** Klient, který každý slot dostane; dřív vyrobený (test nastavil stav), jinak nový. */
     private fun session(slot: AccountSlot) = sessions.getOrPut(slot) { FakeSession() }
@@ -43,7 +52,16 @@ class AccountsTest {
     private fun TestScope.accounts(slotIds: Iterator<String> = listOf("aaaaaa", "bbbbbb", "cccccc").iterator()): Accounts {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         return Accounts(
-            open = { slot, _ -> koinApplication { modules(module { single<TelegramSession> { session(slot) } }) } },
+            open = { slot, _ ->
+                koinApplication {
+                    modules(
+                        module {
+                            single<TelegramSession> { session(slot) }
+                            single<CallRepository> { calls(slot) }
+                        },
+                    )
+                }
+            },
             registry = registry,
             scope = CoroutineScope(backgroundScope.coroutineContext + dispatcher),
             newSlotId = { slotIds.next() },
@@ -174,6 +192,26 @@ class AccountsTest {
         assertTrue(FileSystem.SYSTEM.exists(directory / "accounts.json"))
     }
 
+    /** Hovor je přes všechny účty jeden: zvonící, vytáčený i běžící hovor druhého účtu blokuje. */
+    @Test
+    fun hovorVJinemUctuBlokuje() = runTest {
+        registry.save(SavedAccounts(listOf(SavedAccount("0", 1), SavedAccount("bbbbbb", 2))))
+        val accounts = accounts()
+        val other = AccountSlot("bbbbbb")
+
+        assertFalse(accounts.inCallElsewhere(AccountSlot.Primary))
+
+        for (phase in listOf(CallPhase.Ringing, CallPhase.Calling, CallPhase.Connecting, CallPhase.Active)) {
+            calls(other).active.value = ActiveCall(id = 1, userId = 7, isOutgoing = false, phase = phase)
+            assertTrue(accounts.inCallElsewhere(AccountSlot.Primary), "$phase")
+            // Vlastní hovor účtu jiný hovor neblokuje — to řeší repository účtu samo.
+            assertFalse(accounts.inCallElsewhere(other), "$phase")
+        }
+
+        calls(other).active.value = ActiveCall(id = 1, userId = 7, isOutgoing = false, phase = CallPhase.Ended)
+        assertFalse(accounts.inCallElsewhere(AccountSlot.Primary))
+    }
+
     @Test
     fun pushDostaneUcetPodlePrijemce() = runTest {
         registry.save(
@@ -194,6 +232,24 @@ class AccountsTest {
 
         assertEquals(AccountSlot.Primary, accounts.pushTarget(null)?.slot)
         assertEquals(AccountSlot.Primary, accounts.pushTarget(999)?.slot)
+    }
+
+    private class FakeCalls : CallRepository {
+        override val active = MutableStateFlow<ActiveCall?>(null)
+        override val supported = true
+        override val supportsVideo = false
+        override suspend fun call(userId: Long, video: Boolean) = error("call")
+        override suspend fun accept(camera: Boolean) = error("accept")
+        override suspend fun hangUp() = error("hangUp")
+        override fun setMuted(muted: Boolean) = error("setMuted")
+        override fun setHeld(held: Boolean) = error("setHeld")
+        override suspend fun resume() = error("resume")
+        override fun setResumeHandler(handler: (suspend () -> Boolean)?) = error("setResumeHandler")
+        override fun setOutput(output: CallAudioOutput) = error("setOutput")
+        override fun setCamera(on: Boolean) = error("setCamera")
+        override fun previewCamera(on: Boolean) = error("previewCamera")
+        override fun switchCamera() = error("switchCamera")
+        override fun reportFailure(userId: Long, video: Boolean, reason: UiText) = error("reportFailure")
     }
 
     private class FakeSession : TelegramSession {
