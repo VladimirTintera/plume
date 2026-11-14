@@ -840,6 +840,7 @@ private fun shellEntryProvider(
                 onTopicClick = { chatId, topicId -> chatsStack.openFoundMessage(slot, chatId, messageId = null, topicId = topicId) },
                 onThreadClick = { chatId, threadId -> chatsStack.openCommentThread(slot, chatId, threadId) },
                 onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(slot, chatId, messageId, topicId) },
+                onAccountMessageClick = { chatSlot, chatId, messageId, topicId -> chatsStack.openFoundMessage(chatSlot, chatId, messageId, topicId) },
                 onOpenArchive = {
                     if (chatsStack.lastOrNull() != ArchiveRoute) chatsStack.add(ArchiveRoute)
                 },
@@ -897,9 +898,13 @@ private fun shellEntryProvider(
             onChatClick = { chatId -> chatsStack.openArchiveConversation(slot, chatId) },
             onForumClick = { chatId -> chatsStack.openArchiveForum(slot, chatId) },
             onBack = chatsStack::closeArchive,
-            onChatArchived = { change -> chatsStack.closeConversationOf(slot, change) },
+            onChatArchived = chatsStack::closeConversationOf,
             modifier = Modifier.listPaneInsets(twoPane),
             onOpenStories = { chatId -> chatsStack.openStories(slot, chatId) },
+            // Společný archiv (režim Všechny účty): chat se otevírá v účtu řádku.
+            selectedChatSlot = (chatsStack.lastOrNull { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute || it is ArchiveDirectTopicsRoute } as? AccountRoute)?.slot,
+            onAccountChatClick = { chatSlot, chatId -> chatsStack.openArchiveConversation(chatSlot, chatId) },
+            onAccountForumClick = { chatSlot, chatId -> chatsStack.openArchiveForum(chatSlot, chatId) },
         )
     }
 

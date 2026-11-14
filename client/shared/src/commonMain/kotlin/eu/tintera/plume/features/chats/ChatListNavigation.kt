@@ -28,6 +28,9 @@ data class ChatListNavigation(
     val onThreadClick: (chatId: Long, threadId: Long) -> Unit = { chatId, _ -> onChatClick(chatId) },
     /** Nalezená zpráva: otevřít její chat a skočit na ni. */
     val onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
+    /** Nalezená zpráva jiného účtu (hledání přes víc účtů). */
+    val onAccountMessageClick: (slot: AccountSlot, chatId: Long, messageId: Long, topicId: Int?) -> Unit =
+        { _, chatId, messageId, topicId -> onMessageClick(chatId, messageId, topicId) },
     val onOpenArchive: () -> Unit,
     /** Menu účtu → Hovory; `null` = položka není (platforma bez hovorů). */
     val onOpenCalls: (() -> Unit)? = null,

@@ -1326,6 +1326,12 @@ rozhodnutí je v `docs/navrh-vice-uctu.md`
   nekreslí řádek každý jinak.
 - **Výběr víc chatů a uspořádání připnutých jen v jednom účtu**: po dobu výběru seznam ukazuje
   jen chaty toho účtu.
+- **Výsledek hledání nese účet v `ChatSummary.slot`** (`mergedSearchState`, krok 8 návrhu).
+  Řádky výsledků, které nemají slot (návrhy, reklamy), patří účtu obrazovky. Kdo přidává do
+  výsledků další druh řádku, předá slot do ťuknutí i do klíče (`resultKey`) — veřejný chat
+  i zprávy ze společné skupiny se jinak srazí.
+- **Archiv má ViewModel za účet A složku** (klíč `chats-all-archive-<slot>`): sdílet ho
+  s hlavním seznamem by přepínalo složku pod rukama.
 
 ### Widget na ploše (Android)
 

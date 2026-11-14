@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.emptyFlow
@@ -877,6 +878,12 @@ data class ChatSummary(
      * chatu. Patří POZICI ve složce, ne chatu — TDLib ho posílá jen v hlavním seznamu.
      */
     val sponsor: ChatSponsor? = null,
+    /**
+     * Účet, kterému chat patří, když se výsledky víc účtů míchají (hledání v režimu Všechny
+     * účty); `null` = účet, ze kterého se chat četl. Repository ho nevyplňuje — slučuje se nad
+     * ní a id chatu samo o účtu nic neříká (soukromý chat má v obou účtech totéž id).
+     */
+    val slot: AccountSlot? = null,
 ) {
     /** Nepřečteno = nepřečtené zprávy NEBO ruční příznak. Obojí se v seznamu chová stejně. */
     val hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
