@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.accounts.AccountSlot
+
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -362,3 +364,33 @@ fun pickerChats(query: String, list: ChatListState, search: ChatSearchState): Pi
 }
 
 data class PickerChats(val chats: List<ChatSummary>, val loading: Boolean)
+
+/**
+ * Hledání přes víc účtů (režim Všechny účty): výsledky hledání každého účtu ([sources], v pořadí
+ * účtů) v jednom stavu, každý chat se slotem svého účtu ([ChatSummary.slot]). Návrhy pod
+ * prázdným dotazem (lidé, historie, hashtagy, doporučené kanály) a reklamy jsou z hledání účtu
+ * obrazovky ([screen]); patří jednomu účtu a míchat je nemá smysl.
+ *
+ * - **Vlastní chaty** účet po účtu; stejný chat ve dvou účtech je tam dvakrát, jako v seznamu.
+ * - **Veřejné chaty** jen jednou: kanál najdou oba účty a otevřít ho jde kterýmkoli, bere se
+ *   účet, který je v pořadí první.
+ * - **Zprávy** podle data, nejnovější nahoře, napříč účty.
+ */
+fun mergedSearchState(screen: ChatSearchState, sources: List<Pair<AccountSlot, ChatSearchState>>): ChatSearchState {
+    val first = sources.firstOrNull()?.second ?: return screen
+    val global = LinkedHashMap<Long, ChatSummary>()
+    sources.forEach { (slot, state) -> state.global.forEach { chat -> global.getOrPut(chat.id) { chat.copy(slot = slot) } } }
+    return screen.copy(
+        query = first.query,
+        filter = first.filter,
+        results = sources.flatMap { (slot, state) -> state.results.map { it.copy(slot = slot) } },
+        searching = sources.any { it.second.searching },
+        global = global.values.toList(),
+        messages = sources
+            .flatMap { (slot, state) -> state.messages.map { found -> found.copy(chat = found.chat.copy(slot = slot)) } }
+            .sortedByDescending { it.date },
+        // Další stránka je, má-li ji kterýkoli účet; dotažení jde všem a kdo nemá, nic neudělá.
+        messagesNextOffset = sources.firstNotNullOfOrNull { it.second.messagesNextOffset },
+        messagesLoading = sources.any { it.second.messagesLoading },
+    )
+}

@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.BoxScope
+import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.opensAsTopics
+import eu.tintera.plume.core.accounts.LocalAccount
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.ui.CountdownSnackbarHost
 import eu.tintera.plume.resources.chats_archive_read_all
 import eu.tintera.plume.resources.done_all_24dp
@@ -55,12 +62,32 @@ fun ArchiveScreen(
     onChatClick: (Long) -> Unit,
     onForumClick: (Long) -> Unit,
     onBack: () -> Unit,
-    onChatArchived: ((ArchiveChange) -> Unit)? = null,
+    /** Chat změnil složku; slot je účet chatu (ve společném archivu nemusí být účtem obrazovky). */
+    onChatArchived: ((AccountSlot, ArchiveChange) -> Unit)? = null,
     modifier: Modifier = Modifier,
     /** Ťuknutí na avatar s kroužkem příběhů. */
     onOpenStories: ((Long) -> Unit)? = null,
+    /** Účet chatu otevřeného vedle archivu; totéž id může mít chat v jiném účtu. */
+    selectedChatSlot: AccountSlot? = null,
+    /** Chat jiného účtu ze společného archivu (režim Všechny účty). */
+    onAccountChatClick: (AccountSlot, Long) -> Unit = { _, chatId -> onChatClick(chatId) },
+    onAccountForumClick: (AccountSlot, Long) -> Unit = { _, chatId -> onForumClick(chatId) },
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    /*
+     * Režim Všechny účty: archivy všech účtů v jednom seznamu, stejně jako hlavní seznam
+     * (`MergedChatListContent`). Výběr víc chatů a uspořádání patří jednomu účtu, takže po dobu,
+     * co běží, ukazuje archiv jen chaty toho účtu. Nastavení archivu je na serveru po účtech;
+     * ve společném archivu není, čí by bylo.
+     */
+    val screenAccount = LocalAccount.current
+    val mergedChats = rememberMergedChats(ChatFolder.Archive)
+    val sources = mergedChats.sources
+    val busySource = mergedChats.busy
+    val screenViewModel = viewModel
+    @Suppress("NAME_SHADOWING")
+    val viewModel = busySource?.viewModel ?: screenViewModel
+    val listAccount = busySource?.account ?: screenAccount
     val archiveSettings by viewModel.archiveSettings.collectAsStateWithLifecycle()
     val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
     val settingsOpen by viewModel.archiveSettingsOpen.collectAsStateWithLifecycle()
@@ -71,7 +98,12 @@ fun ArchiveScreen(
     val allSelected by viewModel.allSelected.collectAsStateWithLifecycle()
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
 
-    ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
+    ChatActionsHost(
+        screenViewModel,
+        snackbarHostState,
+        onArchived = onChatArchived?.let { archived -> { change -> archived(screenAccount.slot, change) } },
+    )
+    MergedChatActionsHosts(sources, snackbarHostState, onChatArchived)
 
     // Sheet jen s načteným nastavením — tlačítko se bez něj stejně nenabízí.
     archiveSettings?.let { settings ->
@@ -141,7 +173,9 @@ fun ArchiveScreen(
                     // Jen když je co číst; jinak by ikona slibovala akci, která nic neudělá.
                     if (archiveUnread.chats > 0) {
                         WithTooltip(stringResource(Res.string.chats_archive_read_all)) {
-                            IconButton(onClick = viewModel::readArchive, shapes = IconButtonDefaults.shapes()) {
+                            // Ve společném archivu přečíst archivy všech účtů.
+                            val readAll = { sources.map { it.viewModel }.ifEmpty { listOf(screenViewModel) }.forEach { it.readArchive() } }
+                            IconButton(onClick = readAll, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
                                     painterResource(Res.drawable.done_all_24dp),
                                     contentDescription = stringResource(Res.string.chats_archive_read_all),
@@ -154,7 +188,7 @@ fun ArchiveScreen(
                      * jiného znamenat než jeho nastavení. Nenabízí se, dokud (nebo když) ho
                      * TDLib nevydá — prázdný sheet by slíbil volby, které nejsou.
                      */
-                    if (archiveSettings != null) {
+                    if (archiveSettings != null && sources.isEmpty()) {
                         IconButton(onClick = viewModel::openArchiveSettings, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.tune_24dp),
@@ -166,22 +200,39 @@ fun ArchiveScreen(
             )
         },
     ) { padding ->
-        ChatListContent(
-            viewModel = viewModel,
-            selectedChatId = selectedChatId,
-            onChatClick = onChatClick,
-            onForumClick = onForumClick,
-            onOpenStories = onOpenStories,
-            padding = padding,
-            // Stejný prázdný stav jako placeholder detailu vedle — na široké ploše stojí oba
-            // vedle sebe a dva různé vzhledy pro „tady nic není" by se přely.
-            empty = {
-                IntroEmptyState(
-                    icon = Res.drawable.archive_filled_24dp,
-                    title = stringResource(Res.string.chats_archive_empty_title),
-                    text = stringResource(Res.string.chats_archive_empty),
-                )
-            },
-        )
+        // Stejný prázdný stav jako placeholder detailu vedle — na široké ploše stojí oba
+        // vedle sebe a dva různé vzhledy pro „tady nic není" by se přely.
+        val empty: @Composable BoxScope.() -> Unit = {
+            IntroEmptyState(
+                icon = Res.drawable.archive_filled_24dp,
+                title = stringResource(Res.string.chats_archive_empty_title),
+                text = stringResource(Res.string.chats_archive_empty),
+            )
+        }
+        if (mergedChats.merged) {
+            MergedChatListContent(
+                sources = sources,
+                selectedChat = selectedChatId?.let { id -> selectedChatSlot?.let { it to id } },
+                onOpen = { slot, chat -> if (chat.opensAsTopics) onAccountForumClick(slot, chat.id) else onAccountChatClick(slot, chat.id) },
+                onOpenStories = onOpenStories,
+                storiesSlot = screenAccount.slot,
+                padding = padding,
+                listState = rememberLazyListState(),
+                empty = empty,
+            )
+        } else AccountScope(listAccount) {
+            // Výběr nebo uspořádání v jiném účtu: chat se otevírá v jeho účtu.
+            val otherAccount = listAccount.slot != screenAccount.slot
+            ChatListContent(
+                viewModel = viewModel,
+                selectedChatId = selectedChatId,
+                selectedChatSlot = selectedChatSlot,
+                onChatClick = if (otherAccount) { id -> onAccountChatClick(listAccount.slot, id) } else onChatClick,
+                onForumClick = if (otherAccount) { id -> onAccountForumClick(listAccount.slot, id) } else onForumClick,
+                onOpenStories = onOpenStories.takeUnless { otherAccount },
+                padding = padding,
+                empty = empty,
+            )
+        }
     }
 }

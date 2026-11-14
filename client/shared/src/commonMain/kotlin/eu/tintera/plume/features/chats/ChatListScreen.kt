@@ -187,7 +187,7 @@ fun ChatListScreen(
     nowPlayingViewModel: NowPlayingViewModel = koinViewModel(),
     modifier: Modifier = Modifier,
 ) {
-    val search by viewModel.search.state.collectAsStateWithLifecycle()
+    val screenSearch by viewModel.search.state.collectAsStateWithLifecycle()
 
     /*
      * Víc účtů: společný seznam (režim Vše, `docs/navrh-vice-uctu.md`, „Společný seznam
@@ -197,25 +197,17 @@ fun ChatListScreen(
      */
     val screenAccount = LocalAccount.current
     val accounts = koinInject<Accounts>()
-    val listSettings = koinInject<AppSettings>()
-    val accountSwitcher = rememberAccountSwitcher()
-    val showAllAccounts by listSettings.chatListAllAccounts.collectAsStateWithLifecycle()
-    val signedIn by accounts.all.collectAsStateWithLifecycle()
-    val sources = if (showAllAccounts && signedIn.size > 1) {
-        rememberChatSources(accountSwitcher.accounts)
-    } else {
-        emptyList()
-    }
-    val busySource = sources
-        .map { source ->
-            key(source.account.slot) {
-                val selecting = source.viewModel.selection.collectAsStateWithLifecycle().value != null
-                val reordering = source.viewModel.reorder.collectAsStateWithLifecycle().value != null
-                source.takeIf { selecting || reordering }
-            }
-        }
-        .firstNotNullOfOrNull { it }
-    val merged = sources.isNotEmpty() && busySource == null
+    val mergedChats = rememberMergedChats(ChatFolder.Main)
+    val sources = mergedChats.sources
+    val busySource = mergedChats.busy
+    val merged = mergedChats.merged
+    // Hledání v režimu Všechny účty hledá ve všech účtech (`mergedSearchState`), i když zrovna
+    // běží výběr v jednom z nich; návrhy pod prázdným dotazem jsou z účtu obrazovky. Výchozí
+    // účet jde první: veřejný chat nalezený víc účty se otevře v něm.
+    val searchSources = sources.map { source ->
+        key(source.account.slot) { source.account.slot to source.viewModel.search.state.collectAsStateWithLifecycle().value }
+    }.sortedByDescending { it.first == screenAccount.slot }
+    val search = if (sources.isEmpty()) screenSearch else mergedSearchState(screenSearch, searchSources)
     // Čí řádky ukazuje seznam jednoho účtu: obrazovky, nebo účtu, ve kterém běží výběr.
     val listViewModel = busySource?.viewModel ?: viewModel
     val listAccount = busySource?.account ?: screenAccount
@@ -362,18 +354,7 @@ fun ChatListScreen(
         onOpenProxySettings = navigation.onOpenProxySettings,
     )
     // Nabídka nad chatem a hlášky z řádků společného seznamu: každý účet má svůj ViewModel.
-    sources.forEach { source ->
-        key(source.account.slot) {
-            AccountScope(source.account) {
-                ChatActionsHost(
-                    source.viewModel,
-                    snackbarHostState,
-                    onArchived = navigation.onChatArchived?.let { archived -> { change -> archived(source.account.slot, change) } },
-                    onOpenProxySettings = navigation.onOpenProxySettings,
-                )
-            }
-        }
-    }
+    MergedChatActionsHosts(sources, snackbarHostState, navigation.onChatArchived, navigation.onOpenProxySettings)
     // Až s načtenými koncepty: obnovený sheet (po zániku procesu) by se jinak nad prázdným
     // seznamem hned zavřel.
     val loadedDrafts = drafts
@@ -458,6 +439,7 @@ fun ChatListScreen(
         onPauseOrDispose { }
     }
 
+    val accountSwitcher = rememberAccountSwitcher()
     // Přidávaný účet už v aplikaci je: přihlášení se zahodilo, tak to říct, ať uživatel neváhá.
     LaunchedEffect(accounts) {
         accounts.alreadySignedIn.collect { snackbarHostState.showSnackbar(readString(Res.string.accounts_already_signed_in)) }
@@ -534,8 +516,8 @@ fun ChatListScreen(
                     ReorderTopBar(
                         title = stringResource(Res.string.chats_reorder_title),
                         busy = current.busy,
-                        onCancel = viewModel::cancelReorder,
-                        onDone = viewModel::saveReorder,
+                        onCancel = listViewModel::cancelReorder,
+                        onDone = listViewModel::saveReorder,
                     )
                     return@Scaffold
                 }
@@ -543,8 +525,8 @@ fun ChatListScreen(
                     ChatSelectionTopBar(
                         count = current.count,
                         allSelected = allSelected,
-                        onSelectAll = viewModel::selectAll,
-                        onClose = viewModel::closeSelection,
+                        onSelectAll = listViewModel::selectAll,
+                        onClose = listViewModel::closeSelection,
                     )
                     return@Scaffold
                 }
@@ -555,25 +537,36 @@ fun ChatListScreen(
                         search = search,
                         savedMessagesChatId = savedMessagesChatId,
                         scrollBehavior = scrollBehavior,
-                        controls = remember(viewModel.search) {
+                        controls = remember(viewModel.search, sources) {
+                            // Přes víc účtů hledají hledání všech účtů; návrhy jsou z účtu obrazovky.
+                            val searches = sources.map { it.viewModel.search }.ifEmpty { listOf(viewModel.search) }
                             ChatSearchControls(
-                                onQueryChange = viewModel.search::setQuery,
+                                onQueryChange = { text -> searches.forEach { it.setQuery(text) } },
                                 onExpandedChange = viewModel.search::setSuggestionsWanted,
-                                onFilterChange = viewModel.search::setFilter,
-                                onLoadMoreMessages = viewModel.search::loadMoreMessages,
+                                onFilterChange = { filter -> searches.forEach { it.setFilter(filter) } },
+                                onLoadMoreMessages = { searches.forEach { it.loadMoreMessages() } },
                             )
                         },
-                        onChatClick = { chatId ->
-                            viewModel.search.recordFound(chatId)
-                            scrollToChat = chatId
+                        onChatClick = { chatId, slot ->
                             // Výsledky hledání jsou položky seznamu, takže vědí, jestli se chat otevírá tématy.
                             val forum = with(search) { results + top + recent + global + sponsored.map { it.chat } }
-                                .any { it.id == chatId && it.opensAsTopics }
-                            if (forum) navigation.onForumClick(chatId) else navigation.onChatClick(chatId)
+                                .any { it.id == chatId && it.slot == slot && it.opensAsTopics }
+                            if (slot == null || slot == screenAccount.slot && sources.isEmpty()) {
+                                viewModel.search.recordFound(chatId)
+                                scrollToChat = chatId
+                                if (forum) navigation.onForumClick(chatId) else navigation.onChatClick(chatId)
+                            } else {
+                                sources.firstOrNull { it.account.slot == slot }?.viewModel?.search?.recordFound(chatId)
+                                if (forum) navigation.onAccountForumClick(slot, chatId) else navigation.onAccountChatClick(slot, chatId)
+                            }
                         },
-                        onMessageClick = { chatId, messageId, topicId ->
-                            scrollToChat = chatId
-                            navigation.onMessageClick(chatId, messageId, topicId)
+                        onMessageClick = { chatId, messageId, topicId, slot ->
+                            if (slot == null) {
+                                scrollToChat = chatId
+                                navigation.onMessageClick(chatId, messageId, topicId)
+                            } else {
+                                navigation.onAccountMessageClick(slot, chatId, messageId, topicId)
+                            }
                         },
                         suggestionActions = remember(viewModel.search) {
                             SuggestionActions(

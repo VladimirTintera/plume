@@ -561,7 +561,8 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
      volba (`AppSettings.chatListAllAccounts`), ne množina slotů, jak počítal návrh: s nejvýš
      třemi účty stačí „všechny, nebo výchozí".
    - **Obrazovka zůstává obrazovkou výchozího účtu**, společné jsou jen řádky
-     (`MergedChatListContent`). Hledání, složky, menu, karty nahoře a archiv jsou výchozího účtu.
+     (`MergedChatListContent`). Složky, menu a karty nahoře jsou výchozího účtu; hledání a archiv
+     se sloučily v kroku 8.
      `ChatsViewModel` je velký a skoro všechno v něm patří jednomu účtu; slučovat ho celý by
      znamenalo přepsat obrazovku.
    - **Každý účet má v režimu Vše vlastní `ChatsViewModel`** z kontejneru svého účtu
@@ -649,9 +650,32 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
    - **Oficiální Telegram na tomtéž telefonu se do zkoušek plete**: je-li v něm přihlášený
      tentýž účet, zvoní taky a jeho oznámení hovoru překrývá horní část obrazovky.
 
+8. **Hledání a archiv přes všechny účty** — hotovo:
+   - **Hledání se pouští v `ChatSearch` každého účtu** (ViewModely z `rememberChatSources`)
+     a stavy slévá `mergedSearchState` (testy `MergedSearchStateTest`): vlastní chaty účet po
+     účtu, veřejné chaty jednou (výchozí účet jde první, takže se otevřou v něm), zprávy přes
+     server podle data napříč účty. Výsledek nese účet v `ChatSummary.slot` (`null` = účet
+     obrazovky), řádek výsledku se kreslí v `AccountScope` svého účtu a má odznak účtu na
+     avataru; klíč řádku i ťuknutí nesou slot (`onAccountMessageClick`).
+   - **Návrhy pod prázdným dotazem jsou z výchozího účtu** (nejčastější, nedávné, hashtagy,
+     doporučené kanály, reklamy): patří účtu na serveru a sloučit „nejčastější" dvou účtů
+     nemá jasné pořadí. Dotaz, filtr a další stránka zpráv jdou do všech účtů.
+   - **Archiv v režimu Vše slučuje archivy všech účtů** stejně jako hlavní seznam
+     (`rememberMergedChats(ChatFolder.Archive)`, vlastní ViewModel za účet a složku). „Přečíst
+     vše" jde do všech účtů; nastavení archivu (co dělat s odztlumenými a nepřečtenými) je
+     na serveru po účtech, takže se v režimu Vše neukazuje.
+   - Archivace z řádku zavře otevřenou konverzaci jen tehdy, je-li téhož účtu
+     (`onChatArchived(slot, …)`): chat se stejným id ve druhém účtu otevřený zůstane.
+   - **Výběr víc chatů a uspořádání připnutých v hlavním seznamu brala horní lišta z výchozího
+     účtu**, i když výběr běžel v jiném; opraveno spolu s tímhle (`listViewModel`).
+   - **Ověřeno na Pixelu 5** se dvěma účty (VT a výchozí VT2): „Notifi" najde Notifikátor
+     v obou účtech s odznaky a ten z VT se otevře v VT („Zpráva jako VT"); hledání zpráv ukáže
+     zprávu z obou účtů a skočí na ni ve správném účtu; veřejný chat je ve výsledcích jednou,
+     s VT2. Archiv ukáže archivované chaty obou účtů (chat VT2 archivovaný tahem přibyl vedle
+     chatu VT) a tah ho vrátí. Desktop jen přeložený.
+
 **Zbývá pro fázi 1:**
-   - **V režimu Vše zbývá sloučit archiv a hledání** (veřejné chaty a zprávy přes server za
-     každý účet, výsledky označené účtem) a klávesové zkratky Alt+↓/↑ přes společný seznam.
+   - Klávesové zkratky Alt+↓/↑ přes společný seznam.
    - Ve sbaleném sloupci seznamu (`CollapsedChatList`) režim Vše není, ukazuje výchozí účet.
    - Zvukové kanály notifikací mají dostat slot do jména (tón patří účtu).
    - Odkazy `tg://` a `t.me` jdou do výchozího účtu; pozvánka a přihlášení na webu se mají ptát.

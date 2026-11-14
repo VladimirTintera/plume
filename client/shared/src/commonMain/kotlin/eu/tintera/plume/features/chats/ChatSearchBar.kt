@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.chats
 
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.accounts.rememberShownAccount
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.accounts.AccountSlot
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountBadge
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarHost
@@ -197,8 +203,9 @@ internal fun ChatSearchBar(
     savedMessagesChatId: Long?,
     scrollBehavior: SearchBarScrollBehavior,
     controls: ChatSearchControls,
-    onChatClick: (Long) -> Unit,
-    onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
+    /** Chat z výsledků; slot = účet chatu při hledání přes víc účtů ([ChatSummary.slot]), jinak `null`. */
+    onChatClick: (chatId: Long, slot: AccountSlot?) -> Unit,
+    onMessageClick: (chatId: Long, messageId: Long, topicId: Int?, slot: AccountSlot?) -> Unit,
     /** Úklid návrhů pod prázdným dotazem: vymazat historii, odebrat jeden chat, odebrat člověka. */
     suggestionActions: SuggestionActions,
     /** Sponzorované chaty ve výsledcích: zhlédnutí, otevření, nahlášení. */
@@ -417,13 +424,13 @@ internal fun ChatSearchBar(
             search = search,
             savedMessagesChatId = savedMessagesChatId,
             clicks = SearchResultClicks(
-                onPick = { chatId ->
+                onPick = { chatId, slot ->
                     collapse()
-                    onChatClick(chatId)
+                    onChatClick(chatId, slot)
                 },
-                onMessageClick = { chatId, messageId, topicId ->
+                onMessageClick = { chatId, messageId, topicId, slot ->
                     collapse()
-                    onMessageClick(chatId, messageId, topicId)
+                    onMessageClick(chatId, messageId, topicId, slot)
                 },
                 // Hledaný hashtag z historie: hledá se znovu, jako by ho uživatel napsal.
                 onPickTag = { tag -> textFieldState.setTextAndPlaceCursorAtEnd(tag) },
@@ -431,7 +438,7 @@ internal fun ChatSearchBar(
                     // Otevření se hlásí dřív, než se chat otevře (specifikace reklam).
                     sponsoredActions.onOpen(ad.uniqueId)
                     collapse()
-                    onChatClick(ad.chat.id)
+                    onChatClick(ad.chat.id, null)
                 },
             ),
             controls = controls,
@@ -524,7 +531,7 @@ private fun SearchResults(
 
     // Prázdný dotaz s druhem obsahu (z hledání přirozeným jazykem) hledá zprávy, ne návrhy.
     if (trimmed.isEmpty() && search.filter.content == null) {
-        Suggestions(search, onPick = { onPickLatest(it) }, onPickTag = clicks.onPickTag, actions = suggestionActions)
+        Suggestions(search, onPick = { onPickLatest(it, null) }, onPickTag = clicks.onPickTag, actions = suggestionActions)
         return
     }
 
@@ -691,18 +698,20 @@ private fun SearchResults(
                         title = savedTitle,
                         avatarFileId = null,
                         archived = false,
-                        onClick = { onPickLatest(savedId) },
+                        onClick = { onPickLatest(savedId, null) },
                         modifier = Modifier.animateItem().groupedItem(0, chatRows, rowColor),
                     )
                 }
             }
-            itemsIndexed(shownChats, key = { _, chat -> chat.id }) { index, chat ->
+            // Klíč i s účtem: při hledání přes víc účtů je společná skupina mezi výsledky dvakrát.
+            itemsIndexed(shownChats, key = { _, chat -> resultKey(chat) }) { index, chat ->
                 ChatResultRow(
                     chatId = chat.id,
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
                     archived = chat.isArchived,
-                    onClick = { onPickLatest(chat.id) },
+                    onClick = { onPickLatest(chat.id, chat.slot) },
+                    slot = chat.slot,
                     // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
                     modifier = Modifier.animateItem().groupedItem(index + savedRows, chatRows, rowColor),
                     avatarShape = chat.kind.avatarShape(),
@@ -737,13 +746,14 @@ private fun SearchResults(
                     }
                 }
                 val shownGlobal = if (globalExpanded) global else global.take(COLLAPSED_ROWS)
-                itemsIndexed(shownGlobal, key = { _, chat -> "global-${chat.id}" }) { index, chat ->
+                itemsIndexed(shownGlobal, key = { _, chat -> "global-${resultKey(chat)}" }) { index, chat ->
                     ChatResultRow(
                         chatId = chat.id,
                         title = chat.title,
                         avatarFileId = chat.avatarFileId,
                         archived = false,
-                        onClick = { onPickLatest(chat.id) },
+                        onClick = { onPickLatest(chat.id, chat.slot) },
+                        slot = chat.slot,
                         modifier = Modifier.animateItem().groupedItem(index, shownGlobal.size, rowColor),
                         avatarShape = chat.kind.avatarShape(),
                         avatarColorId = chat.avatarColorId,
@@ -770,7 +780,7 @@ private fun SearchResults(
                         icon = Res.drawable.bookmark_filled_24dp,
                         query = trimmed,
                         highlight = highlight,
-                        onClick = { onMessageClickLatest(bookmark.chatId, bookmark.messageId, null) },
+                        onClick = { onMessageClickLatest(bookmark.chatId, bookmark.messageId, null, null) },
                         modifier = Modifier.animateItem().groupedItem(index, shownBookmarks.size, rowColor),
                     )
                 }
@@ -792,7 +802,7 @@ private fun SearchResults(
                         icon = Res.drawable.image_24dp,
                         query = trimmed,
                         highlight = highlight,
-                        onClick = { onMessageClickLatest(photo.chatId, photo.messageId, null) },
+                        onClick = { onMessageClickLatest(photo.chatId, photo.messageId, null, null) },
                         modifier = Modifier.animateItem().groupedItem(index, shownPhotos.size, rowColor),
                     )
                 }
@@ -806,12 +816,12 @@ private fun SearchResults(
                         ),
                     )
                 }
-                itemsIndexed(messages, key = { _, found -> "message-${found.chat.id}-${found.messageId}" }) { index, found ->
+                itemsIndexed(messages, key = { _, found -> "message-${resultKey(found.chat)}-${found.messageId}" }) { index, found ->
                     MessageResultRow(
                         found = found,
                         query = trimmed,
                         highlight = highlight,
-                        onClick = { onMessageClickLatest(found.chat.id, found.messageId, found.topicId) },
+                        onClick = { onMessageClickLatest(found.chat.id, found.messageId, found.topicId, found.chat.slot) },
                         modifier = Modifier.groupedItem(index, messages.size, rowColor),
                     )
                 }
@@ -933,6 +943,7 @@ private fun MessageResultRow(
         }
         annotated to emoji
     }
+    ResultAccountScope(found.chat.slot) {
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -960,18 +971,21 @@ private fun MessageResultRow(
             )
         },
         leadingContent = {
-            Avatar(
-                chatId = found.chat.avatarColorId,
-                title = found.chat.title,
-                avatarFileId = found.chat.avatarFileId,
-                size = 40.dp,
-                isSavedMessages = isSavedMessages(found.chat.id),
-                shape = found.chat.kind.avatarShape(),
-            )
+            ResultAvatar(found.chat.slot) {
+                Avatar(
+                    chatId = found.chat.avatarColorId,
+                    title = found.chat.title,
+                    avatarFileId = found.chat.avatarFileId,
+                    size = 40.dp,
+                    isSavedMessages = isSavedMessages(found.chat.id),
+                    shape = found.chat.kind.avatarShape(),
+                )
+            }
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),
     )
+    }
 }
 
 @Composable
@@ -1146,7 +1160,10 @@ private fun ChatResultRow(
     secret: Boolean = false,
     /** Řádek historie hledání: křížek ho z historie odebere. `null` = křížek není. */
     onRemove: (() -> Unit)? = null,
+    /** Účet chatu při hledání přes víc účtů; `null` = účet obrazovky. */
+    slot: AccountSlot? = null,
 ) {
+    ResultAccountScope(slot) {
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1162,7 +1179,9 @@ private fun ChatResultRow(
             null
         },
         leadingContent = {
-            Avatar(chatId = avatarColorId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId), shape = avatarShape)
+            ResultAvatar(slot) {
+                Avatar(chatId = avatarColorId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId), shape = avatarShape)
+            }
         },
         trailingContent = onRemove?.let { remove ->
             {
@@ -1174,7 +1193,35 @@ private fun ChatResultRow(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),
     )
+    }
 }
+
+/**
+ * Výsledek hledání účtu [slot] (hledání přes víc účtů) se skládá v kontejneru toho účtu: fotka
+ * jde z jeho souborů a „Uložené zprávy" se poznají podle jeho id. `null` = účet obrazovky;
+ * účet, který mezitím zmizel, výsledek neukáže.
+ */
+@Composable
+private fun ResultAccountScope(slot: AccountSlot?, content: @Composable () -> Unit) {
+    if (slot == null) return content()
+    koinInject<Accounts>().find(slot)?.let { AccountScope(it, content) }
+}
+
+/** Avatar výsledku s odznakem účtu, když je výsledek z hledání přes víc účtů. */
+@Composable
+private fun ResultAvatar(slot: AccountSlot?, avatar: @Composable () -> Unit) {
+    Box {
+        avatar()
+        if (slot != null) {
+            rememberShownAccount()?.let { account ->
+                AccountBadge(account, rim = MaterialTheme.colorScheme.surface, modifier = Modifier.align(Alignment.BottomStart), size = 14.dp)
+            }
+        }
+    }
+}
+
+/** Klíč výsledku s chatem: při hledání přes víc účtů i s účtem. */
+private fun resultKey(chat: ChatSummary): String = chat.slot?.let { "${it.id}-${chat.id}" } ?: chat.id.toString()
 
 /** Co jde se sponzorovaným chatem ve výsledcích hledání (viz `ChatsViewModel`). */
 class SponsoredActions(
@@ -1291,8 +1338,8 @@ internal data class LocalSearchSources(
 
 /** Co udělá ťuknutí na výsledek hledání; [ChatSearchBar] po něm hledání zavře. */
 private data class SearchResultClicks(
-    val onPick: (Long) -> Unit,
-    val onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
+    val onPick: (chatId: Long, slot: AccountSlot?) -> Unit,
+    val onMessageClick: (chatId: Long, messageId: Long, topicId: Int?, slot: AccountSlot?) -> Unit,
     /** Hledaný hashtag z historie: hledá se znovu, jako by ho uživatel napsal. */
     val onPickTag: (String) -> Unit,
     val onPickSponsored: (SponsoredSearchChat) -> Unit,

@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.chats
 
+import org.koin.core.parameter.parametersOf
+import org.koin.compose.koinInject
+import androidx.compose.material3.SnackbarHostState
+import eu.tintera.plume.core.accounts.Accounts
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.ChatFolder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -90,16 +96,85 @@ internal data class ChatSource(
  */
 @OptIn(KoinInternalApi::class)
 @Composable
-internal fun rememberChatSources(accounts: List<AccountEntry>): List<ChatSource> =
+internal fun rememberChatSources(accounts: List<AccountEntry>, folder: ChatFolder = ChatFolder.Main): List<ChatSource> =
     accounts.map { entry ->
         key(entry.account.slot) {
             ChatSource(
                 account = entry.account,
-                viewModel = koinViewModel(key = "chats-all-${entry.account.slot.id}", scope = entry.account.koin.scopeRegistry.rootScope),
+                viewModel = koinViewModel(
+                    key = "chats-all-${folder.key}-${entry.account.slot.id}",
+                    scope = entry.account.koin.scopeRegistry.rootScope,
+                    parameters = { parametersOf(folder) },
+                ),
                 info = entry.info,
             )
         }
     }
+
+/** Část klíče ViewModelu podle složky: hlavní seznam a archiv mají každý vlastní. */
+private val ChatFolder.key: String get() = if (this == ChatFolder.Archive) "archive" else "main"
+
+/**
+ * Seznam víc účtů (režim Všechny účty) pro obrazovku seznamu [folder]: zdroje za každý účet,
+ * nebo prázdno (jeden účet, režim vypnutý). [busy] je účet, ve kterém běží výběr víc chatů
+ * nebo uspořádání připnutých — patří jednomu účtu, takže seznam po tu dobu ukazuje jen jeho.
+ */
+@Immutable
+internal data class MergedChats(
+    val sources: List<ChatSource>,
+    val busy: ChatSource?,
+    /** Účty s fotkami a jmény, jak je ukazuje menu účtu. */
+    val entries: List<AccountEntry>,
+) {
+    /** Kreslí se společný seznam, ne seznam jednoho účtu. */
+    val merged: Boolean get() = sources.isNotEmpty() && busy == null
+}
+
+@Composable
+internal fun rememberMergedChats(folder: ChatFolder): MergedChats {
+    val settings = koinInject<AppSettings>()
+    val accounts = koinInject<Accounts>()
+    val entries = rememberAccountSwitcher().accounts
+    val showAll by settings.chatListAllAccounts.collectAsStateWithLifecycle()
+    val signedIn by accounts.all.collectAsStateWithLifecycle()
+    val sources = if (showAll && signedIn.size > 1) rememberChatSources(entries, folder) else emptyList()
+    val busy = sources
+        .map { source ->
+            key(source.account.slot) {
+                val selecting = source.viewModel.selection.collectAsStateWithLifecycle().value != null
+                val reordering = source.viewModel.reorder.collectAsStateWithLifecycle().value != null
+                source.takeIf { selecting || reordering }
+            }
+        }
+        .firstNotNullOfOrNull { it }
+    return MergedChats(sources, busy, entries)
+}
+
+/**
+ * Nabídka nad chatem a hlášky („Vrátit") pro řádky společného seznamu: každý účet má vlastní
+ * ViewModel, a tedy i vlastní nabídku. Archivace hlásí slot účtu, ať se zavře konverzace toho
+ * účtu, ne stejného id v jiném.
+ */
+@Composable
+internal fun MergedChatActionsHosts(
+    sources: List<ChatSource>,
+    snackbarHostState: SnackbarHostState,
+    onArchived: ((AccountSlot, ArchiveChange) -> Unit)?,
+    onOpenProxySettings: () -> Unit = {},
+) {
+    sources.forEach { source ->
+        key(source.account.slot) {
+            AccountScope(source.account) {
+                ChatActionsHost(
+                    source.viewModel,
+                    snackbarHostState,
+                    onArchived = onArchived?.let { archived -> { change -> archived(source.account.slot, change) } },
+                    onOpenProxySettings = onOpenProxySettings,
+                )
+            }
+        }
+    }
+}
 
 /**
  * Chat ve společném seznamu: [source] je pořadí účtu v seznamu účtů. Klíč položky nese účet,
