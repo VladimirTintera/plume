@@ -456,7 +456,7 @@ fun appAccountModule() = module {
     viewModel { NetworkUsageViewModel(storage = get()) }
     viewModel { AutosaveViewModel(autosave = get(), chats = get()) }
     viewModel { parameters -> InstantViewViewModel(url = parameters.get(), repository = get(), urlOpener = get(), linkRequests = get()) }
-    viewModel { NotificationSoundsViewModel(sounds = get(), settings = get(), permission = get()) }
+    viewModel { NotificationSoundsViewModel(sounds = get(), settings = get(), permission = get(), slot = get()) }
     viewModel { DeleteAccountViewModel(accounts = get(), passwords = get()) }
     viewModelOf(::AppLockViewModel)
     // Widget na plochu jen tam, kde ho platforma má (Android).

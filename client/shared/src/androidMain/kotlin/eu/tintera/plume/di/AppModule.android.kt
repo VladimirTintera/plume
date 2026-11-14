@@ -295,7 +295,6 @@ actual fun Module.platformAccountModule() {
             snoozes = get(),
             callsSupported = get<CallRepository>().supported,
             journal = getOrNull<CallJournal>(),
-            otherAccounts = { get<Accounts>().all.value.size - 1 },
             accountName = { get<Accounts>().notificationName(get()) },
             callBusy = { get<Accounts>().inCallElsewhere(get()) },
         )

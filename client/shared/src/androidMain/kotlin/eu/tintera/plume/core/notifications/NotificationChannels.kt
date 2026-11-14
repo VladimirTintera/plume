@@ -14,8 +14,9 @@ import eu.tintera.plume.core.share.shortcutId
 import eu.tintera.plume.core.telegram.NO_SOUND_ID
 import eu.tintera.plume.core.telegram.NotificationChannelKind
 import eu.tintera.plume.core.telegram.NotificationSoundChoice
-import eu.tintera.plume.core.telegram.isSoundChannel
 import eu.tintera.plume.core.telegram.soundChannelKey
+import eu.tintera.plume.core.telegram.soundChannelSlot
+import eu.tintera.plume.core.telegram.soundChannelTone
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_calls
@@ -164,12 +165,22 @@ fun deleteConversationChannels(context: Context, slot: AccountSlot) {
  *
  * Tón, který se nestihl stáhnout, nebo kanál, který nejde založit, znamená výchozí kanál:
  * notifikace má zaznít, i když ne tím tónem.
+ *
+ * Kanál se zvukem patří účtu [slot] (viz [soundChannelKey]); výchozí kanál je společný. Je-li
+ * účtů víc, nese název kanálu i jméno účtu ([accountName]) — v systémovém nastavení by jinak
+ * byly dva kanály „Soukromé chaty · bez zvuku" a nešlo by poznat, který je čí.
  */
-suspend fun soundChannelId(context: Context, kind: NotificationChannelKind, sound: NotificationSoundChoice): String {
+suspend fun soundChannelId(
+    context: Context,
+    slot: AccountSlot,
+    kind: NotificationChannelKind,
+    sound: NotificationSoundChoice,
+    accountName: String? = null,
+): String {
     val id = when (sound) {
         NotificationSoundChoice.Default -> return kind.channelId
-        NotificationSoundChoice.Silent -> soundChannelKey(kind.channelId, NO_SOUND_ID)
-        is NotificationSoundChoice.Tone -> soundChannelKey(kind.channelId, sound.id)
+        NotificationSoundChoice.Silent -> soundChannelKey(kind.channelId, NO_SOUND_ID, slot)
+        is NotificationSoundChoice.Tone -> soundChannelKey(kind.channelId, sound.id, slot)
     }
     val manager = context.getSystemService(NotificationManager::class.java)
     if (manager.getNotificationChannel(id) != null) return id
@@ -178,7 +189,9 @@ suspend fun soundChannelId(context: Context, kind: NotificationChannelKind, soun
         is NotificationSoundChoice.Tone -> sound.title to (toneUri(context, sound) ?: return kind.channelId)
         else -> readString(Res.string.notification_channel_silent) to null
     }
-    val channel = NotificationChannel(id, readString(Res.string.notification_channel_with_sound, base.name.toString(), soundName), base.importance).apply {
+    val withSound = readString(Res.string.notification_channel_with_sound, base.name.toString(), soundName)
+    val name = accountName?.let { readString(Res.string.notification_channel_with_sound, withSound, it) } ?: withSound
+    val channel = NotificationChannel(id, name, base.importance).apply {
         description = base.description
         setSound(uri, if (uri == null) null else base.audioAttributes ?: Notification.AUDIO_ATTRIBUTES_DEFAULT)
         enableVibration(base.shouldVibrate())
@@ -192,9 +205,9 @@ suspend fun soundChannelId(context: Context, kind: NotificationChannelKind, soun
     return runCatching { manager.createNotificationChannel(channel); id }.getOrElse { kind.channelId }
 }
 
-/** Kanál se zvukem [soundId], když už existuje; jinak výchozí kanál ([channelId]). */
-fun existingSoundChannelId(context: Context, kind: NotificationChannelKind, soundId: Long): String {
-    val id = soundChannelKey(kind.channelId, soundId)
+/** Kanál účtu [slot] se zvukem [soundId], když už existuje; jinak výchozí kanál ([channelId]). */
+fun existingSoundChannelId(context: Context, slot: AccountSlot, kind: NotificationChannelKind, soundId: Long): String {
+    val id = soundChannelKey(kind.channelId, soundId, slot)
     val manager = context.getSystemService(NotificationManager::class.java)
     return if (manager.getNotificationChannel(id) != null) id else kind.channelId
 }
@@ -215,10 +228,10 @@ private fun toneUri(context: Context, tone: NotificationSoundChoice.Tone): Uri? 
     uri
 }.getOrNull()
 
-/** Kanály tónu [soundId] (všechny druhy chatů) a jeho kopie pryč — tón už účet nemá. */
-fun deleteToneChannels(context: Context, soundId: Long) {
+/** Kanály tónu [soundId] účtu [slot] (všechny druhy chatů) pryč — tón už účet nemá. */
+fun deleteToneChannels(context: Context, slot: AccountSlot, soundId: Long) {
     val manager = context.getSystemService(NotificationManager::class.java)
-    val keys = NotificationChannelKind.entries.map { kind -> soundChannelKey(kind.channelId, soundId) }
+    val keys = NotificationChannelKind.entries.map { kind -> soundChannelKey(kind.channelId, soundId, slot) }
     // S ním i kanály konverzací, které pod ním visí (zvuk jednoho chatu z profilu).
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         manager.notificationChannels
@@ -226,16 +239,27 @@ fun deleteToneChannels(context: Context, soundId: Long) {
             .forEach { manager.deleteNotificationChannel(it.id) }
     }
     keys.forEach { manager.deleteNotificationChannel(it) }
-    File(context.filesDir, SOUNDS_DIRECTORY).listFiles()?.filter { it.nameWithoutExtension == soundId.toString() }?.forEach { it.delete() }
+    deleteUnusedTones(context, manager)
 }
 
-/** Kanály se zvukem z Telegramu po odhlášení pryč — patří účtu, ne aplikaci. */
-fun deleteSoundChannels(context: Context) {
+/** Kanály se zvukem z Telegramu účtu [slot] po jeho odhlášení pryč — patří účtu, ne aplikaci. */
+fun deleteSoundChannels(context: Context, slot: AccountSlot) {
     val manager = context.getSystemService(NotificationManager::class.java)
     manager.notificationChannels
-        .filter { isSoundChannel(it.id) }
+        .filter { soundChannelSlot(it.id) == slot }
         .forEach { manager.deleteNotificationChannel(it.id) }
-    File(context.filesDir, SOUNDS_DIRECTORY).deleteRecursively()
+    deleteUnusedTones(context, manager)
+}
+
+/**
+ * Kopie tónů, které už žádný kanál nepoužívá. Id tónu je id dokumentu, takže tentýž tón uložený
+ * ve dvou účtech je jeden soubor — smazat ho jde, až ho nemá žádný účet.
+ */
+private fun deleteUnusedTones(context: Context, manager: NotificationManager) {
+    val used = manager.notificationChannels.mapNotNullTo(HashSet()) { soundChannelTone(it.id) }
+    File(context.filesDir, SOUNDS_DIRECTORY).listFiles()
+        ?.filter { it.nameWithoutExtension.toLongOrNull() !in used }
+        ?.forEach { it.delete() }
 }
 
 /** Musí sedět s `notification_images.xml` (cesta) a autoritou provideru v manifestu. */

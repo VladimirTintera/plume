@@ -59,16 +59,16 @@ actual class NotificationPermission(private val context: Context) {
     actual val supportsQuietHours: Boolean = true
 
     /** Kanál, kterým rozsah se zvukem [soundId] zní — kanál s tónem, když už vznikl, jinak výchozí. */
-    actual fun openChannelSettings(channel: NotificationChannelKind, soundId: Long) {
+    actual fun openChannelSettings(slot: AccountSlot, channel: NotificationChannelKind, soundId: Long) {
         val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-            .putExtra(Settings.EXTRA_CHANNEL_ID, existingSoundChannelId(context, channel, soundId))
+            .putExtra(Settings.EXTRA_CHANNEL_ID, existingSoundChannelId(context, slot, channel, soundId))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         context.startActivity(intent)
     }
 
-    actual fun forgetTone(soundId: Long) = deleteToneChannels(context, soundId)
+    actual fun forgetTone(slot: AccountSlot, soundId: Long) = deleteToneChannels(context, slot, soundId)
 
     /**
      * Konverzace visí pod kanálem, kterým chat opravdu zní: chat s tónem z Telegramu jde kanálem
@@ -76,7 +76,7 @@ actual class NotificationPermission(private val context: Context) {
      * s první notifikací — dokud není, nezbývá než výchozí.
      */
     actual fun openConversationSettings(slot: AccountSlot, chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) {
-        val parent = existingSoundChannelId(context, channel, soundId)
+        val parent = existingSoundChannelId(context, slot, channel, soundId)
         val conversationId = ensureConversationChannel(context, slot, parent, chatId, title)
         val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)

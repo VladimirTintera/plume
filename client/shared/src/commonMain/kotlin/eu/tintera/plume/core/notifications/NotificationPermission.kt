@@ -61,11 +61,17 @@ expect class NotificationPermission {
     /** Otevře systémové nastavení dat aplikace a zjištění zapomene — další push ho ověří znovu. */
     fun openBackgroundDataSettings()
 
-    /** Otevře systémové nastavení kanálu — zvuk, vibrace, důležitost. */
-    fun openChannelSettings(channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID)
+    /**
+     * Otevře systémové nastavení kanálu — zvuk, vibrace, důležitost. S tónem z Telegramu
+     * ([soundId]) kanál toho tónu účtu [slot], když už vznikl.
+     */
+    fun openChannelSettings(slot: AccountSlot, channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID)
 
-    /** Tón účtu smazaný — pryč i jeho kanály a kopie souboru (Android), ať v systému nevisí. */
-    fun forgetTone(soundId: Long)
+    /**
+     * Tón účtu [slot] smazaný — pryč i jeho kanály a kopie souboru, když ji žádný jiný účet
+     * nepoužívá (Android), ať v systému nevisí.
+     */
+    fun forgetTone(slot: AccountSlot, soundId: Long)
 
     /**
      * Otevře systémové nastavení jedné konverzace (zvuk, prioritní, tichá). Kde to platforma

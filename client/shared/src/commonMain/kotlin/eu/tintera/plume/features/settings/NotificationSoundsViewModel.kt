@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -42,6 +43,8 @@ class NotificationSoundsViewModel(
     private val sounds: NotificationSoundRepository,
     private val settings: NotificationSettingsRepository,
     private val permission: NotificationPermission? = null,
+    /** Účet, jehož tóny se spravují: smazaný tón bere s sebou jen kanály tohoto účtu. */
+    private val slot: AccountSlot = AccountSlot.Primary,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(NotificationSoundsState())
@@ -105,7 +108,7 @@ class NotificationSoundsViewModel(
 
     fun delete(id: Long) {
         viewModelScope.launch {
-            sounds.remove(id).onSuccess { permission?.forgetTone(id) }.onFailure { failure ->
+            sounds.remove(id).onSuccess { permission?.forgetTone(slot, id) }.onFailure { failure ->
                 _state.update { it.copy(error = failure.userMessage(Res.string.notif_sound_delete_failed)) }
             }
         }
