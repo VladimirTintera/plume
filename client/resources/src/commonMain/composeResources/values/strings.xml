@@ -4510,6 +4510,8 @@
     <string name="watch_login_title">Sign in on your watch?</string>
     <string name="watch_login_text">%1$s is asking to sign in to your account. Confirm only if the watch is with you.</string>
     <string name="watch_login_text_unnamed">Your watch is asking to sign in to your account. Confirm only if it is with you.</string>
+    <string name="watch_login_text_choose">%1$s is asking to sign in. Tap the account to sign in with, only if the watch is with you.</string>
+    <string name="watch_login_text_choose_unnamed">Your watch is asking to sign in. Tap the account to sign in with, only if the watch is with you.</string>
     <string name="watch_login_confirm">Sign in</string>
     <string name="watch_login_decline">Decline</string>
     <string name="watch_login_done">Your watch is signed in</string>

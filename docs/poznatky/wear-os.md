@@ -99,6 +99,11 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
     Potvrzení tak míří na platný kód, ať uživatel ťukne kdykoli.
   - **Probuzený proces telefonu:** zpráva umí spustit mrtvou aplikaci a TDLib se teprve rozbíhá;
     služba i přijímač na stav přihlášení čekají (10 s). Odhrnutí notifikace = zamítnutí.
+  - **Víc účtů na telefonu:** tlačítko za každý přihlášený účet (křestní jméno), hodinky se
+    přihlásí tím, na který se ťukne; při třech účtech Zamítnout ustoupí, protože notifikace
+    víc než tři akce neukáže. Akce každého účtu potřebuje vlastní request code — intenty, které
+    se liší jen extra, systém pokládá za tutéž akci a `FLAG_UPDATE_CURRENT` by všem tlačítkům
+    dal poslední slot. Přepis hlasovky z hodinek hledá účet podle user id z žádosti.
   - **Task API bez `coroutines-play-services`** (`awaitResult` = `Tasks.await` na `Dispatchers.IO`),
     stejná úvaha jako u Play In-App Updates.
   - **Neověřené na zařízení**: spárovat emulátor hodinek s emulátorem telefonu chce aplikaci

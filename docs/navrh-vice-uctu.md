@@ -917,11 +917,21 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       (VT i VT2 členy, zpráva má v obou účtech totéž id): skladba puštěná za VT2 v bublině za
       VT nehraje (▶, 3:00), za VT2 ukazuje průběh; před opravou ukazovala průběh v obou.
 
+21. **Hodinky a účty telefonu** — hotovo (hodinky samy zůstávají na jednom účtu):
+    - Žádost hodinek o přihlášení (`WatchLoginService`, `answerWatchLogin`) čeká na všechny účty
+      zvlášť a nabídne každý přihlášený: s jedním Zamítnout / Přihlásit jako dřív, s víc účty
+      tlačítko s křestním jménem za každý. Víc než tři akce notifikace neukáže, takže při třech
+      účtech Zamítnout ustoupí (odhrnutí je zamítnutí taky).
+    - Akce nese slot (`EXTRA_SLOT`) a každá má vlastní request code: intenty lišící se jen extra
+      systém při hledání vydané akce nerozlišuje a všechna tlačítka by nesla poslední slot.
+      Odhlášený účet z tlačítka = nezdar, ne potvrzení jiným účtem.
+    - Přepis hlasovky z hodinek (`WatchTranscriptionService`) bere účet podle user id z žádosti
+      (id Uložených zpráv), ne výchozí: hodinky přihlášené druhým účtem dřív dostaly `WrongAccount`.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`.
      Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
      výchozí účet.
-   - Hodinky si přihlášení potvrzují výchozím účtem telefonu.
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
    - Kolik baterie stojí další klient TDLib, změřené není (paměť a start viz krok 15).
