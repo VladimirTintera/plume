@@ -171,11 +171,13 @@ import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.features.calls.CallRatingHost
 import eu.tintera.plume.features.calls.CallsScreen
+import eu.tintera.plume.features.calls.rememberCallSources
 import eu.tintera.plume.core.navigation.CallsRoute
 import eu.tintera.plume.core.navigation.DownloadsRoute
 import eu.tintera.plume.core.navigation.MyStoriesRoute
 import eu.tintera.plume.features.stories.MyStoriesScreen
 import eu.tintera.plume.features.downloads.DownloadsScreen
+import eu.tintera.plume.features.downloads.rememberDownloadSources
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
@@ -936,11 +938,10 @@ private fun shellEntryProvider(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
-        val slot = LocalAccount.current.slot
         CallsScreen(
-            viewModel = koinViewModel(),
+            sources = rememberCallSources(),
             onBack = { chatsStack.remove(CallsRoute) },
-            onOpenChat = { chatId -> chatsStack.openConversation(slot, chatId) },
+            onOpenChat = { slot, chatId -> chatsStack.openConversation(slot, chatId) },
         )
     }
 
@@ -951,12 +952,11 @@ private fun shellEntryProvider(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
         ),
     ) {
-        val slot = LocalAccount.current.slot
         DownloadsScreen(
-            viewModel = koinViewModel(),
+            sources = rememberDownloadSources(),
             onBack = { chatsStack.remove(DownloadsRoute) },
-            onOpenMessage = { chatId, messageId -> chatsStack.openFoundMessage(slot, chatId, messageId, topicId = null) },
-            onOpenMedia = { chatId, messageId -> chatsStack.add(MediaRoute(slot, chatId, messageId)) },
+            onOpenMessage = { slot, chatId, messageId -> chatsStack.openFoundMessage(slot, chatId, messageId, topicId = null) },
+            onOpenMedia = { slot, chatId, messageId -> chatsStack.add(MediaRoute(slot, chatId, messageId)) },
         )
     }
 

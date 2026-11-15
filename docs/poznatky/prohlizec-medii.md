@@ -1880,6 +1880,16 @@ a pozastavením) a „Nedávno staženo". Seznam vede TDLib (`addFileToDownloads
   otevřít, sdílet, uložit jako, a tlačítko stažení u videa — viz „Stažení videa z náhledu"). Ten pak stahování spustí sám; když se přidat nepovede, stáhne
   se postaru přes `retryDownload`. Náhledy, fotky v konverzaci, streamované video ani soubor
   v článku do seznamu nepatří — nejsou to „stažené soubory" a zahltily by ho.
+- **V režimu Všechny účty je seznam společný** (`rememberDownloadSources`, `mergeDownloads`,
+  testy `MergedDownloadsTest`): každý účet má vlastní `DownloadsViewModel` a řádek odznak
+  účtu (fotka pod ikonou); id souboru platí jen v účtu, proto klíč položky nese účet. Víc účtů
+  se řadí podle data (stahované podle přidání, stažené podle dokončení), jeden zůstává
+  v pořadí od TDLib. „Pozastavit vše" a „Vymazat stažené" jdou do všech účtů; vymazání ve víc
+  účtech naráz ukáže JEDEN snackbar a „Vrátit" vrátí všechny — dva by se navzájem zahodily,
+  protože se předchozí snackbar zavírá. Mimo režim Vše lišta nese jméno účtu (`AccountTopAppBar`).
+  - **Při ověřování „Vrátit" nedělat `uiautomator dump` mezi vymazáním a ťuknutím**: výpis
+    čeká, až se obrazovka uklidní, a odpočet v snackbaru ji drží v pohybu — ťuknutí pak
+    přišlo po osmivteřinové lhůtě a vypadalo to, že „Vrátit" nefunguje.
 - **Seznam se po každé změně čte znovu** (`fileAddedToDownloads` / `fileDownload` /
   `fileRemovedFromDownloads`, sloučené s 300ms debounce), průběh jednotlivých řádků si ale
   odebírá řádek sám (`FileRepository.observe`) — kvůli procentům se seznam číst nemusí.

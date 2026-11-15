@@ -633,6 +633,18 @@ s volbou „Smazat i ostatním" = `revoke`).
   i šipku v chybové barvě, jako v telefonu. Ťuknutí otevře chat (na široké ploše vedle),
   sluchátko vpravo volá zpátky (`rememberStartCall`, s dotazem na mikrofon); u videohovoru
   kamera. Skupinový hovor zpátky volat nejde, sluchátko nemá.
+- **V režimu Všechny účty je historie společná** (`rememberCallSources`, `mergeCallStates`,
+  testy `MergedCallsTest`): každý účet má vlastní `CallsViewModel` ze svého kontejneru a řádek
+  odznak účtu; skládá se v `AccountScope` účtu, takže fotky i sluchátko jdou z něj. Filtr
+  a smazání celé historie platí pro všechny účty, smazání řádku jen pro jeho účet.
+  - **Každý účet stránkuje sám**, takže se ukazuje jen to, co je novější než nejstarší
+    načtený hovor účtu s další stránkou: starší hovor jiného účtu by se jinak zařadil před
+    hovory, které ještě nepřišly. Další stránka se čte jen účtu, který tu hranici drží
+    (`needMore`). Prázdná stránka bez konce (nezdar čtení) hranici nedrží.
+  - **Opakované hovory se slučují jen v rámci účtu** (`groupSourcedCallHistory`): týž člověk
+    má v obou účtech totéž id chatu a dva zmeškané od něj by se slily do jednoho řádku.
+  - Mimo režim Vše je to historie výchozího účtu a s víc účty nese lišta jeho jméno
+    (`AccountTopAppBar`).
 - **Položka v menu jen tam, kde hovory jsou** (`CallRepository.supported`); na iOS by vedla
   k seznamu, ze kterého nejde nic udělat.
 - **Po skončeném hovoru se historie čte znovu** (stav `active` přejde do `Ended`/`Failed`),

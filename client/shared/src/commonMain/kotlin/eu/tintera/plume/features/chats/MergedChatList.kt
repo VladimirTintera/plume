@@ -1,10 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import org.koin.core.parameter.parametersOf
-import org.koin.compose.koinInject
 import androidx.compose.material3.SnackbarHostState
-import eu.tintera.plume.core.accounts.Accounts
-import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatFolder
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -133,14 +130,19 @@ internal data class MergedChats(
     val merged: Boolean get() = sources.isNotEmpty() && busy == null
 }
 
+/**
+ * Účty režimu Všechny účty, jak je ukazuje menu účtu; prázdné, když je účet jeden nebo režim
+ * vypnutý. Podle toho se slučuje seznam chatů, archiv, historie hovorů a stahování.
+ */
+@Composable
+internal fun rememberAllAccountsEntries(): List<AccountEntry> =
+    rememberAccountSwitcher().let { if (it.allAccounts) it.accounts else emptyList() }
+
 @Composable
 internal fun rememberMergedChats(folder: ChatFolder): MergedChats {
-    val settings = koinInject<AppSettings>()
-    val accounts = koinInject<Accounts>()
-    val entries = rememberAccountSwitcher().accounts
-    val showAll by settings.chatListAllAccounts.collectAsStateWithLifecycle()
-    val signedIn by accounts.all.collectAsStateWithLifecycle()
-    val sources = if (showAll && signedIn.size > 1) rememberChatSources(entries, folder) else emptyList()
+    val switcher = rememberAccountSwitcher()
+    val entries = switcher.accounts
+    val sources = if (switcher.allAccounts) rememberChatSources(entries, folder) else emptyList()
     val busy = sources
         .map { source ->
             key(source.account.slot) {
