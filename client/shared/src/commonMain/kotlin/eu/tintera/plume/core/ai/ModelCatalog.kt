@@ -50,7 +50,9 @@ enum class AiProvider {
  * ([runtime]). Jméno zůstalo z doby, kdy byl jen LiteRT-LM.
  *
  * **Commit je součást adresy**, takže se stahuje pořád tentýž soubor, i když autor na Hugging
- * Face nahraje novější — nová verze = nový řádek tady, vědomě. Pod [minMemoryGb] se model
+ * Face nahraje novější — nová verze = nový řádek tady, vědomě. [sha256] je `lfs.oid` souboru z API
+ * Hugging Face: soubor s jiným hashem knihovna nenačte (podvržený objekt na CDN by jinak skončil
+ * v nativním parseru v procesu aplikace). Pod [minMemoryGb] se model
  * nenabízí, protože by systém aplikaci při načítání zabil. **Jména položek se ukládají**
  * (nastavení aplikace, jméno úlohy stahování `ai-model-download-<jméno>`), takže se
  * nepřejmenovávají: [DownloadedModel.id] je přesně jméno položky.
@@ -79,6 +81,7 @@ enum class LiteRtModel(
     val fileName: String,
     val commit: String,
     val sizeBytes: Long,
+    val sha256: String,
     val minMemoryGb: Int,
     val multimodal: Boolean,
     val contextTokens: Int = 8_192,
@@ -93,6 +96,7 @@ enum class LiteRtModel(
         fileName = "gemma-4-E2B-it.litertlm",
         commit = "6e5c4f1e395deb959c494953478fa5cec4b8008f",
         sizeBytes = 2_588_147_712,
+        sha256 = "181938105e0eefd105961417e8da75903eacda102c4fce9ce90f50b97139a63c",
         minMemoryGb = 8,
         multimodal = true,
     ),
@@ -103,6 +107,7 @@ enum class LiteRtModel(
         fileName = "gemma-4-E4B-it.litertlm",
         commit = "28299f30ee4d43294517a4ac93abd6163412f07f",
         sizeBytes = 3_659_530_240,
+        sha256 = "0b2a8980ce155fd97673d8e820b4d29d9c7d99b8fa6806f425d969b145bd52e0",
         minMemoryGb = 12,
         multimodal = true,
     ),
@@ -120,6 +125,7 @@ enum class LiteRtModel(
         fileName = "qwen3_4b_mixed_int4.litertlm",
         commit = "2e62465be458fb02f7a92e339f98270f42dc9b32",
         sizeBytes = 2_272_935_936,
+        sha256 = "4877b236f09c0b519958612afeb3c6fc6575c7ce56080d0d3a5406150e0ff9ce",
         minMemoryGb = 12,
         multimodal = false,
         contextTokens = 4_096,
@@ -133,6 +139,7 @@ enum class LiteRtModel(
         fileName = "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm",
         commit = "5e6e7a58d03777898b31330a15d2e0a5a9107de3",
         sizeBytes = 1_597_922_856,
+        sha256 = "c4a9b7289365ab80fe599b844b77ad253eb3c53fb0e5d963d699146a6f01255e",
         minMemoryGb = 6,
         multimodal = false,
         contextTokens = 4_096,
@@ -149,6 +156,7 @@ enum class LiteRtModel(
         fileName = "Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm",
         commit = "7c650468cc1598861b1a0deb0ab25be6b20cab13",
         sizeBytes = 343_490_560,
+        sha256 = "bf1aba9ce8d963124407353c6aa4cbf72eba78db21ae133de983eac672ce83e0",
         minMemoryGb = 4,
         multimodal = false,
         contextTokens = 4_096,
@@ -167,6 +175,7 @@ enum class LiteRtModel(
         fileName = "EuroLLM-9B-Instruct-2512.Q4_K_M.gguf",
         commit = "5138603fccb9dc1f35c25cfd1a4981a78617e9ff",
         sizeBytes = 5_582_838_912,
+        sha256 = "fe9b50d4ba67eb0131f1ceeaab2e56ea8fb6b2bbc37391d3219c791c3b140a28",
         minMemoryGb = 16,
         multimodal = false,
         contextTokens = 4_096,
@@ -184,6 +193,7 @@ enum class LiteRtModel(
         fileName = "EuroMoE-2.6B-A0.6B-Instruct-2512.Q4_K_M.gguf",
         commit = "11be4a9e68eb5aba18e4c3b341cbef2d018b2da0",
         sizeBytes = 1_616_056_480,
+        sha256 = "8bec0980cb2a33b0ef05f504b43269cb2cac9484d0eb526504ea23e03a0e3b15",
         minMemoryGb = 6,
         multimodal = false,
         contextTokens = 4_096,
@@ -203,6 +213,7 @@ enum class LiteRtModel(
         fileName = "aya-expanse-8b-Q4_K_M.gguf",
         commit = "f9d62ed0c58e6f2ae17975df990b1b8a4013b596",
         sizeBytes = 5_056_982_720,
+        sha256 = "9592bad943fe56cf93200286a0a4b00a158cd84a408f227b9978ec5879002fb8",
         minMemoryGb = 16,
         multimodal = false,
         contextTokens = 4_096,
@@ -217,6 +228,7 @@ enum class LiteRtModel(
         url = huggingFaceUrl(repo = repository, commit = commit, file = fileName),
         fileName = fileName,
         sizeBytes = sizeBytes,
+        sha256 = sha256,
         minMemoryGb = minMemoryGb,
         runtime = runtime,
         contextTokens = contextTokens,
