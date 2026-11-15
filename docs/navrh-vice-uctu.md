@@ -384,8 +384,9 @@ intenty, zástupci a připomenutí fungují dál.
 ## Výkon a paměť
 
 - **Každý účet je živý klient TDLib:** vlastní spojení, vlastní databáze a vlastní vlákno pro
-  síť. Paměť i baterie rostou s počtem účtů — změřeno v kroku 15 (asi 22 MB nativní paměti
-  a desítky milisekund startu na účet; baterie změřená není).
+  síť. Paměť roste s počtem účtů — změřeno v kroku 15 (asi 22 MB nativní paměti a desítky
+  milisekund startu na účet). Baterie v pozadí skoro ne: zmražený proces nestojí nic a push
+  probudí všechny klienty, ale přidají k němu desítky procent, ne násobek (krok 23).
 - **Online (volba `online`) mají v popředí všechny účty ve filtru.** Uživatel jejich chaty
   vidí, takže je online i pro protějšky. Účet mimo filtr online není. Typ sítě
   (`setNetworkType`) dostávají všechny. Při přihlášení nového klienta se pošle hned, ne až
@@ -418,7 +419,7 @@ intenty, zástupci a připomenutí fungují dál.
 
 ## Rozhodnuto
 
-- **Nejvýš tři účty.** Zvednout jde, až bude změřené, kolik stojí další klient TDLib.
+- **Nejvýš tři účty.** Zvednout jde podle změřené paměti (krok 15); baterie v pozadí limit nedrží (krok 23).
 - **Připnuté chaty všech účtů jsou nahoře i v režimu Vše.**
 - **Odznak nepřečtených na ikoně aplikace je součet všech účtů**, nezávisle na filtru.
 - **Chování seznamu a konverzace je společné** pro všechny účty. Blok nepřečtených
@@ -427,7 +428,8 @@ intenty, zástupci a připomenutí fungují dál.
 ## Zbývá ověřit
 
 - Kde přesně leží `user_id` v pushi na iOS (první skutečný push s certifikátem APNs).
-- Kolik paměti a baterie stojí další klient TDLib (fáze 1, s druhým účtem).
+- Kolik baterie stojí další klient TDLib v popředí a na mobilních datech (v pozadí na Wi-Fi
+  změřeno v kroku 23).
 - Že wrapper 17.0.0 dělí odpovědi podle klienta stejně jako 15.0.0 (fáze 0).
 
 ## Postup
@@ -947,6 +949,38 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       s dokumentem staženým za VT i VT2, „Vymazat stažené" jedním snackbarem a „Vrátit"
       vrátilo oba i po uplynutí lhůty; Moje příběhy s „VT2" pod nadpisem.
 
+23. **Baterie dalších klientů TDLib** — změřeno na Pixelu 5 (tři účty, build bez `debuggable`,
+    zhasnutý displej, hodina na kolo, Wi-Fi). Postup a pasti: `vykon.md`, „Víc účtů: baterie".
+    - **Mimo pushe stojí další klienti nula.** Proces je celou hodinu zmražený, bez buzení,
+      budíků a úloh; Android ho rozmrazí jen pushem.
+    - **Push probudí proces se všemi klienty a každý se znovu připojí k serveru**: se třemi
+      klienty 10–28 kB dat na push, s jedním kolem 3–5 kB.
+    - Spotřeba Plume za hodinu (odhad `batterystats`, ne naměřený proud):
+
+      | Kolo | Klienti | Pushe (zpracované) | mAh | CPU | Wakelock | Úlohy | Data |
+      |---|---|---|---|---|---|---|---|
+      | B1 | 3 | 6 (6) | 0,50 | 10,4 s | 25 s | 6 | 169 kB |
+      | A1 | 1, osobní účet | 6 (0) | 0,18 | 3,2 s | 25 s | 0 | 30 kB |
+      | B2 | 3 | 11 (11) | 0,67 | 12,5 s | 1 min 34 s | 9 | 194 kB |
+      | V1 | 1, VT | 17 (6) | 0,59 | 11,9 s | 30 s | 6 | 46 kB |
+      | B4 | 3 | 20 (20) | 2,43 | 47 s | 2 min 51 s | 24 | 195 kB |
+
+      Testovací pushe patří VT. A1 je proto zahodil (osobní účet je nerozšifruje) a vyšel
+      levný z jiného důvodu; V1 je zpracoval a zahodil jedenáct pushů osobního účtu. Ve V1
+      a B4 svítil část hodiny displej (zhasínání po 30 min), Plume ale zůstala v pozadí. Kola
+      A2 (vypadl kabel), B3 (statistiky se nevynulovaly) a V2 (Plume deset minut v popředí)
+      vyřazená.
+    - **Zpracovaný push stojí se třemi klienty 0,06–0,12 mAh, s jedním asi 0,04 mAh** (V1 po
+      odečtení zahozených pushů po ~0,03 mAh jako v A1). Další dva klienti tedy přidají
+      desítky procent, ne násobek; sto pushů denně dělá řádově 2 mAh navíc, kolem 0,05 %
+      baterie. Pro srovnání displej spálil za tutéž hodinu 27–285 mAh, když svítil.
+    - **Víc než počet klientů rozhoduje čekání na doručení notifikace.** Push s odloženou
+      notifikací (účet je online jinde) drží telefon vzhůru 8 s ve službě a pak
+      `NotificationDeliveryWorker` 5–10 s. V nejrušnější hodině (B4) to bylo 24 úloh a skoro
+      tři minuty wakelocku; s jedním účtem by to bylo stejné.
+    - Limit tří účtů kvůli baterii zvedat ani držet netřeba, rozhoduje paměť (krok 15).
+    - **Neověřené:** popředí (Pixel 5 se po zhasnutí zamyká kódem), mobilní data a velký účet
+      ve všech třech slotech.
+
 **Zbývá pro fázi 1:**
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
-   - Kolik baterie stojí další klient TDLib, změřené není (paměť a start viz krok 15).
