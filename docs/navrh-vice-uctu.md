@@ -927,6 +927,10 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       Odhlášený účet z tlačítka = nezdar, ne potvrzení jiným účtem.
     - Přepis hlasovky z hodinek (`WatchTranscriptionService`) bere účet podle user id z žádosti
       (id Uložených zpráv), ne výchozí: hodinky přihlášené druhým účtem dřív dostaly `WrongAccount`.
+    - **Ověřeno na Pixelu 5** (tři účty) dočasným buildem, který při startu zavolal
+      `answerWatchLogin` s vymyšleným odkazem: notifikace s tlačítky VT, VT2 a Vladimír bez
+      Zamítnout; ťuknutí na VT potvrzovalo slotem `0`, ačkoli výchozí je VT2 (`fs2gc9`), server
+      kód odmítl (`AUTH_TOKEN_INVALID`). Se skutečnými hodinkami a přepis hlasovky neověřené.
 
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
