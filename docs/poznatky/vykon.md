@@ -279,6 +279,37 @@ Výsledky jsou v `docs/navrh-vice-uctu.md`, krok 15 (Pixel 5, dva a tři účty)
 - **„Fully drawn" musí hlásit i společný seznam víc účtů** (`MergedChatListContent`); dokud
   nehlásil, v režimu Všechny účty se start jako hotový neohlásil nikdy.
 
+### Víc účtů: baterie
+
+Výsledky jsou v `docs/navrh-vice-uctu.md`, krok 23 (Pixel 5, jeden a tři klienti TDLib). Postup
+a na čem to ujelo:
+
+- **Stejné zařízení, stejné účty, kola se střídají** (B, A, B, A po hodině), aby se vyrovnal
+  provoz od skutečných lidí. Build s jedním klientem je dočasná úprava `Accounts`: filtr
+  uložených účtů na jeden slot, bez `removeOrphans` (jinak smaže data ostatních slotů) a bez
+  `save()` (jinak přepíše seznam účtů). Oba buildy ne-debuggable (viz výš) a `compile -m speed`.
+- **Stejné pushe v každém kole posílá testovací bot** (šest zpráv za hodinu do „Plume test
+  moderace") přes Bot API ze skriptu na Macu; provoz osobního účtu jde navíc.
+- **Statistiky na USB**: `dumpsys battery unplug`, `dumpsys batterystats --reset`, displej
+  zhasnout `input keyevent 223`; po kole `dumpsys batterystats --usage` (odhad mAh po UID,
+  rozpad cpu / wifi / wakelock) a `dumpsys batterystats eu.tintera.plume` (wakelocky, úlohy,
+  počet spuštění `PlumeMessagingService` = počet pushů, data). Na konci `dumpsys battery reset`.
+  mAh jsou odhad z tabulky odběrů telefonu (`power_profile`), ne naměřený proud — na
+  porovnání stačí, absolutní čísla jsou orientační.
+- **Klient, kterému push nepatří, ho zahodí skoro zadarmo — a to srovnání zkreslí.** S jedním
+  účtem vrací `Accounts.pushTarget` ten účet i pro push cizího příjemce (`singleOrNull`),
+  TDLib ho nerozšifruje a služba skončí. Build „jen osobní účet" tak testovací pushe pro VT
+  nezpracoval a vyšel třikrát levnější z úplně jiného důvodu. Férové A otevírá účet, kterému
+  měřené pushe patří.
+- **Zkontrolovat v každém kole `Time on battery` a `Screen on`.** Kolo, kde reset neproběhl,
+  má čas na baterii delší než hodinu (počítá od minulého resetu). Pixel 5 měl zhasínání po
+  30 minutách (`settings get system screen_off_timeout` = 1800000): každá notifikace, která
+  rozsvítila displej, ho nechala svítit až půl hodiny a večerní kola měla displej zapnutý
+  18–87 % času. Před měřením zkrátit (`settings put system screen_off_timeout 30000`) a po
+  něm vrátit.
+- **USB kabel během čtyř hodin jednou vypadl** a kolo zůstalo bez dat. Skript má před
+  vyčtením statistik čekat na `adb get-state`, ne předpokládat spojení.
+
 ### Výsledky první analýzy
 
 Říjen 2026, emulátor Plume_Galerie_Fold (Android 17), debug build, cykly v testovacích
