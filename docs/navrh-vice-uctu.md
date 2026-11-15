@@ -932,10 +932,21 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       Zamítnout; ťuknutí na VT potvrzovalo slotem `0`, ačkoli výchozí je VT2 (`fs2gc9`), server
       kód odmítl (`AUTH_TOKEN_INVALID`). Se skutečnými hodinkami a přepis hlasovky neověřené.
 
+22. **Hovory a Stahování přes všechny účty** — hotovo:
+    - V režimu Všechny účty jsou historie hovorů a Stahování společné, s odznakem účtu
+      u řádku (`rememberCallSources` / `rememberDownloadSources` nad
+      `rememberAllAccountsEntries`, ViewModel každého účtu z jeho kontejneru jako
+      u `rememberChatSources`). Řádek se skládá v `AccountScope` svého účtu a otevírá chat
+      v něm. Podrobnosti v `hovory.md` („Historie hovorů") a `prohlizec-medii.md` („Stahování").
+    - Moje příběhy a Nastavení zůstávají výchozího účtu (rozhodnuto): příběhy jsou „moje"
+      jednoho účtu a nastavení má nahoře kartu účtu. Moje příběhy, a mimo režim Vše i Hovory
+      a Stahování, mají s víc účty pod nadpisem jméno účtu (`AccountTopAppBar`).
+    - Archiv v režimu jednoho účtu je archiv výchozího účtu, a to je ten zobrazený — správně.
+    - **Ověřeno na Pixelu 5** (tři účty, režim Vše): historie hovorů ze všech tří účtů proložená
+      podle data s odznaky, řádek VT2 otevřel chat ve VT2 („Message as VT2"); Stahování
+      s dokumentem staženým za VT i VT2, „Vymazat stažené" jedním snackbarem a „Vrátit"
+      vrátilo oba i po uplynutí lhůty; Moje příběhy s „VT2" pod nadpisem.
+
 **Zbývá pro fázi 1:**
-   - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
-     účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`.
-     Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
-     výchozí účet.
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
    - Kolik baterie stojí další klient TDLib, změřené není (paměť a start viz krok 15).

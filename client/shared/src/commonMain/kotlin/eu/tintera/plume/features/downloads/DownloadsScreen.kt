@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.downloads
 
+import eu.tintera.plume.core.accounts.AccountTopAppBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -24,10 +26,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,7 +40,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.accounts.AccountBadge
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.adaptive.ContentWidth
+import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.telegram.FileDownloadItem
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
@@ -107,34 +113,47 @@ import org.koin.compose.koinInject
  * stažený soubor ho otevře (video a obrázek v prohlížeči médií, ostatní v systému), na
  * rozestahovaný zprávu v chatu; podržení nabídne zprávu v chatu a odebrání ze seznamu, i se
  * smazáním souboru — obojí s „Vrátit".
+ *
+ * V režimu Všechny účty je to společný seznam všech účtů ([sources], [mergeDownloads]) s odznakem
+ * účtu u řádku; „Pozastavit vše" a „Vymazat stažené" platí pro všechny, řádek patří svému účtu.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DownloadsScreen(
-    viewModel: DownloadsViewModel,
+internal fun DownloadsScreen(
+    sources: List<DownloadSource>,
     onBack: () -> Unit,
-    onOpenMessage: (chatId: Long, messageId: Long) -> Unit,
-    onOpenMedia: (chatId: Long, messageId: Long) -> Unit,
+    onOpenMessage: (slot: AccountSlot, chatId: Long, messageId: Long) -> Unit,
+    onOpenMedia: (slot: AccountSlot, chatId: Long, messageId: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val states = sources.map { source -> key(source.account.slot) { source.viewModel.state.collectAsStateWithLifecycle().value } }
+    val merged = remember(states) { mergeDownloads(states) }
     val snackbarHostState = remember { SnackbarHostState() }
     // Snackbar s „Vrátit" běží mimo efekt: spotřebování události mění stav a efekt by ho zrušil.
     val snackbarScope = rememberCoroutineScope()
     var menu by remember { mutableStateOf(false) }
 
-    val errorText = state.error?.resolve()
-    LaunchedEffect(errorText) {
-        if (errorText != null) {
-            viewModel.consumeError()
-            snackbarHostState.showSnackbar(errorText)
+    sources.forEachIndexed { index, source ->
+        key(source.account.slot) {
+            val errorText = states[index].error?.resolve()
+            LaunchedEffect(errorText) {
+                if (errorText != null) {
+                    source.viewModel.consumeError()
+                    snackbarHostState.showSnackbar(errorText)
+                }
+            }
         }
     }
 
     // Odebrání čeká na lhůtu (`PendingDownloadRemovals`); soubor už ze seznamu zmizel.
-    LaunchedEffect(state.removal) {
-        val removal = state.removal ?: return@LaunchedEffect
-        viewModel.consumeRemoval()
+    // „Vymazat stažené" ve společném seznamu odebírá ve všech účtech naráz: jeden snackbar
+    // a „Vrátit" vrátí všechny — dva by se navzájem zahodily (předchozí se zavírá).
+    val removals = states.map { it.removal }
+    LaunchedEffect(removals) {
+        val pending = removals.mapIndexedNotNull { index, removal -> removal?.let { sources[index] to it } }
+        if (pending.isEmpty()) return@LaunchedEffect
+        pending.forEach { (source, _) -> source.viewModel.consumeRemoval() }
+        val removal = if (pending.size > 1) DownloadRemoval(batch = -1, DownloadRemoval.Kind.Cleared) else pending.single().second
         snackbarScope.launch {
             // Předchozí snackbar pryč: odpočet běží, až je tenhle vidět, a ve frontě by
             // odebrání doběhlo dřív, než by se „Vrátit" ukázalo.
@@ -150,7 +169,7 @@ fun DownloadsScreen(
                 actionLabel = readString(Res.string.downloads_undo),
                 durationMs = UNDO_COUNTDOWN_MS,
             )
-            if (result == SnackbarResult.ActionPerformed) viewModel.undoRemoval(removal)
+            if (result == SnackbarResult.ActionPerformed) pending.forEach { (source, batch) -> source.viewModel.undoRemoval(batch) }
         }
     }
 
@@ -158,7 +177,8 @@ fun DownloadsScreen(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) { CountdownSnackbarHost(it) } },
         topBar = {
-            TopAppBar(
+            AccountTopAppBar(
+                showAccount = sources.size == 1,
                 title = { Text(stringResource(Res.string.downloads_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
@@ -167,16 +187,17 @@ fun DownloadsScreen(
                 },
                 actions = {
                     // Pozastavit / pokračovat vše: jen když se něco stahuje.
-                    if (state.active.isNotEmpty()) {
-                        val running = state.anyRunning
+                    if (merged != null && merged.active.isNotEmpty()) {
+                        val running = merged.anyRunning
                         val label = stringResource(if (running) Res.string.downloads_pause_all else Res.string.downloads_resume_all)
                         WithTooltip(label) {
-                            IconButton(onClick = { viewModel.setAllPaused(running) }, shapes = IconButtonDefaults.shapes()) {
+                            val onClick = { states.forEachIndexed { index, state -> if (state.active.isNotEmpty()) sources[index].viewModel.setAllPaused(running) } }
+                            IconButton(onClick = onClick, shapes = IconButtonDefaults.shapes()) {
                                 Icon(painterResource(if (running) Res.drawable.pause_24dp else Res.drawable.play_arrow_24dp), contentDescription = label)
                             }
                         }
                     }
-                    if (state.completed.isNotEmpty()) {
+                    if (merged != null && merged.completed.isNotEmpty()) {
                         Box {
                             IconButton(onClick = { menu = true }, shapes = IconButtonDefaults.shapes()) {
                                 Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
@@ -188,7 +209,7 @@ fun DownloadsScreen(
                                     listOf(
                                         MenuAction(stringResource(Res.string.downloads_clear_completed), Res.drawable.delete_24dp) {
                                             menu = false
-                                            viewModel.clearCompleted()
+                                            sources.forEach { it.viewModel.clearCompleted() }
                                         },
                                     ),
                                 ),
@@ -201,17 +222,19 @@ fun DownloadsScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             DownloadsContent(
-                state = state,
-                onOpen = { item ->
+                merged = merged,
+                sources = sources,
+                onOpen = { (source, item) ->
+                    val slot = sources[source].account.slot
                     when {
-                        !item.isCompleted -> onOpenMessage(item.chatId, item.messageId)
-                        item.showsInViewer() -> onOpenMedia(item.chatId, item.messageId)
-                        else -> viewModel.openFile(item) { onOpenMessage(item.chatId, item.messageId) }
+                        !item.isCompleted -> onOpenMessage(slot, item.chatId, item.messageId)
+                        item.showsInViewer() -> onOpenMedia(slot, item.chatId, item.messageId)
+                        else -> sources[source].viewModel.openFile(item) { onOpenMessage(slot, item.chatId, item.messageId) }
                     }
                 },
-                onShowInChat = { onOpenMessage(it.chatId, it.messageId) },
-                onPause = viewModel::setPaused,
-                onRemove = viewModel::remove,
+                onShowInChat = { (source, item) -> onOpenMessage(sources[source].account.slot, item.chatId, item.messageId) },
+                onPause = { (source, item), paused -> sources[source].viewModel.setPaused(item, paused) },
+                onRemove = { (source, item), deleteFile -> sources[source].viewModel.remove(item, deleteFile) },
                 modifier = Modifier.widthIn(max = ContentWidth.Reading),
             )
         }
@@ -221,17 +244,17 @@ fun DownloadsScreen(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DownloadsContent(
-    state: DownloadsState,
-    onOpen: (FileDownloadItem) -> Unit,
-    onShowInChat: (FileDownloadItem) -> Unit,
-    onPause: (FileDownloadItem, Boolean) -> Unit,
-    onRemove: (FileDownloadItem, Boolean) -> Unit,
+    merged: MergedDownloads?,
+    sources: List<DownloadSource>,
+    onOpen: (SourcedDownload) -> Unit,
+    onShowInChat: (SourcedDownload) -> Unit,
+    onPause: (SourcedDownload, Boolean) -> Unit,
+    onRemove: (SourcedDownload, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val items = state.items
     when {
-        items == null -> Box(modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
-        items.isEmpty() -> IntroEmptyState(
+        merged == null -> Box(modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+        merged.isEmpty -> IntroEmptyState(
             icon = Res.drawable.download_24dp,
             title = stringResource(Res.string.downloads_empty_title),
             text = stringResource(Res.string.downloads_empty),
@@ -244,8 +267,8 @@ private fun DownloadsContent(
             modifier = modifier.fillMaxSize(),
         ) {
             listOf(
-                Res.string.downloads_in_progress to state.active,
-                Res.string.downloads_completed to state.completed,
+                Res.string.downloads_in_progress to merged.active,
+                Res.string.downloads_completed to merged.completed,
             ).forEach { (title, section) ->
                 if (section.isEmpty()) return@forEach
                 item(key = "header-$title") {
@@ -256,8 +279,13 @@ private fun DownloadsContent(
                         modifier = Modifier.padding(start = 32.dp, top = 16.dp, bottom = 8.dp).semantics { heading() },
                     )
                 }
-                itemsIndexed(section, key = { _, item -> item.fileId }) { index, item ->
-                    DownloadRow(item, index, section.size, onOpen, onShowInChat, onPause, onRemove, Modifier.animateItem())
+                itemsIndexed(section, key = { _, download -> download.key }) { index, download ->
+                    val row = @Composable { account: AccountInfo? ->
+                        DownloadRow(download, index, section.size, account, onOpen, onShowInChat, onPause, onRemove, Modifier.animateItem())
+                    }
+                    // Ve společném seznamu se řádek skládá v účtu souboru: průběh čte z jeho TDLib.
+                    val source = sources.getOrNull(download.source)
+                    if (sources.size > 1 && source != null) AccountScope(source.account) { row(source.info) } else row(null)
                 }
             }
         }
@@ -266,15 +294,17 @@ private fun DownloadsContent(
 
 @Composable
 private fun DownloadRow(
-    item: FileDownloadItem,
+    download: SourcedDownload,
     index: Int,
     count: Int,
-    onOpen: (FileDownloadItem) -> Unit,
-    onShowInChat: (FileDownloadItem) -> Unit,
-    onPause: (FileDownloadItem, Boolean) -> Unit,
-    onRemove: (FileDownloadItem, Boolean) -> Unit,
+    account: AccountInfo?,
+    onOpen: (SourcedDownload) -> Unit,
+    onShowInChat: (SourcedDownload) -> Unit,
+    onPause: (SourcedDownload, Boolean) -> Unit,
+    onRemove: (SourcedDownload, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val item = download.item
     val container = MaterialTheme.colorScheme.groupRow
     var menu by remember { mutableStateOf(false) }
     // Průběh si řádek odebírá sám — seznam se kvůli každému procentu číst znovu nemusí.
@@ -308,7 +338,18 @@ private fun DownloadRow(
                 }
             },
             leadingContent = {
-                Icon(painterResource(item.icon()), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                val icon = @Composable {
+                    Icon(painterResource(item.icon()), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (account == null) {
+                    icon()
+                } else {
+                    // Komu soubor patří: fotka účtu pod ikonou, jako odznak u avataru v seznamu chatů.
+                    Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                        icon()
+                        AccountBadge(account, rim = container, modifier = Modifier.align(Alignment.BottomStart))
+                    }
+                }
             },
             trailingContent = if (item.isCompleted) {
                 null
@@ -316,14 +357,14 @@ private fun DownloadRow(
                 {
                     val label = stringResource(if (item.isPaused) Res.string.downloads_resume else Res.string.downloads_pause)
                     WithTooltip(label) {
-                        IconButton(onClick = { onPause(item, !item.isPaused) }, shapes = IconButtonDefaults.shapes()) {
+                        IconButton(onClick = { onPause(download, !item.isPaused) }, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(if (item.isPaused) Res.drawable.play_arrow_24dp else Res.drawable.pause_24dp), contentDescription = label)
                         }
                     }
                 }
             },
             colors = ListItemDefaults.colors(containerColor = container),
-            modifier = Modifier.groupedItem(index, count, container).contextClickable(onClick = { onOpen(item) }, onLongClick = { menu = true }),
+            modifier = Modifier.groupedItem(index, count, container).contextClickable(onClick = { onOpen(download) }, onLongClick = { menu = true }),
         )
         ExpressiveMenu(
             expanded = menu,
@@ -332,18 +373,18 @@ private fun DownloadRow(
                 listOf(
                     MenuAction(stringResource(Res.string.media_show_in_chat), Res.drawable.chat_24dp) {
                         menu = false
-                        onShowInChat(item)
+                        onShowInChat(download)
                     },
                     MenuAction(stringResource(Res.string.downloads_remove), Res.drawable.close_24dp) {
                         menu = false
-                        onRemove(item, false)
+                        onRemove(download, false)
                     },
                 ),
                 // Smazání souboru je nevratné: vlastní skupina v chybové barvě.
                 listOf(
                     MenuAction(stringResource(Res.string.downloads_remove_and_delete), Res.drawable.delete_24dp, destructive = true) {
                         menu = false
-                        onRemove(item, true)
+                        onRemove(download, true)
                     },
                 ),
             ),

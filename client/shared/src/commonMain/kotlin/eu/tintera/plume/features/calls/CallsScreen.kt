@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.calls
 
+import eu.tintera.plume.core.accounts.AccountTopAppBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,10 +28,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,7 +41,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.accounts.AccountBadge
+import eu.tintera.plume.core.accounts.AccountScope
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.adaptive.ContentWidth
+import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.telegram.isFailure
 import eu.tintera.plume.core.telegram.title
 import eu.tintera.plume.core.ui.Avatar
@@ -93,26 +98,34 @@ import org.jetbrains.compose.resources.stringResource
  * Historie hovorů napříč chaty (menu účtu → Hovory). Řádek je chat s tím, jak hovor dopadl
  * (stejná šipka a slova jako zpráva o hovoru v konverzaci), délkou a časem; ťuknutí otevře chat,
  * sluchátko vpravo volá zpátky. Nahoře přepínač Všechny / Zmeškané, v ⋮ smazání celé historie.
+ *
+ * V režimu Všechny účty je to společná historie všech účtů ([sources], [mergeCallStates]) s odznakem
+ * účtu u řádku; filtr i smazání celé historie platí pro všechny, řádek patří svému účtu.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CallsScreen(
-    viewModel: CallsViewModel,
+internal fun CallsScreen(
+    sources: List<CallSource>,
     onBack: () -> Unit,
-    onOpenChat: (chatId: Long) -> Unit,
+    onOpenChat: (slot: AccountSlot, chatId: Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val states = sources.map { source -> key(source.account.slot) { source.viewModel.state.collectAsStateWithLifecycle().value } }
+    val state = remember(states) { mergeCallStates(states) }
     val snackbarHostState = remember { SnackbarHostState() }
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var deleteGroup by remember { mutableStateOf<CallHistoryGroup?>(null) }
 
-    val errorText = state.error?.resolve()
-    LaunchedEffect(errorText) {
-        if (errorText != null) {
-            viewModel.consumeError()
-            snackbarHostState.showSnackbar(errorText)
+    sources.forEachIndexed { index, source ->
+        key(source.account.slot) {
+            val errorText = states[index].error?.resolve()
+            LaunchedEffect(errorText) {
+                if (errorText != null) {
+                    source.viewModel.consumeError()
+                    snackbarHostState.showSnackbar(errorText)
+                }
+            }
         }
     }
 
@@ -120,7 +133,8 @@ fun CallsScreen(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            AccountTopAppBar(
+                showAccount = sources.size == 1,
                 title = { Text(stringResource(Res.string.calls_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
@@ -129,7 +143,7 @@ fun CallsScreen(
                 },
                 actions = {
                     // Smazat jde jen to, co je; prázdná historie ⋮ nemá.
-                    if (!state.entries.isNullOrEmpty()) {
+                    if (!state.calls.isNullOrEmpty()) {
                         Box {
                             IconButton(onClick = { menu = true }, shapes = IconButtonDefaults.shapes()) {
                                 Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
@@ -159,9 +173,10 @@ fun CallsScreen(
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             CallsContent(
                 state = state,
-                onFilter = viewModel::setOnlyMissed,
-                onLoadMore = viewModel::loadMore,
-                onOpenChat = onOpenChat,
+                sources = sources,
+                onFilter = { onlyMissed -> sources.forEach { it.viewModel.setOnlyMissed(onlyMissed) } },
+                onLoadMore = { state.needMore.forEach { sources[it].viewModel.loadMore() } },
+                onOpenChat = { group -> onOpenChat(sources[group.source].account.slot, group.latest.chat.id) },
                 onDelete = { deleteGroup = it },
                 modifier = Modifier.widthIn(max = ContentWidth.Reading),
             )
@@ -179,7 +194,7 @@ fun CallsScreen(
             confirmEnabled = !state.deleting,
             onConfirm = {
                 confirmDelete = false
-                viewModel.deleteAll(revoke)
+                sources.forEach { it.viewModel.deleteAll(revoke) }
             },
             onDismiss = { confirmDelete = false },
         ) {
@@ -197,7 +212,7 @@ fun CallsScreen(
             destructive = true,
             onConfirm = {
                 deleteGroup = null
-                viewModel.delete(group, revoke)
+                sources.getOrNull(group.source)?.viewModel?.delete(group, revoke)
             },
             onDismiss = { deleteGroup = null },
             // Ve skupině je záznam o videochatu zpráva všech; smazat ji ostatním smí jen správce.
@@ -213,16 +228,18 @@ fun CallsScreen(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun CallsContent(
-    state: CallsState,
+    state: MergedCallsState,
+    sources: List<CallSource>,
     onFilter: (onlyMissed: Boolean) -> Unit,
     onLoadMore: () -> Unit,
-    onOpenChat: (Long) -> Unit,
+    onOpenChat: (CallHistoryGroup) -> Unit,
     onDelete: (CallHistoryGroup) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val entries = state.entries
+    val calls = state.calls
     // Opakované hovory po sobě jsou jeden řádek; stránkování počítá řádky, ne hovory.
-    val groups = remember(entries) { entries?.let(::groupCallHistory) }
+    val groups = remember(calls) { calls?.let(::groupSourcedCallHistory) }
+    val merged = sources.size > 1
     val listState = rememberLazyListState()
     // Dojíždí se ke konci: další stránka s předstihem, ať seznam při rychlém scrollu nedojede.
     LaunchedEffect(listState, groups?.size) {
@@ -259,13 +276,20 @@ private fun CallsContent(
             }
             else -> {
                 itemsIndexed(groups, key = { _, group -> group.key }) { index, group ->
-                    CallHistoryRow(
-                        group = group,
-                        index = index,
-                        count = groups.size,
-                        onClick = { onOpenChat(group.latest.chat.id) },
-                        onDelete = { onDelete(group) },
-                    )
+                    val row = @Composable { account: AccountInfo? ->
+                        CallHistoryRow(
+                            group = group,
+                            index = index,
+                            count = groups.size,
+                            account = account,
+                            onClick = { onOpenChat(group) },
+                            onDelete = { onDelete(group) },
+                        )
+                    }
+                    // Ve společné historii se řádek skládá v účtu, kterému hovor patří: fotky jsou
+                    // z jeho souborů a sluchátko volá z něj.
+                    val source = sources.getOrNull(group.source)
+                    if (merged && source != null) AccountScope(source.account) { row(source.info) } else row(null)
                 }
                 if (state.loadingMore) {
                     item(key = "more") {
@@ -297,7 +321,14 @@ private fun FilterOption(label: StringResource, selected: Boolean, onClick: () -
  * Podržení (pravé tlačítko myši) nabídne smazání řádku z historie.
  */
 @Composable
-private fun CallHistoryRow(group: CallHistoryGroup, index: Int, count: Int, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun CallHistoryRow(
+    group: CallHistoryGroup,
+    index: Int,
+    count: Int,
+    account: AccountInfo?,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val entry = group.latest
     val container = MaterialTheme.colorScheme.groupRow
     val failed = entry.outcome.isFailure
@@ -338,13 +369,17 @@ private fun CallHistoryRow(group: CallHistoryGroup, index: Int, count: Int, onCl
                 }
             },
             leadingContent = {
-                Avatar(
-                    chatId = entry.chat.avatarColorId,
-                    title = entry.chat.title,
-                    avatarFileId = entry.chat.avatarFileId,
-                    size = 40.dp,
-                    shape = entry.chat.kind.avatarShape(),
-                )
+                Box {
+                    Avatar(
+                        chatId = entry.chat.avatarColorId,
+                        title = entry.chat.title,
+                        avatarFileId = entry.chat.avatarFileId,
+                        size = 40.dp,
+                        shape = entry.chat.kind.avatarShape(),
+                    )
+                    // Komu hovor patří, jako u řádku společného seznamu chatů.
+                    account?.let { AccountBadge(it, rim = container, modifier = Modifier.align(Alignment.BottomStart)) }
+                }
             },
             trailingContent = start?.let {
                 {

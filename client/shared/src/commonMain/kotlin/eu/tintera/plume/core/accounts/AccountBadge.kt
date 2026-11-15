@@ -3,7 +3,11 @@ package eu.tintera.plume.core.accounts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -50,6 +54,28 @@ fun AccountBadge(account: AccountInfo, rim: Color, modifier: Modifier = Modifier
             .background(rim, CircleShape)
             .padding(2.dp),
     )
+}
+
+/**
+ * Lišta obrazovky, která patří jednomu účtu (Moje příběhy, Hovory a Stahování mimo režim Všechny
+ * účty): s víc účty nese pod nadpisem jméno účtu, s jedním je to obyčejná [TopAppBar]. Bez toho
+ * nebylo poznat, čí historie hovorů nebo čí příběhy jsou. [showAccount] = `false` u společného
+ * seznamu víc účtů, kde účet nese řádek.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AccountTopAppBar(
+    title: @Composable () -> Unit,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {},
+    showAccount: Boolean = true,
+) {
+    val account = rememberShownAccount()?.takeIf { showAccount }
+    if (account == null) {
+        TopAppBar(title = title, navigationIcon = navigationIcon, actions = actions)
+    } else {
+        TopAppBar(title = title, subtitle = { Text(account.displayName) }, navigationIcon = navigationIcon, actions = actions)
+    }
 }
 
 /**
