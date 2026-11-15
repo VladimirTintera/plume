@@ -4672,6 +4672,8 @@
     <string name="watch_login_title">Přihlásit hodinky?</string>
     <string name="watch_login_text">Zařízení %1$s žádá o přihlášení k vašemu účtu. Potvrďte, jen pokud máte hodinky u sebe.</string>
     <string name="watch_login_text_unnamed">Hodinky žádají o přihlášení k vašemu účtu. Potvrďte, jen pokud je máte u sebe.</string>
+    <string name="watch_login_text_choose">Zařízení %1$s žádá o přihlášení. Ťukněte na účet, kterým ho přihlásit, jen pokud máte hodinky u sebe.</string>
+    <string name="watch_login_text_choose_unnamed">Hodinky žádají o přihlášení. Ťukněte na účet, kterým je přihlásit, jen pokud je máte u sebe.</string>
     <string name="watch_login_confirm">Přihlásit</string>
     <string name="watch_login_decline">Zamítnout</string>
     <string name="watch_login_done">Hodinky jsou přihlášené</string>

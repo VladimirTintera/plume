@@ -4,7 +4,7 @@ import co.touchlab.kermit.Logger
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
-import eu.tintera.plume.core.accounts.defaultAccount
+import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -47,7 +47,10 @@ class WatchTranscriptionService : WearableListenerService() {
     override fun onMessageReceived(event: MessageEvent) {
         if (event.path != WatchTranscription.PATH_REQUEST) return
         val request = WatchTranscription.Request.decode(event.data) ?: return
-        val koin = GlobalContext.getOrNull()?.defaultAccount() ?: return
+        val accounts = GlobalContext.getOrNull()?.getOrNull<Accounts>() ?: return
+        // Hodinky jsou přihlášené jedním z účtů telefonu, ne nutně výchozím; id Uložených zpráv je
+        // user id účtu. Neznámé id dostane výchozí účet a `respond` odpoví WrongAccount.
+        val koin = (accounts.all.value.firstOrNull { it.userId.value == request.accountId } ?: accounts.default.value).koin
         val response = runBlocking { respond(koin.get(), koin.get(), koin.get(), koin.get(), request) }
         Wearable.getMessageClient(this).sendMessage(event.sourceNodeId, WatchTranscription.PATH_RESULT, response.encode())
             .addOnFailureListener { logger.w(it) { "Přepis se hodinkám ${event.sourceNodeId} neposlal." } }
