@@ -15,7 +15,11 @@ tečka u neposlechnuté a u hrající čip rychlosti.
   `Context` (audio focus) a `core/audio` ho nezná; dodá ho Koin jako `factory`, stejně jako
   u `AudioRecorder`. Proto je `AudioEngine` `expect class` BEZ konstruktoru.
 - **Soubor se stahuje až při prvním přehrání.** Dopředu by to byla data za každou hlasovku
-  v historii. Klíč je `chatId` + id zprávy — id zprávy je jedinečné jen v chatu.
+  v historii. Klíč (`VoiceKey`) je účet + `chatId` + id zprávy — id zprávy je jedinečné jen
+  v chatu a chat jen v účtu (společná skupina má ve dvou účtech totéž id i tatáž id zpráv).
+- **Bublina se ptá na CELÝ klíč** (`ScreenItemScope.voicePlayback`). Dřív porovnávala jen id
+  zprávy a část: hudba hraje dál i po odchodu z chatu, takže skladba z jedné skupiny se ukazovala
+  jako hrající v téže skupině jiného účtu — a v jakémkoli chatu se zprávou stejného id.
 - **Pozice je samostatný tok, ne součást `ConversationState`**, a do bubliny jde jako lambda,
   která se čte až ve `VoiceNoteContent`. Mění se dvacetkrát za vteřinu (`POSITION_TICK_MS`);
   v kompozici obrazovky by překreslovala celou konverzaci.

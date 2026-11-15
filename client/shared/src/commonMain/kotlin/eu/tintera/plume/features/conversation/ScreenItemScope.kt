@@ -31,6 +31,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -109,8 +110,10 @@ internal class ScreenItemScope(
 
     override fun gatherAlpha(key: Any): Float = jumpTransition.alphaOf(key)
 
+    // Celý klíč, ne jen id zprávy: hudba hraje dál i po odchodu z chatu a id zprávy se potká
+    // se zprávou jiného chatu nebo téže skupiny v jiném účtu.
     override fun voicePlayback(messageId: Long, part: Int): VoicePlayback? =
-        voicePlayback.value?.takeIf { it.key.messageId == messageId && it.key.part == part }
+        voicePlayback.value?.takeIf { it.key == VoiceKey(viewModel.slot, viewModel.chatId, messageId, part) }
 
     override fun voiceSpeed(): VoiceSpeed = voiceSpeed.value
 
@@ -170,7 +173,7 @@ internal class ScreenItemScope(
     override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
 
     override fun soundingVideoNote(messageId: Long): SoundingVideoNote? =
-        soundingVideoNote.value?.takeIf { it.key.messageId == messageId }
+        soundingVideoNote.value?.takeIf { it.key.messageId == messageId && it.key.isIn(viewModel.slot, viewModel.chatId) }
 
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
 

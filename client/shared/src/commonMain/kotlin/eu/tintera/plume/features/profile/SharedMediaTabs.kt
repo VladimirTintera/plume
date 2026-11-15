@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.accounts.LocalAccount
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.geometry.Offset
@@ -571,7 +572,7 @@ internal fun SharedMusicList(
         itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
             LoadMoreAtEnd(index, messages.size, onLoadMore)
             val audio = message.media as? MessageMedia.Audio ?: return@itemsIndexed
-            val current = playback?.takeIf { it.key == VoiceKey(chatId, message.id) }
+            val current = playback?.takeIf { it.key == VoiceKey(LocalAccount.current.slot, chatId, message.id) }
             MusicRow(
                 message = message,
                 audio = audio,
@@ -610,7 +611,7 @@ internal fun SharedVoiceList(
             VoiceRow(
                 message = message,
                 voice = voice,
-                playback = playback?.takeIf { it.key == VoiceKey(chatId, message.id) },
+                playback = playback?.takeIf { it.key == VoiceKey(LocalAccount.current.slot, chatId, message.id) },
                 onToggle = { onToggle(message.id) },
                 modifier = Modifier.animateItem().clip(groupItemShape(index, messages.size)),
             )

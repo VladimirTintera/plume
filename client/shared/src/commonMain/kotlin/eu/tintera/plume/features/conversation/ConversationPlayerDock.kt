@@ -75,19 +75,18 @@ internal fun rememberPlayerDock(
     val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val docked by remember(viewModel.chatId) {
         derivedStateOf(structuralEqualityPolicy()) {
-            // Skladba z jiného účtu do konverzace nepatří: id chatu se mezi účty potkávají (chat
-            // s týmž člověkem) a otevřít ji jde jen v jejím účtu — z docku nad seznamem chatů.
-            val otherAccount = nowPlaying?.let { it.slot != viewModel.slot && it.key == voicePlayback.value?.key } == true
+            // Skladba z jiného účtu do konverzace nepatří (`docksIn`): otevřít ji jde jen v jejím
+            // účtu — z docku nad seznamem chatů.
             soundingVideoNote.value?.let { it.key to false }
                 ?: voicePlayback.value
-                    ?.takeIf { it.docksIn(viewModel.chatId) && !(it.music && otherAccount) }
+                    ?.takeIf { it.docksIn(viewModel.slot, viewModel.chatId) }
                     ?.let { it.key to it.music }
         }
     }
     val target by remember(listState) {
         derivedStateOf {
             val key = docked?.first ?: return@derivedStateOf 0f
-            if (key.chatId != viewModel.chatId) return@derivedStateOf 1f
+            if (!key.isIn(viewModel.slot, viewModel.chatId)) return@derivedStateOf 1f
             val info = listState.layoutInfo
             if (info.visibleItemsInfo.isEmpty()) return@derivedStateOf 0f
             // 8 dp je horní odsazení seznamu nad pruhy, jako u docku polohy.
@@ -116,7 +115,7 @@ internal fun rememberPlayerDock(
     // Při zasouvání (zvuk dohrál, zpráva zpátky v pohledu) se kreslí poslední řádek, ne nic.
     val last = remember { arrayOf<DockedPlayer?>(null) }
     docked?.let { (key, music) ->
-        val message = state.messages.firstOrNull { it.id == key.messageId }?.takeIf { key.chatId == viewModel.chatId }
+        val message = state.messages.firstOrNull { it.id == key.messageId }?.takeIf { key.isIn(viewModel.slot, viewModel.chatId) }
         val videoNote = (message?.media as? MessageMedia.VideoNote)?.takeIf { soundingVideoNote.value?.key == key }
         last[0] = if (videoNote != null) {
             DockedPlayer(
@@ -162,7 +161,7 @@ internal fun ConversationPlayerDock(
     glass: Modifier,
 ) {
     val player = dock.player ?: return
-    if (!dock.shown || (chatHidden && player.key.chatId == viewModel.chatId)) return
+    if (!dock.shown || (chatHidden && player.key.isIn(viewModel.slot, viewModel.chatId))) return
     val note = { soundingVideoNote.value?.takeIf { player.video && it.key == player.key } }
     PlayerDockBar(
         player = player,
@@ -185,7 +184,7 @@ internal fun ConversationPlayerDock(
             null
         },
         onShow = {
-            if (player.key.chatId == viewModel.chatId) {
+            if (player.key.isIn(viewModel.slot, viewModel.chatId)) {
                 viewModel.jumpToMessage(player.key.messageId)
             } else {
                 onOpenChat(ChatTarget(player.key.chatId, player.key.messageId))

@@ -121,4 +121,4 @@ internal class MusicSessionPlayer(private val queue: MusicQueue) : SimpleBasePla
         .build()
 }
 
-private val VoiceKey.uid: String get() = "$chatId:$messageId"
+private val VoiceKey.uid: String get() = "${slot.id}:$chatId:$messageId"

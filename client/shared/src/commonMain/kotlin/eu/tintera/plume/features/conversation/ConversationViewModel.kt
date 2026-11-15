@@ -381,6 +381,7 @@ class ConversationViewModel(
 
     /** Nahrávání hlasovky a kolečka — viz [ConversationRecorder]. */
     private val recorder: ConversationRecorder = ConversationRecorder(
+        slot = slot,
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
@@ -417,6 +418,7 @@ class ConversationViewModel(
 
     /** Přehrávání hlasovek, koleček a hudby a přepis řeči — viz [ConversationPlayback]. */
     private val playback: ConversationPlayback = ConversationPlayback(
+        slot = slot,
         chatId = chatId,
         state = _state,
         navigate = ::navigate,
@@ -1120,7 +1122,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             voicePlayer.completions.collect { finished ->
                 // Zvuk z článku (`part`) se neřetězí — „další neposlechnutá" po článku nedává smysl.
-                if (finished.chatId == chatId && !finished.isVoicePreview && finished.part == VoiceKey.NO_PART) {
+                if (finished.isIn(slot, chatId) && !finished.isVoicePreview && finished.part == VoiceKey.NO_PART) {
                     playback.playNextUnlistened(after = finished.messageId)
                 }
             }
@@ -2074,7 +2076,7 @@ class ConversationViewModel(
 
         // Hlasovka z chatu, který se zavřel, nemá kde ukazovat průběh ani jak se zastavit.
         // Hudba hraje dál — ovládá se z notifikace a zamykací obrazovky (MusicQueue).
-        voicePlayer.stop(chatId, keepMusic = true)
+        voicePlayer.stop(slot to chatId, keepMusic = true)
         recorder.clear()
         composer.saveOnLeave()
         // Přílohy nad polem počkají na návrat, i se záznamy úprav těch, které tam pořád jsou.
@@ -2247,7 +2249,7 @@ class ConversationViewModel(
             MessageAction.ReadFullArticle -> links.readFullArticle(messageId)
             is MessageAction.ToggleArticleAudio -> playback.toggleArticleAudio(messageId, action.index)
             is MessageAction.SeekArticleAudio ->
-                voicePlayer.seek(VoiceKey(chatId, messageId, part = action.index), action.fraction)
+                voicePlayer.seek(VoiceKey(slot, chatId, messageId, part = action.index), action.fraction)
             is MessageAction.OpenArticleDocument -> documents.openArticleDocument(messageId, action.index)
             MessageAction.OpenDocument -> documents.openDocument(messageId)
             MessageAction.CancelUpload -> messageActions.cancelUpload(messageId)

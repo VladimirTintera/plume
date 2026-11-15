@@ -16,6 +16,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.video.MIN_RESUME_AUDIO_DURATION_MS
@@ -103,12 +104,17 @@ enum class VoiceSpeed(val rate: Float) {
 }
 
 /**
- * Která hlasovka hraje. Id zprávy je jedinečné jen v rámci chatu.
+ * Která hlasovka hraje. Id zprávy je jedinečné jen v rámci chatu a chat jen v rámci účtu
+ * ([slot]): společný kanál nebo chat s týmž člověkem má ve dvou účtech totéž id, takže bez účtu
+ * by bublina v jiném účtu ukázala, že hraje.
  *
  * [part] je pořadí zvuku UVNITŘ zprávy — článek nese zvuků a hlasovek víc pod jedním id;
  * [NO_PART] = příloha zprávy.
  */
-data class VoiceKey(val chatId: Long, val messageId: Long, val part: Int = NO_PART) {
+data class VoiceKey(val slot: AccountSlot, val chatId: Long, val messageId: Long, val part: Int = NO_PART) {
+    /** Patří zvuk chatu [chatId] účtu [slot]? */
+    fun isIn(slot: AccountSlot, chatId: Long): Boolean = this.slot == slot && this.chatId == chatId
+
     companion object {
         const val NO_PART = -1
     }
@@ -157,7 +163,7 @@ interface VoicePlayerControl {
     fun seek(key: VoiceKey, fraction: Float)
 
     /** Viz [VoicePlayer.stop]. */
-    fun stop(chatId: Long? = null, keepMusic: Boolean = false)
+    fun stop(chat: Pair<AccountSlot, Long>? = null, keepMusic: Boolean = false)
 
     fun pause()
 
@@ -353,13 +359,13 @@ class VoicePlayer(
     }
 
     /**
-     * Zastaví přehrávání; s [chatId] jen tehdy, když hraje hlasovka z toho chatu.
+     * Zastaví přehrávání; s [chat] (účet a chat) jen tehdy, když hraje hlasovka z toho chatu.
      *
      * [keepMusic]: hudba se nezastaví — odchod z konverzace ji nechá hrát dál, hlasovku ne
      * (neměla by kde ukazovat průběh a nahrávala by se do cizí obrazovky).
      */
-    override fun stop(chatId: Long?, keepMusic: Boolean) {
-        if (chatId != null && _state.value?.key?.chatId != chatId) return
+    override fun stop(chat: Pair<AccountSlot, Long>?, keepMusic: Boolean) {
+        if (chat != null && _state.value?.key?.isIn(chat.first, chat.second) != true) return
         if (keepMusic && _state.value?.music == true) return
         // Jen u načteného zvuku: zastavení během stahování by zapsalo nulu a pozici tím smazalo.
         engine?.let { savePosition(it.positionMs) }

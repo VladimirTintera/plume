@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import co.touchlab.kermit.Logger
 import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.plume.core.audio.MusicQueueControl
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
  * Část [ConversationViewModel] — ten na ni deleguje a drží její toky ve veřejném API.
  */
 internal class ConversationPlayback(
+    private val slot: AccountSlot,
     private val chatId: Long,
     private val state: MutableStateFlow<ConversationState>,
     /** Kam konverzace odchází (viz [ConversationNavEvent]); obrazovka to vyřídí. */
@@ -99,7 +101,7 @@ internal class ConversationPlayback(
     val resumes = voicePlayer.state
         .map { playback ->
             val from = playback?.resumedFromMs ?: return@map null
-            if (playback.key.chatId != chatId || playback.loading) return@map null
+            if (!playback.key.isIn(slot, chatId) || playback.loading) return@map null
             // Mimo okno i PŘED ním: po „Od začátku" (nebo posunu zpět) nahrávka hraje před pozicí,
             // od které se pokračovalo, a návrat do chatu by hlášení ukázal znovu.
             if (playback.positionMs !in from..from + RESUME_NOTICE_WINDOW_MS) return@map null
@@ -111,7 +113,7 @@ internal class ConversationPlayback(
 
     /** „Od začátku" ze snackbaru: tatáž nahrávka hraje dál, jen od nuly. */
     fun restartAudio(messageId: Long) {
-        voicePlayer.seek(VoiceKey(chatId, messageId), 0f)
+        voicePlayer.seek(VoiceKey(slot, chatId, messageId), 0f)
     }
 
     /**
@@ -197,7 +199,7 @@ internal class ConversationPlayback(
             else -> return
         }
         state.update { it.copy(soundingVideoNote = null) }
-        voicePlayer.toggle(VoiceKey(chatId, messageId, part = index)) { filePath(fileId) }
+        voicePlayer.toggle(VoiceKey(slot, chatId, messageId, part = index)) { filePath(fileId) }
     }
 
     /**
@@ -218,7 +220,7 @@ internal class ConversationPlayback(
 
         // Zvuk hraje vždycky jen jeden: hlasovka umlčí kolečko a naopak.
         state.update { it.copy(soundingVideoNote = null) }
-        voicePlayer.toggle(VoiceKey(chatId, messageId), resumeKey = resumeKey(messageId, voice.fileKey)) { voicePath(voice) }
+        voicePlayer.toggle(VoiceKey(slot, chatId, messageId), resumeKey = resumeKey(messageId, voice.fileKey)) { voicePath(voice) }
         if (!message.isOutgoing && !voice.isListened) reportListened(messageId)
     }
 
@@ -346,7 +348,7 @@ internal class ConversationPlayback(
     }
 
     fun seekVoice(messageId: Long, fraction: Float) {
-        voicePlayer.seek(VoiceKey(chatId, messageId), fraction)
+        voicePlayer.seek(VoiceKey(slot, chatId, messageId), fraction)
     }
 
     /**
@@ -370,7 +372,7 @@ internal class ConversationPlayback(
         val voice = next.media as? MessageMedia.VoiceNote ?: return
         if (next.isOutgoing || voice.isListened) return
 
-        voicePlayer.play(VoiceKey(chatId, next.id), resumeKey = resumeKey(next.id, voice.fileKey)) { voicePath(voice) }
+        voicePlayer.play(VoiceKey(slot, chatId, next.id), resumeKey = resumeKey(next.id, voice.fileKey)) { voicePath(voice) }
         reportListened(next.id)
     }
 
@@ -419,7 +421,7 @@ internal class ConversationPlayback(
             is MessageMedia.Video -> navigate(ConversationNavEvent.OpenMediaAt(MediaAt(target.id, seconds)))
             is MessageMedia.VoiceNote -> {
                 state.update { it.copy(soundingVideoNote = null) }
-                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs, resumeKey = resumeKey(target.id, media.fileKey)) {
+                voicePlayer.play(VoiceKey(slot, chatId, target.id), startMs = startMs, resumeKey = resumeKey(target.id, media.fileKey)) {
                     voicePath(media)
                 }
                 if (!target.isOutgoing && !media.isListened) reportListened(target.id)

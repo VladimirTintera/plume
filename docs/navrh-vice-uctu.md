@@ -904,13 +904,24 @@ Fáze 1 jde taky po krocích. Hotové kroky 1–3, jeden PR:
       hledání „Saved" jeden řádek Uložených zpráv. Přepínač synchronizace adresáře se na
       zařízení nezapínal (nahrál by kontakty); rozdělení klíčů hlídá `DataStoreAppSettingsTest`.
 
+20. **Klíč přehrávání s účtem** — hotovo:
+    - `VoiceKey(slot, chatId, messageId, part)`; `VoicePlayer` zůstává jeden pro proces (hraje
+      nejvýš jeden zvuk). Filtrovat jeho stav po účtech by nešlo: hudbu z jiného účtu ukazuje
+      dock nad seznamem chatů a ten by ji přestal vidět.
+    - Zastavení při zavření chatu (`stop(slot to chatId)`) a dock (`docksIn(slot, chatId)`) se
+      ptají na účet; skladba z jiného účtu do docku konverzace nepatří (dřív to řešilo porovnání
+      s `NowPlaying.slot` v obrazovce).
+    - **Skutečná chyba byla v bublině** (`ScreenItemScope.voicePlayback`): porovnávala jen id
+      zprávy, takže by ji samotný klíč s účtem neopravil.
+    - **Ověřeno na Pixelu 5** na skladbě od testovacího bota ve skupině „Plume test moderace"
+      (VT i VT2 členy, zpráva má v obou účtech totéž id): skladba puštěná za VT2 v bublině za
+      VT nehraje (▶, 3:00), za VT2 ukazuje průběh; před opravou ukazovala průběh v obou.
+
 **Zbývá pro fázi 1:**
    - Stránky bez id zatím slot nemají a skládají se v účtu shellu (výchozím): stránky nastavení
      účtu, `ArchiveRoute`, `CallsRoute`, `DownloadsRoute`, `MyStoriesRoute`.
      Určí to UI nastavení po účtech; s krokem 3 je to v pořádku, protože shell je vždycky
      výchozí účet.
-   - `VoicePlayer` klíčuje přehrávání `VoiceKey(chatId, messageId)` bez účtu: hlasovka se stejným
-     klíčem v jiném účtu (společný kanál) by v bublině ukázala, že hraje.
    - Hodinky si přihlášení potvrzují výchozím účtem telefonu.
    - iOS slot přijímá, ale neukládá (identifikátory připomenutí, rozšíření pro sdílení); fáze 2.
    - Kolik baterie stojí další klient TDLib, změřené není (paměť a start viz krok 15).

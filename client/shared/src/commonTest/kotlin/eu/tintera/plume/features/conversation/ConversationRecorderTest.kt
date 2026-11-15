@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.accounts.AccountSlot
 import eu.tintera.plume.core.audio.MIN_DURATION_MS
 import eu.tintera.plume.core.audio.MediaCapture
 import eu.tintera.plume.core.audio.VoiceKey
@@ -135,7 +136,7 @@ class ConversationRecorderTest {
             path: suspend () -> String,
         ) = Unit
         override fun seek(key: VoiceKey, fraction: Float) = Unit
-        override fun stop(chatId: Long?, keepMusic: Boolean) {
+        override fun stop(chat: Pair<AccountSlot, Long>?, keepMusic: Boolean) {
             stops++
         }
         override fun pause() = Unit
@@ -175,6 +176,7 @@ class ConversationRecorderTest {
     ) = runBlocking {
         val scope = CoroutineScope(coroutineContext + Job())
         val recorder = ConversationRecorder(
+            slot = TEST_SLOT,
             chatId = TEST_CHAT,
             state = state,
             scope = scope,
