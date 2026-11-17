@@ -2,11 +2,14 @@ package eu.tintera.plume.core.notifications
 
 import android.app.ActivityManager
 import android.app.PendingIntent
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -16,7 +19,9 @@ import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.background_data_notification_text
 import eu.tintera.plume.resources.background_data_notification_title
+import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Plume nemá data na pozadí: na mobilní síti mu systém v pozadí síť zavře, push přijde (přes
@@ -26,26 +31,50 @@ import kotlin.time.Duration.Companion.days
  *
  * **Stav aplikace veřejné API neřekne** (`REJECT_METERED_BACKGROUND` je v `NetworkPolicyManager`,
  * skrytém). Prozradí ho až push: v pozadí na měřené síti hlásí `activeNetworkInfo` stav
- * `BLOCKED`. Dočasná výjimka z vysoké priority FCM ruší Doze a standby, ne uživatelské omezení —
- * takže `BLOCKED` při pushi znamená vypnutá data na pozadí, nebo spořič dat bez výjimky. Obojí
- * se povoluje na téže obrazovce nastavení aplikace.
+ * `BLOCKED`. Ten ale nese kterýkoli důvod blokování, ne jen data na pozadí, takže se
+ * vylučují ostatní příčiny a kontrola se po chvíli opakuje ([backgroundDataVerdict]).
+ * Vypnutá data i spořič dat se povolují na téže obrazovce nastavení aplikace.
  */
 object BackgroundDataWarning {
 
     private val logger = Logger.withTag("Push")
 
     /**
-     * Stav při pushi: `true` = síť je aplikaci zablokovaná, `false` = prošla, `null` = nejde
-     * poznat (aplikace je v popředí — tam síť jde vždycky —, nebo síť není měřená či žádná).
+     * Stav při pushi, který dorazil s prioritou [highPriority]. Zablokovaná síť se ověří ještě
+     * jednou po [RECHECK_DELAY]: výjimka z vysoké priority FCM se do síťových pravidel propisuje
+     * asynchronně a rozmrazený proces se na síť může podívat dřív, než platí.
      */
-    fun check(context: Context): Boolean? = runCatching {
-        if (inForeground()) return null
+    suspend fun check(context: Context, highPriority: Boolean): BackgroundDataVerdict {
+        val first = snapshot(context, highPriority) ?: return BackgroundDataVerdict.Unknown
+        val verdict = backgroundDataVerdict(first)
+        if (first.blocked && verdict == BackgroundDataVerdict.Unknown) logger.i { "Síť v pozadí zablokovaná, příčina nejasná: $first" }
+        if (verdict != BackgroundDataVerdict.Restricted) return verdict
+        delay(RECHECK_DELAY)
+        val second = snapshot(context, highPriority) ?: return BackgroundDataVerdict.Unknown
+        return backgroundDataVerdict(second).also {
+            if (it != BackgroundDataVerdict.Restricted) logger.i { "Síť v pozadí zablokovaná jen chvíli: $second" }
+        }
+    }
+
+    private fun snapshot(context: Context, highPriority: Boolean): BackgroundNetworkSnapshot? = runCatching {
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
+        val power = context.getSystemService(PowerManager::class.java)
+        val activity = context.getSystemService(ActivityManager::class.java)
         @Suppress("DEPRECATION")
-        val info = connectivity.activeNetworkInfo ?: return null
-        if (!connectivity.isActiveNetworkMetered) return null
+        val info = connectivity.activeNetworkInfo
         @Suppress("DEPRECATION")
-        info.detailedState == NetworkInfo.DetailedState.BLOCKED
+        val blocked = info?.detailedState == NetworkInfo.DetailedState.BLOCKED
+        BackgroundNetworkSnapshot(
+            inForeground = inForeground(),
+            metered = info != null && connectivity.isActiveNetworkMetered,
+            blocked = blocked,
+            dataSaverBlocks = connectivity.restrictBackgroundStatus == ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED,
+            highPriority = highPriority,
+            batterySaver = power.isPowerSaveMode,
+            backgroundRestricted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && activity.isBackgroundRestricted,
+            restrictedBucket = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                context.getSystemService(UsageStatsManager::class.java).appStandbyBucket >= UsageStatsManager.STANDBY_BUCKET_RESTRICTED,
+        )
     }.getOrNull()
 
     /**
@@ -92,6 +121,9 @@ object BackgroundDataWarning {
     }
 
     private val NOTIFY_INTERVAL = 7.days
+
+    /** Výjimka z vysoké priority FCM platí desítky vteřin; propsat se stihne mnohem dřív. */
+    private val RECHECK_DELAY = 2.seconds
     private const val NOTIFICATION_ID = 0x0BDA7A
     private const val REQUEST_CODE = 0x0BDA
 }
