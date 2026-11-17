@@ -836,10 +836,27 @@ nahlas, odpověď se nadiktuje. Aplikace k tomu dává jen deklaraci
   (Nastavení → Android Auto) ťuknout desetkrát na verzi, v nabídce ⋮ → Nastavení pro vývojáře
   zapnout „Neznámé zdroje". Bez toho Auto bere jen aplikace z Play.
 - **Ověření bez auta: Desktop Head Unit.** `sdkmanager "extras;google;auto"`, na telefonu
-  v Android Auto ⋮ → „Spustit server hlavní jednotky", pak `adb forward tcp:5277 tcp:5277`
-  a `~/Library/Android/sdk/extras/google/auto/desktop-head-unit`. **Emulátor nestačí**: Android
-  Auto je v obrazech emulátoru jen jako zástupný balíček (`…-stub`), který se aktualizuje
-  z Play, a ten potřebuje účet Google.
+  v Android Auto ⋮ → „Spustit server řídicí jednotky", pak `adb forward tcp:5277 tcp:5277`
+  a `~/Library/Android/sdk/extras/google/auto/desktop-head-unit` (bez přepínačů; `--usb=…`
+  bere jako sériové číslo). **Emulátor nestačí**: Android Auto je v obrazech emulátoru jen jako
+  zástupný balíček (`…-stub`), který se aktualizuje z Play, a ten potřebuje účet Google.
+  - **DHU skončí s koncem stdin** — z neinteraktivního shellu proto přes FIFO
+    (`tail -f fifo | desktop-head-unit`) a příkazy zapisovat do FIFO: `screenshot <soubor.png>`,
+    `tap x y` (souřadnice displeje 800×480), `mic play <wav>` (16 kHz mono 16 bit; česky
+    `say -v Zuzana -o x.aiff …` a `afconvert -f WAVE -d LEI16@16000 -c 1`).
+  - **Server řídicí jednotky po prvním spojení visí**: port poslouchá, nová spojení nepřijme
+    (DHU hlásí „connected", ale Auto nic neukáže, `screenshot` říká „Don't have video focus").
+    Pomůže `am force-stop com.google.android.projection.gearhead` a server spustit znovu.
+  - Projekci jde sledovat v logu `GH.ConnLoggerV2`, notifikace aplikace `GH.MsgNotifParser`
+    a `GH.NotifMsgAppConn` („Processing notification from package: eu.tintera.plume"),
+    přečtení `GH.MsgPiMgr` („#send called on mark-as-read PendingIntent").
+- **Ověřeno na Pixelu 7 Pro (Android 17, Android Auto 18.0) v DHU**: zpráva od Notifikátoru se
+  v autě ukázala jako upozornění s Přehrát nahlas / Odpovědět, „Přehrát nahlas" poslalo akci
+  Přečteno (`NotificationAction: Chat … z notifikace přečten`) a notifikace z telefonu zmizela.
+  **Odpověď hlasem ověřená NENÍ**: asistent v autě (Gemini) na testovacím telefonu končí chybou
+  (`com.google.android.apps.bard was not found`, `bard_error_code`) a nahrávání ukončí dřív,
+  než text dojde do aplikace. Cesta je tatáž akce s `RemoteInput` jako odpověď z notifikace
+  na telefonu, ověřit ji jde až s funkčním asistentem (skutečné auto, jiný telefon).
 - **Play:** aplikace v autě se v Play Console přihlašuje zvlášť (Nastavení → Pokročilá
   nastavení → Formáty zařízení → Android Auto) a prochází kontrolou kvality pro auta. Bez toho
   se aplikace z Play v autě neukáže, i když deklaraci má.
