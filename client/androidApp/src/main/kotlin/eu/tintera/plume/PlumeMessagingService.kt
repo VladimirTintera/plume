@@ -9,6 +9,7 @@ import com.google.firebase.messaging.RemoteMessage
 import eu.tintera.plume.core.accounts.AccountSession
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.calls.CallJournal
+import eu.tintera.plume.core.notifications.BackgroundDataVerdict
 import eu.tintera.plume.core.notifications.BackgroundDataWarning
 import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.telegram.ConnectionController
@@ -90,11 +91,13 @@ class PlumeMessagingService : FirebaseMessagingService() {
             logger.w { "Push dorazil se sníženou prioritou (${message.originalPriority} → ${message.priority})." }
         }
 
+        // Každý push v pozadí prozradí, jestli aplikace na mobilních datech má síť. Bez ní
+        // hovor nezazvoní — a o tom se uživatel musí dozvědět dřív, než nějaký propadne.
+        // Vedle zpracování, ne před ním: zablokovanou síť kontrola ověřuje znovu po chvíli.
+        scope.launch { checkBackgroundData(highPriority = message.priority == RemoteMessage.PRIORITY_HIGH) }
+
         val started = TimeSource.Monotonic.markNow()
         runBlocking {
-            // Každý push v pozadí prozradí, jestli aplikace na mobilních datech má síť. Bez ní
-            // hovor nezazvoní — a o tom se uživatel musí dozvědět dřív, než nějaký propadne.
-            checkBackgroundData()
             // Strop platí pro CELÉ zpracování: při studeném startu čeká už `processPush`,
             // než TDLib dostane parametry a otevře databázi.
             val processed = withTimeoutOrNull(DELIVERY_TIMEOUT) { repository.processPush(payload) }
@@ -167,10 +170,14 @@ class PlumeMessagingService : FirebaseMessagingService() {
         }
     }
 
-    private suspend fun checkBackgroundData() {
-        val blocked = BackgroundDataWarning.check(applicationContext) ?: return
+    private suspend fun checkBackgroundData(highPriority: Boolean) {
+        val blocked = when (BackgroundDataWarning.check(applicationContext, highPriority)) {
+            BackgroundDataVerdict.Allowed -> false
+            BackgroundDataVerdict.Restricted -> true
+            BackgroundDataVerdict.Unknown -> return
+        }
         val permission = GlobalContext.getOrNull()?.getOrNull<NotificationPermission>() ?: return
-        if (blocked) journal?.record("Background data blocked on a metered network: calls on mobile data cannot ring")
+        if (blocked) journal?.record("Background data blocked on a metered network: calls on mobile data cannot ring; ${environment()}")
         if (BackgroundDataWarning.report(applicationContext, permission, blocked)) logger.i { "Upozornění na zablokovaná data na pozadí ukázané." }
     }
 

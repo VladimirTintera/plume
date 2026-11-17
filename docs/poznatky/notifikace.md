@@ -331,6 +331,22 @@ nikdy — viz odstavec o Foldu v „Push hovoru" níž. Plume to proto hlásí s
   `restrictBackgroundStatus` je jen spořič dat). Prozradí ho **každý push v pozadí**: na měřené
   síti hlásí `activeNetworkInfo.detailedState` `BLOCKED`. V popředí (i se službou v popředí) síť
   jde vždycky, tam se nic nezjišťuje; neměřená síť (Wi-Fi) taky ne.
+- **`BLOCKED` ale neříká PROČ.** Na měřené síti ho systém hlásí z kteréhokoli důvodu blokování —
+  Doze, App Standby, spořič baterie, omezená baterie, od Androidu 15 i síť v pozadí
+  (`APP_BACKGROUND`) — a dokud se to bralo jako „vypnutá data", upozornění vyskakovalo s oběma
+  přepínači zapnutými (listopad 2026). Ostatní důvody ruší dočasná výjimka z pushe s vysokou
+  prioritou, jenže jen když ji push dostal a když se už propsala do síťových pravidel. Proto
+  (`backgroundDataVerdict` v commonMain, testy `BackgroundDataVerdictTest`):
+  - spořič dat bez výjimky (`RESTRICT_BACKGROUND_STATUS_ENABLED`) API řekne přímo a stačí;
+  - jinak se `BLOCKED` počítá jen u pushe s vysokou prioritou (snížený výjimku nedostane), bez
+    spořiče baterie, bez omezené baterie a mimo skupinu App Standby „omezená"; jinak „nejde
+    poznat" a nic se nezapíše ani neukáže;
+  - zablokovaná síť se **ověří znovu po 2 s** (výjimka se propisuje asynchronně a rozmrazený
+    proces se na síť může podívat dřív). Kontrola proto běží vedle zpracování pushe, ne před ním;
+  - deník hovorů u záznamu nese stav telefonu (`idle`, spořiče, síť), log (`Push`) i nejasné
+    případy.
+  Který důvod to u uživatele tehdy byl, se nezjistilo (telefon nebyl připojený a deník stav
+  neukládal).
 - **Ukáže se notifikace** v kanálu Hovory („Hovory na mobilních datech nezazvoní"), nejvýš jednou
   za týden, a **řádek v Nastavení → Notifikace** v chybové barvě. Obojí otevře
   `Settings.ACTION_IGNORE_BACKGROUND_DATA_RESTRICTIONS_SETTINGS` (`AppDataUsageActivity`:
