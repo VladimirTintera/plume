@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Auto: aplikace posílá do auta jen notifikace se zprávami (čtení nahlas, odpověď
+     hlasem, označení za přečtené). Viz „Android Auto" v docs/poznatky/notifikace.md. -->
+<automotiveApp>
+    <uses name="notification" />
+</automotiveApp>

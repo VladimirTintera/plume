@@ -1811,11 +1811,10 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 Co v aplikaci ani v roadmapách není (ověřeno grepem v `client/`, `docs/` a `iosApp/`).
 Nic z toho zatím nikdo nezačal. Velikost: S = malé, M = střední, L = velké.
 
-- **Android Auto** (S). Notifikace mají všechno, co Auto čte: `MessagingStyle`, sémantické
-  akce Odpovědět a Přečteno, `setAllowGeneratedReplies` (`NotificationPresenter.android.kt`).
-  Chybí `res/xml/automotive_app_desc.xml` (`<uses name="notification"/>`), meta-data
-  `com.google.android.gms.car.application` v manifestu a ověření v Desktop Head Unit. Play
-  aplikace pro auta kontroluje zvlášť (deklarace v Play Console), počítat s tím před vydáním.
+- ~~**Android Auto**~~ — deklarace hotová (`automotive_app_desc.xml`, meta-data v manifestu;
+  `docs/poznatky/notifikace.md`, „Android Auto"). Zbývá **ověřit v Desktop Head Unit** na
+  vývojovém telefonu (přečtení nahlas, odpověď hlasem, přečteno) a před vydáním **přihlásit
+  Android Auto v Play Console** (Formáty zařízení) a projít kontrolou pro auta.
 - **Ovládání asistentem** (M). Android 16 **AppFunctions**: Gemini by uměl „pošli Janě
   v Plume…“ nebo „co mi psal Petr?“. Na iOS **App Intents** pro Siri a Zkratky; darování
   `INSendMessageIntent` kvůli Direct Share už je, takže polovina cesty je hotová. Než se

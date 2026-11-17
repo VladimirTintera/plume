@@ -186,6 +186,13 @@
             android:name="firebase_crashlytics_collection_enabled"
             android:value="${crashlyticsCollectionEnabled}" />
 
+        <!-- Android Auto: zprávy v autě. Auto čte konverzační notifikace (MessagingStyle,
+             sémantické akce Odpovědět a Přečteno v NotificationPresenter); bez téhle deklarace
+             je od aplikace vůbec nebere. Vlastní obrazovku v autě aplikace nemá. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
         <!-- Text z fotky (core/ocr) a odstranění pozadí samolepky (core/stickers): Play služby
              stáhnou modely hned po instalaci, ne až při prvním ťuknutí — jinak by první pokus
              skončil chybou „model se stahuje". -->
