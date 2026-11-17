@@ -1806,6 +1806,47 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 ---
 
+## Nápady z listopadu 2026 (17. 11. 2026)
+
+Co v aplikaci ani v roadmapách není (ověřeno grepem v `client/`, `docs/` a `iosApp/`).
+Nic z toho zatím nikdo nezačal. Velikost: S = malé, M = střední, L = velké.
+
+- **Android Auto** (S). Notifikace mají všechno, co Auto čte: `MessagingStyle`, sémantické
+  akce Odpovědět a Přečteno, `setAllowGeneratedReplies` (`NotificationPresenter.android.kt`).
+  Chybí `res/xml/automotive_app_desc.xml` (`<uses name="notification"/>`), meta-data
+  `com.google.android.gms.car.application` v manifestu a ověření v Desktop Head Unit. Play
+  aplikace pro auta kontroluje zvlášť (deklarace v Play Console), počítat s tím před vydáním.
+- **Ovládání asistentem** (M). Android 16 **AppFunctions**: Gemini by uměl „pošli Janě
+  v Plume…“ nebo „co mi psal Petr?“. Na iOS **App Intents** pro Siri a Zkratky; darování
+  `INSendMessageIntent` kvůli Direct Share už je, takže polovina cesty je hotová. Než se
+  začne: co smí asistent číst bez otevřené aplikace a jak to sedí na zámek aplikace.
+- **Systémové hledání na iOS** (S–M). Chaty a kontakty do **CoreSpotlight**, ťuknutí na
+  výsledek otevře chat (`LinkOpenRequests`). Na Androidu obdobu dělají dynamické zkratky,
+  které už jsou.
+- **Překlad celého chatu v zařízení** (M). Od Telegramu jen s Premium
+  (`UpdateChatIsTranslatable`, zapsané v `roadmap-konverzace.md`). Lokálně by šel na Androidu
+  přes ML Kit Translation (jazyk zprávy už rozpoznáváme, model jazyka ~30 MB na stažení),
+  na iOS přes Translation framework, případně EuroLLM / Aya. Text nikam neodchází a nechce
+  Premium. Překládat jen zprávy v okně, ne celou historii; ukázat, že jde o strojový překlad.
+- **Export chatu** (M). Import z WhatsAppu je, opačná cesta ne. Formát jako Telegram Desktop
+  (HTML / JSON s médii ve složce), nebo Markdown (kopírování výběru do Markdownu už je).
+  **Chat s ochranou obsahu (`hasProtectedContent`) se exportovat nesmí**, stejně jako se
+  z něj nesmí kopírovat.
+- **Zamčené a skryté chaty** (M). Zámek aplikace je celý nebo nic. Zámek jednoho chatu jen
+  v tomhle zařízení: chat zmizí ze seznamu (najde se hledáním s PINem / biometrií),
+  notifikace řekne jen „Nová zpráva“, widget, Direct Share a bubliny ho vynechají. Oficiální
+  Telegram to nemá (WhatsApp ano). Navazuje na `docs/poznatky/zamek-aplikace.md`; co zámek
+  nechrání, musí platit i tady.
+- **Live Updates na Androidu 16** (S–M). Notifikace s `ProgressStyle` (povýšená průběžná)
+  pro odesílání velkých souborů, stahování, sdílení živé polohy a probíhající hovor — místo
+  dnešních obyčejných notifikací služby v popředí. V kódu zatím `ProgressStyle` není.
+- **Desktop: chat v samostatném okně** (M). Pro víc monitorů. Druhé okno už v `application {}`
+  stojí (`IncomingCallWindow`); otevřená konverzace by potřebovala vlastní zásobník navigace
+  a ViewModel s klíčem chatu. Pozor na insety a bubliny z kořene kompozice
+  (`docs/poznatky/desktop.md`).
+
+---
+
 ## Nastavení
 
 Nastavení je list-detail: vlevo karta účtu, sekce, řádek Jazyk, Pomoc a odhlášení, vpravo obsah vybrané sekce (nebo úprava profilu).
