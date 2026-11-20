@@ -12,6 +12,8 @@ import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertSame
 
 private val slot = AccountSlot.Primary
@@ -34,7 +36,7 @@ class SheetRoutesTest {
     fun zasobnikBezSheetuJeTatazInstance() {
         val stack = listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 7))
 
-        assertSame(stack, stack.withoutTrailingSheets(), "identita kvůli withProfileFollowing")
+        assertSame(stack, stack.withoutSheets(), "identita kvůli withProfileFollowing")
         assertEquals(emptyList(), stack.trailingSheets())
     }
 
@@ -42,15 +44,38 @@ class SheetRoutesTest {
     fun sheetNavrchuSePravidlumNadPanelyNeukaze() {
         val stack = listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 7), BookmarksRoute(slot, 7), MyQrCodeRoute)
 
-        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 7)), stack.withoutTrailingSheets())
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 7)), stack.withoutSheets())
         assertEquals(listOf<NavKey>(BookmarksRoute(slot, 7), MyQrCodeRoute), stack.trailingSheets())
     }
 
     @Test
-    fun sheetUprostredZasobnikuNavrchuNeni() {
+    fun sheetUprostredZasobnikuSeNekresli() {
+        // Odkaz tg://newgroup nad otevřeným přehledem konceptů: sheet pod obrazovkou se nesmí
+        // kreslit ani jako předchozí scéna v náhledu gesta zpět (jeho okno by gesto sebralo).
         val stack = listOf<NavKey>(ChatsRoute, DraftsRoute(slot), ConversationRoute(slot, 7))
 
-        assertSame(stack, stack.withoutTrailingSheets())
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 7)), stack.withoutSheets())
+        assertEquals(emptyList(), stack.trailingSheets())
+        assertTrue(stack.hasBuriedSheet())
+    }
+
+    @Test
+    fun pohrbenySheetZmiziNavrchuZustane() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, DraftsRoute(slot), ConversationRoute(slot, 7), MyQrCodeRoute)
+
+        assertTrue(stack.dropBuriedSheets())
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 7), MyQrCodeRoute), stack)
+        assertFalse(stack.hasBuriedSheet())
+        assertFalse(stack.dropBuriedSheets(), "druhé volání nemá co odebrat")
+    }
+
+    @Test
+    fun sheetyNavrchuNejsouPohrbene() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, BookmarksRoute(slot, 7), MyQrCodeRoute)
+
+        assertFalse(stack.hasBuriedSheet())
+        assertFalse(stack.dropBuriedSheets())
+        assertEquals(listOf<NavKey>(ChatsRoute, BookmarksRoute(slot, 7), MyQrCodeRoute), stack)
     }
 
     private fun Json.roundTrip(route: NavKey): NavKey =
