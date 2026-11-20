@@ -1191,6 +1191,22 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
     a hlavní seznam jdou toutéž cestou, ověřené zvlášť nejsou. **iOS jen přeložené.**
 - **`Card(onClick = …)` umí jen krátké ťuknutí.** Dlouhý stisk potřebuje `combinedClickable`,
   takže se z karty stal `Surface` s vlastním klikáním.
+- **Sheety seznamu se zavírají, když seznam opouští kompozici** (`ChatsViewModel.closeSheets`
+  z `DisposableEffect` v `ChatActionsHost`; příznaky v `ChatListScreen` jsou `remember`, ne
+  `rememberSaveable`). Seznam je kořen zásobníku Chatů, takže jeho ViewModel ani uložený stav
+  nezanikají nikdy. Otevřená nabídka nad chatem, přes kterou přijela konverzace zvenčí
+  (sdílení screenshotu do Uložených zpráv, notifikace, odkaz — přijde i s aplikací na pozadí),
+  zůstala „otevřená" a vrátila se s prvním složením seznamu: **už v náhledu gesta zpět**.
+  `ModalBottomSheet` je samostatné okno nad aktivitou, gesto mu propadlo, náhled se zrušil,
+  seznam zmizel i se sheetem a znovu dokola — z konverzace nešlo odejít, jen to problikávalo.
+  - **Nulovat `rememberSaveable` v `onDispose` NEJDE**: `SaveableStateHolder` ukládá v
+    `onDispose` vlastního efektu, který leží ZA obsahem, takže doběhne dřív než efekty obsahu
+    (zapomínají se v obráceném pořadí) a uloží ještě `true`. Proto `remember` — přijde se jen
+    o obnovení sheetu po zániku procesu nebo změně jazyka.
+  - Hlídání životního cyklu položky (`RESUMED`, jako u příběhů) by tenhle případ nechytilo:
+    sdílení přijde, když je aplikace na pozadí, takže položka i aktivita jsou zastavené obě.
+  - **Na zařízení zatím neověřeno.** Reprodukce: podržet chat (nabídka otevřená), screenshot,
+    z náhledu screenshotu sdílet do Uložených zpráv přes Plume, odeslat, gesto zpět.
 
 ### Odložení chatu
 

@@ -105,6 +105,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -262,12 +263,18 @@ fun ChatListScreen(
     val account by viewModel.account.collectAsStateWithLifecycle()
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
     val drafts by viewModel.drafts.collectAsStateWithLifecycle()
-    var showDrafts by rememberSaveable { mutableStateOf(false) }
-    var showBookmarks by rememberSaveable { mutableStateOf(false) }
+    /*
+     * Otevřené sheety (a FAB menu níž) jsou `remember`, ne `rememberSaveable`: uložený stav by
+     * přežil odchod seznamu z kompozice a sheet by se vrátil s prvním složením seznamu — i jen
+     * v náhledu gesta zpět z konverzace otevřené zvenčí, kde jako samostatné okno gesto sebral.
+     * Viz [ChatsViewModel.closeSheets], tam totéž pro sheety, které drží ViewModel.
+     */
+    var showDrafts by remember { mutableStateOf(false) }
+    var showBookmarks by remember { mutableStateOf(false) }
     val bookmarks by viewModel.allBookmarks.collectAsStateWithLifecycle()
     val bookmarkTitles by viewModel.foundChatTitles.collectAsStateWithLifecycle()
     val describedPhotos by viewModel.describedPhotos.collectAsStateWithLifecycle()
-    var showMyQrCode by rememberSaveable { mutableStateOf(false) }
+    var showMyQrCode by remember { mutableStateOf(false) }
     // Složky jsou po účtech na serveru; společný seznam je jen hlavní seznam, pilulky nemá.
     val folderTabs = viewModel.folderTabs.collectAsStateWithLifecycle().value.takeIf { sources.isEmpty() }.orEmpty()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
@@ -342,7 +349,7 @@ fun ChatListScreen(
      * teprve další zpět odejde z aplikace; `NavigationBackHandler`, ne `BackHandler` (zabil by
      * predictive back).
      */
-    var fabMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    var fabMenuExpanded by remember { mutableStateOf(false) }
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = fabMenuExpanded,
@@ -359,8 +366,7 @@ fun ChatListScreen(
     )
     // Nabídka nad chatem a hlášky z řádků společného seznamu: každý účet má svůj ViewModel.
     MergedChatActionsHosts(sources, snackbarHostState, navigation.onChatArchived, navigation.onOpenProxySettings)
-    // Až s načtenými koncepty: obnovený sheet (po zániku procesu) by se jinak nad prázdným
-    // seznamem hned zavřel.
+    // Až s načtenými koncepty: sheet nad ještě prázdným seznamem by se hned zavřel.
     val loadedDrafts = drafts
     // Koncepty ve vláknech TDLib nehlásí — při otevření přehledu se ověří znovu.
     LaunchedEffect(showDrafts) { if (showDrafts) viewModel.refreshCommentDrafts() }
@@ -860,6 +866,10 @@ internal fun ChatActionsHost(
     val actions by viewModel.actions.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
+    // Sheety ViewModelu se zavírají s odchodem seznamu, ne až s ViewModelem (ten žije, dokud je
+    // seznam v zásobníku) — viz [ChatsViewModel.closeSheets]. Host má hlavní seznam, archiv
+    // i každý účet společného seznamu, takže tady to platí pro všechny.
+    DisposableEffect(viewModel) { onDispose { viewModel.closeSheets() } }
     // Snackbar s „Vrátit" běží mimo efekt: ten se nulováním události restartuje a zrušil by ho
     // (stejná past jako „Vrátit" u odepnuté zprávy v konverzaci).
     val snackbarScope = rememberCoroutineScope()

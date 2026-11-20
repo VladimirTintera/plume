@@ -970,6 +970,28 @@ class ChatsViewModel(
         _actions.value = _actions.value.copy(target = null)
     }
 
+    /**
+     * Zavře všechno, co seznam (hlavní i archiv) kreslí jako sheet nad sebou: nabídku nad
+     * chatem, odložení, vymazání historie, průvodce nahlášením, doporučené a nové chaty složky
+     * a nastavení archivu. Volá se, když seznam opouští kompozici (`DisposableEffect` v `ChatActionsHost`).
+     *
+     * ViewModel seznamu žije, dokud je seznam v zásobníku, tedy pořád — je to jeho kořen. Sheet
+     * otevřený ve chvíli, kdy přes seznam přijela jiná obrazovka zvenčí (sdílení, notifikace,
+     * odkaz), tak zůstal „otevřený" a vrátil se s prvním složením seznamu: už v náhledu gesta
+     * zpět. Sheet je samostatné okno nad aktivitou, gesto mu propadlo, náhled se zrušil, seznam
+     * zmizel a s ním sheet — a z konverzace nešlo odejít, jen to problikávalo.
+     */
+    fun closeSheets() {
+        hideActions()
+        closeSnoozePicker()
+        cancelClearHistory()
+        // Jen otevřený průvodce: zrušení bez něj by zahodilo i to, co čeká na odeslané nahlášení.
+        if (reportFlow.wizard.value != null) reportFlow.cancel()
+        closeFolderSuggestions()
+        closeNewFolderChats()
+        closeArchiveSettings()
+    }
+
     private val _clearingHistory = MutableStateFlow<ClearHistoryTarget?>(null)
 
     /** Chat, jehož historii se uživatel chystá vymazat (sheet s volbami); `null` = nic. */
