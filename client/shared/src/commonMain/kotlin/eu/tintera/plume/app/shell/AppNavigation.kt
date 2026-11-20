@@ -1,6 +1,7 @@
 package eu.tintera.plume.app.shell
 
 import androidx.navigation3.runtime.NavEntry
+import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.AccountSlot
@@ -161,7 +162,11 @@ class AppNavigation internal constructor(
 
     private fun openInChats(route: NavKey) {
         selected.value = ChatsRoute
-        stack(ChatsRoute).addOnce(route)
+        val chats = stack(ChatsRoute)
+        // Otevřený sheet (koncepty, záložky, QR kód) jde pryč: nad sheetem se nic neotevírá
+        // a obrazovka nad ním by ho zpět vrátila (viz `dropBuriedSheets`).
+        chats.removeAll { it is SheetRoute }
+        chats.addOnce(route)
     }
 
     /**
@@ -345,6 +350,20 @@ class AppNavigation internal constructor(
     }
 
     /**
+     * Sheety, které nestojí navrchu svého zásobníku, pryč (`dropBuriedSheets`). Pojistka pro
+     * cestu, která obrazovku položí nad otevřený sheet, místo aby ho zavřela; ohlásí se do logu,
+     * ať se ta cesta najde a opraví.
+     */
+    fun dropBuriedSheets() {
+        stacks.forEach { (section, stack) ->
+            val before = stack.toList()
+            if (stack.dropBuriedSheets()) {
+                logger.w { "Sheet uprostřed zásobníku ${section::class.simpleName}: $before" }
+            }
+        }
+    }
+
+    /**
      * V dvoupanelu je v Nastavení vždycky otevřená nějaká sekce, a musí být i V ZÁSOBNÍKU, ne
      * jen dopočítaná pro kreslení. Zpět ze dvoupanelové scény odebírá obě položky naráz (dvě
      * volání [goBack]); s dopočítanou sekcí by první volání odešlo do Chatů a druhé tam
@@ -360,6 +379,8 @@ class AppNavigation internal constructor(
         while (stack.size > 1) stack.removeAt(stack.lastIndex)
     }
 }
+
+private val logger = Logger.withTag("Navigation")
 
 /** Sekce, ve které aplikace začíná a přes kterou se z ní odchází. */
 private val START_SECTION: TopLevelRoute = ChatsRoute

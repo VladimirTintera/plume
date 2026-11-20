@@ -575,13 +575,24 @@ z položek pod ní spočítá list-detail strategie.
   v Nastavení. Přepnutí sekce sheety jinde zavře (`closeSheetsOutside`): ve skrytém zásobníku
   by čekaly a po návratu vyskočily, a pod Nastavením by stály uprostřed kreslených položek, kde
   je strategie (dívá se jen na poslední) nepozná.
-- **Pravidla nad zásobníkem sheety přeskakují** (`withoutTrailingSheets`): panely, sekce
+- **Pravidla nad zásobníkem sheety přeskakují** (`withoutSheets`): panely, sekce
   Nastavení v dvoupanelu, profil sledující konverzaci, čip sdílení i „je vedle otevřená
   konverzace" se počítají ze scény POD sheetem. Routa sheetu nemá roli panelu, takže by se
   jinak brala jako obrazovka přes celou plochu: čip by zmizel a scéna by spadla na jeden panel.
   Ke kreslení se sheety přidají zpátky navrch.
 - **Vede-li sheet jinam, routa se odebere NAPŘED** (koncept, záložka). Pomocníci nad zásobníkem
   (`openTarget`, `addOnce`) se rozhodují podle vrcholu, a ten by byl sheet.
+- **Nad sheetem se nic neotevírá — a když přece, sheet zmizí.** Vstupy zvenčí srovnávají
+  zásobník (`popToRoot`), jenže odkaz `tg://newchat` / `newgroup` / `newchannel` (`openScreen`
+  → `openInChats`) obrazovku jen přidával, takže nad otevřeným přehledem konceptů vzniklo
+  `[Chats, DraftsRoute, NewChatRoute]`. Zpět by vrátil koncepty, a hlavně by se v náhledu gesta
+  zpět složila předchozí scéna se sheetem: `ModalBottomSheet` je samostatné okno, gesto by
+  sebral a z obrazovky by nešlo odejít — tatáž past, jakou řeší „Otevřený sheet je stav
+  obrazovky" v `seznam-chatu.md`. `openInChats` proto sheety zavře a shell to jistí obecně:
+  sheet uprostřed se nekreslí (`withoutSheets` vynechá i ten) a efekt ho ze zásobníku odklidí
+  (`dropBuriedSheets`, s varováním v logu, ať se další taková cesta najde). Že sheet stojí
+  navrchu, tedy **vynucuje shell**, ne disciplína volajících; nová cesta, která přidává
+  obrazovku, na to myslet nemusí, ale má sheet zavřít sama, ať zmizí s animací a bez varování.
 - **Vlastní ViewModel.** Destinace má vlastní úložiště ViewModelů, ten seznamu ani profilu nevidí;
   koncepty a záložky proto mají `DraftsViewModel` a `BookmarksViewModel`. Seznam koncepty jen
   počítá (menu účtu) ze stejné funkce (`draftItems`), ať se počet a přehled nerozejdou.

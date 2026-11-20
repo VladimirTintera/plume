@@ -666,7 +666,8 @@ data class CreateChatRoute(override val slot: AccountSlot, val channel: Boolean,
  * destinací není — viz „Otevřený sheet je stav obrazovky" v `docs/poznatky/seznam-chatu.md`.
  *
  * V zásobníku stojí vždycky navrchu; pravidla nad zásobníkem (panely, čip sdílení) ho
- * přeskakují (`withoutTrailingSheets`), jako by tam nebyl.
+ * přeskakují (`withoutSheets`), jako by tam nebyl. Sheet, nad který se přesto něco položilo,
+ * se nekreslí a shell ho ze zásobníku odklidí (`dropBuriedSheets`).
  */
 sealed interface SheetRoute : Route
 

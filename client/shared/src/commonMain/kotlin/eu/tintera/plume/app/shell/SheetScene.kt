@@ -60,15 +60,38 @@ private class SheetScene(
 private const val SHEET_KEY = "eu.tintera.plume.sheet"
 
 /**
- * Zásobník bez sheetů navrchu ([SheetRoute]) — pro pravidla nad panely, čip sdílení a sekce
- * Nastavení, které se mají počítat ze scény POD sheetem. Bez sheetu vrací tutéž instanci
- * (porovnání identitou u `withProfileFollowing`).
+ * Zásobník bez sheetů ([SheetRoute]) — pro pravidla nad panely, čip sdílení a sekce Nastavení,
+ * které se mají počítat ze scény POD sheetem. Bez sheetu vrací tutéž instanci (porovnání
+ * identitou u `withProfileFollowing`).
+ *
+ * **Vynechá i sheet uprostřed** ([dropBuriedSheets]): ten se nekreslí vůbec, ani jako obrazovka
+ * v panelu, ani jako předchozí scéna v náhledu gesta zpět — tam by se jeho `ModalBottomSheet`
+ * otevřel jako samostatné okno, gesto sebral a z obrazovky nad ním by nešlo odejít.
  */
-internal fun List<NavKey>.withoutTrailingSheets(): List<NavKey> {
-    if (lastOrNull() !is SheetRoute) return this
-    val keep = indexOfLast { it !is SheetRoute } + 1
-    return take(keep)
-}
+internal fun List<NavKey>.withoutSheets(): List<NavKey> =
+    if (none { it is SheetRoute }) this else filterNot { it is SheetRoute }
 
-/** Sheety navrchu zásobníku, v pořadí; kreslí se nad scénou z [withoutTrailingSheets]. */
-internal fun List<NavKey>.trailingSheets(): List<NavKey> = drop(withoutTrailingSheets().size)
+/** Sheety navrchu zásobníku, v pořadí; kreslí se nad scénou z [withoutSheets]. */
+internal fun List<NavKey>.trailingSheets(): List<NavKey> = takeLastWhile { it is SheetRoute }
+
+/** Leží v zásobníku sheet pod něčím, co sheet není? Pak ho [dropBuriedSheets] odklidí. */
+internal fun List<NavKey>.hasBuriedSheet(): Boolean =
+    dropLastWhile { it is SheetRoute }.any { it is SheetRoute }
+
+/**
+ * Odebere sheety, které nestojí navrchu. Sheet patří k obrazovce pod sebou a nad ním se nic
+ * neotevírá: kdo vede jinam, sheet zavře napřed (`AppNavigation.closeSheet`) a vstupy zvenčí
+ * srovnají zásobník (`popToRoot`). Tohle je pojistka pro cestu, která na to zapomene —
+ * zpět z obrazovky nad sheetem by ho jinak vrátil. Vrací, jestli něco odebrala.
+ */
+internal fun MutableList<NavKey>.dropBuriedSheets(): Boolean {
+    val keepFrom = size - trailingSheets().size
+    var removed = false
+    for (index in keepFrom - 1 downTo 0) {
+        if (this[index] is SheetRoute) {
+            removeAt(index)
+            removed = true
+        }
+    }
+    return removed
+}

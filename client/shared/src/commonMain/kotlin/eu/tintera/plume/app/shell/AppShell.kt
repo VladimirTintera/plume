@@ -486,9 +486,13 @@ private fun ShellContent(
         /*
          * Sheety navrchu ([SheetRoute], `SheetSceneStrategy`) se kreslí NAD scénou ze zbytku
          * zásobníku, takže pravidla o panelech, sekci Nastavení a čipu sdílení se počítají
-         * bez nich — jako by tam nebyly. Ke kreslení se přidají zpátky navrch.
+         * bez nich — jako by tam nebyly. Ke kreslení se přidají zpátky navrch. Sheet uprostřed
+         * (obrazovka položená nad otevřený sheet) se nekreslí vůbec a efekt ho ze zásobníku
+         * odklidí — stejný vzor jako sekce Nastavení níž: kreslí se rovnou opravený.
          */
-        val settingsBase = settingsStack.withoutTrailingSheets()
+        val sheetBuried = settingsStack.hasBuriedSheet() || chatsStack.hasBuriedSheet()
+        LaunchedEffect(sheetBuried) { if (sheetBuried) navigation.dropBuriedSheets() }
+        val settingsBase = settingsStack.withoutSheets()
         val settingsSheets = settingsStack.trailingSheets()
         val settingsDisplayed: List<NavKey> =
             if (wide && settingsBase.lastOrNull() == SettingsRoute) {
@@ -567,7 +571,7 @@ private fun ShellContent(
          * opraví, kreslí se rovnou opravený. Na telefonu ne: tam je profil pod konverzací
          * obyčejná historie a zpět se do něj vrací.
          */
-        val chatsBase = chatsStack.withoutTrailingSheets()
+        val chatsBase = chatsStack.withoutSheets()
         val chatsSheets = chatsStack.trailingSheets()
         val chatsDisplayed: List<NavKey> = if (wide) chatsBase.withProfileFollowing(paneOf) else chatsBase
         val profileMoved = chatsDisplayed !== chatsBase
