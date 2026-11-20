@@ -152,6 +152,8 @@ import org.jetbrains.compose.resources.stringResource
 internal fun CollapsedChatList(
     /** ViewModel účtu, jehož chaty sloupec ukazuje mimo společný seznam (i výběr víc chatů). */
     viewModel: ChatsViewModel,
+    /** Sheety nad chaty [viewModel] (podržení chatu); účty společného seznamu mají vlastní. */
+    sheets: ChatSheets,
     accounts: CollapsedAccounts,
     onSearch: () -> Unit,
     onNewChat: () -> Unit,
@@ -242,7 +244,7 @@ internal fun CollapsedChatList(
                                     if (selecting) {
                                         if (chat.isSelectable()) viewModel.toggleSelected(chat)
                                     } else {
-                                        viewModel.showActions(chat)
+                                        sheets.actions = chat
                                     }
                                 },
                                 modifier = Modifier.animateItem(),
@@ -320,7 +322,7 @@ private fun MergedCollapsedChats(accounts: CollapsedAccounts) {
                     selected = accounts.selected == slot to merged.chat.id,
                     selectionMark = null,
                     onClick = { accounts.onOpen(slot, merged.chat) },
-                    onLongClick = { source.viewModel.showActions(merged.chat) },
+                    onLongClick = { source.sheets.actions = merged.chat },
                     account = source.info,
                     modifier = Modifier.animateItem(),
                 )

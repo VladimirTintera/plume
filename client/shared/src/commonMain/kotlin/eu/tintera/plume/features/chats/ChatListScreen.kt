@@ -105,6 +105,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -215,6 +216,9 @@ fun ChatListScreen(
     // Čí řádky ukazuje seznam jednoho účtu: obrazovky, nebo účtu, ve kterém běží výběr.
     val listViewModel = busySource?.viewModel ?: viewModel
     val listAccount = busySource?.account ?: screenAccount
+    // Otevřené sheety nad chatem, každý ViewModel svoje (viz [ChatSheets]).
+    val sheets = remember(viewModel) { ChatSheets() }
+    val listSheets = busySource?.sheets ?: sheets
     val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
     val storyNotice by viewModel.storyNotice.collectAsStateWithLifecycle()
     val storyVideoSupported = koinInject<StoryVideo>().supported
@@ -262,12 +266,19 @@ fun ChatListScreen(
     val account by viewModel.account.collectAsStateWithLifecycle()
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
     val drafts by viewModel.drafts.collectAsStateWithLifecycle()
-    var showDrafts by rememberSaveable { mutableStateOf(false) }
-    var showBookmarks by rememberSaveable { mutableStateOf(false) }
+    /*
+     * Otevřené sheety (a FAB menu níž) jsou `remember`, ne ve ViewModelu ani `rememberSaveable`:
+     * obojí přežije odchod seznamu z kompozice a sheet by se vrátil s prvním složením seznamu —
+     * i jen v náhledu gesta zpět z konverzace otevřené zvenčí. Proč to vadí, viz [ChatSheets].
+     */
+    var showDrafts by remember { mutableStateOf(false) }
+    var showBookmarks by remember { mutableStateOf(false) }
     val bookmarks by viewModel.allBookmarks.collectAsStateWithLifecycle()
     val bookmarkTitles by viewModel.foundChatTitles.collectAsStateWithLifecycle()
     val describedPhotos by viewModel.describedPhotos.collectAsStateWithLifecycle()
-    var showMyQrCode by rememberSaveable { mutableStateOf(false) }
+    var showMyQrCode by remember { mutableStateOf(false) }
+    var showFolderSuggestions by remember { mutableStateOf(false) }
+    var showNewFolderChats by remember { mutableStateOf(false) }
     // Složky jsou po účtech na serveru; společný seznam je jen hlavní seznam, pilulky nemá.
     val folderTabs = viewModel.folderTabs.collectAsStateWithLifecycle().value.takeIf { sources.isEmpty() }.orEmpty()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
@@ -342,7 +353,7 @@ fun ChatListScreen(
      * teprve další zpět odejde z aplikace; `NavigationBackHandler`, ne `BackHandler` (zabil by
      * predictive back).
      */
-    var fabMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    var fabMenuExpanded by remember { mutableStateOf(false) }
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = fabMenuExpanded,
@@ -353,14 +364,14 @@ fun ChatListScreen(
     ReportHost(viewModel.sponsoredChatReportFlow, searchSnackbarHostState)
     ChatActionsHost(
         viewModel,
+        sheets,
         snackbarHostState,
         onArchived = navigation.onChatArchived?.let { archived -> { change -> archived(screenAccount.slot, change) } },
         onOpenProxySettings = navigation.onOpenProxySettings,
     )
     // Nabídka nad chatem a hlášky z řádků společného seznamu: každý účet má svůj ViewModel.
     MergedChatActionsHosts(sources, snackbarHostState, navigation.onChatArchived, navigation.onOpenProxySettings)
-    // Až s načtenými koncepty: obnovený sheet (po zániku procesu) by se jinak nad prázdným
-    // seznamem hned zavřel.
+    // Až s načtenými koncepty: sheet nad ještě prázdným seznamem by se hned zavřel.
     val loadedDrafts = drafts
     // Koncepty ve vláknech TDLib nehlásí — při otevření přehledu se ověří znovu.
     LaunchedEffect(showDrafts) { if (showDrafts) viewModel.refreshCommentDrafts() }
@@ -402,31 +413,34 @@ fun ChatListScreen(
         )
     }
     if (showMyQrCode) MyQrCodeSheet(onDismiss = { showMyQrCode = false })
-    newFolderChats?.takeIf { it.sheetOpen }?.let { folderChats ->
+    // Nové chaty patří vybrané složce: jiná složka (i vyřízené nové chaty) sheet zavře, jinak by
+    // se sám otevřel nad kartou další složky.
+    LaunchedEffect(newFolderChats?.folderId) { showNewFolderChats = false }
+    newFolderChats?.takeIf { showNewFolderChats }?.let { folderChats ->
         NewFolderChatsSheet(
             state = folderChats,
             onToggle = viewModel::toggleNewFolderChat,
             onJoin = { viewModel.processNewFolderChats(join = true) },
-            onDismiss = viewModel::closeNewFolderChats,
+            onDismiss = { showNewFolderChats = false },
         )
     }
-    folderSuggestions?.let { suggestions ->
+    folderSuggestions?.takeIf { showFolderSuggestions }?.let { suggestions ->
         FolderSuggestionsSheet(
             state = suggestions,
             onAdd = { folder ->
-                viewModel.addRecommendedFolder(folder)
+                viewModel.addRecommendedFolder(folder, onAdded = { showFolderSuggestions = false })
                 // Přidaná složka se rovnou vybere — začít od vršku jejího seznamu.
                 scope.launch { listState.scrollToItem(0) }
             },
             onCreate = {
-                viewModel.closeFolderSuggestions()
+                showFolderSuggestions = false
                 navigation.onCreateFolder()
             },
             onManage = {
-                viewModel.closeFolderSuggestions()
+                showFolderSuggestions = false
                 navigation.onManageFolders()
             },
-            onDismiss = viewModel::closeFolderSuggestions,
+            onDismiss = { showFolderSuggestions = false },
         )
     }
 
@@ -477,6 +491,7 @@ fun ChatListScreen(
         if (maxWidth < COLLAPSED_LIST_MAX_WIDTH) {
             CollapsedChatList(
                 viewModel = listViewModel,
+                sheets = listSheets,
                 accounts = CollapsedAccounts(
                     sources = if (merged) sources else emptyList(),
                     listAccount = listAccount,
@@ -678,13 +693,14 @@ fun ChatListScreen(
                             headerItemCount = cards.count,
                             empty = emptyContent,
                         ) {
-                            chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate)
+                            chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate, onShowNewFolderChats = { showNewFolderChats = true })
                         }
                     } else AccountScope(listAccount) {
                         // Výběr nebo uspořádání v jiném účtu: chat se otevírá v jeho účtu.
                         val otherAccount = listAccount.slot != screenAccount.slot
                         ChatListContent(
                             viewModel = listViewModel,
+                            sheets = listSheets,
                             selectedChatId = selectedChatId,
                             selectedChatSlot = selectedChatSlot,
                             onChatClick = if (otherAccount) { id -> navigation.onAccountChatClick(listAccount.slot, id) } else navigation.onChatClick,
@@ -698,7 +714,7 @@ fun ChatListScreen(
                             headerItemCount = cards.count,
                             empty = emptyContent,
                         ) {
-                            chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate)
+                            chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate, onShowNewFolderChats = { showNewFolderChats = true })
                         }
                     }
 
@@ -797,7 +813,10 @@ fun ChatListScreen(
                                      */
                                     scope.launch { listState.scrollToItem(0) }
                                 },
-                                onAdd = viewModel::openFolderSuggestions,
+                                onAdd = {
+                                    viewModel.loadFolderSuggestions()
+                                    showFolderSuggestions = true
+                                },
                                 actions = folderActions,
                                 floatingActionButton = fab,
                             )
@@ -852,6 +871,7 @@ fun ChatListScreen(
 @Composable
 internal fun ChatActionsHost(
     viewModel: ChatsViewModel,
+    sheets: ChatSheets,
     snackbarHostState: SnackbarHostState,
     onArchived: ((ArchiveChange) -> Unit)? = null,
     /** Nabídka nad chatem od provozovatele proxy vede do nastavení proxy (jen hlavní seznam). */
@@ -860,6 +880,10 @@ internal fun ChatActionsHost(
     val actions by viewModel.actions.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
+    // Průvodce nahlášením žije ve ViewModelu, takže se s odchodem seznamu ruší ručně; ostatní
+    // sheety jsou v [sheets] a zaniknou samy (viz [ChatSheets]). Host má hlavní seznam, archiv
+    // i každý účet společného seznamu, takže tady to platí pro všechny.
+    DisposableEffect(viewModel) { onDispose { viewModel.cancelReportOnLeave() } }
     // Snackbar s „Vrátit" běží mimo efekt: ten se nulováním události restartuje a zrušil by ho
     // (stejná past jako „Vrátit" u odepnuté zprávy v konverzaci).
     val snackbarScope = rememberCoroutineScope()
@@ -952,63 +976,78 @@ internal fun ChatActionsHost(
 
     val snoozeState by viewModel.snoozeState.collectAsStateWithLifecycle()
     // Doby odložení po tahu chatem.
-    val snoozePicker by viewModel.snoozePicker.collectAsStateWithLifecycle()
-    snoozePicker?.let { chat ->
+    sheets.snooze?.let { chat ->
         SnoozeSheet(
             chat = chat,
-            onSnooze = { option -> viewModel.snooze(chat, option) },
-            onDismiss = viewModel::closeSnoozePicker,
+            onSnooze = { option ->
+                sheets.snooze = null
+                viewModel.snooze(chat, option)
+            },
+            onDismiss = { sheets.snooze = null },
         )
     }
-    actions.target?.let { chat ->
-        val folderChoices = remember(actions.folders, chatFolders) {
-            folderChoices(chatFolders, actions.folders)
+    sheets.actions?.let { chat ->
+        // Co nabídnout, se dočítá až teď; položka se ukáže, až odpověď dorazí.
+        LaunchedEffect(chat.id) { viewModel.loadActionDetails(chat) }
+        val details = viewModel.actionDetails.collectAsStateWithLifecycle().value?.takeIf { it.chatId == chat.id }
+        val folderChoices = remember(details?.folders, chatFolders) {
+            folderChoices(chatFolders, details?.folders)
         }
+        // Akce nabídku zavře hned po ťuknutí; výsledek (chyba, „Vrátit") dorazí snackbarem.
+        val close = { sheets.actions = null }
         ChatActionsSheet(
             chat = chat,
             spam = SpamControls(
-                offer = actions.spam,
-                onSetBlocked = { blocked -> viewModel.setBlocked(chat, blocked) },
-                onReport = { viewModel.report(chat) },
+                offer = details?.spam,
+                onSetBlocked = { blocked -> close(); viewModel.setBlocked(chat, blocked) },
+                onReport = { close(); viewModel.report(chat) },
             ),
             onOpenProxySettings = onOpenProxySettings,
-            onTogglePinned = { viewModel.togglePinned(chat) },
-            onReorderPinned = viewModel::startReorder.takeIf { canReorderPinned(chats) },
-            onSelect = { viewModel.startSelection(chat) },
+            onTogglePinned = { close(); viewModel.togglePinned(chat) },
+            onReorderPinned = if (canReorderPinned(chats)) {
+                { close(); viewModel.startReorder() }
+            } else null,
+            onSelect = { close(); viewModel.startSelection(chat) },
             quiet = QuietActions(
-                onMute = { duration -> viewModel.mute(chat, duration) },
-                onUnmute = { viewModel.unmute(chat) },
+                onMute = { duration -> close(); viewModel.mute(chat, duration) },
+                onUnmute = { close(); viewModel.unmute(chat) },
                 snoozedUntil = snoozeState.sleeping[chat.id],
                 onSnooze = if (viewModel.canSnooze) {
-                    { option -> viewModel.snooze(chat, option) }
+                    { option -> close(); viewModel.snooze(chat, option) }
                 } else null,
-                onUnsnooze = { viewModel.unsnooze(chat) },
+                onUnsnooze = { close(); viewModel.unsnooze(chat) },
             ),
-            onToggleUnread = { viewModel.toggleUnread(chat) },
+            onToggleUnread = { close(); viewModel.toggleUnread(chat) },
             // Uložené zprávy a chat Telegramu archivovat nejdou — TDLib by to odmítl (`canBeArchived`).
             onToggleArchived = if (!chat.isArchived && !chat.canBeArchived(savedMessagesChatId)) null else {
-                { viewModel.toggleArchived(chat) }
+                { close(); viewModel.toggleArchived(chat) }
             },
             folders = folderChoices,
+            // Do složek se přidává často do víc po sobě, takže nabídka zůstává otevřená.
             onToggleFolder = { id -> viewModel.toggleFolder(chat, id) },
             onAddToHomeScreen = if (viewModel.canAddToHomeScreen) {
-                { viewModel.addToHomeScreen(chat) }
+                { close(); viewModel.addToHomeScreen(chat) }
             } else null,
-            onClearHistory = if (actions.clearHistory != null) {
-                { viewModel.startClearHistory(chat) }
-            } else null,
-            onDelete = { cleanup -> viewModel.delete(chat, cleanup) },
-            onDismiss = viewModel::hideActions,
+            onClearHistory = details?.clearHistory?.let { rights ->
+                {
+                    close()
+                    sheets.clearHistory = ClearHistoryTarget(chat, rights)
+                }
+            },
+            onDelete = { cleanup -> close(); viewModel.delete(chat, cleanup) },
+            onDismiss = close,
         )
     }
     // Tentýž sheet jako ⋮ v konverzaci — dvě podoby téhož kroku by se rozešly.
-    val clearing by viewModel.clearingHistory.collectAsStateWithLifecycle()
-    clearing?.let { target ->
+    sheets.clearHistory?.let { target ->
         ClearHistorySheet(
             rights = target.rights,
             peerName = chatTitle(target.chat.id, target.chat.title).takeIf { target.chat.isPrivate },
-            onConfirm = { from, to, forAll -> viewModel.clearHistory(target.chat, from, to, forAll) },
-            onDismiss = viewModel::cancelClearHistory,
+            onConfirm = { from, to, forAll ->
+                sheets.clearHistory = null
+                viewModel.clearHistory(target.chat, from, to, forAll)
+            },
+            onDismiss = { sheets.clearHistory = null },
         )
     }
 
@@ -1026,6 +1065,8 @@ internal fun ChatActionsHost(
 @Composable
 internal fun ChatListContent(
     viewModel: ChatsViewModel,
+    /** Sheety nad chaty [viewModel] — podržení řádku a tah otevírají jeho nabídky. */
+    sheets: ChatSheets,
     selectedChatId: Long?,
     /** Účet vybraného chatu: totéž id může mít chat v jiném účtu. `null` = jen podle id. */
     selectedChatSlot: AccountSlot? = null,
@@ -1092,6 +1133,7 @@ internal fun ChatListContent(
     val chatAccents = rememberChatAccents(chatColors.values.toSet())
     val rows = ChatRowsContext(
         viewModel = viewModel,
+        sheets = sheets,
         selection = selection,
         savedMessagesChatId = savedMessagesChatId,
         swipeActions = swipeActions,
@@ -1295,7 +1337,8 @@ internal fun LazyItemScope.ChatListItem(
         right = chatSwipeEffect(rows.swipeActions.right, chat, rows.savedMessagesChatId, chat.id in rows.snoozes.sleeping).takeUnless { selecting },
         left = chatSwipeEffect(rows.swipeActions.left, chat, rows.savedMessagesChatId, chat.id in rows.snoozes.sleeping).takeUnless { selecting },
         shape = shape,
-        onSwipe = { effect -> rows.viewModel.swipe(chat, effect) },
+        // Odložení si dobu vybírá v sheetu, ostatní tahy jsou rovnou akce.
+        onSwipe = { effect -> if (effect == ChatSwipeEffect.Snooze) rows.sheets.snooze = chat else rows.viewModel.swipe(chat, effect) },
         // Animace přeskládání při změně pořadí — bez toho by chaty
         // při nové zprávě skákaly. `animateItem` musí být na kořeni
         // položky, takže sedí na tahu, ne na řádku uvnitř.
@@ -1358,7 +1401,7 @@ internal fun LazyItemScope.ChatListItem(
             // Ve výběru i dlouhý stisk jen přepíná — nabídka nad jedním chatem
             // by z výběru vytrhla.
             onLongClick = {
-                if (selecting) rows.viewModel.toggleSelected(chat) else rows.viewModel.showActions(chat)
+                if (selecting) rows.viewModel.toggleSelected(chat) else rows.sheets.actions = chat
             },
             // Ve výběru avatar přepíná výběr jako zbytek řádku.
             onAvatarClick = onOpenStories

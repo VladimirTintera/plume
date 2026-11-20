@@ -283,9 +283,6 @@ class ChatsViewModel(
         }
     }
 
-    fun openNewFolderChats() = _newFolderChats.update { it?.copy(sheetOpen = true) }
-    fun closeNewFolderChats() = _newFolderChats.update { it?.copy(sheetOpen = false) }
-
     fun toggleNewFolderChat(chatId: Long) {
         _newFolderChats.update { state ->
             state?.takeUnless { it.busy }?.copy(
@@ -332,13 +329,14 @@ class ChatsViewModel(
     private val _folderSuggestions = MutableStateFlow<FolderSuggestions?>(null)
 
     /**
-     * Sheet za „+" na konci řádku složek: doporučené složky od Telegramu a cesta do správy složek.
-     * `null` = zavřený. Doporučené se čtou při každém otevření — server je počítá podle toho, jaké
-     * složky už uživatel má, a přidaná z nabídky zmizí.
+     * Obsah sheetu za „+" na konci řádku složek: doporučené složky od Telegramu. Jestli je sheet
+     * otevřený, ví obrazovka (viz [ChatSheets]); `null` = ještě nenačteno. Doporučené se čtou při
+     * každém otevření ([loadFolderSuggestions]) — server je počítá podle toho, jaké složky už
+     * uživatel má, a přidaná z nabídky zmizí.
      */
     val folderSuggestions: StateFlow<FolderSuggestions?> = _folderSuggestions.asStateFlow()
 
-    fun openFolderSuggestions() {
+    fun loadFolderSuggestions() {
         val repo = folderRepository ?: return
         _folderSuggestions.value = FolderSuggestions()
         viewModelScope.launch {
@@ -349,10 +347,6 @@ class ChatsViewModel(
             }
             _folderSuggestions.update { it?.copy(loading = false, recommended = recommended) }
         }
-    }
-
-    fun closeFolderSuggestions() {
-        _folderSuggestions.value = null
     }
 
     /**
@@ -393,14 +387,16 @@ class ChatsViewModel(
         }
     }
 
-    fun addRecommendedFolder(recommended: RecommendedChatFolder) {
+    /** Založí doporučenou složku; [onAdded] (zavření sheetu) až po úspěchu, při chybě sheet zůstane. */
+    fun addRecommendedFolder(recommended: RecommendedChatFolder, onAdded: () -> Unit) {
         val repo = folderRepository ?: return
         val state = _folderSuggestions.value?.takeIf { it.adding == null } ?: return
         _folderSuggestions.value = state.copy(adding = recommended.draft.title)
         viewModelScope.launch {
             repo.create(recommended.draft)
                 .onSuccess { id ->
-                    _folderSuggestions.value = null
+                    _folderSuggestions.update { it?.copy(adding = null) }
+                    onAdded()
                     selectFolder(id)
                 }
                 .onFailure { failure ->
@@ -598,18 +594,6 @@ class ChatsViewModel(
      */
     val archiveSettings: StateFlow<ArchiveSettings?> = _archiveSettings.asStateFlow()
 
-    private val _archiveSettingsOpen = MutableStateFlow(false)
-
-    val archiveSettingsOpen: StateFlow<Boolean> = _archiveSettingsOpen.asStateFlow()
-
-    fun openArchiveSettings() {
-        _archiveSettingsOpen.value = true
-    }
-
-    fun closeArchiveSettings() {
-        _archiveSettingsOpen.value = false
-    }
-
     fun setArchiveUnknownSenders(value: Boolean) =
         writeArchiveSettings { it.copy(archiveUnknownSenders = value) }
 
@@ -685,30 +669,18 @@ class ChatsViewModel(
         snoozes?.state?.stateIn(viewModelScope, SharingStarted.Eagerly, ChatSnoozeState())
             ?: MutableStateFlow(ChatSnoozeState())
 
-    private val _snoozePicker = MutableStateFlow<ChatSummary?>(null)
-
-    /** Chat, kterému se po tahu vybírá doba odložení; `null` = nabídka zavřená. */
-    val snoozePicker: StateFlow<ChatSummary?> = _snoozePicker.asStateFlow()
-
-    fun closeSnoozePicker() {
-        _snoozePicker.value = null
-    }
-
     /** Nabízí se „Odložit"? */
     val canSnooze: Boolean get() = snoozes != null
 
-    /** Odloží chat na [option] a zavře nabídku. */
+    /** Odloží chat na [option]. */
     fun snooze(chat: ChatSummary, option: SnoozeOption) {
         val snoozes = snoozes ?: return
         snoozes.snooze(chat.id, snoozeUntil(option, Clock.System.now(), TimeZone.currentSystemDefault()), chat.title)
-        hideActions()
-        closeSnoozePicker()
     }
 
-    /** Zruší odložení a zavře nabídku. */
+    /** Zruší odložení. */
     fun unsnooze(chat: ChatSummary) {
         snoozes?.clear(chat.id)
-        hideActions()
     }
 
     /** Chat otevřený ze seznamu: vynořená připomínka splnila účel. */
@@ -885,8 +857,16 @@ class ChatsViewModel(
 
     private val _actions = MutableStateFlow(ChatActionsState())
 
-    /** Stav nabídky akcí nad chatem (dlouhý stisk v seznamu). */
+    /** Výsledky akcí nad chaty pro snackbary (chyba, „Vrátit" po archivaci, smazání…). */
     val actions: StateFlow<ChatActionsState> = _actions.asStateFlow()
+
+    private val _actionDetails = MutableStateFlow<ChatActionDetails?>(null)
+
+    /**
+     * Co nabídnout v nabídce nad chatem, které se zjišťuje až při otevření ([loadActionDetails]).
+     * Platí jen pro chat [ChatActionDetails.chatId]; jestli je nabídka otevřená, ví obrazovka.
+     */
+    val actionDetails: StateFlow<ChatActionDetails?> = _actionDetails.asStateFlow()
 
     /** Uložené zprávy z menu horní lišty. Chat se v TDLib případně nejdřív založí. */
     fun openSavedMessages(onOpened: (chatId: Long) -> Unit) {
@@ -904,8 +884,9 @@ class ChatsViewModel(
         viewModelScope.launch { repository.loadMore(shownFolder.value) }
     }
 
-    fun showActions(chat: ChatSummary) {
-        _actions.value = ChatActionsState(target = chat)
+    /** Nabídka nad [chat] se otevřela: dočte, co v ní nabídnout (viz [actionDetails]). */
+    fun loadActionDetails(chat: ChatSummary) {
+        _actionDetails.value = ChatActionDetails(chat.id)
 
         /*
          * Blokování a nahlášení se zjišťují až tady, jako práva u nabídky nad zprávou: jsou to
@@ -919,8 +900,8 @@ class ChatsViewModel(
                 logger.w(failure) { "Volby proti spamu u chatu ${chat.id} se nepodařilo zjistit." }
                 SpamActions()
             }
-            // Nabídka se mezitím mohla zavřít, nebo už patřit jinému chatu.
-            _actions.update { if (it.target?.id == chat.id) it.copy(spam = spam) else it }
+            // Nabídka mezitím mohla patřit jinému chatu.
+            updateDetails(chat.id) { it.copy(spam = spam) }
         }
         /*
          * Práva vymazat historii taky až na dotaz (`Chat.canBeDeleted…` seznam chatů nenese).
@@ -929,7 +910,7 @@ class ChatsViewModel(
         if (history != null && chat.id != repository.savedMessagesChatId.value) {
             viewModelScope.launch {
                 history.clearHistoryRights(chat.id)
-                    .onSuccess { rights -> _actions.update { if (it.target?.id == chat.id) it.copy(clearHistory = rights) else it } }
+                    .onSuccess { rights -> updateDetails(chat.id) { it.copy(clearHistory = rights) } }
                     .onFailure { failure -> logger.w(failure) { "Práva vymazat historii chatu ${chat.id} se nepodařilo zjistit." } }
             }
         }
@@ -937,11 +918,15 @@ class ChatsViewModel(
         if (folderRepository != null && repository.chatFolders.value.folders.isNotEmpty()) {
             viewModelScope.launch {
                 folderRepository.membership(chat.id)
-                    .onSuccess { membership -> _actions.update { if (it.target?.id == chat.id) it.copy(folders = membership) else it } }
+                    .onSuccess { membership -> updateDetails(chat.id) { it.copy(folders = membership) } }
                     .onFailure { failure -> logger.w(failure) { "Složky chatu ${chat.id} se nepodařilo zjistit." } }
             }
         }
     }
+
+    /** Změní [actionDetails], jen pokud pořád patří chatu [chatId] — nabídka mezitím mohla patřit jinému. */
+    private fun updateDetails(chatId: Long, change: (ChatActionDetails) -> ChatActionDetails) =
+        _actionDetails.update { details -> if (details != null && details.chatId == chatId) change(details) else details }
 
     /**
      * Chat do složky, nebo ven. Nabídka zůstává otevřená a zaškrtnutí se přepne hned —
@@ -949,50 +934,35 @@ class ChatsViewModel(
      */
     fun toggleFolder(chat: ChatSummary, folderId: Int) {
         val repo = folderRepository ?: return
-        val before = _actions.value.folders ?: return
+        val before = _actionDetails.value?.takeIf { it.chatId == chat.id }?.folders ?: return
         val member = folderId in before.member
-        _actions.update { it.copy(folders = before.copy(member = if (member) before.member - folderId else before.member + folderId)) }
+        updateDetails(chat.id) { it.copy(folders = before.copy(member = if (member) before.member - folderId else before.member + folderId)) }
         viewModelScope.launch {
             val result = if (member) repo.removeChat(folderId, chat.id) else repo.addChat(folderId, chat.id)
             result.onFailure { failure ->
                 logger.w(failure) { "Chat ${chat.id} se nepodařilo ${if (member) "odebrat ze" else "přidat do"} složky $folderId." }
-                _actions.update {
-                    it.copy(
-                        folders = if (it.target?.id == chat.id) before else it.folders,
-                        error = failure.userMessage(Res.string.chats_action_failed),
-                    )
-                }
+                updateDetails(chat.id) { it.copy(folders = before) }
+                _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
             }
         }
     }
 
-    fun hideActions() {
-        _actions.value = _actions.value.copy(target = null)
-    }
-
-    private val _clearingHistory = MutableStateFlow<ClearHistoryTarget?>(null)
-
-    /** Chat, jehož historii se uživatel chystá vymazat (sheet s volbami); `null` = nic. */
-    val clearingHistory: StateFlow<ClearHistoryTarget?> = _clearingHistory.asStateFlow()
-
-    /** „Vymazat historii" v nabídce: nabídka se zavře a otevře se sheet s volbami. */
-    fun startClearHistory(chat: ChatSummary) {
-        val rights = _actions.value.clearHistory?.takeIf { _actions.value.target?.id == chat.id } ?: return
-        hideActions()
-        _clearingHistory.value = ClearHistoryTarget(chat, rights)
+    /**
+     * Seznam opouští kompozici: otevřený průvodce nahlášením se zruší. Jako jediný sheet seznamu
+     * žije ve ViewModelu (kroky určuje server a čeká se na odpověď), takže by se jinak vrátil
+     * s prvním složením seznamu — viz [ChatSheets], proč to vadí. Jen otevřený: zrušení bez něj
+     * by zahodilo i to, co čeká na odeslané nahlášení.
+     */
+    fun cancelReportOnLeave() {
+        if (reportFlow.wizard.value != null) reportFlow.cancel()
     }
 
     /** Jde chat připnout na plochu (Android s launcherem, který to dovolí). */
     val canAddToHomeScreen: Boolean get() = shareTargets?.canPinToHomeScreen == true
 
-    /** „Přidat na plochu": nabídka se zavře a potvrzení převezme dialog launcheru. */
+    /** „Přidat na plochu": potvrzení převezme dialog launcheru. */
     fun addToHomeScreen(chat: ChatSummary) {
-        hideActions()
         shareTargets?.pinToHomeScreen(chat.id)
-    }
-
-    fun cancelClearHistory() {
-        _clearingHistory.value = null
     }
 
     /**
@@ -1001,7 +971,6 @@ class ChatsViewModel(
      */
     fun clearHistory(chat: ChatSummary, from: Int?, to: Int?, forAll: Boolean) {
         val repo = history ?: return
-        _clearingHistory.value = null
         viewModelScope.launch {
             val result = if (from != null && to != null) {
                 repo.clearHistoryBetween(chat.id, from, to, forAll)
@@ -1108,7 +1077,8 @@ class ChatsViewModel(
             ChatSwipeEffect.Unmute -> unmute(chat)
             ChatSwipeEffect.Pin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, true) }
             ChatSwipeEffect.Unpin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, false) }
-            ChatSwipeEffect.Snooze -> _snoozePicker.value = chat
+            // Doba se vybírá v sheetu; ten otevírá seznam (`ChatSheets.snooze`), sem tah nedojde.
+            ChatSwipeEffect.Snooze -> Unit
             ChatSwipeEffect.Unsnooze -> unsnooze(chat)
         }
     }
@@ -1426,11 +1396,10 @@ class ChatsViewModel(
 }
 
 /**
- * Nabídka akcí nad jedním chatem; [target] je otevřený bottom sheet. Smazání se potvrzuje
- * v podmenu téhož sheetu, žádný další stav k tomu není.
+ * Výsledky akcí nad chaty, které hlásí snackbar. Otevřenou nabídku tu nedrží — ta je stav
+ * obrazovky ([ChatSheets]); akce doběhne, až je zavřená, a její výsledek na ní viset nesmí.
  */
 data class ChatActionsState(
-    val target: ChatSummary? = null,
     val error: UiText? = null,
     /** Jednorázová událost pro snackbar s „Vrátit" po archivaci nebo vrácení z archivu. */
     val archived: ArchiveChange? = null,
@@ -1438,14 +1407,22 @@ data class ChatActionsState(
     val blocked: BlockChange? = null,
     /** Jednorázová událost pro snackbar s „Vrátit" po smazání / opuštění ([PendingChatDeletes]). */
     val deleted: DeleteChange? = null,
-    /** Co proti spamu nabídnout chatu v [target]; `null`, dokud to nedorazí ze serveru. */
+    /** Hláška o povedené akci bez „Vrátit" (vymazaná historie). */
+    val notice: UiText? = null,
+)
+
+/**
+ * Co nabídka nad chatem [chatId] nabídne, zjištěné až při jejím otevření (dotazy na server, na
+ * které se nemá ptát u každého chatu v seznamu). Položka se kreslí, až odpověď dorazí.
+ */
+data class ChatActionDetails(
+    val chatId: Long,
+    /** Co proti spamu nabídnout; `null`, dokud to nedorazí ze serveru. */
     val spam: SpamActions? = null,
     /** Složky, ve kterých chat je a kam jde přidat; `null` = nenabízet (nezjištěno, žádné složky). */
     val folders: ChatFolderMembership? = null,
-    /** Co jde s historií chatu v [target]; `null` = „Vymazat historii" nenabízet (nebo nezjištěno). */
+    /** Co jde s historií chatu; `null` = „Vymazat historii" nenabízet (nebo nezjištěno). */
     val clearHistory: ClearHistoryRights? = null,
-    /** Hláška o povedené akci bez „Vrátit" (vymazaná historie). */
-    val notice: UiText? = null,
 )
 
 /** Chat a co s jeho historií jde, pro sheet „Vymazat historii" z nabídky nad chatem. */
@@ -1482,7 +1459,6 @@ data class NewFolderChats(
     val iconName: String?,
     val chats: List<ChatSummary>,
     val selected: Set<Long>,
-    val sheetOpen: Boolean = false,
     val busy: Boolean = false,
 )
 
