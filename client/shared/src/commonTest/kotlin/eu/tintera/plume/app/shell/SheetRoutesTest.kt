@@ -50,7 +50,7 @@ class SheetRoutesTest {
 
     @Test
     fun sheetUprostredZasobnikuSeNekresli() {
-        // Odkaz tg://newgroup nad otevřeným přehledem konceptů: sheet pod obrazovkou se nesmí
+        // Odkaz tg://new/group nad otevřeným přehledem konceptů: sheet pod obrazovkou se nesmí
         // kreslit ani jako předchozí scéna v náhledu gesta zpět (jeho okno by gesto sebralo).
         val stack = listOf<NavKey>(ChatsRoute, DraftsRoute(slot), ConversationRoute(slot, 7))
 

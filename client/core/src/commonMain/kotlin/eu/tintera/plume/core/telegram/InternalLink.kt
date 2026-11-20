@@ -87,7 +87,7 @@ sealed interface InternalLink {
     data class FolderInvite(val link: String, val preview: FolderInvitePreview) : InternalLink
 
     /**
-     * Obrazovka aplikace (`tg://settings/devices`, `tg://newgroup`, `tg://contacts`…). Jen se
+     * Obrazovka aplikace (`tg://settings/devices`, `tg://new/group`, `tg://contacts`…). Jen se
      * otevře, nic se nemění — oficiální klienti s takovými odkazy posílají uživatele do Nastavení
      * nebo do nové konverzace.
      */
