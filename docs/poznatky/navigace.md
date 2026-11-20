@@ -556,6 +556,47 @@ Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na koře
   kolem `rememberNavBackStack`: uložený stav se s jinou verzí nenajde a začne se od kořene. Bez
   toho by obnova po aktualizaci skončila výjimkou (chybějící povinné pole).
 
+### Sheety jako navigační destinace
+
+Můj QR kód, Záložky a Přehled konceptů jsou routy (`SheetRoute`: `MyQrCodeRoute`,
+`BookmarksRoute`, `DraftsRoute`), ne příznak v obrazovce. Kreslí je `SheetSceneStrategy`
+(`app/shell/SheetScene.kt`) jako `OverlayScene` — tentýž mechanismus jako `DialogSceneStrategy`
+z Navigation3: položka se značkou `sheet()` navrchu zásobníku se kreslí nad scénou, kterou
+z položek pod ní spočítá list-detail strategie.
+
+- **Kdy destinace a kdy `remember` v obrazovce.** Destinace je sheet, který je místem sám o sobě:
+  otevírá se z víc míst (QR kód ze seznamu i z Nastavení, záložky z menu i z profilu), jeho obsah
+  popíše klíč a výsledek nevrací. Kontextová nabídka a kroky akce (nabídka nad chatem, odložení,
+  vymazání historie) destinacemi nejsou — viz „Otevřený sheet je stav obrazovky"
+  v `seznam-chatu.md`. Destinace má navíc obnovu po zabití procesu a otevření chatu zvenčí ji
+  odebere spolu se vším ostatním (`popToRoot`).
+- **Sheet je ve zásobníku sekce, ze které se otevřel** (`AppNavigation.openSheet`), a zavírá se
+  podle routy, ať stojí kdekoli (`closeSheet`) — QR kód neví, jestli je v Chatech, nebo
+  v Nastavení. Přepnutí sekce sheety jinde zavře (`closeSheetsOutside`): ve skrytém zásobníku
+  by čekaly a po návratu vyskočily, a pod Nastavením by stály uprostřed kreslených položek, kde
+  je strategie (dívá se jen na poslední) nepozná.
+- **Pravidla nad zásobníkem sheety přeskakují** (`withoutTrailingSheets`): panely, sekce
+  Nastavení v dvoupanelu, profil sledující konverzaci, čip sdílení i „je vedle otevřená
+  konverzace" se počítají ze scény POD sheetem. Routa sheetu nemá roli panelu, takže by se
+  jinak brala jako obrazovka přes celou plochu: čip by zmizel a scéna by spadla na jeden panel.
+  Ke kreslení se sheety přidají zpátky navrch.
+- **Vede-li sheet jinam, routa se odebere NAPŘED** (koncept, záložka). Pomocníci nad zásobníkem
+  (`openTarget`, `addOnce`) se rozhodují podle vrcholu, a ten by byl sheet.
+- **Vlastní ViewModel.** Destinace má vlastní úložiště ViewModelů, ten seznamu ani profilu nevidí;
+  koncepty a záložky proto mají `DraftsViewModel` a `BookmarksViewModel`. Seznam koncepty jen
+  počítá (menu účtu) ze stejné funkce (`draftItems`), ať se počet a přehled nerozejdou.
+- **Zpět a zavření tahem řeší sheet sám**: `ModalBottomSheet` je samostatné okno, zpět dostane
+  ono a `onDismissRequest` routu odebere. Scéna pod sheetem se nepřekresluje, jen přestane být
+  `RESUMED` (NavDisplay drží `RESUMED` jen nejvyšší překryvnou scénu).
+- **Odebraný sheet zmizí bez animace**, když ho zavře něco jiného než on sám (otevření chatu
+  zvenčí). `OverlayScene.onRemove` by animaci zvládlo, ale potřebovalo by stav sheetu mimo položku.
+- `Panes.ownSurface()`: položka sheetu nemá roli panelu a dekorátor karty by jí dal barvy stránky
+  s bloky řádků; sheet si je bere z tématu.
+- **Na zařízení zatím neověřeno**, ani překladem v CI (to nepřekládá). Projít: otevření
+  a zavření všech tří (tah, zpět, ťuknutí vedle) na telefonu i v dvoupanelu, QR kód z Nastavení
+  v dvoupanelu, koncept a záložka vedou do chatu, záložky z profilu (i v archivu) skočí na
+  zprávu, zabití procesu s otevřeným sheetem, notifikace nad otevřeným sheetem.
+
 ### Klávesové zkratky
 
 Desktop, Fold, tablet nebo Chromebook s fyzickou klávesnicí: **Ctrl+K** hledání chatů, **Ctrl+F** hledání

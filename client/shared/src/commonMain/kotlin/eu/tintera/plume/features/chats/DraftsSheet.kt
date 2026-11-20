@@ -12,6 +12,8 @@ import eu.tintera.plume.resources.drafts_comment_on
 import eu.tintera.plume.resources.drafts_comments
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.resolveNow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ui.accentOn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.BottomSheetDefaults
@@ -105,6 +107,30 @@ import org.jetbrains.compose.resources.stringResource
  * **Smazání nemá potvrzovací dialog, má „Vrátit"** — jako archivace v seznamu chatů. Snackbar je
  * uvnitř sheetu: snackbar seznamu by ležel pod ním.
  */
+@Composable
+internal fun DraftsDestination(viewModel: DraftsViewModel, onOpen: (DraftItem) -> Unit, onDismiss: () -> Unit) {
+    // Koncepty ve vláknech TDLib nehlásí — při otevření přehledu se ověří znovu.
+    LaunchedEffect(viewModel) { viewModel.refresh() }
+    val drafts by viewModel.drafts.collectAsStateWithLifecycle()
+    val deleted by viewModel.deleted.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    // Až s načtenými koncepty: sheet nad ještě nenačteným (prázdným) seznamem by se hned zavřel.
+    val loaded = drafts ?: return
+    DraftsSheet(
+        drafts = loaded,
+        deleted = deleted,
+        onOpen = onOpen,
+        onDelete = viewModel::delete,
+        onDeleteAll = { viewModel.deleteAll(loaded) },
+        onDeletedShown = viewModel::consumeDeleted,
+        onUndo = viewModel::undo,
+        onDismiss = onDismiss,
+        error = error,
+        onErrorShown = viewModel::consumeError,
+    )
+}
+
+/** Obsah přehledu konceptů; jako destinaci ho skládá [DraftsDestination]. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DraftsSheet(
@@ -117,6 +143,9 @@ internal fun DraftsSheet(
     onDeletedShown: () -> Unit,
     onUndo: (DraftDeleted) -> Unit,
     onDismiss: () -> Unit,
+    /** Nepovedené smazání nebo vrácení; snackbar seznamu by ležel pod sheetem, proto tady. */
+    error: UiText? = null,
+    onErrorShown: () -> Unit = {},
 ) {
     val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
@@ -129,6 +158,12 @@ internal fun DraftsSheet(
      */
     var busy by remember { mutableIntStateOf(0) }
     LaunchedEffect(drafts.isEmpty(), busy) { if (drafts.isEmpty() && busy == 0) onDismiss() }
+
+    LaunchedEffect(error) {
+        val message = error ?: return@LaunchedEffect
+        onErrorShown()
+        scope.launch { snackbarHostState.showSnackbar(message.resolveNow()) }
+    }
 
     // Snackbar běží mimo efekt: ten se vynulováním události restartuje a zrušil by ho (viz
     // „Vrátit" v ChatActionsHost).

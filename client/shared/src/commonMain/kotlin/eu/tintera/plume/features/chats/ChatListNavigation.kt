@@ -36,6 +36,10 @@ data class ChatListNavigation(
     val onOpenCalls: (() -> Unit)? = null,
     /** Menu účtu → Stahování. */
     val onOpenDownloads: () -> Unit = {},
+    /** Menu účtu → Koncepty, Záložky a Můj QR kód: sheety jako navigační destinace (`SheetRoute`). */
+    val onOpenDrafts: () -> Unit = {},
+    val onOpenBookmarks: () -> Unit = {},
+    val onOpenMyQrCode: () -> Unit = {},
     val onOpenMyStories: () -> Unit = {},
     val onNewChat: () -> Unit = {},
     val onNewGroup: () -> Unit = {},

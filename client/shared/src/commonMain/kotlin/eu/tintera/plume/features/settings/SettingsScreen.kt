@@ -127,6 +127,8 @@ fun SettingsScreen(
     onOpenSearchResult: (screens: List<NavKey>, highlight: StringResource?) -> Unit = { _, _ -> },
     /** Změna vymaže hledání: Nastavení se otevřela znovu zvenku, ne návratem z výsledku. */
     searchResetKey: Int = 0,
+    /** QR kód na kartě účtu — sheet je navigační destinace (`MyQrCodeRoute`), otevírá ho shell. */
+    onMyQrCode: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val scrollBehavior = settingsScrollBehavior()
@@ -204,7 +206,7 @@ fun SettingsScreen(
                 return@Column
             }
 
-            AccountCard(viewModel = viewModel, selected = accountSelected, onClick = onEditProfile)
+            AccountCard(viewModel = viewModel, selected = accountSelected, onClick = onEditProfile, onMyQrCode = onMyQrCode)
 
             // Sekce jsou jeden blok se společným zaoblením, stejný jazyk jako seznam chatů.
             Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
@@ -257,10 +259,8 @@ fun SettingsScreen(
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick: () -> Unit) {
+private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick: () -> Unit, onMyQrCode: () -> Unit) {
     val account by viewModel.account.collectAsStateWithLifecycle()
-    var showMyQrCode by rememberSaveable { mutableStateOf(false) }
-    if (showMyQrCode) MyQrCodeSheet(onDismiss = { showMyQrCode = false })
 
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.groupRow
     val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
@@ -309,7 +309,7 @@ private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick
                 }
             }
             if (account != null) {
-                FilledTonalIconButton(onClick = { showMyQrCode = true }, shapes = IconButtonDefaults.shapes()) {
+                FilledTonalIconButton(onClick = onMyQrCode, shapes = IconButtonDefaults.shapes()) {
                     Icon(painterResource(Res.drawable.qr_code_24dp), contentDescription = stringResource(Res.string.my_qr_title))
                 }
             }

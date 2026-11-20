@@ -216,6 +216,13 @@ import eu.tintera.plume.features.conversation.ChecklistComposerRequest
 import eu.tintera.plume.features.conversation.PollComposerRequest
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.navigation.ShareToChatRoute
+import eu.tintera.plume.core.navigation.SheetRoute
+import eu.tintera.plume.core.navigation.MyQrCodeRoute
+import eu.tintera.plume.core.navigation.DraftsRoute
+import eu.tintera.plume.core.navigation.BookmarksRoute
+import eu.tintera.plume.features.chats.DraftsDestination
+import eu.tintera.plume.features.profile.BookmarksDestination
+import eu.tintera.plume.features.settings.MyQrCodeSheet
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
@@ -476,11 +483,18 @@ private fun ShellContent(
         LaunchedEffect(wide, navigation.section, settingsStack.size) {
             if (wide && navigation.section == SettingsRoute) navigation.ensureSettingsSection()
         }
+        /*
+         * Sheety navrchu ([SheetRoute], `SheetSceneStrategy`) se kreslí NAD scénou ze zbytku
+         * zásobníku, takže pravidla o panelech, sekci Nastavení a čipu sdílení se počítají
+         * bez nich — jako by tam nebyly. Ke kreslení se přidají zpátky navrch.
+         */
+        val settingsBase = settingsStack.withoutTrailingSheets()
+        val settingsSheets = settingsStack.trailingSheets()
         val settingsDisplayed: List<NavKey> =
-            if (wide && settingsStack.lastOrNull() == SettingsRoute) {
-                settingsStack + SettingsSectionRoute(SettingsSection.entries.first())
+            if (wide && settingsBase.lastOrNull() == SettingsRoute) {
+                settingsBase + SettingsSectionRoute(SettingsSection.entries.first())
             } else {
-                settingsStack
+                settingsBase
             }
 
         /*
@@ -553,8 +567,10 @@ private fun ShellContent(
          * opraví, kreslí se rovnou opravený. Na telefonu ne: tam je profil pod konverzací
          * obyčejná historie a zpět se do něj vrací.
          */
-        val chatsDisplayed: List<NavKey> = if (wide) chatsStack.withProfileFollowing(paneOf) else chatsStack
-        val profileMoved = chatsDisplayed !== chatsStack
+        val chatsBase = chatsStack.withoutTrailingSheets()
+        val chatsSheets = chatsStack.trailingSheets()
+        val chatsDisplayed: List<NavKey> = if (wide) chatsBase.withProfileFollowing(paneOf) else chatsBase
+        val profileMoved = chatsDisplayed !== chatsBase
         LaunchedEffect(profileMoved) {
             if (profileMoved) chatsStack.followProfile(paneOf)
         }
@@ -631,6 +647,7 @@ private fun ShellContent(
         ).mapTo(HashSet()) { entryProvider(it).contentKey }
 
         ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
+        LaunchedEffect(navigation.section) { navigation.closeSheetsOutside(navigation.section) }
 
         // Široká plocha se hlásí dolů: obrazovky podle ní poznají, že se nevyměňují,
         // a sdílený prvek nezaloží — viz LocalPanesSideBySide.
@@ -698,8 +715,8 @@ private fun ShellContent(
                      */
                     val chatsWithLeaving = rememberWithLeavingExtras(chatsDisplayed, paneOf)
                     val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
-                    val chatsDrawn = if (twoPane) chatsWithLeaving else chatsDisplayed
-                    val settingsDrawn = if (twoPane) settingsWithLeaving else settingsDisplayed
+                    val chatsDrawn = (if (twoPane) chatsWithLeaving else chatsDisplayed) + chatsSheets
+                    val settingsDrawn = (if (twoPane) settingsWithLeaving else settingsDisplayed) + settingsSheets
                     val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth, profilePaneWidth, instantPaneBounds) { chatsDrawn.map(entryProvider) }
                     /*
                      * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
@@ -722,6 +739,8 @@ private fun ShellContent(
                             if (chatsStack.lastOrNull() is ShareToChatRoute) closeShare() else navigation.goBack()
                         },
                         sceneStrategies = listOf(
+                            // Sheet navrchu se kreslí nad scénou, kterou z položek pod ním spočítá list-detail.
+                            remember { SheetSceneStrategy() },
                             // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
                             // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
                             // mezi nimi je plynulý. Na compactu vrací null → standardní swap obrazovek.
@@ -825,7 +844,7 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(),
             // Konverzace vedle seznamu má vlastní přehrávač (dock), druhý by ho zdvojil. Profil
             // ve třetím panelu ji nezakrývá, takže se nepočítá.
-            conversationOpen = chatsStack.lastOrNull { paneOf(it)?.role != PaneRole.Extra } is ConversationRoute,
+            conversationOpen = chatsStack.lastOrNull { it !is SheetRoute && paneOf(it)?.role != PaneRole.Extra } is ConversationRoute,
             // Vybraný řádek jen vedle detailu. Na telefonu by se otevíraný řádek přebarvil
             // uprostřed růstu v konverzaci (viz ChatContainer) a nic by tím neoznačil.
             selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
@@ -867,6 +886,9 @@ private fun shellEntryProvider(
                 onOpenCalls = { if (chatsStack.lastOrNull() != CallsRoute) chatsStack.add(CallsRoute) }
                     .takeIf { koinInject<CallRepository>().supported },
                 onOpenDownloads = { if (chatsStack.lastOrNull() != DownloadsRoute) chatsStack.add(DownloadsRoute) },
+                onOpenDrafts = { navigation.openSheet(ChatsRoute, DraftsRoute(slot)) },
+                onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot)) },
+                onOpenMyQrCode = { navigation.openSheet(ChatsRoute, MyQrCodeRoute) },
                 onOpenMyStories = { if (chatsStack.lastOrNull() != MyStoriesRoute) chatsStack.add(MyStoriesRoute) },
                 onNewChat = {
                     if (chatsStack.lastOrNull() !is NewChatRoute) chatsStack.add(NewChatRoute(slot))
@@ -1295,13 +1317,8 @@ private fun shellEntryProvider(
                 onOpenMainWebApp = {
                     chatsStack.add(WebAppRoute(slot, route.chatId, route.chatId, url = "", launch = false, archive = false, main = true))
                 },
-                // Záložka: profil se zavře a konverzace pod ním skočí na zprávu (`ConversationJumpRequests`).
-                // Bez konverzace pod profilem se otevře rovnou na té zprávě.
-                onOpenMessage = { messageId ->
-                    jumpRequests.request(route.chatId, messageId)
-                    chatsStack.pop(route)
-                    if (!chatsStack.isOpenConversation(slot, route.chatId)) chatsStack.add(ConversationRoute(slot, route.chatId, messageId))
-                },
+                onOpenMessage = { messageId -> chatsStack.openMessageFromProfile(jumpRequests, slot, route.chatId, messageId, archive = false) },
+                onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot, route.chatId)) },
                 closeIcon = LocalPanesSideBySide.current,
             )
         }
@@ -1578,13 +1595,8 @@ private fun shellEntryProvider(
                 onOpenMainWebApp = {
                     chatsStack.add(WebAppRoute(slot, route.chatId, route.chatId, url = "", launch = false, archive = true, main = true))
                 },
-                onOpenMessage = { messageId ->
-                    jumpRequests.request(route.chatId, messageId)
-                    chatsStack.pop(route)
-                    if (!chatsStack.isOpenArchiveConversation(slot, route.chatId)) {
-                        chatsStack.add(ArchiveConversationRoute(slot, route.chatId, messageId))
-                    }
-                },
+                onOpenMessage = { messageId -> chatsStack.openMessageFromProfile(jumpRequests, slot, route.chatId, messageId, archive = true) },
+                onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot, route.chatId, archive = true)) },
                 closeIcon = LocalPanesSideBySide.current,
             )
         }
@@ -1949,6 +1961,59 @@ private fun shellEntryProvider(
         )
     }
 
+    /*
+     * Sheety jako navigační destinace ([SheetRoute], `SheetSceneStrategy`): kreslí se nad scénou
+     * z položek pod nimi, v zásobníku sekce, ze které se otevřely. Zavřený sheet (tah, zpět)
+     * routu odebere sám; vede-li jinam, odebere se NAPŘED, ať nová obrazovka nestojí nad ním.
+     * `ownSurface`: sheet si barvy bere z tématu, ne ze stránky s bloky řádků.
+     */
+    entry<MyQrCodeRoute>(metadata = SheetSceneStrategy.sheet() + Panes.ownSurface()) {
+        MyQrCodeSheet(onDismiss = { navigation.closeSheet(MyQrCodeRoute) })
+    }
+
+    entry<DraftsRoute>(metadata = SheetSceneStrategy.sheet() + Panes.ownSurface()) { route ->
+        val slot = LocalAccount.current.slot
+        val settings = koinInject<AppSettings>()
+        val savedMessagesChatId = LocalSavedMessagesChatId.current
+        DraftsDestination(
+            viewModel = koinViewModel(),
+            onOpen = { item ->
+                navigation.closeSheet(route)
+                val chatId = item.chat.id
+                val topic = item.topic
+                val thread = item.thread
+                // Kam vede koncept, stejně jako ťuknutí v seznamu chatů (i Uložené zprávy po chatech).
+                when {
+                    thread != null -> chatsStack.openCommentThread(slot, chatId, thread.id)
+                    topic != null -> chatsStack.openFoundMessage(slot, chatId, messageId = null, topicId = topic.id)
+                    item.chat.opensAsTopics -> chatsStack.openForum(slot, chatId)
+                    chatId == savedMessagesChatId && settings.savedMessagesAsChats.value -> chatsStack.openSavedTopics(slot, chatId)
+                    else -> chatsStack.openConversation(slot, chatId)
+                }
+            },
+            onDismiss = { navigation.closeSheet(route) },
+        )
+    }
+
+    entry<BookmarksRoute>(metadata = SheetSceneStrategy.sheet() + Panes.ownSurface()) { route ->
+        val slot = LocalAccount.current.slot
+        val jumpRequests = koinInject<ConversationJumpRequests>()
+        val chatId = route.chatId
+        BookmarksDestination(
+            viewModel = koinViewModel(parameters = { if (chatId == null) parametersOf() else parametersOf(chatId) }),
+            onOpen = { bookmark ->
+                navigation.closeSheet(route)
+                if (chatId == null) {
+                    // Ze všech chatů: jako nalezená zpráva v hledání — chat se otevře a skočí na ni.
+                    chatsStack.openFoundMessage(slot, bookmark.chatId, bookmark.messageId, topicId = null)
+                } else {
+                    chatsStack.openMessageFromProfile(jumpRequests, slot, chatId, bookmark.messageId, route.archive)
+                }
+            },
+            onDismiss = { navigation.closeSheet(route) },
+        )
+    }
+
     entry<SettingsRoute>(metadata = Panes.list(SETTINGS_SCENE)) {
         val slot = LocalAccount.current.slot
         SettingsScreen(
@@ -1964,6 +2029,7 @@ private fun shellEntryProvider(
             onOpenChat = { chatId -> navigation.openChat(slot, chatId) },
             onOpenSearchResult = navigation::openSettingsSearchResult,
             searchResetKey = navigation.settingsOpenings,
+            onMyQrCode = { navigation.openSheet(SettingsRoute, MyQrCodeRoute) },
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
@@ -2251,6 +2317,28 @@ private fun MutableList<NavKey>.openStories(slot: AccountSlot, chatId: Long, sto
 /** Totéž co [isOpenConversation], ale pro větev archivu. */
 private fun List<NavKey>.isOpenArchiveConversation(slot: AccountSlot, chatId: Long): Boolean =
     (lastOrNull() as? ArchiveConversationRoute)?.let { it.slot == slot && it.chatId == chatId } == true
+
+/**
+ * Zpráva z profilu chatu [chatId] (záložka, sdílený odkaz): profil se zavře a konverzace pod ním
+ * skočí na zprávu (`ConversationJumpRequests`); bez konverzace pod profilem se otevře rovnou na
+ * ní. [archive] = profil a konverzace z větve archivu. Volá ho profil i sheet jeho záložek.
+ */
+private fun MutableList<NavKey>.openMessageFromProfile(
+    jumpRequests: ConversationJumpRequests,
+    slot: AccountSlot,
+    chatId: Long,
+    messageId: Long,
+    archive: Boolean,
+) {
+    jumpRequests.request(chatId, messageId)
+    if (archive) {
+        pop(ArchiveChatProfileRoute(slot, chatId))
+        if (!isOpenArchiveConversation(slot, chatId)) add(ArchiveConversationRoute(slot, chatId, messageId))
+    } else {
+        pop(ChatProfileRoute(slot, chatId))
+        if (!isOpenConversation(slot, chatId)) add(ConversationRoute(slot, chatId, messageId))
+    }
+}
 
 /**
  * Totéž co [openConversation], ale pro větev archivu: nahrazuje se jen archivní konverzace,

@@ -68,6 +68,8 @@ import eu.tintera.plume.features.settings.EditProfileViewModel
 import eu.tintera.plume.features.settings.OwnProfileMusicViewModel
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.features.profile.ChatProfileViewModel
+import eu.tintera.plume.features.profile.BookmarksViewModel
+import eu.tintera.plume.features.chats.DraftsViewModel
 import eu.tintera.plume.features.profile.ChatAutosaveViewModel
 import eu.tintera.plume.features.forum.ForumTopicsViewModel
 import eu.tintera.plume.features.saved.SavedTopicsViewModel
@@ -419,6 +421,10 @@ fun appAccountModule() = module {
             shareTargets = get(),
         )
     }
+    // Sheety jako destinace (`SheetSceneStrategy`) mají vlastní úložiště ViewModelů, ten seznamu nevidí.
+    viewModel { DraftsViewModel(repository = get(), topicDrafts = get(), commentDrafts = get(), workScope = get(named(APP_SCOPE))) }
+    // Bez parametru záložky všech chatů (menu účtu), s id chatu jen toho (profil).
+    viewModel { parameters -> BookmarksViewModel(chatId = parameters.getOrNull<Long>(), store = get(), repository = get()) }
     viewModelOf(::StickerPickerViewModel)
     viewModel { params -> GifPickerViewModel(chatId = params.get(), repository = get()) }
     viewModel { parameters ->

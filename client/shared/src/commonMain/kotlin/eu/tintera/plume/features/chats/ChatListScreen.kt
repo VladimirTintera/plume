@@ -28,7 +28,6 @@ import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.INNER_CORNER
 import eu.tintera.plume.core.ui.LocalChatRowGaps
-import eu.tintera.plume.features.profile.BookmarksSheet
 import eu.tintera.plume.core.telegram.canBeArchived
 import androidx.compose.material3.FilledTonalButton
 import eu.tintera.plume.resources.error_24dp
@@ -169,7 +168,6 @@ import androidx.compose.ui.semantics.selected
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.folderIcon
 import eu.tintera.plume.core.ui.avatarShape
-import eu.tintera.plume.features.settings.MyQrCodeSheet
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
@@ -270,13 +268,11 @@ fun ChatListScreen(
      * Otevřené sheety (a FAB menu níž) jsou `remember`, ne ve ViewModelu ani `rememberSaveable`:
      * obojí přežije odchod seznamu z kompozice a sheet by se vrátil s prvním složením seznamu —
      * i jen v náhledu gesta zpět z konverzace otevřené zvenčí. Proč to vadí, viz [ChatSheets].
+     * Koncepty, záložky a Můj QR kód jsou navigační destinace (`SheetRoute`), otevírá je shell.
      */
-    var showDrafts by remember { mutableStateOf(false) }
-    var showBookmarks by remember { mutableStateOf(false) }
     val bookmarks by viewModel.allBookmarks.collectAsStateWithLifecycle()
     val bookmarkTitles by viewModel.foundChatTitles.collectAsStateWithLifecycle()
     val describedPhotos by viewModel.describedPhotos.collectAsStateWithLifecycle()
-    var showMyQrCode by remember { mutableStateOf(false) }
     var showFolderSuggestions by remember { mutableStateOf(false) }
     var showNewFolderChats by remember { mutableStateOf(false) }
     // Složky jsou po účtech na serveru; společný seznam je jen hlavní seznam, pilulky nemá.
@@ -371,48 +367,6 @@ fun ChatListScreen(
     )
     // Nabídka nad chatem a hlášky z řádků společného seznamu: každý účet má svůj ViewModel.
     MergedChatActionsHosts(sources, snackbarHostState, navigation.onChatArchived, navigation.onOpenProxySettings)
-    // Až s načtenými koncepty: sheet nad ještě prázdným seznamem by se hned zavřel.
-    val loadedDrafts = drafts
-    // Koncepty ve vláknech TDLib nehlásí — při otevření přehledu se ověří znovu.
-    LaunchedEffect(showDrafts) { if (showDrafts) viewModel.refreshCommentDrafts() }
-    if (showDrafts && loadedDrafts != null) {
-        val draftDeleted by viewModel.draftDeleted.collectAsStateWithLifecycle()
-        DraftsSheet(
-            drafts = loadedDrafts,
-            deleted = draftDeleted,
-            onOpen = { item ->
-                showDrafts = false
-                val topic = item.topic
-                val thread = item.thread
-                when {
-                    thread != null -> navigation.onThreadClick(item.chat.id, thread.id)
-                    topic != null -> navigation.onTopicClick(item.chat.id, topic.id)
-                    item.chat.opensAsTopics -> navigation.onForumClick(item.chat.id)
-                    else -> navigation.onChatClick(item.chat.id)
-                }
-            },
-            onDelete = viewModel::deleteDraft,
-            onDeleteAll = { viewModel.deleteAllDrafts(loadedDrafts) },
-            onDeletedShown = viewModel::consumeDraftDeleted,
-            onUndo = viewModel::undoDeleteDraft,
-            onDismiss = { showDrafts = false },
-        )
-    }
-    if (showBookmarks && bookmarks.isNotEmpty()) {
-        val titles = bookmarkTitles
-        BookmarksSheet(
-            bookmarks = bookmarks,
-            chatTitles = titles,
-            onOpen = { bookmark ->
-                showBookmarks = false
-                // Stejně jako nalezená zpráva v hledání: chat se otevře a skočí na ni.
-                navigation.onMessageClick(bookmark.chatId, bookmark.messageId, null)
-            },
-            onRemove = viewModel::removeBookmark,
-            onDismiss = { showBookmarks = false },
-        )
-    }
-    if (showMyQrCode) MyQrCodeSheet(onDismiss = { showMyQrCode = false })
     // Nové chaty patří vybrané složce: jiná složka (i vyřízené nové chaty) sheet zavře, jinak by
     // se sám otevřel nad kartou další složky.
     LaunchedEffect(newFolderChats?.folderId) { showNewFolderChats = false }
@@ -472,10 +426,10 @@ fun ChatListScreen(
             onDownloads = navigation.onOpenDownloads,
             onMyStories = navigation.onOpenMyStories,
             draftCount = drafts?.size ?: 0,
-            onDrafts = { showDrafts = true },
+            onDrafts = navigation.onOpenDrafts,
             bookmarkCount = bookmarks.size,
-            onBookmarks = { showBookmarks = true },
-            onMyQrCode = { showMyQrCode = true },
+            onBookmarks = navigation.onOpenBookmarks,
+            onMyQrCode = navigation.onOpenMyQrCode,
             onSettings = navigation.onOpenSettings,
             switcher = accountSwitcher,
         )
