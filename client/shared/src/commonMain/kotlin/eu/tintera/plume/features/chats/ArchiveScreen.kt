@@ -21,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -88,9 +90,13 @@ fun ArchiveScreen(
     @Suppress("NAME_SHADOWING")
     val viewModel = busySource?.viewModel ?: screenViewModel
     val listAccount = busySource?.account ?: screenAccount
+    // Otevřené sheety nad chatem, každý ViewModel svoje (viz [ChatSheets]).
+    val screenSheets = remember(screenViewModel) { ChatSheets() }
+    val sheets = busySource?.sheets ?: screenSheets
     val archiveSettings by viewModel.archiveSettings.collectAsStateWithLifecycle()
     val storyStack by viewModel.storyStack.collectAsStateWithLifecycle()
-    val settingsOpen by viewModel.archiveSettingsOpen.collectAsStateWithLifecycle()
+    // V kompozici, ne ve ViewModelu — ze stejného důvodu jako [ChatSheets].
+    var settingsOpen by remember { mutableStateOf(false) }
     val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
     val selection by viewModel.selection.collectAsStateWithLifecycle()
@@ -100,6 +106,7 @@ fun ArchiveScreen(
 
     ChatActionsHost(
         screenViewModel,
+        screenSheets,
         snackbarHostState,
         onArchived = onChatArchived?.let { archived -> { change -> archived(screenAccount.slot, change) } },
     )
@@ -114,7 +121,7 @@ fun ArchiveScreen(
                 onKeepUnmutedArchived = viewModel::setKeepUnmutedArchived,
                 hasFolders = chatFolders.folders.isNotEmpty(),
                 onKeepFromFoldersArchived = viewModel::setKeepFromFoldersArchived,
-                onDismiss = viewModel::closeArchiveSettings,
+                onDismiss = { settingsOpen = false },
             )
         }
     }
@@ -189,7 +196,7 @@ fun ArchiveScreen(
                      * TDLib nevydá — prázdný sheet by slíbil volby, které nejsou.
                      */
                     if (archiveSettings != null && sources.isEmpty()) {
-                        IconButton(onClick = viewModel::openArchiveSettings, shapes = IconButtonDefaults.shapes()) {
+                        IconButton(onClick = { settingsOpen = true }, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.tune_24dp),
                                 contentDescription = stringResource(Res.string.chats_archive_settings),
@@ -225,6 +232,7 @@ fun ArchiveScreen(
             val otherAccount = listAccount.slot != screenAccount.slot
             ChatListContent(
                 viewModel = viewModel,
+                sheets = sheets,
                 selectedChatId = selectedChatId,
                 selectedChatSlot = selectedChatSlot,
                 onChatClick = if (otherAccount) { id -> onAccountChatClick(listAccount.slot, id) } else onChatClick,

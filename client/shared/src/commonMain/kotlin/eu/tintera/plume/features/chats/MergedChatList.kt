@@ -56,6 +56,8 @@ import org.koin.core.annotation.KoinInternalApi
 @Immutable
 internal data class ChatRowsContext(
     val viewModel: ChatsViewModel,
+    /** Sheety nad chaty [viewModel]: podržení řádku otevře nabídku, tah odložení. */
+    val sheets: ChatSheets,
     val selection: ChatSelection?,
     val savedMessagesChatId: Long?,
     val swipeActions: ChatSwipeActions,
@@ -82,6 +84,8 @@ internal data class ChatSource(
     val account: AccountSession,
     val viewModel: ChatsViewModel,
     val info: AccountInfo?,
+    /** Otevřené sheety nad chaty tohohle účtu; v kompozici, ne ve [viewModel] (viz [ChatSheets]). */
+    val sheets: ChatSheets,
 )
 
 /**
@@ -107,6 +111,7 @@ internal fun rememberChatSources(accounts: List<AccountEntry>, folder: ChatFolde
                     parameters = { parametersOf(folder) },
                 ),
                 info = entry.info,
+                sheets = remember { ChatSheets() },
             )
         }
     }
@@ -172,6 +177,7 @@ internal fun MergedChatActionsHosts(
             AccountScope(source.account) {
                 ChatActionsHost(
                     source.viewModel,
+                    source.sheets,
                     snackbarHostState,
                     onArchived = onArchived?.let { archived -> { change -> archived(source.account.slot, change) } },
                     onOpenProxySettings = onOpenProxySettings,
@@ -357,6 +363,7 @@ private fun rememberRowsContext(source: ChatSource, rowGaps: Boolean): ChatRowsC
     val chatColors by viewModel.chatColors.collectAsStateWithLifecycle()
     return ChatRowsContext(
         viewModel = viewModel,
+        sheets = source.sheets,
         selection = null,
         savedMessagesChatId = viewModel.savedMessagesChatId.collectAsStateWithLifecycle().value,
         swipeActions = viewModel.swipeActions.collectAsStateWithLifecycle().value,

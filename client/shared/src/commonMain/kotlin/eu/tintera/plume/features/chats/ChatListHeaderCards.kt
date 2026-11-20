@@ -55,6 +55,8 @@ internal fun LazyListScope.chatListHeaderCards(
     navigation: ChatListNavigation,
     openNoticeLink: (String) -> Unit,
     startUpdate: () -> Unit,
+    /** Karta nových chatů sdílené složky otevře jejich sheet; ten drží obrazovka. */
+    onShowNewFolderChats: () -> Unit,
 ) {
     // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Zmrazení
     // a přihlášení napřed: týkají se účtu samotného, aktualizace počká.
@@ -137,7 +139,7 @@ internal fun LazyListScope.chatListHeaderCards(
         item(key = NEW_FOLDER_CHATS_KEY, contentType = NEW_FOLDER_CHATS_KEY) {
             NewFolderChatsCard(
                 state = folderChats,
-                onShow = viewModel::openNewFolderChats,
+                onShow = onShowNewFolderChats,
                 onHide = { viewModel.processNewFolderChats(join = false) },
                 modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
             )

@@ -108,7 +108,7 @@ skupina a Nová zpráva.
 - **Vybraná složka se v liště vždycky ukáže** (`bringIntoViewRequester` u vybrané položky):
   přidaná doporučená složka stojí na konci lišty a vybrala by se za okrajem.
 - **Server doporučené složky vracet nemusí** — účtu, který už má „Unread" i „Personal", nevrátil
-  žádnou. Sheet se pak ověřuje sondou (podstrčená doporučená složka v `openFolderSuggestions`;
+  žádnou. Sheet se pak ověřuje sondou (podstrčená doporučená složka v `loadFolderSuggestions`;
   necommituje se), založení jde skutečným `createChatFolder`.
 - **Ověřeno na emulátoru** (anglicky): FAB menu — otevření, zavření ťuknutím do seznamu i na
   hlavičku a zpět, všechny tři položky vedou na svou obrazovku a zpět se vrací se zavřeným menu.
@@ -1191,18 +1191,31 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
     a hlavní seznam jdou toutéž cestou, ověřené zvlášť nejsou. **iOS jen přeložené.**
 - **`Card(onClick = …)` umí jen krátké ťuknutí.** Dlouhý stisk potřebuje `combinedClickable`,
   takže se z karty stal `Surface` s vlastním klikáním.
-- **Sheety seznamu se zavírají, když seznam opouští kompozici** (`ChatsViewModel.closeSheets`
-  z `DisposableEffect` v `ChatActionsHost`; příznaky v `ChatListScreen` jsou `remember`, ne
-  `rememberSaveable`). Seznam je kořen zásobníku Chatů, takže jeho ViewModel ani uložený stav
-  nezanikají nikdy. Otevřená nabídka nad chatem, přes kterou přijela konverzace zvenčí
-  (sdílení screenshotu do Uložených zpráv, notifikace, odkaz — přijde i s aplikací na pozadí),
-  zůstala „otevřená" a vrátila se s prvním složením seznamu: **už v náhledu gesta zpět**.
-  `ModalBottomSheet` je samostatné okno nad aktivitou, gesto mu propadlo, náhled se zrušil,
-  seznam zmizel i se sheetem a znovu dokola — z konverzace nešlo odejít, jen to problikávalo.
-  - **Nulovat `rememberSaveable` v `onDispose` NEJDE**: `SaveableStateHolder` ukládá v
-    `onDispose` vlastního efektu, který leží ZA obsahem, takže doběhne dřív než efekty obsahu
-    (zapomínají se v obráceném pořadí) a uloží ještě `true`. Proto `remember` — přijde se jen
-    o obnovení sheetu po zániku procesu nebo změně jazyka.
+- **Otevřený sheet je stav obrazovky, ne ViewModelu: `remember` v composable, které ho kreslí**
+  (`ChatSheets` pro nabídku nad chatem, odložení a vymazání historie; příznaky v
+  `ChatListScreen` a `ArchiveScreen` pro ostatní). ViewModel dává data (`actionDetails`,
+  `folderSuggestions`) a akce, a jednorázové výsledky akcí pro snackbar (`ChatActionsState`) —
+  akce doběhne, až je sheet zavřený, a výsledek na něm viset nesmí.
+  - **Proč:** seznam je kořen zásobníku Chatů, takže jeho ViewModel ani uložený stav
+    (`rememberSaveable`) nezanikají nikdy. Otevřená nabídka nad chatem, přes kterou přijela
+    konverzace zvenčí (sdílení screenshotu do Uložených zpráv, notifikace, odkaz — přijde
+    i s aplikací na pozadí), zůstala „otevřená" a vrátila se s prvním složením seznamu: **už
+    v náhledu gesta zpět**. `ModalBottomSheet` je samostatné okno nad aktivitou, gesto mu
+    propadlo, náhled se zrušil, seznam zmizel i se sheetem a znovu dokola — z konverzace nešlo
+    odejít, jen to problikávalo. `remember` zanikne s odchodem seznamu z kompozice sám.
+  - **`rememberSaveable` ne, ani kvůli otočení:** otočení aktivitu znovu nevytváří
+    (`configChanges` v manifestu) a rozložení Foldu obsah položky jen přesune, takže `remember`
+    obojí přežije. Navíc by `rememberSaveable` přidal jen obnovu po zabití procesu a změně
+    jazyka — a právě i ten nechtěný návrat po odchodu ze zásobníku. Vynulovat ho při odchodu
+    nejde: `SaveableStateHolder` ukládá v `onDispose` vlastního efektu, který leží ZA obsahem,
+    takže doběhne dřív než efekty obsahu (zapomínají se v obráceném pořadí) a uloží ještě `true`.
+  - **Výjimka je průvodce nahlášením** (`ReportFlow`): kroky určuje server a čeká se na odpověď,
+    takže žije ve ViewModelu a s odchodem seznamu se ruší ručně (`cancelReportOnLeave`
+    z `DisposableEffect` v `ChatActionsHost`).
+  - **Sheet jako navigační destinace** se hodí pro sheety, které jsou místem samy o sobě
+    (otevírají se z víc míst, mají obsah popsatelný klíčem, nevracejí výsledek): Můj QR kód,
+    Záložky, Přehled konceptů. Kontextová nabídka a kroky akce (odložení, vymazání historie)
+    destinacemi nejsou — vracejí výsledek a nesou dočasný stav obrazovky.
   - Hlídání životního cyklu položky (`RESUMED`, jako u příběhů) by tenhle případ nechytilo:
     sdílení přijde, když je aplikace na pozadí, takže položka i aktivita jsou zastavené obě.
   - **Na zařízení zatím neověřeno.** Reprodukce: podržet chat (nabídka otevřená), screenshot,
