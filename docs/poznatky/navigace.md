@@ -583,7 +583,7 @@ z položek pod ní spočítá list-detail strategie.
 - **Vede-li sheet jinam, routa se odebere NAPŘED** (koncept, záložka). Pomocníci nad zásobníkem
   (`openTarget`, `addOnce`) se rozhodují podle vrcholu, a ten by byl sheet.
 - **Nad sheetem se nic neotevírá — a když přece, sheet zmizí.** Vstupy zvenčí srovnávají
-  zásobník (`popToRoot`), jenže odkaz `tg://newchat` / `newgroup` / `newchannel` (`openScreen`
+  zásobník (`popToRoot`), jenže odkaz `tg://new`, `tg://new/group` a `tg://new/channel` (`openScreen`
   → `openInChats`) obrazovku jen přidával, takže nad otevřeným přehledem konceptů vzniklo
   `[Chats, DraftsRoute, NewChatRoute]`. Zpět by vrátil koncepty, a hlavně by se v náhledu gesta
   zpět složila předchozí scéna se sheetem: `ModalBottomSheet` je samostatné okno, gesto by
@@ -593,6 +593,12 @@ z položek pod ní spočítá list-detail strategie.
   (`dropBuriedSheets`, s varováním v logu, ať se další taková cesta najde). Že sheet stojí
   navrchu, tedy **vynucuje shell**, ne disciplína volajících; nová cesta, která přidává
   obrazovku, na to myslet nemusí, ale má sheet zavřít sama, ať zmizí s animací a bez varování.
+  **Ověřeno na emulátoru** (Android 17): Můj QR kód z menu účtu, pak zvenčí
+  `adb shell am start -a android.intent.action.VIEW -d tg://new/group eu.tintera.plume` —
+  otevře se Přidat členy, okno sheetu zmizí (`dumpsys window windows`: jediné okno Plume),
+  varování pojistky v logu není (zabralo `openInChats`) a gesto zpět od kraje vede na seznam
+  chatů bez sheetu. **Tvar odkazu ověřovat v knihovně**, ne z hlavy: `tg://newgroup` TDLib
+  nezná a odkaz neudělá nic; tvary najde `strings libtdjsonjava.so | grep 'tg://new'`.
 - **Vlastní ViewModel.** Destinace má vlastní úložiště ViewModelů, ten seznamu ani profilu nevidí;
   koncepty a záložky proto mají `DraftsViewModel` a `BookmarksViewModel`. Seznam koncepty jen
   počítá (menu účtu) ze stejné funkce (`draftItems`), ať se počet a přehled nerozejdou.
@@ -603,10 +609,11 @@ z položek pod ní spočítá list-detail strategie.
   zvenčí). `OverlayScene.onRemove` by animaci zvládlo, ale potřebovalo by stav sheetu mimo položku.
 - `Panes.ownSurface()`: položka sheetu nemá roli panelu a dekorátor karty by jí dal barvy stránky
   s bloky řádků; sheet si je bere z tématu.
-- **Na zařízení zatím neověřeno**, ani překladem v CI (to nepřekládá). Projít: otevření
-  a zavření všech tří (tah, zpět, ťuknutí vedle) na telefonu i v dvoupanelu, QR kód z Nastavení
-  v dvoupanelu, koncept a záložka vedou do chatu, záložky z profilu (i v archivu) skočí na
-  zprávu, zabití procesu s otevřeným sheetem, notifikace nad otevřeným sheetem.
+- **Na zařízení ověřené jen zčásti**: Můj QR kód z menu účtu se otevře jako destinace a zpět
+  ho zavře, odkaz zvenčí ho odklidí (viz bod výš). Zbývá projít: koncepty a záložky (otevření,
+  tah, ťuknutí vedle), dvoupanel a QR kód z Nastavení v něm, koncept a záložka vedou do chatu,
+  záložky z profilu (i v archivu) skočí na zprávu, zabití procesu s otevřeným sheetem,
+  notifikace nad otevřeným sheetem.
 
 ### Klávesové zkratky
 

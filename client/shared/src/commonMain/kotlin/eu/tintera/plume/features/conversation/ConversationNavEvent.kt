@@ -32,7 +32,7 @@ sealed interface ConversationNavEvent {
     /** Chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
     data class OpenChat(val target: ChatTarget) : ConversationNavEvent
 
-    /** Obrazovka aplikace z odkazu (`tg://settings/…`, `tg://newgroup`). */
+    /** Obrazovka aplikace z odkazu (`tg://settings/…`, `tg://new/group`). */
     data class OpenScreen(val screen: AppScreen) : ConversationNavEvent
 
     /** Příběh v prohlížeči (citace odpovědi, odkaz na příběh). */

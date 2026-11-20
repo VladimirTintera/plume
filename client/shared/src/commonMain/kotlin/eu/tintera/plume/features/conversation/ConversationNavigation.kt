@@ -72,7 +72,7 @@ data class ConversationNavigation(
     val onOpenBotShare: (BotShareRequest) -> Unit = {},
     /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
     val onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
-    /** Odkaz na obrazovku aplikace (`tg://settings/…`, `tg://newgroup`) — navigaci řeší shell. */
+    /** Odkaz na obrazovku aplikace (`tg://settings/…`, `tg://new/group`) — navigaci řeší shell. */
     val onOpenScreen: (AppScreen) -> Unit = {},
     /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
     val onSwitchInline: (SwitchInlinePick) -> Unit = {},

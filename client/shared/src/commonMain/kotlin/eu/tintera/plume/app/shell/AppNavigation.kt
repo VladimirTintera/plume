@@ -114,7 +114,7 @@ class AppNavigation internal constructor(
     fun openProxySettings() = openSettingsAt(SettingsSection.Storage, ProxySettingsRoute)
 
     /**
-     * Odkaz na obrazovku aplikace (`tg://settings/devices`, `tg://newgroup`…). Do Nastavení se
+     * Odkaz na obrazovku aplikace (`tg://settings/devices`, `tg://new/group`…). Do Nastavení se
      * jde po krocích (kořen → sekce → obrazovka), takže zpět vede, kudy by se tam uživatel
      * proklikal sám. Nová konverzace, skupina a kanál se otevřou nad otevřeným chatem, jako
      * zmínka — zpět vede do něj. Hledání v dvoupanelu ([twoPane]) konverzaci nechá.
