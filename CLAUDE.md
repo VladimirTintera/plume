@@ -614,6 +614,8 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `rememberSaveable`; ViewModel dává data a akce. Obojí přežije odchod obrazovky ze zásobníku
   a sheet (samostatné okno) se vrátil už v náhledu gesta zpět a gesto sebral. Otočení `remember`
   přežije (`configChanges`). Viz „Otevřený sheet je stav obrazovky" v `docs/poznatky/seznam-chatu.md`.
+  Sheet, který je místem sám o sobě (víc vstupů, obsah popíše klíč, nevrací výsledek), je
+  navigační destinace `SheetRoute` — viz „Sheety jako navigační destinace" v `docs/poznatky/navigace.md`.
 - **Nadpis modálního sheetu je `SheetTitle`** (`core/ui`, `titleLargeEmphasized`), ne `Text`
   s vlastní rolí: dřív měla polovina sheetů `titleLarge` a polovina `titleMedium`. Odsazení
   si dává sheet. Výjimka jsou sheety, kde velký text JE obsah (náhled pozvánky, Můj QR kód).

@@ -173,10 +173,6 @@ class ChatProfileViewModel(
         .map { list -> list.filter { it.chatId == chatId } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun removeBookmark(messageId: Long) {
-        bookmarks?.remove(chatId, messageId)
-    }
-
 
     private val logger = Logger.withTag("Profile")
 

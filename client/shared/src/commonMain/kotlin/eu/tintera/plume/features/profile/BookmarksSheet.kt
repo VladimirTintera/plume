@@ -22,6 +22,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +41,26 @@ import eu.tintera.plume.resources.profile_bookmarks
 import eu.tintera.plume.resources.summary_me
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Záložky jako navigační destinace ([eu.tintera.plume.core.navigation.BookmarksRoute]). Když
+ * zmizí poslední záložka, sheet se zavře — prázdný přehled by byl slepá ulička.
+ */
+@Composable
+internal fun BookmarksDestination(viewModel: BookmarksViewModel, onOpen: (MessageBookmark) -> Unit, onDismiss: () -> Unit) {
+    val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+    val chatTitles by viewModel.chatTitles.collectAsStateWithLifecycle()
+    val loaded = bookmarks ?: return
+    LaunchedEffect(loaded.isEmpty()) { if (loaded.isEmpty()) onDismiss() }
+    if (loaded.isEmpty()) return
+    BookmarksSheet(
+        bookmarks = loaded,
+        onOpen = onOpen,
+        onRemove = viewModel::remove,
+        onDismiss = onDismiss,
+        chatTitles = chatTitles,
+    )
+}
 
 /**
  * Záložky zpráv v chatu (profil → Záložky), nebo ve všech chatech (menu účtu → Záložky, s názvem

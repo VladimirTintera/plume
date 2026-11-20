@@ -319,8 +319,10 @@ fun ChatProfileScreen(
     onOpenMemberRights: (userId: Long, admin: Boolean) -> Unit,
     /** Hlavní mini aplikace bota; dlaždice „Otevřít" se nabízí jen botovi, který ji má. */
     onOpenMainWebApp: () -> Unit = {},
-    /** Záložka: zavřít profil a skočit v konverzaci na zprávu. */
+    /** Zpráva (sdílený odkaz, soubor…): zavřít profil a skočit v konverzaci na ni. */
     onOpenMessage: (messageId: Long) -> Unit = {},
+    /** Záložky chatu — sheet je navigační destinace (`BookmarksRoute`), otevírá ho shell. */
+    onOpenBookmarks: () -> Unit = {},
     /**
      * Příběhy: [storyIds] z mřížky v profilu otevřené na [startStoryId], prázdné = aktivní
      * příběhy (ťuknutí na avatar s lemem).
@@ -335,7 +337,6 @@ fun ChatProfileScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val bookmarks by viewModel.chatBookmarks.collectAsStateWithLifecycle()
-    var showBookmarks by rememberSaveable { mutableStateOf(false) }
     val chatColor by viewModel.chatColor.collectAsStateWithLifecycle()
     var showChatColor by rememberSaveable { mutableStateOf(false) }
     var showBusinessHours by rememberSaveable { mutableStateOf(false) }
@@ -547,7 +548,7 @@ fun ChatProfileScreen(
                             profile,
                             notifications = notifications,
                             bookmarkCount = bookmarks.size,
-                            onOpenBookmarks = { showBookmarks = true },
+                            onOpenBookmarks = onOpenBookmarks,
                             onLinkClick = viewModel::openLink,
                             onOpenLinkedChat = viewModel::openLinkedChat,
                             onOpenPersonalChannel = viewModel::openPersonalChannel,
@@ -631,17 +632,6 @@ fun ChatProfileScreen(
             }
 
             val notifications = state.notifications
-            if (showBookmarks && bookmarks.isNotEmpty()) {
-                BookmarksSheet(
-                    bookmarks = bookmarks,
-                    onOpen = { bookmark ->
-                        showBookmarks = false
-                        onOpenMessage(bookmark.messageId)
-                    },
-                    onRemove = { viewModel.removeBookmark(it.messageId) },
-                    onDismiss = { showBookmarks = false },
-                )
-            }
             if (state.notificationSheet && notifications != null) {
                 ChatNotificationSheet(
                     prefs = notifications,

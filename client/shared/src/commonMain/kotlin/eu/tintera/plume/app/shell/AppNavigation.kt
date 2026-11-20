@@ -21,6 +21,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import eu.tintera.plume.core.navigation.VideoChatRoute
+import eu.tintera.plume.core.navigation.SheetRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.CreateChatRoute
@@ -309,6 +310,38 @@ class AppNavigation internal constructor(
 
     fun consumeSearchRequest() {
         searchRequest = null
+    }
+
+    /**
+     * Sheet ([SheetRoute]) navrch zásobníku sekce [section], v níž se otevírá — z Nastavení do
+     * zásobníku Nastavení, ze seznamu chatů do Chatů. Navrchu už je (dvojí ťuknutí): nic.
+     */
+    fun openSheet(section: TopLevelRoute, sheet: SheetRoute) {
+        val stack = stack(section)
+        if (stack.lastOrNull() != sheet) stack.add(sheet)
+    }
+
+    /**
+     * Routa sheetu pryč, ať je kdekoli: sheet se zavřel sám (tah dolů, zpět, ťuknutí vedle), nebo
+     * vede jinam (koncept, záložka) — pak se zavírá NAPŘED, aby nová obrazovka nestála nad ním
+     * a pravidla nad zásobníkem (`openTarget`, `addOnce`) se nerozhodovala podle sheetu navrchu.
+     * Sheet neví, ve kterém zásobníku stojí — Můj QR kód jde otevřít z Chatů i z Nastavení.
+     */
+    fun closeSheet(sheet: SheetRoute) {
+        stacks.values.forEach { stack ->
+            val index = stack.lastIndexOf(sheet)
+            if (index >= 0) stack.removeAt(index)
+        }
+    }
+
+    /**
+     * Sheety mimo sekci [section] pryč. Sheet patří k obrazovce pod sebou; přepnutí sekce (odkaz
+     * do Nastavení, zatímco v Chatech visí sheet) by ho nechalo čekat ve skrytém zásobníku
+     * a po návratu by vyskočil, nebo by stál uprostřed položek, které se kreslí (Chaty pod
+     * Nastavením), kde ho `SheetSceneStrategy` nepozná.
+     */
+    fun closeSheetsOutside(section: TopLevelRoute) {
+        stacks.forEach { (key, stack) -> if (key != section) stack.removeAll { it is SheetRoute } }
     }
 
     /**

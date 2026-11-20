@@ -854,7 +854,7 @@ všemi známými chaty (`all` v `TdlChatRepository`), ne nad jednou složkou.
   - **Zapisuje obal repository vlákna** (`CommentDraftTracking` kolem
     `ThreadConversationRepository` v Koinu), ne ViewModel konverzace: koncept ukládá víc míst
     (psaní, odeslání příloh) a všechna jdou přes `saveDraft`. Prázdný koncept vlákno zapomene.
-  - **Ověřuje se při změně evidence a při otevření přehledu** (`refreshCommentDrafts`).
+  - **Ověřuje se při změně evidence a při otevření přehledu** (`DraftsViewModel.refresh`).
     Vlákno bez konceptu (odeslaný, smazaný jinde) z evidence vypadne, chyba čtení (bez sítě)
     ho tam nechá na příště.
   - **Koncept psaný jen na jiném zařízení ve vlákně, které Plume neotevřelo, v přehledu není** —
@@ -1212,10 +1212,11 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
   - **Výjimka je průvodce nahlášením** (`ReportFlow`): kroky určuje server a čeká se na odpověď,
     takže žije ve ViewModelu a s odchodem seznamu se ruší ručně (`cancelReportOnLeave`
     z `DisposableEffect` v `ChatActionsHost`).
-  - **Sheet jako navigační destinace** se hodí pro sheety, které jsou místem samy o sobě
-    (otevírají se z víc míst, mají obsah popsatelný klíčem, nevracejí výsledek): Můj QR kód,
-    Záložky, Přehled konceptů. Kontextová nabídka a kroky akce (odložení, vymazání historie)
-    destinacemi nejsou — vracejí výsledek a nesou dočasný stav obrazovky.
+  - **Sheet, který je místem sám o sobě, je navigační destinace** (otevírá se z víc míst, obsah
+    popíše klíč, výsledek nevrací): Můj QR kód, Záložky a Přehled konceptů jsou `SheetRoute`,
+    viz „Sheety jako navigační destinace" v `navigace.md`. Kontextová nabídka a kroky akce
+    (odložení, vymazání historie) destinacemi nejsou — vracejí výsledek a nesou dočasný stav
+    obrazovky.
   - Hlídání životního cyklu položky (`RESUMED`, jako u příběhů) by tenhle případ nechytilo:
     sdílení přijde, když je aplikace na pozadí, takže položka i aktivita jsou zastavené obě.
   - **Na zařízení zatím neověřeno.** Reprodukce: podržet chat (nabídka otevřená), screenshot,

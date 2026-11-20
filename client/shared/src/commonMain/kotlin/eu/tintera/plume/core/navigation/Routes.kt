@@ -660,6 +660,29 @@ data class NewGroupMembersRoute(override val slot: AccountSlot = AccountSlot.Pri
 data class CreateChatRoute(override val slot: AccountSlot, val channel: Boolean, val memberChatIds: List<Long> = emptyList()) : AccountRoute
 
 /**
+ * Routa, kterou shell kreslí jako modální sheet NAD tím, co je pod ní (`SheetSceneStrategy`),
+ * ne jako obrazovku nebo panel. Sheet je destinací, jen když je místem sám o sobě: otevírá se
+ * z víc míst, jeho obsah popíše klíč a výsledek nevrací. Kontextová nabídka nebo krok akce
+ * destinací není — viz „Otevřený sheet je stav obrazovky" v `docs/poznatky/seznam-chatu.md`.
+ *
+ * V zásobníku stojí vždycky navrchu; pravidla nad zásobníkem (panely, čip sdílení) ho
+ * přeskakují (`withoutTrailingSheets`), jako by tam nebyl.
+ */
+sealed interface SheetRoute : Route
+
+/** Můj QR kód — z menu účtu v seznamu chatů i z karty účtu v Nastavení. Účet shellu, jako stránky Nastavení. */
+@Serializable
+data object MyQrCodeRoute : SheetRoute
+
+/** Přehled konceptů (menu účtu → Koncepty). */
+@Serializable
+data class DraftsRoute(override val slot: AccountSlot) : AccountRoute, SheetRoute
+
+/** Záložky zpráv: [chatId] `null` = ze všech chatů (menu účtu), jinak jednoho chatu (profil; [archive] = profil z větve archivu). */
+@Serializable
+data class BookmarksRoute(override val slot: AccountSlot, val chatId: Long? = null, val archive: Boolean = false) : AccountRoute, SheetRoute
+
+/**
  * Konfigurace pro ukládání navigačního zásobníku.
  *
  * **Každá nová routa se MUSÍ zaregistrovat níže.** `NavKey` je otevřená polymorfní hierarchie
@@ -746,6 +769,9 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())
             subclass(SwitchInlineRoute::class, SwitchInlineRoute.serializer())
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
+            subclass(MyQrCodeRoute::class, MyQrCodeRoute.serializer())
+            subclass(DraftsRoute::class, DraftsRoute.serializer())
+            subclass(BookmarksRoute::class, BookmarksRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())
             subclass(NewContactRoute::class, NewContactRoute.serializer())
             subclass(NewGroupMembersRoute::class, NewGroupMembersRoute.serializer())
