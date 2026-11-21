@@ -19,6 +19,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -43,7 +44,11 @@ class ReplySuggestionsViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private class FakeSettings(models: AiModels = AiModels()) : UnimplementedAppSettings() {
-        override val replySuggestionsEnabled: StateFlow<Boolean> = MutableStateFlow(true)
+        val enabled = MutableStateFlow(true)
+        override val replySuggestionsEnabled: StateFlow<Boolean> = enabled
+        override fun setReplySuggestionsEnabled(enabled: Boolean) {
+            this.enabled.value = enabled
+        }
         override val onDeviceAiModels: StateFlow<AiModels> = MutableStateFlow(models)
     }
 
@@ -126,6 +131,43 @@ class ReplySuggestionsViewModelTest {
         withNano.suggestForIncoming()
         advanceUntilIdle()
         assertEquals(listOf("Z textu"), withNano.suggestions.value)
+    }
+
+    /** Vypnutí z nabídky u čipů: čipy pryč hned, volba vypnutá, snackbar jednou; Vrátit ji zapne. */
+    @Test
+    fun vypnutiZNabidkyAVraceni() = runTest {
+        val settings = FakeSettings()
+        val viewModel = ReplySuggestionsViewModel(FakeAi(structured = null), settings)
+        viewModel.suggestForIncoming()
+        advanceUntilIdle()
+        assertEquals(listOf("Z textu"), viewModel.suggestions.value)
+
+        viewModel.turnOff()
+        assertEquals(emptyList(), viewModel.suggestions.value)
+        assertFalse(settings.enabled.value)
+        assertTrue(viewModel.turnedOff.value)
+
+        viewModel.consumeTurnedOff()
+        assertFalse(viewModel.turnedOff.value)
+
+        viewModel.turnOn()
+        assertTrue(settings.enabled.value)
+    }
+
+    /** „Skrýt návrhy": k téže zprávě se znovu nenabízí, dokud obrazovka nezavolá `clear`. */
+    @Test
+    fun skrytiDrziIdZpravy() = runTest {
+        val ai = FakeAi(structured = null)
+        val viewModel = ReplySuggestionsViewModel(ai, FakeSettings())
+        viewModel.suggestForIncoming()
+        advanceUntilIdle()
+
+        viewModel.consume()
+        viewModel.suggestForIncoming()
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), viewModel.suggestions.value)
+        assertEquals(1, ai.textCalls, "k téže zprávě se model znovu pouštět nemá")
     }
 
     @Test

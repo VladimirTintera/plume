@@ -207,6 +207,7 @@ fun ConversationScreen(
     val timeReveal = remember { Animatable(0f) }
 
     ConversationSnackbars(state, viewModel, snackbarHostState)
+    ReplySuggestionsTurnedOffSnackbar(replies, snackbarHostState)
 
     ConversationPaging(listState, viewModel, reachedEnd = state.reachedEnd)
 

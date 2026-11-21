@@ -1637,6 +1637,25 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
 - **Čipy, ne bublina v konverzaci.** Průsvitná „duchová" bublina na místě, kde by odpověď byla,
   vypadá jako odeslaná zpráva a jednou za čas by si někdo myslel, že už odešla. Tenhle vzor znají
   lidé z Gmailu a Google Zpráv.
+- **Skladba řádku: ✨ | návrhy | ×** (`ReplySuggestionChips`). ✨ vlevo říká, že text psal model,
+  a otevírá nabídku (Skrýt návrhy, Vypnout návrhy odpovědí); × vpravo schová návrhy k téhle zprávě
+  (`consume`, id zůstává, k další zprávě přijdou zase). Obojí stojí MIMO posun, aby bylo vidět
+  i se třemi dlouhými návrhy. Vypnutí z nabídky přepne tutéž volbu jako Nastavení a snackbar
+  řekne, kde se zapíná, s Vrátit (`turnedOff` / `turnOn`). Po Vrátit přijdou návrhy i k téže
+  zprávě: vypnutí shodí `available`, obrazovka zavolá `clear` a s ním zapomene id.
+  **Proč ne podržení čipu:** čip má vlastní klikání a druhé gesto nad ním by se s ním přetahovalo;
+  a podržení nikdo nehledá — ✨ je vidět.
+- **Plocha čipu je karta vstupního pole (`composerCardColor`), bez rámečku.** Dřív `groupRow`
+  i s obrysem výchozího `SuggestionChip`. Holé `surfaceContainerHigh` nejde: to je příchozí
+  bublina, a ta bývá hned nad polem. Barva karty čip spojuje s polem, kam se vloží. Text
+  `onSurface`, `onSurfaceVariant` je na kartě zašedlý.
+- **Čipy přicházejí postupně** (60 ms po sobě, od konce řádku, průhlednost effects spec, posun
+  spatial), klíčované sadou — nová sada přijde znovu postupně. **Šířka má strop 240 dp a text
+  jeden řádek s výpustkou**: dlouhý návrh by jinak zabral celý řádek a schoval ostatní. Okraj,
+  za kterým řada pokračuje, se prolíná (`horizontalFadingEdges`).
+- **Čtečka obrazovky** slyší u čipu „Vložit do zprávy" (`semantics { onClick(label) }`), ne holé
+  „aktivovat" — jinak nevidomý nepozná, že se nic neodešle. Řádek je `isTraversalGroup`, ✨ má
+  popis „Navržené odpovědi: možnosti" a čte se první.
 - **Krátká odpověď je RYCHLÁ.** Inference 0,2–0,4 s (měřeno v logu AICore mezi
   `CreateSessionWithSSV1` a `nativeUnload`), zatímco shrnutí 12–35 s. Rozdíl nedělá vstup, ale
   délka VÝSTUPU — našeptávání je tedy použitelné, i když shrnutí působí pomalu.
