@@ -2369,6 +2369,12 @@
     <string name="settings_on_device_ai_enable_summary">Chat summaries and reply suggestions are computed by a language model running on this device. Messages never leave it.</string>
     <string name="settings_reply_suggestions">Reply suggestions</string>
     <string name="settings_reply_suggestions_summary">Short replies are offered above the input field when a message arrives and you have not started typing.</string>
+    <string name="reply_suggestions_options">Suggested replies: options</string>
+    <string name="reply_suggestions_hide">Hide suggestions</string>
+    <string name="reply_suggestions_turn_off">Turn off reply suggestions</string>
+    <string name="reply_suggestions_turn_off_hint">Suggested by the model on this device</string>
+    <string name="reply_suggestions_turned_off">Reply suggestions are off. Turn them back on in Settings → On-device AI.</string>
+    <string name="reply_suggestion_insert">Insert into message</string>
     <string name="settings_scam_warnings">Scam warnings</string>
     <string name="chats_awaiting_reply">Awaiting your reply</string>
     <string name="awaiting_reply_hide">Hide overview</string>

@@ -2434,6 +2434,12 @@
     <string name="settings_on_device_ai_enable_summary">Shrnutí konverzace a návrhy odpovědí počítá jazykový model přímo v tomhle zařízení. Zprávy ho neopustí.</string>
     <string name="settings_reply_suggestions">Návrhy odpovědí</string>
     <string name="settings_reply_suggestions_summary">Nad vstupním polem se nabídnou krátké odpovědi, když přijde zpráva a nemáš nic rozepsaného.</string>
+    <string name="reply_suggestions_options">Navržené odpovědi: možnosti</string>
+    <string name="reply_suggestions_hide">Skrýt návrhy</string>
+    <string name="reply_suggestions_turn_off">Vypnout návrhy odpovědí</string>
+    <string name="reply_suggestions_turn_off_hint">Navrhuje je model přímo v zařízení</string>
+    <string name="reply_suggestions_turned_off">Návrhy odpovědí jsou vypnuté. Zapneš je v Nastavení → AI v zařízení.</string>
+    <string name="reply_suggestion_insert">Vložit do zprávy</string>
     <string name="settings_scam_warnings">Varování před podvodem</string>
     <string name="chats_awaiting_reply">Čeká na tvou odpověď</string>
     <string name="awaiting_reply_hide">Skrýt přehled</string>

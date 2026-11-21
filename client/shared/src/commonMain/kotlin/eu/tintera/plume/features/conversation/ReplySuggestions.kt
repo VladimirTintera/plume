@@ -187,11 +187,41 @@ class ReplySuggestionsViewModel(
         _suggestions.value = emptyList()
     }
 
-    /** Ťuknutí na čip: návrh se použil, další se k téže zprávě nenabízí. */
+    /**
+     * Ťuknutí na čip nebo „Skrýt návrhy": k téže zprávě se už nenabízí (id zůstává), k další
+     * zase ano.
+     */
     fun consume() {
         job?.cancel()
         job = null
         _suggestions.value = emptyList()
+    }
+
+    private val _turnedOff = MutableStateFlow(false)
+
+    /** Návrhy se právě vypnuly z nabídky u čipů; obrazovka ukáže snackbar s Vrátit. */
+    val turnedOff: StateFlow<Boolean> = _turnedOff.asStateFlow()
+
+    /**
+     * Vypnout návrhy z nabídky u čipů — tatáž volba jako v Nastavení → AI v zařízení. Čipy
+     * zmizí hned, ne až po přepnutí [available].
+     */
+    fun turnOff() {
+        consume()
+        settings.setReplySuggestionsEnabled(false)
+        _turnedOff.value = true
+    }
+
+    fun consumeTurnedOff() {
+        _turnedOff.value = false
+    }
+
+    /**
+     * Vrátit ze snackbaru. [available] se přepne zpátky, obrazovka zavolá [suggest] znovu,
+     * a protože mezitím při vypnutí proběhlo [clear], návrh přijde i k téže zprávě.
+     */
+    fun turnOn() {
+        settings.setReplySuggestionsEnabled(true)
     }
 
     private companion object {

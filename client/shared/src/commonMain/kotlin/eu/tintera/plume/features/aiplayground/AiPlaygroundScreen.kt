@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AssistChip
+import eu.tintera.plume.core.ui.ExpressiveAssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -33,7 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SuggestionChip
+import eu.tintera.plume.core.ui.ExpressiveSuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -191,7 +191,7 @@ fun AiPlaygroundScreen(viewModel: AiPlaygroundViewModel, onBack: () -> Unit) {
                     ) {
                         SUGGESTIONS.forEach { suggestion ->
                             val text = stringResource(suggestion)
-                            SuggestionChip(onClick = { viewModel.send(text) }, label = { Text(text) })
+                            ExpressiveSuggestionChip(onClick = { viewModel.send(text) }, label = { Text(text) })
                         }
                     }
                 },
@@ -218,7 +218,7 @@ private fun ModelChip(
     var expanded by remember { mutableStateOf(false) }
     val check: @Composable () -> Unit = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
     Box {
-        AssistChip(
+        ExpressiveAssistChip(
             onClick = {
                 onOpen()
                 expanded = true

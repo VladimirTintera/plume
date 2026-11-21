@@ -354,6 +354,8 @@ abstract class VerifyButtonShapes : VerifyMaterialShapes() {
  * pilulka, stisknutý 8 dp). Žádné z dvaceti volání `FilterChip` ani `InputChip` je nemělo,
  * takže vedle morfujících tlačítek působily čipy jako nedodělek. Kontrola chce `shapes`
  * u `FilterChip`/`ElevatedFilterChip`/`InputChip` z material3 — jen ty ho v knihovně mají.
+ * `AssistChip` a `SuggestionChip` ho nemají, ty jdou přes `ExpressiveAssistChip`
+ * / `ExpressiveSuggestionChip` (core/ui/ExpressiveChips.kt) a holé volání z material3 je nález.
  */
 abstract class VerifyChipShapes : VerifyMaterialShapes() {
     init {
@@ -361,9 +363,27 @@ abstract class VerifyChipShapes : VerifyMaterialShapes() {
     }
 
     override fun failureMessage() =
-        "Čip mění tvar při stisku a výběru: shapes = FilterChipDefaults.shapes() / InputChipDefaults.shapes()."
+        "Čip mění tvar při stisku a výběru: shapes = FilterChipDefaults.shapes() / InputChipDefaults.shapes(), " +
+            "AssistChip / SuggestionChip přes ExpressiveAssistChip / ExpressiveSuggestionChip (core/ui)."
 
     override fun components() = listOf("FilterChip", "ElevatedFilterChip", "InputChip")
+
+    private val bare = listOf("AssistChip", "ElevatedAssistChip", "SuggestionChip", "ElevatedSuggestionChip")
+    private val bareCall = Regex("""(?<![\w.])(${bare.joinToString("|")})\(""")
+
+    override fun offenders(file: File, path: String): List<String> {
+        val withoutShapes = super.offenders(file, path)
+        if (file.name == "ExpressiveChips.kt") return withoutShapes
+        val text = file.readText()
+        val imported = bare.filter { "import androidx.compose.material3.$it\n" in text }.toSet()
+        if (imported.isEmpty()) return withoutShapes
+        return withoutShapes + text.lines().mapIndexedNotNull { index, line ->
+            val code = line.trim()
+            if (code.startsWith("//") || code.startsWith("*") || code.startsWith("import ")) return@mapIndexedNotNull null
+            val name = bareCall.find(code)?.groupValues?.get(1)?.takeIf { it in imported } ?: return@mapIndexedNotNull null
+            "$path:${index + 1}: $name z material3 bez tvaru při stisku"
+        }
+    }
 }
 
 /**

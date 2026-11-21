@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.AssistChip
+import eu.tintera.plume.core.ui.ExpressiveAssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +50,7 @@ internal fun EphemeralFooter(
         // Čip u zprávy, štítek za ním — u odchozí zrcadlově (jako komentáře pod příspěvkem).
         if (isOutgoing) EphemeralLabel(label)
         if (ephemeral.replacesOriginal) {
-            AssistChip(
+            ExpressiveAssistChip(
                 onClick = onShowOriginal,
                 label = { Text(stringResource(Res.string.ephemeral_show_original)) },
                 leadingIcon = {

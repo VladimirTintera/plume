@@ -1309,7 +1309,7 @@ private fun inputIconColor() = strongestAccentOn(
  * bubliny a pole by vypadalo jako rozepsaná zpráva. Viz [tintedSurface].
  */
 @Composable
-private fun composerCardColor(): Color = tintedSurface(
+internal fun composerCardColor(): Color = tintedSurface(
     surface = MaterialTheme.colorScheme.surfaceContainerHigh,
     tint = MaterialTheme.colorScheme.primaryContainer,
 )

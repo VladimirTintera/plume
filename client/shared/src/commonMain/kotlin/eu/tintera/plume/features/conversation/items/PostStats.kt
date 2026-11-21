@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.AssistChip
+import eu.tintera.plume.core.ui.ExpressiveAssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -115,7 +115,7 @@ internal fun CommentsChip(
     modifier: Modifier = Modifier,
     commenters: List<SenderInfo> = emptyList(),
 ) {
-    AssistChip(
+    ExpressiveAssistChip(
         onClick = onClick,
         label = {
             Text(
