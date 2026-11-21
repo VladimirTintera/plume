@@ -1549,18 +1549,21 @@ a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
   - ~~**Kamera a mikrofon na desktopu**~~ — přes `mediaQuery` nejde (viz výš). Kolečka desktop
     stejně nenabízí (`rememberVideoNoteCamera() = null`); hlasovka bez mikrofonu by se musela
     poznat z `javax.sound` (`AudioSystem.getTargetLineInfo`), ne odsud.
-  - **Skládačka napůl otevřená (tabletop), jen Android:** prohlížeč videa je hotový (video nad
-    pantem, ovládání pod ním; `rememberTabletopHinge` z `windowPosture` material3 adaptive, ne
-    z `mediaQuery`, ten polohu pantu nedává — viz `docs/poznatky/prohlizec-medii.md`, „Video").
-    Zbývá **hovor** (obraz protějšku nahoře, tlačítka dole).
+  - ~~**Skládačka napůl otevřená (tabletop), jen Android**~~ — hotovo: prohlížeč videa i hovor
+    (obraz nebo fotka nad pantem, ovládání pod ním; `rememberTabletopHinge` z `windowPosture`
+    material3 adaptive, ne z `mediaQuery`, ten polohu pantu nedává). Viz
+    `docs/poznatky/prohlizec-medii.md`, „Video", a `docs/poznatky/hovory.md`. Na zařízení
+    neověřený zůstává videohovor v té poloze.
   - **Přesnost ukazatele:** na desktopu pevně `Fine`, takže přínos jen na Androidu (tablet s myší,
     Chromebook) a nejasně na iOS. Dílčí kontroly (`HorizontalSwipe`, `MessageFrame`, prohlížeč,
     `ViewerControls`) se čtou z typu ukazatele u události, a to funguje všude — výměnu nedělat,
     dokud API zůstává experimentální.
-- **Odrážky v `AnnotatedString` (`Bullet`, `withBulletList` / `withBulletListItem`)**: seznamy
-  v článcích (Instant View) kreslí `RichMessageBody.kt` znakem „•" v textu, takže se víceřádková
-  položka zalomí pod odrážku, ne pod text. `Bullet` dá odsazení s visící odrážkou; v jaru
-  `ui-text` 1.13 ověřené, chování na všech platformách ne.
+- **Visící odsazení položek seznamu v článcích — zkoušeno, zatím nejde bez kompromisu.**
+  Víceřádková položka se zalomí pod odrážku („•", „1.", „☑" jsou znaky v textu z
+  `RichMessageBody.kt`). `Bullet` i vlastní `ParagraphStyle(textIndent)` na položku narazí na
+  prázdný řádek na každé hranici odstavce; jediné řešení bez něj (`\n` → znak nulové šířky
+  ve vykresleném textu) by rozbilo kopírování výběru a citaci z výběru. Podrobnosti a pokusy:
+  `docs/poznatky/konverzace-zobrazeni.md`, „Odsazení textu uvnitř zprávy".
 - **Desktop: rychlejší start (AppCDS / AOT)** — Compose Gradle plugin 1.13 to má jako
   `buildTypes.release.aot { mode = AotMode.AppCdsPrebuild }` (také `AppCdsAuto`, `AotPrebuild`;
   třídy v `org.jetbrains.compose.desktop.application.dsl`). Zjištěno při pokusu o integraci:
