@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -9,16 +11,12 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import eu.tintera.plume.core.telegram.ComposedText
 import eu.tintera.plume.core.telegram.FormatSpan
@@ -256,14 +254,18 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
 internal fun rememberComposerDraft(): ComposerDraft = rememberSaveable(saver = ComposerDraft.Saver) { ComposerDraft() }
 
 /**
- * Nakreslí formátování v poli. Text se nemění ([OffsetMapping.Identity]), jen se obarví.
+ * Nakreslí formátování v poli. Text se nemění, jen se obarví: styly přidá [OutputTransformation]
+ * přes `addStyle`, takže kurzor a výběr jdou po textu tak, jak leží v konceptu.
  *
  * **Spoiler se v poli neskrývá** — pisatel musí vidět, co píše. Pozná se podle podkladu, stejně
  * jako odkrytý spoiler ve zprávě. Kód má podklad a strojové písmo, citace tónovaný podklad
  * (`drawQuoteBlocks` s pásem přes celou šířku je jen ve zprávě; v poli by se musel počítat
  * z layoutu, který si pole drží samo).
+ *
+ * `data class` proto, aby pole poznalo stejné formátování z minulé kompozice a nepřepočítávalo
+ * výstup (rovnost hodnot, ne instancí).
  */
-internal class FormattingTransformation(
+internal data class FormattingTransformation(
     private val formats: List<FormatSpan>,
     private val contentColor: Color,
     private val accentColor: Color,
@@ -273,15 +275,11 @@ internal class FormattingTransformation(
      * ujel; pak zůstane vidět obyčejné emoji.
      */
     private val hideCustomEmoji: Boolean = false,
-) : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        if (formats.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
-        val styled = AnnotatedString.Builder(text).apply {
-            formats.within(text.length).forEach { span ->
-                span.format.fieldStyle()?.let { addStyle(it, span.start, span.end) }
-            }
-        }.toAnnotatedString()
-        return TransformedText(styled, OffsetMapping.Identity)
+) : OutputTransformation {
+    override fun TextFieldBuffer.transformOutput() {
+        formats.within(length).forEach { span ->
+            span.format.fieldStyle()?.let { addStyle(it, span.start, span.end) }
+        }
     }
 
     private fun TextFormat.fieldStyle(): SpanStyle? = when (this) {
@@ -298,15 +296,6 @@ internal class FormattingTransformation(
         // Průhledná barva skryje i barevné emoji: písmo emoji kreslí přes barvu s její alfou.
         TextFormat.CustomEmoji -> if (hideCustomEmoji) SpanStyle(color = Color.Transparent) else null
     }
-
-    // `VisualTransformation` pole porovnává, aby nepřepočítávalo text při každé kompozici.
-    override fun equals(other: Any?): Boolean =
-        other is FormattingTransformation && other.formats == formats &&
-            other.contentColor == contentColor && other.accentColor == accentColor &&
-            other.hideCustomEmoji == hideCustomEmoji
-
-    override fun hashCode(): Int =
-        ((formats.hashCode() * 31 + contentColor.hashCode()) * 31 + accentColor.hashCode()) * 31 + hideCustomEmoji.hashCode()
 }
 
 /** Podklad spoileru v poli — výraznější než kód, aby se ty dva nepletly i bez strojového písma. */

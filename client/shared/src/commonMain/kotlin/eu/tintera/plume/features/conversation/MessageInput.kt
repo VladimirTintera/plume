@@ -85,6 +85,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import eu.tintera.plume.core.ui.rememberSyncedTextFieldState
 import eu.tintera.plume.core.ui.ClipboardMediaKind
 import eu.tintera.plume.core.ui.ClipboardPasteSuggestion
 import eu.tintera.plume.core.ui.KeyboardContent
@@ -94,7 +96,6 @@ import androidx.compose.ui.semantics.contentDescription
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.input.VisualTransformation
 import eu.tintera.plume.features.conversation.items.WavyShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -118,7 +119,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.animation.core.animateFloat
@@ -323,6 +323,16 @@ internal fun MessageInput(
     var fieldViewport by remember { mutableStateOf(0) }
     val hasCustomEmoji = composer.formats.any { it.format == TextFormat.CustomEmoji }
     val customEmojiShown = hasCustomEmoji && customEmojiOverlayFits(fieldLayout, fieldViewport)
+    /*
+     * Stav pole svázaný s konceptem i s výběrem: koncept vkládá zmínky a emoji na kurzor a podle
+     * výběru zapíná formátování, proto ho potřebuje znát. Pohyb kurzoru jde ven taky, ale
+     * „píše…" a uložení konceptu jen při změně textu.
+     */
+    val fieldState = rememberSyncedTextFieldState(draft) { value ->
+        val changed = value.text != draft.text
+        draft = value
+        if (changed) field.onDraftChanged(composer.composed)
+    }
     val formatting = FormattingTransformation(
         formats = composer.formats,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -684,13 +694,7 @@ internal fun MessageInput(
                 onError = keyboardContent.onFailed,
             ) {
                 BasicTextField(
-                    value = draft,
-                    onValueChange = {
-                        val changed = it.text != draft.text
-                        draft = it
-                        // Pohyb kurzoru nebo výběr taky volá `onValueChange`; psaní to není.
-                        if (changed) field.onDraftChanged(composer.composed)
-                    },
+                    state = fieldState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = TextFieldDefaults.MinHeight)
@@ -737,11 +741,11 @@ internal fun MessageInput(
                             }
                             true
                         },
-                    visualTransformation = formatting,
-                    onTextLayout = { fieldLayout = it },
+                    outputTransformation = formatting,
+                    onTextLayout = { result -> fieldLayout = result() },
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    maxLines = 6,
+                    lineLimits = FIELD_LINE_LIMITS,
                     interactionSource = fieldInteraction,
                     keyboardOptions = KeyboardOptions(
                         // Zpráva jsou věty, ne jedno slovo: klávesnice má po tečce nabídnout velké
@@ -749,24 +753,17 @@ internal fun MessageInput(
                         capitalization = KeyboardCapitalization.Sentences,
                         imeAction = ImeAction.Send,
                     ),
-                    keyboardActions = KeyboardActions(
-                        onSend = {
-                            send.onSend(composer.composed, SendOptions())
-                            draft = TextFieldValue()
-                        },
-                    ),
-                    decorationBox = { innerTextField ->
-                        TextFieldDefaults.DecorationBox(
-                            value = draft.text,
-                            innerTextField = {
-                                Box(Modifier.onSizeChanged { fieldViewport = it.height }) {
-                                    innerTextField()
-                                    if (customEmojiShown) CustomEmojiOverlay(fieldLayout, composer.formats)
-                                }
-                            },
+                    // Jediná akce klávesnice je Odeslat (`imeAction`), takže handler nemusí rozlišovat.
+                    onKeyboardAction = {
+                        send.onSend(composer.composed, SendOptions())
+                        draft = TextFieldValue()
+                    },
+                    decorator = { innerTextField ->
+                        TextFieldDefaults.decorator(
+                            state = fieldState,
                             enabled = true,
-                            singleLine = false,
-                            visualTransformation = VisualTransformation.None,
+                            lineLimits = FIELD_LINE_LIMITS,
+                            outputTransformation = formatting,
                             interactionSource = fieldInteraction,
                             // S přílohami je text jejich popisek.
                             // Nápověda od bota platí jen pro zprávu; popisek příloh je jiná věc.
@@ -789,7 +786,12 @@ internal fun MessageInput(
                                 end = FIELD_ICON_GAP,
                             ),
                             container = {},
-                        )
+                        ).Decoration {
+                            Box(Modifier.onSizeChanged { fieldViewport = it.height }) {
+                                innerTextField()
+                                if (customEmojiShown) CustomEmojiOverlay(fieldLayout, composer.formats)
+                            }
+                        }
                     },
                 )
             }
@@ -1270,6 +1272,9 @@ private val ComposerShape = RoundedCornerShape(24.dp)
 
 /** Odsazení textu od ikony vedle pole — glyf má v 48dp tlačítku kolem sebe svých 12 dp. */
 private val FIELD_ICON_GAP = 4.dp
+
+/** Pole roste nejvýš na šest řádků, pak roluje. */
+private val FIELD_LINE_LIMITS = TextFieldLineLimits.MultiLine(maxHeightInLines = 6)
 
 /** Půlperioda dýchání tlačítka při nahrávání. */
 private const val RECORDING_BREATH_MS = 900

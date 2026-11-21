@@ -426,10 +426,10 @@ before authorization":
   pořadí, na které je uživatel zvyklý z jiných klientů, tady je to náhodná řada.
 - **Maska se ukazuje jen po poslední zadanou číslici** (`formatNationalNumber`). „777 --- ---"
   vypadá jako rozbité pole.
-- **Hodnotou pole jsou syrové číslice, oddělovače dodává `VisualTransformation`.** S naformátovanou
-  hodnotou by kurzor skákal pokaždé, když formátování vloží mezeru. Mapování pozic je pokryté
-  testy (`PhoneEntryTest`) — chyba v něm se na zařízení pozná až skákajícím kurzorem, což se
-  při klikání přehlédne.
+- **Hodnotou pole jsou syrové číslice, oddělovače dodává `OutputTransformation`**
+  (`PhoneNumberTransformation`). S naformátovanou hodnotou by kurzor skákal pokaždé, když
+  formátování vloží mezeru. Polohy oddělovačů jsou pokryté testy (`PhoneEntryTest`) — chyba
+  v nich se na zařízení pozná až skákajícím kurzorem, což se při klikání přehlédne.
 - **Nesedící maska transformaci vypne.** Než po změně země dorazí přeformátování, je na jeden
   snímek maska od předchozí země; pole, které ukazuje jiné číslo, než v něm je, by bylo horší
   než pole bez mezer.

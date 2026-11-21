@@ -1522,11 +1522,6 @@ Compose Multiplatform 1.13.0-rc01 opravil několik věcí, kvůli kterým projek
 (přepis jaru insetů na desktopu, `RootTooltipBox`, `readString`); všechny tři jsou pryč. Až vyjde
 stabilní 1.13.0, zvednout z RC.
 
-- **Vstupní pole zpráv na `TextFieldState`** — poslední část převodu textových polí po Compose
-  1.13 (ostatní hotové, viz `docs/poznatky/nastaveni.md`, „Textová pole se stavem"):
-  `BasicTextField(TextFieldValue)` v `MessageInput` a formátování přes `VisualTransformation`
-  v `ComposerDraft`. Nejcitlivější místo aplikace (formátování, zmínky, koncepty, IME) — s
-  ověřením na zařízení. Zatím jen varování; zastaralá varianta funguje.
 - **ai-engine kompiluje proti `compileSdk` 37.0**, Plume proti 37.2 (Compose 1.13 chce 37.1+).
   Až ai-engine převezme Compose 1.13, sjednotit a z CI vyhodit `platforms;android-37.0`.
 

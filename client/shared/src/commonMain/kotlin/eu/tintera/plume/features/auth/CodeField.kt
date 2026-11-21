@@ -47,7 +47,7 @@ import eu.tintera.plume.core.ui.tabularNumbers
 /**
  * Zadání číselného kódu: jedno políčko na číslici.
  *
- * **Uvnitř je JEDNO pole, políčka jsou jen dekorace** (`decorationBox`), ne [digits] samostatných
+ * **Uvnitř je JEDNO pole, políčka jsou jen dekorace** (`decorator`), ne [digits] samostatných
  * `TextField`ů. Řada polí znamená přehazovat fokus po každém úhozu, ručně řešit backspace přes
  * hranici políčka a hlavně přijít o vložení ze schránky i o autofill — celý kód by spadl do
  * prvního políčka. S jedním polem to všechno zůstává, jak to platforma umí sama.
