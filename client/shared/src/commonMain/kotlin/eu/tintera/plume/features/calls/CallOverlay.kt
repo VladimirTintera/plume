@@ -536,13 +536,18 @@ private fun CallScreen(
                     }
                 },
                 bottom = {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
+                    // Strop šířky až na vnitřním sloupci: `widthIn(max)` za `fillMaxSize` nic
+                    // nezúží a tlačítka se na rozloženém Foldu rozjela přes celou šířku.
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .fillMaxSize()
                             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 16.dp),
+                    ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
                             .widthIn(max = ContentWidth.Form)
                             .verticalScroll(rememberScrollState()),
                     ) {
@@ -558,6 +563,7 @@ private fun CallScreen(
                         }
                         Spacer(Modifier.height(16.dp))
                         controlPanel()
+                    }
                     }
                 },
             )
