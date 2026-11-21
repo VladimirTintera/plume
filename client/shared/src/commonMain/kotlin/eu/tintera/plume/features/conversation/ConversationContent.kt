@@ -59,7 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
@@ -76,8 +75,6 @@ import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.LocalMessageTextSize
 import eu.tintera.plume.core.ui.LocalSharedElementClip
 import eu.tintera.plume.core.ui.SharedElementClip
-import eu.tintera.plume.core.ui.SwipeDirection
-import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import eu.tintera.plume.core.ui.rememberShownConnection
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedElementClipArea
@@ -132,6 +129,7 @@ internal fun BoxScope.ConversationContent(
     val photoDescriptions by viewModel.photoDescriptions.collectAsStateWithLifecycle()
     val revealMax = with(LocalDensity.current) { TIME_COLUMN_WIDTH.toPx() }
     val revealSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val timesPin = remember { TimesPin() }
     when {
         /*
          * Omezený celý chat: místo zpráv jen důvod od serveru. Stojí PŘED načítáním —
@@ -217,6 +215,8 @@ internal fun BoxScope.ConversationContent(
          * gesto propadne sem. Svislý scroll má přednost: seznam je potomek, dostane
          * události dřív a jeho spotřebování tenhle detektor zruší — a detektor se
          * rozhoduje až po delším a výrazně vodorovném pohybu (`detectHorizontalSwipe`).
+         * Zafixované časy schovává tah doprava, a ten si seznam bere DŘÍV než bublina
+         * (viz [revealTimesSwipe]).
          */
         else -> Box(
             Modifier
@@ -246,23 +246,18 @@ internal fun BoxScope.ConversationContent(
                 )
                 // Štípnutí mění velikost písma zpráv; jeden prst ani scroll nebere.
                 .messageTextPinch(textZoom, haptics)
-                .pointerInput(revealMax) {
-                    detectHorizontalSwipe(
-                        direction = SwipeDirection.Left,
-                        // Na desktopu patří tah myší výběru textu; čas ukáže najetí na zprávu.
-                        mouse = !bubbleTextSelectable,
-                        onEnd = {
-                            gestureHints.used(GestureHint.RevealTimes)
-                            scope.launch { timeReveal.animateTo(0f, revealSpec) }
-                        },
-                    ) { delta ->
-                        scope.launch {
-                            // Jen doleva a jen po šířku sloupce s časy; dál už není co
-                            // odkrývat a gumové tahání by jen mátlo.
-                            timeReveal.snapTo((timeReveal.value - delta).coerceIn(0f, revealMax))
-                        }
-                    }
-                },
+                // Tah doleva odkryje časy, podržení je zafixuje, tah doprava schová.
+                .revealTimesSwipe(
+                    timeReveal = timeReveal,
+                    revealMax = revealMax,
+                    pin = timesPin,
+                    spec = revealSpec,
+                    scope = scope,
+                    haptics = haptics,
+                    // Na desktopu patří tah myší výběru textu; čas ukáže najetí na zprávu.
+                    mouse = !bubbleTextSelectable,
+                    onUsed = { gestureHints.used(GestureHint.RevealTimes) },
+                ),
         ) {
           // Popisy fotek z „Popsat fotku" dostane čtečka obrazovky místo slova „Fotka".
           // Přílohy jdou myší vytáhnout ven (desktop), jen z chatu, který obsah nechrání.

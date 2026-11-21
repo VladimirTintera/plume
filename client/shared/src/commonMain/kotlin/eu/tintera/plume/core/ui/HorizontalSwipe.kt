@@ -71,18 +71,39 @@ internal suspend fun PointerInputScope.detectHorizontalSwipe(
     onEnd: (released: Boolean) -> Unit,
     mouse: Boolean = true,
     onDrag: (Float) -> Unit,
+) = detectHorizontalSwipe(direction = { direction }, beforeChildren = { false }, onEnd, mouse, onDrag)
+
+/**
+ * Totéž, jen se [direction] a [beforeChildren] čtou znovu na začátku KAŽDÉHO tahu — gesto tak
+ * může měnit chování podle stavu, aniž by se `pointerInput` restartoval (restart by rozjetý tah
+ * zrušil a zavolal [onEnd]).
+ *
+ * [beforeChildren] `true` = o tahu se rozhoduje ve fázi `Initial`, tedy DŘÍV než potomci.
+ * Zafixované časy v konverzaci se schovávají tahem doprava, a ten nad bublinou jinak vyhraje
+ * odpověď swipem: bublina je potomek, dostane událost ve fázi `Main` dřív než seznam a obě
+ * gesta se rozhodují na stejném prahu. Spotřebování se dál kontroluje ve fázi `Final`, takže
+ * svislý scroll seznamu má přednost i tak.
+ */
+internal suspend fun PointerInputScope.detectHorizontalSwipe(
+    direction: () -> SwipeDirection,
+    beforeChildren: () -> Boolean,
+    onEnd: (released: Boolean) -> Unit,
+    mouse: Boolean = true,
+    onDrag: (Float) -> Unit,
 ) {
     val slop = viewConfiguration.touchSlop * SWIPE_SLOP_MULTIPLIER
     awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
+        val pass = if (beforeChildren()) PointerEventPass.Initial else PointerEventPass.Main
+        val down = awaitFirstDown(requireUnconsumed = false, pass = pass)
         if (!mouse && down.type == PointerType.Mouse) return@awaitEachGesture
+        val swipeDirection = direction()
         var total = Offset.Zero
         // Fáze rozhodování: jen se sleduje.
         while (true) {
-            val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
+            val change = awaitPointerEvent(pass).changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
             if (!change.pressed || change.isConsumed) return@awaitEachGesture
             total += change.positionChange()
-            when (horizontalSwipeDecision(total.x, total.y, slop, direction)) {
+            when (horizontalSwipeDecision(total.x, total.y, slop, swipeDirection)) {
                 SwipeDecision.Undecided -> {
                     awaitPointerEvent(PointerEventPass.Final)
                     if (change.isConsumed) return@awaitEachGesture
@@ -99,7 +120,7 @@ internal suspend fun PointerInputScope.detectHorizontalSwipe(
         var released = false
         try {
             while (true) {
-                val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                val change = awaitPointerEvent(pass).changes.firstOrNull { it.id == down.id } ?: break
                 if (!change.pressed) {
                     released = true
                     break

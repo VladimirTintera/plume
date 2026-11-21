@@ -776,7 +776,7 @@ obrazovku.
 - **Jakmile vibruje všechno, přestane cokoli znamenat** — totéž pravidlo jako u tvarů. Proto
   **odkrývání časů tahem haptiku NEMÁ**: na rozdíl od archivace a odpovědi tahem tam žádný práh
   „při puštění se něco stane" není, odkrytí je vidět hned a buzení při každém nahlédnutí by byl
-  jen šum.
+  jen šum. Ozve se až ZAFIXOVÁNÍ časů podržením — to vidět není.
 - **Potvrzení se hlásí při ŤUKNUTÍ, ne po odpovědi serveru.** Odezva patří ke gestu; kdyby čekala
   na potvrzení odeslání, přišla by po stovkách milisekund a necítila by se jako reakce na stisk.
 - **iOS je hrubší, než se ze seznamu typů zdá.** `CupertinoHapticFeedback` mapuje celou sadu na
