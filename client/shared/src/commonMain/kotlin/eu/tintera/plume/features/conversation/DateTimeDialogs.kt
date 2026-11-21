@@ -7,8 +7,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TimePickerDialog
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.TimeScroll
+import androidx.compose.material3.VibrantTimePickerDialog
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -77,19 +82,30 @@ internal fun TimeOfDayDialog(title: String, initial: Long, onPick: (hour: Int, m
     TimeOfDayDialog(title = title, hour = start.hour, minute = start.minute, onPick = onPick, onDismiss = onDismiss)
 }
 
-/** Hodina a minuta bez data — výchozí [hour]:[minute]. */
+/**
+ * Hodina a minuta bez data — výchozí [hour]:[minute].
+ *
+ * Expresivní výběr s kolečky (`TimeScroll` ve `VibrantTimePickerDialog`, material3 1.13), ne
+ * ciferník: hodina a minuta se točí každá zvlášť a jde to i kolečkem myši. Dialog vlastní nadpis
+ * nemá, nese ho první řádek obsahu stylem nadpisu klasického `TimePickerDialog` (`labelMedium`).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TimeOfDayDialog(title: String, hour: Int, minute: Int, onPick: (hour: Int, minute: Int) -> Unit, onDismiss: () -> Unit) {
     val state = rememberTimePickerState(initialHour = hour, initialMinute = minute)
-    TimePickerDialog(
+    VibrantTimePickerDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
         confirmButton = {
             TextButton(onClick = { onPick(state.hour, state.minute) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.search_filter_apply)) }
         },
         dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     ) {
-        TimePicker(state = state)
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 20.dp),
+        )
+        TimeScroll(state = state, shapes = TimePickerDefaults.shapes())
     }
 }

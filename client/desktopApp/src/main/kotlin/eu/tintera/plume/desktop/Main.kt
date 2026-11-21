@@ -64,6 +64,13 @@ fun main(args: Array<String>) {
     // mimo haldu). Na počítači s 8 GB by po prvním shrnutí přestaly hrát hlasovky i video
     // (`OutOfMemoryError: Physical memory usage is too high`). Musí být před první třídou JavaCPP.
     System.setProperty("org.bytedeco.javacpp.maxPhysicalBytes", "0")
+    // Plynulá změna velikosti okna (Compose 1.13, Skiko): bez toho Metal na macOS a Direct3D
+    // na Windows při tahu za okraj dokreslují obsah opožděně a okno „plave". Plume při zúžení
+    // přepíná jeden a dva panely, takže je to vidět. Výchozí to má být až v pozdější verzi;
+    // vlastnost z příkazové řádky (`-D…=false`) má přednost. Musí být před vznikem okna.
+    for (property in LIVE_RESIZE_PROPERTIES) {
+        if (System.getProperty(property) == null) System.setProperty(property, "true")
+    }
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
     // Jazyk aplikace, jestli si ho uživatel zvolil — dřív, než se přečte první text.
@@ -238,3 +245,9 @@ private const val FULLSCREEN_EXIT_POLL_MS = 50L
 
 /** Jméno aplikace, ne text k překladu — stejné v každém jazyce. */
 private const val APP_NAME = "Plume"
+
+/** Synchronní překreslení při tahu za okraj okna, viz `main`. */
+private val LIVE_RESIZE_PROPERTIES = listOf(
+    "skiko.rendering.macos.metalSynchronousLiveResize",
+    "skiko.rendering.windows.direct3DSynchronousLiveResize",
+)

@@ -42,6 +42,11 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import eu.tintera.plume.core.adaptive.rememberTabletopHinge
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -798,6 +803,18 @@ internal fun VideoPage(
         }
     }
 
+    /*
+     * Skládačka na stole (napůl otevřená, pant vodorovně): video v půlce nad pantem, která stojí,
+     * ovládání uprostřed ležící půlky pod ním — jako YouTube nebo Fotky Google na Foldu. Jen na celé
+     * obrazovce; v galerii a v obrazu v obraze se nic nemění. Pant je v souřadnicích okna, stránka
+     * si svou polohu v okně zapisuje při umístění (posun pageru do strany ji nemění).
+     */
+    val hinge = rememberTabletopHinge()?.takeIf { immersive && !inPip }
+    var pageTop by remember { mutableFloatStateOf(0f) }
+    var pageHeight by remember { mutableIntStateOf(0) }
+    val tabletopTop = hinge?.let { (it.top - pageTop).roundToInt() }?.takeIf { it in 1 until pageHeight }
+    val tabletopBottom = hinge?.let { (it.bottom - pageTop).roundToInt() }?.takeIf { tabletopTop != null }
+
     MediaPageLayout(
         aspectRatio = aspectRatio,
         caption = caption,
@@ -806,7 +823,15 @@ internal fun VideoPage(
         immersion = immersion,
         captionAlpha = placement.captionAlpha,
         cardBias = placement.cardBias,
+        tabletopSplit = { tabletopTop },
         modifier = modifier
+            // Před posunem tahem (`offset` níž), ať se poloha stránky při zavírání tahem nemění.
+            .onPlaced { coordinates ->
+                if (hinge != null) {
+                    pageTop = coordinates.positionInWindow().y
+                    pageHeight = coordinates.size.height
+                }
+            }
             .pointerInput(Unit) {
                 // Jen svislý tah (zavírání); vodorovný se nekonzumuje a patří pageru.
                 awaitEachGesture {
@@ -962,15 +987,32 @@ internal fun VideoPage(
                     visible = immersive && loaded && controlsVisible && !inPip && !locked,
                     enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                     exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                    modifier = Modifier.align(Alignment.BottomCenter),
+                    modifier = if (tabletopBottom != null) {
+                        // Skládačka na stole: uprostřed ležící půlky pod pantem, obraz nezakrývá.
+                        val below = with(LocalDensity.current) { (pageHeight - tabletopBottom).coerceAtLeast(0).toDp() }
+                        Modifier
+                            .align(Alignment.TopCenter)
+                            .offset { IntOffset(0, tabletopBottom) }
+                            .height(below)
+                            .wrapContentHeight(Alignment.CenterVertically)
+                    } else {
+                        Modifier.align(Alignment.BottomCenter)
+                    },
                 ) {
                     BoxWithConstraints(
                         Modifier
                             .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
-                                ),
+                            .then(
+                                // Pod pantem leží ovládání na černé, ne přes obraz — přechod netřeba.
+                                if (tabletopBottom != null) {
+                                    Modifier
+                                } else {
+                                    Modifier.background(
+                                        Brush.verticalGradient(
+                                            listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
+                                        ),
+                                    )
+                                },
                             )
                             /*
                              * Ovládání se ukazuje jen na celé obrazovce, kde karta sahá až ke spodní
