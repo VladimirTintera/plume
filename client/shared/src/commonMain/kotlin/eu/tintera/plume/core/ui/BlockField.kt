@@ -1,6 +1,14 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.SecureTextField
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.text.input.TextObfuscationMode
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -37,8 +45,6 @@ import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_input_password
@@ -102,19 +108,38 @@ fun PasswordField(
     fieldModifier: Modifier = Modifier,
 ) {
     var revealed by rememberSaveable { mutableStateOf(false) }
-    BlockTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = placeholder,
-        isError = isError,
-        keyboardType = KeyboardType.Password,
-        contentType = contentType,
-        imeAction = imeAction,
-        onSubmit = onSubmit,
-        onNext = onNext,
-        fieldModifier = fieldModifier,
-        visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
-    ) {
+    val state = rememberSyncedTextFieldState(value, onValueChange)
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    BlockSurface(isError = isError, focused = focused) {
+        /*
+         * `SecureTextField` (stav pole), ne `TextField` s `PasswordVisualTransformation`: ta je od
+         * Compose 1.13 zastaralá. Skryté heslo má výchozí chování systému (na telefonu chvíli
+         * ukáže poslední napsaný znak), oko ho odkryje celé.
+         */
+        SecureTextField(
+            state = state,
+            placeholder = { Text(stringResource(placeholder)) },
+            isError = isError,
+            textObfuscationMode = if (revealed) TextObfuscationMode.Visible else TextObfuscationMode.System,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                imeAction = imeAction,
+                autoCorrectEnabled = false,
+            ),
+            onKeyboardAction = { performDefault ->
+                when (imeAction) {
+                    ImeAction.Next -> onNext?.invoke() ?: performDefault()
+                    else -> onSubmit()
+                }
+            },
+            textStyle = MaterialTheme.typography.headlineSmall,
+            colors = transparentFieldColors(),
+            interactionSource = interaction,
+            modifier = fieldModifier
+                .weight(1f)
+                .semantics { this.contentType = contentType },
+        )
         IconButton(
             onClick = { revealed = !revealed },
             modifier = Modifier.padding(end = 4.dp),
@@ -132,6 +157,56 @@ fun PasswordField(
         }
     }
 }
+
+/**
+ * Stav pole ([TextFieldState]) svázaný s hodnotou zvenku: psaní jde do [onValueChange], změna
+ * [value] zvenku (ViewModel pole vyčistí) se do stavu promítne. Pro pole, která od Compose 1.13
+ * existují jen se stavem (`SecureTextField`), ve formulářích s hodnotou ve ViewModelu.
+ *
+ * **Vědomě `remember`, ne `rememberTextFieldState`**: ten je `rememberSaveable` a heslo by se
+ * serializovalo do uloženého stavu (a s ním případně na disk). Hodnotu drží volající.
+ */
+@Composable
+internal fun rememberSyncedTextFieldState(value: String, onValueChange: (String) -> Unit): TextFieldState {
+    val state = remember { TextFieldState(value) }
+    val currentValue by rememberUpdatedState(value)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    LaunchedEffect(value) {
+        if (state.text.toString() != value) state.setTextAndPlaceCursorAtEnd(value)
+    }
+    LaunchedEffect(state) {
+        snapshotFlow { state.text.toString() }.collect { text ->
+            if (text != currentValue) currentOnValueChange(text)
+        }
+    }
+    return state
+}
+
+/** Tónovaný blok s rámečkem fokusu a chyby, společný [BlockTextField] a [PasswordField]. */
+@Composable
+private fun BlockSurface(isError: Boolean, focused: Boolean, content: @Composable RowScope.() -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.groupRow,
+        border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = focused)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), content = content)
+    }
+}
+
+/** Pole bez vlastní výplně a podtržení — obojí nese blok kolem. */
+@Composable
+private fun transparentFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    errorContainerColor = Color.Transparent,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+    disabledIndicatorColor = Color.Transparent,
+    errorIndicatorColor = Color.Transparent,
+)
 
 /**
  * Tónovaný blok s jedním polem — tentýž jazyk jako číslo a heslo, pro kód z e-mailu a nápovědu
@@ -157,53 +232,37 @@ fun BlockTextField(
      * se tak psala naprázdno.
      */
     onNext: (() -> Unit)? = null,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
     fieldModifier: Modifier = Modifier,
     trailing: @Composable () -> Unit = {},
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
 
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.groupRow,
-        border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = focused)),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            TextField(
-                value = value,
-                onValueChange = onValueChange,
-                placeholder = { Text(stringResource(placeholder)) },
-                singleLine = true,
-                isError = isError,
-                visualTransformation = visualTransformation,
-                // Heslo ani kód se neopravují a nedoplňují; klávesnice by z nich udělala jiné slovo.
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = keyboardType,
-                    imeAction = imeAction,
-                    autoCorrectEnabled = false,
-                ),
-                keyboardActions = KeyboardActions(
-                    onGo = { onSubmit() },
-                    onNext = onNext?.let { next -> { next() } },
-                ),
-                textStyle = MaterialTheme.typography.headlineSmall,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    errorContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent,
-                ),
-                interactionSource = interaction,
-                modifier = fieldModifier
-                    .weight(1f)
-                    .semantics { contentType?.let { this.contentType = it } },
-            )
-            trailing()
-        }
+    BlockSurface(isError = isError, focused = focused) {
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(stringResource(placeholder)) },
+            singleLine = true,
+            isError = isError,
+            // Heslo ani kód se neopravují a nedoplňují; klávesnice by z nich udělala jiné slovo.
+            keyboardOptions = KeyboardOptions(
+                keyboardType = keyboardType,
+                imeAction = imeAction,
+                autoCorrectEnabled = false,
+            ),
+            keyboardActions = KeyboardActions(
+                onGo = { onSubmit() },
+                onNext = onNext?.let { next -> { next() } },
+            ),
+            textStyle = MaterialTheme.typography.headlineSmall,
+            colors = transparentFieldColors(),
+            interactionSource = interaction,
+            modifier = fieldModifier
+                .weight(1f)
+                .semantics { contentType?.let { this.contentType = it } },
+        )
+        trailing()
     }
 }
 
@@ -236,7 +295,6 @@ fun FormTextField(
     suffix: (@Composable () -> Unit)? = null,
     supportingText: (@Composable () -> Unit)? = null,
     isError: Boolean = false,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = false,
@@ -245,46 +303,92 @@ fun FormTextField(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    FormBlock(modifier, isError = isError, active = focused && enabled, supportingText = supportingText) {
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            textStyle = textStyle,
+            label = label,
+            placeholder = placeholder,
+            leadingIcon = leadingIcon,
+            trailingIcon = trailingIcon,
+            prefix = prefix,
+            suffix = suffix,
+            isError = isError,
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions,
+            singleLine = singleLine,
+            maxLines = maxLines,
+            minLines = minLines,
+            // Výplň i podtržení nese blok kolem, pole samo je průhledné.
+            colors = transparentFieldColors(),
+            interactionSource = interaction,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * Heslo ve formuláři (přihlášení k proxy, heslo při přihlášení) — [FormTextField] se skrytým
+ * textem. Je to M3 `SecureTextField` nad stavem pole ([rememberSyncedTextFieldState]); dřív
+ * `FormTextField` s `PasswordVisualTransformation`, která je od Compose 1.13 zastaralá. Skrytí
+ * se řídí systémem (na telefonu chvíli ukáže poslední napsaný znak). [onSubmit] dostane akce
+ * klávesnice „Hotovo" / „Přejít"; ostatní dělají výchozí (přesun fokusu).
+ */
+@Composable
+fun FormSecureTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    textStyle: TextStyle = LocalTextStyle.current,
+    label: (@Composable () -> Unit)? = null,
+    supportingText: (@Composable () -> Unit)? = null,
+    isError: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
+    onSubmit: (() -> Unit)? = null,
+) {
+    val state = rememberSyncedTextFieldState(value, onValueChange)
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    FormBlock(modifier, isError = isError, active = focused, supportingText = supportingText) {
+        SecureTextField(
+            state = state,
+            textStyle = textStyle,
+            label = if (label != null) { { label() } } else null,
+            isError = isError,
+            keyboardOptions = keyboardOptions,
+            onKeyboardAction = { performDefault ->
+                val submit = onSubmit
+                if (submit != null && keyboardOptions.imeAction in SUBMIT_ACTIONS) submit() else performDefault()
+            },
+            colors = transparentFieldColors(),
+            interactionSource = interaction,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Akce klávesnice, které formulář odešlou (`onSubmit` u [FormSecureTextField]). */
+private val SUBMIT_ACTIONS = setOf(ImeAction.Go, ImeAction.Done, ImeAction.Send)
+
+/** Tónový blok formuláře s rámečkem a pomocným textem POD blokem ([FormTextField], [FormSecureTextField]). */
+@Composable
+private fun FormBlock(
+    modifier: Modifier,
+    isError: Boolean,
+    active: Boolean,
+    supportingText: (@Composable () -> Unit)?,
+    field: @Composable () -> Unit,
+) {
     Column(modifier) {
         Surface(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = focused && enabled)),
+            border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = active)),
             modifier = Modifier.fillMaxWidth(),
-        ) {
-            TextField(
-                value = value,
-                onValueChange = onValueChange,
-                enabled = enabled,
-                textStyle = textStyle,
-                label = label,
-                placeholder = placeholder,
-                leadingIcon = leadingIcon,
-                trailingIcon = trailingIcon,
-                prefix = prefix,
-                suffix = suffix,
-                isError = isError,
-                visualTransformation = visualTransformation,
-                keyboardOptions = keyboardOptions,
-                keyboardActions = keyboardActions,
-                singleLine = singleLine,
-                maxLines = maxLines,
-                minLines = minLines,
-                // Výplň i podtržení nese blok kolem, pole samo je průhledné.
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    errorContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent,
-                ),
-                interactionSource = interaction,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+            content = field,
+        )
         // Pomocný text pod blokem, ne v něm — počítadlo a nápověda nejsou součást vstupu.
         if (supportingText != null) {
             CompositionLocalProvider(

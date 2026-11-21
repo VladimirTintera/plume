@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.proxy
 
+import eu.tintera.plume.core.ui.FormSecureTextField
 import eu.tintera.plume.features.settings.SettingsTopBar
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -61,7 +62,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ProxyConfig
@@ -484,12 +484,10 @@ private fun ProxyEditorSheet(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                FormTextField(
+                FormSecureTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text(stringResource(Res.string.proxy_field_password)) },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
                 )
