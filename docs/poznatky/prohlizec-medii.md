@@ -1006,6 +1006,20 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   by se pralo se scrollem a swipem na odpověď a každá viditelná bublina by držela dekodér.
   V galerii je náhled s tlačítkem přehrání; ťuknutí přepne na celou obrazovku a teprve tam se
   video stahuje a hraje. Návrat do galerie ho pozastaví.
+- **Skládačka na stole (napůl otevřená, pant vodorovně): video nad pantem, ovládání pod ním**
+  (`rememberTabletopHinge` v `core/adaptive/Tabletop.kt`, `MediaPageLayout.tabletopSplit`,
+  `tabletopCardFrame`). Jen na celé obrazovce; galerie a obraz v obraze zůstávají, jak byly.
+  - **Pant se bere z `windowPosture` material3 adaptive** (`isTabletop`, `allHorizontalHingeBounds`),
+    ne z `mediaQuery`: ten řekne jen „je napůl otevřená", ne kde pant je. Desktop a iOS polohu nemají,
+    takže tam se nic nemění.
+  - **Meze pantu jsou v souřadnicích okna**, stránka si svou polohu v okně zapisuje v `onPlaced`
+    PŘED posunem tahem (`offset` při zavírání) — jinak by se karta při tahu dolů posouvala s pantem.
+  - **Ovládání leží uprostřed spodní půlky bez přechodu do tmava** — přechod tam byl kvůli
+    bílému posuvníku přes světlý záběr, pod pantem je černo.
+  - **Ověřené jen testy** (`MediaPageLayoutTest`, karta nad pantem): emulátor `Plume_Galerie_Fold`
+    byl při psaní odhlášený. Na emulátoru se poloha přepíná `adb emu posture 2` (napůl otevřená),
+    `3` (otevřená); snímek vnitřního displeje chce `screencap -d <id>` z
+    `dumpsys SurfaceFlinger --display-id`.
 - **Ťuknutí na celé obrazovce u videa napřed ukáže schované ovládání**, teprve ťuknutí
   s ovládáním na očích vede do galerie. Jinak by se u hrajícího videa k posuvníku nedalo dostat.
 - **Video se streamuje z rozestavěného souboru** (Android; `StreamingSource`,
