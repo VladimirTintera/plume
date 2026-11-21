@@ -306,12 +306,13 @@ abstract class VerifyMenuScroll : SourceCheckTask() {
 }
 
 /**
- * Společný základ kontrol tvarů: každé volání komponenty [names] z material3 musí mít `shapes`.
+ * Společný základ kontrol tvarů: každé volání komponenty z [components] (material3) musí mít `shapes`.
  * Jen komponenty importované z material3 — Glance i vlastní komponenty mají jiná pravidla.
  */
 abstract class VerifyMaterialShapes : SourceCheckTask() {
-    protected abstract val names: List<String>
-    private val call by lazy { Regex("""(?<![\w.])(${names.joinToString("|")})\(""") }
+    /** Funkce, ne vlastnost: getter úlohy by Gradle chtěl mít s anotací vstupu. */
+    protected abstract fun components(): List<String>
+    private val call by lazy { Regex("""(?<![\w.])(${components().joinToString("|")})\(""") }
 
     override fun offenders(file: File, path: String): List<String> {
         val text = file.readText()
@@ -345,7 +346,7 @@ abstract class VerifyButtonShapes : VerifyMaterialShapes() {
 
     override fun failureMessage() = "Tlačítko mění tvar při stisku: shapes = ButtonDefaults.shapes(), hlavní akce přes MediumButton (core/ui)."
 
-    override val names = listOf("TextButton", "Button", "FilledTonalButton", "OutlinedButton", "ElevatedButton")
+    override fun components() = listOf("TextButton", "Button", "FilledTonalButton", "OutlinedButton", "ElevatedButton")
 }
 
 /**
@@ -362,7 +363,7 @@ abstract class VerifyChipShapes : VerifyMaterialShapes() {
     override fun failureMessage() =
         "Čip mění tvar při stisku a výběru: shapes = FilterChipDefaults.shapes() / InputChipDefaults.shapes()."
 
-    override val names = listOf("FilterChip", "ElevatedFilterChip", "InputChip")
+    override fun components() = listOf("FilterChip", "ElevatedFilterChip", "InputChip")
 }
 
 /**
