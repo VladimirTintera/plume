@@ -181,6 +181,15 @@ až od serveru".
 - Ověřeno na Pixelu 7 Pro a Pixelu 5 hovorem mezi testovacími účty (vyzvánění, příchozí hovor,
   ztlumení); stav po spojení na zařízení neověřený.
 
+- **Na skládačce na stole** (napůl otevřená, pant vodorovně; `rememberTabletopHinge`) je třetí
+  rozvržení (`TabletopCallLayout`): v horní půlce obraz protistrany nebo fotka, horní lišta
+  a náš náhled v rohu (menší, 72 × 128 dp), v ležící dolní jméno se stavem a tlačítka. Ovládání
+  se tam **neschovává** (`autoHide` jen bez pantu) a nemá průsvitnou plochu — obraz nezakrývá.
+  Horní lišta (`topBar`) a obraz s ukazovátkem (`fullVideo`) jsou v kódu jednou pro všechna
+  rozvržení. Poloha pantu je v souřadnicích okna, obrazovka si svou zapisuje v `onPlaced`.
+  Na Pixel Foldu je pant na výšku svislý (kniha) — na stole až otočený o 90°
+  (`docs/poznatky/prohlizec-medii.md`, „Video").
+
 ## Videohovory
 
 Videohovor z nabídky profilu, kamera zapnutelná v každém hovoru (i v hlasovém, i u
