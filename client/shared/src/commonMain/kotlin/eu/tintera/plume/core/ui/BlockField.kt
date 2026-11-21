@@ -1,11 +1,7 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.SecureTextField
-import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.text.input.TextObfuscationMode
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.layout.RowScope
@@ -156,30 +152,6 @@ fun PasswordField(
             )
         }
     }
-}
-
-/**
- * Stav pole ([TextFieldState]) svázaný s hodnotou zvenku: psaní jde do [onValueChange], změna
- * [value] zvenku (ViewModel pole vyčistí) se do stavu promítne. Pro pole, která od Compose 1.13
- * existují jen se stavem (`SecureTextField`), ve formulářích s hodnotou ve ViewModelu.
- *
- * **Vědomě `remember`, ne `rememberTextFieldState`**: ten je `rememberSaveable` a heslo by se
- * serializovalo do uloženého stavu (a s ním případně na disk). Hodnotu drží volající.
- */
-@Composable
-internal fun rememberSyncedTextFieldState(value: String, onValueChange: (String) -> Unit): TextFieldState {
-    val state = remember { TextFieldState(value) }
-    val currentValue by rememberUpdatedState(value)
-    val currentOnValueChange by rememberUpdatedState(onValueChange)
-    LaunchedEffect(value) {
-        if (state.text.toString() != value) state.setTextAndPlaceCursorAtEnd(value)
-    }
-    LaunchedEffect(state) {
-        snapshotFlow { state.text.toString() }.collect { text ->
-            if (text != currentValue) currentOnValueChange(text)
-        }
-    }
-    return state
 }
 
 /** Tónovaný blok s rámečkem fokusu a chyby, společný [BlockTextField] a [PasswordField]. */

@@ -559,6 +559,31 @@ převádí platforma (`ProfileVideo`).
 - `tonalElevation` / `shadowElevation` starého tvaru se mapují na `elevation =
   ListItemDefaults.elevation(…)`; v projektu je nikdo nepoužíval.
 
+## Textová pole se stavem (Compose 1.13)
+
+`BasicTextField(value, onValueChange)` a `VisualTransformation` jsou od Compose 1.13 zastaralé;
+nová pole stojí na `TextFieldState`. Převádí se po částech (roadmapa, „Textová pole na
+`TextFieldState`"). Hotové: hesla (viz „Dvoufázové ověření"), `SearchPill`, `CodeField`,
+`StoryTextField`, popisek ve sdílení.
+
+- **Kde hodnotu drží ViewModel jako `String`, svazuje ji se stavem `rememberSyncedTextFieldState`**
+  (`core/ui/SyncedTextFieldState.kt`) a API komponenty se nemění. Kde ViewModel drží text sám
+  a nic jiného ho nečte, drží rovnou `TextFieldState` (popisek ve sdílení,
+  `ShareToChatViewModel.caption`) — tak to doporučuje i migrační návod.
+- **Past: opožděná ozvěna.** Hodnota ze `StateFlow` dorazí do kompozice o dispatch později; při
+  rychlém psaní přijde „a", když pole už má „ab". První verze, která pole přepsala každou
+  odlišnou hodnotou zvenku, by úhoz ztratila a skočila kurzorem. Pomocník si proto pamatuje,
+  co sám poslal, a zvenku bere jen hodnotu, kterou neposlal (vyčištění křížkem, doplnění).
+- **Filtr vstupu je `InputTransformation`, ne úprava v `onValueChange`** (`CodeField`: jen
+  číslice a nejvýš N znaků, i u vloženého „Kód: 12345").
+- **Dekorace přes `TextFieldDefaults.decorator(state, …)`**, ne `DecorationBox(value, …,
+  visualTransformation)`; výchozí odsazení bez popisku je stejné.
+- **Emulátor: „Try out your stylus"** — Gboard při zaostření pole jednou nabídne průvodce
+  stylusem a text z `adb shell input text` skončí v JEHO poli. Není to chyba aplikace: zavřít
+  (Cancel) a psát znovu. Plovoucí lišta vlevo, která po něm zůstane, je režim stylusu Gboardu.
+- Ověřeno na emulátoru: hledání chatů (11 znaků rychle za sebou bez ztráty, výsledky, křížek
+  vyčistí a fokus zůstane). Popisek ve sdílení, pole na kód a odpověď na příběh jen přeložené.
+
 ## Pomoc: Zeptat se a časté dotazy
 
 Pod sekcemi v kořeni Nastavení je blok „Pomoc" (`HelpGroup`): „Zeptat se" otevře chat
