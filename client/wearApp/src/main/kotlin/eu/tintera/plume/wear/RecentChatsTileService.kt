@@ -33,8 +33,8 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders.Tile
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
-import eu.tintera.plume.core.ui.readPluralString
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.wear_chats_empty
@@ -172,16 +172,16 @@ class RecentChatsTileService : TileService() {
     private class TileContent(val title: String, val all: String, val rows: List<Row>, val message: String?)
 
     private suspend fun tileContent(state: RecentChatsState, maxRows: Int): TileContent {
-        val savedTitle = readString(Res.string.saved_messages)
+        val savedTitle = getString(Res.string.saved_messages)
         val rows = (state as? RecentChatsState.Chats)?.chats?.take(maxRows)?.map { chat ->
-            Row(chat, if (chat.savedMessages) savedTitle else chat.title, chat.unread.takeIf { it > 0 }?.let { readPluralString(Res.plurals.wear_tile_new_messages, it, it) } ?: chat.preview)
+            Row(chat, if (chat.savedMessages) savedTitle else chat.title, chat.unread.takeIf { it > 0 }?.let { getPluralString(Res.plurals.wear_tile_new_messages, it, it) } ?: chat.preview)
         }.orEmpty()
         val message = when (state) {
-            RecentChatsState.Unknown -> readString(Res.string.wear_tile_unknown)
-            RecentChatsState.LoggedOut -> readString(Res.string.wear_tile_signed_out)
-            is RecentChatsState.Chats -> readString(Res.string.wear_chats_empty).takeIf { rows.isEmpty() }
+            RecentChatsState.Unknown -> getString(Res.string.wear_tile_unknown)
+            RecentChatsState.LoggedOut -> getString(Res.string.wear_tile_signed_out)
+            is RecentChatsState.Chats -> getString(Res.string.wear_chats_empty).takeIf { rows.isEmpty() }
         }
-        return TileContent(readString(Res.string.wear_chats_title), readString(Res.string.wear_tile_all_chats), rows, message)
+        return TileContent(getString(Res.string.wear_chats_title), getString(Res.string.wear_tile_all_chats), rows, message)
     }
 
     /** Na malém displeji se tři řádky s tlačítkem dole nevejdou. */

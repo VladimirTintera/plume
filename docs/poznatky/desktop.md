@@ -135,7 +135,7 @@ Oznámení chatu má tatáž tlačítka jako toast na Windows (oddíl „Tlačí
   a celá sada naráz (`setNotificationCategories` přepíše i kategorii hovoru), takže most
   registruje všechno jedním voláním `nativeSetActions`. Tlačítka zprávy se liší podle práv,
   proto čtyři kategorie (`message`, `message-reply`, `message-mute`, `message-reply-mute`)
-  a oznámení si vybere tu svou. Popisky jdou do kategorie (`readString` v okamžiku registrace);
+  a oznámení si vybere tu svou. Popisky jdou do kategorie (`getString` v okamžiku registrace);
   presenter je posílá před každou dávkou a `MacNotifier` je přepíše, jen když se liší — tak se
   změna jazyka projeví u dalšího oznámení.
 - **Tlačítko vrací jen svůj identifikátor**, kdežto tlačítko toastu nese vlastní argumenty.
@@ -281,7 +281,7 @@ jako přečtené" a „Ztlumit na hodinu" (jen kde `ChatNotification.canMute`; o
 - **Čeká se štědřeji než na Androidu** (30 s na přihlášení, minuta na potvrzení): proces se
   neuspí a nehlídá ho systémový limit příjemce. Nepotvrzenou zprávu TDLib došle sám, jen chat
   zůstane nepřečtený.
-- **Popisky se překládají při zobrazení** (`readString`) — toast je hotový text v XML, po změně
+- **Popisky se překládají při zobrazení** (`getString`) — toast je hotový text v XML, po změně
   jazyka zůstanou staré toasty v původním jazyce.
 - **Ověřeno na Windows 11** (ladicí běh, Plume schovaná v oznamovací oblasti): odpověď z toastu
   odešla s diakritikou, server ji potvrdil, okno zůstalo schované a chat se přečetl.
@@ -445,7 +445,7 @@ v oznamovací oblasti, nabídka v liště macOS).
   `DiceStakeLabelTest` čekal anglické „Stake 1.5 TON" a na Macu v češtině padal (kreslilo se
   „Vsazeno 1,5 TON") i na čistém `main`. Test, který porovnává vykreslený text, si jazyk
   nastaví sám (`Locale.setDefault` v `@BeforeTest`, v `@AfterTest` vrátit — testy běží v jednom
-  JVM), nebo očekávaný text přečte přes `readString` (`ActionMenuTest` u „Další"; české
+  JVM), nebo očekávaný text přečte přes `getString` (`ActionMenuTest` u „Další"; české
   popisky položek mu předává sám test, takže prochází v obou jazycích). Ověří se během celého
   testu v angličtině: `JAVA_TOOL_OPTIONS="-Duser.language=en -Duser.country=US"` před
   `./gradlew … --rerun`.

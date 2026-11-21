@@ -123,7 +123,7 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   u zprávy `addCalendarEvent`, `saveNewContact`, `joinWifiNetwork` a `loadRates` místo
   `CalendarEvents`, `ContactSaver`, `WifiJoiner` a `ExchangeRates` (jejich `null` znamená totéž
   co dřív chybějící třída) a místo `HomeRegion` rovnou měnu a jednotky.
-- **`readString` v testech na JVM nejde** — `Resources.getSystem()` tam Android nemá („not
+- **`getString` v testech na JVM nejde** — `Resources.getSystem()` tam Android nemá („not
   mocked"). Co text z prostředků teprve skládá, se z části vytáhne do čisté funkce a testuje se
   ta: událost letu v kalendáři (`Flight.calendarEvent`) dostane název hotový. Výjimka spadne
   v korutině části a test pak jen nevidí výsledek, takže se to hledá špatně.

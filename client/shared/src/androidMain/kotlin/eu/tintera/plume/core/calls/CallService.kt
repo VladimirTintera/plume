@@ -25,7 +25,7 @@ import eu.tintera.plume.core.telegram.ActiveCall
 import eu.tintera.plume.core.telegram.CallPhase
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.ChatRepository
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_bar_calling
 import eu.tintera.plume.resources.call_bar_ringing
@@ -145,7 +145,7 @@ class CallService : Service(), KoinComponent {
     private suspend fun notification(call: ActiveCall): Notification {
         val name = callerName
             ?: chats.summaries(listOf(call.userId)).firstOrNull()?.title?.also { callerName = it }
-            ?: readString(Res.string.notification_call_unknown)
+            ?: getString(Res.string.notification_call_unknown)
         val person = Person.Builder().setName(name).setImportant(true).build()
         val builder = NotificationCompat.Builder(this, CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -158,13 +158,13 @@ class CallService : Service(), KoinComponent {
             .setContentIntent(NotificationIntents.showCall(this))
         val connectedAt = call.connectedAt
         if (call.networkLost) {
-            builder.setContentText(readString(Res.string.call_waiting_for_network))
+            builder.setContentText(getString(Res.string.call_waiting_for_network))
         } else if (connectedAt != null) {
             builder.setUsesChronometer(true).setWhen(connectedAt).setShowWhen(true)
-                .setContentText(readString(Res.string.call_notification_ongoing))
+                .setContentText(getString(Res.string.call_notification_ongoing))
         } else {
             builder.setContentText(
-                readString(
+                getString(
                     when {
                         call.phase != CallPhase.Calling -> Res.string.call_bar_connecting
                         call.received -> Res.string.call_bar_ringing

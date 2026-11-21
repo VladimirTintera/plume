@@ -16,7 +16,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatNotification
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.NotificationUpdate
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.wear_notification_channel
 import eu.tintera.plume.resources.wear_notification_mark_read
@@ -95,12 +95,12 @@ class WearNotifications(private val context: Context, private val scope: Corouti
     suspend fun showReplyFailed(groupId: Int, text: String) = withContext(dispatcher) {
         val group = groups[groupId] ?: return@withContext
         group.lines.removeAll { it.own && it.text == text }
-        group.lines += Line(null, null, null, readString(Res.string.wear_notification_not_sent, text), System.currentTimeMillis(), own = true)
+        group.lines += Line(null, null, null, getString(Res.string.wear_notification_not_sent, text), System.currentTimeMillis(), own = true)
         show(groupId, group, silent = false)
     }
 
     private suspend fun createChannel() {
-        val channel = NotificationChannel(CHANNEL_ID, readString(Res.string.wear_notification_channel), NotificationManager.IMPORTANCE_HIGH)
+        val channel = NotificationChannel(CHANNEL_ID, getString(Res.string.wear_notification_channel), NotificationManager.IMPORTANCE_HIGH)
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
@@ -137,7 +137,7 @@ class WearNotifications(private val context: Context, private val scope: Corouti
             logger.d { "Notifikace na hodinkách nejsou povolené — skupina $groupId se nevydá." }
             return
         }
-        val me = Person.Builder().setName(readString(Res.string.wear_notification_me)).build()
+        val me = Person.Builder().setName(getString(Res.string.wear_notification_me)).build()
         val chat = Person.Builder().setName(group.chatTitle).build()
         // Název konverzace jen ve skupině (řádky mají odesílatele): v soukromém chatu je odesílatel
         // totéž co název a titulek by zněl „Notifikator: Notifikator".
@@ -178,14 +178,14 @@ class WearNotifications(private val context: Context, private val scope: Corouti
 
     private suspend fun replyAction(groupId: Int, chatId: Long, newestMessageId: Long): NotificationCompat.Action {
         val input = RemoteInput.Builder(WearNotificationReceiver.EXTRA_REPLY)
-            .setLabel(readString(Res.string.wear_reply_label))
+            .setLabel(getString(Res.string.wear_reply_label))
             .setChoices(
                 arrayOf(
-                    readString(Res.string.wear_quick_reply_1),
-                    readString(Res.string.wear_quick_reply_2),
-                    readString(Res.string.wear_quick_reply_3),
-                    readString(Res.string.wear_quick_reply_4),
-                    readString(Res.string.wear_quick_reply_5),
+                    getString(Res.string.wear_quick_reply_1),
+                    getString(Res.string.wear_quick_reply_2),
+                    getString(Res.string.wear_quick_reply_3),
+                    getString(Res.string.wear_quick_reply_4),
+                    getString(Res.string.wear_quick_reply_5),
                 ),
             )
             .build()
@@ -196,7 +196,7 @@ class WearNotifications(private val context: Context, private val scope: Corouti
             WearNotificationReceiver.intent(context, WearNotificationReceiver.ACTION_REPLY, groupId, chatId, newestMessageId),
             PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return NotificationCompat.Action.Builder(R.drawable.ic_notification, readString(Res.string.wear_reply), intent)
+        return NotificationCompat.Action.Builder(R.drawable.ic_notification, getString(Res.string.wear_reply), intent)
             .addRemoteInput(input)
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
             // Hodinky umí samy navrhnout odpovědi podle zprávy.
@@ -212,7 +212,7 @@ class WearNotifications(private val context: Context, private val scope: Corouti
             WearNotificationReceiver.intent(context, WearNotificationReceiver.ACTION_READ, groupId, chatId, newestMessageId),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        return NotificationCompat.Action.Builder(R.drawable.ic_notification, readString(Res.string.wear_notification_mark_read), intent)
+        return NotificationCompat.Action.Builder(R.drawable.ic_notification, getString(Res.string.wear_notification_mark_read), intent)
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
             .setShowsUserInterface(false)
             .build()

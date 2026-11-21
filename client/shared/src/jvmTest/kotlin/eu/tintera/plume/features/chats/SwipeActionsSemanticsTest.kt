@@ -12,7 +12,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.contextClickable
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_archive
 import eu.tintera.plume.resources.chats_action_mark_read
@@ -46,7 +46,7 @@ class SwipeActionsSemanticsTest {
 
         val actions = onNodeWithText("Jana").fetchSemanticsNode().config[SemanticsActions.CustomActions]
         val expected = runBlocking {
-            listOf(readString(Res.string.chats_action_mark_read), readString(Res.string.chats_action_archive))
+            listOf(getString(Res.string.chats_action_mark_read), getString(Res.string.chats_action_archive))
         }
         assertEquals(expected, actions.map { it.label })
         actions.forEach { it.action() }

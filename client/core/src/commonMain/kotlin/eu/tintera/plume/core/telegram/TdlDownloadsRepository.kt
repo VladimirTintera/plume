@@ -9,7 +9,7 @@ import dev.g000sha256.tdl.dto.MessageAudio
 import dev.g000sha256.tdl.dto.MessageDocument
 import dev.g000sha256.tdl.dto.MessageVideo
 import dev.g000sha256.tdl.toResult
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.content_file
 import kotlinx.coroutines.flow.Flow
@@ -42,7 +42,7 @@ class TdlDownloadsRepository(private val holder: TelegramClientHolder) : Downloa
             offset = offset,
             limit = PAGE_SIZE,
         ).toResult().getOrThrow()
-        val fallbackName = readString(Res.string.content_file)
+        val fallbackName = getString(Res.string.content_file)
         val titles = mutableMapOf<Long, String>()
         DownloadsPage(
             items = found.files.filterNotNull().map { download ->

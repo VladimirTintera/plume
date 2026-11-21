@@ -48,8 +48,8 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.adaptive.COLLAPSED_LIST_MAX_WIDTH
 import eu.tintera.plume.core.adaptive.LIST_CONTENT_INSET
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
-import eu.tintera.plume.core.ui.readPluralString
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.ui.ReportDrawnWhen
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.isSavedMessages
@@ -414,7 +414,7 @@ fun ChatListScreen(
     val accountSwitcher = rememberAccountSwitcher()
     // Přidávaný účet už v aplikaci je: přihlášení se zahodilo, tak to říct, ať uživatel neváhá.
     LaunchedEffect(accounts) {
-        accounts.alreadySignedIn.collect { snackbarHostState.showSnackbar(readString(Res.string.accounts_already_signed_in)) }
+        accounts.alreadySignedIn.collect { snackbarHostState.showSnackbar(getString(Res.string.accounts_already_signed_in)) }
     }
     val accountMenu: @Composable () -> Unit = {
         AccountMenu(
@@ -863,15 +863,15 @@ internal fun ChatActionsHost(
         snackbarScope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = when {
-                    change.chatIds.size > 1 -> readPluralString(
+                    change.chatIds.size > 1 -> getPluralString(
                         if (change.archived) Res.plurals.chats_archived_many else Res.plurals.chats_unarchived_many,
                         change.chatIds.size,
                         change.chatIds.size,
                     )
-                    change.archived -> readString(Res.string.chats_archived)
-                    else -> readString(Res.string.chats_unarchived)
+                    change.archived -> getString(Res.string.chats_archived)
+                    else -> getString(Res.string.chats_unarchived)
                 },
-                actionLabel = readString(Res.string.chats_undo),
+                actionLabel = getString(Res.string.chats_undo),
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoArchive(change)
@@ -888,8 +888,8 @@ internal fun ChatActionsHost(
         viewModel.consumeBlocked()
         snackbarScope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = readString(if (change.blocked) Res.string.chats_blocked else Res.string.chats_unblocked),
-                actionLabel = readString(Res.string.chats_undo),
+                message = getString(if (change.blocked) Res.string.chats_blocked else Res.string.chats_unblocked),
+                actionLabel = getString(Res.string.chats_undo),
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoBlock(change)
@@ -910,15 +910,15 @@ internal fun ChatActionsHost(
             snackbarHostState.currentSnackbarData?.dismiss()
             val result = snackbarHostState.showCountdownSnackbar(
                 message = when {
-                    count > 1 -> readPluralString(
+                    count > 1 -> getPluralString(
                         if (change.left) Res.plurals.chats_left_many else Res.plurals.chats_deleted_many,
                         count,
                         count,
                     )
-                    change.left -> readString(Res.string.chats_left)
-                    else -> readString(Res.string.chats_deleted)
+                    change.left -> getString(Res.string.chats_left)
+                    else -> getString(Res.string.chats_deleted)
                 },
-                actionLabel = readString(Res.string.chats_undo),
+                actionLabel = getString(Res.string.chats_undo),
                 durationMs = UNDO_COUNTDOWN_MS,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoDelete(change)

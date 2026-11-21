@@ -36,7 +36,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ReportOption
 import eu.tintera.plume.core.telegram.ReportStep
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.sheetActionShape

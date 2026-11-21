@@ -38,7 +38,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.ui.tick
 import eu.tintera.plume.core.navigation.NO_START
 import eu.tintera.plume.core.telegram.customEmojiIdOf
@@ -293,7 +293,7 @@ fun MediaViewerScreen(
             // výslovné délky visel napořád (výchozí `Indefinite`).
             val result = snackbarHostState.showSnackbar(
                 message = notice.resolveNow(),
-                actionLabel = savedFile?.let { readString(Res.string.media_show_in_folder) },
+                actionLabel = savedFile?.let { getString(Res.string.media_show_in_folder) },
                 duration = SnackbarDuration.Long.takeIf { savedFile != null } ?: SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed && savedFile != null) revealInFolder(savedFile)

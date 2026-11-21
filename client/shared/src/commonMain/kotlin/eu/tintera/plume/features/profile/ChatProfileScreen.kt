@@ -47,7 +47,7 @@ import kotlinx.datetime.toLocalDateTime
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.files.opensInViewer
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.profile_bookmarks_count
 import eu.tintera.plume.resources.profile_bookmarks
 import eu.tintera.plume.resources.share_24dp
