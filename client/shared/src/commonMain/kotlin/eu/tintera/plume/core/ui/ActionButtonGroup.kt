@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -82,7 +84,9 @@ fun ActionButtonGroup(
                 buttonGroupContent = {
                     val source = remember { MutableInteractionSource() }
                     val weighted = if (action.weight.isNaN()) Modifier else Modifier.weight(action.weight)
-                    action.button(weighted.animateWidth(source, action.compressionLimit), source)
+                    // Knihovna dřív brala `PaddingValues` a z nich jen koncové odsazení; od 1.13 chce rovnou to.
+                    val limit = action.compressionLimit.calculateEndPadding(LocalLayoutDirection.current)
+                    action.button(weighted.animateWidth(source, limit), source)
                 },
                 menuContent = { menu ->
                     DropdownMenuItem(

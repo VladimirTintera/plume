@@ -250,7 +250,7 @@ private fun SwitcherItem(chat: ChatSummary, index: Int, count: Int, onClick: () 
                 backdrop = MenuDefaults.groupStandardContainerColor,
             )
         },
-        trailingIcon = if (chat.unreadCount > 0) {
+        trailingContent = if (chat.unreadCount > 0) {
             {
                 // Ztlumený chat neutrálně, jako v seznamu chatů — počet tam je, ale nevolá.
                 val colors = MaterialTheme.colorScheme

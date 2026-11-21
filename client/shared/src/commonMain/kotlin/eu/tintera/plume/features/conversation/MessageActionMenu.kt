@@ -187,7 +187,7 @@ internal fun ActionMenu(
                     text = { Text(stringResource(Res.string.menu_more)) },
                     shape = shape,
                     leadingIcon = { MenuIcon(Res.drawable.more_horiz_24dp) },
-                    trailingIcon = {
+                    trailingContent = {
                         Icon(
                             painterResource(Res.drawable.chevron_right_24dp),
                             contentDescription = null,

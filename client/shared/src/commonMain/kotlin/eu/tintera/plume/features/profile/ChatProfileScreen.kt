@@ -938,7 +938,7 @@ private fun ProfileTabButton(
         checked = checked,
         onCheckedChange = { onSelect(index) },
         shapes = when {
-            tabs.size == 1 -> ToggleButtonDefaults.shapes()
+            tabs.size == 1 -> ToggleButtonDefaults.shapesFor(ToggleButtonDefaults.size)
             index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
             index == tabs.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
             else -> ButtonGroupDefaults.connectedMiddleButtonShapes()

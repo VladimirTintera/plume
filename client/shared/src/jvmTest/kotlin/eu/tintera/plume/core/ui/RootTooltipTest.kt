@@ -37,7 +37,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -66,32 +65,34 @@ class RootTooltipTest {
         MaterialTheme { RootOverlayHost(content) }
     }
 
+    /**
+     * Holý M3 `TooltipBox`, jehož kotva zmizí během měření. Do Compose Multiplatform 1.12 to
+     * padalo na „RootNodeOwner is already disposed" (proto `RootTooltipBox`); 1.13.0-rc01 to
+     * opravuje (compose-multiplatform-core#3566). Kdyby test znovu padal, oprava se ztratila
+     * a obal z kořene je zase nutnost, ne jen pojistka.
+     */
     @Test
-    fun rawTooltipRemovedDuringMeasureCrashes() {
-        val error = assertFailsWith<IllegalArgumentException> {
-            runComposeUiTest {
-                var width by mutableStateOf(1000.dp)
-                lateinit var state: TooltipState
-                lateinit var scope: CoroutineScope
-                setContent {
-                    scope = rememberCoroutineScope()
-                    WideOnly(width) {
-                        state = rememberTooltipState(isPersistent = true)
-                        TooltipBox(
-                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                            tooltip = { PlainTooltip { Text("Bublina") } },
-                            state = state,
-                        ) { Text("Kotva") }
-                    }
-                }
-                waitForIdle()
-                scope.launch { state.show() }
-                waitForIdle()
-                width = 600.dp
-                waitForIdle()
+    fun rawTooltipRemovedDuringMeasureSurvives() = runComposeUiTest {
+        var width by mutableStateOf(1000.dp)
+        lateinit var state: TooltipState
+        lateinit var scope: CoroutineScope
+        setContent {
+            scope = rememberCoroutineScope()
+            WideOnly(width) {
+                state = rememberTooltipState(isPersistent = true)
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                    tooltip = { PlainTooltip { Text("Bublina") } },
+                    state = state,
+                ) { Text("Kotva") }
             }
         }
-        assertEquals("RootNodeOwner is already disposed", error.message)
+        waitForIdle()
+        scope.launch { state.show() }
+        waitForIdle()
+        width = 600.dp
+        waitForIdle()
+        onNodeWithText("Úzké").assertExists()
     }
 
     /** Nápověda gest: `RichTooltip` s akcí, trvalý stav řízený programem, gesta kotvy vypnutá. */

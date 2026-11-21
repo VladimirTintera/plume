@@ -177,12 +177,13 @@ jobs:
       # NDK chce AGP při konfiguraci :ai-llamacpp-android z ai-engine (`ndkVersion`), CMake z SDK
       # překládá llama.cpp pro desktop (:ai-llamacpp-desktop); hostovaný runner má CMake
       # na PATH a NDK si AGP stáhne samo.
-      # POZOR: musí odpovídat android-compileSdk, `ndk` a `cmake` v gradle/libs.versions.toml.
+      # POZOR: musí odpovídat android-compileSdk(Minor), `ndk` a `cmake` v gradle/libs.versions.toml
+      # (37.2 pro Plume, 37.0 pro ai-engine).
       - name: Install Android SDK platform
         if: runner.environment == 'self-hosted'
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37.0 ndk;29.0.13846066 cmake;3.31.0'
+          packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'
 
       # Projektové gradle.properties počítá s vývojářským strojem; uživatelský
       # ~/.gradle/gradle.properties má přednost (stejně jako v android-release.yml).
@@ -285,7 +286,7 @@ jobs:
         if: runner.environment == 'self-hosted'
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37.0 ndk;29.0.13846066 cmake;3.31.0'
+          packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'
 
       # Jen na hostovaném — self-hosted Mac staví s projektovým nastavením jako lokálně
       # a ~/.gradle sdílí s lokální prací (viz job windows).

@@ -114,6 +114,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -999,8 +1000,12 @@ internal fun VideoPage(
                                 style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                                 color = Color.White,
                             )
+                            // Vlastní dráhu bere jen varianta se stavem (od material3 1.13 už ne ta
+                            // s `value`); stav se srovná s polohou videu stejně, jako to ta s `value` dělá uvnitř.
+                            val sliderState = remember { SliderState(fraction) }
+                            sliderState.value = fraction
                             Slider(
-                                value = fraction,
+                                state = sliderState,
                                 onValueChange = {
                                     seekingFraction = it
                                     controlsVisible = true

@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CheckableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -80,7 +80,7 @@ internal fun VideoQualityChip(
                     menu.onChoose(choice)
                 }
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
-                    DropdownMenuItem(
+                    CheckableDropdownMenuItem(
                         checked = menu.choice == VideoQualityChoice.Auto,
                         onCheckedChange = { choose(VideoQualityChoice.Auto) },
                         text = { Text(stringResource(Res.string.media_quality_auto)) },
@@ -99,7 +99,7 @@ internal fun VideoQualityChip(
                             option.isOriginal -> stringResource(Res.string.media_quality_original)
                             else -> size
                         }
-                        DropdownMenuItem(
+                        CheckableDropdownMenuItem(
                             checked = menu.choice != VideoQualityChoice.Auto && option == menu.playing,
                             onCheckedChange = {
                                 choose(if (option.isOriginal) VideoQualityChoice.Original else VideoQualityChoice.Lines(option.lines))

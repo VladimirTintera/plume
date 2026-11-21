@@ -101,15 +101,17 @@ jobs:
 
       # Runner image nemusí mít čerstvé SDK platformy a AGP si je samo nedotáhne (auto-download
       # potřebuje odsouhlasené licence). Instalujeme explicitně.
-      # POZOR: musí odpovídat android-compileSdk v gradle/libs.versions.toml. Balíček pro
-      # compileSdk 37 se jmenuje "platforms;android-37.0" — u minor verzí je nula součástí id.
+      # POZOR: musí odpovídat android-compileSdk a android-compileSdkMinor v gradle/libs.versions.toml.
+      # Balíček pro compileSdk 37 se jmenuje "platforms;android-37.0" — u minor verzí je nula
+      # součástí id. Plume kompiluje proti 37.2 (Compose 1.13 chce aspoň 37.1), ai-engine
+      # (external/ai-engine, vlastní katalog) zatím proti 37.0, proto obě.
       # NDK a CMake potřebuje :ai-llamacpp-android z ai-engine a musí odpovídat `ndk` a `cmake` tamtéž
       # (i v external/ai-engine/gradle/libs.versions.toml).
       # NDK si AGP stáhne samo, CMake NE ([CXX1300] „CMake '…' was not found in SDK").
       - name: Install Android SDK platform
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-37.0 ndk;29.0.13846066 cmake;3.31.0'
+          packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'
 
       # Privátní repo → hostovaný runner má 2 CPU / 7 GB RAM. Projektové gradle.properties počítá
       # s vývojářským strojem (Gradle 4 GB + Kotlin daemon 8 GB), což se sem nevejde. Uživatelský

@@ -250,9 +250,10 @@ internal fun ChatSearchBar(
 
     // Výpadek spojení bar vrátí, i když je odjetý.
     LaunchedEffect(connection != null) {
-        if (connection != null && scrollBehavior.scrollOffset != 0f) {
-            animate(scrollBehavior.scrollOffset, 0f, animationSpec = spatial) { value, _ ->
-                scrollBehavior.scrollOffset = value
+        val scroll = scrollBehavior.scrollState
+        if (connection != null && scroll.scrollOffset != 0f) {
+            animate(scroll.scrollOffset, 0f, animationSpec = spatial) { value, _ ->
+                scroll.scrollOffset = value
             }
         }
     }
@@ -407,7 +408,7 @@ internal fun ChatSearchBar(
     Column(
         Modifier
             .background(MaterialTheme.colorScheme.surface)
-            .then(with(scrollBehavior) { Modifier.searchBarScrollBehavior() }),
+            .then(scrollBehavior.searchBarScrollBehaviorModifier),
     ) {
         AppBarWithSearch(
             state = searchBarState,

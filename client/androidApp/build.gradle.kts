@@ -47,7 +47,12 @@ dependencies {
 
 android {
     namespace = "eu.tintera.plume"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    // Minor verze SDK: Compose 1.13 chce kompilovat proti 37.1+ (kontrola AAR metadat).
+    compileSdk {
+        version = release(libs.versions.android.compileSdk.get().toInt()) {
+            minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+        }
+    }
 
     defaultConfig {
         applicationId = "eu.tintera.plume"
