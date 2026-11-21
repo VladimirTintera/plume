@@ -301,7 +301,12 @@ kotlin {
     // AGP 9: Android target jde přes com.android.kotlin.multiplatform.library, ne com.android.library.
     android {
         namespace = "eu.tintera.plume.client"
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        // Minor verze SDK: Compose 1.13 chce kompilovat proti 37.1+ (kontrola AAR metadat).
+        compileSdk {
+            version = release(libs.versions.android.compileSdk.get().toInt()) {
+                minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+            }
+        }
         minSdk = libs.versions.android.minSdk.get().toInt()
         androidResources {
             // KMP moduly mají Android resources defaultně vypnuté; bez tohohle se composeResources

@@ -38,7 +38,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuPopup
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CheckableDropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MenuDefaults
@@ -191,7 +191,7 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
                 MenuColors {
                     DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
                         PERIODS.forEachIndexed { index, (period, label) ->
-                            DropdownMenuItem(
+                            CheckableDropdownMenuItem(
                                 checked = filter.period == period,
                                 onCheckedChange = {
                                     periodMenu = false
@@ -206,7 +206,7 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
                     Spacer(Modifier.height(MenuDefaults.GroupSpacing))
                     DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
                         val custom = filter.period as? SearchPeriod.Custom
-                        DropdownMenuItem(
+                        CheckableDropdownMenuItem(
                             checked = custom != null,
                             // Ťuknutí na už vybraný rozsah ho nezruší, ale otevře výběr znovu.
                             onCheckedChange = {
@@ -298,7 +298,7 @@ private fun ContentFilterButton(filter: MessageSearchFilter, onChange: (MessageS
             MenuColors {
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
                     SearchContent.entries.forEachIndexed { index, content ->
-                        DropdownMenuItem(
+                        CheckableDropdownMenuItem(
                             checked = filter.content == content,
                             onCheckedChange = {
                                 menu = false

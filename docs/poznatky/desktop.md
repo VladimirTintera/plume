@@ -602,16 +602,12 @@ on an unattached node" a za ním „Unknown error" (NPE bez zprávy). Je to tent
   Androidu jsou insety stabilní objekty, proto tam stejný kód drží.
 - **Popis insetů místo čísel tu nepomůže** — vadí identita objektu, ne hodnota. A stejně čtou
   insety i komponenty M3 (`TopAppBarDefaults.windowInsets`), na které se zvenku nedosáhne.
-- **Oprava je přenesená z CMP 1.13.0-alpha01**, kde `insetsInvalidated()` nad odpojeným uzlem
-  nedělá nic (připojený si insety přepočítá v `onAttach`). Plugin `plume.compose-insets-desktop`
-  (`build-logic/…/ComposeInsets.kt`) přepíše jar `foundation-layout-desktop` na
-  `runtimeClasspath` jako u TDLib a LiteRT: `InsetsConsumingModifierNode` a
-  `InsetsPaddingModifierNode` dostanou na začátek `insetsInvalidated()` `if (!isAttached) return`.
-  Když třídu nebo metodu po bumpu nenajde, build spadne — po přechodu na 1.13 plugin pryč.
-- **iOS opravu nemá** (klib přepsat nejde). Scéna se tam mění jen otočením nebo rozdělenou
-  obrazovkou na iPadu; padá-li to tam, pomůže až 1.13.
-- **Testy `jvmTest` běží nad nepřepsaným jarem** — transform je jen na `runtimeClasspath`
-  vstupního bodu.
+- **Opravu má Compose Multiplatform od 1.13.0-alpha01**: `insetsInvalidated()` nad odpojeným
+  uzlem nedělá nic (připojený si insety přepočítá v `onAttach`). `InsetsConsumingModifierNode`
+  i `InsetsPaddingModifierNode` začínají `if (!isAttached) return` — ověřeno `javap -c` nad
+  `foundation-layout-desktop-1.13.0-rc01`. Do 1.12 ji do jaru vkládal přepisem plugin
+  `plume.compose-insets-desktop` v `build-logic`; s přechodem na 1.13 zmizel. Od 1.13 má
+  opravu i iOS, kam se přepis dostat nemohl.
 - **Reprodukce bez ruky na myši**: ladicí běh a `osascript -e 'tell application "System Events"
   to tell process "java" to set size of window "Plume (dev)" to {500, 1000}'` v cyklu přes šířky
   1400 → 400 a zpět (potřebuje oprávnění Zpřístupnění pro terminál). Bez opravy okna „Error"
@@ -658,9 +654,11 @@ mechanismus i řešení jsou převzaté z KMPMlog, kde se na tutéž chybu při�
   nejde — žádná dnešní bublina s akcí ovšem gesta kotvy nemá (nápověda gest je řízená programem).
 - **Pojistky v `jvmTest`** (`RootTooltipTest`, headless `runComposeUiTest` nad skiko scénou,
   bez okna): bublina přežije zúžení pod práh dvou panelů, sedí u kotvy nad ní i vedle ní,
-  `WithTooltip` se ukáže najetím myši. `rawTooltipRemovedDuringMeasureCrashes` dokládá chybu
-  v Compose Multiplatform 1.12: **až začne padat, upstream ji opravil** a obal i kontrola můžou
-  pryč. Popup (menu) přes kořen vykreslit nejde — polohuje se k rodiči.
+  `WithTooltip` se ukáže najetím myši. Chybu opravuje Compose Multiplatform 1.13.0-rc01
+  (compose-multiplatform-core#3566, „removing a popup or tooltip in a `BoxWithConstraints`") a
+  pojistný test se po bumpu otočil: `rawTooltipRemovedDuringMeasureSurvives` dokládá, že holý
+  `TooltipBox` zúžení přežije. **Obal i `verifyTooltipsThroughRoot` tím přestaly být nutné** a můžou
+  pryč; zatím zůstávají, než se vyzkouší na desktopu ručně (tah táhlem, zúžení okna s bublinou). Popup (menu) přes kořen vykreslit nejde — polohuje se k rodiči.
 
 ## Vložení ze schránky a přetažení souborů
 

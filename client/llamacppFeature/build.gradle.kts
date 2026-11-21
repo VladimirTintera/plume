@@ -14,7 +14,12 @@ plugins {
  */
 android {
     namespace = "eu.tintera.plume.llamacpp"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    // Minor verze SDK: Compose 1.13 chce kompilovat proti 37.1+ (kontrola AAR metadat).
+    compileSdk {
+        version = release(libs.versions.android.compileSdk.get().toInt()) {
+            minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+        }
+    }
     // Knihovny z :ai-llamacpp-android ořezává (strip) až modul, který je balí — a tím NDK. Bez
     // téhle verze AGP ořez přeskočí („Unable to strip") a do součásti jde 55 MB místo 7 MB.
     ndkVersion = libs.versions.ndk.get()

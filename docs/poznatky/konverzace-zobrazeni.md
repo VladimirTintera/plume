@@ -933,7 +933,7 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Odeslat ankety a seznamu úkolů je split button** (`SendSplitButton`): nabídka (bez zvuku,
   naplánovat) za šipkou, ne za dlouhým stiskem, o kterém nic nenapovídalo. U uložení upraveného
   seznamu nabídka není, je to obyčejné tlačítko.
-- **Ztlumení kanálu je `TonalToggleButton`** ve velikosti medium: ztlumený kanál ho má vyplněné
+- **Ztlumení kanálu je `FilledTonalToggleButton`** (do material3 1.12 `TonalToggleButton`) ve velikosti medium: ztlumený kanál ho má vyplněné
   a zakulacené, ikona ukazuje stav (přeškrtnutý zvonek = ztlumeno). Ověřeno na Pixelu 5.
 - **Předěl „Nepřečtené zprávy" je tónová pilulka** (`secondaryContainer`, `labelMediumEmphasized`),
   ne šedý text jako předěl dne — je to jediná značka „odsud čti".

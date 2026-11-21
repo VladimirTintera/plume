@@ -61,7 +61,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CheckableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -278,7 +278,7 @@ private fun AuthorChip(
         DropdownMenuPopup(modifier = Modifier.menuScroll(), expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
             MenuColors {
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
-                    DropdownMenuItem(
+                    CheckableDropdownMenuItem(
                         checked = chosen.isEmpty(),
                         onCheckedChange = {
                             menu = false
@@ -292,7 +292,7 @@ private fun AuthorChip(
                 Spacer(Modifier.height(MenuDefaults.GroupSpacing))
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
                     admins.forEachIndexed { index, admin ->
-                        DropdownMenuItem(
+                        CheckableDropdownMenuItem(
                             checked = admin.id in chosen,
                             onCheckedChange = { onToggleAuthor(admin.id) },
                             text = { Text(admin.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },

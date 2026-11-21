@@ -95,7 +95,7 @@ fun ExpressiveMenu(
                             text = { Text(action.label) },
                             shape = MenuDefaults.itemShape(index, group.size).shape,
                             leadingIcon = action.leading ?: action.icon?.let { icon -> { Icon(painterResource(icon), contentDescription = null) } },
-                            trailingIcon = action.trailing,
+                            trailingContent = action.trailing,
                             supportingText = action.supporting?.let { text -> { Text(text) } },
                             colors = colors,
                         )

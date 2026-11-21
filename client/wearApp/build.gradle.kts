@@ -29,7 +29,12 @@ kotlin {
 
 android {
     namespace = "eu.tintera.plume.wear"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    // Minor verze SDK: Compose 1.13 chce kompilovat proti 37.1+ (kontrola AAR metadat).
+    compileSdk {
+        version = release(libs.versions.android.compileSdk.get().toInt()) {
+            minorApiLevel = libs.versions.android.compileSdkMinor.get().toInt()
+        }
+    }
 
     defaultConfig {
         // Stejné jako telefon: Wear OS aplikace jde v Play do téhož záznamu jen se stejným id.

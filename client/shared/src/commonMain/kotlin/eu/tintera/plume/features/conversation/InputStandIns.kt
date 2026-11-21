@@ -4,7 +4,8 @@ import androidx.compose.foundation.layout.Spacer
 import eu.tintera.plume.core.ui.MediumButtonHeight
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.ToggleButtonDefaults
-import androidx.compose.material3.TonalToggleButton
+import androidx.compose.material3.FilledTonalToggleButton
+import androidx.compose.material3.ToggleButtonSize
 import eu.tintera.plume.core.ui.ButtonEmphasis
 import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.MediumButton
@@ -94,10 +95,11 @@ internal fun MuteBar(
     ) {
         // Ztlumení je stav, ne jednorázová akce: přepínací tlačítko (M3 Expressive), které se
         // ve ztlumeném kanálu vyplní a zakulatí. Popisek říká, co ťuknutí udělá.
-        TonalToggleButton(
+        FilledTonalToggleButton(
             checked = muted == true,
             onCheckedChange = { onToggle() },
             enabled = muted != null,
+            buttonSize = ToggleButtonSize.Medium,
             shapes = ToggleButtonDefaults.shapesFor(MediumButtonHeight),
             contentPadding = ButtonDefaults.contentPaddingFor(MediumButtonHeight),
             modifier = Modifier.weight(1f).heightIn(min = MediumButtonHeight),

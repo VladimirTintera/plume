@@ -401,7 +401,8 @@ který uvidí uživatel.
     `ResourceReadDeadlockTest` (s čtenářem na Main blokující čtení nedoběhne, přesunutým ano);
     upstream [CMP-6615](https://youtrack.jetbrains.com/issue/CMP-6615), opravené až
     v 1.13.0-alpha01 (zámek bez předávání, JetBrains/compose-multiplatform#5691) — **1.12.1
-    opravu nemá**. Až projekt dojde na 1.13, obcházka i test můžou pryč.
+    opravu nemá**. Projekt je od přechodu na 1.13.0-rc01 na opravené verzi, takže obcházka
+    i test můžou pryč; zatím zůstávají, než se odstranění ověří (čtení mimo Main ničemu neškodí).
   - **Vědomé výjimky, které zůstávají řetězcem:** náhradní název souboru a skladby bez jména
     („Soubor", „Audio" — je to jméno, pod kterým se soubor ukládá a které dostává systémový
     přehrávač) a štítky médií uvnitř článku („[Fotka]" — leží uprostřed textu s entitami
@@ -459,10 +460,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   alpha, adaptive a lifecycle se zvedají spolu. Od Compose 1.12 se okno čte přes
   `currentWindowAdaptiveInfoV2` (zná navíc třídy Large a XL — na `widthClass` to nic nemění, obě
   leží nad Expanded) a stav modálního sheetu přes `rememberBottomSheetState(SheetValue.Hidden)`.
-- **`material3` musí zůstat na ALPHA kanálu.** Ve stable artefaktu jsou API pod
+- **`material3` musí mít expressive API.** Ve stable artefaktech do 1.12 byla API pod
   `@ExperimentalMaterial3ExpressiveApi` vyříznutá — `MaterialExpressiveTheme`, `MotionScheme`,
-  `LoadingIndicator`, `WideNavigationRail`, `ButtonGroup`, `FloatingActionButtonMenu`. Bez alphy
-  expressive vrstva neexistuje.
+  `LoadingIndicator`, `WideNavigationRail`, `ButtonGroup`, `FloatingActionButtonMenu` — takže
+  projekt jel na alphě. Řada 1.13 (Jetpack material3 1.5) je má i v RC; před bumpem na jinou
+  než alpha verzi se to ověří výpisem jaru `material3-desktop` (`unzip -l … | grep LoadingIndicator`).
 - **Preferuj defaulty.** Neoverriduj `containerColor`/elevation, dokud k tomu není konkrétní důvod.
 - **Maximální šířky rozvržení jsou ze škály `ContentWidth`** (`core/adaptive`: Pane 360, Form 420,
   Bubble 560, Sheet 640, Reading 720, Conversation 840), ne konstanty po obrazovkách. Na ploše
@@ -489,10 +491,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   stavovou lištou, karta vstupního pole) a přes sebe položené kopie by prosvítaly.
 - **49 vlastních `animateColorAsState` se psát nemusí.** Materialkolor je v projektu už kvůli
   generování palety a `animateColorScheme` pokrývá všechny role. Je ale stavěný proti STARŠÍ
-  material3 (4.1.1 → 1.10.0-alpha05, projekt jede na 1.12) a volá `ColorScheme.copy` — tedy
+  material3 (4.1.1 → 1.10.0-alpha05, projekt jede na 1.13) a volá `ColorScheme.copy` — tedy
   syntetické `copy$default` s pevným počtem parametrů. Nová barevná role v material3 by ho binárně
   rozešla a **chyba by přišla až za běhu**; před bumpem materialkoloru nebo material3 se to ověří
-  `javap` nad `material3-desktop` (obě verze mají `copy-_VG5OTI$default` se 48 barvami).
+  `javap` nad `material3-desktop` (1.10.0-alpha05 i 1.13.0-rc01 mají `copy-_VG5OTI$default`
+  se 48 barvami).
 - **`ColorScheme` NEMÁ `equals`** (ověřeno `javap`), takže se porovnává referencí. Cíl animace proto
   musí být STABILNÍ INSTANCE: `dynamicLightColorScheme`/`dynamicDarkColorScheme` se na Androidu
   `remember`ují, jinak by `updateTransition` uvnitř `animateColorScheme` zakládalo transition

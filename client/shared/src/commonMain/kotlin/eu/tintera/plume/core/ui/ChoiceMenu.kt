@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CheckableDropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -143,7 +143,7 @@ fun <T> ChoiceMenu(
                 }
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(groups - 1, groups), modifier = Modifier.fillMaxWidth()) {
                     options.forEachIndexed { index, option ->
-                        DropdownMenuItem(
+                        CheckableDropdownMenuItem(
                             checked = option == selected,
                             onCheckedChange = { onSelect(option) },
                             text = { Text(label(option)) },
