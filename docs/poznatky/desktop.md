@@ -638,6 +638,12 @@ Druhé okno (`IncomingCallWindow`) se skládá přímo v `application {}` vedle 
   `collectAsStateWithLifecycle` mimo okno shodí celou aplikaci hned při startu
   (`IllegalStateException: CompositionLocal LocalLifecycleOwner not present`, „Failed to
   launch JVM"). Mimo okno se proto sbírá `collectAsState`; uvnitř okna zase funguje všechno.
+- **Platí to i pro společný kód, který se do `application {}` dostane oklikou.** `CallAccountScope`
+  a `AccountScope` (`core/accounts/AccountScope.kt`, víc účtů) sbíraly `…WithLifecycle` a desktop
+  od 14. 11. 2026 padal při startu s touž hláškou — okénka hovoru a obrazu v obraze je v `main`
+  obalují mimo `Window`. Na Androidu ani v testech se to neukáže, jen spuštěním desktopu
+  (`createDistributable -PdesktopDebug` a binárka z `build/compose/binaries/main/app`). Obaly
+  teď sbírají `collectAsState` — u StateFlow se tím nic neztratí.
 - **Motiv si okno bere samo** (`SettingsTheme`, tentýž jako `AppRoot`) — kompozice
   `application {}` žádný motiv nemá.
 
