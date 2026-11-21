@@ -25,6 +25,7 @@ import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
@@ -272,6 +273,7 @@ private fun SetChips(entries: List<Pair<Long?, String>>, selected: Long?, onSele
                 selected = id == selected,
                 onClick = { onSelect(id) },
                 label = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = CHIP_MAX)) },
+                shapes = FilterChipDefaults.shapes(),
             )
         }
     }

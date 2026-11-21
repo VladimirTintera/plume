@@ -6,6 +6,7 @@ import eu.tintera.plume.resources.profile_gift_collection_empty
 import eu.tintera.plume.resources.profile_story_albums_all
 import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.GroupEmptyRow
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.lazy.items
@@ -121,6 +122,7 @@ private fun CollectionChips(gifts: ProfileGifts, onSelect: (Int?) -> Unit) {
                 selected = gifts.collectionId == null,
                 onClick = { onSelect(null) },
                 label = { Text(stringResource(Res.string.profile_story_albums_all)) },
+                shapes = FilterChipDefaults.shapes(),
             )
         }
         items(gifts.collections, key = { it.id }) { collection ->
@@ -134,6 +136,7 @@ private fun CollectionChips(gifts: ProfileGifts, onSelect: (Int?) -> Unit) {
                         style = LocalTextStyle.current.tabularNumbers(),
                     )
                 },
+                shapes = FilterChipDefaults.shapes(),
             )
         }
     }

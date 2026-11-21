@@ -550,6 +550,8 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `heightIn(min = 56.dp)`: tak vznikla 56dp pilulka s písmem, odsazením a tvarem 40dp tlačítka.
   S indikátorem místo popisku pevná výška (`height(MediumButtonHeight)`), jinak tlačítko při
   čekání poskočí.
+- **Čipy taky** (`shapes = FilterChipDefaults.shapes()` u `FilterChip`, `InputChipDefaults.shapes()`
+  u `InputChip`): 12 dp, vybraný pilulka, stisknutý 8 dp. Hlídá to `verifyChipShapes`.
 - **Tlačítka vedle sebe jsou `ActionButtonGroup`** (`core/ui`, M3E `ButtonGroup`), ne `Row`:
   stisknuté se roztáhne a sousedé uhnou. Vzhled si nese volající (`GroupAction.button` dostane
   modifikátor a `interactionSource`, které MUSÍ předat tlačítku — bez nich skupina stisk

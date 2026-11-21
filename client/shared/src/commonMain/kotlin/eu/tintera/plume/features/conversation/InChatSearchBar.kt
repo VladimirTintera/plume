@@ -165,6 +165,7 @@ internal fun InChatSearchTopBar(
                                 )
                             },
                             modifier = Modifier.widthIn(max = SENDER_CHIP_MAX_WIDTH),
+                            shapes = InputChipDefaults.shapes(),
                         )
                     }
                 },

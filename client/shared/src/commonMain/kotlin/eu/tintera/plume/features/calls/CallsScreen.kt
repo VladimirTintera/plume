@@ -313,6 +313,7 @@ private fun FilterOption(label: StringResource, selected: Boolean, onClick: () -
         } else {
             null
         },
+        shapes = FilterChipDefaults.shapes(),
     )
 }
 

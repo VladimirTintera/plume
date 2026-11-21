@@ -226,6 +226,7 @@ private fun EventLogFilters(
                 } else {
                     null
                 },
+                shapes = FilterChipDefaults.shapes(),
             )
         }
     }
@@ -272,6 +273,7 @@ private fun AuthorChip(
                     modifier = Modifier.size(FilterChipDefaults.IconSize).graphicsLayer { rotationZ = rotation },
                 )
             },
+            shapes = FilterChipDefaults.shapes(),
         )
         DropdownMenuPopup(modifier = Modifier.menuScroll(), expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
             MenuColors {

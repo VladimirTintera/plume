@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
@@ -135,6 +136,7 @@ private fun CallRatingSheet(request: CallRatingRequest, calls: CallRepository) {
                             selected = problem in problems,
                             onClick = { problems = if (problem in problems) problems - problem else problems + problem },
                             label = { Text(stringResource(problem.label())) },
+                            shapes = FilterChipDefaults.shapes(),
                         )
                     }
                 }

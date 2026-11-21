@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -284,6 +285,7 @@ internal fun ChatReactionsSheet(
                             selected = selected,
                             onClick = { picked = if (selected) picked - emoji else picked + emoji },
                             label = { Text(emoji, style = MaterialTheme.typography.titleLarge) },
+                            shapes = FilterChipDefaults.shapes(),
                         )
                     }
                 }
