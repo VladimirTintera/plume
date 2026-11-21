@@ -1,11 +1,12 @@
 package eu.tintera.plume.features.share
 
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.TextFieldState
 import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.share.ShareRequests
@@ -74,11 +75,11 @@ class ShareToChatViewModel(
     val state: StateFlow<ShareToChatState> = _state.asStateFlow()
 
     /**
-     * Popisek je Compose stav přímo tady, ne `StateFlow` — hodnota vrácená o dispatch později
-     * poskakuje kurzorem (tatáž past jako u úpravy profilu a vstupního pole konverzace).
+     * Popisek je stav pole přímo tady ([TextFieldState]), ne `StateFlow` — hodnota vrácená
+     * o dispatch později poskakuje kurzorem (tatáž past jako u úpravy profilu a vstupního pole
+     * konverzace). Pole na obrazovce ho upravuje samo.
      */
-    var caption by mutableStateOf(TextFieldValue())
-        private set
+    val caption = TextFieldState()
 
     /** Sdílený text se do popisku vloží jednou; další průchod stavem by přepsal, co uživatel píše. */
     private var captionFilled = false
@@ -139,11 +140,11 @@ class ShareToChatViewModel(
                             isSavedMessages = it.isSavedMessages,
                         )
                     }
-                    caption = TextFieldValue()
+                    caption.clearText()
                     captionFilled = false
                 }
                 if (!captionFilled) {
-                    content.text?.let { caption = TextFieldValue(it, TextRange(it.length)) }
+                    content.text?.let { caption.setTextAndPlaceCursorAtEnd(it) }
                     captionFilled = true
                 }
                 val prepared = content.attachments ?: return@collect
@@ -166,10 +167,6 @@ class ShareToChatViewModel(
                 }
             }
         }
-    }
-
-    fun onCaptionChange(value: TextFieldValue) {
-        caption = value
     }
 
     /**
@@ -298,7 +295,7 @@ class ShareToChatViewModel(
         if (_state.value.sending || _state.value.markupBusy || attachments.isEmpty()) return
         _state.update { it.copy(sending = true) }
 
-        val text = caption.text.trim()
+        val text = caption.text.toString().trim()
         val sending = appScope.async {
             // Víc než deset příloh odejde v několika albech (`sendInBatches`).
             repository.sendInBatches(
@@ -327,7 +324,7 @@ class ShareToChatViewModel(
             }
             // Odeslaná alba z obrazovky zmizí i s popiskem, který šel s prvním; druhý pokus
             // pošle jen zbytek.
-            if (result.sent > 0) caption = TextFieldValue()
+            if (result.sent > 0) caption.clearText()
             _state.update {
                 it.copy(
                     sending = false,

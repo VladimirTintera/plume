@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.auth
 
+import eu.tintera.plume.core.ui.rememberSyncedTextFieldState
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.InputTransformation
 import eu.tintera.plume.core.ui.BLOCK_OUTLINE
 import eu.tintera.plume.core.ui.blockOutlineColor
 import androidx.compose.animation.AnimatedContent
@@ -13,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -71,10 +73,18 @@ internal fun CodeField(
 
     LaunchedEffect(digits) { focusRequester.requestFocus() }
 
+    val state = rememberSyncedTextFieldState(value, onValueChange)
     BasicTextField(
-        value = value,
-        onValueChange = { onValueChange(codeDigits(it, digits)) },
-        singleLine = true,
+        state = state,
+        // Jen číslice a nejvýš [digits] — i u vloženého textu („Kód: 12345").
+        inputTransformation = remember(digits) {
+            InputTransformation {
+                val typed = asCharSequence().toString()
+                val code = codeDigits(typed, digits)
+                if (code != typed) replace(0, length, code)
+            }
+        },
+        lineLimits = TextFieldLineLimits.SingleLine,
         textStyle = TextStyle(color = Color.Transparent),
         cursorBrush = SolidColor(Color.Transparent),
         keyboardOptions = KeyboardOptions(
@@ -82,7 +92,7 @@ internal fun CodeField(
             imeAction = ImeAction.Go,
             autoCorrectEnabled = false,
         ),
-        keyboardActions = KeyboardActions(onGo = { onSubmit() }),
+        onKeyboardAction = { onSubmit() },
         modifier = modifier
             .fillMaxWidth()
             .focusRequester(focusRequester)
@@ -90,7 +100,7 @@ internal fun CodeField(
             // Aby klávesnice nabídla kód z došlé SMS. Deklarace navíc nic nestojí a bez ní
             // musí autofill hádat podle okolí.
             .semantics { contentType = ContentType.SmsOtpCode },
-        decorationBox = { innerTextField ->
+        decorator = { innerTextField ->
             // Průhledné pole leží pod políčky; kreslí se z něj jen výběr a případné úchyty,
             // takže se vloženému kódu ze schránky nic nepostaví do cesty.
             innerTextField()
@@ -103,8 +113,8 @@ internal fun CodeField(
                 Row(horizontalArrangement = Arrangement.spacedBy(CODE_CELL_GAP)) {
                     repeat(digits) { index ->
                         CodeCell(
-                            digit = value.getOrNull(index),
-                            active = focused && index == activeCodeCell(value.length, digits),
+                            digit = state.text.getOrNull(index),
+                            active = focused && index == activeCodeCell(state.text.length, digits),
                             isError = isError,
                             height = height,
                         )

@@ -1522,15 +1522,12 @@ Compose Multiplatform 1.13.0-rc01 opravil několik věcí, kvůli kterým projek
 (přepis jaru insetů na desktopu, `RootTooltipBox`, `readString`); všechny tři jsou pryč. Až vyjde
 stabilní 1.13.0, zvednout z RC.
 
-- **Textová pole na `TextFieldState`** (zbytek zastaralého API po Compose 1.13; `ListItem`,
-  `Locale.current`, `Slider(value)` a úchyt panelu jsou převedené). `BasicTextField(value,
-  onValueChange)` → `BasicTextField(state)`, `VisualTransformation` → `OutputTransformation`,
-  `PasswordVisualTransformation` → `SecureTextField`. Týká se `FormTextField` (36 volání),
-  `BlockTextField` (12), `PasswordField` (6), `SearchPill` (14), `CodeField`, `PhoneField`
-  (formátování čísla přes `OffsetMapping` → `OutputTransformation`), `StoryReplyBar`,
-  `ShareToChatScreen` a `visualTransformation` ve vstupním poli zpráv (`MessageInput`,
-  formátování). Mění API komponent i chování (filtr vstupu, kurzor, IME) — po částech
-  a s ověřením na zařízení. Zatím jen varování; zastaralé varianty fungují.
+- **Textová pole na `TextFieldState`** — zbývá po hesla, `SearchPill`, `CodeField`,
+  `StoryTextField` a sdílení (hotové, viz `docs/poznatky/nastaveni.md`, „Textová pole se
+  stavem"): **část 3** `PhoneField` (formátování čísla přes `OffsetMapping` →
+  `OutputTransformation`), **část 4** vstupní pole zpráv (`BasicTextField(TextFieldValue)`
+  v `MessageInput`, formátování přes `VisualTransformation` v `ComposerDraft`). Zatím jen
+  varování; zastaralé varianty fungují.
 - **ai-engine kompiluje proti `compileSdk` 37.0**, Plume proti 37.2 (Compose 1.13 chce 37.1+).
   Až ai-engine převezme Compose 1.13, sjednotit a z CI vyhodit `platforms;android-37.0`.
 

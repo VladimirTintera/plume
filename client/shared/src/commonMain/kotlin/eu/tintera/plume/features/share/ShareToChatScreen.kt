@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.share
 
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import eu.tintera.plume.resources.image_24dp
 import eu.tintera.plume.core.ui.IntroShape
 import eu.tintera.plume.features.conversation.PhotoMarkupOverlay
@@ -99,7 +101,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.style.TextAlign
@@ -465,7 +466,6 @@ private fun ShareToChatContent(
                 ) {
                 CaptionBar(
                     caption = viewModel.caption,
-                    onCaptionChange = viewModel::onCaptionChange,
                     // Dokud se soubory připravují (i ty dobrané z galerie), není co poslat —
                     // odeslání by dávku poslalo bez nich.
                     // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
@@ -857,8 +857,7 @@ private val ACCESS_DENIED_SHAPE = 96.dp
  */
 @Composable
 private fun CaptionBar(
-    caption: androidx.compose.ui.text.input.TextFieldValue,
-    onCaptionChange: (androidx.compose.ui.text.input.TextFieldValue) -> Unit,
+    caption: TextFieldState,
     enabled: Boolean,
     sending: Boolean,
     onSend: () -> Unit,
@@ -896,12 +895,12 @@ private fun CaptionBar(
                     }
                 }
                 val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                val lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 4)
                 BasicTextField(
-                    value = caption,
-                    onValueChange = onCaptionChange,
+                    state = caption,
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    maxLines = 4,
+                    lineLimits = lineLimits,
                     interactionSource = interaction,
                     keyboardOptions = KeyboardOptions(
                         // Popisek jsou věty, ne jedno slovo — klávesnice má nabídnout velké písmeno sama.
@@ -909,13 +908,11 @@ private fun CaptionBar(
                         imeAction = ImeAction.Default,
                     ),
                     modifier = Modifier.weight(1f),
-                    decorationBox = { inner ->
-                        TextFieldDefaults.DecorationBox(
-                            value = caption.text,
-                            innerTextField = inner,
+                    decorator = TextFieldDefaults.decorator(
+                            state = caption,
                             enabled = true,
-                            singleLine = false,
-                            visualTransformation = VisualTransformation.None,
+                            lineLimits = lineLimits,
+                            outputTransformation = null,
                             interactionSource = interaction,
                             placeholder = { Text(stringResource(Res.string.share_to_caption)) },
                             colors = TextFieldDefaults.colors(
@@ -927,8 +924,7 @@ private fun CaptionBar(
                                 unfocusedIndicatorColor = Color.Transparent,
                             ),
                             container = {},
-                        )
-                    },
+                        ),
                 )
             }
         }

@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -7,7 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.resources.Res
@@ -118,24 +117,24 @@ fun ControlledSearchPill(
         Row(verticalAlignment = Alignment.CenterVertically) {
             leading()
             prefix()
+            // Pole se stavem (`BasicTextField(value)` je od Compose 1.13 zastaralé); dotaz drží
+            // volající jako text, stav se s ním synchronizuje.
+            val state = rememberSyncedTextFieldState(query, onQueryChange)
             BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
+                state = state,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 textStyle = MaterialTheme.typography.bodyLarge
                     .copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                onKeyboardAction = { keyboard?.hide() },
                 interactionSource = interaction,
                 modifier = Modifier.weight(1f).focusRequester(focus),
-                decorationBox = { innerTextField ->
-                    TextFieldDefaults.DecorationBox(
-                        value = query,
-                        innerTextField = innerTextField,
+                decorator = TextFieldDefaults.decorator(
+                        state = state,
                         enabled = true,
-                        singleLine = true,
-                        visualTransformation = VisualTransformation.None,
+                        lineLimits = TextFieldLineLimits.SingleLine,
+                        outputTransformation = null,
                         interactionSource = interaction,
                         placeholder = {
                             Text(placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -148,8 +147,7 @@ fun ControlledSearchPill(
                         ),
                         contentPadding = PaddingValues(horizontal = 4.dp),
                         container = {},
-                    )
-                },
+                    ),
             )
             if (query.isNotEmpty()) {
                 IconButton(shapes = IconButtonDefaults.shapes(), onClick = {

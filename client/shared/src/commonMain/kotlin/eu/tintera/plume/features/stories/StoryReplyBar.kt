@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.ui.rememberSyncedTextFieldState
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
@@ -20,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledIconButton
@@ -219,19 +220,19 @@ internal fun StoryTextField(
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val state = rememberSyncedTextFieldState(text, onTextChange)
     BasicTextField(
-        value = text,
-        onValueChange = onTextChange,
-        singleLine = true,
+        state = state,
+        lineLimits = TextFieldLineLimits.SingleLine,
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = ON_SCRIM),
         cursorBrush = SolidColor(ON_SCRIM),
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Sentences,
             imeAction = ImeAction.Send,
         ),
-        keyboardActions = KeyboardActions(onSend = { onSend() }),
+        onKeyboardAction = { onSend() },
         modifier = modifier,
-        decorationBox = { inner ->
+        decorator = { inner ->
             Box(
                 Modifier
                     .height(FIELD_HEIGHT)
@@ -239,7 +240,7 @@ internal fun StoryTextField(
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                if (text.isEmpty()) {
+                if (state.text.isEmpty()) {
                     Text(
                         hint,
                         color = ON_SCRIM.copy(alpha = HINT_ALPHA),
