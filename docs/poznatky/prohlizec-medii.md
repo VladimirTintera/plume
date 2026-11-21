@@ -1016,10 +1016,13 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     PŘED posunem tahem (`offset` při zavírání) — jinak by se karta při tahu dolů posouvala s pantem.
   - **Ovládání leží uprostřed spodní půlky bez přechodu do tmava** — přechod tam byl kvůli
     bílému posuvníku přes světlý záběr, pod pantem je černo.
-  - **Ověřené jen testy** (`MediaPageLayoutTest`, karta nad pantem): emulátor `Plume_Galerie_Fold`
-    byl při psaní odhlášený. Na emulátoru se poloha přepíná `adb emu posture 2` (napůl otevřená),
-    `3` (otevřená); snímek vnitřního displeje chce `screencap -d <id>` z
-    `dumpsys SurfaceFlinger --display-id`.
+  - **Na vnitřním displeji Pixel Foldu na výšku je pant SVISLE** — napůl otevřený je pak „kniha",
+    ne stůl, a rozvržení se správně nemění. Na stole je až po otočení o 90° (na emulátoru
+    `settings put system accelerometer_rotation 0` a `user_rotation 1`; po testu vrátit `1` a `0`).
+  - **Ověřeno na emulátoru `Plume_Galerie_Fold`** (Android 17, video od Notifikátoru):
+    `adb emu posture 2` + otočení → video v horní půlce, posuvník a tlačítka uprostřed spodní;
+    `posture 3` → zpět přes celou obrazovku s ovládáním dole. Snímek vnitřního displeje chce
+    `screencap -d <id>` z `dumpsys SurfaceFlinger --display-id`. K tomu testy `MediaPageLayoutTest`.
 - **Ťuknutí na celé obrazovce u videa napřed ukáže schované ovládání**, teprve ťuknutí
   s ovládáním na očích vede do galerie. Jinak by se u hrajícího videa k posuvníku nedalo dostat.
 - **Video se streamuje z rozestavěného souboru** (Android; `StreamingSource`,
