@@ -1006,6 +1006,23 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   by se pralo se scrollem a swipem na odpověď a každá viditelná bublina by držela dekodér.
   V galerii je náhled s tlačítkem přehrání; ťuknutí přepne na celou obrazovku a teprve tam se
   video stahuje a hraje. Návrat do galerie ho pozastaví.
+- **Skládačka na stole (napůl otevřená, pant vodorovně): video nad pantem, ovládání pod ním**
+  (`rememberTabletopHinge` v `core/adaptive/Tabletop.kt`, `MediaPageLayout.tabletopSplit`,
+  `tabletopCardFrame`). Jen na celé obrazovce; galerie a obraz v obraze zůstávají, jak byly.
+  - **Pant se bere z `windowPosture` material3 adaptive** (`isTabletop`, `allHorizontalHingeBounds`),
+    ne z `mediaQuery`: ten řekne jen „je napůl otevřená", ne kde pant je. Desktop a iOS polohu nemají,
+    takže tam se nic nemění.
+  - **Meze pantu jsou v souřadnicích okna**, stránka si svou polohu v okně zapisuje v `onPlaced`
+    PŘED posunem tahem (`offset` při zavírání) — jinak by se karta při tahu dolů posouvala s pantem.
+  - **Ovládání leží uprostřed spodní půlky bez přechodu do tmava** — přechod tam byl kvůli
+    bílému posuvníku přes světlý záběr, pod pantem je černo.
+  - **Na vnitřním displeji Pixel Foldu na výšku je pant SVISLE** — napůl otevřený je pak „kniha",
+    ne stůl, a rozvržení se správně nemění. Na stole je až po otočení o 90° (na emulátoru
+    `settings put system accelerometer_rotation 0` a `user_rotation 1`; po testu vrátit `1` a `0`).
+  - **Ověřeno na emulátoru `Plume_Galerie_Fold`** (Android 17, video od Notifikátoru):
+    `adb emu posture 2` + otočení → video v horní půlce, posuvník a tlačítka uprostřed spodní;
+    `posture 3` → zpět přes celou obrazovku s ovládáním dole. Snímek vnitřního displeje chce
+    `screencap -d <id>` z `dumpsys SurfaceFlinger --display-id`. K tomu testy `MediaPageLayoutTest`.
 - **Ťuknutí na celé obrazovce u videa napřed ukáže schované ovládání**, teprve ťuknutí
   s ovládáním na očích vede do galerie. Jinak by se u hrajícího videa k posuvníku nedalo dostat.
 - **Video se streamuje z rozestavěného souboru** (Android; `StreamingSource`,

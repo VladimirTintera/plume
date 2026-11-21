@@ -10,6 +10,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
+import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,8 +43,11 @@ val LocalAccount = staticCompositionLocalOf<AccountSession> {
 fun AccountScope(account: AccountSession, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalAccount provides account) {
         KoinIsolatedContext(account.application) {
+            // `collectAsState`, ne `…WithLifecycle`: obal stojí i v `application {}` na desktopu
+            // (okénka hovoru přes `CallAccountScope`), kde LifecycleOwner není, a sbírání podle
+            // lifecycle by aplikaci shodilo při startu. U StateFlow nic neušetří.
             val savedMessages = remember(account) { account.koin.getOrNull<ChatRepository>()?.savedMessagesChatId }
-                ?.collectAsStateWithLifecycle()?.value
+                ?.collectAsState()?.value
             CompositionLocalProvider(LocalSavedMessagesChatId provides savedMessages, content = content)
         }
     }
@@ -74,14 +78,16 @@ fun DefaultAccountScope(content: @Composable () -> Unit) {
  */
 @Composable
 fun CallAccountScope(content: @Composable () -> Unit) {
+    // `collectAsState`, ne `…WithLifecycle`: na desktopu stojí v `application {}` mimo okno,
+    // kde LifecycleOwner není (`CompositionLocal LocalLifecycleOwner not present` při startu).
     val accounts = koinInject<Accounts>()
-    val all by accounts.all.collectAsStateWithLifecycle()
-    val default by accounts.default.collectAsStateWithLifecycle()
+    val all by accounts.all.collectAsState()
+    val default by accounts.default.collectAsState()
     val calling = remember(all) {
         if (all.size == 1) flowOf(null) else combine(all.map { it.get<CallRepository>().active }) { calls ->
             all.getOrNull(calls.indexOfFirst { it != null })
         }
-    }.collectAsStateWithLifecycle(null).value
+    }.collectAsState(null).value
     val account = calling ?: default
     key(account.slot) { AccountScope(account, content) }
 }

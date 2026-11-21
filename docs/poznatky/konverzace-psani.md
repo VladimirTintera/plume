@@ -666,8 +666,14 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
   vybraný na minuty by jinak mohl minout dřív, než odejde. Neplatný čas nechá text v poli.
 - **Naplánovaná zpráva neletí z pole** a do seznamu se nepřidává; místo toho snackbar
   „Zpráva je naplánovaná" — jinak by po odeslání nebylo vidět nic.
-- **Past s časovým výběrem přes `adb`**: po ťuknutí na hodinu se ciferník přepíná na minuty
-  animací a ťuknutí během ní se ztratí — mezi ťuknutími pauza aspoň vteřinu.
+- **Výběr hodiny jsou kolečka, ne ciferník** (`TimeScroll` ve `VibrantTimePickerDialog`,
+  material3 1.13). `TimeOfDayDialog` je jediné místo, přes které jdou plánování, připomenutí,
+  termín ankety a seznamu úkolů i tiché hodiny notifikací. Expresivní dialog nemá slot pro
+  nadpis, nese ho první řádek obsahu (`labelMedium`, jako nadpis klasického `TimePickerDialog`).
+  12/24 hodin se řídí systémem jako u ciferníku. Přepínač na psaní z klávesnice (slot
+  `modeToggleButton`) zatím není — ciferník ho neměl taky a projekt nemá ikonu klávesnice.
+- **Past s kolečky přes `adb`**: rychlý `input swipe` (250 ms) kolečkem neotočí, posune ho až
+  pomalejší tah po krocích (`input motionevent DOWN` / `MOVE` po 40 px / `UP`).
 - **Ověřeno na emulátoru v chatu s botem**: nabídka nad tlačítkem (bez „až bude online" — bot),
   naplánování s ikonou hodin a snackbarem, seznam („zítra 18:55"), odeslat hned (bot zprávu
   dostal, v historii jednou), **automatické odeslání v čase** (17:55 — bot dostal, hodiny

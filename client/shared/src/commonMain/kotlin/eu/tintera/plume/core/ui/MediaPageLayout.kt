@@ -56,6 +56,12 @@ fun MediaPageLayout(
      * obrazovky, ne ke snímku (posuvník videa). Dostane přesnou velikost stránky.
      */
     chrome: @Composable () -> Unit = {},
+    /**
+     * Horní hrana pantu skládačky na stole v pixelech od horní hrany STRÁNKY, nebo `null`. Karta se
+     * pak vepíše do půlky nad pantem (ta stojí a dá se na ni dívat), spodní půlka zůstane ovládání
+     * v [chrome]. Čte se až při měření; stránku mimo celou obrazovku volající nechá na `null`.
+     */
+    tabletopSplit: () -> Int? = { null },
     card: @Composable () -> Unit,
 ) {
     Layout(
@@ -84,7 +90,10 @@ fun MediaPageLayout(
         val caption = captionMeasurables.firstOrNull()?.measure(Constraints(maxWidth = width))
         val gallery = 1f - immersion()
 
-        val frame = pageCardFrame(
+        val split = tabletopSplit()?.takeIf { it in 1 until height }
+        val frame = if (split != null) {
+            tabletopCardFrame(IntSize(width, height), split, aspectRatio)
+        } else pageCardFrame(
             pageSize = IntSize(width, height),
             reservedTop = (reservedTop.roundToPx() * gallery).roundToInt(),
             reservedBottom = (reservedBottom.roundToPx() * gallery).roundToInt(),
@@ -125,6 +134,21 @@ fun pageCardFrame(
     val left = (pageSize.width - size.width) / 2
     return IntRect(IntOffset(left, top), size)
 }
+
+/**
+ * Kde leží karta na skládačce na stole: vepsaná do půlky nad pantem ([split] px od horní hrany
+ * stránky), vodorovně i svisle na jejím středu. Popisek ani lišty se do půlky nevejdou, ovládání
+ * patří pod pant. Pant mimo stránku nic nemění — vrací kartu přes celou stránku.
+ */
+fun tabletopCardFrame(pageSize: IntSize, split: Int, aspectRatio: Float): IntRect =
+    pageCardFrame(
+        pageSize = if (split in 1 until pageSize.height) IntSize(pageSize.width, split) else pageSize,
+        reservedTop = 0,
+        reservedBottom = 0,
+        captionHeight = 0,
+        captionGap = 0,
+        aspectRatio = aspectRatio,
+    )
 
 /**
  * Největší obdélník s poměrem stran [aspectRatio], který se vejde do [maxWidth] × [maxHeight].
