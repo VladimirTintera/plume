@@ -134,7 +134,6 @@ fun SwitchListItem(
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = leadingContent,
-        headlineContent = headlineContent,
         supportingContent = supportingContent,
         trailingContent = { IconSwitch(checked = checked, onCheckedChange = null, enabled = enabled) },
         modifier = modifier.toggleable(
@@ -146,5 +145,6 @@ fun SwitchListItem(
                 onCheckedChange(on)
             },
         ),
+        content = headlineContent,
     )
 }

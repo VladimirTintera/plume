@@ -75,7 +75,6 @@ internal fun PasskeysRow(onOpen: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.passkey_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_passkeys)) },
         supportingContent = count?.let { n ->
             {
                 Text(
@@ -88,7 +87,7 @@ internal fun PasskeysRow(onOpen: () -> Unit) {
             }
         },
         modifier = Modifier.clickable(onClick = onOpen),
-    )
+    ) { Text(stringResource(Res.string.settings_passkeys)) }
 }
 
 /**
@@ -122,8 +121,7 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
                 if (passkeys.isEmpty()) {
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(Res.string.passkeys_empty)) },
-                    )
+                    ) { Text(stringResource(Res.string.passkeys_empty)) }
                 }
                 for (passkey in passkeys) {
                     PasskeyRow(
@@ -144,13 +142,12 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
                         leadingIconColor = MaterialTheme.colorScheme.error,
                     ),
                     leadingContent = { Icon(painterResource(Res.drawable.error_24dp), contentDescription = null) },
-                    headlineContent = { Text(stringResource(Res.string.passkeys_load_failed)) },
                     trailingContent = {
                         FilledTonalButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.passkeys_retry))
                         }
                     },
-                )
+                ) { Text(stringResource(Res.string.passkeys_load_failed)) }
             }
             else -> SettingsPageLoading()
         }
@@ -196,7 +193,6 @@ private fun PasskeyRow(passkey: LoginPasskey, removing: Boolean, enabled: Boolea
                 Icon(painterResource(Res.drawable.passkey_24dp), contentDescription = null)
             }
         },
-        headlineContent = { Text(passkey.displayName(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(stringResource(Res.string.passkey_summary, added, used)) },
         trailingContent = {
             Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
@@ -209,5 +205,5 @@ private fun PasskeyRow(passkey: LoginPasskey, removing: Boolean, enabled: Boolea
                 }
             }
         },
-    )
+    ) { Text(passkey.displayName(), maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }

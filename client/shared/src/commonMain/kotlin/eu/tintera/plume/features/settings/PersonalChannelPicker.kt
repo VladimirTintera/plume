@@ -69,7 +69,6 @@ internal fun PersonalChannelRow(
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.campaign_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.personal_channel_row)) },
         supportingContent = { Text(value?.title ?: stringResource(Res.string.personal_channel_none)) },
         modifier = Modifier
             .highlightAnchor(stringResource(Res.string.personal_channel_row))
@@ -77,7 +76,7 @@ internal fun PersonalChannelRow(
                 onOpen()
                 picking = true
             },
-    )
+    ) { Text(stringResource(Res.string.personal_channel_row)) }
     if (picking) {
         PersonalChannelDialog(
             selected = value,
@@ -124,9 +123,6 @@ private fun PersonalChannelDialog(
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         leadingContent = { RadioButton(selected = isSelected, onClick = null) },
-                        headlineContent = {
-                            Text(channel?.title ?: stringResource(Res.string.personal_channel_none), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        },
                         supportingContent = channel?.subscribers?.let { count ->
                             { Text(pluralStringResource(Res.plurals.invite_subscribers, count, count.grouped())) }
                         },
@@ -149,7 +145,9 @@ private fun PersonalChannelDialog(
                                 onSelect(channel)
                             },
                         ),
-                    )
+                    ) {
+                        Text(channel?.title ?: stringResource(Res.string.personal_channel_none), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
                 option(null)
                 when {

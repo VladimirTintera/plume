@@ -685,10 +685,9 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel, onOpenPlayground:
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.chat_bubble_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.ai_playground_title)) },
             supportingContent = { Text(stringResource(Res.string.ai_playground_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenPlayground),
-        )
+        ) { Text(stringResource(Res.string.ai_playground_title)) }
     }
 
     mobileDataPrompt?.let { provider ->
@@ -1023,11 +1022,10 @@ private fun SizeChoices(sizes: List<LiteRtModel>, selected: LiteRtModel, onSelec
 private fun ModelChoiceRow(title: String, summary: String, selected: Boolean, onSelect: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(title) },
         supportingContent = { Text(summary) },
         trailingContent = { RadioButton(selected = selected, onClick = null) },
         modifier = Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
-    )
+    ) { Text(title) }
 }
 
 /** Jméno modelu pro člověka; bere ho i porovnání modelů v sheetu shrnutí. */

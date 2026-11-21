@@ -318,7 +318,6 @@ private fun SetRow(
     modifier: Modifier = Modifier,
 ) {
     ListItem(
-        headlineContent = { Text(set.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             val count = if (set.coverCustomEmojiId != null) Res.plurals.emoji_count else Res.plurals.stickers_count
             Text(pluralStringResource(count, set.size, set.size))
@@ -341,7 +340,7 @@ private fun SetRow(
         trailingContent = trailing,
         colors = ListItemDefaults.colors(containerColor = containerColor),
         modifier = modifier,
-    )
+    ) { Text(set.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 /**

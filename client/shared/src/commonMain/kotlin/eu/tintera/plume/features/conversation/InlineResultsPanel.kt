@@ -235,12 +235,11 @@ internal fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Un
                     }
                 }
             },
-            headlineContent = { Text(result.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = result.description.takeIf { it.isNotBlank() }?.let {
                 { Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis) }
             },
             modifier = Modifier.clip(RoundedCornerShape(CELL_CORNER)).clickable { onPick(result) },
-        )
+        ) { Text(result.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 }
 

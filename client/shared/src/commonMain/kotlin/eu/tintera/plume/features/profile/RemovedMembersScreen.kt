@@ -183,7 +183,6 @@ private fun RemovedMemberRow(
 ) {
     val until = member.until
     ListItem(
-        headlineContent = { Text(member.sender.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Text(
                 if (until == null) {
@@ -208,7 +207,7 @@ private fun RemovedMemberRow(
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = if (onOpen != null) modifier.clickable(onClick = onOpen) else modifier,
-    )
+    ) { Text(member.sender.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 private const val LOADING_KEY = "removed-members-loading"

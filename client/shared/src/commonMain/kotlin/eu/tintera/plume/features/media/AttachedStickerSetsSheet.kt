@@ -50,7 +50,6 @@ internal fun AttachedStickerSetsSheet(
             LazyColumn {
                 itemsIndexed(sets, key = { _, set -> set.id }) { index, set ->
                     ListItem(
-                        headlineContent = { Text(set.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         supportingContent = set.size.takeIf { it > 0 }?.let { count ->
                             { Text(pluralStringResource(Res.plurals.stickers_count, count, count)) }
                         },
@@ -59,7 +58,7 @@ internal fun AttachedStickerSetsSheet(
                         },
                         colors = ListItemDefaults.colors(containerColor = container),
                         modifier = Modifier.groupedItem(index, sets.size, container).clickable { onOpen(set.id) },
-                    )
+                    ) { Text(set.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
             }
         }

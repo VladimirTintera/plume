@@ -51,7 +51,6 @@ fun ChoiceListItem(
     val content = if (selected) colors.onSecondaryContainer else colors.onSurface
     val secondary = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant
     ListItem(
-        headlineContent = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = supporting?.let { { Text(it) } },
         leadingContent = leading,
         trailingContent = if (selected || actions != null) {
@@ -80,5 +79,5 @@ fun ChoiceListItem(
                 edge = edge,
             )
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
-    )
+    ) { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }

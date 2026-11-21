@@ -243,9 +243,8 @@ private fun CreateChatRow(icon: DrawableResource, title: StringResource, index: 
                 leadingContentColor = MaterialTheme.colorScheme.primary,
             ),
             leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-            headlineContent = { Text(stringResource(title)) },
             modifier = Modifier.clickable(onClick = onClick),
-        )
+        ) { Text(stringResource(title)) }
     }
 }
 

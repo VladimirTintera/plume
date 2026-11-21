@@ -75,7 +75,6 @@ internal fun BirthdateRows(
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.cake_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.birthdate_row)) },
         supportingContent = { Text(shown?.label() ?: stringResource(Res.string.birthdate_none)) },
         modifier = Modifier
             .highlightAnchor(stringResource(Res.string.birthdate_row))
@@ -83,7 +82,7 @@ internal fun BirthdateRows(
                 pickingForYear = false
                 picking = true
             },
-    )
+    ) { Text(stringResource(Res.string.birthdate_row)) }
     if (value != null) {
         // Datum bez roku (uložené dřív): rok musí přijít z kalendáře, zapnutí ho otevře.
         val toggle: (Boolean) -> Unit = { on ->

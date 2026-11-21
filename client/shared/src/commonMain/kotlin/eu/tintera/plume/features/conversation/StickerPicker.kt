@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.ui.platform.LocalLocale
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.ControlledSearchPill
 import androidx.compose.material3.FilledTonalIconToggleButton
@@ -100,7 +101,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -654,7 +654,8 @@ internal fun StickerPickerSheet(
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     // Jazyk zařízení a angličtina jako záloha: klíčová slova samolepek bývají anglicky.
-    val languageCodes = remember { listOf(Locale.current.language, "en").distinct() }
+    val locale = LocalLocale.current
+    val languageCodes = remember(locale) { listOf(locale.language, "en").distinct() }
     /*
      * Rovnou celý, bez napůl rozbaleného stavu. Obsah je vyšší než polovina obrazovky, takže
      * napůl rozbalený sheet schoval spodek pod okraj — tlačítko skončilo pod navigační lištou.

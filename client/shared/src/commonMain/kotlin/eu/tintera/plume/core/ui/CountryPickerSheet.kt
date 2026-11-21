@@ -144,7 +144,6 @@ private fun CountryRow(
         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = DISABLED_ALPHA)
     }
     ListItem(
-        headlineContent = { Text(country.name) },
         // Vlajka je emoji, ne obrázek — kreslí ji systémové písmo, takže se nic nestahuje
         // a nedrží se vlastní sada ikon pro dvě stě zemí.
         leadingContent = { Text(country.flagEmoji, style = MaterialTheme.typography.headlineSmall) },
@@ -177,7 +176,7 @@ private fun CountryRow(
             role = if (multiSelect) Role.Checkbox else Role.RadioButton,
             onClick = onClick,
         ),
-    )
+    ) { Text(country.name) }
 }
 
 /**

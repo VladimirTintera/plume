@@ -338,15 +338,6 @@ private fun CallHistoryRow(
     val deleteLabel = stringResource(Res.string.calls_delete_one)
     Box {
         ListItem(
-            headlineContent = {
-                Text(
-                    if (group.count > 1) stringResource(Res.string.calls_repeated, entry.chat.title, group.count) else entry.chat.title,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    // Zmeškaný jménem v chybové barvě, jako v telefonu: po uživateli něco chce.
-                    color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                )
-            },
             supportingContent = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(
@@ -399,7 +390,15 @@ private fun CallHistoryRow(
             modifier = Modifier
                 .groupedItem(index, count, container)
                 .contextClickable(onLongClickLabel = deleteLabel, onLongClick = { menu = true }, onClick = onClick),
-        )
+        ) {
+            Text(
+                if (group.count > 1) stringResource(Res.string.calls_repeated, entry.chat.title, group.count) else entry.chat.title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // Zmeškaný jménem v chybové barvě, jako v telefonu: po uživateli něco chce.
+                color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+        }
         ExpressiveMenu(
             expanded = menu,
             onDismiss = { menu = false },

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.material3.SliderState
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.groupItemShape
 import androidx.compose.material3.ShapeDefaults
@@ -245,15 +246,16 @@ fun AttachmentModeSheet(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                                 )
                             }
+                            // Varianta se stavem, viz `SizeSlider`.
+                            val timerSlider = remember { SliderState(selectedTimerSeconds.toFloat().coerceIn(1f, 30f), steps = 28, trackRange = 1f..30f) }
+                            timerSlider.value = selectedTimerSeconds.toFloat().coerceIn(1f, 30f)
                             Slider(
-                                value = selectedTimerSeconds.toFloat().coerceIn(1f, 30f),
+                                state = timerSlider,
                                 onValueChange = { newValue ->
                                     val sec = newValue.roundToInt().coerceIn(1, 30)
                                     selectedTimerSeconds = sec
                                     onSelectMode(AttachmentMode.Timer(sec))
                                 },
-                                valueRange = 1f..30f,
-                                steps = 28,
                                 colors = SliderDefaults.colors(
                                     thumbColor = selectedAccent(),
                                     activeTrackColor = selectedAccent(),

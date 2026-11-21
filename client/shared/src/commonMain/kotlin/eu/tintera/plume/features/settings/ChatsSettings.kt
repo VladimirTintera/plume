@@ -94,10 +94,9 @@ internal fun ChatsSettings(
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.folder_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.chat_folders_title)) },
             supportingContent = { Text(stringResource(Res.string.chat_folders_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenFolders),
-        )
+        ) { Text(stringResource(Res.string.chat_folders_title)) }
         // Akce se nabízejí slovesem, jak je zná nabídka nad chatem; že se u chatu, kde už platí,
         // otočí, říká věta nad nimi — jinak by „Ztlumit" vypadalo, že tahem odtlumit nejde.
         SwipeSide.entries.forEach { side ->
@@ -126,17 +125,15 @@ internal fun ChatsSettings(
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.sticker_sets_title)) },
             supportingContent = { Text(stringResource(Res.string.sticker_sets_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenStickerSets),
-        )
+        ) { Text(stringResource(Res.string.sticker_sets_title)) }
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.mood_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.emoji_sets_title)) },
             supportingContent = { Text(stringResource(Res.string.emoji_sets_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenEmojiSets),
-        )
+        ) { Text(stringResource(Res.string.emoji_sets_title)) }
     }
 
     TitledGroup(Res.string.settings_links) {
@@ -176,7 +173,6 @@ private fun TelegramLinksRow() {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_telegram_links)) },
         supportingContent = {
             Text(
                 stringResource(
@@ -187,7 +183,7 @@ private fun TelegramLinksRow() {
         modifier = Modifier
             .highlightAnchor(stringResource(Res.string.settings_telegram_links))
             .clickable(onClick = handling.openSettings),
-    )
+    ) { Text(stringResource(Res.string.settings_telegram_links)) }
 }
 
 /**
@@ -275,7 +271,6 @@ internal fun ConnectionSettings(viewModel: ProxyStatusViewModel, onOpenProxy: ()
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.vpn_lock_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.proxy_title)) },
             supportingContent = {
                 when (val current = status) {
                     // Dokud stav nedorazí, řádek nic netvrdí — „vypnutá" by mohla být lež.
@@ -291,6 +286,6 @@ internal fun ConnectionSettings(viewModel: ProxyStatusViewModel, onOpenProxy: ()
                 }
             },
             modifier = Modifier.clickable(onClick = onOpenProxy),
-        )
+        ) { Text(stringResource(Res.string.proxy_title)) }
     }
 }

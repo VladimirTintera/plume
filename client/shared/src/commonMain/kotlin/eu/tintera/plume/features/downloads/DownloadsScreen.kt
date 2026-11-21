@@ -317,7 +317,6 @@ private fun DownloadRow(
     }
     Box(modifier) {
         ListItem(
-            headlineContent = { Text(item.fileName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     val parts = listOfNotNull(
@@ -365,7 +364,7 @@ private fun DownloadRow(
             },
             colors = ListItemDefaults.colors(containerColor = container),
             modifier = Modifier.groupedItem(index, count, container).contextClickable(onClick = { onOpen(download) }, onLongClick = { menu = true }),
-        )
+        ) { Text(item.fileName, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         ExpressiveMenu(
             expanded = menu,
             onDismiss = { menu = false },

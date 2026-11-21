@@ -241,9 +241,8 @@ internal fun OwnProfileMusicSection(onNotice: (UiText) -> Unit) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 leadingContent = { Icon(painterResource(Res.drawable.music_note_24dp), contentDescription = null) },
-                headlineContent = { Text(stringResource(Res.string.profile_music)) },
                 supportingContent = { Text(stringResource(Res.string.profile_music_empty)) },
-            )
+            ) { Text(stringResource(Res.string.profile_music)) }
         } else {
             val playback by viewModel.playback.collectAsStateWithLifecycle()
             val userId by viewModel.userId.collectAsStateWithLifecycle()

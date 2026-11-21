@@ -373,7 +373,6 @@ private fun EventRow(
     // Smazaný účet jméno nemá; popis pak nese řádek sám.
     val actor = event.actor.title.ifBlank { null }
     ListItem(
-        headlineContent = { Text(actor ?: description, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Column {
                 if (actor != null) Text(description, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -407,7 +406,7 @@ private fun EventRow(
         trailingContent = { Text(event.date.asTimeOfDay(), style = MaterialTheme.typography.labelMedium.tabularNumbers()) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier,
-    )
+    ) { Text(actor ?: description, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 /** Souvislé úseky seznamu, ve kterých [same] platí pro sousedy — dny v seznamu od nejnovějšího. */

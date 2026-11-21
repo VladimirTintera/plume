@@ -71,10 +71,9 @@ internal fun LoginEmailRow(twoStep: TwoStepViewModel, onOpen: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.alternate_email_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_login_email)) },
         supportingContent = { Text(pattern ?: stringResource(Res.string.settings_login_email_none)) },
         modifier = Modifier.clickable(onClick = onOpen),
-    )
+    ) { Text(stringResource(Res.string.settings_login_email)) }
 }
 
 /**

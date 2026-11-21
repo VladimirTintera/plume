@@ -170,7 +170,6 @@ fun CheckableChatRows(
                 color = MaterialTheme.colorScheme.groupRow,
             ) {
                 ListItem(
-                    headlineContent = { Text(chat.title, maxLines = 1) },
                     leadingContent = {
                         Avatar(
                             chatId = chat.avatarColorId,
@@ -188,7 +187,7 @@ fun CheckableChatRows(
                         role = Role.Checkbox,
                         onValueChange = { onToggle(chat.id) },
                     ),
-                )
+                ) { Text(chat.title, maxLines = 1) }
             }
         }
     }

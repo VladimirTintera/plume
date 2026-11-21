@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.ui.platform.LocalLocale
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.animation.Crossfade
@@ -33,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ui.QrCode
@@ -609,7 +609,7 @@ private fun ParcelSection(parcel: ContextFinding.Parcel, onCopy: (String) -> Uni
             ParcelCarrier.Dpd -> Res.string.message_context_carrier_dpd
         },
     )
-    val language = Locale.current.language
+    val language = LocalLocale.current.language
     CopyRow(label = null, title = carrier, value = parcel.number, copied = parcel.number, onCopy = onCopy, icon = Res.drawable.local_shipping_24dp)
     SheetActionRow(
         icon = Res.drawable.open_in_new_24dp,

@@ -92,14 +92,6 @@ private fun UsernameRow(
 ) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = {
-            Text(
-                stringResource(Res.string.profile_username_value, name),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = if (active) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
         supportingContent = {
             Text(stringResource(if (editable) Res.string.usernames_editable else Res.string.usernames_collectible))
         },
@@ -122,5 +114,12 @@ private fun UsernameRow(
                 )
             }
         },
-    )
+    ) {
+        Text(
+            stringResource(Res.string.profile_username_value, name),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = if (active) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

@@ -153,7 +153,6 @@ private fun PublicChatRow(
     onRelease: () -> Unit,
 ) {
     ListItem(
-        headlineContent = { Text(chat.chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Text(
                 stringResource(Res.string.create_chat_link_prefix) + chat.username,
@@ -189,5 +188,5 @@ private fun PublicChatRow(
             role = Role.Button,
             onClick = onRelease,
         ),
-    )
+    ) { Text(chat.chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }

@@ -88,8 +88,7 @@ private fun ReleaseGroup(release: ChangelogRelease, czech: Boolean) {
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 // Věta sama říká, co v řádku je; slovo „Oprava" navíc by čtečka jen zopakovala.
                 leadingContent = { Icon(painterResource(ChangelogNoteType.FIX.icon), contentDescription = null) },
-                headlineContent = { Text(stringResource(Res.string.changelog_minor_changes)) },
-            )
+            ) { Text(stringResource(Res.string.changelog_minor_changes)) }
         }
         release.notes.forEach { note ->
             ListItem(
@@ -101,8 +100,7 @@ private fun ReleaseGroup(release: ChangelogRelease, czech: Boolean) {
                         contentDescription = stringResource(note.type.label),
                     )
                 },
-                headlineContent = { Text(note.text(czech)) },
-            )
+            ) { Text(note.text(czech)) }
         }
     }
 }

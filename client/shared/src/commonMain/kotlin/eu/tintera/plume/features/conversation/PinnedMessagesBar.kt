@@ -338,13 +338,6 @@ private fun PinnedSheetRow(
     modifier: Modifier = Modifier,
 ) {
     ListItem(
-        headlineContent = {
-            Text(
-                text = message.summaryLine(),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
         // Kdy zpráva padla — u kanálu s desítkami připnutých se podle toho orientuje nejlíp.
         supportingContent = { Text(message.timestamp.asDayLabel(), maxLines = 1) },
         // Špendlík u řádku není: připnuté jsou tu všechny, a nadpis sheetu to říká. Bez náhledu
@@ -372,7 +365,13 @@ private fun PinnedSheetRow(
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier.clickable(onClick = onOpen),
-    )
+    ) {
+        Text(
+            text = message.summaryLine(),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 /**

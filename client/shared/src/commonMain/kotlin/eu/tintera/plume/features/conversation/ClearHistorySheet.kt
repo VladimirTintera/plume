@@ -150,21 +150,20 @@ internal fun ClearHistorySheet(
 
             if (canForAll) {
                 ListItem(
-                    headlineContent = {
-                        Text(
-                            if (peerName != null) {
-                                stringResource(Res.string.clear_history_for_all, peerName)
-                            } else {
-                                stringResource(Res.string.clear_history_for_all_group)
-                            },
-                        )
-                    },
                     leadingContent = { Checkbox(checked = forAll, onCheckedChange = null) },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                     modifier = Modifier
                         .clip(groupItemShape(0, 1))
                         .toggleable(value = forAll, role = Role.Checkbox, onValueChange = { forAll = it }),
-                )
+                ) {
+                    Text(
+                        if (peerName != null) {
+                            stringResource(Res.string.clear_history_for_all, peerName)
+                        } else {
+                            stringResource(Res.string.clear_history_for_all_group)
+                        },
+                    )
+                }
             }
 
             MediumButton(
@@ -210,14 +209,13 @@ private fun ClearOption(
     onSelect: () -> Unit,
 ) {
     ListItem(
-        headlineContent = { Text(title) },
         supportingContent = { Text(text) },
         leadingContent = { RadioButton(selected = selected, onClick = null) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier
             .clip(groupItemShape(index, count, selected = selected))
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
-    )
+    ) { Text(title) }
 }
 
 /**

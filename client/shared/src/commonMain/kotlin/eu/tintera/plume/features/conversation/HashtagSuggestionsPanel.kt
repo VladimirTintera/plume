@@ -73,15 +73,16 @@ private fun HashtagRow(hashtag: String, onPick: () -> Unit, onRemove: () -> Unit
         ListItem(
             colors = FloatingSuggestionColors.listItem(),
             leadingContent = { Icon(painterResource(Res.drawable.tag_24dp), contentDescription = null) },
-            // Mřížka je v textu i vedle ikony: čte se tak, jak se vloží.
-            headlineContent = { Text(hashtagText(hashtag), maxLines = 1, overflow = TextOverflow.Ellipsis) },
             // Odezvu na podržení dělá `combinedClickable` sám.
             modifier = Modifier.contextClickable(
                 onLongClickLabel = stringResource(Res.string.chats_search_remove_recent),
                 onLongClick = { menuOpen = true },
                 onClick = onPick,
             ),
-        )
+        ) {
+            // Mřížka je v textu i vedle ikony: čte se tak, jak se vloží.
+            Text(hashtagText(hashtag), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
         // Nabídka si nebere klávesnici (výchozí v [ExpressiveMenu]), takže pole s rozepsaným
         // hashtagem zůstane otevřené a panel se po odebrání jen přečte znovu.
         ExpressiveMenu(

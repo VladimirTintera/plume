@@ -58,20 +58,19 @@ internal fun BotCommandsPanel(
                 items(last.value, key = { it.text }) { command ->
                     ListItem(
                         colors = FloatingSuggestionColors.listItem(),
-                        headlineContent = {
-                            Text(
-                                command.text,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = FloatingSuggestionColors.accent,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
                         supportingContent = command.description.takeIf { it.isNotBlank() }?.let {
                             { Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis) }
                         },
                         modifier = Modifier.clickable { onPick(command) },
-                    )
+                    ) {
+                        Text(
+                            command.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = FloatingSuggestionColors.accent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
     }

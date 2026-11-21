@@ -102,18 +102,17 @@ private fun ScheduledRow(
     var menuOpen by remember { mutableStateOf(false) }
     Box(modifier) {
         ListItem(
-            headlineContent = {
-                Text(
-                    text = message.summaryLine(),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
             // Kdy odejde — to je u naplánované zprávy to hlavní, co se tu hledá.
             overlineContent = { Text(message.schedule.label(), maxLines = 1) },
             colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
             modifier = Modifier.clickable { menuOpen = true },
-        )
+        ) {
+            Text(
+                text = message.summaryLine(),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         ExpressiveMenu(
             expanded = menuOpen,
             onDismiss = { menuOpen = false },

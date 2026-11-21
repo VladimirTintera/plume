@@ -200,12 +200,11 @@ internal fun NotificationSoundSheet(
                         Icon(painterResource(Res.drawable.add_24dp), contentDescription = null)
                     }
                 },
-                headlineContent = { Text(stringResource(Res.string.notif_sound_upload)) },
                 supportingContent = limits?.let { { Text(stringResource(Res.string.notif_sound_upload_hint, (it.maxBytes / 1024).toInt(), it.maxSeconds)) } },
                 modifier = Modifier
                     .groupedItem(index = 0, count = 1, color = MaterialTheme.colorScheme.groupRow)
                     .clickable(enabled = !uploading) { picker.pickDocument() },
-            )
+            ) { Text(stringResource(Res.string.notif_sound_upload)) }
         }
     }
 }

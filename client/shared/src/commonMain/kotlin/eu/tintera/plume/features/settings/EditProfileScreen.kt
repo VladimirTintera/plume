@@ -347,8 +347,7 @@ private fun PhoneNumberRow(onClick: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.call_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.change_phone_row)) },
         supportingContent = { shown?.let { Text(it) } },
         modifier = Modifier.clickable(onClick = onClick),
-    )
+    ) { Text(stringResource(Res.string.change_phone_row)) }
 }

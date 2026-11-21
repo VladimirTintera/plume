@@ -179,21 +179,19 @@ internal fun ChatNotificationSheet(
                 soundLabel?.let { label ->
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(Res.string.notif_sound_row)) },
                         supportingContent = { Text(label) },
                         modifier = Modifier.clickable(onClick = onPickSound),
-                    )
+                    ) { Text(stringResource(Res.string.notif_sound_row)) }
                 }
                 // Vibrace, důležitost a systémový zvuk jednoho chatu nastavuje systém (kanál
                 // konverzace), aplikace je nepřepíše.
                 if (supportsConversationSettings) {
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(Res.string.settings_notif_sound)) },
                         supportingContent = { Text(stringResource(Res.string.profile_notif_sound_summary)) },
                         trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
                         modifier = Modifier.clickable(onClick = onOpenConversationSettings),
-                    )
+                    ) { Text(stringResource(Res.string.settings_notif_sound)) }
                 }
             }
 
@@ -220,7 +218,6 @@ private fun ActionRow(title: StringResource, icon: DrawableResource, color: Colo
             leadingIconColor = color.takeOrElse { MaterialTheme.colorScheme.onSurfaceVariant },
         ),
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-        headlineContent = { Text(stringResource(title)) },
         modifier = Modifier.clickable(onClick = onClick),
-    )
+    ) { Text(stringResource(title)) }
 }

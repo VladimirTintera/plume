@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -30,7 +31,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.intl.Locale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
@@ -119,7 +119,8 @@ internal fun ConversationBottomBar(
     // Emoji k rozepsanému slovu. Jazyk zařízení a angličtina, jako hledání ve výběru emoji.
     val emojiWords: EmojiSuggestionsViewModel = koinViewModel(key = "emoji-words-${viewModel.chatId}")
     val emojiSuggestions by emojiWords.suggestions.collectAsStateWithLifecycle()
-    val emojiLanguages = remember { listOf(Locale.current.language, "en").distinct() }
+    val locale = LocalLocale.current
+    val emojiLanguages = remember(locale) { listOf(locale.language, "en").distinct() }
     /** Poslední otevřená část výběru — uložená v nastavení, takže platí i po restartu aplikace. */
     val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
     // Seznam úkolů smí založit jen účet s Premium; bez něj ho sponka nenabízí (jako prémiové efekty).

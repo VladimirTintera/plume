@@ -215,7 +215,6 @@ private fun KindRow(traffic: KindTraffic, total: Long, callSeconds: Long) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { CategoryIcon(traffic.kind.icon) },
-        headlineContent = { Text(stringResource(traffic.kind.label)) },
         supportingContent = {
             Column {
                 Text(
@@ -235,7 +234,7 @@ private fun KindRow(traffic: KindTraffic, total: Long, callSeconds: Long) {
         trailingContent = {
             Text(fileSizeText(traffic.totalBytes), style = MaterialTheme.typography.labelLarge.tabularNumbers())
         },
-    )
+    ) { Text(stringResource(traffic.kind.label)) }
 }
 
 /** Popisek tlačítka — „Mobilní data" se do čtvrtiny šířky nevešla (ověřeno na emulátoru). */

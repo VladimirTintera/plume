@@ -102,7 +102,6 @@ internal val ListPaneDragHandle: @Composable ThreePaneScaffoldScope.(PaneExpansi
             state = state,
             minTouchTargetSize = LocalMinimumInteractiveComponentSize.current,
             interactionSource = interactionSource,
-            semanticsProperties = state.defaultDragHandleSemantics(),
         ),
         interactionSource = interactionSource,
     )

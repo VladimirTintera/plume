@@ -121,7 +121,6 @@ private fun WelcomeRow(message: WelcomeMessage, onDelete: (Int) -> Unit) {
     val text = message.text.ifBlank { message.description?.resolve().orEmpty() }
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(text, maxLines = 4) },
         trailingContent = {
             val label = stringResource(Res.string.welcome_messages_delete)
             WithTooltip(label) {
@@ -130,5 +129,5 @@ private fun WelcomeRow(message: WelcomeMessage, onDelete: (Int) -> Unit) {
                 }
             }
         },
-    )
+    ) { Text(text, maxLines = 4) }
 }

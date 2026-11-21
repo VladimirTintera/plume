@@ -75,7 +75,6 @@ fun <T> ChoiceRow(
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = icon?.let { { Icon(painterResource(it), contentDescription = null) } },
-            headlineContent = { Text(headline) },
             supportingContent = { Text(label(selected)) },
             trailingContent = {
                 Icon(
@@ -85,7 +84,7 @@ fun <T> ChoiceRow(
                 )
             },
             modifier = Modifier.clickable(enabled = enabled, role = Role.DropdownList) { open = true },
-        )
+        ) { Text(headline) }
         ChoiceMenu(
             expanded = open,
             onDismiss = { open = false },

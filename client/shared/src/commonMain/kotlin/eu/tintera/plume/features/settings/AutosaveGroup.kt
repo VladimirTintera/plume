@@ -129,9 +129,8 @@ internal fun AutosaveGroup(viewModel: AutosaveViewModel, snackbarHostState: Snac
                 }
                 state.loadFailed -> ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.autosave_load_failed), color = MaterialTheme.colorScheme.error) },
                     trailingContent = { TextButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.autosave_retry)) } },
-                )
+                ) { Text(stringResource(Res.string.autosave_load_failed), color = MaterialTheme.colorScheme.error) }
                 else -> Box(Modifier.padding(16.dp)) { LoadingIndicator() }
             }
         }
@@ -152,10 +151,9 @@ internal fun AutosaveGroup(viewModel: AutosaveViewModel, snackbarHostState: Snac
                                 shape = (chat?.kind ?: ChatKind.Private).avatarShape(),
                             )
                         },
-                        headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         supportingContent = { Text(autosaveSummary(exception.settings)) },
                         modifier = Modifier.clickable { editing = AutosaveScope.Chat(exception.chatId) },
-                    )
+                    ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
                 GroupBreak()
                 SettingsActionRow(
@@ -221,10 +219,9 @@ private fun ScopeRow(title: StringResource, icon: DrawableResource, settings: Au
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-        headlineContent = { Text(stringResource(title)) },
         supportingContent = { Text(autosaveSummary(settings)) },
         modifier = Modifier.clickable(onClick = onClick),
-    )
+    ) { Text(stringResource(title)) }
 }
 
 /** „Vypnuto", „Fotky", „Videa do 100 MB", „Fotky a videa do 100 MB". */
@@ -295,9 +292,8 @@ internal fun AutosaveScopeDialog(
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             leadingContent = { RadioButton(selected = selected, onClick = null) },
-                            headlineContent = { Text(fileSizeText(size)) },
                             modifier = Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = { maxVideo = size }),
-                        )
+                        ) { Text(fileSizeText(size)) }
                     }
                 }
             }

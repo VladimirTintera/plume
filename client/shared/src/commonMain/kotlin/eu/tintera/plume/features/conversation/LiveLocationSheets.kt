@@ -139,7 +139,6 @@ private fun ActionRow(label: String, icon: DrawableResource, onClick: () -> Unit
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-        headlineContent = { Text(label) },
         modifier = Modifier.clickable(onClick = onClick),
-    )
+    ) { Text(label) }
 }

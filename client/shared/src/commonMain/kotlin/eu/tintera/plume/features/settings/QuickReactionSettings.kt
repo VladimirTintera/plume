@@ -84,10 +84,9 @@ internal fun QuickReactionSettings(viewModel: QuickReactionSettingsViewModel) {
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             // Odsazení pod ikonu řádku výš: patří k němu, vlastní ikonu nemá.
             leadingContent = { Box(Modifier.size(24.dp)) },
-            headlineContent = { Text(stringResource(Res.string.settings_quick_reaction_choose)) },
             trailingContent = { reaction?.let { ReactionGlyph(it, size = 28) } },
             modifier = Modifier.clickable { picking = true },
-        )
+        ) { Text(stringResource(Res.string.settings_quick_reaction_choose)) }
     }
 
     if (picking) {

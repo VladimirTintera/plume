@@ -128,7 +128,6 @@ internal fun SettingsActionRow(
             leadingContentColor = if (destructive) color else MaterialTheme.colorScheme.onSurfaceVariant,
         ),
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-        headlineContent = { Text(title) },
         modifier = Modifier.highlightAnchor(title).clickable(enabled = enabled, onClick = onClick),
-    )
+    ) { Text(title) }
 }

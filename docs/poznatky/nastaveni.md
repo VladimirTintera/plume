@@ -547,6 +547,18 @@ převádí platforma (`ProfileVideo`).
   cestou. **Vlastní profil a založení chatu s videem ověřené nejsou** (mění skutečný účet /
   zakládají další chat), jdou ale stejnou cestou.
 
+## Řádky seznamu (`ListItem`) od material3 1.13
+
+- **`ListItem(headlineContent = …)` je zastaralý**; nový tvar má nadpis v koncové lambdě
+  (`ListItem(leadingContent = …) { Text(…) }`, `content = …`, když je nadpis proměnná). Je to
+  JINÁ komponenta (`InteractiveListItem` M3 Expressive), ne přejmenování: **mezera mezi ikonou
+  a textem i před koncovým obsahem je 12 dp místo 16 dp** a víceřádkový text sedí o pár px výš.
+  Výšky řádků zůstaly. Převedeno všech 160 volání naráz (skript, 2 ručně kvůli komentáři před
+  argumentem) a porovnáno snímky Nastavení, Úložiště a Notifikací před a po — přijato jako
+  výchozí hodnota M3 („Preferuj defaulty" v CLAUDE.md), ne vracet vlastním `contentPadding`.
+- `tonalElevation` / `shadowElevation` starého tvaru se mapují na `elevation =
+  ListItemDefaults.elevation(…)`; v projektu je nikdo nepoužíval.
+
 ## Pomoc: Zeptat se a časté dotazy
 
 Pod sekcemi v kořeni Nastavení je blok „Pomoc" (`HelpGroup`): „Zeptat se" otevře chat

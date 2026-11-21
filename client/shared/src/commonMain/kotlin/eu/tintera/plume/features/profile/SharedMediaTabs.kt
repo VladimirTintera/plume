@@ -489,7 +489,6 @@ internal fun RelatedChatsList(
     ) {
         itemsIndexed(chats, key = { _, chat -> chat.chatId }) { index, chat ->
             ListItem(
-                headlineContent = { Text(chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 supportingContent = chat.memberCount?.let { count ->
                     {
                         Text(
@@ -513,7 +512,7 @@ internal fun RelatedChatsList(
                     .animateItem()
                     .clip(groupItemShape(index, chats.size))
                     .clickable { onOpen(chat.chatId) },
-            )
+            ) { Text(chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
     }
 }
@@ -639,7 +638,6 @@ private fun VoiceRow(
     val meta = listOfNotNull(message.senderName?.ifBlank { null }, message.timestamp.asDayLabel()).joinToString(" · ")
     val actionLabel = stringResource(if (playing) Res.string.profile_shared_music_pause else Res.string.profile_shared_music_play)
     ListItem(
-        headlineContent = { Text(time, style = LocalTextStyle.current.tabularNumbers(), maxLines = 1) },
         supportingContent = { Text(meta, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         leadingContent = {
             Box(
@@ -661,7 +659,7 @@ private fun VoiceRow(
         },
         colors = rowColors(),
         modifier = modifier.clickable(onClickLabel = actionLabel, onClick = onToggle),
-    )
+    ) { Text(time, style = LocalTextStyle.current.tabularNumbers(), maxLines = 1) }
 }
 
 /** Řádek skladby: obal (nebo nota) s tlačítkem, název a pod ním interpret s délkou. */
@@ -686,9 +684,6 @@ private fun MusicRow(
         .joinToString(" · ")
     val actionLabel = stringResource(if (playing) Res.string.profile_shared_music_pause else Res.string.profile_shared_music_play)
     ListItem(
-        headlineContent = {
-            Text(audio.title.ifBlank { audio.fileName }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        },
         supportingContent = {
             Text(meta, style = LocalTextStyle.current.tabularNumbers(), maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
@@ -723,7 +718,9 @@ private fun MusicRow(
         },
         colors = rowColors(),
         modifier = modifier.clickable(onClickLabel = actionLabel, onClick = onToggle),
-    )
+    ) {
+        Text(audio.title.ifBlank { audio.fileName }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 /** Řádek souboru: náhled nebo ikona podle druhu, název a pod ním velikost s datem. */
@@ -738,7 +735,6 @@ private fun FileRow(
 ) {
     val unit = fileSizeText(document.sizeBytes)
     ListItem(
-        headlineContent = { Text(document.fileName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         // Oddělovač i pořadí patří překladu, ne slepenci v kódu.
         supportingContent = {
             Text(stringResource(Res.string.profile_shared_file_meta, unit, message.timestamp.asDayLabel()))
@@ -759,7 +755,7 @@ private fun FileRow(
         },
         colors = rowColors(),
         modifier = modifier.clickable(onClick = onOpen),
-    )
+    ) { Text(document.fileName, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 /** Ikona podle druhu souboru; poznává se podle přípony, ne podle `mimeType` od odesílatele. */
@@ -810,7 +806,6 @@ private fun LinkRow(message: ChatMessage, url: String, onOpen: () -> Unit, modif
         ?: message.text.takeIf { it.isNotBlank() }
         ?: url
     ListItem(
-        headlineContent = { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Column {
                 Text(
@@ -842,7 +837,7 @@ private fun LinkRow(message: ChatMessage, url: String, onOpen: () -> Unit, modif
         },
         colors = rowColors(),
         modifier = modifier.clickable(onClick = onOpen),
-    )
+    ) { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) }
 }
 
 /**
@@ -1023,14 +1018,6 @@ private fun MemberRows(
              */
             val flies = member.sender.id != LocalSavedMessagesChatId.current
             ListItem(
-                headlineContent = {
-                    Text(
-                        member.sender.title,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = if (flies) Modifier.sharedNavText(chatTitleKey(member.sender.id)) else Modifier,
-                    )
-                },
                 leadingContent = {
                     Avatar(
                         chatId = member.sender.id,
@@ -1064,7 +1051,14 @@ private fun MemberRows(
                         onClick = { onOpen(member.sender.id) },
                         onLongClick = { onManage(member.sender.id) },
                     ),
-            )
+            ) {
+                Text(
+                    member.sender.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (flies) Modifier.sharedNavText(chatTitleKey(member.sender.id)) else Modifier,
+                )
+            }
         }
         if (list.loadingMore) {
             item(key = MEMBERS_LOADING_KEY) { TabLoading() }

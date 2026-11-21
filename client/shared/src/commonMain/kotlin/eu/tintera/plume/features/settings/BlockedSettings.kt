@@ -181,7 +181,6 @@ private fun ContactSyncRow() {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.contact_page_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_contact_sync)) },
         supportingContent = {
             Text(
                 stringResource(if (denied && !enabled) Res.string.settings_contact_sync_denied else Res.string.settings_contact_sync_summary),
@@ -190,7 +189,7 @@ private fun ContactSyncRow() {
         },
         trailingContent = { eu.tintera.plume.core.ui.IconSwitch(checked = enabled, onCheckedChange = null) },
         modifier = Modifier.toggleable(value = enabled, role = Role.Switch, onValueChange = toggle),
-    )
+    ) { Text(stringResource(Res.string.settings_contact_sync)) }
 }
 
 /** Diskrétní čtení (`AppSettings.discreetReading`): bez hlášení přečtení a „píše…". */
@@ -227,7 +226,6 @@ private fun AppLockRow(onOpen: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_app_lock)) },
         supportingContent = {
             if (settings != null) {
                 Text(stringResource(Res.string.settings_app_lock_on))
@@ -236,7 +234,7 @@ private fun AppLockRow(onOpen: () -> Unit) {
             }
         },
         modifier = Modifier.clickable(onClick = onOpen),
-    )
+    ) { Text(stringResource(Res.string.settings_app_lock)) }
 }
 
 /**
@@ -252,7 +250,6 @@ private fun DefaultAutoDeleteRow(viewModel: DefaultAutoDeleteViewModel) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_default_auto_delete)) },
         supportingContent = {
             when {
                 state.failed -> Text(
@@ -266,7 +263,7 @@ private fun DefaultAutoDeleteRow(viewModel: DefaultAutoDeleteViewModel) {
         modifier = Modifier
             .highlightAnchor(stringResource(Res.string.settings_default_auto_delete))
             .clickable(onClick = viewModel::openChooser),
-    )
+    ) { Text(stringResource(Res.string.settings_default_auto_delete)) }
     if (state.choosing) {
         AutoDeleteSheet(
             current = seconds,
@@ -289,10 +286,9 @@ private fun AccountPrivacyRow(onOpen: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.shield_person_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_account_privacy)) },
         supportingContent = { Text(stringResource(Res.string.settings_account_privacy_summary)) },
         modifier = Modifier.clickable(onClick = onOpen),
-    )
+    ) { Text(stringResource(Res.string.settings_account_privacy)) }
 }
 
 @Composable
@@ -308,7 +304,6 @@ private fun BlockedRow(viewModel: BlockedSendersViewModel, onOpen: () -> Unit) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.block_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.settings_blocked)) },
             supportingContent = {
                 // Dokud počet nedorazí, řádek nic netvrdí — „nikoho" by mohla být lež.
                 when (count) {
@@ -318,7 +313,7 @@ private fun BlockedRow(viewModel: BlockedSendersViewModel, onOpen: () -> Unit) {
                 }
             },
             modifier = Modifier.clickable(onClick = onOpen),
-        )
+        ) { Text(stringResource(Res.string.settings_blocked)) }
     }
 }
 
@@ -438,9 +433,8 @@ private fun BlockUserRow(onClick: () -> Unit) {
                 leadingContentColor = MaterialTheme.colorScheme.primary,
             ),
             leadingContent = { Icon(painterResource(Res.drawable.add_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.settings_block_user)) },
             modifier = Modifier.clickable(onClick = onClick),
-        )
+        ) { Text(stringResource(Res.string.settings_block_user)) }
     }
 }
 

@@ -349,7 +349,6 @@ private fun DirectTopicActionsSheet(
                 val (label, icon, destructive) = item
                 val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 ListItem(
-                    headlineContent = { Text(label) },
                     leadingContent = { Icon(painterResource(icon), contentDescription = null) },
                     colors = ListItemDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.groupRow,
@@ -362,7 +361,7 @@ private fun DirectTopicActionsSheet(
                             onDismiss()
                             onClick()
                         },
-                )
+                ) { Text(label) }
             }
         }
     }

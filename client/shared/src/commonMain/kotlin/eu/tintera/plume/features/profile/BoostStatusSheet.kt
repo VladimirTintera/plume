@@ -210,7 +210,6 @@ private fun BoostRow(entry: ChatBoostEntry) {
         },
     ).joinToString(" · ")
     ListItem(
-        headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(details) },
         leadingContent = {
             Avatar(chatId = booster?.id ?: 0, title = name, avatarFileId = booster?.avatarFileId, size = 40.dp)
@@ -220,6 +219,6 @@ private fun BoostRow(entry: ChatBoostEntry) {
             { Text(stringResource(Res.string.boosts_count, count), style = MaterialTheme.typography.labelLarge.tabularNumbers()) }
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-    )
+    ) { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 

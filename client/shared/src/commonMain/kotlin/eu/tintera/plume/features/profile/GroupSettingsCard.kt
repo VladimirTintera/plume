@@ -111,20 +111,18 @@ internal fun GroupSettingsCard(
         settings.slowModeDelay?.let { delay ->
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(Res.string.edit_chat_slow_mode)) },
                 supportingContent = { Text(slowModeLabel(delay)) },
                 leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
                 modifier = Modifier.clickable(onClick = onOpenSlowMode),
-            )
+            ) { Text(stringResource(Res.string.edit_chat_slow_mode)) }
         }
         settings.reactions?.let { reactions ->
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(Res.string.edit_chat_reactions)) },
                 supportingContent = { Text(reactionsLabel(reactions)) },
                 leadingContent = { Icon(painterResource(Res.drawable.add_reaction_24dp), contentDescription = null) },
                 modifier = Modifier.clickable(onClick = onOpenReactions),
-            )
+            ) { Text(stringResource(Res.string.edit_chat_reactions)) }
         }
         GroupToggle.entries.forEach { toggle ->
             val checked = settings.toggles[toggle] ?: return@forEach

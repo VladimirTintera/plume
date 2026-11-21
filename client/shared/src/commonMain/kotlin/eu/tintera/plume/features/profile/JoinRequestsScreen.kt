@@ -172,7 +172,6 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                     ) {
                         Column {
                             ListItem(
-                                headlineContent = { Text(request.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                 supportingContent = {
                                     Column {
                                         Text(stringResource(Res.string.join_requests_requested, request.date.asDayLabel()))
@@ -183,7 +182,7 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                                     Avatar(chatId = request.userId, title = request.name, avatarFileId = request.avatarFileId)
                                 },
                                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
-                            )
+                            ) { Text(request.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                             val approve = stringResource(Res.string.join_requests_approve)
                             val decline = stringResource(Res.string.join_requests_decline)
                             val onApprove = { viewModel.process(request, approve = true) }

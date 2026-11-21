@@ -179,23 +179,21 @@ fun NotificationSettings(
                     contentDescription = null,
                 )
             },
-            headlineContent = {
-                Text(
-                    stringResource(
-                        if (state.permissionGranted) Res.string.settings_notifications_on else Res.string.settings_notifications_off,
-                    ),
-                )
-            },
             trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
             modifier = Modifier.clickable(onClick = viewModel::openSystemSettings),
-        )
+        ) {
+            Text(
+                stringResource(
+                    if (state.permissionGranted) Res.string.settings_notifications_on else Res.string.settings_notifications_off,
+                ),
+            )
+        }
         // Bez celoobrazovkové výzvy zamčený telefon při hovoru jen zvoní a nic neukáže —
         // Plume z Play ji od Androidu 14 nemusí mít (`docs/poznatky/notifikace.md`).
         state.fullScreenCalls?.let { allowed ->
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 leadingContent = { Icon(painterResource(Res.drawable.call_24dp), contentDescription = null) },
-                headlineContent = { Text(stringResource(Res.string.settings_full_screen_calls)) },
                 supportingContent = {
                     Text(
                         stringResource(if (allowed) Res.string.settings_full_screen_calls_on else Res.string.settings_full_screen_calls_off),
@@ -204,20 +202,19 @@ fun NotificationSettings(
                 },
                 trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
                 modifier = Modifier.clickable(onClick = viewModel::openFullScreenCallSettings),
-            )
+            ) { Text(stringResource(Res.string.settings_full_screen_calls)) }
         }
         // Jen když to push zjistil — jinak stav neznáme (`NotificationPermission.backgroundDataBlocked`).
         if (state.backgroundDataBlocked) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 leadingContent = { Icon(painterResource(Res.drawable.data_usage_24dp), contentDescription = null) },
-                headlineContent = { Text(stringResource(Res.string.settings_background_data_blocked)) },
                 supportingContent = {
                     Text(stringResource(Res.string.settings_background_data_blocked_summary), color = MaterialTheme.colorScheme.error)
                 },
                 trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
                 modifier = Modifier.clickable(onClick = viewModel::openBackgroundDataSettings),
-            )
+            ) { Text(stringResource(Res.string.settings_background_data_blocked)) }
         }
     }
 
@@ -397,21 +394,19 @@ private fun ScopeGroup(
         if (exceptions.isNotEmpty()) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(Res.string.settings_notif_exceptions)) },
                 supportingContent = {
                     Text(pluralStringResource(Res.plurals.settings_notif_exceptions_count, exceptions.size, exceptions.size))
                 },
                 modifier = Modifier.clickable(onClick = onOpenExceptions),
-            )
+            ) { Text(stringResource(Res.string.settings_notif_exceptions)) }
         }
         // Zvuk z Telegramu — nastavení účtu, platí i v oficiálních aplikacích. Na Androidu vybírá
         // kanál (výchozí, tichý, s tónem); vibrace a ostatní dál v systémovém kanálu níž.
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(stringResource(Res.string.notif_sound_row)) },
             supportingContent = { Text(soundLabel) },
             modifier = Modifier.clickable(onClick = onPickSound),
-        )
+        ) { Text(stringResource(Res.string.notif_sound_row)) }
         if (supportsChannelSettings) {
             LinkRow(
                 title = Res.string.settings_notif_sound,
@@ -449,12 +444,11 @@ private fun QuietHoursGroup(
                 QuietHoursEdge.entries.forEach { edge ->
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(edge.title)) },
                         trailingContent = {
                             Text(edge.of(quietHours).asClockText(), style = MaterialTheme.typography.bodyLarge.tabularNumbers())
                         },
                         modifier = Modifier.clickable { picking = edge },
-                    )
+                    ) { Text(stringResource(edge.title)) }
                 }
             }
         }
@@ -499,11 +493,10 @@ private fun Int.asClockText(): String =
 private fun LinkRow(title: StringResource, summary: StringResource, onClick: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(stringResource(title)) },
         supportingContent = { Text(stringResource(summary)) },
         trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
         modifier = Modifier.clickable(onClick = onClick),
-    )
+    ) { Text(stringResource(title)) }
 }
 
 @Composable
@@ -539,7 +532,6 @@ private fun ExceptionsSheet(
                                 shape = exception.kind.avatarShape(),
                             )
                         },
-                        headlineContent = { Text(exception.title, maxLines = 1) },
                         supportingContent = { Text(stringResource(exception.state.label)) },
                         trailingContent = {
                             val reset = stringResource(Res.string.settings_notif_reset)
@@ -552,7 +544,7 @@ private fun ExceptionsSheet(
                         modifier = Modifier
                             .animateItem()
                             .groupedItem(index, exceptions.size, MaterialTheme.colorScheme.groupRow, pressable = false),
-                    )
+                    ) { Text(exception.title, maxLines = 1) }
                 }
             }
         }

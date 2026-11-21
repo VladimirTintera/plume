@@ -223,8 +223,7 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
                 if (devices.others.isEmpty()) {
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(Res.string.devices_none_other)) },
-                    )
+                    ) { Text(stringResource(Res.string.devices_none_other)) }
                 }
                 devices.others.forEach { device ->
                     DeviceRow(device, onClick = { detailId = device.id })
@@ -340,7 +339,6 @@ private fun DeviceRow(device: Device, onClick: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { DeviceIcon(device.kind.icon) },
-        headlineContent = { Text(device.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Column {
                 Text(device.appLine, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -363,7 +361,7 @@ private fun DeviceRow(device: Device, onClick: () -> Unit) {
             )
         },
         modifier = Modifier.clickable(onClick = onClick),
-    )
+    ) { Text(device.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 @Composable
@@ -371,7 +369,6 @@ private fun WebsiteRow(website: ConnectedWebsite, onClick: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { DeviceIcon(Res.drawable.language_24dp) },
-        headlineContent = { Text(website.domain, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Text(
                 listOf(website.browser, website.platform, website.location).filter { it.isNotBlank() }.joinToString(" · "),
@@ -381,7 +378,7 @@ private fun WebsiteRow(website: ConnectedWebsite, onClick: () -> Unit) {
         },
         trailingContent = { Text(website.lastActiveDate.asRelativeTime(), style = MaterialTheme.typography.labelMedium) },
         modifier = Modifier.clickable(onClick = onClick),
-    )
+    ) { Text(website.domain, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 /** Ikona v tónovaném kruhu, jako avatar v seznamu chatů — řádky se tím srovnají pod sebe. */
@@ -407,9 +404,8 @@ private fun DestructiveRow(text: String, enabled: Boolean, onClick: () -> Unit) 
             containerColor = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.error,
         ),
-        headlineContent = { Text(text) },
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
-    )
+    ) { Text(text) }
 }
 
 private val DeviceKind.icon: DrawableResource
@@ -507,8 +503,7 @@ private fun DetailRow(label: StringResource, value: String) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         overlineContent = { Text(stringResource(label)) },
-        headlineContent = { Text(value) },
-    )
+    ) { Text(value) }
 }
 
 @Composable
