@@ -835,11 +835,18 @@ tlačítko zapnuté. Odejde
 se zprávou, uloží se s konceptem a vrátí se do pole při úpravě zprávy. Model a pravidla jsou čisté
 funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
 
-- **`TextFieldValue` formátování NEUNESE.** `BasicTextField(TextFieldValue)` sice bere
-  `AnnotatedString`, ale `EditingBuffer` z Compose po každé úpravě vrací
-  `AnnotatedString(toString())` — styly zmizí s prvním úhozem (ověřeno ve zdrojích ui-text 1.12).
-  Rozsahy proto vede `ComposerDraft` zvlášť a pole je jen kreslí (`FormattingTransformation`,
-  `OffsetMapping.Identity`).
+- **Pole formátování NEUNESE.** `TextFieldValue` sice bralo `AnnotatedString`, ale `EditingBuffer`
+  z Compose po každé úpravě vracel `AnnotatedString(toString())` — styly zmizely s prvním úhozem
+  (ověřeno ve zdrojích ui-text 1.12); `TextFieldState` drží jen holý text. Rozsahy proto vede
+  `ComposerDraft` zvlášť a pole je jen kreslí: `FormattingTransformation` je `OutputTransformation`,
+  která text nemění a styly přidá `addStyle` (kurzor tak jde po textu konceptu bez mapování pozic).
+- **Pole je `BasicTextField(state)` svázané s konceptem i s výběrem**
+  (`rememberSyncedTextFieldState(TextFieldValue)` v `core/ui/SyncedTextFieldState.kt`). Koncept
+  dál pracuje s `TextFieldValue`, protože potřebuje kurzor (vložení zmínky a emoji, formát podle
+  výběru); stav pole se mu podřizuje v obou směrech. „Píše…" a uložení konceptu jen při změně
+  textu, pohyb kurzoru ne. Ověřeno na emulátoru (Notifikátor): psaní, tučné na vybrané slovo
+  a odeslání s formátem, vyčištění po odeslání, emoji z výběru na kurzor, koncept zpátky po
+  návratu do chatu.
 - **Rozsahy se posouvají z ROZDÍLU textu** (`afterEdit`): společný začátek a konec, mezi nimi
   jeden nahrazený úsek. Nejednoznačný rozdíl („a" za „a") rozhodne kurzor po úpravě. Na konec
   rozsahu se píše dál ve formátu, na začátek ne; přepsaný formátovaný výběr formát drží.

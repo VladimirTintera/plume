@@ -564,7 +564,9 @@ převádí platforma (`ProfileVideo`).
 `BasicTextField(value, onValueChange)` a `VisualTransformation` jsou od Compose 1.13 zastaralé;
 nová pole stojí na `TextFieldState`. Převádí se po částech (roadmapa, „Textová pole na
 `TextFieldState`"). Hotové: hesla (viz „Dvoufázové ověření"), `SearchPill`, `CodeField`,
-`StoryTextField`, popisek ve sdílení, telefonní číslo (`PhoneField`).
+`StoryTextField`, popisek ve sdílení, telefonní číslo (`PhoneField`) a vstupní pole zpráv
+(`MessageInput`, viz „Formátování při psaní" v `docs/poznatky/konverzace-psani.md`). Zastaralé API
+textových polí v projektu nezbylo.
 
 - **Kde hodnotu drží ViewModel jako `String`, svazuje ji se stavem `rememberSyncedTextFieldState`**
   (`core/ui/SyncedTextFieldState.kt`) a API komponenty se nemění. Kde ViewModel drží text sám
@@ -574,6 +576,8 @@ nová pole stojí na `TextFieldState`. Převádí se po částech (roadmapa, „
   rychlém psaní přijde „a", když pole už má „ab". První verze, která pole přepsala každou
   odlišnou hodnotou zvenku, by úhoz ztratila a skočila kurzorem. Pomocník si proto pamatuje,
   co sám poslal, a zvenku bere jen hodnotu, kterou neposlal (vyčištění křížkem, doplnění).
+  Varianta s `TextFieldValue` (vstupní pole zpráv) svazuje i výběr a porovnává text s výběrem
+  dohromady; kompozici IME ven neposílá.
 - **Filtr vstupu je `InputTransformation`, ne úprava v `onValueChange`** (`CodeField`: jen
   číslice a nejvýš N znaků, i u vloženého „Kód: 12345").
 - **Formátování čísla je `OutputTransformation`, která oddělovače VKLÁDÁ** (`PhoneNumberTransformation`,
