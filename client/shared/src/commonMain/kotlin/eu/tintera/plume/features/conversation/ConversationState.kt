@@ -604,8 +604,15 @@ data class ConversationState(
      * Náhled odpovědi se hledá nejdřív v [messages], teprve pak tady.
      */
     val quotes: Map<Long, ChatMessage> = emptyMap(),
-    /** Protějšek přečetl odchozí zprávy až po tohle id včetně. */
-    val lastReadOutboxMessageId: Long = 0L,
+    /**
+     * Protějšek přečetl odchozí zprávy až po tohle id včetně; `null`, dokud to nevíme.
+     *
+     * Neznámý není totéž co nula: s nulou by po otevření chatu dostala každá odchozí zpráva
+     * fajfku „odesláno" a po příchodu ukazatele by se u všech kromě poslední animovaně sbalily —
+     * seznam o kus zkrátil a horní zprávy poskočily. Dokud je `null`, odznak „odesláno"
+     * a „přečteno" se nekreslí vůbec (viz `delivery`).
+     */
+    val lastReadOutboxMessageId: Long? = null,
     /**
      * Poslední zpráva, kterou uživatel při otevření chatu měl přečtenou. Nad ní se kreslí předěl
      * „Nepřečtené zprávy". `null`, když chat nepřečtené neměl.

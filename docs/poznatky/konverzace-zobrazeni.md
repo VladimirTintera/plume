@@ -529,6 +529,15 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   seznamem uvnitř `items` je to kvadratické chování, na které projekt narazil u citací.
 - **Odznak se váže na NEJSTARŠÍ zprávu položky**, protože tím je klíč položky (u alba je to jeho
   nejstarší zpráva, viz `ConversationState.keyOf`).
+- **Dokud ukazatel přečtení neznáme, „odesláno" se nekreslí** (`lastReadOutboxMessageId: Long?`,
+  `null` = neznámý; `delivery` pak vrátí `null`). Ukazatel chodil jen s `chatInfo`, které skládá
+  řadu dotazů za sebou (téma, práva, supergroup, hovory), a historie z lokální databáze ho
+  předběhla. S nulou místo neznámé hodnoty dostala každá odchozí zpráva fajfku, po příchodu
+  `chatInfo` se u všech kromě poslední animovaně sbalila (viz bod níž) a seznam se zkrátil —
+  po otevření chatu dvojí probliknutí a nejvíc poskočila zpráva nahoře v okně. Ukazatel se proto
+  ptá napřed a zvlášť (`lastReadOutboxMessageId(chatId)`, jen `getChat`), před první stránkou
+  historie; `chatInfo` i update ho jen posouvají dopředu (`maxOf`). Hodiny a vykřičník na
+  ukazateli nezávisí a kreslí se hned.
 - **Odznak mizí i se svým MÍSTEM** (`shrinkVertically`, ne jen `fadeOut`) a při odjezdu kreslí
   POSLEDNÍ známý stav — v okamžiku skrytí je hodnota už `null` a `AnimatedVisibility` by dobíhala
   s prázdným obsahem. Obě pasti jsou v projektu už zdokumentované (spodní bar, pruh připnutých).

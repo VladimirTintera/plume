@@ -378,6 +378,18 @@ class ConversationItemsTest {
     }
 
     @Test
+    fun bezZnamehoUkazateleSeOdeslanoNekresli() {
+        val result = items(
+            message(4, isOutgoing = true, sendState = SendState.Failed),
+            message(3, isOutgoing = true, sendState = SendState.Sending),
+            message(2, isOutgoing = true),
+            state = ConversationState(lastReadOutboxMessageId = null),
+        ).frames()
+        // Odeslaná zpráva může být přečtená; dokud to nevíme, odznak by po chvíli zmizel.
+        assertEquals(listOf(Delivery.Failed, Delivery.Sending, null), result.map { it.badge })
+    }
+
+    @Test
     fun citaceSeHledaVNactenychIVDotazenych() {
         val old = message(99)
         val result = items(
