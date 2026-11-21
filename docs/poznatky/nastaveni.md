@@ -582,6 +582,18 @@ v prohlížeči (`UrlOpener`).
 
 ## Dvoufázové ověření
 
+- **Pole na hesla jsou M3 `SecureTextField` nad stavem pole** (`PasswordField`, `FormSecureTextField`
+  v `core/ui/BlockField.kt`, `OutlinedSecureTextField` v dialogu převodu vlastnictví), ne
+  `TextField` s `PasswordVisualTransformation` — ta je od Compose 1.13 zastaralá. Skryté heslo
+  má výchozí chování systému (na telefonu chvíli ukáže poslední znak), oko přepíná
+  `TextObfuscationMode.Visible`.
+- **Stav pole je `remember { TextFieldState(…) }`, ne `rememberTextFieldState`**: ten je
+  `rememberSaveable` a heslo by se serializovalo do uloženého stavu. Hodnotu drží ViewModel,
+  stav se s ní synchronizuje (`rememberSyncedTextFieldState`: psaní ven, změna zvenku dovnitř).
+- Ověřeno na emulátoru: nové heslo (oko odkryje, „Další" přesune fokus do druhého pole,
+  Continue se rozsvítí, tedy hodnota došla do ViewModelu) a heslo proxy SOCKS5 (tečky, pole
+  hlášené jako heslo, `password="true"` v `uiautomator`). Nic se neuložilo.
+
 Nastavení → Soukromí → Dvoufázové ověření (poslední řádek bloku, „Zapnuto" /
 „Vypnuto"; dokud stav nedorazí, podtitul není). Obrazovka stavu (`TwoStepRoute`,
 `TwoStepScreen`) a průvodci: zapnutí (heslo dvakrát, nápověda, nepovinný obnovovací e-mail

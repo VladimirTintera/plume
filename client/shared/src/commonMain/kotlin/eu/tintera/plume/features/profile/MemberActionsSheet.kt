@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.material3.OutlinedSecureTextField
+import androidx.compose.foundation.text.input.TextFieldState
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.crown_24dp
 import eu.tintera.plume.resources.person_remove_24dp
@@ -34,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.MemberDetail
 import eu.tintera.plume.core.telegram.MemberGroupKind
@@ -309,8 +311,10 @@ fun TransferOwnershipDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // Heslo vědomě NENÍ `rememberSaveable`: uložený stav se serializuje a přežil by i na disk.
-    var password by remember { mutableStateOf("") }
+    // Heslo vědomě NENÍ `rememberSaveable` (ani `rememberTextFieldState`, ten je saveable):
+    // uložený stav se serializuje a přežil by i na disk.
+    val passwordState = remember { TextFieldState() }
+    val password = passwordState.text.toString()
 
     ConfirmDialog(
         title = stringResource(Res.string.member_transfer_title),
@@ -322,14 +326,11 @@ fun TransferOwnershipDialog(
         destructive = true,
         confirmEnabled = password.isNotEmpty() && !busy,
     ) {
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
+        OutlinedSecureTextField(
+            state = passwordState,
             label = { Text(stringResource(Res.string.member_transfer_password)) },
             supportingText = { Text(stringResource(Res.string.member_transfer_password_help)) },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
             modifier = Modifier.fillMaxWidth(),
         )
     }
