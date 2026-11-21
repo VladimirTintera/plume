@@ -263,6 +263,14 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   let nic nerekomponuje.
   - **Dlaždice alba zaobluje mřížka, ne dlaždice** — tvar pro let jí proto počítá
     `albumTileShape` (testy `AlbumTileShapeTest`): rohy mřížky jen tam, kam dlaždice sahá.
+  - **Snímek v kartě s popiskem zaobluje karta, ne snímek** — fotka s popiskem, přeposlaná
+    s hlavičkou a obrázek poslaný jako soubor (pod ním název a velikost). Snímek tam dostával
+    `RectangleShape`, takže `sharedNavElement` přebíral hranatý tvar: z prohlížeče se vracel
+    s ostrými rohy po celou dobu letu, i při predictive back (nahlášeno snímkem PNG souboru).
+    Tvar mu proto počítá `cardMediaShape` (testy `CardMediaShapeTest`): nároží karty nahoře bez
+    hlavičky a dole bez popisku. V klidu se nic nemění, ořez karty a snímku se kryje.
+    **Kdo přidává do karty nové médium se sdíleným prvkem, předá mu `mediaShape`, ne vlastní
+    hranatý tvar.**
   - Ověřeno sérií surových snímků se zpomalenými animacemi: samostatná fotka tam i zpátky
     a pravá dlaždice alba (zaoblená jen vpravo).
 - **Ořezová plocha je VIDITELNÁ část seznamu, ne jeho hranice** (`SharedElementClip.obscuredTop`

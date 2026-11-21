@@ -9,7 +9,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
@@ -59,8 +59,9 @@ internal data class MediaMessageItem(
         val isCard = hasCaption || forwarded
         // Snímek leží na ploše, takže jeho akcent (průběh, ikony) patří k ní, ne k bublině.
         val surfaceAccent = if (message.isOutgoing) LocalContentColor.current else MaterialTheme.colorScheme.primary
-        // S popiskem nebo hlavičkou ořezává karta celá, snímek sám zaoblený není; jinak nese tvar snímek.
-        val mediaShape = if (isCard) RectangleShape else shape
+        // S popiskem nebo hlavičkou ořezává karta celá; snímek si přesto nese nároží karty, do
+        // kterých sahá — kvůli letu do prohlížeče (viz [cardMediaShape]). Jinak nese tvar snímek.
+        val mediaShape = if (isCard) cardMediaShape(shape, hasHeader = forwarded, hasCaption = hasCaption) else shape
 
         Column(
             // Karta se srovnává ke straně odesílatele.
@@ -142,3 +143,15 @@ private fun MediaWithCaption(
         }
     }
 }
+
+/**
+ * Tvar snímku uvnitř karty s popiskem nebo hlavičkou: nároží karty tam, kam snímek sahá (nahoře
+ * bez hlavičky, dole bez popisku), jinak rovné hrany.
+ *
+ * V klidu ořezává karta celá a snímek by tvar nepotřeboval. **Sdílený prvek se ale během letu
+ * do prohlížeče a zpátky kreslí v překryvu, mimo kartu** (viz `sharedNavElement`), takže s
+ * hranatým snímkem fotka, video i obrázek poslaný jako soubor letěly a dosedaly s ostrými rohy
+ * a zaoblily se až po dosednutí. Tatáž úvaha jako u dlaždic alba ([albumTileShape]).
+ */
+internal fun cardMediaShape(card: Shape, hasHeader: Boolean, hasCaption: Boolean): Shape =
+    albumTileShape(card, top = !hasHeader, bottom = !hasCaption, start = true, end = true)
