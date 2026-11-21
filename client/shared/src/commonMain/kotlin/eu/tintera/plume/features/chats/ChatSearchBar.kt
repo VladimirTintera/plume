@@ -871,19 +871,6 @@ private fun LocalResultRow(
         }
     }
     ListItem(
-        headlineContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                timestamp?.let {
-                    Text(
-                        it.asRelativeTime(),
-                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-            }
-        },
         supportingContent = { Text(annotated, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         leadingContent = {
             Box(
@@ -900,7 +887,19 @@ private fun LocalResultRow(
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),
-    )
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            timestamp?.let {
+                Text(
+                    it.asRelativeTime(),
+                    style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        }
+    }
 }
 
 /** „Zobrazit vše" / „Zobrazit méně" v nadpisu sekce — jen když se sekce do sbalené podoby nevejde. */
@@ -948,23 +947,6 @@ private fun MessageResultRow(
     }
     ResultAccountScope(found.chat.slot) {
     ListItem(
-        headlineContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (found.chat.isSecret) SecretChatLock(modifier = Modifier.padding(end = 6.dp))
-                Text(
-                    chatTitle(found.chat.id, found.chat.title),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    found.date.asRelativeTime(),
-                    style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-            }
-        },
         supportingContent = {
             Text(
                 text,
@@ -987,7 +969,23 @@ private fun MessageResultRow(
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),
-    )
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (found.chat.isSecret) SecretChatLock(modifier = Modifier.padding(end = 6.dp))
+            Text(
+                chatTitle(found.chat.id, found.chat.title),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                found.date.asRelativeTime(),
+                style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
+    }
     }
 }
 
@@ -1043,7 +1041,6 @@ private fun Suggestions(
             }
             itemsIndexed(search.tags, key = { _, tag -> "tag-$tag" }) { index, tag ->
                 ListItem(
-                    headlineContent = { Text(tag, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     leadingContent = { Icon(painterResource(Res.drawable.tag_24dp), contentDescription = null) },
                     trailingContent = {
                         IconButton(onClick = { actions.onRemoveTag(tag) }, shapes = IconButtonDefaults.shapes()) {
@@ -1054,7 +1051,7 @@ private fun Suggestions(
                     modifier = Modifier.animateItem()
                         .groupedItem(index, search.tags.size, MaterialTheme.colorScheme.groupRow)
                         .clickable { onPickTag(tag) },
-                )
+                ) { Text(tag, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
         }
 
@@ -1168,13 +1165,6 @@ private fun ChatResultRow(
 ) {
     ResultAccountScope(slot) {
     ListItem(
-        headlineContent = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (secret) SecretChatLock()
-                // Až v kontejneru účtu výsledku: Uložené zprávy jiného účtu se poznají jen tady.
-                Text(chatTitle(chatId, title), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        },
         // Archiv se v hlavním seznamu nevidí, takže nalezený archivovaný chat by jinak
         // vypadal, jako by se odněkud vynořil.
         supportingContent = if (archived) {
@@ -1196,7 +1186,13 @@ private fun ChatResultRow(
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),
-    )
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (secret) SecretChatLock()
+            // Až v kontejneru účtu výsledku: Uložené zprávy jiného účtu se poznají jen tady.
+            Text(chatTitle(chatId, title), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
     }
 }
 
@@ -1260,7 +1256,6 @@ private fun SponsoredResultRow(
 ) {
     val info = listOf(ad.sponsorInfo, ad.additionalInfo).filter { it.isNotBlank() }.joinToString("\n")
     ListItem(
-        headlineContent = { Text(ad.chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = if (info.isNotEmpty()) {
             // Celé, neořezané: „Ad funded by" a „This ad may be based on" je povinná průhlednost
             // reklamy (EU), ne ozdoba — useknuté za třetím řádkem ztratilo právě důvod reklamy.
@@ -1280,7 +1275,7 @@ private fun SponsoredResultRow(
         trailingContent = { SponsoredResultMenu(onReport) },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),
-    )
+    ) { Text(ad.chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 @Composable

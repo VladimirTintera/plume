@@ -167,17 +167,15 @@ internal fun StoryAlbumsSheet(
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = { Icon(painterResource(Res.drawable.add_24dp), contentDescription = null) },
-                    headlineContent = { Text(stringResource(Res.string.story_album_new)) },
                     modifier = Modifier.clickable(enabled = !state.busy) { naming = null to "" },
-                )
+                ) { Text(stringResource(Res.string.story_album_new)) }
                 // Řadit má smysl až od dvou alb; pořadí je vidět v profilu.
                 if (albums.size >= 2) {
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         leadingContent = { Icon(painterResource(Res.drawable.drag_indicator_24dp), contentDescription = null) },
-                        headlineContent = { Text(stringResource(Res.string.story_albums_reorder)) },
                         modifier = Modifier.clickable { reordering = true },
-                    )
+                    ) { Text(stringResource(Res.string.story_albums_reorder)) }
                 }
                 albums.forEach { album ->
                     AlbumRow(
@@ -234,7 +232,6 @@ private fun AlbumRow(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         // Zaškrtávátko je jen ukazatel; ťuká se celý řádek (čtečka ho čte jako zaškrtávací).
         leadingContent = { Checkbox(checked = checked, onCheckedChange = null) },
-        headlineContent = { Text(album.name, maxLines = 1) },
         trailingContent = {
             Box {
                 IconButton(onClick = { menu = true }, shapes = IconButtonDefaults.shapes()) {
@@ -265,7 +262,7 @@ private fun AlbumRow(
             }
         },
         modifier = Modifier.toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() }),
-    )
+    ) { Text(album.name, maxLines = 1) }
 }
 
 /**

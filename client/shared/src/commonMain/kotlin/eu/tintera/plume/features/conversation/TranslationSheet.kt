@@ -343,7 +343,6 @@ internal fun TranslationLanguageSheet(
 @Composable
 private fun LanguageRow(language: TranslationLanguage, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     ListItem(
-        headlineContent = { Text(language.name) },
         trailingContent = {
             if (isSelected) Icon(painterResource(Res.drawable.check_24dp), contentDescription = null)
         },
@@ -354,7 +353,7 @@ private fun LanguageRow(language: TranslationLanguage, isSelected: Boolean, onCl
             contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
         ),
         modifier = modifier.fillMaxWidth().selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick),
-    )
+    ) { Text(language.name) }
 }
 
 /** Výška seznamu jazyků — pevná, aby sheet při hledání neskákal. */

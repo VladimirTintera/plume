@@ -556,11 +556,10 @@ fun EditChatScreen(
                     GroupedColumn(Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            headlineContent = { Text(stringResource(Res.string.welcome_messages_title)) },
                             supportingContent = { Text(stringResource(Res.string.welcome_messages_row_help)) },
                             leadingContent = { Icon(painterResource(Res.drawable.celebration_24dp), contentDescription = null) },
                             modifier = Modifier.clickable(onClick = viewModel::openWelcomeMessages),
-                        )
+                        ) { Text(stringResource(Res.string.welcome_messages_title)) }
                     }
                 }
 
@@ -569,11 +568,10 @@ fun EditChatScreen(
                     GroupedColumn(Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            headlineContent = { Text(stringResource(Res.string.statistics_title)) },
                             supportingContent = { Text(stringResource(Res.string.statistics_row_help)) },
                             leadingContent = { Icon(painterResource(Res.drawable.bar_chart_24dp), contentDescription = null) },
                             modifier = Modifier.clickable(onClick = onOpenStatistics),
-                        )
+                        ) { Text(stringResource(Res.string.statistics_title)) }
                     }
                 }
 
@@ -582,11 +580,10 @@ fun EditChatScreen(
                     GroupedColumn(Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            headlineContent = { Text(stringResource(Res.string.boosts_title)) },
                             supportingContent = { Text(stringResource(Res.string.boosts_row_help)) },
                             leadingContent = { Icon(painterResource(Res.drawable.rocket_launch_24dp), contentDescription = null) },
                             modifier = Modifier.clickable(onClick = viewModel::openBoosts),
-                        )
+                        ) { Text(stringResource(Res.string.boosts_title)) }
                     }
                 }
 
@@ -594,11 +591,10 @@ fun EditChatScreen(
                     GroupedColumn(Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            headlineContent = { Text(stringResource(Res.string.event_log_row)) },
                             supportingContent = { Text(stringResource(Res.string.event_log_row_help)) },
                             leadingContent = { Icon(painterResource(Res.drawable.history_24dp), contentDescription = null) },
                             modifier = Modifier.clickable(onClick = onOpenEventLog),
-                        )
+                        ) { Text(stringResource(Res.string.event_log_row)) }
                     }
                 }
 
@@ -607,11 +603,10 @@ fun EditChatScreen(
                     GroupedColumn(Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            headlineContent = { Text(stringResource(Res.string.broadcast_group_row)) },
                             supportingContent = { Text(stringResource(Res.string.broadcast_group_row_help)) },
                             leadingContent = { Icon(painterResource(Res.drawable.campaign_24dp), contentDescription = null) },
                             modifier = Modifier.clickable(enabled = !viewModel.convertingToBroadcast) { confirmBroadcastGroup = true },
-                        )
+                        ) { Text(stringResource(Res.string.broadcast_group_row)) }
                     }
                 }
 
@@ -624,13 +619,6 @@ fun EditChatScreen(
                                 headlineColor = MaterialTheme.colorScheme.error,
                                 leadingIconColor = MaterialTheme.colorScheme.error,
                             ),
-                            headlineContent = {
-                                Text(
-                                    stringResource(
-                                        if (chat.isChannel) Res.string.edit_chat_delete_channel else Res.string.edit_chat_delete_group,
-                                    ),
-                                )
-                            },
                             leadingContent = { Icon(painterResource(Res.drawable.delete_24dp), contentDescription = null) },
                             trailingContent = if (viewModel.deleting) {
                                 { LoadingIndicator(Modifier.size(32.dp)) }
@@ -638,7 +626,13 @@ fun EditChatScreen(
                                 null
                             },
                             modifier = Modifier.clickable(enabled = !viewModel.deleting) { confirmDeleteChat = true },
-                        )
+                        ) {
+                            Text(
+                                stringResource(
+                                    if (chat.isChannel) Res.string.edit_chat_delete_channel else Res.string.edit_chat_delete_group,
+                                ),
+                            )
+                        }
                     }
                 }
             }
@@ -710,7 +704,6 @@ private fun StickerSetGroup(set: StickerSetSummary?, busy: Boolean, onClick: () 
     TitledGroup(Res.string.edit_chat_sticker_set, Modifier.fillMaxWidth()) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(set?.title ?: stringResource(Res.string.edit_chat_sticker_set_none)) },
             supportingContent = {
                 Text(
                     if (set != null && set.size > 0) {
@@ -727,7 +720,7 @@ private fun StickerSetGroup(set: StickerSetSummary?, busy: Boolean, onClick: () 
                 null
             },
             modifier = Modifier.clickable(enabled = !busy, onClick = onClick),
-        )
+        ) { Text(set?.title ?: stringResource(Res.string.edit_chat_sticker_set_none)) }
     }
 }
 
@@ -740,9 +733,6 @@ private fun DiscussionGroup(linked: LinkedChat?, busy: Boolean, onClick: () -> U
     TitledGroup(Res.string.edit_chat_discussion, Modifier.fillMaxWidth()) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = {
-                Text(linked?.title ?: stringResource(Res.string.edit_chat_discussion_none))
-            },
             supportingContent = {
                 Text(
                     stringResource(
@@ -757,7 +747,9 @@ private fun DiscussionGroup(linked: LinkedChat?, busy: Boolean, onClick: () -> U
                 null
             },
             modifier = Modifier.clickable(enabled = !busy, onClick = onClick),
-        )
+        ) {
+            Text(linked?.title ?: stringResource(Res.string.edit_chat_discussion_none))
+        }
     }
 }
 
@@ -770,14 +762,12 @@ private fun InvitesGroup(pending: Int, onOpenInviteLinks: () -> Unit, onOpenJoin
     TitledGroup(Res.string.edit_chat_invites, Modifier.fillMaxWidth()) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(stringResource(Res.string.edit_chat_invite_links)) },
             supportingContent = { Text(stringResource(Res.string.edit_chat_invite_links_help)) },
             leadingContent = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
             modifier = Modifier.clickable(onClick = onOpenInviteLinks),
-        )
+        ) { Text(stringResource(Res.string.edit_chat_invite_links)) }
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(stringResource(Res.string.edit_chat_join_requests)) },
             supportingContent = {
                 Text(
                     if (pending > 0) {
@@ -789,7 +779,7 @@ private fun InvitesGroup(pending: Int, onOpenInviteLinks: () -> Unit, onOpenJoin
             },
             leadingContent = { Icon(painterResource(Res.drawable.how_to_reg_24dp), contentDescription = null) },
             modifier = Modifier.clickable(onClick = onOpenJoinRequests),
-        )
+        ) { Text(stringResource(Res.string.edit_chat_join_requests)) }
     }
 }
 
@@ -809,19 +799,17 @@ private fun ModerationGroup(moderation: MemberModeration, onOpen: (banned: Boole
         moderation.restrictedCount?.let { restricted ->
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { Text(stringResource(Res.string.edit_chat_restricted)) },
                 supportingContent = { Text(count(restricted)) },
                 leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
                 modifier = Modifier.clickable { onOpen(false) },
-            )
+            ) { Text(stringResource(Res.string.edit_chat_restricted)) }
         }
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(stringResource(Res.string.edit_chat_removed)) },
             supportingContent = { Text(count(moderation.bannedCount)) },
             leadingContent = { Icon(painterResource(Res.drawable.person_remove_24dp), contentDescription = null) },
             modifier = Modifier.clickable { onOpen(true) },
-        )
+        ) { Text(stringResource(Res.string.edit_chat_removed)) }
     }
 }
 

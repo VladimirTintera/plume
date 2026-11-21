@@ -241,7 +241,6 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
             val additional = links.additional
             item(key = "create") {
                 ListItem(
-                    headlineContent = { Text(stringResource(Res.string.invite_links_create)) },
                     supportingContent = { Text(stringResource(Res.string.invite_links_additional_help)) },
                     leadingContent = { RowIcon(Res.drawable.add_24dp, accent = true) },
                     colors = ListItemDefaults.colors(
@@ -252,7 +251,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                         .animateItem()
                         .clip(groupItemShape(0, additional.size + 1))
                         .clickable(enabled = !viewModel.busy, onClick = viewModel::openCreate),
-                )
+                ) { Text(stringResource(Res.string.invite_links_create)) }
             }
             itemsIndexed(additional, key = { _, link -> "link-${link.url}" }) { index, link ->
                 LinkRow(
@@ -505,14 +504,13 @@ private fun LinkRow(link: InviteLink, now: Long, shape: Shape, onClick: () -> Un
     val status = inviteLinkStatus(link, now)
     val usable = status == InviteLinkStatus.Active
     ListItem(
-        headlineContent = {
-            Text(link.name.ifBlank { link.shortUrl() }, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
-        },
         supportingContent = { Text(linkSummary(link, status), maxLines = 2) },
         leadingContent = { RowIcon(if (usable) Res.drawable.link_24dp else Res.drawable.link_off_24dp, accent = usable) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier.clip(shape).clickable(onClick = onClick),
-    )
+    ) {
+        Text(link.name.ifBlank { link.shortUrl() }, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
+    }
 }
 
 /** Ikona v tónovaném kolečku; platný odkaz v akcentu, zrušený a propadlý tlumeně. */
@@ -603,7 +601,6 @@ private fun LinkActionsSheet(
                 val destructive = icon == Res.drawable.delete_24dp || icon == Res.drawable.link_off_24dp
                 val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 ListItem(
-                    headlineContent = { Text(stringResource(label)) },
                     leadingContent = { Icon(painterResource(icon), contentDescription = null) },
                     colors = ListItemDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.groupRow,
@@ -616,7 +613,7 @@ private fun LinkActionsSheet(
                             onDismiss()
                             action()
                         },
-                )
+                ) { Text(stringResource(label)) }
             }
         }
     }
@@ -768,12 +765,11 @@ private fun <T> ChoiceGroup(
 @Composable
 private fun AdminRow(admin: AdminInviteLinks, shape: Shape, onClick: () -> Unit, modifier: Modifier = Modifier) {
     ListItem(
-        headlineContent = { Text(admin.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(adminSummary(admin)) },
         leadingContent = { Avatar(chatId = admin.userId, title = admin.name, avatarFileId = admin.avatarFileId, size = 40.dp) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier.clip(shape).clickable(onClick = onClick),
-    )
+    ) { Text(admin.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 @Composable
@@ -906,10 +902,9 @@ private fun MemberRow(member: InviteLinkMember, shape: Shape) {
     val joined = stringResource(Res.string.invite_links_member_joined, member.joinedAt.asDayLabel())
     val via = if (member.viaFolder) stringResource(Res.string.invite_links_member_via_folder) else null
     ListItem(
-        headlineContent = { Text(member.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = { Text(listOfNotNull(joined, via).joinToString(" · ")) },
         leadingContent = { Avatar(chatId = member.userId, title = member.name, avatarFileId = member.avatarFileId, size = 40.dp) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(shape),
-    )
+    ) { Text(member.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }

@@ -1,5 +1,6 @@
 package eu.tintera.plume
 
+import androidx.compose.ui.platform.LocalLocale
 import eu.tintera.plume.core.accounts.AccountScope
 import eu.tintera.plume.core.accounts.Accounts
 import eu.tintera.plume.core.accounts.DefaultAccountScope
@@ -149,7 +150,7 @@ private fun AppRootContent(content: @Composable () -> Unit) {
                 // Jazykový balíček Telegramu podle jazyka aplikace — po přihlášení i po změně jazyka
                 // (proces ji přežije, mění se jen konfigurace a s ní `Locale.current`).
                 val session = koinInject<TelegramSession>()
-                val language = androidx.compose.ui.text.intl.Locale.current.toLanguageTag()
+                val language = LocalLocale.current.toLanguageTag()
                 LaunchedEffect(stage is AuthStage.Ready, language) {
                     if (stage is AuthStage.Ready) session.syncLanguagePack(language)
                 }

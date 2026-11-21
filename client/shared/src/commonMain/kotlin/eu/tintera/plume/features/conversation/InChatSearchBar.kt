@@ -320,7 +320,6 @@ internal fun MemberPickerSheet(
                 else -> LazyColumn {
                     itemsIndexed(picker.members, key = { _, member -> member.id }) { index, member ->
                         ListItem(
-                            headlineContent = { Text(member.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             leadingContent = {
                                 Avatar(chatId = member.id, title = member.title, avatarFileId = member.avatarFileId, size = 40.dp)
                             },
@@ -328,7 +327,7 @@ internal fun MemberPickerSheet(
                             modifier = Modifier
                                 .groupedItem(index, picker.members.size, MaterialTheme.colorScheme.groupRow)
                                 .clickable { onPick(member) },
-                        )
+                        ) { Text(member.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
                 }
             }

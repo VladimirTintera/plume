@@ -1760,11 +1760,11 @@ private fun InfoRow(
     value: @Composable () -> Unit,
 ) {
     ListItem(
-        headlineContent = value,
         supportingContent = { Text(label) },
         trailingContent = trailing,
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        content = value,
     )
 }
 
@@ -1782,12 +1782,11 @@ private fun SettingRow(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     ListItem(
-        headlineContent = { Text(title) },
         supportingContent = { Text(value) },
         trailingContent = trailing,
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-    )
+    ) { Text(title) }
 }
 
 private val HEADER_AVATAR_SIZE = 112.dp

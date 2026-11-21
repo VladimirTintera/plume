@@ -437,14 +437,13 @@ private fun FolderBlock(
     val count = 1 + toggles.size + chatIds.size
     Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
         ListItem(
-            headlineContent = { Text(stringResource(addLabel)) },
             leadingContent = { FolderIcon(Res.drawable.add_24dp, accent = true) },
             colors = ListItemDefaults.colors(
                 containerColor = MaterialTheme.colorScheme.groupRow,
                 headlineColor = MaterialTheme.colorScheme.primary,
             ),
             modifier = Modifier.clip(groupItemShape(0, count)).clickable(onClick = onAdd),
-        )
+        ) { Text(stringResource(addLabel)) }
         toggles.forEachIndexed { index, toggle ->
             SwitchListItem(
                 checked = toggle.checked,
@@ -458,7 +457,6 @@ private fun FolderBlock(
             val chat = chats[chatId]
             val title = chat?.let { chatTitle(it.id, it.title) }.orEmpty()
             ListItem(
-                headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingContent = {
                     Avatar(
                         chatId = chatId,
@@ -476,7 +474,7 @@ private fun FolderBlock(
                 },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 modifier = Modifier.clip(groupItemShape(1 + toggles.size + index, count)),
-            )
+            ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
     }
 }
@@ -498,7 +496,6 @@ private fun FolderLinks(
     val count = 1 + links.size
     Column(verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING)) {
         ListItem(
-            headlineContent = { Text(stringResource(Res.string.chat_folder_share_create)) },
             leadingContent = {
                 if (busy) {
                     Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { LoadingIndicator(Modifier.size(32.dp)) }
@@ -511,12 +508,9 @@ private fun FolderLinks(
                 headlineColor = if (canCreate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
             modifier = Modifier.clip(groupItemShape(0, count)).clickable(enabled = canCreate, onClick = onCreate),
-        )
+        ) { Text(stringResource(Res.string.chat_folder_share_create)) }
         links.forEachIndexed { index, link ->
             ListItem(
-                headlineContent = {
-                    Text(link.name.ifBlank { link.url.removePrefix("https://") }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
                 supportingContent = {
                     Text(pluralStringResource(Res.plurals.chat_folder_share_chats, link.chatIds.size, link.chatIds.size))
                 },
@@ -530,7 +524,9 @@ private fun FolderLinks(
                 modifier = Modifier
                     .clip(groupItemShape(1 + index, count))
                     .clickable(onClickLabel = stringResource(Res.string.chat_folder_share_edit)) { onOpen(link) },
-            )
+            ) {
+                Text(link.name.ifBlank { link.url.removePrefix("https://") }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -590,7 +586,6 @@ private fun FolderIconSheet(
         ) {
             SheetTitle(stringResource(Res.string.chat_folder_icon), modifier = Modifier.padding(start = 8.dp))
             ListItem(
-                headlineContent = { Text(stringResource(Res.string.chat_folder_icon_auto)) },
                 supportingContent = { Text(stringResource(Res.string.chat_folder_icon_auto_help)) },
                 leadingContent = { FolderIcon(folderIcon(defaultIconName), accent = selected == null) },
                 trailingContent = if (selected == null) {
@@ -602,7 +597,7 @@ private fun FolderIconSheet(
                 modifier = Modifier
                     .clip(MaterialTheme.shapes.large)
                     .selectable(selected = selected == null, role = Role.RadioButton, onClick = { onSelect(null) }),
-            )
+            ) { Text(stringResource(Res.string.chat_folder_icon_auto)) }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -702,9 +697,6 @@ private fun FolderLinkSheet(
             SheetTitle(stringResource(Res.string.chat_folder_link_title), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
             Surface(shape = ShapeDefaults.Large, color = MaterialTheme.colorScheme.groupRow) {
                 ListItem(
-                    headlineContent = {
-                        Text(editor.link.url.removePrefix("https://"), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
                     leadingContent = { FolderIcon(Res.drawable.link_24dp, accent = false) },
                     trailingContent = {
                         Row {
@@ -720,7 +712,9 @@ private fun FolderLinkSheet(
                         }
                     },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
-                )
+                ) {
+                    Text(editor.link.url.removePrefix("https://"), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             }
             FormTextField(
                 value = editor.name,

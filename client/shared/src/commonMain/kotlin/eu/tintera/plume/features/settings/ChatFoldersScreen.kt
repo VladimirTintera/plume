@@ -147,31 +147,19 @@ fun ChatFoldersScreen(
             val count = entries.size + 1
             item(key = "create") {
                 ListItem(
-                    headlineContent = { Text(stringResource(Res.string.chat_folders_create)) },
                     leadingContent = { FolderIcon(Res.drawable.add_24dp, accent = true) },
                     colors = ListItemDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.groupRow,
                         headlineColor = MaterialTheme.colorScheme.primary,
                     ),
                     modifier = Modifier.animateItem().clip(groupItemShape(0, count)).clickable { onEdit(0) },
-                )
+                ) { Text(stringResource(Res.string.chat_folders_create)) }
             }
             itemsIndexed(entries, key = { _, entry -> entry.key }) { index, entry ->
                 val folder = entry.folder
                 val shape = groupItemShape(index + 1, count)
                 val dragged = dragState.draggedKey == entry.key
                 ListItem(
-                    headlineContent = {
-                        if (folder == null) {
-                            Text(stringResource(Res.string.chat_folders_all))
-                        } else {
-                            val (text, ids) = remember(folder.title, folder.titleEntities) {
-                                var emoji: Set<Long> = emptySet()
-                                buildAnnotatedString { emoji = appendWithCustomEmoji(folder.title, folder.titleEntities) } to emoji
-                            }
-                            Text(text, inlineContent = customEmojiInlineContent(ids))
-                        }
-                    },
                     supportingContent = if (folder == null) {
                         { Text(stringResource(Res.string.chat_folders_all_fixed)) }
                     } else {
@@ -206,7 +194,17 @@ fun ChatFoldersScreen(
                         .draggedItem(dragState, entry.key)
                         .clip(shape)
                         .then(if (folder != null) Modifier.clickable { onEdit(folder.id) } else Modifier),
-                )
+                ) {
+                    if (folder == null) {
+                        Text(stringResource(Res.string.chat_folders_all))
+                    } else {
+                        val (text, ids) = remember(folder.title, folder.titleEntities) {
+                            var emoji: Set<Long> = emptySet()
+                            buildAnnotatedString { emoji = appendWithCustomEmoji(folder.title, folder.titleEntities) } to emoji
+                        }
+                        Text(text, inlineContent = customEmojiInlineContent(ids))
+                    }
+                }
             }
 
             val recommended = state.recommended
@@ -216,7 +214,6 @@ fun ChatFoldersScreen(
                 }
                 itemsIndexed(recommended, key = { _, it -> "rec-${it.draft.title}" }) { index, folder ->
                     ListItem(
-                        headlineContent = { Text(folder.draft.title) },
                         supportingContent = { Text(folder.description) },
                         leadingContent = { FolderIcon(folderIcon(folder.iconName), accent = false) },
                         trailingContent = {
@@ -230,7 +227,7 @@ fun ChatFoldersScreen(
                         },
                         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                         modifier = Modifier.animateItem().clip(groupItemShape(index, recommended.size)),
-                    )
+                    ) { Text(folder.draft.title) }
                 }
             }
 
@@ -260,9 +257,6 @@ fun ChatFoldersScreen(
                     AiFolders.Idle, AiFolders.Working, AiFolders.Failed -> item(key = "ai-suggest") {
                         val working = ai == AiFolders.Working
                         ListItem(
-                            headlineContent = {
-                                Text(stringResource(if (working) Res.string.chat_folders_ai_working else Res.string.chat_folders_ai_suggest))
-                            },
                             supportingContent = {
                                 Text(stringResource(if (ai == AiFolders.Failed) Res.string.chat_folders_ai_failed else Res.string.chat_folders_ai_suggest_summary))
                             },
@@ -275,7 +269,9 @@ fun ChatFoldersScreen(
                             ),
                             modifier = Modifier.animateItem().clip(groupItemShape(0, 1))
                                 .clickable(enabled = !working, onClick = viewModel::suggestWithAi),
-                        )
+                        ) {
+                            Text(stringResource(if (working) Res.string.chat_folders_ai_working else Res.string.chat_folders_ai_suggest))
+                        }
                     }
                 }
             }
@@ -290,7 +286,6 @@ private fun SuggestedFolderRow(folder: SuggestedFolder, adding: String?, onAdd: 
     val shown = folder.names.take(SUGGESTED_NAMES_SHOWN).joinToString(", ")
     val more = folder.names.size - SUGGESTED_NAMES_SHOWN
     ListItem(
-        headlineContent = { Text(folder.category.title?.let { stringResource(it) }.orEmpty()) },
         supportingContent = {
             Text(if (more > 0) pluralStringResource(Res.plurals.chat_folders_ai_more, more, shown, more) else shown)
         },
@@ -306,17 +301,16 @@ private fun SuggestedFolderRow(folder: SuggestedFolder, adding: String?, onAdd: 
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = modifier,
-    )
+    ) { Text(folder.category.title?.let { stringResource(it) }.orEmpty()) }
 }
 
 /** Věta místo návrhů (nic k navržení, model chybí) — v témže bloku jako řádky. */
 @Composable
 private fun AiFoldersNote(text: String) {
     ListItem(
-        headlineContent = { Text(text, style = MaterialTheme.typography.bodyMedium) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(groupItemShape(0, 1)),
-    )
+    ) { Text(text, style = MaterialTheme.typography.bodyMedium) }
 }
 
 /** Kolik názvů chatů se pod navrženou složkou vypíše; zbytek je „a další N". */

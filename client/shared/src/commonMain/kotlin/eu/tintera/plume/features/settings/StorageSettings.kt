@@ -195,8 +195,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         leadingContent = { LoadingIndicator(Modifier.size(40.dp)) },
-                        headlineContent = { Text(stringResource(Res.string.storage_computing)) },
-                    )
+                    ) { Text(stringResource(Res.string.storage_computing)) }
                 } else {
                     UsageHeader(filesBytes = usage.filesBytes)
                     usage.categories.forEach { part -> CategoryRow(part, total = usage.filesBytes) }
@@ -225,7 +224,6 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = { CategoryIcon(Res.drawable.data_usage_24dp) },
-                    headlineContent = { Text(stringResource(Res.string.network_usage_title)) },
                     supportingContent = state.networkUsage?.let { network ->
                         {
                             Text(
@@ -238,7 +236,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                         }
                     },
                     modifier = Modifier.clickable(onClick = onOpenNetworkUsage),
-                )
+                ) { Text(stringResource(Res.string.network_usage_title)) }
             }
 
             if (autosavesToGallery) AutosaveGroup(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
@@ -287,7 +285,6 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             leadingContent = { CategoryIcon(Res.drawable.auto_awesome_24dp) },
-                            headlineContent = { Text(stored.model.displayName) },
                             supportingContent = {
                                 Text(
                                     if (stored.complete) {
@@ -305,7 +302,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                                     Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.common_delete))
                                 }
                             },
-                        )
+                        ) { Text(stored.model.displayName) }
                     }
                 }
             }
@@ -317,7 +314,6 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             leadingContent = { CategoryIcon(Res.drawable.translate_24dp) },
-                            headlineContent = { Text(localizedLanguageName(pack.language) ?: pack.language) },
                             supportingContent = pack.bytes?.let { bytes -> { Text(fileSizeText(bytes)) } },
                             trailingContent = {
                                 IconButton(
@@ -327,7 +323,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                                     Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.common_delete))
                                 }
                             },
-                        )
+                        ) { Text(localizedLanguageName(pack.language) ?: pack.language) }
                     }
                 }
             }
@@ -427,7 +423,6 @@ private fun CategoryRow(part: CategoryUsage, total: Long) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { CategoryIcon(part.category.icon) },
-        headlineContent = { Text(stringResource(part.category.label)) },
         supportingContent = {
             LinearProgressIndicator(
                 progress = { if (total > 0) (part.bytes.toFloat() / total).coerceIn(0f, 1f) else 0f },
@@ -439,7 +434,7 @@ private fun CategoryRow(part: CategoryUsage, total: Long) {
         trailingContent = {
             Text(fileSizeText(part.bytes), style = MaterialTheme.typography.labelLarge.tabularNumbers())
         },
-    )
+    ) { Text(stringResource(part.category.label)) }
 }
 
 /** Databáze (historie zpráv). Smazat jde jen odhlášením — řádek to říká, nic nenabízí. */
@@ -448,12 +443,11 @@ private fun DatabaseRow(bytes: Long) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { CategoryIcon(Res.drawable.database_24dp) },
-        headlineContent = { Text(stringResource(Res.string.storage_database)) },
         supportingContent = { Text(stringResource(Res.string.storage_database_summary)) },
         trailingContent = {
             Text(fileSizeText(bytes), style = MaterialTheme.typography.labelLarge.tabularNumbers())
         },
-    )
+    ) { Text(stringResource(Res.string.storage_database)) }
 }
 
 @Composable
@@ -476,7 +470,6 @@ private fun ChatStorageRow(chat: ChatStorage, onClick: (() -> Unit)?) {
                 )
             }
         },
-        headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         // Co v chatu zabírá nejvíc — rozhoduje, jestli ho má smysl čistit.
         supportingContent = {
             Text(
@@ -489,7 +482,7 @@ private fun ChatStorageRow(chat: ChatStorage, onClick: (() -> Unit)?) {
             Text(fileSizeText(chat.bytes), style = MaterialTheme.typography.labelLarge.tabularNumbers())
         },
         modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
-    )
+    ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 /** Ikona v tónovaném kruhu, jako u Zařízení — řádky se tím srovnají s avatary chatů. */

@@ -128,7 +128,6 @@ private fun ProfileAudioRow(
     val meta = listOfNotNull(audio.performer?.ifBlank { null }, time).joinToString(" · ")
     val actionLabel = stringResource(if (playing) Res.string.profile_shared_music_pause else Res.string.profile_shared_music_play)
     ListItem(
-        headlineContent = { Text(audio.title.ifBlank { audio.fileName }, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = meta.takeIf { it.isNotEmpty() }?.let {
             { Text(it, style = LocalTextStyle.current.tabularNumbers(), maxLines = 1, overflow = TextOverflow.Ellipsis) }
         },
@@ -170,7 +169,7 @@ private fun ProfileAudioRow(
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
         modifier = Modifier.clip(shape).clickable(onClickLabel = actionLabel, onClick = onToggle),
-    )
+    ) { Text(audio.title.ifBlank { audio.fileName }, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 /** Kolik skladeb profil ukáže, než se rozbalí. */

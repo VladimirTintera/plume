@@ -94,7 +94,6 @@ private fun ViewerRow(viewer: StoryViewer) {
                 shape = viewer.kind.avatarShape(),
             )
         },
-        headlineContent = { Text(viewer.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Text(
                 when (viewer.action) {
@@ -106,7 +105,7 @@ private fun ViewerRow(viewer: StoryViewer) {
             )
         },
         trailingContent = viewer.reaction?.let { { ReactionGlyph(it, size = 24, description = null) } },
-    )
+    ) { Text(viewer.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
 }
 
 private val LIST_MAX_HEIGHT = 520.dp

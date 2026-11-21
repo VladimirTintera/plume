@@ -222,7 +222,6 @@ fun OwnedStickerSetScreen(
                                 }
                             }
                         },
-                        headlineContent = { Text(stringResource(Res.string.sticker_set_cover)) },
                         supportingContent = {
                             Text(
                                 stringResource(
@@ -247,7 +246,7 @@ fun OwnedStickerSetScreen(
                         },
                         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                         modifier = Modifier.padding(bottom = 16.dp).clip(groupItemShape(0, 1)),
-                    )
+                    ) { Text(stringResource(Res.string.sticker_set_cover)) }
                 }
                 item(key = "hint") {
                     Text(
@@ -262,9 +261,6 @@ fun OwnedStickerSetScreen(
                     val dragged = dragState.draggedKey == sticker.id
                     ListItem(
                         leadingContent = { StickerPreview(sticker.preview, playing = false, modifier = Modifier.size(STICKER_SIZE)) },
-                        headlineContent = {
-                            Text(sticker.preview.emoji, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        },
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 StickerMenu(
@@ -289,7 +285,9 @@ fun OwnedStickerSetScreen(
                         modifier = (if (dragState.draggedKey == null) Modifier.animateItem() else Modifier)
                             .draggedItem(dragState, sticker.id)
                             .clip(groupItemShape(index, stickers.size)),
-                    )
+                    ) {
+                        Text(sticker.preview.emoji, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
                 item(key = "actions") {
                     GroupedColumn(Modifier.fillMaxWidth().padding(top = 16.dp)) {

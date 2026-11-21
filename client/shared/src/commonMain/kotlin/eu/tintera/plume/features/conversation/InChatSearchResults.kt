@@ -135,24 +135,6 @@ private fun ResultRow(
         }
     }
     ListItem(
-        headlineContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    sender.orEmpty(),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                if (hit != null) {
-                    Text(
-                        hit.date.asRelativeTime(),
-                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                        color = supportingColor,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                }
-            }
-        },
         supportingContent = { Text(snippet, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         colors = ListItemDefaults.colors(
             containerColor = Color.Transparent,
@@ -160,7 +142,24 @@ private fun ResultRow(
             supportingContentColor = supportingColor,
         ),
         modifier = modifier,
-    )
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                sender.orEmpty(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (hit != null) {
+                Text(
+                    hit.date.asRelativeTime(),
+                    style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                    color = supportingColor,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        }
+    }
 }
 
 /** Kolik řádků před koncem načtených se dotáhne další stránka — ať seznam nedojede do prázdna. */

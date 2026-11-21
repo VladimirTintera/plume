@@ -149,10 +149,9 @@ internal fun ChatsWidgetRow(viewModel: AppearanceViewModel) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.widgets_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_chats_widget)) },
         supportingContent = { Text(stringResource(Res.string.settings_chats_widget_summary)) },
         modifier = Modifier.clickable(onClick = viewModel::pinChatsWidget),
-    )
+    ) { Text(stringResource(Res.string.settings_chats_widget)) }
 }
 
 /**

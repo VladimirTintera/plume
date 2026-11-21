@@ -127,8 +127,6 @@ internal fun RecentFilesPicker(
 @Composable
 private fun RecentFileRow(file: RecentFile, selected: Boolean, enabled: Boolean, index: Int, count: Int, onToggle: () -> Unit) {
     ListItem(
-        // Název uprostřed zkrácený: přípona na konci je to, podle čeho se soubor pozná.
-        headlineContent = { Text(file.name, maxLines = 1, overflow = TextOverflow.MiddleEllipsis) },
         supportingContent = { Text(listOf(fileSizeText(file.size), file.sentAt.asDate()).joinToString(" · ")) },
         leadingContent = {
             Box(
@@ -149,7 +147,10 @@ private fun RecentFileRow(file: RecentFile, selected: Boolean, enabled: Boolean,
             .clip(groupItemShape(index, count))
             .toggleable(value = selected, enabled = enabled, role = Role.Checkbox, onValueChange = { onToggle() })
             .alpha(if (enabled) 1f else DISABLED_ALPHA),
-    )
+    ) {
+        // Název uprostřed zkrácený: přípona na konci je to, podle čeho se soubor pozná.
+        Text(file.name, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
+    }
 }
 
 private val LIST_HEIGHT = 420.dp

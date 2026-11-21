@@ -187,14 +187,13 @@ fun ProxySettingsScreen(
             }
             item(key = "add") {
                 ListItem(
-                    headlineContent = { Text(stringResource(Res.string.proxy_add)) },
                     leadingContent = { RowIcon(Res.drawable.add_24dp, accent = true) },
                     colors = ListItemDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.groupRow,
                         headlineColor = MaterialTheme.colorScheme.primary,
                     ),
                     modifier = Modifier.animateItem().clip(groupItemShape(0, count)).clickable(onClick = viewModel::add),
-                )
+                ) { Text(stringResource(Res.string.proxy_add)) }
             }
             item(key = "direct") {
                 ProxyRow(
@@ -283,7 +282,6 @@ private fun ProxyRow(
     val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     val stateText = stringResource(Res.string.proxy_state_on)
     ListItem(
-        headlineContent = { Text(title) },
         supportingContent = { Text(subtitle) },
         leadingContent = { RowIcon(if (selected) Res.drawable.check_24dp else Res.drawable.vpn_lock_24dp, accent = selected) },
         trailingContent = menu,
@@ -301,7 +299,7 @@ private fun ProxyRow(
             .clip(groupItemShape(shapeIndex, count))
             .clickable(enabled = enabled, role = Role.RadioButton, onClick = onClick)
             .semantics { if (selected) stateDescription = stateText },
-    )
+    ) { Text(title) }
 }
 
 @Composable

@@ -91,7 +91,6 @@ internal fun ContactPickerSheet(
                         item(key = ME_KEY) {
                             val onCard = MaterialTheme.colorScheme.onPrimaryContainer
                             ListItem(
-                                headlineContent = { Text(stringResource(Res.string.conversation_contact_me)) },
                                 supportingContent = { Text(me.phone) },
                                 leadingContent = {
                                     Avatar(
@@ -112,12 +111,11 @@ internal fun ContactPickerSheet(
                                     .padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING)
                                     .clip(RoundedCornerShape(GROUP_CORNER))
                                     .clickable { me.userId?.let(onPick) },
-                            )
+                            ) { Text(stringResource(Res.string.conversation_contact_me)) }
                         }
                     }
                     itemsIndexed(shown, key = { _, contact -> contact.id }) { index, contact ->
                         ListItem(
-                            headlineContent = { Text(contact.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             leadingContent = {
                                 Avatar(chatId = contact.id, title = contact.title, avatarFileId = contact.avatarFileId, size = 40.dp)
                             },
@@ -127,7 +125,7 @@ internal fun ContactPickerSheet(
                                 .clip(groupItemShape(index, shown.size))
                                 // V soukromém chatu je id chatu id uživatele.
                                 .clickable { onPick(contact.id) },
-                        )
+                        ) { Text(contact.title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
                 }
             }

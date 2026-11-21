@@ -261,9 +261,8 @@ fun AccountPrivacyScreen(
                         leadingIconColor = MaterialTheme.colorScheme.error,
                     ),
                     leadingContent = { Icon(painterResource(Res.drawable.delete_24dp), contentDescription = null) },
-                    headlineContent = { Text(stringResource(Res.string.privacy_delete_now)) },
                     modifier = Modifier.clickable(onClick = onDeleteAccount),
-                )
+                ) { Text(stringResource(Res.string.privacy_delete_now)) }
             }
         }
     }
@@ -276,7 +275,6 @@ private fun PrivacyRow(setting: PrivacySetting, state: AccountPrivacyState, onOp
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(setting.icon), contentDescription = null) },
-        headlineContent = { Text(stringResource(setting.title)) },
         supportingContent = when {
             // Dokud stav nedorazí, řádek nic netvrdí — „Všichni" by mohla být lež.
             choice != null -> {
@@ -288,7 +286,7 @@ private fun PrivacyRow(setting: PrivacySetting, state: AccountPrivacyState, onOp
             else -> null
         },
         modifier = Modifier.clickable(onClick = { onOpen(setting) }),
-    )
+    ) { Text(stringResource(setting.title)) }
 }
 
 /** „Kontakty", „Nikdo · 2 výjimky", u hlasovek bez Premium i „jen s Telegram Premium". */
@@ -313,9 +311,8 @@ private fun ReadDateRow(state: AccountPrivacyState, onChange: (Boolean) -> Unit)
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 leadingContent = { Icon(painterResource(Res.drawable.done_all_24dp), contentDescription = null) },
-                headlineContent = { Text(stringResource(Res.string.privacy_read_date)) },
                 supportingContent = { Text(stringResource(Res.string.privacy_load_failed), color = MaterialTheme.colorScheme.error) },
-            )
+            ) { Text(stringResource(Res.string.privacy_read_date)) }
         }
         return
     }
@@ -348,7 +345,6 @@ private fun AccountTtlRow(state: AccountPrivacyState, onSelect: (Int) -> Unit) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.privacy_account_ttl)) },
             supportingContent = when {
                 days != null && state.accountTtlFailed -> {
                     { Text(stringResource(Res.string.privacy_save_failed), color = MaterialTheme.colorScheme.error) }
@@ -369,7 +365,7 @@ private fun AccountTtlRow(state: AccountPrivacyState, onSelect: (Int) -> Unit) {
                 )
             },
             modifier = Modifier.clickable(enabled = days != null, role = Role.DropdownList) { open = true },
-        )
+        ) { Text(stringResource(Res.string.privacy_account_ttl)) }
         if (days != null) {
             // Volba se stejným počtem měsíců zastoupí hodnotu ze serveru (180 → 182); hodnota
             // z jiného klienta, která mezi volbami není, zůstane vidět a vybraná.
@@ -530,7 +526,6 @@ private fun BaseRow(base: PrivacyBase, selected: Boolean, enabled: Boolean, onSe
     val haptics = LocalHapticFeedback.current
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(stringResource(base.title)) },
         leadingContent = { RadioButton(selected = selected, onClick = null, enabled = enabled) },
         modifier = Modifier.selectable(
             selected = selected,
@@ -541,7 +536,7 @@ private fun BaseRow(base: PrivacyBase, selected: Boolean, enabled: Boolean, onSe
                 onSelect()
             },
         ),
-    )
+    ) { Text(stringResource(base.title)) }
 }
 
 @Composable
@@ -567,7 +562,6 @@ private fun ExceptionGroup(
                         shape = member.kind.avatarShape(),
                     )
                 },
-                headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 supportingContent = if (member.isGroup) {
                     { Text(stringResource(Res.string.privacy_group_members)) }
                 } else {
@@ -582,7 +576,7 @@ private fun ExceptionGroup(
                 } else {
                     null
                 },
-            )
+            ) { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         }
         if (editable) {
             ListItem(
@@ -592,9 +586,8 @@ private fun ExceptionGroup(
                     leadingContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 leadingContent = { Icon(painterResource(Res.drawable.add_24dp), contentDescription = null) },
-                headlineContent = { Text(stringResource(Res.string.privacy_add_exception)) },
                 modifier = Modifier.clickable(onClick = onAdd),
-            )
+            ) { Text(stringResource(Res.string.privacy_add_exception)) }
         }
     }
 }

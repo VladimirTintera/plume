@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.runtime.remember
+import androidx.compose.material3.SliderState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -59,8 +61,15 @@ internal fun SizeSlider(
         )
     }
     val valueLabel = stringResource(Res.string.settings_size_value, size)
+    // Varianta se stavem (`Slider(value)` je od material3 1.13 zastaralý); stav si pamatuje rozsah
+    // a dílky a hodnota se do něj zapisuje stejně, jako to dělala zastaralá varianta uvnitř.
+    val valueRange = range.first.toFloat()..range.last.toFloat()
+    // Dílky MEZI krajními hodnotami.
+    val steps = (range.last - range.first) / step - 1
+    val sliderState = remember(steps, valueRange) { SliderState(size.toFloat(), steps, valueRange) }
+    sliderState.value = size.toFloat()
     Slider(
-        value = size.toFloat(),
+        state = sliderState,
         onValueChange = { value ->
             val next = value.roundToInt().coerceIn(range)
             if (next != size) {
@@ -69,9 +78,6 @@ internal fun SizeSlider(
             }
         },
         onValueChangeFinished = onChangeFinished,
-        valueRange = range.first.toFloat()..range.last.toFloat(),
-        // Dílky MEZI krajními hodnotami.
-        steps = (range.last - range.first) / step - 1,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)

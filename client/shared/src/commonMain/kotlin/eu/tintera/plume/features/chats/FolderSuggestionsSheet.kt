@@ -102,7 +102,6 @@ internal fun FolderSuggestionsSheet(
             }
             state.recommended.forEachIndexed { index, folder ->
                 ListItem(
-                    headlineContent = { Text(folder.draft.title) },
                     supportingContent = { Text(folder.description) },
                     leadingContent = { FolderIcon(folderIcon(folder.iconName), accent = false) },
                     trailingContent = {
@@ -116,7 +115,7 @@ internal fun FolderSuggestionsSheet(
                     },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                     modifier = Modifier.clip(groupItemShape(index, state.recommended.size)),
-                )
+                ) { Text(folder.draft.title) }
             }
 
             // Mezera jako mezi skupinami; `spacedBy` přidá svou spáru z obou stran.
@@ -124,17 +123,15 @@ internal fun FolderSuggestionsSheet(
                 Spacer(Modifier.height(GROUP_SPACING - GROUP_ITEM_SPACING * 2))
             }
             ListItem(
-                headlineContent = { Text(stringResource(Res.string.chat_folders_create)) },
                 leadingContent = { FolderIcon(Res.drawable.add_24dp, accent = true) },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 modifier = Modifier.clip(groupItemShape(0, 2)).clickable(onClick = onCreate),
-            )
+            ) { Text(stringResource(Res.string.chat_folders_create)) }
             ListItem(
-                headlineContent = { Text(stringResource(Res.string.chat_folders_manage)) },
                 leadingContent = { FolderIcon(Res.drawable.tune_24dp, accent = false) },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
                 modifier = Modifier.clip(groupItemShape(1, 2)).clickable(onClick = onManage),
-            )
+            ) { Text(stringResource(Res.string.chat_folders_manage)) }
         }
     }
 }

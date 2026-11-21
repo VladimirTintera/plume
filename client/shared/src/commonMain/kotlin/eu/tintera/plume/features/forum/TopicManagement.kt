@@ -185,7 +185,6 @@ internal fun TopicActionsSheet(
             items.forEachIndexed { index, item ->
                 val color = if (item.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 ListItem(
-                    headlineContent = { Text(item.label) },
                     leadingContent = { Icon(painterResource(item.icon), contentDescription = null) },
                     colors = ListItemDefaults.colors(
                         containerColor = MaterialTheme.colorScheme.groupRow,
@@ -198,7 +197,7 @@ internal fun TopicActionsSheet(
                             onDismiss()
                             item.onClick()
                         },
-                )
+                ) { Text(item.label) }
             }
         }
     }

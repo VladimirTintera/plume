@@ -133,7 +133,6 @@ private fun SendAsSheet(
                                 modifier = Modifier.alpha(if (option.locked) DISABLED_ALPHA else 1f),
                             )
                         },
-                        headlineContent = { Text(option.title, maxLines = 1) },
                         supportingContent = { Text(option.supportingText()) },
                         trailingContent = when {
                             selected -> {
@@ -154,7 +153,7 @@ private fun SendAsSheet(
                                     scope.launch { sheetState.hide() }.invokeOnCompletion { onChoose(option) }
                                 },
                             ),
-                    )
+                    ) { Text(option.title, maxLines = 1) }
                 }
             }
         }

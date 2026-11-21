@@ -355,13 +355,12 @@ internal fun SettingsListRow(
         ),
         // Ikona je dekorace: co řádek je, říká název vedle ní, takže čtečce nic nepřidá.
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-        headlineContent = { Text(title) },
         supportingContent = summary?.let { { Text(it) } },
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
             .clickable(interactionSource = interaction, indication = ripple(), onClick = onClick),
-    )
+    ) { Text(title) }
 }
 
 /**

@@ -149,7 +149,6 @@ internal fun TwoStepRow(viewModel: TwoStepViewModel, onOpen: () -> Unit) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(Res.drawable.password_24dp), contentDescription = null) },
-        headlineContent = { Text(stringResource(Res.string.settings_two_step)) },
         supportingContent = {
             // Dokud stav nedorazí, řádek nic netvrdí — „vypnuto" by mohla být lež.
             when {
@@ -160,7 +159,7 @@ internal fun TwoStepRow(viewModel: TwoStepViewModel, onOpen: () -> Unit) {
             }
         },
         modifier = Modifier.clickable(onClick = onOpen),
-    )
+    ) { Text(stringResource(Res.string.settings_two_step)) }
 }
 
 /**
@@ -362,8 +361,7 @@ private fun NoticeCard(
 private fun InfoRow(text: String) {
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        headlineContent = { Text(text, style = MaterialTheme.typography.bodyMedium) },
-    )
+    ) { Text(text, style = MaterialTheme.typography.bodyMedium) }
 }
 
 /** Jeden krok průvodce: nadpis, vysvětlení, pole a tlačítka. */

@@ -287,7 +287,6 @@ private fun PlaceRow(
     val colors = MaterialTheme.colorScheme
     Surface(shape = shape, color = colors.groupRow, modifier = Modifier.fillMaxWidth()) {
         ListItem(
-            headlineContent = { Text(title) },
             supportingContent = subtitle.takeIf { it.isNotBlank() }?.let { { Text(it) } },
             leadingContent = {
                 Box(
@@ -306,7 +305,7 @@ private fun PlaceRow(
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             modifier = Modifier.clickable(onClick = onClick),
-        )
+        ) { Text(title) }
     }
 }
 

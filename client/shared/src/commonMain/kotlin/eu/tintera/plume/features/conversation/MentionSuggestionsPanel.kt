@@ -62,14 +62,13 @@ internal fun MentionSuggestionsPanel(
                                 size = AVATAR_SIZE,
                             )
                         },
-                        headlineContent = {
-                            Text(candidate.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        },
                         supportingContent = candidate.username?.let {
                             { Text(usernameMention(it), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                         },
                         modifier = Modifier.clickable { onPick(candidate) },
-                    )
+                    ) {
+                        Text(candidate.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
     }
