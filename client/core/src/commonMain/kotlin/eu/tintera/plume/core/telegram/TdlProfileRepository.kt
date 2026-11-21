@@ -71,7 +71,7 @@ import dev.g000sha256.tdl.dto.BusinessInfo
 import dev.g000sha256.tdl.dto.BotVerification
 import eu.tintera.plume.resources.content_audio
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputAudio
 import dev.g000sha256.tdl.dto.InputThumbnail
@@ -247,7 +247,7 @@ class TdlProfileRepository(
             verification = user.verificationStatus.toVerification(),
             botVerification = botVerificationNote(full?.botVerification),
             hasMainWebApp = (user.type as? UserTypeBot)?.hasMainWebApp == true,
-            firstProfileAudio = full?.firstProfileAudio?.toMedia(fallbackName = readString(Res.string.content_audio)),
+            firstProfileAudio = full?.firstProfileAudio?.toMedia(fallbackName = getString(Res.string.content_audio)),
             business = full?.businessInfo?.toDetails(),
             // Vlastní dárky (Uložené zprávy) se tu neukazují — spravují se v oficiální aplikaci.
             giftCount = full?.giftCount?.takeIf { userId != me } ?: 0,
@@ -306,7 +306,7 @@ class TdlProfileRepository(
         client.setUserPersonalProfilePhoto(userId = userId, photo = photo?.toInputChatPhoto()).toResult().map { }
 
     override suspend fun profileAudios(userId: Long): Result<List<MessageMedia.Audio>> {
-        val fallback = readString(Res.string.content_audio)
+        val fallback = getString(Res.string.content_audio)
         return client.getUserProfileAudios(userId = userId, offset = 0, limit = PROFILE_AUDIO_LIMIT)
             .toResult()
             .map { audios -> audios.audios.map { it.toMedia(fallback) } }

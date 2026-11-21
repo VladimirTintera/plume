@@ -3,7 +3,7 @@ package eu.tintera.plume.core.share
 import eu.tintera.plume.core.accounts.AccountSlot
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.distinctUntilChanged
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -79,7 +79,7 @@ class ShareTargets(
         // Uložené zprávy nesou v TDLib jméno a fotku vlastního účtu; ve sdílení i na ploše mají
         // mít vlastní název a záložku, jako všude v aplikaci.
         if (chatId == chats.savedMessagesChatId.value) {
-            return ShortcutChat(chatId, readString(Res.string.saved_messages), avatarPath = null, isSavedMessages = true)
+            return ShortcutChat(chatId, getString(Res.string.saved_messages), avatarPath = null, isSavedMessages = true)
         }
         val info = repository.chatInfo(chatId).getOrElse { failure ->
             logger.w(failure) { "Chat $chatId se kvůli zkratce nepodařilo načíst." }

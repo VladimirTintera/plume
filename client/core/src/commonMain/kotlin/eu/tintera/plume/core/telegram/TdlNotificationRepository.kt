@@ -6,7 +6,7 @@ import dev.g000sha256.tdl.dto.Message
 
 import dev.g000sha256.tdl.dto.MessagePinMessage
 
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.saved_messages
 import dev.g000sha256.tdl.dto.ChatTypePrivate
@@ -194,7 +194,7 @@ class TdlNotificationRepository(
             ?.let { it == client.getMe().toResult().getOrNull()?.id } == true
         // Chat, který lokální databáze nezná (první zpráva od nového kontaktu, spojení mrtvé),
         // se pojmenuje podle odesílatele z pushe — notifikace bez jména by nikomu nic neřekla.
-        val chatTitle = (if (isSavedMessages) readString(Res.string.saved_messages) else chat?.title)
+        val chatTitle = (if (isSavedMessages) getString(Res.string.saved_messages) else chat?.title)
             ?: added.firstNotNullOfOrNull { (it.type as? NotificationTypeNewPushMessage)?.senderName }
             ?: ""
 
@@ -293,7 +293,7 @@ class TdlNotificationRepository(
                     senderPhoto = sender?.photo,
                     // `showPreview = false` znamená, že si uživatel nepřeje vidět obsah
                     // na zamykací obrazovce. Musíme to respektovat — i u obrázku.
-                    text = if (type.showPreview) message.detailedNotificationText().resolveNow() else readString(Res.string.notification_new_message),
+                    text = if (type.showPreview) message.detailedNotificationText().resolveNow() else getString(Res.string.notification_new_message),
                     image = shownPhoto?.photo?.notificationImage(),
                     imageCaption = shownPhoto?.caption?.text?.takeIf { it.isNotBlank() },
                     topicId = (message.topicId as? MessageTopicForum)?.forumTopicId,
@@ -323,7 +323,7 @@ class TdlNotificationRepository(
                 messageId = null,
                 senderName = null,
                 senderPhoto = null,
-                text = readString(Res.string.notification_new_secret_chat),
+                text = getString(Res.string.notification_new_secret_chat),
             )
 
             // Hovory jdou vlastní cestou (`NotificationUpdate.Call`, výš).

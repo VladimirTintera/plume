@@ -15,7 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.background_data_notification_text
 import eu.tintera.plume.resources.background_data_notification_title
@@ -89,9 +89,9 @@ object BackgroundDataWarning {
         if (!permission.claimBackgroundDataNotification(NOTIFY_INTERVAL.inWholeMilliseconds)) return false
         val notification = NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(readString(Res.string.background_data_notification_title))
-            .setContentText(readString(Res.string.background_data_notification_text))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(readString(Res.string.background_data_notification_text)))
+            .setContentTitle(getString(Res.string.background_data_notification_title))
+            .setContentText(getString(Res.string.background_data_notification_text))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(getString(Res.string.background_data_notification_text)))
             .setCategory(NotificationCompat.CATEGORY_ERROR)
             .setAutoCancel(true)
             .setContentIntent(

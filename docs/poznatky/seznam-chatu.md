@@ -1400,7 +1400,7 @@ nabídky widgetů launcheru.
 - **Odhlášení widget vyprázdní** („Přihlas se v aplikaci Plume"). Zapisuje se jen v jasných
   stavech (přihlášeno a seznam načtený, nebo odhlášeno) — při startu, než se TDLib rozběhne,
   zůstává poslední známý stav, jinak by widget při každém studeném startu problikl prázdnem.
-- **Texty se překládají před `provideContent`** (`readString`): Glance skládá vlastní kompozici
+- **Texty se překládají před `provideContent`** (`getString`): Glance skládá vlastní kompozici
   bez prostředí Compose Resources a `stringResource` v ní nefunguje. Čas poslední zprávy proto
   formátuje systém (`DateFormat.getBestDateTimePattern`), počítá se v kompozici.
 - **Intent řádku nese chatId i v datech** (`plume-widget://chat/<id>`), jinak by se intenty řádků

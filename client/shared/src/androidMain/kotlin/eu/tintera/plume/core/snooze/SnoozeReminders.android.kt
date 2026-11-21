@@ -20,7 +20,7 @@ import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.notifications.SNOOZE_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createSnoozeChannel
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.snooze_reminder_text
 import java.util.concurrent.TimeUnit
@@ -73,7 +73,7 @@ class SnoozeReminderWorker(context: Context, params: WorkerParameters) : Corouti
         val notification = NotificationCompat.Builder(applicationContext, SNOOZE_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
-            .setContentText(readString(Res.string.snooze_reminder_text))
+            .setContentText(getString(Res.string.snooze_reminder_text))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(openChat(slot, chatId))

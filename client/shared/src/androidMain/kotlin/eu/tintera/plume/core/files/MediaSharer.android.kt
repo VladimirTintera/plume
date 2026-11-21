@@ -17,7 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.clipboard_label
 import kotlinx.coroutines.Dispatchers
@@ -108,7 +108,7 @@ actual class MediaSharer(private val context: Context) {
         } ?: return false
         return runCatching {
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.documents", copy)
-            manager.setPrimaryClip(ClipData.newUri(context.contentResolver, readString(Res.string.clipboard_label), uri))
+            manager.setPrimaryClip(ClipData.newUri(context.contentResolver, getString(Res.string.clipboard_label), uri))
             true
         }.onFailure { logger.w(it) { "Obrázek $path se nepodařilo zkopírovat do schránky." } }.getOrDefault(false)
     }

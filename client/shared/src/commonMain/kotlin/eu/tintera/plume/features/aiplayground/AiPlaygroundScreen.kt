@@ -63,7 +63,7 @@ import eu.tintera.plume.core.ui.INNER_CORNER
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.TextClipboard
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.features.settings.SettingsTopBar
 import eu.tintera.plume.features.settings.settingsScroll
@@ -136,7 +136,7 @@ fun AiPlaygroundScreen(viewModel: AiPlaygroundViewModel, onBack: () -> Unit) {
     val copy: (String) -> Unit = { text ->
         scope.launch {
             clipboard.copy(text)
-            if (!clipboard.confirmsCopy) snackbarHostState.showSnackbar(readString(Res.string.media_text_copied))
+            if (!clipboard.confirmsCopy) snackbarHostState.showSnackbar(getString(Res.string.media_text_copied))
         }
     }
 

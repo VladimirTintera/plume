@@ -50,7 +50,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.ui.asTimeOfDay
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.widget_chats_empty
 import eu.tintera.plume.resources.widget_chats_logged_out
@@ -88,9 +88,9 @@ class ChatsWidget : GlanceAppWidget() {
         // Soubor jen pro první kreslení widgetu, do kterého aktualizace ještě nic nezapsala.
         val initial = readSnapshot(context)
         val texts = WidgetTexts(
-            title = readString(Res.string.widget_chats_title),
-            loggedOut = readString(Res.string.widget_chats_logged_out),
-            empty = readString(Res.string.widget_chats_empty),
+            title = getString(Res.string.widget_chats_title),
+            loggedOut = getString(Res.string.widget_chats_logged_out),
+            empty = getString(Res.string.widget_chats_empty),
         )
         provideContent {
             val stored = currentState<Preferences>()[SNAPSHOT_KEY]

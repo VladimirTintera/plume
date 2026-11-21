@@ -19,7 +19,7 @@ import eu.tintera.plume.core.notifications.WATCH_LOGIN_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createWatchLoginChannel
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.DeviceRepository
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.wear.WatchLogin
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.watch_login_confirm
@@ -206,14 +206,14 @@ internal object WatchLoginNotification {
         val decline = action(context, WatchLoginReceiver.ACTION_DECLINE, link, nodeId, slot = null)
         val choose = choices.size > 1
         val text = when {
-            choose && nodeName != null -> readString(Res.string.watch_login_text_choose, nodeName)
-            choose -> readString(Res.string.watch_login_text_choose_unnamed)
-            nodeName != null -> readString(Res.string.watch_login_text, nodeName)
-            else -> readString(Res.string.watch_login_text_unnamed)
+            choose && nodeName != null -> getString(Res.string.watch_login_text_choose, nodeName)
+            choose -> getString(Res.string.watch_login_text_choose_unnamed)
+            nodeName != null -> getString(Res.string.watch_login_text, nodeName)
+            else -> getString(Res.string.watch_login_text_unnamed)
         }
         val builder = NotificationCompat.Builder(context, WATCH_LOGIN_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(readString(Res.string.watch_login_title))
+            .setContentTitle(getString(Res.string.watch_login_title))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -223,8 +223,8 @@ internal object WatchLoginNotification {
             .setTimeoutAfter(ASK_TIMEOUT_MS)
             // Odhrnutí je zamítnutí: hodinky se to dozví a nečekají dál.
             .setDeleteIntent(decline)
-        if (choices.size < MAX_ACTIONS) builder.addAction(0, readString(Res.string.watch_login_decline), decline)
-        val confirmLabel = readString(Res.string.watch_login_confirm)
+        if (choices.size < MAX_ACTIONS) builder.addAction(0, getString(Res.string.watch_login_decline), decline)
+        val confirmLabel = getString(Res.string.watch_login_confirm)
         choices.take(MAX_ACTIONS).forEach { choice ->
             builder.addAction(0, choice.label ?: confirmLabel, action(context, WatchLoginReceiver.ACTION_CONFIRM, link, nodeId, choice.slot))
         }
@@ -236,7 +236,7 @@ internal object WatchLoginNotification {
         if (!canNotify(context)) return
         val notification = NotificationCompat.Builder(context, WATCH_LOGIN_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(readString(if (success) Res.string.watch_login_done else Res.string.watch_login_failed))
+            .setContentTitle(getString(if (success) Res.string.watch_login_done else Res.string.watch_login_failed))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOnlyAlertOnce(true)
             .setLocalOnly(true)

@@ -91,7 +91,7 @@ import eu.tintera.plume.core.telegram.DownloadKind
 import eu.tintera.plume.core.ui.CountdownSnackbarHost
 import eu.tintera.plume.core.ui.UNDO_COUNTDOWN_MS
 import eu.tintera.plume.core.ui.asRelativeTime
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.ui.showCountdownSnackbar
 import eu.tintera.plume.resources.chat_24dp
 import eu.tintera.plume.resources.downloads_cleared
@@ -159,14 +159,14 @@ internal fun DownloadsScreen(
             // odebrání doběhlo dřív, než by se „Vrátit" ukázalo.
             snackbarHostState.currentSnackbarData?.dismiss()
             val result = snackbarHostState.showCountdownSnackbar(
-                message = readString(
+                message = getString(
                     when (removal.kind) {
                         DownloadRemoval.Kind.Removed -> Res.string.downloads_removed
                         DownloadRemoval.Kind.Deleted -> Res.string.downloads_deleted
                         DownloadRemoval.Kind.Cleared -> Res.string.downloads_cleared
                     },
                 ),
-                actionLabel = readString(Res.string.downloads_undo),
+                actionLabel = getString(Res.string.downloads_undo),
                 durationMs = UNDO_COUNTDOWN_MS,
             )
             if (result == SnackbarResult.ActionPerformed) pending.forEach { (source, batch) -> source.viewModel.undoRemoval(batch) }

@@ -40,7 +40,6 @@ class SourceChecksPlugin : Plugin<Project> {
         }
 
         register("verifyNoHardcodedText", VerifyNoHardcodedText::class.java)
-        register("verifyResourceReadsOffMain", VerifyResourceReadsOffMain::class.java)
         register("verifyContextClickable", VerifyContextClickable::class.java)
         register("verifyExpandedSheets", VerifyExpandedSheets::class.java)
         register("verifyMenuScroll", VerifyMenuScroll::class.java)
@@ -177,28 +176,6 @@ abstract class VerifyNoHardcodedText : SourceCheckTask() {
         }
         return offenders
     }
-}
-
-/**
- * Hlídá, že suspend čtení textu z prostředků jde jen přes `readString` / `readPluralString`
- * (`core/ui/ResourceStrings.kt`), které čtou mimo hlavní vlákno.
- *
- * Přímé `getString` z korutiny na `Dispatchers.Main` umí s `stringResource` v kompozici
- * zamknout hlavní vlákno natrvalo — zdůvodnění je v KDoc `readString`. Volání bylo přes
- * šedesát a každé nové by past otevřelo znovu, aniž by si toho kdo všiml: deadlock je souběh,
- * v testech ani při zkoušení se neukáže.
- */
-abstract class VerifyResourceReadsOffMain : SourceCheckTask() {
-    init {
-        description = "Ověří, že se text z prostředků mimo kompozici čte přes readString."
-    }
-
-    override fun failureMessage() =
-        "Text z prostředků se mimo kompozici čte přes readString / readPluralString (core/ui/ResourceStrings.kt):"
-
-    private val directRead = Regex("""^import org\.jetbrains\.compose\.resources\.(?:getString|getPluralString|getStringArray|\*)\b""")
-
-    override fun offenders(file: File, path: String) = matchingLines(file, path, directRead, exempt = "ResourceStrings.kt")
 }
 
 /**

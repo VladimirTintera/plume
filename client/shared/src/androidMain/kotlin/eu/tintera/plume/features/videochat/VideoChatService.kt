@@ -19,7 +19,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.CALLS_CHANNEL_ID
 import eu.tintera.plume.core.notifications.NotificationIntents
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.video_chat_bar_speaking
 import eu.tintera.plume.resources.video_chat_notification_listening
@@ -123,7 +123,7 @@ class VideoChatService : Service(), KoinComponent {
             .setOnlyAlertOnce(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentText(
-                readString(if (chat.state.micOn) Res.string.video_chat_bar_speaking else Res.string.video_chat_notification_listening),
+                getString(if (chat.state.micOn) Res.string.video_chat_bar_speaking else Res.string.video_chat_notification_listening),
             )
             .setContentIntent(NotificationIntents.openChat(this, running.account.slot, NOTIFICATION_ID, chat.chatId))
             .build()

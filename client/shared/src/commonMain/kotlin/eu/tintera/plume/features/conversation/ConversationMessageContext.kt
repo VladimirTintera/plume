@@ -16,7 +16,7 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.platformLanguageCode
 import eu.tintera.plume.core.ui.UiText
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.wifi.WifiJoin
 import eu.tintera.plume.features.conversation.items.ContextVerb
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
@@ -216,7 +216,7 @@ internal class ConversationMessageContext(
         val text = state.value.messages.firstOrNull { it.id == messageId }?.text.orEmpty()
         scope.launch {
             val name = "${flight.airline} ${flight.number}"
-            val title = readString(if (flight.arrival) Res.string.message_context_flight_arrival_title else Res.string.message_context_flight_title, name)
+            val title = getString(if (flight.arrival) Res.string.message_context_flight_arrival_title else Res.string.message_context_flight_title, name)
             val event = flight.calendarEvent(title, text, TimeZone.currentSystemDefault()) ?: return@launch
             val added = calendar(event)
             if (added) {
@@ -327,7 +327,7 @@ internal class ConversationMessageContext(
  * zprávy, kde bývá i kód rezervace. Bez času letu `null`.
  *
  * Mimo [ConversationMessageContext.addFlightToCalendar], aby šla otestovat bez názvu z prostředků
- * (`readString` na JVM v testech nejde, `Resources` tam nejsou).
+ * (`getString` na JVM v testech nejde, `Resources` tam nejsou).
  */
 internal fun ContextFinding.Flight.calendarEvent(title: String, messageText: String, zone: TimeZone): CalendarEvent? {
     val start = at ?: return null
