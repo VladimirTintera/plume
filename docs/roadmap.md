@@ -1556,10 +1556,12 @@ a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
   - **Přesnost ukazatele:** jedno místo pro „ovládá se myší" místo dílčích kontrol
     (`HorizontalSwipe`, `MessageFrame`, prohlížeč, `ViewerControls`). Enter z fyzické klávesnice
     řeší `isFromHardwareKeyboard` po klávesách a to stačí.
-- **Odrážky v `AnnotatedString` (`Bullet`, `withBulletList` / `withBulletListItem`)**: seznamy
-  v článcích (Instant View) kreslí `RichMessageBody.kt` znakem „•" v textu, takže se víceřádková
-  položka zalomí pod odrážku, ne pod text. `Bullet` dá odsazení s visící odrážkou; v jaru
-  `ui-text` 1.13 ověřené, chování na všech platformách ne.
+- **Visící odsazení položek seznamu v článcích — zkoušeno, zatím nejde bez kompromisu.**
+  Víceřádková položka se zalomí pod odrážku („•", „1.", „☑" jsou znaky v textu z
+  `RichMessageBody.kt`). `Bullet` i vlastní `ParagraphStyle(textIndent)` na položku narazí na
+  prázdný řádek na každé hranici odstavce; jediné řešení bez něj (`\n` → znak nulové šířky
+  ve vykresleném textu) by rozbilo kopírování výběru a citaci z výběru. Podrobnosti a pokusy:
+  `docs/poznatky/konverzace-zobrazeni.md`, „Odsazení textu uvnitř zprávy".
 - **Desktop: rychlejší start (AppCDS)** — podpora v Compose Gradle pluginu (compose-multiplatform#5644).
   Runtime balíčku je JDK 21 (`runtimeLauncher` v `desktopApp/build.gradle.kts`), na kterém AppCDS
   jde; AOT (JEP 514) by chtělo JDK 25. Změřit start DMG/MSI před a po.

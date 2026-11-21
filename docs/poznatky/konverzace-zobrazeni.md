@@ -882,6 +882,22 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   volná řádka. **Jinak to nejde**: odstranit ta `\n` z textu by rozhodilo offsety všech entit,
   zvýraznění i spoilerů, a rozpad na víc `Text`ů zase jejich výpočet. Vypadá to jako vzduch kolem
   citace, takže se to nechává; kdyby vadilo, cena za tichý tvar je zrušit odsazení.
+- **Visící odsazení položek seznamu v článku stejnou cestou NEJDE** (zkoušeno při přechodu na
+  Compose 1.13, desktopovým snímkem z `runComposeUiTest` + `captureToImage`). Pokusy a výsledky:
+  - `ParagraphStyle(textIndent = TextIndent(0, šířka odrážky))` na každou položku zvlášť: odsazení
+    sedí (šířka předpony změřená `TextMeasurer`em), ale **mezi každými dvěma položkami je prázdný
+    řádek** — totéž co u citace, jen tady na každém řádku seznamu.
+  - Rozsah položky i s koncovým `\n` (nebo s úvodním): prázdný řádek zůstává, odstavec končící
+    i začínající `\n` má řádek navíc.
+  - Jeden `ParagraphStyle` přes celý seznam: na Skia se `firstLine` uplatní jen na první řádek
+    celého rozsahu, další položky dostanou `restLine` i na prvním řádku (odrážka odsazená).
+  - `Bullet` / `withBulletListItem` (ui-text 1.13) stojí na témže `ParagraphStyle` — vzorové
+    použití skládá položky BEZ `\n` a zalomení dělá hranice odstavce.
+  - **Fungovalo by** nahradit ve VYKRESLENÉM textu `\n` na hranici položky znakem nulové šířky
+    (U+200B, stejná délka, offsety entit i zvýraznění se nehnou) — hranice odstavce zalomí sama.
+    Jenže `SelectionContainer` kopíruje vykreslený text a citace z výběru (`quoteSelection`)
+    ho porovnává s textem zprávy: výběr přes víc položek by ztratil zalomení a citace by se
+    nenašla. Kdyby se to mělo udělat, musí se znak vracet na `\n` v obou cestách.
 - **Odsazení se počítá z dp (`Dp.toSp()`), ne ze sp.** Lícuje s uvozovkami vedle sebe, ne
   s velikostí písma; `toSp()` počítá s `fontScale`, takže výsledek sedí na dp v každém nastavení.
 - **Uvozovky se kreslí v `drawBehind` do žlábku, ne jako `InlineTextContent`.** Inline obsah se
