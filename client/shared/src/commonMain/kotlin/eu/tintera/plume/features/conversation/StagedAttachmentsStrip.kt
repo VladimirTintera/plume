@@ -125,6 +125,7 @@ private fun AlbumGrouping(attachments: List<OutgoingAttachment>, separately: Boo
             } else {
                 null
             },
+            shapes = FilterChipDefaults.shapes(),
         )
         if (separately || batches > 1) {
             Text(

@@ -7,6 +7,7 @@ import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.rewrite_emoji_changed_text
@@ -553,6 +554,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                                 selected = option == choice,
                                 onClick = { rewrite.viewModel.rewrite(source, option) },
                                 label = { Text(stringResource(option.style.label)) },
+                                shapes = FilterChipDefaults.shapes(),
                             )
                         }
                     }
@@ -570,6 +572,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                         selected = choice == RewriteChoice.ServerFix,
                         onClick = { rewrite.viewModel.rewrite(source, RewriteChoice.ServerFix) },
                         label = { Text(stringResource(Res.string.rewrite_server_fix)) },
+                        shapes = FilterChipDefaults.shapes(),
                     )
                     TranslateChip(
                         selected = (choice as? RewriteChoice.ServerTranslate)?.languageCode,
@@ -579,6 +582,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                         selected = choice == RewriteChoice.ServerEmoji,
                         onClick = { rewrite.viewModel.rewrite(source, RewriteChoice.ServerEmoji) },
                         label = { Text(stringResource(Res.string.rewrite_server_emoji)) },
+                        shapes = FilterChipDefaults.shapes(),
                     )
                     serverStyles.forEach { style ->
                         val option = RewriteChoice.ServerStyle(style)
@@ -586,6 +590,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                             selected = option == choice,
                             onClick = { rewrite.viewModel.rewrite(source, option) },
                             label = { Text(style.title) },
+                            shapes = FilterChipDefaults.shapes(),
                         )
                     }
                 }
@@ -721,6 +726,7 @@ private fun TranslateChip(selected: String?, onClick: () -> Unit) {
                     ?: stringResource(Res.string.rewrite_server_translate),
             )
         },
+        shapes = FilterChipDefaults.shapes(),
     )
 }
 

@@ -29,6 +29,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -257,11 +258,13 @@ fun StoryComposerScreen(
                         selected = state.fill,
                         onClick = { viewModel.setFill(true) },
                         label = { Text(stringResource(Res.string.story_fill)) },
+                        shapes = FilterChipDefaults.shapes(),
                     )
                     FilterChip(
                         selected = !state.fill,
                         onClick = { viewModel.setFill(false) },
                         label = { Text(stringResource(Res.string.story_fit)) },
+                        shapes = FilterChipDefaults.shapes(),
                     )
                 }
 

@@ -526,6 +526,7 @@ private fun CalendarChip(label: String, selected: Boolean, icon: DrawableResourc
             }
             else -> null
         },
+        shapes = FilterChipDefaults.shapes(),
     )
 }
 

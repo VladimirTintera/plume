@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -259,6 +260,7 @@ private fun StickerForm(
                             selected = state.emoji == emoji,
                             onClick = { viewModel.setEmoji(emoji) },
                             label = { Text(emoji, style = MaterialTheme.typography.titleMedium) },
+                            shapes = FilterChipDefaults.shapes(),
                         )
                     }
                 }

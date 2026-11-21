@@ -46,6 +46,7 @@ class SourceChecksPlugin : Plugin<Project> {
         register("verifyExpandedSheets", VerifyExpandedSheets::class.java)
         register("verifyMenuScroll", VerifyMenuScroll::class.java)
         register("verifyButtonShapes", VerifyButtonShapes::class.java)
+        register("verifyChipShapes", VerifyChipShapes::class.java)
         register("verifyShapeTokens", VerifyShapeTokens::class.java)
         register("verifyMotionSpecs", VerifyMotionSpecs::class.java)
         register("verifyCoreLayering", VerifyCoreLayering::class.java, withTests = true)
@@ -305,28 +306,18 @@ abstract class VerifyMenuScroll : SourceCheckTask() {
 }
 
 /**
- * Textová tlačítka mění tvar při stisku jako ikonová (M3 Expressive). Ikonová to měla od #498,
- * textová ze ~350 jen dvě — v jednom dialogu tak jedno tlačítko morfovalo a druhé ne, a nové
- * tlačítko bez tvaru se nepoznalo jinak než ručně. Kontrola chce `shapes` u každého volání
- * `TextButton`/`Button`/`FilledTonalButton`/`OutlinedButton`/`ElevatedButton` z material3.
- * Hlavní akce přes celou šířku jde přes `MediumButton` (core/ui), ten tvar nese sám.
+ * Společný základ kontrol tvarů: každé volání komponenty [names] z material3 musí mít `shapes`.
+ * Jen komponenty importované z material3 — Glance i vlastní komponenty mají jiná pravidla.
  */
-abstract class VerifyButtonShapes : SourceCheckTask() {
-    init {
-        description = "Ověří, že textová tlačítka mění tvar při stisku (shapes = ButtonDefaults.shapes())."
-    }
-
-    override fun failureMessage() = "Tlačítko mění tvar při stisku: shapes = ButtonDefaults.shapes(), hlavní akce přes MediumButton (core/ui)."
-
-    private val names = listOf("TextButton", "Button", "FilledTonalButton", "OutlinedButton", "ElevatedButton")
-    private val call = Regex("""(?<![\w.])(${names.joinToString("|")})\(""")
+abstract class VerifyMaterialShapes : SourceCheckTask() {
+    protected abstract val names: List<String>
+    private val call by lazy { Regex("""(?<![\w.])(${names.joinToString("|")})\(""") }
 
     override fun offenders(file: File, path: String): List<String> {
         val text = file.readText()
         val offenders = mutableListOf<String>()
         call.findAll(text).forEach { match ->
             val name = match.groupValues[1]
-            // Jen tlačítka z material3 — Glance i vlastní komponenty mají jiná pravidla.
             if ("import androidx.compose.material3.$name\n" !in text) return@forEach
             val lineStart = text.lastIndexOf('\n', match.range.first) + 1
             val before = text.substring(lineStart, match.range.first).trimStart()
@@ -338,6 +329,40 @@ abstract class VerifyButtonShapes : SourceCheckTask() {
         }
         return offenders
     }
+}
+
+/**
+ * Textová tlačítka mění tvar při stisku jako ikonová (M3 Expressive). Ikonová to měla od #498,
+ * textová ze ~350 jen dvě — v jednom dialogu tak jedno tlačítko morfovalo a druhé ne, a nové
+ * tlačítko bez tvaru se nepoznalo jinak než ručně. Kontrola chce `shapes` u každého volání
+ * `TextButton`/`Button`/`FilledTonalButton`/`OutlinedButton`/`ElevatedButton` z material3.
+ * Hlavní akce přes celou šířku jde přes `MediumButton` (core/ui), ten tvar nese sám.
+ */
+abstract class VerifyButtonShapes : VerifyMaterialShapes() {
+    init {
+        description = "Ověří, že textová tlačítka mění tvar při stisku (shapes = ButtonDefaults.shapes())."
+    }
+
+    override fun failureMessage() = "Tlačítko mění tvar při stisku: shapes = ButtonDefaults.shapes(), hlavní akce přes MediumButton (core/ui)."
+
+    override val names = listOf("TextButton", "Button", "FilledTonalButton", "OutlinedButton", "ElevatedButton")
+}
+
+/**
+ * Čipy mění tvar při stisku a výběru jako tlačítka (M3 Expressive `ChipShapes`: 12 dp, vybraný
+ * pilulka, stisknutý 8 dp). Žádné z dvaceti volání `FilterChip` ani `InputChip` je nemělo,
+ * takže vedle morfujících tlačítek působily čipy jako nedodělek. Kontrola chce `shapes`
+ * u `FilterChip`/`ElevatedFilterChip`/`InputChip` z material3 — jen ty ho v knihovně mají.
+ */
+abstract class VerifyChipShapes : VerifyMaterialShapes() {
+    init {
+        description = "Ověří, že čipy mění tvar při stisku a výběru (shapes = FilterChipDefaults.shapes())."
+    }
+
+    override fun failureMessage() =
+        "Čip mění tvar při stisku a výběru: shapes = FilterChipDefaults.shapes() / InputChipDefaults.shapes()."
+
+    override val names = listOf("FilterChip", "ElevatedFilterChip", "InputChip")
 }
 
 /**

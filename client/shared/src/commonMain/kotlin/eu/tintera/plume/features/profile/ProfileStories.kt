@@ -3,6 +3,7 @@ package eu.tintera.plume.features.profile
 import eu.tintera.plume.resources.profile_story_albums_all
 import eu.tintera.plume.resources.profile_story_album_empty
 import eu.tintera.plume.core.ui.GroupEmptyRow
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.lazy.items
@@ -151,6 +152,7 @@ private fun AlbumChips(stories: ProfileStories, onSelectAlbum: (Int?) -> Unit) {
                 selected = stories.albumId == null,
                 onClick = { onSelectAlbum(null) },
                 label = { Text(stringResource(Res.string.profile_story_albums_all)) },
+                shapes = FilterChipDefaults.shapes(),
             )
         }
         items(stories.albums, key = { it.id }) { album ->
@@ -158,6 +160,7 @@ private fun AlbumChips(stories: ProfileStories, onSelectAlbum: (Int?) -> Unit) {
                 selected = stories.albumId == album.id,
                 onClick = { onSelectAlbum(album.id) },
                 label = { Text(album.name, maxLines = 1) },
+                shapes = FilterChipDefaults.shapes(),
             )
         }
     }
