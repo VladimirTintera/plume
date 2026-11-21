@@ -358,18 +358,17 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   jinak by na čtyři vteřiny spolklo systémové zpět.
 - **Podržení avataru na dotyku ukazovalo i bublinu se jménem** (kotva `TooltipBox` reaguje na
   týž dlouhý stisk) a ta po otevření nabídky nad chatem visela nad sloupcem, dokud se uživatel
-  nedotkl jinde. Avatar proto má `RootTooltipBox` s vlastním stavem a podržení bublinu po
+  nedotkl jinde. Avatar proto má `TooltipBox` s vlastním stavem a podržení bublinu po
   100 ms zavře (pořadí obou obsluh dlouhého stisku není dané).
 - Ověřeno na emulátoru Fold (česky): FAB s nabídkou a „Nová zpráva", podržení → „Vybrat",
   výběr dvou chatů s přetočeným počtem a lištou, archivace se snackbarem a „Vrátit" (chat se
   vrátil), zpět ukončí výběr, výběr přežije čtyři cykly `adb emu fold` / `unfold` bez pádu.
   **Desktop jen přeložený**, změna šířky okna se sbaleným sloupcem a snackbarem neověřená.
-- **Bublina se jménem u avataru přes `WithTooltip`, ne holý `TooltipBox`.** Najetí na avatar
-  a hned tah táhlem shodilo desktop na `RootNodeOwner is already disposed`: `BoxWithConstraints`
-  přepnul sloupec na plný seznam uprostřed měření, kotva viditelné bubliny zmizela a skiko pak
-  změřilo už zrušenou vrstvu popupu. Bublina se proto kreslí z kořene kompozice a ruší ji až
-  běžná rekompozice — mechanismus a pravidlo pro celý projekt jsou v `docs/poznatky/desktop.md`,
-  „Bubliny (tooltip) z kořene kompozice".
+- **Najetí na avatar a hned tah táhlem shazovalo desktop** na `RootNodeOwner is already disposed`
+  (Compose 1.12): `BoxWithConstraints` přepnul sloupec na plný seznam uprostřed měření, kotva
+  viditelné bubliny zmizela a skiko změřilo už zrušenou vrstvu popupu. Bubliny se proto kreslily
+  z kořene kompozice; Compose 1.13 to opravuje a bublina je zase obyčejný `TooltipBox` — viz
+  `docs/poznatky/desktop.md`, „Bubliny (tooltip)".
 - **Šipka zpět v konverzaci vedle seznamu konverzaci ZAVŘE** (`closeConversation`, testy
   `CloseConversationTest`): odebere celou větev nad seznamem — konverzace otevřené zmínkami jedna
   z druhé i profil — a zůstane seznam s placeholderem. Procházet zpátky řetězem zmínek šipkou

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ButtonDefaults
@@ -11,7 +12,6 @@ import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
-import eu.tintera.plume.core.ui.RootTooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
@@ -159,10 +159,6 @@ internal fun rememberGestureHints(
  * Kotva nápovědy: obsah, nad kterým (vedle kterého) se při [hint] ukáže `RichTooltip` se šipkou.
  * `null` = nic. Trvalá nápověda, zavře ji „Rozumím" nebo ťuknutí vedle; nic se nespotřebuje —
  * tooltip není fokusovatelný a dotyky propouští.
- *
- * Bublina se kreslí z kořene ([RootTooltipBox]): kotva leží ve slotu `Scaffold`u (tlačítko
- * odeslání) a nápověda visí, dokud ji uživatel nezavře — i přes změnu šířky okna, která na
- * desktopu přestaví rozložení uprostřed měření.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,10 +178,10 @@ internal fun GestureHintBox(
     LaunchedEffect(hint) {
         if (hint != null) state.show() else state.dismiss()
     }
-    RootTooltipBox(
+    TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(position),
         tooltip = {
-            val current = shown ?: return@RootTooltipBox
+            val current = shown ?: return@TooltipBox
             RichTooltip(
                 title = { Text(stringResource(current.title)) },
                 action = {

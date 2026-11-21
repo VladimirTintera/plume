@@ -643,10 +643,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `trailingIcon` s `IconButton`, avatarem a podobně. `BasicTextField` dává textový kurzor celému
   boxu i s dekorací a ikony ho dědí — na desktopu se nad avatarem účtu v hledání ukazoval
   kurzor pro psaní. Ozdobná ikona (lupa) obal nepotřebuje.
-- **Bublina (tooltip) jen přes `WithTooltip` nebo `RootTooltipBox`** (`core/ui/WithTooltip.kt`),
-  nikdy holý `TooltipBox` — hlídá to `verifyTooltipsThroughRoot`. Holý na desktopu shodí
-  vykreslování, když kotva s viditelnou bublinou zmizí během měření (změna šířky okna). Viz
-  „Bubliny (tooltip) z kořene kompozice" v `docs/poznatky/desktop.md`.
+- **Bublina s textem je `WithTooltip`** (`core/ui/WithTooltip.kt`), ostatní (vlastní obsah, stav
+  řízený programem) rovnou M3 `TooltipBox`. Do Compose 1.12 musely jít z kořene kompozice
+  (`RootTooltipBox`, kontrola `verifyTooltipsThroughRoot`), protože holý `TooltipBox` na desktopu
+  shodil vykreslování, když kotva s bublinou zmizela během měření; 1.13 to opravuje. Viz
+  „Bubliny (tooltip)" v `docs/poznatky/desktop.md`.
 - **Podržení jen přes `contextClickable`** (`core/ui/ContextClickable.kt`), nikdy holé
   `combinedClickable` — hlídá to `verifyContextClickable`. Obal přidá pravé tlačítko myši jako
   podržení; vlastní gesto podržení dostane `onSecondaryClick`, a kde pravé tlačítko patří

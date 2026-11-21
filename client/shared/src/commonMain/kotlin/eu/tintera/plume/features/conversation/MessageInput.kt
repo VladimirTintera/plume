@@ -5,6 +5,7 @@ import eu.tintera.plume.resources.caption_suggesting
 import eu.tintera.plume.resources.caption_suggest
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
@@ -37,7 +38,6 @@ import androidx.compose.ui.input.key.Key
 import eu.tintera.plume.core.ui.threshold
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.TooltipAnchorPosition
-import eu.tintera.plume.core.ui.RootTooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -970,7 +970,7 @@ internal fun MessageInput(
                 effects = send.menu.effects,
             ) {
             Box(Modifier.onGloballyPositioned { recording.gesture.buttonCenterX = it.boundsInWindow().center.x }) {
-                RootTooltipBox(
+                TooltipBox(
                     positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                     tooltip = {
                         PlainTooltip {
@@ -990,7 +990,7 @@ internal fun MessageInput(
                     enableUserInput = false,
                 ) {
                 /*
-                 * Morf, dýchání a barvy se čtou AŽ TADY, v obsahu `RootTooltipBox` (vlastní rozsah
+                 * Morf, dýchání a barvy se čtou AŽ TADY, v obsahu `TooltipBox` (vlastní rozsah
                  * rekompozice). Čtené v kartě pole by s každým snímkem animace přeskládaly celou
                  * kartu i s polem — při nahrávání po celou dobu nahrávky (změřeno Perfettem).
                  */

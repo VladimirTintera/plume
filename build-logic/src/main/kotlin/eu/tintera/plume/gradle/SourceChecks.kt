@@ -40,7 +40,6 @@ class SourceChecksPlugin : Plugin<Project> {
         }
 
         register("verifyNoHardcodedText", VerifyNoHardcodedText::class.java)
-        register("verifyTooltipsThroughRoot", VerifyTooltipsThroughRoot::class.java)
         register("verifyContextClickable", VerifyContextClickable::class.java)
         register("verifyExpandedSheets", VerifyExpandedSheets::class.java)
         register("verifyMenuScroll", VerifyMenuScroll::class.java)
@@ -177,28 +176,6 @@ abstract class VerifyNoHardcodedText : SourceCheckTask() {
         }
         return offenders
     }
-}
-
-/**
- * Hlídá, že bubliny jdou přes `WithTooltip` / `RootTooltipBox` (`core/ui/WithTooltip.kt`), které je
- * kreslí z kořene kompozice, a nikde jinde se nepoužije holý M3 `TooltipBox`.
- *
- * Holý `TooltipBox` na desktopu shodí vykreslování (`RootNodeOwner is already disposed`), když jeho
- * kotva s viditelnou bublinou zmizí z kompozice během měření — větev `BoxWithConstraints` podle
- * šířky, slot `Scaffold`u, položka lazy seznamu. Při zkoušení se to neukáže: musí se sejít
- * viditelná bublina se změnou rozložení, třeba tahem za okraj okna.
- */
-abstract class VerifyTooltipsThroughRoot : SourceCheckTask() {
-    init {
-        description = "Ověří, že se bubliny kreslí přes WithTooltip / RootTooltipBox, ne holým TooltipBox."
-    }
-
-    override fun failureMessage() =
-        "Bublina se kreslí přes WithTooltip nebo RootTooltipBox (core/ui/WithTooltip.kt), ne holým TooltipBox:"
-
-    private val rawTooltip = Regex("""^import androidx\.compose\.material3\.(?:TooltipBox|\*)\b|\bandroidx\.compose\.material3\.TooltipBox\(""")
-
-    override fun offenders(file: File, path: String) = matchingLines(file, path, rawTooltip, exempt = "WithTooltip.kt")
 }
 
 /**
