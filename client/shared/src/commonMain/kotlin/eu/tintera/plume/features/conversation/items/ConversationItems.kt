@@ -360,12 +360,15 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean, customEmoji: B
  * Skutečný stav doručení odchozí zprávy; `null` u příchozí.
  *
  * „Přečteno" není ve zprávě, ale na chatu (`lastReadOutboxMessageId`): posuvný ukazatel, pod
- * který spadají všechny odchozí zprávy s menším id.
+ * který spadají všechny odchozí zprávy s menším id. Dokud ukazatel neznáme (`null`), je stav
+ * odeslané zprávy neznámý taky — odesílá se a selhání se poznají ze zprávy samotné.
  */
-internal fun ChatMessage.delivery(lastReadOutboxMessageId: Long): Delivery? = sendState?.let { sendState ->
+internal fun ChatMessage.delivery(lastReadOutboxMessageId: Long?): Delivery? = sendState?.let { sendState ->
     when {
         sendState == SendState.Failed -> Delivery.Failed
         sendState == SendState.Sending -> Delivery.Sending
+        // Ukazatel ještě nedorazil: „odesláno" by mohlo být „přečteno" a za chvíli zmizet.
+        lastReadOutboxMessageId == null -> null
         id <= lastReadOutboxMessageId -> Delivery.Read
         else -> Delivery.Sent
     }

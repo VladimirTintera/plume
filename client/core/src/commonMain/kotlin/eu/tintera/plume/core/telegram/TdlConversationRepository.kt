@@ -1458,6 +1458,9 @@ class TdlConversationRepository(
             .filter { it.chatId == chatId }
             .map { it.lastReadOutboxMessageId }
 
+    override suspend fun lastReadOutboxMessageId(chatId: Long): Result<Long> =
+        client.getChat(chatId).toResult().map { it.lastReadOutboxMessageId }
+
     /**
      * Odešle zprávu.
      *

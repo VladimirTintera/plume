@@ -1210,12 +1210,27 @@ class ConversationViewModel(
             repository.contentOpenedUpdates(chatId).collect { messageId -> playback.markListened(messageId) }
         }
 
+        /*
+         * Ukazatel přečtení napřed a zvlášť, ne až s [ConversationRepository.chatInfo].
+         *
+         * To skládá řadu dotazů za sebou a historie z lokální databáze ho předběhne; do té doby
+         * by se fajfky kreslily podle neznámého ukazatele a pak se sbalily (viz
+         * [ConversationState.lastReadOutboxMessageId]). Dotaz odchází před první stránkou
+         * historie, takže na rychlé cestě je ukazatel známý dřív než zprávy. Když selže,
+         * doplní ho `chatInfo`.
+         */
+        viewModelScope.launch {
+            repository.lastReadOutboxMessageId(chatId).onSuccess { lastReadId ->
+                _state.update { it.copy(lastReadOutboxMessageId = maxOf(it.lastReadOutboxMessageId ?: 0L, lastReadId)) }
+            }
+        }
+
         viewModelScope.launch {
             repository.chatInfo(chatId).onSuccess { info ->
                 _state.update {
                     it.copy(
                         info = info,
-                        lastReadOutboxMessageId = info.lastReadOutboxMessageId,
+                        lastReadOutboxMessageId = maxOf(it.lastReadOutboxMessageId ?: 0L, info.lastReadOutboxMessageId),
                         /*
                          * Hranice nepřečtených se zachytí JEDNOU při otevření a už se nemění.
                          *
@@ -1917,7 +1932,7 @@ class ConversationViewModel(
 
         viewModelScope.launch {
             repository.readOutboxUpdates(chatId).collect { lastReadId ->
-                _state.update { it.copy(lastReadOutboxMessageId = lastReadId) }
+                _state.update { it.copy(lastReadOutboxMessageId = maxOf(it.lastReadOutboxMessageId ?: 0L, lastReadId)) }
             }
         }
 

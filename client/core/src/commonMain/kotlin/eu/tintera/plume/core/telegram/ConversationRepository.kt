@@ -1015,6 +1015,17 @@ interface ConversationRepository {
     fun readOutboxUpdates(chatId: Long): Flow<Long>
 
     /**
+     * Kde ukazatel „protějšek přečetl až sem" stojí TEĎ — jen ten, bez zbytku [chatInfo].
+     *
+     * Konverzace ho potřebuje dřív, než se vykreslí první zprávy: [chatInfo] se skládá z řady
+     * dotazů za sebou (téma, práva, supergroup, hovory) a historie z lokální databáze ho
+     * předběhne. Do té doby by každá odchozí zpráva dostala fajfku „odesláno", která by se po
+     * příchodu ukazatele u všech kromě poslední animovaně sbalila a seznam by poskočil.
+     */
+    suspend fun lastReadOutboxMessageId(chatId: Long): Result<Long> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Dostupnost protějšku, jak se mění.
      *
      * Samostatný flow, ne pole v [ChatInfo]: hlavička se skládá jednou, ale „naposledy viděn"
