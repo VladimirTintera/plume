@@ -46,6 +46,28 @@ class MediaPageLayoutTest {
     }
 
     @Test
+    fun naSkladacceNaStoleJeVideoNadPantem() {
+        // Rozložený Fold na šířku 2000 × 1800, pant uprostřed: video 16 : 9 se vepíše do horní
+        // půlky (výška 900 → 1600 × 900) a leží na jejím středu, nic pod pantem.
+        val frame = tabletopCardFrame(IntSize(2000, 1800), split = 900, aspectRatio = 16f / 9f)
+        assertEquals(IntRect(IntOffset(200, 0), IntSize(1600, 900)), frame)
+    }
+
+    @Test
+    fun naSkladacceNaStoleSeSirokeVideoCentrujeVHorniPulce() {
+        // Úzká stránka 1000 × 1800: video na šířku narazí na šířku a svisle sedí na středu půlky.
+        val frame = tabletopCardFrame(IntSize(1000, 1800), split = 900, aspectRatio = 2f)
+        assertEquals(IntRect(IntOffset(0, (900 - 500) / 2), IntSize(1000, 500)), frame)
+    }
+
+    @Test
+    fun pantMimoStrankuNicNemeni() {
+        val whole = pageCardFrame(IntSize(1000, 1800), 0, 0, captionHeight = 0, captionGap = 0, aspectRatio = 1f)
+        assertEquals(whole, tabletopCardFrame(IntSize(1000, 1800), split = 0, aspectRatio = 1f))
+        assertEquals(whole, tabletopCardFrame(IntSize(1000, 1800), split = 1800, aspectRatio = 1f))
+    }
+
+    @Test
     fun malaStrankaNedaZapornouVelikost() {
         val frame = pageCardFrame(IntSize(400, 100), 80, 80, captionHeight = 50, captionGap = 10, aspectRatio = 1f)
         assertEquals(IntSize.Zero, frame.size)
