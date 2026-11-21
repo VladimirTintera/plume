@@ -1540,18 +1540,24 @@ zůstaly, dokud se jejich odstranění nevyzkouší. Až vyjde stabilní 1.13.0,
 Z release notes CMP 1.13.0-alpha01 až rc01 a z porovnání zdrojů material3 1.12.0-alpha03
 a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
 
-- **`mediaQuery` (`UiMediaScope`)**: dotaz na vlastnosti zařízení přímo v composable —
-  přesnost ukazatele, druh klávesnice, kamera, mikrofon, poloha skládačky (`FoldState`,
-  `WindowPosture`), rozměry okna. Použití:
-  - **Kamera a mikrofon:** skrýt nahrávání kolečka bez kamery a hlasovky bez mikrofonu, hlavně
-    na desktopu. Dnes se to zjišťuje jen na Androidu (`AttachmentPicker.android.kt`,
-    `VideoNoteCamera.android.kt`).
-  - **Skládačka napůl otevřená (tabletop):** prohlížeč videa a hovor s obrazem v horní půlce
-    a ovládáním v dolní. Plume polohu skládačky dnes nečte vůbec (žádné `FoldingFeature`).
-    Patří k „Velká plocha" a `docs/poznatky/navigace.md`.
-  - **Přesnost ukazatele:** jedno místo pro „ovládá se myší" místo dílčích kontrol
-    (`HorizontalSwipe`, `MessageFrame`, prohlížeč, `ViewerControls`). Enter z fyzické klávesnice
-    řeší `isFromHardwareKeyboard` po klávesách a to stačí.
+- **`mediaQuery` (`UiMediaScope`, `@ExperimentalMediaQueryApi`)**: dotaz na vlastnosti zařízení
+  přímo v composable — přesnost ukazatele, druh klávesnice, kamera, mikrofon, poloha skládačky
+  (`FoldState`, `WindowPosture`), rozměry okna. **Skutečné hodnoty dává jen Android.** Na desktopu
+  jsou pevné (`DesktopMediaScope` v ui-desktop 1.13: mikrofon vždy `true`, kamera vždy `false`
+  „no reliable way to get it", ukazatel `Fine`, klávesnice `Physical`, poloha prázdná); obecný
+  skiko základ vrací `false` / `None` všude. Co z toho plyne:
+  - ~~**Kamera a mikrofon na desktopu**~~ — přes `mediaQuery` nejde (viz výš). Kolečka desktop
+    stejně nenabízí (`rememberVideoNoteCamera() = null`); hlasovka bez mikrofonu by se musela
+    poznat z `javax.sound` (`AudioSystem.getTargetLineInfo`), ne odsud.
+  - ~~**Skládačka napůl otevřená (tabletop), jen Android**~~ — hotovo: prohlížeč videa i hovor
+    (obraz nebo fotka nad pantem, ovládání pod ním; `rememberTabletopHinge` z `windowPosture`
+    material3 adaptive, ne z `mediaQuery`, ten polohu pantu nedává). Viz
+    `docs/poznatky/prohlizec-medii.md`, „Video", a `docs/poznatky/hovory.md`. Na zařízení
+    neověřený zůstává videohovor v té poloze.
+  - **Přesnost ukazatele:** na desktopu pevně `Fine`, takže přínos jen na Androidu (tablet s myší,
+    Chromebook) a nejasně na iOS. Dílčí kontroly (`HorizontalSwipe`, `MessageFrame`, prohlížeč,
+    `ViewerControls`) se čtou z typu ukazatele u události, a to funguje všude — výměnu nedělat,
+    dokud API zůstává experimentální.
 - **Visící odsazení položek seznamu v článcích — zkoušeno, zatím nejde bez kompromisu.**
   Víceřádková položka se zalomí pod odrážku („•", „1.", „☑" jsou znaky v textu z
   `RichMessageBody.kt`). `Bullet` i vlastní `ParagraphStyle(textIndent)` na položku narazí na

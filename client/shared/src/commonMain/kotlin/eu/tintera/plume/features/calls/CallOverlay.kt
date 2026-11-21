@@ -116,6 +116,15 @@ import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.calls.CallAudioOutput
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import eu.tintera.plume.core.adaptive.rememberTabletopHinge
+import kotlin.math.roundToInt
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.BoxScope
 import eu.tintera.plume.core.telegram.ActiveCall
 import eu.tintera.plume.core.telegram.CallPhase
 import eu.tintera.plume.core.telegram.CallRepository
@@ -316,10 +325,26 @@ private fun CallScreen(
         else -> null
     }
     val corner = CallVideoSource.Local.takeIf { full == CallVideoSource.Remote && call.camera }
-    // Na obrazu by text i popisky splynuly; stojí proto na průsvitné ploše.
-    val veil = if (full != null) MaterialTheme.colorScheme.surface.copy(alpha = VEIL_ALPHA) else Color.Transparent
+    /*
+     * Skládačka na stole (napůl otevřená, pant vodorovně): obraz nebo fotka v horní půlce, která
+     * stojí, jméno a tlačítka v ležící dolní — jako videohovor na Foldu v Meet. Pant je
+     * v souřadnicích okna, obrazovka hovoru si svou polohu v okně zapisuje při umístění.
+     */
+    val hinge = rememberTabletopHinge()
+    var screenTop by remember { mutableFloatStateOf(0f) }
+    var screenHeight by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val tabletop = hinge?.let { h ->
+        val top = (h.top - screenTop).roundToInt()
+        val bottom = (h.bottom - screenTop).roundToInt()
+        with(density) { TabletopSplit(top.toDp(), bottom.toDp()) }.takeIf { top in 1 until screenHeight }
+    }
+    // Na obrazu by text i popisky splynuly; stojí proto na průsvitné ploše. Na stole leží
+    // ovládání pod obrazem, ne přes něj.
+    val veil = if (full != null && tabletop == null) MaterialTheme.colorScheme.surface.copy(alpha = VEIL_ALPHA) else Color.Transparent
     // Přes obraz spojeného hovoru ovládání po chvíli zmizí a ťuknutí ho vrátí (viz [rememberCallControls]).
-    val controls = rememberCallControls(autoHide = full != null && call.phase == CallPhase.Active && !call.held)
+    // Na stole obraz nezakrývá, takže zůstává.
+    val controls = rememberCallControls(autoHide = full != null && tabletop == null && call.phase == CallPhase.Active && !call.held)
     // Se schovaným ovládáním i bez systémových lišt: přes obraz (hlavně sdílenou obrazovku
     // protistrany, která má vlastní stavový řádek) by jinak ležely dvě lišty přes sebe.
     // Ťuknutí vrátí ovládání i lišty.
@@ -414,65 +439,143 @@ private fun CallScreen(
             }
         }
     }
-    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().then(controls.modifier)) {
-            full?.let { source ->
-                // Ukazovátko patří přímo na obraz: souřadnice se počítají z jeho plochy, i když
-                // je posunutý pod stavový řádek. Jako potomek dostane dotyk dřív než `clickable`
-                // ovládání na ploše kolem, takže podržení ovládání nepřepne.
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .then(if (remoteScreen) Modifier.windowInsetsPadding(statusBarArea()) else Modifier)
-                        .callPointer(pointing, remoteAspect, fit = remoteScreen, pointer) { x, y, down -> calls.sendPointer(x, y, down) },
-                ) {
-                    CallVideo(
-                        source,
-                        mirror = source == CallVideoSource.Local && call.frontCamera,
-                        modifier = Modifier.fillMaxSize(),
-                        fit = remoteScreen,
-                        onAspectRatio = { if (source == CallVideoSource.Remote) onRemoteAspect(it) },
-                    )
-                    CallPointerFinger(pointer)
+    // Zmenšit, sdílení obrazovky a přepnutí kamery nahoře; stejné v každém rozvržení.
+    val topBar: @Composable ColumnScope.() -> Unit = {
+        CallControlsVisibility(controls.visible) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                FilledTonalIconButton(onClick = onMinimize, shapes = IconButtonDefaults.shapes()) {
+                    Icon(painterResource(Res.drawable.keyboard_arrow_down_24dp), contentDescription = stringResource(Res.string.call_minimize))
+                }
+                Spacer(Modifier.weight(1f))
+                // Sdílení obrazovky jen ve spojeném hovoru: posílá se místo kamery.
+                if (screenShare != null && call.phase == CallPhase.Active) {
+                    FilledTonalIconToggleButton(
+                        checked = call.screenSharing,
+                        onCheckedChange = { on ->
+                            if (!on) {
+                                calls.setScreenSharing(false)
+                            } else if (overlay != null && !overlay.granted && !PointerOverlayAsk.asked) {
+                                askOverlay = true
+                            } else {
+                                startSharing()
+                            }
+                        },
+                        shapes = IconButtonDefaults.toggleableShapes(),
+                    ) {
+                        Icon(painterResource(Res.drawable.screen_share_24dp), contentDescription = stringResource(Res.string.call_share_screen))
+                    }
+                }
+                if (ongoing && call.camera && calls.canSwitchCamera) {
+                    FilledTonalIconButton(onClick = calls::switchCamera, shapes = IconButtonDefaults.shapes()) {
+                        Icon(painterResource(Res.drawable.cameraswitch_24dp), contentDescription = stringResource(Res.string.call_switch_camera))
+                    }
                 }
             }
+        }
+    }
+    // Obraz přes celou plochu (nebo přes horní půlku na stole) i s ukazovátkem.
+    val fullVideo: @Composable (CallVideoSource) -> Unit = { source ->
+        // Ukazovátko patří přímo na obraz: souřadnice se počítají z jeho plochy, i když
+        // je posunutý pod stavový řádek. Jako potomek dostane dotyk dřív než `clickable`
+        // ovládání na ploše kolem, takže podržení ovládání nepřepne.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .then(if (remoteScreen) Modifier.windowInsetsPadding(statusBarArea()) else Modifier)
+                .callPointer(pointing, remoteAspect, fit = remoteScreen, pointer) { x, y, down -> calls.sendPointer(x, y, down) },
+        ) {
+            CallVideo(
+                source,
+                mirror = source == CallVideoSource.Local && call.frontCamera,
+                modifier = Modifier.fillMaxSize(),
+                fit = remoteScreen,
+                onAspectRatio = { if (source == CallVideoSource.Remote) onRemoteAspect(it) },
+            )
+            CallPointerFinger(pointer)
+        }
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxSize().onPlaced { coordinates ->
+            if (hinge != null) {
+                screenTop = coordinates.positionInWindow().y
+                screenHeight = coordinates.size.height
+            }
+        },
+    ) {
+        if (tabletop != null) {
+            TabletopCallLayout(
+                split = tabletop,
+                modifier = Modifier.then(controls.modifier),
+                top = {
+                    full?.let { fullVideo(it) }
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                            .padding(16.dp),
+                    ) {
+                        topBar()
+                        if (full == null) {
+                            BoxWithConstraints(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                CallAvatar(call, name, avatarFileId, minOf(maxWidth * CALL_AVATAR_WIDTH_FRACTION, maxHeight, CALL_AVATAR_MAX_SIZE))
+                            }
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                            corner?.let { source ->
+                                CallVideo(
+                                    source,
+                                    mirror = call.frontCamera,
+                                    modifier = Modifier
+                                        .align(Alignment.End)
+                                        .size(width = 72.dp, height = 128.dp)
+                                        .clip(MaterialTheme.shapes.large),
+                                )
+                            }
+                        }
+                    }
+                },
+                bottom = {
+                    // Strop šířky až na vnitřním sloupci: `widthIn(max)` za `fillMaxSize` nic
+                    // nezúží a tlačítka se na rozloženém Foldu rozjela přes celou šířku.
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))
+                            .padding(horizontal = 16.dp),
+                    ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .widthIn(max = ContentWidth.Form)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        CallHeadline(call, name, compact = true)
+                        if (pointing) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                stringResource(Res.string.call_pointer_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        controlPanel()
+                    }
+                    }
+                },
+            )
+        } else Box(Modifier.fillMaxSize().then(controls.modifier)) {
+            full?.let { fullVideo(it) }
             BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp)) {
                 // Na šířku (telefon naležato, desktop) fotka vlevo, jméno s ovládáním vpravo —
                 // pod sebou by se fotka do nízkého okna vešla jen malá. S obrazem ne: video
                 // je přes celou plochu a ovládání leží přes něj.
                 val sideBySide = full == null && maxWidth > maxHeight
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
-                    CallControlsVisibility(controls.visible) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            FilledTonalIconButton(onClick = onMinimize, shapes = IconButtonDefaults.shapes()) {
-                                Icon(painterResource(Res.drawable.keyboard_arrow_down_24dp), contentDescription = stringResource(Res.string.call_minimize))
-                            }
-                            Spacer(Modifier.weight(1f))
-                            // Sdílení obrazovky jen ve spojeném hovoru: posílá se místo kamery.
-                            if (screenShare != null && call.phase == CallPhase.Active) {
-                                FilledTonalIconToggleButton(
-                                    checked = call.screenSharing,
-                                    onCheckedChange = { on ->
-                                        if (!on) {
-                                            calls.setScreenSharing(false)
-                                        } else if (overlay != null && !overlay.granted && !PointerOverlayAsk.asked) {
-                                            askOverlay = true
-                                        } else {
-                                            startSharing()
-                                        }
-                                    },
-                                    shapes = IconButtonDefaults.toggleableShapes(),
-                                ) {
-                                    Icon(painterResource(Res.drawable.screen_share_24dp), contentDescription = stringResource(Res.string.call_share_screen))
-                                }
-                            }
-                            if (ongoing && call.camera && calls.canSwitchCamera) {
-                                FilledTonalIconButton(onClick = calls::switchCamera, shapes = IconButtonDefaults.shapes()) {
-                                    Icon(painterResource(Res.drawable.cameraswitch_24dp), contentDescription = stringResource(Res.string.call_switch_camera))
-                                }
-                            }
-                        }
-                    }
+                    topBar()
                     if (sideBySide) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f).fillMaxWidth()) {
                             BoxWithConstraints(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f).fillMaxHeight()) {
@@ -956,3 +1059,24 @@ private const val PORTRAIT_ASPECT = 9f / 16f
 
 /** Plocha pod textem a ovládáním nad obrazem: obraz prosvítá, text je čitelný. */
 private const val VEIL_ALPHA = 0.8f
+
+/** Kde je pant skládačky na stole, od horní hrany obrazovky hovoru: horní a spodní hrana pantu. */
+private data class TabletopSplit(val top: Dp, val bottom: Dp)
+
+/**
+ * Hovor na skládačce na stole: [top] v půlce nad pantem (obraz nebo fotka, horní lišta, náš
+ * náhled), [bottom] v půlce pod ním (jméno, stav a tlačítka). Pant sám (u Pixel Foldu nulové
+ * výšky) zůstává prázdný.
+ */
+@Composable
+private fun TabletopCallLayout(
+    split: TabletopSplit,
+    modifier: Modifier,
+    top: @Composable BoxScope.() -> Unit,
+    bottom: @Composable BoxScope.() -> Unit,
+) {
+    Box(modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().height(split.top), content = top)
+        Box(Modifier.fillMaxSize().padding(top = split.bottom), content = bottom)
+    }
+}
