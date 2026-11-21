@@ -763,7 +763,8 @@ kreslí tentýž prvek — pilulka `surfaceContainerHigh` s ikonou, polem a ✕ 
 ## Odkrývání časů tahem
 
 Tah doleva posune odchozí zprávy a vpravo odkryje čas u každé zprávy; příchozí stojí a čas se
-vysune vedle nich. Po puštění se všechno vrátí. V bublině čas není (viz „Čas a stav doručení"), takže tohle je vedle předělu dne a plovoucího
+vysune vedle nich. Po puštění se všechno vrátí — kdo ale časy chvíli podrží, zafixuje je (viz
+„Zafixované časy" níž). V bublině čas není (viz „Čas a stav doručení"), takže tohle je vedle předělu dne a plovoucího
 data jediné místo, kde se dá přečíst. S myší ukáže čas u zprávy i najetí (viz „Akce po najetí myší"
 v `konverzace-akce.md`); na desktopu tah myší časy ani odpověď nedělá, patří výběru textu.
 
@@ -800,6 +801,28 @@ v `konverzace-akce.md`); na desktopu tah myší časy ani odpověď nedělá, pa
   v `contentPadding`, `ConversationColumn`): čas „za okrajem" ležel v okraji vedle sloupce
   a byl vidět pořád, a když byl okraj užší než pruh časů, useknutý (konverzace vedle profilu,
   okno ~1700 px). Ověřeno na desktopu (Windows) při různých šířkách okna.
+- **Zafixované časy** (`RevealTimesSwipe.kt`, `TimesPin`): podrží-li prst časy CELÉ odkryté
+  600 ms, ozve se `toggle(true)` a časy po puštění zůstanou, i při scrollu. Schová je tah
+  doprava puštěný za polovinou dráhy (`toggle(false)`); kratší tah se vrátí na zafixované.
+  - **Odpočet běží od chvíle, kdy jsou časy celé venku**, ne od položení prstu: kdo jen
+    nahlíží, zastaví se u nich na pár set milisekund, než je přečte. Prst, který táhne dál
+    doleva, časy drží celé (posun je zastropovaný), a to se počítá jako držení.
+  - **Haptika jen u zafixování, ne u odkrytí.** Odkrytí je vidět hned; zafixování vidět
+    není (obrazovka se nezmění), takže bez odezvy by nebylo poznat, že puštění časy nechá.
+  - **Tah doprava nad bublinou si bere SEZNAM, ne odpověď swipem.** Bublina je potomek,
+    dostane událost ve fázi `Main` dřív než seznam a obě gesta se rozhodují na stejném prahu —
+    tah doprava by zakládal odpověď. Se zafixovanými časy se proto detektor seznamu rozhoduje
+    ve fázi `Initial` (`detectHorizontalSwipe(beforeChildren = …)`), spotřebování scrollem
+    kontroluje dál ve `Final`. Odpověď swipem je tím po dobu zafixování vypnutá; nabídka nad
+    zprávou ji má dál.
+  - **Směr a fáze se čtou na začátku KAŽDÉHO tahu (lambdy), ne klíčem `pointerInput`.**
+    Zafixování přijde uprostřed tahu a restart `pointerInput` by rozjetý tah zrušil — `onEnd`
+    by časy hned schoval.
+  - Stav drží `remember` v obrazovce, s odchodem z chatu zanikne.
+  - Ověřeno na emulátoru (Pixel 7, API 36) přes `input motionevent` s pauzou: nahlédnutí se
+    schová, podržení zafixuje (`constant=21`), krátký tah doprava nechá, dlouhý přes odchozí
+    bublinu schová bez odpovědi (`constant=22`). Jak sedí 600 ms pod prstem, je třeba ověřit
+    rukou na telefonu.
 - **Předěly dne se neposouvají.** Jsou to nadpisy nad blokem, ne zprávy, a čas u nich nedává smysl.
 - **Čtečka obrazovky se tahem nikam nedostane**, takže čas je i v nabídce nad zprávou, prvním
   řádkem (den a hodina). Není to položka nabídky, nedá se na ni ťuknout. **Výška nabídky se
