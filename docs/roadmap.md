@@ -1535,6 +1535,54 @@ zůstaly, dokud se jejich odstranění nevyzkouší. Až vyjde stabilní 1.13.0,
 - **ai-engine kompiluje proti `compileSdk` 37.0**, Plume proti 37.2 (Compose 1.13 chce 37.1+).
   Až ai-engine převezme Compose 1.13, sjednotit a z CI vyhodit `platforms;android-37.0`.
 
+### Novinky z 1.13, které by šly využít
+
+Z release notes CMP 1.13.0-alpha01 až rc01 a z porovnání zdrojů material3 1.12.0-alpha03
+a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
+
+- **Výběr času s kolečky** (`VibrantTimePickerDialog`, `TimeScroll`, `TimePickerDefaults.vibrantColors`,
+  material3 Expressive). Dnes klasický `TimePickerDialog` s ciferníkem v
+  `features/conversation/DateTimeDialogs.kt` (plánování zprávy, připomenutí) a v `PollComposer.kt`
+  (termín ankety). Malá výměna, sedí ke zbytku expresivní vrstvy.
+- **`mediaQuery` (`UiMediaScope`)**: dotaz na vlastnosti zařízení přímo v composable —
+  přesnost ukazatele, druh klávesnice, kamera, mikrofon, poloha skládačky (`FoldState`,
+  `WindowPosture`), rozměry okna. Použití:
+  - **Kamera a mikrofon:** skrýt nahrávání kolečka bez kamery a hlasovky bez mikrofonu, hlavně
+    na desktopu. Dnes se to zjišťuje jen na Androidu (`AttachmentPicker.android.kt`,
+    `VideoNoteCamera.android.kt`).
+  - **Skládačka napůl otevřená (tabletop):** prohlížeč videa a hovor s obrazem v horní půlce
+    a ovládáním v dolní. Plume polohu skládačky dnes nečte vůbec (žádné `FoldingFeature`).
+    Patří k „Velká plocha" a `docs/poznatky/navigace.md`.
+  - **Přesnost ukazatele:** jedno místo pro „ovládá se myší" místo dílčích kontrol
+    (`HorizontalSwipe`, `MessageFrame`, prohlížeč, `ViewerControls`). Enter z fyzické klávesnice
+    řeší `isFromHardwareKeyboard` po klávesách a to stačí.
+- **Odrážky v `AnnotatedString` (`Bullet`, `withBulletList` / `withBulletListItem`)**: seznamy
+  v článcích (Instant View) kreslí `RichMessageBody.kt` znakem „•" v textu, takže se víceřádková
+  položka zalomí pod odrážku, ne pod text. `Bullet` dá odsazení s visící odrážkou; v jaru
+  `ui-text` 1.13 ověřené, chování na všech platformách ne.
+- **Desktop: rychlejší start (AppCDS)** — podpora v Compose Gradle pluginu (compose-multiplatform#5644).
+  Runtime balíčku je JDK 21 (`runtimeLauncher` v `desktopApp/build.gradle.kts`), na kterém AppCDS
+  jde; AOT (JEP 514) by chtělo JDK 25. Změřit start DMG/MSI před a po.
+- **Desktop: plynulá změna velikosti okna** — systémové vlastnosti
+  `skiko.rendering.macos.metalSynchronousLiveResize=true` a
+  `skiko.rendering.windows.direct3DSynchronousLiveResize=true` (časem budou výchozí). Plume při
+  zúžení přepíná jeden a dva panely, takže je to vidět. Ověřit spolu s „Insety při změně scény".
+- **Desktop: fonty JRE se z balíčku vyhazují** (`stripJreFonts`, nově výchozí): DMG a MSI jsou
+  menší, ale ověřit, že zabalená aplikace nic z nich nepotřebuje (dialogy AWT, okénko hovoru,
+  oznámení). Kdyby ano, `stripJreFonts = false` v `nativeDistributions`.
+- **iOS zadarmo, jen ověřit na simulátoru:**
+  - **Dynamic Type** — písmo se řídí systémovou velikostí; vyzkoušet spolu s vlastní velikostí
+    písma zpráv a s řádky pevné výšky.
+  - **Omezit pohyb** — Compose ho nově respektuje; podívat se, jestli to sedí s `AppMotion`.
+  - **Writing Tools v textových polích** opravené — souvisí s Apple Intelligence (`ai-v-zarizeni.md`).
+  - **Gesta trackpadu** (posun a štípnutí) na iPadu — prohlížeč fotek, přiblížení písma štípnutím.
+  - **Automatické vyplnění hesla z Klíčenky** — pole už nesou `ContentType.Password`
+    / `NewPassword` (`BlockField.kt`, `TwoStepScreen.kt`), na iOS by to teď mělo fungovat.
+- **Výběr textu tahem sám posouvá obsah** za okraj `SelectionContainer` (bez vrtění myší) —
+  vyzkoušet ve výběru textu zprávy a v článku.
+- **Paralaxa pro karusel** (`CarouselParallaxScrollEffectState`, `carouselParallaxScrollEffect`
+  na `LazyRow`) — zatím bez vhodného místa; kandidát jen tam, kde by vznikl pás fotek.
+
 ## Vzhled (Material 3 Expressive)
 
 Nápady na doladění vzhledu; nic z toho zatím nikdo nezačal. Navazují na slovník, který
