@@ -1544,18 +1544,23 @@ a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
   material3 Expressive). Dnes klasický `TimePickerDialog` s ciferníkem v
   `features/conversation/DateTimeDialogs.kt` (plánování zprávy, připomenutí) a v `PollComposer.kt`
   (termín ankety). Malá výměna, sedí ke zbytku expresivní vrstvy.
-- **`mediaQuery` (`UiMediaScope`)**: dotaz na vlastnosti zařízení přímo v composable —
-  přesnost ukazatele, druh klávesnice, kamera, mikrofon, poloha skládačky (`FoldState`,
-  `WindowPosture`), rozměry okna. Použití:
-  - **Kamera a mikrofon:** skrýt nahrávání kolečka bez kamery a hlasovky bez mikrofonu, hlavně
-    na desktopu. Dnes se to zjišťuje jen na Androidu (`AttachmentPicker.android.kt`,
-    `VideoNoteCamera.android.kt`).
-  - **Skládačka napůl otevřená (tabletop):** prohlížeč videa a hovor s obrazem v horní půlce
-    a ovládáním v dolní. Plume polohu skládačky dnes nečte vůbec (žádné `FoldingFeature`).
-    Patří k „Velká plocha" a `docs/poznatky/navigace.md`.
-  - **Přesnost ukazatele:** jedno místo pro „ovládá se myší" místo dílčích kontrol
-    (`HorizontalSwipe`, `MessageFrame`, prohlížeč, `ViewerControls`). Enter z fyzické klávesnice
-    řeší `isFromHardwareKeyboard` po klávesách a to stačí.
+- **`mediaQuery` (`UiMediaScope`, `@ExperimentalMediaQueryApi`)**: dotaz na vlastnosti zařízení
+  přímo v composable — přesnost ukazatele, druh klávesnice, kamera, mikrofon, poloha skládačky
+  (`FoldState`, `WindowPosture`), rozměry okna. **Skutečné hodnoty dává jen Android.** Na desktopu
+  jsou pevné (`DesktopMediaScope` v ui-desktop 1.13: mikrofon vždy `true`, kamera vždy `false`
+  „no reliable way to get it", ukazatel `Fine`, klávesnice `Physical`, poloha prázdná); obecný
+  skiko základ vrací `false` / `None` všude. Co z toho plyne:
+  - ~~**Kamera a mikrofon na desktopu**~~ — přes `mediaQuery` nejde (viz výš). Kolečka desktop
+    stejně nenabízí (`rememberVideoNoteCamera() = null`); hlasovka bez mikrofonu by se musela
+    poznat z `javax.sound` (`AudioSystem.getTargetLineInfo`), ne odsud.
+  - **Skládačka napůl otevřená (tabletop), jen Android:** prohlížeč videa a hovor s obrazem
+    v horní půlce a ovládáním v dolní. Plume polohu skládačky dnes nečte vůbec (žádné
+    `FoldingFeature`). Patří k „Velká plocha" a `docs/poznatky/navigace.md`. Ověřit na emulátoru
+    Fold (`adb emu fold` / poloha pantu) — `Plume_Galerie_Fold`.
+  - **Přesnost ukazatele:** na desktopu pevně `Fine`, takže přínos jen na Androidu (tablet s myší,
+    Chromebook) a nejasně na iOS. Dílčí kontroly (`HorizontalSwipe`, `MessageFrame`, prohlížeč,
+    `ViewerControls`) se čtou z typu ukazatele u události, a to funguje všude — výměnu nedělat,
+    dokud API zůstává experimentální.
 - **Odrážky v `AnnotatedString` (`Bullet`, `withBulletList` / `withBulletListItem`)**: seznamy
   v článcích (Instant View) kreslí `RichMessageBody.kt` znakem „•" v textu, takže se víceřádková
   položka zalomí pod odrážku, ne pod text. `Bullet` dá odsazení s visící odrážkou; v jaru
