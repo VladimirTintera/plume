@@ -15,6 +15,7 @@ import eu.tintera.plume.resources.chat_folders_read_all_main
 import eu.tintera.plume.resources.chat_folders_read_all
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
+import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.MenuAnchorPosition
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.ui.semantics.onClick
@@ -88,7 +89,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.RollingNumber
-import eu.tintera.plume.core.ui.RootTooltipBox
 import eu.tintera.plume.core.ui.appendWithCustomEmoji
 import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.folderIcon
@@ -451,7 +451,7 @@ private fun folderMenuGroups(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FolderTooltip(label: String, enabled: Boolean, content: @Composable () -> Unit) {
-    RootTooltipBox(
+    TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
         tooltip = { PlainTooltip { Text(label) } },
         state = rememberTooltipState(),

@@ -60,8 +60,9 @@ fun RootOverlayHost(content: @Composable () -> Unit) {
  * mimo měření.
  *
  * **Jen pro neukotvené překryvy.** `Popup` (menu) se polohuje vůči rodiči, takže z kořene by skončil
- * v rohu okna. Výjimka je [RootTooltipBox] (a [WithTooltip] nad ním): v kořeni stojí náhradní
- * kotva na uložených mezích té skutečné v okně a bublina se polohuje k ní.
+ * v rohu okna — a právě to dnešní jediný uživatel chce (snackbar sbaleného seznamu u rohu okna).
+ * Pád výš Compose Multiplatform 1.13 opravuje (compose-multiplatform-core#3566); bubliny se proto
+ * z kořene už nekreslí (`WithTooltip`), překryv zůstává kvůli poloze vůči oknu.
  *
  * **Výběr textu je v překryvu vypnutý** (`DisableSelection`): mezi localy volajícího je
  * i `LocalSelectionRegistrar` a texty překryvu by se registrovaly do cizího výběru v jiném stromu

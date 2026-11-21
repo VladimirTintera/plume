@@ -135,7 +135,7 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
   název zabral v kompaktní liště skoro polovinu místa a „+" se kvůli němu posunul za okraj.
   Čtečka obrazovky a bublina dostávají celý název, Nastavení ho mají taky celý. Bez popisku nese název bublina (podržení / najetí myší)
   a čtečka obrazovky, počet nepřečtených je v odznaku na ikoně.
-- **Bublina se u položky s popiskem VYPÍNÁ, neodpojuje** (`RootTooltipBox(enableUserInput =
+- **Bublina se u položky s popiskem VYPÍNÁ, neodpojuje** (`TooltipBox(enableUserInput =
   false)`). S obalem přidávaným jen bez popisku se položka při změně výběru skládala znovu
   a popisek naskočil bez animace.
 - **Položky nejsou `IconButton`, ani „+".** `IconButton` hlásí zarovnávací čáry minimální

@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.CountdownSnackbarHost
 import androidx.compose.foundation.background
+import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +37,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.rememberCoroutineScope
-import eu.tintera.plume.core.ui.RootTooltipBox
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
@@ -386,8 +386,9 @@ private fun SelectionHeader(count: Int, onClose: () -> Unit) {
 /**
  * Snackbar sbaleného seznamu z kořene okna, vlevo dole: přes sloupec i konverzaci vedle. Do
  * sloupce 96 dp se nevejde a ořez panelu by ho usekl, proto okno ([Popup]) — a to z kořene
- * kompozice ([RootOverlay]): sloupec mizí UPROSTŘED měření, když tah táhlem přepne na plný
- * seznam, a okno ukotvené v něm by na desktopu shodilo vykreslování (viz [WithTooltip]).
+ * kompozice ([RootOverlay]), aby se polohovalo k rohu OKNA, ne sloupce. Dřív to byla i pojistka
+ * proti pádu na desktopu (sloupec mizí uprostřed měření, když tah táhlem přepne na plný seznam);
+ * ten Compose Multiplatform 1.13 opravuje.
  * Kreslí se jen s hláškou, prázdné okno by tam viselo zbytečně.
  */
 @Composable
@@ -434,15 +435,13 @@ private fun CollapsedChat(
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
     val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     /*
-     * Ne holý TooltipBox: tah táhlem přepne sloupec na plný seznam uprostřed měření a bublina,
-     * která nad avatarem ještě visí, by na desktopu shodila vykreslování (viz WithTooltip).
-     * `RootTooltipBox` místo `WithTooltip` kvůli stavu: na dotyku bublinu ukáže i podržení,
+     * `TooltipBox` místo `WithTooltip` kvůli stavu: na dotyku bublinu ukáže i podržení,
      * a to teď otevírá nabídku nad chatem — bublina se jménem by pak nad sloupcem visela,
      * dokud se uživatel nedotkne jinde (ověřeno na emulátoru). Jméno nese titulek nabídky.
      */
     val tooltipState = rememberTooltipState()
     val scope = rememberCoroutineScope()
-    RootTooltipBox(
+    TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Right),
         tooltip = { PlainTooltip { Text(title) } },
         state = tooltipState,

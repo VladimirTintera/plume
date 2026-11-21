@@ -1521,10 +1521,6 @@ scény při rozložení už jednou shazovala aplikaci) a obě rotace naležato k
 Compose Multiplatform 1.13.0-rc01 opravil několik věcí, kvůli kterým projekt nesl obcházky; ty
 zůstaly, dokud se jejich odstranění nevyzkouší. Až vyjde stabilní 1.13.0, zvednout z RC.
 
-- **Bubliny jen přes `RootTooltipBox` / `WithTooltip` už nejsou nutné** — pád holého
-  `TooltipBox` při zúžení je opravený (test `rawTooltipRemovedDuringMeasureSurvives`). Obal
-  a `verifyTooltipsThroughRoot` můžou pryč po ručním ověření na desktopu (`docs/poznatky/desktop.md`,
-  „Bubliny (tooltip) z kořene kompozice").
 - **`readString` místo `getString` a `verifyResourceReadsOffMain`** — CMP-6615 je opravené
   v 1.13; obcházka i `ResourceReadDeadlockTest` můžou pryč (CLAUDE.md, „Jazyky").
 - **Varování o zastaralém API z material3 1.13 / foundation 1.13**: `ListItem(headlineContent = …)`
