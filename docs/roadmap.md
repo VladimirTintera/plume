@@ -1540,10 +1540,6 @@ zůstaly, dokud se jejich odstranění nevyzkouší. Až vyjde stabilní 1.13.0,
 Z release notes CMP 1.13.0-alpha01 až rc01 a z porovnání zdrojů material3 1.12.0-alpha03
 a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
 
-- **Výběr času s kolečky** (`VibrantTimePickerDialog`, `TimeScroll`, `TimePickerDefaults.vibrantColors`,
-  material3 Expressive). Dnes klasický `TimePickerDialog` s ciferníkem v
-  `features/conversation/DateTimeDialogs.kt` (plánování zprávy, připomenutí) a v `PollComposer.kt`
-  (termín ankety). Malá výměna, sedí ke zbytku expresivní vrstvy.
 - **`mediaQuery` (`UiMediaScope`)**: dotaz na vlastnosti zařízení přímo v composable —
   přesnost ukazatele, druh klávesnice, kamera, mikrofon, poloha skládačky (`FoldState`,
   `WindowPosture`), rozměry okna. Použití:
