@@ -13,7 +13,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.features.conversation.items.MenuSlot
 import eu.tintera.plume.resources.menu_more
 import kotlinx.coroutines.runBlocking
@@ -107,7 +107,7 @@ class ActionMenuTest {
             }
         }
         // Popisek „Další" podle jazyka, ve kterém test běží.
-        val moreLabel = runBlocking { readString(Res.string.menu_more) }
+        val moreLabel = runBlocking { getString(Res.string.menu_more) }
         onAllNodesWithText("Vybrat víc zpráv").assertCountEquals(0)
         onNodeWithText(moreLabel).performClick()
         waitForIdle()

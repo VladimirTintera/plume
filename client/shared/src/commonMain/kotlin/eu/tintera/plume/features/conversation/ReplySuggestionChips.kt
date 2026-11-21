@@ -16,7 +16,7 @@ import eu.tintera.plume.resources.reply_suggestions_turn_off
 import eu.tintera.plume.resources.reply_suggestions_turn_off_hint
 import eu.tintera.plume.resources.reply_suggestions_turned_off
 import eu.tintera.plume.resources.visibility_off_24dp
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.expandVertically
@@ -262,8 +262,8 @@ internal fun ReplySuggestionsTurnedOffSnackbar(
         replies.consumeTurnedOff()
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = readString(Res.string.reply_suggestions_turned_off),
-                actionLabel = readString(Res.string.conversation_undo),
+                message = getString(Res.string.reply_suggestions_turned_off),
+                actionLabel = getString(Res.string.conversation_undo),
                 duration = SnackbarDuration.Long,
             )
             if (result == SnackbarResult.ActionPerformed) replies.turnOn()

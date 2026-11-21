@@ -3,7 +3,7 @@ package eu.tintera.plume.core.snooze
 import eu.tintera.plume.core.accounts.AccountSlot
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.NotificationCategories
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.snooze_reminder_text
 import kotlinx.coroutines.CoroutineScope
@@ -37,7 +37,7 @@ class IosSnoozeReminders : SnoozeReminders {
             val seconds = (at - Clock.System.now()).inWholeSeconds.coerceAtLeast(1).toDouble()
             val content = UNMutableNotificationContent().apply {
                 setTitle(title)
-                setBody(readString(Res.string.snooze_reminder_text))
+                setBody(getString(Res.string.snooze_reminder_text))
                 setSound(UNNotificationSound.defaultSound)
                 setUserInfo(mapOf<Any?, Any?>(NotificationCategories.KEY_CHAT_ID to chatId))
             }

@@ -306,7 +306,7 @@ a aktivity). `TimeFormat` → `KeyboardShortcuts` v grafu je falešná shoda jm�
 
 **Výchozí stav (říjen 2026):** shared má ~190 tisíc řádků (`features` 127 tisíc, `core` 61 tisíc,
 z toho `core/telegram` 36 tisíc). `core/telegram` z `features` neimportuje nic; z ostatního `core`
-bere `UiText` / `readString`, rozhraní hovorů, connectivity, settings, secrets, location, contacts
+bere `UiText` / `getString`, rozhraní hovorů, connectivity, settings, secrets, location, contacts
 a audio, z Compose jen `StringResource`. Z `core` do `features` mířila tři místa (`AppSettings`,
 `WidgetChats`, `PhotoDescriptionWorker`) a pět testů; rozpojené v kroku 2.
 
@@ -1525,8 +1525,6 @@ zůstaly, dokud se jejich odstranění nevyzkouší. Až vyjde stabilní 1.13.0,
   `TooltipBox` při zúžení je opravený (test `rawTooltipRemovedDuringMeasureSurvives`). Obal
   a `verifyTooltipsThroughRoot` můžou pryč po ručním ověření na desktopu (`docs/poznatky/desktop.md`,
   „Bubliny (tooltip) z kořene kompozice").
-- **`readString` místo `getString` a `verifyResourceReadsOffMain`** — CMP-6615 je opravené
-  v 1.13; obcházka i `ResourceReadDeadlockTest` můžou pryč (CLAUDE.md, „Jazyky").
 - **Varování o zastaralém API z material3 1.13 / foundation 1.13**: `ListItem(headlineContent = …)`
   → varianta s obsahem v koncové lambdě (~20 míst), `BasicTextField(value, onValueChange)`
   → `TextFieldState`, `VisualTransformation` → `OutputTransformation` / `SecureTextField`,

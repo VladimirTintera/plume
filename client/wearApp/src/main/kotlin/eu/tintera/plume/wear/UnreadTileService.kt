@@ -18,8 +18,8 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders.Tile
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
-import eu.tintera.plume.core.ui.readPluralString
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.wear_tile_open
 import eu.tintera.plume.resources.wear_tile_signed_out
@@ -85,12 +85,12 @@ class UnreadTileService : TileService() {
     private class TileContent(val count: Int?, val label: String, val open: String)
 
     private suspend fun tileContent(state: UnreadState): TileContent {
-        val open = readString(Res.string.wear_tile_open)
+        val open = getString(Res.string.wear_tile_open)
         return when (state) {
             is UnreadState.Chats ->
-                TileContent(state.count, readPluralString(Res.plurals.wear_tile_unread_chats, state.count), open)
-            UnreadState.LoggedOut -> TileContent(null, readString(Res.string.wear_tile_signed_out), open)
-            UnreadState.Unknown -> TileContent(null, readString(Res.string.wear_tile_unknown), open)
+                TileContent(state.count, getPluralString(Res.plurals.wear_tile_unread_chats, state.count), open)
+            UnreadState.LoggedOut -> TileContent(null, getString(Res.string.wear_tile_signed_out), open)
+            UnreadState.Unknown -> TileContent(null, getString(Res.string.wear_tile_unknown), open)
         }
     }
 

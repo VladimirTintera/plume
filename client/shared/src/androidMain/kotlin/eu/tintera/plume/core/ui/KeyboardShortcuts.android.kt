@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import org.jetbrains.compose.resources.getString
 import android.view.KeyboardShortcutGroup
 import android.view.KeyboardShortcutInfo
 import androidx.compose.ui.input.key.nativeKeyCode
@@ -81,7 +82,7 @@ class KeyboardShortcutOverview private constructor(private val texts: Map<String
                 Res.string.shortcuts_group_chats,
                 Res.string.shortcuts_group_writing,
             )
-            return KeyboardShortcutOverview(labels.associateWith { readString(it) })
+            return KeyboardShortcutOverview(labels.associateWith { getString(it) })
         }
     }
 }

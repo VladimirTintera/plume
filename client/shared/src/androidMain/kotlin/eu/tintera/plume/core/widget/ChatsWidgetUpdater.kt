@@ -35,7 +35,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.saved_messages
 import kotlinx.coroutines.launch
@@ -139,7 +139,7 @@ class ChatsWidgetUpdater(
                         WidgetSnapshot(loggedIn = false)
                     }
                     is Input.Chats -> {
-                        val savedTitle = readString(Res.string.saved_messages)
+                        val savedTitle = getString(Res.string.saved_messages)
                         val bySlot = input.parts.associateBy { it.chats.slot }
                         // Odznak účtu jen s víc účty ve widgetu; s jedním by jen zabíral avatar.
                         val badges = if (input.parts.size > 1) {

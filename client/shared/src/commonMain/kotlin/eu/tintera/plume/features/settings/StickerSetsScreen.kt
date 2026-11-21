@@ -68,7 +68,7 @@ import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.dragHandle
 import eu.tintera.plume.core.ui.draggedItem
 import eu.tintera.plume.core.ui.groupItemShape
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.ui.rememberDragReorderState
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.features.conversation.StickerPreview
@@ -149,13 +149,13 @@ fun StickerSetsScreen(
         viewModel.consumeNotice()
         scope.launch {
             val message = when (notice) {
-                is StickerSetNotice.Archived -> readString(Res.string.sticker_sets_archived_notice, notice.set.title)
-                is StickerSetNotice.Removed -> readString(Res.string.sticker_sets_removed_notice, notice.set.title)
+                is StickerSetNotice.Archived -> getString(Res.string.sticker_sets_archived_notice, notice.set.title)
+                is StickerSetNotice.Removed -> getString(Res.string.sticker_sets_removed_notice, notice.set.title)
             }
             snackbarHostState.currentSnackbarData?.dismiss()
             val result = snackbarHostState.showSnackbar(
                 message = message,
-                actionLabel = readString(Res.string.chats_undo),
+                actionLabel = getString(Res.string.chats_undo),
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undo(notice)

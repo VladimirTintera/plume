@@ -2,7 +2,7 @@ package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.telegram.CHAT_FOLDER_TITLE_MAX
 import kotlinx.coroutines.CancellationException
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatFolderDraft
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -154,7 +154,7 @@ class ChatFoldersViewModel(
                     chats = listed,
                     excludedChatIds = setOfNotNull(chats.savedMessagesChatId.value),
                     existingTitles = serverFolders.value.folders.map { it.title }.toSet(),
-                    titleOf = { category -> category.title?.let { readString(it) }.orEmpty() },
+                    titleOf = { category -> category.title?.let { getString(it) }.orEmpty() },
                 )?.let { AiFolders.Done(it) } ?: AiFolders.ModelMissing
             } catch (e: CancellationException) {
                 throw e
@@ -173,7 +173,7 @@ class ChatFoldersViewModel(
         local.update { it.copy(adding = key) }
         viewModelScope.launch {
             // Server bere nejvýš 12 znaků; komunitní překlad kategorie by mohl být delší.
-            val title = suggested.category.title?.let { readString(it) }.orEmpty().trim().take(CHAT_FOLDER_TITLE_MAX)
+            val title = suggested.category.title?.let { getString(it) }.orEmpty().trim().take(CHAT_FOLDER_TITLE_MAX)
             folders.create(ChatFolderDraft(title = title, includedChatIds = suggested.chatIds))
                 .onSuccess {
                     local.update { state ->

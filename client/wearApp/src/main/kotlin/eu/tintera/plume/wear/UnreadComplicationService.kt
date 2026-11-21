@@ -11,8 +11,8 @@ import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
-import eu.tintera.plume.core.ui.readPluralString
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.wear_complication_signed_out
 import eu.tintera.plume.resources.wear_complication_unread
@@ -28,9 +28,9 @@ class UnreadComplicationService : SuspendingComplicationDataSourceService() {
         if (request.complicationType != ComplicationType.SHORT_TEXT) return null
         return when (val state = UnreadState.read(this)) {
             is UnreadState.Chats ->
-                shortText(state.count.toString(), readPluralString(Res.plurals.wear_complication_unread, state.count, state.count))
+                shortText(state.count.toString(), getPluralString(Res.plurals.wear_complication_unread, state.count, state.count))
             // Bez přihlášení pomlčka: ikona zůstane vidět a ťuknutí vede k přihlášení.
-            UnreadState.LoggedOut, UnreadState.Unknown -> shortText(NO_COUNT, readString(Res.string.wear_complication_signed_out))
+            UnreadState.LoggedOut, UnreadState.Unknown -> shortText(NO_COUNT, getString(Res.string.wear_complication_signed_out))
         }
     }
 

@@ -30,8 +30,8 @@ import eu.tintera.plume.core.telegram.LiveFix
 import eu.tintera.plume.core.telegram.LiveLocationRepository
 import eu.tintera.plume.core.telegram.headingOf
 import eu.tintera.plume.core.telegram.shouldSendLiveFix
-import eu.tintera.plume.core.ui.readPluralString
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.live_location_notification_chats
 import eu.tintera.plume.resources.live_location_notification_stop
@@ -167,8 +167,8 @@ class LiveLocationService : Service(), KoinComponent {
     private suspend fun notification(active: List<ActiveLiveLocation>) =
         NotificationCompat.Builder(this, ensureChannel())
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(readString(Res.string.live_location_notification_title))
-            .setContentText(readPluralString(Res.plurals.live_location_notification_chats, active.size, active.size))
+            .setContentTitle(getString(Res.string.live_location_notification_title))
+            .setContentText(getPluralString(Res.plurals.live_location_notification_chats, active.size, active.size))
             .setCategory(NotificationCompat.CATEGORY_LOCATION_SHARING)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -177,18 +177,18 @@ class LiveLocationService : Service(), KoinComponent {
             // že se sdílí poloha, má uživatel vědět hned.
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openChat(active.firstOrNull()?.chatId))
-            .addAction(0, readString(Res.string.live_location_notification_stop), stopIntent())
+            .addAction(0, getString(Res.string.live_location_notification_stop), stopIntent())
             .build()
 
     private suspend fun ensureChannel(): String {
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(
                 LIVE_LOCATION_CHANNEL_ID,
-                readString(Res.string.notification_channel_live_location),
+                getString(Res.string.notification_channel_live_location),
                 // Ne LOW: tichá notifikace se schová do sbalené skupiny „Tiché" a o tom, že se
                 // sdílí poloha, má uživatel vědět. Zvuk nedělá — notifikace je `setSilent`.
                 NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply { description = readString(Res.string.notification_channel_live_location_description) },
+            ).apply { description = getString(Res.string.notification_channel_live_location_description) },
         )
         return LIVE_LOCATION_CHANNEL_ID
     }

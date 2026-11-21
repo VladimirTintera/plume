@@ -17,7 +17,7 @@ import eu.tintera.plume.core.telegram.NotificationSoundChoice
 import eu.tintera.plume.core.telegram.soundChannelKey
 import eu.tintera.plume.core.telegram.soundChannelSlot
 import eu.tintera.plume.core.telegram.soundChannelTone
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_calls
 import eu.tintera.plume.resources.notification_channel_calls_description
@@ -75,28 +75,28 @@ suspend fun createNotificationChannels(context: Context) {
         }
         val channel = NotificationChannel(
             kind.channelId,
-            readString(name),
+            getString(name),
             // Kanály telegramových kanálů jen tiše do lišty: příspěvků chodí hodně a málokdy
             // na ně člověk musí hned reagovat. Kdo chce víc, přepne si to v systému.
             if (kind == NotificationChannelKind.Channels) NotificationManager.IMPORTANCE_DEFAULT
             else NotificationManager.IMPORTANCE_HIGH,
-        ).apply { this.description = readString(description) }
+        ).apply { this.description = getString(description) }
         manager.createNotificationChannel(channel)
     }
     // Hovory mají kanál zvlášť: zvoní jinak než zprávy a kdo hovory v Plume nechce (přijmout
     // je stejně nejde), vypne si jen tenhle.
     manager.createNotificationChannel(
-        NotificationChannel(CALLS_CHANNEL_ID, readString(Res.string.notification_channel_calls), NotificationManager.IMPORTANCE_HIGH)
-            .apply { description = readString(Res.string.notification_channel_calls_description) },
+        NotificationChannel(CALLS_CHANNEL_ID, getString(Res.string.notification_channel_calls), NotificationManager.IMPORTANCE_HIGH)
+            .apply { description = getString(Res.string.notification_channel_calls_description) },
     )
     // Příchozí hovor, který Plume umí přijmout: vysoká důležitost (celoobrazovková výzva,
     // plovoucí notifikace), ale BEZ zvuku a vibrací — zvoní `CallRinger` vyzváněcím tónem ve
     // smyčce. Kanál zvlášť, protože `setSilent` u notifikace celoobrazovkovou výzvu zablokuje
     // (tichá notifikace „nevyrušuje" a systém ji nespustí) a zvuk kanálu nejde po založení změnit.
     manager.createNotificationChannel(
-        NotificationChannel(INCOMING_CALLS_CHANNEL_ID, readString(Res.string.notification_channel_incoming_calls), NotificationManager.IMPORTANCE_HIGH)
+        NotificationChannel(INCOMING_CALLS_CHANNEL_ID, getString(Res.string.notification_channel_incoming_calls), NotificationManager.IMPORTANCE_HIGH)
             .apply {
-                description = readString(Res.string.notification_channel_incoming_calls_description)
+                description = getString(Res.string.notification_channel_incoming_calls_description)
                 setSound(null, null)
                 enableVibration(false)
             },
@@ -187,10 +187,10 @@ suspend fun soundChannelId(
     val base = manager.getNotificationChannel(kind.channelId) ?: return kind.channelId
     val (soundName, uri) = when (sound) {
         is NotificationSoundChoice.Tone -> sound.title to (toneUri(context, sound) ?: return kind.channelId)
-        else -> readString(Res.string.notification_channel_silent) to null
+        else -> getString(Res.string.notification_channel_silent) to null
     }
-    val withSound = readString(Res.string.notification_channel_with_sound, base.name.toString(), soundName)
-    val name = accountName?.let { readString(Res.string.notification_channel_with_sound, withSound, it) } ?: withSound
+    val withSound = getString(Res.string.notification_channel_with_sound, base.name.toString(), soundName)
+    val name = accountName?.let { getString(Res.string.notification_channel_with_sound, withSound, it) } ?: withSound
     val channel = NotificationChannel(id, name, base.importance).apply {
         description = base.description
         setSound(uri, if (uri == null) null else base.audioAttributes ?: Notification.AUDIO_ATTRIBUTES_DEFAULT)
@@ -290,9 +290,9 @@ suspend fun createModelDownloadChannel(context: Context) {
     context.getSystemService(NotificationManager::class.java).createNotificationChannel(
         NotificationChannel(
             MODEL_DOWNLOAD_CHANNEL_ID,
-            readString(Res.string.notification_channel_model_download),
+            getString(Res.string.notification_channel_model_download),
             NotificationManager.IMPORTANCE_LOW,
-        ).apply { description = readString(Res.string.notification_channel_model_download_description) },
+        ).apply { description = getString(Res.string.notification_channel_model_download_description) },
     )
 }
 
@@ -307,9 +307,9 @@ suspend fun createSnoozeChannel(context: Context) {
     context.getSystemService(NotificationManager::class.java).createNotificationChannel(
         NotificationChannel(
             SNOOZE_CHANNEL_ID,
-            readString(Res.string.notification_channel_snooze),
+            getString(Res.string.notification_channel_snooze),
             NotificationManager.IMPORTANCE_HIGH,
-        ).apply { description = readString(Res.string.notification_channel_snooze_description) },
+        ).apply { description = getString(Res.string.notification_channel_snooze_description) },
     )
 }
 
@@ -325,8 +325,8 @@ suspend fun createWatchLoginChannel(context: Context) {
     context.getSystemService(NotificationManager::class.java).createNotificationChannel(
         NotificationChannel(
             WATCH_LOGIN_CHANNEL_ID,
-            readString(Res.string.notification_channel_watch_login),
+            getString(Res.string.notification_channel_watch_login),
             NotificationManager.IMPORTANCE_HIGH,
-        ).apply { description = readString(Res.string.notification_channel_watch_login_description) },
+        ).apply { description = getString(Res.string.notification_channel_watch_login_description) },
     )
 }

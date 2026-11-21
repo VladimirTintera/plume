@@ -4,7 +4,7 @@ import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.dto.PageBlockTitle
 import dev.g000sha256.tdl.toResult
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.content_audio
 import eu.tintera.plume.resources.content_file
@@ -27,12 +27,12 @@ class TdlInstantViewRepository(private val holder: TelegramClientHolder) : Insta
                     title = titleBlock?.title?.plainText()?.trim()?.takeIf { it.isNotEmpty() },
                     body = page.blocks.filterNot { it === titleBlock }.toTypedArray().toRichBody(
                         RichMediaLabels(
-                            photo = readString(Res.string.media_photo),
-                            video = readString(Res.string.media_video),
-                            gif = readString(Res.string.content_gif),
-                            audio = readString(Res.string.content_audio),
-                            voice = readString(Res.string.conversation_voice_message),
-                            file = readString(Res.string.content_file),
+                            photo = getString(Res.string.media_photo),
+                            video = getString(Res.string.media_video),
+                            gif = getString(Res.string.content_gif),
+                            audio = getString(Res.string.content_audio),
+                            voice = getString(Res.string.conversation_voice_message),
+                            file = getString(Res.string.content_file),
                         ),
                         isFull = page.isFull,
                         spacious = true,

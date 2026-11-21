@@ -15,7 +15,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.IncomingCall
 import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.NotificationUpdate
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_answer
 import eu.tintera.plume.resources.notification_call_decline
@@ -217,10 +217,10 @@ actual class NotificationPresenter internal constructor(
     }
 
     private suspend fun buttonLabels() = NotificationButtons.Labels(
-        reply = readString(Res.string.notification_reply),
-        send = readString(Res.string.notification_reply_send),
-        markRead = readString(Res.string.notification_mark_read),
-        mute = readString(Res.string.notification_mute_hour),
+        reply = getString(Res.string.notification_reply),
+        send = getString(Res.string.notification_reply_send),
+        markRead = getString(Res.string.notification_mark_read),
+        mute = getString(Res.string.notification_mute_hour),
     )
 
     /**
@@ -278,7 +278,7 @@ actual class NotificationPresenter internal constructor(
                 title = title,
                 subtitle = accountName(),
                 account = accountKey,
-                body = readString(Res.string.notification_reply_failed, reply.text),
+                body = getString(Res.string.notification_reply_failed, reply.text),
                 chatId = reply.chatId,
                 topicId = reply.topicId,
                 silent = false,
@@ -325,10 +325,10 @@ actual class NotificationPresenter internal constructor(
             DesktopNotification(
                 id = callId(call.groupId),
                 thread = thread(call.chatId),
-                title = call.callerName.ifBlank { readString(Res.string.notification_call_unknown) },
+                title = call.callerName.ifBlank { getString(Res.string.notification_call_unknown) },
                 subtitle = accountName(),
                 account = accountKey,
-                body = readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice),
+                body = getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice),
                 chatId = call.chatId,
                 topicId = null,
                 // Zvoní DesktopCallRinger; zvuk oznámení by ho zdvojil.
@@ -344,8 +344,8 @@ actual class NotificationPresenter internal constructor(
 
     private suspend fun callLabels() = CallButtons(
         callId = 0,
-        answer = readString(Res.string.call_answer),
-        decline = readString(Res.string.notification_call_decline),
+        answer = getString(Res.string.call_answer),
+        decline = getString(Res.string.notification_call_decline),
     )
 
     private fun clear() {

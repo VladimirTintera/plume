@@ -37,7 +37,7 @@ import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.NotificationSoundChoice
 import eu.tintera.plume.core.telegram.NotificationUpdate
 import eu.tintera.plume.core.telegram.dismissUpTo
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_call_answer_elsewhere
 import eu.tintera.plume.resources.notification_call_decline
@@ -403,7 +403,7 @@ actual class NotificationPresenter(
         // Android 11+ ze zkratky (`publishShortcut`), ne z `conversationTitle` — ověřeno na
         // Pixelu 5 (Android 14). Do `conversationTitle` jde účet pro starší Android bez zkratek.
         val account = accountName()
-        val style = NotificationCompat.MessagingStyle(Person.Builder().setName(readString(Res.string.notification_self_name)).build())
+        val style = NotificationCompat.MessagingStyle(Person.Builder().setName(getString(Res.string.notification_self_name)).build())
             .setGroupConversation(isGroup)
             // V soukromém chatu je název chatu totéž co jméno odesílatele u každého řádku —
             // vypsat ho i do hlavičky by ho zdvojilo. Účet se tam ale vejít musí.
@@ -529,17 +529,17 @@ actual class NotificationPresenter(
             showAnswerableCall(call)
             return
         }
-        val name = call.callerName.ifBlank { readString(Res.string.notification_call_unknown) }
+        val name = call.callerName.ifBlank { getString(Res.string.notification_call_unknown) }
         val built = NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(avatarBitmap(call.avatarPath))
             .setContentTitle(name)
-            .setContentText(readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
+            .setContentText(getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
             .setSubText(accountName())
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
-                    readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice) +
-                        "\n" + readString(Res.string.notification_call_answer_elsewhere),
+                    getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice) +
+                        "\n" + getString(Res.string.notification_call_answer_elsewhere),
                 ),
             )
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -550,7 +550,7 @@ actual class NotificationPresenter(
             .addAction(
                 NotificationCompat.Action.Builder(
                     IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
-                    readString(Res.string.notification_call_decline),
+                    getString(Res.string.notification_call_decline),
                     NotificationIntents.declineCall(context, slot, call.groupId, call.chatId, call.callId, call.isVideo),
                 )
                     .setShowsUserInterface(false)
@@ -576,7 +576,7 @@ actual class NotificationPresenter(
      *   `USE_FULL_SCREEN_INTENT` (Play ho dá aplikacím na hovory); bez něj zbude plovoucí.
      */
     private suspend fun showAnswerableCall(call: IncomingCall) {
-        val name = call.callerName.ifBlank { readString(Res.string.notification_call_unknown) }
+        val name = call.callerName.ifBlank { getString(Res.string.notification_call_unknown) }
         val person = Person.Builder()
             .setName(name)
             .setIcon(avatarBitmap(call.avatarPath)?.let { IconCompat.createWithBitmap(it) })
@@ -588,7 +588,7 @@ actual class NotificationPresenter(
         val built = NotificationCompat.Builder(context, INCOMING_CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer).setIsVideo(call.isVideo))
-            .setContentText(readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
+            .setContentText(getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
             .setSubText(accountName())
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -619,7 +619,7 @@ actual class NotificationPresenter(
      * a notifikace upozorní znovu: selhání je jediné, co uživatel zaregistrovat musí.
      */
     suspend fun showReplyFailed(groupId: Int, text: String) = withContext(dispatcher) {
-        appendOwnLine(groupId, readString(Res.string.notification_reply_failed, text), silent = false, replacing = text)
+        appendOwnLine(groupId, getString(Res.string.notification_reply_failed, text), silent = false, replacing = text)
     }
 
     private suspend fun appendOwnLine(groupId: Int, text: String, silent: Boolean, replacing: String? = null) {
@@ -665,7 +665,7 @@ actual class NotificationPresenter(
             replyToMessageId = replyToMessageId,
             topicId = topicId,
         )
-        val label = readString(Res.string.notification_reply)
+        val label = getString(Res.string.notification_reply)
         val input = RemoteInput.Builder(NotificationIntents.KEY_REPLY_TEXT)
             .setLabel(label)
             .build()
@@ -691,7 +691,7 @@ actual class NotificationPresenter(
     private suspend fun markReadAction(groupId: Int, chatId: Long, messageId: Long?): NotificationCompat.Action =
         NotificationCompat.Action.Builder(
             IconCompat.createWithResource(context, R.drawable.ic_notification_mark_read),
-            readString(Res.string.notification_mark_read),
+            getString(Res.string.notification_mark_read),
             NotificationIntents.markRead(context, slot = slot, groupId = groupId, chatId = chatId, messageId = messageId),
         )
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
@@ -704,7 +704,7 @@ actual class NotificationPresenter(
     private suspend fun muteAction(groupId: Int, chatId: Long): NotificationCompat.Action =
         NotificationCompat.Action.Builder(
             IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
-            readString(Res.string.notification_mute_hour),
+            getString(Res.string.notification_mute_hour),
             NotificationIntents.mute(context, slot = slot, groupId = groupId, chatId = chatId),
         )
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE)

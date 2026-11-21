@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import org.jetbrains.compose.resources.getString
 import androidx.compose.runtime.Composable
 import eu.tintera.plume.core.files.FileSize
 import eu.tintera.plume.core.files.FileSizeUnit
@@ -33,8 +34,8 @@ fun fileSizeText(bytes: Long): String = fileSizeText(formatFileSize(bytes))
 /** Totéž mimo kompozici (notifikace), v jazyce platném TEĎ. Skládá se stejně jako [fileSizeText]. */
 suspend fun fileSizeString(bytes: Long): String {
     val size = formatFileSize(bytes)
-    val number = size.tenths?.let { readString(Res.string.decimal_number, size.whole, it.toString()) } ?: size.whole
-    return readString(size.unit.label(), number)
+    val number = size.tenths?.let { getString(Res.string.decimal_number, size.whole, it.toString()) } ?: size.whole
+    return getString(size.unit.label(), number)
 }
 
 private fun FileSizeUnit.label() = when (this) {

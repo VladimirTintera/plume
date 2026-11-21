@@ -12,7 +12,7 @@ import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.MODEL_DOWNLOAD_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createModelDownloadChannel
 import eu.tintera.plume.core.ui.fileSizeString
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.model_download_notification_done
 import eu.tintera.plume.resources.model_download_notification_done_text
@@ -55,13 +55,13 @@ class PlumeModelDownloadNotifications : ModelDownloadNotifications {
     }
 
     override suspend fun progressTitle(model: DownloadedModel): String =
-        readString(Res.string.model_download_notification_title, model.displayName)
+        getString(Res.string.model_download_notification_title, model.displayName)
 
     override suspend fun progressText(progress: ModelDownload): String? {
         val total = progress.totalBytes
         return when {
-            progress.waitingForNetwork -> readString(Res.string.model_download_notification_waiting)
-            total != null -> readString(
+            progress.waitingForNetwork -> getString(Res.string.model_download_notification_waiting)
+            total != null -> getString(
                 Res.string.settings_on_device_ai_download_progress,
                 fileSizeString(progress.downloadedBytes),
                 fileSizeString(total),
@@ -70,14 +70,14 @@ class PlumeModelDownloadNotifications : ModelDownloadNotifications {
         }
     }
 
-    override suspend fun stopAction(): String = readString(Res.string.model_download_notification_stop)
+    override suspend fun stopAction(): String = getString(Res.string.model_download_notification_stop)
 
     override suspend fun result(model: DownloadedModel, error: Exception?): Pair<String, String> = when (error) {
-        null -> readString(Res.string.model_download_notification_done, model.displayName) to
-            readString(Res.string.model_download_notification_done_text)
-        is NotEnoughSpaceException -> readString(Res.string.model_download_notification_failed, model.displayName) to
-            readString(Res.string.settings_on_device_ai_not_enough_space)
-        else -> readString(Res.string.model_download_notification_failed, model.displayName) to
-            readString(Res.string.model_download_notification_failed_text)
+        null -> getString(Res.string.model_download_notification_done, model.displayName) to
+            getString(Res.string.model_download_notification_done_text)
+        is NotEnoughSpaceException -> getString(Res.string.model_download_notification_failed, model.displayName) to
+            getString(Res.string.settings_on_device_ai_not_enough_space)
+        else -> getString(Res.string.model_download_notification_failed, model.displayName) to
+            getString(Res.string.model_download_notification_failed_text)
     }
 }

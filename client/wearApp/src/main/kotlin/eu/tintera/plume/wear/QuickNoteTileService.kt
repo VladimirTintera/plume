@@ -26,7 +26,7 @@ import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import com.google.common.util.concurrent.ListenableFuture
-import eu.tintera.plume.core.ui.readString
+import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.wear_complication_note
 import eu.tintera.plume.resources.wear_note_label
@@ -43,9 +43,9 @@ class QuickNoteTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<Tile> =
         SuspendToFutureAdapter.launchFuture(Dispatchers.Default) {
-            val title = readString(Res.string.wear_tile_note_title)
-            val text = readString(Res.string.wear_tile_note_text)
-            val action = readString(Res.string.wear_tile_note_action)
+            val title = getString(Res.string.wear_tile_note_title)
+            val text = getString(Res.string.wear_tile_note_text)
+            val action = getString(Res.string.wear_tile_note_action)
             Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(Timeline.fromLayoutElement(layout(requestParams.deviceConfiguration, title, text, action)))
@@ -87,7 +87,7 @@ class QuickNoteTileService : TileService() {
 class QuickNoteComplicationService : SuspendingComplicationDataSourceService() {
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? =
-        data(request.complicationType, readString(Res.string.wear_complication_note), readString(Res.string.wear_note_label))
+        data(request.complicationType, getString(Res.string.wear_complication_note), getString(Res.string.wear_note_label))
 
     /** Náhled ve výběru komplikací; texty z prostředků se tu číst nedají (není suspend). */
     override fun getPreviewData(type: ComplicationType): ComplicationData? = data(type, null, null)
