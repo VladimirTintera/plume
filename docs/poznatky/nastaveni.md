@@ -564,7 +564,7 @@ převádí platforma (`ProfileVideo`).
 `BasicTextField(value, onValueChange)` a `VisualTransformation` jsou od Compose 1.13 zastaralé;
 nová pole stojí na `TextFieldState`. Převádí se po částech (roadmapa, „Textová pole na
 `TextFieldState`"). Hotové: hesla (viz „Dvoufázové ověření"), `SearchPill`, `CodeField`,
-`StoryTextField`, popisek ve sdílení.
+`StoryTextField`, popisek ve sdílení, telefonní číslo (`PhoneField`).
 
 - **Kde hodnotu drží ViewModel jako `String`, svazuje ji se stavem `rememberSyncedTextFieldState`**
   (`core/ui/SyncedTextFieldState.kt`) a API komponenty se nemění. Kde ViewModel drží text sám
@@ -576,6 +576,12 @@ nová pole stojí na `TextFieldState`. Převádí se po částech (roadmapa, „
   co sám poslal, a zvenku bere jen hodnotu, kterou neposlal (vyčištění křížkem, doplnění).
 - **Filtr vstupu je `InputTransformation`, ne úprava v `onValueChange`** (`CodeField`: jen
   číslice a nejvýš N znaků, i u vloženého „Kód: 12345").
+- **Formátování čísla je `OutputTransformation`, která oddělovače VKLÁDÁ** (`PhoneNumberTransformation`,
+  `phoneSeparators` v `core/ui/PhoneField.kt`); polohu kurzoru si Compose odvodí z vložených
+  úseků sám, vlastní `OffsetMapping` odpadl. Hodnotou pole zůstávají syrové číslice. Formát
+  se vloží jen tehdy, když jeho číslice jsou PŘESNĚ ty v poli (ne jen stejně dlouhé jako dřív) —
+  po změně země nebo čísla přijde přeformátování z TDLib o snímek později. Ověřeno na emulátoru
+  (Nový kontakt): „777 123 456", vložení číslice uprostřed šipkou a smazání vrátí totéž.
 - **Dekorace přes `TextFieldDefaults.decorator(state, …)`**, ne `DecorationBox(value, …,
   visualTransformation)`; výchozí odsazení bez popisku je stejné.
 - **Emulátor: „Try out your stylus"** — Gboard při zaostření pole jednou nabídne průvodce

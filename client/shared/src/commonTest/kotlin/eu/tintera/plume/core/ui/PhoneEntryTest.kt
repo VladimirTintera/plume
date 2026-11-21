@@ -1,9 +1,9 @@
 package eu.tintera.plume.core.ui
 
-import androidx.compose.ui.text.AnnotatedString
 import eu.tintera.plume.core.telegram.Country
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * Formátování čísla a mapování pozic kurzoru. Testuje se proto, že maska od TDLib je jediný
@@ -45,37 +45,29 @@ class PhoneEntryTest {
     }
 
     @Test
-    fun `kurzor za n-tou cislici stoji za odpovidajici pozici v masce`() {
-        val mapping = PhoneOffsetMapping(formatted = "777 123 456", digitCount = 9)
-
-        assertEquals(0, mapping.originalToTransformed(0))
-        assertEquals(3, mapping.originalToTransformed(3))
-        // Čtvrtá číslice leží až za mezerou.
-        assertEquals(5, mapping.originalToTransformed(4))
-        assertEquals(11, mapping.originalToTransformed(9))
+    fun `oddelovace se vkladaji tam kde je ma format`() {
+        // Pozice jsou ve VÝSLEDNÉM textu: mezera na 3 a 7, vkládá se zleva.
+        assertEquals(listOf(3 to ' ', 7 to ' '), phoneSeparators("777 123 456", "777123456"))
+        assertEquals(listOf(0 to '(', 4 to ')', 5 to ' ', 9 to '-'), phoneSeparators("(212) 555-0100", "2125550100"))
     }
 
     @Test
-    fun `pozice v masce se prevadi zpatky na pocet cislic`() {
-        val mapping = PhoneOffsetMapping(formatted = "777 123 456", digitCount = 9)
-
-        assertEquals(0, mapping.transformedToOriginal(0))
-        assertEquals(3, mapping.transformedToOriginal(3))
-        // Mezera se za číslici nepočítá.
-        assertEquals(3, mapping.transformedToOriginal(4))
-        assertEquals(9, mapping.transformedToOriginal(11))
+    fun `vlozeni oddelovacu da presne format`() {
+        val digits = StringBuilder("2125550100")
+        phoneSeparators("(212) 555-0100", digits.toString())!!.forEach { (at, c) -> digits.insert(at, c) }
+        assertEquals("(212) 555-0100", digits.toString())
     }
 
     /**
-     * Maska, která nesedí s počtem číslic, se ignoruje. Nastane to na jeden snímek, než dorazí
+     * Maska, která nesedí s číslicemi v poli, se ignoruje. Nastane to na jeden snímek, než dorazí
      * přeformátování po změně země — a pole, které ukazuje jiné číslo, než v něm je, by bylo horší.
      */
     @Test
-    fun `nesedici maska transformaci vypne`() {
-        val transformed = PhoneNumberTransformation("777 123 456").filter(AnnotatedString("12"))
-
-        assertEquals("12", transformed.text.text)
-        assertEquals(2, transformed.offsetMapping.originalToTransformed(2))
+    fun `nesedici maska nevlozi nic`() {
+        assertNull(phoneSeparators("777 123 456", "12"))
+        // Stejný počet číslic, ale jiné číslo (formát pro předchozí hodnotu).
+        assertNull(phoneSeparators("777 123 456", "777123457"))
+        assertNull(phoneSeparators("777123456", "777123456"))
     }
 
     @Test

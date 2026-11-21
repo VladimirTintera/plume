@@ -1,5 +1,9 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.text.input.insert
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldBuffer
+import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -10,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,12 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_country_choose
@@ -59,6 +58,10 @@ fun PhoneField(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    // Stav pole (`TextField(value)` s `VisualTransformation` je od Compose 1.13 zastaralý); číslice
+    // drží ViewModel jako text, stav se s nimi synchronizuje.
+    val state = rememberSyncedTextFieldState(phone.digits, onPhoneChange)
+    val output = remember(phone.formatted) { PhoneNumberTransformation(phone.formatted) }
 
     Surface(
         shape = MaterialTheme.shapes.large,
@@ -116,19 +119,18 @@ fun PhoneField(
                     modifier = Modifier.padding(start = 16.dp),
                 )
                 TextField(
-                    value = phone.digits,
-                    onValueChange = onPhoneChange,
+                    state = state,
                     // Nápověda, ne plovoucí label: ten po vyplnění odskočí nahoru a text
                     // s ním klesne, takže by číslo přestalo lícovat s předvolbou vedle —
                     // a ta label nemá a mít nemůže.
                     placeholder = { Text(stringResource(Res.string.auth_input_phone)) },
-                    singleLine = true,
+                    lineLimits = TextFieldLineLimits.SingleLine,
                     isError = isError,
                     // Hodnotou jsou syrové číslice a oddělovače dodává až zobrazení — jinak by
                     // kurzor skákal pokaždé, když formátování vloží mezeru.
-                    visualTransformation = PhoneNumberTransformation(phone.formatted),
+                    outputTransformation = output,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Go),
-                    keyboardActions = KeyboardActions(onGo = { onSubmit() }),
+                    onKeyboardAction = { onSubmit() },
                     textStyle = MaterialTheme.typography.headlineSmall.tabularNumbers(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -149,39 +151,30 @@ fun PhoneField(
 /**
  * Zobrazí číslice tak, jak je naformátoval TDLib, ale hodnotou pole zůstanou syrové číslice.
  *
- * Mapování pozic se počítá z [formatted]: `originalToTransformed(n)` je místo ZA n-tou číslicí,
- * `transformedToOriginal(n)` je počet číslic před pozicí n. Kdyby formátování nesedělo
- * s počtem číslic (jiná země dorazí o snímek později), transformace se vypne — pole, které
- * ukazuje něco jiného, než co v něm je, je horší než pole bez mezer.
+ * Oddělovače se do zobrazení VKLÁDAJÍ ([phoneSeparators]) a polohu kurzoru si Compose odvodí
+ * z vložených úseků sám — vlastní mapování pozic (`OffsetMapping` u zastaralé
+ * `VisualTransformation`) odpadlo. Kdyby formátování nesedělo s číslicemi v poli (jiná země
+ * dorazí o snímek později), nevloží se nic — pole, které ukazuje něco jiného, než co v něm je,
+ * je horší než pole bez mezer.
  */
-internal class PhoneNumberTransformation(private val formatted: String) : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        val digits = text.text
-        if (formatted.count { it.isDigit() } != digits.length || formatted == digits) {
-            return TransformedText(text, OffsetMapping.Identity)
-        }
-        return TransformedText(AnnotatedString(formatted), PhoneOffsetMapping(formatted, digits.length))
+internal class PhoneNumberTransformation(private val formatted: String) : OutputTransformation {
+    override fun TextFieldBuffer.transformOutput() {
+        val separators = phoneSeparators(formatted, asCharSequence().toString()) ?: return
+        separators.forEach { (position, separator) -> insert(position, separator.toString()) }
     }
+
+    override fun equals(other: Any?) = other is PhoneNumberTransformation && other.formatted == formatted
+
+    override fun hashCode() = formatted.hashCode()
 }
 
-internal class PhoneOffsetMapping(
-    private val formatted: String,
-    private val digitCount: Int,
-) : OffsetMapping {
-
-    override fun originalToTransformed(offset: Int): Int {
-        if (offset <= 0) return 0
-        if (offset >= digitCount) return formatted.length
-        var seen = 0
-        formatted.forEachIndexed { index, char ->
-            if (char.isDigit()) {
-                seen++
-                if (seen == offset) return index + 1
-            }
-        }
-        return formatted.length
-    }
-
-    override fun transformedToOriginal(offset: Int): Int =
-        formatted.take(offset.coerceIn(0, formatted.length)).count { it.isDigit() }
+/**
+ * Kam do [digits] vložit oddělovače z [formatted], aby vzniklo právě [formatted]: dvojice
+ * (pozice ve VÝSLEDNÉM textu, znak), seřazené zleva — vkládá se v tomhle pořadí. `null`, když
+ * číslice ve formátu nejsou přesně [digits] (formát pro jiné číslo nebo jinou zemi) nebo když
+ * není co vkládat.
+ */
+internal fun phoneSeparators(formatted: String, digits: String): List<Pair<Int, Char>>? {
+    if (formatted == digits || formatted.filter { it.isDigit() } != digits) return null
+    return formatted.withIndex().filter { !it.value.isDigit() }.map { it.index to it.value }
 }
