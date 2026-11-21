@@ -613,6 +613,23 @@ on an unattached node" a za ním „Unknown error" (NPE bez zprávy). Je to tent
   1400 → 400 a zpět (potřebuje oprávnění Zpřístupnění pro terminál). Bez opravy okna „Error"
   hned v prvním průchodu, stack trace jde na stderr ladicího běhu.
 
+## Plynulá změna velikosti okna a fonty JRE
+
+- **Tah za okraj okna překresluje synchronně** (Compose 1.13, Skiko):
+  `skiko.rendering.macos.metalSynchronousLiveResize` a
+  `skiko.rendering.windows.direct3DSynchronousLiveResize` nastavuje `main` na `true`, pokud je
+  nikdo nezadal z příkazové řádky. Bez nich Metal a Direct3D obsah při tahu dokreslují opožděně
+  a okno „plave" — u Plume, které při zúžení přepíná jeden a dva panely, je to vidět. Skiko je
+  má časem udělat výchozími; pak řádek v `main` může pryč. Musí být nastavené před vznikem okna.
+- **Změna velikosti přes `osascript` není tah za okraj**: `set size of window` nastaví velikost
+  naráz, takže potvrdí jen, že přepínání panelů nepadá (ověřeno 1400 → 420 → 1400 px), ne plynulost.
+  Tu je potřeba vyzkoušet rukou.
+- **Fonty JRE se z balíčku vyhazují** (`stripJreFonts`, od Compose 1.13 výchozí): runtime v `.app`
+  nemá `lib/fonts`. Aplikace všechno kreslí vlastními fonty (Figtree, Bricolage) a systémové
+  dialogy jsou nativní; zabalená ladicí aplikace naběhla do `Ready` bez chyby. Kdyby něco v AWT
+  font potřebovalo (okénko hovoru, oznámení na Windows/Linuxu), `stripJreFonts = false`
+  v `nativeDistributions`.
+
 ## Okno mimo hlavní (okénko hovoru)
 
 Druhé okno (`IncomingCallWindow`) se skládá přímo v `application {}` vedle hlavního `Window`.

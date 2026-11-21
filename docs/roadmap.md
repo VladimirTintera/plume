@@ -1560,16 +1560,19 @@ a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
   v článcích (Instant View) kreslí `RichMessageBody.kt` znakem „•" v textu, takže se víceřádková
   položka zalomí pod odrážku, ne pod text. `Bullet` dá odsazení s visící odrážkou; v jaru
   `ui-text` 1.13 ověřené, chování na všech platformách ne.
-- **Desktop: rychlejší start (AppCDS)** — podpora v Compose Gradle pluginu (compose-multiplatform#5644).
-  Runtime balíčku je JDK 21 (`runtimeLauncher` v `desktopApp/build.gradle.kts`), na kterém AppCDS
-  jde; AOT (JEP 514) by chtělo JDK 25. Změřit start DMG/MSI před a po.
-- **Desktop: plynulá změna velikosti okna** — systémové vlastnosti
-  `skiko.rendering.macos.metalSynchronousLiveResize=true` a
-  `skiko.rendering.windows.direct3DSynchronousLiveResize=true` (časem budou výchozí). Plume při
-  zúžení přepíná jeden a dva panely, takže je to vidět. Ověřit spolu s „Insety při změně scény".
-- **Desktop: fonty JRE se z balíčku vyhazují** (`stripJreFonts`, nově výchozí): DMG a MSI jsou
-  menší, ale ověřit, že zabalená aplikace nic z nich nepotřebuje (dialogy AWT, okénko hovoru,
-  oznámení). Kdyby ano, `stripJreFonts = false` v `nativeDistributions`.
+- **Desktop: rychlejší start (AppCDS / AOT)** — Compose Gradle plugin 1.13 to má jako
+  `buildTypes.release.aot { mode = AotMode.AppCdsPrebuild }` (také `AppCdsAuto`, `AotPrebuild`;
+  třídy v `org.jetbrains.compose.desktop.application.dsl`). Zjištěno při pokusu o integraci:
+  - **jde jen na build type `release`** (`packageReleaseDmg` / `packageReleaseMsi`), výchozí build
+    type ho veřejně nenastaví. Release dnes staví `packageMsi` / `packageDmg` kvůli tomu, že
+    ProGuard pro TDLib wrapper, Koin a serializaci nemá pravidla → přejít na `packageRelease*`
+    s `proguard { isEnabled = false }`.
+  - **`AppCdsPrebuild` / `AotPrebuild` dělají při buildu trénovací běh** aplikace
+    (`-Dcompose.aot.training-run=true`, `-XX:ArchiveClassesAtExit`), který musí sám skončit —
+    `main` by po prvním snímku (bez přihlášení, bez TDLib?) zavolal `exitApplication()`.
+  - **`AppCdsAuto`** (`-XX:+AutoCreateSharedArchive`, JDK 19+) zapisuje archiv do `$APPDIR` za
+    běhu: v podepsaném `.app` na macOS i v instalaci MSI to je zápis do balíčku aplikace — spíš ne.
+  - AOT (JEP 514) chce JDK 25, runtime balíčku je 21 (`runtimeLauncher`). Změřit start před a po.
 - **iOS zadarmo, jen ověřit na simulátoru:**
   - **Dynamic Type** — písmo se řídí systémovou velikostí; vyzkoušet spolu s vlastní velikostí
     písma zpráv a s řádky pevné výšky.
