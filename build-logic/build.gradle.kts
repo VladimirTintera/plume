@@ -46,6 +46,10 @@ gradlePlugin {
             id = "plume.licenses"
             implementationClass = "eu.tintera.plume.gradle.LicensesPlugin"
         }
+        register("composeTextFieldDesktop") {
+            id = "plume.compose-text-field-desktop"
+            implementationClass = "eu.tintera.plume.gradle.ComposeTextFieldDesktopPlugin"
+        }
         register("liteRtDesktop") {
             id = "plume.litertlm-desktop"
             implementationClass = "eu.tintera.plume.gradle.LiteRtDesktopPlugin"

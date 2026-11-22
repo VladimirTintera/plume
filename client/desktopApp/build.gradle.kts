@@ -13,6 +13,8 @@ plugins {
     id("plume.litertlm-desktop")
     // Licence knihoven pro „O aplikaci" (build-logic, Licenses.kt).
     id("plume.licenses")
+    // Textové pole v jaru foundation: zúžení okna s otevřenou konverzací jinak shodí scénu (build-logic).
+    id("plume.compose-text-field-desktop")
 }
 
 plumeLicenses {
