@@ -4,6 +4,9 @@ import eu.tintera.plume.core.accounts.AccountSlot
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
+import eu.tintera.plume.core.navigation.ArchiveChatCalendarRoute
+import eu.tintera.plume.core.navigation.ArchiveConversationRoute
+import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
@@ -25,6 +28,9 @@ class CalendarPaneTest {
             ChatsRoute -> PaneInfo(PaneRole.List, Unit)
             is ConversationRoute, is ForumTopicsRoute -> PaneInfo(PaneRole.Detail, Unit)
             is ChatProfileRoute, is ChatCalendarRoute -> PaneInfo(PaneRole.Extra, Unit)
+            ArchiveRoute -> PaneInfo(PaneRole.List, ARCHIVE)
+            is ArchiveConversationRoute -> PaneInfo(PaneRole.Detail, ARCHIVE)
+            is ArchiveChatCalendarRoute -> PaneInfo(PaneRole.Extra, ARCHIVE)
             else -> null
         }
     }
@@ -56,4 +62,33 @@ class CalendarPaneTest {
         stack.toggleCalendar(ConversationRoute(slot, 1), ChatCalendarRoute(slot, 1, anchor = 12))
         assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(slot, 1)), stack)
     }
+
+    @Test
+    fun vArchivuPrevezmeKalendarJinyArchivniChat() {
+        val stack = mutableListOf<NavKey>(
+            ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, 1), ArchiveChatCalendarRoute(slot, 1, anchor = 4),
+            ArchiveConversationRoute(slot, 2),
+        )
+        stack.followProfile(paneOf)
+        assertEquals(
+            listOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, 1), ArchiveConversationRoute(slot, 2), ArchiveChatCalendarRoute(slot, 2)),
+            stack,
+        )
+    }
+
+    @Test
+    fun archivniKalendarSeDruhymOtevrenimZavre() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, 1), ArchiveChatCalendarRoute(slot, 1, anchor = 4))
+        stack.toggleCalendar(ArchiveConversationRoute(slot, 1), ArchiveChatCalendarRoute(slot, 1, anchor = 8))
+        assertEquals(listOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, 1)), stack)
+    }
+
+    @Test
+    fun zavreniArchivuZavreIKalendar() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(slot, 1), ArchiveChatCalendarRoute(slot, 1))
+        stack.closeArchive()
+        assertEquals(listOf<NavKey>(ChatsRoute), stack)
+    }
 }
+
+private const val ARCHIVE = "archive"

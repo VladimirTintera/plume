@@ -469,12 +469,12 @@ Dřív vedl kalendář jen přes hledání a předěl, na který se člověk dí
 ### Kalendář zpráv z nabídky
 
 Položka **Přejít na datum** v ⋮ konverzace (`ConversationMenu`, jen kde `canJumpToDate`) otevře
-sheet „Kalendář zpráv" (`ChatCalendarSheet`): měsíce od nejnovějšího, u dne počet zpráv a kruh
+„Kalendář zpráv" (`ChatCalendarRoute`, `ChatCalendarPane`): měsíce od nejnovějšího, u dne počet zpráv a kruh
 tím sytější, čím víc zpráv proti nejrušnějšímu dni měsíce (`heatLevel`). Ťuknutí na den skočí
 jako z výběru data (`jumpToDate`), u druhu obsahu přímo na jeho první zprávu toho dne. Ikona
 v hlavičce otevře klasický `JumpToDateDialog` na vzdálené datum. Stav drží
-`ConversationCalendar` (vlastní `StateFlow` ve ViewModelu, ne `ConversationState`), sheet kreslí
-`ChatCalendarHost` v `ConversationContent` — `ConversationScreen` nepřibral nic (registry).
+`ConversationCalendar` ve vlastním `ChatCalendarViewModel` — kalendář je samostatná položka
+navigace, viz „Kalendář je třetí panel, ne sheet".
 Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationCalendarTest`.
 
 - **Počty VŠECH zpráv po dnech TDLib nevydá.** `getChatMessageCalendar` umí jen druh obsahu;
@@ -530,9 +530,9 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   TDLib si ze serveru bere celou stránku, i když vrátí méně.
 - **Ostrůvek, do kterého „Načíst starší" dorostlo, se zahodí** (`newestMessageId` < nejstarší id
   úseku), jinak by se jeho zprávy sečetly dvakrát.
-- **Sheet má pevnou, celou výšku** (`weight(1f)` pod čipy), ne podle obsahu. Měsíce přibývají
-  postupně a čip druhu s pár měsíci nebo čekání na stránku obsah zkrátí — sheet pak poskakoval
-  pod prstem. Pager (měsíc na stránku) by to vyřešil taky, ale vzal by přehled, kdy se psalo
+- **Seznam měsíců má pevnou výšku** (`weight(1f)` pod čipy), ne podle obsahu. Měsíce přibývají
+  postupně a čip druhu s pár měsíci nebo čekání na stránku obsah zkrátí — v sheetu, kde kalendář
+  dřív byl, pak poskakoval pod prstem. Pager (měsíc na stránku) by to vyřešil taky, ale vzal by přehled, kdy se psalo
   víc a kdy míň, a přesun o rok by byl dvanáct tahů; paměť by neušetřil (drží se jen počty
   po dnech, mřížky skládá `LazyColumn` jen viditelné).
 - **Podržení dne nabídne Přejít / Shrnout den / Vymazat historii za den…** (`dayMenu`,
@@ -540,15 +540,14 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   se zprávami i u NEZNÁMÉHO (šedého): shrnutí si den stáhne ze serveru a mazání jde podle data,
   takže obojí funguje i bez zpráv v zařízení. Napřed byla nabídka jen u dnů se zprávami
   („u neznámého není co shrnout") — omyl, šedý den neznamená prázdný. Nabídku nemá jen den,
-  o kterém se VÍ, že je prázdný. Kalendář se před shrnutím i mazáním zavře, dva modální sheety
-  přes sebe by se překrývaly.
+  o kterém se VÍ, že je prázdný. Kalendář zůstane otevřený, sheet shrnutí i mazání vyjede nad něj.
   - **Shrnutý šedý den se v kalendáři dopočítá** (`messagesOfDay` → `refresh`): TDLib o
     stažených zprávách nedá vědět, takže by den zůstal šedý. Kotvou ostrůvku je první zpráva
     DALŠÍHO dne — krajní den ostrůvku má „+", a mít ho má sousední den, ne ten přečtený celý.
   - **U čipu Média a Hledat vede šedý den (za načtenými stránkami) na datum**, ne na první
     nalezenou zprávu, kterou ještě nezná — ťuknutí i „Přejít" by jinak nedělaly nic.
-  - **Shrnutí dne** jde přes tentýž `ChatSummaryViewModel` a sheet jako „Shrnout" z ⋮ (klíč
-    `summary-<chat>`, tatáž instance); zprávy dne čte `ConversationCalendar.messagesOfDay` —
+  - **Shrnutí dne** jde přes `ChatSummaryViewModel` a sheet jako „Shrnout" z ⋮ (vlastní instance
+    kalendáře, klíč `calendar-summary-<chat>`); zprávy dne čte `ConversationCalendar.messagesOfDay` —
     od první zprávy dalšího dne (`firstMessageFrom`) historií ke starším, bez servisních, nejvýš
     500. Čte se přes server, takže i den, který kalendář zná jen zčásti, se shrne celý. Nadpis
     „Shrnutí dne 27. října" (`SummarySource.day`), ne „posledních N zpráv".
@@ -605,29 +604,36 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   v přehledu jde o srovnání měsíců. Stav dne bere z téže osy jako měsíce (`allAxis`,
   `serverAxis`), takže neznámé dny jsou i tady neznámé. Ťuknutí na měsíc přepne zpět na měsíce
   a posune na něj (`ScrollToTarget`; u druhu na nejbližší starší měsíc, který něco má).
-- **Na široké ploše je kalendář panel vedle konverzace, ne sheet** (`ChatCalendarRoute`,
-  `Panes.extra()`, `ChatCalendarPaneHost`). Chová se jako profil: na Large třetí panel vedle
-  seznamu a konverzace, na rozloženém Foldu konverzace a kalendář (seznam se schová), sdílí s
-  profilem šířku i místo — otevřený kalendář profil zavře a naopak (`toggleCalendar`, druhé
+- **Kalendář je třetí panel, ne sheet** (`ChatCalendarRoute`, v archivu `ArchiveChatCalendarRoute`
+  se scénou archivu; `Panes.extra()`, `ChatCalendarPaneHost`). Chová se jako profil: na telefonu
+  stránka přes celou obrazovku nad konverzací (šipka zpět, predictive back), na Large třetí panel
+  vedle seznamu a konverzace, na rozloženém Foldu konverzace a kalendář (seznam se schová), sdílí
+  s profilem šířku i místo — otevřený kalendář profil zavře a naopak (`toggleCalendar`, druhé
   ťuknutí na „Přejít na datum" panel zavře). Ťuknutí na den konverzaci vedle posune a panel
-  zůstane: kvůli tomu panel je. Jen celý chat hlavního seznamu, téma Uložených zpráv a vlákno
-  přímých zpráv; archiv, vlákno komentářů a téma skupiny mají dál sheet.
-  - **Podklad panelu je plocha karty (`surface`), jako u profilu**, ne barva sheetu. Napřed měl
+  zůstane: kvůli tomu panel je; stojí-li sám, skok ho zavře. Celý chat, téma Uložených zpráv
+  a vlákno přímých zpráv; vlákno komentářů a téma skupiny kalendář nemají (`canJumpToDate`).
+  - **Dřív byl na telefonu (a v archivu i na široké ploše) sheet.** Dvě cesty ke stejnému obsahu
+    se rozcházely: kanál z archivu na desktopu dostal sheet místo panelu, jen protože archiv
+    neměl vlastní trasu. Sheet přes celou výšku s čipy, ročním přehledem a hledáním byl stejně
+    stránka; jako trasa má predictive back a jeden kód pro telefon i plochu. Obětí je výchozí
+    měsíc: sheet se otevíral na dni, který byl v konverzaci zrovna vidět, trasa na měsíci
+    nejnovější načtené zprávy (`anchor`) — po skoku do historie je to totéž okno.
+  - **Podklad je plocha karty (`surface`), jako u profilu**, ne barva sheetu. Napřed měl
     panel `BottomSheetDefaults.ContainerColor` (`surfaceContainerLow`), aby sytost dnů seděla se
     sheetem — jenže konverzace s třetím panelem je JEDNA karta (`PaneCard`) a kalendář v ní byl
-    o tón tmavší než profil i konverzace vedle. Dny se proto míchají s podkladem, na kterém leží
-    (`LocalCalendarBase`: panel ho nastaví na svou plochu, sheet bez něj bere barvu sheetu),
-    takže sytost vychází stejně v obou. Ověřeno na desktopu (světlý motiv).
+    o tón tmavší než profil i konverzace vedle. Dny se míchají s touž plochou (`calendarBase`).
+    Ověřeno na desktopu (světlý motiv).
   - **Konverzaci řídí přes `ConversationJumpRequests`**, ne přímo — panel je jiná položka
     navigace s vlastním úložištěm ViewModelů a na ViewModel konverzace nedosáhne. Kanál umí
     zprávu i den (`JumpTarget`); vyzvednutý požadavek se vynuluje, takže totéž ťuknutí podruhé
     je nová hodnota, kterou `StateFlow` nespolkne.
-  - **Vlastní `ChatCalendarViewModel`** (tentýž `ConversationCalendar` jako sheet) si o chatu
+  - **Vlastní `ChatCalendarViewModel`** (nad `ConversationCalendar`) si o chatu
     řekne sám (`chatInfo`: název, práva mazat po dnech, skupina). Shrnutí dne a vymazání historie
     obslouží panel sám, i s hláškou o výsledku — sheety v konverzaci patří jiné položce.
-  - **Rozhoduje `LocalPanesSideBySide`, ne `wide` z poskytovatele vstupů.** Poskytovatel vstupů
-    se po složení a rozložení Foldu nepřestavěl a „Přejít na datum" na rozloženém Foldu otevíral
-    sheet (viděno na emulátoru). `sideBySide` se čte při každé kompozici vstupu.
+  - **Jestli panel stojí vedle konverzace, říká `LocalPanesSideBySide`**, ne `wide`
+    z poskytovatele vstupů — ten se po složení a rozložení Foldu nepřestavěl (viděno na
+    emulátoru, když se podle něj ještě volilo mezi sheetem a panelem). Podle něj se skok panel
+    zavře, hlavička má šipku zpět místo ✕ a insety bere panel z obou stran, ne jen zprava.
   - **Panel, který po složení zůstane sám, se po skoku zavře** — konverzace pod ním by jinak
     nebyla vidět. Jednou se skok po složení neprojevil (konverzace zůstala na „Včera"), dvakrát
     potom prošel (s logem: požadavek dorazil, skok i posun seznamu proběhly); příčinu prvního
@@ -645,6 +651,9 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
     a pod ním „Načíst starší", přestože víc zpráv není.
   - **„Dnes" je plovoucí tlačítko dole nad seznamem**, ne v hlavičce: v úzkém panelu se tam
     nevešel, nadpis se zalomil a hlavička poskočila, kdykoli se tlačítko ukázalo.
+    **Seznamy měsíců mají dole místo na celé tlačítko** (`TODAY_BUTTON_CLEARANCE`): tlačítko je
+    vidět právě v odrolovaném seznamu, tedy i na jeho konci, a se spodním odsazením 16 dp
+    zakrylo „Začátek chatu" (viděno na desktopu).
   - **Jiný chat otevřený vedle** přepne panel na kalendář nového (`followProfile` s
     `calendarRoute`), téma skupiny a vlákno ho zavřou, jako profil u obrazovek bez profilu.
 - **Měsíc nejvýš na šířku `ContentWidth.Form`**: na rozloženém Foldu natáhl sheet (640 dp) dny do
@@ -668,7 +677,11 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   → konverzace na první zprávě kanálu (25. 8.) a panel dopočítal 25.–31. 8.; po novém otevření
   „Začátek chatu" a srpen bez „+". Large (tři panely) neověřené — tablet
   emulátor v projektu není.
-  iOS a desktop jen přeložené.
+  iOS jen přeložené. **Celá obrazovka a archivní panel** (emulátor Pixel 7, desktop): na
+  telefonu stránka se šipkou zpět, v Uložených zprávách (od roku 2020) stojí na konci „Začátek
+  chatu" nad „Dnes", ťuknutí na 7. 11. stránku zavřelo a chat skočil. Desktop, archivovaný kanál:
+  panel s ✕ vedle konverzace, 19. 11. → „Čtvrtek · 00:03" a panel zůstal, jiný archivní kanál
+  přepnul panel na svůj kalendář, ✕ ho zavřel.
 
 ## Okno v historii
 

@@ -374,79 +374,9 @@ internal fun BoxScope.ConversationContent(
         )
     }
 
-    // Kalendář zpráv z ⋮. Stav si čte sám, aby dotahování počtů neskládalo celý obsah; otevře
-    // se na dni, který je zrovna vidět.
-    ChatCalendarHost(viewModel, state, visibleDay = { floatingDay?.dayStart })
-
     // Příchozí zprávu ohlásí čtečce obrazovky — bublina se do seznamu jen tiše vloží. Až
     // na konci plochy: uzel zakrytý seznamem nebo lištou by Compose čtečce vůbec nedal.
     NewMessageAnnouncer(messages = state.messages, live = state.reachedEnd, chatTitle = state.info?.title)
-}
-
-/**
- * Kalendář zpráv a co z něj vede jinam: skok, shrnutí dne (tentýž ViewModel a sheet jako
- * „Shrnout" z ⋮) a vymazání historie za den (tentýž sheet jako z ⋮, předvyplněný dnem). Kalendář
- * se před shrnutím i mazáním zavře — dva modální sheety přes sebe by se překrývaly.
- */
-@Composable
-private fun ChatCalendarHost(viewModel: ConversationViewModel, state: ConversationState, visibleDay: () -> Int?) {
-    val calendar = viewModel.calendar.state.collectAsStateWithLifecycle().value
-    var clearDay by rememberSaveable { mutableStateOf<Int?>(null) }
-    val summary: ChatSummaryViewModel = koinViewModel(key = "summary-${viewModel.chatId}")
-    val summaryAvailable by summary.available.collectAsStateWithLifecycle()
-    val summaryMe = stringResource(Res.string.summary_me)
-    val info = state.info
-    val summaryTitle = info?.let { chatTitle(it.id, it.title) } ?: stringResource(Res.string.conversation_fallback_title)
-    // Po dnech mazat jde jen tam, kde to TDLib umí; jinak položka v nabídce dne není.
-    val clearRights = state.clearHistoryRights()?.takeIf { it.byDate }
-    val zone = remember { TimeZone.currentSystemDefault() }
-
-    if (calendar != null) {
-        // Den se vezme při otevření; rolování konverzace pod sheetem už nic nemění.
-        val initialDay = remember { visibleDay() }
-        ChatCalendarSheet(
-            state = calendar,
-            calendar = viewModel.calendar,
-            initialDay = initialDay,
-            onJumpToDay = { seconds ->
-                viewModel.calendar.close()
-                viewModel.jumpToDate(seconds)
-            },
-            onJumpToMessage = { messageId ->
-                viewModel.calendar.close()
-                viewModel.jumpToMessage(messageId)
-            },
-            onSummarizeDay = if (summaryAvailable) {
-                { date ->
-                    viewModel.calendar.close()
-                    summary.summarize(summaryTitle, summaryMe) {
-                        SummarySource(viewModel.calendar.messagesOfDay(date), unread = false, day = date)
-                    }
-                }
-            } else {
-                null
-            },
-            canFilterBySender = info?.let { it.isGroup && !it.isChannel } == true,
-            onClearDay = clearRights?.let {
-                { date ->
-                    viewModel.calendar.close()
-                    clearDay = date.atStartOfDayIn(zone).epochSeconds.toInt()
-                }
-            },
-        )
-    }
-
-    val day = clearDay
-    if (day != null && clearRights != null && info != null) {
-        ClearHistorySheet(
-            rights = clearRights,
-            peerName = info.title.takeIf { !info.isGroup && !info.isChannel },
-            allText = if (state.inOwnTopic) Res.string.clear_history_all_topic_text else Res.string.clear_history_all_text,
-            onConfirm = viewModel::clearHistory,
-            onDismiss = { clearDay = null },
-            initialDay = day,
-        )
-    }
 }
 
 /** Plovoucí datum: popisek a začátek dne, na kterém po ťuknutí otevře kalendář. */

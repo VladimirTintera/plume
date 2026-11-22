@@ -15,7 +15,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.tintera.plume.core.navigation.ChatCalendarRoute
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.core.ui.chatTitle
 import eu.tintera.plume.core.ui.resolveNow
@@ -31,30 +30,36 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * Kalendář zpráv jako panel vedle konverzace ([ChatCalendarRoute]). Na rozdíl od sheetu se po
- * ťuknutí na den nezavírá: konverzace vedle se posune a panel zůstane. Jen když panel stojí sám
- * (okno se zúžilo, Fold se složil), skok ho zavře — konverzace pod ním by jinak nebyla vidět.
+ * Kalendář zpráv (`ChatCalendarRoute`, v archivu `ArchiveChatCalendarRoute`). Vedle konverzace se
+ * po ťuknutí na den nezavírá: konverzace vedle se posune a panel zůstane. Když stojí sám (telefon,
+ * zúžené okno, složený Fold), skok ho zavře — konverzace pod ním by jinak nebyla vidět.
  *
  * Shrnutí dne a vymazání historie obslouží panel sám: ViewModel shrnutí i sheety by v konverzaci
  * patřily jiné položce navigace.
  */
 @Composable
-internal fun ChatCalendarPaneHost(route: ChatCalendarRoute, onClose: () -> Unit) {
+internal fun ChatCalendarPaneHost(
+    chatId: Long,
+    savedTopicId: Long?,
+    directTopicId: Long?,
+    anchor: Long?,
+    onClose: () -> Unit,
+) {
     val viewModel: ChatCalendarViewModel = koinViewModel(
-        key = "calendar-${route.chatId}-${route.savedTopicId}-${route.directTopicId}",
-        parameters = { parametersOf(route.chatId, route.savedTopicId, route.directTopicId, route.anchor) },
+        key = "calendar-$chatId-$savedTopicId-$directTopicId",
+        parameters = { parametersOf(chatId, savedTopicId, directTopicId, anchor) },
     )
     val state = viewModel.calendar.state.collectAsStateWithLifecycle().value ?: return
     val info by viewModel.info.collectAsStateWithLifecycle()
     val initialDay by viewModel.initialDay.collectAsStateWithLifecycle()
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     val sideBySide = LocalPanesSideBySide.current
-    val summary: ChatSummaryViewModel = koinViewModel(key = "calendar-summary-${route.chatId}")
+    val summary: ChatSummaryViewModel = koinViewModel(key = "calendar-summary-$chatId")
     val summaryAvailable by summary.available.collectAsStateWithLifecycle()
     val summaryMe = stringResource(Res.string.summary_me)
     val summaryTitle = info?.let { chatTitle(it.id, it.title) } ?: stringResource(Res.string.conversation_fallback_title)
     val clearRights = info?.clearHistory?.takeIf { it.byDate }
-    val inOwnTopic = route.savedTopicId != null || route.directTopicId != null
+    val inOwnTopic = savedTopicId != null || directTopicId != null
     var clearDay by rememberSaveable { mutableStateOf<Int?>(null) }
     var lastSummary by remember { mutableStateOf<(() -> Unit)?>(null) }
     val zone = remember { TimeZone.currentSystemDefault() }
