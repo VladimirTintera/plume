@@ -491,7 +491,7 @@ přihlášení" (`LaunchAtLogin`, na mobilech a zatím na macOS a Linuxu `suppor
 ## Release
 
 Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag
-`desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na HQDEV50 postaví
+`desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na vývojářském Windows postaví
 MSI (`packageMsi -PdesktopVersion=…`), na vývojářském Macu DMG pro Apple Silicon
 (`packageDmg`, příloha `Plume-X.Y.Z-macos-arm64.dmg`) a založí GitHub Release s obojím
 v příloze. Runnery jsou vlastní, viz „Self-hosted runnery" v `release.md`. Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
@@ -522,8 +522,8 @@ v příloze. Runnery jsou vlastní, viz „Self-hosted runnery" v `release.md`. 
   tagem nemá ostatní tagy, skript nenajde žádné vydání a seznam je prázdný bez jediné hlášky.
   **Na CI proto `generateChangelog` při chybě shodí build** (proměnná `CI`), lokálně dál jen
   zapíše prázdný seznam; chyba gitu jde do hlášky i s jeho stderr. Desktop 1.0.0 vyšel bez
-  novinek, protože git na HQDEV50 odmítl checkout jiného vlastníka (`release.md`, „Nastavení
-  HQDEV50") — Python z Microsoft Store přitom pod službou běžel v pořádku.
+  novinek, protože git na Windows runneru odmítl checkout jiného vlastníka (`release.md`, „Nastavení
+  runneru na Windows") — Python z Microsoft Store přitom pod službou běžel v pořádku.
   Desktop má vlastní kanál vydání (tagy `desktop-…`), viz „Co je nového" v `nastaveni.md`.
 - **WiX bere jen znaky z cp1252.** „ě" ve jméně dodavatele shodilo `light.exe` kódem 311
   (LGHT0311) a jpackage z toho udělal holé „exit code 1"; Compose ukáže jen cestu k logu na
@@ -1250,7 +1250,7 @@ v `docs/poznatky/ai-v-zarizeni.md`.
   přestaly hrát hlasovky i video. `main` proto limit vypíná
   (`org.bytedeco.javacpp.maxPhysicalBytes=0`, musí být před první třídou JavaCPP); se stejnou
   vlastností prošlo dekódování i po načtení modelu.
-- **Ověřeno na Windows (HQDEV50, i7-13700K, 64 GB, Intel UHD 770) dočasným testem na JVM**
+- **Ověřeno na Windows (i7-13700K, 64 GB, Intel UHD 770) dočasným testem na JVM**
   nad skutečnými soubory a nativní knihovnou (bez přihlášení — ladicí data drží jiná instance):
   stažení s kontrolou velikosti (Qwen3 0,6B 11 s, Gemma E2B 1:16, Qwen3 4B 1:48), načtení na
   CPU po selhání GPU, druhá odpověď bez načítání. **Gemma E2B**: česká odpověď správně (12,5 s

@@ -129,16 +129,18 @@ Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dos
 - ~~**Odkazy na mlog a Profilog**~~ — hotovo: z komentářů v kódu, workflowů, `CLAUDE.md`
   i poznatků zmizely („převzato z mlogu", KMPMlog#992, runnery kmpmlog a telemetry).
   Ve staré historii zůstávají; tajemství to není, takže je přepis nechá být.
-- **Žádný self-hosted runner na `pull_request`.** `release-notes-check.yml` dnes běží na
-  Macu vývojáře (`plume`); ve veřejném repu by tam kdokoli z forku pustil vlastní kód. Na
-  `ubuntu-latest` PŘED zveřejněním (proměnná `RELEASE_NOTES_RUNS_ON`, nebo rovnou výchozí
-  hodnota ve workflow). Workflow nesmí používat `pull_request_target` (secrets pro cizí PR).
-- **Komentáře o vnitřní infrastruktuře** ve `desktop-release.yml` (HQDEV50) a
-  v `docs/poznatky/release.md` (HQDEV50, nastavení runnerů) zobecnit nebo vyhodit.
-- **`SECURITY.md`** (jak nahlásit zranitelnost — soukromé hlášení na GitHubu) a
-  **`CONTRIBUTING.md`** (větev + PR, poznámka k vydání, hook, jazyky); zvážit anglický README
-  pro cizí čtenáře.
+- ~~**Žádný self-hosted runner na `pull_request`**~~ — hotovo: `release-notes-check.yml` běží
+  natvrdo na `ubuntu-latest`, bez repo proměnné (`release.md`, „Self-hosted runnery").
+  Workflow nesmí používat `pull_request_target` (secrets pro cizí PR); dnes ho nepoužívá žádný.
+- ~~**Komentáře o vnitřní infrastruktuře**~~ — hotovo: jméno stroje HQDEV50 nahradil
+  „vývojářský Windows" a jméno runneru `<stroj>-plume`.
+- ~~**`SECURITY.md` a `CONTRIBUTING.md`**~~ — hotovo, anglicky (čtou je cizí přispěvatelé).
+  Odkaz na soukromé hlášení v `SECURITY.md` začne fungovat, až se ve fázi 2 zapne.
+- **README**: zastaralý (tvrdí, že chybí hledání, profil chatu i nová konverzace — všechno
+  hotové) a jen česky. Před zveřejněním přepsat podle stavu v `CLAUDE.md`, ideálně anglicky
+  s odkazem na českou dokumentaci.
 - **Název repa `plume`**, ne `telegram`: podle ToS nesmí název působit jako oficiální klient.
+  Nastaví se při zakládání nového repa (fáze 2).
 
 ### 1. Přepis historie (`git filter-repo` nad kopií)
 

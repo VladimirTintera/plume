@@ -28,7 +28,7 @@
 #   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
 #   TELEGRAM_API_HASH           – api_hash z my.telegram.org
 #
-# Runnery jsou vlastní (docs/poznatky/release.md, „Self-hosted runnery"): MSI staví HQDEV50
+# Runnery jsou vlastní (docs/poznatky/release.md, „Self-hosted runnery"): MSI staví vývojářský Windows
 # (label `plume-desktop`), všechno ostatní vývojářský Mac (`plume`). Jeden Mac runner joby
 # řadí za sebe — version → macos → release, MSI mezitím běží na Windows. Návrat na hostovaný
 # bez zásahu do workflow: repo proměnné DESKTOP_MAC_RUNS_ON = ["macos-latest"]
@@ -70,7 +70,7 @@ jobs:
 
   windows:
     needs: version
-    # Druhá instance runneru na HQDEV50 (vedle runnerů jiných projektů), viz hlavička.
+    # Druhá instance runneru na vývojářském Windows (vedle runnerů jiných projektů), viz hlavička.
     runs-on: ${{ fromJSON(vars.DESKTOP_WINDOWS_RUNS_ON || '["self-hosted", "Windows", "X64", "plume-desktop"]') }}
     timeout-minutes: 60
     defaults:
@@ -121,7 +121,7 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $pwshDir -Encoding utf8
 
       # Git odmítá repozitář, jehož složka patří jinému účtu („dubious ownership", exit 128).
-      # Na HQDEV50 to nastalo po přepnutí služby z NETWORK SERVICE na účet vývojáře: checkout
+      # Na vývojářském Windows to nastalo po přepnutí služby z NETWORK SERVICE na účet vývojáře: checkout
       # z prvního běhu zůstal patřit NETWORK SERVICE. `actions/checkout` si složku označí za
       # důvěryhodnou jen na dobu svého kroku, takže `git tag` z `generateChangelog` padal a desktop
       # 1.0.0 vyšel bez „Co je nového". Proměnné GIT_CONFIG_* platí jen pro procesy tohohle jobu —
@@ -187,7 +187,7 @@ jobs:
 
       # Projektové gradle.properties počítá s vývojářským strojem; uživatelský
       # ~/.gradle/gradle.properties má přednost (stejně jako v android-release.yml).
-      # Jen na hostovaném: na HQDEV50 je ~/.gradle sdílený s jinými projekty i lokální prací
+      # Jen na hostovaném: na vývojářském Windows je ~/.gradle sdílený s jinými projekty i lokální prací
       # a `>>` by se připisovalo každým během — tam jde paměť z příkazové řádky (Build MSI).
       - name: Limit Gradle memory for CI
         if: runner.environment == 'github-hosted'
@@ -216,7 +216,7 @@ jobs:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
-          # Na HQDEV50 (vývojářův stroj) desktop — jen JVM, žádný K/N — vystačí se 4g, ať
+          # Na vývojářském Windows desktop — jen JVM, žádný K/N — vystačí se 4g, ať
           # build neukrojí z práce na něm. Z příkazové řádky, viz krok Limit Gradle memory.
           MEM_ARGS=()
           if [[ "${{ runner.environment }}" == self-hosted ]]; then
