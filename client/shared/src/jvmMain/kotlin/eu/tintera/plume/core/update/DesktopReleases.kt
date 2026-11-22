@@ -49,11 +49,21 @@ internal data class ReleaseAsset(
     val name: String,
     val url: String,
     val size: Long,
-    /** SHA-256 v šestnáctkové soustavě, jestli ho GitHub k příloze uvádí (`digest`). */
-    val sha256: String?,
+    /**
+     * SHA-256 v šestnáctkové soustavě (`digest` u přílohy). Povinný: příloha bez něj se
+     * nenabízí, protože by se stažený soubor neměl proti čemu ověřit (viz [latestDesktopRelease]).
+     */
+    val sha256: String,
 )
 
-internal data class DesktopRelease(val version: DesktopVersion, val asset: ReleaseAsset)
+internal data class DesktopRelease(val version: DesktopVersion, val asset: ReleaseAsset) {
+
+    /**
+     * Jméno staženého balíčku v `updates/` — z verze a přípony, ne ze jména přílohy z API: to
+     * jde do cesty k souboru a pak do skriptu instalátoru, a nic z odpovědi serveru tam nepatří.
+     */
+    val fileName: String get() = "Plume-$version" + if (asset.name.endsWith(".msi", ignoreCase = true)) ".msi" else ".dmg"
+}
 
 /**
  * Balíček pro tenhle systém, podle jmen, která dává `desktop-release.yml`: MSI pro Windows
@@ -70,7 +80,8 @@ internal fun assetMatches(name: String, os: DesktopOs, arm64: Boolean): Boolean 
  * Nejnovější vydání desktopu s balíčkem pro tenhle systém z odpovědi `GET /repos/…/releases`,
  * nebo `null`. V repu jsou i vydání Androidu (`android-…`), proto se nebere `releases/latest`
  * — to by vrátilo, co vyšlo naposledy, klidně Android. Rozpracovaná (draft) a předběžná
- * (pre-release, `0.x`) vydání se nenabízejí.
+ * (pre-release, `0.x`) vydání se nenabízejí, stejně jako balíček bez platného `digest`
+ * (bez kontrolního součtu by se instaloval cokoli, co přijde).
  */
 internal fun latestDesktopRelease(json: String, os: DesktopOs, arm64: Boolean): DesktopRelease? {
     val releases = runCatching { Json.parseToJsonElement(json).jsonArray }.getOrNull() ?: return null
@@ -90,6 +101,7 @@ private fun JsonObject.toAsset(): ReleaseAsset? {
     val name = text("name") ?: return null
     val url = text("browser_download_url")?.takeIf { it.startsWith("https://") } ?: return null
     val sha256 = text("digest")?.takeIf { it.startsWith(SHA256_PREFIX) }?.removePrefix(SHA256_PREFIX)?.lowercase()
+        ?.takeIf(SHA256_HEX::matches) ?: return null
     return ReleaseAsset(name = name, url = url, size = (this["size"] as? JsonPrimitive)?.longOrNull ?: 0L, sha256 = sha256)
 }
 
@@ -98,3 +110,5 @@ private fun JsonObject.text(key: String): String? = (this[key] as? JsonPrimitive
 private fun JsonObject.flag(key: String): Boolean = (this[key] as? JsonPrimitive)?.booleanOrNull == true
 
 private const val SHA256_PREFIX = "sha256:"
+
+private val SHA256_HEX = Regex("[0-9a-f]{64}")

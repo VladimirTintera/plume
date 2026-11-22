@@ -124,6 +124,14 @@ actual class AppUpdates(private val accounts: () -> Accounts) {
         val latest = release ?: return
         val file = target(latest).takeIf { it.isFile } ?: return
         scope.launch {
+            // Znovu těsně před spuštěním: mezi stažením a Restartovat můžou uběhnout dny
+            // (balíček přežívá restart aplikace) a instalátor spustí, co v souboru zrovna leží.
+            if (!runCatching { verified(file, latest.asset) }.getOrDefault(false)) {
+                logger.w { "Stažená aktualizace ${latest.version} neodpovídá kontrolnímu součtu, mažu ji." }
+                file.delete()
+                _state.value = AppUpdateState.Available(latest.version.code)
+                return@launch
+            }
             val started = runCatching { DesktopInstaller.start(file, directory) }
                 .onFailure { logger.w(it) { "Instalátor aktualizace nejde spustit." } }
                 .getOrDefault(false)
@@ -138,7 +146,7 @@ actual class AppUpdates(private val accounts: () -> Accounts) {
         }
     }
 
-    private fun target(release: DesktopRelease) = File(directory, release.asset.name)
+    private fun target(release: DesktopRelease) = File(directory, release.fileName)
 
     private fun fetchLatest(): DesktopRelease? {
         val connection = open(RELEASES_URL)
@@ -187,8 +195,7 @@ actual class AppUpdates(private val accounts: () -> Accounts) {
                     }
                 }
             }
-            val expected = asset.sha256
-            if (expected != null && digest.digest().toHex() != expected) {
+            if (digest.digest().toHex() != asset.sha256) {
                 partial.delete()
                 throw IOException("Kontrolní součet stažené aktualizace nesedí.")
             }
@@ -200,7 +207,6 @@ actual class AppUpdates(private val accounts: () -> Accounts) {
     }
 
     private fun verified(file: File, asset: ReleaseAsset): Boolean {
-        val expected = asset.sha256 ?: return file.length() == asset.size
         val digest = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { input ->
             val buffer = ByteArray(BUFFER_SIZE)
@@ -210,7 +216,7 @@ actual class AppUpdates(private val accounts: () -> Accounts) {
                 digest.update(buffer, 0, read)
             }
         }
-        return digest.digest().toHex() == expected
+        return digest.digest().toHex() == asset.sha256
     }
 
     private fun open(url: String): HttpURLConnection =

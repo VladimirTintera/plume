@@ -328,6 +328,32 @@ otázku, kterou otevřený kód sám nezodpoví: jestli stažený balíček opra
   Sigstore (Rekor); v soukromém by šel do privátní instance GitHubu.
 - **Attestace nedokazuje, že build je reprodukovatelný** — jen kdo, kdy a z čeho ho postavil.
   Že workflow nedělá nic jiného, než tvrdí, se ověřuje čtením workflow u commitu z attestace.
+- **Desktop attestaci sám neověřuje** (`AppUpdates.jvm.kt` kontroluje jen SHA-256 z téže
+  odpovědi API, která dává i odkaz). Viz „Oprávnění workflow" níž, proč na tom záleží.
+
+## Oprávnění workflow
+
+**Desktop si přílohy GitHub Release sám stahuje a instaluje** (`docs/poznatky/desktop.md`,
+„Aktualizace z GitHub Release"), a balíčky nejsou podepsané, takže je aktualizace pustí bez
+SmartScreen i Gatekeeperu. Kdo umí přepsat přílohu vydání, spustí svůj kód u všech uživatelů
+desktopu, jakmile ťuknou na Restartovat. Proto:
+
+- **V `desktop-release.yml` má zápis jen job `release`** (`contents`, `id-token`,
+  `attestations`); workflow jako celek má `contents: read`. Joby `windows` a `macos` pouštějí
+  Gradle s pluginy a závislostmi třetích stran — dřív s tokenem, který uměl přepsat přílohy
+  i kód v repu. Job `release` nic nestaví, jen attestuje a nahrává hotové artefakty.
+- **Akce třetích stran jsou připnuté na SHA commitu** (s verzí v komentáři):
+  `gradle/actions/setup-gradle`, `android-actions/setup-android`. Tag jde u cizího repa
+  přesunout na jiný commit; akce `actions/*` od GitHubu zůstávají na tagu. Při bumpu se SHA
+  zjistí `gh api repos/<repo>/commits/<tag> --jq .sha`.
+- **`android-release.yml` je jeden job** (build, podpis, Play, release), takže zápis nese i build.
+  Rozdělit ho by tolik nepomohlo: build tak jako tak drží podpisový klíč a přístup do Play.
+- **Co zůstává na nastavení repa (ne v kódu):** ruleset na tagy `desktop-*` / `android-*`
+  (vytvořit smí jen správce) a environment s ručním schválením pro job `release`. Bez nich
+  release spustí kdokoli, kdo smí pushnout tag — dnes jen vlastník repa.
+- **Skutečnou ochranu proti ukradenému účtu GitHubu dá až podpis balíčku**, který desktop
+  ověří před instalací (Authenticode / Developer ID, nebo vlastní klíč mimo GitHub). SHA-256
+  i attestace vznikají uvnitř GitHubu, takže před tím, kdo ho ovládá, nechrání.
 
 ## R8
 

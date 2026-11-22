@@ -43,10 +43,12 @@
 # kdy release jel na vývojářských strojích (docs/poznatky/release.md, „Runnery").
 name: Desktop Release
 
+# Zápis má jen job `release`. Joby windows a macos pouštějí Gradle s pluginy a závislostmi
+# třetích stran; s `contents: write` by kterákoli z nich mohla přepsat přílohy vydání, a ty si
+# desktop sám stahuje a instaluje (AppUpdates.jvm.kt). Viz docs/poznatky/release.md, „Oprávnění
+# workflow".
 permissions:
-  contents: write       # zakládání GitHub Release
-  id-token: write       # attest-build-provenance: OIDC token pro podpis přes Sigstore
-  attestations: write   # attest-build-provenance: uložení attestace k repu
+  contents: read
 
 on:
   push:
@@ -162,7 +164,7 @@ jobs:
           java-version: 17
 
       # Na self-hosted bez cache: ~/.gradle přetrvává a upload by jen tlačil gigabajty do cache GitHubu.
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c  # v6.4.1
         with:
           cache-disabled: ${{ runner.environment != 'github-hosted' }}
 
@@ -192,7 +194,7 @@ jobs:
       # POZOR: musí odpovídat android-compileSdk(Minor), `ndk` a `cmake` v gradle/libs.versions.toml
       # (37.2 pro Plume, 37.0 pro ai-engine).
       - name: Install Android SDK platform
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd  # v4.0.4
         with:
           packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'
 
@@ -283,7 +285,7 @@ jobs:
           java-version: 17
 
       # Na self-hosted bez cache: ~/.gradle přetrvává a upload by jen tlačil gigabajty do cache GitHubu.
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c  # v6.4.1
         with:
           cache-disabled: ${{ runner.environment != 'github-hosted' }}
 
@@ -297,7 +299,7 @@ jobs:
       # Viz job windows: SDK kvůli Android targetu `:client:shared`, NDK a CMake kvůli llama.cpp.
       # Vždy, i na hostovaném — macos-latest NDK nemá (LicenceNotAcceptedException).
       - name: Install Android SDK platform
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd  # v4.0.4
         with:
           packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'
 
@@ -358,6 +360,11 @@ jobs:
     needs: [version, windows, macos]
     runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["macos-latest"]') }}
     timeout-minutes: 10
+    # Jediný job, který píše: nic tu nestaví, jen podepíše původ a nahraje hotové balíčky.
+    permissions:
+      contents: write       # zakládání GitHub Release
+      id-token: write       # attest-build-provenance: OIDC token pro podpis přes Sigstore
+      attestations: write   # attest-build-provenance: uložení attestace k repu
 
     steps:
       - uses: actions/checkout@v7

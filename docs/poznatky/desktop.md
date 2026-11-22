@@ -619,9 +619,19 @@ hledá v API GitHubu, `DesktopInstaller` instaluje.
 - **Stažení do `updates/` v datech aplikace, ověřené SHA-256 z `digest` u přílohy.** Stažený
   balíček přežije restart — další `check` ho najde a karta rovnou nabídne Restartovat. Po
   úspěšné aktualizaci ho smaže první `check` nové verze.
+  - **Příloha bez platného `digest` (64 šestnáctkových znaků) se nenabízí vůbec.** Dřív se
+    pak stažený soubor neověřoval a u hotového stačila sedící velikost.
+  - **Před spuštěním instalátoru se soubor ověří znovu** — mezi stažením a Restartovat můžou
+    uběhnout dny.
+  - **Jméno souboru je `Plume-<verze>.msi|dmg`**, ne jméno přílohy z API: to jde do cesty
+    a pak do skriptu instalátoru.
+  - **SHA-256 chrání jen proti poškození, ne proti podvržení**: přichází z téže odpovědi jako
+    odkaz. Viz „Oprávnění workflow" v `docs/poznatky/release.md`.
 - **Instaluje samostatný proces, který počká na konec aplikace** (běžící aplikace se sama
   přepsat nemůže): na Windows PowerShell (`Wait-Process`, `msiexec /i … /passive /norestart`,
-  znovu spustit launcher z `jpackage.app-path`), na macOS `/bin/sh` (`hdiutil attach`, `ditto`
+  znovu spustit launcher z `jpackage.app-path`; skript přes `-EncodedCommand` a cesty
+  v proměnných prostředí `PLUME_*`, protože PowerShell za apostrof bere i ‘ ’ a Java na
+  Windows neescapuje `"` uvnitř argumentu — viz KDoc `DesktopInstaller.WINDOWS_SCRIPT`), na macOS `/bin/sh` (`hdiutil attach`, `ditto`
   do `Plume.app.new`, výměna přes `.old`, `open`). Výstup jde do `updates/install.log`.
   Aplikace mezitím zavře klienty TDLib (viz „Rychlejší start") a skončí.
 - **Na macOS se nesmí ptát Gatekeeper**: soubor stažený aplikací (ne prohlížečem) nemá atribut
