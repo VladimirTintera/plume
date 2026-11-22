@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nic ze zálohy ani z přenosu na nové zařízení. `allowBackup="false"` od targetSdk 31 vypíná
+     jen zálohu do cloudu, přenos zařízení → zařízení (průvodce nastavením, kabel) by dál
+     zkopíroval `files/`: stažená média i z tajných chatů, nastavení, úložiště mini aplikací.
+     Klíč databáze v Keystore se nepřenáší, takže by se nový telefon stejně musel přihlásit
+     znovu — přenos by vzal jen data, která na novém zařízení nemají co dělat. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

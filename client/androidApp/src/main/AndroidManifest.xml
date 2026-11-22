@@ -88,6 +88,7 @@
     <application
         android:name=".MainApplication"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
@@ -295,6 +296,14 @@
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL" />
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL_WITH_MESSAGE" />
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_DISMISS" />
+            </intent-filter>
+            <!-- Měnitelné akce (odpověď, odmítnutí se zprávou) nesou pečeť v datech
+                 (NotificationIntents.sealed, `plume-action://…`). Filtr bez <data> intent s daty
+                 nepřijme a broadcast by se tiše ztratil — bez chyby v logu. -->
+            <intent-filter>
+                <action android:name="eu.tintera.plume.action.NOTIFICATION_REPLY" />
+                <action android:name="eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL_WITH_MESSAGE" />
+                <data android:scheme="plume-action" />
             </intent-filter>
         </receiver>
 

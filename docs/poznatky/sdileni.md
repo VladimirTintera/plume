@@ -140,6 +140,9 @@ obecné „soubor". Ve hře byla stažená média (i z tajných chatů), databá
   `ContentResolver` takovou adresu otevře u téhož poskytovatele a kontrolu by obešla.
 - **Odmítnuté soubory se počítají mezi nepovedené** (`failed` v `ShareRequests.prepared`);
   když jiné nejsou, sdílení vůbec nevznikne.
+- **Kopie má strop 4 GiB na soubor** (`copyBounded` v `AttachmentPicker.android.kt`, víc
+  Telegram nepřijme ani s Premium): poskytovatel jiné aplikace mohl vracet nekonečný proud a se
+  stovkami souborů u importu chatu zaplnit disk. Nedokončená kopie se smaže.
 - **Kontrola cesty deskriptoru (`/proc/self/fd`) potřeba není**: cizí poskytovatel běží pod
   svým uid a soubor z dat Plume otevřít neumí, a vlastní poskytovatele odmítá kontrola autority.
 - **Ověřeno na emulátoru** (Plume_A11, Android 11, debug):

@@ -42,6 +42,15 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val slot = NotificationIntents.accountOf(intent) ?: return
         val koin = GlobalContext.getOrNull()?.account(slot) ?: return
 
+        // Měnitelné PendingIntenty (text z `RemoteInput`): extras musí sedět s pečetí v datech,
+        // jinak je cizí doplňující intent přepsal (jiný chat, jiný účet).
+        val mutable = intent.action == NotificationIntents.ACTION_REPLY ||
+            intent.action == NotificationIntents.ACTION_DECLINE_CALL_WITH_MESSAGE
+        if (mutable && !NotificationIntents.isSealed(intent)) {
+            logger.w { "Akce ${intent.action} z notifikace nesedí s pečetí, zahazuji ji." }
+            return
+        }
+
         when (intent.action) {
             NotificationIntents.ACTION_REPLY -> {
                 val text = RemoteInput.getResultsFromIntent(intent)

@@ -792,6 +792,27 @@ stáhne. Všechny akce jdou přes jednoho příjemce a jednu třídu (`Notificat
   proto rozbalit PŘEDEM, čekat na „Zobrazuji" v logu a tlačítko hledat `uiautomator dump`
   až potom — poloha tlačítek se mění s počtem řádků notifikace. Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
 
+#### Pečeť měnitelných akcí
+
+Odpověď, odmítnutí hovoru se zprávou a bublina jsou `FLAG_MUTABLE` (`RemoteInput` a bublina to
+vyžadují) a kdo PendingIntent drží (posluchač notifikací, Android Auto, hodinky), ho smí
+odeslat s doplňujícím intentem. `Intent.fillIn` přepíše EXTRAS, data jen když chybí — bez
+ochrany šla odpověď přesměrovat do jiného chatu nebo účtu.
+
+- **Odpověď a odmítnutí se zprávou nesou pečeť v datech** (`NotificationIntents.sealed`,
+  `plume-action://<akce>?…` z týchž extras); `NotificationActionReceiver` extras s pečetí
+  porovná (`isSealed`) a nesedí-li, akci zahodí s varováním v logu.
+- **Bublina bere účet a chat z dat** (`plume-bubble://chat/[<slot>/]<id>`,
+  `NotificationIntents.bubbleTarget`), extras ignoruje.
+- **Intent s daty potřebuje filtr s `<data>`.** Příjemce se hledá akcí a balíčkem a filtr bez
+  `<data>` intent s datovou URI nepřijme — broadcast se tiše ztratil a v logu nebylo nic
+  (ani od systému). Proto má `NotificationActionReceiver` druhý filtr se schématem
+  `plume-action`. Ověří to `adb shell cmd package query-receivers --brief -a <akce> -d
+  "plume-action://…" eu.tintera.plume`.
+- **Ověřeno na emulátoru** (Plume_A11, Android 11): odpověď z notifikace odešla
+  („Odpověď z notifikace odešla" v logu). Podvrženou výplň extras z adb poslat nejde (držitel
+  PendingIntentu chybí), ta stojí na kódu. Bublina a odmítnutí se zprávou po změně neověřené.
+
 #### Notifikace hovoru po přímé odpovědi (Android 15+)
 
 Po „Odmítnout se zprávou" z notifikace hovoru zůstávala notifikace v liště s točícím se kolečkem

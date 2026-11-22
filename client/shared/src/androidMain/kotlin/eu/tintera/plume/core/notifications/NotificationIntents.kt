@@ -164,6 +164,7 @@ object NotificationIntents {
             // UPDATE_CURRENT přepíše extras při každém překreslení, takže cituje vždy tu
             // nejnovější zprávu, kterou má uživatel před očima.
             .apply { replyToMessageId?.let { putExtra(EXTRA_REPLY_TO_MESSAGE_ID, it) } }
+            .sealed()
 
         return PendingIntent.getBroadcast(
             context,
@@ -227,6 +228,7 @@ object NotificationIntents {
             .putExtra(EXTRA_GROUP_ID, groupId)
             .putExtra(EXTRA_CALL_ID, callId)
             .putExtra(EXTRA_IS_VIDEO, isVideo)
+            .sealed()
 
         return PendingIntent.getBroadcast(
             context,
@@ -234,6 +236,51 @@ object NotificationIntents {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
+    }
+
+    /**
+     * Údaje měnitelného PendingIntentu (odpověď, odmítnutí se zprávou) zapečetěné do dat intentu.
+     *
+     * `FLAG_MUTABLE` je u `RemoteInput` povinné, a kdo PendingIntent drží (posluchač notifikací,
+     * Android Auto, hodinky), ho smí odeslat s doplňujícím intentem. `Intent.fillIn` přepíše
+     * EXTRAS, data ale jen tehdy, když chybí. Bez pečetě tak šla odpověď přesměrovat do jiného
+     * chatu nebo účtu. Data se skládají z týchž extras a příjemce je porovná ([isSealed]);
+     * nesedí-li, akci zahodí.
+     */
+    private fun Intent.sealed(): Intent = setData(seal(this))
+
+    /** Sedí extras s pečetí v datech? Viz [sealed]. */
+    fun isSealed(intent: Intent): Boolean = intent.data != null && intent.data == seal(intent)
+
+    private fun seal(intent: Intent): Uri = Uri.Builder()
+        .scheme("plume-action")
+        .authority(intent.action.orEmpty().substringAfterLast('.').lowercase())
+        .apply {
+            SEALED_EXTRAS.forEach { key ->
+                @Suppress("DEPRECATION")
+                intent.extras?.get(key)?.let { appendQueryParameter(key.substringAfterLast('.'), it.toString()) }
+            }
+        }
+        .build()
+
+    private val SEALED_EXTRAS = listOf(
+        EXTRA_ACCOUNT, EXTRA_CHAT_ID, EXTRA_GROUP_ID, EXTRA_TOPIC_ID, EXTRA_REPLY_TO_MESSAGE_ID, EXTRA_CALL_ID, EXTRA_IS_VIDEO,
+    )
+
+    /**
+     * Účet a chat bubliny z DAT intentu (`plume-bubble://chat/[<slot>/]<id>`), ne z extras —
+     * bublina je měnitelný PendingIntent stejně jako odpověď ([sealed]) a extras by šly přepsat.
+     */
+    fun bubbleTarget(intent: Intent): Pair<AccountSlot, Long>? {
+        val data = intent.data?.takeIf { it.scheme == "plume-bubble" && it.host == "chat" } ?: return null
+        val segments = data.pathSegments
+        val chatId = segments.lastOrNull()?.toLongOrNull()?.takeIf { it != 0L } ?: return null
+        val slot = when (segments.size) {
+            1 -> AccountSlot.Primary
+            2 -> AccountSlot.parse(segments[0]) ?: return null
+            else -> return null
+        }
+        return slot to chatId
     }
 
     /** Hovor, který má aplikace po otevření přijmout (akce „Přijmout" v notifikaci). */
