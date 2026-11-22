@@ -801,12 +801,22 @@ v `konverzace-akce.md`); na desktopu tah myší časy ani odpověď nedělá, pa
   v `contentPadding`, `ConversationColumn`): čas „za okrajem" ležel v okraji vedle sloupce
   a byl vidět pořád, a když byl okraj užší než pruh časů, useknutý (konverzace vedle profilu,
   okno ~1700 px). Ověřeno na desktopu (Windows) při různých šířkách okna.
-- **Zafixované časy** (`RevealTimesSwipe.kt`, `TimesPin`): podrží-li prst časy CELÉ odkryté
-  600 ms, ozve se `toggle(true)` a časy po puštění zůstanou, i při scrollu. Schová je tah
+- **Zafixované časy** (`RevealTimesSwipe.kt`, `TimesPin`, pravidlo `holdAction`, testy
+  `RevealTimesHoldTest`): podrží-li prst časy (skoro) celé odkryté 600 ms, ozve se
+  `toggle(true)` a časy po puštění zůstanou, i při scrollu. Schová je tah
   doprava puštěný za polovinou dráhy (`toggle(false)`); kratší tah se vrátí na zafixované.
-  - **Odpočet běží od chvíle, kdy jsou časy celé venku**, ne od položení prstu: kdo jen
-    nahlíží, zastaví se u nich na pár set milisekund, než je přečte. Prst, který táhne dál
-    doleva, časy drží celé (posun je zastropovaný), a to se počítá jako držení.
+  - **Odpočet běží od chvíle, kdy jsou časy (skoro) venku**, ne od položení prstu: kdo jen
+    nahlíží, zastaví se u nich na pár set milisekund, než je přečte.
+  - **Chvění prstu odpočet nesmí rušit — dva prahy a prst bez stropu.** První verze spouštěla
+    odpočet přesně na stropu (plná šířka sloupce) a rušila ho při prvním pixelu pod ním.
+    Skutečný prst v klidu cuká o pixel dva oběma směry, takže na telefonu se fixace chytila
+    jen tomu, kdo pořád táhl doleva; a přetažení za strop nepomohlo, protože se pamatoval jen
+    zastropovaný posun, ne prst. Teď odpočet začne od 85 % šířky, zruší se až pod 60 %
+    a `TimesPin.finger` drží polohu prstu bez stropu (rezerva za stropem se počítá).
+  - **`input motionevent` na emulátoru chvění nemá a jeho časování neplatí.** Prst stojí
+    na pixelu, takže první verze testem prošla. A osm `MOVE` za sebou trvá jednou 107 ms,
+    jindy přes 2 s (podle zátěže emulátoru): podržení musí mít `sleep` mezi pohyby a pořadí
+    událostí (ucuknutí před vypršením 600 ms) se musí hlídat podle času, ne podle počtu pohybů.
   - **Haptika jen u zafixování, ne u odkrytí.** Odkrytí je vidět hned; zafixování vidět
     není (obrazovka se nezmění), takže bez odezvy by nebylo poznat, že puštění časy nechá.
   - **Tah doprava nad bublinou si bere SEZNAM, ne odpověď swipem.** Bublina je potomek,
@@ -821,8 +831,9 @@ v `konverzace-akce.md`); na desktopu tah myší časy ani odpověď nedělá, pa
   - Stav drží `remember` v obrazovce, s odchodem z chatu zanikne.
   - Ověřeno na emulátoru (Pixel 7, API 36) přes `input motionevent` s pauzou: nahlédnutí se
     schová, podržení zafixuje (`constant=21`), krátký tah doprava nechá, dlouhý přes odchozí
-    bublinu schová bez odpovědi (`constant=22`). Jak sedí 600 ms pod prstem, je třeba ověřit
-    rukou na telefonu.
+    bublinu schová bez odpovědi (`constant=22`). Chvění ±5–10 px na stropu, za ním i těsně
+    pod ním (95 %) fixaci nechá chytit; držení na půl šířky ani ucuknutí pod 60 % ne. Jak
+    sedí 600 ms pod prstem, je třeba ověřit rukou na telefonu.
 - **Předěly dne se neposouvají.** Jsou to nadpisy nad blokem, ne zprávy, a čas u nich nedává smysl.
 - **Čtečka obrazovky se tahem nikam nedostane**, takže čas je i v nabídce nad zprávou, prvním
   řádkem (den a hodina). Není to položka nabídky, nedá se na ni ťuknout. **Výška nabídky se
