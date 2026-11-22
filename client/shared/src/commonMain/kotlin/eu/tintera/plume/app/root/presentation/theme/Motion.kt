@@ -7,7 +7,7 @@ import androidx.compose.material3.MotionScheme
 
 /**
  * Vlastní [MotionScheme] – mírně hravý („expressive"), ale ne extrémní bounce.
- * Převzato z mlogu, kde jsou hodnoty vyladěné na reálném provozu.
+ * Hodnoty jsou vyladěné na reálném provozu.
  *
  * - **Spatial** (pohyb/velikost): jemný bounce, dampingRatio ~0.6–0.78. Sweet spot příjemného
  *   expressive feelu; pod ~0.6 už je to divoké a rozbíjí to collapse chování M3 search baru.

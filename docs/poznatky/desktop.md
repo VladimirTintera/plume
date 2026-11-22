@@ -317,7 +317,7 @@ Bílý systémový titulek nad tmavou aplikací byl nejrušivější prvek okna.
 (expect v `Theme.kt`, reálně jen `jvmMain`) volá `AppTheme` se ZVOLENÝM motivem, ne se systémovým.
 
 - **Tmavý režim titulku** (`DWMWA_USE_IMMERSIVE_DARK_MODE`) nastavuje knihovna platformtools
-  (`setWindowsAdaptiveTitleBar`, táž jako v Mlogu). Podle něj systém kreslí tlačítka okna.
+  (`setWindowsAdaptiveTitleBar`). Podle něj systém kreslí tlačítka okna.
 - **Barvu titulku a textu** (`DWMWA_CAPTION_COLOR` 35, `DWMWA_TEXT_COLOR` 36) nastavujeme sami
   přes JNA na plochu okna (`surfaceContainer`, na ní leží seznam) a `onSurface`. Samotný tmavý
   titulek je neutrálně šedý (#202020) a vedle tónované palety působil jako cizí pruh. Atributy

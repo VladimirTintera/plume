@@ -959,8 +959,7 @@ jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
 ## „Co je nového" v aplikaci (`core/changelog`)
 
 Pátá sekce Nastavení (`WhatsNewSettings`) ukazuje tytéž poznámky po vydáních, od nejnovějšího.
-Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z mlogu, bez jeho
-`WhatsNewGate`).
+Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá.
 
 - **Poznámky se zapékají při buildu**: gradle task `:client:shared:generateChangelog` pustí
   `release_notes.py bundle` a vygeneruje `GeneratedChangelog.kt` do
@@ -986,8 +985,8 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z 
   začátku" by u desktopu, který přišel až po stovkách PR, vysypal celou historii projektu (418
   poznámek u `desktop-0.3.0`). Android tím nepřišel o nic — v jeho prvním tagu poznámky ještě
   nebyly.
-- **Platformu nese poznámka v poli `units:`** (`notes_between(prev, tag, unit)`, převzato
-  z mlogu): kanál vydání bere jen poznámky své platformy, takže desktop neukazuje čistě androidí
+- **Platformu nese poznámka v poli `units:`** (`notes_between(prev, tag, unit)`):
+  kanál vydání bere jen poznámky své platformy, takže desktop neukazuje čistě androidí
   změny („Sdílení obrazovky v hovoru (Android)") a Android desktopové. **Pole je volitelné
   a chybějící = všechny platformy** — jinak by přes 600 starých poznámek bez něj zmizelo, nebo
   by se musely přepsat. Přepisovat staré stejně nemá smysl: vydání se čtou z tagu (`git show

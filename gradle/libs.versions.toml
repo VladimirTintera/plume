@@ -23,7 +23,7 @@ kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.11.0"
 kotlinx-datetime = "0.8.0"
 
-# Compose — verze převzaté z mlogu (ověřená kombinace). material3 musí být ALPHA kanál, jinak
+# Compose — ověřená kombinace verzí (ke Kotlinu a AGP). material3 musí být ALPHA kanál, jinak
 # z artefaktu vypadnou všechna API pod @ExperimentalMaterial3ExpressiveApi (MaterialExpressiveTheme,
 # MotionScheme, LoadingIndicator, WideNavigationRail, …) a expressive vrstva se nezkompiluje.
 compose = "1.13.0-rc01"

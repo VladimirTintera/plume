@@ -14,8 +14,7 @@ import platform.Foundation.runUntilDate
  *
  * Kotlin výjimka nenese symbolizovaný stack, jen adresy (`getStackTraceAddresses`). Ty Swift předá
  * jako rámce `ExceptionModel` a Crashlytics je symbolizuje podle dSYM — Kotlin kód je v něm,
- * framework `ComposeApp` je statický a linkuje se do binárky aplikace. Převzato z projektu mlog
- * (tam podle `IosCrashlyticsLogger` z Profilogu).
+ * framework `ComposeApp` je statický a linkuje se do binárky aplikace.
  */
 interface CrashlyticsBridge {
     fun log(message: String)

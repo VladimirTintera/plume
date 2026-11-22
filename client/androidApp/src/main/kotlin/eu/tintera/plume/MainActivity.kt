@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Edge-to-edge je M3 default; insety si nanáší ten, kdo kreslí chrome (viz konvence v mlogu).
+        // Edge-to-edge je M3 default; insety si nanáší ten, kdo kreslí chrome.
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         // Změna jazyka do Androidu 12: přeloží se až nově vytvořená aktivita (od 13 to dělá systém).
