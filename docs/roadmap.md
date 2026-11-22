@@ -199,7 +199,7 @@ soukromé jako archiv.
   secretu `GOOGLE_SERVICES_JSON`, bez něj release zastaví. **Secret musí být nastavený už ve
   STÁVAJÍCÍM repu**, dokud se z něj vydává. Kopie souborů je u pravidel přepisu
   (`~/Develop/plume-prepis-pravidla/firebase`).
-- ~~**Push přepsané historie**~~ — hotovo 2026-11-22: soukromé repo
+- ~~**Push přepsané historie**~~ — hotovo 2026-11-22: repo
   [VladimirTintera/plume](https://github.com/VladimirTintera/plume) má přepsaný `main`
   (2 988 commitů, stav po sloučení #1232 ve starém repu) a 201 tagů vydání. Přepis zopakovaný
   nad čerstvým klonem a ověřený stejně jako zkušební (gitleaks jen dva falešné poplachy,
@@ -215,6 +215,13 @@ soukromé jako archiv.
     dřív, propadne. Pomohlo PR zavřít a znovu otevřít (`gh pr close` / `reopen`); kontrola
     poznámek pak proběhla na hostovaném runneru. Fakturace to nebyla: ve starém soukromém repu
     hostované kontroly týž den běžely.
+  - **Repo se zakládalo DVAKRÁT.** Dva commity v prvním PR vznikly v klonu bez vlastního
+    `user.email`, takže dostaly globální gmail vývojáře — zrovna adresu, kterou přepis
+    odstranil. `main` šel opravit mailmapem a force pushem, ale GitHub drží `refs/pull/1/head`
+    s původními commity a smazat ho nejde. Repo se proto smazalo a založilo znovu prázdné
+    a dostalo opravený `main` a tagy. **Každý klon `plume` má mít `user.email` na GitHub
+    noreply** (`git config user.email 69807370+VladimirTintera@users.noreply.github.com`; hlavní
+    strom ho má, worktree ho sdílejí).
 - **Vývoj se přesouvá do `plume`, staré repo `telegram` se zmrazí.** Historie spolu nesouvisí,
   takže každý commit sloučený do starého repa by se musel přenášet ručně. Na každém stroji
   `git remote set-url origin https://github.com/VladimirTintera/plume.git`, `git fetch`
@@ -222,12 +229,23 @@ soukromé jako archiv.
   `cherry-pick`em. `core.hooksPath` (absolutní) zůstává.
 - **Čísla PR začínají v `plume` znovu od 1.** Odkazy „#650" v poznatcích a commitech míří do
   starého repa (viz otevřená rozhodnutí).
-- Secrets (Telegram API, keystore, Play, `GOOGLE_SERVICES_JSON`) a repo proměnné.
-- Release workflowy zkušebně na hostovaných runnerech (v soukromém repu se minuty ještě
-  počítají). **macOS runner má 7 GB RAM** — release link iOS s LTO nad celou TDLib na tom může
-  narazit; Android a desktop vystačí.
-- Nastavení: ochrana `main`, schvalování workflowů z forků pro všechny externí přispěvatele,
-  secret scanning s push protection, Dependabot, soukromé hlášení zranitelností.
+- ~~**Secrets a proměnné**~~ — hotovo: všech osm secrets, které workflowy čtou (Telegram API
+  a podpis z `local.properties`, keystore `plume-release.jks`, `GOOGLE_SERVICES_JSON` ze zálohy,
+  klíč service accountu `play-publishing` z projektu `mobile-ci`), a proměnné `WEAR_RELEASE=true`
+  a `*_RUNS_ON` na hostované runnery (`ubuntu-latest`, `macos-latest`, `windows-latest`).
+- **První release z `plume`** je zároveň první zkouška hostovaných runnerů pro release a kroku
+  *Write Firebase config*. **macOS runner má 7 GB RAM** — release link iOS s LTO nad celou
+  TDLib na tom může narazit; Android a desktop vystačí. GitHub Releases jsou v `plume` prázdné,
+  dokud nevyjde první desktop; staré DMG a MSI zůstávají ve starém repu.
+- ~~**Nastavení repa**~~ — hotovo po zveřejnění:
+  - ochrana `main`: jen přes PR (bez povinného schválení — vlastník by svůj PR schválit
+    nemohl), povinná kontrola `check` od aplikace `github-actions` (id 15368, ať ji nejde
+    podvrhnout stavem z jiné aplikace), bez force pushe a mazání; správce ji obejít může;
+  - workflowy u PR schvaluje vlastník u všech externích přispěvatelů, ne jen u prvního PR;
+  - secret scanning s push protection (u veřejného repa zapnuté samo), upozornění Dependabotu,
+    soukromé hlášení zranitelností (`SECURITY.md`);
+  - **automatické bezpečnostní PR Dependabotu vypnuté**: neuměly by poznámku k vydání a check
+    by je zamítl.
 - **Ověřitelnost buildu**: release jen z hostovaných runnerů a k artefaktům
   `actions/attest-build-provenance`, ať jde dohledat, z jakého commitu a workflow APK / MSI / DMG
   vzniklo. Zdroják sám důvěru nedokazuje — nikdo neověří, že APK z Play vzniklo z něj.
@@ -235,10 +253,11 @@ soukromé jako archiv.
 
 ### 3. Zveřejnění
 
-- Přepnout na public (od té chvíle jsou runnery zdarma); release workflowy se vrátí
-  z self-hosted runnerů repo proměnnými (`release.md`, „Self-hosted runnery") a runnery se
-  odregistrují.
-- Staré repo archivovat (remote na strojích se přepíná už ve fázi 2).
+- ~~**Přepnout na public**~~ — hotovo 2026-11-22. Release workflowy jedou repo proměnnými na
+  hostovaných runnerech (`release.md`, „Self-hosted runnery").
+- **Po prvním úspěšném releasu z `plume`**: odregistrovat self-hosted runnery starého repa
+  (Mac `plume-mac`, Windows), archivovat repo `telegram` a přepsat oddíl „Self-hosted runnery"
+  v `release.md` (popisuje registraci ke starému repu).
 - Weblate (sekce níž) a odkaz na zdrojáky do záznamu v Play.
 
 ### Otevřená rozhodnutí
