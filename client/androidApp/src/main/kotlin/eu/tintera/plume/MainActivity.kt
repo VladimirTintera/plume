@@ -62,6 +62,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { LegacyAppLanguage.changes.collect { recreate() } }
 
         // Studený start z notifikace: chatId přijde v intentu, kterým se activity zakládá.
+        // „Zavolat zpět" dřív než chat: otevření chatu z intentu maže účet, který oba potřebují.
+        receiveCallBack(intent)
         openChatFrom(intent)
         receiveCall(intent)
         showOverLockScreenDuringCalls()
@@ -98,6 +100,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         // Bez tohohle by `getIntent()` dál vracelo ten, kterým se activity zakládala.
         setIntent(intent)
+        receiveCallBack(intent)
         openChatFrom(intent)
         receiveCall(intent)
         receiveShare(intent)
@@ -115,6 +118,20 @@ class MainActivity : ComponentActivity() {
             callRequests.show()
             intent.removeExtra(NotificationIntents.EXTRA_SHOW_CALL)
         }
+    }
+
+    /**
+     * „Zavolat zpět" z notifikace o zmeškaném hovoru — vytočí shell (`CallBackHost`), protože
+     * o mikrofon se umí zeptat jen obrazovka. Jednorázové jako otevření chatu.
+     */
+    private fun receiveCallBack(intent: Intent) {
+        val userId = intent.getLongExtra(NotificationIntents.EXTRA_CALL_BACK_USER, NO_USER)
+        if (userId == NO_USER) return
+        NotificationIntents.accountOf(intent)?.let { slot ->
+            callRequests.callBack(slot, userId, video = intent.getBooleanExtra(NotificationIntents.EXTRA_IS_VIDEO, false))
+        }
+        intent.removeExtra(NotificationIntents.EXTRA_CALL_BACK_USER)
+        intent.removeExtra(NotificationIntents.EXTRA_IS_VIDEO)
     }
 
     /**
@@ -195,5 +212,6 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val NO_CHAT = 0L
         const val NO_CALL = 0
+        const val NO_USER = 0L
     }
 }

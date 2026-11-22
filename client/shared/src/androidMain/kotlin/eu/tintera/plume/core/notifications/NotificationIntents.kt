@@ -233,6 +233,31 @@ object NotificationIntents {
         )
     }
 
+    /** Komu zavolat zpátky (akce „Zavolat zpět" u notifikace zmeškaného hovoru). */
+    const val EXTRA_CALL_BACK_USER = "eu.tintera.plume.extra.CALL_BACK_USER"
+
+    /**
+     * „Zavolat zpět" u notifikace zmeškaného hovoru. Otevírá ACTIVITY ze stejného důvodu jako
+     * [answerCall]: o mikrofon se umí zeptat jen obrazovka a hovor chce aplikaci v popředí.
+     * Nese i chat, takže se pod obrazovkou hovoru otevře konverzace — po zavěšení je uživatel
+     * tam, kde se o hovoru dozvěděl, a otevřením se zpráva přečte a TDLib notifikaci stáhne.
+     */
+    fun callBack(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, userId: Long, isVideo: Boolean): PendingIntent? {
+        val intent = chatIntent(context, slot, chatId) ?: return null
+        intent.action = ACTION_CALL_BACK
+        intent.putExtra(EXTRA_CALL_BACK_USER, userId).putExtra(EXTRA_IS_VIDEO, isVideo)
+        return PendingIntent.getActivity(
+            context,
+            // Akce intentu vstupuje do `filterEquals`, takže se s otevřením chatu (týž kód)
+            // nepřepíšou.
+            requestCode(slot, groupId),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private const val ACTION_CALL_BACK = "eu.tintera.plume.action.CALL_BACK"
+
     /** Akce intentu „Přijmout" — odliší ho od otevření hovoru podle `filterEquals`. */
     private const val ACTION_ANSWER_CALL = "eu.tintera.plume.action.ANSWER_CALL"
     private const val ACTION_SHOW_CALL = "eu.tintera.plume.action.SHOW_CALL"

@@ -30,6 +30,7 @@ import eu.tintera.plume.core.share.bookmarkIcon
 import eu.tintera.plume.core.share.conversationShortcut
 import eu.tintera.plume.core.share.pushConversationShortcut
 import eu.tintera.plume.core.snooze.ChatSnoozes
+import eu.tintera.plume.core.telegram.CallBack
 import eu.tintera.plume.core.telegram.ChatNotification
 import eu.tintera.plume.core.telegram.IncomingCall
 import eu.tintera.plume.core.telegram.NotificationChannelKind
@@ -39,6 +40,7 @@ import eu.tintera.plume.core.telegram.NotificationUpdate
 import eu.tintera.plume.core.telegram.dismissUpTo
 import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.call_back
 import eu.tintera.plume.resources.notification_call_answer_elsewhere
 import eu.tintera.plume.resources.notification_call_decline
 import eu.tintera.plume.resources.notification_call_unknown
@@ -205,6 +207,7 @@ actual class NotificationPresenter(
                         icon = avatarIcon(it.avatarPath),
                         image = it.imagePath?.let(::notificationImage),
                         imageCaption = it.imageCaption,
+                        callBack = it.callBack,
                     )
                 }
 
@@ -462,6 +465,11 @@ actual class NotificationPresenter(
             .setSilent(silent)
             .setAutoCancel(true)
             .apply {
+                // Zmeškaný hovor: zavolat zpátky je to, co uživatel nejspíš chce, proto první.
+                // Řídí se nejnovějším zmeškaným hovorem v notifikaci, i když po něm přišla
+                // zpráva („zavolej mi") — dokud ho TDLib neodebere, platí.
+                val callBack = conversation.lines.lastOrNull { it.callBack != null }?.callBack?.takeIf { callsSupported }
+                callBack?.let { callBackAction(groupId, conversation.chatId, it)?.let(::addAction) }
                 if (conversation.canReply) {
                     // Ve skupině odpověď cituje nejnovější zprávu z notifikace, jako oficiální
                     // klient: bez citace by nebylo poznat, komu z více lidí se odpovídá.
@@ -469,8 +477,9 @@ actual class NotificationPresenter(
                     val quoted = if (isGroup) conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId else null
                     replyAction(groupId, conversation.chatId, quoted, conversation.topicId)?.let(::addAction)
                 }
-                // Pořadí akcí: odpověď, přečtení, ztlumení — od nejčastější. Android jich ukáže
-                // nejvýš tři, víc jich tedy být nesmí.
+                // Pořadí akcí: (zavolat zpět,) odpověď, přečtení, ztlumení — od nejčastější.
+                // Android jich ukáže nejvýš tři, víc jich tedy být nesmí: se „Zavolat zpět"
+                // ztlumení odpadne (zmeškaný hovor je soukromý chat, ztlumit jde v aplikaci).
                 addAction(
                     markReadAction(
                         groupId = groupId,
@@ -478,7 +487,7 @@ actual class NotificationPresenter(
                         messageId = conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId,
                     ),
                 )
-                if (conversation.canMute) addAction(muteAction(groupId, conversation.chatId))
+                if (conversation.canMute && callBack == null) addAction(muteAction(groupId, conversation.chatId))
             }
             .setContentIntent(
                 NotificationIntents.openChat(
@@ -699,6 +708,30 @@ actual class NotificationPresenter(
             .build()
 
     /**
+     * Akce „Zavolat zpět" u zmeškaného hovoru. Otevírá aplikaci (`showsUserInterface`): hovor
+     * chce dotaz na mikrofon a aplikaci v popředí, viz [NotificationIntents.callBack]. Sémantika
+     * `CALL` pro hodinky a Android Auto.
+     */
+    private suspend fun callBackAction(groupId: Int, chatId: Long, callBack: CallBack): NotificationCompat.Action? {
+        val intent = NotificationIntents.callBack(
+            context,
+            slot = slot,
+            groupId = groupId,
+            chatId = chatId,
+            userId = callBack.userId,
+            isVideo = callBack.isVideo,
+        ) ?: return null
+        return NotificationCompat.Action.Builder(
+            IconCompat.createWithResource(context, R.drawable.ic_notification_call),
+            getString(Res.string.call_back),
+            intent,
+        )
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_CALL)
+            .setShowsUserInterface(true)
+            .build()
+    }
+
+    /**
      * Akce „Ztlumit na hodinu". Sémantika `MUTE` pro hodinky a Android Auto.
      */
     private suspend fun muteAction(groupId: Int, chatId: Long): NotificationCompat.Action =
@@ -877,6 +910,8 @@ actual class NotificationPresenter(
         val imageCaption: String? = null,
         /** Odpověď odeslaná z notifikace. TDLib o ní neví, takže ji neodebere. */
         val isOwn: Boolean = false,
+        /** Zmeškaný hovor, kterému jde zavolat zpátky; po restartu procesu se nepřevezme. */
+        val callBack: CallBack? = null,
     )
 
     private class RemovedLine(val groupId: Int, val messageId: Long, val removedAtMs: Long)

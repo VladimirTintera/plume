@@ -23,6 +23,7 @@ import dev.g000sha256.tdl.dto.DeviceToken
 import dev.g000sha256.tdl.dto.DeviceTokenApplePush
 import dev.g000sha256.tdl.dto.DeviceTokenFirebaseCloudMessaging
 import dev.g000sha256.tdl.dto.File
+import dev.g000sha256.tdl.dto.MessageCall
 import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.MessageSenderChat
@@ -221,6 +222,8 @@ class TdlNotificationRepository(
             kind = settingsChat?.type?.chatKind() ?: ChatKind.Private,
         )
         val sound = soundOf(update.notificationSoundId)
+        // Komu zavolat zpátky ze zmeškaného hovoru: hovory ve dvou jsou jen v soukromém chatu.
+        val callPeer = (chat?.type as? ChatTypePrivate)?.userId?.takeUnless { isSavedMessages }
 
         val notifications = added.mapNotNull { notification ->
             val content = notification.content() ?: return@mapNotNull null
@@ -248,6 +251,7 @@ class TdlNotificationRepository(
                 channel = channel,
                 sound = sound,
                 topicId = content.topicId,
+                callBack = content.missedCallIsVideo?.let { video -> callPeer?.let { CallBack(it, video) } },
             )
         }
 
@@ -297,6 +301,11 @@ class TdlNotificationRepository(
                     image = shownPhoto?.photo?.notificationImage(),
                     imageCaption = shownPhoto?.caption?.text?.takeIf { it.isNotBlank() },
                     topicId = (message.topicId as? MessageTopicForum)?.forumTopicId,
+                    // Akce „Zavolat zpět" by na zamykací obrazovce prozradila, že jde o hovor,
+                    // i když si uživatel náhled obsahu vypnul — bez náhledu proto ne.
+                    missedCallIsVideo = (message.content as? MessageCall)
+                        ?.takeIf { type.showPreview && it.outcome(message.isOutgoing).isFailure }
+                        ?.isVideo,
                 )
             }
 
@@ -508,6 +517,8 @@ class TdlNotificationRepository(
         val imageCaption: String? = null,
         /** Téma skupiny s tématy; z pushe ho neznáme. */
         val topicId: Int? = null,
+        /** Zmeškaný nebo odmítnutý příchozí hovor: `true` = videohovor; `null` = jiná zpráva. */
+        val missedCallIsVideo: Boolean? = null,
     )
 
     private companion object {
