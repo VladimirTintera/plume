@@ -2,6 +2,7 @@ package eu.tintera.plume.features.webapp
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /** Požadavky mini aplikace, na které čeká odpověď: zápis, sdílení zprávy, výběr chatu, stažení. */
 class WebAppRequestsTest {
@@ -57,8 +58,26 @@ class WebAppRequestsTest {
 
     @Test
     fun domenaVeteUStahovani() {
-        assertEquals("files.example.com", urlHost("https://files.example.com/a/b.pdf?x=1"))
-        assertEquals("example.com", urlHost("https://user@example.com"))
-        assertEquals("example.com", urlHost("https://example.com?download=1"))
+        assertEquals("files.example.com", downloadHost("https://files.example.com/a/b.pdf?x=1"))
+        assertEquals("example.com", downloadHost("https://example.com?download=1"))
+        assertEquals("example.com:8443", downloadHost("https://Example.com:8443/a"))
+    }
+
+    @Test
+    fun nejednoznacnaAdresaSeNestahuje() {
+        // Dřív dialog ukázal „docs.google.com" a stahovalo se ze zly.example; teď ukáže pravdu.
+        assertEquals("zly.example", downloadHost("https://zly.example#@docs.google.com/x.apk"))
+        assertNull(downloadHost("https://docs.google.com@zly.example/x.apk"), "přihlašovací údaje v adrese")
+        assertNull(downloadHost("https://zly.example\\@docs.google.com/x.apk"))
+        assertNull(downloadHost("https://zly.example/a b.apk"))
+        assertNull(downloadHost("http://example.com/a.pdf"), "jen https")
+        assertNull(downloadHost("javascript:alert(1)"))
+    }
+
+    @Test
+    fun strankaDostaneJenKonstantuOdServeru() {
+        assertEquals("BOT_METHOD_INVALID", serverError("BOT_METHOD_INVALID"))
+        assertEquals(WebAppErrors.UNKNOWN_ERROR, serverError("Have no write access to the chat"))
+        assertEquals(WebAppErrors.UNKNOWN_ERROR, serverError(null))
     }
 }

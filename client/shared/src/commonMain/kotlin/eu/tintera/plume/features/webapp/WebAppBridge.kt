@@ -142,7 +142,8 @@ fun parseWebAppEvent(type: String, data: String?): WebAppEvent {
         "web_app_setup_back_button" -> WebAppEvent.BackButton(bool("is_visible") ?: false)
         "web_app_setup_closing_behavior" -> WebAppEvent.ClosingConfirmation(bool("need_confirmation") ?: false)
         "web_app_open_link" -> string("url")?.let(WebAppEvent::OpenLink) ?: WebAppEvent.Unknown(type)
-        "web_app_open_tg_link" -> string("path_full")?.let { WebAppEvent.OpenTelegramLink("https://t.me$it") }
+        // Cesta musí začínat lomítkem: `@zly.example` by z `https://t.me` udělalo host zly.example.
+        "web_app_open_tg_link" -> string("path_full")?.takeIf { it.startsWith("/") }?.let { WebAppEvent.OpenTelegramLink("https://t.me$it") }
             ?: WebAppEvent.Unknown(type)
         "web_app_data_send" -> string("data")?.let(WebAppEvent::SendData) ?: WebAppEvent.Unknown(type)
         "web_app_trigger_haptic_feedback" -> WebAppEvent.Haptic(

@@ -489,6 +489,11 @@ zobrazí a zprostředkuje její události.
 - **Odkaz na Telegram z mini aplikace** (`web_app_open_tg_link`) ji zavře a otevře chat nad
   konverzací pod ní (`WebAppRoute.archive` říká, do které větve); jiné druhy odkazů jdou do
   prohlížeče.
+  - **`path_full` musí začínat lomítkem**: `@zly.example/x` by z `https://t.me` + cesta udělalo
+    adresu s hostem zly.example (`t.me` by zbylo jako přihlašovací jméno).
+  - **Odkaz na Telegram přes `web_app_open_link` jde stejnou cestou** (`openExternal` →
+    `openTelegramLink`): prohlížečem by se vrátil do Plume (odkazy v aplikaci) a jiná mini
+    aplikace by se otevřela rovnou, ne přes chat bota.
 - **Tlačítko nabídky bota** (`BotInfo.menuButton`, `BotMenuApp`, `BotMenuAppButton`) stojí
   u pole MÍSTO tlačítka příkazů a otevírá mini aplikaci přes `openWebApp`, jako tlačítko pod
   zprávou — TDLib adresu z `botMenuButton` bere právě tam. Jen v soukromém chatu s botem;
@@ -583,9 +588,18 @@ a z oficiálních klientů (Telegram Desktop `attach_bot_webview.cpp`) — dokum
   (`Message` / `WebApp` → `KeyboardButtonSourceWebApp`). Založení spravovaného bota Plume neumí
   ani u zprávy → `UNSUPPORTED`; nenačtené tlačítko `UNKNOWN_ERROR` (Desktop posílá kód od
   serveru, ten nám TDLib textem nevydá).
+- **Chyba `invoke_custom_method` jde stránce jen jako konstanta od serveru** (`serverError`:
+  `BOT_METHOD_INVALID` ano, anglická věta od TDLib ne → `UNKNOWN_ERROR`). Text od TDLib je
+  prosakování hranice `core/telegram`, i když nejde na obrazovku, ale do cizí stránky.
 - **`downloadFile`** (`web_app_request_file_download` → `file_download_requested`): napřed
   `checkWebAppFileDownload` (smí bot soubor nabízet?), pak `ConfirmDialog` s botem, jménem
-  a doménou. Jméno projde `cleanFileName`. Stahuje systém (`WebFileDownloader`): Android
+  a doménou. Jméno projde `cleanFileName`.
+  - **Doménu dialogu dává `downloadHost`** (testy `WebAppRequestsTest`) a nese ji
+    `WebAppDownload.host`. Dřív ji dialog bral vlastním rozborem řetězce, který neznal `#`:
+    `https://zly.example#@docs.google.com/x.apk` ukázal „docs.google.com" a stahovalo se ze
+    `zly.example`. Adresa s přihlašovacími údaji, zpětným lomítkem, mezerou nebo bez https se
+    nestahuje vůbec (`cancelled`) — co dialog neukáže přesně, se nestahuje.
+  - Stahuje systém (`WebFileDownloader`): Android
   správcem stahování do Stažených s notifikací, pod Androidem 10 (zápis do Stažených by chtěl
   oprávnění za běhu) a na iOS / desktopu prohlížeč.
 - **Výběry jsou přes celou mini aplikaci ve stejné obrazovce** (`WebAppOverlay`), ne nová
@@ -620,6 +634,10 @@ a z oficiálních klientů (Telegram Desktop `attach_bot_webview.cpp`) — dokum
     zápis celku), prázdné úložiště záznam z trezoru smaže.
   - **Nejvýš 10 položek na bota** jako u oficiálních klientů; další klíč → `QUOTA_EXCEEDED`,
     přepsání existujícího projde.
+  - **Klíč nejvýš 128 znaků, hodnota 32 Ki** (`SECURE_KEY_LIMIT`, `SECURE_VALUE_LIMIT`), přes
+    strop `QUOTA_EXCEEDED`. Hlídal se jen počet: deset hodnot po desítkách MB šlo zapsat,
+    a protože je to jeden záznam pro všechny boty, každé další čtení kteroukoli mini aplikací
+    by ho celý dešifrovalo do paměti a aplikaci shodilo.
   - **Obnova ze zálohy jiného zařízení není**: `can_restore` je vždycky `false` (knihovna
     Telegramu z něj udělá `null`, `true` jen při pravdě) a `restoreItem` → `RESTORE_UNAVAILABLE`.
   - **Nečitelný záznam je prázdné úložiště** — Keystore klíč se ztrácí při obnově zařízení

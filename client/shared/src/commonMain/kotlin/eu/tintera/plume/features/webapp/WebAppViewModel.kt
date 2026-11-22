@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.webview.webAppProfileName
+import eu.tintera.plume.core.webview.webOrigin
+import eu.tintera.plume.core.navigation.isTelegramLink
 import kotlin.time.Duration.Companion.seconds
 
 data class WebAppState(
@@ -79,7 +81,8 @@ data class WebAppState(
 )
 
 /** Stažení, o které mini aplikace žádá; [fileName] už očištěné od nebezpečných znaků. */
-data class WebAppDownload(val url: String, val fileName: String)
+/** [host] je tentýž, ze kterého stáhne downloader — viz [downloadHost]. */
+data class WebAppDownload(val url: String, val fileName: String, val host: String)
 
 data class PreparedShare(val id: String, val message: PreparedMessage)
 
@@ -281,7 +284,9 @@ class WebAppViewModel(
             is WebAppEvent.CustomMethod -> viewModelScope.launch {
                 repository.customRequest(botUserId, event.method, event.parameters)
                     .onSuccess { result -> post(WebAppEvents.customMethodInvoked(event.requestId, result, null)) }
-                    .onFailure { failure -> post(WebAppEvents.customMethodInvoked(event.requestId, null, failure.message)) }
+                    // Stránce jen konstanta od serveru (`BOT_METHOD_INVALID`); anglická věta od
+                    // TDLib by do ní prosakovala skrz hranici `core/telegram`.
+                    .onFailure { failure -> post(WebAppEvents.customMethodInvoked(event.requestId, null, serverError(failure.message))) }
             }
             is WebAppEvent.ReadClipboard -> post(WebAppEvents.clipboardTextReceived(event.requestId))
             WebAppEvent.RequestPhone -> post(WebAppEvents.phoneRequested())
@@ -519,9 +524,14 @@ class WebAppViewModel(
             post(WebAppEvents.fileDownloadRequested(downloading = false))
             return
         }
+        val host = downloadHost(url) ?: run {
+            logger.w { "Mini aplikace chtěla stáhnout soubor z adresy, kterou dialog neukáže jednoznačně." }
+            post(WebAppEvents.fileDownloadRequested(downloading = false))
+            return
+        }
         viewModelScope.launch {
             repository.checkDownload(botUserId, fileName, url)
-                .onSuccess { clean -> _state.update { it.copy(download = WebAppDownload(url, clean)) } }
+                .onSuccess { clean -> _state.update { it.copy(download = WebAppDownload(url, clean, host)) } }
                 .onFailure { post(WebAppEvents.fileDownloadRequested(downloading = false)) }
         }
     }
@@ -589,6 +599,10 @@ class WebAppViewModel(
     fun navigationLeftApp(url: String) = openExternal(url)
 
     private fun openExternal(url: String) {
+        // Odkaz na Telegram přes `web_app_open_link` by se prohlížečem vrátil do Plume
+        // (odkazy v aplikaci) a obešel pravidla `web_app_open_tg_link` — jiná mini aplikace
+        // by se otevřela rovnou, ne přes chat bota.
+        if (isTelegramLink(url)) return openTelegramLink(url)
         if (url.startsWith("https://") || url.startsWith("http://")) urlOpener.open(url)
     }
 
@@ -651,3 +665,23 @@ internal const val FULLSCREEN_CONTROLS_DP = 56
 
 /** Jak dlouho čekat na id vlastního účtu (úložiště WebView), když ještě není načtené. */
 private val ACCOUNT_TIMEOUT = 10.seconds
+
+/**
+ * Host pro dialog stažení, nebo `null`, když adresa není jednoznačná: jen https, bez přihlašovacích
+ * údajů v adrese, bez zpětných lomítek a mezer. Dialog dřív bral host vlastním rozborem řetězce,
+ * který neznal `#` — `https://zly.example#@docs.google.com/x.apk` ukázal „docs.google.com",
+ * ale stahovalo se ze `zly.example`. Co se nedá ukázat přesně, se nestahuje.
+ */
+internal fun downloadHost(url: String): String? {
+    if (url.any { it.isWhitespace() || it == '\\' || it.code < 0x20 }) return null
+    val origin = webOrigin(url)?.takeIf { it.startsWith("https://") } ?: return null
+    val authority = url.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
+    if ('@' in authority) return null
+    return origin.removePrefix("https://")
+}
+
+/** Chyba pro stránku: konstanta od serveru (`VELKA_PISMENA_123`), jinak obecná. */
+internal fun serverError(message: String?): String =
+    message?.takeIf { SERVER_ERROR.matches(it) } ?: WebAppErrors.UNKNOWN_ERROR
+
+private val SERVER_ERROR = Regex("[A-Z][A-Z0-9_]{2,63}")

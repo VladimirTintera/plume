@@ -13,6 +13,10 @@ import kotlinx.serialization.json.Json
  * - **Odděleně po účtu a botovi**, ze stejného důvodu jako `DeviceStorage`.
  * - **Nejvýš [SECURE_STORAGE_LIMIT] položek na bota**, jako u oficiálních klientů; další klíč
  *   selže ([MiniAppStorageFull]), přepsání existujícího projde.
+ * - **Klíč nejvýš [SECURE_KEY_LIMIT] a hodnota [SECURE_VALUE_LIMIT] znaků** (tokeny a hesla, ne
+ *   soubory). Hlídal se jen počet položek: deset hodnot po desítkách MB by šlo zapsat, a protože
+ *   je všechno jeden šifrovaný záznam pro všechny boty, každé další čtení kterékoli mini
+ *   aplikace by ho celý dešifrovalo do paměti a aplikaci shodilo.
  * - **Obnova z jiného zařízení není** (`restoreItem`): oficiální klienti obnovují ze zálohy
  *   Klíčenky, Plume žádnou zálohu nevede — `canRestore` je vždycky `false`.
  */
@@ -51,6 +55,7 @@ class SecretMiniAppSecureStorage(private val store: MiniAppSecretStore) : MiniAp
             val updated = if (value == null) {
                 items - itemKey
             } else {
+                if (key.length > SECURE_KEY_LIMIT || value.length > SECURE_VALUE_LIMIT) throw MiniAppStorageFull()
                 val prefix = prefix(account, bot)
                 val others = items.keys.count { it.startsWith(prefix) && it != itemKey }
                 if (others >= SECURE_STORAGE_LIMIT) throw MiniAppStorageFull()
@@ -81,3 +86,9 @@ class SecretMiniAppSecureStorage(private val store: MiniAppSecretStore) : MiniAp
 
 /** Položek `SecureStorage` na bota — jako u oficiálních klientů. */
 const val SECURE_STORAGE_LIMIT = 10
+
+/** Nejdelší klíč položky SecureStorage ve znacích. */
+const val SECURE_KEY_LIMIT = 128
+
+/** Nejdelší hodnota položky SecureStorage ve znacích (32 Ki — i dlouhý JWT se vejde). */
+const val SECURE_VALUE_LIMIT = 32 * 1024

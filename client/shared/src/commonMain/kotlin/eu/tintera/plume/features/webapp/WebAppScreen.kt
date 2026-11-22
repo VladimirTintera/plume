@@ -338,7 +338,7 @@ fun WebAppScreen(
     state.download?.let { download ->
         ConfirmDialog(
             title = stringResource(Res.string.webapp_download_title),
-            text = stringResource(Res.string.webapp_download_text, botName, download.fileName, urlHost(download.url)),
+            text = stringResource(Res.string.webapp_download_text, botName, download.fileName, download.host),
             confirmLabel = stringResource(Res.string.webapp_download_confirm),
             onConfirm = viewModel::confirmDownload,
             onDismiss = viewModel::dismissDownload,
@@ -370,9 +370,6 @@ private fun WebAppOverlay(onBack: () -> Unit, content: @Composable () -> Unit) {
     )
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) { content() }
 }
-
-/** Doména z adresy pro větu u stahování — odkud soubor je, ne celá adresa s parametry. */
-internal fun urlHost(url: String): String = url.substringAfter("://").substringBefore('/').substringBefore('?').substringAfter('@')
 
 /**
  * Souhlas před prvním otevřením mini aplikace u bota. TDLib ho předepisuje: mini aplikace

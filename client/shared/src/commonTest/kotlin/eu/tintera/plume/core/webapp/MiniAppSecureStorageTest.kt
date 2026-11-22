@@ -61,6 +61,14 @@ class MiniAppSecureStorageTest {
     }
 
     @Test
+    fun prilisDlouhyKlicNeboHodnotaNeprojde() = runTest {
+        storage.set(1, 7, "k".repeat(SECURE_KEY_LIMIT), "v".repeat(SECURE_VALUE_LIMIT))
+        assertFailsWith<MiniAppStorageFull> { storage.set(1, 7, "k".repeat(SECURE_KEY_LIMIT + 1), "v") }
+        assertFailsWith<MiniAppStorageFull> { storage.set(1, 7, "token", "v".repeat(SECURE_VALUE_LIMIT + 1)) }
+        assertNull(storage.get(1, 7, "token"))
+    }
+
+    @Test
     fun necitelnyZaznamJePrazdny() = runTest {
         store.stored = "není JSON".encodeToByteArray()
         assertNull(storage.get(1, 7, "token"))
