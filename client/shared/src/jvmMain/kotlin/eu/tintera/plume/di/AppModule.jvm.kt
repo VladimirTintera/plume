@@ -154,7 +154,8 @@ actual fun Module.platformModule() {
             override fun publish(slot: AccountSlot, chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) = Unit
         }
     }
-    single { AppUpdates() }
+    // Accounts líně: zavřít klienty TDLib je potřeba až při restartu do nové verze.
+    single { AppUpdates { get() } }
     single { TextClipboard() }
     single { CalendarEvents() }
     single { ContactSaver() }

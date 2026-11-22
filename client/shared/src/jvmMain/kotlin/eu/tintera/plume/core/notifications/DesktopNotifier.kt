@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.platform.DesktopOs
 import eu.tintera.plume.core.platform.DesktopTray
 import eu.tintera.plume.core.platform.desktopOs
+import eu.tintera.plume.core.platform.desktopTrainingRun
 import java.awt.SystemTray
 import java.awt.TrayIcon
 import java.awt.image.BufferedImage
@@ -85,10 +86,24 @@ internal interface DesktopNotifier {
 }
 
 internal fun desktopNotifier(): DesktopNotifier = when {
+    // Tréninkový běh při balení (AOT cache): žádný dotaz na povolení, žádná registrace toastů
+    // s cestou do adresáře buildu.
+    desktopTrainingRun -> SilentNotifier
     desktopOs == DesktopOs.MacOs -> MacNotifier()
     // Bez knihovny toastů (build na stroji bez MSVC) zůstává AWT jako dřív.
     desktopOs == DesktopOs.Windows && WindowsToasts.available -> WindowsNotifier()
     else -> TrayNotifier()
+}
+
+/** Oznámení, která nikam nejdou — jen pro tréninkový běh při balení ([desktopTrainingRun]). */
+private object SilentNotifier : DesktopNotifier {
+    override val available: Boolean = false
+    override fun isGranted(): Boolean = false
+    override fun requestPermission(): Boolean = false
+    override fun show(notification: DesktopNotification) = Unit
+    override fun remove(ids: List<String>) = Unit
+    override fun removeAll() = Unit
+    override var onActivated: ((ToastActivation) -> Unit)? = null
 }
 
 private class MacNotifier : DesktopNotifier {

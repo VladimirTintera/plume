@@ -5,6 +5,7 @@ import eu.tintera.plume.core.platform.desktopDebugBuild
 import eu.tintera.plume.core.platform.DesktopOs
 import eu.tintera.plume.core.platform.desktopDataDirectory
 import eu.tintera.plume.core.platform.desktopOs
+import eu.tintera.plume.core.platform.desktopTrainingRun
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermissions
@@ -30,9 +31,11 @@ fun secretService(name: String): String = if (desktopDebugBuild) "$name.debug" e
  * - **Windows a Linux: soubor s právy jen pro vlastníka.** Je to slabší než systémový trezor
  *   (DPAPI, Secret Service) — klíč leží na tomtéž disku co databáze, takže šifrování chrání jen
  *   proti kopii databáze bez souboru s klíčem. Trezory těchto systémů jsou v docs/roadmap.md.
+ * - **Tréninkový běh při balení ([desktopTrainingRun]) taky soubor**, v dočasném adresáři dat:
+ *   do Klíčenky vývojáře nemá co zapisovat.
  */
 fun desktopSecretStore(service: String, account: String, logTag: String): SecretStore =
-    if (desktopOs == DesktopOs.MacOs) KeychainCliSecretStore(service, account, logTag) else FileSecretStore(service, account, logTag)
+    if (desktopOs == DesktopOs.MacOs && !desktopTrainingRun) KeychainCliSecretStore(service, account, logTag) else FileSecretStore(service, account, logTag)
 
 private abstract class DesktopSecretStore(logTag: String) : SecretStore {
     protected val logger = Logger.withTag(logTag)

@@ -23,6 +23,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import co.touchlab.kermit.Logger
+import java.lang.management.ManagementFactory
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,7 @@ import eu.tintera.plume.core.platform.DesktopStartup
 import eu.tintera.plume.core.platform.DesktopTrayIcon
 import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.platform.LaunchAtLogin
+import eu.tintera.plume.core.platform.desktopTrainingRun
 import eu.tintera.plume.core.platform.desktopClosesToTray
 import eu.tintera.plume.core.ui.DesktopImageLoader
 import eu.tintera.plume.core.ui.rememberDesktopShortcutHandler
@@ -71,6 +75,8 @@ fun main(args: Array<String>) {
     for (property in LIVE_RESIZE_PROPERTIES) {
         if (System.getProperty(property) == null) System.setProperty(property, "true")
     }
+    // Tréninkový běh při balení (AOT cache): vlastní dočasná data, sám skončí (TrainingRun).
+    if (desktopTrainingRun) TrainingRun.prepare()
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
     // Jazyk aplikace, jestli si ho uživatel zvolil — dřív, než se přečte první text.
@@ -82,7 +88,8 @@ fun main(args: Array<String>) {
     // Obrázky zmenšované s filtrováním; výchozí dekodér Coilu na Skie bere nejbližší pixel.
     DesktopImageLoader.install()
     // Spouštění po přihlášení míří na spouštěč; po přeinstalaci jinam se cesta opraví.
-    LaunchAtLogin().refreshCommand()
+    // Tréninkový běh ne — zapsal by do registru cestu ke spouštěči v adresáři buildu.
+    if (!desktopTrainingRun) LaunchAtLogin().refreshCommand()
     // Po přihlášení (`--autostart`) rovnou do oznamovací oblasti — okno nemá vyskakovat.
     val startHidden = DesktopStartup.startsHidden(args)
 
@@ -171,6 +178,12 @@ fun main(args: Array<String>) {
                         }
                     }
                 }
+            }
+            // Doba startu do prvního snímku: jak pomáhá AOT cache, se ověřuje z logu.
+            LaunchedEffect(Unit) {
+                withFrameNanos { }
+                Logger.withTag("Startup").i { "První snímek okna ${ManagementFactory.getRuntimeMXBean().uptime} ms od startu JVM." }
+                if (desktopTrainingRun) TrainingRun.finishAfterStartup()
             }
             // Klik na oznámení: okno dopředu, i když bylo schované nebo minimalizované.
             LaunchedEffect(Unit) {

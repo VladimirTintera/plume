@@ -523,6 +523,8 @@ Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS aplikace s bun
 
 Android nabízí novou verzi z Play kartou nahoře v seznamu chatů (`UpdateCard`) přes Play
 In-App Updates v režimu **flexible**: stahuje se na pozadí, pak „Restartovat" (`completeUpdate`).
+Desktop má tutéž kartu nad přílohami GitHub Release (`docs/poznatky/desktop.md`, „Aktualizace
+z GitHub Release").
 
 - **`core/update` je hranice**, stejně jako `core/telegram` a `core/logging`:
   `com.google.android.play.*` smí být jen v `AppUpdates.android.kt`. Zbytek vidí `AppUpdateState`.

@@ -1,3 +1,4 @@
+import org.jetbrains.compose.desktop.application.dsl.AotMode
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import java.nio.charset.Charset
 import java.text.Normalizer
@@ -27,6 +28,8 @@ dependencies {
     // systém neumí, takže macOS balíček vzniká na Macu, Windows na Windows.
     implementation(compose.desktop.currentOs)
     implementation(libs.kotlinx.coroutines.swing)
+    // Log z `main` (doba startu, tréninkový běh AOT); `implementation` ze `shared` tranzitivní není.
+    implementation(libs.kermit)
     // Vzhled titulku okna na macOS podle systému (`setMacOsAdaptiveTitleBar`).
     implementation(libs.platformtools.darkmodedetector)
     // `startKoin` vrací KoinApplication; `implementation` závislosti sdíleného modulu tranzitivní nejsou.
@@ -54,13 +57,39 @@ fun msiSafe(text: String): String {
  * na kterém běží Gradle — release s `setup-java 17` by tak dostal Javu 17, a na ní se model
  * v zařízení nenačte: `litertlm-jvm` je přeložený pro Javu 21 (class file 65,
  * `UnsupportedClassVersionError`). Kód aplikace zůstává na `jvmToolchain(17)`.
+ *
+ * **25 kvůli AOT cache** (`AotMode.AotPrebuild` níž, JEP 514/515 chce JDK 25; s 21 by šlo jen
+ * AppCDS, které nezrychlí linkování ani JIT). Toolchain si ho stáhne přes foojay.
  */
-val runtimeLauncher: Provider<JavaLauncher> = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(21)) }
+val runtimeLauncher: Provider<JavaLauncher> = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
 
 compose.desktop {
     application {
         mainClass = "eu.tintera.plume.desktop.MainKt"
         javaHome = runtimeLauncher.get().metadata.installationPath.asFile.absolutePath
+
+        // JDK 24+ varuje na stderr při každém JNI/JNA (TDLib, Skiko, FFmpeg, ntgcalls) a při
+        // `sun.misc.Unsafe` (DataStore, kotlinx). Nativní knihovny jsou podstata aplikace, ne
+        // nehoda — povolují se výslovně. Platí pro balíček i pro `run`.
+        jvmArgs += RUNTIME_JVM_ARGS
+
+        /*
+         * Release (`packageReleaseMsi` / `packageReleaseDmg`) = balíček s AOT cache (Compose 1.13).
+         * Plugin aplikaci při balení jednou spustí (tréninkový běh, `-Dcompose.aot.training-run`,
+         * v kódu `desktopTrainingRun` / `TrainingRun`), JVM zapíše načtené a slinkované třídy do
+         * `app.aot` vedle aplikace a další starty ho berou. Nepasuje-li cache (jiný JDK), JVM
+         * ji tiše přeskočí — `exitAppOnAotFailure` zůstává vypnuté.
+         * ProGuard ne: pravidla pro wrapper TDLib, Koin a serializaci na desktopu nejsou; build
+         * typ `release` je tu jen kvůli `aot`, které na výchozím build typu není.
+         * Viz „Rychlejší start (AOT cache)" v docs/poznatky/desktop.md.
+         */
+        buildTypes.release {
+            proguard { isEnabled.set(false) }
+            // `-PdesktopAot=false`: release bez cache (a bez tréninkového běhu), kdyby se na
+            // runneru aplikace spustit nedala — vydání pak nemusí čekat na opravu.
+            val aotEnabled = providers.gradleProperty("desktopAot").orNull != "false"
+            aot { mode = if (aotEnabled) AotMode.AotPrebuild else AotMode.None }
+        }
 
         // `-PdesktopDebug`: zabalená aplikace (`runDistributable`) v ladicím režimu nad týmiž
         // daty jako `run`. Oznámení na macOS fungují jen v `.app` balíčku, holý `java` z `run`
@@ -154,3 +183,7 @@ afterEvaluate {
         systemProperty("apple.awt.application.appearance", "system")
     }
 }
+
+/** Viz `jvmArgs` v `compose.desktop.application`. */
+val RUNTIME_JVM_ARGS: List<String>
+    get() = listOf("--enable-native-access=ALL-UNNAMED", "--sun-misc-unsafe-memory-access=allow")

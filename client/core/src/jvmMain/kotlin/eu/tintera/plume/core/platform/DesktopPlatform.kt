@@ -14,6 +14,9 @@ val desktopOs: DesktopOs = System.getProperty("os.name").orEmpty().lowercase().l
     }
 }
 
+/** Architektura JVM (a tedy přibalených nativních knihoven): Apple Silicon / ARM Windows. */
+val desktopArm64: Boolean = System.getProperty("os.arch").orEmpty().lowercase().let { "aarch64" in it || "arm64" in it }
+
 /**
  * Adresář dat aplikace: databáze TDLib, stažené soubory, nastavení, tajemství.
  *
@@ -35,3 +38,14 @@ val desktopDataDirectory: File by lazy {
 
 /** Ladicí běh (`./gradlew :client:desktopApp:run`), ne zabalená aplikace. Nastavuje ho desktopApp. */
 val desktopDebugBuild: Boolean = System.getProperty("plume.debug") == "true"
+
+/**
+ * Tréninkový běh při balení (Compose 1.13, `aot` v `client/desktopApp/build.gradle.kts`): plugin
+ * spustí zabalenou aplikaci s `-Dcompose.aot.training-run=true`, JVM si zapíše, které třídy
+ * načetla, a z toho vznikne AOT cache, se kterou pak aplikace startuje rychleji.
+ *
+ * Běh se nesmí dotknout ničeho mimo vlastní dočasný adresář dat — na vývojářském Macu by jinak
+ * sahal na Klíčenku, oznámení a spouštění po přihlášení nainstalované aplikace. Viz
+ * „Rychlejší start (AOT cache)" v `docs/poznatky/desktop.md`.
+ */
+val desktopTrainingRun: Boolean = System.getProperty("compose.aot.training-run") == "true"
