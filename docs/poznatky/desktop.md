@@ -9,6 +9,7 @@ Desktopová aplikace pro macOS, Windows a Linux: `jvm()` target v `:client:share
 ./gradlew :client:desktopApp:run                 # ladicí běh, data v .desktop-data/
 ./gradlew :client:desktopApp:createDistributable # Plume.app / složka s aplikací a runtime z jlinku
 ./gradlew :client:desktopApp:packageDmg          # balíček pro systém, na kterém se staví (Dmg/Msi/Deb)
+./gradlew :client:desktopApp:packageReleaseDmg   # totéž s AOT cache (tréninkový běh), jako release
 ```
 
 ## TDLib na desktopu: wrapper ji veze v jaru
@@ -492,8 +493,8 @@ přihlášení" (`LaunchAtLogin`, na mobilech a zatím na macOS a Linuxu `suppor
 
 Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag
 `desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na `windows-latest` postaví
-MSI (`packageMsi -PdesktopVersion=…`), na `macos-latest` DMG pro Apple Silicon
-(`packageDmg`, příloha `Plume-X.Y.Z-macos-arm64.dmg`) a založí GitHub Release s obojím
+MSI (`packageReleaseMsi -PdesktopVersion=…`), na `macos-latest` DMG pro Apple Silicon
+(`packageReleaseDmg`, příloha `Plume-X.Y.Z-macos-arm64.dmg`) a založí GitHub Release s obojím
 v příloze. Runnery jsou hostované, viz „Runnery" v `release.md`. Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
 
 - **Tag je `desktop-X.Y.Z`, bez čísla buildu** (Android má `android-X.Y.Z-B`). MSI pozná
@@ -511,8 +512,11 @@ v příloze. Runnery jsou hostované, viz „Runnery" v `release.md`. Secrets st
   u nepodepsaného instalátoru ušetří další dotaz. Data aplikace jsou dál v `%APPDATA%\Plume`.
 - **Nepodepsané.** SmartScreen při prvním spuštění zastaví instalátor („Další informace" →
   „Přesto spustit"). Podpis chce certifikát pro podepisování kódu.
-- **Bez ProGuardu** (`packageMsi`, ne `packageReleaseMsi`) — pravidla pro wrapper TDLib, Koin
-  a serializaci na desktopu nejsou.
+- **Build typ `release` kvůli AOT cache, ale bez ProGuardu** (`proguard { isEnabled = false }`)
+  — pravidla pro wrapper TDLib, Koin a serializaci na desktopu nejsou. Viz „Rychlejší start
+  (AOT cache)".
+- **Jména příloh čte aplikace** (`assetMatches`, „Aktualizace z GitHub Release"): přejmenovat
+  balíček ve workflow znamená, že ho už nainstalované verze nenajdou.
 - **MSI jde do přílohy releasu**, artefakt běhu žije jen den: přílohy releasů se do kvóty
   Actions nepočítají.
 - **Na Windows bývá jen `python`, ne `python3`** — `generateChangelog` zkouší obojí, jinak by
@@ -551,6 +555,87 @@ v příloze. Runnery jsou hostované, viz „Runnery" v `release.md`. Secrets st
   Apple Developer (roadmapa).
 - **Lokálně** stačí `./gradlew :client:desktopApp:packageDmg`;
   balíček je v `client/desktopApp/build/compose/binaries/main/dmg/`.
+
+## Rychlejší start (AOT cache)
+
+Release (`packageReleaseMsi` / `packageReleaseDmg`) nese AOT cache JDK 25 (JEP 514/515) přes
+`buildTypes.release.aot { mode = AotMode.AotPrebuild }` z Compose 1.13. Gradle zabalenou
+aplikaci při balení jednou spustí, JVM si zapíše načtené a slinkované třídy i profil metod
+a z toho vznikne `app.aot` vedle jarů; další starty ho berou. **Naměřeno na M-series (macOS 27,
+čistá data, přihlašovací obrazovka): první snímek okna za ~1,0 s místo ~1,9 s.** Cache má
+~100 MB, DMG naroste ze 190 na 227 MB (komprimovaná).
+
+- **`aot` je jen na build typu `release`**, výchozí ho veřejně nenastaví (v 1.13.0-rc01
+  `JvmApplicationBuildTypes.default` je `internal`, ačkoli „What's new" ukazuje
+  `application { aot { … } }`). Release dřív stavěl výchozí build typ kvůli ProGuardu — ten je
+  teď v `release` vypnutý.
+- **Runtime je JDK 25** (`runtimeLauncher`; `AppCdsPrebuild` by stačil 21, ale nezrychlí
+  linkování ani JIT). Toolchain ho stáhne přes foojay, i na CI. Kód dál `jvmToolchain(17)`.
+  JDK 24+ hlásí na stderr každé JNI a `sun.misc.Unsafe`, proto
+  `--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow` v `jvmArgs`.
+- **Tréninkový běh musí skončit SÁM a s kódem 0** — plugin (`AbstractCreateAotArchiveTask`)
+  jen čeká na konec procesu a `assertNormalExitValue`, žádný limit ani pomocné API nemá; pozná
+  se jen podle `-Dcompose.aot.training-run=true` (`desktopTrainingRun`). `TrainingRun` ve
+  vstupním bodu skončí 15 s po prvním snímku (start TDLib, přihlašovací obrazovka, QR kód),
+  pojistka po 3 minutách skončí kódem 1 — rozbitá aplikace nemá vyjít.
+- **Před koncem se zavírá TDLib.** `exitProcess` s klientem uprostřed startu shodil proces
+  v nativním kódu: statické objekty knihovny zanikaly, zatímco její vlákno uklízelo
+  (`td::CountryInfoManager::tear_down` → „mutex lock failed", SIGABRT, kód 134). Cache už
+  zapsaná byla, build přesto spadl. Totéž dělá restart do nové verze.
+- **Tréninkový běh je izolovaný**: vlastní dočasný adresář dat (jinak by narazil na zámek
+  jediné instance nainstalované aplikace a jen ji požádal o okno — cache skoro prázdná),
+  tajemství v souboru místo Klíčenky, oznámení nikam (`SilentNotifier`, žádný dotaz na
+  povolení ani registrace toastů s cestou do buildu) a bez zápisu spouštění po přihlášení.
+  Pouští se i lokálně při `packageRelease*` — na vývojářském stroji nesmí sáhnout na instalaci.
+- **Cache platí i po přesunutí aplikace** (ověřeno kopií `.app` jinam: ~1,1 s) — classpath
+  je relativní k `$APPDIR`. Nesedí-li (jiný JDK), JVM ji tiše přeskočí: `exitAppOnAotFailure`
+  zůstává vypnuté. Že se použila, ukáže `JAVA_TOOL_OPTIONS=-Xlog:aot` při spuštění launcheru.
+- **Měří se z logu**: `Startup` hlásí „První snímek okna N ms od startu JVM". Bez cache
+  stejný balíček s `JAVA_TOOL_OPTIONS=-XX:AOTMode=off`; data jinam přes
+  `JAVA_TOOL_OPTIONS=-Dplume.dataDir=…` (jinak by spuštění jen vytáhlo okno nainstalované Plume).
+- **Na hostovaném Windows runneru tréninkový běh ověřený NENÍ** (první release s cache to
+  ukáže). Kdyby okno nenaběhlo, release projde bez cache s proměnnou repa
+  `DESKTOP_GRADLE_ARGS=-PdesktopAot=false`.
+
+## Aktualizace z GitHub Release
+
+Desktop nabízí novou verzi tou samou kartou v seznamu chatů jako Android z Play (`UpdateCard`,
+stavy `AppUpdateState`): nabídka → stahování na pozadí → Restartovat. `AppUpdates.jvm.kt`
+hledá v API GitHubu, `DesktopInstaller` instaluje.
+
+- **`GET /repos/VladimirTintera/plume/releases`, ne `releases/latest`** — v repu jsou i vydání
+  Androidu a „latest" je to, co vyšlo naposledy. Bere se nejvyšší `desktop-X.Y.Z` bez draftu
+  a pre-release, které má balíček pro tenhle systém (`latestDesktopRelease`, testy
+  `DesktopReleasesTest`): `*.msi` na Windows, `*-macos-arm64.dmg` jen na Apple Silicon.
+  Linux a Intel Mac balíček nemají, nic se jim nenabídne.
+- **Nejvýš jednou za 6 hodin**, i když `check` chodí s každým návratem na seznam chatů: API
+  bez přihlášení pustí 60 dotazů za hodinu z jedné adresy. User-Agent je obecný
+  (`Plume-Desktop/<verze>`), bez něj GitHub odpoví 403.
+- **Jen zabalená aplikace** (`jpackage.app-version`); ladicí běh ani `-PdesktopDebug` se
+  neptají. Verze jde do `versionCode` jako bity (X << 24 | Y << 16 | Z), porovnává se ale
+  `DesktopVersion`.
+- **Stažení do `updates/` v datech aplikace, ověřené SHA-256 z `digest` u přílohy.** Stažený
+  balíček přežije restart — další `check` ho najde a karta rovnou nabídne Restartovat. Po
+  úspěšné aktualizaci ho smaže první `check` nové verze.
+- **Instaluje samostatný proces, který počká na konec aplikace** (běžící aplikace se sama
+  přepsat nemůže): na Windows PowerShell (`Wait-Process`, `msiexec /i … /passive /norestart`,
+  znovu spustit launcher z `jpackage.app-path`), na macOS `/bin/sh` (`hdiutil attach`, `ditto`
+  do `Plume.app.new`, výměna přes `.old`, `open`). Výstup jde do `updates/install.log`.
+  Aplikace mezitím zavře klienty TDLib (viz „Rychlejší start") a skončí.
+- **Na macOS se nesmí ptát Gatekeeper**: soubor stažený aplikací (ne prohlížečem) nemá atribut
+  karantény, takže nová verze se otevře bez „Přesto otevřít". Kam se zapsat nedá (Programy bez
+  práv správce, aplikace spuštěná z DMG nebo přemístěná systémem — App Translocation),
+  Restartovat jen otevře DMG ve Finderu.
+- **Ad hoc podpis = po každé aktualizaci nový dotaz na kameru a mikrofon** (TCC váže povolení
+  na podpis). Klíčenky se to netýká, k té se chodí přes `/usr/bin/security`. Zmizí s podpisem
+  Developer ID (roadmapa).
+- **`hdiutil attach` je na macOS 27 „deprecated"** (varování v logu, odkazuje na `diskutil image
+  attach`) — funguje dál a `diskutil image` macOS 14, na kterém aplikace jede, nemá.
+- **Ověřeno na macOS** (balíček 1.0.99 ve scratch složce nad kopií ladicích dat, dočasně
+  povolené v ladicím režimu a s automatickým potvrzením): nalezení 1.1.1, stažení 190 MB
+  s kontrolou součtu, konec aplikace se zavřením TDLib, výměna bundlu za 1.1.1 a nové spuštění
+  ze stejné cesty. **Neověřeno**: Windows (MSI přes PowerShell) a karta naživo — vzhled karty je
+  společný s Androidem.
 
 ## Cesty k souborům na Windows
 

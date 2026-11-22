@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import eu.tintera.plume.core.platform.DesktopOs
 import eu.tintera.plume.core.platform.desktopDataDirectory
 import eu.tintera.plume.core.platform.desktopOs
+import eu.tintera.plume.core.platform.desktopTrainingRun
 import eu.tintera.plume.core.telegram.NotificationChannelKind
 import eu.tintera.plume.core.ui.openInSystem
 import java.io.File
@@ -47,7 +48,9 @@ actual class NotificationPermission internal constructor(private val notifier: D
      */
     actual val hasSystemPermission: Boolean = when (desktopOs) {
         DesktopOs.MacOs -> true
-        DesktopOs.Windows -> WindowsToasts.available
+        // Tréninkový běh při balení toasty neregistruje (`desktopNotifier`) — sáhnout na
+        // `available` by je zaregistrovalo s cestou do adresáře buildu.
+        DesktopOs.Windows -> !desktopTrainingRun && WindowsToasts.available
         else -> false
     }
 

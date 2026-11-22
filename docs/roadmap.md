@@ -401,7 +401,8 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   DMG pro macOS 15+). Ani jedno zatím nikdo nezkoušel spustit.
 - **Podpis instalátorů**: Windows (certifikát pro podepisování kódu, jinak SmartScreen),
   macOS podpis Developer ID a notarizace. Bez nich systém instalátor při prvním spuštění zastaví.
-- **Aktualizace desktopu**: aplikace o nové verzi neví; šlo by to přes GitHub Releases API.
+- ~~**Aktualizace desktopu**~~ — hotovo z GitHub Release (`docs/poznatky/desktop.md`,
+  „Aktualizace z GitHub Release"); zbývá ověřit MSI přes PowerShell na Windows.
 - ~~**Jazyk aplikace jen pro aplikaci**~~ — hotovo (`DesktopAppLanguage`; `docs/poznatky/desktop.md`,
   „Jazyk aplikace").
 - **Úprava fotky, profilové video, mini aplikace (WebView), poloha, QR čtečka, kalendář,
@@ -1698,19 +1699,8 @@ a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
   prázdný řádek na každé hranici odstavce; jediné řešení bez něj (`\n` → znak nulové šířky
   ve vykresleném textu) by rozbilo kopírování výběru a citaci z výběru. Podrobnosti a pokusy:
   `docs/poznatky/konverzace-zobrazeni.md`, „Odsazení textu uvnitř zprávy".
-- **Desktop: rychlejší start (AppCDS / AOT)** — Compose Gradle plugin 1.13 to má jako
-  `buildTypes.release.aot { mode = AotMode.AppCdsPrebuild }` (také `AppCdsAuto`, `AotPrebuild`;
-  třídy v `org.jetbrains.compose.desktop.application.dsl`). Zjištěno při pokusu o integraci:
-  - **jde jen na build type `release`** (`packageReleaseDmg` / `packageReleaseMsi`), výchozí build
-    type ho veřejně nenastaví. Release dnes staví `packageMsi` / `packageDmg` kvůli tomu, že
-    ProGuard pro TDLib wrapper, Koin a serializaci nemá pravidla → přejít na `packageRelease*`
-    s `proguard { isEnabled = false }`.
-  - **`AppCdsPrebuild` / `AotPrebuild` dělají při buildu trénovací běh** aplikace
-    (`-Dcompose.aot.training-run=true`, `-XX:ArchiveClassesAtExit`), který musí sám skončit —
-    `main` by po prvním snímku (bez přihlášení, bez TDLib?) zavolal `exitApplication()`.
-  - **`AppCdsAuto`** (`-XX:+AutoCreateSharedArchive`, JDK 19+) zapisuje archiv do `$APPDIR` za
-    běhu: v podepsaném `.app` na macOS i v instalaci MSI to je zápis do balíčku aplikace — spíš ne.
-  - AOT (JEP 514) chce JDK 25, runtime balíčku je 21 (`runtimeLauncher`). Změřit start před a po.
+- ~~**Desktop: rychlejší start (AppCDS / AOT)**~~ — hotovo (`AotPrebuild`, JDK 25;
+  `docs/poznatky/desktop.md`, „Rychlejší start (AOT cache)"); zbývá první release na Windows runneru.
 - **iOS zadarmo, jen ověřit na simulátoru:**
   - **Dynamic Type** — písmo se řídí systémovou velikostí; vyzkoušet spolu s vlastní velikostí
     písma zpráv a s řádky pevné výšky.

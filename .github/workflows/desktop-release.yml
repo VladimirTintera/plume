@@ -8,9 +8,18 @@
 #
 # Co workflow udělá:
 #   1. z tagu vytáhne verzi,
-#   2. na Windows postaví instalátor MSI (`packageMsi -PdesktopVersion`),
-#   3. na macOS (Apple Silicon) postaví DMG (`packageDmg -PdesktopVersion`),
+#   2. na Windows postaví instalátor MSI (`packageReleaseMsi -PdesktopVersion`),
+#   3. na macOS (Apple Silicon) postaví DMG (`packageReleaseDmg -PdesktopVersion`),
 #   4. založí GitHub Release s oběma v příloze a changelogem od předchozího desktop tagu.
+#
+# Build typ `release` = balíček s AOT cache (Compose 1.13, `aot` v client/desktopApp/build.gradle.kts):
+# Gradle aplikaci při balení jednou spustí (tréninkový běh, okno na pár vteřin) a z načtených tříd
+# udělá `app.aot`, se kterým aplikace startuje zhruba dvakrát rychleji. Runtime je proto JDK 25,
+# toolchain si ho stáhne sám (foojay). Kdyby tréninkový běh na runneru selhal, release projde bez
+# cache s `-PdesktopAot=false` (proměnná repa DESKTOP_GRADLE_ARGS).
+# Aplikace si nová vydání hledá sama v přílohách releasu (AppUpdates.jvm.kt) — JMÉNA balíčků
+# (`Plume-X.Y.Z.msi`, `Plume-X.Y.Z-macos-arm64.dmg`) proto nejsou jen kosmetika, měnit je jen spolu
+# s `assetMatches`.
 #
 # Linux se staví stejně (`packageDeb`), jen na svém systému — jpackage cizí systém zabalit
 # neumí. Do releasu zatím nejde, nikdo ho nezkoušel.
@@ -211,8 +220,9 @@ jobs:
             exit 1
           fi
 
-      # WiX (nástroj na MSI) si Compose plugin stáhne sám. Bez ProGuardu (`packageMsi`, ne
-      # `packageReleaseMsi`): pravidla pro TDLib wrapper, Koin a serializaci na desktopu nejsou.
+      # WiX (nástroj na MSI) si Compose plugin stáhne sám. `packageReleaseMsi` kvůli AOT cache;
+      # ProGuard je v build typu release vypnutý (pravidla pro TDLib wrapper, Koin a serializaci
+      # na desktopu nejsou).
       - name: Build MSI
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
@@ -224,8 +234,9 @@ jobs:
           if [[ "${{ runner.environment }}" == self-hosted ]]; then
             MEM_ARGS=(-Dorg.gradle.jvmargs="-Xmx4g -Dfile.encoding=UTF-8 -XX:+UseParallelGC" -Pkotlin.daemon.jvmargs=-Xmx2g --max-workers=2)
           fi
-          ./gradlew :client:desktopApp:packageMsi -PdesktopVersion=${{ needs.version.outputs.version }} "${MEM_ARGS[@]}"
-          ls -la client/desktopApp/build/compose/binaries/main/msi/
+          # shellcheck disable=SC2086 # DESKTOP_GRADLE_ARGS se má rozdělit na argumenty
+          ./gradlew :client:desktopApp:packageReleaseMsi -PdesktopVersion=${{ needs.version.outputs.version }} "${MEM_ARGS[@]}" ${{ vars.DESKTOP_GRADLE_ARGS }}
+          ls -la client/desktopApp/build/compose/binaries/main-release/msi/
 
       # Compose u selhání jpackage ukáže jen cestu k logu na runneru; hláška je v něm.
       - name: jpackage logs
@@ -241,7 +252,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: msi
-          path: client/desktopApp/build/compose/binaries/main/msi/*.msi
+          path: client/desktopApp/build/compose/binaries/main-release/msi/*.msi
           retention-days: 1
           if-no-files-found: error
 
@@ -312,7 +323,7 @@ jobs:
             exit 1
           fi
 
-      # Bez ProGuardu, stejně jako MSI. Podpis zůstává ad hoc (jpackage), bez notarizace.
+      # S AOT cache a bez ProGuardu, stejně jako MSI. Podpis zůstává ad hoc (jpackage), bez notarizace.
       # Jméno s architekturou, ať v příloze releasu nikdo nehádá, pro který Mac je.
       - name: Build DMG
         env:
@@ -320,9 +331,10 @@ jobs:
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
           VERSION="${{ needs.version.outputs.version }}"
-          ./gradlew :client:desktopApp:packageDmg -PdesktopVersion="$VERSION"
+          # shellcheck disable=SC2086 # DESKTOP_GRADLE_ARGS se má rozdělit na argumenty
+          ./gradlew :client:desktopApp:packageReleaseDmg -PdesktopVersion="$VERSION" ${{ vars.DESKTOP_GRADLE_ARGS }}
           mkdir -p dist
-          mv client/desktopApp/build/compose/binaries/main/dmg/Plume-"$VERSION".dmg dist/Plume-"$VERSION"-macos-arm64.dmg
+          mv client/desktopApp/build/compose/binaries/main-release/dmg/Plume-"$VERSION".dmg dist/Plume-"$VERSION"-macos-arm64.dmg
           ls -la dist/
 
       - name: jpackage logs
@@ -388,6 +400,8 @@ jobs:
             echo "  \"More info\" → \"Run anyway\". It installs for the current user only, without administrator rights."
             echo "- **macOS**: drag Plume to Applications. The system blocks it the first time you open it:"
             echo "  go to System Settings → Privacy & Security and click \"Open Anyway\" at the bottom."
+            echo
+            echo "Once installed, Plume finds new versions here by itself and offers them at the top of the chat list."
             echo
             # Poznámky pro uživatele jen s platformou desktop (`units:` v poznámce, bez něj všechny).
             python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" desktop
