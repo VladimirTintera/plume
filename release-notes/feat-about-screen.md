@@ -1,3 +1,3 @@
 type: feat
-cs: O aplikaci v Nastavení: verze, kontrola aktualizace a odkaz na zdrojové kódy
-en: About in Settings: version, update check and a link to the source code
+cs: O aplikaci v Nastavení: verze, kontrola aktualizace, zdrojové kódy a licence knihoven
+en: About in Settings: version, update check, source code and open source licenses

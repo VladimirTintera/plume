@@ -1978,6 +1978,15 @@
     <string name="about_license">Licence</string>
     <string name="about_license_summary">MIT: volně k použití, úpravám i šíření</string>
     <string name="about_disclaimer">Plume používá Telegram API prostřednictvím TDLib. Není oficiálním produktem Telegramu a s Telegramem není nijak spojená.</string>
+    <string name="about_tdlib">TDLib %1$s</string>
+    <string name="about_tdlib_summary">Knihovna, přes kterou aplikace mluví s Telegramem</string>
+    <string name="licenses_title">Licence knihoven</string>
+    <string name="licenses_summary">Knihovny, ze kterých aplikace vzniká, a jejich licence</string>
+    <string name="settings_search_kw_licenses">open source, knihovny, třetí strany, licence</string>
+    <string name="licenses_intro">Plume stojí na těchto knihovnách a zdrojích. Ťuknutím si přečteš jejich licenci.</string>
+    <string name="licenses_website">Web projektu</string>
+    <string name="licenses_open_terms">Otevřít podmínky</string>
+    <string name="licenses_load_failed">Seznam licencí se nepodařilo načíst.</string>
     <string name="changelog_release_title">Verze %1$s · %2$s</string>
     <string name="changelog_note_feature">Novinka</string>
     <string name="changelog_note_fix">Oprava</string>

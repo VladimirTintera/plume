@@ -1012,9 +1012,10 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá.
 ## O aplikaci (`AboutSettings`)
 
 Poslední řádek Pomoci. Logo (pírko z ikony v devítistranné sušence `primaryContainer`), jméno
-a „Neoficiální klient Telegramu"; blok s verzí a kontrolou aktualizace; blok „Otevřený zdrojový
-kód" (zdrojáky, Issues na GitHubu, oddíl Privacy v README, licence MIT); věta, že Plume není
-oficiální produkt Telegramu (podmínky Telegram API, README ji má taky).
+a „Neoficiální klient Telegramu"; blok s verzí aplikace, verzí TDLib a kontrolou aktualizace;
+blok „Otevřený zdrojový kód" (zdrojáky, Issues na GitHubu, oddíl Privacy v README, licence MIT,
+podstránka Licence knihoven); věta, že Plume není oficiální produkt Telegramu (podmínky
+Telegram API, README ji má taky).
 
 - **Logo je vektor z `play/tools/icon.py`** (`plume_logo_24dp.xml`, tentýž tvar jako ikona
   notifikace, černý — barvu dává `tint`). Generátor ho zapisuje s ostatními výstupy, takže se
@@ -1032,9 +1033,48 @@ oficiální produkt Telegramu (podmínky Telegram API, README ji má taky).
   v O aplikaci neruší — kdo sem přišel, aktualizaci hledá.
 - **Výsledek kontroly se nepamatuje přes odchod z obrazovky** (`remember`, ne ViewModel):
   „máš nejnovější verzi" platí teď. Text výsledku je `liveRegion`, čtečka ho oznámí sama.
+- **Verzi TDLib hlásí klient sám** (`TelegramSession.tdlibVersion()`: volby `version`
+  a `commit_hash`, „1.8.69 (a1b2c3d)"), ne číslo z build skriptu — verze wrapperu a TDLib v něm
+  jsou dvě různá čísla a ručně vedená mapa by se při bumpu rozešla. Dokud odpověď nepřijde,
+  řádek není; kopírovaná verze ji obsahuje taky.
 - **Soukromí odkazuje na oddíl Privacy v README**, vlastní zásady soukromí aplikace nemá.
 - **Hledání v Nastavení** najde sekci i řádky „Zkontrolovat aktualizace" a „Zdrojové kódy"
   (synonyma verze, GitHub, licence…).
+
+## Licence knihoven (`LicensesScreen`, `plume.licenses`)
+
+Podstránka nad O aplikaci (`LicensesRoute`, třetí panel): knihovny podle jména s verzí
+a licencí, ťuknutí otevře sheet s textem licence (proprietární podmínky Googlu jen odkazem).
+Data generuje AboutLibraries (jen plugin a `aboutlibraries-core`, UI je vlastní v jazyce
+aplikace — hotové UI knihovny by táhlo vlastní material3).
+
+- **Jeden soubor na platformu, sebraný vstupním bodem** (`files/licenses/android.json`,
+  `desktop.json`, `ios.json` v `:client:resources`). Z grafu `:client:shared` chyběly závislosti,
+  které má jen vstupní bod (Firebase Messaging a Wear na Androidu, LiteRT-LM pro JVM na
+  desktopu). iOS vstupní bod v Gradlu nemá, jeho soubor je z `shared` a aplikace bere jen
+  knihovny společného kódu (`targets` obsahuje `metadata`).
+- **Generuje se ručně a commituje**: `./gradlew exportLicenses` po změně závislostí. Release
+  se staví z tagu a výsledek má být z tagu reprodukovatelný — stejně jako poznámky k vydání.
+  **Dokud se po bumpu nepřegeneruje, ukazuje seznam staré verze** (nic jiného se nerozbije).
+- **Offline, s texty licencí v repu** (`docs/licenses/aboutlibraries/licenses`). Online plugin
+  bere texty z SPDX a stahování selhávalo náhodně — tři běhy za sebou, pokaždé chyběl jiný text
+  (LGPL, BSD, GPL), i s `--no-parallel`. Offline jsou dva běhy bajtově shodné. Nová licence se
+  ohlásí varováním „does not contain the license text … OFFLINE MODE"; text se přidá souborem
+  (`hash` = SPDX id, nebo hash, který plugin vypíše).
+- **Plugin páruje licence podle JMÉNA SPDX**, ne podle `spdxId` v souboru: „GNU Lesser General
+  Public License v3.0" text nedostal, „… v3.0 only" ano.
+- **Co v grafu Gradlu není, doplňuje `docs/licenses/aboutlibraries/libraries`**: TDLib (uvnitř
+  wrapperu), ai-engine (included build plugin nevidí), llama.cpp (zkompilovaný do nativní
+  knihovny; NOTICE ai-engine chce jeho licenci v aplikaci), LiteRT-LM pro Android (součást
+  z Play na požádání, mimo graf `androidApp`), fonty (text z `docs/licenses`), Material Symbols
+  a ntgcalls na desktopu (stahuje ho build skript, ne Gradle). Ruční položky jdou do všech
+  souborů a platformu jim určuje `targets`; sebrané knihovny Androidu a desktopu `targets`
+  nemají (jednocílový projekt) a ukazují se vždycky.
+- **Vlastní `LibraryEntry`, ne `Library` z knihovny**: ta je datová třída se `Set` a Compose by
+  ji vedl jako nestabilní; zároveň obrazovka nevidí, odkud seznam je.
+- **`/*` v KDoc build skriptu spolklo zbytek souboru** (viz „Gotchas" v CLAUDE.md): `files/licenses/`
+  s hvězdičkou v komentáři kořenového `build.gradle.kts` udělalo z úlohy `exportLicenses`
+  komentář a Gradle hlásil jen „Task not found" — bez chyby skriptu.
 
 ## Synchronizace nastavení mezi zařízeními bez vlastního backendu
 

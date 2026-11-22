@@ -1,0 +1,14 @@
+{
+  "uniqueId": "eu.tintera.ai:ai-engine",
+  "name": "ai-engine",
+  "description": "On-device AI runtimes (Gemini Nano, LiteRT-LM, llama.cpp, Apple Intelligence).",
+  "website": "https://github.com/VladimirTintera/ai-engine",
+  "licenses": [
+    "Apache-2.0"
+  ],
+  "targets": [
+    "android",
+    "jvm",
+    "metadata"
+  ]
+}

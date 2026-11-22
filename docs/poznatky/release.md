@@ -101,6 +101,10 @@ a anglicky, z poznámek v [`release-notes/`](../../release-notes), které přid�
 s poznámkami a changelogem.
 Žádný verzovací commit není potřeba — verze se do buildu dostane přes `-P`.
 
+**Seznam licencí knihoven se nepřegenerovává sám** (`./gradlew exportLicenses`, výsledek
+v `files/licenses/` se commituje). Patří do PR, který mění závislosti; zapomenutý znamená
+v „Licence knihoven" staré verze, nic víc (`docs/poznatky/nastaveni.md`, „Licence knihoven").
+
 Běžné vydání se spouští z GitHubu: **Actions → „Release — bump & tag" → Run workflow**, vybrat
 typ bumpu (`build` / `patch` / `minor` / `major`). Workflow dopočítá verzi z posledního tagu,
 tag pushne a release spustí. `versionCode` se zvyšuje vždy — Play si pamatuje každé nahrané

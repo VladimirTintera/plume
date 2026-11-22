@@ -13,3 +13,18 @@ plugins {
     alias(libs.plugins.googleServices) apply false
     alias(libs.plugins.crashlytics) apply false
 }
+
+/**
+ * Přegeneruje seznamy licencí knihoven pro „O aplikaci" (`files/licenses/` v :client:resources,
+ * konvenční plugin `plume.licenses`). Spouští se ručně po změně závislostí a výsledek se commituje —
+ * texty licencí se stahují z SPDX, release ze sítě číst nemá.
+ */
+tasks.register("exportLicenses") {
+    group = "plume"
+    description = "Přegeneruje licence knihoven pro O aplikaci (Android, desktop, iOS)."
+    dependsOn(
+        ":client:androidApp:exportLibraryDefinitions",
+        ":client:desktopApp:exportLibraryDefinitions",
+        ":client:shared:exportLibraryDefinitions",
+    )
+}

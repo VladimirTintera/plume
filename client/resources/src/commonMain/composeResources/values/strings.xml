@@ -1915,6 +1915,15 @@
     <string name="about_license">License</string>
     <string name="about_license_summary">MIT: free to use, change and share</string>
     <string name="about_disclaimer">Plume uses the Telegram API through TDLib. It is not an official Telegram product and is not affiliated with Telegram.</string>
+    <string name="about_tdlib">TDLib %1$s</string>
+    <string name="about_tdlib_summary">The library through which the app talks to Telegram</string>
+    <string name="licenses_title">Open source licenses</string>
+    <string name="licenses_summary">The libraries the app is built on and their licenses</string>
+    <string name="settings_search_kw_licenses">open source, libraries, third party, notices, license</string>
+    <string name="licenses_intro">Plume is built on these libraries and resources. Tap one to read its license.</string>
+    <string name="licenses_website">Project website</string>
+    <string name="licenses_open_terms">Open the terms</string>
+    <string name="licenses_load_failed">Couldn't load the list of licenses.</string>
     <string name="changelog_release_title">Version %1$s · %2$s</string>
     <string name="changelog_note_feature">New</string>
     <string name="changelog_note_fix">Fix</string>

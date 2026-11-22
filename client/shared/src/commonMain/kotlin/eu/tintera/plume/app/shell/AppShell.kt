@@ -50,11 +50,13 @@ import eu.tintera.plume.features.settings.PrivacySettingScreen
 import eu.tintera.plume.core.navigation.TwoStepRoute
 import eu.tintera.plume.core.navigation.LoginEmailRoute
 import eu.tintera.plume.core.navigation.NetworkUsageRoute
+import eu.tintera.plume.core.navigation.LicensesRoute
 import eu.tintera.plume.core.navigation.PasskeysRoute
 import eu.tintera.plume.core.navigation.ChangePhoneRoute
 import eu.tintera.plume.features.instantview.InstantViewScreen
 import eu.tintera.plume.features.settings.ChangePhoneScreen
 import eu.tintera.plume.features.settings.NetworkUsageScreen
+import eu.tintera.plume.features.settings.LicensesScreen
 import eu.tintera.plume.features.settings.PasskeysScreen
 import eu.tintera.plume.features.settings.DeleteAccountScreen
 import eu.tintera.plume.features.settings.LoginEmailScreen
@@ -2072,6 +2074,7 @@ private fun shellEntryProvider(
             onOpenNetworkUsage = { settingsStack.openSubpage(route, NetworkUsageRoute) },
             onOpenAppLock = { settingsStack.openSubpage(route, AppLockRoute) },
             onOpenAiPlayground = { settingsStack.openSubpage(route, AiPlaygroundRoute) },
+            onOpenLicenses = { settingsStack.openSubpage(route, LicensesRoute) },
         )
     }
 
@@ -2214,6 +2217,13 @@ private fun shellEntryProvider(
         metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         NetworkUsageScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
+    }
+
+    // Licence knihoven nad sekcí O aplikaci.
+    entry<LicensesRoute>(
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+    ) { route ->
+        LicensesScreen(onBack = { settingsStack.pop(route) })
     }
 
     // Přístupové klíče nad sekcí Soukromí, jako dvoufázové ověření.
@@ -2513,7 +2523,7 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 /** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, dvoufázové ověření, složky chatů. */
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
-        this == LoginEmailRoute || this == ChangePhoneRoute || this == PasskeysRoute || this == NetworkUsageRoute ||
+        this == LoginEmailRoute || this == ChangePhoneRoute || this == PasskeysRoute || this == NetworkUsageRoute || this == LicensesRoute ||
         this == AppLockRoute || this == ChatFoldersRoute || this == AiPlaygroundRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
         this == StickerSetsRoute || this == EmojiSetsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute || this == DeleteAccountRoute

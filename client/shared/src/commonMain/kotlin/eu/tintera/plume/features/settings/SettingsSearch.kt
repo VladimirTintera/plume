@@ -14,6 +14,7 @@ import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.core.navigation.EmojiSetsRoute
 import eu.tintera.plume.core.navigation.LoginEmailRoute
 import eu.tintera.plume.core.navigation.NetworkUsageRoute
+import eu.tintera.plume.core.navigation.LicensesRoute
 import eu.tintera.plume.core.navigation.PasskeysRoute
 import eu.tintera.plume.core.navigation.PrivacySettingRoute
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
@@ -45,6 +46,8 @@ import eu.tintera.plume.resources.edit_profile_title
 import eu.tintera.plume.resources.edit_profile_username
 import eu.tintera.plume.resources.emoji_sets_title
 import eu.tintera.plume.resources.network_usage_title
+import eu.tintera.plume.resources.licenses_title
+import eu.tintera.plume.resources.settings_search_kw_licenses
 import eu.tintera.plume.resources.person_24dp
 import eu.tintera.plume.resources.personal_channel_row
 import eu.tintera.plume.resources.privacy_account_ttl
@@ -234,6 +237,7 @@ internal val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = buildList {
     val about = SettingsSection.About
     add(SettingsSearchEntry(Res.string.about_check_update, section(about), Res.string.settings_search_kw_about))
     add(SettingsSearchEntry(Res.string.about_source, section(about), Res.string.settings_search_kw_about))
+    add(SettingsSearchEntry(Res.string.licenses_title, section(about, LicensesRoute), Res.string.settings_search_kw_licenses))
 
     // Úprava profilu stojí nad seznamem místo sekce (karta účtu).
     listOf(
@@ -308,6 +312,7 @@ internal val NavKey.pathTitle: StringResource?
         StickerSetsRoute -> Res.string.sticker_sets_title
         EmojiSetsRoute -> Res.string.emoji_sets_title
         NetworkUsageRoute -> Res.string.network_usage_title
+        LicensesRoute -> Res.string.licenses_title
         ProxySettingsRoute -> Res.string.proxy_title
         EditProfileRoute -> Res.string.edit_profile_title
         ChangePhoneRoute -> Res.string.change_phone_title

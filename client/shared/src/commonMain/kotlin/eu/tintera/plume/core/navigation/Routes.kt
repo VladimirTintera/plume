@@ -122,6 +122,10 @@ data object LoginEmailRoute : Route
 @Serializable
 data object NetworkUsageRoute : Route
 
+/** Licence knihoven. Vrší se nad sekci O aplikaci. */
+@Serializable
+data object LicensesRoute : Route
+
 /** Přístupové klíče (seznam a odebrání). Vrší se nad sekci Soukromí jako [TwoStepRoute]. */
 @Serializable
 data object PasskeysRoute : Route
@@ -714,6 +718,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(LoginEmailRoute::class, LoginEmailRoute.serializer())
             subclass(PasskeysRoute::class, PasskeysRoute.serializer())
             subclass(NetworkUsageRoute::class, NetworkUsageRoute.serializer())
+            subclass(LicensesRoute::class, LicensesRoute.serializer())
             subclass(ChangePhoneRoute::class, ChangePhoneRoute.serializer())
             subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())

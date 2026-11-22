@@ -1,0 +1,12 @@
+{
+  "uniqueId": "com.google.ai.edge.litertlm:litertlm-android",
+  "name": "LiteRT-LM",
+  "description": "On-device language model runtime, delivered as an on-demand component from Google Play.",
+  "website": "https://github.com/google-ai-edge/LiteRT-LM",
+  "licenses": [
+    "Apache-2.0"
+  ],
+  "targets": [
+    "android"
+  ]
+}

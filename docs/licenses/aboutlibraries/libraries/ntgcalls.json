@@ -1,0 +1,8 @@
+{
+  "uniqueId": "io.github.pytgcalls:ntgcalls",
+  "website": "https://github.com/pytgcalls/ntgcalls",
+  "targets": [
+    "android",
+    "jvm"
+  ]
+}

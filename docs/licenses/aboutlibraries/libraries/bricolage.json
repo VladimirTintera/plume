@@ -1,0 +1,14 @@
+{
+  "uniqueId": "font:bricolage-grotesque",
+  "name": "Bricolage Grotesque",
+  "description": "Typeface for headlines.",
+  "website": "https://github.com/ateliertriay/bricolage",
+  "licenses": [
+    "OFL-Bricolage"
+  ],
+  "targets": [
+    "android",
+    "jvm",
+    "metadata"
+  ]
+}
