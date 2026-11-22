@@ -30,6 +30,8 @@
 #   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
 #   TELEGRAM_API_HASH           – api_hash z my.telegram.org
 #   PLAY_SERVICE_ACCOUNT_JSON   – JSON klíč service accountu s právem nahrávat do Play Console
+#   GOOGLE_SERVICES_JSON        – obsah client/androidApp/google-services.json (Firebase: push
+#                                 a Crashlytics, telefon i hodinky); v repu není
 #
 # Běží na self-hosted runneru `plume-mac` na vývojářském Macu (label `plume`), ne na hostovaném —
 # nastavení stroje a pasti v docs/poznatky/release.md, „Self-hosted runnery". Návrat na hostovaný
@@ -150,6 +152,24 @@ jobs:
             exit 1
           fi
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+
+      # Konfigurace Firebase (push přes FCM a Crashlytics) v repu není — ve veřejném repu nemá co
+      # dělat (docs/poznatky/notifikace.md, „Konfigurace Firebase"). Bez ní by se release
+      # přeložil tiše bez pushe a bez hlášení pádů (plugin se aplikuje jen se souborem), proto
+      # chybějící secret release ZASTAVÍ. Hodinky mají tentýž soubor (stejné applicationId).
+      # Hodnota jde přes ENV, ne `${{ }}` do skriptu: JSON s uvozovkami by se rozsypal.
+      - name: Write Firebase config
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::Chybí secret GOOGLE_SERVICES_JSON (obsah client/androidApp/google-services.json) — release by vyšel bez push notifikací a bez hlášení pádů."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON" > client/androidApp/google-services.json
+          python3 -c 'import json,sys; json.load(open(sys.argv[1]))' client/androidApp/google-services.json \
+            || { echo "::error::Secret GOOGLE_SERVICES_JSON není platný JSON."; exit 1; }
+          cp client/androidApp/google-services.json client/wearApp/google-services.json
 
       # Monitor zdrojů běží UVNITŘ tohohle kroku, ne jako samostatný krok: když runner umře na
       # paměť, žádný další krok se nespustí — ani ten s `if: always()`. Odsud jde výstup do logu

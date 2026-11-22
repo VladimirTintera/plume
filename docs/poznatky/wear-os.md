@@ -556,7 +556,8 @@ dřív už bylo `EdgeButton`, `TimeText`, scaffoldy a číslice na dlaždici.
   `processPush`, počká na vydání). Hovory hodinky nemají.
 - **`google-services.json` je kopie z `androidApp`:** plugin ho čte jen z adresáře modulu a
   hodinky mají stejné `applicationId`, takže platí tentýž soubor. Změní-li se projekt Firebase,
-  mění se oba. Bez souboru se hodinky přeloží, jen bez pushe.
+  mění se oba. Bez souboru se hodinky přeloží, jen bez pushe. V gitu není ani jeden; release
+  workflow píše oba z jednoho secretu `GOOGLE_SERVICES_JSON`.
 - **Notifikace kreslí `WearNotifications`** (telefonní presenter je ve `shared`): jedna na chat
   (`MessagingStyle`, id = `notificationGroupId`), stažená skupina (přečteno jinde) zmizí, ťuknutí
   (na hodinkách „Open on watch") otevře rovnou konverzaci: `MainActivity.EXTRA_CHAT_ID` jako

@@ -135,8 +135,10 @@ je, je čistší service account založit v něm než link přepisovat.
 | `TELEGRAM_API_ID` | `telegramApiId` z my.telegram.org |
 | `TELEGRAM_API_HASH` | `telegramApiHash` z my.telegram.org |
 | `PLAY_SERVICE_ACCOUNT_JSON` | celý obsah JSON klíče service accountu |
+| `GOOGLE_SERVICES_JSON` | `gh secret set GOOGLE_SERVICES_JSON < client/androidApp/google-services.json` |
 
-`google-services.json` secret nepotřebuje, je v repozitáři. Bez `TELEGRAM_API_ID` build **spadne**: zapekla by se nula a appka by se nepřihlásila.
+`GOOGLE_SERVICES_JSON` je obsah `client/androidApp/google-services.json` (v repu není, bez secretu
+release skončí chybou; viz „Konfigurace Firebase" v `notifikace.md`). Bez `TELEGRAM_API_ID` build **spadne**: zapekla by se nula a appka by se nepřihlásila.
 
 **3. První AAB nahrát ručně.** Dokud aplikace nemá v Play žádný release, androidpublisher API
 upload odmítne — první bundle tedy musí do Play Console projít přes web. Postav ho lokálně:
@@ -541,8 +543,8 @@ Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS aplikace s bun
 - **Sběr jen z Release**: `FirebaseCrashlyticsCollectionEnabled` v `Info.plist` je build setting
   `PLUME_CRASHLYTICS_COLLECTION_ENABLED` (Debug `NO`, Release `YES`). Crashlytics bere i textové
   `YES`/`NO`. Archiv do TestFlightu je Release, build z Xcode na zařízení Debug.
-- **`GoogleService-Info.plist` je v `iosApp/iosApp/`** a commituje se jako `google-services.json`
-  (tajemství v něm nejsou, jde stejně v binárce). Složka je synchronizovaná skupina Xcode, do
+- **`GoogleService-Info.plist` patří do `iosApp/iosApp/`**, ale v gitu není (`.gitignore`, stejně
+  jako `google-services.json`; viz „Konfigurace Firebase" v `notifikace.md`). Složka je synchronizovaná skupina Xcode, do
   bundlu se dostane sama. iOS aplikace ve Firebase je `1:737473989471:ios:f0c3…`, bundle
   `eu.tintera.plume`. **Bez plistu aplikace běží dál, jen bez hlášení**:
   `FirebaseCrashlyticsBridge.start()` vrátí `nil` (`FirebaseApp.configure()` by bez plistu shodil
