@@ -33,9 +33,8 @@
 #   GOOGLE_SERVICES_JSON        – obsah client/androidApp/google-services.json (Firebase: push
 #                                 a Crashlytics, telefon i hodinky); v repu není
 #
-# Běží na self-hosted runneru `plume-mac` na vývojářském Macu (label `plume`), ne na hostovaném —
-# nastavení stroje a pasti v docs/poznatky/release.md, „Self-hosted runnery". Návrat na hostovaný
-# bez zásahu do workflow: repo proměnná ANDROID_RUNS_ON = ["ubuntu-latest"].
+# Běží na hostovaném runneru GitHubu (ve veřejném repu zdarma). Repo proměnná ANDROID_RUNS_ON
+# ho umí přesměrovat jinam (třeba na self-hosted), viz docs/poznatky/release.md, „Runnery".
 name: Android Release
 
 permissions:
@@ -54,7 +53,7 @@ on:
 
 jobs:
   release:
-    runs-on: ${{ fromJSON(vars.ANDROID_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
+    runs-on: ${{ fromJSON(vars.ANDROID_RUNS_ON || '["ubuntu-latest"]') }}
     timeout-minutes: 90
 
     steps:
