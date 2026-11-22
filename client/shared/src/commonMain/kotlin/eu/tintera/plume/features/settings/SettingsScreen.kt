@@ -58,6 +58,7 @@ import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.resources.chats_search_clear
 import eu.tintera.plume.resources.devices_24dp
 import eu.tintera.plume.resources.forum_24dp
@@ -84,6 +85,8 @@ import eu.tintera.plume.resources.settings_section_storage
 import eu.tintera.plume.resources.settings_section_storage_summary
 import eu.tintera.plume.resources.settings_section_whats_new
 import eu.tintera.plume.resources.settings_section_whats_new_summary
+import eu.tintera.plume.resources.settings_section_about
+import eu.tintera.plume.resources.settings_section_about_summary
 import eu.tintera.plume.resources.settings_sign_out
 import eu.tintera.plume.resources.settings_sign_out_body
 import eu.tintera.plume.resources.settings_sign_out_confirm
@@ -108,7 +111,7 @@ import org.koin.compose.viewmodel.koinViewModel
  *   by byla navíc.
  * - **AI v zařízení se nenabízí tam, kde žádný model není** — stejné pravidlo jako uvnitř sekce
  *   (nabídka funkce, kterou nelze mít).
- * - **Co je nového stojí v Pomoci**: je to čtení, ne nastavení.
+ * - **Co je nového a O aplikaci stojí v Pomoci**: je to čtení, ne nastavení.
  * - **Odhlásit se je poslední** a v chybové barvě, s potvrzením, které říká následek.
  */
 @Composable
@@ -138,7 +141,7 @@ fun SettingsScreen(
     val sections = SettingsSection.entries.filter { section ->
         when (section) {
             SettingsSection.Ai -> aiAvailable
-            SettingsSection.WhatsNew -> false
+            SettingsSection.WhatsNew, SettingsSection.About -> false
             else -> true
         }
     }
@@ -229,6 +232,8 @@ fun SettingsScreen(
                 onOpenChat = onOpenChat,
                 whatsNewSelected = selectedSection == SettingsSection.WhatsNew,
                 onOpenWhatsNew = { onSectionClick(SettingsSection.WhatsNew) },
+                aboutSelected = selectedSection == SettingsSection.About,
+                onOpenAbout = { onSectionClick(SettingsSection.About) },
             )
 
             // Destruktivní akce dostane error roli a potvrzení s konkrétním následkem.
@@ -394,6 +399,7 @@ internal val SettingsSection.title: StringResource
         SettingsSection.Devices -> Res.string.settings_section_devices
         SettingsSection.Ai -> Res.string.settings_section_ai
         SettingsSection.WhatsNew -> Res.string.settings_section_whats_new
+        SettingsSection.About -> Res.string.settings_section_about
     }
 
 /**
@@ -410,6 +416,7 @@ internal val SettingsSection.icon: DrawableResource
         SettingsSection.Devices -> Res.drawable.devices_24dp
         SettingsSection.Ai -> Res.drawable.auto_awesome_24dp
         SettingsSection.WhatsNew -> Res.drawable.campaign_24dp
+        SettingsSection.About -> Res.drawable.info_24dp
     }
 
 /** Co v sekci je. Bez toho by ze seznamu slov nebylo poznat, kde co hledat. */
@@ -423,6 +430,7 @@ internal val SettingsSection.summary: StringResource
         SettingsSection.Devices -> Res.string.settings_section_devices_summary
         SettingsSection.Ai -> Res.string.settings_section_ai_summary
         SettingsSection.WhatsNew -> Res.string.settings_section_whats_new_summary
+        SettingsSection.About -> Res.string.settings_section_about_summary
     }
 
 private val BLOCK_SPACING = 16.dp

@@ -124,7 +124,7 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
 
 **Seznam od přeskupení (říjen 2026)**, odshora: karta účtu → úprava profilu; sekce Soukromí,
 Notifikace, Chaty, Vzhled, Úložiště, Zařízení, AI v zařízení; řádek Jazyk; Pomoc (Zeptat se,
-Časté dotazy, Co je nového); Odhlásit se. Dřív vše kromě notifikací, vzhledu, zařízení
+Časté dotazy, Co je nového, O aplikaci); Odhlásit se. Dřív vše kromě notifikací, vzhledu, zařízení
 a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a rozhodnutí: `docs/roadmap.md`,
 „Přeskupení sekcí".
 
@@ -157,8 +157,9 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
   mezi třemi podstránkami jedno zpět zavře třetí panel celý.
 - **AI v zařízení se v seznamu ukazuje jen se dostupným modelem** — stejný tok
   (`OnDeviceAi.availability()`) jako uvnitř sekce, ať se rozhodnutí nerozejde.
-- **Co je nového je pořád `SettingsSection`** (otevírá se jako sekce vedle seznamu), jen řádek
-  stojí v Pomoci, ne mezi sekcemi.
+- **Co je nového a O aplikaci jsou pořád `SettingsSection`** (otevírají se jako sekce vedle
+  seznamu), jen jejich řádky stojí v Pomoci, ne mezi sekcemi. Nová hodnota výčtu jde NA KONEC:
+  ukládá se jménem, ale pořadí je pořadí v seznamu a první sekce se otevírá v dvoupanelu.
 - **Správa stažených modelů AI zůstala v Úložišti** (zabrané místo, jako balíčky pro překlad).
   Rozvrh ji chtěl přesunout do AI v zařízení, ale sekce AI má smazání aktuálního modelu
   sama a seznam všech stažených patří k přehledu místa.
@@ -1007,6 +1008,33 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá.
 - **Novinku od opravy odliší tvar ikony** (raketa, brouk), čtečce obrazovky slovo v popisu ikony.
 - **Ověřeno na emulátoru** (anglicky i česky přes `set-app-locales`, stránkování, přežití změny
   jazyka). Na iOS jen přeložené a slinkované.
+
+## O aplikaci (`AboutSettings`)
+
+Poslední řádek Pomoci. Logo (pírko z ikony v devítistranné sušence `primaryContainer`), jméno
+a „Neoficiální klient Telegramu"; blok s verzí a kontrolou aktualizace; blok „Otevřený zdrojový
+kód" (zdrojáky, Issues na GitHubu, oddíl Privacy v README, licence MIT); věta, že Plume není
+oficiální produkt Telegramu (podmínky Telegram API, README ji má taky).
+
+- **Logo je vektor z `play/tools/icon.py`** (`plume_logo_24dp.xml`, tentýž tvar jako ikona
+  notifikace, černý — barvu dává `tint`). Generátor ho zapisuje s ostatními výstupy, takže se
+  při změně ikony nerozejde.
+- **Ťuknutí na verzi ji zkopíruje i s telefonem a systémem** („Plume 0.3.120, Google Pixel 9,
+  16"), stejný tvar jako hlavička deníku hovorů. Hláška jen bez systémového potvrzení
+  (`confirmsCopy`).
+- **Kontrola aktualizace je `AppUpdates.checkNow()`** a vrací výsledek (`UpdateCheckResult`):
+  nejnovější verze, nalezeno, instalace mimo Play, chyba. Řádek se ukazuje jen s
+  `AppUpdates.canCheck` — iOS API nemá, ladicí běh desktopu se nemá s čím porovnat. Na Androidu
+  je řádek vždycky a instalaci mimo Play (debug, `adb install`) řekne až výsledek. Podrobnosti
+  v `docs/poznatky/release.md`, „Aktualizace z obchodu".
+- **Řádek prochází stavy `AppUpdateState` jako karta v seznamu chatů** (nabídka s tlačítkem
+  Aktualizovat, stahování s kolečkem průběhu, Restartovat). Zavřená karta („Teď ne") nabídku
+  v O aplikaci neruší — kdo sem přišel, aktualizaci hledá.
+- **Výsledek kontroly se nepamatuje přes odchod z obrazovky** (`remember`, ne ViewModel):
+  „máš nejnovější verzi" platí teď. Text výsledku je `liveRegion`, čtečka ho oznámí sama.
+- **Soukromí odkazuje na oddíl Privacy v README**, vlastní zásady soukromí aplikace nemá.
+- **Hledání v Nastavení** najde sekci i řádky „Zkontrolovat aktualizace" a „Zdrojové kódy"
+  (synonyma verze, GitHub, licence…).
 
 ## Synchronizace nastavení mezi zařízeními bez vlastního backendu
 

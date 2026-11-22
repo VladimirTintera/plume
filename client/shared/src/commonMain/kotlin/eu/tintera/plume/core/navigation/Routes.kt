@@ -60,12 +60,12 @@ data object SettingsRoute : TopLevelRoute
  *
  * Ukládá se **názvem**, takže přidání hodnoty doprostřed nezmění význam uloženého zásobníku.
  * Pořadí je pořadí v seznamu sekcí; první se otevírá v dvoupanelu, když žádná vybraná není.
- * [Ai] seznam ukazuje, jen kde je model dostupný, [WhatsNew] stojí ve skupině Pomoc.
+ * [Ai] seznam ukazuje, jen kde je model dostupný, [WhatsNew] a [About] stojí ve skupině Pomoc.
  *
  * Zrušené jméno v uloženém stavu (dřív `General`) obnovu neshodí — viz [SettingsSectionSerializer].
  */
 @Serializable(with = SettingsSectionSerializer::class)
-enum class SettingsSection { Privacy, Notifications, Chats, Appearance, Storage, Devices, Ai, WhatsNew }
+enum class SettingsSection { Privacy, Notifications, Chats, Appearance, Storage, Devices, Ai, WhatsNew, About }
 
 /**
  * Sekce podle jména; jméno, které výčet nezná, je první sekce. Výchozí serializer výčtu by na

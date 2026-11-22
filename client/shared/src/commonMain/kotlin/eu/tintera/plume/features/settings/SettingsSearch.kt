@@ -26,6 +26,8 @@ import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GroupEmptyRow
 import eu.tintera.plume.core.ui.foldDiacritics
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.about_check_update
+import eu.tintera.plume.resources.about_source
 import eu.tintera.plume.resources.auto_download_title
 import eu.tintera.plume.resources.autosave_group
 import eu.tintera.plume.resources.birthdate_row
@@ -66,6 +68,7 @@ import eu.tintera.plume.resources.settings_search_kw_chat_row_gaps
 import eu.tintera.plume.resources.settings_message_text_size
 import eu.tintera.plume.resources.settings_search_kw_chat_preview_lines
 import eu.tintera.plume.resources.settings_search_kw_sticker_size
+import eu.tintera.plume.resources.settings_search_kw_about
 import eu.tintera.plume.resources.settings_sticker_size
 import eu.tintera.plume.resources.settings_notif_contact_joined
 import eu.tintera.plume.resources.settings_notif_mentions
@@ -228,6 +231,10 @@ internal val SETTINGS_SEARCH_INDEX: List<SettingsSearchEntry> = buildList {
         Res.string.ai_playground_title,
     ).forEach { add(SettingsSearchEntry(it, section(ai))) }
 
+    val about = SettingsSection.About
+    add(SettingsSearchEntry(Res.string.about_check_update, section(about), Res.string.settings_search_kw_about))
+    add(SettingsSearchEntry(Res.string.about_source, section(about), Res.string.settings_search_kw_about))
+
     // Úprava profilu stojí nad seznamem místo sekce (karta účtu).
     listOf(
         Res.string.edit_profile_first_name,
@@ -311,7 +318,7 @@ internal val NavKey.pathTitle: StringResource?
 @Composable
 internal fun rememberResolvedSettingsIndex(sections: List<SettingsSection>): List<ResolvedSettingsEntry> =
     SETTINGS_SEARCH_INDEX
-        .filter { entry -> entry.section.let { it == null || it in sections || it == SettingsSection.WhatsNew } }
+        .filter { entry -> entry.section.let { it == null || it in sections || it == SettingsSection.WhatsNew || it == SettingsSection.About } }
         .map { entry ->
             val title = stringResource(entry.title)
             // Cesta bez obrazovky, kterou volba sama je (Dvoufázové ověření → jen „Soukromí").

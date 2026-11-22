@@ -93,6 +93,7 @@ fun SettingsSectionScreen(
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.Ai -> OnDeviceAiSettings(viewModel = koinViewModel(), onOpenPlayground = onOpenAiPlayground)
                 SettingsSection.WhatsNew -> WhatsNewSettings()
+                SettingsSection.About -> AboutSettings(snackbarHostState = snackbarHostState)
             }
         }
     }

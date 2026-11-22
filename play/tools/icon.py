@@ -4,6 +4,7 @@
     iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png   – iOS, 1024 × 1024, bez alfy
     client/androidApp/src/main/res/drawable/ic_launcher_foreground.xml – vektor adaptivní ikony
     client/shared/src/androidMain/res/drawable/ic_notification.xml    – malá ikona notifikace
+    client/resources/src/commonMain/composeResources/drawable/plume_logo_24dp.xml – logo v „O aplikaci“
     client/desktopApp/icons/plume.{ico,icns,png}                     – desktop (Windows, macOS, Linux)
     client/desktopApp/src/main/resources/plume-icon.png              – ikona okna a oznamovací oblasti
 
@@ -179,3 +180,6 @@ if __name__ == "__main__":
     notification = ROOT / "client/shared/src/androidMain/res/drawable/ic_notification.xml"
     notification.parent.mkdir(parents=True, exist_ok=True)
     notification.write_text(vector(24, 11, "#FFFFFFFF", 0.02, box=True), encoding="utf-8")
+    # Tentýž tvar jako ikona notifikace; barvu mu v Compose dává `tint` podle motivu.
+    logo = ROOT / "client/resources/src/commonMain/composeResources/drawable/plume_logo_24dp.xml"
+    logo.write_text(vector(24, 11, "#FF000000", 0.02, box=True), encoding="utf-8")

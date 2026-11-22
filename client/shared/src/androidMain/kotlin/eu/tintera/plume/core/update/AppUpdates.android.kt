@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.update
 
 import android.content.Context
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
@@ -11,13 +12,17 @@ import co.touchlab.kermit.Logger
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.InstallException
 import com.google.android.play.core.install.InstallStateUpdatedListener
 import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.InstallErrorCode
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /**
  * Play In-App Updates v režimu **flexible**: stahuje se na pozadí a aplikace se dá dál používat.
@@ -32,7 +37,9 @@ actual class AppUpdates(context: Context) {
 
     private val logger = Logger.withTag("AppUpdates")
 
-    private val manager = AppUpdateManagerFactory.create(context.applicationContext)
+    private val context = context.applicationContext
+
+    private val manager = AppUpdateManagerFactory.create(this.context)
 
     private val _state = MutableStateFlow<AppUpdateState>(AppUpdateState.None)
     actual val state: StateFlow<AppUpdateState> = _state.asStateFlow()
@@ -76,6 +83,43 @@ actual class AppUpdates(context: Context) {
             }
     }
 
+    actual val canCheck: Boolean = true
+
+    /**
+     * Instalace mimo Play se pozná napřed podle instalátoru, ne až podle chyby obchodu: obchod
+     * na cizí instalaci (debug, `adb install`) někdy odpoví chybou, jindy jen „aktualizace
+     * není" — a „Máte nejnovější verzi" by u ladicího buildu lhalo.
+     */
+    actual suspend fun checkNow(): UpdateCheckResult {
+        if (!installedFromPlay()) return UpdateCheckResult.Unsupported
+        return suspendCancellableCoroutine { continuation ->
+            manager.appUpdateInfo
+                .addOnSuccessListener { current ->
+                    info = current
+                    val state = current.toState()
+                    _state.value = state
+                    continuation.resume(if (state == AppUpdateState.None) UpdateCheckResult.UpToDate else UpdateCheckResult.Found)
+                }
+                .addOnFailureListener { failure ->
+                    logger.i { "Ruční kontrola aktualizace: obchod odpověděl chybou: ${failure.message}" }
+                    val code = (failure as? InstallException)?.errorCode
+                    continuation.resume(if (code in NOT_FROM_PLAY) UpdateCheckResult.Unsupported else UpdateCheckResult.Failed)
+                }
+        }
+    }
+
+    private fun installedFromPlay(): Boolean {
+        val installer = runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getInstallerPackageName(context.packageName)
+            }
+        }.getOrNull()
+        return installer == PLAY_STORE
+    }
+
     actual fun complete() {
         manager.completeUpdate()
     }
@@ -105,6 +149,18 @@ actual class AppUpdates(context: Context) {
 
     private fun progress(downloaded: Long, total: Long): Float? =
         if (total > 0) (downloaded.toFloat() / total).coerceIn(0f, 1f) else null
+
+    private companion object {
+        /** Instalátor Google Play — i u interního tracku a internal app sharing. */
+        const val PLAY_STORE = "com.android.vending"
+
+        /** Chyby obchodu, které znamenají „tahle instalace není z Play", ne výpadek. */
+        val NOT_FROM_PLAY = setOf(
+            InstallErrorCode.ERROR_APP_NOT_OWNED,
+            InstallErrorCode.ERROR_API_NOT_AVAILABLE,
+            InstallErrorCode.ERROR_PLAY_STORE_NOT_FOUND,
+        )
+    }
 }
 
 /**
