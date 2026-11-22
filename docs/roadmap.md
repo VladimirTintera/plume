@@ -106,28 +106,82 @@ se zrcadlem. Zrcadlo se stejnou historií nejde zbavit souborů (vyřazení pře
 snímky by se cizí PR i změny z Weblate musely přenášet ručně. Poznatky jsou vývojářská
 dokumentace, ne tajemství. Osobní paměť agenta (`~/.claude/…/memory`) v repu není a nebude.
 
+Proč: **důvěra** (kdokoli si ověří, že v aplikaci nic schovaného není) a **runnery zdarma**
+(standardní hostované runnery jsou ve veřejném repu bez limitu minut, i macOS a Windows).
+
+**Ověřeno sken 2026-11-22** (2 976 commitů, všechny větve): `telegramApiHash` ani
+`telegramApiId` v historii nikdy nebyly (`git log --all -S` se skutečnými hodnotami), stejně
+jako podpisový klíč a `local.properties`; žádný soubor nad 2 MB; submodul ai-engine je veřejný
+(Apache 2.0); licence MIT a cizí licence (TDLib, fonty, Material Symbols, ntgcalls LGPL) už
+jsou v README. Gitleaks se nad historií ještě nepouštěl.
+
 Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dostanou nová SHA):
 
-- **Projít celou historii gitleaks** a nálezy přidat do přepisu.
-- **Nové repo s přepsanou historií** (`git filter-repo` nad kopií), ne force-push do
-  stávajícího: GitHub drží `refs/pull/N/head` a staré commity by v něm zůstaly dostupné.
-  Stávající repo zůstane soukromé jako archiv. Přepis:
-  - `--path client/androidApp/google-services.json --invert-paths` (v historii jediný commit).
-    Build bez něj funguje (plugin se aplikuje jen se souborem); release workflow ho dostane ze
-    secretu. Tajemství to není — klíč je v každém APK, chrání ho omezení na balíček a SHA-1
-    v Google Cloud konzoli —, jen do veřejného repa nepatří.
+### 0. Příprava ve stávajícím repu
+
+- **Souhlas MagicWare.** Část kódu je podle komentářů převzatá z mlogu / KMPMlog (`Motion.kt`,
+  `RootOverlay.kt`) a ~600 commitů má autorský e-mail `@magicware.cz`. Před zveřejněním
+  potvrdit u zaměstnavatele, že Plume je vlastní projekt a převzaté kousky smí jít ven pod MIT
+  — nebo je přepsat. Právní otázka, ne technická; bez ní se nic dalšího nedělá.
+- **Žádný self-hosted runner na `pull_request`.** `release-notes-check.yml` dnes běží na
+  Macu vývojáře (`plume`); ve veřejném repu by tam kdokoli z forku pustil vlastní kód. Na
+  `ubuntu-latest` PŘED zveřejněním (proměnná `RELEASE_NOTES_RUNS_ON`, nebo rovnou výchozí
+  hodnota ve workflow). Workflow nesmí používat `pull_request_target` (secrets pro cizí PR).
+- **Komentáře o vnitřní infrastruktuře** ve `desktop-release.yml` (HQDEV50, kmpmlog, telemetry,
+  KMPMlog#992) a v `docs/poznatky/release.md` zobecnit nebo vyhodit.
+- **`SECURITY.md`** (jak nahlásit zranitelnost — soukromé hlášení na GitHubu) a
+  **`CONTRIBUTING.md`** (větev + PR, poznámka k vydání, hook, jazyky); zvážit anglický README
+  pro cizí čtenáře.
+- **Název repa `plume`**, ne `telegram`: podle ToS nesmí název působit jako oficiální klient.
+
+### 1. Přepis historie (`git filter-repo` nad kopií)
+
+- **Projít celou historii gitleaks** (`brew install gitleaks git-filter-repo`) a nálezy přidat
+  do přepisu.
+- **Nové repo s přepsanou historií**, ne force-push do stávajícího: GitHub drží
+  `refs/pull/N/head` a staré commity by v něm zůstaly dostupné. Stávající repo zůstane soukromé
+  jako archiv. Přepis:
+  - `--invert-paths` na **všechny tři** konfigurace Firebase: `client/androidApp/google-services.json`,
+    `client/wearApp/google-services.json` a `iosApp/iosApp/GoogleService-Info.plist`. Build bez
+    nich funguje (Gradle plugin se aplikuje jen se souborem, iOS `FirebaseCrashlyticsBridge`
+    bez plistu Firebase nespustí); release workflow je dostane ze secretu. Tajemství to není —
+    klíč je v každém APK, chrání ho omezení na balíček a SHA-1 v Google Cloud konzoli —, jen
+    do veřejného repa nepatří.
   - `--replace-text` na osobní údaje i ve starých verzích souborů: telefonní číslo
-    +420 601 234 567 (`nastaveni.md`, `systemova-oznameni.md`), „…029" testovacího účtu
-    (`hledani-a-zakladani-chatu.md`) a co najde gitleaks.
+    +420 601 234 567 (`nastaveni.md`, `systemova-oznameni.md`, komentář v `PhoneInput.kt`),
+    „…029" testovacího účtu (`hledani-a-zakladani-chatu.md`, `NewContactViewModelTest`) a co
+    najde gitleaks.
   - `--mailmap`: e-maily autorů sjednotit na GitHub noreply (dnes i `@magicware.cz` a gmail).
+- **Ověřit výsledek**: gitleaks znovu nad přepsanou historií, build a testy.
+
+### 2. Nové repo, nejdřív soukromé
+
+- Push přepsané historie; secrets (Telegram API, keystore, Play, konfigurace Firebase) a repo
+  proměnné.
+- Release workflowy zkušebně na hostovaných runnerech (v soukromém repu se minuty ještě
+  počítají). **macOS runner má 7 GB RAM** — release link iOS s LTO nad celou TDLib na tom může
+  narazit; Android a desktop vystačí.
+- Nastavení: ochrana `main`, schvalování workflowů z forků pro všechny externí přispěvatele,
+  secret scanning s push protection, Dependabot, soukromé hlášení zranitelností.
+- **Ověřitelnost buildu**: release jen z hostovaných runnerů a k artefaktům
+  `actions/attest-build-provenance`, ať jde dohledat, z jakého commitu a workflow APK / MSI / DMG
+  vzniklo. Zdroják sám důvěru nedokazuje — nikdo neověří, že APK z Play vzniklo z něj.
+  Reprodukovatelný build nebo F-Droid až později: chce vydání bez Firebase a Crashlytics.
+
+### 3. Zveřejnění
+
+- Přepnout na public (od té chvíle jsou runnery zdarma); release workflowy se vrátí
+  z self-hosted runnerů repo proměnnými (`release.md`, „Self-hosted runnery") a runnery se
+  odregistrují.
+- `core.hooksPath` (absolutní) a remote na všech strojích; staré repo archivovat.
+- Weblate (sekce níž) a odkaz na zdrojáky do záznamu v Play.
+
+### Otevřená rozhodnutí
+
 - **Odkazy na čísla PR** v commitech a poznatcích (#650, #80–#87…) budou v novém repu mířit
-  jinam. Přepsat na odkaz do archivu, nebo nechat jako historické.
+  na jiné PR. Přepsat (třeba „PR 650 (archiv)"), nebo nechat jako historické.
 - **Zmínky o mlogu a KMPMlog** v komentářích (odkud je kód převzatý) a název „MGram" výš —
-  rozhodnout, jestli zůstanou.
-- **Po přechodu**: secrets do nového repa (Telegram API, Play, `google-services.json`),
-  `core.hooksPath` a remote na všech strojích, workflow nesmí používat `pull_request_target`
-  (secrets pro cizí PR). Actions jsou ve veřejném repu zdarma, i macOS runnery — release
-  workflowy se tam vrátí z self-hosted runnerů repo proměnnými (`release.md`, „Self-hosted runnery").
+  rozhodnout, jestli zůstanou (souvisí se souhlasem MagicWare).
 
 ## Komunitní překlad
 
