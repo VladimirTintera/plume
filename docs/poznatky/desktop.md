@@ -593,9 +593,11 @@ a z toho vznikne `app.aot` vedle jarů; další starty ho berou. **Naměřeno na
 - **Měří se z logu**: `Startup` hlásí „První snímek okna N ms od startu JVM". Bez cache
   stejný balíček s `JAVA_TOOL_OPTIONS=-XX:AOTMode=off`; data jinam přes
   `JAVA_TOOL_OPTIONS=-Dplume.dataDir=…` (jinak by spuštění jen vytáhlo okno nainstalované Plume).
-- **Na hostovaném Windows runneru tréninkový běh ověřený NENÍ** (první release s cache to
-  ukáže). Kdyby okno nenaběhlo, release projde bez cache s proměnnou repa
-  `DESKTOP_GRADLE_ARGS=-PdesktopAot=false`.
+- **Tréninkový běh projde i na hostovaných runnerech** (`windows-latest` i `macos-latest`,
+  desktop 1.2.0): okno se tam otevře, cache má na Windows ~101 MB, na macOS ~98 MB a běh
+  trval na Macu 27 s. MSI i DMG mají s cache ~227 MB. Start nainstalované aplikace na Windows
+  změřený není. Kdyby tréninkový běh na runneru někdy selhal, release projde bez cache
+  s proměnnou repa `DESKTOP_GRADLE_ARGS=-PdesktopAot=false`.
 
 ## Aktualizace z GitHub Release
 
