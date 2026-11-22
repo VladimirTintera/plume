@@ -366,18 +366,19 @@ jobs:
           # 0.x = ještě ne stabilní, na stránce releasů jako pre-release
           if [[ "$VERSION" == 0.* ]]; then echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT"; fi
           {
-            echo "**Desktop** ${VERSION} — Windows (MSI), macOS 14+ na Apple Silicon (DMG)"
+            # Text releasu je anglicky (repo je veřejné), česky jsou jen české poznámky.
+            echo "**Desktop** ${VERSION} — Windows (MSI), macOS 14+ on Apple Silicon (DMG)"
             echo
-            echo "Balíčky nejsou podepsané:"
+            echo "The packages are not signed:"
             echo
-            echo "- **Windows**: SmartScreen instalátor při prvním spuštění zastaví, projde se přes"
-            echo "  „Další informace\" → „Přesto spustit\". Instaluje se jen pro přihlášeného uživatele, bez oprávnění správce."
-            echo "- **macOS**: Plume přetáhni do Aplikací. Při prvním otevření ho systém zastaví — v Nastavení systému"
-            echo "  → Soukromí a zabezpečení dole klikni na „Přesto otevřít\"."
+            echo "- **Windows**: SmartScreen stops the installer on first launch. Choose"
+            echo "  \"More info\" → \"Run anyway\". It installs for the current user only, without administrator rights."
+            echo "- **macOS**: drag Plume to Applications. The system blocks it the first time you open it:"
+            echo "  go to System Settings → Privacy & Security and click \"Open Anyway\" at the bottom."
             echo
             # Poznámky pro uživatele jen s platformou desktop (`units:` v poznámce, bez něj všechny).
             python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" desktop
-            bash .github/scripts/release-notes.sh "$PREV" "$TAG" "targetu"
+            bash .github/scripts/release-notes.sh "$PREV" "$TAG" "target"
           } > release-notes.md
 
       - name: Create GitHub Release

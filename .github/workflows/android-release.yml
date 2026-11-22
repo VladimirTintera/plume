@@ -286,7 +286,7 @@ jobs:
               echo
               python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" wear
             fi
-            bash .github/scripts/release-notes.sh "$PREV" "$TAG" "targetu"
+            bash .github/scripts/release-notes.sh "$PREV" "$TAG" "target"
           } > release-notes.md
 
       - name: Create GitHub Release
