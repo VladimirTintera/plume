@@ -1700,7 +1700,8 @@ a 1.13.0-rc01 (listopad 2026). Seřazené podle přínosu pro Plume.
   ve vykresleném textu) by rozbilo kopírování výběru a citaci z výběru. Podrobnosti a pokusy:
   `docs/poznatky/konverzace-zobrazeni.md`, „Odsazení textu uvnitř zprávy".
 - ~~**Desktop: rychlejší start (AppCDS / AOT)**~~ — hotovo (`AotPrebuild`, JDK 25;
-  `docs/poznatky/desktop.md`, „Rychlejší start (AOT cache)"); zbývá první release na Windows runneru.
+  `docs/poznatky/desktop.md`, „Rychlejší start (AOT cache)"; release 1.2.0 s cache prošel na obou runnerech);
+  zbývá změřit start na Windows.
 - **iOS zadarmo, jen ověřit na simulátoru:**
   - **Dynamic Type** — písmo se řídí systémovou velikostí; vyzkoušet spolu s vlastní velikostí
     písma zpráv a s řádky pevné výšky.
