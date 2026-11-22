@@ -28,11 +28,10 @@
 #   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
 #   TELEGRAM_API_HASH           – api_hash z my.telegram.org
 #
-# Runnery jsou vlastní (docs/poznatky/release.md, „Self-hosted runnery"): MSI staví vývojářský Windows
-# (label `plume-desktop`), všechno ostatní vývojářský Mac (`plume`). Jeden Mac runner joby
-# řadí za sebe — version → macos → release, MSI mezitím běží na Windows. Návrat na hostovaný
-# bez zásahu do workflow: repo proměnné DESKTOP_MAC_RUNS_ON = ["macos-latest"]
-# a DESKTOP_WINDOWS_RUNS_ON = ["windows-latest"].
+# Běží na hostovaných runnerech GitHubu (ve veřejném repu zdarma): MSI na `windows-latest`,
+# všechno ostatní na `macos-latest`. Repo proměnné DESKTOP_MAC_RUNS_ON a DESKTOP_WINDOWS_RUNS_ON
+# je umí přesměrovat jinam; kroky jen pro self-hosted (`runner.environment`) zůstaly z doby,
+# kdy release jel na vývojářských strojích (docs/poznatky/release.md, „Runnery").
 name: Desktop Release
 
 permissions:
@@ -50,7 +49,7 @@ jobs:
   # Verze z tagu pro oba buildy. Kontroluje se tady, ne až v jpackage: MSI by 0.x prošlo
   # a release by skončil napůl (Windows hotové, macOS ne).
   version:
-    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
+    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["macos-latest"]') }}
     timeout-minutes: 5
 
     outputs:
@@ -71,7 +70,7 @@ jobs:
   windows:
     needs: version
     # Druhá instance runneru na vývojářském Windows (vedle runnerů jiných projektů), viz hlavička.
-    runs-on: ${{ fromJSON(vars.DESKTOP_WINDOWS_RUNS_ON || '["self-hosted", "Windows", "X64", "plume-desktop"]') }}
+    runs-on: ${{ fromJSON(vars.DESKTOP_WINDOWS_RUNS_ON || '["windows-latest"]') }}
     timeout-minutes: 60
     defaults:
       run:
@@ -248,7 +247,7 @@ jobs:
   # Hovory (ntgcalls) tam chtějí macOS 14 (`minimumSystemVersion` v build.gradle.kts).
   macos:
     needs: version
-    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
+    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["macos-latest"]') }}
     timeout-minutes: 60
 
     steps:
@@ -343,7 +342,7 @@ jobs:
 
   release:
     needs: [version, windows, macos]
-    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
+    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["macos-latest"]') }}
     timeout-minutes: 10
 
     steps:

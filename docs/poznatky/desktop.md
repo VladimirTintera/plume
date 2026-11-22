@@ -491,10 +491,10 @@ přihlášení" (`LaunchAtLogin`, na mobilech a zatím na macOS a Linuxu `suppor
 ## Release
 
 Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag
-`desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na vývojářském Windows postaví
-MSI (`packageMsi -PdesktopVersion=…`), na vývojářském Macu DMG pro Apple Silicon
+`desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na `windows-latest` postaví
+MSI (`packageMsi -PdesktopVersion=…`), na `macos-latest` DMG pro Apple Silicon
 (`packageDmg`, příloha `Plume-X.Y.Z-macos-arm64.dmg`) a založí GitHub Release s obojím
-v příloze. Runnery jsou vlastní, viz „Self-hosted runnery" v `release.md`. Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
+v příloze. Runnery jsou hostované, viz „Runnery" v `release.md`. Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
 
 - **Tag je `desktop-X.Y.Z`, bez čísla buildu** (Android má `android-X.Y.Z-B`). MSI pozná
   aktualizaci jen podle X.Y.Z (X a Y do 255, Z do 65535) a podle `upgradeUuid`

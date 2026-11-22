@@ -17,7 +17,7 @@ jobs:
   check:
     # VŽDY hostovaný runner, natvrdo, ne repo proměnnou: kontrola běží na `pull_request`,
     # tedy i na PR z cizího forku, a na self-hosted stroji by tam kdokoli pustil vlastní kód
-    # (docs/poznatky/release.md, „Self-hosted runnery"). V soukromém repu to stojí minutu na
+    # (docs/poznatky/release.md, „Runnery"). V soukromém repu to stojí minutu na
     # push do PR, ve veřejném nic.
     runs-on: ubuntu-latest
     timeout-minutes: 5

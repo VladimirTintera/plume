@@ -130,7 +130,7 @@ Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dos
   i poznatků zmizely („převzato z mlogu", KMPMlog#992, runnery kmpmlog a telemetry).
   Ve staré historii zůstávají; tajemství to není, takže je přepis nechá být.
 - ~~**Žádný self-hosted runner na `pull_request`**~~ — hotovo: `release-notes-check.yml` běží
-  natvrdo na `ubuntu-latest`, bez repo proměnné (`release.md`, „Self-hosted runnery").
+  natvrdo na `ubuntu-latest`, bez repo proměnné (`release.md`, „Runnery").
   Workflow nesmí používat `pull_request_target` (secrets pro cizí PR); dnes ho nepoužívá žádný.
 - ~~**Komentáře o vnitřní infrastruktuře**~~ — hotovo: jméno stroje HQDEV50 nahradil
   „vývojářský Windows" a jméno runneru `<stroj>-plume`.
@@ -254,10 +254,15 @@ soukromé jako archiv.
 ### 3. Zveřejnění
 
 - ~~**Přepnout na public**~~ — hotovo 2026-11-22. Release workflowy jedou repo proměnnými na
-  hostovaných runnerech (`release.md`, „Self-hosted runnery").
-- **Po prvním úspěšném releasu z `plume`**: odregistrovat self-hosted runnery starého repa
-  (Mac `plume-mac`, Windows), archivovat repo `telegram` a přepsat oddíl „Self-hosted runnery"
-  v `release.md` (popisuje registraci ke starému repu).
+  hostovaných runnerech (`release.md`, „Runnery").
+- ~~**První release z `plume`**~~ — hotovo 2026-11-22: Android 0.4.0 (171) i s hodinkami do
+  Play a desktop 1.1.1 (MSI a DMG) na GitHub Releases, vše na hostovaných runnerech. Desktop 1.1.0
+  spadl na NDK bez licence na `macos-latest` (oprava v `release.md`, „Runnery").
+- ~~**Úklid po přechodu**~~ — hotovo: self-hosted runnery `plume-mac` a `…-plume` (Windows)
+  odregistrované z GitHubu, repo `telegram` archivované (popis odkazuje na `plume`), výchozí
+  `runs-on` ve workflowech hostovaný a oddíl o runnerech v `release.md` přepsaný. **Služby
+  runnerů na obou strojích je potřeba odinstalovat ručně** (Mac `./svc.sh uninstall`
+  v adresáři runneru, Windows služba `actions.runner.VladimirTintera-telegram.…`).
 - Weblate (sekce níž) a odkaz na zdrojáky do záznamu v Play.
 
 ### Otevřená rozhodnutí

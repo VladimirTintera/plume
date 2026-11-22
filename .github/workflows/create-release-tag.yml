@@ -52,8 +52,8 @@ permissions:
 
 jobs:
   tag:
-    # Self-hosted Mac jako release, který tag spouští: s vypnutým Macem by release stejně čekal.
-    runs-on: ${{ fromJSON(vars.RELEASE_TAG_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
+    # Hostovaný runner jako release, který tag spouští (docs/poznatky/release.md, „Runnery").
+    runs-on: ${{ fromJSON(vars.RELEASE_TAG_RUNS_ON || '["ubuntu-latest"]') }}
     timeout-minutes: 10
 
     steps:
