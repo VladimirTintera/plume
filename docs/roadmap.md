@@ -209,6 +209,12 @@ soukromé jako archiv.
   - **Push tagů nespustil žádný release**: tagy šly jedním pushem a GitHub při víc než třech
     tazích naráz události nevytváří. Push jednotlivého tagu `android-*` / `desktop-*` by release
     spustil (a v repu bez secretů a runnerů by visel nebo spadl).
+  - **První PR minuty po pushi workflow nespustil**: Actions zapnuté, workflowy registrované
+    a aktivní, `PullRequestEvent` v událostech repa, a přesto žádný běh ani check suite. GitHub
+    workflowy čerstvě nahraného repa zřejmě zpracovává se zpožděním a událost, která přišla
+    dřív, propadne. Pomohlo PR zavřít a znovu otevřít (`gh pr close` / `reopen`); kontrola
+    poznámek pak proběhla na hostovaném runneru. Fakturace to nebyla: ve starém soukromém repu
+    hostované kontroly týž den běžely.
 - **Vývoj se přesouvá do `plume`, staré repo `telegram` se zmrazí.** Historie spolu nesouvisí,
   takže každý commit sloučený do starého repa by se musel přenášet ručně. Na každém stroji
   `git remote set-url origin https://github.com/VladimirTintera/plume.git`, `git fetch`
