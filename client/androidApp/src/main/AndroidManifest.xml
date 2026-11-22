@@ -179,6 +179,15 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- Akce hovoru z notifikací („Přijmout", „Zavolat zpět"). MainActivity je exportovaná,
+             takže by hovor vytočila nebo přijala i cizí aplikace; neexportovaný alias spustí jen
+             sama aplikace. Jméno drží NotificationIntents.CALL_ACTION_ALIAS a MainActivity bere
+             akce hovoru jen z intentu, který přišel přes něj. -->
+        <activity-alias
+            android:name=".CallActionAlias"
+            android:exported="false"
+            android:targetActivity=".MainActivity" />
+
         <!-- Hlášení pádů. Hodnota je placeholder z build typu (release true, jinak false) —
              za běhu se přepínat nedá, Crashlytics si příznak čte při inicializaci procesu.
              Bez google-services.json se Firebase neinicializuje a příznak nikdo nečte. -->
