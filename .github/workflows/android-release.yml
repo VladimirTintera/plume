@@ -57,6 +57,9 @@ jobs:
   release:
     runs-on: ${{ fromJSON(vars.ANDROID_RUNS_ON || '["ubuntu-latest"]') }}
     timeout-minutes: 90
+    # Celý job (build, podpis, Play, release) čeká na ruční schválení v environmentu `release`
+    # — jako desktop. Viz docs/poznatky/release.md, „Oprávnění workflow".
+    environment: release
 
     steps:
       - name: Parse tag

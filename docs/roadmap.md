@@ -41,8 +41,8 @@ Teď je prázdné.
   seznam botů s polohou).
 - **Podpis balíčků desktopu** (Authenticode, Developer ID, nebo vlastní klíč mimo GitHub),
   který self-update ověří před instalací — SHA-256 i attestace vznikají uvnitř GitHubu
-  (`docs/poznatky/release.md`, „Oprávnění workflow"). A na GitHubu ruleset na tagy release
-  a environment se schválením pro job `release`.
+  (`docs/poznatky/release.md`, „Oprávnění workflow"). Secrets releasu přesunout do
+  environmentu `release`, až se budou měnit.
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
 - **Název aplikace u `api_id` je „MGram"** — tak se Plume ukazuje v seznamu zařízení

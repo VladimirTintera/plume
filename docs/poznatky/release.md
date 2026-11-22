@@ -348,9 +348,23 @@ desktopu, jakmile ťuknou na Restartovat. Proto:
   zjistí `gh api repos/<repo>/commits/<tag> --jq .sha`.
 - **`android-release.yml` je jeden job** (build, podpis, Play, release), takže zápis nese i build.
   Rozdělit ho by tolik nepomohlo: build tak jako tak drží podpisový klíč a přístup do Play.
-- **Co zůstává na nastavení repa (ne v kódu):** ruleset na tagy `desktop-*` / `android-*`
-  (vytvořit smí jen správce) a environment s ručním schválením pro job `release`. Bez nich
-  release spustí kdokoli, kdo smí pushnout tag — dnes jen vlastník repa.
+- **Nastavení repa (ne v kódu, `gh api`):**
+  - **Ruleset „Release tags are immutable"**: tagy `desktop-*` a `android-*` nejde smazat ani
+    přesunout, bez výjimek. Tag ukazuje na kód, ze kterého release vznikl (a odkazuje na něj
+    attestace); přesunout ho by znamenalo tiše vydat jiný kód pod starou verzí. Opravit tag
+    jde jen dočasným vypnutím rulesetu (Settings → Rules).
+  - **Omezit, kdo tag ZALOŽÍ, nejde**: výjimku pro GitHub Actions (`create-release-tag.yml`
+    pushuje tag `GITHUB_TOKEN`em) GitHub v repu osobního účtu odmítne („Actor GitHub Actions
+    integration must be part of the ruleset source or owner organization"), a bez ní by
+    pravidlo zablokovalo vlastní workflow. Pojistkou je proto schválení níž.
+  - **Environment `release`**: job `release` v obou workflow čeká na schválení vlastníkem
+    (required reviewers) a nasadit do něj jde jen z tagů `desktop-*` / `android-*` (deployment
+    tag policy). Release se tedy po buildu (desktop) nebo před ním (Android, jeden job) zastaví
+    na „Review deployments" v běhu workflow. Proti ukradenému tokenu s právem `repo` to nechrání
+    (schválit jde i API), proti cizímu kódu v CI a omylem pushnutému tagu ano.
+  - **Secrets zůstávají na úrovni repa**, ne environmentu: přesun by chtěl jejich hodnoty znovu
+    (GitHub je nevydá). Až se budou měnit, patří do environmentu `release` — pak je job dostane
+    teprve po schválení.
 - **Skutečnou ochranu proti ukradenému účtu GitHubu dá až podpis balíčku**, který desktop
   ověří před instalací (Authenticode / Developer ID, nebo vlastní klíč mimo GitHub). SHA-256
   i attestace vznikají uvnitř GitHubu, takže před tím, kdo ho ovládá, nechrání.

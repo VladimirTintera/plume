@@ -360,6 +360,11 @@ jobs:
     needs: [version, windows, macos]
     runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["macos-latest"]') }}
     timeout-minutes: 10
+    # Nahrání balíčků čeká na ruční schválení (environment `release`: schvaluje vlastník repa,
+    # nasadit jde jen z tagů `desktop-*` / `android-*`). Desktop si přílohy sám instaluje —
+    # bez člověka by je nahrál kdokoli, kdo spustí workflow. Viz docs/poznatky/release.md,
+    # „Oprávnění workflow".
+    environment: release
     # Jediný job, který píše: nic tu nestaví, jen podepíše původ a nahraje hotové balíčky.
     permissions:
       contents: write       # zakládání GitHub Release
