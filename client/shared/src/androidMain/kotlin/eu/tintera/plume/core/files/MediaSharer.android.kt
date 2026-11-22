@@ -18,6 +18,7 @@ import androidx.core.content.FileProvider
 import androidx.core.content.getSystemService
 import co.touchlab.kermit.Logger
 import org.jetbrains.compose.resources.getString
+import eu.tintera.plume.core.share.OwnShares
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.clipboard_label
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +56,8 @@ actual class MediaSharer(private val context: Context) {
         } ?: return false
 
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.documents", copy)
+        // Kdyby si uživatel ve výběru vybral zase Plume: vlastní URI sdílení jinak odmítne.
+        OwnShares.remember(uri)
         val send = Intent(Intent.ACTION_SEND).apply {
             type = mimeTypeOf(fileName)
             putExtra(Intent.EXTRA_STREAM, uri)
@@ -108,6 +111,8 @@ actual class MediaSharer(private val context: Context) {
         } ?: return false
         return runCatching {
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.documents", copy)
+            // Vložení zpátky do Plume (pole zprávy) by vlastní URI jinak odmítlo.
+            OwnShares.remember(uri)
             manager.setPrimaryClip(ClipData.newUri(context.contentResolver, getString(Res.string.clipboard_label), uri))
             true
         }.onFailure { logger.w(it) { "Obrázek $path se nepodařilo zkopírovat do schránky." } }.getOrDefault(false)

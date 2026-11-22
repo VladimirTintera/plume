@@ -42,7 +42,11 @@ class ShareIntake(
     fun handle(intent: Intent): Boolean {
         if (intent.action != Intent.ACTION_SEND && intent.action != Intent.ACTION_SEND_MULTIPLE) return false
 
-        val uris = streams(intent).distinct()
+        val streams = streams(intent).distinct()
+        // Vlastní soukromé soubory (`file://`, vlastní poskytovatel) jsou podstrčené, ne sdílené.
+        val uris = streams.filter { foreignUriAllowed(context, it) }
+        val rejected = streams.size - uris.size
+        if (rejected > 0) logger.w { "Sdílení odmítnuto u $rejected souborů: file:// nebo vlastní soukromá data Plume." }
         /*
          * Předmět (`EXTRA_SUBJECT`) je náhrada textu jen bez souborů. U souboru je to jméno pro
          * e-mail, ne zpráva: snímek obrazovky ho nese jako „Screenshot (6. 10. 2026 18:18:38)"
@@ -104,7 +108,7 @@ class ShareIntake(
                     .mapNotNull { (index, result) -> result.getOrNull()?.let { it.path to limited[index].toString() } }
                     .toMap(),
                 // Co se nevešlo pod strop alba, se taky neposlalo — uživatel to má vědět.
-                failed = results.count { it.isFailure } + (uris.size - limited.size),
+                failed = results.count { it.isFailure } + (uris.size - limited.size) + rejected,
             )
         }
         return true
