@@ -437,6 +437,28 @@ obrazovky, sluchátek a hodinek. Na Androidu přes Media3 MediaSession, na iOS p
   obalu, přehrání s průběhem a čipem, navázání druhé skladby, sdílení, náhled v seznamu.
   **Neověřeno**: iOS (jen přeložené), přerušení hovorem u hudby.
 
+### Kdo smí k relaci hudby
+
+`MusicPlaybackService` je exportovaná (připojuje se systém) a dokud se k relaci mohl připojit
+kdokoli, četla kterákoli aplikace bez oprávnění, co hraje z chatů, a ovládala přehrávání.
+Pouští se jen ovladač notifikace, `isTrusted` (`MEDIA_CONTENT_CONTROL` nebo povolený posluchač
+notifikací: panel, zamčená obrazovka, obnova přehrávání), Android Auto a sama aplikace
+(`TrustedControllers`).
+
+- **V `MediaSession.Callback.onConnect`, ne v `onGetSession`.** Media3 volá `onGetSession`
+  pro všechny starší prohlížeče (`MediaBrowserServiceCompat`) se zástupným ovladačem
+  `android.media.session.MediaController` ještě bez balíčku; odmítnutí tam (zkoušeno) by
+  vypnulo všechny najednou. Až `onConnect` dostane skutečný balíček.
+- **Zástupný balíček se pouští**: pod ním chodí ovladač přes platformní relaci na starších
+  Androidech, a k té se cizí aplikace bez oprávnění nedostane.
+- **`adb shell cmd media_session dispatch pause` aplikaci shodí** (`IllegalArgumentException:
+  packageName should be nonempty` v `MediaSessionCompat.getCurrentControllerInfo`, Media3
+  1.11.1) — shell nemá balíček. Je to chyba Media3, ne změny: stejně padá i původní kód
+  (ověřeno). Skutečná tlačítka médií a aplikace balíček mají; tlačítka médií se na emulátoru
+  zkoušejí `adb shell input keyevent KEYCODE_MEDIA_PAUSE`.
+- **Ověřeno na emulátoru**: notifikace hudby se ovladačem notifikace ukáže dál. Odmítnutí cizí
+  aplikace za běhu neověřené (chce testovací aplikaci s `MediaController`).
+
 ## Přeskakování ticha
 
 Volba v Nastavení → Chaty → Zprávy („Přeskakovat ticho", `AppSettings.skipSilence`, výchozí

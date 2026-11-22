@@ -156,6 +156,16 @@ Aplikace na simulátoru **do unified logu nic nepíše** — `log stream --predi
   `db.sqlite` i `td.binlog` spadnout na jednotky kilobajtů, `td.binlog` dostat nový inode
   a aplikace skončit na přihlašovací obrazovce, bez pádu. Ověřeno: 14 MB → 12 kB.
 
+### Záloha a přenos na nové zařízení
+
+**`allowBackup="false"` od targetSdk 31 vypíná jen zálohu do cloudu**; přenos zařízení →
+zařízení (průvodce nastavením, kabel) by dál zkopíroval `files/` — stažená média i z tajných
+chatů, nastavení, úložiště mini aplikací. Proto `dataExtractionRules`
+(`res/xml/data_extraction_rules.xml`) s vyloučením všech domén pro `cloud-backup`
+i `device-transfer`. Klíč databáze v Keystore se nepřenáší, takže nový telefon se stejně musí
+přihlásit znovu a přenesená data by na něm neměla co dělat. Za běhu neověřené (přenos chce dvě
+zařízení).
+
 ## Stav spojení a obnova po pozadí
 
 Spojení s Telegramem je **něco jiného než přihlášení**. `AuthStage` říká, jestli máme účet;

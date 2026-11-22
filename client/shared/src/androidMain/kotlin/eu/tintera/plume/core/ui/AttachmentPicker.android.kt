@@ -241,7 +241,7 @@ private fun prepareVideo(context: Context, uri: Uri): OutgoingAttachment.Video {
     val name = displayName(context, uri) ?: "video.mp4"
     val target = outgoingFile(context, name)
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
-        target.outputStream().use { input.copyTo(it) }
+        copyBounded(input, target)
     }
 
     val video = videoMetadata(target)
@@ -336,7 +336,7 @@ internal fun prepareAnimation(context: Context, uri: Uri, isVideo: Boolean): Out
         ?: "animation.$extension"
     val target = outgoingFile(context, name)
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
-        target.outputStream().use { input.copyTo(it) }
+        copyBounded(input, target)
     }
 
     if (!isVideo) {
@@ -445,7 +445,7 @@ internal fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Doc
     val name = displayName(context, uri) ?: "soubor"
     val target = outgoingFile(context, name)
     requireNotNull(context.contentResolver.openInputStream(uri)).use { input ->
-        target.outputStream().use { input.copyTo(it) }
+        copyBounded(input, target)
     }
     return OutgoingAttachment.Document(path = target.absolutePath)
 }
@@ -513,3 +513,32 @@ private fun outgoingFile(context: Context, name: String): File {
  */
 internal fun systemPickLimit(): Int =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) minOf(PICK_LIMIT, MediaStore.getPickImagesMaxLimit()) else PICK_LIMIT
+
+/**
+ * Kopie z cizího poskytovatele se stropem [MAX_ATTACHMENT_BYTES] (víc Telegram nepřijme ani
+ * s Premium). Poskytovatel jiné aplikace mohl vracet nekonečný proud a sdílení (až stovky
+ * souborů u importu chatu) by zaplnilo disk; nedokončená kopie se smaže.
+ */
+private fun copyBounded(input: java.io.InputStream, target: File) {
+    try {
+        target.outputStream().use { output ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var total = 0L
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                total += read
+                if (total > MAX_ATTACHMENT_BYTES) throw java.io.IOException("Příloha je větší než ${MAX_ATTACHMENT_BYTES / BYTES_PER_GIB} GiB.")
+                output.write(buffer, 0, read)
+            }
+        }
+    } catch (failure: Throwable) {
+        target.delete()
+        throw failure
+    }
+}
+
+/** Největší soubor, který Telegram přijme (4 GiB s Premium, 2 GiB bez). */
+private const val MAX_ATTACHMENT_BYTES = 4L * 1024 * 1024 * 1024
+
+private const val BYTES_PER_GIB = 1024L * 1024 * 1024

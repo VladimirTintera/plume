@@ -35,10 +35,9 @@ class BubbleActivity : ComponentActivity() {
         // Změna jazyka do Androidu 12: přeloží se až nově vytvořená aktivita (od 13 to dělá systém).
         lifecycleScope.launch { LegacyAppLanguage.changes.collect { recreate() } }
 
-        val slot = NotificationIntents.accountOf(intent)
-        val chatId = intent.getLongExtra(NotificationIntents.EXTRA_CHAT_ID, 0L).takeIf { it != 0L }
-            ?: intent.data?.lastPathSegment?.toLongOrNull()
-        if (chatId == null || slot == null) {
+        // Z dat, ne z extras: bublina je měnitelný PendingIntent a extras by přepsal kdokoli,
+        // kdo ho drží (viz NotificationIntents.bubbleTarget).
+        val (slot, chatId) = NotificationIntents.bubbleTarget(intent) ?: run {
             finish()
             return
         }

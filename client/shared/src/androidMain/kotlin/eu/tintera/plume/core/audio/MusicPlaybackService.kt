@@ -50,7 +50,7 @@ class MusicPlaybackService : MediaSessionService(), KoinComponent {
             DefaultMediaNotificationProvider.Builder(this).build().apply { setSmallIcon(R.drawable.ic_notification) },
         )
         val player = MusicSessionPlayer(queue)
-        val created = MediaSession.Builder(this, player).build()
+        val created = MediaSession.Builder(this, player).setCallback(TrustedControllers(packageName)).build()
         session = created
         // Relace vytvořená ve službě se do ní sama nepřidá — bez toho by nevznikla notifikace,
         // dokud se nepřipojí cizí ovladač.
@@ -114,5 +114,39 @@ class MusicControls(private val context: Context, private val queue: MusicQueue,
                     .onFailure { failure -> logger.w(failure) { "Službu pro hudbu nejde spustit." } }
             }
         }
+    }
+}
+
+/**
+ * Ke hře z chatů jen ovladače, které k ní patří: notifikace (Media3 ji ovládá vlastním
+ * ovladačem), systém a jeho důvěryhodní (`isTrusted`: oprávnění `MEDIA_CONTENT_CONTROL` nebo
+ * povolený posluchač notifikací — panel, zamčená obrazovka, obnova přehrávání), Android Auto
+ * a sama aplikace. Služba je exportovaná, a dokud se připojit mohl každý, kterákoli aplikace
+ * bez oprávnění četla, co hraje (název, interpret) a ovládala přehrávání.
+ *
+ * - **V `onConnect`, ne v `onGetSession`**: tam Media3 pro starší prohlížeče
+ *   (`MediaBrowserServiceCompat`) volá zástupný ovladač `android.media.session.MediaController`
+ *   ještě bez balíčku a odmítnutí by vypnulo všechny najednou, i obnovu přehrávání v systému.
+ *   Až v `onConnect` má každý ovladač skutečný balíček.
+ * - **Zástupný balíček se pouští**: pod ním přichází ovladač přes platformní relaci na starších
+ *   Androidech (Bluetooth, systém), a k té se cizí aplikace bez oprávnění nedostane.
+ */
+@OptIn(UnstableApi::class)
+private class TrustedControllers(private val ownPackage: String) : MediaSession.Callback {
+
+    private val logger = Logger.withTag("MusicService")
+
+    override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
+        val allowed = controller.packageName == ownPackage ||
+            controller.isTrusted ||
+            controller.packageName == MediaSession.ControllerInfo.LEGACY_CONTROLLER_PACKAGE_NAME ||
+            session.isMediaNotificationController(controller) ||
+            session.isAutoCompanionController(controller) ||
+            session.isAutomotiveController(controller)
+        if (!allowed) {
+            logger.i { "Ovladač ${controller.packageName} k hudbě nepustím." }
+            return MediaSession.ConnectionResult.reject()
+        }
+        return super.onConnect(session, controller)
     }
 }
