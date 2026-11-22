@@ -117,6 +117,41 @@ k souborům se píše popisek a uživatel vidí, co odejde.
   videa, sponka u souborů, řetěz u odkazu, stránka u textu), a dokud se soubory připravují, je
   místo nich indikátor — „Připravuji soubory…" je průběh, ne popis.
 
+### Cizí URI nesmí ukazovat do vlastních dat
+
+Sdílení, klávesnice (vložení obrázku), schránka i přetažení čtou soubor **pod identitou Plume**.
+Cizí aplikace bez jakéhokoli oprávnění tak mohla podstrčit cestu k soukromým datům Plume
+(`file:///data/user/0/eu.tintera.plume/…`, `content://eu.tintera.plume.documents/…`) a přes
+`EXTRA_SHORTCUT_ID` předvybrat svůj chat. Odeslat musel uživatel, ale u `file://` viděl jen
+obecné „soubor". Ve hře byla stažená média (i z tajných chatů), databáze TDLib a nastavení.
+
+- **`sharedStreamAllowed`** (`core/share/SharedStreams.kt`, testy `SharedStreamsTest`),
+  na Androidu `foreignUriAllowed` v `OwnShares.kt` — volá ho `ShareIntake`, `drop`
+  i společné `prepare` klávesnice a schránky v `KeyboardContent.android.kt`.
+- **Jen `content://`.** `file://` jiná aplikace od Androidu 7 sdílet nesmí
+  (`FileUriExposedException`), takže zbyl jen útok.
+- **Vlastní poskytovatel jen pro to, co Plume sám právě vydal** (`OwnShares`, v paměti
+  procesu): „Sdílet" v prohlížeči (`MediaSharer.share`, kopie v `cache/shared`) a kopírování
+  obrázku do schránky (`MediaSharer.copy`). Uživatel si ve výběru aplikací smí vybrat zase
+  Plume, nebo obrázek vložit zpátky do pole zprávy.
+- **Vlastní = podle `resolveContentProvider`** (balíček nebo uid), ne podle jména autority —
+  autorita se mění s `applicationId`.
+- **Autorita se posuzuje bez čísla uživatele** (`0@eu.tintera.plume.documents`):
+  `ContentResolver` takovou adresu otevře u téhož poskytovatele a kontrolu by obešla.
+- **Odmítnuté soubory se počítají mezi nepovedené** (`failed` v `ShareRequests.prepared`);
+  když jiné nejsou, sdílení vůbec nevznikne.
+- **Kontrola cesty deskriptoru (`/proc/self/fd`) potřeba není**: cizí poskytovatel běží pod
+  svým uid a soubor z dat Plume otevřít neumí, a vlastní poskytovatele odmítá kontrola autority.
+- **Ověřeno na emulátoru** (Plume_A11, Android 11, debug):
+  - stará verze přijala `am start … -a android.intent.action.SEND --eu android.intent.extra.STREAM
+    file:///data/user/0/eu.tintera.plume/shared_prefs/…` — čip „Sdílíte: soubor";
+  - nová odmítne `file://`, `content://eu.tintera.plume.documents/…` i
+    `content://0@eu.tintera.plume.documents/…` (log `Sdílení odmítnuto`, žádný čip);
+  - fotku z galerie (`content://media/…`) filtr pustí. Přečíst ji nešlo, protože `adb shell`
+    nemá jak předat přístup k úložišti médií, ale to by stejně dopadlo i bez opravy.
+  - **Neověřeno:** sdílení z prohlížeče médií Plume zpátky do Plume, vložení zkopírovaného
+    obrázku, přetažení a klávesnice. Na nich stojí jen `OwnShares` a společná funkce.
+
 ### Čip místo výběru chatu
 
 Sdílení BEZ předem vybraného chatu (nabídka „Sdílet", odkaz `t.me/share`, „Poslat do chatu"

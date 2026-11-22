@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.core.share.foreignUriAllowed
 import android.content.ClipDescription
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -183,7 +184,10 @@ private fun drop(
     onError: (UiText) -> Unit,
 ): Boolean {
     val clip = event.clipData ?: return false
-    val uris = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
+    val all = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
+    // Soukromé soubory Plume (`file://`, vlastní poskytovatel) nejsou přetažené, ale podstrčené.
+    val uris = all.filter { foreignUriAllowed(context, it) }
+    if (uris.size < all.size) logger.w { "Přetažení odmítnuto u ${all.size - uris.size} souborů: soukromá data Plume." }
     if (uris.isEmpty()) return false
     val permissions = activity?.requestDragAndDropPermissions(event)
     scope.launch {
@@ -296,6 +300,13 @@ private fun prepare(
     onError: (UiText) -> Unit,
     release: () -> Unit,
 ) {
+    // Klávesnice i schránka jsou cizí aplikace; vlastní soukromý soubor Plume od nich nebere.
+    if (!foreignUriAllowed(context, uri)) {
+        logger.w { "Vložení odmítnuto: file:// nebo soukromá data Plume." }
+        release()
+        onError(UiText(Res.string.attachment_prepare_failed))
+        return
+    }
     scope.launch {
         val prepared = withContext(Dispatchers.IO) {
             try {
