@@ -6,6 +6,7 @@ import eu.tintera.plume.core.platform.desktopOs
 import eu.tintera.plume.core.ui.openInSystem
 import java.io.File
 import java.nio.file.Files
+import java.util.Base64
 
 /**
  * Instalace stažené aktualizace. Běžící aplikace sama sebe přepsat nemůže (Windows soubory
@@ -15,8 +16,8 @@ import java.nio.file.Files
  *
  * - **Windows: `msiexec /i … /passive`** (jen proužek průběhu, bez otázek). Instalace je jen
  *   pro uživatele (`perUserInstall`), takže bez UAC; stejný `upgradeUuid` znamená, že MSI starou
- *   verzi nahradí. Čeká a spouští PowerShell — je v každých Windows 10/11 a `-Command` se
- *   execution policy netýká.
+ *   verzi nahradí. Čeká a spouští PowerShell — je v každých Windows 10/11 a `-EncodedCommand` se
+ *   execution policy netýká (platí jen pro soubory skriptů).
  * - **macOS: obsah DMG přes `hdiutil attach` a `ditto` místo starého bundlu**, výměna přes
  *   `.new` / `.old`, ať po chybě zůstane stará aplikace. Soubor stažený aplikací nemá atribut
  *   karantény (ten dávají prohlížeče), takže Gatekeeper se znovu neptá. Kam se psát nedá
@@ -34,11 +35,15 @@ internal object DesktopInstaller {
     fun start(installer: File, directory: File): Boolean {
         val launcher = System.getProperty("jpackage.app-path")?.let(::File)?.takeIf { it.isFile } ?: return false
         val pid = ProcessHandle.current().pid().toString()
+        val environment = mutableMapOf<String, String>()
         val command = when (desktopOs) {
-            DesktopOs.Windows -> listOf(
-                "powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
-                "-Command", windowsScript(pid, installer.absolutePath, launcher.absolutePath),
-            )
+            DesktopOs.Windows -> {
+                environment += windowsEnvironment(pid, installer.absolutePath, launcher.absolutePath)
+                listOf(
+                    "powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden",
+                    "-EncodedCommand", encodedPowerShell(WINDOWS_SCRIPT),
+                )
+            }
             DesktopOs.MacOs -> {
                 val bundle = macBundle(launcher) ?: return false
                 if (!writable(bundle)) {
@@ -51,6 +56,7 @@ internal object DesktopInstaller {
         }
         val log = File(directory, "install.log")
         ProcessBuilder(command)
+            .apply { environment().putAll(environment) }
             .redirectErrorStream(true)
             .redirectOutput(log)
             .start()
@@ -73,16 +79,29 @@ internal object DesktopInstaller {
     }
 
     /**
-     * Počká na konec aplikace, nainstaluje MSI a spustí aplikaci znovu. Řetězce v apostrofech
-     * (`'…'`), uvnitř zdvojený apostrof — v cestě se může objevit (`C:\Users\O'Brien`).
+     * Počká na konec aplikace, nainstaluje MSI a spustí aplikaci znovu. **Cesty do textu skriptu
+     * nevstupují**, chodí v proměnných prostředí ([windowsEnvironment]), a skript jde přes
+     * `-EncodedCommand`, ne `-Command`:
+     * - Dřív se cesta vkládala do řetězce v apostrofech se zdvojeným `'`. PowerShell ale za
+     *   apostrof bere i typografické ‘ ’ (U+2018, U+2019), takže `C:\Users\O’Brien` řetězec
+     *   předčasně ukončil a skript s takovou cestou neprošel.
+     * - Uvozovky kolem cesty k MSI šly v příkazové řádce `powershell.exe`, a Java na Windows
+     *   vnořené `"` v argumentu neescapuje — cesta s mezerou (jméno profilu) se nejspíš
+     *   rozpadla (na Windows neověřeno). Uvozovky pro `msiexec` proto skládá až skript
+     *   (`[char]34`).
      */
-    internal fun windowsScript(pid: String, msi: String, launcher: String): String = listOf(
-        "Wait-Process -Id $pid -ErrorAction SilentlyContinue",
-        "Start-Process -FilePath 'msiexec.exe' -ArgumentList ${ps("/i \"$msi\" /passive /norestart")} -Wait",
-        "Start-Process -FilePath ${ps(launcher)}",
-    ).joinToString("; ")
+    internal const val WINDOWS_SCRIPT =
+        "Wait-Process -Id \$env:PLUME_PID -ErrorAction SilentlyContinue; " +
+            "\$q = [char]34; " +
+            "Start-Process -FilePath 'msiexec.exe' -ArgumentList ('/i ' + \$q + \$env:PLUME_MSI + \$q + ' /passive /norestart') -Wait; " +
+            "Start-Process -FilePath \$env:PLUME_LAUNCHER"
 
-    private fun ps(text: String) = "'" + text.replace("'", "''") + "'"
+    internal fun windowsEnvironment(pid: String, msi: String, launcher: String) =
+        mapOf("PLUME_PID" to pid, "PLUME_MSI" to msi, "PLUME_LAUNCHER" to launcher)
+
+    /** `-EncodedCommand` = Base64 z UTF-16LE; obejde veškeré uvozování v příkazové řádce. */
+    internal fun encodedPowerShell(script: String): String =
+        Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
 
     /** Argumenty: `$1` pid aplikace, `$2` DMG, `$3` bundle aplikace. */
     private val MAC_SCRIPT = """
