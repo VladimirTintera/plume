@@ -358,8 +358,9 @@ def main(argv):
             print(f"neznámý kanál „{channel}“ — čekám {', '.join(dict.fromkeys([*CHANNELS, *PLAY_UNITS]))}", file=sys.stderr)
             return 2
         notes = notes_between(argv[2], argv[3], channel)
-        # Do GitHub Release jde celý seznam, bez ořezu na limit Play.
-        for lang, title in (("cs", "Co je nového"), ("en", "What's new")):
+        # Do GitHub Release jde celý seznam, bez ořezu na limit Play. Text releasu je anglicky
+        # (repo je veřejné), česky jsou jen české poznámky — i s nadpisem.
+        for lang, title in (("en", "What's new"), ("cs", "Co je nového")):
             print(f"### {title}\n")
             print("\n".join(f"- {n[lang]}" for n in notes) or f"_{LOCALES[lang][2]}_")
             print()
