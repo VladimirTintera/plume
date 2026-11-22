@@ -1,0 +1,14 @@
+{
+  "uniqueId": "google:material-symbols",
+  "name": "Material Symbols",
+  "description": "Icons.",
+  "website": "https://github.com/google/material-design-icons",
+  "licenses": [
+    "Apache-2.0"
+  ],
+  "targets": [
+    "android",
+    "jvm",
+    "metadata"
+  ]
+}

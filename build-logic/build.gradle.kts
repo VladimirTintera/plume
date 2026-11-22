@@ -7,6 +7,9 @@ dependencies {
     // ASM na classpath pluginu by se s tou z AGP mohla potkat jako dvě různé třídy ClassVisitor.
     compileOnly(libs.android.gradleApi)
     compileOnly(libs.asm)
+    // Seznam licencí knihoven (`plume.licenses`). Na rozdíl od AGP ho kořenový build nemá,
+    // takže se přibaluje rovnou.
+    implementation(libs.aboutlibraries.gradlePlugin)
 }
 
 gradlePlugin {
@@ -38,6 +41,10 @@ gradlePlugin {
         register("abiPlaceholders") {
             id = "plume.feature-abi-placeholders"
             implementationClass = "eu.tintera.plume.gradle.AbiPlaceholdersPlugin"
+        }
+        register("licenses") {
+            id = "plume.licenses"
+            implementationClass = "eu.tintera.plume.gradle.LicensesPlugin"
         }
         register("composeTextFieldDesktop") {
             id = "plume.compose-text-field-desktop"

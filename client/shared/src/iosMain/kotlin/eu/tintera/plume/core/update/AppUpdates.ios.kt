@@ -15,6 +15,10 @@ actual class AppUpdates {
 
     actual fun check() = Unit
 
+    actual val canCheck: Boolean = false
+
+    actual suspend fun checkNow(): UpdateCheckResult = UpdateCheckResult.Unsupported
+
     actual fun complete() = Unit
 }
 

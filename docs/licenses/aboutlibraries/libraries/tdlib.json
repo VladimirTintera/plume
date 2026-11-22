@@ -1,0 +1,14 @@
+{
+  "uniqueId": "org.telegram:tdlib",
+  "name": "TDLib",
+  "description": "Telegram Database Library: the client for the Telegram API, bundled in the TDLib wrapper.",
+  "website": "https://core.telegram.org/tdlib",
+  "licenses": [
+    "BSL-1.0"
+  ],
+  "targets": [
+    "android",
+    "jvm",
+    "metadata"
+  ]
+}

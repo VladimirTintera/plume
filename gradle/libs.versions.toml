@@ -140,6 +140,10 @@ gson = { strictly = "2.13.2" }
 # TDLib wrapper. Upstream TDLib dělá breaking changes i v patch verzích — proto je celý wrapper
 # schovaný za :client:shared/core/telegram a nikde jinde se jeho typy neobjevují.
 tdl = "17.0.0"
+# Licence knihoven v „O aplikaci" (docs/poznatky/nastaveni.md, „Licence knihoven"). Jen plugin
+# (sběr z grafu závislostí) a datová knihovna, UI je vlastní. Kotlin musí sedět jako u ostatních:
+# 15.3.0 chce kotlin-stdlib 2.4.21.
+aboutLibraries = "15.3.0"
 # Hledání memory leaků v debug buildu (jen `debugImplementation` ve vstupním bodu). 3.0 je zatím
 # alpha; 2.14 je poslední stabilní.
 leakcanary = "2.14"
@@ -250,6 +254,9 @@ androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "
 androidx-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 
 tdl-coroutines = { module = "dev.g000sha256:tdl-coroutines", version.ref = "tdl" }
+aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutLibraries" }
+# Gradle plugin AboutLibraries pro konvenční plugin `plume.licenses` (build-logic/), jen z Plugin Portalu.
+aboutlibraries-gradlePlugin = { module = "com.mikepenz.aboutlibraries.plugin:aboutlibraries-plugin", version.ref = "aboutLibraries" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

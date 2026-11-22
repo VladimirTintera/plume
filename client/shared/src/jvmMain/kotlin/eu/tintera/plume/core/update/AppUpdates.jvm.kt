@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,28 +69,53 @@ actual class AppUpdates(private val accounts: () -> Accounts) {
     private var work: Job? = null
 
     actual fun check() {
-        val current = current ?: return
+        if (current == null) return
         if (work?.isActive == true || _state.value is AppUpdateState.Downloaded) return
         if (lastCheck?.let { it.elapsedNow() < CHECK_INTERVAL } == true) return
         lastCheck = TimeSource.Monotonic.markNow()
-        work = scope.launch {
-            val latest = runCatching { fetchLatest() }
-                .onFailure { logger.i(it) { "Vydání na GitHubu se nepodařilo zjistit." } }
-                .getOrNull()
-            if (latest == null || latest.version <= current) {
-                // Po aktualizaci tu leží balíček, ze kterého se instalovalo.
-                directory.deleteRecursively()
-                return@launch
-            }
-            release = latest
-            val file = target(latest)
-            _state.value = if (file.isFile && verified(file, latest.asset)) {
-                AppUpdateState.Downloaded(latest.version.code)
-            } else {
-                AppUpdateState.Available(latest.version.code)
-            }
-            logger.i { "Na GitHubu je verze ${latest.version} (běží $current)." }
+        work = scope.launch { refresh() }
+    }
+
+    actual val canCheck: Boolean get() = current != null
+
+    /**
+     * Ruční kontrola: bez [CHECK_INTERVAL] (ťuknutí je jeden dotaz, limit 60 za hodinu to
+     * unese), ale ne souběžně s rozběhnutou prací — počká na ni a řekne, jak to vypadá.
+     * Rozběhnuté stahování nebo stažený balíček jsou „našlo se", ptát se znovu netřeba.
+     */
+    actual suspend fun checkNow(): UpdateCheckResult {
+        if (current == null) return UpdateCheckResult.Unsupported
+        work?.takeIf { it.isActive }?.join()
+        if (_state.value is AppUpdateState.Downloading || _state.value is AppUpdateState.Downloaded) {
+            return UpdateCheckResult.Found
         }
+        lastCheck = TimeSource.Monotonic.markNow()
+        val check = scope.async { refresh() }
+        work = check
+        return check.await()
+    }
+
+    /** Dotaz na GitHub a podle výsledku nový [state]. */
+    private fun refresh(): UpdateCheckResult {
+        val current = current ?: return UpdateCheckResult.Unsupported
+        val latest = runCatching { fetchLatest() }
+            .onFailure { logger.i(it) { "Vydání na GitHubu se nepodařilo zjistit." } }
+            .getOrElse { return UpdateCheckResult.Failed }
+        if (latest == null || latest.version <= current) {
+            // Po aktualizaci tu leží balíček, ze kterého se instalovalo.
+            directory.deleteRecursively()
+            _state.value = AppUpdateState.None
+            return UpdateCheckResult.UpToDate
+        }
+        release = latest
+        val file = target(latest)
+        _state.value = if (file.isFile && verified(file, latest.asset)) {
+            AppUpdateState.Downloaded(latest.version.code)
+        } else {
+            AppUpdateState.Available(latest.version.code)
+        }
+        logger.i { "Na GitHubu je verze ${latest.version} (běží $current)." }
+        return UpdateCheckResult.Found
     }
 
     /** Stažení balíčku — „Aktualizovat" na kartě. */
