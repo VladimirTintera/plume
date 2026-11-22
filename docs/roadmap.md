@@ -144,23 +144,53 @@ Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dos
 
 ### 1. Přepis historie (`git filter-repo` nad kopií)
 
-- **Projít celou historii gitleaks** (`brew install gitleaks git-filter-repo`) a nálezy přidat
-  do přepisu.
-- **Nové repo s přepsanou historií**, ne force-push do stávajícího: GitHub drží
-  `refs/pull/N/head` a staré commity by v něm zůstaly dostupné. Stávající repo zůstane soukromé
-  jako archiv. Přepis:
+**Zkušební přepis hotový 2026-11-22** nad klonem `main` (`~/Develop/plume-prepis`, pravidla
+v `~/Develop/plume-prepis-pravidla` na Macu vývojáře — v repu nejsou, obsahují ta čísla).
+**Před založením nového repa se ZOPAKUJE nad čerstvým klonem**: `main` mezitím ujede (i tímhle
+zápisem) a přepsaná kopie by ho neměla. Postup je mechanický:
+
+```bash
+git clone --no-local https://github.com/VladimirTintera/telegram.git plume-prepis && cd plume-prepis
+git filter-repo --invert-paths --paths-from-file ../plume-prepis-pravidla/odstranit-cesty.txt \
+  --replace-text ../plume-prepis-pravidla/nahradit-text.txt --mailmap ../plume-prepis-pravidla/mailmap
+```
+
+Do nového repa jde jen `main` a 201 tagů vydání (tagy potřebuje skládání poznámek k vydání,
+`git log PREV..TAG`). Větve `docs/citace-casti-zpravy` (celá sloučená) a `docs/pruzkum-hovoru`
+(jeden nesloučený commit) zůstávají jen v archivu; v čerstvém klonu je před přepisem smazat
+(`git update-ref -d refs/remotes/origin/docs/…`). Nové repo je ze starého GitHubu oddělené,
+`refs/pull/N/head` do něj nejdou, proto se nedělá force-push do stávajícího. To zůstane
+soukromé jako archiv.
+
+- **Gitleaks nad celou historií** (8.30.1, `gitleaks git --log-opts=--all`): dva klíče Firebase
+  (`gcp-api-key` v obou `google-services.json`) a dva falešné poplachy `generic-api-key`
+  v `AuthScreen.kt` (`AuthStage.WaitCode -> Res.drawable…`). Hesla, tokeny ani klíče Telegramu
+  nenašel. Plist pro iOS gitleaks nehlásí, jde pryč i tak.
+- **Vlastní sken všech verzí všech souborů** (telefonní čísla, e-maily, cesty `/Users/…`,
+  sériová čísla zařízení, id účtu): čísla vývojáře a testovacího účtu a id testovacího účtu
+  (Uložené zprávy, v `WatchTranscriptionTest` a `TelegramPushTest`). E-maily ani cesty v obsahu
+  souborů nejsou. Ostatní čísla v testech jsou smyšlená (+420 602 123 456, 777 123 456…).
+  Adresa „Vinohradská 1511/230" v testech hledání adres zůstává (rozhodnuto).
+- **Přepis**:
   - `--invert-paths` na **všechny tři** konfigurace Firebase: `client/androidApp/google-services.json`,
     `client/wearApp/google-services.json` a `iosApp/iosApp/GoogleService-Info.plist`. Build bez
     nich funguje (Gradle plugin se aplikuje jen se souborem, iOS `FirebaseCrashlyticsBridge`
-    bez plistu Firebase nespustí); release workflow je dostane ze secretu. Tajemství to není —
-    klíč je v každém APK, chrání ho omezení na balíček a SHA-1 v Google Cloud konzoli —, jen
-    do veřejného repa nepatří.
-  - `--replace-text` na osobní údaje i ve starých verzích souborů: telefonní číslo
-    +420 601 234 567 (`nastaveni.md`, `systemova-oznameni.md`, komentář v `PhoneInput.kt`),
-    „…029" testovacího účtu (`hledani-a-zakladani-chatu.md`, `NewContactViewModelTest`) a co
-    najde gitleaks.
-  - `--mailmap`: e-maily autorů sjednotit na GitHub noreply (dnes i `@magicware.cz` a gmail).
-- **Ověřit výsledek**: gitleaks znovu nad přepsanou historií, build a testy.
+    bez plistu Firebase nespustí). Tajemství to není — klíč je v každém APK, chrání ho omezení
+    na balíček a SHA-1 v Google Cloud konzoli —, jen do veřejného repa nepatří. **Release
+    workflow si je ze secretu ZATÍM NEBERE** — to je práce do fáze 2, jinak by oficiální build
+    vyšel bez pushe a hlášení pádů.
+  - `--replace-text`: obě telefonní čísla (s mezerami i bez) na smyšlená 601 234 567
+    a 601 987 654, id testovacího účtu na 444555666. Náhrady v historii předtím nebyly, takže
+    se s ničím nesrazí, a v testech se mění všude stejně.
+  - `--mailmap`: všechny commity pod `Vladimír Tintěra <…+VladimirTintera@users.noreply.github.com>`
+    (dřív i gmail a `@magicware.cz`); commity Clauda a merge od GitHubu zůstávají.
+- **Ověřeno**: gitleaks po přepisu hlásí jen dva falešné poplachy, vlastní sken nic, Firebase
+  v historii není ani jednou. Rozdíl přepsaného a původního `main` jsou přesně tři odstraněné
+  soubory a náhrady v sedmi souborech. `main` má 2 984 commitů místo 2 985 (commit, který
+  jen přidal `google-services.json`, zbyl prázdný a zmizel), `.git` 37 MB.
+  `assembleDebug` a testy `:client:shared` a `:client:core` na JVM v přepsané kopii prošly
+  (2 910 testů, žádné selhání; build bez Firebase ohlásí chybějící `google-services.json`
+  u telefonu i hodinek a pokračuje). iOS a desktop se v kopii nestavěly.
 
 ### 2. Nové repo, nejdřív soukromé
 
