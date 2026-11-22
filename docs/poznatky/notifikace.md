@@ -782,6 +782,28 @@ stáhne. Všechny akce jdou přes jednoho příjemce a jednu třídu (`Notificat
   proto rozbalit PŘEDEM, čekat na „Zobrazuji" v logu a tlačítko hledat `uiautomator dump`
   až potom — poloha tlačítek se mění s počtem řádků notifikace. Cesta „Neodesláno" ověřená není — server odpověď bota neodmítne.
 
+#### Notifikace hovoru po přímé odpovědi (Android 15+)
+
+Po „Odmítnout se zprávou" z notifikace hovoru zůstávala notifikace v liště s točícím se kolečkem
+a nešla smáznout, i když hovor skončil a presenter ji zrušil. Od Androidu 15 dostane notifikace
+po přímé odpovědi `FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY` (`dumpsys notification`:
+`LIFETIME_EXTENDED_BY_DIRECT_REPLY`) a **`cancel` z aplikace ji nezruší** — systém ji jen znovu
+vyvěsí s `ONLY_ALERT_ONCE`. Příznak shodí až překreslení z aplikace. U zpráv to dělá řádek
+s odpovědí (`showReply`), hovor nemá co ukázat; řeší to `NotificationPresenter.dismissRepliedCall`:
+
+- **Napřed počkat, až příznak System UI nastaví.** Přijímač akce je rychlejší a dřívější
+  překreslení nic nezmění.
+- **Překreslit kopií té původní (`NotificationCompat.Builder(context, existing)`, potichu)**,
+  ne holou notifikací: holou bez `CallStyle` systém tiše zahodil a v liště zůstala původní.
+- **`notify` i `cancel` jen zařadí do fronty.** Zrušení hned po `notify` vyřadí kopii dřív, než
+  se zveřejní. Čeká se, až ji systém ukazuje bez příznaku, a pak ještě vteřinu (System UI do té
+  doby drží rozepsanou odpověď a zrušení obejde stejně).
+- **Opakovat, dokud příznak v liště je** (nejvýš třikrát). Konec hovoru od TDLib notifikaci
+  zruší po svém (`remove`) a když to padne mezi kopii a zrušení, systém ji vyvěsí znovu.
+- Konstanta `FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY` je v SDK skrytá (`@TestApi`), v kódu je
+  hodnota `1 shl 16`.
+- Pod Androidem 15 se nic nedělá. U Androidu 11 (Plume_A11) se notifikace stáhla sama.
+
 #### Odhrnutí notifikace
 
 Odhrnutá notifikace chatu (tah do strany, „Vymazat vše") řekne TDLib, že je pryč

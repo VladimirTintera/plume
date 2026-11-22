@@ -63,6 +63,12 @@ object NotificationIntents {
     /** Odmítnutí příchozího hovoru z notifikace. Týž příjemce jako [ACTION_REPLY]. */
     const val ACTION_DECLINE_CALL = "eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL"
 
+    /**
+     * Odmítnutí hovoru se zprávou z notifikace (text v `RemoteInput` pod [KEY_REPLY_TEXT]).
+     * Týž příjemce jako [ACTION_REPLY].
+     */
+    const val ACTION_DECLINE_CALL_WITH_MESSAGE = "eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL_WITH_MESSAGE"
+
     const val EXTRA_CALL_ID = "eu.tintera.plume.extra.CALL_ID"
     const val EXTRA_IS_VIDEO = "eu.tintera.plume.extra.IS_VIDEO"
 
@@ -205,6 +211,27 @@ object NotificationIntents {
             requestCode(slot, groupId),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /**
+     * Broadcast „Odmítnout se zprávou". MUTABLE jako [reply]: systém do intentu vkládá text
+     * (napsaný, nebo vybraný z hotových odpovědí).
+     */
+    fun declineCallWithMessage(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, callId: Int, isVideo: Boolean): PendingIntent {
+        val intent = Intent(ACTION_DECLINE_CALL_WITH_MESSAGE)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+            .putExtra(EXTRA_CALL_ID, callId)
+            .putExtra(EXTRA_IS_VIDEO, isVideo)
+
+        return PendingIntent.getBroadcast(
+            context,
+            requestCode(slot, groupId),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
     }
 

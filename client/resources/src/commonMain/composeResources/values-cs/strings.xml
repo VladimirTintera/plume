@@ -1727,6 +1727,12 @@
     <string name="notification_call_video">Volá ti s videem</string>
     <string name="notification_call_answer_elsewhere">Přijmout jde zatím jen v oficiální aplikaci Telegramu.</string>
     <string name="notification_call_decline">Odmítnout</string>
+    <string name="call_decline_with_message">Odmítnout se zprávou</string>
+    <string name="call_message">Zpráva</string>
+    <string name="call_quick_reply_text_me">Teď nemůžu mluvit, napiš mi.</string>
+    <string name="call_quick_reply_right_back">Zavolám ti hned zpátky.</string>
+    <string name="call_quick_reply_later">Zavolám ti později.</string>
+    <string name="call_quick_reply_custom">Napsat vlastní…</string>
     <string name="notification_call_unknown">Neznámý volající</string>
     <string name="tray_open">Otevřít Plume</string>
     <string name="tray_quit">Ukončit</string>

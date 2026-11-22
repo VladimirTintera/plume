@@ -376,6 +376,8 @@ private fun CallScreen(
                         LabeledButton(stringResource(Res.string.notification_call_decline)) {
                             HangUpButton(stringResource(Res.string.notification_call_decline)) { scope.launch { calls.hangUp() } }
                         }
+                        // Odmítnout se zprávou — vlastní funkce, obrazovka hovoru je i tak dlouhá.
+                        CallQuickReplyButton(call, calls)
                         LabeledButton(stringResource(Res.string.call_answer)) {
                             FilledIconButton(
                                 onClick = { accept(call) },
