@@ -173,14 +173,15 @@ jobs:
           echo "GRADLE_OPTS=${GRADLE_OPTS:+$GRADLE_OPTS }-Dorg.gradle.daemon.registry.base=$base" >> "$GITHUB_ENV"
 
       # Desktop nepotřebuje Android, ale `:client:shared` je KMP knihovna s Android targetem
-      # a AGP chce SDK s compileSdk už při konfiguraci. Hostovaný runner ho má předinstalovaný.
-      # NDK chce AGP při konfiguraci :ai-llamacpp-android z ai-engine (`ndkVersion`), CMake z SDK
-      # překládá llama.cpp pro desktop (:ai-llamacpp-desktop); hostovaný runner má CMake
-      # na PATH a NDK si AGP stáhne samo.
+      # a AGP chce SDK s compileSdk už při konfiguraci. NDK chce AGP při konfiguraci
+      # :ai-llamacpp-android z ai-engine (`ndkVersion`), CMake z SDK překládá llama.cpp pro
+      # desktop (:ai-llamacpp-desktop).
+      # VŽDY, i na hostovaném runneru: na obrazu macos-26 není NDK předinstalované a AGP si ho
+      # stáhnout nesmí (neodsouhlasená licence → LicenceNotAcceptedException při konfiguraci,
+      # první desktop release z veřejného repa). Na Windows to tehdy prošlo jen díky obrazu.
       # POZOR: musí odpovídat android-compileSdk(Minor), `ndk` a `cmake` v gradle/libs.versions.toml
       # (37.2 pro Plume, 37.0 pro ai-engine).
       - name: Install Android SDK platform
-        if: runner.environment == 'self-hosted'
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'
@@ -281,9 +282,9 @@ jobs:
           if command -v cygpath > /dev/null; then base="$(cygpath -m "$base")"; fi
           echo "GRADLE_OPTS=${GRADLE_OPTS:+$GRADLE_OPTS }-Dorg.gradle.daemon.registry.base=$base" >> "$GITHUB_ENV"
 
-      # Viz job windows: SDK kvůli Android targetu `:client:shared`, NDK a CMake kvůli llama.cpp; macos-latest je má.
+      # Viz job windows: SDK kvůli Android targetu `:client:shared`, NDK a CMake kvůli llama.cpp.
+      # Vždy, i na hostovaném — macos-latest NDK nemá (LicenceNotAcceptedException).
       - name: Install Android SDK platform
-        if: runner.environment == 'self-hosted'
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'

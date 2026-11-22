@@ -312,6 +312,13 @@ Tagger (`create-release-tag.yml`) šel na Mac taky, přestože nic nestaví:
   `ndk` a `cmake` v `libs.versions.toml` se proto mění spolu s workflow `android-release.yml`
   **i `desktop-release.yml`**: desktop CMake z SDK překládá llama.cpp a NDK chce AGP už při
   konfiguraci Android modulu, i když se z něj nic nestaví.
+- **Krok `setup-android` běží i na hostovaném runneru, bez podmínky.** V desktopovém workflow
+  měl dřív `if: runner.environment == 'self-hosted'` s tím, že hostovaný obraz SDK má a NDK si
+  AGP stáhne. První desktop release z veřejného repa (desktop-1.1.0, `macos-latest` = obraz
+  `macos-26-arm64`) spadl při konfiguraci `:ai-engine:ai-llamacpp-android` na
+  `LicenceNotAcceptedException … NDK (Side by side) 29.0.13846066`: NDK na obrazu není a stáhnout
+  ho AGP bez odsouhlasené licence nesmí. Windows obraz tentýž build prošel. Na předinstalovaný
+  obsah hostovaného obrazu se nespoléhat — mění se s každou verzí obrazu.
 - **Cache `setup-gradle` je na self-hosted vypnutá** — `~/.gradle` přetrvává a upload by jen
   tlačil gigabajty do cache GitHubu.
 - **Mac je pracovní stroj, ne build server.** Android release s projektovou pamětí (Gradle 4g
