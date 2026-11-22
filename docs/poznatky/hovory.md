@@ -732,6 +732,39 @@ odmítne napřed, pak odejde zpráva (`NotificationActionReceiver.declineWithMes
   `Connecting` → `Ready` dokola po ~20 s a hovory končily zmeškané, aniž by zazvonily. Po
   `adb shell svc wifi disable` (emulovaná mobilní data) spojení drželo.
 
+## Akce hovoru jen z vlastní notifikace
+
+„Přijmout" a „Zavolat zpět" míří na **neexportovaný alias** `CallActionAlias` (`<activity-alias>`
+k `MainActivity`, jméno v `NotificationIntents.CALL_ACTION_ALIAS`), ne na spouštěcí aktivitu,
+a `MainActivity` je provede, jen když intent přišel přes něj (`NotificationIntents.isCallAction`).
+
+- **Proč:** `MainActivity` je exportovaná (spouštěč, sdílení, odkazy), takže jí intent
+  s libovolnými extras pošle kterákoli aplikace bez oprávnění, a webová stránka přes `intent:`
+  odkaz. Akce hovoru přitom nic nepotvrzuje — s povoleným mikrofonem cizí aplikace vytočila
+  hovor (i video s kamerou), nebo přijala zvonící hovor (`EXTRA_ANSWER_CALL`; id hovorů od TDLib
+  jsou malá pořadová čísla, dají se zkoušet postupně). Zámek aplikace to nezastavil: obsah se
+  pod zámkem skládá jako `Inert` a `LaunchedEffect` v `CallBackHost` běží dál.
+- **Proč alias, ne token:** náhodný token v paměti procesu by po smrti procesu přestal platit
+  a „Zavolat zpět" ze zmeškaného hovoru by po restartu aplikace nefungovalo. Alias spustí jen
+  sama aplikace (PendingIntent běží pod její identitou) a `getComponent()` intentu nese jméno
+  aliasu v `onCreate` i v `onNewIntent` (`singleTask`). Cizí aplikace dostane `SecurityException
+  … not exported`.
+- **Ukázat obrazovku hovoru (`EXTRA_SHOW_CALL`) a otevřít chat smí dál kdokoli** — jen navigují.
+- **Akce hovoru jen při prvním `onCreate` (`savedInstanceState == null`)**: po smrti procesu
+  systém aktivitu obnoví s PŮVODNÍM intentem (`removeExtra` se nepamatuje) a „Zavolat zpět" by
+  vytočilo znovu.
+- **Notifikace zmeškaného hovoru z doby před aktualizací** míří ještě na spouštěcí aktivitu:
+  ťuknutí na „Zavolat zpět" v ní jen otevře chat.
+- **Ověřeno na emulátoru** (Plume_A11, Android 11, debug), s neexistujícím id uživatele, takže
+  se nikomu nevolalo (`User not found` v logu = hovor se zahajoval):
+  - před opravou `adb shell am start -n eu.tintera.plume/.MainActivity --el
+    eu.tintera.plume.extra.CALL_BACK_USER 999999999999` došlo až do `TdlCallRepository.call`;
+  - po opravě totéž (běžící i studený start) a `--ei …ANSWER_CALL 1` nic nezahájí;
+  - `am start` na `.CallActionAlias` z shellu odmítne systém (not exported);
+  - s `adb root` (odesílatel s právy jako vlastní notifikace) alias hovor zahájí v `onNewIntent`
+    i při studeném startu.
+  Skutečný příchozí a zmeškaný hovor z notifikace po opravě ověřený NENÍ.
+
 ## Hodnocení hovoru
 
 Server po některých skončených hovorech chce hodnocení (`CallStateDiscarded.needRating`). Plume

@@ -63,9 +63,11 @@ class MainActivity : ComponentActivity() {
 
         // Studený start z notifikace: chatId přijde v intentu, kterým se activity zakládá.
         // „Zavolat zpět" dřív než chat: otevření chatu z intentu maže účet, který oba potřebují.
-        receiveCallBack(intent)
+        // Akce hovoru jen při prvním založení: po smrti procesu systém aktivitu obnoví
+        // s PŮVODNÍM intentem (smazání extras se nepamatuje) a hovor by se vytočil znovu.
+        receiveCallBack(intent, act = savedInstanceState == null)
         openChatFrom(intent)
-        receiveCall(intent)
+        receiveCall(intent, act = savedInstanceState == null)
         showOverLockScreenDuringCalls()
         // Studený start ze sdílení. Po otočení se `onCreate` spustí nad týmž intentem znovu —
         // proto se sdílení z intentu po zpracování maže, jinak by se výběr chatu ukázal podruhé.
@@ -107,11 +109,15 @@ class MainActivity : ComponentActivity() {
         receiveLink(intent)
     }
 
-    /** „Přijmout" nebo ťuknutí na hovor v notifikaci — vyřídí shell (mikrofon, přijetí). */
-    private fun receiveCall(intent: Intent) {
+    /**
+     * „Přijmout" nebo ťuknutí na hovor v notifikaci — vyřídí shell (mikrofon, přijetí).
+     * Přijetí jen z vlastní notifikace ([NotificationIntents.isCallAction]); ukázat obrazovku
+     * hovoru smí kdokoli, nic se tím nestane.
+     */
+    private fun receiveCall(intent: Intent, act: Boolean = true) {
         val answer = intent.getIntExtra(NotificationIntents.EXTRA_ANSWER_CALL, NO_CALL)
         if (answer != NO_CALL) {
-            callRequests.answer(answer)
+            if (act && NotificationIntents.isCallAction(intent)) callRequests.answer(answer)
             intent.removeExtra(NotificationIntents.EXTRA_ANSWER_CALL)
         }
         if (intent.getBooleanExtra(NotificationIntents.EXTRA_SHOW_CALL, false)) {
@@ -122,12 +128,14 @@ class MainActivity : ComponentActivity() {
 
     /**
      * „Zavolat zpět" z notifikace o zmeškaném hovoru — vytočí shell (`CallBackHost`), protože
-     * o mikrofon se umí zeptat jen obrazovka. Jednorázové jako otevření chatu.
+     * o mikrofon se umí zeptat jen obrazovka. Jednorázové jako otevření chatu. Jen z vlastní
+     * notifikace ([NotificationIntents.isCallAction]) — od cizí aplikace by to byl hovor bez
+     * jediného potvrzení.
      */
-    private fun receiveCallBack(intent: Intent) {
+    private fun receiveCallBack(intent: Intent, act: Boolean = true) {
         val userId = intent.getLongExtra(NotificationIntents.EXTRA_CALL_BACK_USER, NO_USER)
         if (userId == NO_USER) return
-        NotificationIntents.accountOf(intent)?.let { slot ->
+        NotificationIntents.accountOf(intent)?.takeIf { act && NotificationIntents.isCallAction(intent) }?.let { slot ->
             callRequests.callBack(slot, userId, video = intent.getBooleanExtra(NotificationIntents.EXTRA_IS_VIDEO, false))
         }
         intent.removeExtra(NotificationIntents.EXTRA_CALL_BACK_USER)

@@ -3,6 +3,7 @@ package eu.tintera.plume.core.notifications
 import eu.tintera.plume.core.accounts.AccountSlot
 import android.net.Uri
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 
@@ -242,14 +243,33 @@ object NotificationIntents {
     const val EXTRA_SHOW_CALL = "eu.tintera.plume.extra.SHOW_CALL"
 
     /**
+     * Neexportovaný alias `MainActivity` (`<activity-alias>` v manifestu vstupního bodu), přes
+     * který chodí akce hovoru z notifikací — „Přijmout" a „Zavolat zpět".
+     *
+     * `MainActivity` je exportovaná (spouštěč, sdílení, odkazy), takže jí intent s libovolnými
+     * extras pošle kterákoli aplikace v telefonu, i bez oprávnění, a webová stránka přes
+     * `intent:` odkaz. Akce hovoru přitom nic nepotvrzuje: s povoleným mikrofonem a kamerou by
+     * cizí aplikace vytočila hovor (i video), nebo přijala ten, který zrovna zvoní — id hovoru
+     * od TDLib jsou malá pořadová čísla. Alias spustí jen sama aplikace (náš PendingIntent běží
+     * pod naší identitou) a v `getComponent()` intentu pak zůstane jméno aliasu, ne aktivity.
+     * Viz [isCallAction].
+     */
+    const val CALL_ACTION_ALIAS = "eu.tintera.plume.CallActionAlias"
+
+    /** Přišel intent přes [CALL_ACTION_ALIAS], tedy z vlastní notifikace? Jinak akce hovoru nebrat. */
+    fun isCallAction(intent: Intent): Boolean = intent.component?.className == CALL_ACTION_ALIAS
+
+    private fun callActionComponent(context: Context) = ComponentName(context.packageName, CALL_ACTION_ALIAS)
+
+    /**
      * „Přijmout" z notifikace otevírá ACTIVITY, ne broadcast: od Androidu 12 notifikace nesmí
      * spouštět aktivitu oklikou přes přijímač (trampolína), a přijetí hovoru stejně chce
-     * aplikaci v popředí — mikrofon pro službu hovoru dá Android jen tehdy.
+     * aplikaci v popředí — mikrofon pro službu hovoru dá Android jen tehdy. Míří na
+     * [CALL_ACTION_ALIAS], ne na spouštěcí aktivitu.
      */
     fun answerCall(context: Context, groupId: Int, callId: Int): PendingIntent? {
-        val component = context.packageManager.getLaunchIntentForPackage(context.packageName)?.component ?: return null
         val intent = Intent(ACTION_ANSWER_CALL)
-            .setComponent(component)
+            .setComponent(callActionComponent(context))
             .putExtra(EXTRA_ANSWER_CALL, callId)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         return PendingIntent.getActivity(
@@ -268,9 +288,11 @@ object NotificationIntents {
      * [answerCall]: o mikrofon se umí zeptat jen obrazovka a hovor chce aplikaci v popředí.
      * Nese i chat, takže se pod obrazovkou hovoru otevře konverzace — po zavěšení je uživatel
      * tam, kde se o hovoru dozvěděl, a otevřením se zpráva přečte a TDLib notifikaci stáhne.
+     * Míří na [CALL_ACTION_ALIAS], ne na spouštěcí aktivitu.
      */
     fun callBack(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, userId: Long, isVideo: Boolean): PendingIntent? {
         val intent = chatIntent(context, slot, chatId) ?: return null
+        intent.component = callActionComponent(context)
         intent.action = ACTION_CALL_BACK
         intent.putExtra(EXTRA_CALL_BACK_USER, userId).putExtra(EXTRA_IS_VIDEO, isVideo)
         return PendingIntent.getActivity(
