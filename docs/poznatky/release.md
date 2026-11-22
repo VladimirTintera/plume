@@ -368,9 +368,19 @@ desktopu, jakmile ťuknou na Restartovat. Proto:
     tag policy). Release se tedy po buildu (desktop) nebo před ním (Android, jeden job) zastaví
     na „Review deployments" v běhu workflow. Proti ukradenému tokenu s právem `repo` to nechrání
     (schválit jde i API), proti cizímu kódu v CI a omylem pushnutému tagu ano.
-  - **Secrets zůstávají na úrovni repa**, ne environmentu: přesun by chtěl jejich hodnoty znovu
-    (GitHub je nevydá). Až se budou měnit, patří do environmentu `release` — pak je job dostane
-    teprve po schválení.
+  - **Secrets releasu jsou v environmentu `release`, ne v repu**: `ANDROID_KEYSTORE_BASE64`,
+    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`,
+    `GOOGLE_SERVICES_JSON` a `PLAY_SERVICE_ACCOUNT_JSON`. Secret repa dostane jakýkoli běh na
+    jakékoli větvi (stačí pushnout větev s workflow, které ho vypíše); secret environmentu jen
+    job přihlášený do `release`, po schválení a z povoleného ref. Proto je v environmentu
+    i `play-listing.yml` a environment kromě tagů pouští větev `main`, odkud se Play Listing
+    spouští ručně.
+  - **`TELEGRAM_API_ID` a `TELEGRAM_API_HASH` zůstávají v repu**: potřebují je buildy desktopu
+    (joby `windows` a `macos`, mimo environment) a hodnoty jsou stejně zapečené v každém
+    APK i balíčku desktopu.
+  - **GitHub hodnoty secrets nevydá**, přesun znamená zadat je znovu (Settings → Environments →
+    `release`, nebo `gh secret set <JMÉNO> --env release < soubor`) a teprve pak smazat ty
+    z repa. Obráceně by release Androidu selhal.
 - **Skutečnou ochranu proti ukradenému účtu GitHubu dá až podpis balíčku**, který desktop
   ověří před instalací (Authenticode / Developer ID, nebo vlastní klíč mimo GitHub). SHA-256
   i attestace vznikají uvnitř GitHubu, takže před tím, kdo ho ovládá, nechrání.

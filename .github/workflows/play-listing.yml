@@ -24,6 +24,10 @@ jobs:
   listing:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Klíč servisního účtu Play je secret environmentu `release` (ne repa), takže ho job dostane
+    # jen po schválení — stejně jako release Androidu. Environment kvůli tomu pouští i větev
+    # `main`, odkud se tenhle workflow spouští. Viz docs/poznatky/release.md, „Oprávnění workflow".
+    environment: release
     steps:
       - uses: actions/checkout@v4
 
