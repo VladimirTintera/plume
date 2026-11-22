@@ -11,6 +11,12 @@ plugins {
     id("plume.tdlib-desktop")
     // Jar LiteRT-LM (model v zařízení) jen s nativní knihovnou tohoto systému (build-logic).
     id("plume.litertlm-desktop")
+    // Licence knihoven pro „O aplikaci" (build-logic, Licenses.kt).
+    id("plume.licenses")
+}
+
+plumeLicenses {
+    platform = "desktop"
 }
 
 kotlin {

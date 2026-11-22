@@ -8,6 +8,13 @@ plugins {
     id("plume.locale-config")
     // Verze z tagu, podpis a verifyReleaseConfiguration (build-logic, AndroidRelease.kt).
     id("plume.android-release")
+    // Licence knihoven pro „O aplikaci" (build-logic, Licenses.kt).
+    id("plume.licenses")
+}
+
+plumeLicenses {
+    platform = "android"
+    variant = "release"
 }
 
 // Kotlin/Android je v AGP 9 vestavěný — plugin org.jetbrains.kotlin.android se neaplikuje.

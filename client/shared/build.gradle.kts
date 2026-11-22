@@ -10,6 +10,8 @@ plugins {
     alias(libs.plugins.serialization)
     // Kontroly zdrojáků na `check` (build-logic/); jazyky hlídá :client:resources.
     id("plume.source-checks")
+    // Licence knihoven pro iOS (`files/licenses/ios.json`); Android a desktop sbírají vstupní body.
+    id("plume.licenses")
 }
 
 /**
@@ -360,6 +362,7 @@ kotlin {
             implementation(libs.compose.animation)
             implementation(libs.compose.ui)
             implementation(libs.compose.resources)
+            implementation(libs.aboutlibraries.core)
             // Texty, ikony, fonty a `Res` (eu.tintera.plume.resources) — viz client/resources.
             implementation(projects.client.resources)
             // Vrstva kolem TDLib (client/core). `api`: její typy (repository, ChatMessage…) jsou
@@ -536,4 +539,9 @@ composeCompiler {
 // závisí na knihovně prostředků) a srazila by se s tou z :client:resources.
 compose.resources {
     generateResClass = never
+}
+
+
+plumeLicenses {
+    platform = "ios"
 }

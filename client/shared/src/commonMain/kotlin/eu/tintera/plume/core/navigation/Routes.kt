@@ -60,12 +60,12 @@ data object SettingsRoute : TopLevelRoute
  *
  * Ukládá se **názvem**, takže přidání hodnoty doprostřed nezmění význam uloženého zásobníku.
  * Pořadí je pořadí v seznamu sekcí; první se otevírá v dvoupanelu, když žádná vybraná není.
- * [Ai] seznam ukazuje, jen kde je model dostupný, [WhatsNew] stojí ve skupině Pomoc.
+ * [Ai] seznam ukazuje, jen kde je model dostupný, [WhatsNew] a [About] stojí ve skupině Pomoc.
  *
  * Zrušené jméno v uloženém stavu (dřív `General`) obnovu neshodí — viz [SettingsSectionSerializer].
  */
 @Serializable(with = SettingsSectionSerializer::class)
-enum class SettingsSection { Privacy, Notifications, Chats, Appearance, Storage, Devices, Ai, WhatsNew }
+enum class SettingsSection { Privacy, Notifications, Chats, Appearance, Storage, Devices, Ai, WhatsNew, About }
 
 /**
  * Sekce podle jména; jméno, které výčet nezná, je první sekce. Výchozí serializer výčtu by na
@@ -121,6 +121,10 @@ data object LoginEmailRoute : Route
 /** Přenesená data (statistika sítě). Vrší se nad sekci Úložiště. */
 @Serializable
 data object NetworkUsageRoute : Route
+
+/** Licence knihoven. Vrší se nad sekci O aplikaci. */
+@Serializable
+data object LicensesRoute : Route
 
 /** Přístupové klíče (seznam a odebrání). Vrší se nad sekci Soukromí jako [TwoStepRoute]. */
 @Serializable
@@ -714,6 +718,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(LoginEmailRoute::class, LoginEmailRoute.serializer())
             subclass(PasskeysRoute::class, PasskeysRoute.serializer())
             subclass(NetworkUsageRoute::class, NetworkUsageRoute.serializer())
+            subclass(LicensesRoute::class, LicensesRoute.serializer())
             subclass(ChangePhoneRoute::class, ChangePhoneRoute.serializer())
             subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())

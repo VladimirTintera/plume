@@ -1,0 +1,13 @@
+{
+  "uniqueId": "org.ggml:llama.cpp",
+  "name": "llama.cpp",
+  "description": "LLM inference in C/C++, compiled into the native library of ai-engine.",
+  "website": "https://github.com/ggml-org/llama.cpp",
+  "licenses": [
+    "MIT-llama.cpp"
+  ],
+  "targets": [
+    "android",
+    "jvm"
+  ]
+}

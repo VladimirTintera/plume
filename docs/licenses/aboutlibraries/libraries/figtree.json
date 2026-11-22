@@ -1,0 +1,14 @@
+{
+  "uniqueId": "font:figtree",
+  "name": "Figtree",
+  "description": "Typeface for body text.",
+  "website": "https://github.com/erikdkennedy/figtree",
+  "licenses": [
+    "OFL-Figtree"
+  ],
+  "targets": [
+    "android",
+    "jvm",
+    "metadata"
+  ]
+}

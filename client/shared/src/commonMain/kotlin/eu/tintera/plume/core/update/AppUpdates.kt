@@ -22,6 +22,21 @@ expect class AppUpdates {
      */
     fun check()
 
+    /**
+     * Jestli tahle instalace umí aktualizace vůbec zjistit. iOS ne (API nemá), desktop jen
+     * zabalená aplikace, ne ladicí běh. Android ano — jestli je instalace z Play, řekne až
+     * [checkNow]. „O aplikaci" podle toho řádek s kontrolou vůbec ukáže.
+     */
+    val canCheck: Boolean
+
+    /**
+     * Ruční kontrola z „O aplikaci": na rozdíl od [check] počká na odpověď a řekne, jak dopadla —
+     * uživatel, který ťukl na „Zkontrolovat", chce slyšet i „máte nejnovější verzi". Obejde
+     * interval, kterým se šetří dotazy při návratech na seznam chatů. [state] se mění stejně
+     * jako po [check], takže nabídku pak ukáže i karta v seznamu chatů.
+     */
+    suspend fun checkNow(): UpdateCheckResult
+
     /** Nainstaluje staženou aktualizaci. Aplikace se tím restartuje. */
     fun complete()
 }
@@ -32,6 +47,21 @@ expect class AppUpdates {
  */
 @Composable
 expect fun rememberStartUpdate(updates: AppUpdates): () -> Unit
+
+/** Jak dopadla ruční kontrola ([AppUpdates.checkNow]). */
+enum class UpdateCheckResult {
+    /** Novější verze není. */
+    UpToDate,
+
+    /** Je — podrobnosti (k mání, stahuje se, staženo) nese [AppUpdates.state]. */
+    Found,
+
+    /** Tahle instalace se aktualizací nedozví: mimo Google Play (debug, `adb install`), iOS. */
+    Unsupported,
+
+    /** Obchod nebo GitHub neodpověděl (bez sítě, výpadek). */
+    Failed,
+}
 
 sealed interface AppUpdateState {
 

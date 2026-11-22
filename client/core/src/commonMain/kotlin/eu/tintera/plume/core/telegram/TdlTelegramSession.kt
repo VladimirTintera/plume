@@ -477,6 +477,14 @@ class TdlTelegramSession(
             .onFailure { logger.w(it) { "Jazykový balíček se nepodařilo nastavit." } }
     }
 
+    override suspend fun tdlibVersion(): String? {
+        suspend fun option(name: String) =
+            (client.getOption(name = name).toResult().getOrNull() as? OptionValueString)?.value?.takeIf { it.isNotBlank() }
+        val version = option(VERSION_OPTION) ?: return null
+        val commit = option(COMMIT_HASH_OPTION)?.take(SHORT_COMMIT)
+        return if (commit == null) version else "$version ($commit)"
+    }
+
     override suspend fun submitPhoneNumber(phoneNumber: String): Result<Unit> =
         client.setAuthenticationPhoneNumber(phoneNumber = phoneNumber)
             .toResult()
@@ -666,6 +674,9 @@ class TdlTelegramSession(
         const val LOCALIZATION_TARGET_OPTION = "localization_target"
         const val LOCALIZATION_TARGET = "android"
         const val LANGUAGE_PACK_OPTION = "language_pack_id"
+        const val VERSION_OPTION = "version"
+        const val COMMIT_HASH_OPTION = "commit_hash"
+        const val SHORT_COMMIT = 7
         /** Kolik chatů naráz může mít aktivní notifikace. Povolený rozsah TDLib je 1–25. */
         const val NOTIFICATION_GROUP_COUNT_MAX = 5L
 

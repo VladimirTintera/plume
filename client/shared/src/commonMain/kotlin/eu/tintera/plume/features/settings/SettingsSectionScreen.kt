@@ -42,6 +42,7 @@ fun SettingsSectionScreen(
     onOpenNetworkUsage: () -> Unit,
     onOpenAppLock: () -> Unit,
     onOpenAiPlayground: () -> Unit,
+    onOpenLicenses: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Hlášky sekcí (odhlášené zařízení, výsledek QR přihlášení, neuložené nastavení notifikací).
@@ -93,6 +94,7 @@ fun SettingsSectionScreen(
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.Ai -> OnDeviceAiSettings(viewModel = koinViewModel(), onOpenPlayground = onOpenAiPlayground)
                 SettingsSection.WhatsNew -> WhatsNewSettings()
+                SettingsSection.About -> AboutSettings(snackbarHostState = snackbarHostState, onOpenLicenses = onOpenLicenses)
             }
         }
     }

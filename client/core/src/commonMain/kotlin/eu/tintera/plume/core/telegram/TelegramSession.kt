@@ -27,6 +27,13 @@ interface TelegramSession {
      */
     suspend fun syncLanguagePack(languageCode: String) {}
 
+    /**
+     * Verze knihovny TDLib pro „O aplikaci" a hlášení chyb, s krátkým hashem commitu
+     * („1.8.69 (a1b2c3d)"); `null`, když ji klient neřekl. Číslo z wrapperu se nevede: TDLib
+     * ho hlásí sama a v buildu by se při bumpu wrapperu rozešlo.
+     */
+    suspend fun tdlibVersion(): String? = null
+
     /** Aktuální fáze přihlášení. TDLib ji řídí jako stavový automat, my ho jen překládáme do domény. */
     val authStage: StateFlow<AuthStage>
 

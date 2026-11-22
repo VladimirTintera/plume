@@ -70,7 +70,7 @@ import eu.tintera.plume.core.ui.GroupTitle
 
 /**
  * „Pomoc" pod sekcemi Nastavení: chat s podporou Telegramu, jeho časté dotazy, odeslání deníku
- * hovorů a Co je nového.
+ * hovorů, Co je nového a O aplikaci.
  *
  * **„Zeptat se" napřed řekne, komu se píše**: podporu dělají dobrovolníci Telegramu (tak to
  * oficiální klienti říkají taky, s odkazem na časté dotazy) — a Plume je neoficiální aplikace,
@@ -83,6 +83,9 @@ internal fun HelpGroup(
     /** Vedle seznamu je otevřené „Co je nového" — řádek je vybraný jako sekce. */
     whatsNewSelected: Boolean,
     onOpenWhatsNew: () -> Unit,
+    /** Vedle seznamu je otevřené „O aplikaci". */
+    aboutSelected: Boolean,
+    onOpenAbout: () -> Unit,
 ) {
     val chats = koinInject<ChatRepository>()
     val urlOpener = koinInject<UrlOpener>()
@@ -159,9 +162,19 @@ internal fun HelpGroup(
             title = stringResource(SettingsSection.WhatsNew.title),
             summary = stringResource(SettingsSection.WhatsNew.summary),
             first = false,
-            last = true,
+            last = false,
             selected = whatsNewSelected,
             onClick = onOpenWhatsNew,
+        )
+        // Verze, aktualizace a zdrojáky: kdo hlásí chybu, hledá je u pomoci, ne mezi nastaveními.
+        SettingsListRow(
+            icon = SettingsSection.About.icon,
+            title = stringResource(SettingsSection.About.title),
+            summary = stringResource(SettingsSection.About.summary),
+            first = false,
+            last = true,
+            selected = aboutSelected,
+            onClick = onOpenAbout,
         )
     }
 

@@ -101,6 +101,10 @@ a anglicky, z poznámek v [`release-notes/`](../../release-notes), které přid�
 s poznámkami a changelogem.
 Žádný verzovací commit není potřeba — verze se do buildu dostane přes `-P`.
 
+**Seznam licencí knihoven se nepřegenerovává sám** (`./gradlew exportLicenses`, výsledek
+v `files/licenses/` se commituje). Patří do PR, který mění závislosti; zapomenutý znamená
+v „Licence knihoven" staré verze, nic víc (`docs/poznatky/nastaveni.md`, „Licence knihoven").
+
 Běžné vydání se spouští z GitHubu: **Actions → „Release — bump & tag" → Run workflow**, vybrat
 typ bumpu (`build` / `patch` / `minor` / `major`). Workflow dopočítá verzi z posledního tagu,
 tag pushne a release spustí. `versionCode` se zvyšuje vždy — Play si pamatuje každé nahrané
@@ -603,6 +607,14 @@ z GitHub Release").
   **Ověřuje se podstrčeným stavem** jako vzhled karty: dočasná série `Downloading` po `Handler`
   a měření konce proužku ze `screenrecord`. Karta se v seznamu během toho posouvá, jak přibývají
   bloky nad ní (Čeká na odpověď), takže je třeba měřit na její aktuální výšce.
+- **Ruční kontrola v „O aplikaci" je `checkNow()`, ne `check()`** (`docs/poznatky/nastaveni.md`,
+  „O aplikaci"). `check()` výsledek nevrací a na desktopu se ptá nejvýš jednou za šest hodin —
+  kdo ťukne na „Zkontrolovat aktualizace", chce slyšet i „máš nejnovější verzi" a hned.
+  `checkNow()` mění `state` stejně, takže nabídku pak ukáže i karta v seznamu chatů.
+- **Instalace mimo Play se pozná podle instalátoru** (`getInstallSourceInfo` → `com.android.vending`),
+  ne podle chyby obchodu: ten na cizí instalaci odpoví chybou (`-6`, `-10`…), ale může i „aktualizace
+  není", a „máš nejnovější verzi" by u ladicího buildu lhalo. Chyby `ERROR_APP_NOT_OWNED`,
+  `ERROR_API_NOT_AVAILABLE` a `ERROR_PLAY_STORE_NOT_FOUND` jsou pojistka pro totéž.
 - **Ikona je `system_update` (telefon se šipkou dovnitř), ne `upgrade`.** Šipka nahoru k čáře se
   čte jako NAHRÁVÁNÍ — a to je přesně opačný směr, než co karta nabízí. Ikona má říct, co se
   stane, ne jakým gestem se to spustí.
