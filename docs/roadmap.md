@@ -199,8 +199,30 @@ soukromé jako archiv.
   secretu `GOOGLE_SERVICES_JSON`, bez něj release zastaví. **Secret musí být nastavený už ve
   STÁVAJÍCÍM repu**, dokud se z něj vydává. Kopie souborů je u pravidel přepisu
   (`~/Develop/plume-prepis-pravidla/firebase`).
-- Push přepsané historie; secrets (Telegram API, keystore, Play, `GOOGLE_SERVICES_JSON`) a repo
-  proměnné.
+- ~~**Push přepsané historie**~~ — hotovo 2026-11-22: soukromé repo
+  [VladimirTintera/plume](https://github.com/VladimirTintera/plume) má přepsaný `main`
+  (2 988 commitů, stav po sloučení #1232 ve starém repu) a 201 tagů vydání. Přepis zopakovaný
+  nad čerstvým klonem a ověřený stejně jako zkušební (gitleaks jen dva falešné poplachy,
+  vlastní sken čistý, Firebase v historii ani jednou, rozdíl proti originálu jen náhrady
+  v šesti souborech). Build se znovu nespouštěl: kód je tentýž jako ve zkušebním přepisu,
+  přibyla jen dokumentace, `.gitignore` a krok workflow.
+  - **Push tagů nespustil žádný release**: tagy šly jedním pushem a GitHub při víc než třech
+    tazích naráz události nevytváří. Push jednotlivého tagu `android-*` / `desktop-*` by release
+    spustil (a v repu bez secretů a runnerů by visel nebo spadl).
+  - **První PR minuty po pushi workflow nespustil**: Actions zapnuté, workflowy registrované
+    a aktivní, `PullRequestEvent` v událostech repa, a přesto žádný běh ani check suite. GitHub
+    workflowy čerstvě nahraného repa zřejmě zpracovává se zpožděním a událost, která přišla
+    dřív, propadne. Pomohlo PR zavřít a znovu otevřít (`gh pr close` / `reopen`); kontrola
+    poznámek pak proběhla na hostovaném runneru. Fakturace to nebyla: ve starém soukromém repu
+    hostované kontroly týž den běžely.
+- **Vývoj se přesouvá do `plume`, staré repo `telegram` se zmrazí.** Historie spolu nesouvisí,
+  takže každý commit sloučený do starého repa by se musel přenášet ručně. Na každém stroji
+  `git remote set-url origin https://github.com/VladimirTintera/plume.git`, `git fetch`
+  a `main` přenastavit na `origin/main`; rozpracované větve ze starého repa přenést
+  `cherry-pick`em. `core.hooksPath` (absolutní) zůstává.
+- **Čísla PR začínají v `plume` znovu od 1.** Odkazy „#650" v poznatcích a commitech míří do
+  starého repa (viz otevřená rozhodnutí).
+- Secrets (Telegram API, keystore, Play, `GOOGLE_SERVICES_JSON`) a repo proměnné.
 - Release workflowy zkušebně na hostovaných runnerech (v soukromém repu se minuty ještě
   počítají). **macOS runner má 7 GB RAM** — release link iOS s LTO nad celou TDLib na tom může
   narazit; Android a desktop vystačí.
@@ -216,7 +238,7 @@ soukromé jako archiv.
 - Přepnout na public (od té chvíle jsou runnery zdarma); release workflowy se vrátí
   z self-hosted runnerů repo proměnnými (`release.md`, „Self-hosted runnery") a runnery se
   odregistrují.
-- `core.hooksPath` (absolutní) a remote na všech strojích; staré repo archivovat.
+- Staré repo archivovat (remote na strojích se přepíná už ve fázi 2).
 - Weblate (sekce níž) a odkaz na zdrojáky do záznamu v Play.
 
 ### Otevřená rozhodnutí
