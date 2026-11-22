@@ -14,7 +14,16 @@ have to take that on trust. The full source of the app is here, and you can chec
 and build it yourself.
 
 Official builds are made by the GitHub Actions workflows in
-[`.github/workflows`](.github/workflows), from the tagged commit.
+[`.github/workflows`](.github/workflows), from the tagged commit. Every desktop package on
+[GitHub Releases](../../releases) has a signed build provenance attestation, so you can check
+that it was built by those workflows from this source:
+
+```bash
+gh attestation verify Plume-1.2.3.msi --repo VladimirTintera/plume
+```
+
+The Android bundle gets an attestation too, but the APK you install from Google Play can't be
+checked this way: Play builds it from the bundle and re-signs it.
 
 ## What it does
 

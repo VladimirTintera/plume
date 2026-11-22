@@ -306,6 +306,29 @@ zpátky na vlastní stroj proměnnou `*_RUNS_ON` — jen ne pro nic, co běží 
   daemony naráz a ten, kterému vteřinu předtím skončil build, nese v `currentDir` cestu toho,
   kdo `--stop` pouští.
 
+## Původ buildu
+
+Release workflowy ke každému balíčku vystaví **attestaci původu** (`actions/attest-build-provenance`,
+SLSA build provenance): záznam podepsaný přes Sigstore krátkodobým certifikátem z OIDC tokenu
+GitHub Actions, že soubor s daným SHA-256 postavil konkrétní workflow z konkrétního commitu
+a tagu. Ukládá se k repu (záložka Attestations), ne jako artefakt běhu. Je to odpověď na
+otázku, kterou otevřený kód sám nezodpoví: jestli stažený balíček opravdu vznikl z něj.
+
+- **Desktop: MSI a DMG** se attestují v jobu `release` po stažení artefaktů, tedy přesně ty
+  bajty, které jdou do GitHub Release. Ověření:
+  `gh attestation verify Plume-1.2.3.msi --repo VladimirTintera/plume`.
+- **Android a hodinky: AAB** (`plume-*.aab`, oba bundly jedním globem). Bundl se ale nikam
+  nepřikládá a **APK z Google Play se ověřit nedá**: Play ho z bundlu skládá po kouscích
+  (splity podle zařízení) a přepodepisuje vlastním klíčem (Play App Signing). Attestace AAB
+  tak dokládá jen to, co šlo do Play; pro uživatele by musel bundl ležet u releasu, a i pak by
+  nešlo porovnat s tím, co má v telefonu. Skutečně ověřitelný Android build chce vlastní APK
+  mimo Play (GitHub Releases, F-Droid) — a to Firebase a Crashlytics zatím komplikují.
+- **Práva**: workflow potřebuje `id-token: write` (OIDC token pro Sigstore) a
+  `attestations: write`. Ve veřejném repu jde podpis do veřejného logu transparentnosti
+  Sigstore (Rekor); v soukromém by šel do privátní instance GitHubu.
+- **Attestace nedokazuje, že build je reprodukovatelný** — jen kdo, kdy a z čeho ho postavil.
+  Že workflow nedělá nic jiného, než tvrdí, se ověřuje čtením workflow u commitu z attestace.
+
 ## R8
 
 Release build je minifikovaný. Dex spadl ze **43,8 MB na 7,2 MB** — TDLib generuje tisíce tříd
