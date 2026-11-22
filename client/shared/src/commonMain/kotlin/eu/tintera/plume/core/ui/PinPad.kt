@@ -1,7 +1,6 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
@@ -350,7 +349,7 @@ fun PinLayout(
             val footerHeight = if (footer == null) 16.dp else 8.dp + PIN_FOOTER_HEIGHT
             val columnKey = keySizeFor(maxHeight - headerTopPadding - PIN_HEADER_HEIGHT - footerHeight)
             // Pod sebou roluje, kdyby se nevešlo ani se zmenšenou klávesnicí; jinak stojí.
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Column(Modifier.fillMaxWidth().verticalScroll(rememberRestoringScrollState())) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween,

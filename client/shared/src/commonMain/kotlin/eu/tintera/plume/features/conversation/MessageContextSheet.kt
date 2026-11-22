@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.ui.platform.LocalLocale
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -191,7 +191,7 @@ internal fun MessageContextSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         CompositionLocalProvider(LocalJustCopied provides justCopied) {
             Column(
-                Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
+                Modifier.verticalScroll(rememberRestoringScrollState()).padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SheetTitle(stringResource(Res.string.message_context_title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))

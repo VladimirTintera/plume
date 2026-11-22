@@ -1,10 +1,10 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -693,7 +693,7 @@ internal fun StoryCaption(caption: String, expanded: Boolean, onExpandedChange: 
                         Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = SHADE_ALPHA)))
                     },
                 )
-                .then(if (expanded) Modifier.heightIn(max = maxHeight * EXPANDED_CAPTION_HEIGHT).verticalScroll(rememberScrollState()) else Modifier)
+                .then(if (expanded) Modifier.heightIn(max = maxHeight * EXPANDED_CAPTION_HEIGHT).verticalScroll(rememberRestoringScrollState()) else Modifier)
                 .then(
                     if (overflows || expanded) {
                         Modifier.clickable(onClickLabel = if (expanded) collapseLabel else expandLabel) { onExpandedChange(!expanded) }

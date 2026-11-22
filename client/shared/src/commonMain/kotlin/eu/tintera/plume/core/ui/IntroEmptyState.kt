@@ -1,7 +1,6 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -71,7 +70,7 @@ fun IntroEmptyState(
                 Modifier
                     .fillMaxSize()
                     // Rolovat jde jen s konečnou výškou; v neomezené (položka seznamu) obsah prostě vyroste.
-                    .then(if (constraints.hasBoundedHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                    .then(if (constraints.hasBoundedHeight) Modifier.verticalScroll(rememberRestoringScrollState()) else Modifier)
                     .padding(24.dp),
                 contentAlignment = Alignment.Center,
             ) {

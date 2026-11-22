@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -7,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,7 +61,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun LiveLocationPeriodSheet(onPick: (Int) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
-        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
+        Column(Modifier.navigationBarsPadding().verticalScroll(rememberRestoringScrollState()).padding(bottom = 16.dp)) {
             SheetHeader(stringResource(Res.string.location_live_period_title), stringResource(Res.string.location_live_period_body))
             GroupedColumn(Modifier.padding(horizontal = 16.dp)) {
                 LIVE_LOCATION_PERIODS.forEach { period ->
@@ -96,7 +96,7 @@ internal fun LiveLocationPeriodSheet(onPick: (Int) -> Unit, onDismiss: () -> Uni
 internal fun ProximityAlertSheet(currentRadius: Int, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
     val radii = (PROXIMITY_ALERT_RADII + listOfNotNull(currentRadius.takeIf { it > 0 })).distinct().sorted()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
-        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
+        Column(Modifier.navigationBarsPadding().verticalScroll(rememberRestoringScrollState()).padding(bottom = 16.dp)) {
             SheetHeader(stringResource(Res.string.location_proximity_title), stringResource(Res.string.location_proximity_body))
             Column(Modifier.selectableGroup()) {
                 radii.forEachIndexed { index, radius ->

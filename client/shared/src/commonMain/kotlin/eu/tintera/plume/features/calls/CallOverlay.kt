@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.calls
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.call_busy_other_account_ok
 import eu.tintera.plume.resources.call_busy_other_account_text
 import eu.tintera.plume.resources.call_busy_other_account
@@ -30,7 +31,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import eu.tintera.plume.core.adaptive.ContentWidth
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -551,7 +551,7 @@ private fun CallScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .widthIn(max = ContentWidth.Form)
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(rememberRestoringScrollState()),
                     ) {
                         CallHeadline(call, name, compact = true)
                         if (pointing) {
@@ -587,7 +587,7 @@ private fun CallScreen(
                             // a tlačítky vejdou tak tak.
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.weight(1f).widthIn(max = ContentWidth.Form).verticalScroll(rememberScrollState()),
+                                modifier = Modifier.weight(1f).widthIn(max = ContentWidth.Form).verticalScroll(rememberRestoringScrollState()),
                             ) {
                                 CallHeadline(call, name)
                                 Spacer(Modifier.height(24.dp))

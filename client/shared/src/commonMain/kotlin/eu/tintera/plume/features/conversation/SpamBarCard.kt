@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.FilledTonalButton
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -230,7 +230,7 @@ internal fun SpamBarSheet(
     var delete by rememberSaveable { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+        Column(Modifier.verticalScroll(rememberRestoringScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             SheetTitle(
                 text = when (action) {
                     SpamBarAction.Block -> stringResource(Res.string.profile_block_title, title)

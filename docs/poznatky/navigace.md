@@ -543,6 +543,35 @@ Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na koře
 - Vybraná sekce přežije zabití procesu (`rememberSaveable` podle názvu `TopLevelDestination`),
   zásobníky taky (`rememberNavBackStack`).
 
+### Pozice scrollu po návratu
+
+Odrolovaný seznam po návratu z podstránky uskočil (Nastavení dolů → O aplikaci → zpět: o 74 dp,
+Soukromí → Dvoufázové ověření → zpět: o 16 dp). Insety v tom nebyly.
+
+- **Obrazovka pod jinou obrazovkou není složená** (viz výš u návratu do seznamu chatů), po
+  návratu se složí znovu a `rememberScrollState()` obnoví uloženou pozici v PIXELECH.
+- **`ScrollState` ji při prvním měření TRVALE ořízne** na `maxValue` (setter `maxValue` srazí
+  `value`). Když je obsah v prvním snímku kratší než při odchodu a doroste až potom, pozice
+  zůstane ořezaná a seznam ukazuje o chybějící kus míň ze spodku.
+- **Kratší první snímek má pokaždé jiný zdroj.** V Nastavení řádek „AI v zařízení": dostupnost
+  se četla v obrazovce přes `collectAsStateWithLifecycle(initialValue = false)`, takže v prvním
+  snímku chyběl (posun přesně o řádek 72 dp + mezera). V Soukromí něco 16 dp vysokého. Honit
+  zdroj obrazovku po obrazovce by nikdy neskončilo.
+- **Oprava je obecná: `rememberRestoringScrollState()`** (`core/ui/RestoringScrollState.kt`)
+  místo `rememberScrollState()` u svislého obsahu (68 souborů naráz, hlídá `verifyRestoringScroll`).
+  Uloženou pozici si pamatuje jako cíl a s každým dorůstáním obsahu ji dorovná
+  (`dispatchRawDelta`, ten nenastaví `isScrollInProgress`). Skončí po dosažení, při jakémkoli
+  jiném posunu (tah, fling, kolečko, `animateScrollTo` obrazovky, doscrollování na výsledek
+  hledání) nebo po 3 s. Neukládá ořezanou hodnotu, dokud dorovnává.
+- **Kde to jde, má obrazovka znát obsah hned** — dostupnost AI je teď `StateFlow`
+  v `SettingsViewModel`, který návrat přežije a poslední hodnotu má. Obecná oprava je záchranná
+  síť, ne důvod číst stav s výchozí hodnotou v obrazovce.
+- **`LazyColumn` tohle nemá v téže podobě** (`LazyListState` ukládá index a posun položky), na
+  líné seznamy se oprava nevztahuje.
+- **Ověřeno na emulátoru Fold (složený)**: Nastavení i Soukromí po návratu na stejném pixelu
+  (`uiautomator dump`, `bounds` řádku před a po), tah hned po návratu má přednost a pozice
+  pak zůstane. Na telefonu s Gemini Nano ověřené není.
+
 ### Routy s účtem
 
 - **Routa s id chatu, zprávy nebo souboru je `AccountRoute` s povinným `slot`** na prvním místě.

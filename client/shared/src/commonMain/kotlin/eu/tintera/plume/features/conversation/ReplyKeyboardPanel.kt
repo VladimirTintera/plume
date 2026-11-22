@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -98,7 +98,7 @@ fun ReplyKeyboardPanel(
                     .padding(top = PANEL_PADDING_V)
                     .fillMaxWidth()
                     .heightIn(max = MAX_HEIGHT)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberRestoringScrollState()),
             ) {
                 current.rows.forEachIndexed { row, buttons ->
                     Row(

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.proxy
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.FormSecureTextField
 import eu.tintera.plume.features.settings.SettingsTopBar
 import eu.tintera.plume.core.ui.FormTextField
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -409,7 +409,7 @@ private fun ProxyEditorSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberRestoringScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp),
         ) {
             SheetTitle(stringResource(if (initial == null) Res.string.proxy_editor_add_title else Res.string.proxy_editor_edit_title))
             Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -163,7 +163,7 @@ internal fun LiveLocationDockBar(
                 ) {
                     // Víc poloh (skupina) by kartu vytáhlo přes celou obrazovku; posouvá se uvnitř.
                     Column(
-                        Modifier.heightIn(max = DOCK_EXPANDED_MAX).verticalScroll(rememberScrollState()),
+                        Modifier.heightIn(max = DOCK_EXPANDED_MAX).verticalScroll(rememberRestoringScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         locations.forEach { message ->

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
@@ -12,7 +13,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import eu.tintera.plume.resources.chats_delete_title
 import eu.tintera.plume.resources.chats_leave_title
@@ -191,7 +191,7 @@ fun ChatDeleteSheet(
 ) {
     val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+        Column(Modifier.verticalScroll(rememberRestoringScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
             SheetTitle(
                 stringResource(if (isPrivate) Res.string.chats_delete_title else Res.string.chats_leave_title),
                 modifier = Modifier.padding(horizontal = 8.dp).padding(bottom = 16.dp),

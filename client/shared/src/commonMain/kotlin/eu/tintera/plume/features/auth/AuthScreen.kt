@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.auth
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.adaptive.ContentWidth
 import androidx.compose.material3.MotionScheme
@@ -30,7 +31,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -417,7 +417,7 @@ fun AuthScreen(
                 Modifier
                     .fillMaxSize()
                     .imePadding()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberRestoringScrollState())
                     .padding(horizontal = 24.dp, vertical = layout.verticalPadding),
                 contentAlignment = Alignment.Center,
             ) {

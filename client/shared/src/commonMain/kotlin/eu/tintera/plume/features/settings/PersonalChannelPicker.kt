@@ -1,11 +1,11 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.highlightAnchor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -111,7 +111,7 @@ private fun PersonalChannelDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.personal_channel_row)) },
         text = {
-            Column(Modifier.heightIn(max = DIALOG_LIST_MAX).verticalScroll(rememberScrollState())) {
+            Column(Modifier.heightIn(max = DIALOG_LIST_MAX).verticalScroll(rememberRestoringScrollState())) {
                 Text(
                     stringResource(Res.string.personal_channel_pick_text),
                     style = MaterialTheme.typography.bodyMedium,

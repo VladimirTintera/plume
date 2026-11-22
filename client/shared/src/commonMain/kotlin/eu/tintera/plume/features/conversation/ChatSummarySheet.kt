@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.voice_summary_title_video
 import eu.tintera.plume.resources.voice_summary_title
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -23,7 +24,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -95,7 +95,7 @@ fun ChatSummarySheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 // Bez toho poslední řádek (model a tokeny) zůstane pod navigačním pruhem
                 // a nejde ho dorolovat nad něj — přečte se až po rozbalení sheetu.
                 .navigationBarsPadding()

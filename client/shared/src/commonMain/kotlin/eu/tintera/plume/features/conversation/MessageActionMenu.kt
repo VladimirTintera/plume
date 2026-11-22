@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.animation.AnimatedContent
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
@@ -256,7 +256,7 @@ internal fun ActionMenu(
                 if (more) moreRows else topRows,
                 interactionSource = null,
                 // V těsném okně má nabídka strop výšky a posouvá se (viz `placeMenuMessage`).
-                modifier = Modifier.heightIn(max = height).verticalScroll(rememberScrollState()),
+                modifier = Modifier.heightIn(max = height).verticalScroll(rememberRestoringScrollState()),
             ) { row, i, n -> Entry(row, i, n) }
         }
     }

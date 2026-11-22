@@ -622,6 +622,10 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   holé `DropdownMenuPopup` / `Popup` bez vstupního pole ho dostane taky, jinak nabídka nad
   otevřenou klávesnicí klávesnici utrhne a obsah pod ní skočí. Viz „Nabídky si neberou
   klávesnici".
+- **Svislý obsah roluje přes `rememberRestoringScrollState()`** (`core/ui`), ne
+  `rememberScrollState()` — hlídá to `verifyRestoringScroll`. Obyčejný `ScrollState` po návratu
+  z podstránky ořízne obnovenou pozici podle prvního snímku a seznam uskočí, když obsah doroste
+  o snímek později. Viz „Pozice scrollu po návratu" v `docs/poznatky/navigace.md`.
 - **Modální sheet se otevírá rovnou celý** (`sheetState = rememberExpandedSheetState()`,
   `core/ui/ExpandedSheet.kt`) — hlídá to `verifyExpandedSheets`. Napůl rozbalený schovával pod
   spodní okraj výsledek, tlačítko Uložit nebo poslední položky a opravoval se po jednom v osmi
