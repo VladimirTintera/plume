@@ -17,6 +17,7 @@ import eu.tintera.plume.core.navigation.ArchiveRemovedMembersRoute
 import eu.tintera.plume.core.navigation.ArchiveInviteLinksRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.ChatCalendarRoute
+import eu.tintera.plume.core.navigation.ArchiveChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.adaptive.PaneInfo
@@ -84,7 +85,7 @@ internal fun List<NavKey>.hasOpenConversation(folder: ChatFolder): Boolean = whe
 internal fun MutableList<NavKey>.closeArchive() {
     removeAll {
         it is ArchiveRoute || it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute ||
-            it is ArchiveDirectTopicsRoute || it is ArchiveChatProfileRoute
+            it is ArchiveDirectTopicsRoute || it is ArchiveChatProfileRoute || it is ArchiveChatCalendarRoute
     }
 }
 
@@ -124,7 +125,7 @@ internal fun MutableList<NavKey>.moveConversationToMain(slot: AccountSlot, chatI
         when (it) {
             // Celá archivní větev, i úpravy a práva členů nad profilem.
             is ArchiveRoute, is ArchiveConversationRoute, is ArchiveForumTopicsRoute, is ArchiveDirectTopicsRoute,
-            is ArchiveChatProfileRoute,
+            is ArchiveChatProfileRoute, is ArchiveChatCalendarRoute,
             is ArchiveEditChatRoute, is ArchiveMemberRightsRoute, is ArchiveInviteLinksRoute, is ArchiveJoinRequestsRoute,
             is ArchiveRemovedMembersRoute, is ArchiveEventLogRoute, is ArchiveChatStatisticsRoute, is ArchivePostStatisticsRoute,
             -> true
@@ -157,6 +158,7 @@ internal fun MutableList<NavKey>.closeChat(slot: AccountSlot, chatId: Long) {
             is ChatProfileRoute -> it.chatId == chatId
             is ArchiveChatProfileRoute -> it.chatId == chatId
             is ChatCalendarRoute -> it.chatId == chatId
+            is ArchiveChatCalendarRoute -> it.chatId == chatId
             is MediaRoute -> it.chatId == chatId
             // Úprava a všechno nad ní — chat smazaný pro všechny se maže právě z úpravy.
             is EditChatRoute -> it.chatId == chatId
@@ -195,6 +197,7 @@ internal fun MutableList<NavKey>.replaceUpgradedChat(slot: AccountSlot, old: Lon
             is MediaRoute -> it.chatId == old
             // Kalendář počítal historii staré skupiny; nová má jiná id zpráv.
             is ChatCalendarRoute -> it.chatId == old
+            is ArchiveChatCalendarRoute -> it.chatId == old
             is MemberRightsRoute -> it.chatId == old
             is ArchiveMemberRightsRoute -> it.chatId == old
             is InviteLinksRoute -> it.chatId == old
@@ -321,10 +324,11 @@ internal fun List<NavKey>.liesOnChatList(route: NavKey): Boolean {
  * Kalendář jako panel vedle konverzace [owner]. Co nad ní v panelu leželo (profil), se zavře —
  * třetí panel je jeden. Byl-li navrchu kalendář téhož chatu, jen se zavře, jako ⋮ u profilu.
  */
-internal fun MutableList<NavKey>.toggleCalendar(owner: NavKey, calendar: ChatCalendarRoute) {
+internal fun MutableList<NavKey>.toggleCalendar(owner: NavKey, calendar: NavKey) {
     val index = lastIndexOf(owner)
     if (index < 0) return
-    val wasOpen = (lastOrNull() as? ChatCalendarRoute)?.chatId == calendar.chatId && index < lastIndex
+    val top = lastOrNull()
+    val wasOpen = top != null && top::class == calendar::class && top.calendarChatId() == calendar.calendarChatId() && index < lastIndex
     while (lastIndex > index) removeAt(lastIndex)
     if (!wasOpen) add(calendar)
 }
@@ -379,7 +383,7 @@ internal fun MutableList<NavKey>.followProfile(paneOf: (NavKey) -> PaneInfo?): B
     if (covered.isEmpty()) return false
     val scenes = covered.mapNotNull { paneOf(this[it])?.scene }.toSet()
     // Byl-li zakrytý kalendář, přejde panel na kalendář nové konverzace, ne na její profil.
-    val calendar = covered.any { this[it] is ChatCalendarRoute }
+    val calendar = covered.any { this[it].calendarChatId() != null }
     covered.forEach(::removeAt)
     for (scene in scenes) {
         val detail = indexOfLast { paneOf(it)?.let { info -> info.role == PaneRole.Detail && info.scene == scene } == true }
@@ -397,12 +401,21 @@ internal fun List<NavKey>.withProfileFollowing(paneOf: (NavKey) -> PaneInfo?): L
     if (coveredExtras(paneOf).isEmpty()) this else toMutableList().apply { followProfile(paneOf) }
 
 /**
- * Kalendář chatu, který stojí v detailu; `null` = obrazovka bez kalendáře. Jen konverzace hlavního
- * seznamu, kde jde skok na datum (ne vlákno a téma skupiny) — archiv má kalendář jako sheet.
+ * Kalendář chatu, který stojí v detailu; `null` = obrazovka bez kalendáře. Jen konverzace, kde
+ * jde skok na datum (ne vlákno a téma skupiny).
  */
 private fun NavKey.calendarRoute(): NavKey? = when (this) {
     is ConversationRoute -> ChatCalendarRoute(slot, chatId, savedTopicId = savedTopicId, directTopicId = directTopicId)
         .takeIf { threadId == null && topicId == null }
+    is ArchiveConversationRoute -> ArchiveChatCalendarRoute(slot, chatId, directTopicId = directTopicId)
+        .takeIf { threadId == null && topicId == null }
+    else -> null
+}
+
+/** Chat kalendáře zpráv (hlavní seznam i archiv); `null` = není to kalendář. */
+private fun NavKey.calendarChatId(): Long? = when (this) {
+    is ChatCalendarRoute -> chatId
+    is ArchiveChatCalendarRoute -> chatId
     else -> null
 }
 

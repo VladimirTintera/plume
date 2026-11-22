@@ -91,6 +91,7 @@ import eu.tintera.plume.features.profile.EditChatScreen
 import eu.tintera.plume.features.profile.RemovedMembersScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
 import eu.tintera.plume.core.navigation.ChatCalendarRoute
+import eu.tintera.plume.core.navigation.ArchiveChatCalendarRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
 import eu.tintera.plume.core.ui.LocalArticleMediaFlight
@@ -1128,11 +1129,9 @@ private fun shellEntryProvider(
                     onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = false) },
                     onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(slot, route.chatId), sideBySide = wide) },
-                    // Kalendář zpráv jako panel vedle konverzace — jen když panely stojí vedle sebe
-                    // a tam, kde jde skok na datum (ne vlákno komentářů, ne téma skupiny); jinak
-                    // sheet. `sideBySide` se čte při každé kompozici; poskytovatel vstupů s `wide`
-                    // se po složení a rozložení Foldu nepřestaví a nabízel by sheet dál.
-                    onOpenCalendarPane = if (sideBySide && route.threadId == null && route.topicId == null) {
+                    // Kalendář zpráv jako třetí panel (na telefonu přes celou obrazovku) — tam, kde jde
+                    // skok na datum (ne vlákno komentářů, ne téma skupiny).
+                    onOpenCalendar = if (route.threadId == null && route.topicId == null) {
                         { anchor ->
                             chatsStack.toggleCalendar(
                                 route,
@@ -1281,7 +1280,13 @@ private fun shellEntryProvider(
      */
     entry<ChatCalendarRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         ChatColorTheme(route.chatId) {
-            ChatCalendarPaneHost(route, onClose = { chatsStack.pop(route) })
+            ChatCalendarPaneHost(route.chatId, route.savedTopicId, route.directTopicId, route.anchor, onClose = { chatsStack.pop(route) })
+        }
+    }
+
+    entry<ArchiveChatCalendarRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        ChatColorTheme(route.chatId) {
+            ChatCalendarPaneHost(route.chatId, savedTopicId = null, route.directTopicId, route.anchor, onClose = { chatsStack.pop(route) })
         }
     }
 
@@ -1544,6 +1549,13 @@ private fun shellEntryProvider(
                     onOpenChat = { target -> chatsStack.openTarget(slot, target, archive = true) },
                     onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
                     onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(slot, route.chatId), sideBySide = wide) },
+                    onOpenCalendar = if (route.threadId == null && route.topicId == null) {
+                        { anchor ->
+                            chatsStack.toggleCalendar(route, ArchiveChatCalendarRoute(slot, route.chatId, directTopicId = route.directTopicId, anchor = anchor))
+                        }
+                    } else {
+                        null
+                    },
                     onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(slot, chatId)) },
                     onOpenPostStatistics = { messageId -> chatsStack.addOnce(ArchivePostStatisticsRoute(slot, route.chatId, messageId)) },
                     onUnarchived = { chatsStack.moveConversationToMain(route.slot, route.chatId) },

@@ -51,6 +51,9 @@ import eu.tintera.plume.resources.chat_calendar_stats_average
 import eu.tintera.plume.resources.chat_calendar_stats_busiest
 import eu.tintera.plume.resources.chat_calendar_stats_streak
 import eu.tintera.plume.resources.chat_calendar_today
+import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.resources.conversation_search_clear
 import eu.tintera.plume.resources.person_search_24dp
 import eu.tintera.plume.resources.search_24dp
@@ -77,9 +80,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -89,11 +90,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -106,7 +104,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import eu.tintera.plume.core.telegram.CalendarDayMedia
@@ -144,7 +141,6 @@ import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.monthTitle
 import eu.tintera.plume.core.ui.name
-import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.shortName
 import eu.tintera.plume.core.ui.strongestAccentOn
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -197,35 +193,12 @@ import org.jetbrains.compose.resources.stringResource
  * Všechny zprávy se počítají z toho, co je v zařízení, a kalendář končí tam, kam sahají — dál
  * nabízí „Načíst starší" (viz [ConversationCalendar]). Druhy a hledání počítá server celé
  * a měsíce bez nich se vynechávají.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun ChatCalendarSheet(
-    state: ChatCalendarState,
-    calendar: ConversationCalendar,
-    /** Den, na kterém se kalendář otevře (sekundy epochy; viditelný den konverzace); `null` = dnes. */
-    initialDay: Int?,
-    onJumpToDay: (dayStart: Int) -> Unit,
-    onJumpToMessage: (messageId: Long) -> Unit,
-    /** „Shrnout den" z podržení dne; `null`, když shrnutí v zařízení není. */
-    onSummarizeDay: ((LocalDate) -> Unit)?,
-    /** „Vymazat historii za den…"; `null`, kde po dnech mazat nejde. */
-    onClearDay: ((LocalDate) -> Unit)?,
-    /** Hledat podle člena jde jen ve skupině — v soukromém chatu jsou odesílatelé dva, v kanálu jeden. */
-    canFilterBySender: Boolean,
-) {
-    ModalBottomSheet(onDismissRequest = calendar::close, sheetState = rememberExpandedSheetState()) {
-        ChatCalendarContent(state, calendar, initialDay, onJumpToDay, onJumpToMessage, onSummarizeDay, onClearDay, canFilterBySender, onClose = null)
-    }
-}
-
-/**
- * Kalendář jako panel vedle konverzace (široká plocha, `ChatCalendarRoute`): tentýž obsah jako
- * sheet, jen s ✕ v hlavičce. Ťuknutí na den chat vedle posune a panel zůstane otevřený — kvůli
- * tomu panel je: listovat dny a dívat se, co se v nich psalo, bez zavírání a otevírání.
- * Podklad je plocha karty (`surface`) jako u profilu a ostatních obrazovek třetího panelu —
- * s konverzací vedle tvoří jednu kartu. Dny se míchají s podkladem, na kterém leží
- * ([LocalCalendarBase]), takže sytost vychází stejně v panelu i v sheetu.
+ *
+ * Je to třetí panel jako profil (`ChatCalendarRoute`): na telefonu stránka přes celou obrazovku
+ * se šipkou zpět, na široké ploše panel vedle konverzace s ✕. Vedle konverzace ťuknutí na den
+ * chat posune a panel zůstane otevřený — kvůli tomu panel je: listovat dny a dívat se, co se
+ * v nich psalo, bez zavírání a otevírání. Podklad je plocha karty (`surface`) jako u profilu —
+ * s konverzací vedle tvoří jednu kartu; dny se míchají s ní ([calendarBase]).
  */
 @Composable
 internal fun ChatCalendarPane(
@@ -239,32 +212,27 @@ internal fun ChatCalendarPane(
     canFilterBySender: Boolean,
     onClose: () -> Unit,
 ) {
-    val background = MaterialTheme.colorScheme.surface
-    Surface(color = background, modifier = Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalCalendarBase provides background) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    // Spodek si berou seznamy měsíců (`navigationBarsPadding`); panel stojí vpravo.
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.End))
-                    .padding(top = 8.dp),
-            ) {
-                ChatCalendarContent(state, calendar, initialDay, onJumpToDay, onJumpToMessage, onSummarizeDay, onClearDay, canFilterBySender, onClose)
-            }
+    val sideBySide = LocalPanesSideBySide.current
+    // Spodek si berou seznamy měsíců (`navigationBarsPadding`). Vedle konverzace stojí panel
+    // vpravo, takže levý výřez displeje není jeho; sám přes celou obrazovku bere obě strany.
+    val sides = if (sideBySide) WindowInsetsSides.Top + WindowInsetsSides.End else WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+    Surface(color = calendarBase(), modifier = Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(sides))
+                .padding(top = 8.dp),
+        ) {
+            ChatCalendarContent(state, calendar, initialDay, onJumpToDay, onJumpToMessage, onSummarizeDay, onClearDay, canFilterBySender, onClose, closeIsBack = !sideBySide)
         }
     }
 }
 
-/**
- * Podklad, se kterým se míchají barvy dnů (sytost podle počtu zpráv). Panel ho nastaví na svou
- * plochu; bez něj (sheet) platí barva sheetu.
- */
-private val LocalCalendarBase = staticCompositionLocalOf { Color.Unspecified }
-
+/** Podklad kalendáře, se kterým se míchají barvy dnů (sytost podle počtu zpráv). */
 @Composable
-private fun calendarBase(): Color = LocalCalendarBase.current.takeOrElse { BottomSheetDefaults.ContainerColor }
+private fun calendarBase(): Color = MaterialTheme.colorScheme.surface
 
-/** Obsah kalendáře — hlavička, čipy, hledání, měsíce nebo roční přehled — pro sheet i panel. */
+/** Obsah kalendáře — hlavička, čipy, hledání, měsíce nebo roční přehled. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ColumnScope.ChatCalendarContent(
@@ -276,8 +244,9 @@ private fun ColumnScope.ChatCalendarContent(
     onSummarizeDay: ((LocalDate) -> Unit)?,
     onClearDay: ((LocalDate) -> Unit)?,
     canFilterBySender: Boolean,
-    /** ✕ v hlavičce panelu; sheet se zavírá tahem a mimo něj, `null`. */
-    onClose: (() -> Unit)?,
+    onClose: () -> Unit,
+    /** Šipka zpět místo ✕: kalendář stojí sám přes celou obrazovku, ne jako panel vedle konverzace. */
+    closeIsBack: Boolean,
 ) {
     val zone = remember { TimeZone.currentSystemDefault() }
     val today = remember { Clock.System.now().toLocalDateTime(zone).date }
@@ -298,11 +267,13 @@ private fun ColumnScope.ChatCalendarContent(
 
     run {
         Row(
-            Modifier.fillMaxWidth().padding(start = if (onClose != null) 4.dp else 24.dp, end = 12.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (onClose != null) {
-                IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+            IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                if (closeIsBack) {
+                    Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                } else {
                     Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
                 }
             }
@@ -369,9 +340,9 @@ private fun ColumnScope.ChatCalendarContent(
                 onClear = onClearDay,
             )
         }
-        // Sheet má pevnou výšku (celou), ne podle obsahu: měsíce přibývají postupně a čip druhu
-        // s pár měsíci nebo čekání na první stránku obsah zkrátí — sheet pak poskakoval nahoru
-        // a dolů pod prstem, který zrovna mířil na čip nebo den.
+        // Seznam má pevnou výšku (zbytek panelu), ne podle obsahu: měsíce přibývají postupně
+        // a čip druhu s pár měsíci nebo čekání na první stránku obsah zkrátí — v sheetu, kde
+        // kalendář dřív byl, pak poskakoval nahoru a dolů pod prstem mířícím na čip nebo den.
         val pickMonth = { month: YearMonth ->
             yearView = false
             scrollTarget.value = month
@@ -465,7 +436,7 @@ private fun TodayButton(visible: Boolean, onClick: () -> Unit, modifier: Modifie
         visible = visible,
         enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
         exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-        modifier = modifier.navigationBarsPadding().padding(bottom = 16.dp),
+        modifier = modifier.navigationBarsPadding().padding(bottom = TODAY_BUTTON_MARGIN),
     ) {
         FilledTonalButton(onClick = onClick, shapes = ButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.keyboard_arrow_up_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
@@ -474,6 +445,16 @@ private fun TodayButton(visible: Boolean, onClick: () -> Unit, modifier: Modifie
         }
     }
 }
+
+/** Odstup „Dnes" od spodku seznamu. */
+private val TODAY_BUTTON_MARGIN = 16.dp
+
+/**
+ * Spodní odsazení seznamů měsíců: konec seznamu („Začátek chatu", „Načíst starší") musí jít
+ * vyrolovat nad tlačítko „Dnes", jinak pod ním zůstane schovaný — tlačítko je vidět právě tehdy,
+ * když je seznam odrolovaný, tedy i na úplném konci.
+ */
+private val TODAY_BUTTON_CLEARANCE = TODAY_BUTTON_MARGIN + ButtonDefaults.MinHeight + TODAY_BUTTON_MARGIN
 
 /**
  * Čipy: všechny zprávy, hledání, člen skupiny (s hledáním se kombinuje — výraz od toho člena)
@@ -598,7 +579,7 @@ private fun AllMessagesMonths(
         Modifier.fillMaxWidth().navigationBarsPadding(),
         state = listState,
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = TODAY_BUTTON_CLEARANCE),
     ) {
         itemsIndexed(months, key = { _, month -> month.toString() }) { _, month ->
             Column(Modifier.animateItem(fadeInSpec = itemFade, placementSpec = itemPlacement, fadeOutSpec = itemFadeOut)) {
@@ -785,7 +766,7 @@ private fun ServerMonths(
         Modifier.fillMaxWidth().navigationBarsPadding(),
         state = listState,
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
+        contentPadding = PaddingValues(top = 16.dp, bottom = TODAY_BUTTON_CLEARANCE),
     ) {
         itemsIndexed(months, key = { _, month -> month.month.toString() }) { index, month: CalendarMonth ->
             // Dotahuje se, už když se ukáže předposlední měsíc. Klíčem je místo, odkud se
@@ -1463,7 +1444,7 @@ private fun CalendarNote(text: String) {
 private const val DAYS_IN_WEEK = 7
 
 /**
- * Měsíc nejvýš na šířku formuláře, uprostřed: na rozloženém Foldu by sheet (640 dp) natáhl dny
+ * Měsíc nejvýš na šířku formuláře, uprostřed: na rozloženém Foldu by široká plocha natáhla dny
  * do kruhů přes 90 dp a měsíc by se nevešel na obrazovku.
  */
 private val MonthModifier = Modifier

@@ -555,18 +555,9 @@ class ConversationViewModel(
     fun openSearch() = search.openSearch()
 
     /**
-     * Kalendář zpráv po dnech z ⋮ — viz [ConversationCalendar]. Kde jde skok na datum
-     * ([canJumpToDate]); v tématu skupiny TDLib kalendář nedá a ve vlákně by počítal celý chat.
+     * Nejnovější načtená zpráva — vstup kalendáře zpráv (`ChatCalendarRoute`) do ostrůvku: po skoku
+     * na staré datum stojí konverzace v okně, ke kterému lokální průchod od nejnovější zprávy nedojde.
      */
-    val calendar: ConversationCalendar = ConversationCalendar(chatId = chatId, repository = repository, scope = viewModelScope)
-
-    /**
-     * Otevře kalendář. Nejnovější načtená zpráva je vstup do ostrůvku: po skoku na staré datum
-     * stojí konverzace v okně, ke kterému lokální průchod od nejnovější zprávy nedojde.
-     */
-    fun openCalendar() = calendar.open(anchor = calendarAnchor())
-
-    /** Nejnovější načtená zpráva — vstup kalendáře do ostrůvku (sheet i panel vedle konverzace). */
     fun calendarAnchor(): Long? = _state.value.messages.maxOfOrNull { it.id }
     fun closeSearch() = search.closeSearch()
     fun jumpToDate(epochSeconds: Int) = search.jumpToDate(epochSeconds)

@@ -19,9 +19,9 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 
 /**
- * Kalendář zpráv v panelu vedle konverzace (`ChatCalendarRoute`). Kalendář sám je tentýž
- * [ConversationCalendar] jako v sheetu; ViewModel je vlastní, protože panel je samostatná položka
- * navigace s vlastním úložištěm — na ViewModel konverzace vedle nedosáhne.
+ * Kalendář zpráv (`ChatCalendarRoute`, v archivu `ArchiveChatCalendarRoute`) nad [ConversationCalendar].
+ * ViewModel je vlastní, protože kalendář je samostatná položka navigace s vlastním úložištěm —
+ * na ViewModel konverzace vedle (nebo pod ním na telefonu) nedosáhne.
  *
  * Konverzaci proto neřídí přímo: skok na den nebo zprávu pošle sdíleným
  * [ConversationJumpRequests] a ViewModel konverzace si ho vyzvedne, jako záložku z profilu.

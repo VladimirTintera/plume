@@ -319,16 +319,25 @@ data class DirectTopicsRoute(override val slot: AccountSlot, val chatId: Long) :
 data class ChatProfileRoute(override val slot: AccountSlot, val chatId: Long) : AccountRoute
 
 /**
- * Kalendář zpráv jako panel vedle konverzace (široká plocha; na telefonu je to sheet v konverzaci).
- * Třetí panel jako profil: na velké ploše vedle seznamu a konverzace, na střední vedle konverzace,
- * a při přepnutí chatu přejde na kalendář nového (`followProfile`). [anchor] je zpráva, na které
- * konverzace stála — vstup do ostrůvku historie (`ConversationCalendar.open`).
+ * Kalendář zpráv. Třetí panel jako profil: na telefonu přes celou obrazovku nad konverzací, na
+ * velké ploše vedle seznamu a konverzace, na střední vedle konverzace, a při přepnutí chatu
+ * přejde na kalendář nového (`followProfile`). [anchor] je zpráva, na které konverzace stála —
+ * vstup do ostrůvku historie (`ConversationCalendar.open`).
  */
 @Serializable
 data class ChatCalendarRoute(
     override val slot: AccountSlot,
     val chatId: Long,
     val savedTopicId: Long? = null,
+    val directTopicId: Long? = null,
+    val anchor: Long? = null,
+) : AccountRoute
+
+/** [ChatCalendarRoute] konverzace z archivu — panel archivní scény. Uložené zprávy v archivu nejsou. */
+@Serializable
+data class ArchiveChatCalendarRoute(
+    override val slot: AccountSlot,
+    val chatId: Long,
     val directTopicId: Long? = null,
     val anchor: Long? = null,
 ) : AccountRoute
@@ -749,6 +758,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
             subclass(ChatCalendarRoute::class, ChatCalendarRoute.serializer())
+            subclass(ArchiveChatCalendarRoute::class, ArchiveChatCalendarRoute.serializer())
             subclass(InstantViewRoute::class, InstantViewRoute.serializer())
             subclass(EditChatRoute::class, EditChatRoute.serializer())
             subclass(MemberRightsRoute::class, MemberRightsRoute.serializer())
