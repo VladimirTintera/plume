@@ -15,9 +15,11 @@ permissions:
 
 jobs:
   check:
-    # Self-hosted Mac (viz docs/poznatky/release.md, „Self-hosted runnery“): job trvá vteřiny,
-    # ale hostovaný runner účtuje každý celou minutu a kontrola běží na každý push do PR.
-    runs-on: ${{ fromJSON(vars.RELEASE_NOTES_RUNS_ON || '["self-hosted", "macOS", "ARM64", "plume"]') }}
+    # VŽDY hostovaný runner, natvrdo, ne repo proměnnou: kontrola běží na `pull_request`,
+    # tedy i na PR z cizího forku, a na self-hosted stroji by tam kdokoli pustil vlastní kód
+    # (docs/poznatky/release.md, „Self-hosted runnery"). V soukromém repu to stojí minutu na
+    # push do PR, ve veřejném nic.
+    runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:

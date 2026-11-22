@@ -8,7 +8,7 @@ Desktop (Windows MSI a macOS DMG, `desktop-release.yml`) má vlastní oddíl v `
 ## Release do Play
 
 Vydává se pushnutím tagu `android-<versionName>-<versionCode>`; postup a seznam secrets je
-v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z workflow nepozná.
+v „Postup a nastavení" níž. Další body jsou to, co se z workflow nepozná.
 
 - **Verze NENÍ v commitu, je v tagu.** `versionCode`/`versionName` se do buildu dostanou přes
   `-PandroidVersionCode` / `-PandroidVersionName`; hodnoty v `build.gradle.kts` jsou jen záloha
@@ -92,6 +92,93 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   Ověření bez podpisového klíče: `./gradlew :client:androidApp:bundleRelease -x
   :client:androidApp:verifyReleaseConfiguration`.
 
+### Postup a nastavení
+
+Vydává se **pushnutím tagu** `android-<versionName>-<versionCode>` (např. `android-0.2.1-13`).
+Workflow [`android-release.yml`](../../.github/workflows/android-release.yml) z něj vytáhne verzi,
+postaví podepsaný AAB, nahraje ho na **internal track** i s textem „Co je nového" (česky
+a anglicky, z poznámek v [`release-notes/`](../../release-notes), které přidává každý PR) a založí GitHub Release
+s poznámkami a changelogem.
+Žádný verzovací commit není potřeba — verze se do buildu dostane přes `-P`.
+
+Běžné vydání se spouští z GitHubu: **Actions → „Release — bump & tag" → Run workflow**, vybrat
+typ bumpu (`build` / `patch` / `minor` / `major`). Workflow dopočítá verzi z posledního tagu,
+tag pushne a release spustí. `versionCode` se zvyšuje vždy — Play si pamatuje každé nahrané
+číslo a stejné podruhé nevezme.
+
+#### Co je potřeba nastavit jednou
+
+**1. Service account pro Play Console.** Patří do **vlastního GCP projektu** (např. `mobile-ci`),
+ne do Firebase projektu aplikace — do toho potřebuje přístup každý, kdo ladí push notifikace,
+a takový člověk by tím zároveň mohl vystavit klíč s právem publikovat do Play. Vlastní projekt
+se navíc dá použít i pro další aplikace a přežije případné smazání Firebase projektu.
+
+Postup: v [Google Cloud](https://console.cloud.google.com/) založ projekt (*název* `mobile-ci`,
+ID musí být globálně unikátní, takže klidně vygenerované), povol v něm **Google Play Android
+Developer API**, vytvoř service account a stáhni jeho **JSON klíč**. Pak v Play Console →
+*Users and permissions* → *Invite new users* pozvi e‑mail toho service accountu a dej mu
+u aplikace Plume práva **Release → Release apps to testing tracks** (plus *View app information*).
+
+Oprávnění k publikování tedy **nejde přes GCP IAM**, ale přes Play Console; GCP projekt jen
+hostuje identitu a má povolené API. Propojení se nastavuje v Play Console → *Setup* → *API access*
+— pozor, **linkuje se jeden Cloud projekt na celý developer účet**. Když už tam nějaký připojený
+je, je čistší service account založit v něm než link přepisovat.
+
+**2. Secrets v repozitáři** (Settings → Secrets and variables → Actions):
+
+| Secret | Odkud |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i plume-release.jks \| tr -d '\n' \| pbcopy` |
+| `ANDROID_KEYSTORE_PASSWORD` | `releaseStorePassword` z `local.properties` |
+| `ANDROID_KEY_ALIAS` | `releaseKeyAlias` (`plume`) |
+| `ANDROID_KEY_PASSWORD` | `releaseKeyPassword` |
+| `TELEGRAM_API_ID` | `telegramApiId` z my.telegram.org |
+| `TELEGRAM_API_HASH` | `telegramApiHash` z my.telegram.org |
+| `PLAY_SERVICE_ACCOUNT_JSON` | celý obsah JSON klíče service accountu |
+
+`google-services.json` secret nepotřebuje, je v repozitáři. Bez `TELEGRAM_API_ID` build **spadne**: zapekla by se nula a appka by se nepřihlásila.
+
+**3. První AAB nahrát ručně.** Dokud aplikace nemá v Play žádný release, androidpublisher API
+upload odmítne — první bundle tedy musí do Play Console projít přes web. Postav ho lokálně:
+
+```bash
+./gradlew :client:androidApp:bundleRelease -PandroidVersionName=0.2.0 -PandroidVersionCode=12
+```
+
+Výsledek je v `client/androidApp/build/outputs/bundle/release/androidApp-release.aab`.
+Při nahrání nech zapnuté **Play App Signing** — `plume-release.jks` se tím stane *upload* klíčem
+a Play si drží vlastní podpisový. Ten keystore proto **nesmí být ztracen**: bez něj už nejde
+nahrát další verze (dá se resetovat přes podporu, ale je to otrava).
+
+**4. Zaznamenat výchozí tag**, aby bump workflow věděl, odkud počítat. Ručně nahraný release
+se značí suffixem `-manual`, který release workflow *nespustí*:
+
+```bash
+git tag android-0.2.0-12-manual && git push origin android-0.2.0-12-manual
+```
+
+Od téhle chvíle už stačí spouštět „Release — bump & tag".
+
+**5. Hodinky (Wear OS)** jdou z téhož tagu na track `wear:internal`, ale jen s repo proměnnou
+`WEAR_RELEASE = true` (Settings → Secrets and variables → Actions → Variables). Napřed v Play
+Console povol Wear OS (Nastavení → Rozšířená nastavení → Formáty) — bez toho track neexistuje
+a upload by shodil i vydání telefonu. Secrets jsou tytéž, hodinky podepisuje tentýž upload klíč.
+
+#### Lokální release build
+
+Podpisové hodnoty a api_id se berou v pořadí **gradle property → ENV → `local.properties`**,
+takže lokálně stačí mít v `local.properties`:
+
+```
+releaseStoreFile=plume-release.jks
+releaseStorePassword=...
+releaseKeyAlias=plume
+releaseKeyPassword=...
+```
+
+`verifyReleaseConfiguration` běží před každým `assembleRelease`/`bundleRelease` a shodí build,
+když něco z toho chybí — nepodepsaný AAB by Play stejně nevzal.
+
 ### Hodinky (Wear OS)
 
 - **Z téhož tagu do téhož záznamu**, na track `wear:internal` (`android-release.yml`, kroky
@@ -132,6 +219,31 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   Pixel Watch pak prošla a aplikace na hodinkách funguje; zpřístupnění trvalo déle než u telefonu
   a hodinky se v Play („instalovat na další zařízení") objevily až po delší době.
 
+## Velikost aplikace
+
+Čísla se přenesla z dřívějšího README a dnes už mohou být jiná.
+
+TDLib je velká nativní knihovna a je to vidět:
+
+| | Velikost |
+|---|---|
+| Debug APK (všechny 4 ABI) | ~100 MB |
+| Release APK arm64 (R8) | **26 MB** |
+| `libtdjsonjava.so` na jedno ABI | 15–25 MB |
+| iOS debug framework | ~383 MB (nestripovaný) |
+| iOS release framework (arm64) | 242 MB → **199 MB** po stripnutí symbolů → **~58 MB** zabalený |
+
+Čísla vypadají hrozivě, ale to, co reálně stahuje uživatel, je poslední sloupec:
+
+- **Android:** AAB s ABI splity — uživatel stáhne jen svoje ABI, tedy ~21 MB nativního kódu místo 84 MB.
+  Nic se pro to nemusí konfigurovat, Play to dělá sám z App Bundle. K tomu R8, který dex zmenšil
+  z 43,8 MB na 7,2 MB — TDLib generuje tisíce tříd API, které klient nevolá.
+- **iOS:** `.ipa` je zip a Xcode při archivaci symboly stripuje. Naměřeno ~58 MB zabaleno; App Store
+  aplikuje ještě vlastní kompresi a thinning, takže reálná velikost ke stažení bude kolem toho nebo níž.
+
+Není to malá appka, ale je to v normálu pro klienta s vlastním MTProto stackem — oficiální Telegram
+pro iOS se pohybuje v podobných řádech.
+
 ## Self-hosted runnery
 
 Release buildy neběží na hostovaných runnerech GitHubu, ale na vlastních strojích. Oba runnery
@@ -139,38 +251,39 @@ jsou registrované **k repu** `VladimirTintera/telegram`, ne k organizaci:
 
 | Runner | Stroj | Labely | Joby |
 |--------|-------|--------|------|
-| `plume-mac` | vývojářský MacBook Pro M3 Pro, 18 GB (`~/Develop/actions-runner-plume`) | `self-hosted, macOS, ARM64, plume` | Android release, desktop `version` / `macos` (DMG) / `release`, tagger, kontrola poznámek na PR |
-| `HQDEV50-plume` | HQDEV50, vývojářský Windows (`C:\actions-runner-plume`) | `self-hosted, Windows, X64, plume-desktop` | desktop `windows` (MSI) |
+| `plume-mac` | vývojářský MacBook Pro M3 Pro, 18 GB (`~/Develop/actions-runner-plume`) | `self-hosted, macOS, ARM64, plume` | Android release, desktop `version` / `macos` (DMG) / `release`, tagger |
+| `<stroj>-plume` | vývojářský Windows (`C:\actions-runner-plume`) | `self-hosted, Windows, X64, plume-desktop` | desktop `windows` (MSI) |
 
-Na hostovaném zůstal jen Play Listing (spouští se ručně a zřídka). Tagger
-(`create-release-tag.yml`) a kontrola poznámek na PR (`release-notes-check.yml`) šly na Mac
-taky, přestože nic nestaví:
+Na hostovaném zůstal Play Listing (spouští se ručně a zřídka) a kontrola poznámek na PR.
+Tagger (`create-release-tag.yml`) šel na Mac taky, přestože nic nestaví:
 
+- **Kontrola poznámek na PR (`release-notes-check.yml`) je na hostovaném NATVRDO**, bez repo
+  proměnné. Běží na `pull_request`, tedy ve veřejném repu i na PR z cizího forku, a na
+  self-hosted stroji by tam kdokoli pustil vlastní kód. GitHub self-hosted runnery ve veřejném
+  repu nedoporučuje právě kvůli tomu. Na Macu jela do přípravy na zveřejnění kvůli účtování.
 - **Hostovaný runner účtuje KAŽDÝ job jako celou minutu, nahoru.** Kontrola poznámek trvá
   kolem deseti vteřin, ale běží na každý push do PR: v říjnu 2026 to bylo 474 jobů, 70 minut
   skutečného času a 475 účtovaných — víc než polovina měsíční spotřeby i v době, kdy release
-  buildy ještě jely na hostovaném. Tagger přidal dalších 46 minut za 9 skutečných.
+  buildy ještě jely na hostovaném. Tagger přidal dalších 46 minut za 9 skutečných. Ve veřejném
+  repu se standardní runnery neúčtují vůbec.
 - **Tagger zůstával na hostovaném, aby release šel spustit i s vypnutým Macem.** To přestalo
   platit, když na Mac přešel Android release i desktop job `version`: release spuštěný taggerem
   by na Mac čekal stejně.
-- **Kontrola poznámek teď čeká za běžícím releasem.** Na Macu je jeden runner, takže push do
-  PR během Android releasu (desítky minut) nechá kontrolu ve frontě, dokud release nedoběhne.
-  Kdyby to začalo vadit, vrací se proměnnou níž, ne úpravou workflow.
 
 - **Návrat na hostovaný bez zásahu do workflow:** repo proměnné (Settings → Secrets and
   variables → Actions → Variables) `ANDROID_RUNS_ON = ["ubuntu-latest"]`,
   `DESKTOP_MAC_RUNS_ON = ["macos-latest"]`, `DESKTOP_WINDOWS_RUNS_ON = ["windows-latest"]`,
-  `RELEASE_TAG_RUNS_ON = ["ubuntu-latest"]`, `RELEASE_NOTES_RUNS_ON = ["ubuntu-latest"]`.
+  `RELEASE_TAG_RUNS_ON = ["ubuntu-latest"]`.
   Workflowy kroky, které patří jen na jednu stranu, podmiňují `runner.environment`, takže
   fungují na obou.
 - **Vlastní label (`plume`, `plume-desktop`) je povinný.** Na obou strojích běží i runnery
   jiných projektů se stejnými vestavěnými labely (organizační runnery na Macu,
-  další projekty na HQDEV50). Cizí joby k nám nepřijdou díky registraci k repu, naše k nim díky
+  další projekty na Windows). Cizí joby k nám nepřijdou díky registraci k repu, naše k nim díky
   labelu.
 - **Do `~/.gradle/gradle.properties` se na self-hosted NEZAPISUJE.** Hostovaný runner si tam
   paměť omezuje `>>`, jenže na vlastním stroji ten soubor přetrvává a sdílí ho lokální práce
   i ostatní runnery: připisoval by se každým během a přebil by nastavení vývojáře. Mac proto
-  staví s projektovým `gradle.properties` jako lokálně, HQDEV50 dostane 4g heap z příkazové
+  staví s projektovým `gradle.properties` jako lokálně, Windows dostane 4g heap z příkazové
   řádky (`-Dorg.gradle.jvmargs`).
 - **Daemony po jobu nevisí, uklízí je runner sám** („Cleaning up orphan processes" na konci
   logu: Gradle i Kotlin daemon z jobu). Vlastní krok na to není potřeba a ani by nešel napsat
@@ -183,7 +296,7 @@ taky, přestože nic nestaví:
   sezení agenta (pouští ho po každém buildu) by zastavil i daemon běžícího releasu a ten by
   spadl na „Gradle build daemon has been stopped: stop command received". Jméno registru nese projekt,
   ať se nepotká s CI jiných projektů na týchž strojích. **Nový job s Gradlem na
-  self-hosted dostane týž krok.** Na HQDEV50 jde cesta přes `cygpath -m`: s
+  self-hosted dostane týž krok.** Na Windows jde cesta přes `cygpath -m`: s
   `MSYS_NO_PATHCONV=1` by Java z `/c/Users/…` udělala `C:\c\Users\…` (ověřeno sondou).
   Kdo daemon zastavil, poznáš z logů v `~/.gradle/daemon/<verze>/`: `Stop` dostanou všechny
   daemony naráz a ten, kterému vteřinu předtím skončil build, nese v `currentDir` cestu toho,
@@ -201,7 +314,7 @@ taky, přestože nic nestaví:
   tlačil gigabajty do cache GitHubu.
 - **Mac je pracovní stroj, ne build server.** Android release s projektovou pamětí (Gradle 4g
   + Kotlin daemon 8g) a souběžná lokální práce nebo job organizačního runneru se o 18 GB
-  dělí; když se to začne prát, jde se k omezení paměti z příkazové řádky jako na HQDEV50.
+  dělí; když se to začne prát, jde se k omezení paměti z příkazové řádky jako na Windows.
   Runner je LaunchAgent, takže běží jen v přihlášené session (zamčená obrazovka nevadí); po
   restartu s FileVaultem je offline, dokud se někdo nepřihlásí, a joby mezitím čekají
   (GitHub je po 24 h zruší).
@@ -227,7 +340,7 @@ JDK v `setup-java`). `PATH` služby je zamrzlý v `.path` z okamžiku
 `config.sh`; nový nástroj mimo `/opt/homebrew/bin` → doplnit tam a `./svc.sh stop && ./svc.sh start`.
 Logy: `~/Library/Logs/actions.runner.VladimirTintera-telegram.plume-mac/`.
 
-### Nastavení HQDEV50
+### Nastavení runneru na Windows
 
 Další instance vedle runnerů jiných projektů (runner registrovaný k repu jiné repo použít nemůže).
 PowerShell **jako správce**; zip s kontrolním součtem ukáže Settings repa → Actions → Runners →
@@ -237,7 +350,7 @@ New self-hosted runner → Windows x64:
 mkdir C:\actions-runner-plume; cd C:\actions-runner-plume
 # … stažení a rozbalení actions-runner-win-x64-*.zip …
 .\config.cmd --url https://github.com/VladimirTintera/telegram `
-  --name HQDEV50-plume --labels plume-desktop --work _work `
+  --name <stroj>-plume --labels plume-desktop --work _work `
   --token (gh api -X POST repos/VladimirTintera/telegram/actions/runners/registration-token --jq .token)
 ```
 
@@ -257,7 +370,7 @@ Stroj už má z ostatních instancí Git for Windows, PowerShell 7 (MSI) a dlouh
 instance potřebuje jen **`gpg` v PATH služby** (`setup-java` jím ověřuje podpis JDK a počítá
 s gpg z Gitu): na konec řádku `PATH=` v `C:\actions-runner-plume\.env` připsat
 `;C:\Program Files\Git\usr\bin` a restartovat službu
-(`Restart-Service actions.runner.VladimirTintera-telegram.HQDEV50-plume`). Na začátku PATH
+(`Restart-Service actions.runner.VladimirTintera-telegram.<stroj>-plume`). Na začátku PATH
 by unixové `find` / `sort` přebily systémové. Workflow si krokem *Prefer Git Bash* dá Git Bash
 a PowerShell 7 do PATH sám (WSL `bash` by jinak vyhrál), JDK, Android SDK i WiX si stáhne.
 
