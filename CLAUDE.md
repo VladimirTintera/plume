@@ -107,6 +107,18 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
   vlastní změny na aktuální `main`.
 - Popis PR říká, CO se změnilo a PROČ, a jak to ověřit na zařízení. Když změna na zařízení
   vyzkoušená není, musí to v popisu stát.
+- **Co je vidět na GitHubu, se píše ANGLICKY**: název a popis PR, zprávy commitů, jména větví
+  (`fix/read-receipts-on-open`, ne `fix/fajfky-pri-otevreni-chatu`), komentáře v issues
+  a review. Repo je veřejné a čtou ho i lidé, kteří česky neumí. Dokumentace (tenhle soubor,
+  `docs/`), komentáře v kódu a odpovědi v konverzaci s vývojářem zůstávají česky; poznámka
+  k vydání má dál `cs:` i `en:`. Platí od zveřejnění repa — starší historie je česky.
+- **Každý klon má `user.email` na GitHub noreply**
+  (`git config user.email 69807370+VladimirTintera@users.noreply.github.com`). Commit
+  s osobní adresou ve veřejném repu nejde vzít zpátky: i po force pushi ho drží
+  `refs/pull/N/head` (proto se repo zakládalo dvakrát, viz roadmapa, „Zveřejnění zdrojáků").
+- **Čísla PR a issues míří do `VladimirTintera/plume`** (od zveřejnění, číslování znovu od 1).
+  Odkazy na starší PR v dokumentaci a commitech (#650, #1232…) patří do archivu
+  `VladimirTintera/telegram`; nové odkazy na ně se píšou celé (`VladimirTintera/telegram#650`).
 - Poučení z opravy patří do souboru oblasti v `docs/poznatky/` (obecné pravidlo pro celý projekt
   do tohohle souboru), ve stejném PR jako oprava samotná. Novou oblast = nový soubor a řádek
   v rejstříku výš. **Sem nepřidávat poznatky ke konkrétní funkci** — tenhle soubor se načítá při

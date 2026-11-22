@@ -5,8 +5,11 @@ Kotlin Multiplatform and shared Compose UI for Android, iOS and desktop.
 
 **Most developer documentation is in Czech.** [`CLAUDE.md`](CLAUDE.md) holds the rules for
 the whole project, and [`docs/poznatky/`](docs/poznatky) has the notes for each feature area.
-Read the file for the area you are changing before you start. You can write issues and
-pull requests in English.
+Read the file for the area you are changing before you start.
+
+**Everything visible on GitHub is in English**: issues, pull request titles and descriptions,
+commit messages, branch names and review comments. Older history from before the repository
+went public is in Czech.
 
 ## Building
 
@@ -41,8 +44,8 @@ iOS builds from Xcode (`open iosApp/iosApp.xcodeproj`).
 
 ## Pull requests
 
-- **One branch per change**, created from current `main` and named after its content
-  (`fix/…`, `feat/…`, `docs/…`). Nothing is committed straight to `main`.
+- **One branch per change**, created from current `main` and named after its content in
+  English (`fix/…`, `feat/…`, `docs/…`). Nothing is committed straight to `main`.
 - **Every PR adds a release note**, `release-notes/<branch>.md` with `/` replaced by `-`,
   otherwise the "Release notes" check fails:
 
