@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.ripple
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -46,7 +46,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import eu.tintera.ai.core.OnDeviceAi
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ControlledSearchPill
@@ -93,12 +92,10 @@ import eu.tintera.plume.resources.settings_sign_out_confirm
 import eu.tintera.plume.resources.settings_sign_out_title
 import eu.tintera.plume.resources.settings_search
 import eu.tintera.plume.resources.settings_title
-import kotlinx.coroutines.flow.map
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -135,9 +132,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val scrollBehavior = settingsScrollBehavior()
-    val ai = koinInject<OnDeviceAi>()
-    val aiAvailable by remember(ai) { ai.availability().map { it.providers.isNotEmpty() } }
-        .collectAsStateWithLifecycle(initialValue = false)
+    val aiAvailable by viewModel.aiAvailable.collectAsStateWithLifecycle()
     val sections = SettingsSection.entries.filter { section ->
         when (section) {
             SettingsSection.Ai -> aiAvailable
@@ -179,7 +174,7 @@ fun SettingsScreen(
             Modifier
                 .fillMaxSize()
                 .settingsContentPadding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             verticalArrangement = Arrangement.spacedBy(BLOCK_SPACING),
         ) {

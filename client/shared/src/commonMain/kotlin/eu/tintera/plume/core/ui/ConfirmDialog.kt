@@ -3,7 +3,6 @@ package eu.tintera.plume.core.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -72,7 +71,7 @@ fun ConfirmDialog(
             {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    modifier = Modifier.verticalScroll(rememberRestoringScrollState()),
                 ) {
                     text?.let { Text(it) }
                     content()

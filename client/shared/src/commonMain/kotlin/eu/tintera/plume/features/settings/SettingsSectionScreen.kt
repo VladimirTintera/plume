@@ -1,10 +1,10 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -59,7 +59,7 @@ fun SettingsSectionScreen(
             Modifier
                 .fillMaxSize()
                 .settingsContentPadding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

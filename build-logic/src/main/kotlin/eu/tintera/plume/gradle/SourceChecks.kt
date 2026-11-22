@@ -43,6 +43,7 @@ class SourceChecksPlugin : Plugin<Project> {
         register("verifyContextClickable", VerifyContextClickable::class.java)
         register("verifyExpandedSheets", VerifyExpandedSheets::class.java)
         register("verifyMenuScroll", VerifyMenuScroll::class.java)
+        register("verifyRestoringScroll", VerifyRestoringScroll::class.java)
         register("verifyButtonShapes", VerifyButtonShapes::class.java)
         register("verifyChipShapes", VerifyChipShapes::class.java)
         register("verifyShapeTokens", VerifyShapeTokens::class.java)
@@ -256,6 +257,37 @@ abstract class VerifyMenuScroll : SourceCheckTask() {
                 "$path:${lineOf(text, match.range.first)}: DropdownMenuPopup bez menuScroll()"
             }
         }.toList()
+    }
+}
+
+/**
+ * Svislý obsah roluje přes `rememberRestoringScrollState()` (core/ui/RestoringScrollState.kt),
+ * ne `rememberScrollState()`. Obrazovka se po návratu z podstránky skládá znovu a obyčejný
+ * `ScrollState` obnovenou pozici při prvním měření TRVALE ořízne; je-li obsah v prvním snímku
+ * kratší (řádek, který dorazí z flow o snímek později), seznam zůstane posunutý. Tak uskakovalo
+ * Nastavení po návratu z „O aplikaci" i Soukromí po návratu z dvoufázového ověření.
+ *
+ * Kontrola hledá `verticalScroll(rememberScrollState())` a `val x = rememberScrollState()`,
+ * je-li `x` předané do `verticalScroll(`. Vodorovné řady zůstávají na `rememberScrollState()`.
+ */
+abstract class VerifyRestoringScroll : SourceCheckTask() {
+    init {
+        description = "Ověří, že svislý obsah drží pozici po návratu (rememberRestoringScrollState())."
+    }
+
+    override fun failureMessage() =
+        "Svislý obsah roluje přes rememberRestoringScrollState() (core/ui/RestoringScrollState.kt), ne rememberScrollState():"
+
+    private val inline = Regex("""verticalScroll\(\s*rememberScrollState\(\)""")
+    private val named = Regex("""\bval (\w+) = rememberScrollState\(\)""")
+
+    override fun offenders(file: File, path: String): List<String> {
+        val text = file.readText()
+        val inlineHits = inline.findAll(text).map { "$path:${lineOf(text, it.range.first)}: verticalScroll(rememberScrollState())" }
+        val namedHits = named.findAll(text).filter { match ->
+            Regex("""verticalScroll\(\s*${match.groupValues[1]}\b""").containsMatchIn(text)
+        }.map { "$path:${lineOf(text, it.range.first)}: ${it.value} ve verticalScroll" }
+        return (inlineHits + namedHits).toList()
     }
 }
 

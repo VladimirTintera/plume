@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.material3.Icon
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.block_24dp
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
@@ -78,7 +78,7 @@ internal fun GroupStickerSetSheet(
             Modifier
                 .selectableGroup()
                 .heightIn(max = 480.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 .padding(top = 8.dp, bottom = 16.dp),
         ) {
             StickerSetChoice(

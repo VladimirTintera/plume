@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.add_to_home_screen_24dp
 import eu.tintera.plume.resources.chat_add_to_home_screen
 import eu.tintera.plume.core.telegram.CollectibleItem
@@ -427,7 +428,7 @@ fun ChatProfileScreen(
 
     // Jeden scroll pro celý profil: čte ho i hlavička obrazovky (název se v ní ukáže, až ten
     // velký odjede pod ni), takže žije tady, ne v obsahu.
-    val scrollState = rememberScrollState()
+    val scrollState = rememberRestoringScrollState()
     var titleBottom by remember { mutableIntStateOf(Int.MAX_VALUE) }
     val titleInBar by remember { derivedStateOf { scrollState.value > titleBottom } }
     val photoPicker = rememberAttachmentPicker(onPicked = viewModel::suggestPhotoFrom, onError = viewModel::reportError)

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -61,7 +61,7 @@ internal fun RemindSheet(
     val sheetState = rememberExpandedSheetState()
     val zone = remember { TimeZone.currentSystemDefault() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        Column(Modifier.verticalScroll(rememberRestoringScrollState())) {
             SheetTitle(stringResource(Res.string.remind_title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 text = stringResource(Res.string.remind_text),

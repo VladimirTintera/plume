@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.settings_notif_stories_chat_summary
 import eu.tintera.plume.resources.settings_notif_stories_chat
 import eu.tintera.plume.resources.undo_24dp
@@ -19,7 +20,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -114,7 +114,7 @@ internal fun ChatNotificationSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             Modifier
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp),
         ) {

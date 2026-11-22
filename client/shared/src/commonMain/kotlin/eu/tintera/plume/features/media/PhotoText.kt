@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -247,7 +247,7 @@ internal fun PhotoTextPanel(
                     modifier = Modifier
                         .padding(end = 12.dp)
                         .heightIn(max = TEXT_MAX_HEIGHT)
-                        .verticalScroll(rememberScrollState()),
+                        .verticalScroll(rememberRestoringScrollState()),
                 )
             }
             Spacer(Modifier.padding(top = 12.dp))

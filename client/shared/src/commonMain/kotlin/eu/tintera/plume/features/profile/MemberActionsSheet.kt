@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.OutlinedSecureTextField
 import androidx.compose.foundation.text.input.TextFieldState
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
@@ -126,7 +126,7 @@ fun MemberActionsSheet(
     val actions = member.actions
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        Column(Modifier.verticalScroll(rememberRestoringScrollState())) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
                 SheetTitle(member.name)
                 member.subtitle()?.let { subtitle ->

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.report
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.animation.AnimatedContent
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -84,7 +84,7 @@ fun ReportSheet(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberRestoringScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 16.dp),
             ) {

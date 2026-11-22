@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.core.ui.RichText
 import eu.tintera.plume.core.telegram.MessageEntityType
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -70,7 +70,7 @@ internal fun BotIntroPage(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberRestoringScrollState())
             .padding(top = topPadding)
             .padding(horizontal = 32.dp, vertical = 32.dp),
     ) {

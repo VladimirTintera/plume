@@ -1,12 +1,12 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -53,7 +53,7 @@ fun SelectTextSheet(message: ChatMessage, onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
                         .heightIn(max = MAX_TEXT_HEIGHT)
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(rememberRestoringScrollState())
                         .padding(bottom = 24.dp),
                 )
             }

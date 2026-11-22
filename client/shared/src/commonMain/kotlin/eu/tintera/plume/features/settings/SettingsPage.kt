@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.highlightAnchor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -62,7 +62,7 @@ internal fun SettingsPage(
             Modifier
                 .fillMaxSize()
                 .settingsContentPadding(padding)
-                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                .then(if (scrollable) Modifier.verticalScroll(rememberRestoringScrollState()) else Modifier)
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             content = content,

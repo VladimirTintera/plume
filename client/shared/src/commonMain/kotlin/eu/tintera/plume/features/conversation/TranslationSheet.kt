@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
@@ -30,7 +31,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -167,7 +167,7 @@ fun TranslationSheet(
                         // kam by se otevřely. Modrý text, po kterém se nic nestane, je horší než
                         // obyčejný, takže zůstane jen formátování.
                         val entities = remember(body) { body.entities.filterNot { it.type.isClickable } }
-                        Box(Modifier.heightIn(max = MAX_TRANSLATION_HEIGHT).verticalScroll(rememberScrollState())) {
+                        Box(Modifier.heightIn(max = MAX_TRANSLATION_HEIGHT).verticalScroll(rememberRestoringScrollState())) {
                             RichText(
                                 text = body.text,
                                 entities = entities,

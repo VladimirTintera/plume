@@ -1,6 +1,5 @@
 package eu.tintera.plume.core.ui
 
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.remember
 import androidx.compose.material3.MaterialExpressiveTheme
@@ -116,7 +115,7 @@ fun ExpressiveMenu(
  * Patří do `modifier` každého `DropdownMenuPopup`; hlídá to `verifyMenuScroll`.
  */
 @Composable
-fun Modifier.menuScroll(): Modifier = verticalScroll(rememberScrollState())
+fun Modifier.menuScroll(): Modifier = verticalScroll(rememberRestoringScrollState())
 
 /**
  * Barvy nabídky: plocha skupin i položek je `surfaceContainerHighest`, ne výchozí

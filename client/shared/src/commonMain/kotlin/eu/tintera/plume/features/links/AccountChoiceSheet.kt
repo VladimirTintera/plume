@@ -1,10 +1,10 @@
 package eu.tintera.plume.features.links
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,7 +40,7 @@ internal fun AccountChoiceSheet(
 ) {
     val accounts = rememberAccountSwitcher().accounts
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
-        Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
+        Column(Modifier.navigationBarsPadding().verticalScroll(rememberRestoringScrollState()).padding(bottom = 16.dp)) {
             SheetTitle(
                 stringResource(Res.string.link_account_title),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ai.variantsFor
 import eu.tintera.plume.core.ai.variantFor
 import eu.tintera.plume.core.ai.AiTask
@@ -51,7 +52,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -526,7 +526,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 .navigationBarsPadding()
                 .padding(start = 24.dp, end = 24.dp, bottom = 24.dp)
                 .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),

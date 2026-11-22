@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.foundation.layout.FlowRow
 import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.emoji_photo_open
@@ -45,7 +46,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -407,7 +407,7 @@ fun EditChatScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .imePadding()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberRestoringScrollState())
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,

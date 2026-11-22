@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.telegram.ProfileMainTab
 import eu.tintera.plume.core.telegram.UNRESTRICT_BOOST_COUNTS
 import eu.tintera.plume.core.ui.ChoiceRow
@@ -23,7 +24,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
@@ -211,7 +211,7 @@ internal fun SlowModeSheet(current: Int, onSelect: (Int) -> Unit, onDismiss: () 
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
         )
-        Column(Modifier.selectableGroup().verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 16.dp)) {
+        Column(Modifier.selectableGroup().verticalScroll(rememberRestoringScrollState()).padding(top = 8.dp, bottom = 16.dp)) {
             SLOW_MODE_DELAYS.forEachIndexed { index, seconds ->
                 ChoiceListItem(
                     label = slowModeLabel(seconds),
@@ -247,7 +247,7 @@ internal fun ChatReactionsSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         // Posouvá se jen výběr; Uložit stojí pod ním vždycky vidět — emoji je přes sedmdesát
         // a tlačítko na konci seznamu se dalo najít jen dlouhým rolováním.
-        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberRestoringScrollState())) {
             SheetTitle(stringResource(Res.string.edit_chat_reactions), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 stringResource(Res.string.edit_chat_reactions_help),

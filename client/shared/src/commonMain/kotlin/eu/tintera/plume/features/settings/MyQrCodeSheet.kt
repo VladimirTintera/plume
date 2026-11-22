@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.BoxWithConstraints
 import eu.tintera.plume.core.ui.GroupActionText
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -221,7 +221,7 @@ fun MyQrCodeSheet(onDismiss: () -> Unit, viewModel: MyQrCodeViewModel = koinView
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f).heightIn(max = qrSize).verticalScroll(rememberScrollState()),
+                        modifier = Modifier.weight(1f).heightIn(max = qrSize).verticalScroll(rememberRestoringScrollState()),
                     ) {
                         profile()
                         info()
@@ -235,7 +235,7 @@ fun MyQrCodeSheet(onDismiss: () -> Unit, viewModel: MyQrCodeViewModel = koinView
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(rememberRestoringScrollState())
                         .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
                 ) {
                     profile()

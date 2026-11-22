@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.add_to_home_screen_24dp
 import eu.tintera.plume.resources.chat_add_to_home_screen
 import androidx.compose.runtime.Immutable
@@ -27,7 +28,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
@@ -178,7 +178,7 @@ fun ChatActionsSheet(
      * Compose 1.12 zastaralé.
      */
     val sheetState = rememberExpandedSheetState()
-    val scroll = rememberScrollState()
+    val scroll = rememberRestoringScrollState()
     var deleteExpanded by rememberSaveable { mutableStateOf(false) }
 
     /*
@@ -518,7 +518,7 @@ private fun groupRowShape(index: Int, count: Int): RoundedCornerShape {
 @Composable
 fun SnoozeSheet(chat: ChatSummary, onSnooze: (SnoozeOption) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        Column(Modifier.verticalScroll(rememberRestoringScrollState())) {
             SheetTitle(chatTitle(chat.id, chat.title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 text = stringResource(Res.string.chats_snooze_sheet_title),
@@ -653,7 +653,7 @@ private fun SponsoredChatSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        Column(Modifier.verticalScroll(rememberRestoringScrollState())) {
             SheetTitle(chatTitle(chat.id, chat.title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 text = when (sponsor) {

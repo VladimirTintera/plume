@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.adaptive.isWindowHeightCompact
 import eu.tintera.plume.resources.story_cover_title
 import eu.tintera.plume.resources.story_cover_hint
@@ -24,7 +25,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -211,7 +211,7 @@ fun StoryComposerScreen(
                     .widthIn(max = ContentWidth.Form)
                     .fillMaxWidth()
                     .imePadding()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberRestoringScrollState())
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {

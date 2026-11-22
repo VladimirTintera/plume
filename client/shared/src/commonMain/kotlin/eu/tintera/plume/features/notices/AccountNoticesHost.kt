@@ -1,9 +1,9 @@
 package eu.tintera.plume.features.notices
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.accounts.LocalAccount
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -180,6 +180,6 @@ private fun ScrollableRichText(
         entities = entities,
         style = MaterialTheme.typography.bodyMedium,
         onLinkClick = onLink,
-        modifier = Modifier.verticalScroll(rememberScrollState()),
+        modifier = Modifier.verticalScroll(rememberRestoringScrollState()),
     )
 }

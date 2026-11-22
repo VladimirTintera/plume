@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.devices
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.foundation.layout.Row
 import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -21,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -437,7 +437,7 @@ private fun DeviceDetailSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             Modifier
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp),
         ) {

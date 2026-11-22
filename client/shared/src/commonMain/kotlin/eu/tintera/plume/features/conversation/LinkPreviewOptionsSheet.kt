@@ -1,11 +1,11 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.groupItemShape
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -83,7 +83,7 @@ fun LinkPreviewOptionsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
         ) {

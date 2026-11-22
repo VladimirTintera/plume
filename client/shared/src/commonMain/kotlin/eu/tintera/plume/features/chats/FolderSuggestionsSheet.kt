@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -83,7 +83,7 @@ internal fun FolderSuggestionsSheet(
         Column(
             verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberRestoringScrollState())
                 .navigationBarsPadding()
                 .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         ) {

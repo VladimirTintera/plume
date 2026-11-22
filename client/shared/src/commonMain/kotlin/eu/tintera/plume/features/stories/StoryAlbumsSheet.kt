@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.stories
 
+import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.story_album_reorder_stories
 import eu.tintera.plume.resources.profile_story_album_empty
 import eu.tintera.plume.resources.common_back
@@ -38,7 +39,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -142,7 +142,7 @@ internal fun StoryAlbumsSheet(
             )
             return@ModalBottomSheet
         }
-        Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 16.dp)) {
+        Column(Modifier.verticalScroll(rememberRestoringScrollState()).navigationBarsPadding().padding(bottom = 16.dp)) {
             SheetTitle(stringResource(Res.string.story_albums_title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 stringResource(Res.string.story_albums_hint),
