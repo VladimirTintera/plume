@@ -677,7 +677,11 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   → konverzace na první zprávě kanálu (25. 8.) a panel dopočítal 25.–31. 8.; po novém otevření
   „Začátek chatu" a srpen bez „+". Large (tři panely) neověřené — tablet
   emulátor v projektu není.
-  iOS a desktop jen přeložené.
+  iOS jen přeložené. **Celá obrazovka a archivní panel** (emulátor Pixel 7, desktop): na
+  telefonu stránka se šipkou zpět, v Uložených zprávách (od roku 2020) stojí na konci „Začátek
+  chatu" nad „Dnes", ťuknutí na 7. 11. stránku zavřelo a chat skočil. Desktop, archivovaný kanál:
+  panel s ✕ vedle konverzace, 19. 11. → „Čtvrtek · 00:03" a panel zůstal, jiný archivní kanál
+  přepnul panel na svůj kalendář, ✕ ho zavřel.
 
 ## Okno v historii
 
