@@ -22,3 +22,9 @@ iosApp/Pods/
 
 # Záznamy pádu JVM (vznikají při ukončení ladicího desktopu, prázdné)
 hs_err_pid*.log
+
+# Konfigurace Firebase (push a Crashlytics). Ve veřejném repu nejsou: release workflow je píše
+# ze secretu GOOGLE_SERVICES_JSON, lokálně se kopírují ručně (docs/poznatky/notifikace.md).
+client/androidApp/google-services.json
+client/wearApp/google-services.json
+iosApp/iosApp/GoogleService-Info.plist

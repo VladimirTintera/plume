@@ -176,9 +176,9 @@ soukromé jako archiv.
     `client/wearApp/google-services.json` a `iosApp/iosApp/GoogleService-Info.plist`. Build bez
     nich funguje (Gradle plugin se aplikuje jen se souborem, iOS `FirebaseCrashlyticsBridge`
     bez plistu Firebase nespustí). Tajemství to není — klíč je v každém APK, chrání ho omezení
-    na balíček a SHA-1 v Google Cloud konzoli —, jen do veřejného repa nepatří. **Release
-    workflow si je ze secretu ZATÍM NEBERE** — to je práce do fáze 2, jinak by oficiální build
-    vyšel bez pushe a hlášení pádů.
+    na balíček a SHA-1 v Google Cloud konzoli —, jen do veřejného repa nepatří. Od fáze 2
+    nejsou ani v `main` (`.gitignore`) a release workflow píše `google-services.json` ze secretu
+    `GOOGLE_SERVICES_JSON`; bez něj release zastaví (`notifikace.md`, „Konfigurace Firebase").
   - `--replace-text`: obě telefonní čísla (s mezerami i bez) na smyšlená 601 234 567
     a 601 987 654, id testovacího účtu na 444555666. Náhrady v historii předtím nebyly, takže
     se s ničím nesrazí, a v testech se mění všude stejně.
@@ -194,7 +194,12 @@ soukromé jako archiv.
 
 ### 2. Nové repo, nejdřív soukromé
 
-- Push přepsané historie; secrets (Telegram API, keystore, Play, konfigurace Firebase) a repo
+- ~~**Konfigurace Firebase ze secretu**~~ — hotovo: všechny tři soubory jsou z gitu venku
+  (`.gitignore`) a `android-release.yml` píše `google-services.json` do telefonu i hodinek ze
+  secretu `GOOGLE_SERVICES_JSON`, bez něj release zastaví. **Secret musí být nastavený už ve
+  STÁVAJÍCÍM repu**, dokud se z něj vydává. Kopie souborů je u pravidel přepisu
+  (`~/Develop/plume-prepis-pravidla/firebase`).
+- Push přepsané historie; secrets (Telegram API, keystore, Play, `GOOGLE_SERVICES_JSON`) a repo
   proměnné.
 - Release workflowy zkušebně na hostovaných runnerech (v soukromém repu se minuty ještě
   počítají). **macOS runner má 7 GB RAM** — release link iOS s LTO nad celou TDLib na tom může

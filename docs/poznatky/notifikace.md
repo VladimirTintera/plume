@@ -53,11 +53,21 @@ a odložené rušení prázdné notifikace.
   Push je jen doprava pro případ, kdy aplikace neběží — zobrazení je v obou případech totéž.
 - **Co se zobrazí, rozhoduje TDLib**, ne klient: ztlumené chaty i `showPreview` řeší on. Proto se
   v `TdlNotificationRepository` nic nefiltruje.
-- **`google-services.json` je v repozitáři.** Nejsou v něm tajemství: API klíč Firebase je
-  identifikátor projektu, ne heslo, a push bez klíče na my.telegram.org stejně nikdo nepošle.
-  Soubor v gitu znamená, že push funguje hned po klonu i v debug buildu a CI ho nemusí skládat
-  ze secretu. `google-services` plugin se přesto aplikuje podmíněně — bez souboru se projekt
-  přeloží, jen bez pushe a hlášení pádů.
+- **Konfigurace Firebase v repozitáři NENÍ** (`client/androidApp/google-services.json`,
+  `client/wearApp/google-services.json`, `iosApp/iosApp/GoogleService-Info.plist`; všechny tři
+  v `.gitignore`). Tajemství v nich nejsou — API klíč Firebase je identifikátor projektu, ne
+  heslo, je v každém APK a push bez klíče na my.telegram.org stejně nikdo nepošle —, ale do
+  veřejného repa nepatří: fork by s nimi posílal hlášení pádů do našeho projektu. Do zveřejnění
+  zdrojáků byly v gitu, aby push fungoval hned po klonu.
+  - **Lokálně se kopírují ručně**: Firebase Console → Project settings → Your apps → stáhnout
+    `google-services.json` (Android) a `GoogleService-Info.plist` (iOS). Hodinky mají tentýž
+    soubor jako telefon (viz `wear-os.md`).
+  - **Release workflow ho píše ze secretu `GOOGLE_SERVICES_JSON`** (krok *Write Firebase
+    config* v `android-release.yml`, do telefonu i hodinek) a bez secretu release zastaví:
+    `google-services` plugin se aplikuje podmíněně, takže by se build bez souboru tiše přeložil
+    bez pushe a hlášení pádů. iOS se z CI nevydává, plist secret zatím nemá.
+  - **Přechod z verze, kde soubory v gitu byly**: `git pull` commitu, který je z gitu vyřadil,
+    je z pracovního stromu SMAŽE (byly sledované). Kdo staví lokálně, vrátí si je z kopie.
 - **Push payload je zašifrovaný.** Rozšifrovat ho umí jedině TDLib přes `processPushNotification`;
   služba nic nevykresluje, jen předává.
 - **`processPushNotification` chce CELOU datovou část pushe jako JSON**, ne jen pole `p`, a k ní
