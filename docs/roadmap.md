@@ -246,10 +246,11 @@ soukromé jako archiv.
     soukromé hlášení zranitelností (`SECURITY.md`);
   - **automatické bezpečnostní PR Dependabotu vypnuté**: neuměly by poznámku k vydání a check
     by je zamítl.
-- **Ověřitelnost buildu**: release jen z hostovaných runnerů a k artefaktům
-  `actions/attest-build-provenance`, ať jde dohledat, z jakého commitu a workflow APK / MSI / DMG
-  vzniklo. Zdroják sám důvěru nedokazuje — nikdo neověří, že APK z Play vzniklo z něj.
-  Reprodukovatelný build nebo F-Droid až později: chce vydání bez Firebase a Crashlytics.
+- ~~**Ověřitelnost buildu**~~ — hotovo: release jen z hostovaných runnerů a k MSI, DMG
+  i AAB attestace `actions/attest-build-provenance` (`release.md`, „Původ buildu"). APK
+  z Play se tím ověřit nedá (Play ho skládá a přepodepisuje); ověřitelný Android build chce
+  vlastní APK mimo Play, reprodukovatelný build nebo F-Droid — to až později, chce vydání bez
+  Firebase a Crashlytics.
 
 ### 3. Zveřejnění
 

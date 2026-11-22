@@ -38,7 +38,9 @@
 name: Android Release
 
 permissions:
-  contents: write   # zakládání GitHub Release
+  contents: write       # zakládání GitHub Release
+  id-token: write       # attest-build-provenance: OIDC token pro podpis přes Sigstore
+  attestations: write   # attest-build-provenance: uložení attestace k repu
 
 on:
   push:
@@ -219,6 +221,17 @@ jobs:
 
           mv client/wearApp/build/outputs/bundle/release/wearApp-release.aab \
              "${{ steps.tag.outputs.wearAab }}"
+
+      # Attestace původu (SLSA build provenance): podepsaný záznam, že tenhle bundl postavil
+      # tenhle workflow z tohohle commitu. Ukládá se k repu (Attestations), ne jako artefakt —
+      # bundl se nikam nepřikládá. Ověřit jde jen se souborem v ruce
+      # (`gh attestation verify <soubor> --repo VladimirTintera/plume`); APK z Play ověřit nejde,
+      # Play ho z bundlu skládá a přepodepisuje (docs/poznatky/release.md, „Původ buildu").
+      # Glob chytí telefon i hodinky (plume-wear-…), ať je WEAR_RELEASE zapnuté, nebo ne.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: 'plume-*.aab'
 
       # Doběhne jen když runner přežil; při smrti VM se sem nedostane ani `if: always()`.
       - name: Resource diagnostics

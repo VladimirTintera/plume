@@ -35,7 +35,9 @@
 name: Desktop Release
 
 permissions:
-  contents: write   # zakládání GitHub Release
+  contents: write       # zakládání GitHub Release
+  id-token: write       # attest-build-provenance: OIDC token pro podpis přes Sigstore
+  attestations: write   # attest-build-provenance: uložení attestace k repu
 
 on:
   push:
@@ -355,6 +357,18 @@ jobs:
         with:
           merge-multiple: true
           path: dist
+
+      # Attestace původu (SLSA build provenance) pro MSI a DMG, které jdou do GitHub Release:
+      # kdo si balíček stáhne, ověří, že ho postavil tenhle workflow z tohohle commitu
+      # (`gh attestation verify Plume-….msi --repo VladimirTintera/plume`, docs/poznatky/release.md,
+      # „Původ buildu"). Tady, ne v jobech windows/macos: jedno místo pro oba soubory a přesně
+      # ty bajty, které se nahrají.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/*.msi
+            dist/*.dmg
 
       - name: Generate changelog
         id: notes
