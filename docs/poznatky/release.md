@@ -164,8 +164,8 @@ taky, přestože nic nestaví:
   Workflowy kroky, které patří jen na jednu stranu, podmiňují `runner.environment`, takže
   fungují na obou.
 - **Vlastní label (`plume`, `plume-desktop`) je povinný.** Na obou strojích běží i runnery
-  jiných projektů se stejnými vestavěnými labely (organizační `magicware` na Macu, kmpmlog
-  a telemetry na HQDEV50). Cizí joby k nám nepřijdou díky registraci k repu, naše k nim díky
+  jiných projektů se stejnými vestavěnými labely (organizační runnery na Macu,
+  další projekty na HQDEV50). Cizí joby k nám nepřijdou díky registraci k repu, naše k nim díky
   labelu.
 - **Do `~/.gradle/gradle.properties` se na self-hosted NEZAPISUJE.** Hostovaný runner si tam
   paměť omezuje `>>`, jenže na vlastním stroji ten soubor přetrvává a sdílí ho lokální práce
@@ -181,9 +181,8 @@ taky, přestože nic nestaví:
   `GRADLE_OPTS` s `-Dorg.gradle.daemon.registry.base=~/.gradle/plume-ci-daemon` do
   `$GITHUB_ENV`). Platí to i obráceně k bodu výš: `gradlew --stop` z lokální práce nebo ze
   sezení agenta (pouští ho po každém buildu) by zastavil i daemon běžícího releasu a ten by
-  spadl na „Gradle build daemon has been stopped: stop command received". Tak dvakrát spadl
-  Server Release v mlogu (KMPMlog#992) a odtud je krok převzatý; jméno registru nese projekt,
-  ať se nepotká s CI kmpmlog a telemetry na týchž strojích. **Nový job s Gradlem na
+  spadl na „Gradle build daemon has been stopped: stop command received". Jméno registru nese projekt,
+  ať se nepotká s CI jiných projektů na týchž strojích. **Nový job s Gradlem na
   self-hosted dostane týž krok.** Na HQDEV50 jde cesta přes `cygpath -m`: s
   `MSYS_NO_PATHCONV=1` by Java z `/c/Users/…` udělala `C:\c\Users\…` (ověřeno sondou).
   Kdo daemon zastavil, poznáš z logů v `~/.gradle/daemon/<verze>/`: `Stop` dostanou všechny
@@ -230,7 +229,7 @@ Logy: `~/Library/Logs/actions.runner.VladimirTintera-telegram.plume-mac/`.
 
 ### Nastavení HQDEV50
 
-Třetí instance vedle kmpmlog a telemetry (runner registrovaný k repu jiné repo použít nemůže).
+Další instance vedle runnerů jiných projektů (runner registrovaný k repu jiné repo použít nemůže).
 PowerShell **jako správce**; zip s kontrolním součtem ukáže Settings repa → Actions → Runners →
 New self-hosted runner → Windows x64:
 
@@ -385,8 +384,7 @@ rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
 
 ### Hlášení pádů na iOS
 
-Převzaté z projektu mlog (`docs/crash-reporting.md` tam), tamtéž podle `IosCrashlyticsLogger`
-z Profilogu. Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS aplikace s bundlem
+Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS aplikace s bundlem
 **`eu.tintera.plume`**.
 
 - **Kotlin/Native knihovnu Firebase nevidí** (ObjC ze SPM, ne cinterop), proto most ze Swiftu:
@@ -410,7 +408,7 @@ z Profilogu. Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS a
   pády z Kotlinu by spadly do jednoho problému. `installUnhandledExceptionHook` ji proto před
   ukončením pošle jako non-fatal a celý `stackTraceToString()` jako řádek logu. U pádu z Kotlinu
   je tedy v konzoli **dvojice záznamů** (fatální abort + non-fatal s příčinou) — záměr.
-  - **Bez chvilky času se záznam NEZAPÍŠE** (mlog má tutéž chybu): Crashlytics zápis dokončuje
+  - **Bez chvilky času se záznam NEZAPÍŠE**: Crashlytics zápis dokončuje
     přes hlavní frontu a `terminateWithUnhandledException` proces ukončí dřív. Ověřeno na disku
     (`reports/active/<id>/custom_exception_a.clsrecord` chyběl, hook prokazatelně proběhl).
     **`sleep` na hlavním vlákně nepomůže ani 3 s** — frontu blokuje; hook proto na hlavním

@@ -19,8 +19,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 /**
  * Hostitel překryvů vykreslovaných z **kořene kompozice** ([RootOverlay]). Sedí v `AppTheme`;
  * bez něj se [RootOverlay] vykreslí na místě.
- *
- * Převzato z KMPMlog (`core/ui/components/RootOverlay.kt`), kde se na tuhle chybu přišlo dřív.
  */
 @Stable
 class RootOverlayHost internal constructor() {

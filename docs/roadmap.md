@@ -119,16 +119,22 @@ Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dos
 
 ### 0. Příprava ve stávajícím repu
 
-- **Souhlas MagicWare.** Část kódu je podle komentářů převzatá z mlogu / KMPMlog (`Motion.kt`,
-  `RootOverlay.kt`) a ~600 commitů má autorský e-mail `@magicware.cz`. Před zveřejněním
-  potvrdit u zaměstnavatele, že Plume je vlastní projekt a převzaté kousky smí jít ven pod MIT
-  — nebo je přepsat. Právní otázka, ne technická; bez ní se nic dalšího nedělá.
+- ~~**Souhlas MagicWare**~~ — rozhodnuto, není potřeba. Z mlogu jsou převzaté hlavně nápady
+  a nastavení (hodnoty pružin v `Motion.kt`, ověřená kombinace verzí Compose, rozdělení na
+  knihovnu a tenké vstupní body), které autorské právo nechrání. Konkrétní kód jsou jen
+  malé obecné obcházky (`RootOverlay.kt`, iOS `CrashlyticsBridge.kt`, dva kroky
+  v `desktop-release.yml`) a mlog vznikl jako autorův večerní projekt. E-mail `@magicware.cz`
+  u commitů na vlastnictví nic nemění (zaměstnanecké dílo vzniká z pracovního úkolu, ne podle
+  `git config`); přepis ho stejně sjednotí na noreply.
+- ~~**Odkazy na mlog a Profilog**~~ — hotovo: z komentářů v kódu, workflowů, `CLAUDE.md`
+  i poznatků zmizely („převzato z mlogu", KMPMlog#992, runnery kmpmlog a telemetry).
+  Ve staré historii zůstávají; tajemství to není, takže je přepis nechá být.
 - **Žádný self-hosted runner na `pull_request`.** `release-notes-check.yml` dnes běží na
   Macu vývojáře (`plume`); ve veřejném repu by tam kdokoli z forku pustil vlastní kód. Na
   `ubuntu-latest` PŘED zveřejněním (proměnná `RELEASE_NOTES_RUNS_ON`, nebo rovnou výchozí
   hodnota ve workflow). Workflow nesmí používat `pull_request_target` (secrets pro cizí PR).
-- **Komentáře o vnitřní infrastruktuře** ve `desktop-release.yml` (HQDEV50, kmpmlog, telemetry,
-  KMPMlog#992) a v `docs/poznatky/release.md` zobecnit nebo vyhodit.
+- **Komentáře o vnitřní infrastruktuře** ve `desktop-release.yml` (HQDEV50) a
+  v `docs/poznatky/release.md` (HQDEV50, nastavení runnerů) zobecnit nebo vyhodit.
 - **`SECURITY.md`** (jak nahlásit zranitelnost — soukromé hlášení na GitHubu) a
   **`CONTRIBUTING.md`** (větev + PR, poznámka k vydání, hook, jazyky); zvážit anglický README
   pro cizí čtenáře.
@@ -180,8 +186,8 @@ Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dos
 
 - **Odkazy na čísla PR** v commitech a poznatcích (#650, #80–#87…) budou v novém repu mířit
   na jiné PR. Přepsat (třeba „PR 650 (archiv)"), nebo nechat jako historické.
-- **Zmínky o mlogu a KMPMlog** v komentářích (odkud je kód převzatý) a název „MGram" výš —
-  rozhodnout, jestli zůstanou (souvisí se souhlasem MagicWare).
+- **Název „MGram"** (jméno aplikace u `api_id` na my.telegram.org, viz výš) —
+  přejmenovat na Plume, nebo nechat.
 
 ## Komunitní překlad
 

@@ -130,7 +130,7 @@ Formát, ořez i skládání jsou v `.github/scripts/release_notes.py`.
 **Změna jen pro některé platformy přidá řádek `units:`** (`android`, `ios`, `desktop`, `wear`; víc
 čárkou, zkratka `all`/`client` = android, ios a desktop), třeba `units: android` u sdílení
 obrazovky v hovoru. Bez řádku platí poznámka pro android, ios a desktop — tak vzniklo přes 600
-starých poznámek a musí platit dál, proto je pole volitelné (v mlogu povinné). **Hodinky se
+starých poznámek a musí platit dál, proto je pole volitelné. **Hodinky se
 jmenují výslovně (`units: wear`)**: umí zlomek telefonu, takže poznámka, která o nich mlčí, do
 jejich „Co je nového" nepatří. Podle pole se filtruje „Co je nového" v aplikaci (každý kanál
 vydání jen své), Play (telefon `android`, hodinky `wear`) i GitHub Release (workflow předá kanál
@@ -453,7 +453,7 @@ který uvidí uživatel.
 Drž se **Material 3 Expressive guidelines a výchozích hodnot komponent**. Nečitelné změti barev
 a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho dodržování.
 
-- **Verze Compose se berou z mlogu** (stejný Kotlin i AGP, ověřená kombinace): Compose, material3
+- **Verze Compose jsou ověřená kombinace** (ke Kotlinu a AGP projektu): Compose, material3
   alpha, adaptive a lifecycle se zvedají spolu. Od Compose 1.12 se okno čte přes
   `currentWindowAdaptiveInfoV2` (zná navíc třídy Large a XL — na `widthClass` to nic nemění, obě
   leží nad Expanded) a stav modálního sheetu přes `rememberBottomSheetState(SheetValue.Hidden)`.

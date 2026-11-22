@@ -526,7 +526,7 @@ Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na koře
   zastavení hlasovky a zahození nahrávky. Teď se ViewModel zruší s odebráním položky ze zásobníku,
   při přepnutí sekce ne (ověřeno logem v `onCleared`). Rodičem je owner Activity: Nav3 pod ním
   drží úložiště pro každou položku, rotaci přežije a s odchodem shellu (odhlášení) je vyčistí.
-  Vlastní `ViewModelStoreOwner` jako v mlogu proto není potřeba.
+  Vlastní `ViewModelStoreOwner` proto není potřeba.
 - **Past: `NavDisplay` volá `onBack` jednou ZA KAŽDOU odebíranou položku**
   (`repeat(entries.size - scene.previousEntries.size) { onBack() }`). U dvoupanelové scény
   (seznam + detail) tedy dvakrát. Každé volání musí odpovídat právě jedné položce toho, co se
