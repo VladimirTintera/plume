@@ -7,9 +7,11 @@ import androidx.compose.ui.Modifier
 @Composable
 actual fun WebAppWebView(
     url: String,
+    profile: String,
     controller: WebAppViewController,
     backgroundColor: Int,
     onEvent: (type: String, data: String?) -> Unit,
     onPageLoaded: () -> Unit,
+    onOpenExternal: (url: String) -> Unit,
     modifier: Modifier,
 ) = Unit

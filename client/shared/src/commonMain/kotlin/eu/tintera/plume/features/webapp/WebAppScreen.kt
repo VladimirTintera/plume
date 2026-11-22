@@ -240,10 +240,12 @@ fun WebAppScreen(
                 state.url?.let { address ->
                     WebAppWebView(
                         url = address,
+                        profile = state.profile,
                         controller = controller,
                         backgroundColor = state.backgroundColor ?: theme.background,
                         onEvent = viewModel::onEvent,
                         onPageLoaded = viewModel::pageLoaded,
+                        onOpenExternal = viewModel::navigationLeftApp,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

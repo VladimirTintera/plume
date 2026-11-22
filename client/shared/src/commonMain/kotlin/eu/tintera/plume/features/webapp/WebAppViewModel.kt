@@ -27,15 +27,22 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import eu.tintera.plume.core.webview.webAppProfileName
+import kotlin.time.Duration.Companion.seconds
 
 data class WebAppState(
     /** Jméno bota do hlavičky; `null`, dokud se nenačte. */
     val title: String? = null,
     /** Adresa pro WebView; `null`, dokud ji TDLib nevydá. */
     val url: String? = null,
+    /** Úložiště WebView tohoto účtu ([webAppProfileName]); přichází spolu s [url]. */
+    val profile: String = "",
     /** Stránka ještě nehlásí `web_app_ready` ani není načtená. */
     val loading: Boolean = true,
     val error: UiText? = null,
@@ -220,8 +227,18 @@ class WebAppViewModel(
             } else {
                 repository.keyboardUrl(botUserId, url, theme)
             }
+            // Bez id účtu by WebView nevědělo, čí úložiště otevřít — sdílené mezi účty nesmí.
+            val userId = chats.savedMessagesChatId.value
+                ?: withTimeoutOrNull(ACCOUNT_TIMEOUT) { chats.savedMessagesChatId.filterNotNull().first() }
             result
-                .onSuccess { address -> _state.update { it.copy(url = address) } }
+                .onSuccess { address ->
+                    if (userId == null) {
+                        logger.w { "Id účtu pro úložiště mini aplikace není známé, nenačítám ji." }
+                        _state.update { it.copy(loading = false, error = UiText(Res.string.webapp_load_failed)) }
+                    } else {
+                        _state.update { it.copy(url = address, profile = webAppProfileName(userId)) }
+                    }
+                }
                 .onFailure { _state.update { it.copy(loading = false, error = UiText(Res.string.webapp_load_failed)) } }
         }
     }
@@ -564,6 +581,13 @@ class WebAppViewModel(
         )
     }
 
+    /**
+     * Hlavní rámec chtěl odejít z originu mini aplikace (obyčejný odkaz na stránce). Do WebView
+     * se cizí web nepustí — dostal by most mini aplikace —, otevře se v prohlížeči jako
+     * `web_app_open_link`.
+     */
+    fun navigationLeftApp(url: String) = openExternal(url)
+
     private fun openExternal(url: String) {
         if (url.startsWith("https://") || url.startsWith("http://")) urlOpener.open(url)
     }
@@ -624,3 +648,6 @@ private fun themeColor(theme: WebAppTheme, key: String?): Int? = when (key) {
 
 /** Výška pruhu se zavíracím tlačítkem přes stránku na celé ploše, v CSS pixelech (= dp). */
 internal const val FULLSCREEN_CONTROLS_DP = 56
+
+/** Jak dlouho čekat na id vlastního účtu (úložiště WebView), když ještě není načtené. */
+private val ACCOUNT_TIMEOUT = 10.seconds
