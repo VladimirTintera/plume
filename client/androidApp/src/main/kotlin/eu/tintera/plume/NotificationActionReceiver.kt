@@ -21,7 +21,8 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Akce z notifikace: odpověď, označení za přečtené, ztlumení a odhrnutí.
+ * Akce z notifikace: odpověď, označení za přečtené, ztlumení, odhrnutí a odmítnutí hovoru
+ * (i se zprávou).
  *
  * **Proces může být mrtvý nebo zmrazený** — akce z notifikace ho probudí stejně jako push, takže
  * TDLib se teprve rozbíhá (`startKoin` z `MainApplication`) a na přihlášení se čeká. Po dobu
@@ -70,6 +71,17 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         // Notifikaci stáhne TDLib: hovor skončil.
                         .onSuccess { logger.d { "Hovor $callId z notifikace odmítnut." } }
                 }
+            }
+
+            NotificationIntents.ACTION_DECLINE_CALL_WITH_MESSAGE -> {
+                val callId = intent.getIntExtra(NotificationIntents.EXTRA_CALL_ID, 0)
+                val isVideo = intent.getBooleanExtra(NotificationIntents.EXTRA_IS_VIDEO, false)
+                if (callId == 0) return
+                val text = RemoteInput.getResultsFromIntent(intent)
+                    ?.getCharSequence(NotificationIntents.KEY_REPLY_TEXT)
+                    ?.toString()
+                    ?.trim()
+                runAsync { declineWithMessage(context.applicationContext, koin, slot, chatId, groupId, callId, isVideo, text) }
             }
 
             NotificationIntents.ACTION_DISMISS -> {
@@ -131,6 +143,38 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 logger.i { "Odpověď se nestihla potvrdit, dočkám se v úloze." }
                 ReplyDeliveryWorker.enqueue(context, slot, reply, groupId, text)
             }
+        }
+    }
+
+    /**
+     * Odmítne hovor a pošle volajícímu [text]. Napřed odmítnutí: volající má přestat čekat hned,
+     * zpráva může chvíli trvat. Prázdný text = jen odmítnutí.
+     *
+     * Notifikace hovoru zmizí s koncem hovoru (stáhne ji TDLib), takže selhání odeslání nemá kde
+     * ukázat — jde do logu. Co se nestihne potvrdit, dočká [ReplyDeliveryWorker] jako odpověď.
+     */
+    private suspend fun declineWithMessage(
+        context: Context,
+        koin: Koin,
+        slot: AccountSlot,
+        chatId: Long,
+        groupId: Int,
+        callId: Int,
+        isVideo: Boolean,
+        text: String?,
+    ) {
+        val actions = koin.get<NotificationActions>()
+        val started = TimeSource.Monotonic.markNow()
+        actions.declineCall(callId, isVideo, READY_TIMEOUT)
+            .onSuccess { logger.d { "Hovor $callId z notifikace odmítnut se zprávou." } }
+        // Po přímé odpovědi ji Android 15+ nepustí jen tak (viz `dismissRepliedCall`).
+        koin.get<NotificationPresenter>().dismissRepliedCall(groupId)
+        if (text.isNullOrEmpty()) return
+        val reply = actions.send(chatId, text, replyToMessageId = null, READY_TIMEOUT).getOrElse { return }
+        when (actions.await(reply, BUDGET - started.elapsedNow())) {
+            ReplyState.Sent -> logger.d { "Zpráva k odmítnutému hovoru odešla." }
+            ReplyState.Failed -> logger.w { "Zprávu k odmítnutému hovoru server odmítl." }
+            ReplyState.Pending -> ReplyDeliveryWorker.enqueue(context, slot, reply, groupId, text)
         }
     }
 

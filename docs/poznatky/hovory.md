@@ -683,6 +683,55 @@ s volbou „Smazat i ostatním" = `revoke`).
   podržením a dialog „Smazat 3 hovory z historie?" — zrušený, skutečné smazání na zařízení
   ověřené NENÍ (jen testy `CallsViewModelTest`).
 
+## Zavolat zpět a odmítnutí se zprávou
+
+**Zavolat zpět:** notifikace zmeškaného nebo odmítnutého příchozího hovoru ve dvou má akci
+„Zavolat zpět" (`ChatNotification.callBack`, `NotificationIntents.callBack`). Akce otevře
+aplikaci na chatu a vytočí shell (`CallRequests.callBack` → `CallBackHost`) z účtu notifikace
+stejnou cestou jako sluchátko v konverzaci (`rememberStartCall`: dotaz na mikrofon, u videohovoru
+kamera, hovor v jiném účtu). Volá se stejně, jako zmeškaný byl (video → video), jako ťuknutí na
+zprávu o hovoru.
+
+- **Zmeškaný hovor je obyčejná zpráva `MessageCall`** v notifikaci zpráv, žádný zvláštní druh.
+  Rozpozná se v `TdlNotificationRepository` (`outcome(...).isFailure`, tedy příchozí zmeškaný
+  nebo odmítnutý); z pushe ne — `PushMessageContent` hovor nezná (ve wrapperu 17.0.0 žádný
+  `PushMessageContentCall`), akce se objeví až se skutečnou zprávou po připojení.
+- **Bez náhledu obsahu se akce nenabízí** (`showPreview = false`): na zamykací obrazovce by
+  prozradila, že šlo o hovor.
+- **Activity, ne broadcast**: o mikrofon se umí zeptat jen obrazovka a hovor chce aplikaci
+  v popředí (jako „Přijmout"). Intent nese i chat, takže se pod obrazovkou hovoru otevře
+  konverzace; jejím otevřením se zpráva přečte a TDLib notifikaci stáhne.
+- **„Zavolat zpět" vyřídí `MainActivity` dřív než otevření chatu** — to z intentu maže účet,
+  který potřebují oba.
+- **`CallBackHost` drží poslední požadavek ve složení i po vyřízení**: launcher oprávnění
+  v `rememberStartCall` musí přežít, než dotaz na mikrofon vrátí výsledek. Požadavek nese
+  pořadové číslo, jinak by druhé ťuknutí na tutéž notifikaci bylo rovné prvnímu a shell by ho
+  přešel.
+- **Max. tři akce:** „Zavolat zpět" vytlačí „Ztlumit" (pořadí Zavolat zpět, Odpovědět, Přečteno).
+
+**Odmítnout se zprávou:** u zvonícího hovoru je mezi Odmítnout a Přijmout tlačítko „Zpráva"
+(`CallQuickReplyButton`) s nabídkou hotových odpovědí (`CallQuickReplies`) a „Napsat vlastní…"
+(odmítne a otevře chat). Notifikace hovoru má totéž jako akci „Zpráva" s polem na text a hotovými
+odpověďmi jako volbami (`RemoteInput.setChoices`) — systém je ukáže rovnou jako čipy. Hovor se
+odmítne napřed, pak odejde zpráva (`NotificationActionReceiver.declineWithMessage`).
+
+- **Popisek akce v notifikaci je krátký („Zpráva")**: „Odmítnout se zprávou" se v řadě tlačítek
+  `CallStyle` ořízlo na „Odmít…". Celá věta zůstává jako nápověda pole.
+- **Nová akce přijímače = řádek v intent-filtru manifestu** (`NotificationActionReceiver`).
+  Broadcast míří akcí a balíčkem, ne třídou; bez řádku systém nic nedoručí a v notifikaci se
+  napořád točí kolečko — žádná chyba v logu.
+- **Po přímé odpovědi notifikaci hovoru Android 15+ nepustí** — viz `docs/poznatky/notifikace.md`,
+  „Notifikace hovoru po přímé odpovědi".
+- **Ověřeno na dvou emulátorech** (Plume_Barvy …527 Android 16 česky, Plume_A11 …029 Android 11
+  anglicky, debug): zmeškaný hovor → notifikace s „Zavolat zpět" → vytočení zpět s otevřeným chatem;
+  „Zpráva" na zvonící obrazovce → hotová odpověď odešla a hovor se odmítl; čip v notifikaci hovoru
+  → odmítnuto, zpráva odešla, notifikace zmizela (dvakrát po sobě). Neověřené: zmeškaný videohovor,
+  „Napsat vlastní…", dotaz na mikrofon při „Zavolat zpět" (byl už povolený), hodinky a Android Auto
+  (sémantika `CALL` / `REPLY`), skutečný telefon.
+- **Emulátor s nestabilním spojením hovor nedostane.** `Plume_Barvy` měl po startu TDLib
+  `Connecting` → `Ready` dokola po ~20 s a hovory končily zmeškané, aniž by zazvonily. Po
+  `adb shell svc wifi disable` (emulovaná mobilní data) spojení drželo.
+
 ## Hodnocení hovoru
 
 Server po některých skončených hovorech chce hodnocení (`CallStateDiscarded.needRating`). Plume

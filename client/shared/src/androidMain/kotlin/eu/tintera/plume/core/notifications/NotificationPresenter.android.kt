@@ -30,6 +30,8 @@ import eu.tintera.plume.core.share.bookmarkIcon
 import eu.tintera.plume.core.share.conversationShortcut
 import eu.tintera.plume.core.share.pushConversationShortcut
 import eu.tintera.plume.core.snooze.ChatSnoozes
+import eu.tintera.plume.core.calls.CallQuickReplies
+import eu.tintera.plume.core.telegram.CallBack
 import eu.tintera.plume.core.telegram.ChatNotification
 import eu.tintera.plume.core.telegram.IncomingCall
 import eu.tintera.plume.core.telegram.NotificationChannelKind
@@ -39,6 +41,9 @@ import eu.tintera.plume.core.telegram.NotificationUpdate
 import eu.tintera.plume.core.telegram.dismissUpTo
 import org.jetbrains.compose.resources.getString
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.call_back
+import eu.tintera.plume.resources.call_decline_with_message
+import eu.tintera.plume.resources.call_message
 import eu.tintera.plume.resources.notification_call_answer_elsewhere
 import eu.tintera.plume.resources.notification_call_decline
 import eu.tintera.plume.resources.notification_call_unknown
@@ -51,9 +56,12 @@ import eu.tintera.plume.resources.notification_reply_failed
 import eu.tintera.plume.resources.notification_self_name
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
@@ -205,6 +213,7 @@ actual class NotificationPresenter(
                         icon = avatarIcon(it.avatarPath),
                         image = it.imagePath?.let(::notificationImage),
                         imageCaption = it.imageCaption,
+                        callBack = it.callBack,
                     )
                 }
 
@@ -462,6 +471,11 @@ actual class NotificationPresenter(
             .setSilent(silent)
             .setAutoCancel(true)
             .apply {
+                // Zmeškaný hovor: zavolat zpátky je to, co uživatel nejspíš chce, proto první.
+                // Řídí se nejnovějším zmeškaným hovorem v notifikaci, i když po něm přišla
+                // zpráva („zavolej mi") — dokud ho TDLib neodebere, platí.
+                val callBack = conversation.lines.lastOrNull { it.callBack != null }?.callBack?.takeIf { callsSupported }
+                callBack?.let { callBackAction(groupId, conversation.chatId, it)?.let(::addAction) }
                 if (conversation.canReply) {
                     // Ve skupině odpověď cituje nejnovější zprávu z notifikace, jako oficiální
                     // klient: bez citace by nebylo poznat, komu z více lidí se odpovídá.
@@ -469,8 +483,9 @@ actual class NotificationPresenter(
                     val quoted = if (isGroup) conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId else null
                     replyAction(groupId, conversation.chatId, quoted, conversation.topicId)?.let(::addAction)
                 }
-                // Pořadí akcí: odpověď, přečtení, ztlumení — od nejčastější. Android jich ukáže
-                // nejvýš tři, víc jich tedy být nesmí.
+                // Pořadí akcí: (zavolat zpět,) odpověď, přečtení, ztlumení — od nejčastější.
+                // Android jich ukáže nejvýš tři, víc jich tedy být nesmí: se „Zavolat zpět"
+                // ztlumení odpadne (zmeškaný hovor je soukromý chat, ztlumit jde v aplikaci).
                 addAction(
                     markReadAction(
                         groupId = groupId,
@@ -478,7 +493,7 @@ actual class NotificationPresenter(
                         messageId = conversation.lines.lastOrNull { !it.isOwn && it.messageId != null }?.messageId,
                     ),
                 )
-                if (conversation.canMute) addAction(muteAction(groupId, conversation.chatId))
+                if (conversation.canMute && callBack == null) addAction(muteAction(groupId, conversation.chatId))
             }
             .setContentIntent(
                 NotificationIntents.openChat(
@@ -556,6 +571,7 @@ actual class NotificationPresenter(
                     .setShowsUserInterface(false)
                     .build(),
             )
+            .addAction(declineWithMessageAction(call))
             .setContentIntent(NotificationIntents.openChat(context = context, slot = slot, notificationId = call.groupId, chatId = call.chatId))
             .build()
         logger.d { "Zobrazuji příchozí hovor ${call.callId} (${if (call.isVideo) "video" else "hlas"})." }
@@ -588,6 +604,8 @@ actual class NotificationPresenter(
         val built = NotificationCompat.Builder(context, INCOMING_CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer).setIsVideo(call.isVideo))
+            // `CallStyle` k Odmítnout a Přijmout ukáže ještě jednu vlastní akci.
+            .addAction(declineWithMessageAction(call))
             .setContentText(getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
             .setSubText(accountName())
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -602,6 +620,92 @@ actual class NotificationPresenter(
         journal?.record("Ringing notification${if (fullScreen) "" else " WITHOUT full-screen intent (not allowed)"}", call.callId)
         manager.notify(tag, call.groupId, built)
     }
+
+    /**
+     * Akce „Odmítnout se zprávou" u příchozího hovoru: pole na text a hotové odpovědi jako volby
+     * (`setChoices`, systém je ukáže jako čipy nad klávesnicí). Hovor odmítne a větu pošle
+     * volajícímu bez otevření aplikace; notifikaci pak stáhne TDLib s koncem hovoru.
+     */
+    private suspend fun declineWithMessageAction(call: IncomingCall): NotificationCompat.Action {
+        val choices = CallQuickReplies.map { getString(it) }.toTypedArray<CharSequence>()
+        val input = RemoteInput.Builder(NotificationIntents.KEY_REPLY_TEXT)
+            .setLabel(getString(Res.string.call_decline_with_message))
+            .setChoices(choices)
+            .build()
+        return NotificationCompat.Action.Builder(
+            IconCompat.createWithResource(context, R.drawable.ic_notification_reply),
+            // Krátce, jako tlačítko na obrazovce hovoru: „Odmítnout se zprávou" se v řadě
+            // tlačítek `CallStyle` vedle Odmítnout a Přijmout ořízlo na „Odmít…" (emulátor,
+            // Android 16). Celá věta zůstává jako nápověda pole.
+            getString(Res.string.call_message),
+            NotificationIntents.declineCallWithMessage(context, slot, call.groupId, call.chatId, call.callId, call.isVideo),
+        )
+            .addRemoteInput(input)
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
+            .setShowsUserInterface(false)
+            .build()
+    }
+
+    /**
+     * Stáhne notifikaci hovoru po „Odmítnout se zprávou".
+     *
+     * **Android 15+ drží notifikaci po přímé odpovědi naživu** (`FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY`)
+     * a `cancel` z aplikace ji nezruší, systém ji jen znovu vyvěsí (`ONLY_ALERT_ONCE`): TDLib
+     * hovor po odmítnutí ukončil, presenter notifikaci zrušil ([remove]) a v liště přesto zůstala
+     * s točícím se kolečkem a nešla smáznout (emulátor, Android 16). Příznak shodí až překreslení
+     * z aplikace — u zpráv to dělá řádek s odpovědí ([showReply]). Hovor nemá co ukázat, takže
+     * se vyvěsí jeho tichá kopie, počká se, až ji systém ukazuje bez příznaku, a pak se zruší.
+     *
+     * - **Kopie, ne holá notifikace.** Holou (bez `CallStyle`) systém tiše zahodil a v liště
+     *   zůstala původní; kopie se stylem hovoru projde.
+     * - **Napřed se čeká, až příznak System UI nastaví.** Přijímač akce je rychlejší a dřívější
+     *   překreslení by nic nezměnilo.
+     * - **`notify` i `cancel` jen zařadí do fronty systému**, proto se čeká na zveřejnění kopie
+     *   a pak ještě [REPLY_SETTLE], než System UI zapomene rozepsanou odpověď.
+     *
+     * Pod Androidem 15 příznak není a nic se nedělá.
+     */
+    suspend fun dismissRepliedCall(groupId: Int) = withContext(dispatcher) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return@withContext
+        val extended = waitForCallNotification(groupId) { it.flags and FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY != 0 }
+        logger.d { "Notifikace hovoru po odpovědi: prodloužená=$extended." }
+        if (extended != true) return@withContext
+        // Víc pokusů: konec hovoru od TDLib zruší notifikaci po svém ([remove]) a když to padne
+        // mezi kopii a zrušení, systém ji vyvěsí znovu s příznakem (ověřeno na emulátoru).
+        // Pořadí obou zrušení řídit nejde, tak se úklid opakuje, dokud příznak v liště je.
+        repeat(REPLY_DISMISS_ATTEMPTS) {
+            val existing = manager.activeNotifications.firstOrNull { it.id == groupId && it.tag == tag }?.notification
+                ?: return@withContext
+            if (existing.flags and FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY == 0) {
+                manager.cancel(tag, groupId)
+                return@withContext
+            }
+            manager.notify(tag, groupId, NotificationCompat.Builder(context, existing).setSilent(true).build())
+            waitForCallNotification(groupId) { it.flags and FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY == 0 }
+            // System UI drží u notifikace stav rozepsané odpovědi a zruší ho až po překreslení;
+            // zrušení hned po zveřejnění kopie systém obešel stejně jako výš.
+            delay(REPLY_SETTLE)
+            manager.cancel(tag, groupId)
+            delay(REPLY_SETTLE)
+        }
+        logger.w { "Notifikaci hovoru $groupId se po odpovědi nepodařilo stáhnout." }
+    }
+
+    /**
+     * Počká nejvýš [REPLY_EXTENSION_WAIT], až notifikace [groupId] splní [condition]: `true`,
+     * `false` když z lišty zmizela, `null` když čas vypršel.
+     */
+    private suspend fun waitForCallNotification(groupId: Int, condition: (Notification) -> Boolean): Boolean? =
+        withTimeoutOrNull(REPLY_EXTENSION_WAIT) {
+            var met = false
+            while (!met) {
+                val active = manager.activeNotifications.firstOrNull { it.id == groupId && it.tag == tag }
+                    ?: return@withTimeoutOrNull false
+                met = condition(active.notification)
+                if (!met) delay(REPLY_EXTENSION_POLL)
+            }
+            true
+        }
 
     /**
      * Připíše do notifikace odpověď, kterou uživatel právě odeslal z notifikace.
@@ -697,6 +801,30 @@ actual class NotificationPresenter(
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
             .setShowsUserInterface(false)
             .build()
+
+    /**
+     * Akce „Zavolat zpět" u zmeškaného hovoru. Otevírá aplikaci (`showsUserInterface`): hovor
+     * chce dotaz na mikrofon a aplikaci v popředí, viz [NotificationIntents.callBack]. Sémantika
+     * `CALL` pro hodinky a Android Auto.
+     */
+    private suspend fun callBackAction(groupId: Int, chatId: Long, callBack: CallBack): NotificationCompat.Action? {
+        val intent = NotificationIntents.callBack(
+            context,
+            slot = slot,
+            groupId = groupId,
+            chatId = chatId,
+            userId = callBack.userId,
+            isVideo = callBack.isVideo,
+        ) ?: return null
+        return NotificationCompat.Action.Builder(
+            IconCompat.createWithResource(context, R.drawable.ic_notification_call),
+            getString(Res.string.call_back),
+            intent,
+        )
+            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_CALL)
+            .setShowsUserInterface(true)
+            .build()
+    }
 
     /**
      * Akce „Ztlumit na hodinu". Sémantika `MUTE` pro hodinky a Android Auto.
@@ -877,6 +1005,8 @@ actual class NotificationPresenter(
         val imageCaption: String? = null,
         /** Odpověď odeslaná z notifikace. TDLib o ní neví, takže ji neodebere. */
         val isOwn: Boolean = false,
+        /** Zmeškaný hovor, kterému jde zavolat zpátky; po restartu procesu se nepřevezme. */
+        val callBack: CallBack? = null,
     )
 
     private class RemovedLine(val groupId: Int, val messageId: Long, val removedAtMs: Long)
@@ -887,6 +1017,21 @@ actual class NotificationPresenter(
 
         /** Déle než minutu nikdo nevyzvání; notifikace hovoru pak zmizí i bez zrušení od TDLib. */
         const val CALL_TIMEOUT_MS = 90_000L
+
+        /** Jak dlouho čekat, než System UI označí notifikaci po přímé odpovědi ([dismissRepliedCall]). */
+        val REPLY_EXTENSION_WAIT = 2.seconds
+        val REPLY_EXTENSION_POLL = 100.milliseconds
+
+        /** Pauza mezi překreslením notifikace hovoru a jejím zrušením ([dismissRepliedCall]). */
+        val REPLY_SETTLE = 1.seconds
+
+        const val REPLY_DISMISS_ATTEMPTS = 3
+
+        /**
+         * `Notification.FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY` (Android 15+). V SDK je skrytá
+         * (`@TestApi`), v `dumpsys notification` se ukazuje jako `LIFETIME_EXTENDED_BY_DIRECT_REPLY`.
+         */
+        const val FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY = 1 shl 16
 
         /** Podadresář cache s fotkami pro notifikace. Sdílí ho `res/xml/notification_images.xml`. */
         const val IMAGES_DIRECTORY = "notification_images"

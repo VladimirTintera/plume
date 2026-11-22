@@ -1882,10 +1882,9 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
   „Hledání v Nastavení").
 - ~~**QR kód a systémové sdílení** veřejného chatu, uživatele a pozvánky~~ — hotovo
   (`LinkQrSheet`; `docs/poznatky/hledani-a-zakladani-chatu.md`, „QR kód odkazu na chat a pozvánku").
-- **Víc účtů** (L). Rozhodnuto, že ano. Menu účtu jiný účet zatím nenabízí; dotkne se klienta
-  TDLib na účet, notifikací i widgetu. Návrh (společný seznam chatů s filtrem účtů, kontejner
-  účtů, slot v routách, směrování pushů, fáze):
-  [navrh-vice-uctu.md](navrh-vice-uctu.md).
+- **Víc účtů** (L) — z větší části hotovo: přidání, odebrání a přepnutí účtu, společný seznam
+  chatů s filtrem účtů, účet v konverzaci a v notifikacích, jeden hovor přes všechny účty. Co
+  zbývá, vede stav a „Postup" v [navrh-vice-uctu.md](navrh-vice-uctu.md).
 
 **Přeposílání**
 
@@ -1904,8 +1903,10 @@ průchodu (opakované přeposlání po částečném selhání) je opravená zvl
 
 **Hovory a videochat**
 
-- **„Odmítnout se zprávou" a „Zavolat zpět"** (M). Příchozí hovor má jen Odmítnout a Přijmout
-  (`CallOverlay.kt`); zmeškaný hovor přijde jako obyčejná notifikace zprávy bez „Zavolat zpět".
+- ~~**„Odmítnout se zprávou" a „Zavolat zpět"**~~ — hotovo: „Zpráva" s hotovými odpověďmi na
+  zvonící obrazovce i v notifikaci hovoru, „Zavolat zpět" u notifikace zmeškaného hovoru
+  (`docs/poznatky/hovory.md`, „Zavolat zpět a odmítnutí se zprávou"). Zbývá ověřit na telefonu,
+  hodinkách a v Android Auto.
 - **Výběr výstupu zvuku ve videochatu** (S). Hovor ve dvou ho má (`AudioOutputButton`),
   videochat ne (`VideoChatScreen.kt`) — sluchátko / reproduktor / Bluetooth.
 - ~~**Historie hovorů: smazat jeden hovor, sloučit opakované**~~ — hotovo: opakované po sobě

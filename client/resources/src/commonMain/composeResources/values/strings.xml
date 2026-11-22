@@ -1675,6 +1675,12 @@
     <string name="notification_call_video">Video calling you</string>
     <string name="notification_call_answer_elsewhere">For now you can only answer in the official Telegram app.</string>
     <string name="notification_call_decline">Decline</string>
+    <string name="call_decline_with_message">Decline with message</string>
+    <string name="call_message">Message</string>
+    <string name="call_quick_reply_text_me">Can't talk now, text me.</string>
+    <string name="call_quick_reply_right_back">I'll call you right back.</string>
+    <string name="call_quick_reply_later">I'll call you later.</string>
+    <string name="call_quick_reply_custom">Write your own…</string>
     <string name="notification_call_unknown">Unknown caller</string>
     <!-- Ikona v oznamovací oblasti (Windows), kam se aplikace schová po zavření okna. -->
     <string name="tray_open">Open Plume</string>

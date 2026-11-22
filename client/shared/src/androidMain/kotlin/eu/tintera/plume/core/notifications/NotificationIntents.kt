@@ -63,6 +63,12 @@ object NotificationIntents {
     /** Odmítnutí příchozího hovoru z notifikace. Týž příjemce jako [ACTION_REPLY]. */
     const val ACTION_DECLINE_CALL = "eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL"
 
+    /**
+     * Odmítnutí hovoru se zprávou z notifikace (text v `RemoteInput` pod [KEY_REPLY_TEXT]).
+     * Týž příjemce jako [ACTION_REPLY].
+     */
+    const val ACTION_DECLINE_CALL_WITH_MESSAGE = "eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL_WITH_MESSAGE"
+
     const val EXTRA_CALL_ID = "eu.tintera.plume.extra.CALL_ID"
     const val EXTRA_IS_VIDEO = "eu.tintera.plume.extra.IS_VIDEO"
 
@@ -208,6 +214,27 @@ object NotificationIntents {
         )
     }
 
+    /**
+     * Broadcast „Odmítnout se zprávou". MUTABLE jako [reply]: systém do intentu vkládá text
+     * (napsaný, nebo vybraný z hotových odpovědí).
+     */
+    fun declineCallWithMessage(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, callId: Int, isVideo: Boolean): PendingIntent {
+        val intent = Intent(ACTION_DECLINE_CALL_WITH_MESSAGE)
+            .setPackage(context.packageName)
+            .putExtra(EXTRA_CHAT_ID, chatId)
+            .putAccount(slot)
+            .putExtra(EXTRA_GROUP_ID, groupId)
+            .putExtra(EXTRA_CALL_ID, callId)
+            .putExtra(EXTRA_IS_VIDEO, isVideo)
+
+        return PendingIntent.getBroadcast(
+            context,
+            requestCode(slot, groupId),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+    }
+
     /** Hovor, který má aplikace po otevření přijmout (akce „Přijmout" v notifikaci). */
     const val EXTRA_ANSWER_CALL = "eu.tintera.plume.extra.ANSWER_CALL"
 
@@ -232,6 +259,31 @@ object NotificationIntents {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
+
+    /** Komu zavolat zpátky (akce „Zavolat zpět" u notifikace zmeškaného hovoru). */
+    const val EXTRA_CALL_BACK_USER = "eu.tintera.plume.extra.CALL_BACK_USER"
+
+    /**
+     * „Zavolat zpět" u notifikace zmeškaného hovoru. Otevírá ACTIVITY ze stejného důvodu jako
+     * [answerCall]: o mikrofon se umí zeptat jen obrazovka a hovor chce aplikaci v popředí.
+     * Nese i chat, takže se pod obrazovkou hovoru otevře konverzace — po zavěšení je uživatel
+     * tam, kde se o hovoru dozvěděl, a otevřením se zpráva přečte a TDLib notifikaci stáhne.
+     */
+    fun callBack(context: Context, slot: AccountSlot, groupId: Int, chatId: Long, userId: Long, isVideo: Boolean): PendingIntent? {
+        val intent = chatIntent(context, slot, chatId) ?: return null
+        intent.action = ACTION_CALL_BACK
+        intent.putExtra(EXTRA_CALL_BACK_USER, userId).putExtra(EXTRA_IS_VIDEO, isVideo)
+        return PendingIntent.getActivity(
+            context,
+            // Akce intentu vstupuje do `filterEquals`, takže se s otevřením chatu (týž kód)
+            // nepřepíšou.
+            requestCode(slot, groupId),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private const val ACTION_CALL_BACK = "eu.tintera.plume.action.CALL_BACK"
 
     /** Akce intentu „Přijmout" — odliší ho od otevření hovoru podle `filterEquals`. */
     private const val ACTION_ANSWER_CALL = "eu.tintera.plume.action.ANSWER_CALL"

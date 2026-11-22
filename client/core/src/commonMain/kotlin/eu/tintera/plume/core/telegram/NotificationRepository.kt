@@ -200,7 +200,19 @@ data class ChatNotification(
      * nenahradí skutečná notifikace.
      */
     val topicId: Int? = null,
+    /**
+     * Zpráva je zmeškaný nebo odmítnutý příchozí hovor ve dvou: komu zavolat zpátky. `null`
+     * u všeho ostatního — i u hovoru z pushe, ten zprávu o hovoru nenese (`PushMessageContent`
+     * hovor nezná, přijde až skutečná zpráva po připojení).
+     */
+    val callBack: CallBack? = null,
 )
+
+/**
+ * Zavolat zpátky [userId] z notifikace o zmeškaném hovoru; [isVideo] = zmeškaný byl videohovor,
+ * a zpátky se volá stejně, jako když se ťukne na zprávu o hovoru v konverzaci.
+ */
+data class CallBack(val userId: Long, val isVideo: Boolean)
 
 /**
  * Systémový kanál notifikace — na Androidu jde každý zvlášť ztišit nebo nastavit zvuk.

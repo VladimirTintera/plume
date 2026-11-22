@@ -159,6 +159,7 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.ui.NavDisplay
 import eu.tintera.plume.core.adaptive.TWO_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
+import eu.tintera.plume.features.calls.CallBackHost
 import eu.tintera.plume.features.calls.CallOverlay
 import eu.tintera.plume.core.adaptive.singlePane
 import eu.tintera.plume.core.adaptive.twoPane
@@ -438,6 +439,8 @@ fun AppShell(modifier: Modifier = Modifier) {
         }
         // Hodnocení po hovoru, o které server požádal; až obrazovka hovoru zmizí.
         CallAccountScope { CallRatingHost() }
+        // „Zavolat zpět" z notifikace o zmeškaném hovoru; vytáčí z účtu notifikace.
+        CallBackHost()
     }
 }
 
