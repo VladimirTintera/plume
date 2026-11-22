@@ -346,10 +346,12 @@ desktopu, jakmile ťuknou na Restartovat. Proto:
   `attestations`); workflow jako celek má `contents: read`. Joby `windows` a `macos` pouštějí
   Gradle s pluginy a závislostmi třetích stran — dřív s tokenem, který uměl přepsat přílohy
   i kód v repu. Job `release` nic nestaví, jen attestuje a nahrává hotové artefakty.
-- **Akce třetích stran jsou připnuté na SHA commitu** (s verzí v komentáři):
-  `gradle/actions/setup-gradle`, `android-actions/setup-android`. Tag jde u cizího repa
+- **Akce třetích stran jsou připnuté na SHA commitu** (s verzí v komentáři), v obou release
+  workflow: `gradle/actions/setup-gradle`, `android-actions/setup-android`
+  a `r0adkll/upload-google-play` (ta dostává klíč servisního účtu Play). Tag jde u cizího repa
   přesunout na jiný commit; akce `actions/*` od GitHubu zůstávají na tagu. Při bumpu se SHA
-  zjistí `gh api repos/<repo>/commits/<tag> --jq .sha`.
+  zjistí `gh api repos/<repo>/commits/<tag> --jq .sha` a celé číslo verze
+  `gh api "repos/<repo>/tags?per_page=100" --jq '.[] | select(.commit.sha=="<sha>") | .name'`.
 - **`android-release.yml` je jeden job** (build, podpis, Play, release), takže zápis nese i build.
   Rozdělit ho by tolik nepomohlo: build tak jako tak drží podpisový klíč a přístup do Play.
 - **Nastavení repa (ne v kódu, `gh api`):**
