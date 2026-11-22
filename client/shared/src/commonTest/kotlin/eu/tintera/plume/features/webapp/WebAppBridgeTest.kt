@@ -2,6 +2,7 @@ package eu.tintera.plume.features.webapp
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class WebAppBridgeTest {
@@ -67,6 +68,8 @@ class WebAppBridgeTest {
             WebAppEvent.OpenTelegramLink("https://t.me/durov?start=x"),
             parseWebAppEvent("web_app_open_tg_link", """{"path_full":"/durov?start=x"}"""),
         )
+        // Bez úvodního lomítka by z `https://t.me@zly.example` byl host zly.example.
+        assertFalse(parseWebAppEvent("web_app_open_tg_link", """{"path_full":"@zly.example/x"}""") is WebAppEvent.OpenTelegramLink)
     }
 
     @Test

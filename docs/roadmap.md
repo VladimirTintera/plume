@@ -30,6 +30,19 @@ Teď je prázdné.
   (`docs/poznatky/ai-v-zarizeni.md`, „Runtime jako součást z Google Play"). **Do té doby jsou
   součásti dočasně „s instalací"** (+13,7 MB ke stažení na arm64): před produkcí vrátit
   v manifestech obou součástí `<dist:on-demand />` a teprve pak ověřit doinstalaci z Play.
+- **Mini aplikace: dialogy a odkazy jen po gestu uživatele.** `open_link`, `open_tg_link`,
+  popup, žádost o zápis, polohu a stažení přijdou kdykoli a v libovolném počtu: stránka může
+  ve smyčce otevírat odkazy, a dialog polohy může naskočit přesně pod opakované ťuknutí na
+  stránce (souhlas, který uživatel neviděl). Brát je jen pár sekund po dotyku ve WebView
+  a krátce po zobrazení dialogu ignorovat ťuknutí, jako oficiální klienti.
+- **Mini aplikace: souhlas s polohou nejde odvolat.** Uloží se navždy
+  (`MiniAppStorage.setLocationAllowed`), `web_app_open_location_settings` nic nedělá a v profilu
+  bota ani v Nastavení k tomu nic není. Chce řádek v profilu bota (a v Nastavení → Soukromí
+  seznam botů s polohou).
+- **Podpis balíčků desktopu** (Authenticode, Developer ID, nebo vlastní klíč mimo GitHub),
+  který self-update ověří před instalací — SHA-256 i attestace vznikají uvnitř GitHubu
+  (`docs/poznatky/release.md`, „Oprávnění workflow"). A na GitHubu ruleset na tagy release
+  a environment se schválením pro job `release`.
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
 - **Název aplikace u `api_id` je „MGram"** — tak se Plume ukazuje v seznamu zařízení
