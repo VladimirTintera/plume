@@ -39,6 +39,10 @@ gradlePlugin {
             id = "plume.feature-abi-placeholders"
             implementationClass = "eu.tintera.plume.gradle.AbiPlaceholdersPlugin"
         }
+        register("composeTextFieldDesktop") {
+            id = "plume.compose-text-field-desktop"
+            implementationClass = "eu.tintera.plume.gradle.ComposeTextFieldDesktopPlugin"
+        }
         register("liteRtDesktop") {
             id = "plume.litertlm-desktop"
             implementationClass = "eu.tintera.plume.gradle.LiteRtDesktopPlugin"

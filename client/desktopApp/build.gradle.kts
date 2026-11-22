@@ -11,6 +11,8 @@ plugins {
     id("plume.tdlib-desktop")
     // Jar LiteRT-LM (model v zařízení) jen s nativní knihovnou tohoto systému (build-logic).
     id("plume.litertlm-desktop")
+    // Textové pole v jaru foundation: zúžení okna s otevřenou konverzací jinak shodí scénu (build-logic).
+    id("plume.compose-text-field-desktop")
 }
 
 kotlin {

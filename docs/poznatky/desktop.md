@@ -710,6 +710,34 @@ on an unattached node" a za ním „Unknown error" (NPE bez zprávy). Je to tent
   1400 → 400 a zpět (potřebuje oprávnění Zpřístupnění pro terminál). Bez opravy okna „Error"
   hned v prvním průchodu, stack trace jde na stderr ladicího běhu.
 
+## Textové pole při změně scény
+
+**Zúžení okna tahem za okraj s otevřenou konverzací shazovalo okno** (Compose 1.13.0-rc01):
+„Cannot read CompositionLocal because the Modifier node is not currently attached" z
+`TextFieldCoreModifierNode.startCursorJob` → `updateNode`, pod tím `LayoutNode.attach` →
+`applyModifier` a `CopyNodesToNewAnchorLocation`. Tentýž mechanismus jako u insetů výš: NavDisplay
+přesouvá konverzaci z list-detail do jednoho panelu a modifikátor pole zprávy dostane `update`
+dřív, než je uzel připojený. `updateNode` při fokusu rovnou spouští blikání kurzoru
+(`currentValueOf(LocalCursorBlinkEnabled)`, `coroutineScope.launch`) a obojí nad odpojeným uzlem
+vyhodí. Nainstalovaná aplikace pak skončila a macOS zapsal jen následný `abort` z TDLib při
+ukončení (`td::Session::~Session` v `DiagnosticReports`) — skutečná chyba je jen na stderr.
+
+- **Opravu dělá přepis jaru `foundation-desktop`** (`plume.compose-text-field-desktop`,
+  `build-logic/…/ComposeTextField.kt`, vzor bývalého přepisu insetů): `startCursorJob()` začíná
+  `if (!isAttached) return`. Připojený uzel si kurzor spustí v `onAttach` (`isFocused && showCursor`),
+  takže nic nechybí. Upstream to nemá opravené ani v androidx-main (listopad 2026); build spadne,
+  když třídu nebo metodu v novější verzi nenajde. Že vložení zabralo: `javap -p -c` nad
+  `foundation-desktop-*-plume.jar` z classpath běžícího procesu.
+- **Reprodukuje se jen skutečným tahem za okraj**, ne `osascript … set size`: s otevřeným chatem
+  a sérií šířek 1400 → 360 po 8 px pád nepřišel, první tah myší (`left_mouse_down` na pravém okraji
+  a posun doleva) ano. Tah jde přes `drawFrameWhileLiveResizing` (synchronní překreslování při
+  živé změně velikosti, viz další oddíl) a scéna se přepíná uvnitř snímku vykresleného během tahu.
+- **Android a iOS mají tentýž kód** (`TextFieldCoreModifier.kt` je v `commonMain`), přepis jaru
+  ale jen desktop. Na Foldu by se to projevilo rozložením displeje s fokusem v poli zprávy;
+  ověřené to není.
+- **Ověřeno na Macu** ladicím během: bez opravy okno spadlo při prvním tahu, s opravou dva tahy
+  (i s fokusem v poli) a přepínání 1400 ↔ 360 px bez výjimky.
+
 ## Plynulá změna velikosti okna a fonty JRE
 
 - **Tah za okraj okna překresluje synchronně** (Compose 1.13, Skiko):
