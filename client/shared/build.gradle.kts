@@ -413,6 +413,9 @@ kotlin {
             implementation(libs.androidx.core.ktx)
             // Odkazy v aplikaci (Custom Tabs, viz core/ui/UrlOpener).
             implementation(libs.androidx.browser)
+            // Mini aplikace: most jen pro origin mini aplikace a data WebView po účtech
+            // (WebMessageListener, profily), viz core/webview.
+            implementation(libs.androidx.webkit)
             // Hovory (sonda): ntgcalls, viz docs/poznatky/hovory.md.
             implementation(libs.ntgcalls)
             implementation(libs.androidx.core.telecom)

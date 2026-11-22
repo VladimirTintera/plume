@@ -404,9 +404,53 @@ zobrazí a zprostředkuje její události.
 
 - **`core/webview` je hranice** jako `core/camera`: `android.webkit` a `platform.WebKit` jen tam.
   WebView stránce vystavuje JEDINOU věc, `window.TelegramWebviewProxy.postEvent(typ, data)` —
-  Android `addJavascriptInterface`, iOS stejně pojmenovaný objekt vložený skriptem na začátku
-  dokumentu, který posílá do `WKScriptMessageHandler`. Soubory zařízení vypnuté, jiná schémata
-  než http(s) stránka sama neotevře (má na to `web_app_open_link`).
+  Android posluchač zpráv (`WebViewCompat.addWebMessageListener`) se skriptem na začátku
+  dokumentu, iOS stejně pojmenovaný objekt vložený skriptem, který posílá do
+  `WKScriptMessageHandler`. Soubory zařízení vypnuté, jiná schémata než http(s) stránka sama
+  neotevře (má na to `web_app_open_link`).
+- **Most patří jen originu mini aplikace** (`WebAppOriginGuard`, testy `WebAppOriginTest`).
+  Dokud WebView pouštělo každou navigaci a most bylo ve všech rámcích, dostal cizí web po
+  obyčejném odkazu na stránce (nebo vložený rámec třetí strany) celé API: SecureStorage
+  a DeviceStorage bota, polohu bez dialogu, `invoke_custom_method` jménem uživatele.
+  - **Origin se určí při prvním dokončeném načtení**, ne z adresy od TDLib — mini aplikace
+    se smí na začátku přesměrovat. Pak hlavní rámec na jiný origin nesmí: odkaz jde do
+    prohlížeče (`WebAppViewModel.navigationLeftApp`). Totéž dělá oficiální klient.
+  - **Události jen z originu mini aplikace**, z hlavního rámce i z vlastních vložených rámců
+    (hry v `<iframe>`); odpovědi jen do stránky na tomtéž originu. `shouldOverrideUrlLoading`
+    se nevolá pro POST, proto origin hlídá i příjem a doručení, ne jen navigace.
+  - **Android: posluchač zná origin a rámec odesílatele, `addJavascriptInterface` ne.** Ten
+    zůstává jen pro WebView bez `WEB_MESSAGE_LISTENER` a `DOCUMENT_START_SCRIPT` — a tam se
+    hlídá jen adresa hlavního rámce, takže **cizí iframe most dál dostane** (ověřeno na
+    WebView 91, emulátor Android 11). Spolehlivě to v takové WebView nejde: skript se tam
+    nedá vložit dřív než skripty stránky, a `telegram-web-app.js` volá most hned po načtení.
+  - **iOS: `WKScriptMessage.frameInfo`** (origin, hlavní rámec) a `WKNavigationDelegate`.
+    Shim jde do všech rámců (`forMainFrameOnly = false`), handler cizí odmítne. Vložené rámce
+    smí mít `about:`, `blob:` a `data:`. Na iOS jen přeložené, za běhu neověřené.
+- **Data WebView po účtech** (cookies, `localStorage`, IndexedDB): společné úložiště dovolilo
+  botovi propojit dva účty téhož člověka (náhodné id v `localStorage`) a session mini aplikace
+  z jednoho účtu přihlásila druhý.
+  - **Klíč je id uživatele** (`webAppProfileName`, `user-<id>`), jako u DeviceStorage — ne slot
+    účtu. Kdo se do slotu přihlásí po odhlášení, začne s prázdným úložištěm; mazat při
+    odhlášení tak není potřeba (data odhlášeného zůstanou na disku, nikomu jinému se ale
+    neukážou). Id se bere z `savedMessagesChatId`; bez něj se mini aplikace nenačte.
+  - **Android: profily WebView** (`ProfileStore`, `WebViewCompat.setProfile` hned po vytvoření
+    WebView, před jakýmkoli jiným voláním; na disku `app_webview/Profile N`). WebView bez
+    `MULTI_PROFILE` má jedno úložiště: při otevření pod jiným účtem než minule se smaže
+    (`webapp_webview.xml`, `last_profile`).
+  - **iOS: `WKWebsiteDataStore(forIdentifier:)`** s UUID odvozeným z profilu (`webAppProfileUuid`).
+  - **Data z doby před oddělením zůstala ve výchozím profilu** a nic je nečte — mini aplikace
+    se po aktualizaci jednou přihlásí znovu.
+- **Ověřeno na emulátoru** (debug, testovací bot s tlačítkem `web_app` na `https://example.com/`,
+  pokusy přes DevTools — `adb forward` na `webview_devtools_remote_<pid>` a `Runtime.evaluate`):
+  - Plume_Barvy (Android 16, WebView 155, posluchač a profily): hlavní tlačítko z hlavního
+    rámce se ukázalo, `web_app_open_link` otevřel prohlížeč; z cizího iframe (`example.org`)
+    nic neprošlo ani přes `TelegramWebviewProxy`, ani přímým `postMessage` posluchače;
+    `location.href` jinam otevřel prohlížeč a WebView zůstala na `example.com`; vznikl
+    `app_webview/Profile 1`.
+  - Plume_A11 (WebView 91, náhradní cesta): hlavní rámec a navigace stejně, cizí iframe most
+    dostal (viz výš), `last_profile` zapsaný.
+  - **Výpis `uiautomator` nad WebView je nespolehlivý**: hlavní tlačítko v něm jednou chybělo,
+    i když na obrazovce bylo. Na výsledek pokusu se dívat snímkem.
 - **Události překládá čistý most** (`WebAppBridge.kt`, testy `WebAppBridgeTest`), WebView data
   jen přenáší. Zpět se doručují `Telegram.WebView.receiveEvent(typ, data)`; typ i data jdou do
   skriptu jako JSON literály, nic se neescapuje ručně.
