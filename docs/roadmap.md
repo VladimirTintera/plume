@@ -136,9 +136,9 @@ Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dos
   „vývojářský Windows" a jméno runneru `<stroj>-plume`.
 - ~~**`SECURITY.md` a `CONTRIBUTING.md`**~~ — hotovo, anglicky (čtou je cizí přispěvatelé).
   Odkaz na soukromé hlášení v `SECURITY.md` začne fungovat, až se ve fázi 2 zapne.
-- **README**: zastaralý (tvrdí, že chybí hledání, profil chatu i nová konverzace — všechno
-  hotové) a jen česky. Před zveřejněním přepsat podle stavu v `CLAUDE.md`, ideálně anglicky
-  s odkazem na českou dokumentaci.
+- ~~**README**~~ — hotovo: přepsané anglicky podle stavu v `CLAUDE.md` (proč je kód veřejný,
+  co aplikace umí, platformy, s kým aplikace mluví kromě Telegramu, build, podmínky API,
+  licence). Postup vydání do Play a velikosti aplikace se přesunuly do `release.md`.
 - **Název repa `plume`**, ne `telegram`: podle ToS nesmí název působit jako oficiální klient.
   Nastaví se při zakládání nového repa (fáze 2).
 

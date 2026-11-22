@@ -8,7 +8,7 @@ Desktop (Windows MSI a macOS DMG, `desktop-release.yml`) má vlastní oddíl v `
 ## Release do Play
 
 Vydává se pushnutím tagu `android-<versionName>-<versionCode>`; postup a seznam secrets je
-v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z workflow nepozná.
+v „Postup a nastavení" níž. Další body jsou to, co se z workflow nepozná.
 
 - **Verze NENÍ v commitu, je v tagu.** `versionCode`/`versionName` se do buildu dostanou přes
   `-PandroidVersionCode` / `-PandroidVersionName`; hodnoty v `build.gradle.kts` jsou jen záloha
@@ -92,6 +92,93 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   Ověření bez podpisového klíče: `./gradlew :client:androidApp:bundleRelease -x
   :client:androidApp:verifyReleaseConfiguration`.
 
+### Postup a nastavení
+
+Vydává se **pushnutím tagu** `android-<versionName>-<versionCode>` (např. `android-0.2.1-13`).
+Workflow [`android-release.yml`](../../.github/workflows/android-release.yml) z něj vytáhne verzi,
+postaví podepsaný AAB, nahraje ho na **internal track** i s textem „Co je nového" (česky
+a anglicky, z poznámek v [`release-notes/`](../../release-notes), které přidává každý PR) a založí GitHub Release
+s poznámkami a changelogem.
+Žádný verzovací commit není potřeba — verze se do buildu dostane přes `-P`.
+
+Běžné vydání se spouští z GitHubu: **Actions → „Release — bump & tag" → Run workflow**, vybrat
+typ bumpu (`build` / `patch` / `minor` / `major`). Workflow dopočítá verzi z posledního tagu,
+tag pushne a release spustí. `versionCode` se zvyšuje vždy — Play si pamatuje každé nahrané
+číslo a stejné podruhé nevezme.
+
+#### Co je potřeba nastavit jednou
+
+**1. Service account pro Play Console.** Patří do **vlastního GCP projektu** (např. `mobile-ci`),
+ne do Firebase projektu aplikace — do toho potřebuje přístup každý, kdo ladí push notifikace,
+a takový člověk by tím zároveň mohl vystavit klíč s právem publikovat do Play. Vlastní projekt
+se navíc dá použít i pro další aplikace a přežije případné smazání Firebase projektu.
+
+Postup: v [Google Cloud](https://console.cloud.google.com/) založ projekt (*název* `mobile-ci`,
+ID musí být globálně unikátní, takže klidně vygenerované), povol v něm **Google Play Android
+Developer API**, vytvoř service account a stáhni jeho **JSON klíč**. Pak v Play Console →
+*Users and permissions* → *Invite new users* pozvi e‑mail toho service accountu a dej mu
+u aplikace Plume práva **Release → Release apps to testing tracks** (plus *View app information*).
+
+Oprávnění k publikování tedy **nejde přes GCP IAM**, ale přes Play Console; GCP projekt jen
+hostuje identitu a má povolené API. Propojení se nastavuje v Play Console → *Setup* → *API access*
+— pozor, **linkuje se jeden Cloud projekt na celý developer účet**. Když už tam nějaký připojený
+je, je čistší service account založit v něm než link přepisovat.
+
+**2. Secrets v repozitáři** (Settings → Secrets and variables → Actions):
+
+| Secret | Odkud |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i plume-release.jks \| tr -d '\n' \| pbcopy` |
+| `ANDROID_KEYSTORE_PASSWORD` | `releaseStorePassword` z `local.properties` |
+| `ANDROID_KEY_ALIAS` | `releaseKeyAlias` (`plume`) |
+| `ANDROID_KEY_PASSWORD` | `releaseKeyPassword` |
+| `TELEGRAM_API_ID` | `telegramApiId` z my.telegram.org |
+| `TELEGRAM_API_HASH` | `telegramApiHash` z my.telegram.org |
+| `PLAY_SERVICE_ACCOUNT_JSON` | celý obsah JSON klíče service accountu |
+
+`google-services.json` secret nepotřebuje, je v repozitáři. Bez `TELEGRAM_API_ID` build **spadne**: zapekla by se nula a appka by se nepřihlásila.
+
+**3. První AAB nahrát ručně.** Dokud aplikace nemá v Play žádný release, androidpublisher API
+upload odmítne — první bundle tedy musí do Play Console projít přes web. Postav ho lokálně:
+
+```bash
+./gradlew :client:androidApp:bundleRelease -PandroidVersionName=0.2.0 -PandroidVersionCode=12
+```
+
+Výsledek je v `client/androidApp/build/outputs/bundle/release/androidApp-release.aab`.
+Při nahrání nech zapnuté **Play App Signing** — `plume-release.jks` se tím stane *upload* klíčem
+a Play si drží vlastní podpisový. Ten keystore proto **nesmí být ztracen**: bez něj už nejde
+nahrát další verze (dá se resetovat přes podporu, ale je to otrava).
+
+**4. Zaznamenat výchozí tag**, aby bump workflow věděl, odkud počítat. Ručně nahraný release
+se značí suffixem `-manual`, který release workflow *nespustí*:
+
+```bash
+git tag android-0.2.0-12-manual && git push origin android-0.2.0-12-manual
+```
+
+Od téhle chvíle už stačí spouštět „Release — bump & tag".
+
+**5. Hodinky (Wear OS)** jdou z téhož tagu na track `wear:internal`, ale jen s repo proměnnou
+`WEAR_RELEASE = true` (Settings → Secrets and variables → Actions → Variables). Napřed v Play
+Console povol Wear OS (Nastavení → Rozšířená nastavení → Formáty) — bez toho track neexistuje
+a upload by shodil i vydání telefonu. Secrets jsou tytéž, hodinky podepisuje tentýž upload klíč.
+
+#### Lokální release build
+
+Podpisové hodnoty a api_id se berou v pořadí **gradle property → ENV → `local.properties`**,
+takže lokálně stačí mít v `local.properties`:
+
+```
+releaseStoreFile=plume-release.jks
+releaseStorePassword=...
+releaseKeyAlias=plume
+releaseKeyPassword=...
+```
+
+`verifyReleaseConfiguration` běží před každým `assembleRelease`/`bundleRelease` a shodí build,
+když něco z toho chybí — nepodepsaný AAB by Play stejně nevzal.
+
 ### Hodinky (Wear OS)
 
 - **Z téhož tagu do téhož záznamu**, na track `wear:internal` (`android-release.yml`, kroky
@@ -131,6 +218,31 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   `wear:internal` jako 100000138, „Dostupné interním testerům" na 82 zařízeních. Instalace z Play na
   Pixel Watch pak prošla a aplikace na hodinkách funguje; zpřístupnění trvalo déle než u telefonu
   a hodinky se v Play („instalovat na další zařízení") objevily až po delší době.
+
+## Velikost aplikace
+
+Čísla se přenesla z dřívějšího README a dnes už mohou být jiná.
+
+TDLib je velká nativní knihovna a je to vidět:
+
+| | Velikost |
+|---|---|
+| Debug APK (všechny 4 ABI) | ~100 MB |
+| Release APK arm64 (R8) | **26 MB** |
+| `libtdjsonjava.so` na jedno ABI | 15–25 MB |
+| iOS debug framework | ~383 MB (nestripovaný) |
+| iOS release framework (arm64) | 242 MB → **199 MB** po stripnutí symbolů → **~58 MB** zabalený |
+
+Čísla vypadají hrozivě, ale to, co reálně stahuje uživatel, je poslední sloupec:
+
+- **Android:** AAB s ABI splity — uživatel stáhne jen svoje ABI, tedy ~21 MB nativního kódu místo 84 MB.
+  Nic se pro to nemusí konfigurovat, Play to dělá sám z App Bundle. K tomu R8, který dex zmenšil
+  z 43,8 MB na 7,2 MB — TDLib generuje tisíce tříd API, které klient nevolá.
+- **iOS:** `.ipa` je zip a Xcode při archivaci symboly stripuje. Naměřeno ~58 MB zabaleno; App Store
+  aplikuje ještě vlastní kompresi a thinning, takže reálná velikost ke stažení bude kolem toho nebo níž.
+
+Není to malá appka, ale je to v normálu pro klienta s vlastním MTProto stackem — oficiální Telegram
+pro iOS se pohybuje v podobných řádech.
 
 ## Self-hosted runnery
 
