@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.StringResource
 
 /**
@@ -260,8 +261,15 @@ internal class ConversationComposer(
                     }
 
                     // Let se uklidí až po doběhnutí animace. Kdyby se zrušil dřív, zmizel by
-                    // klíč sdíleného prvku uprostřed přechodu a text by skokem zmizel.
-                    delay(FLIGHT_DURATION_MS)
+                    // klíč sdíleného prvku uprostřed přechodu a text by skokem zmizel. Měří se
+                    // od STARTU (`launched`), ne od návratu `send`: start přijde až snímek po
+                    // rozvržení bubliny u pole. Když nepřijde vůbec (pole se nekreslí), let se
+                    // zruší hned po krátkém čekání a zpráva se ukáže na místě bez animace —
+                    // jinak by byla celou dobu letu skrytá.
+                    val started = withTimeoutOrNull(FLIGHT_LAUNCH_TIMEOUT_MS) {
+                        state.first { s -> s.flight.let { f -> f == null || f.id != flight.id || f.launched } }
+                    }
+                    if (started?.flight?.id == flight.id) delay(FLIGHT_DURATION_MS)
                     state.update { current ->
                         current.copy(flight = current.flight?.takeIf { it.id != flight.id })
                     }
@@ -274,6 +282,15 @@ internal class ConversationComposer(
                         )
                     }
                 }
+        }
+    }
+
+    /** Startovní bublina letu [id] se u pole rozvrhla — cíl v seznamu se smí ukázat. */
+    fun flightLaunched(id: Long) {
+        state.update { current ->
+            val flight = current.flight
+            if (flight == null || flight.id != id || flight.launched) current
+            else current.copy(flight = flight.copy(launched = true))
         }
     }
 

@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -192,6 +193,49 @@ class ConversationComposerTest {
         assertTrue(state.value.messages.any { it.id == 1000L }, "rozepsaná zpráva je hned v seznamu")
         advanceTimeBy(FLIGHT_DURATION_MS + 1)
         assertNull(state.value.flight)
+    }
+
+    @Test
+    fun cilLetuCekaNaStartUPole() = runTest {
+        val state = testState(testMessage(1))
+        val composer = composer(state)
+
+        composer.send(ComposedText("ahoj"))
+        runCurrent()
+
+        // Rozepsaná zpráva je v seznamu a let ji zná, ale start u pole se ještě nerozvrhl:
+        // kreslí se dál start a cíl je skrytý.
+        val bound = assertNotNull(state.value.flight)
+        assertEquals(1000L, bound.itemKey)
+        assertTrue(bound.sourceVisible)
+        assertFalse(bound.targetVisible)
+
+        composer.flightLaunched(bound.id + 1)
+        assertFalse(assertNotNull(state.value.flight).launched, "cizí let se nespouští")
+
+        advanceTimeBy(100)
+        composer.flightLaunched(bound.id)
+        val launched = assertNotNull(state.value.flight)
+        assertFalse(launched.sourceVisible)
+        assertTrue(launched.targetVisible)
+
+        // Úklid se měří od startu, ne od odeslání.
+        advanceTimeBy(FLIGHT_DURATION_MS - 1)
+        assertNotNull(state.value.flight)
+        advanceTimeBy(2)
+        assertNull(state.value.flight)
+    }
+
+    @Test
+    fun letBezStartuSeZrusiPoKratkemCekani() = runTest {
+        val state = testState(testMessage(1))
+        val composer = composer(state)
+
+        composer.send(ComposedText("ahoj"))
+        runCurrent()
+        advanceTimeBy(FLIGHT_LAUNCH_TIMEOUT_MS + 1)
+
+        assertNull(state.value.flight, "zpráva nesmí zůstat skrytá celou dobu letu")
     }
 
     @Test

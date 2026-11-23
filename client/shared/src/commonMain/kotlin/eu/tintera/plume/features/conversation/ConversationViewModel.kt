@@ -793,6 +793,7 @@ class ConversationViewModel(
     val effectChoices: StateFlow<List<MessageEffect>?> get() = composer.effectChoices
     fun loadEffects() = composer.loadEffects()
     fun send(text: ComposedText, options: SendOptions = SendOptions()) = composer.send(text, options)
+    fun flightLaunched(id: Long) = composer.flightLaunched(id)
     fun onDraftChanged(text: ComposedText) = composer.onDraftChanged(text)
     fun setLinkPreviewOptions(options: LinkPreviewOptions) = composer.setLinkPreviewOptions(options)
     fun consumeInputFill(fill: InputFill) = composer.consumeInputFill(fill)
@@ -2355,6 +2356,12 @@ internal fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<Me
 
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
 internal const val FLIGHT_DURATION_MS = 450L
+
+/**
+ * Jak dlouho se čeká, než se startovní bublina letu u pole rozvrhne. Normálně je to jeden
+ * snímek; kde se pole nekreslí, let se po téhle době zruší a zpráva se ukáže bez animace.
+ */
+internal const val FLIGHT_LAUNCH_TIMEOUT_MS = 250L
 
 /**
  * Kolik stránek historie se kvůli skoku na nepřečtené dotáhne navíc.

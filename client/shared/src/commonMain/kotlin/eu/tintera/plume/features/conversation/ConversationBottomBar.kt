@@ -575,6 +575,7 @@ internal fun ConversationBottomBar(
                 haptics.confirm()
                 viewModel.send(text, options)
             },
+            onFlightLaunched = viewModel::flightLaunched,
             menu = sendMenuOffer(state),
             onSchedule = { sheets.scheduleTarget = ScheduleTarget.Draft },
             onPickEffect = {

@@ -575,6 +575,14 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   nepřebíjí. **Čip reakce při změně počtu povyskočí**, ne při prvním složení.
 - **Odesílaná zpráva je průhlednější** (0,65) a po potvrzení se usadí. Klíč položky se potvrzením
   nemění, takže přechod dobíhá na téže bublině.
+  - **Ale až když odesílání trvá přes vteřinu, a nikdy během letu z pole** (`sendingAlpha`
+    v `MessageFrame`). Letící bublina se kreslí v překryvu nad aplikací, kam průhlednost z vrstvy
+    položky nedosáhne (stejně jako fade-in `animateItem`, viz „Cíl letu nemá fade-in"
+    v `konverzace-psani.md`): doletěla sytá, po přistání skočila na 0,65 a s potvrzením od
+    serveru zase ztmavla. Po dosednutí tak dvakrát problikla. Při běžném potvrzení se teď
+    neztlumí vůbec, offline zpráva zesvětlá po vteřině plynule a zpráva odesílaná déle než
+    pár vteřin (návrat do chatu bez sítě) je ztlumená rovnou. Ověřeno nahrávkou na emulátoru
+    s vypnutou sítí.
 - **Zvýraznění po skoku je dvojí pulz měřítkem**, ne pruh přes celou šířku. Ověřovat se to dá
   jen měřením: běžný `screencap` pulz mine. Série `screencap /sdcard/x.raw` v jednom `adb shell`
   a porovnání okraje bubliny v řádku pixelů ho zachytí.

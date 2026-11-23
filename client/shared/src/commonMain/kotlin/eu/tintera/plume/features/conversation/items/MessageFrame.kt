@@ -157,8 +157,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import eu.tintera.plume.resources.reply_24dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -602,9 +604,28 @@ private fun MessageFrame(
      * Odesílaná zpráva je průhlednější a po potvrzení se „usadí". Odznak s hodinami je malý
      * a snadno se přehlédne; tohle je vidět hned. Klíč položky se potvrzením nemění, takže
      * přechod plynule dobíhá na téže bublině.
+     *
+     * **Ale až když odesílání trvá** ([SENDING_DIM_DELAY_SECONDS]), a nikdy během letu z pole.
+     * Letící bublina se kreslí v překryvu nad aplikací, kam průhlednost z vrstvy položky
+     * nedosáhne: doletěla plně sytá, po přistání skočila na 0,65 a s potvrzením od serveru
+     * (běžně pár set ms po přistání) zase ztmavla — po dosednutí tak bublina dvakrát problikla.
+     * Při běžném potvrzení se teď neztlumí vůbec; offline zpráva zesvětlá plynule po chvíli.
+     * Zpráva, která se odesílá už déle (návrat do chatu bez sítě), je ztlumená hned.
      */
+    val sending = frame.delivery == Delivery.Sending
+    var sendingLong by remember {
+        mutableStateOf(sending && Clock.System.now().epochSeconds - frame.message.timestamp >= SENDING_DIM_STALE_SECONDS)
+    }
+    LaunchedEffect(sending) {
+        if (!sending) {
+            sendingLong = false
+        } else if (!sendingLong) {
+            delay(SENDING_DIM_DELAY_SECONDS * 1000L)
+            sendingLong = true
+        }
+    }
     val sendingAlpha by animateFloatAsState(
-        targetValue = if (frame.delivery == Delivery.Sending) SENDING_ALPHA else 1f,
+        targetValue = if (sendingLong && frame.flight == null) SENDING_ALPHA else 1f,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "sending-alpha",
     )
@@ -831,7 +852,14 @@ private fun MessageFrame(
                     // Průhledná, ne vyřazená z layoutu: místo zůstane prázdné a kopie v nabídce se
                     // na něj po zavření vrátí. Čte se až při kreslení, takže nic nerekomponuje.
                     .graphicsLayer {
-                        alpha = if (scope.isInMenu(frame.key)) 0f else sendingAlpha
+                        alpha = when {
+                            scope.isInMenu(frame.key) -> 0f
+                            // Cíl letu čeká na start u pole (`MessageFlight.launched`): na místě
+                            // se ukázat nesmí, jinak by se bublina na snímek vykreslila dole
+                            // a teprve pak přiletěla.
+                            frame.flight?.targetVisible == false -> 0f
+                            else -> sendingAlpha
+                        }
                         scaleX = pulse.value
                         scaleY = pulse.value
                         transformOrigin = TransformOrigin(if (message.isOutgoing) 1f else 0f, 0.5f)
@@ -839,7 +867,8 @@ private fun MessageFrame(
                 // Cílová strana letu ze vstupního pole. Sdílí se CELÁ zpráva, ne jen text —
                 // kdyby se sdílel jen text, doletěl by sám a pozadí by pod ním na konci
                 // skokem naskočilo.
-                beforeClip = frame.flight?.let { Modifier.sharedFlight(it.sharedKey, visible = true) } ?: Modifier,
+                beforeClip = frame.flight?.takeIf { it.targetVisible }
+                    ?.let { Modifier.sharedFlight(it.sharedKey, visible = true) } ?: Modifier,
                 /*
                  * Ťuknutí na VLASTNÍ zprávu si vyžádá odznak přečtení, druhé ho schová.
                  *
@@ -985,7 +1014,13 @@ private fun MessageFrame(
                 delivery = frame.badge,
                 failure = message.sendFailure,
                 onFailedClick = { bodyScope.act(MessageMenuAction.Resend) },
-                modifier = Modifier.align(Alignment.End),
+                modifier = Modifier
+                    .align(Alignment.End)
+                    // Odznak leží mimo vrstvu zprávy: dokud cíl letu čeká na start, skryje se
+                    // s ní, jinak by hodiny visely pod prázdným místem dřív, než bublina vyletí.
+                    // Skrývá se průhledností, ne vyřazením — místo v rozvržení zůstává, takže
+                    // se po přistání nic neposune.
+                    .graphicsLayer { alpha = if (frame.flight?.targetVisible == false) 0f else 1f },
             )
         }
 
@@ -1889,6 +1924,15 @@ private const val HIGHLIGHT_SCALE = 1.06f
 
 /** Průhlednost odesílané zprávy, než ji server potvrdí. */
 private const val SENDING_ALPHA = 0.65f
+
+/** Po jaké době odesílání se zpráva ztlumí (viz `sendingAlpha`). */
+private const val SENDING_DIM_DELAY_SECONDS = 1L
+
+/**
+ * Jak stará odesílaná zpráva je ztlumená rovnou. Víc než [SENDING_DIM_DELAY_SECONDS]: čas zprávy
+ * má rozlišení vteřin, takže čerstvá zpráva může vypadat o vteřinu starší.
+ */
+private const val SENDING_DIM_STALE_SECONDS = 3L
 
 /** Jak silný je pruh za vybranou zprávou. Průsvitný, aby text i bubliny zůstaly čitelné. */
 private const val SELECTION_TINT_ALPHA = 0.55f

@@ -1335,6 +1335,24 @@ a odpověď se dopíše tam, jako v oficiálním klientu. Nabízí se jen u `can
 - **Rozepsaná zpráva dorazí přes `newMessages` DŘÍV, než `sendMessage` vrátí výsledek.** Let se
   proto na ni váže už tam (`landingOn`, podle textu a stavu `Sending`). Když se vázal až
   v `send`, bublina se na snímek vykreslila na místě, pak zmizela do letu a přiletěla znovu.
+- **Cíl letu se ukáže až po STARTU u pole** (`MessageFlight.launched`, start ho nahlásí
+  z `onGloballyPositioned`; `sourceVisible` / `targetVisible`). TDLib vrací rozepsanou zprávu
+  během pár milisekund, takže se navázání cíle (předchozí bod) často vešlo do TÉHOŽ snímku jako
+  samo odeslání: startovní bublina u pole se nevykreslila ani jednou, sdílený prvek neměl odkud
+  letět a bublina se ukázala rovnou dole přes předchozí zprávu, na snímek zmizela, objevila se
+  o kus vedle a teprve pak dosedla. „Někdy", protože záleží na tom, jestli TDLib stihne týž
+  snímek; na emulátoru to vyšlo pokaždé. Do startu je cíl v seznamu průhledný (bublina i odznak
+  doručení, místo v rozvržení zůstává) a bez sdíleného prvku; s ním naskočí zároveň se skrytím
+  startu — totéž pořadí, v jakém let fungoval před vázáním v `newMessages`.
+- **Úklid letu se měří od startu, ne od návratu `send`** (`FLIGHT_LAUNCH_TIMEOUT_MS`, pak
+  `FLIGHT_DURATION_MS`). Když start nepřijde (pole se nekreslí), let se po čtvrt vteřině zruší
+  a zpráva se ukáže na místě bez animace — jinak by byla celou dobu skrytá. Testy
+  `ConversationComposerTest` (`cilLetuCekaNaStartUPole`, `letBezStartuSeZrusiPoKratkemCekani`).
+- **Ověřuje se nahrávkou, ne okem**: `screenrecord --display-id …` (Fold) při ťuknutí na
+  odeslat a snímky přes `ffmpeg -fps_mode passthrough -vf "select=…,crop=…,tile=…"`.
+  Nahrávka emulátoru má jen ~25 snímků za vteřinu a snímek jen při změně, ale na bliknutí
+  a skoky to stačí. Pomalé potvrzení se vyvolá vypnutím sítě (`svc wifi disable`,
+  `svc data disable`) — `adb emu network delay` na spojení TDLib nezabralo.
 - **Nová zpráva dole se ukotví přes `requestScrollToItem(0)` v kompozici**, ne efektem
   s `animateScrollToItem`. `LazyColumn` drží pozici podle klíče první viditelné položky, takže
   vložená zpráva skončila pod spodní hranou a seznam k ní dojel až o snímek později.

@@ -816,7 +816,9 @@ internal fun MessageInput(
                     shape = RoundedCornerShape(BUBBLE_CORNER),
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .sharedFlight(current.sharedKey, visible = current.itemKey == null),
+                        // Start nahlásí, že se rozvrhl; teprve pak se ukáže cíl a let začne.
+                        .onGloballyPositioned { if (!current.launched) send.onFlightLaunched(current.id) }
+                        .sharedFlight(current.sharedKey, visible = current.sourceVisible),
                 ) {
                     Text(
                         text = current.text,
