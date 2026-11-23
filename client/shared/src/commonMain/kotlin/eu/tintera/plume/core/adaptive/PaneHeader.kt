@@ -1,6 +1,12 @@
 package eu.tintera.plume.core.adaptive
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.background
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.padding
@@ -101,6 +107,49 @@ internal val PANE_HEADER_GAP: Dp = 8.dp
 @ReadOnlyComposable
 fun paneHeaderContainerColor(): Color =
     if (LocalInPaneHeader.current) Color.Transparent else MaterialTheme.colorScheme.surface
+
+/**
+ * Plocha Scaffoldu obrazovky, která je stránkou s bloky řádků (profil a jeho podstránky): s hlavičkou
+ * nad kartou průhledná, plochu dostane až obsah pod hlavičkou ([PaneBody]).
+ */
+@Composable
+@ReadOnlyComposable
+fun paneScaffoldColor(color: Color = MaterialTheme.colorScheme.background): Color =
+    if (LocalPaneHeaderOutside.current) Color.Transparent else color
+
+/**
+ * Obsah Scaffoldu s hlavičkou nad kartou: začíná pod hlavičkou a má plochu stránky [color], takže
+ * pod průhlednou hlavičkou nic neroluje (kartu ořezává `PaneCard`). Bez hlavičky venku je to jen
+ * `Box` a [content] dostane [padding] beze změny — struktura je táž, ať obsah při změně šířky okna
+ * nepřijde o stav.
+ */
+@Composable
+fun PaneBody(
+    padding: PaddingValues,
+    color: Color = MaterialTheme.colorScheme.background,
+    content: @Composable (PaddingValues) -> Unit,
+) {
+    val outside = LocalPaneHeaderOutside.current
+    val direction = LocalLayoutDirection.current
+    val top = if (outside) padding.calculateTopPadding() else 0.dp
+    Box(
+        Modifier
+            .fillMaxSize()
+            .padding(top = top)
+            .then(if (outside) Modifier.background(color) else Modifier),
+    ) {
+        val inner = if (outside) {
+            PaddingValues(
+                start = padding.calculateStartPadding(direction),
+                end = padding.calculateEndPadding(direction),
+                bottom = padding.calculateBottomPadding(),
+            )
+        } else {
+            padding
+        }
+        content(inner)
+    }
+}
 
 /** Obrazovka má hlavičku nad kartou — plochu pod obsahem si kreslí jen pod ní. */
 @Composable

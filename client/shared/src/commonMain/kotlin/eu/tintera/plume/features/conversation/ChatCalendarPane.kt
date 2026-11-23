@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.adaptive.paneHeaderOutside
+import eu.tintera.plume.core.adaptive.PaneHeader
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -216,12 +218,12 @@ internal fun ChatCalendarPane(
     // Spodek si berou seznamy měsíců (`navigationBarsPadding`). Vedle konverzace stojí panel
     // vpravo, takže levý výřez displeje není jeho; sám přes celou obrazovku bere obě strany.
     val sides = if (sideBySide) WindowInsetsSides.Top + WindowInsetsSides.End else WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-    Surface(color = calendarBase(), modifier = Modifier.fillMaxSize()) {
+    // S hlavičkou nad kartou (`PaneHeader`) dostane plochu až obsah pod hlavičkou.
+    Surface(color = if (paneHeaderOutside()) Color.Transparent else calendarBase(), modifier = Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(sides))
-                .padding(top = 8.dp),
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(sides)),
         ) {
             ChatCalendarContent(state, calendar, initialDay, onJumpToDay, onJumpToMessage, onSummarizeDay, onClearDay, canFilterBySender, onClose, closeIsBack = !sideBySide)
         }
@@ -265,9 +267,10 @@ private fun ColumnScope.ChatCalendarContent(
     // Měsíc, na který se má seznam po výběru v ročním přehledu posunout; seznam si ho odebere.
     val scrollTarget = remember { mutableStateOf<YearMonth?>(null) }
 
-    run {
+    // Horních 8 dp patří hlavičce: s hlavičkou nad kartou je to součást její výšky, kterou karta ořezává.
+    PaneHeader {
         Row(
-            Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
@@ -287,6 +290,15 @@ private fun ColumnScope.ChatCalendarContent(
                 Icon(painterResource(Res.drawable.edit_calendar_24dp), contentDescription = stringResource(Res.string.conversation_jump_to_date))
             }
         }
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .weight(1f)
+            .then(if (paneHeaderOutside()) Modifier.background(calendarBase()) else Modifier)
+            // Čipy by jinak narazily na horní hranu karty: dřív je odsazovala hlavička nad nimi.
+            .padding(top = if (paneHeaderOutside()) 12.dp else 0.dp),
+    ) {
         FilterChips(
             selected = filter,
             canFilterBySender = canFilterBySender,

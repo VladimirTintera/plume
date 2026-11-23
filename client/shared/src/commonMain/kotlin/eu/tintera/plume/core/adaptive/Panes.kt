@@ -61,8 +61,9 @@ object Panes {
 
     /**
      * Vedle jiných panelů stojí hlavička obrazovky NAD kartou, na ploše okna, a karta začíná až pod
-     * ní (styl Google Zpráv): konverzace. Hlavičku obrazovka obalí do [PaneHeader]; jen s
-     * [ownSurface].
+     * ní (styl Google Zpráv): konverzace a profil vedle ní. Hlavičku obrazovka obalí do
+     * [PaneHeader]; stránka s bloky řádků navíc nastaví Scaffoldu [paneScaffoldColor] a obsah
+     * obalí do [PaneBody].
      */
     fun headerOutside(): Map<String, Any> = mapOf(HEADER_OUTSIDE_KEY to true)
 

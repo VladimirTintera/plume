@@ -309,10 +309,23 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
       jsou proto ve dvou uzlech (pravidlo z Gotchas o insetech při změně scény).
     - **Placeholder má stejnou geometrii** (prázdný `PaneHeader` výšky `TopAppBarExpandedHeight`),
       jinak by karta při otevření chatu poskočila.
-    - **Profil vedle konverzace to ZATÍM nemá**: ve třech panelech má kartu od stavové lišty
-      se spodním okrajem, v barvě chatu je nesoulad vidět. Viz roadmapa.
+    - **Profil, jeho podstránky a kalendář zpráv ve třetím panelu taky** (`headerOutside` na všech
+      položkách s `profilePaneWidth`). Jsou to stránky s bloky řádků, plochu si kreslí Scaffold
+      přes celou výšku — proto `paneScaffoldColor()` (s hlavičkou venku průhledná) a obsah
+      v `PaneBody`, který začíná pod hlavičkou a nese plochu stránky. Hlavičky jsou
+      `ProfileSubpageTopBar` (jedno místo pro osm podstránek) a lišta profilu; kalendář má
+      vlastní řádek, horních 8 dp patří do `PaneHeader`, jinak by karta ořízla o 8 dp výš, než
+      hlavička končí. V barvách aplikace je karta profilu dál neviditelná (stránka = plocha okna).
+    - **Obsah pod hlavičkou potřebuje vlastní horní odstup**: dřív ho dělala lišta nad ním.
+      Fotka profilu (16 dp) a čipy kalendáře (12 dp) jinak narážely na hranu karty; seznamy
+      podstránek si 8 dp nad prvním blokem přidávají samy.
+    - **Podstránky profilu mají vyšší hlavičku** (`MediumFlexibleTopAppBar`), jejich karta proto
+      začíná níž než karta konverzace. Vědomě: zarovnává se profil, který stojí vedle konverzace
+      nejčastěji.
     - Ověřeno na emulátoru Fold: světlý i tmavý motiv a přechod mezi nimi, hledání v chatu,
-      barva chatu, placeholder, šest cyklů složit/rozložit bez pádu; složený telefon beze změny.
+      barva chatu, placeholder, profil a kalendář vedle konverzace (i v barvě chatu), šest cyklů
+      složit/rozložit bez pádu s konverzací i s profilem; složený telefon beze změny. Podstránky
+      profilu (statistiky, pozvánky…) naživo neověřené — testovací chat (bot) je nemá.
   - **Profil a co se z něj otevírá je v Chatech karta taky** (`PaneNeighbours.extraCard`), jen bez
     vlastní plochy: ořez a okraj stejný jako konverzace. V barvách aplikace je jeho stránka táž
     jako plocha okna, takže karta není vidět a profil zůstává stránkou na ploše. V barvě chatu

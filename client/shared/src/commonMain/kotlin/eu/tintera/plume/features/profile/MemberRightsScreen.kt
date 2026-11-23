@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.adaptive.paneScaffoldColor
+import eu.tintera.plume.core.adaptive.PaneBody
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import androidx.compose.foundation.layout.Arrangement
 import eu.tintera.plume.core.ui.SaveActionButton
@@ -112,6 +114,7 @@ fun MemberRightsScreen(viewModel: MemberRightsViewModel, onBack: () -> Unit, mod
     val subpageScroll = profileSubpageScrollBehavior()
 
     Scaffold(
+        containerColor = paneScaffoldColor(),
         modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -129,49 +132,51 @@ fun MemberRightsScreen(viewModel: MemberRightsViewModel, onBack: () -> Unit, mod
                 },
             )
         },
-    ) { padding ->
-        if (member == null) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                if (!viewModel.loadFailed) LoadingIndicator()
-            }
-            return@Scaffold
-        }
-
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberRestoringScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            MemberHeader(member)
-
-            if (viewModel.admin) {
-                AdminRightsCard(member.kind, member.isForum, viewModel.rights, viewModel::setRights)
-                Text(
-                    stringResource(Res.string.member_rights_admin_help),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            } else {
-                viewModel.permissions?.let { permissions ->
-                    RestrictionsCard(permissions, viewModel::setPermissions)
+    ) { scaffoldPadding ->
+        PaneBody(scaffoldPadding) { padding ->
+            if (member == null) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    if (!viewModel.loadFailed) LoadingIndicator()
                 }
-                DurationCard(
-                    restrictedUntil = member.restrictedUntil.takeIf { viewModel.remaining != null },
-                    keepsCurrentEnd = viewModel.keepsCurrentEnd,
-                    selected = viewModel.duration,
-                    onKeep = viewModel::keepCurrentEnd,
-                    onSelect = viewModel::chooseDuration,
-                )
-                Text(
-                    stringResource(Res.string.member_rights_restrict_help),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
+                return@PaneBody
+            }
+
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberRestoringScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                MemberHeader(member)
+
+                if (viewModel.admin) {
+                    AdminRightsCard(member.kind, member.isForum, viewModel.rights, viewModel::setRights)
+                    Text(
+                        stringResource(Res.string.member_rights_admin_help),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                } else {
+                    viewModel.permissions?.let { permissions ->
+                        RestrictionsCard(permissions, viewModel::setPermissions)
+                    }
+                    DurationCard(
+                        restrictedUntil = member.restrictedUntil.takeIf { viewModel.remaining != null },
+                        keepsCurrentEnd = viewModel.keepsCurrentEnd,
+                        selected = viewModel.duration,
+                        onKeep = viewModel::keepCurrentEnd,
+                        onSelect = viewModel::chooseDuration,
+                    )
+                    Text(
+                        stringResource(Res.string.member_rights_restrict_help),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
             }
         }
     }

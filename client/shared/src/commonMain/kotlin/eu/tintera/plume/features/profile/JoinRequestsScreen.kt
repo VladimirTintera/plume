@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.adaptive.paneScaffoldColor
+import eu.tintera.plume.core.adaptive.PaneBody
 import eu.tintera.plume.core.ui.GroupActionText
 import androidx.compose.foundation.layout.fillMaxWidth
 import eu.tintera.plume.core.ui.GroupAction
@@ -102,6 +104,7 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
     val subpageScroll = profileSubpageScrollBehavior()
 
     Scaffold(
+        containerColor = paneScaffoldColor(),
         modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -143,67 +146,69 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                 },
             )
         },
-    ) { padding ->
-        when {
-            shown == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                if (!viewModel.loadFailed) LoadingIndicator()
-            }
-            shown.isEmpty() -> IntroEmptyState(
-                icon = Res.drawable.how_to_reg_24dp,
-                title = stringResource(Res.string.join_requests_empty),
-                text = stringResource(Res.string.join_requests_empty_help),
-                modifier = Modifier.fillMaxSize().padding(padding),
-            )
-            else -> LazyColumn(
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = padding.calculateTopPadding() + 8.dp,
-                    bottom = padding.calculateBottomPadding() + 24.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                itemsIndexed(shown, key = { _, request -> request.userId }) { index, request ->
-                    Surface(
-                        shape = groupItemShape(index, shown.size),
-                        color = MaterialTheme.colorScheme.groupRow,
-                        modifier = Modifier.animateItem(),
-                    ) {
-                        Column {
-                            ListItem(
-                                supportingContent = {
-                                    Column {
-                                        Text(stringResource(Res.string.join_requests_requested, request.date.asDayLabel()))
-                                        if (request.bio.isNotBlank()) Text(request.bio, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                    }
-                                },
-                                leadingContent = {
-                                    Avatar(chatId = request.userId, title = request.name, avatarFileId = request.avatarFileId)
-                                },
-                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
-                            ) { Text(request.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                            val approve = stringResource(Res.string.join_requests_approve)
-                            val decline = stringResource(Res.string.join_requests_decline)
-                            val onApprove = { viewModel.process(request, approve = true) }
-                            val onDecline = { viewModel.process(request, approve = false) }
-                            ActionButtonGroup(
-                                listOf(
-                                    GroupAction(approve, onApprove) { modifier, source ->
-                                        FilledTonalButton(onClick = onApprove, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                                            GroupActionText(approve)
+    ) { scaffoldPadding ->
+        PaneBody(scaffoldPadding) { padding ->
+            when {
+                shown == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    if (!viewModel.loadFailed) LoadingIndicator()
+                }
+                shown.isEmpty() -> IntroEmptyState(
+                    icon = Res.drawable.how_to_reg_24dp,
+                    title = stringResource(Res.string.join_requests_empty),
+                    text = stringResource(Res.string.join_requests_empty_help),
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                )
+                else -> LazyColumn(
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = padding.calculateTopPadding() + 8.dp,
+                        bottom = padding.calculateBottomPadding() + 24.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    itemsIndexed(shown, key = { _, request -> request.userId }) { index, request ->
+                        Surface(
+                            shape = groupItemShape(index, shown.size),
+                            color = MaterialTheme.colorScheme.groupRow,
+                            modifier = Modifier.animateItem(),
+                        ) {
+                            Column {
+                                ListItem(
+                                    supportingContent = {
+                                        Column {
+                                            Text(stringResource(Res.string.join_requests_requested, request.date.asDayLabel()))
+                                            if (request.bio.isNotBlank()) Text(request.bio, maxLines = 3, overflow = TextOverflow.Ellipsis)
                                         }
                                     },
-                                    GroupAction(decline, onDecline, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
-                                        TextButton(onClick = onDecline, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                                            GroupActionText(decline)
-                                        }
+                                    leadingContent = {
+                                        Avatar(chatId = request.userId, title = request.name, avatarFileId = request.avatarFileId)
                                     },
-                                ),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                // Tlačítka lícují s textem, ne s avatarem (16 + 48 + 16 dp).
-                                modifier = Modifier.fillMaxWidth().padding(start = 80.dp, end = 16.dp, bottom = 12.dp),
-                            )
+                                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.groupRow),
+                                ) { Text(request.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                val approve = stringResource(Res.string.join_requests_approve)
+                                val decline = stringResource(Res.string.join_requests_decline)
+                                val onApprove = { viewModel.process(request, approve = true) }
+                                val onDecline = { viewModel.process(request, approve = false) }
+                                ActionButtonGroup(
+                                    listOf(
+                                        GroupAction(approve, onApprove) { modifier, source ->
+                                            FilledTonalButton(onClick = onApprove, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                                                GroupActionText(approve)
+                                            }
+                                        },
+                                        GroupAction(decline, onDecline, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
+                                            TextButton(onClick = onDecline, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                                                GroupActionText(decline)
+                                            }
+                                        },
+                                    ),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    // Tlačítka lícují s textem, ne s avatarem (16 + 48 + 16 dp).
+                                    modifier = Modifier.fillMaxWidth().padding(start = 80.dp, end = 16.dp, bottom = 12.dp),
+                                )
+                            }
                         }
                     }
                 }

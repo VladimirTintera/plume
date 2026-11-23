@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.adaptive.paneScaffoldColor
+import eu.tintera.plume.core.adaptive.PaneBody
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
@@ -192,6 +194,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
     val subpageScroll = profileSubpageScrollBehavior()
 
     Scaffold(
+        containerColor = paneScaffoldColor(),
         modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -202,96 +205,98 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
                 scrollBehavior = subpageScroll,
             )
         },
-    ) { padding ->
-        val links = viewModel.links
-        if (links == null) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                if (!viewModel.loadFailed) LoadingIndicator()
-            }
-            return@Scaffold
-        }
-        val now = viewModel.now
-
-        LazyColumn(
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = padding.calculateTopPadding() + 8.dp,
-                bottom = padding.calculateBottomPadding() + 24.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            links.primary?.let { primary ->
-                item(key = "primary-header") { SectionHeader(Res.string.invite_links_primary, first = true) }
-                item(key = "primary") {
-                    PrimaryLinkCard(
-                        link = primary,
-                        busy = viewModel.busy,
-                        onCopy = { viewModel.copy(primary) },
-                        onShare = { viewModel.share(primary) },
-                        onQr = { qrFor = primary },
-                        onReplace = { confirmRevoke = primary },
-                        onMembers = { viewModel.openMembers(primary) },
-                    )
+    ) { scaffoldPadding ->
+        PaneBody(scaffoldPadding) { padding ->
+            val links = viewModel.links
+            if (links == null) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    if (!viewModel.loadFailed) LoadingIndicator()
                 }
+                return@PaneBody
             }
+            val now = viewModel.now
 
-            item(key = "additional-header") { SectionHeader(Res.string.invite_links_additional, first = links.primary == null) }
-            val additional = links.additional
-            item(key = "create") {
-                ListItem(
-                    supportingContent = { Text(stringResource(Res.string.invite_links_additional_help)) },
-                    leadingContent = { RowIcon(Res.drawable.add_24dp, accent = true) },
-                    colors = ListItemDefaults.colors(
-                        containerColor = MaterialTheme.colorScheme.groupRow,
-                        headlineColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    modifier = Modifier
-                        .animateItem()
-                        .clip(groupItemShape(0, additional.size + 1))
-                        .clickable(enabled = !viewModel.busy, onClick = viewModel::openCreate),
-                ) { Text(stringResource(Res.string.invite_links_create)) }
-            }
-            itemsIndexed(additional, key = { _, link -> "link-${link.url}" }) { index, link ->
-                LinkRow(
-                    link = link,
-                    now = now,
-                    shape = groupItemShape(index + 1, additional.size + 1),
-                    onClick = { actionsFor = link },
-                    modifier = Modifier.animateItem(),
-                )
-            }
-
-            val others = viewModel.otherAdmins
-            if (others.isNotEmpty()) {
-                item(key = "others-header") { SectionHeader(Res.string.invite_links_others) }
-                itemsIndexed(others, key = { _, admin -> "admin-${admin.userId}" }) { index, admin ->
-                    AdminRow(
-                        admin = admin,
-                        shape = groupItemShape(index, others.size),
-                        onClick = { viewModel.openAdmin(admin) },
-                        modifier = Modifier.animateItem(),
-                    )
-                }
-            }
-
-            if (links.revoked.isNotEmpty()) {
-                item(key = "revoked-header") {
-                    SectionHeader(Res.string.invite_links_revoked_section) {
-                        TextButton(onClick = { confirmDeleteAll = true }, enabled = !viewModel.busy, shapes = ButtonDefaults.shapes()) {
-                            Text(stringResource(Res.string.invite_links_delete_all))
-                        }
+            LazyColumn(
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = padding.calculateTopPadding() + 8.dp,
+                    bottom = padding.calculateBottomPadding() + 24.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                links.primary?.let { primary ->
+                    item(key = "primary-header") { SectionHeader(Res.string.invite_links_primary, first = true) }
+                    item(key = "primary") {
+                        PrimaryLinkCard(
+                            link = primary,
+                            busy = viewModel.busy,
+                            onCopy = { viewModel.copy(primary) },
+                            onShare = { viewModel.share(primary) },
+                            onQr = { qrFor = primary },
+                            onReplace = { confirmRevoke = primary },
+                            onMembers = { viewModel.openMembers(primary) },
+                        )
                     }
                 }
-                itemsIndexed(links.revoked, key = { _, link -> "revoked-${link.url}" }) { index, link ->
+
+                item(key = "additional-header") { SectionHeader(Res.string.invite_links_additional, first = links.primary == null) }
+                val additional = links.additional
+                item(key = "create") {
+                    ListItem(
+                        supportingContent = { Text(stringResource(Res.string.invite_links_additional_help)) },
+                        leadingContent = { RowIcon(Res.drawable.add_24dp, accent = true) },
+                        colors = ListItemDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.groupRow,
+                            headlineColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        modifier = Modifier
+                            .animateItem()
+                            .clip(groupItemShape(0, additional.size + 1))
+                            .clickable(enabled = !viewModel.busy, onClick = viewModel::openCreate),
+                    ) { Text(stringResource(Res.string.invite_links_create)) }
+                }
+                itemsIndexed(additional, key = { _, link -> "link-${link.url}" }) { index, link ->
                     LinkRow(
                         link = link,
                         now = now,
-                        shape = groupItemShape(index, links.revoked.size),
+                        shape = groupItemShape(index + 1, additional.size + 1),
                         onClick = { actionsFor = link },
                         modifier = Modifier.animateItem(),
                     )
+                }
+
+                val others = viewModel.otherAdmins
+                if (others.isNotEmpty()) {
+                    item(key = "others-header") { SectionHeader(Res.string.invite_links_others) }
+                    itemsIndexed(others, key = { _, admin -> "admin-${admin.userId}" }) { index, admin ->
+                        AdminRow(
+                            admin = admin,
+                            shape = groupItemShape(index, others.size),
+                            onClick = { viewModel.openAdmin(admin) },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                }
+
+                if (links.revoked.isNotEmpty()) {
+                    item(key = "revoked-header") {
+                        SectionHeader(Res.string.invite_links_revoked_section) {
+                            TextButton(onClick = { confirmDeleteAll = true }, enabled = !viewModel.busy, shapes = ButtonDefaults.shapes()) {
+                                Text(stringResource(Res.string.invite_links_delete_all))
+                            }
+                        }
+                    }
+                    itemsIndexed(links.revoked, key = { _, link -> "revoked-${link.url}" }) { index, link ->
+                        LinkRow(
+                            link = link,
+                            now = now,
+                            shape = groupItemShape(index, links.revoked.size),
+                            onClick = { actionsFor = link },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
                 }
             }
         }

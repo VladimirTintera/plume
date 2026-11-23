@@ -1,3 +1,3 @@
 type: feat
-cs: Na širokém displeji leží hlavička konverzace nad kartou se zprávami, karta jde až dolů
-en: On wide screens the conversation header sits above the message card, which runs to the bottom
+cs: Na širokém displeji leží hlavičky konverzace a profilu nad kartou, karta jde až dolů
+en: On wide screens the chat and profile headers sit above the card, which runs to the bottom

@@ -71,7 +71,7 @@ val LocalPaneNeighbours = compositionLocalOf { PaneNeighbours() }
  *   Okraj jen od seznamu nechával kartu narážet nahoru a dolů a zaoblený roh u spodního kraje
  *   okna vypadal jako chyba. Mezi konverzací a profilem je mezera jedna (dělá ji profil).
  *   **Nahoře jen [PANE_TOP_SPACING]**, ať horní hrana lícuje s pilulkou hledání v seznamu.
- * - **S hlavičkou venku** ([Panes.headerOutside], konverzace a placeholder) leží hlavička na ploše
+ * - **S hlavičkou venku** ([Panes.headerOutside]: konverzace, placeholder, profil a jeho podstránky) leží hlavička na ploše
  *   okna v jedné řadě s pilulkou hledání, karta začíná až pod ní ve výšce prvního řádku seznamu
  *   ([PaneHeader], [HeaderOutsideShape]) a jde bez okraje a dolních rohů až pod spodní kraj okna.
  *
@@ -113,7 +113,7 @@ fun PaneCard(
     // Barvy plochy okna pro hlavičku nad kartou — tady jsou ještě barvy aplikace, ne chatu.
     val planeScheme = MaterialTheme.colorScheme
     val header = remember { PaneHeaderHost() }
-    val outside = card && ownSurface && headerOutside
+    val outside = card && headerOutside
     val spacing = if (card) PANE_SPACING else 0.dp
     // Hlavička nad kartou stojí v jedné řadě s pilulkou hledání: obě začínají u stavové lišty.
     val topSpacing = if (outside) 0.dp else if (card) PANE_TOP_SPACING else 0.dp

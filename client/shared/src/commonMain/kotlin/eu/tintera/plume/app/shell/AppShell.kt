@@ -1278,13 +1278,13 @@ private fun shellEntryProvider(
      * třetí panel je jeden a táhlo profilu ji nastavuje. Jiná konverzace otevřená vedle ho
      * vystřídá kalendářem té nové (`followProfile`).
      */
-    entry<ChatCalendarRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ChatCalendarRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         ChatColorTheme(route.chatId) {
             ChatCalendarPaneHost(route.chatId, route.savedTopicId, route.directTopicId, route.anchor, onClose = { chatsStack.pop(route) })
         }
     }
 
-    entry<ArchiveChatCalendarRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveChatCalendarRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         ChatColorTheme(route.chatId) {
             ChatCalendarPaneHost(route.chatId, savedTopicId = null, route.directTopicId, route.anchor, onClose = { chatsStack.pop(route) })
         }
@@ -1296,7 +1296,7 @@ private fun shellEntryProvider(
      * se z něj otevírají — jako detail by nahradily konverzaci uprostřed. Jiná konverzace
      * otevřená nad profilem ho na široké ploše vystřídá profilem té nové (`followProfile`).
      */
-    entry<ChatProfileRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ChatProfileRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
@@ -1339,7 +1339,7 @@ private fun shellEntryProvider(
     }
 
     // Úprava se vrší nad profil, ve třetím panelu ho nahradí.
-    entry<EditChatRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<EditChatRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -1354,7 +1354,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveEditChatRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveEditChatRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -1370,42 +1370,42 @@ private fun shellEntryProvider(
     }
 
     // Pozvánky a žádosti se vrší nad úpravu, taky ve třetím panelu.
-    entry<InviteLinksRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<InviteLinksRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         InviteLinksScreen(
             viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveInviteLinksRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveInviteLinksRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         InviteLinksScreen(
             viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<JoinRequestsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<JoinRequestsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveJoinRequestsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveJoinRequestsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<EventLogRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<EventLogRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         EventLogScreen(
             viewModel = koinViewModel(key = "event-log-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveEventLogRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveEventLogRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         EventLogScreen(
             viewModel = koinViewModel(key = "event-log-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -1413,7 +1413,7 @@ private fun shellEntryProvider(
     }
 
     // Statistiky se vrší nad úpravu, statistika příspěvku nad ně nebo nad konverzaci.
-    entry<ChatStatisticsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ChatStatisticsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         ChatStatisticsScreen(
             viewModel = koinViewModel(key = "chat-statistics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -1422,7 +1422,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveChatStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveChatStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         ChatStatisticsScreen(
             viewModel = koinViewModel(key = "chat-statistics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -1431,7 +1431,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<PostStatisticsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<PostStatisticsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         PostStatisticsScreen(
             viewModel = koinViewModel(
@@ -1443,7 +1443,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchivePostStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchivePostStatisticsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         PostStatisticsScreen(
             viewModel = koinViewModel(
@@ -1459,7 +1459,7 @@ private fun shellEntryProvider(
      * Omezení a vyhození se vrší nad úpravu. Klíč nese i druh seznamu: ViewModel se cachuje
      * podle klíče a Koin u cachované instance ignoruje nové parametry.
      */
-    entry<RemovedMembersRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<RemovedMembersRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         RemovedMembersScreen(
             viewModel = koinViewModel(
@@ -1471,7 +1471,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveRemovedMembersRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveRemovedMembersRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         RemovedMembersScreen(
             viewModel = koinViewModel(
@@ -1488,7 +1488,7 @@ private fun shellEntryProvider(
      * nahradí. Klíč nese i `userId` a druh práv: ViewModel se cachuje
      * podle klíče a Koin u cachované instance ignoruje nové parametry.
      */
-    entry<MemberRightsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<MemberRightsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         MemberRightsScreen(
             viewModel = koinViewModel(
                 key = "member-rights-${route.chatId}-${route.userId}-${route.admin}",
@@ -1498,7 +1498,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveMemberRightsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveMemberRightsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         MemberRightsScreen(
             viewModel = koinViewModel(
                 key = "member-rights-${route.chatId}-${route.userId}-${route.admin}",
@@ -1576,7 +1576,7 @@ private fun shellEntryProvider(
         }
     }
 
-    entry<ArchiveChatProfileRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+    entry<ArchiveChatProfileRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.headerOutside() + Panes.instantBounds(instantPaneBounds)) { route ->
         val slot = LocalAccount.current.slot
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
