@@ -64,7 +64,7 @@ Skladba:
 
 - **Jediný prvek „nahoře"** — řada avatarů přes celou šířku, jak ji mají jiné aplikace, se
   vědomě nedělá (uživatel nechtěl, aby příběhy trčely nad seznamem). Hromádka je až tři
-  avatary vedle fotky účtu, bez příběhů zmizí. Slouží hlavně kontaktům bez chatu.
+  avatary na konci pilulky hledání (fotka účtu stojí vedle pilulky), bez příběhů zmizí. Slouží hlavně kontaktům bez chatu.
 - **Pořadí je pořadí TDLib** (`order`, pak id chatu sestupně) — nezhlédnuté a vlastní příběh
   posouvá dopředu sám server. Ťuknutí otevře prvního autora s nezhlédnutým.
 - **Jen v hlavním seznamu chatů** (`ChatsViewModel.storyStack`, `folder == Main`), ne ve složce

@@ -32,7 +32,7 @@ import eu.tintera.plume.resources.stories_stack
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Hromádka autorů s příběhy v pilulce hledání, vedle fotky účtu. Je to jediný vstup k příběhům
+ * Hromádka autorů s příběhy na konci pilulky hledání (fotka účtu stojí až vedle pilulky). Je to jediný vstup k příběhům
  * kontaktů, se kterými chat nemáme — v seznamu chatů nejsou, takže by u nich kroužek nebyl.
  * Ťuknutí pustí příběhy po sobě od prvního autora s nezhlédnutým. Bez příběhů hromádka zmizí
  * a pilulka zůstane, jak byla — nahoře nic netrčí.

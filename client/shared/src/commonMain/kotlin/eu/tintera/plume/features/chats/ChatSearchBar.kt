@@ -114,6 +114,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -173,8 +174,13 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Hlavička seznamu chatů: vyhledávací pilulka přes celou šířku, na jejím konci [trailing]
- * (fotka účtu s menu — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
+ * Hlavička seznamu chatů: vyhledávací pilulka, na jejím konci [trailing] (hromádka příběhů)
+ * a VEDLE ní [actions] (fotka účtu s menu).
+ *
+ * **Fotka účtu stojí mimo pilulku**, ve slotu `actions` baru. Dokud byla uvnitř (vzor Gmailu),
+ * ťuknutí kousek vedle fotky padlo na pilulku a místo menu se rozbalilo hledání: hranice
+ * tlačítka uvnitř tónové plochy není vidět. Mezera mezi pilulkou a fotkou je teď mrtvá zóna
+ * a fotka mohla vyrůst.
  *
  * Nahradila `LargeFlexibleTopAppBar`. Ten byl hezký jen rozbalený: sbalený přešel na
  * `surfaceContainer`, tedy pruh přes celou šířku v roli, která jinde v seznamu není, a na
@@ -218,8 +224,10 @@ internal fun ChatSearchBar(
     /** Dotaz zvenku (hashtag z konverzace): hledání se s ním rozbalí. */
     request: String?,
     onRequestHandled: () -> Unit,
-    /** Konec sbalené pilulky (menu účtu). V rozbaleném hledání není — tam je ✕ dotazu. */
+    /** Konec sbalené pilulky (hromádka příběhů). V rozbaleném hledání není — tam je ✕ dotazu. */
     trailing: @Composable () -> Unit,
+    /** Vedle pilulky, na ploše stránky (menu účtu). */
+    actions: @Composable RowScope.() -> Unit,
     /**
      * Hledání přirozeným jazykem (`NaturalSearchModel`): věta → slova a filtry. `null` = model
      * není (vypnutá AI, nestažený model) a ikona se nenabízí.
@@ -366,7 +374,7 @@ internal fun ChatSearchBar(
                                 )
                             }
                         }
-                        // V rozbaleném hledání stav ani účet nepatří — uživatel se dívá na výsledky.
+                        // V rozbaleném hledání příběhy nepatří — uživatel se dívá na výsledky.
                         !expanded -> trailing()
                     }
                 }
@@ -413,6 +421,7 @@ internal fun ChatSearchBar(
         AppBarWithSearch(
             state = searchBarState,
             inputField = inputField,
+            actions = actions,
             colors = colors,
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
         )

@@ -548,7 +548,7 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   a `Outlined…`. Kdo přidává nový, předá `shapes` taky; tlačítko bez nich se chová postaru
   a vedle ostatních to vypadá jako nedodělek. U standardního tlačítka bez plochy se mění tvar
   vlnky (ořez), u plného i plocha. Výjimky: tlačítka s vlastním tvarem, který nese stav
-  (odesílací tlačítko, přehrát u videa a hlasovky, náhled přílohy), a fotka účtu v pilulce —
+  (odesílací tlačítko, přehrát u videa a hlasovky, náhled přílohy), a fotka účtu v hlavičce seznamu —
   obsahem je kulatá fotka a hranatá vlnka by kolem ní trčela. Doplnilo se skriptem do všech
   ~100 volání naráz; ověřeno na emulátoru (šipka zpět podržená přes `input motionevent DOWN`).
 - **Řádky bloku taky** — stisknutý se zaoblí na 16 dp. Dělá to `GroupedColumn`, `groupedItem`

@@ -572,15 +572,13 @@ fun ChatListScreen(
                             describedPhotos = describedPhotos,
                         ),
                         trailing = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                StoryStack(
-                                    posters = storyStack,
-                                    rim = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    onOpen = navigation.onOpenStories,
-                                )
-                                accountMenu()
-                            }
+                            StoryStack(
+                                posters = storyStack,
+                                rim = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                onOpen = navigation.onOpenStories,
+                            )
                         },
+                        actions = { accountMenu() },
                     )
                     FabMenuScrim(
                         visible = fabMenuExpanded,
