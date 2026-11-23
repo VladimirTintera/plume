@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.background
+import eu.tintera.plume.core.adaptive.PaneHeader
+import eu.tintera.plume.core.adaptive.paneHeaderOutside
 import androidx.compose.ui.input.key.key
 import eu.tintera.plume.core.telegram.MessageMedia
 import androidx.compose.ui.geometry.Offset
@@ -499,10 +502,13 @@ fun ConversationScreen(
         )
 
         val textZoom = rememberMessageTextZoom()
+        // Hlavička nad kartou (vedle seznamu): plochu stránky dostane jen obsah pod ní, nad ní je
+        // vidět plocha okna (`PaneHeader`).
+        val headerOutside = paneHeaderOutside()
         Scaffold(
             // Barva popředí se z plochy neodvozuje: `surfaceContainerLowest` mapování nemá a fallback
             // by závisel na tom, co je zrovna v `LocalContentColor`.
-            containerColor = pageColor,
+            containerColor = if (headerOutside) Color.Transparent else pageColor,
             contentColor = MaterialTheme.colorScheme.onBackground,
             // Ctrl + / − / 0: velikost písma zpráv (`MessageTextZoom`), i s fokusem v poli.
             modifier = Modifier.fillMaxSize().hazeSource(hazeState).messageTextZoomKeys(textZoom),
@@ -516,13 +522,15 @@ fun ConversationScreen(
             contentWindowInsets = ScaffoldDefaults.contentWindowInsets
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
             topBar = {
-                ConversationTopBar(
-                    state = state,
-                    viewModel = viewModel,
-                    navigation = navigation,
-                    chatHidden = chatHidden,
-                    onSummary = startSummary.takeIf { summaryAvailable && state.threadRootId == null },
-                )
+                PaneHeader {
+                    ConversationTopBar(
+                        state = state,
+                        viewModel = viewModel,
+                        navigation = navigation,
+                        chatHidden = chatHidden,
+                        onSummary = startSummary.takeIf { summaryAvailable && state.threadRootId == null },
+                    )
+                }
             },
             /*
              * Vstupní pole JE `bottomBar`. Scaffold ho změří (i s citací, úpravou, víc řádky
@@ -612,6 +620,7 @@ fun ConversationScreen(
                         start = padding.calculateStartPadding(layoutDirection),
                         end = padding.calculateEndPadding(layoutDirection),
                     )
+                    .then(if (headerOutside) Modifier.background(pageColor) else Modifier)
                     .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
             ) {
                 // Efekty zpráv letí ze seznamu do vrstvy nad celou obrazovkou (viz `EffectLayer`).

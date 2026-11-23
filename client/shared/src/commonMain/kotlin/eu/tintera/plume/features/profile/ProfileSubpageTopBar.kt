@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
+import eu.tintera.plume.core.adaptive.PaneHeader
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -45,21 +47,24 @@ internal fun ProfileSubpageTopBar(
     scrollBehavior: TopAppBarScrollBehavior?,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    MediumFlexibleTopAppBar(
-        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        subtitle = subtitle?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
-        navigationIcon = {
-            IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-            }
-        },
-        actions = actions,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-        ),
-        scrollBehavior = scrollBehavior,
-    )
+    // Vedle konverzace leží nad kartou profilu (`PaneHeader`), jinak je obyčejná.
+    PaneHeader {
+        MediumFlexibleTopAppBar(
+            title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            subtitle = subtitle?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
+            navigationIcon = {
+                IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                    Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                }
+            },
+            actions = actions,
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = paneHeaderContainerColor(),
+                scrolledContainerColor = paneHeaderContainerColor(),
+            ),
+            scrollBehavior = scrollBehavior,
+        )
+    }
 }
 
 /** Sbalování hlavičky podstránky: na jednom panelu ano, v dvoupanelu ne (`null`). */

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.adaptive.paneScaffoldColor
+import eu.tintera.plume.core.adaptive.PaneBody
 import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.layout.Arrangement
@@ -129,6 +131,7 @@ fun EventLogScreen(viewModel: EventLogViewModel, onBack: () -> Unit, modifier: M
     val subpageScroll = profileSubpageScrollBehavior()
 
     Scaffold(
+        containerColor = paneScaffoldColor(),
         modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -139,51 +142,53 @@ fun EventLogScreen(viewModel: EventLogViewModel, onBack: () -> Unit, modifier: M
                 scrollBehavior = subpageScroll,
             )
         },
-    ) { padding ->
-        // „Zrušit filtry" vymaže i hledaný text; ten drží pole samo, proto se založí znovu.
-        var searchGeneration by remember { mutableIntStateOf(0) }
-        Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
-            key(searchGeneration) {
-                SearchPill(
-                    initialQuery = viewModel.filter.query,
-                    onQueryChange = viewModel::setQuery,
-                    placeholder = stringResource(Res.string.event_log_search),
-                    clearDescription = stringResource(Res.string.chats_search_clear),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-            }
-            EventLogFilters(
-                filter = viewModel.filter,
-                admins = viewModel.admins,
-                onToggleCategory = viewModel::toggleCategory,
-                onToggleAuthor = viewModel::toggleAuthor,
-                onAnyAuthor = viewModel::clearAuthors,
-            )
-            val bottom = PaddingValues(bottom = padding.calculateBottomPadding())
-            when {
-                events == null -> Box(Modifier.fillMaxSize().padding(bottom), contentAlignment = Alignment.Center) {
-                    if (!viewModel.loadFailed) LoadingIndicator()
+    ) { scaffoldPadding ->
+        PaneBody(scaffoldPadding) { padding ->
+            // „Zrušit filtry" vymaže i hledaný text; ten drží pole samo, proto se založí znovu.
+            var searchGeneration by remember { mutableIntStateOf(0) }
+            Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
+                key(searchGeneration) {
+                    SearchPill(
+                        initialQuery = viewModel.filter.query,
+                        onQueryChange = viewModel::setQuery,
+                        placeholder = stringResource(Res.string.event_log_search),
+                        clearDescription = stringResource(Res.string.chats_search_clear),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
                 }
-                // Prázdno kvůli filtru je jiná zpráva než prázdný záznam: radí, co s tím.
-                events.isEmpty() && viewModel.filter.isActive -> IntroEmptyState(
-                    icon = Res.drawable.search_24dp,
-                    title = stringResource(Res.string.event_log_nothing_found),
-                    text = stringResource(Res.string.event_log_nothing_found_help),
-                    modifier = Modifier.fillMaxSize().padding(bottom),
-                    action = {
-                        TextButton(onClick = {
-                            viewModel.clearFilters()
-                            searchGeneration++
-                        }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.event_log_clear_filters)) }
-                    },
+                EventLogFilters(
+                    filter = viewModel.filter,
+                    admins = viewModel.admins,
+                    onToggleCategory = viewModel::toggleCategory,
+                    onToggleAuthor = viewModel::toggleAuthor,
+                    onAnyAuthor = viewModel::clearAuthors,
                 )
-                events.isEmpty() -> IntroEmptyState(
-                    icon = Res.drawable.history_24dp,
-                    title = stringResource(Res.string.event_log_empty),
-                    text = stringResource(Res.string.event_log_empty_help),
-                    modifier = Modifier.fillMaxSize().padding(bottom),
-                )
-                else -> EventList(events, viewModel, bottom)
+                val bottom = PaddingValues(bottom = padding.calculateBottomPadding())
+                when {
+                    events == null -> Box(Modifier.fillMaxSize().padding(bottom), contentAlignment = Alignment.Center) {
+                        if (!viewModel.loadFailed) LoadingIndicator()
+                    }
+                    // Prázdno kvůli filtru je jiná zpráva než prázdný záznam: radí, co s tím.
+                    events.isEmpty() && viewModel.filter.isActive -> IntroEmptyState(
+                        icon = Res.drawable.search_24dp,
+                        title = stringResource(Res.string.event_log_nothing_found),
+                        text = stringResource(Res.string.event_log_nothing_found_help),
+                        modifier = Modifier.fillMaxSize().padding(bottom),
+                        action = {
+                            TextButton(onClick = {
+                                viewModel.clearFilters()
+                                searchGeneration++
+                            }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.event_log_clear_filters)) }
+                        },
+                    )
+                    events.isEmpty() -> IntroEmptyState(
+                        icon = Res.drawable.history_24dp,
+                        title = stringResource(Res.string.event_log_empty),
+                        text = stringResource(Res.string.event_log_empty_help),
+                        modifier = Modifier.fillMaxSize().padding(bottom),
+                    )
+                    else -> EventList(events, viewModel, bottom)
+                }
             }
         }
     }

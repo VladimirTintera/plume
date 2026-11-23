@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
+import androidx.compose.material3.TopAppBarDefaults
 import eu.tintera.plume.core.accounts.AccountBadge
 import eu.tintera.plume.core.accounts.rememberShownAccount
 import androidx.compose.animation.AnimatedContent
@@ -106,6 +108,7 @@ internal fun ConversationTopBar(
         return
     }
     TopAppBar(
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
         title = {
             // Hlavička vede do profilu chatu — tak to znají uživatelé ze všech klientů.
             // Uložené zprávy profil nemají (je to vlastní účet, nic k ukázání).

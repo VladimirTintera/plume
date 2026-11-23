@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.statistics
 
+import eu.tintera.plume.core.adaptive.paneScaffoldColor
+import eu.tintera.plume.core.adaptive.PaneBody
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,6 +92,7 @@ fun ChatStatisticsScreen(
 ) {
     val subpageScroll = profileSubpageScrollBehavior()
     Scaffold(
+        containerColor = paneScaffoldColor(),
         modifier = modifier.profileSubpageScroll(subpageScroll),
         topBar = {
             ProfileSubpageTopBar(
@@ -99,42 +102,44 @@ fun ChatStatisticsScreen(
                 scrollBehavior = subpageScroll,
             )
         },
-    ) { padding ->
-        val statistics = viewModel.statistics
-        val failure = viewModel.failure
-        when {
-            failure != null -> IntroEmptyState(
-                icon = Res.drawable.bar_chart_24dp,
-                title = stringResource(Res.string.empty_state_error_title),
-                text = failure.resolve(),
-                modifier = Modifier.fillMaxSize().padding(padding),
-                action = {
-                    FilledTonalButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) {
-                        Text(stringResource(Res.string.common_try_again))
-                    }
-                },
-            )
-            statistics == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                LoadingIndicator()
-            }
-            else -> LazyColumn(
-                contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding() + 24.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                item(key = "period") {
-                    Text(
-                        stringResource(Res.string.statistics_period, statistics.period.start.asDate(), statistics.period.end.asDate()),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
-                    )
+    ) { scaffoldPadding ->
+        PaneBody(scaffoldPadding) { padding ->
+            val statistics = viewModel.statistics
+            val failure = viewModel.failure
+            when {
+                failure != null -> IntroEmptyState(
+                    icon = Res.drawable.bar_chart_24dp,
+                    title = stringResource(Res.string.empty_state_error_title),
+                    text = failure.resolve(),
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    action = {
+                        FilledTonalButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) {
+                            Text(stringResource(Res.string.common_try_again))
+                        }
+                    },
+                )
+                statistics == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    LoadingIndicator()
                 }
-                item(key = "overview-title") { StatSectionTitle(stringResource(Res.string.statistics_overview)) }
-                item(key = "overview") { StatTiles(overviewTiles(statistics), Modifier.padding(horizontal = 16.dp)) }
-                graphItems(viewModel.graphs)
-                when (statistics) {
-                    is ChatStatistics.Channel -> recentPosts(statistics.recent, onOpenPost)
-                    is ChatStatistics.Group -> groupLeaders(statistics)
+                else -> LazyColumn(
+                    contentPadding = PaddingValues(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding() + 24.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    item(key = "period") {
+                        Text(
+                            stringResource(Res.string.statistics_period, statistics.period.start.asDate(), statistics.period.end.asDate()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp),
+                        )
+                    }
+                    item(key = "overview-title") { StatSectionTitle(stringResource(Res.string.statistics_overview)) }
+                    item(key = "overview") { StatTiles(overviewTiles(statistics), Modifier.padding(horizontal = 16.dp)) }
+                    graphItems(viewModel.graphs)
+                    when (statistics) {
+                        is ChatStatistics.Channel -> recentPosts(statistics.recent, onOpenPost)
+                        is ChatStatistics.Group -> groupLeaders(statistics)
+                    }
                 }
             }
         }

@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.adaptive.paneHeaderOutside
+import androidx.compose.material3.TopAppBarDefaults
+import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
+import eu.tintera.plume.core.adaptive.PaneHeader
+import eu.tintera.plume.core.adaptive.paneScaffoldColor
+import eu.tintera.plume.core.adaptive.PaneBody
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
 import eu.tintera.plume.resources.add_to_home_screen_24dp
 import eu.tintera.plume.resources.chat_add_to_home_screen
@@ -449,241 +455,250 @@ fun ChatProfileScreen(
     // Box kvůli ořezu navrhované fotky: překryv přes celou obrazovku leží nad profilem.
     Box(Modifier.fillMaxSize()) {
         Scaffold(
+            containerColor = paneScaffoldColor(),
             modifier = modifier,
             contentWindowInsets = ScaffoldDefaults.contentWindowInsets
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
-                    title = {
-                        AnimatedVisibility(
-                            visible = titleInBar && state.profile != null,
-                            enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                                slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
-                            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                                slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
-                        ) {
-                            Text(state.profile?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                            if (closeIcon) {
-                                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
-                            } else {
-                                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                PaneHeader {
+                    TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
+                        title = {
+                            AnimatedVisibility(
+                                visible = titleInBar && state.profile != null,
+                                enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                                    slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
+                                exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                                    slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
+                            ) {
+                                Text(state.profile?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                                if (closeIcon) {
+                                    Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                                } else {
+                                    Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                                }
+                            }
+                        },
+                        actions = {
+                            state.profile?.let { profile ->
+                                ProfileMenu(
+                                    profile = profile,
+                                    onCopyLink = viewModel::copyLink,
+                                    onEdit = onEdit,
+                                    onShareContact = { profile.userId?.let(onShareContact) },
+                                    onAddMembers = onAddMembers,
+                                    onSetBlocked = viewModel::setBlocked,
+                                    onSetContact = viewModel::setContact,
+                                    onStartSecretChat = viewModel::startSecretChat,
+                                    onSuggestBirthdate = viewModel::suggestBirthdate,
+                                    onSuggestPhoto = if (viewModel.canSuggestPhoto) photoPicker::pickMedia else null,
+                                    onEditContact = { editContact = true },
+                                    onCall = rememberStartCall(profile.userId),
+                                    onAddToHomeScreen = viewModel::addToHomeScreen.takeIf { viewModel.canAddToHomeScreen },
+                                )
+                            }
+                        },
+                    )
+                }
+            },
+        ) { scaffoldPadding ->
+            PaneBody(scaffoldPadding) { padding ->
+                val profile = state.profile
+                if (profile == null) {
+                    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                        if (state.loading) LoadingIndicator()
+                    }
+                    return@PaneBody
+                }
+
+                // Spodek (navigační lišta) jde do obsahu: poslední položka se nad ni doroluje.
+                val bottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+                val header: @Composable () -> Unit = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp),
+                    ) {
+                        ProfileHeader(
+                            state = state,
+                            profile = profile,
+                            scroll = { scrollState.value },
+                            onTitlePlaced = { titleBottom = it },
+                            onOpenPhotos = onOpenPhotos,
+                            onOpenStories = { onOpenStories(emptyList(), 0) },
+                        )
+                        if (state.offerContact && profile.kind == ProfileKind.User && profile.userId != null && !profile.isContact) {
+                            AddContactButton(onClick = { viewModel.setContact(true) })
                         }
-                    },
-                    actions = {
-                        state.profile?.let { profile ->
-                            ProfileMenu(
-                                profile = profile,
-                                onCopyLink = viewModel::copyLink,
-                                onEdit = onEdit,
-                                onShareContact = { profile.userId?.let(onShareContact) },
-                                onAddMembers = onAddMembers,
-                                onSetBlocked = viewModel::setBlocked,
-                                onSetContact = viewModel::setContact,
-                                onStartSecretChat = viewModel::startSecretChat,
-                                onSuggestBirthdate = viewModel::suggestBirthdate,
-                                onSuggestPhoto = if (viewModel.canSuggestPhoto) photoPicker::pickMedia else null,
-                                onEditContact = { editContact = true },
-                                onCall = rememberStartCall(profile.userId),
-                                onAddToHomeScreen = viewModel::addToHomeScreen.takeIf { viewModel.canAddToHomeScreen },
+                        ProfileActions(
+                            muted = state.muted,
+                            onToggleMute = viewModel::toggleMute,
+                            onSearch = onSearch,
+                            onOpenApp = onOpenMainWebApp.takeIf { profile.hasMainWebApp },
+                            directMessages = profile.directMessagesChatId?.let { profile.directMessagesAdmin },
+                            onOpenDirectMessages = viewModel::openDirectMessages,
+                        )
+                        if (state.appPreviews.isNotEmpty()) {
+                            BotAppPreviews(previews = state.appPreviews, onOpen = { openAppPreview = it })
+                        }
+                        val notifications = state.notifications
+                        val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
+                        val chatAutosave = autosaveChatType(profile.kind, profile.isSecretChat)
+                            ?.let { type -> autosaveState?.settings?.chatAutosave(profile.chatId, type) }
+                        if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
+                            profile.personalChannel != null || profile.contact?.note?.isNotBlank() == true || profile.business != null ||
+                            notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
+                            chatAutosave != null ||
+                            profile.secretChatKey != null ||
+                            viewModel.supportsChatColor
+                        ) {
+                            ProfileInfo(
+                                profile,
+                                notifications = notifications,
+                                bookmarkCount = bookmarks.size,
+                                onOpenBookmarks = onOpenBookmarks,
+                                onLinkClick = viewModel::openLink,
+                                onOpenLinkedChat = viewModel::openLinkedChat,
+                                onOpenPersonalChannel = viewModel::openPersonalChannel,
+                                onOpenNotifications = viewModel::openNotificationSheet,
+                                autosave = chatAutosave,
+                                onOpenAutosave = { showAutosave = true },
+                                onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
+                                onOpenSecretKey = { showSecretKey = true },
+                                chatColor = chatColor,
+                                onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
+                                onOpenBusinessHours = { showBusinessHours = true },
+                                onOpenBusinessAddress = viewModel::openBusinessAddress,
+                                onOpenCollectible = viewModel::openCollectible,
                             )
                         }
-                    },
-                )
-            },
-        ) { padding ->
-            val profile = state.profile
-            if (profile == null) {
-                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    if (state.loading) LoadingIndicator()
-                }
-                return@Scaffold
-            }
-
-            // Spodek (navigační lišta) jde do obsahu: poslední položka se nad ni doroluje.
-            val bottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
-            val header: @Composable () -> Unit = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp),
-                ) {
-                    ProfileHeader(
-                        state = state,
-                        profile = profile,
-                        scroll = { scrollState.value },
-                        onTitlePlaced = { titleBottom = it },
-                        onOpenPhotos = onOpenPhotos,
-                        onOpenStories = { onOpenStories(emptyList(), 0) },
-                    )
-                    if (state.offerContact && profile.kind == ProfileKind.User && profile.userId != null && !profile.isContact) {
-                        AddContactButton(onClick = { viewModel.setContact(true) })
-                    }
-                    ProfileActions(
-                        muted = state.muted,
-                        onToggleMute = viewModel::toggleMute,
-                        onSearch = onSearch,
-                        onOpenApp = onOpenMainWebApp.takeIf { profile.hasMainWebApp },
-                        directMessages = profile.directMessagesChatId?.let { profile.directMessagesAdmin },
-                        onOpenDirectMessages = viewModel::openDirectMessages,
-                    )
-                    if (state.appPreviews.isNotEmpty()) {
-                        BotAppPreviews(previews = state.appPreviews, onOpen = { openAppPreview = it })
-                    }
-                    val notifications = state.notifications
-                    val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
-                    val chatAutosave = autosaveChatType(profile.kind, profile.isSecretChat)
-                        ?.let { type -> autosaveState?.settings?.chatAutosave(profile.chatId, type) }
-                    if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
-                        profile.personalChannel != null || profile.contact?.note?.isNotBlank() == true || profile.business != null ||
-                        notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
-                        chatAutosave != null ||
-                        profile.secretChatKey != null ||
-                        viewModel.supportsChatColor
-                    ) {
-                        ProfileInfo(
-                            profile,
-                            notifications = notifications,
-                            bookmarkCount = bookmarks.size,
-                            onOpenBookmarks = onOpenBookmarks,
-                            onLinkClick = viewModel::openLink,
-                            onOpenLinkedChat = viewModel::openLinkedChat,
-                            onOpenPersonalChannel = viewModel::openPersonalChannel,
-                            onOpenNotifications = viewModel::openNotificationSheet,
-                            autosave = chatAutosave,
-                            onOpenAutosave = { showAutosave = true },
-                            onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
-                            onOpenSecretKey = { showSecretKey = true },
-                            chatColor = chatColor,
-                            onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
-                            onOpenBusinessHours = { showBusinessHours = true },
-                            onOpenBusinessAddress = viewModel::openBusinessAddress,
-                            onOpenCollectible = viewModel::openCollectible,
-                        )
-                    }
-                    // Hudba patří k člověku jako bio, ale je to seznam, ne údaj — vlastní blok
-                    // pod údaji, před záložkami.
-                    state.profileAudios?.takeIf { it.isNotEmpty() }?.let { audios ->
-                        val playback by viewModel.playback.collectAsStateWithLifecycle()
-                        ProfileMusic(
-                            audios = audios,
-                            chatId = profile.chatId,
-                            playback = playback,
-                            onToggle = viewModel::toggleProfileAudio,
-                            // Vlastní hudba se spravuje v úpravě profilu; vlastní profil se tu neotevírá.
-                            onRemove = null,
-                        )
+                        // Hudba patří k člověku jako bio, ale je to seznam, ne údaj — vlastní blok
+                        // pod údaji, před záložkami.
+                        state.profileAudios?.takeIf { it.isNotEmpty() }?.let { audios ->
+                            val playback by viewModel.playback.collectAsStateWithLifecycle()
+                            ProfileMusic(
+                                audios = audios,
+                                chatId = profile.chatId,
+                                playback = playback,
+                                onToggle = viewModel::toggleProfileAudio,
+                                // Vlastní hudba se spravuje v úpravě profilu; vlastní profil se tu neotevírá.
+                                onRemove = null,
+                            )
+                        }
                     }
                 }
-            }
 
-            val autosaveType = autosaveChatType(profile.kind, profile.isSecretChat)
-            autosaveViewModel?.let {
-                ChatAutosaveHost(
-                    viewModel = it,
+                val autosaveType = autosaveChatType(profile.kind, profile.isSecretChat)
+                autosaveViewModel?.let {
+                    ChatAutosaveHost(
+                        viewModel = it,
+                        chatId = profile.chatId,
+                        type = autosaveType,
+                        open = showAutosave,
+                        onClose = { showAutosave = false },
+                        snackbarHostState = snackbarHostState,
+                    )
+                }
+
+                val secretKey = profile.secretChatKey
+                if (showSecretKey && secretKey != null) {
+                    SecretChatKeySheet(key = secretKey, partnerName = profile.title, onDismiss = { showSecretKey = false })
+                }
+
+                if (state.autoDeleteSheet) {
+                    AutoDeleteSheet(
+                        current = profile.autoDeleteTime,
+                        secret = profile.isSecretChat,
+                        onSelect = viewModel::setAutoDelete,
+                        onDismiss = viewModel::closeAutoDeleteSheet,
+                    )
+                }
+
+                val businessHours = profile.business?.openingHours.orEmpty()
+                if (showBusinessHours && businessHours.isNotEmpty()) {
+                    BusinessHoursSheet(hours = businessHours, onDismiss = { showBusinessHours = false })
+                }
+
+                openAppPreview?.let { index ->
+                    AppPreviewViewer(previews = state.appPreviews, initial = index, onDismiss = { openAppPreview = null })
+                }
+
+                state.openGift?.let { gift ->
+                    ProfileGiftSheet(gift = gift, onDismiss = viewModel::closeGift)
+                }
+
+                state.collectible?.let { sheet ->
+                    CollectibleInfoSheet(sheet = sheet, onOpenUrl = viewModel::openLink, onDismiss = viewModel::closeCollectible)
+                }
+
+                if (showChatColor) {
+                    ChatColorSheet(
+                        current = chatColor,
+                        onSelect = viewModel::setChatColor,
+                        onDismiss = { showChatColor = false },
+                    )
+                }
+
+                val notifications = state.notifications
+                if (state.notificationSheet && notifications != null) {
+                    ChatNotificationSheet(
+                        prefs = notifications,
+                        supportsConversationSettings = viewModel.supportsConversationSettings,
+                        onMute = viewModel::mute,
+                        onUnmute = viewModel::unmute,
+                        onOption = viewModel::setNotificationOption,
+                        onOpenConversationSettings = viewModel::openConversationSettings,
+                        onReset = viewModel::resetNotifications,
+                        onDismiss = viewModel::closeNotificationSheet,
+                        soundLabel = chatSoundLabel(notifications, tones),
+                        onPickSound = {
+                            // Dva sheety přes sebe ne: upozornění se zavře, výběr zvuku otevře.
+                            viewModel.closeNotificationSheet()
+                            showSound = true
+                        },
+                    )
+                }
+                ChatSoundHost(
+                    viewModel = sounds,
                     chatId = profile.chatId,
-                    type = autosaveType,
-                    open = showAutosave,
-                    onClose = { showAutosave = false },
+                    prefs = notifications,
+                    open = showSound,
+                    onClose = { showSound = false },
                     snackbarHostState = snackbarHostState,
                 )
-            }
 
-            val secretKey = profile.secretChatKey
-            if (showSecretKey && secretKey != null) {
-                SecretChatKeySheet(key = secretKey, partnerName = profile.title, onDismiss = { showSecretKey = false })
-            }
-
-            if (state.autoDeleteSheet) {
-                AutoDeleteSheet(
-                    current = profile.autoDeleteTime,
-                    secret = profile.isSecretChat,
-                    onSelect = viewModel::setAutoDelete,
-                    onDismiss = viewModel::closeAutoDeleteSheet,
-                )
-            }
-
-            val businessHours = profile.business?.openingHours.orEmpty()
-            if (showBusinessHours && businessHours.isNotEmpty()) {
-                BusinessHoursSheet(hours = businessHours, onDismiss = { showBusinessHours = false })
-            }
-
-            openAppPreview?.let { index ->
-                AppPreviewViewer(previews = state.appPreviews, initial = index, onDismiss = { openAppPreview = null })
-            }
-
-            state.openGift?.let { gift ->
-                ProfileGiftSheet(gift = gift, onDismiss = viewModel::closeGift)
-            }
-
-            state.collectible?.let { sheet ->
-                CollectibleInfoSheet(sheet = sheet, onOpenUrl = viewModel::openLink, onDismiss = viewModel::closeCollectible)
-            }
-
-            if (showChatColor) {
-                ChatColorSheet(
-                    current = chatColor,
-                    onSelect = viewModel::setChatColor,
-                    onDismiss = { showChatColor = false },
-                )
-            }
-
-            val notifications = state.notifications
-            if (state.notificationSheet && notifications != null) {
-                ChatNotificationSheet(
-                    prefs = notifications,
-                    supportsConversationSettings = viewModel.supportsConversationSettings,
-                    onMute = viewModel::mute,
-                    onUnmute = viewModel::unmute,
-                    onOption = viewModel::setNotificationOption,
-                    onOpenConversationSettings = viewModel::openConversationSettings,
-                    onReset = viewModel::resetNotifications,
-                    onDismiss = viewModel::closeNotificationSheet,
-                    soundLabel = chatSoundLabel(notifications, tones),
-                    onPickSound = {
-                        // Dva sheety přes sebe ne: upozornění se zavře, výběr zvuku otevře.
-                        viewModel.closeNotificationSheet()
-                        showSound = true
-                    },
-                )
-            }
-            ChatSoundHost(
-                viewModel = sounds,
-                chatId = profile.chatId,
-                prefs = notifications,
-                open = showSound,
-                onClose = { showSound = false },
-                snackbarHostState = snackbarHostState,
-            )
-
-            val tabs = state.tabs
-            if (tabs.isEmpty()) {
-                // Chat bez sdíleného obsahu a bez seznamu členů: žádné záložky, jen údaje.
-                // Prázdná záložka by slibovala něco, co v chatu není.
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(top = padding.calculateTopPadding(), bottom = 24.dp + bottom),
-                ) {
-                    header()
+                // Pod hlavičkou nad kartou by fotka narazila na horní hranu karty: dřív ji odsazovala
+                // lišta, teď začíná obsah přímo na kartě.
+                val contentTop = padding.calculateTopPadding() + if (paneHeaderOutside()) 16.dp else 0.dp
+                val tabs = state.tabs
+                if (tabs.isEmpty()) {
+                    // Chat bez sdíleného obsahu a bez seznamu členů: žádné záložky, jen údaje.
+                    // Prázdná záložka by slibovala něco, co v chatu není.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(top = contentTop, bottom = 24.dp + bottom),
+                    ) {
+                        header()
+                    }
+                } else {
+                    ProfileTabs(
+                        state = state,
+                        tabs = tabs,
+                        viewModel = viewModel,
+                        scrollState = scrollState,
+                        header = header,
+                        topPadding = contentTop,
+                        bottomPadding = 24.dp + bottom,
+                        onOpenMessage = onOpenMessage,
+                        onOpenStories = onOpenStories,
+                    )
                 }
-            } else {
-                ProfileTabs(
-                    state = state,
-                    tabs = tabs,
-                    viewModel = viewModel,
-                    scrollState = scrollState,
-                    header = header,
-                    topPadding = padding.calculateTopPadding(),
-                    bottomPadding = 24.dp + bottom,
-                    onOpenMessage = onOpenMessage,
-                    onOpenStories = onOpenStories,
-                )
             }
         }
         PhotoCropOverlay(

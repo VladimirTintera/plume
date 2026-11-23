@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntryDecorator
@@ -71,6 +71,9 @@ val LocalPaneNeighbours = compositionLocalOf { PaneNeighbours() }
  *   Okraj jen od seznamu nechával kartu narážet nahoru a dolů a zaoblený roh u spodního kraje
  *   okna vypadal jako chyba. Mezi konverzací a profilem je mezera jedna (dělá ji profil).
  *   **Nahoře jen [PANE_TOP_SPACING]**, ať horní hrana lícuje s pilulkou hledání v seznamu.
+ * - **S hlavičkou venku** ([Panes.headerOutside]: konverzace, placeholder, profil a jeho podstránky) leží hlavička na ploše
+ *   okna v jedné řadě s pilulkou hledání, karta začíná až pod ní ve výšce prvního řádku seznamu
+ *   ([PaneHeader], [HeaderOutsideShape]) a jde bez okraje a dolních rohů až pod spodní kraj okna.
  *
  * Mezera mezi panely proto NENÍ v direktivě scaffoldu (`horizontalPartitionSpacerSize = 0`):
  * mezera z knihovny je všude stejná a kreslit přes ni nejde (panely mají `clipToBounds`). Táhla
@@ -86,6 +89,8 @@ fun PaneCard(
     entryKey: Any? = null,
     /** Obrazovka si nechává `surface` ([Panes.ownSurface]); vedle jiných panelů je z ní karta. */
     ownSurface: Boolean = false,
+    /** Hlavička leží nad kartou ([Panes.headerOutside], [PaneHeader]). */
+    headerOutside: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val sideBySide = LocalPanesSideBySide.current
@@ -105,41 +110,62 @@ fun PaneCard(
         card -> PaneEdgeInsets.Pad
         else -> PaneEdgeInsets.None
     }
+    // Barvy plochy okna pro hlavičku nad kartou — tady jsou ještě barvy aplikace, ne chatu.
+    val planeScheme = MaterialTheme.colorScheme
+    val header = remember { PaneHeaderHost() }
+    val outside = card && headerOutside
     val spacing = if (card) PANE_SPACING else 0.dp
-    val topSpacing = if (card) PANE_TOP_SPACING else 0.dp
+    // Hlavička nad kartou stojí v jedné řadě s pilulkou hledání: obě začínají u stavové lišty.
+    val topSpacing = if (outside) 0.dp else if (card) PANE_TOP_SPACING else 0.dp
     val startSpacing = if (card || detail && neighbours.listBeside) PANE_SPACING else 0.dp
     // Mezeru mezi konverzací a profilem dělá profil, ať je jedna.
     val endSpacing = if (detail && neighbours.extraBeside && neighbours.extraCard) 0.dp else spacing
-    val shape = RoundedCornerShape(if (card) CARD_CORNER else 0.dp)
+    val density = LocalDensity.current
+    val headerHeight = if (outside) header.height.toFloat() else 0f
+    val cornerPx = with(density) { (if (card) CARD_CORNER else 0.dp).toPx() }
+    // Karta s hlavičkou venku jde až pod spodní kraj okna — spodní rohy nejsou vidět.
+    val bottomCornerPx = if (outside) 0f else cornerPx
+    val clipShape = remember(headerHeight, cornerPx, bottomCornerPx) { HeaderOutsideShape(headerHeight, cornerPx, bottomCornerPx, withHeader = true) }
+    val surfaceShape = remember(headerHeight, cornerPx, bottomCornerPx) { HeaderOutsideShape(headerHeight, cornerPx, bottomCornerPx, withHeader = false) }
 
     PageTheme(ownSurface) {
         // Každý bok ve vlastním uzlu: dvě úpravy insetů v jednom řetězci by si při změně scény
         // vyměnily místo a Compose by uzel přepsal jinými insety (viz [edge]).
         Box(Modifier.fillMaxSize().edge(start, WindowInsetsSides.Start)) {
             Box(Modifier.fillMaxSize().edge(end, WindowInsetsSides.End)) {
-                Box(Modifier.fillMaxSize().edge(if (card) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Vertical)) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(start = startSpacing, end = endSpacing, top = topSpacing, bottom = spacing)
-                            .clip(shape)
-                            .then(if (sideBySide && ownSurface) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier),
-                    ) {
-                        content()
-                        // Kde panel leží — táhlo šířky na předělu kreslí shell nad panely
-                        // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl. Jen karta zobrazené položky —
-                        // odjíždějící scéna by táhlo přetáhla k sobě a po zániku smazala (`LocalPaneResizeOwners`).
-                        val owned = entryKey != null && entryKey in LocalPaneResizeOwners.current
-                        val resize = when {
-                            !owned -> null
-                            extra -> LocalProfilePaneResize.current
-                            sideBySide && role == PaneRole.List -> LocalListPaneResize.current
-                            else -> null
-                        }
-                        if (resize != null) {
-                            val token = remember { Any() }
-                            Box(Modifier.matchParentSize().onGloballyPositioned { resize.report(token, it.boundsInWindow()) })
-                            DisposableEffect(resize) { onDispose { resize.release(token) } }
+                // Shora a zdola zvlášť: karta s hlavičkou venku jde dolů až pod navigační lištu
+                // (jako v Google Zprávách) a inset si bere vstupní pole samo, jako na telefonu.
+                Box(Modifier.fillMaxSize().edge(if (card) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Top)) {
+                    Box(Modifier.fillMaxSize().edge(if (card && !outside) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Bottom)) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(start = startSpacing, end = endSpacing, top = topSpacing, bottom = if (outside) 0.dp else spacing)
+                                .clip(clipShape)
+                                .then(if (sideBySide && ownSurface) Modifier.background(MaterialTheme.colorScheme.surface, surfaceShape) else Modifier),
+                        ) {
+                            CompositionLocalProvider(
+                                LocalPaneHeaderHost provides header,
+                                LocalPaneHeaderOutside provides outside,
+                                LocalPanePlaneScheme provides planeScheme,
+                            ) {
+                                content()
+                            }
+                            // Kde panel leží — táhlo šířky na předělu kreslí shell nad panely
+                            // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl. Jen karta zobrazené položky —
+                            // odjíždějící scéna by táhlo přetáhla k sobě a po zániku smazala (`LocalPaneResizeOwners`).
+                            val owned = entryKey != null && entryKey in LocalPaneResizeOwners.current
+                            val resize = when {
+                                !owned -> null
+                                extra -> LocalProfilePaneResize.current
+                                sideBySide && role == PaneRole.List -> LocalListPaneResize.current
+                                else -> null
+                            }
+                            if (resize != null) {
+                                val token = remember { Any() }
+                                Box(Modifier.matchParentSize().onGloballyPositioned { resize.report(token, it.boundsInWindow()) })
+                                DisposableEffect(resize) { onDispose { resize.release(token) } }
+                            }
                         }
                     }
                 }
@@ -207,7 +233,7 @@ fun rememberPaneCardDecorator(): NavEntryDecorator<NavKey> = remember {
             PageTheme(entry.ownSurface) { entry.Content() }
             return@NavEntryDecorator
         }
-        PaneCard(info.role, entry.contentKey, ownSurface = entry.ownSurface) {
+        PaneCard(info.role, entry.contentKey, ownSurface = entry.ownSurface, headerOutside = entry.headerOutside) {
             val maxWidth = entry.contentMaxWidth
             if (maxWidth == null) entry.Content() else Box(Modifier.centeredColumn(maxWidth)) { entry.Content() }
         }

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
+import androidx.compose.material3.TopAppBarDefaults
 import eu.tintera.plume.resources.selection_copy_markdown
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.selection_copy_with_names
@@ -49,6 +51,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun SelectionTopBar(selection: MessageSelection, onClose: () -> Unit) {
     TopAppBar(
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = paneHeaderContainerColor()),
         title = {
             Text(
                 text = pluralStringResource(Res.plurals.conversation_selection_count, selection.count, selection.count),

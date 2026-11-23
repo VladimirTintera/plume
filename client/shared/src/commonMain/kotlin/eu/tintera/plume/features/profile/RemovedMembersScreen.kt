@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.adaptive.paneScaffoldColor
+import eu.tintera.plume.core.adaptive.PaneBody
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -102,6 +104,7 @@ fun RemovedMembersScreen(
     val subpageScroll = profileSubpageScrollBehavior()
 
     Scaffold(
+        containerColor = paneScaffoldColor(),
         modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -112,58 +115,60 @@ fun RemovedMembersScreen(
                 scrollBehavior = subpageScroll,
             )
         },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
-            if (viewModel.searchAvailable) {
-                SearchPill(
-                    initialQuery = viewModel.query,
-                    onQueryChange = viewModel::search,
-                    placeholder = stringResource(Res.string.profile_members_search),
-                    clearDescription = stringResource(Res.string.chats_search_clear),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-            when {
-                shown == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    if (!viewModel.loadFailed) LoadingIndicator()
+    ) { scaffoldPadding ->
+        PaneBody(scaffoldPadding) { padding ->
+            Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
+                if (viewModel.searchAvailable) {
+                    SearchPill(
+                        initialQuery = viewModel.query,
+                        onQueryChange = viewModel::search,
+                        placeholder = stringResource(Res.string.profile_members_search),
+                        clearDescription = stringResource(Res.string.chats_search_clear),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
                 }
-                shown.isEmpty() && list.query.isNotEmpty() -> IntroEmptyState(
-                    icon = Res.drawable.search_off_24dp,
-                    title = stringResource(Res.string.profile_members_search_empty),
-                    text = stringResource(Res.string.chats_search_empty_hint),
-                    containerColor = Color.Transparent,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                shown.isEmpty() -> IntroEmptyState(
-                    icon = if (banned) Res.drawable.person_remove_24dp else Res.drawable.lock_24dp,
-                    title = stringResource(if (banned) Res.string.removed_members_empty else Res.string.restricted_members_empty),
-                    text = stringResource(if (banned) Res.string.removed_members_empty_help else Res.string.restricted_members_empty_help),
-                    modifier = Modifier.fillMaxSize(),
-                )
-                else -> LazyColumn(
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 8.dp,
-                        bottom = padding.calculateBottomPadding() + 24.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    itemsIndexed(shown, key = { _, member -> member.sender.id }) { index, member ->
-                        if (list.nextOffset != null) LoadMoreAtEnd(index, shown.size, viewModel::loadMore)
-                        RemovedMemberRow(
-                            member = member,
-                            banned = banned,
-                            onRelease = { viewModel.release(member) },
-                            onOpen = if (banned) null else ({ onOpenRestriction(member.sender.id) }),
-                            modifier = Modifier.animateItem().clip(groupItemShape(index, shown.size)),
-                        )
+                when {
+                    shown == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        if (!viewModel.loadFailed) LoadingIndicator()
                     }
-                    if (list.loadingMore) {
-                        item(key = LOADING_KEY) {
-                            Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                                LoadingIndicator()
+                    shown.isEmpty() && list.query.isNotEmpty() -> IntroEmptyState(
+                        icon = Res.drawable.search_off_24dp,
+                        title = stringResource(Res.string.profile_members_search_empty),
+                        text = stringResource(Res.string.chats_search_empty_hint),
+                        containerColor = Color.Transparent,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    shown.isEmpty() -> IntroEmptyState(
+                        icon = if (banned) Res.drawable.person_remove_24dp else Res.drawable.lock_24dp,
+                        title = stringResource(if (banned) Res.string.removed_members_empty else Res.string.restricted_members_empty),
+                        text = stringResource(if (banned) Res.string.removed_members_empty_help else Res.string.restricted_members_empty_help),
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    else -> LazyColumn(
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 8.dp,
+                            bottom = padding.calculateBottomPadding() + 24.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        itemsIndexed(shown, key = { _, member -> member.sender.id }) { index, member ->
+                            if (list.nextOffset != null) LoadMoreAtEnd(index, shown.size, viewModel::loadMore)
+                            RemovedMemberRow(
+                                member = member,
+                                banned = banned,
+                                onRelease = { viewModel.release(member) },
+                                onOpen = if (banned) null else ({ onOpenRestriction(member.sender.id) }),
+                                modifier = Modifier.animateItem().clip(groupItemShape(index, shown.size)),
+                            )
+                        }
+                        if (list.loadingMore) {
+                            item(key = LOADING_KEY) {
+                                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                                    LoadingIndicator()
+                                }
                             }
                         }
                     }
