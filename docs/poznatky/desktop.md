@@ -535,8 +535,12 @@ vybraným) a soubor pošle sám.
   aplikaci (`createDistributable`, `JAVA_TOOL_OPTIONS=-Dplume.dataDir=…`) vznikl `crash-*.txt`
   se stack trace a v zabalené aplikaci skončil výpis z `stderr` v `tdlib.log`, ne v konzoli.
   Řádek v O aplikaci a Windows / Linux **neověřené**.
-- **Pád při ukončení signálem je starší než tohle** — `pkill` na ladicí běh skončí nativním
-  pádem i na čistém `main` (2× ze 2); JVM stihne zapsat jen začátek `hs_err`.
+- **Pád při ukončení je starší než tohle** — `pkill` na ladicí běh skončí nativním pádem i na
+  čistém `main` (2× ze 2); JVM stihne zapsat jen začátek `hs_err`. Totéž ukázalo hlášení
+  nainstalované 1.2.0 po Cmd+Q: TDLib se při ukončení nezavírá a statické destruktory knihovny
+  ji zruší pod rukama běžícímu vláknu (rozbor v `docs/roadmap.md`, Desktop). Starší hlášení
+  1.0.99 (`td::CountryInfoManager::tear_down` → „mutex lock failed") je týž mechanismus
+  v tréninkovém běhu AOT, opravený zavřením TDLib v `TrainingRun`.
 
 ## Release
 
