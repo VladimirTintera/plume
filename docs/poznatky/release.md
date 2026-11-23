@@ -322,10 +322,16 @@ zvlášť projdou a dohromady se nepřeloží.
 - **Co NEDĚLÁ:** lint (`-x lint`, nikdy se nepouštěl a stav není známý), release build s R8
   (`bundleRelease`, na něm padly tagy 0.3.64 a 0.3.65, viz „Generovaný zdrojový adresář…"), iOS
   (link na macOS runneru trvá minuty a release s LTO desítky minut). Kandidáti na noční běh.
-- **PR jen s dokumentací se nestaví, ale projde.** Filtr `paths` na úrovni workflow by povinný
-  check nechal viset ve stavu „čeká" a PR by nešel sloučit. Proto první krok porovná změněné
-  soubory (`docs/`, `release-notes/`, `*.md`) a zbytek kroků přeskočí. Překlady se staví,
-  hlídá je `verifyTranslations`.
+- **PR jen s dokumentací se nestaví, ale projde.** Rozhoduje malý job `Detect changes` ze
+  seznamu souborů PR od GitHub API, bez checkoutu (pár sekund; checkout se submoduly a celou
+  historií by sám stál minutu). Když PR mění jen `docs/` (kromě `docs/licenses/`, konfigurace
+  AboutLibraries), `release-notes/`, `play/listing/` a `play/graphics/`, `.claude/`, `*.md`
+  nebo `LICENSE`, job `Build and test` se přes `if` PŘESKOČÍ. Přeskočený job GitHub počítá
+  u povinného checku jako úspěch, kdežto filtr `paths` / `paths-ignore` na úrovni workflow by
+  workflow vůbec nespustil a povinný check by navždy visel ve stavu „čeká" — PR by nešel
+  sloučit. Překlady (`strings.xml`) se staví, hlídá je `verifyTranslations`. Poznámky
+  k vydání čte i `generateChangelog`, ale s fallbackem, takže build nerozbijí. Nová složka,
+  která do buildu nevstupuje, patří do vzoru `IGNORED` ve workflow.
 - **Keš Gradlu zapisuje jen `main`** (výchozí chování `setup-gradle`), PR ji jen čtou. Proto
   workflow běží i na pushi do `main`; release workflow keš neplní, běží na tagu.
 - **Na hostovaném natvrdo**, jako kontrola poznámek: běží i na PR z forku. Secrets nepotřebuje,

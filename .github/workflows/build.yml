@@ -23,8 +23,54 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # PR, který nemění nic, co jde do buildu (dokumentace, poznámky k vydání, podklady pro Play),
+  # se nestaví. Rozhoduje to tenhle job ze seznamu souborů od GitHub API — bez checkoutu, takže
+  # trvá pár sekund; checkout se submoduly a celou historií by sám stál minutu.
+  #
+  # Filtr `paths-ignore` na úrovni workflow by byl jednodušší, ale workflow, které se nespustí,
+  # nechá povinný check navždy ve stavu „čeká" a PR nejde sloučit. PŘESKOČENÝ job (`if` níž)
+  # GitHub naopak počítá jako úspěch, takže `Build and test` jde nastavit jako povinný.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      build: ${{ steps.scope.outputs.build }}
+    steps:
+      - name: Detect build-relevant changes
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Push do `main` a ruční spuštění se staví vždy (plní keš, ověřují sloučený stav).
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          FILES=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename')
+          echo "$FILES"
+          # Co do buildu nevstupuje. `docs/licenses/` ano (konfigurace AboutLibraries), stejně
+          # tak překlady (strings.xml hlídá verifyTranslations) — ty se tedy staví.
+          # Poznámky k vydání čte generateChangelog, ale bez nich se build nerozbije (fallback).
+          IGNORED='^(docs/|release-notes/|play/(listing|graphics)/|\.claude/)|\.md$|^LICENSE$'
+          CODE=$(echo "$FILES" | grep -E '^docs/licenses/' || true)
+          CODE="$CODE$(echo "$FILES" | grep -vE "$IGNORED" || true)"
+          if [ -z "$CODE" ]; then
+            echo "::notice::Jen dokumentace a podobné soubory, build se přeskakuje."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build and test
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
     # VŽDY hostovaný runner, natvrdo: běží i na PR z cizího forku (viz release-notes-check.yml).
     # Ve veřejném repu je zdarma a má 4 CPU / 16 GB.
     runs-on: ubuntu-latest
@@ -35,45 +81,27 @@ jobs:
         with:
           # ai-engine (external/ai-engine) a v něm llama.cpp; bez nich se projekt ani nenakonfiguruje.
           submodules: recursive
+          # Celá historie a tagy: generateChangelog z nich skládá „Co je nového", jako v releasu.
           fetch-depth: 0
-
-      # PR jen s dokumentací se nestaví — job ale projde, aby šel nastavit jako povinný check
-      # (filtr `paths` na úrovni workflow by povinný check nechal viset ve stavu „čeká").
-      # Překlady (strings.xml) se staví: hlídá je verifyTranslations.
-      - name: Detect docs-only change
-        id: scope
-        if: github.event_name == 'pull_request'
-        run: |
-          set -euo pipefail
-          CODE=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
-            | grep -vE '^(docs/|release-notes/)|\.md$' || true)
-          if [ -z "$CODE" ]; then
-            echo "Jen dokumentace a poznámky k vydání, build se přeskakuje."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          fi
 
       # Verze musí odpovídat `jvmToolchain(17)` v modulech, jinak ji foojay stahuje při každém běhu.
       - uses: actions/setup-java@v6
-        if: steps.scope.outputs.skip != 'true'
         with:
           distribution: temurin
           java-version: 17
 
       # Keš zapisuje jen `main` (výchozí `cache-read-only` mimo výchozí větev), PR ji čtou.
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c  # v6.4.1
-        if: steps.scope.outputs.skip != 'true'
 
       # Totéž co v android-release.yml: compileSdk 37.2 pro Plume, 37.0 pro ai-engine, NDK
       # a CMake pro llama.cpp (AGP chce NDK už při konfiguraci :ai-llamacpp-android).
       - name: Install Android SDK
-        if: steps.scope.outputs.skip != 'true'
         uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd  # v4.0.4
         with:
           packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'
 
       # Projektové gradle.properties počítá s vývojářským strojem (Kotlin daemon 8 GB).
       - name: Limit Gradle memory for CI
-        if: steps.scope.outputs.skip != 'true'
         run: |
           mkdir -p ~/.gradle
           {
@@ -86,7 +114,6 @@ jobs:
       # že projde. iOS testy se na Linuxu přeskočí samy. Navíc APK telefonu a hodinek (dex,
       # balení) a jar desktopu. Bez api_id/api_hash: build se přeloží, jen by se nepřihlásil.
       - name: Build and test
-        if: steps.scope.outputs.skip != 'true'
         run: |
           ./gradlew --continue \
             check -x lint \
