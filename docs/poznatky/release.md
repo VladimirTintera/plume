@@ -336,8 +336,11 @@ zvlášť projdou a dohromady se nepřeloží.
   workflow běží i na pushi do `main`; release workflow keš neplní, běží na tagu.
 - **Na hostovaném natvrdo**, jako kontrola poznámek: běží i na PR z forku. Secrets nepotřebuje,
   bez `telegramApiId` se projekt přeloží (jen by se nepřihlásil).
-- **Povinným checkem se stane až v ochraně větve `main`** (Settings → Branches), to workflow
-  samo nezařídí.
+- **`Build and test` je povinný check** v klasické ochraně větve `main` (Settings → Branches,
+  od 23. 11. 2026), vedle `check` z kontroly poznámek. Kontext je JMÉNO JOBU, ne workflow:
+  přejmenování jobu by povinný check nechalo čekat na kontext, který už nikdy nepřijde, a žádný
+  PR by nešel sloučit — nejdřív upravit ochranu, pak jméno. Z příkazové řádky:
+  `gh api repos/VladimirTintera/plume/branches/main/protection/required_status_checks`.
 
 ## Původ buildu
 
