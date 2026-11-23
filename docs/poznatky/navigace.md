@@ -283,7 +283,36 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     hledání v seznamu vedle: `AppBarWithSearch` ji odsadí pod stavovou lištou o interní
     `AppBarWithSearchVerticalPadding` (4 dp v material3 1.5.0-alpha22). S 12 dp i nahoře
     začínala karta o 8 dp níž a na Foldu to bylo vidět na první pohled. Posunout naopak pilulku
-    by seznamu vzalo 8 dp výšky. Po bumpu material3 hodnotu porovnat.
+    by seznamu vzalo 8 dp výšky. Po bumpu material3 hodnotu porovnat. Dnes to platí jen pro článek
+    a další karty bez hlavičky venku, konverzace a placeholder mají geometrii z dalšího bodu.
+  - **Hlavička konverzace leží NAD kartou, na ploše okna** (`Panes.headerOutside`, `PaneHeader`
+    v `core/adaptive/PaneHeader.kt`; styl Google Zpráv). Vlevo stojí na ploše pilulka hledání
+    a pod ní řádky, vpravo byla jedna karta i s hlavičkou: každá polovina mluvila jiným jazykem
+    a hlavičku od zpráv dělila jen změna barvy při odrolování. Teď je nahoře jedna řada
+    „pilulka | hlavička“, pod ní obsah, a zprávy se ořežou o hranu karty.
+    - **Karta ořezává tvarem „pruh hlavičky + zaoblený obdélník pod ní“** (`HeaderOutsideShape`),
+      takže hlavička zůstává uvnitř karty (přechody, predictive back, táhla) a jen nemá plochu.
+      Výšku hlavičky hlásí `PaneHeader` přes `onSizeChanged` do `PaneHeaderHost`.
+    - **Držák výšky musí být stabilní** (`remember {}`), barvy plochy okna jdou zvlášť
+      (`LocalPanePlaneScheme`). S `remember(scheme)` vznikal při přechodu motivu v každém snímku
+      nový držák s výškou 0, `onSizeChanged` se při stejné velikosti znovu neozval a karta na
+      dobu přechodu (a po rozložení Foldu) překryla hlavičku. Ze stejného důvodu hlásí hlavička
+      výšku i na telefonu, kde leží uvnitř — po rozložení se její velikost nezmění.
+    - **Hlavička je v barvách aplikace, ne chatu** (`ChatColorTheme` je až uvnitř položky, plocha
+      okna ho nezná). Barvu chatu nese karta; neutrální hlavička nad tónovanou kartou je vědomá
+      cena (ověřeno na zelené ve světlém i tmavém motivu).
+    - **Karta začíná ve výšce prvního řádku seznamu**: hlavička i lišta hledání mají 64 dp,
+      seznam je pod lištou odsazený o 8 dp, takže hlavička nese mezeru `PANE_HEADER_GAP` 8 dp pod
+      sebou. Mezera patří hlavičce, ne kartě, aby obsah Scaffoldu začínal až pod ní.
+    - **Karta jde až pod spodní kraj okna** (bez spodního okraje, insetu a dolních rohů), jako
+      seznam vedle; spodní inset si bere vstupní pole samo, jako na telefonu. Horní a spodní inset
+      jsou proto ve dvou uzlech (pravidlo z Gotchas o insetech při změně scény).
+    - **Placeholder má stejnou geometrii** (prázdný `PaneHeader` výšky `TopAppBarExpandedHeight`),
+      jinak by karta při otevření chatu poskočila.
+    - **Profil vedle konverzace to ZATÍM nemá**: ve třech panelech má kartu od stavové lišty
+      se spodním okrajem, v barvě chatu je nesoulad vidět. Viz roadmapa.
+    - Ověřeno na emulátoru Fold: světlý i tmavý motiv a přechod mezi nimi, hledání v chatu,
+      barva chatu, placeholder, šest cyklů složit/rozložit bez pádu; složený telefon beze změny.
   - **Profil a co se z něj otevírá je v Chatech karta taky** (`PaneNeighbours.extraCard`), jen bez
     vlastní plochy: ořez a okraj stejný jako konverzace. V barvách aplikace je jeho stránka táž
     jako plocha okna, takže karta není vidět a profil zůstává stránkou na ploše. V barvě chatu

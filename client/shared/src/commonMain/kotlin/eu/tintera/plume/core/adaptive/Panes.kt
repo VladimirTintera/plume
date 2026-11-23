@@ -59,6 +59,13 @@ object Panes {
      */
     fun ownSurface(): Map<String, Any> = mapOf(OWN_SURFACE_KEY to true)
 
+    /**
+     * Vedle jiných panelů stojí hlavička obrazovky NAD kartou, na ploše okna, a karta začíná až pod
+     * ní (styl Google Zpráv): konverzace. Hlavičku obrazovka obalí do [PaneHeader]; jen s
+     * [ownSurface].
+     */
+    fun headerOutside(): Map<String, Any> = mapOf(HEADER_OUTSIDE_KEY to true)
+
     private fun info(role: PaneRole, sceneKey: Any): Map<String, Any> = mapOf(PANE_INFO_KEY to PaneInfo(role, sceneKey))
 }
 
@@ -76,6 +83,11 @@ private const val OWN_SURFACE_KEY = "eu.tintera.plume.ownSurface"
 
 /** Položka z [Panes.ownSurface]; ostatní jsou stránky s bloky řádků. */
 val NavEntry<*>.ownSurface: Boolean get() = metadata[OWN_SURFACE_KEY] == true
+
+private const val HEADER_OUTSIDE_KEY = "eu.tintera.plume.headerOutside"
+
+/** Položka z [Panes.headerOutside]. */
+val NavEntry<*>.headerOutside: Boolean get() = metadata[HEADER_OUTSIDE_KEY] == true
 
 /**
  * Indexy extra položek, nad kterými v téže scéně leží detail — profil, nad který se otevřela

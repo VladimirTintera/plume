@@ -1661,7 +1661,14 @@ seznam". Zbývá:
 1. **Drobnosti.**
    - ~~Sbalený seznam nemá FAB ani výběr víc chatů~~ — hotovo (`feat/sbaleny-seznam-fab-vyber`;
      karty nad seznamem hlásí tlačítko s tečkou).
-2. **Naležato neověřené naživo.** Telefon naležato prošel (`feat/obrazovky-nalezato`,
+2. **Hlavička nad kartou i u profilu a desktop.** Konverzace má hlavičku na ploše okna a kartu
+   od výšky prvního řádku seznamu až k dolnímu kraji (`feat/conversation-header-outside-card`,
+   `docs/poznatky/navigace.md`, „Hlavička konverzace leží NAD kartou"). Profil ve třetím panelu
+   (a co se z něj otevírá) má pořád kartu od stavové lišty se spodním okrajem, v barvě chatu je
+   nesoulad vidět. Neověřené: desktop (horní řada vůči titulku okna), tablet, naležato,
+   predictive back z konverzace, výběr zpráv a pruhy nad zprávami (připnuté, spam) u horní hrany
+   karty.
+3. **Naležato neověřené naživo.** Telefon naležato prošel (`feat/obrazovky-nalezato`,
    `docs/poznatky/navigace.md`, „Nízké okno"). Naživo zbývá prohlížeč příběhů (účet, který
    příběhy vidí), tvorba příběhu (Premium), videochat (běžící hovor), hřiště AI (zařízení
    s modelem) a hovor. Zadávání PINu v úzkém panelu Nastavení naležato roluje, vedle sebe se tam

@@ -844,7 +844,7 @@ private fun shellEntryProvider(
 
     entry<ChatsRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
         ) + ChatListMetadata + Panes.width(listPaneWidth) + Panes.instantBounds(instantPaneBounds),
     ) {
         val slot = LocalAccount.current.slot
@@ -930,7 +930,7 @@ private fun shellEntryProvider(
     entry<ArchiveRoute>(
         metadata = Panes.list(
             ARCHIVE_SCENE,
-            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
         ) + ChatListMetadata + Panes.instantBounds(instantPaneBounds),
     ) {
         val slot = LocalAccount.current.slot
@@ -967,7 +967,7 @@ private fun shellEntryProvider(
     // Historie hovorů: seznam vlevo, konverzace z ní vedle (jako nová konverzace).
     entry<CallsRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
         ),
     ) {
         CallsScreen(
@@ -981,7 +981,7 @@ private fun shellEntryProvider(
     // a obrázek přes celou plochu v prohlížeči.
     entry<DownloadsRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
         ),
     ) {
         DownloadsScreen(
@@ -995,7 +995,7 @@ private fun shellEntryProvider(
     // Moje příběhy: mřížka přes list panel, prohlížeč z ní přes celou plochu (jako z profilu).
     entry<MyStoriesRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
         ),
     ) {
         val slot = LocalAccount.current.slot
@@ -1008,7 +1008,7 @@ private fun shellEntryProvider(
 
     entry<NewChatRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true) { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
         ),
     ) { route ->
         val slot = route.slot
@@ -1079,7 +1079,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ConversationRoute>(metadata = Panes.detail() + Panes.ownSurface() + ChatScreenMetadata) { route ->
+    entry<ConversationRoute>(metadata = Panes.detail() + Panes.ownSurface() + Panes.headerOutside() + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val settings = koinInject<AppSettings>()
@@ -1508,7 +1508,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + Panes.ownSurface() + ChatScreenMetadata) { route ->
+    entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + Panes.ownSurface() + Panes.headerOutside() + ChatScreenMetadata) { route ->
         val slot = LocalAccount.current.slot
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val sideBySide = LocalPanesSideBySide.current

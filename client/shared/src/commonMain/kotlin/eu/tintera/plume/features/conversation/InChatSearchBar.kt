@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.adaptive.paneHeaderContainerColor
 import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -115,7 +116,7 @@ internal fun InChatSearchTopBar(
             onDismiss = { pickingDate = false },
         )
     }
-    Surface(color = MaterialTheme.colorScheme.surface) {
+    Surface(color = paneHeaderContainerColor()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
