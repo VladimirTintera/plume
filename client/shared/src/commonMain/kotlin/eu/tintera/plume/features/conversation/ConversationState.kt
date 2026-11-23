@@ -76,12 +76,26 @@ import eu.tintera.plume.core.telegram.InlineQueryState
  *
  * [id] rozlišuje jednotlivé lety: bez něj by dvě rychle po sobě odeslané zprávy sdílely jeden
  * klíč a animace by se popraly.
+ *
+ * [launched]: startovní bublina u pole se už rozvrhla a let může začít. Do té doby je cíl
+ * v seznamu skrytý a start zůstává vidět, i když [itemKey] už známe. TDLib totiž vrátí
+ * rozepsanou zprávu během pár milisekund a navázání cíle se často vešlo do TÉHOŽ snímku jako
+ * samo odeslání — start se pak nevykreslil ani jednou, sdílený prvek neměl odkud letět
+ * a bublina se ukázala rovnou dole přes předchozí zprávu, na snímek zmizela a teprve pak
+ * dosedla (viz „Let odeslané zprávy" v `docs/poznatky/konverzace-psani.md`).
  */
 data class MessageFlight(
     val id: Long,
     val text: String,
     val itemKey: Long?,
+    val launched: Boolean = false,
 ) {
+    /** Kreslí se ještě start u pole? Do startu ano, i když cíl už známe. */
+    val sourceVisible: Boolean get() = itemKey == null || !launched
+
+    /** Smí se ukázat cíl v seznamu? Až když let opravdu odstartoval. */
+    val targetVisible: Boolean get() = itemKey != null && launched
+
     /** Klíč sdíleného prvku. Musí být na obou stranách stejný, jinak se prvky nespárují. */
     val sharedKey: String get() = "message-flight-$id"
 }

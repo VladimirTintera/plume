@@ -107,6 +107,8 @@ internal data class SendControls(
     val slowModeUntil: Long? = null,
     /** Ťuknutí na odpočet: věta, kdy půjde psát. */
     val onSlowModeWait: () -> Unit = {},
+    /** Startovní bublina letu se u pole rozvrhla (viz [MessageFlight.launched]). */
+    val onFlightLaunched: (Long) -> Unit = {},
 )
 
 /** Náhled odkazu v rozepsaném textu a jeho volby. */
