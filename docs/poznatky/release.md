@@ -261,7 +261,8 @@ nastavené na tytéž hostované runnery, takže na výsledku nic nemění.
 - **Kontrola poznámek na PR (`release-notes-check.yml`) je na hostovaném NATVRDO**, bez repo
   proměnné. Běží na `pull_request`, tedy i na PR z cizího forku, a na self-hosted stroji by tam
   kdokoli pustil vlastní kód. GitHub self-hosted runnery ve veřejném repu nedoporučuje právě
-  kvůli tomu. Totéž platí pro každý další workflow na `pull_request`.
+  kvůli tomu. Totéž platí pro každý další workflow na `pull_request` (dnes i Build, viz
+  „Kontrola PR").
 - **Hostovaný obraz se mění a na jeho obsah se nespoléhá.** Co build potřebuje, si job
   nainstaluje sám (SDK, NDK, CMake přes `setup-android`, JDK přes `setup-java`).
 - **macOS runner má 7 GB RAM.** Desktop (jen JVM) se vejde; release link iOS s LTO nad celou
@@ -309,6 +310,28 @@ zpátky na vlastní stroj proměnnou `*_RUNS_ON` — jen ne pro nic, co běží 
   Kdo daemon zastavil, poznáš z logů v `~/.gradle/daemon/<verze>/`: `Stop` dostanou všechny
   daemony naráz a ten, kterému vteřinu předtím skončil build, nese v `currentDir` cestu toho,
   kdo `--stop` pouští.
+
+## Kontrola PR
+
+Workflow **Build** (`.github/workflows/build.yml`) běží na každém PR do `main` a na pushi do
+`main`: `check -x lint` (kontroly zdrojáků `verify*`, překlady, testy commonTest na JVM přes
+`androidHostTest` i `jvmTest`, unit testy vstupních bodů), debug APK telefonu i hodinek a jar
+desktopu. `pull_request` staví sloučení s aktuálním `main`, takže chytí i dva PR, které
+zvlášť projdou a dohromady se nepřeloží.
+
+- **Co NEDĚLÁ:** lint (`-x lint`, nikdy se nepouštěl a stav není známý), release build s R8
+  (`bundleRelease`, na něm padly tagy 0.3.64 a 0.3.65, viz „Generovaný zdrojový adresář…"), iOS
+  (link na macOS runneru trvá minuty a release s LTO desítky minut). Kandidáti na noční běh.
+- **PR jen s dokumentací se nestaví, ale projde.** Filtr `paths` na úrovni workflow by povinný
+  check nechal viset ve stavu „čeká" a PR by nešel sloučit. Proto první krok porovná změněné
+  soubory (`docs/`, `release-notes/`, `*.md`) a zbytek kroků přeskočí. Překlady se staví,
+  hlídá je `verifyTranslations`.
+- **Keš Gradlu zapisuje jen `main`** (výchozí chování `setup-gradle`), PR ji jen čtou. Proto
+  workflow běží i na pushi do `main`; release workflow keš neplní, běží na tagu.
+- **Na hostovaném natvrdo**, jako kontrola poznámek: běží i na PR z forku. Secrets nepotřebuje,
+  bez `telegramApiId` se projekt přeloží (jen by se nepřihlásil).
+- **Povinným checkem se stane až v ochraně větve `main`** (Settings → Branches), to workflow
+  samo nezařídí.
 
 ## Původ buildu
 

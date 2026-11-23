@@ -891,11 +891,13 @@ obrazovku.
   :client:shared:neexistujici -q | grep "^e:"` nevypíše nic (chyba je „Task … not found", ne
   `e:`) a APK zůstane STARÉ — na emulátoru pak chybí právě přidaná změna a vypadá to jako chyba
   v kódu. Po sestavení k ověření kontrolovat čas APK nebo `BUILD SUCCESSFUL`.
-- **CI na pull requestech NIC NEPŘEKLÁDÁ** — kontroluje jen poznámky k vydání. Po #284 se `main`
-  nedal přeložit (`vararg` hodnotové třídy `Color`: „Prohibited vararg parameter type") a nikdo
-  si toho nevšiml, dokud další větev nestavěla. Před pushem proto aspoň
-  `./gradlew :client:androidApp:assembleDebug`; u parametru s hodnotovou třídou (`Color`, `Dp`)
-  seznam, ne `vararg`.
+- **CI na pull requestech překládá a testuje až od workflow Build** (`build.yml`); do té doby
+  kontrolovalo jen poznámky k vydání. Po VladimirTintera/telegram#284 se `main` nedal přeložit
+  (`vararg` hodnotové třídy `Color`: „Prohibited vararg parameter type") a nikdo si toho
+  nevšiml, dokud další větev nestavěla. Release build (R8, `bundleRelease`) ani iOS CI na PR
+  nestaví, takže před pushem dál aspoň `./gradlew :client:androidApp:assembleDebug`; u parametru
+  s hodnotovou třídou (`Color`, `Dp`) seznam, ne `vararg`. Co kontrola dělá a co ne: „Kontrola
+  PR" v `docs/poznatky/release.md`.
 - **Test ViewModelu MUSÍ nastavit `Dispatchers.setMain`** (a v `@AfterTest` `resetMain`).
   `viewModelScope` běží na `Dispatchers.Main`: na JVM žádný není a lifecycle vezme prázdný
   kontext, takže test projde, kdežto na iOS je `Main` skutečná hlavní fronta, kterou `runTest`
