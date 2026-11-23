@@ -1012,8 +1012,8 @@ klienti: člověk vidí, jak bude vypadat, než zvedne. Android i macOS.
 - **Ukončení aplikace uprostřed hovoru** (Cmd+Q, nabídka ikony, SIGTERM) dřív pokaždé
   shodilo JVM: vlákno WebRTC `AudioEncoderQueue` posílalo zvuk (`ChannelSend::SendData`),
   zatímco JVM končil a uvolňoval paměť (`EXC_BAD_ACCESS`). A protistraně hovor běžel dál,
-  dokud nevypršelo spojení. Teď hook JVM (`DesktopCallShutdown`) hovor zavěsí přes TDLib
-  (`discardCall`, TDLib v hooku ještě běží) a synchronně zastaví knihovnu
+  dokud nevypršelo spojení. Teď hook JVM (`DesktopShutdown`) hovor zavěsí přes TDLib
+  (`discardCall`; klienty TDLib týž hook zavírá až potom) a synchronně zastaví knihovnu
   (`DesktopCallMedia.shutdown`, frontou pracovního vlákna). Obojí s časovým limitem.
   Ověřeno s Pixelem 5: Apple event `quit` i `pkill -TERM` uprostřed hovoru bez crash reportu
   a hovor na telefonu hned skončil.

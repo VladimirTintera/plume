@@ -535,12 +535,49 @@ vybraným) a soubor pošle sám.
   aplikaci (`createDistributable`, `JAVA_TOOL_OPTIONS=-Dplume.dataDir=…`) vznikl `crash-*.txt`
   se stack trace a v zabalené aplikaci skončil výpis z `stderr` v `tdlib.log`, ne v konzoli.
   Řádek v O aplikaci a Windows / Linux **neověřené**.
-- **Pád při ukončení je starší než tohle** — `pkill` na ladicí běh skončí nativním pádem i na
-  čistém `main` (2× ze 2); JVM stihne zapsat jen začátek `hs_err`. Totéž ukázalo hlášení
-  nainstalované 1.2.0 po Cmd+Q: TDLib se při ukončení nezavírá a statické destruktory knihovny
-  ji zruší pod rukama běžícímu vláknu (rozbor v `docs/roadmap.md`, Desktop). Starší hlášení
-  1.0.99 (`td::CountryInfoManager::tear_down` → „mutex lock failed") je týž mechanismus
-  v tréninkovém běhu AOT, opravený zavřením TDLib v `TrainingRun`.
+- **Oba pády ze 22. 11. byly pády při ukončení** — hlášení nainstalované 1.2.0 po Cmd+Q
+  a 1.0.99 v tréninkovém běhu AOT (`td::CountryInfoManager::tear_down` → „mutex lock failed").
+  Rozbor a oprava v „Ukončení aplikace a TDLib" níž.
+
+## Ukončení aplikace a TDLib
+
+Při ukončení (Cmd+Q, Ukončit z Docku nebo z ikony v oznamovací oblasti, odhlášení systému,
+SIGTERM) zavře hook JVM `DesktopShutdown` (`core/platform`, eager v `platformModule`) klienty
+TDLib všech účtů. Dřív je nezavíralo nic a proces při každém ukončení spadl v nativním kódu.
+
+- **Mechanismus pádu** (hlášení `Plume-2026-11-22-181633.ips` z 1.2.0): Quit Apple Event →
+  AWT `applicationShouldTerminate` → `System.exit` → shutdown hooky → `JVM_Halt` → `exit()`.
+  Ten spustí statické destruktory knihovny TDLib (`LanguagePackManager`, `ClientManager`),
+  zatímco její vlákno ještě běží: `~ConcurrentScheduler` → `~Session` → `CHECK`
+  v `td::PollableFdInfo::~PollableFdInfo` → `abort()`. Ladicí běh po `pkill` padal na SIGSEGV
+  a JVM stihla do konzole vypsat jen začátek „A fatal error has been detected" (`hs_err` se
+  nezapsal vůbec). Po `close` všech klientů TDLib žádná vlákna nedrží a destruktory projdou.
+- **Jeden hook, ne dva.** Zavěšení hovoru (`discardCall`) jde přes TDLib a hooky JVM běží
+  souběžně v nedefinovaném pořadí — samostatný hook hovoru (dřív `DesktopCallShutdown`) by se
+  se zavřením klientů předbíhal. Proto hook napřed zavěsí (a synchronně zastaví knihovnu
+  hovoru, viz `docs/poznatky/hovory.md`) a teprve pak zavírá.
+- **Účty se zavírají souběžně, s limitem 3 s na všechny** (`all` i přidávaný `adding`). Zavření
+  je místní a trvá kolem 10 ms; limit je pojistka proti zaseknutému klientovi — odhlášení
+  systému na aplikaci čeká jen pár vteřin. `shutdown` v session má vlastní strop 10 s, ten by
+  ukončení zdržel zbytečně.
+- **`shutdown` je idempotentní** (`TdlTelegramSession`: po dokončeném zavření se vrátí hned).
+  Restart do nové verze (`AppUpdates.jvm.kt`) i tréninkový běh (`TrainingRun`) zavírají TDLib
+  samy před `exitProcess` — tréninkový běh potřebuje zavřený klient, než smaže dočasná data —
+  a hook pak přijde podruhé. Požadavek `close` na zavřený klient by jen čekal na odpověď,
+  která nepřijde, a ukončení by viselo do limitu.
+- **Kdo přidává další cestu k ukončení, nic dalšího dělat nemusí**: `exitProcess` i konec
+  `application {}` (Compose ho ukončí přes `System.exit`) hook spustí. Neprojde jen `halt`
+  a SIGKILL.
+- **Ověřeno na macOS**: ladicí běh, počkat na první snímek, `pkill -f
+  eu.tintera.plume.desktop.MainKt` — 4× ze 4 bez pádu (log: „Klienti TDLib zavření (1) za
+  10 ms"), na `main` bez opravy týž postup spadl. Zabalená aplikace (`createDistributable`,
+  `JAVA_TOOL_OPTIONS=-Dplume.dataDir=…`) ukončená Quit Apple Eventem skončila s kódem 0 a nové
+  hlášení v `DiagnosticReports` nepřibylo. **Quit Apple Event se posílá konkrétnímu pid**
+  (`osascript -l JavaScript -e "ObjC.import('AppKit');
+  \$.NSRunningApplication.runningApplicationWithProcessIdentifier(<pid>).terminate"`), ne
+  `tell application id "eu.tintera.plume"`: build má stejné bundle id jako nainstalovaná Plume
+  a ukončila by se ta. Ukončení uprostřed hovoru, odhlášení systému, víc účtů a Windows /
+  Linux s touhle změnou **neověřené**.
 
 ## Release
 

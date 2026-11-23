@@ -365,14 +365,6 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - **Hlášení pádů se samo neodesílá.** Záznamy jsou v souborech (O aplikaci → Záznamy aplikace,
   `docs/poznatky/desktop.md`, „Záznamy o pádech"), uživatel je posílá ručně. Automatické
   odesílání by chtělo službu s JVM SDK (Sentry) a souhlas uživatele; zatím nerozhodnuté.
-- **Ukončení aplikace (Cmd+Q, Ukončit z Docku, odhlášení, SIGTERM) shodí TDLib.** Nic ji při
-  ukončení nezavírá: JVM po shutdown hoocích zavolá `exit()`, ten spustí statické destruktory
-  knihovny a její vlákno při tom ještě běží → `abort()` (hlášení `Plume-2026-11-22-181633.ips`
-  z 1.2.0: Quit Apple Event → `applicationShouldTerminate` → `JVM_Halt`, vlákno TDLib v
-  `~ConcurrentScheduler` → `~Session` → `CHECK` v `PollableFdInfo::~PollableFdInfo`). Ladicí
-  běh po `pkill` padá pokaždé. Oprava: jeden shutdown hook, který napřed zavěsí hovor
-  (`DesktopCallShutdown`) a pak zavře klienty TDLib (`shutdown(destroy = false)` s limitem),
-  stejně jako to dělá aktualizace (`AppUpdates.jvm.kt`) a tréninkový běh (`TrainingRun`).
 - **Ověřit macOS pod 26.** Od wrapperu 16.0.0 má balíček `minimumSystemVersion` 14.0 (Apple
   Silicon, kvůli ntgcalls), spuštěné je ale jen na macOS 26.
 - **Notifikace: ověřit Linux** (AWT `TrayIcon`, podle prostředí — lepší by byl
