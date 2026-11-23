@@ -1973,6 +1973,8 @@
     <string name="about_source">Zdrojové kódy</string>
     <string name="about_report_bug">Nahlásit chybu</string>
     <string name="about_report_bug_summary">V Issues na GitHubu</string>
+    <string name="about_app_logs">Záznamy aplikace</string>
+    <string name="about_app_logs_summary">Záznamy o pádech a log k přiložení k hlášení chyby</string>
     <string name="about_privacy">Soukromí</string>
     <string name="about_privacy_summary">S jakými službami aplikace mluví kromě Telegramu</string>
     <string name="about_license">Licence</string>

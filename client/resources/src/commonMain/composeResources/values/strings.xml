@@ -1910,6 +1910,8 @@
     <string name="about_source">Source code</string>
     <string name="about_report_bug">Report a bug</string>
     <string name="about_report_bug_summary">In the issues on GitHub</string>
+    <string name="about_app_logs">App logs</string>
+    <string name="about_app_logs_summary">Crash reports and the log to attach to a bug report</string>
     <string name="about_privacy">Privacy</string>
     <string name="about_privacy_summary">Which services the app talks to besides Telegram</string>
     <string name="about_license">License</string>
