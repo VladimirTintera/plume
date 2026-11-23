@@ -362,6 +362,12 @@ Běží na macOS (ověřeno: přihlášení QR kódem, seznam chatů, konverzace
 Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 
 - **Ověřit Windows a Linux.** Přeložené a zabalitelné, ale nespuštěné. Linux chce glibc 2.34+.
+- **Hlášení pádů se samo neodesílá.** Záznamy jsou v souborech (O aplikaci → Záznamy aplikace,
+  `docs/poznatky/desktop.md`, „Záznamy o pádech"), uživatel je posílá ručně. Automatické
+  odesílání by chtělo službu s JVM SDK (Sentry) a souhlas uživatele; zatím nerozhodnuté.
+- **Nativní pád při ukončení signálem** (`pkill` na ladicí běh, i na čistém `main`). Rozebrat
+  z `hs_err` / `tdlib.log`; souvisí možná s pády TDLib při zavírání spojení (`CHECK`
+  v `PollableFdInfo::~PollableFdInfo`) nalezenými v systémových hlášeních z 22. 11.
 - **Ověřit macOS pod 26.** Od wrapperu 16.0.0 má balíček `minimumSystemVersion` 14.0 (Apple
   Silicon, kvůli ntgcalls), spuštěné je ale jen na macOS 26.
 - **Notifikace: ověřit Linux** (AWT `TrayIcon`, podle prostředí — lepší by byl

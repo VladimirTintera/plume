@@ -538,6 +538,9 @@ rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
   „projde to bez chyby" nic neznamená. Postup je stejný jako u R8: release APK se přepodepíše
   debug klíčem a nainstaluje přes `adb install -r`, takže se nepřijde o přihlášení.
 
+Desktop Crashlytics nemá; píše záznamy o pádech do souborů v datech aplikace, viz „Záznamy
+o pádech (logy)" v `docs/poznatky/desktop.md`.
+
 ### Hlášení pádů na iOS
 
 Do téhož Firebase projektu jako Android (`telegram-b9fff`), iOS aplikace s bundlem

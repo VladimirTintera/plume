@@ -489,6 +489,55 @@ přihlášení" (`LaunchAtLogin`, na mobilech a zatím na macOS a Linuxu `suppor
   spuštění jeho příkazem otevřelo Plume se schovaným oknem (`IsWindowVisible = false`).
   **Neověřeno**: skutečné přihlášení do Windows, instalace z MSI.
 
+## Záznamy o pádech (logy)
+
+Desktop nemá Crashlytics (Firebase pro JVM neexistuje) a zabalená aplikace nemá konzoli, takže
+pád dřív nezanechal žádnou stopu. `DesktopLogs` (`:client:core`, jvmMain) proto píše do složky
+`logs` v datech aplikace (`~/Library/Application Support/Plume/logs`, `%APPDATA%\Plume\logs`,
+`~/.local/share/plume/logs`; ladicí běh `.desktop-data/logs`). Nikam se neodesílá: uživatel
+otevře složku z **O aplikaci → Záznamy aplikace** (otevře ji s nejnovějším záznamem o pádu
+vybraným) a soubor pošle sám.
+
+- **`plume.log`** — Kermit od `Info` výš přes TÝŽ `CrashlyticsLogWriter` jako na mobilech
+  (`createCrashReporter` na JVM vrací `DesktopLogs.reporter`), u `logger.e` s výjimkou i stack
+  trace. Nad 2 MB se přesune do `plume.1.log`. Každý řádek se hned `flush`uje — před nativním
+  pádem by jinak poslední řádky zůstaly v bufferu.
+- **`crash-<čas>.txt`** — nezachycená výjimka (`Thread.setDefaultUncaughtExceptionHandler`):
+  verze, systém, vlákno, stack trace a posledních 300 řádků logu. Chybu z okna Compose to chytí
+  taky: výchozí `WindowExceptionHandler` (1.13) ukáže dialog s chybou, okno zavře a výjimku hodí
+  dál; na vlákně AWT ji pak dostane výchozí handler (ověřeno `javap` nad
+  `DefaultWindowExceptionHandlerFactory` a pádem z `LaunchedEffect` v okně).
+- **`tdlib.log`** — log TDLib (úroveň 2: varování a chyby), v zabalené aplikaci i celý `stderr`
+  procesu (`redirect_stderr`): výpis JVM o nativním pádu, stack trace tištěné Javou, fatální
+  hláška TDLib před `abort()`. Wrapper log TDLib vůbec nenastavuje, takže TDLib dřív psala na
+  `stderr` výchozí úrovní 5. Ladicí běh `stderr` nepřesměrovává, vývojář ho čte v konzoli.
+- **`hs_err_pid*.log`** — nativní pád JVM. Kam ho JVM zapíše, nastavit nejde (`-XX:ErrorFile`
+  nerozbalí cestu k datům uživatele): pracovní adresář (u zabalené aplikace na macOS `/`, kam
+  nesmí; na Windows složka instalace; u `run` `client/desktopApp`), pak dočasný adresář.
+  `DesktopLogs.install` je při dalším startu odtud přestěhuje — jen ty, které o Plume mluví,
+  v dočasném adresáři leží i pády jiných Java aplikací.
+- **`Plume-*.ips` (macOS)** — `abort()` z nativní knihovny (`CHECK` v TDLib) `hs_err` nenechá,
+  zapíše ho systém do `~/Library/Logs/DiagnosticReports`. Kopírují se (patří systému). Hned při
+  prvním spuštění se tak našly dva pády nainstalované Plume 1.0.99 a 1.2.0 ze 22. 11.: výjimka
+  `std::system_error` a `CHECK` v `PollableFdInfo::~PollableFdInfo` při zavírání spojení.
+- Záznamů o pádu (všech tří druhů) se drží nejvýš 20, nejstarší se mažou.
+- **Log TDLib se nastavuje požadavkem prvního klienta, NE statickým `JsonClient.execute`.**
+  První verze volala `execute` (reflexí, `JsonClient` je ve wrapperu `internal`) dřív, než
+  klient vznikl — a TDLib pak při vytvoření prvního klienta SPOLEHLIVĚ padala na SIGSEGV
+  v `td::MultiTd::create` → `ActorInfo::set_context`, i se samotným `setLogVerbosityLevel`.
+  Teď `configureTdlibLog` (expect v `core/telegram`, volá `TelegramClientHolder` s každým novým
+  klientem, účinné jednou za proces) pošle `setLogVerbosityLevel` a `setLogStream` jako běžné
+  požadavky; řádky z prvních milisekund jdou ještě na `stderr`.
+- **`install()` až po zámku jediné instance** (druhá by psala do týchž souborů) a před
+  `startKoin` (zachytí pád při startu). Bez `install()` (testy) `tdlibLogFile` vrací `null`
+  a TDLib zůstane na výchozím logu.
+- **Ověřeno na macOS** dočasným `error()` v `LaunchedEffect` okna: v ladicím běhu i zabalené
+  aplikaci (`createDistributable`, `JAVA_TOOL_OPTIONS=-Dplume.dataDir=…`) vznikl `crash-*.txt`
+  se stack trace a v zabalené aplikaci skončil výpis z `stderr` v `tdlib.log`, ne v konzoli.
+  Řádek v O aplikaci a Windows / Linux **neověřené**.
+- **Pád při ukončení signálem je starší než tohle** — `pkill` na ladicí běh skončí nativním
+  pádem i na čistém `main` (2× ze 2); JVM stihne zapsat jen začátek `hs_err`.
+
 ## Release
 
 Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag

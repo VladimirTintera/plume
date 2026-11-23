@@ -23,12 +23,12 @@ import kotlinx.coroutines.flow.flatMapLatest
  */
 class TelegramClientHolder {
 
-    private val _clients = MutableStateFlow(TdlClient.create())
+    private val _clients = MutableStateFlow(TdlClient.create().also(::configureTdlibLog))
 
     val client: TdlClient get() = _clients.value
 
     /** Nová instance po odhlášení. Starou už TDLib zavřel, takže nemá co uklízet. */
-    fun recreate(): TdlClient = TdlClient.create().also { _clients.value = it }
+    fun recreate(): TdlClient = TdlClient.create().also(::configureTdlibLog).also { _clients.value = it }
 
     /** Odběr updatů, který přežije výměnu klienta. */
     fun <T> updates(select: TdlClient.() -> Flow<T>): Flow<T> =

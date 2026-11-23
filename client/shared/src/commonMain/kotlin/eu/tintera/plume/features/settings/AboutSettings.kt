@@ -37,6 +37,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.logging.appLogsAvailable
+import eu.tintera.plume.core.logging.revealAppLogs
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.telegram.platformDeviceModel
@@ -50,6 +52,8 @@ import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.update.UpdateCheckResult
 import eu.tintera.plume.core.update.rememberStartUpdate
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.about_app_logs
+import eu.tintera.plume.resources.about_app_logs_summary
 import eu.tintera.plume.resources.about_check_update
 import eu.tintera.plume.resources.about_disclaimer
 import eu.tintera.plume.resources.about_license
@@ -78,6 +82,7 @@ import eu.tintera.plume.resources.about_version_copy
 import eu.tintera.plume.resources.bug_report_24dp
 import eu.tintera.plume.resources.code_24dp
 import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.folder_24dp
 import eu.tintera.plume.resources.info_24dp
 import eu.tintera.plume.resources.open_in_new_24dp
 import eu.tintera.plume.resources.plume_logo_24dp
@@ -100,7 +105,7 @@ import org.koin.compose.koinInject
 
 /**
  * „O aplikaci" ve skupině Pomoc: logo, verze aplikace a TDLib, ruční kontrola aktualizace, odkazy
- * na zdrojáky, hlášení chyb, soukromí a licenci a podstránka Licence knihoven. Na konci věta, že Plume není oficiální produkt Telegramu —
+ * na zdrojáky, hlášení chyb (na desktopu i složka se záznamy o pádech), soukromí a licenci a podstránka Licence knihoven. Na konci věta, že Plume není oficiální produkt Telegramu —
  * podmínky Telegram API to po neoficiálních klientech chtějí a README ji má taky.
  *
  * - **Verze jde zkopírovat i s telefonem a systémem**, ve stejném tvaru jako hlavička deníku
@@ -150,6 +155,12 @@ internal fun AboutSettings(snackbarHostState: SnackbarHostState, onOpenLicenses:
         LinkRow(Res.drawable.code_24dp, Res.string.about_source, SOURCE_LABEL) { urlOpener.open(SOURCE_URL) }
         LinkRow(Res.drawable.bug_report_24dp, Res.string.about_report_bug, stringResource(Res.string.about_report_bug_summary)) {
             urlOpener.open(ISSUES_URL)
+        }
+        // Desktop: složka s logem a záznamy o pádech (DesktopLogs), Crashlytics tam není.
+        if (appLogsAvailable) {
+            LinkRow(Res.drawable.folder_24dp, Res.string.about_app_logs, stringResource(Res.string.about_app_logs_summary)) {
+                revealAppLogs()
+            }
         }
         LinkRow(Res.drawable.shield_person_24dp, Res.string.about_privacy, stringResource(Res.string.about_privacy_summary)) {
             urlOpener.open(PRIVACY_URL)

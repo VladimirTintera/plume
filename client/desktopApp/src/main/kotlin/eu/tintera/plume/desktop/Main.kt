@@ -2,6 +2,7 @@ package eu.tintera.plume.desktop
 
 import androidx.compose.runtime.DisposableEffect
 import eu.tintera.plume.core.locale.DesktopAppLanguage
+import eu.tintera.plume.core.logging.DesktopLogs
 import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import kotlin.math.roundToInt
@@ -79,6 +80,9 @@ fun main(args: Array<String>) {
     if (desktopTrainingRun) TrainingRun.prepare()
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
+    // Log, záznamy o pádech a log TDLib do souborů (O aplikaci → Záznamy aplikace). Před
+    // `startKoin`: zachytí i pád při startu a log TDLib přesměruje dřív, než vznikne klient.
+    DesktopLogs.install()
     // Jazyk aplikace, jestli si ho uživatel zvolil — dřív, než se přečte první text.
     DesktopAppLanguage.applyAtStartup()
     // macOS: titulek podle systémového vzhledu do chvíle, než ho `WindowTitleBarAppearance`

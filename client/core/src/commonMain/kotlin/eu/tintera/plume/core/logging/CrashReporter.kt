@@ -24,7 +24,7 @@ interface CrashReporter {
 }
 
 /**
- * Hlásič, který nic nehlásí: desktop, Android build bez `google-services.json` a iOS build bez
+ * Hlásič, který nic nehlásí: Android build bez `google-services.json` a iOS build bez
  * `GoogleService-Info.plist`. Není to chybový stav — aplikace bez Firebase normálně funguje,
  * stejně jako funguje bez push notifikací.
  */
