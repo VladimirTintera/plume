@@ -647,8 +647,13 @@ class TdlTelegramSession(
      * u zadání čísla, takže `close` / `destroy`, ne `logOut`: obojí funguje v kterémkoli stavu
      * i bez připojení. Konec se pozná podle konce odběru stavu, jako u odhlášení
      * ([onClientClosed]); strop je pojistka, kdyby zavření nedoběhlo.
+     *
+     * Druhé volání po dokončeném zavření nedělá nic: na desktopu zavírá klienty hook při
+     * ukončení (`DesktopShutdown`) i po tréninkovém běhu nebo před instalací aktualizace,
+     * a požadavek na zavřený klient by jen čekal na odpověď, která nepřijde.
      */
     override suspend fun shutdown(destroy: Boolean) {
+        if (shutDown.isCompleted) return
         shuttingDown = true
         val result = if (destroy) client.destroy() else client.close()
         result.toResult()

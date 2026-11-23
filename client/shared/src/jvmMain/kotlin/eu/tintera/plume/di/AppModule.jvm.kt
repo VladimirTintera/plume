@@ -14,6 +14,7 @@ import eu.tintera.plume.core.webapp.MINI_APP_STORAGE_FILE_NAME
 import eu.tintera.plume.di.MINI_APP_STORAGE
 import eu.tintera.plume.core.ui.StoryVideo
 import eu.tintera.plume.core.ui.UnsupportedStoryVideo
+import eu.tintera.plume.core.platform.DesktopShutdown
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.ai.core.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.AiProvider
@@ -33,7 +34,6 @@ import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.DesktopCallMedia
 import eu.tintera.plume.core.calls.DesktopCallRinger
-import eu.tintera.plume.core.calls.DesktopCallShutdown
 import eu.tintera.plume.core.telegram.CallRepository
 import org.koin.core.qualifier.named
 import eu.tintera.plume.core.audio.AudioRecorder
@@ -138,6 +138,10 @@ actual fun Module.platformModule() {
     single<DesktopNotifier> { desktopNotifier() }
     single { NotificationPermission(notifier = get()) }
     single { LaunchAtLogin() }
+    // Ukončení aplikace: zavěsit hovor a zavřít klienty TDLib, jinak proces při exit() spadne.
+    single(createdAtStart = true) {
+        DesktopShutdown(accounts = { get() }, media = { getOrNull() }).also { it.install() }
+    }
     single { UrlOpener(settings = get()) }
     single { AppLanguage() }
     single { FileOpener() }
@@ -196,8 +200,6 @@ actual fun Module.platformModule() {
 
 actual fun Module.platformAccountModule() {
     if (DesktopCallMedia.available()) {
-        // Ukončení aplikace uprostřed hovoru: zavěsit a zastavit knihovnu dřív, než JVM skončí.
-        single(createdAtStart = true) { DesktopCallShutdown(calls = get(), media = get()).also { it.install() } }
         // Vyzvánění příchozího hovoru a tón protistrany u odchozího.
         single(createdAtStart = true) { DesktopCallRinger(calls = get(), scope = get(named(APP_SCOPE))).also { it.start() } }
     }

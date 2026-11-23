@@ -397,7 +397,7 @@ class DesktopCallMedia : CallMedia {
     }
 
     /**
-     * Synchronně zastaví náhled i knihovnu (ukončení aplikace, [DesktopCallShutdown]). Jde
+     * Synchronně zastaví náhled i knihovnu (ukončení aplikace, `DesktopShutdown`). Jde
      * frontou pracovního vlákna, takže počká i na `stop`, který zavěšení zařadilo před ním.
      */
     internal fun shutdown(timeout: Duration) {
