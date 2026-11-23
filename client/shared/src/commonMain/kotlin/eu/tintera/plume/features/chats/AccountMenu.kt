@@ -76,10 +76,12 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Fotka účtu na konci vyhledávací pilulky a pod ní menu: Uložené zprávy, Archiv, Nastavení.
+ * Fotka účtu vedle vyhledávací pilulky a pod ní menu: Uložené zprávy, Archiv, Nastavení.
  *
- * Vzor Gmailu a Google Messages. Nahradil ⋮ vedle pilulky, a hlavně spodní lištu: Nastavení
- * jsou na telefonu jen tady. Pilulka tím dostala celou šířku.
+ * Nahradila ⋮ vedle pilulky, a hlavně spodní lištu: Nastavení jsou na telefonu jen tady.
+ * Dřív seděla UVNITŘ pilulky na jejím konci (vzor Gmailu) — ťuknutí těsně vedle fotky ale
+ * rozbalilo hledání, protože hranice tlačítka v tónové ploše není vidět. Mimo pilulku ji
+ * od hledání dělí mezera a fotka je větší (40 dp v plném 48dp terči).
  *
  * Než se účet načte (nebo když se načíst nepodaří), je místo fotky ikona člověka — tlačítko
  * se nesmí objevit až později, menu by do té doby nebylo kde otevřít.
@@ -145,17 +147,20 @@ internal fun AccountMenu(
             }
         }
     }
-    // Tečka archivu je mimo `IconButton`, který obsah ořezává na 40dp kruh, v rohu fotky.
+    // Tečka archivu je mimo `IconButton`, který obsah ořezává na kruh, v rohu fotky.
+    // Fotka stojí na ploše stránky (`surface`), ne na pilulce — odtud barva obrouček.
+    val rim = MaterialTheme.colorScheme.surface
     Box(contentAlignment = Alignment.Center) {
         IconButton(
             onClick = { open = true },
-            modifier = Modifier.semantics { contentDescription = label },
+            // Celý 48dp terč jako kruh, ať se do něj 40dp fotka vejde bez ořezu.
+            modifier = Modifier.size(ACCOUNT_BUTTON_SIZE).semantics { contentDescription = label },
             // Bez tvaru při stisku: obsahem je kulatá fotka, hranatá vlnka by kolem ní trčela.
         ) {
             if (switcher.allAccounts) {
-                // Režim Všechny účty: fotky všech účtů přes sebe, ať je z pilulky vidět, že seznam
+                // Režim Všechny účty: fotky všech účtů přes sebe, ať je z hlavičky vidět, že seznam
                 // ukazuje víc účtů, ne jen ten jeden.
-                StackedAccountAvatars(switcher.accounts, size = ACCOUNT_AVATAR_SIZE, rim = MaterialTheme.colorScheme.surfaceContainerHigh)
+                StackedAccountAvatars(switcher.accounts, size = ACCOUNT_AVATAR_SIZE, rim = rim)
             } else if (account != null) {
                 Avatar(
                     chatId = account.id,
@@ -172,10 +177,10 @@ internal fun AccountMenu(
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
-                        // Obroučka barvou pilulky — bez ní je tečka na tmavé fotce jen skvrna,
-                        // stejně jako u zelené tečky dostupnosti v řádku chatu.
+                        // Obroučka barvou plochy pod fotkou — bez ní je tečka na tmavé fotce jen
+                        // skvrna, stejně jako u zelené tečky dostupnosti v řádku chatu.
                         .size(ACCOUNT_DOT)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+                        .background(rim, CircleShape)
                         .padding(2.dp)
                         .background(MaterialTheme.colorScheme.primary, CircleShape),
                 )
@@ -395,8 +400,14 @@ private const val MAX_STACKED = 3
 /** Fotka účtu v řádku menu — velikost ikony položky. */
 private val ACCOUNT_ROW_AVATAR_SIZE = 24.dp
 
-/** Fotka účtu v pilulce — o kus menší než ikona, ať pilulku nevyboulí. */
-private val ACCOUNT_AVATAR_SIZE = 30.dp
+/**
+ * Fotka účtu vedle pilulky. V pilulce měla 30 dp, aby ji nevyboulila; mimo ni smí vyrůst —
+ * větší terč je půlka důvodu, proč odtamtud odešla.
+ */
+private val ACCOUNT_AVATAR_SIZE = 40.dp
+
+/** Dotyková plocha fotky účtu — minimum M3, kreslená celá (ne jen 40dp kruh `IconButton`). */
+private val ACCOUNT_BUTTON_SIZE = 48.dp
 
 /** Tečka „v archivu něco je" na fotce účtu, i s obroučkou. Menší než tečka dostupnosti — je jen signál, ne stav. */
-private val ACCOUNT_DOT = 10.dp
+private val ACCOUNT_DOT = 12.dp

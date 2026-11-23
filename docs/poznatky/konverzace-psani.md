@@ -570,7 +570,7 @@ sheet „Psát jako" s vlastním účtem, kanály a skupinou jako anonymním spr
   NEMÁ (`MessageSenderOption.locked`, `getMe().isPremium` — stejně jako u reakcí a efektů).
   V sheetu je vidět s ikonou zámku a větou „Chce Telegram Premium", vybrat nejde; ViewModel
   ji odmítne i sám (pojistka) a ohlásí proč.
-- **Avatar bez `IconButtonDefaults.shapes()`** — výjimka jako fotka účtu v pilulce: obsahem je
+- **Avatar bez `IconButtonDefaults.shapes()`** — výjimka jako fotka účtu v hlavičce seznamu: obsahem je
   avatar ve vlastním tvaru (kruh člověka, mnohoúhelník kanálu) a měnící se vlnka by kolem něj
   trčela. Při úpravě zprávy se neukazuje (upravená zpráva odesílatele nemění).
 - **`MessageInput` dostal jediný parametr, slot** (`senderSlot`), ne data a callbacky — výběr

@@ -14,7 +14,7 @@ Obrazovka je rozdělená do souborů v `features/chats`, nová logika patří do
   palety barev chatů).
 - `ChatListHeaderCards.kt` — karty nad seznamem (`ChatListCards` a `chatListHeaderCards`);
   jejich počet (`count`) je `headerItemCount` seznamu, takže nová karta se přidává jen tam.
-- `AccountMenu.kt` — fotka účtu v pilulce a menu pod ní.
+- `AccountMenu.kt` — fotka účtu vedle pilulky a menu pod ní.
 - `ChatListFabMenu.kt` — FAB menu Vytvořit, závoj pod ním a FAB ve slotu lišty složek.
 
 Dřív to byl jeden soubor o 2 457 řádcích (funkce `ChatListScreen` sama ~680 řádků). Rozdělilo se
@@ -508,9 +508,23 @@ než se dočte název.
 ### Hlavička: vyhledávací pilulka
 
 Seznam chatů nemá nadpis, ale `AppBarWithSearch` (`ChatSearchBar.kt`): pilulka „Hledat
-v chatech" přes celou šířku, na jejím konci fotka účtu s menu (Uložené zprávy, Archiv,
-Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky). Po ťuknutí se rozbalí
+v chatech", na jejím konci hromádka příběhů a VEDLE ní fotka účtu s menu (Uložené zprávy,
+Archiv, Nastavení; dřív tu bylo ⋮ vedle pilulky). Po ťuknutí na pilulku se rozbalí
 `ExpandedFullScreenSearchBar` s výsledky.
+
+- **Fotka účtu je ve slotu `actions` baru, ne v `trailingIcon` pilulky.** Uvnitř pilulky (vzor
+  Gmailu) měla 30 dp v 40dp tlačítku a všechno kolem patřilo pilulce: ťuknutí těsně vedle fotky
+  místo menu rozbalilo hledání, a stávalo se to často — hranice tlačítka v tónové ploše není
+  vidět. Mimo pilulku ji od hledání dělí 4dp mezera (`AppBarWithSearch` ji dává sám, k tomu 8 dp
+  okraje pilulky) a fotka vyrostla na 40 dp v plném 48dp terči. Varianta Google Messages (jen
+  lupa, bez pilulky) se vědomě nedělá: chtěla by nadpis, který jsme zrušili, stav spojení by
+  ztratil místo a hledání by se schovalo o ťuknutí hlouběji.
+- **Obroučky na fotce (tečka archivu, složené fotky Všech účtů) mají barvu `surface`**, ne
+  pilulky (`surfaceContainerHigh`): fotka teď stojí na ploše stránky.
+- **Hromádka příběhů v pilulce zůstala** — je to vstup do obsahu, ne identita, a do terče fotky
+  nezasahuje.
+- **Ověřeno na emulátoru** (Pixel 7, česky, světlý motiv): ťuknutí 1 px vlevo od terče fotky
+  nedělá nic, ťuknutí na fotku otevře menu. Tmavý motiv, Všechny účty a tečka archivu neověřené.
 
 - **Fotka účtu je vidět hned, i než se účet načte** (ikona člověka). Tlačítko, které se objeví
   až později, by do té doby nešlo otevřít — a na telefonu je to jediná cesta do Nastavení.
