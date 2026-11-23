@@ -1,0 +1,103 @@
+# Překlad a testy na každém PR (a na `main`, aby se plnila keš Gradlu).
+#
+# Agent i vývojář před pushem pouští nanejvýš `assembleDebug`; kontroly zdrojáků (`verify*` na
+# `check`), testy, desktop a hodinky se dřív ozvaly, až když je někdo náhodou spustil. A protože
+# `pull_request` staví SLOUČENÍ s aktuálním `main` (`refs/pull/N/merge`), chytí to i dva PR,
+# které každý zvlášť projdou a dohromady se nepřeloží. Proč co je a co není, viz
+# docs/poznatky/release.md, „Kontrola PR".
+name: Build
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Nový push do téže větve PR zruší rozběhnutý běh; na `main` doběhne každý (plní keš).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build and test
+    # VŽDY hostovaný runner, natvrdo: běží i na PR z cizího forku (viz release-notes-check.yml).
+    # Ve veřejném repu je zdarma a má 4 CPU / 16 GB.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # ai-engine (external/ai-engine) a v něm llama.cpp; bez nich se projekt ani nenakonfiguruje.
+          submodules: recursive
+          fetch-depth: 0
+
+      # PR jen s dokumentací se nestaví — job ale projde, aby šel nastavit jako povinný check
+      # (filtr `paths` na úrovni workflow by povinný check nechal viset ve stavu „čeká").
+      # Překlady (strings.xml) se staví: hlídá je verifyTranslations.
+      - name: Detect docs-only change
+        id: scope
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          CODE=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            | grep -vE '^(docs/|release-notes/)|\.md$' || true)
+          if [ -z "$CODE" ]; then
+            echo "Jen dokumentace a poznámky k vydání, build se přeskakuje."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Verze musí odpovídat `jvmToolchain(17)` v modulech, jinak ji foojay stahuje při každém běhu.
+      - uses: actions/setup-java@v6
+        if: steps.scope.outputs.skip != 'true'
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # Keš zapisuje jen `main` (výchozí `cache-read-only` mimo výchozí větev), PR ji čtou.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c  # v6.4.1
+        if: steps.scope.outputs.skip != 'true'
+
+      # Totéž co v android-release.yml: compileSdk 37.2 pro Plume, 37.0 pro ai-engine, NDK
+      # a CMake pro llama.cpp (AGP chce NDK už při konfiguraci :ai-llamacpp-android).
+      - name: Install Android SDK
+        if: steps.scope.outputs.skip != 'true'
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd  # v4.0.4
+        with:
+          packages: 'platform-tools platforms;android-37.0 platforms;android-37.2 ndk;29.0.13846066 cmake;3.31.0'
+
+      # Projektové gradle.properties počítá s vývojářským strojem (Kotlin daemon 8 GB).
+      - name: Limit Gradle memory for CI
+        if: steps.scope.outputs.skip != 'true'
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo 'org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -XX:+UseParallelGC'
+            echo 'kotlin.daemon.jvmargs=-Xmx4g'
+          } >> ~/.gradle/gradle.properties
+
+      # `check` = kontroly zdrojáků a překladů, testy commonTest na JVM (androidHostTest, jvmTest)
+      # a unit testy vstupních bodů. Bez lintu (`-x lint`): ten tu nikdy neběžel a není jisté,
+      # že projde. iOS testy se na Linuxu přeskočí samy. Navíc APK telefonu a hodinek (dex,
+      # balení) a jar desktopu. Bez api_id/api_hash: build se přeloží, jen by se nepřihlásil.
+      - name: Build and test
+        if: steps.scope.outputs.skip != 'true'
+        run: |
+          ./gradlew --continue \
+            check -x lint \
+            :client:androidApp:assembleDebug \
+            :client:wearApp:assembleDebug \
+            :client:desktopApp:jar
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/'
+          if-no-files-found: ignore
