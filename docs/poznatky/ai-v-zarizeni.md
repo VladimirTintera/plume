@@ -1649,6 +1649,8 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
   i s obrysem výchozího `SuggestionChip`. Holé `surfaceContainerHigh` nejde: to je příchozí
   bublina, a ta bývá hned nad polem. Barva karty čip spojuje s polem, kam se vloží. Text
   `onSurface`, `onSurfaceVariant` je na kartě zašedlý.
+- **Čipy leží na mléčném skle spodního bloku**, společném s polem (viz „Pruh pod kartou…"
+  v `konverzace-zobrazeni.md`). Bez něj pod nimi při odrolování prosvítaly bubliny.
 - **Čipy přicházejí postupně** (60 ms po sobě, od konce řádku, průhlednost effects spec, posun
   spatial), klíčované sadou — nová sada přijde znovu postupně. **Šířka má strop 240 dp a text
   jeden řádek s výpustkou**: dlouhý návrh by jinak zabral celý řádek a schoval ostatní. Okraj,
