@@ -38,7 +38,7 @@
 #   TELEGRAM_API_HASH           – api_hash z my.telegram.org
 #
 # Běží na hostovaných runnerech GitHubu (ve veřejném repu zdarma): MSI na `windows-latest`,
-# všechno ostatní na `macos-latest`. Repo proměnné DESKTOP_MAC_RUNS_ON a DESKTOP_WINDOWS_RUNS_ON
+# verze a DMG na `macos-latest`, nahrání do GitHub Release na `ubuntu-latest`. Repo proměnné DESKTOP_MAC_RUNS_ON a DESKTOP_WINDOWS_RUNS_ON
 # je umí přesměrovat jinam; kroky jen pro self-hosted (`runner.environment`) zůstaly z doby,
 # kdy release jel na vývojářských strojích (docs/poznatky/release.md, „Runnery").
 name: Desktop Release
@@ -358,7 +358,10 @@ jobs:
 
   release:
     needs: [version, windows, macos]
-    runs-on: ${{ fromJSON(vars.DESKTOP_MAC_RUNS_ON || '["macos-latest"]') }}
+    # Nic tu nepotřebuje macOS (stažení artefaktů, attestace, changelog, `gh`), a hostovaných
+    # macOS runnerů je ve frontě málo: job na pár vteřin čekal na runner přes čtvrt hodiny.
+    # Proto Ubuntu natvrdo, ne DESKTOP_MAC_RUNS_ON.
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     # Nahrání balíčků čeká na ruční schválení (environment `release`: schvaluje vlastník repa,
     # nasadit jde jen z tagů `desktop-*` / `android-*`). Desktop si přílohy sám instaluje —

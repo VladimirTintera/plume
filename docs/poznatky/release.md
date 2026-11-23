@@ -258,6 +258,11 @@ proměnné `ANDROID_RUNS_ON`, `RELEASE_TAG_RUNS_ON`, `DESKTOP_MAC_RUNS_ON`
 a `DESKTOP_WINDOWS_RUNS_ON` je umí přesměrovat jinam (JSON pole labelů). V `plume` jsou dnes
 nastavené na tytéž hostované runnery, takže na výsledku nic nemění.
 
+- **Job `release` v Desktop Release běží na `ubuntu-latest` natvrdo**, ne přes
+  `DESKTOP_MAC_RUNS_ON`. Jen stáhne hotové MSI a DMG, podepíše původ, složí changelog a nahraje
+  je přes `gh` — nic z toho macOS nepotřebuje. Na macOS zůstal z doby vlastního Macu a na
+  hostovaný macOS runner pak čekal přes čtvrt hodiny (desktop-1.2.6), kdežto Ubuntu se chytne hned.
+
 - **Kontrola poznámek na PR (`release-notes-check.yml`) je na hostovaném NATVRDO**, bez repo
   proměnné. Běží na `pull_request`, tedy i na PR z cizího forku, a na self-hosted stroji by tam
   kdokoli pustil vlastní kód. GitHub self-hosted runnery ve veřejném repu nedoporučuje právě
