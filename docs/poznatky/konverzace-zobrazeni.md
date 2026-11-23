@@ -761,6 +761,13 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
     věta „nejde psát"). Seznam pod spodní lištu zajíždí, takže bez pásu prosvítaly bubliny
     i sponzorovaná karta zpod tlačítka — dlouho bez povšimnutí, protože pole samo pás má.
     Každá nová náhrada pole dostane `barGlass` taky.
+  - **Pás leží pod CELÝM blokem nad konverzací, ne jen pod polem** (sloupec v `bottomBar`:
+    návrhy odpovědi, klávesnice bota, `MessageInput`). Návrhy a klávesnice stojí v rozvržení,
+    takže pod ně zprávy při odrolování zajedou stejně jako pod pole — dokud mělo sklo jen pole,
+    prosvítala pod čipy ostrá příchozí bublina a s čipem (plocha karty pole) vypadala jako dva
+    čipy přes sebe. `MessageInput` si dál nese jen pás pro letící fotku
+    (`sharedElementOcclusionBand`): přes návrhy a klávesnici se letět nesmí (`openBand`).
+    Plovoucí napovídání (příkazy, zmínky, emoji) místo v rozvržení nezabírá a má sklo vlastní.
   - **Zdrojem je JEN seznam zpráv, ne celý Scaffold** (vlastní `HazeState`). Závoj nabídky
     rozostřuje Scaffold celý, protože je nad ním; tyhle plochy jsou ale jeho součástí, takže by
     se rozostřovaly samy sebou — pruh připnutých by nasál plovoucí datum a pás pod polem sám sebe.

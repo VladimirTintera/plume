@@ -228,7 +228,10 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun MessageInput(
-    /** Mléčné sklo nad seznamem: pás je průhledný, barvu i rozostření nese sklo. */
+    /**
+     * Modifikátor pásu pod polem. Pás je průhledný; mléčné sklo nese rodič (celý spodní
+     * blok i s návrhy odpovědi, viz `ConversationBottomBar`), tady jen pás pro letící fotku.
+     */
     glass: Modifier,
     /** Smí koncept na server Telegramu k AI úpravám? Ne v tajném chatu. */
     serverAiAllowed: Boolean = true,

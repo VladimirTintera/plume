@@ -322,7 +322,24 @@ internal fun ConversationBottomBar(
         }
         WriteAccess.Allowed, null -> Unit
     }
-    Column {
+    /*
+     * Sklo leží pod CELÝM blokem nad konverzací — návrhy odpovědi, klávesnice bota i pole —,
+     * ne jen pod polem. Návrhy a klávesnice stojí v rozvržení, takže zprávy pod ně při
+     * odrolování zajedou stejně jako pod pole; bez skla pod nimi prosvítala ostrá příchozí
+     * bublina a s čipem (plocha karty pole) splývala do dvou čipů přes sebe.
+     */
+    Column(
+        Modifier.hazeBlur(
+            input = HazeInput.Sources(listHaze),
+            style = glassStyle(
+                color = MaterialTheme.colorScheme.surface,
+                alpha = GLASS_TINT_ALPHA,
+                // Bez rozostření zůstane dřívější krycí pás; jinak by pod ním prosvítaly
+                // zprávy a psaní by se v nich ztratilo.
+                fallbackAlpha = INPUT_SCRIM_ALPHA,
+            ),
+        ),
+    ) {
     ReplySuggestionChips(
         suggestions = replySuggestions,
         // Návrh se jen VLOŽÍ do pole; odeslání zůstává na uživateli. `onDraftChanged`
@@ -537,16 +554,9 @@ internal fun ConversationBottomBar(
                 )
             }
         },
-        glass = Modifier.sharedElementOcclusionBand().hazeBlur(
-            input = HazeInput.Sources(listHaze),
-            style = glassStyle(
-                color = MaterialTheme.colorScheme.surface,
-                alpha = GLASS_TINT_ALPHA,
-                // Bez rozostření zůstane dřívější krycí pás; jinak by pod ním prosvítaly
-                // zprávy a psaní by se v nich ztratilo.
-                fallbackAlpha = INPUT_SCRIM_ALPHA,
-            ),
-        ),
+        // Sklo má celý sloupec výš; pás pro letící fotku zůstává jen u pole — přes návrhy
+        // a klávesnici bota se letět nesmí (`SharedElementClip.openBand`).
+        glass = Modifier.sharedElementOcclusionBand(),
         reply = state.replyingTo?.let { target ->
             ReplyControls(
                 message = target,
