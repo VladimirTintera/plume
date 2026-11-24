@@ -332,15 +332,32 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
       položkách s `profilePaneWidth`). Jsou to stránky s bloky řádků, plochu si kreslí Scaffold
       přes celou výšku — proto `paneScaffoldColor()` (s hlavičkou venku průhledná) a obsah
       v `PaneBody`, který začíná pod hlavičkou a nese plochu stránky. Hlavičky jsou
-      `ProfileSubpageTopBar` (jedno místo pro osm podstránek) a lišta profilu; kalendář má
-      vlastní řádek, horních 8 dp patří do `PaneHeader`, jinak by karta ořízla o 8 dp výš, než
-      hlavička končí. V barvách aplikace je karta profilu dál neviditelná (stránka = plocha okna).
+      `ProfileSubpageTopBar` (jedno místo pro osm podstránek), lišta profilu a lišta kalendáře.
+      Kalendář míval vlastní řádek s nadpisem sheetu (`titleLargeEmphasized`, nadpis o 4 dp
+      jinde); teď je to týž `TopAppBar` bez insetů (bere si je sloupec kolem). V barvách
+      aplikace je karta profilu dál neviditelná (stránka = plocha okna).
     - **Obsah pod hlavičkou potřebuje vlastní horní odstup**: dřív ho dělala lišta nad ním.
       Fotka profilu (16 dp) a čipy kalendáře (12 dp) jinak narážely na hranu karty; seznamy
       podstránek si 8 dp nad prvním blokem přidávají samy.
-    - **Podstránky profilu mají vyšší hlavičku** (`MediumFlexibleTopAppBar`), jejich karta proto
-      začíná níž než karta konverzace. Vědomě: zarovnává se profil, který stojí vedle konverzace
-      nejčastěji.
+    - **Hlavičky panelů jsou jeden pás, ale každý panel má svou lištu.** Jedna lišta přes
+      konverzaci i profil se zvažovala a nedělá se: pravý panel má vlastní navigaci (profil →
+      úprava → práva člena, profil člena nad profilem skupiny), vlastní rolování (název profilu
+      naskočí do lišty po odrolování) a vlastní animaci odjezdu, a na telefonu konverzaci
+      nahrazuje, takže by vlastní lištu potřeboval stejně. Jednotu proto nese vzhled: stejná výška
+      (64 dp), osa a plocha, bez předělu v řádku hlaviček.
+      - **Podstránky profilu mají vedle konverzace malý `TopAppBar` s podtitulkem**, na jednom
+        panelu dál střední flexibilní bar. Střední bar (přes 100 dp) začínal kartu níž než
+        konverzace vedle a pás se zlomil. Úprava chatu podtitulek nemá a dostane bar bez něj —
+        prázdný podtitulek by název posunul nahoru.
+      - **Lišta profilu nese Upravit jako tlačítko** (`ProfileEditButton`: úprava chatu, u kontaktu
+        bez ní úprava kontaktu), v ⋮ podruhé není. Bez něj měla lišta vedle konverzace jen ⋮
+        a vypadala jako díra v pásu.
+      - **`verifyWindowControls` čte TEXT volání lišty**: sdílená lambda s `WindowControlsSpace`
+        předaná do `navigationIcon` neprojde, místa pro tlačítka okna musí stát přímo v argumentech
+        každého `…TopAppBar(`.
+      - Ověřeno na desktopu (macOS, tři panely): tužka v profilu kontaktu i skupiny, kalendář
+        a úprava skupiny v jednom pásu s konverzací. Podstránka s podtitulkem vedle konverzace,
+        telefon a Fold neověřené.
     - Ověřeno na emulátoru Fold: světlý i tmavý motiv a přechod mezi nimi, hledání v chatu,
       barva chatu, placeholder, profil a kalendář vedle konverzace (i v barvě chatu), šest cyklů
       složit/rozložit bez pádu s konverzací i s profilem; složený telefon beze změny. Podstránky

@@ -11,6 +11,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
@@ -37,8 +38,13 @@ import eu.tintera.plume.core.adaptive.WindowControlsSpace
  * Dřív to byl malý `TopAppBar` jen s názvem obrazovky, takže z hlavičky nebylo poznat, čeho se
  * týká — „Žádosti o vstup" vypadají u každé skupiny stejně a do podstránek se chodí i z jiné
  * skupiny, než je ta, jejíž konverzace leží pod nimi. Na jednom panelu se bar při posunu sbalí
- * (jako Nastavení, `exitUntilCollapsed`); v dvoupanelu ne, vedle by stály dvě hlavičky různé
- * výšky. Sbalený bar barvu nemění (`scrolledContainerColor = surface`), stejně jako Nastavení.
+ * (jako Nastavení, `exitUntilCollapsed`). Sbalený bar barvu nemění (`scrolledContainerColor =
+ * surface`), stejně jako Nastavení.
+ *
+ * **Vedle konverzace je to malý `TopAppBar` s podtitulkem**, ne střední bar. Hlavičky panelů
+ * leží v jednom pásu nad kartami (`PaneHeader`) a střední bar (přes 100 dp) by vedle 64dp
+ * hlavičky konverzace začínal kartu níž — pás by se zlomil a podstránka vypadala jako cizí
+ * okno. Název a podtitulek se do malého baru vejdou stejně jako jméno a stav v konverzaci.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -50,27 +56,53 @@ internal fun ProfileSubpageTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     // Vedle konverzace leží nad kartou profilu (`PaneHeader`), jinak je obyčejná.
+    val titleText: @Composable () -> Unit = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+    val subtitleText: (@Composable () -> Unit)? = subtitle?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+    val back: @Composable () -> Unit = {
+        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+        }
+    }
+    val colors = TopAppBarDefaults.topAppBarColors(
+        containerColor = paneHeaderContainerColor(),
+        scrolledContainerColor = paneHeaderContainerColor(),
+    )
     PaneHeader {
-        MediumFlexibleTopAppBar(
-            title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            subtitle = subtitle?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
-            navigationIcon = {
-                WindowControlsSpace {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                }
-            },
-            actions = {
-                actions()
-                WindowControlsEndSpace()
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = paneHeaderContainerColor(),
-                scrolledContainerColor = paneHeaderContainerColor(),
-            ),
-            scrollBehavior = scrollBehavior,
-        )
+        when {
+            // Bez podtitulku (úprava chatu) obyčejný bar: prázdný podtitulek by název posunul nahoru.
+            LocalPanesSideBySide.current && subtitleText == null -> TopAppBar(
+                title = titleText,
+                navigationIcon = { WindowControlsSpace { back() } },
+                actions = {
+                    actions()
+                    WindowControlsEndSpace()
+                },
+                colors = colors,
+                scrollBehavior = scrollBehavior,
+            )
+            LocalPanesSideBySide.current -> TopAppBar(
+                title = titleText,
+                subtitle = subtitleText ?: {},
+                navigationIcon = { WindowControlsSpace { back() } },
+                actions = {
+                    actions()
+                    WindowControlsEndSpace()
+                },
+                colors = colors,
+                scrollBehavior = scrollBehavior,
+            )
+            else -> MediumFlexibleTopAppBar(
+                title = titleText,
+                subtitle = subtitleText,
+                navigationIcon = { WindowControlsSpace { back() } },
+                actions = {
+                    actions()
+                    WindowControlsEndSpace()
+                },
+                colors = colors,
+                scrollBehavior = scrollBehavior,
+            )
+        }
     }
 }
 
