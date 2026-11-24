@@ -79,6 +79,8 @@ import eu.tintera.plume.resources.search_off_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Skupina řádků výběru: [chats] jako jeden blok zaoblených řádků, nad ním volitelný nadpis.
@@ -221,11 +223,13 @@ fun ChatPicker(
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        if (closeIcon) {
-                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
-                        } else {
-                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            if (closeIcon) {
+                                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                            } else {
+                                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                            }
                         }
                     }
                 },
@@ -236,6 +240,7 @@ fun ChatPicker(
                     scrolledContainerColor = MaterialTheme.colorScheme.surface,
                 ),
                 scrollBehavior = scrollBehavior,
+                actions = { WindowControlsEndSpace() },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

@@ -184,6 +184,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Kalendář konverzace z ⋮: měsíce s počtem zpráv u každého dne, sytější barva = víc zpráv.
@@ -273,6 +275,8 @@ private fun ColumnScope.ChatCalendarContent(
             Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Desktop: místo pro tlačítka okna, když hlavička leží v řádku s nimi.
+            WindowControlsSpace()
             IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
                 if (closeIsBack) {
                     Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
@@ -289,6 +293,7 @@ private fun ColumnScope.ChatCalendarContent(
             IconButton(onClick = { pickingDate = true }, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.edit_calendar_24dp), contentDescription = stringResource(Res.string.conversation_jump_to_date))
             }
+            WindowControlsEndSpace()
         }
     }
     Column(

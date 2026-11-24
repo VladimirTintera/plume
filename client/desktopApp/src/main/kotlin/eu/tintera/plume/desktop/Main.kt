@@ -37,6 +37,7 @@ import eu.tintera.plume.App
 import eu.tintera.plume.core.platform.DesktopDevMark
 import eu.tintera.plume.core.platform.DesktopInstance
 import eu.tintera.plume.core.platform.DesktopStartup
+import eu.tintera.plume.core.platform.DesktopTitleBar
 import eu.tintera.plume.core.platform.DesktopTrayIcon
 import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.platform.LaunchAtLogin
@@ -217,7 +218,8 @@ fun main(args: Array<String>) {
             // macOS: nabídka „Chaty" v liště se zkratkami (jinde nic, viz DesktopMenuBar).
             key(language) {
                 DesktopMenuBar()
-                App()
+                // Obsah až k hornímu kraji okna, tlačítka okna přes něj (jen na JBR, jinak beze změny).
+                DesktopTitleBar.Content(window) { App() }
             }
         }
     }

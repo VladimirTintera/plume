@@ -68,8 +68,15 @@ fun msiSafe(text: String): String {
  *
  * **25 kvůli AOT cache** (`AotMode.AotPrebuild` níž, JEP 514/515 chce JDK 25; s 21 by šlo jen
  * AppCDS, které nezrychlí linkování ani JIT). Toolchain si ho stáhne přes foojay.
+ *
+ * **JetBrains Runtime kvůli vlastnímu titulku okna** (`DesktopTitleBar`, API `com.jetbrains.JBR`):
+ * obsah aplikace sahá až pod titulek a tlačítka okna zůstávají systémová. Na jiném JDK aplikace
+ * běží dál, jen se systémovým titulkem. Viz „Vlastní titulek okna (JBR)" v docs/poznatky/desktop.md.
  */
-val runtimeLauncher: Provider<JavaLauncher> = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+val runtimeLauncher: Provider<JavaLauncher> = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(25))
+    vendor.set(JvmVendorSpec.JETBRAINS)
+}
 
 compose.desktop {
     application {
@@ -187,6 +194,8 @@ afterEvaluate {
         javaLauncher.set(runtimeLauncher)
         systemProperty("plume.debug", "true")
         systemProperty("plume.dataDir", rootProject.layout.projectDirectory.dir(".desktop-data").asFile.path)
+        // `-PwindowControlsPreview=windows`: rozvržení hlaviček jako na Windows i na Macu (DesktopTitleBar).
+        providers.gradleProperty("windowControlsPreview").orNull?.let { systemProperty("plume.windowControlsPreview", it) }
         systemProperty("apple.awt.application.name", "Plume")
         systemProperty("apple.awt.application.appearance", "system")
     }

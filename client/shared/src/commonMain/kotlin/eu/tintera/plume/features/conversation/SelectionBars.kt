@@ -40,6 +40,8 @@ import eu.tintera.plume.resources.menu_forward
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Hlavička v režimu výběru: ✕ a počet vybraných.
@@ -59,13 +61,16 @@ internal fun SelectionTopBar(selection: MessageSelection, onClose: () -> Unit) {
             )
         },
         navigationIcon = {
-            IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
-                Icon(
-                    painterResource(Res.drawable.close_24dp),
-                    contentDescription = stringResource(Res.string.conversation_selection_close),
-                )
+            WindowControlsSpace {
+                IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        painterResource(Res.drawable.close_24dp),
+                        contentDescription = stringResource(Res.string.conversation_selection_close),
+                    )
+                }
             }
         },
+        actions = { WindowControlsEndSpace() },
     )
 }
 

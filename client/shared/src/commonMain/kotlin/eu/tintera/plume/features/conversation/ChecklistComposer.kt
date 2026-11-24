@@ -93,6 +93,8 @@ import eu.tintera.plume.core.ui.GroupTextField
 import eu.tintera.plume.core.ui.GroupTitle
 import eu.tintera.plume.core.ui.SwitchListItem
 import eu.tintera.plume.core.ui.groupRowBackground
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /*
  * Pravidla formuláře jsou čisté funkce (testy `ChecklistComposerTest`), jako u ankety: co se
@@ -360,8 +362,10 @@ fun ChecklistComposerScreen(
                     Text(stringResource(if (viewModel.isEditing) Res.string.checklist_compose_title_edit else Res.string.checklist_compose_title))
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                    WindowControlsSpace {
+                        IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                        }
                     }
                 },
                 actions = {
@@ -402,6 +406,7 @@ fun ChecklistComposerScreen(
                             )
                         }
                     }
+                    WindowControlsEndSpace()
                 },
                 colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
             )

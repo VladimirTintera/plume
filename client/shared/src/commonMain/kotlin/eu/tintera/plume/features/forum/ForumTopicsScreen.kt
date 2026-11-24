@@ -140,6 +140,8 @@ import eu.tintera.plume.resources.sender_you
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Seznam témat skupiny s tématy. Řádky mluví jazykem seznamu chatů: blok zaoblených řádků,
@@ -259,8 +261,10 @@ fun ForumTopicsScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
                 actions = {
@@ -295,6 +299,7 @@ fun ForumTopicsScreen(
                             ),
                         )
                     }
+                    WindowControlsEndSpace()
                 },
                 // Sbalený bar barvu nemění — tónovaný pruh přes celou šířku je to, co z hlavičky
                 // seznamu chatů vyhnalo velký bar.

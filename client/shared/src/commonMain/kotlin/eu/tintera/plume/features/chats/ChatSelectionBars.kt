@@ -83,6 +83,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Hlavička při výběru víc chatů: ✕, počet vybraných a „Vybrat vše". Nahrazuje pilulku hledání —
@@ -102,10 +104,12 @@ internal fun ChatSelectionTopBar(count: Int, allSelected: Boolean, onSelectAll: 
             )
         },
         navigationIcon = {
-            val label = stringResource(Res.string.chats_selection_close)
-            WithTooltip(label = label, position = TooltipAnchorPosition.Below) {
-                IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
-                    Icon(painterResource(Res.drawable.close_24dp), contentDescription = label)
+            WindowControlsSpace {
+                val label = stringResource(Res.string.chats_selection_close)
+                WithTooltip(label = label, position = TooltipAnchorPosition.Below) {
+                    IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = label)
+                    }
                 }
             }
         },
@@ -116,6 +120,7 @@ internal fun ChatSelectionTopBar(count: Int, allSelected: Boolean, onSelectAll: 
                     Icon(painterResource(Res.drawable.select_check_box_24dp), contentDescription = label)
                 }
             }
+            WindowControlsEndSpace()
         },
     )
 }

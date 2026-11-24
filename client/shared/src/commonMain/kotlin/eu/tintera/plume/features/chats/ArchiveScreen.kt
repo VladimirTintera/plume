@@ -46,6 +46,8 @@ import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.tune_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 
 /**
  * Archivované chaty.
@@ -164,8 +166,10 @@ fun ArchiveScreen(
             TopAppBar(
                 title = { Text(stringResource(Res.string.chats_archive)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
                 actions = {
@@ -203,6 +207,7 @@ fun ArchiveScreen(
                             )
                         }
                     }
+                    WindowControlsEndSpace()
                 },
             )
         },

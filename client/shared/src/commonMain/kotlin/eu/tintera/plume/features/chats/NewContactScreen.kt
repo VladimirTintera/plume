@@ -48,6 +48,8 @@ import eu.tintera.plume.resources.new_contact_add
 import eu.tintera.plume.resources.new_contact_help
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Formulář nového kontaktu: jméno, příjmení a číslo. Tvarem jako založení kanálu (akce
@@ -81,8 +83,10 @@ fun NewContactScreen(
             TopAppBar(
                 title = { Text(stringResource(Res.string.new_chat_new_contact)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !viewModel.adding, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, enabled = !viewModel.adding, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
                 actions = {
@@ -93,6 +97,7 @@ fun NewContactScreen(
                             Text(stringResource(Res.string.new_contact_add))
                         }
                     }
+                    WindowControlsEndSpace()
                 },
             )
         },

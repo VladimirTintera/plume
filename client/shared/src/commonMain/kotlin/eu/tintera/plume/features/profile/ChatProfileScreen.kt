@@ -292,6 +292,8 @@ import eu.tintera.plume.resources.qr_code_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Profil chatu: velká fotka a jméno, řada akcí, údaje a u skupiny členové.
@@ -476,11 +478,13 @@ fun ChatProfileScreen(
                             }
                         },
                         navigationIcon = {
-                            IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                                if (closeIcon) {
-                                    Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
-                                } else {
-                                    Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                            WindowControlsSpace {
+                                IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                                    if (closeIcon) {
+                                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                                    } else {
+                                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                                    }
                                 }
                             }
                         },
@@ -502,6 +506,7 @@ fun ChatProfileScreen(
                                     onAddToHomeScreen = viewModel::addToHomeScreen.takeIf { viewModel.canAddToHomeScreen },
                                 )
                             }
+                            WindowControlsEndSpace()
                         },
                     )
                 }

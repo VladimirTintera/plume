@@ -34,6 +34,8 @@ import eu.tintera.plume.core.ui.LocalListPage
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.core.ui.asListPage
 import eu.tintera.plume.core.ui.groupRow
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 
 /**
  * Co stojí vedle karty (konverzace, placeholder): seznam vlevo, profil vpravo. Poskytuje shell
@@ -110,6 +112,31 @@ fun PaneCard(
         card -> PaneEdgeInsets.Pad
         else -> PaneEdgeInsets.None
     }
+    // Horní inset patří jen panelu, nad kterým leží tlačítka okna (desktop s vlastním titulkem,
+    // [LocalWindowControls]); ostatní ho zkonzumují a hlavička jde až k hornímu kraji okna.
+    // Na telefonu jde stavová lišta přes celou šířku a patří všem.
+    val controlsAbove = windowControlsAbove(
+        atStart = !sideBySide || role == PaneRole.List || detail && !neighbours.listBeside,
+        atEnd = !sideBySide || extra || detail && !neighbours.extraBeside || role == PaneRole.List && !neighbours.listBeside,
+    )
+    // S tlačítky okna přes obsah si panely titulek berou celý: hlavičky jdou do řádku s tlačítky
+    // a panel pod nimi jim nechá místo ([WindowControlsSpace], [WindowControlsEndSpace]) — na Macu
+    // začátek seznamu (i jediného panelu úzkého okna), na Windows konec nejpravějšího panelu.
+    val controls = LocalWindowControls.current
+    val titleInRow = controls.side != WindowControlsSide.None
+    // Tlačítka na fyzické levé straně jsou v LTR na začátku řádku, v RTL na konci.
+    val controlsAtStart = (controls.side == WindowControlsSide.Left) != (LocalLayoutDirection.current == LayoutDirection.Rtl)
+    val under = titleInRow && controlsAbove
+    val clearance = WindowControlsClearance(
+        start = if (under && controlsAtStart) controls.width else 0.dp,
+        end = if (under && !controlsAtStart) controls.width else 0.dp,
+        height = if (under) controls.height else 0.dp,
+    )
+    val top = when {
+        !controlsAbove || titleInRow -> PaneEdgeInsets.Consume
+        card -> PaneEdgeInsets.Pad
+        else -> PaneEdgeInsets.None
+    }
     // Barvy plochy okna pro hlavičku nad kartou — tady jsou ještě barvy aplikace, ne chatu.
     val planeScheme = MaterialTheme.colorScheme
     val header = remember { PaneHeaderHost() }
@@ -135,7 +162,7 @@ fun PaneCard(
             Box(Modifier.fillMaxSize().edge(end, WindowInsetsSides.End)) {
                 // Shora a zdola zvlášť: karta s hlavičkou venku jde dolů až pod navigační lištu
                 // (jako v Google Zprávách) a inset si bere vstupní pole samo, jako na telefonu.
-                Box(Modifier.fillMaxSize().edge(if (card) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Top)) {
+                Box(Modifier.fillMaxSize().edge(top, WindowInsetsSides.Top)) {
                     Box(Modifier.fillMaxSize().edge(if (card && !outside) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Bottom)) {
                         Box(
                             Modifier
@@ -148,6 +175,7 @@ fun PaneCard(
                                 LocalPaneHeaderHost provides header,
                                 LocalPaneHeaderOutside provides outside,
                                 LocalPanePlaneScheme provides planeScheme,
+                                LocalWindowControlsClearance provides clearance,
                             ) {
                                 content()
                             }

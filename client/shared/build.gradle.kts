@@ -494,6 +494,8 @@ kotlin {
             // tady je jen rozhraní (přes :ai-core). Najde se za běhu (`BundledLiteRtRuntime`).
             // Tmavý titulek okna na Windows (`WindowTitleBarAppearance`).
             implementation(libs.platformtools.darkmodedetector)
+            // Vlastní titulek okna (`DesktopTitleBar`): obsah pod titulkem, tlačítka okna systémová.
+            implementation(libs.jbr.api)
             // Dekodér videa (GIFy, `core/video/Video.jvm.kt`): FFmpeg přes JavaCPP. Nativní
             // knihovny jen pro systém, na kterém se staví — jako Skia a TDLib; jinde by v balíčku
             // ležely navíc desítky MB. Na neznámém systému chybí a GIF zůstane náhledem.

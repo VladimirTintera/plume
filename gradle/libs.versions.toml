@@ -44,6 +44,9 @@ javacpp = "1.5.14"
 ffmpeg = "8.1.2-1.5.14"
 # Titulek okna na desktopu v barvách motivu (tmavý režim DWM na Windows, vzhled na macOS).
 platformtools = "0.7.5"
+# Vlastní titulek okna na desktopu (`DesktopTitleBar`): API JetBrains Runtime. Táž verze, jakou tahá
+# foundation-desktop z Compose — při bumpu Compose zkontrolovat, ať se nerozejdou.
+jbr-api = "1.9.0"
 # Hovory napojené na systémový telefon (Telecom / ConnectionService) — docs/poznatky/hovory.md.
 androidx-core-telecom = "1.0.1"
 androidx-lifecycle = "2.11.0"
@@ -160,6 +163,7 @@ asm = { module = "org.ow2.asm:asm", version = "9.9.1" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 javacpp = { module = "org.bytedeco:javacpp", version.ref = "javacpp" }
 ffmpeg = { module = "org.bytedeco:ffmpeg", version.ref = "ffmpeg" }
+jbr-api = { module = "org.jetbrains.runtime:jbr-api", version.ref = "jbr-api" }
 platformtools-darkmodedetector = { module = "io.github.kdroidfilter:platformtools.darkmodedetector", version.ref = "platformtools" }
 leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 compose-runtime-tracing = { module = "androidx.compose.runtime:runtime-tracing", version.ref = "compose-runtime-tracing" }

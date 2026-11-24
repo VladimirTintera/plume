@@ -83,7 +83,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků
 - [Hovory](docs/poznatky/hovory.md) — co dělá TDLib a co knihovna (ntgcalls), verze a servery, licence, obálka na Androidu (služba, Telecom, výstup zvuku), ticho a zablokování v knihovně, videohovory a obraz v obraze, sdílení obrazovky a ukazovátko, hovor z konverzace a chybové hlášky, historie hovorů (sloučení opakovaných, smazání jednoho) a hodnocení, jeden hovor přes víc účtů, desktop (JNA, zvonění a okénko příchozího hovoru, video)
 - [Wear OS](docs/poznatky/wear-os.md) — skladba `wearApp` nad `:client:core`, vzhled M3 Expressive (zmenšování u okraje, barvy z ciferníku, potvrzovací dialogy), přihlášení QR kódem na kulatém displeji a heslo přes `RemoteInput`, seznam chatů bez klíčů položek, dlaždice a komplikace s počtem nepřečtených, dlaždice s chaty (fotky přes `onTileResourcesRequest`, `singleTop`), emulátor `Plume_Wear`
-- [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (jen knihovna systému, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter, tlačítka oznámení), záznamy o pádech do souborů (log, výjimky, log TDLib, hs_err), titulek okna v barvách motivu, celá obrazovka okna pro video, vložení ze schránky a přetažení souborů, kopírování příloh do schránky a jejich přetažení ven, release MSI a DMG a ikony, rychlejší start (AOT cache a tréninkový běh), aktualizace z GitHub Release, bubliny z kořene kompozice, insety a textové pole při změně scény (zúžení okna), zubaté a rozmazané obrázky (dekodér Coilu, přiblížení), úprava fotky a EXIF, zvuk a nahrávání hlasovek (FFmpeg a javax.sound), co desktop neumí
+- [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (jen knihovna systému, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter, tlačítka oznámení), záznamy o pádech do souborů (log, výjimky, log TDLib, hs_err), vlastní titulek okna (JetBrains Runtime, titulek jako inset, tah oknem v hlavičce), titulek okna v barvách motivu (Linux), celá obrazovka okna pro video, vložení ze schránky a přetažení souborů, kopírování příloh do schránky a jejich přetažení ven, release MSI a DMG a ikony, rychlejší start (AOT cache a tréninkový běh), aktualizace z GitHub Release, bubliny z kořene kompozice, insety a textové pole při změně scény (zúžení okna), zubaté a rozmazané obrázky (dekodér Coilu, přiblížení), úprava fotky a EXIF, zvuk a nahrávání hlasovek (FFmpeg a javax.sound), co desktop neumí
 
 ## Pracovní postup
 
@@ -636,6 +636,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   přežije (`configChanges`). Viz „Otevřený sheet je stav obrazovky" v `docs/poznatky/seznam-chatu.md`.
   Sheet, který je místem sám o sobě (víc vstupů, obsah popíše klíč, nevrací výsledek), je
   navigační destinace `SheetRoute` — viz „Sheety jako navigační destinace" v `docs/poznatky/navigace.md`.
+- **Horní lišta nechává místo pro tlačítka okna desktopu**: `navigationIcon = { WindowControlsSpace { … } }`
+  a `WindowControlsEndSpace()` na konci `actions` (`core/adaptive/WindowControls.kt`), u vlastní
+  hlavičky totéž ručně. Hlavičky panelů leží na desktopu v řádku se semafory / tlačítky Windows;
+  lišta bez místa by na Windows schovala akce pod zavírací tlačítko. Hlídá to `verifyWindowControls`,
+  viz „Vlastní titulek okna (JBR)" v `docs/poznatky/desktop.md`.
 - **Nadpis modálního sheetu je `SheetTitle`** (`core/ui`, `titleLargeEmphasized`), ne `Text`
   s vlastní rolí: dřív měla polovina sheetů `titleLarge` a polovina `titleMedium`. Odsazení
   si dává sheet. Výjimka jsou sheety, kde velký text JE obsah (náhled pozvánky, Můj QR kód).

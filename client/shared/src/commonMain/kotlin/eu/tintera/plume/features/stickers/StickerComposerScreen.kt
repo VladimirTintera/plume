@@ -108,6 +108,8 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.ui.SwitchListItem
 import eu.tintera.plume.core.ui.GroupTitle
+import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Samolepka z fotky: náhled na šachovnici (průhlednost je vidět), úprava fotky editorem
@@ -147,10 +149,13 @@ fun StickerComposerScreen(viewModel: StickerComposerViewModel, onBack: () -> Uni
             TopAppBar(
                 title = { Text(stringResource(Res.string.sticker_new_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    WindowControlsSpace {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
+                actions = { WindowControlsEndSpace() },
             )
         },
         bottomBar = {
