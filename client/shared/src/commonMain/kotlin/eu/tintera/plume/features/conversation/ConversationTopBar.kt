@@ -333,6 +333,11 @@ internal fun ConversationTopBar(
         actions = {
             // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
             ConversationCallButtons(state.info, state.callRequest, viewModel::consumeCallRequest)
+            // Panel s profilem vedle konverzace (jen se zavřeným panelem; zkratka oběma směry).
+            ProfilePaneButton(
+                hasProfile = state.info?.isSavedMessages == false && state.threadRootId == null,
+                onToggleProfile = navigation.onOpenProfile,
+            )
             // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
             // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
             ConversationMenu(

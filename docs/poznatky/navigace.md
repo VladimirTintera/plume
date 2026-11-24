@@ -241,6 +241,25 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   historie a zpět se do profilu vrací.
   - **Napřed se zakrytý profil jen zavíral** (první verze). Přepnutí chatu tak zavřelo panel,
     který si uživatel otevřel, a u každého chatu se musel otevírat znovu.
+  - **Je to tedy boční panel a ovládá ho JEDEN přepínač v hlavičce vedle, ne ✕ v panelu**
+    (`ProfilePaneButton`, zrcadlo přepínače seznamu vlevo): v hlavičce konverzace a seznamu témat
+    před ⋮ „Otevřít panel s profilem" (`right_panel_open`), s otevřeným panelem „Zavřít panel"
+    (`right_panel_close`). Stojí pořád na jednom místě a nepřeskakuje do panelu; první verze měla
+    „Zavřít" v profilu a „Otevřít" v hlavičce, takže tlačítko při každém přepnutí skočilo jinam.
+    Obojí volá `toggleProfile`, ťuknutí na název v hlavičce taky.
+  - **Kořen panelu proto nemá šipku zpět ani ✕** (`paneRoot` u profilu, `standsOnDetail`, testy
+    `StandsOnDetailTest`; kalendář zpráv taky). Profil nad jiným profilem (člen z profilu
+    skupiny) šipku zpět má — vrací v rámci panelu — a stejně tak profil nad čímkoli, co není
+    konverzace ani seznam témat, aby bez přepínače vedle nezůstal bez cesty ven.
+  - **Otevřít jde jen u chatu s profilem, zavřít vždycky**: kalendář stojí i vedle Uložených
+    zpráv a profil chatu se přepnutím přenese i vedle vlákna komentářů.
+  - **Zkratka Ctrl+Shift+I, na macOS ⌥⌘I** (inspektor ve Finderu) dělá totéž co přepínač. Ne
+    Ctrl+Alt+I: na Windows je Ctrl+Alt totéž co AltGr a AltGr+I v některých rozloženích píše znak.
+    Poslouchá ji hlavička, ne shell — ví, jestli chat profil má, a nemusí rozlišovat druhy
+    konverzací ani archiv.
+  - Ověřeno na desktopu (macOS, testovací chat) jen v první verzi (otevření z hlavičky, zavření
+    v profilu, ⌥⌘I tam i zpět). Verze s jedním přepínačem, kalendář bez ✕, seznam témat, archiv,
+    Windows a Fold neověřené.
 - **Scaffold se třemi oddíly rozbalí třetí panel i PRÁZDNÝ** (`tertiaryPane ?: {}`;
   `calculateThreePaneScaffoldValue` prochází po historii ještě všechny tři role podle priority).
   Bez profilu by tak vpravo zůstal prázdný sloupec — třetí oddíl se proto zapíná, jen když je
@@ -386,7 +405,8 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 - **Mezi plným seznamem a sbaleným sloupcem se přelétá** (`ListCollapseTransition.kt`). Obě
   podoby jsou v jednom `AnimatedContent` podle šířky a prvky, které mají obě, přeletí na nové
   místo (`collapseFlight`): avatar účtu (konec řádku s pilulkou ↔ vršek sloupce), lupa (pilulka
-  ↔ tlačítko hledání), Vytvořit (plovoucí lišta dole ↔ FAB pod účtem) a avatary chatů. Zbytek se
+  ↔ tlačítko hledání), Vytvořit (plovoucí lišta dole ↔ FAB pod účtem), přepínač sbalení (za
+  semafory ↔ vršek sloupce) a avatary chatů. Zbytek se
   prolne. Dřív prvky v jednom snímku zmizely a jinde se objevily.
   - **Let je ruční, ne `sharedElement`.** Sdílený prvek bere cíl z rozložení „napřed"
     (lookahead) a v něm má panel seznamu jinou šířku než ve skutečnosti: šířku po puštění táhla
@@ -419,6 +439,28 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     buildu a telefonu neměřený.
   - Ověřeno na desktopu (macOS) tahem táhla tam a zpět a sérií snímků uprostřed přechodu, i při
     rychlém přetahování přes práh. Společný seznam víc účtů a Fold neověřené.
+- **Tlačítko sbalení seznamu** (`ListPaneToggleButton`, stav `ListPaneToggle` přes
+  `LocalListPaneToggle`): v plném seznamu na začátku řádku s pilulkou (na Macu hned za semafory,
+  ve slotu `WindowControlsSpace`), ve sloupci nahoře nad účtem jako tlačítko menu v railu M3.
+  Ikona mezi oběma místy přelétá (`collapseFlight`) jako účet a lupa; bez letu jen přeskočila.
+  Táhlo samo se najít nedalo a z klávesnice ani čtečkou s ním pohnout nejde (WCAG 2.5.7 chce
+  ke každému tahu alternativu na jedno kliknutí); totéž dělá zkratka Ctrl+Shift+S / ⌃⌘S.
+  - **Jen u hlavního seznamu vedle konverzace**, kde je táhlo: ne na telefonu, v Archivu,
+    v Nastavení ani v hledání (to seznam rozbaluje samo).
+  - **Rozbalí se na poslední nesbalenou kotvu** (`ListPaneExpansion.expandedAnchor`, i pro
+    hledání a karty), ne vždy na výchozí šířku. Drží se jen v paměti: po spuštění se sbaleným
+    seznamem je to výchozí šířka.
+  - **Směr přepínače je zvolená kotva, podoba tlačítka je místo, kde stojí**: plný seznam má
+    vždy „Sbalit", sloupec „Rozbalit". Za tahu táhlem se podoba přepne podle šířky dřív, než
+    seznam dosedne na kotvu, a tlačítko podle kotvy by slibovalo opak.
+  - **Ve dvou panelech dojede táhlo knihovny** (`PaneExpansionState.animateTo`, kotvu zapíše hned
+    a uloží ji tentýž `snapshotFlow` jako po tahu), **ve třech vlastní** (`ListPaneWidth.settleTo`,
+    stejný dojezd jako po puštění táhla).
+  - Ověřeno na desktopu (macOS, ladicí běh): tlačítko za semafory, sbalení kliknutím, rozbalení
+    a sbalení ⌃⌘S i položkou nabídky „Chaty", po restartu se sbaleným seznamem; let ikony
+    ověřil uživatel. Tři panely,
+    Windows, Android (Fold, Ctrl+Shift+S) a čtečka obrazovky neověřené. Při prvním běhu jednou
+    rozbalení nezabralo ani z nabídky a znovu se to vyvolat nepodařilo.
 - **„Vytvořit" a výběr víc chatů má i sbalený sloupec.** FAB je nahoře pod účtem jako FAB
   v navigačním railu (sloupec má jeho šířku); FAB menu plného seznamu vyjíždí s popisky nad
   FAB a do 96 dp by se nevešlo, takže tytéž tři položky nabídne `ExpressiveMenu` vpravo od
@@ -729,7 +771,8 @@ z položek pod ní spočítá list-detail strategie.
 
 Desktop, Fold, tablet nebo Chromebook s fyzickou klávesnicí: **Ctrl+K** hledání chatů, **Ctrl+F** hledání
 v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** další a předchozí chat,
-**Esc** zpět (zavře hledání, konverzaci; rozepsanou úpravu nebo odpověď napřed zruší, viz
+**Ctrl+Shift+S** (macOS ⌃⌘S) sbalí nebo rozbalí seznam chatů vedle konverzace (viz „Tlačítko
+sbalení seznamu"), **Ctrl+Shift+I** (macOS ⌥⌘I) otevře nebo zavře panel s profilem, **Esc** zpět (zavře hledání, konverzaci; rozepsanou úpravu nebo odpověď napřed zruší, viz
 `konverzace-psani.md`, „Esc, šipka nahoru a fokus pole"). Pravidla jsou čisté funkce (`keyboardShortcut`,
 `neighbourChat`, testy `KeyboardShortcutsTest`). Enter ve vstupním poli viz
 `konverzace-psani.md`, „Enter z fyzické klávesnice".
@@ -763,7 +806,8 @@ v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** d
   okna → Esc jako Zpět), takže chytá i nad zaostřeným polem a bez fokusu.
   - **Na macOS je příkazová klávesa ⌘** (`commandIsMeta`): ⌘K a ⌘F, Ctrl+K a Ctrl+F nic
     (Ctrl+K maže v poli do konce řádku). Přepínání chatů zůstává Ctrl+Tab a ⌥+šipka — ⌘Tab si
-    bere systém.
+    bere systém. Seznam chatů je ⌃⌘S jako „Zobrazit / skrýt boční panel" ve Finderu a Mailu;
+    `menuKeys` ho mapuje zvlášť, pravidlem „Ctrl → ⌘" by vyšlo ⌘⇧S.
   - **Esc = Zpět dělá na desktopu Compose sám** (`BackNavigationEventInput`), ale až když
     klávesu nikdo nespotřebuje — tatáž past jako na Androidu.
   - **Na macOS je nabídka „Chaty" v liště** (`DesktopMenuBar`): Hledat v chatech ⌘K, Hledat

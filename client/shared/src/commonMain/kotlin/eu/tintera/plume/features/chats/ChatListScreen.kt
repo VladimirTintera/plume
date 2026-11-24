@@ -564,10 +564,10 @@ fun ChatListScreen(
                                 scrollBehavior = scrollBehavior,
                                 // Hledání je vlastní obrazovka v panelu seznamu (`ChatSearchScreen`).
                                 onOpenSearch = navigation.onOpenSearch,
-                                trailing = {
+                                stories = { rim ->
                                     StoryStack(
                                         posters = storyStack,
-                                        rim = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        rim = rim,
                                         onOpen = navigation.onOpenStories,
                                     )
                                 },

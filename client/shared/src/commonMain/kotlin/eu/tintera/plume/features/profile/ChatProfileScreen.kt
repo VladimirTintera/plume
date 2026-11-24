@@ -262,8 +262,6 @@ import eu.tintera.plume.resources.direct_topics_subtitle
 import eu.tintera.plume.resources.mail_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
-import eu.tintera.plume.resources.common_close
-import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.invite_members
 import eu.tintera.plume.resources.invite_subscribers
 import eu.tintera.plume.resources.notifications_24dp
@@ -338,10 +336,12 @@ fun ChatProfileScreen(
      */
     onOpenStories: (storyIds: List<Int>, startStoryId: Int) -> Unit = { _, _ -> },
     /**
-     * ✕ místo šipky zpět: profil stojí jako panel vedle konverzace, takže se zavírá, ne vrací.
-     * Obrazovky otevřené z profilu (úprava, práva člena) šipku zpět mají — vedou zpátky do něj.
+     * Profil je kořen bočního panelu vedle konverzace: bez šipky zpět i bez ✕. Panel otevírá
+     * a zavírá přepínač v hlavičce konverzace (`ProfilePaneButton`), který stojí pořád na jednom
+     * místě. Profil nad jiným panelem (člen z profilu skupiny) a obrazovky otevřené z profilu
+     * (úprava, práva člena) šipku zpět mají — vedou zpátky v panelu.
      */
-    closeIcon: Boolean = false,
+    paneRoot: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -479,10 +479,8 @@ fun ChatProfileScreen(
                         },
                         navigationIcon = {
                             WindowControlsSpace {
-                                IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                                    if (closeIcon) {
-                                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
-                                    } else {
+                                if (!paneRoot) {
+                                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                                     }
                                 }

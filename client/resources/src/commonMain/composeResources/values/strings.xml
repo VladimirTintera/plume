@@ -98,6 +98,10 @@
     <string name="chats_search">Search chats</string>
     <string name="profile_pane_width">Profile width</string>
     <string name="list_pane_width">Chat list width</string>
+    <string name="list_pane_collapse">Collapse chat list</string>
+    <string name="list_pane_expand">Expand chat list</string>
+    <string name="profile_pane_open">Open profile panel</string>
+    <string name="side_pane_close">Close panel</string>
     <string name="chats_pending_freeze">Your account is frozen</string>
     <string name="chats_pending_login">New sign-in to your account</string>
     <string name="chats_pending_birthdays">Birthdays</string>
@@ -3961,6 +3965,8 @@
     <string name="shortcut_search_in_chat">Search in conversation</string>
     <string name="shortcut_next_chat">Next chat</string>
     <string name="shortcut_previous_chat">Previous chat</string>
+    <string name="shortcut_toggle_chat_list">Collapse or expand chat list</string>
+    <string name="shortcut_toggle_profile_pane">Open or close profile panel</string>
     <string name="shortcut_back">Back</string>
     <string name="shortcut_send">Send message</string>
     <string name="shortcut_new_line">New line</string>

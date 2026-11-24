@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.forum
 
+import eu.tintera.plume.features.conversation.ProfilePaneButton
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.resources.search_off_24dp
@@ -268,6 +269,8 @@ fun ForumTopicsScreen(
                     }
                 },
                 actions = {
+                    // Panel s profilem vedle (otevřít i zavřít), jako v hlavičce konverzace.
+                    ProfilePaneButton(hasProfile = true, onToggleProfile = onOpenProfile)
                     var expanded by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { expanded = true }, shapes = IconButtonDefaults.shapes()) {

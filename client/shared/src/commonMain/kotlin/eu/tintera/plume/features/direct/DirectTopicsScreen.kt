@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.direct
 
+import eu.tintera.plume.features.conversation.ProfilePaneButton
 import eu.tintera.plume.core.ui.groupRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -169,7 +170,11 @@ fun DirectTopicsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
-                actions = { WindowControlsEndSpace() },
+                actions = {
+                    // Panel s profilem vedle (otevřít i zavřít), jako v hlavičce konverzace.
+                    ProfilePaneButton(hasProfile = true, onToggleProfile = onOpenProfile)
+                    WindowControlsEndSpace()
+                },
             )
         },
         // Spodek si bere seznam (`contentPadding`): vlákna jedou pod navigační lištu.

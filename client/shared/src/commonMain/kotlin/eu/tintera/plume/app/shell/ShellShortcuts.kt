@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.navigation3.runtime.NavKey
+import eu.tintera.plume.core.adaptive.ListPaneToggle
 import eu.tintera.plume.core.navigation.ArchiveConversationRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
@@ -20,17 +21,20 @@ import eu.tintera.plume.core.accounts.LocalAccount
  *   v dvoupanelu zůstane konverzace vpravo, na telefonu se zásobník srovná na seznam.
  * - **Ctrl+F** otevře hledání v konverzaci, která je navrchu (i v archivu), stejnou cestou
  *   jako „Hledat" z profilu. Bez otevřené konverzace nedělá nic.
+ * - **Ctrl+Shift+S** (macOS ⌃⌘S) sbalí nebo rozbalí seznam chatů vedle konverzace
+ *   ([listToggle], totéž co tlačítko u pilulky). Jinde nedělá nic.
  *
  * Přepínání chatů (Alt+šipky) řeší seznam chatů — jen on zná pořadí, jak ho uživatel vidí.
  */
 @Composable
-internal fun ShellShortcuts(navigation: AppNavigation, chatsStack: List<NavKey>, twoPane: Boolean) {
+internal fun ShellShortcuts(navigation: AppNavigation, chatsStack: List<NavKey>, twoPane: Boolean, listToggle: ListPaneToggle?) {
     val shortcuts = koinInject<KeyboardShortcuts>()
     // Hledání v účtu shellu (seznam chatů je jeho).
     val slot = LocalAccount.current.slot
     val searchRequests = koinInject<ConversationSearchRequests>()
     val currentStack by rememberUpdatedState(chatsStack)
     val currentTwoPane by rememberUpdatedState(twoPane)
+    val currentListToggle by rememberUpdatedState(listToggle)
 
     LaunchedEffect(shortcuts) {
         shortcuts.shortcuts.collect { shortcut ->
@@ -40,7 +44,9 @@ internal fun ShellShortcuts(navigation: AppNavigation, chatsStack: List<NavKey>,
                     if (navigation.section != ChatsRoute) return@collect
                     currentStack.topConversation()?.let(searchRequests::request)
                 }
-                KeyboardShortcut.NextChat, KeyboardShortcut.PreviousChat -> Unit
+                KeyboardShortcut.ToggleChatList -> currentListToggle?.toggle?.invoke()
+                // Panel s profilem přepíná hlavička konverzace (zná chat a jestli profil má).
+                KeyboardShortcut.NextChat, KeyboardShortcut.PreviousChat, KeyboardShortcut.ToggleProfilePane -> Unit
             }
         }
     }

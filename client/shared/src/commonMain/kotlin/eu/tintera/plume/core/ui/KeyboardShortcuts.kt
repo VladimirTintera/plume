@@ -4,6 +4,8 @@ import eu.tintera.plume.resources.shortcut_previous_chat
 import eu.tintera.plume.resources.shortcut_next_chat
 import eu.tintera.plume.resources.shortcut_search_in_chat
 import eu.tintera.plume.resources.shortcut_search_chats
+import eu.tintera.plume.resources.shortcut_toggle_chat_list
+import eu.tintera.plume.resources.shortcut_toggle_profile_pane
 import eu.tintera.plume.resources.Res
 import org.jetbrains.compose.resources.StringResource
 import androidx.compose.ui.input.key.Key
@@ -12,7 +14,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 /** Klávesová zkratka z fyzické klávesnice (desktop, Fold, tablet, Chromebook). */
-enum class KeyboardShortcut { SearchChats, SearchInChat, NextChat, PreviousChat }
+enum class KeyboardShortcut { SearchChats, SearchInChat, NextChat, PreviousChat, ToggleChatList, ToggleProfilePane }
 
 /**
  * Zkratky z klávesnice jako události. Chytá je platforma DŘÍV, než klávesu dostane Compose
@@ -41,13 +43,19 @@ class KeyboardShortcuts {
  * Zkratka pro stisk klávesy [key] s modifikátory; `null` = obyčejná klávesa. Volí se zkratky,
  * které psaní textu nepotřebuje, protože se chytají i nad zaostřeným polem:
  * - Ctrl+K hledání chatů, Ctrl+F hledání v konverzaci (jako v prohlížeči),
- * - Alt+↓ / Alt+↑ a Ctrl+Tab / Ctrl+Shift+Tab další a předchozí chat (jako Telegram Desktop).
+ * - Alt+↓ / Alt+↑ a Ctrl+Tab / Ctrl+Shift+Tab další a předchozí chat (jako Telegram Desktop),
+ * - Ctrl+Shift+S sbalí nebo rozbalí seznam chatů vedle konverzace. Ctrl+B (VS Code) by se pralo
+ *   s tučným písmem ve vstupním poli; Ctrl+S samo patří uložení v prohlížeči médií.
+ * - Ctrl+Shift+I otevře nebo zavře panel s profilem vedle konverzace. Ne Ctrl+Alt+I: na Windows
+ *   je Ctrl+Alt totéž co AltGr a AltGr+I v některých rozloženích píše znak.
  *
  * S klávesou Meta (Windows, ⌘) nic: tu si bere systém (Meta+/ seznam zkratek, Meta+Tab).
  *
  * **Výjimka je macOS ([commandIsMeta])**: tam je příkazová klávesa ⌘, ne Ctrl, takže hledání je
  * ⌘K a ⌘F a Ctrl+K / Ctrl+F nic nedělají (Ctrl+K maže v textovém poli do konce řádku).
- * Přepínání chatů zůstává Ctrl+Tab a ⌥+šipka — ⌘Tab si bere systém.
+ * Přepínání chatů zůstává Ctrl+Tab a ⌥+šipka — ⌘Tab si bere systém. Seznam chatů je ⌃⌘S,
+ * jako „Zobrazit / skrýt boční panel" ve Finderu, Mailu a Poznámkách, panel s profilem ⌥⌘I
+ * jako inspektor ve Finderu.
  */
 fun keyboardShortcut(
     key: Key,
@@ -60,7 +68,11 @@ fun keyboardShortcut(
     val command = if (commandIsMeta) meta && !ctrl else ctrl && !meta
     val commandOnly = command && !alt && !shift
     val altOnly = alt && !ctrl && !shift && !meta
+    val toggleList = if (commandIsMeta) ctrl && meta && !alt && !shift else ctrl && shift && !alt && !meta
+    val toggleProfile = if (commandIsMeta) alt && meta && !ctrl && !shift else ctrl && shift && !alt && !meta
     return when {
+        toggleList && key == Key.S -> KeyboardShortcut.ToggleChatList
+        toggleProfile && key == Key.I -> KeyboardShortcut.ToggleProfilePane
         commandOnly && key == Key.K -> KeyboardShortcut.SearchChats
         commandOnly && key == Key.F -> KeyboardShortcut.SearchInChat
         altOnly && key == Key.DirectionDown -> KeyboardShortcut.NextChat
@@ -104,6 +116,8 @@ val SHORTCUT_BINDINGS: List<ShortcutBinding> = listOf(
     ShortcutBinding(KeyboardShortcut.PreviousChat, Key.DirectionUp, alt = true),
     ShortcutBinding(KeyboardShortcut.NextChat, Key.Tab, ctrl = true),
     ShortcutBinding(KeyboardShortcut.PreviousChat, Key.Tab, ctrl = true, shift = true),
+    ShortcutBinding(KeyboardShortcut.ToggleChatList, Key.S, ctrl = true, shift = true),
+    ShortcutBinding(KeyboardShortcut.ToggleProfilePane, Key.I, ctrl = true, shift = true),
 )
 
 /** Popis zkratky v přehledu (Android Meta+/) a v nabídce okna (macOS). */
@@ -113,6 +127,8 @@ internal val KeyboardShortcut.label: StringResource
         KeyboardShortcut.SearchInChat -> Res.string.shortcut_search_in_chat
         KeyboardShortcut.NextChat -> Res.string.shortcut_next_chat
         KeyboardShortcut.PreviousChat -> Res.string.shortcut_previous_chat
+        KeyboardShortcut.ToggleChatList -> Res.string.shortcut_toggle_chat_list
+        KeyboardShortcut.ToggleProfilePane -> Res.string.shortcut_toggle_profile_pane
     }
 
 /** Klávesy zkratky i s ⌘ (Meta) — pro nabídku okna, která klávesu ukazuje a sama ji chytá. */
@@ -127,9 +143,13 @@ data class MenuKeys(
 /**
  * Klávesy [this] pro platformu, kde je příkazová klávesa ⌘ ([commandIsMeta], macOS): Ctrl
  * u hledání se tam mění na ⌘, Ctrl+Tab přepínání chatů zůstává (⌘Tab si bere systém) —
- * stejně jako v [keyboardShortcut]. Že nabídka slibuje to, co pravidlo opravdu dělá, hlídá test.
+ * stejně jako v [keyboardShortcut]. Seznam chatů je tam ⌃⌘S místo Ctrl+Shift+S, panel s profilem
+ * ⌥⌘I místo Ctrl+Shift+I. Že nabídka
+ * slibuje to, co pravidlo opravdu dělá, hlídá test.
  */
 fun ShortcutBinding.menuKeys(commandIsMeta: Boolean): MenuKeys {
+    if (commandIsMeta && shortcut == KeyboardShortcut.ToggleChatList) return MenuKeys(key, meta = true, ctrl = true)
+    if (commandIsMeta && shortcut == KeyboardShortcut.ToggleProfilePane) return MenuKeys(key, meta = true, alt = true)
     val command = ctrl && key != Key.Tab
     return MenuKeys(
         key = key,
