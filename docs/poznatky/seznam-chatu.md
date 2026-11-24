@@ -519,6 +519,14 @@ Archiv, Nastavení; dřív tu bylo ⋮ vedle pilulky). Po ťuknutí na pilulku s
   okraje pilulky) a fotka vyrostla na 40 dp v plném 48dp terči. Varianta Google Messages (jen
   lupa, bez pilulky) se vědomě nedělá: chtěla by nadpis, který jsme zrušili, stav spojení by
   ztratil místo a hledání by se schovalo o ťuknutí hlouběji.
+- **Pilulka a fotka účtu lícují s bloky seznamu (16 dp od kraje)**, jako lišta složek a FAB
+  (`HEADER_EDGE` v `ChatSearchBar.kt`, `contentPadding` baru). Výchozí `AppBarWithSearch` dává
+  pilulce jen 8 dp (`SearchBarAsTopBarPadding`) a slotu akcí 4 dp, takže hlavička přečnívala seznam
+  na obou stranách o 8 dp; výchozí hodnota počítá se seznamem přes celou šířku, ne s odsazenými
+  bloky. Okraj navíc jen na straně, kde nic není: přepínač seznamu a tlačítka okna desktopu mají
+  svůj a odsunul by je od kraje okna. Platí i pro úzkou hlavičku s lupou a počítá se do prahu, kdy
+  se z pilulky stane lupa. Ověřeno na emulátoru Foldu: složený (pilulka) i rozložený (lupa vedle
+  prázdné konverzace), světlý motiv. iOS a desktop neověřené.
 - **Obroučky na fotce (tečka archivu, složené fotky Všech účtů) mají barvu `surface`**, ne
   pilulky (`surfaceContainerHigh`): fotka teď stojí na ploše stránky.
 - **Hromádka příběhů v pilulce zůstala** — je to vstup do obsahu, ne identita, a do terče fotky

@@ -310,12 +310,19 @@ internal fun ChatSearchBar(
         // Vedle konverzace přepínač sbalení seznamu před pilulkou, na Macu hned za semafory.
         val listToggle = LocalListPaneToggle.current
         /*
+         * Okraj navíc, aby pilulka a fotka účtu stály na hraně bloků seznamu (16 dp), ne 8 dp od
+         * kraje, jak je to v `AppBarWithSearch` výchozí. Jen na straně, kde nic není: tlačítka
+         * okna a přepínač seznamu mají svůj okraj a okraj navíc by je odsunul od kraje okna.
+         */
+        val edgeStart = if (windowControls || listToggle != null) 0.dp else HEADER_EDGE
+        val edgeEnd = if (clearance.end > 0.dp) 0.dp else HEADER_EDGE
+        /*
          * Kolik by zbylo na pilulku: řádek bez tlačítek okna, přepínače, fotky účtu a okrajů baru.
          * Pod prahem je z pilulky lupa a stav spojení i příběhy stojí samostatně
          * ([CompactChatListHeader]). Na telefonu místo je, tam zůstává pilulka.
          */
         val pillRoom = maxWidth - clearance.start - clearance.end - HEADER_BUTTON * 2 -
-            (if (listToggle != null) HEADER_BUTTON else 0.dp) - HEADER_PADDING
+            (if (listToggle != null) HEADER_BUTTON else 0.dp) - HEADER_PADDING - edgeStart - edgeEnd
         val compact = pillRoom < PILL_MIN_WIDTH
         val enter = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
         val exit = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
@@ -330,6 +337,7 @@ internal fun ChatSearchBar(
                     onOpenSearch = onOpenSearch,
                     stories = stories,
                     actions = actions,
+                    edge = PaddingValues(start = edgeStart, end = edgeEnd),
                 )
                 return@AnimatedContent
             }
@@ -346,6 +354,7 @@ internal fun ChatSearchBar(
                     WindowControlsEndSpace()
                 },
                 colors = colors,
+                contentPadding = PaddingValues(start = edgeStart, end = edgeEnd),
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface),
             )
         }
@@ -364,6 +373,8 @@ private fun CompactChatListHeader(
     onOpenSearch: () -> Unit,
     stories: @Composable (rim: Color) -> Unit,
     actions: @Composable RowScope.() -> Unit,
+    /** Okraj navíc ke kraji řádku, jako u pilulky (hrana bloků seznamu). */
+    edge: PaddingValues,
 ) {
     val morph = LocalSearchMorph.current
     val listToggle = LocalListPaneToggle.current
@@ -374,6 +385,7 @@ private fun CompactChatListHeader(
             .fillMaxWidth()
             .windowInsetsPadding(TopAppBarDefaults.windowInsets)
             .height(TopAppBarDefaults.TopAppBarExpandedHeight)
+            .padding(edge)
             .padding(horizontal = 4.dp),
     ) {
         WindowControlsSpace { listToggle?.let { ListPaneToggleButton(it, collapsed = false) } }
@@ -433,6 +445,13 @@ private val HEADER_BUTTON = 48.dp
 
 /** Okraje a mezery, které si `AppBarWithSearch` dává kolem pilulky. */
 private val HEADER_PADDING = 32.dp
+
+/**
+ * Okraj navíc k výchozímu odsazení `AppBarWithSearch`: pilulka (8 + 8 dp) a fotka účtu
+ * (4 + 8 dp k terči, 4 dp terč k fotce) pak končí na 16 dp, na hraně bloků seznamu, lišty
+ * složek a FAB. S výchozími 8 dp hlavička přečnívala seznam na obou stranách.
+ */
+private val HEADER_EDGE = 8.dp
 
 
 /**
