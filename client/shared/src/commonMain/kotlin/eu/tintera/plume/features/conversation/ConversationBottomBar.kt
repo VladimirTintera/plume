@@ -157,14 +157,7 @@ internal fun ConversationBottomBar(
      * TENTÝŽ pás skla jako pole. Seznam zpráv pod spodní lištu zajíždí (spodek je
      * `contentPadding`, ne konec plochy), takže bez pásu prosvítaly bubliny zpod tlačítka.
      */
-    val barGlass = Modifier.hazeBlur(
-        input = HazeInput.Sources(listHaze),
-        style = glassStyle(
-            color = MaterialTheme.colorScheme.surface,
-            alpha = GLASS_TINT_ALPHA,
-            fallbackAlpha = INPUT_SCRIM_ALPHA,
-        ),
-    )
+    val barGlass = Modifier.hazeBlur(input = HazeInput.Sources(listHaze), style = bandGlassStyle())
     // Seznam výsledků hledání (sheet nad lištou „N z M"); se zavřeným hledáním zmizí s ní.
     var showSearchList by rememberSaveable { mutableStateOf(false) }
     if (state.search == null && showSearchList) showSearchList = false
@@ -329,16 +322,8 @@ internal fun ConversationBottomBar(
      * bublina a s čipem (plocha karty pole) splývala do dvou čipů přes sebe.
      */
     Column(
-        Modifier.hazeBlur(
-            input = HazeInput.Sources(listHaze),
-            style = glassStyle(
-                color = MaterialTheme.colorScheme.surface,
-                alpha = GLASS_TINT_ALPHA,
-                // Bez rozostření zůstane dřívější krycí pás; jinak by pod ním prosvítaly
-                // zprávy a psaní by se v nich ztratilo.
-                fallbackAlpha = INPUT_SCRIM_ALPHA,
-            ),
-        ),
+        // Bez rozostření zůstane krycí pás (`bandGlassStyle`), jinak by se v něm psaní ztratilo.
+        Modifier.hazeBlur(input = HazeInput.Sources(listHaze), style = bandGlassStyle()),
     ) {
     ReplySuggestionChips(
         suggestions = replySuggestions,
@@ -431,15 +416,8 @@ internal fun ConversationBottomBar(
      * poskakovat. Stojí těsně nad polem, u textu, ke kterému patří. Návrhy odpovědi
      * a klávesnice bota výš zůstávají v rozvržení — viz `ReplySuggestionChips`.
      */
-    val suggestionGlass = Modifier.hazeBlur(
-        input = HazeInput.Sources(listHaze),
-        // Inverzní plocha, jako snackbar (viz `FloatingSuggestion`).
-        style = glassStyle(
-            color = MaterialTheme.colorScheme.inverseSurface,
-            alpha = FLOATING_SUGGESTION_TINT_ALPHA,
-            fallbackAlpha = GLASS_FALLBACK_ALPHA,
-        ),
-    )
+    // Tatáž pilulka jako pruhy nad konverzací (viz `FloatingSuggestion`).
+    val suggestionGlass = pillGlass(listHaze)
     val commandsShown = state.editing == null && (typedCommands != null || state.commandsOpen)
     // Plovoucí napovídání leží tam, kde jinak stojí tlačítko dolů a zmínky — ty se
     // mezitím schovají, jinak by visely přes seznam příkazů nebo přes emoji.
@@ -775,10 +753,3 @@ internal fun ConversationBottomBar(
     }
 }
 
-/**
- * Průsvit pruhu pod vstupním polem.
- *
- * Dost na to, aby text pod ním nerušil, ale ne plná barva — ta by udělala ostrý předěl přes
- * celou obrazovku, což je právě to, co se odstraňovalo.
- */
-private const val INPUT_SCRIM_ALPHA = 0.93f

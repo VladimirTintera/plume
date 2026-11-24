@@ -12,16 +12,26 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
+import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
 
 /**
- * Mléčné sklo nad seznamem zpráv: pás pod vstupním polem, pruh připnutých zpráv a plovoucí datum.
+ * Mléčné sklo nad seznamem zpráv. JEDEN materiál ve dvou podobách:
  *
- * Všechny tři plochy leží NAD projíždějícím obsahem a dosud ho jen zakrývaly barvou. Rozostření
- * dělá totéž čitelněji: je vidět, že pod nimi obsah pokračuje, a přitom nepřebíjí to, co na nich
- * stojí. Tentýž Haze jako závoj pod nabídkou nad zprávou (`docs/poznatky/konverzace-akce.md`, „Nabídka nad zprávou“).
+ * - **pilulka** ([pillGlass], [pillGlassStyle]): plovoucí plochy s textem — pruhy nad konverzací
+ *   (připnuté, spam, videochat…), plovoucí datum, docky polohy a přehrávače, napovídání nad polem;
+ * - **pás** ([bandGlassStyle]): pod vstupním polem a lištami místo něj; vlastní text nenese.
+ *
+ * Liší se jen barvou a tím, kolik jasu z pozadí propustí ([PILL_GLASS_LEAK], [BAND_GLASS_LEAK]);
+ * rozostření, zesílení barev, zrnitost a krycí podklad mají společné. Pilulky navíc nesou
+ * světlou hranu ([glassRim]) a stín 3 dp.
+ *
+ * Plochy leží NAD projíždějícím obsahem a dřív ho jen zakrývaly barvou. Rozostření dělá totéž
+ * čitelněji: je vidět, že pod nimi obsah pokračuje, a přitom nepřebíjí to, co na nich stojí.
  *
  * **Zdrojem je jen seznam zpráv, ne celý Scaffold.** Závoj nabídky rozostřuje Scaffold celý —
  * je nad ním. Tyhle plochy jsou ale jeho součástí, takže by se s ním rozostřovaly samy: pruh
@@ -30,55 +40,58 @@ import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
  *
  * **Barvu nese tint stylu, ne plocha.** Kdyby si ji plocha kreslila sama, překryla by rozostřený
  * obraz pod sebou; průhledná plocha s tintem dělá sklo.
+ *
+ * **Jas pozadí hlídá matice, ne krytí.** Rozostřený obraz se napřed stáhne k barvě plochy
+ * ([backdropMatrix]) a teprve pak se přes něj položí tint s krytím [GLASS_TINT_ALPHA]; barvy pod
+ * sklem se přitom zesílí ([GLASS_SATURATION]). Fotka, samolepka nebo odkaz tak prosvítají jako
+ * barevná skvrna, kdežto jas — a tím kontrast textu — se propíše jen v míře „úniku“.
  */
 @Composable
-internal fun glassStyle(
-    color: Color,
-    alpha: Float,
-    fallbackAlpha: Float,
-    /** Úprava rozostřeného obrazu PŘED tintem (viz [textGlassStyle]); `null` = beze změny. */
-    backdrop: ColorFilter? = null,
-): HazeBlurStyle {
+private fun glassStyle(color: Color, leak: Float, fallbackAlpha: Float): HazeBlurStyle {
+    /*
+     * Podklad pod rozostřeným obrazem: bez něj byl obraz u okrajů plochy průhledný (na šíři
+     * poloměru rozostření) a pod sklem prosvítal OSTRÝ seznam, jen ztlumený tintem.
+     */
     val page = MaterialTheme.colorScheme.background
-    return LocalBackgroundBlurAllowed.current.let { blur ->
-        remember(color, alpha, fallbackAlpha, blur, backdrop, page) {
-            HazeBlurStyle {
-                backgroundColor(page)
-                // Systém rozostření nechce („Omezit efekty rozmazání") — kreslí se náhradní plocha.
-                // Jen vypnout: zapnuté rozostření rozhoduje Haze sám (pod Androidem 12 ho nemá).
-                if (!blur) blurEnabled(false)
-                colorEffects(
-                    listOfNotNull(
-                        backdrop?.let { HazeColorEffect.colorFilter(it) },
-                        HazeColorEffect.tint(color.copy(alpha = alpha)),
-                    ),
-                )
-                blurRadius(GLASS_BLUR_RADIUS)
-                noiseFactor(GLASS_NOISE)
-                // Kde rozostření není (Android 11 a starší), zůstane dřívější krycí plocha.
-                fallbackColorEffect(HazeColorEffect.tint(color.copy(alpha = fallbackAlpha)))
-            }
+    val blur = LocalBackgroundBlurAllowed.current
+    return remember(color, leak, fallbackAlpha, blur, page) {
+        val backdrop = ColorFilter.colorMatrix(backdropMatrix(color, glassContrast(leak), GLASS_SATURATION))
+        HazeBlurStyle {
+            backgroundColor(page)
+            // Systém rozostření nechce („Omezit efekty rozmazání") — kreslí se náhradní plocha.
+            // Jen vypnout: zapnuté rozostření rozhoduje Haze sám (pod Androidem 12 ho nemá).
+            if (!blur) blurEnabled(false)
+            colorEffects(
+                listOf(
+                    HazeColorEffect.colorFilter(backdrop),
+                    HazeColorEffect.tint(color.copy(alpha = GLASS_TINT_ALPHA)),
+                ),
+            )
+            blurRadius(GLASS_BLUR_RADIUS)
+            noiseFactor(GLASS_NOISE)
+            // Kde rozostření není (Android 11 a starší), zůstane krycí plocha.
+            fallbackColorEffect(HazeColorEffect.tint(color.copy(alpha = fallbackAlpha)))
         }
     }
 }
 
-/**
- * Sklo pod plochou, která nese VLASTNÍ TEXT: pruhy nad konverzací, plovoucí datum, dock přehrávače.
- *
- * **Kontrast textu hlídá matice, ne krytí.** Dřív to dělalo krytí 0,88 a z pozadí tak
- * prosvítalo 12 % — rozostření nebylo poznat. Teď se rozostřený obraz napřed stáhne k barvě
- * plochy ([TEXT_GLASS_BACKDROP_CONTRAST]) a teprve pak se přes něj položí tint s nižším krytím.
- * Jas pozadí se do plochy propíše STEJNĚ jako dřív (`(1 − krytí) × stažení` = 0,12), takže
- * naměřené kontrasty platí dál, ale barvy pod sklem se zesílí ([GLASS_SATURATION]) — fotka,
- * samolepka nebo odkaz pod pruhem prosvítají jako barevná skvrna, ne jako šedá.
- */
+/** Styl skla pilulky s textem (viz [glassStyle]); plochu kreslí `surfaceContainerHigh`. */
 @Composable
-internal fun textGlassStyle(color: Color): HazeBlurStyle {
-    val backdrop = remember(color) {
-        ColorFilter.colorMatrix(backdropMatrix(color, TEXT_GLASS_BACKDROP_CONTRAST, GLASS_SATURATION))
-    }
-    return glassStyle(color, TEXT_GLASS_TINT_ALPHA, GLASS_FALLBACK_ALPHA, backdrop)
-}
+internal fun pillGlassStyle(): HazeBlurStyle =
+    glassStyle(MaterialTheme.colorScheme.surfaceContainerHigh, PILL_GLASS_LEAK, fallbackAlpha = 1f)
+
+/** Sklo pilulky nad seznamem [source] — modifikátor pro `glass` plovoucích ploch. */
+@Composable
+internal fun pillGlass(source: HazeState): Modifier =
+    Modifier.hazeBlur(input = HazeInput.Sources(source), style = pillGlassStyle())
+
+/** Styl pásu pod vstupním polem (viz [glassStyle]); plochu kreslí `surface` jako stránka. */
+@Composable
+internal fun bandGlassStyle(): HazeBlurStyle =
+    glassStyle(MaterialTheme.colorScheme.surface, BAND_GLASS_LEAK, BAND_FALLBACK_ALPHA)
+
+/** Na jaký podíl se rozsah jasu pod sklem stáhne, aby po tintu propustil [leak]. */
+internal fun glassContrast(leak: Float): Float = leak / (1 - GLASS_TINT_ALPHA)
 
 /**
  * Matice, která rozostřený obraz pod sklem zesytí ([saturation]) a jeho rozsah stáhne
@@ -133,28 +146,31 @@ internal fun Modifier.glassRim(shape: Shape): Modifier {
  */
 private val GLASS_BLUR_RADIUS = 20.dp
 
-/**
- * Jak moc plocha kryje.
- *
- * **Nižší než dřívější krycí plocha, a v tom je celá pointa.** Pás pod polem měl krytí 0,93
- * a rozostření pod ním nebylo vidět vůbec — text zprávy končil na jeho hraně, jako by ho něco
- * ořízlo. Oddělování teď nese rozostření, takže plocha smí prosvítat; víc už ne, text na ní musí
- * zůstat čitelný nad čímkoli, co pod ní projede.
- */
-internal const val GLASS_TINT_ALPHA = 0.72f
-
-/** Krytí tintu u skla s textem ([textGlassStyle]); kontrast hlídá spolu s [TEXT_GLASS_BACKDROP_CONTRAST]. */
-internal const val TEXT_GLASS_TINT_ALPHA = 0.6f
+/** Krytí tintu skla; jas pozadí řídí zvlášť „únik“ ([PILL_GLASS_LEAK], [BAND_GLASS_LEAK]). */
+internal const val GLASS_TINT_ALPHA = 0.6f
 
 /**
- * Na jaký podíl se rozsah jasu pod sklem s textem stáhne. S krytím [TEXT_GLASS_TINT_ALPHA]
- * dává `(1 − 0,6) × 0,3 = 0,12` — tolik, kolik dřív propouštělo krytí 0,88, při kterém se měřil
- * kontrast: „Včera“ nad černým náhledem videa (při 0,72 jen 2,85) a v tmavém režimu nad světlou
- * fotkou 5,89. Kdo jedno z čísel mění, musí kontrast změřit znovu.
+ * Kolik jasu z pozadí propustí pilulka s textem. Tolik propouštělo dřívější krytí 0,88, při
+ * kterém se měřil kontrast: „Včera“ nad černým náhledem videa (při 0,72 jen 2,85) a v tmavém
+ * režimu nad světlou fotkou 5,89. Dvojnásobek (0,24) byl vidět líp, ale v nejhorším případě
+ * srazil primární popisek pod AA (3,3–3,5). Kdo číslo mění, musí kontrast změřit znovu.
  */
-internal const val TEXT_GLASS_BACKDROP_CONTRAST = 0.3f
+internal const val PILL_GLASS_LEAK = 0.12f
 
-/** Kolikrát se zesílí barvy pod sklem s textem — jas se tím nemění. */
+/**
+ * Kolik jasu propustí pás pod polem — víc než pilulka, protože vlastní text nenese (karta pole
+ * má svou plochu). Odpovídá dřívějšímu krytí 0,72; při krytí 0,93 nebylo rozostření vidět
+ * vůbec a text zprávy končil na hraně pásu, jako by ho něco ořízlo.
+ */
+internal const val BAND_GLASS_LEAK = 0.28f
+
+/**
+ * Krytí pásu tam, kde rozostření není (Android 11 a starší): dost na to, aby text pod ním
+ * nerušil, ale ne plná barva — ta by udělala ostrý předěl přes celou obrazovku.
+ */
+private const val BAND_FALLBACK_ALPHA = 0.93f
+
+/** Kolikrát se zesílí barvy pod sklem — jas se tím nemění. */
 internal const val GLASS_SATURATION = 2.4f
 
 /** Zrnitost matného skla: i nad jednolitým pozadím je plocha poznat jako materiál, ne barva. */
@@ -163,16 +179,3 @@ private const val GLASS_NOISE = 0.08f
 private val GLASS_RIM_WIDTH = 1.dp
 private const val GLASS_RIM_ALPHA_DARK = 0.18f
 private const val GLASS_RIM_ALPHA_LIGHT = 0.9f
-
-/**
- * Krytí skla plovoucího napovídání nad polem (`FloatingSuggestion`), barva `inverseSurface`.
- *
- * Víc než u ostatních skel, protože inverzní plocha nese text opačné světlosti než to, co pod ní
- * projede: ve světlém motivu světlé písmo nad bílou fotkou, v tmavém tmavé nad černou. S 0,8 vyjde
- * v obou nejhůř kolem 6,5 : 1; s 0,66 (dřívější tmavé sklo z `scrim`) by `inverseSurface`, která
- * je světlejší než černá, nad bílou fotkou spadla pod 4 : 1.
- */
-internal const val FLOATING_SUGGESTION_TINT_ALPHA = 0.8f
-
-/** Bez rozostření (Android 11 a starší) plocha kryje úplně — jinak by pod ní text prosvítal. */
-internal const val GLASS_FALLBACK_ALPHA = 1f

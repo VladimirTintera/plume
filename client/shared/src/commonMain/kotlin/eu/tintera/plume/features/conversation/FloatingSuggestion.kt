@@ -29,11 +29,11 @@ import androidx.compose.ui.unit.dp
  * výšky (další písmeno zúží seznam příkazů) zvedly a spustily celou konverzaci a oči při psaní
  * skákaly za ní. Teď leží přes konec seznamu jako nabídka.
  *
- * **Sklo je v INVERZNÍ roli, jako snackbar** (`inverseSurface` s
- * [FLOATING_SUGGESTION_TINT_ALPHA], popředí [FloatingSuggestionColors]): ve světlém motivu tmavé,
- * v tmavém světlé. Je to dočasný prvek nad obsahem a má od něj vystoupit v obou motivech. Světlé
- * sklo v barvě plochy (první verze) se ve světlém motivu slévalo s bublinami; natvrdo tmavé
- * (druhá verze) by se stejně slilo s tmavou konverzací.
+ * **Sklo je tatáž pilulka jako pruhy nad konverzací** ([pillGlass]: `surfaceContainerHigh`,
+ * světlá hrana, stín 3 dp; popředí [FloatingSuggestionColors]). Dřív byla v inverzní roli jako
+ * snackbar, takže nad polem visela jiná plocha než nahoře u připnutých. Inverzní sklo vzniklo,
+ * když se světlé sklo v barvě plochy (`surface`) ve světlém motivu slévalo s bublinami; pilulku
+ * od nich teď odliší tónovaná plocha, hrana a stín, jako u pruhů nahoře.
  *
  * Vyrůstá od pole ([origin]) zvětšením, ne rozbalením do výšky — rozbalení by u plovoucího
  * prvku vypadalo, jako by se pod ním něco odsouvalo.
@@ -64,7 +64,7 @@ internal fun FloatingSuggestion(
             // Na šířku jako pole pod ní (`MessageInput`), ať pilulka nestojí vedle něj přesazená.
             modifier = modifier.padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
-            Box(Modifier.clip(shape).then(glass)) { content() }
+            Box(Modifier.clip(shape).then(glass).glassRim(shape)) { content() }
         }
     }
 }
@@ -81,20 +81,20 @@ internal fun Modifier.floatAbove(): Modifier = layout { measurable, constraints 
 }
 
 /**
- * Popředí na skle [FloatingSuggestion] — inverzní role, jako snackbar.
+ * Popředí na skle [FloatingSuggestion] — tytéž role jako na pruzích nad konverzací.
  */
 internal object FloatingSuggestionColors {
     val content: Color
-        @Composable get() = MaterialTheme.colorScheme.inverseOnSurface
+        @Composable get() = MaterialTheme.colorScheme.onSurface
 
     val muted: Color
-        @Composable get() = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.72f)
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
 
-    /** Akcent (text příkazu, indikátor): `inversePrimary`, stejně jako akce snackbaru. */
+    /** Akcent (text příkazu, indikátor), jako popisek „Připnutá zpráva“. */
     val accent: Color
-        @Composable get() = MaterialTheme.colorScheme.inversePrimary
+        @Composable get() = MaterialTheme.colorScheme.primary
 
-    /** `ListItem` si text barví sám (`onSurface`), barva popředí se mu musí předat. */
+    /** `ListItem` si text barví sám, barva popředí se mu musí předat (plocha je sklo). */
     @Composable
     fun listItem(): ListItemColors = ListItemDefaults.colors(
         containerColor = Color.Transparent,

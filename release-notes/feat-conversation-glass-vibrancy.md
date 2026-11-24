@@ -1,3 +1,3 @@
 type: feat
-cs: Pruhy nad konverzací jsou opravdové sklo: obsah pod nimi je rozmazaný a jeho barvy prosvítají
-en: Bars above the conversation are real glass: content beneath is blurred and its colors show
+cs: Pruhy nad konverzací a napovídání nad polem jsou jednotné sklo, pod kterým je vidět obsah
+en: Bars above the conversation and suggestions above the input are one glass showing what is beneath

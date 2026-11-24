@@ -142,9 +142,11 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   sušenka pootočí o jednu vlnku pružinou s přeskokem, špendlík stojí — změna je vidět koutkem
   oka. Úhel je přímo `index × 360/7`, žádné počítadlo; po dosednutí má sušenka tentýž obrys.
   `Cookie7Sided` jinde nic neznamená (viz `ShapeMorphs`).
-- **Krytí skla zůstává `GLASS_TEXT_TINT_ALPHA` (0,88)**, i když by pilulka s nižším vypadala víc
-  „skleně". Pruh nese text a v tmavém režimu nad světlou fotkou by s nižším krytím spadl pod AA
-  (viz „Vzhled konverzace", mléčné sklo). Rozostření je vidět nad fotkou nebo sytou bublinou.
+- **Únik jasu skla zůstává 0,12** (`PILL_GLASS_LEAK`, jako dřívější krytí 0,88), i když by
+  pilulka s vyšším vypadala víc „skleně". Pruh nese text a nad světlou fotkou v tmavém režimu
+  (nebo tmavou ve světlém) by s vyšším spadl pod AA (viz mléčné sklo v
+  `docs/poznatky/konverzace-zobrazeni.md`). Barvy pod sklem se přitom zesilují, takže fotka nebo
+  sytá bublina je pod ním vidět.
 - **Sheet všech připnutých je blok zaoblených řádků** (`groupItemShape`, `groupRow`,
   spára 2 dp), jako kontakty a odkazy v profilu; řádek je `ListItem` s náhledem, textem a dnem.
   Dřív holé řádky na ploše sheetu — jiný vzhled pro tentýž „seznam věcí".

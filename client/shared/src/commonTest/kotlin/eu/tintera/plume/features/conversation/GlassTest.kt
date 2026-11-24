@@ -8,16 +8,16 @@ import kotlin.test.assertTrue
 class GlassTest {
     private val tint = Color(0xFF2B2930)
 
-    /** Barva ve složkách 0–1 po matici [backdropMatrix] a tintu s krytím [TEXT_GLASS_TINT_ALPHA]. */
+    /** Barva ve složkách 0–1 po matici [backdropMatrix] a tintu s krytím [GLASS_TINT_ALPHA]. */
     private fun throughGlass(r: Float, g: Float, b: Float): FloatArray {
-        val m = backdropMatrix(tint, TEXT_GLASS_BACKDROP_CONTRAST, GLASS_SATURATION).values
+        val m = backdropMatrix(tint, glassContrast(PILL_GLASS_LEAK), GLASS_SATURATION).values
         val input = floatArrayOf(r, g, b)
         val t = floatArrayOf(tint.red, tint.green, tint.blue)
         return FloatArray(3) { i ->
             val row = i * 5
             val filtered = (m[row] * input[0] + m[row + 1] * input[1] + m[row + 2] * input[2] + m[row + 4] / 255f)
                 .coerceIn(0f, 1f)
-            TEXT_GLASS_TINT_ALPHA * t[i] + (1 - TEXT_GLASS_TINT_ALPHA) * filtered
+            GLASS_TINT_ALPHA * t[i] + (1 - GLASS_TINT_ALPHA) * filtered
         }
     }
 

@@ -65,9 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import eu.tintera.plume.core.settings.GestureHint
 import eu.tintera.plume.core.telegram.Presence
@@ -347,10 +345,7 @@ internal fun BoxScope.ConversationContent(
         FloatingDayBadge(
             text = floatingDay?.label.orEmpty(),
             onClick = itemScope.datePicker()?.let { open -> { floatingDay?.let { open(it.dayStart) } } },
-            glass = Modifier.hazeBlur(
-                input = HazeInput.Sources(listHaze),
-                style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainer),
-            ),
+            glass = pillGlass(listHaze),
             modifier = Modifier.padding(top = 8.dp + topPadding),
         )
     }
