@@ -74,12 +74,12 @@ fun AccountTopAppBar(
 ) {
     val account = rememberShownAccount()?.takeIf { showAccount }
     if (account == null) {
-        TopAppBar(title = title, navigationIcon = { WindowControlsSpace(navigationIcon) }, actions = {
+        TopAppBar(title = title, navigationIcon = { WindowControlsSpace(navigationIcon = navigationIcon) }, actions = {
                 actions()
                 WindowControlsEndSpace()
             })
     } else {
-        TopAppBar(title = title, subtitle = { Text(account.displayName) }, navigationIcon = { WindowControlsSpace(navigationIcon) }, actions = {
+        TopAppBar(title = title, subtitle = { Text(account.displayName) }, navigationIcon = { WindowControlsSpace(navigationIcon = navigationIcon) }, actions = {
                 actions()
                 WindowControlsEndSpace()
             })

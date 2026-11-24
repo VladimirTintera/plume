@@ -108,8 +108,10 @@ object DesktopTitleBar {
             if (windows) titleBar.putProperty("controls.dark", isDark)
             decorations.setCustomTitleBar(window, titleBar)
             // Na Macu je v `leftInset` i okraj ZA semafory (stejný jako před nimi) a hlavičky mají
-            // vlastní odsazení začátku; bez ubrání vycházela mezera ~36 b místo ~20 jako u aplikací
-            // pro Mac (Zprávy, Finder). Změřeno ze snímku okna, viz docs/poznatky/desktop.md.
+            // vlastní odsazení začátku; bez ubrání vycházela mezera ~36 b k pilulce a ~45 b k holé ikoně místo ~20 jako u aplikací
+            // pro Mac (Zprávy, Finder). Měří se k viditelnému tvaru, tedy u holé ikony ke glyfu,
+            // ne k hraně tlačítka; plocha (pilulka) si přidá `WindowControlsSpace(extra)`.
+            // Změřeno ze snímku okna, viz docs/poznatky/desktop.md.
             controlsWidth = if (mac) (titleBar.leftInset - MAC_CONTROLS_TRIM).coerceAtLeast(0f).dp else titleBar.rightInset.dp
             Logger.withTag(TAG).i { "Tlačítka okna: left ${titleBar.leftInset}, right ${titleBar.rightInset}" }
         }
@@ -164,7 +166,7 @@ object DesktopTitleBar {
     private const val TAG = "TitleBar"
 
     /** Kolik z `leftInset` na Macu ubrat, viz `controlsWidth`. */
-    private const val MAC_CONTROLS_TRIM = 16f
+    private const val MAC_CONTROLS_TRIM = 24f
 }
 
 /**

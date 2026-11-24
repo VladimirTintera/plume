@@ -92,7 +92,7 @@ internal fun SettingsTopBar(
     if (isWindowHeightCompact()) {
         TopAppBar(
             title = { Text(title) },
-            navigationIcon = { WindowControlsSpace(navigationIcon) },
+            navigationIcon = { WindowControlsSpace(navigationIcon = navigationIcon) },
             actions = {
                 actions()
                 WindowControlsEndSpace()
@@ -103,7 +103,7 @@ internal fun SettingsTopBar(
     } else {
         LargeFlexibleTopAppBar(
             title = { Text(title) },
-            navigationIcon = { WindowControlsSpace(navigationIcon) },
+            navigationIcon = { WindowControlsSpace(navigationIcon = navigationIcon) },
             actions = {
                 actions()
                 WindowControlsEndSpace()

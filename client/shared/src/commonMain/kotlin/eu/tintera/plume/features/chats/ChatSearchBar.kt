@@ -311,10 +311,11 @@ internal fun ChatSearchBar(
         val listToggle = LocalListPaneToggle.current
         /*
          * Okraj navíc, aby pilulka a fotka účtu stály na hraně bloků seznamu (16 dp), ne 8 dp od
-         * kraje, jak je to v `AppBarWithSearch` výchozí. Jen na straně, kde nic není: tlačítka
-         * okna a přepínač seznamu mají svůj okraj a okraj navíc by je odsunul od kraje okna.
+         * kraje, jak je to v `AppBarWithSearch` výchozí. Ne před přepínačem seznamu (holá ikona
+         * má odsazení svoje) a ne vpravo pod tlačítky Windows. Za semafory Macu ano: šířka
+         * semaforů je laděná na holou ikonu a pilulka bez toho přilehla ([FilledShapeGap]).
          */
-        val edgeStart = if (windowControls || listToggle != null) 0.dp else HEADER_EDGE
+        val edgeStart = if (listToggle != null) 0.dp else HEADER_EDGE
         val edgeEnd = if (clearance.end > 0.dp) 0.dp else HEADER_EDGE
         /*
          * Kolik by zbylo na pilulku: řádek bez tlačítek okna, přepínače, fotky účtu a okrajů baru.

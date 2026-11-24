@@ -75,6 +75,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
 import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.FilledShapeGap
 
 /**
  * Hlavička konverzace při hledání: **vyhledávací pilulka** místo názvu chatu, uvnitř ní šipka
@@ -127,8 +128,9 @@ internal fun InChatSearchTopBar(
                 .height(SEARCH_BAR_HEIGHT)
                 .padding(start = 8.dp, end = 4.dp),
         ) {
-            // Desktop: místo pro tlačítka okna, když hlavička leží v řádku s nimi.
-            WindowControlsSpace()
+            // Desktop: místo pro tlačítka okna, když hlavička leží v řádku s nimi. Pilulka je
+            // plocha, ne holá ikona, a k semaforům by přilehla.
+            WindowControlsSpace(extra = FilledShapeGap)
             SearchPill(
                 initialQuery = initialQuery,
                 onQueryChange = onQueryChange,
