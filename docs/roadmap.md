@@ -1670,7 +1670,11 @@ seznam". Zbývá:
    leží NAD kartou"). Neověřené: desktop (horní řada vůči titulku okna), tablet, naležato,
    predictive back z konverzace, podstránky profilu naživo (skupina nebo kanál se statistikami
    a pozvánkami), výběr zpráv a pruhy nad zprávami (připnuté, spam) u horní hrany karty.
-3. **Naležato neověřené naživo.** Telefon naležato prošel (`feat/obrazovky-nalezato`,
+3. **Hledání jako destinace v panelu seznamu.** Docked panel pod pilulkou je na široké ploše
+   malé plovoucí okénko nad seznamem, a jako popup s sebou táhne řadu obcházek. Hledání má
+   nahradit seznam v panelu na celou výšku, konverzace vpravo zůstane, pilulka se promění v pole.
+   Návrh a postup po krocích: [navrh-hledani.md](navrh-hledani.md).
+4. **Naležato neověřené naživo.** Telefon naležato prošel (`feat/obrazovky-nalezato`,
    `docs/poznatky/navigace.md`, „Nízké okno"). Naživo zbývá prohlížeč příběhů (účet, který
    příběhy vidí), tvorba příběhu (Premium), videochat (běžící hovor), hřiště AI (zařízení
    s modelem) a hovor. Zadávání PINu v úzkém panelu Nastavení naležato roluje, vedle sebe se tam
