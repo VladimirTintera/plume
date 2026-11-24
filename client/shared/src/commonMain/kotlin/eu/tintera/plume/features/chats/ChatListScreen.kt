@@ -192,9 +192,11 @@ fun ChatListScreen(
     /** Vedle seznamu je otevřená konverzace (dvoupanel) — hudbu pak ukazuje její dock. */
     conversationOpen: Boolean = false,
     nowPlayingViewModel: NowPlayingViewModel = koinViewModel(),
+    /** Hledání v hlavičce (`ChatSearchViewModel`, docs/navrh-hledani.md). */
+    searchViewModel: ChatSearchViewModel = koinViewModel(),
     modifier: Modifier = Modifier,
 ) {
-    val screenSearch by viewModel.search.state.collectAsStateWithLifecycle()
+    val screenSearch by searchViewModel.search.state.collectAsStateWithLifecycle()
 
     /*
      * Víc účtů: společný seznam (režim Vše, `docs/navrh-vice-uctu.md`, „Společný seznam
@@ -212,7 +214,7 @@ fun ChatListScreen(
     // běží výběr v jednom z nich; návrhy pod prázdným dotazem jsou z účtu obrazovky. Výchozí
     // účet jde první: veřejný chat nalezený víc účty se otevře v něm.
     val searchSources = sources.map { source ->
-        key(source.account.slot) { source.account.slot to source.viewModel.search.state.collectAsStateWithLifecycle().value }
+        key(source.account.slot) { source.account.slot to (source.search ?: searchViewModel).search.state.collectAsStateWithLifecycle().value }
     }.sortedByDescending { it.first == screenAccount.slot }
     val savedMessagesBySlot = sources.mapNotNull { source ->
         key(source.account.slot) { source.viewModel.savedMessagesChatId.collectAsStateWithLifecycle().value }
@@ -245,7 +247,7 @@ fun ChatListScreen(
     val onNewStory: (() -> Unit)? = navigation.onComposeStory
         ?.takeIf { viewModel.canComposeStory }
         ?.let { { viewModel.startStory(storyPicker::pickMedia) } }
-    val naturalSearchAvailable by viewModel.naturalSearchAvailable.collectAsStateWithLifecycle()
+    val naturalSearchAvailable by searchViewModel.naturalSearchAvailable.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val shownConnection = rememberShownConnection(connection)
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
@@ -365,7 +367,7 @@ fun ChatListScreen(
     )
 
     // Reklama se hlásí z rozbaleného hledání, takže i hláška patří do něj.
-    ReportHost(viewModel.sponsoredChatReportFlow, searchSnackbarHostState)
+    ReportHost(searchViewModel.sponsoredChatReportFlow, searchSnackbarHostState)
     ChatActionsHost(
         viewModel,
         sheets,
@@ -569,12 +571,12 @@ fun ChatListScreen(
                                 search = search,
                                 savedMessagesChatId = savedMessagesChatId,
                                 scrollBehavior = scrollBehavior,
-                                controls = remember(viewModel.search, sources) {
+                                controls = remember(searchViewModel, sources) {
                                     // Přes víc účtů hledají hledání všech účtů; návrhy jsou z účtu obrazovky.
-                                    val searches = sources.map { it.viewModel.search }.ifEmpty { listOf(viewModel.search) }
+                                    val searches = sources.map { (it.search ?: searchViewModel).search }.ifEmpty { listOf(searchViewModel.search) }
                                     ChatSearchControls(
                                         onQueryChange = { text -> searches.forEach { it.setQuery(text) } },
-                                        onExpandedChange = viewModel.search::setSuggestionsWanted,
+                                        onExpandedChange = searchViewModel.search::setSuggestionsWanted,
                                         onFilterChange = { filter -> searches.forEach { it.setFilter(filter) } },
                                         onLoadMoreMessages = { searches.forEach { it.loadMoreMessages() } },
                                     )
@@ -584,11 +586,11 @@ fun ChatListScreen(
                                     val forum = with(search) { results + top + recent + global + sponsored.map { it.chat } }
                                         .any { it.id == chatId && it.slot == slot && it.opensAsTopics }
                                     if (slot == null || slot == screenAccount.slot && sources.isEmpty()) {
-                                        viewModel.search.recordFound(chatId)
+                                        searchViewModel.search.recordFound(chatId)
                                         scrollToChat = chatId
                                         if (forum) navigation.onForumClick(chatId) else navigation.onChatClick(chatId)
                                     } else {
-                                        sources.firstOrNull { it.account.slot == slot }?.viewModel?.search?.recordFound(chatId)
+                                        sources.firstOrNull { it.account.slot == slot }?.search?.search?.recordFound(chatId)
                                         if (forum) navigation.onAccountForumClick(slot, chatId) else navigation.onAccountChatClick(slot, chatId)
                                     }
                                 },
@@ -600,24 +602,24 @@ fun ChatListScreen(
                                         navigation.onAccountMessageClick(slot, chatId, messageId, topicId)
                                     }
                                 },
-                                suggestionActions = remember(viewModel.search) {
+                                suggestionActions = remember(searchViewModel) {
                                     SuggestionActions(
-                                        onClear = viewModel.search::clearRecent,
-                                        onRemoveRecent = viewModel.search::removeRecent,
-                                        onRemoveTop = viewModel.search::removeTop,
-                                        onRemoveTag = viewModel.search::removeTag,
-                                        onClearTags = viewModel.search::clearTags,
+                                        onClear = searchViewModel.search::clearRecent,
+                                        onRemoveRecent = searchViewModel.search::removeRecent,
+                                        onRemoveTop = searchViewModel.search::removeTop,
+                                        onRemoveTag = searchViewModel.search::removeTag,
+                                        onClearTags = searchViewModel.search::clearTags,
                                     )
                                 },
                                 snackbarHostState = searchSnackbarHostState,
-                                sponsoredActions = remember(viewModel) {
+                                sponsoredActions = remember(searchViewModel) {
                                     SponsoredActions(
-                                        onSeen = viewModel::sponsoredChatSeen,
-                                        onOpen = viewModel::sponsoredChatOpened,
-                                        onReport = viewModel::reportSponsoredChat,
+                                        onSeen = searchViewModel::sponsoredChatSeen,
+                                        onOpen = searchViewModel::sponsoredChatOpened,
+                                        onReport = searchViewModel::reportSponsoredChat,
                                     )
                                 },
-                                aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
+                                aiSearch = searchViewModel::parseSearch.takeIf { naturalSearchAvailable },
                                 request = searchRequest,
                                 onRequestHandled = onSearchRequestHandled,
                                 localSources = LocalSearchSources(

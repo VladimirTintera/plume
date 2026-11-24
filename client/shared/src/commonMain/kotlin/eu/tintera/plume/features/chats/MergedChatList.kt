@@ -76,8 +76,8 @@ internal data class ChatRowsContext(
 internal data class GroupPosition(val index: Int, val size: Int, val groupIndex: Int)
 
 /**
- * Účet ve společném seznamu: jeho kontejner, ViewModel hlavního seznamu a jméno s fotkou (filtr
- * a odznak u řádku).
+ * Účet ve společném seznamu: jeho kontejner, ViewModel hlavního seznamu (a jeho hledání) a jméno
+ * s fotkou (filtr a odznak u řádku).
  */
 @Immutable
 internal data class ChatSource(
@@ -86,6 +86,8 @@ internal data class ChatSource(
     val info: AccountInfo?,
     /** Otevřené sheety nad chaty tohohle účtu; v kompozici, ne ve [viewModel] (viz [ChatSheets]). */
     val sheets: ChatSheets,
+    /** Hledání v chatech účtu; jen u hlavního seznamu, archiv hledání nemá. */
+    val search: ChatSearchViewModel? = null,
 )
 
 /**
@@ -112,6 +114,14 @@ internal fun rememberChatSources(accounts: List<AccountEntry>, folder: ChatFolde
                 ),
                 info = entry.info,
                 sheets = remember { ChatSheets() },
+                search = if (folder == ChatFolder.Main) {
+                    koinViewModel(
+                        key = "chat-search-all-${entry.account.slot.id}",
+                        scope = entry.account.koin.scopeRegistry.rootScope,
+                    )
+                } else {
+                    null
+                },
             )
         }
     }

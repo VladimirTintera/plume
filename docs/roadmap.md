@@ -1664,6 +1664,11 @@ seznam". Zbývá:
 1. **Drobnosti.**
    - ~~Sbalený seznam nemá FAB ani výběr víc chatů~~ — hotovo (`feat/sbaleny-seznam-fab-vyber`;
      karty nad seznamem hlásí tlačítko s tečkou).
+   - **Zkratka hledání (⌘K / Ctrl+K, nabídka Chaty → Hledat v chatech) se sbaleným seznamem
+     nic neukáže.** `openSearch` nastaví jen požadavek; rozbalit panel umí jen tlačítko hledání
+     ve sloupci (`LocalExpandListPane`). Hledání se otevře až po ručním rozbalení. Nalezeno
+     24. 11. 2026 na desktopu. Vyřeší to hledání jako destinace (`docs/navrh-hledani.md`, krok 2)
+     — `openSearch` tam bude navigovat, a s tím může panel rozbalit.
 2. **Hlavička nad kartou: zbývá ověřit.** Konverzace, profil, jeho podstránky a kalendář mají
    hlavičku na ploše okna a kartu od výšky prvního řádku seznamu až k dolnímu kraji
    (`feat/conversation-header-outside-card`, `docs/poznatky/navigace.md`, „Hlavička konverzace

@@ -7,6 +7,14 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 `ChatSearch` (`features/chats`) — sdílí ho hlavička seznamu chatů, přeposílání i sdílení.
 
+- **Hledání v seznamu chatů má vlastní ViewModel** (`ChatSearchViewModel`, kontejner účtu):
+  `ChatSearch(everywhere = true, sponsored = true)`, hlášení sponzorovaných chatů a hledání
+  přirozeným jazykem. Dřív to bylo v `ChatsViewModel`. Je to první krok k hledání jako navigační
+  destinaci v panelu seznamu (`docs/navrh-hledani.md`): obrazovka hledání bude mít vlastní
+  položku zásobníku a s ní vlastní úložiště ViewModelů. Seznam chatů ho bere parametrem
+  (`koinViewModel()`), režim Všechny účty z kontejneru každého účtu (`ChatSource.search`, jen
+  u hlavního seznamu — archiv hledání nemá). Testy `ChatSearchViewModelTest`.
+
 - **`searchChats`, ne filtr nad seznamem.** Filtr nad `chats()` nenašel archiv ani chaty mimo
   složky (kontakty bez konverzace, opuštěné skupiny, které TDLib zná). Nejdřív lokálně
   (`searchChats`, hned), pak server (`searchChatsOnServer`), serverové výsledky se připojí ZA

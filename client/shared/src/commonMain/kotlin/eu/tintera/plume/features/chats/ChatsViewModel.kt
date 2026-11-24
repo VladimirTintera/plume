@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.core.settings.ThemeColor
-import kotlinx.datetime.todayIn
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.core.telegram.ChatDraft
 import eu.tintera.plume.resources.clear_history_period_done
@@ -46,7 +45,6 @@ import eu.tintera.plume.core.telegram.ChatFolderRepository
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
-import eu.tintera.plume.core.telegram.SponsoredSearchChat
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.RecommendedChatFolder
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -118,8 +116,6 @@ class ChatsViewModel(
     private val snoozes: ChatSnoozes? = null,
     /** Barvy konverzací; bez nich mají všechny odznaky barvu aplikace. */
     private val chatColorStore: ChatColors? = null,
-    /** Hledání přirozeným jazykem; bez něj se „Hledat s AI" nenabízí. */
-    private val naturalSearch: NaturalSearchModel? = null,
     /** Zmrazení účtu a doporučené akce pro karty nahoře v seznamu; bez něj karty nejsou. */
     private val accountNotices: AccountNotices? = null,
     /** Formát telefonního čísla v doporučené akci; bez něj číslo zůstane bez mezer. */
@@ -606,49 +602,7 @@ class ChatsViewModel(
     /** Co dělá tah chatem doprava a doleva (Nastavení → Chaty). */
     val swipeActions: StateFlow<ChatSwipeActions> = settings.chatSwipeActions
 
-    /** Hledání v hlavičce seznamu (chaty, veřejné chaty i zprávy). Archiv hledání nemá, u něj zůstane bez dotazu a nic nehledá. */
-    val search = ChatSearch(repository, viewModelScope, everywhere = true, sponsored = true)
-
-    /** Sponzorované chaty, jejichž zhlédnutí už odešlo — každé se hlásí jednou, ne při každém posunu. */
-    private val seenSponsoredChats = HashSet<Long>()
-
-    /** Sponzorovaný chat ve výsledcích hledání byl na obrazovce celý (`viewSponsoredChat`). */
-    fun sponsoredChatSeen(uniqueId: Long) {
-        if (!seenSponsoredChats.add(uniqueId)) return
-        viewModelScope.launch { repository.reportSponsoredChatView(uniqueId) }
-    }
-
-    /**
-     * Ťuknutí na sponzorovaný chat (`openSponsoredChat`). Seznam chatů zůstává v zásobníku pod
-     * otevřeným chatem, takže hlášení doběhne i po přechodu.
-     */
-    fun sponsoredChatOpened(uniqueId: Long) {
-        viewModelScope.launch { repository.reportSponsoredChatOpen(uniqueId) }
-    }
-
-    /**
-     * Průvodce nahlášením sponzorovaného chatu — tentýž jako u reklamy v kanálu, jen jiné volání.
-     * Id výsledku (ne chatu) jede jako jediná „zpráva" požadavku.
-     */
-    val sponsoredChatReportFlow = ReportFlow(viewModelScope) { _, request ->
-        repository.reportSponsoredChat(request.messageIds.single(), request.optionId)
-    }
-
-    fun reportSponsoredChat(sponsored: SponsoredSearchChat) {
-        sponsoredChatReportFlow.start(sponsored.chat.id, messageIds = listOf(sponsored.uniqueId)) {
-            search.dropSponsored(sponsored.uniqueId)
-        }
-    }
-
-    /** Umí telefon hledat přirozeným jazykem (zapnutá AI, připravený model)? */
-    val naturalSearchAvailable: StateFlow<Boolean> = (naturalSearch?.available ?: flowOf(false))
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    /** Věta z pole hledání → slova a filtry; `null`, když z ní model nic nevyčetl. */
-    suspend fun parseSearch(query: String): NaturalSearch? {
-        val timeZone = TimeZone.currentSystemDefault()
-        return naturalSearch?.parse(query, Clock.System.todayIn(timeZone), timeZone)
-    }
+    // Hledání má vlastní ViewModel (`ChatSearchViewModel`), viz docs/navrh-hledani.md.
 
     /** Id Uložených zpráv — v seznamu nejsou, pokud nejsou připnuté (viz `chatGroups`). */
     val savedMessagesChatId: StateFlow<Long?> = repository.savedMessagesChatId
