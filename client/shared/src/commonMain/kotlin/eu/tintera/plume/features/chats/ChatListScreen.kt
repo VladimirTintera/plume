@@ -465,6 +465,8 @@ fun ChatListScreen(
         // Sloupec si drží pozici sám; při přepnutí dojede na chat, který byl nahoře v odcházející
         // podobě (spočítá se v okamžiku přepnutí, dokud je odcházející seznam ještě rozložený).
         val collapsedListState = rememberLazyListState()
+        // Kde stály avatary chatů v obou podobách — odtud při přepnutí vyletí (`collapseAvatarFlight`).
+        val collapseFlights = remember { CollapseFlights() }
         val collapseAnchor = remember(collapsedNow) { firstVisibleChatKey(if (collapsedNow) listState else collapsedListState) }
         LaunchedEffect(collapsedNow) {
             // Plný seznam po rozbalení dojede na chat ze sloupce (existující dojetí z hledání; jen
@@ -476,7 +478,11 @@ fun ChatListScreen(
             transitionSpec = { fadeIn(enterSpec) togetherWith fadeOut(exitSpec) using null },
             label = "list-collapse",
         ) { collapsed ->
-            CompositionLocalProvider(LocalListCollapseScope provides this) {
+            CompositionLocalProvider(
+                LocalListCollapseScope provides this,
+                LocalCollapseFlights provides collapseFlights,
+                LocalCollapseSide provides if (collapsed) CollapseSide.Column else CollapseSide.Full,
+            ) {
                 if (collapsed) {
                     CollapsedChatList(
                         viewModel = listViewModel,

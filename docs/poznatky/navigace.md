@@ -386,9 +386,20 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 - **Mezi plným seznamem a sbaleným sloupcem se přelétá** (`ListCollapseTransition.kt`). Obě
   podoby jsou v jednom `AnimatedContent` podle šířky a prvky, které mají obě, jsou sdílené
   (`listCollapseElement`, `sharedElement` se scope toho `AnimatedContent` z `LocalListCollapseScope`):
-  avatar účtu (konec řádku s pilulkou ↔ vršek sloupce), lupa (pilulka ↔ tlačítko hledání),
-  Vytvořit (plovoucí lišta dole ↔ FAB pod účtem) a avatary chatů. Zbytek se prolne. Dřív prvky
-  v jednom snímku zmizely a jinde se objevily.
+  avatar účtu (konec řádku s pilulkou ↔ vršek sloupce), lupa (pilulka ↔ tlačítko hledání)
+  a Vytvořit (plovoucí lišta dole ↔ FAB pod účtem). Zbytek se prolne. Dřív prvky v jednom
+  snímku zmizely a jinde se objevily.
+  - **Avatary chatů létají ručně** (`collapseAvatarFlight`), ne sdíleným prvkem. V líném
+    seznamu se dvojice spárovaly (`isMatchFound` true), ale let neběžel: avatary stály po celý
+    přechod na jednom místě (částečně za levým krajem) a na konci skočily do sloupce — zachyceno
+    sérií snímků, beze změny i bez `animateItem` a bez sdílené hlavičky. Ručně: každý avatar si
+    v klidu zapisuje polohu v okně (`CollapseFlights`, zvlášť plný seznam a sloupec), přicházející
+    se při prvním umístění posune a zvětší na místo protějšku (`graphicsLayer`) a dojede domů.
+  - **Průběh letu je průběh přechodu** (`transition.animateFloat`), ne vlastní `Animatable`:
+    s vlastní pružinou doletěly avatary dřív než prvky hlavičky. Během letu se avatar kreslí
+    v překryvu (`renderInSharedTransitionScopeOverlay`), jinak by ho ořízl seznam — do sloupce
+    se letí zpod hlavičky. **Pružina přestřelí přes 1**, transformace se proto vypíná až na
+    přesné 1; s `>= 1` avatar na konci poskočil.
   - **Každá podoba se rozkládá ve své šířce, ne v šířce panelu**: sloupec nejvýš na prahu
     (`widthIn(max = COLLAPSED_LIST_MAX_WIDTH)`) u levého kraje, plný seznam aspoň na prahu
     (`wrapContentWidth(Start, unbounded)` + `requiredWidth`, přesah ořízne panel). Odcházející
@@ -402,6 +413,9 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     ve společném seznamu `MergedChat.key`), avatary pro let nesou i účet (`collapseAvatarKey`).
   - **S letem avataru do hlavičky konverzace se nepere**: sbalený sloupec je jen vedle panelů
     a tam `sharedNavElement` nesdílí.
+  - **Během přechodu jsou složené oba seznamy a snímky jsou delší** (v logu průběhu letu
+    0 → 0,49 → 0,76 → 1,05 → 1, tedy jen pár snímků). Na desktopu v ladicím běhu; výkon release
+    buildu a telefonu neměřený.
   - Ověřeno na desktopu (macOS) tahem táhla tam a zpět a sérií snímků uprostřed přechodu, i při
     rychlém přetahování přes práh. Společný seznam víc účtů a Fold neověřené.
 - **„Vytvořit" a výběr víc chatů má i sbalený sloupec.** FAB je nahoře pod účtem jako FAB

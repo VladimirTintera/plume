@@ -497,7 +497,7 @@ private fun CollapsedChat(
                     size = COLLAPSED_AVATAR_SIZE,
                     isSavedMessages = isSavedMessages(chat.id),
                     shape = chat.kind.avatarShape(),
-                    modifier = Modifier.listCollapseElement(collapseAvatarKey(chat.id)),
+                    modifier = Modifier.collapseAvatarFlight(collapseAvatarKey(chat.id)),
                 )
                 if (chat.unreadCount > 0) {
                     val muted = chat.isMuted
