@@ -532,6 +532,13 @@ Logika `core/telegram/ChatCalendar.kt`, testy `ChatCalendarTest`, `ConversationC
   TDLib si ze serveru bere celou stránku, i když vrátí méně.
 - **Ostrůvek, do kterého „Načíst starší" dorostlo, se zahodí** (`newestMessageId` < nejstarší id
   úseku), jinak by se jeho zprávy sečetly dvakrát.
+- **Seznam měsíců jde až pod navigační lištu, spodní inset je v odsazení obsahu**
+  (`monthListPadding`, `safeDrawing` zdola — i klávesnice u hledání). Dřív měl každý seznam
+  `navigationBarsPadding()` na modifikátoru: končil nad lištou, pod ním zůstal prázdný pruh plochy
+  a stránka vypadala o lištu useknutá. Stejně to dělá profil. Tlačítko „Dnes" se o inset odsadí
+  samo. Ověřeno na emulátoru Fold (složený, navigace gesty) v chatu Notifikátor: měsíce projíždějí
+  pod lištou, „Začátek chatu" se nad ni doroluje; roční přehled a „Dnes" nad klávesnicí naživo
+  neověřené.
 - **Seznam měsíců má pevnou výšku** (`weight(1f)` pod čipy), ne podle obsahu. Měsíce přibývají
   postupně a čip druhu s pár měsíci nebo čekání na stránku obsah zkrátí — v sheetu, kde kalendář
   dřív byl, pak poskakoval pod prstem. Pager (měsíc na stránku) by to vyřešil taky, ale vzal by přehled, kdy se psalo
