@@ -112,7 +112,8 @@ internal fun NewChatFabMenu(
             checked = expanded,
             onCheckedChange = onExpandedChange,
             containerSize = containerSize,
-            modifier = Modifier.semantics {
+            // Ve sbaleném sloupci je Vytvořit nahoře pod účtem a přeletí tam (`collapseFlight`).
+            modifier = Modifier.collapseFlight("create").semantics {
                 // Přepínač je v pořadí čtečky PŘED položkami nad ním, jako v ukázce M3.
                 traversalIndex = -1f
                 contentDescription = if (expanded) closeLabel else createLabel

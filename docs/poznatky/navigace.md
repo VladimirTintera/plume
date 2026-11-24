@@ -383,6 +383,42 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   nejdůležitější, zmrazený účet a cizí přihlášení v chybové barvě). Ťuknutí seznam rozbalí
   a `requestScrollToItem(0)` ho pošle na vršek — `scrollToItem` by čekal na rozložení seznamu,
   který se v tu chvíli teprve skládá.
+- **Mezi plným seznamem a sbaleným sloupcem se přelétá** (`ListCollapseTransition.kt`). Obě
+  podoby jsou v jednom `AnimatedContent` podle šířky a prvky, které mají obě, přeletí na nové
+  místo (`collapseFlight`): avatar účtu (konec řádku s pilulkou ↔ vršek sloupce), lupa (pilulka
+  ↔ tlačítko hledání), Vytvořit (plovoucí lišta dole ↔ FAB pod účtem) a avatary chatů. Zbytek se
+  prolne. Dřív prvky v jednom snímku zmizely a jinde se objevily.
+  - **Let je ruční, ne `sharedElement`.** Sdílený prvek bere cíl z rozložení „napřed"
+    (lookahead) a v něm má panel seznamu jinou šířku než ve skutečnosti: šířku po puštění táhla
+    scaffold teprve dotahuje na kotvu. Avatar účtu a lupa proto stály po celý přechod vpravo od
+    osy sloupce a na konci přeskočily, avatary chatů v líném seznamu stály úplně (`isMatchFound`
+    přitom true; beze změny i bez `animateItem`) — zachyceno sériemi snímků během tahu.
+  - **Ruční let:** každý prvek si v klidu zapisuje polohu v okně (`CollapseFlights`, zvlášť plný
+    seznam a sloupec, při odchodu ze seznamu se maže), přicházející se při prvním umístění posune
+    a zvětší na místo protějšku (`graphicsLayer`) a dojede domů.
+  - **Průběh letu je průběh přechodu** (`transition.animateFloat`), ne vlastní `Animatable`:
+    s vlastní pružinou doletěly avatary dřív než ostatní. Během letu se prvek kreslí v překryvu
+    (`renderInSharedTransitionScopeOverlay`), jinak by ho ořízl seznam — do sloupce se letí zpod
+    hlavičky. **Pružina přestřelí přes 1**, transformace se proto vypíná až na přesné 1; s `>= 1`
+    prvek na konci poskočil.
+  - **Každá podoba se rozkládá ve své šířce, ne v šířce panelu**: sloupec nejvýš na prahu
+    (`widthIn(max = COLLAPSED_LIST_MAX_WIDTH)`) u levého kraje, plný seznam aspoň na prahu
+    (`wrapContentWidth(Start, unbounded)` + `requiredWidth`, přesah ořízne panel). Odcházející
+    podoba se během přechodu rozkládá v NOVÉ šířce panelu: sloupec se v širokém panelu vystředil
+    a avatary, lupa i Vytvořit letěly ze středu panelu (zachyceno snímky během tahu).
+  - **Pozice v seznamu jde přes kotvu** (`firstVisibleChatKey`): klíč prvního celého chatu
+    v odcházejícím seznamu se spočítá v okamžiku přepnutí, dokud je ještě rozložený. Sloupec na
+    něj skočí (`requestScrollToItem`), plný seznam po rozbalení použije dojetí z hledání
+    (`scrollToChat`, jen jeden účet). Bez toho sloupec začínal nahoře a z odrolovaného seznamu
+    neměl kam doletět žádný avatar. Obě podoby mají tytéž klíče položek (`chat.id`,
+    ve společném seznamu `MergedChat.key`), avatary pro let nesou i účet (`collapseAvatarKey`).
+  - **S letem avataru do hlavičky konverzace se nepere**: sbalený sloupec je jen vedle panelů
+    a tam `sharedNavElement` nesdílí.
+  - **Během přechodu jsou složené oba seznamy a snímky jsou delší** (v logu průběhu letu
+    0 → 0,49 → 0,76 → 1,05 → 1, tedy jen pár snímků). Na desktopu v ladicím běhu; výkon release
+    buildu a telefonu neměřený.
+  - Ověřeno na desktopu (macOS) tahem táhla tam a zpět a sérií snímků uprostřed přechodu, i při
+    rychlém přetahování přes práh. Společný seznam víc účtů a Fold neověřené.
 - **„Vytvořit" a výběr víc chatů má i sbalený sloupec.** FAB je nahoře pod účtem jako FAB
   v navigačním railu (sloupec má jeho šířku); FAB menu plného seznamu vyjíždí s popisky nad
   FAB a do 96 dp by se nevešlo, takže tytéž tři položky nabídne `ExpressiveMenu` vpravo od

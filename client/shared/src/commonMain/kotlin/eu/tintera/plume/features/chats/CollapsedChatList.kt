@@ -118,6 +118,8 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.belowWindowControls
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.LaunchedEffect
 
 /**
  * Seznam chatů sbalený táhlem na úzký sloupec (`ListPaneAnchor.Collapsed`): jen avatary
@@ -155,6 +157,10 @@ internal fun CollapsedChatList(
     viewModel: ChatsViewModel,
     /** Sheety nad chaty [viewModel] (podržení chatu); účty společného seznamu mají vlastní. */
     sheets: ChatSheets,
+    /** Pozice sloupce; drží ji obrazovka, aby přežila rozbalení a nové sbalení. */
+    listState: LazyListState,
+    /** Chat, na který sloupec při sbalení dojede (`firstVisibleChatKey`); `null` = beze změny. */
+    anchorKey: Any?,
     accounts: CollapsedAccounts,
     onSearch: () -> Unit,
     onNewChat: () -> Unit,
@@ -201,14 +207,14 @@ internal fun CollapsedChatList(
                 account()
                 CreateButton(onNewChat = onNewChat, onNewGroup = onNewGroup, onNewChannel = onNewChannel, onNewStory = onNewStory)
                 IconButton(onClick = onSearch, shapes = IconButtonDefaults.shapes()) {
-                    Icon(painterResource(Res.drawable.search_24dp), contentDescription = stringResource(Res.string.chats_search))
+                    Icon(painterResource(Res.drawable.search_24dp), contentDescription = stringResource(Res.string.chats_search), modifier = Modifier.collapseFlight("search"))
                 }
                 pendingCard?.let { PendingCardButton(it, onClick = onShowCards) }
             }
         }
 
         if (accounts.sources.isNotEmpty()) {
-            MergedCollapsedChats(accounts)
+            MergedCollapsedChats(accounts, listState, anchorKey)
         } else AccountScope(accounts.listAccount) {
         val listSlot = accounts.listAccount.slot
         when (val current = state) {
@@ -217,8 +223,13 @@ internal fun CollapsedChatList(
                     chatGroups(current.chats, hiddenSavedMessagesChatId, snoozes.due).flatten()
                 }
                 val picked = selection?.ids
+                LaunchedEffect(anchorKey) {
+                    val index = chats.indexOfFirst { it.id == anchorKey }
+                    if (index >= 0) listState.requestScrollToItem(index)
+                }
                 Box(Modifier.fillMaxSize()) {
                     LazyColumn(
+                        state = listState,
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         // Ve výběru se poslední chat musí dát odscrollovat nad lištu akcí.
@@ -295,7 +306,7 @@ internal data class CollapsedAccounts(
  * nad chatem v ViewModelu účtu řádku; tu kreslí `MergedChatActionsHosts` nad sloupcem.
  */
 @Composable
-private fun MergedCollapsedChats(accounts: CollapsedAccounts) {
+private fun MergedCollapsedChats(accounts: CollapsedAccounts, listState: LazyListState, anchorKey: Any?) {
     val sources = accounts.sources
     val states = sources.map { source -> key(source.account.slot) { source.viewModel.state.collectAsStateWithLifecycle().value } }
     val hidden = sources.map { source -> key(source.account.slot) { source.viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle().value } }
@@ -308,7 +319,12 @@ private fun MergedCollapsedChats(accounts: CollapsedAccounts) {
     val chats = remember(ready, hidden, due) {
         mergedChatGroups(ready.mapIndexed { index, chats -> MergeSource(chats.orEmpty(), hidden[index], due[index]) }).flatten()
     }
+    LaunchedEffect(anchorKey) {
+        val index = chats.indexOfFirst { it.key == anchorKey }
+        if (index >= 0) listState.requestScrollToItem(index)
+    }
     LazyColumn(
+        state = listState,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
         contentPadding = PaddingValues(bottom = 16.dp),
@@ -344,7 +360,7 @@ private fun CreateButton(onNewChat: () -> Unit, onNewGroup: () -> Unit, onNewCha
     val label = stringResource(Res.string.chats_create)
     Box(Modifier.padding(vertical = 4.dp)) {
         WithTooltip(label = label, position = TooltipAnchorPosition.Right) {
-            FloatingActionButton(onClick = { expanded = true }) {
+            FloatingActionButton(onClick = { expanded = true }, modifier = Modifier.collapseFlight("create")) {
                 Icon(painterResource(Res.drawable.edit_24dp), contentDescription = label)
             }
         }
@@ -481,6 +497,7 @@ private fun CollapsedChat(
                     size = COLLAPSED_AVATAR_SIZE,
                     isSavedMessages = isSavedMessages(chat.id),
                     shape = chat.kind.avatarShape(),
+                    modifier = Modifier.collapseFlight(collapseAvatarKey(chat.id)),
                 )
                 if (chat.unreadCount > 0) {
                     val muted = chat.isMuted

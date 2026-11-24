@@ -330,7 +330,8 @@ internal fun ChatSearchBar(
                         if (shown != null) {
                             ConnectionStatusIcon(shown)
                         } else {
-                            Icon(painterResource(Res.drawable.search_24dp), contentDescription = null)
+                            // Lupa přeletí do tlačítka hledání sbaleného sloupce (`collapseFlight`).
+                            Icon(painterResource(Res.drawable.search_24dp), contentDescription = null, modifier = Modifier.collapseFlight("search"))
                         }
                     }
                 }

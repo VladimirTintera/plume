@@ -59,6 +59,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
@@ -170,6 +173,11 @@ import eu.tintera.plume.core.ui.folderIcon
 import eu.tintera.plume.core.ui.avatarShape
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.unit.max
 
 @Composable
 fun ChatListScreen(
@@ -416,7 +424,9 @@ fun ChatListScreen(
     LaunchedEffect(accounts) {
         accounts.alreadySignedIn.collect { snackbarHostState.showSnackbar(getString(Res.string.accounts_already_signed_in)) }
     }
+    // Avatar účtu přeletí mezi plným seznamem a sbaleným sloupcem (`collapseFlight`).
     val accountMenu: @Composable () -> Unit = {
+        Box(Modifier.collapseFlight("account")) {
         AccountMenu(
             account = account,
             archiveUnread = archiveUnread,
@@ -433,6 +443,7 @@ fun ChatListScreen(
             onSettings = navigation.onOpenSettings,
             switcher = accountSwitcher,
         )
+        }
     }
 
     /*
@@ -442,370 +453,415 @@ fun ChatListScreen(
      */
     val expandListPane = LocalExpandListPane.current
     BoxWithConstraints(modifier) {
-        if (maxWidth < COLLAPSED_LIST_MAX_WIDTH) {
-            CollapsedChatList(
-                viewModel = listViewModel,
-                sheets = listSheets,
-                accounts = CollapsedAccounts(
-                    sources = if (merged) sources else emptyList(),
-                    listAccount = listAccount,
-                    selected = selectedChatId?.let { id -> (selectedChatSlot ?: screenAccount.slot) to id },
-                    onOpen = { slot, chat ->
-                        if (chat.opensAsTopics) navigation.onAccountForumClick(slot, chat.id) else navigation.onAccountChatClick(slot, chat.id)
-                    },
-                ),
-                onSearch = {
-                    expandListPane?.invoke()
-                    navigation.onOpenSearch()
-                },
-                onNewChat = navigation.onNewChat,
-                onNewGroup = navigation.onNewGroup,
-                onNewChannel = navigation.onNewChannel,
-                onNewStory = onNewStory,
-                snackbarHostState = snackbarHostState,
-                account = accountMenu,
-                // V pořadí karet nad seznamem (níž, `header`): první čekající je nejdůležitější.
-                pendingCard = when {
-                    freeze != null -> PendingCard.Freeze
-                    unconfirmedLogin != null -> PendingCard.Login
-                    birthdays.isNotEmpty() -> PendingCard.Birthdays
-                    suggestion != null -> PendingCard.Suggestion
-                    newFolderChats != null -> PendingCard.FolderChats
-                    updateCard != null -> PendingCard.Update
-                    else -> null
-                },
-                onShowCards = {
-                    expandListPane?.invoke()
-                    // Karty jsou na vršku seznamu; ten se teprve složí, proto žádost, ne posun.
-                    listState.requestScrollToItem(0)
-                },
-            )
-            return@BoxWithConstraints
-        }
-
         /*
-         * FAB a snackbar nejsou ve slotech Scaffoldu: FAB je součástí plovoucího toolbaru dole
-         * a snackbar musí stát NAD ním — Scaffold by FAB dal do rohu a snackbar pod toolbar.
+         * Plný seznam a sbalený sloupec v jednom `AnimatedContent`: prvky, které mají obě podoby
+         * (účet, lupa, Vytvořit, avatary chatů), přeletí na nové místo, zbytek se prolne
+         * (`ListCollapseTransition.kt`). Přechod se spustí přejetím prahu a dojede sám, i když
+         * táhlo zůstává v ruce; přejetí zpět ho obrátí.
          */
-        Scaffold(
-            modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
-            topBar = {
-                reorder?.let { current ->
-                    ReorderTopBar(
-                        title = stringResource(Res.string.chats_reorder_title),
-                        busy = current.busy,
-                        onCancel = listViewModel::cancelReorder,
-                        onDone = listViewModel::saveReorder,
-                    )
-                    return@Scaffold
-                }
-                selection?.let { current ->
-                    ChatSelectionTopBar(
-                        count = current.count,
-                        allSelected = allSelected,
-                        onSelectAll = listViewModel::selectAll,
-                        onClose = listViewModel::closeSelection,
-                    )
-                    return@Scaffold
-                }
-                // Hlavička pod otevřeným FAB menu ztlumená a neťukací, stejně jako seznam.
-                Box {
-                    ChatSearchBar(
-                        connection = shownConnection,
-                        search = search,
-                        savedMessagesChatId = savedMessagesChatId,
-                        scrollBehavior = scrollBehavior,
-                        controls = remember(viewModel.search, sources) {
-                            // Přes víc účtů hledají hledání všech účtů; návrhy jsou z účtu obrazovky.
-                            val searches = sources.map { it.viewModel.search }.ifEmpty { listOf(viewModel.search) }
-                            ChatSearchControls(
-                                onQueryChange = { text -> searches.forEach { it.setQuery(text) } },
-                                onExpandedChange = viewModel.search::setSuggestionsWanted,
-                                onFilterChange = { filter -> searches.forEach { it.setFilter(filter) } },
-                                onLoadMoreMessages = { searches.forEach { it.loadMoreMessages() } },
-                            )
-                        },
-                        onChatClick = { chatId, slot ->
-                            // Výsledky hledání jsou položky seznamu, takže vědí, jestli se chat otevírá tématy.
-                            val forum = with(search) { results + top + recent + global + sponsored.map { it.chat } }
-                                .any { it.id == chatId && it.slot == slot && it.opensAsTopics }
-                            if (slot == null || slot == screenAccount.slot && sources.isEmpty()) {
-                                viewModel.search.recordFound(chatId)
-                                scrollToChat = chatId
-                                if (forum) navigation.onForumClick(chatId) else navigation.onChatClick(chatId)
-                            } else {
-                                sources.firstOrNull { it.account.slot == slot }?.viewModel?.search?.recordFound(chatId)
-                                if (forum) navigation.onAccountForumClick(slot, chatId) else navigation.onAccountChatClick(slot, chatId)
-                            }
-                        },
-                        onMessageClick = { chatId, messageId, topicId, slot ->
-                            if (slot == null) {
-                                scrollToChat = chatId
-                                navigation.onMessageClick(chatId, messageId, topicId)
-                            } else {
-                                navigation.onAccountMessageClick(slot, chatId, messageId, topicId)
-                            }
-                        },
-                        suggestionActions = remember(viewModel.search) {
-                            SuggestionActions(
-                                onClear = viewModel.search::clearRecent,
-                                onRemoveRecent = viewModel.search::removeRecent,
-                                onRemoveTop = viewModel.search::removeTop,
-                                onRemoveTag = viewModel.search::removeTag,
-                                onClearTags = viewModel.search::clearTags,
-                            )
-                        },
-                        snackbarHostState = searchSnackbarHostState,
-                        sponsoredActions = remember(viewModel) {
-                            SponsoredActions(
-                                onSeen = viewModel::sponsoredChatSeen,
-                                onOpen = viewModel::sponsoredChatOpened,
-                                onReport = viewModel::reportSponsoredChat,
-                            )
-                        },
-                        aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
-                        request = searchRequest,
-                        onRequestHandled = onSearchRequestHandled,
-                        localSources = LocalSearchSources(
-                            bookmarks = bookmarks,
-                            chatTitles = bookmarkTitles,
-                            describedPhotos = describedPhotos,
-                        ),
-                        trailing = {
-                            StoryStack(
-                                posters = storyStack,
-                                rim = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                onOpen = navigation.onOpenStories,
-                            )
-                        },
-                        actions = { accountMenu() },
-                    )
-                    FabMenuScrim(
-                        visible = fabMenuExpanded,
-                        onDismiss = { fabMenuExpanded = false },
-                        modifier = Modifier.matchParentSize(),
-                    )
-                }
-            },
-        ) { scaffoldPadding ->
-            // Poslední chat se musí dát odscrollovat nad FAB, jinak by pod ním zůstal schovaný.
-            val padding = PaddingValues(
-                top = scaffoldPadding.calculateTopPadding(),
-                bottom = scaffoldPadding.calculateBottomPadding() +
-                    FAB_CLEARANCE +
-                    with(LocalDensity.current) { playerHeight.toDp() },
-            )
-            Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().hazeSource(listHaze)) {
-                    val emptyContent: @Composable BoxScope.() -> Unit = {
-                            /*
-                             * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
-                             * „Nepřečtené" se vším přečteným). Tentýž animovaný stav jako archiv, s ikonou
-                             * složky; klíč podle složky, aby se úvodní animace pustila u každé zvlášť.
-                             */
-                            if (selectedFolder != null) {
-                                key(selectedFolder.id) {
-                                    IntroEmptyState(
-                                        icon = folderIcon(selectedFolder.iconName),
-                                        title = stringResource(Res.string.chats_folder_empty_title),
-                                        text = stringResource(Res.string.chats_folder_empty),
-                                        // Cesta dál, ne slepá ulička: editor složky začíná výběrem chatů.
-                                        action = selectedFolder.id?.let { id ->
-                                            {
-                                                FilledTonalButton(onClick = { navigation.onEditFolder(id) }, shapes = ButtonDefaults.shapes()) {
-                                                    Icon(painterResource(Res.drawable.add_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                                    Text(stringResource(Res.string.chat_folder_add_chats))
-                                                }
-                                            }
-                                        },
-                                    )
-                                }
-                            } else {
-                                // Prázdný účet (čerstvě založený): tentýž stav, s cestou dál — tlačítkem
-                                // Nová zpráva v rohu.
-                                IntroEmptyState(
-                                    icon = Res.drawable.chat_24dp,
-                                    title = stringResource(Res.string.chats_empty_title),
-                                    text = stringResource(Res.string.chats_empty),
-                                )
-                            }
-                        }
-                    if (merged) {
-                        MergedChatListContent(
-                            sources = sources,
-                            selectedChat = selectedChatId?.let { id -> selectedChatSlot?.let { it to id } },
+        val enterSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val exitSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        val collapsedNow = maxWidth < COLLAPSED_LIST_MAX_WIDTH
+        // Sloupec si drží pozici sám; při přepnutí dojede na chat, který byl nahoře v odcházející
+        // podobě (spočítá se v okamžiku přepnutí, dokud je odcházející seznam ještě rozložený).
+        val collapsedListState = rememberLazyListState()
+        // Kde stály létající prvky v obou podobách — odtud při přepnutí vyletí (`collapseFlight`).
+        val collapseFlights = remember { CollapseFlights() }
+        val collapseAnchor = remember(collapsedNow) { firstVisibleChatKey(if (collapsedNow) listState else collapsedListState) }
+        LaunchedEffect(collapsedNow) {
+            // Plný seznam po rozbalení dojede na chat ze sloupce (existující dojetí z hledání; jen
+            // jeden účet, společný seznam víc účtů si pozici nechá).
+            if (!collapsedNow && !merged) (collapseAnchor as? Long)?.let { scrollToChat = it }
+        }
+        AnimatedContent(
+            targetState = collapsedNow,
+            transitionSpec = { fadeIn(enterSpec) togetherWith fadeOut(exitSpec) using null },
+            label = "list-collapse",
+        ) { collapsed ->
+            CompositionLocalProvider(
+                LocalListCollapseScope provides this,
+                LocalCollapseFlights provides collapseFlights,
+                LocalCollapseSide provides if (collapsed) CollapseSide.Column else CollapseSide.Full,
+            ) {
+                if (collapsed) {
+                    CollapsedChatList(
+                        viewModel = listViewModel,
+                        sheets = listSheets,
+                        listState = collapsedListState,
+                        anchorKey = collapseAnchor,
+                        accounts = CollapsedAccounts(
+                            sources = if (merged) sources else emptyList(),
+                            listAccount = listAccount,
+                            selected = selectedChatId?.let { id -> (selectedChatSlot ?: screenAccount.slot) to id },
                             onOpen = { slot, chat ->
                                 if (chat.opensAsTopics) navigation.onAccountForumClick(slot, chat.id) else navigation.onAccountChatClick(slot, chat.id)
                             },
-                            onOpenStories = navigation.onOpenStories,
-                            storiesSlot = screenAccount.slot,
-                            padding = padding,
-                            listState = listState,
-                            headerItemCount = cards.count,
-                            empty = emptyContent,
-                        ) {
-                            chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate, onShowNewFolderChats = { showNewFolderChats = true })
-                        }
-                    } else AccountScope(listAccount) {
-                        // Výběr nebo uspořádání v jiném účtu: chat se otevírá v jeho účtu.
-                        val otherAccount = listAccount.slot != screenAccount.slot
-                        ChatListContent(
-                            viewModel = listViewModel,
-                            sheets = listSheets,
-                            selectedChatId = selectedChatId,
-                            selectedChatSlot = selectedChatSlot,
-                            onChatClick = if (otherAccount) { id -> navigation.onAccountChatClick(listAccount.slot, id) } else navigation.onChatClick,
-                            onForumClick = if (otherAccount) { id -> navigation.onAccountForumClick(listAccount.slot, id) } else navigation.onForumClick,
-                            onOpenStories = navigation.onOpenStories.takeUnless { otherAccount },
-                            padding = padding,
-                            scrollToChat = scrollToChat,
-                            onScrolledToChat = { scrollToChat = null },
-                            listState = listState,
-                            // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                            headerItemCount = cards.count,
-                            empty = emptyContent,
-                        ) {
-                            chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate, onShowNewFolderChats = { showNewFolderChats = true })
-                        }
-                    }
-
-                }
-
-                /*
-                 * Závoj pod stavovou lištou. Odjetý bar ji odkryje a chaty by pod ní jezdily bez
-                 * pozadí, přes hodiny a ikony. Leží nad seznamem, ale pod barem — Scaffold kreslí
-                 * `topBar` přes obsah.
-                 *
-                 * Přechod do průhledna, ne plná barva: s plným pásem končily chaty o výšku lišty
-                 * pod horním okrajem ostrou hranou, jako useknuté. Takhle jedou až nahoru a jen
-                 * se pod lištou vytrácejí; u horního okraje, kde jsou ikony, je závoj skoro plný.
-                 */
-                val surface = MaterialTheme.colorScheme.surface
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .windowInsetsTopHeight(WindowInsets.statusBars)
-                        .background(
-                            Brush.verticalGradient(
-                                0f to surface,
-                                0.6f to surface.copy(alpha = 0.85f),
-                                1f to surface.copy(alpha = 0f),
-                            ),
                         ),
-                )
-
-                FabMenuScrim(visible = fabMenuExpanded, onDismiss = { fabMenuExpanded = false })
-
-                /*
-                 * Nad navigační lištou A nad klávesnicí. Scaffold dává do paddingu jen systémové
-                 * lišty, takže vysunutá klávesnice (hledání, dvoupanel s psaním vpravo) FAB
-                 * i snackbar překryla. Sjednocení (`union`) bere větší z obou, jinak by se lišta
-                 * a klávesnice sečetly.
-                 *
-                 * Insety, ne `padding(scaffoldPadding)` + `consumeWindowInsets(PaddingValues)`.
-                 * Hodnota `PaddingValues` se mění s rozložením Foldu, a to ve chvíli, kdy NavDisplay
-                 * přesouvá seznam do list-detail scény: `update` modifikátoru pak běží nad
-                 * odpojeným uzlem a Compose 1.12 spadne („visitSubtreeIf called on an unattached
-                 * node"). Insety jsou popis, ne čísla, takže se modifikátor při rozložení nemění.
-                 *
-                 * FAB a snackbar nejsou ve slotech Scaffoldu: Scaffold by je postavil jen nad
-                 * systémové lišty, ne nad klávesnici.
-                 *
-                 * **Shora končí pod hlavičkou.** Obsah Scaffoldu sahá až pod hledání, takže FAB
-                 * menu si myslelo, že má celou výšku, a na telefonu naležato horní položka (Nový
-                 * příběh) vyjela pod lištu hledání, kde na ni nešlo ťuknout. S výškou jen pod
-                 * hlavičkou menu pozná, že se nevejde, a rozroluje se samo (material3 to umí).
-                 * Obyčejný `padding`, ne modifikátor insetů — past s rozložením Foldu výš se ho
-                 * netýká.
-                 */
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(top = scaffoldPadding.calculateTopPadding())
-                        .windowInsetsPadding(
-                            ScaffoldDefaults.contentWindowInsets
-                                .only(WindowInsetsSides.Bottom)
-                                .union(WindowInsets.ime),
-                        ),
-                ) {
-                    SnackbarHost(snackbarHostState, Modifier.fillMaxWidth()) { CountdownSnackbarHost(it) }
-                    // Lišta výběru stojí MÍSTO FAB menu, uprostřed: zakládat nový chat uprostřed
-                    // vybírání nedává smysl a obojí by se o spodek obrazovky přetahovalo.
-                    ChatSelectionToolbar(
-                        actions = selectionActions,
-                        callbacks = listViewModel.selectionCallbacks,
-                        count = selection?.count ?: 0,
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                    )
-                    /*
-                     * Složky v plovoucí liště s FAB (viz `docs/poznatky/seznam-chatu.md`, „Složky
-                     * chatů"). Celá lišta je „tlačítko" FAB menu a přepínací FAB sedí v jejím slotu:
-                     * položky menu tak vyjedou nad lištou a FAB je pořád jeden. Při scrollu dolů
-                     * a při otevřeném menu se lišta sbalí do FAB.
-                     */
-                    if (reorder == null && selection == null) NewChatFabMenu(
-                        expanded = fabMenuExpanded,
-                        onExpandedChange = { fabMenuExpanded = it },
+                        onSearch = {
+                            expandListPane?.invoke()
+                            navigation.onOpenSearch()
+                        },
                         onNewChat = navigation.onNewChat,
                         onNewGroup = navigation.onNewGroup,
                         onNewChannel = navigation.onNewChannel,
                         onNewStory = onNewStory,
-                        toolbar = if (folderTabs.isEmpty()) null else { fab ->
-                            ChatFolderToolbar(
-                                tabs = folderTabs,
-                                expanded = !fabMenuExpanded && !folderToolbarHidden,
-                                onSelect = { id ->
-                                    viewModel.selectFolder(id)
-                                    /*
-                                     * Jiná složka = jiný seznam; začít od jeho vršku. V obsluze ťuknutí,
-                                     * NE v efektu nad složkou: ten by se spustil i při každém návratu
-                                     * seznamu do kompozice (z konverzace na telefonu) a odjel nahoru.
-                                     */
-                                    scope.launch { listState.scrollToItem(0) }
-                                },
-                                onAdd = {
-                                    viewModel.loadFolderSuggestions()
-                                    showFolderSuggestions = true
-                                },
-                                actions = folderActions,
-                                floatingActionButton = fab,
-                            )
+                        snackbarHostState = snackbarHostState,
+                        account = accountMenu,
+                        // V pořadí karet nad seznamem (níž, `header`): první čekající je nejdůležitější.
+                        pendingCard = when {
+                            freeze != null -> PendingCard.Freeze
+                            unconfirmedLogin != null -> PendingCard.Login
+                            birthdays.isNotEmpty() -> PendingCard.Birthdays
+                            suggestion != null -> PendingCard.Suggestion
+                            newFolderChats != null -> PendingCard.FolderChats
+                            updateCard != null -> PendingCard.Update
+                            else -> null
                         },
+                        onShowCards = {
+                            expandListPane?.invoke()
+                            // Karty jsou na vršku seznamu; ten se teprve složí, proto žádost, ne posun.
+                            listState.requestScrollToItem(0)
+                        },
+                        // Při rozbalování se sloupec ještě chvíli prolíná v širším panelu: zůstane
+                        // u levého kraje ve své šířce, jinak by se vystředil a avatary, lupa
+                        // a Vytvořit by letěly ze středu panelu.
+                        modifier = Modifier.widthIn(max = COLLAPSED_LIST_MAX_WIDTH),
                     )
-                    /*
-                     * Pod FAB, u palce, jako u hudebních aplikací — a hlavně mimo lištu hledání, která
-                     * při scrollu odjíždí. Seznam se odsazuje o jeho výšku, poslední chat je nad ním.
-                     */
-                    AnimatedVisibility(
-                        visible = shownPlayer != null,
-                        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Top) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec(), shrinkTowards = Alignment.Top) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-                        modifier = Modifier.onSizeChanged { playerHeight = it.height },
-                    ) {
-                        lastPlayer[0]?.let { player ->
-                            PlayerDockBar(
-                                player = player,
-                                playback = { nowPlayingViewModel.playback.value?.takeIf { it.key == player.key } },
-                                reveal = { 1f },
-                                onToggle = nowPlayingViewModel::togglePlaying,
-                                onNext = nowPlayingViewModel::skipToNext,
-                                onStop = nowPlayingViewModel::stop,
-                                // Chat skladby v jejím účtu (fronta je přes všechny účty jedna).
-                                onShow = {
-                                    val slot = nowPlaying?.slot ?: screenAccount.slot
-                                    navigation.onAccountMessageClick(slot, player.key.chatId, player.key.messageId, null)
+                    return@CompositionLocalProvider
+                }
+
+                /*
+                 * FAB a snackbar nejsou ve slotech Scaffoldu: FAB je součástí plovoucího toolbaru dole
+                 * a snackbar musí stát NAD ním — Scaffold by FAB dal do rohu a snackbar pod toolbar.
+                 */
+                Scaffold(
+                    // Při sbalování se plný seznam ještě chvíli prolíná v úzkém panelu: drží šířku
+                    // aspoň na prahu (u levého kraje, zbytek ořízne panel), jinak by se pilulka
+                    // a řádky zmáčkly a prvky letěly ze zmačkaných míst.
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .wrapContentWidth(Alignment.Start, unbounded = true)
+                        .requiredWidth(max(maxWidth, COLLAPSED_LIST_MAX_WIDTH))
+                        .nestedScroll(scrollBehavior.nestedScrollConnection),
+                    topBar = {
+                        reorder?.let { current ->
+                            ReorderTopBar(
+                                title = stringResource(Res.string.chats_reorder_title),
+                                busy = current.busy,
+                                onCancel = listViewModel::cancelReorder,
+                                onDone = listViewModel::saveReorder,
+                            )
+                            return@Scaffold
+                        }
+                        selection?.let { current ->
+                            ChatSelectionTopBar(
+                                count = current.count,
+                                allSelected = allSelected,
+                                onSelectAll = listViewModel::selectAll,
+                                onClose = listViewModel::closeSelection,
+                            )
+                            return@Scaffold
+                        }
+                        // Hlavička pod otevřeným FAB menu ztlumená a neťukací, stejně jako seznam.
+                        Box {
+                            ChatSearchBar(
+                                connection = shownConnection,
+                                search = search,
+                                savedMessagesChatId = savedMessagesChatId,
+                                scrollBehavior = scrollBehavior,
+                                controls = remember(viewModel.search, sources) {
+                                    // Přes víc účtů hledají hledání všech účtů; návrhy jsou z účtu obrazovky.
+                                    val searches = sources.map { it.viewModel.search }.ifEmpty { listOf(viewModel.search) }
+                                    ChatSearchControls(
+                                        onQueryChange = { text -> searches.forEach { it.setQuery(text) } },
+                                        onExpandedChange = viewModel.search::setSuggestionsWanted,
+                                        onFilterChange = { filter -> searches.forEach { it.setFilter(filter) } },
+                                        onLoadMoreMessages = { searches.forEach { it.loadMoreMessages() } },
+                                    )
                                 },
-                                glass = Modifier.hazeBlur(
-                                    input = HazeInput.Sources(listHaze),
-                                    style = glassStyle(
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        alpha = GLASS_TEXT_TINT_ALPHA,
-                                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                onChatClick = { chatId, slot ->
+                                    // Výsledky hledání jsou položky seznamu, takže vědí, jestli se chat otevírá tématy.
+                                    val forum = with(search) { results + top + recent + global + sponsored.map { it.chat } }
+                                        .any { it.id == chatId && it.slot == slot && it.opensAsTopics }
+                                    if (slot == null || slot == screenAccount.slot && sources.isEmpty()) {
+                                        viewModel.search.recordFound(chatId)
+                                        scrollToChat = chatId
+                                        if (forum) navigation.onForumClick(chatId) else navigation.onChatClick(chatId)
+                                    } else {
+                                        sources.firstOrNull { it.account.slot == slot }?.viewModel?.search?.recordFound(chatId)
+                                        if (forum) navigation.onAccountForumClick(slot, chatId) else navigation.onAccountChatClick(slot, chatId)
+                                    }
+                                },
+                                onMessageClick = { chatId, messageId, topicId, slot ->
+                                    if (slot == null) {
+                                        scrollToChat = chatId
+                                        navigation.onMessageClick(chatId, messageId, topicId)
+                                    } else {
+                                        navigation.onAccountMessageClick(slot, chatId, messageId, topicId)
+                                    }
+                                },
+                                suggestionActions = remember(viewModel.search) {
+                                    SuggestionActions(
+                                        onClear = viewModel.search::clearRecent,
+                                        onRemoveRecent = viewModel.search::removeRecent,
+                                        onRemoveTop = viewModel.search::removeTop,
+                                        onRemoveTag = viewModel.search::removeTag,
+                                        onClearTags = viewModel.search::clearTags,
+                                    )
+                                },
+                                snackbarHostState = searchSnackbarHostState,
+                                sponsoredActions = remember(viewModel) {
+                                    SponsoredActions(
+                                        onSeen = viewModel::sponsoredChatSeen,
+                                        onOpen = viewModel::sponsoredChatOpened,
+                                        onReport = viewModel::reportSponsoredChat,
+                                    )
+                                },
+                                aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
+                                request = searchRequest,
+                                onRequestHandled = onSearchRequestHandled,
+                                localSources = LocalSearchSources(
+                                    bookmarks = bookmarks,
+                                    chatTitles = bookmarkTitles,
+                                    describedPhotos = describedPhotos,
+                                ),
+                                trailing = {
+                                    StoryStack(
+                                        posters = storyStack,
+                                        rim = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        onOpen = navigation.onOpenStories,
+                                    )
+                                },
+                                actions = { accountMenu() },
+                            )
+                            FabMenuScrim(
+                                visible = fabMenuExpanded,
+                                onDismiss = { fabMenuExpanded = false },
+                                modifier = Modifier.matchParentSize(),
+                            )
+                        }
+                    },
+                ) { scaffoldPadding ->
+                    // Poslední chat se musí dát odscrollovat nad FAB, jinak by pod ním zůstal schovaný.
+                    val padding = PaddingValues(
+                        top = scaffoldPadding.calculateTopPadding(),
+                        bottom = scaffoldPadding.calculateBottomPadding() +
+                            FAB_CLEARANCE +
+                            with(LocalDensity.current) { playerHeight.toDp() },
+                    )
+                    Box(Modifier.fillMaxSize()) {
+                        Box(Modifier.fillMaxSize().hazeSource(listHaze)) {
+                            val emptyContent: @Composable BoxScope.() -> Unit = {
+                                    /*
+                                     * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
+                                     * „Nepřečtené" se vším přečteným). Tentýž animovaný stav jako archiv, s ikonou
+                                     * složky; klíč podle složky, aby se úvodní animace pustila u každé zvlášť.
+                                     */
+                                    if (selectedFolder != null) {
+                                        key(selectedFolder.id) {
+                                            IntroEmptyState(
+                                                icon = folderIcon(selectedFolder.iconName),
+                                                title = stringResource(Res.string.chats_folder_empty_title),
+                                                text = stringResource(Res.string.chats_folder_empty),
+                                                // Cesta dál, ne slepá ulička: editor složky začíná výběrem chatů.
+                                                action = selectedFolder.id?.let { id ->
+                                                    {
+                                                        FilledTonalButton(onClick = { navigation.onEditFolder(id) }, shapes = ButtonDefaults.shapes()) {
+                                                            Icon(painterResource(Res.drawable.add_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                                            Text(stringResource(Res.string.chat_folder_add_chats))
+                                                        }
+                                                    }
+                                                },
+                                            )
+                                        }
+                                    } else {
+                                        // Prázdný účet (čerstvě založený): tentýž stav, s cestou dál — tlačítkem
+                                        // Nová zpráva v rohu.
+                                        IntroEmptyState(
+                                            icon = Res.drawable.chat_24dp,
+                                            title = stringResource(Res.string.chats_empty_title),
+                                            text = stringResource(Res.string.chats_empty),
+                                        )
+                                    }
+                                }
+                            if (merged) {
+                                MergedChatListContent(
+                                    sources = sources,
+                                    selectedChat = selectedChatId?.let { id -> selectedChatSlot?.let { it to id } },
+                                    onOpen = { slot, chat ->
+                                        if (chat.opensAsTopics) navigation.onAccountForumClick(slot, chat.id) else navigation.onAccountChatClick(slot, chat.id)
+                                    },
+                                    onOpenStories = navigation.onOpenStories,
+                                    storiesSlot = screenAccount.slot,
+                                    padding = padding,
+                                    listState = listState,
+                                    headerItemCount = cards.count,
+                                    empty = emptyContent,
+                                ) {
+                                    chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate, onShowNewFolderChats = { showNewFolderChats = true })
+                                }
+                            } else AccountScope(listAccount) {
+                                // Výběr nebo uspořádání v jiném účtu: chat se otevírá v jeho účtu.
+                                val otherAccount = listAccount.slot != screenAccount.slot
+                                ChatListContent(
+                                    viewModel = listViewModel,
+                                    sheets = listSheets,
+                                    selectedChatId = selectedChatId,
+                                    selectedChatSlot = selectedChatSlot,
+                                    onChatClick = if (otherAccount) { id -> navigation.onAccountChatClick(listAccount.slot, id) } else navigation.onChatClick,
+                                    onForumClick = if (otherAccount) { id -> navigation.onAccountForumClick(listAccount.slot, id) } else navigation.onForumClick,
+                                    onOpenStories = navigation.onOpenStories.takeUnless { otherAccount },
+                                    padding = padding,
+                                    scrollToChat = scrollToChat,
+                                    onScrolledToChat = { scrollToChat = null },
+                                    listState = listState,
+                                    // Položky hlavičky: nové přihlášení a karta s aktualizací.
+                                    headerItemCount = cards.count,
+                                    empty = emptyContent,
+                                ) {
+                                    chatListHeaderCards(cards, viewModel, navigation, openNoticeLink, startUpdate, onShowNewFolderChats = { showNewFolderChats = true })
+                                }
+                            }
+
+                        }
+
+                        /*
+                         * Závoj pod stavovou lištou. Odjetý bar ji odkryje a chaty by pod ní jezdily bez
+                         * pozadí, přes hodiny a ikony. Leží nad seznamem, ale pod barem — Scaffold kreslí
+                         * `topBar` přes obsah.
+                         *
+                         * Přechod do průhledna, ne plná barva: s plným pásem končily chaty o výšku lišty
+                         * pod horním okrajem ostrou hranou, jako useknuté. Takhle jedou až nahoru a jen
+                         * se pod lištou vytrácejí; u horního okraje, kde jsou ikony, je závoj skoro plný.
+                         */
+                        val surface = MaterialTheme.colorScheme.surface
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .windowInsetsTopHeight(WindowInsets.statusBars)
+                                .background(
+                                    Brush.verticalGradient(
+                                        0f to surface,
+                                        0.6f to surface.copy(alpha = 0.85f),
+                                        1f to surface.copy(alpha = 0f),
                                     ),
                                 ),
+                        )
+
+                        FabMenuScrim(visible = fabMenuExpanded, onDismiss = { fabMenuExpanded = false })
+
+                        /*
+                         * Nad navigační lištou A nad klávesnicí. Scaffold dává do paddingu jen systémové
+                         * lišty, takže vysunutá klávesnice (hledání, dvoupanel s psaním vpravo) FAB
+                         * i snackbar překryla. Sjednocení (`union`) bere větší z obou, jinak by se lišta
+                         * a klávesnice sečetly.
+                         *
+                         * Insety, ne `padding(scaffoldPadding)` + `consumeWindowInsets(PaddingValues)`.
+                         * Hodnota `PaddingValues` se mění s rozložením Foldu, a to ve chvíli, kdy NavDisplay
+                         * přesouvá seznam do list-detail scény: `update` modifikátoru pak běží nad
+                         * odpojeným uzlem a Compose 1.12 spadne („visitSubtreeIf called on an unattached
+                         * node"). Insety jsou popis, ne čísla, takže se modifikátor při rozložení nemění.
+                         *
+                         * FAB a snackbar nejsou ve slotech Scaffoldu: Scaffold by je postavil jen nad
+                         * systémové lišty, ne nad klávesnici.
+                         *
+                         * **Shora končí pod hlavičkou.** Obsah Scaffoldu sahá až pod hledání, takže FAB
+                         * menu si myslelo, že má celou výšku, a na telefonu naležato horní položka (Nový
+                         * příběh) vyjela pod lištu hledání, kde na ni nešlo ťuknout. S výškou jen pod
+                         * hlavičkou menu pozná, že se nevejde, a rozroluje se samo (material3 to umí).
+                         * Obyčejný `padding`, ne modifikátor insetů — past s rozložením Foldu výš se ho
+                         * netýká.
+                         */
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(top = scaffoldPadding.calculateTopPadding())
+                                .windowInsetsPadding(
+                                    ScaffoldDefaults.contentWindowInsets
+                                        .only(WindowInsetsSides.Bottom)
+                                        .union(WindowInsets.ime),
+                                ),
+                        ) {
+                            SnackbarHost(snackbarHostState, Modifier.fillMaxWidth()) { CountdownSnackbarHost(it) }
+                            // Lišta výběru stojí MÍSTO FAB menu, uprostřed: zakládat nový chat uprostřed
+                            // vybírání nedává smysl a obojí by se o spodek obrazovky přetahovalo.
+                            ChatSelectionToolbar(
+                                actions = selectionActions,
+                                callbacks = listViewModel.selectionCallbacks,
+                                count = selection?.count ?: 0,
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
                             )
+                            /*
+                             * Složky v plovoucí liště s FAB (viz `docs/poznatky/seznam-chatu.md`, „Složky
+                             * chatů"). Celá lišta je „tlačítko" FAB menu a přepínací FAB sedí v jejím slotu:
+                             * položky menu tak vyjedou nad lištou a FAB je pořád jeden. Při scrollu dolů
+                             * a při otevřeném menu se lišta sbalí do FAB.
+                             */
+                            if (reorder == null && selection == null) NewChatFabMenu(
+                                expanded = fabMenuExpanded,
+                                onExpandedChange = { fabMenuExpanded = it },
+                                onNewChat = navigation.onNewChat,
+                                onNewGroup = navigation.onNewGroup,
+                                onNewChannel = navigation.onNewChannel,
+                                onNewStory = onNewStory,
+                                toolbar = if (folderTabs.isEmpty()) null else { fab ->
+                                    ChatFolderToolbar(
+                                        tabs = folderTabs,
+                                        expanded = !fabMenuExpanded && !folderToolbarHidden,
+                                        onSelect = { id ->
+                                            viewModel.selectFolder(id)
+                                            /*
+                                             * Jiná složka = jiný seznam; začít od jeho vršku. V obsluze ťuknutí,
+                                             * NE v efektu nad složkou: ten by se spustil i při každém návratu
+                                             * seznamu do kompozice (z konverzace na telefonu) a odjel nahoru.
+                                             */
+                                            scope.launch { listState.scrollToItem(0) }
+                                        },
+                                        onAdd = {
+                                            viewModel.loadFolderSuggestions()
+                                            showFolderSuggestions = true
+                                        },
+                                        actions = folderActions,
+                                        floatingActionButton = fab,
+                                    )
+                                },
+                            )
+                            /*
+                             * Pod FAB, u palce, jako u hudebních aplikací — a hlavně mimo lištu hledání, která
+                             * při scrollu odjíždí. Seznam se odsazuje o jeho výšku, poslední chat je nad ním.
+                             */
+                            AnimatedVisibility(
+                                visible = shownPlayer != null,
+                                enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.Top) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                                exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec(), shrinkTowards = Alignment.Top) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                                modifier = Modifier.onSizeChanged { playerHeight = it.height },
+                            ) {
+                                lastPlayer[0]?.let { player ->
+                                    PlayerDockBar(
+                                        player = player,
+                                        playback = { nowPlayingViewModel.playback.value?.takeIf { it.key == player.key } },
+                                        reveal = { 1f },
+                                        onToggle = nowPlayingViewModel::togglePlaying,
+                                        onNext = nowPlayingViewModel::skipToNext,
+                                        onStop = nowPlayingViewModel::stop,
+                                        // Chat skladby v jejím účtu (fronta je přes všechny účty jedna).
+                                        onShow = {
+                                            val slot = nowPlaying?.slot ?: screenAccount.slot
+                                            navigation.onAccountMessageClick(slot, player.key.chatId, player.key.messageId, null)
+                                        },
+                                        glass = Modifier.hazeBlur(
+                                            input = HazeInput.Sources(listHaze),
+                                            style = glassStyle(
+                                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                alpha = GLASS_TEXT_TINT_ALPHA,
+                                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                            ),
+                                        ),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
