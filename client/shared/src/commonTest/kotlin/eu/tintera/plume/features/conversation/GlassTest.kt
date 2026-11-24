@@ -73,6 +73,23 @@ class GlassTest {
         }
     }
 
+    /**
+     * Totéž pro hlavičku na skle ([headerGlassStyle]): barva stránky místo bílé pilulky, únik
+     * pilulky. Jméno je `onSurface`, podtitul a ikony `onSurfaceVariant`, „píše…“ `primary`.
+     */
+    @Test
+    fun headerTextContrastInWorstCase() {
+        for (theme in ThemeColor.entries) for (isDark in listOf(false, true)) {
+            val s = dynamicColorScheme(seedColor = theme.seed, isDark = isDark, isAmoled = false, style = BrandPaletteStyle)
+            val leak = if (isDark) PILL_GLASS_LEAK else PILL_GLASS_LEAK_LIGHT
+            val header = throughGlass(s.surface, leak, if (isDark) Color.White else Color.Black)
+            val where = "$theme ${if (isDark) "tmavý" else "světlý"}"
+            assertTrue(contrast(s.onSurface, header) >= 4.5f, "$where onSurface ${contrast(s.onSurface, header)}")
+            assertTrue(contrast(s.onSurfaceVariant, header) >= 4.5f, "$where onSurfaceVariant ${contrast(s.onSurfaceVariant, header)}")
+            assertTrue(contrast(s.primary, header) >= 3f, "$where primary ${contrast(s.primary, header)}")
+        }
+    }
+
     private fun contrast(a: Color, b: Color): Float {
         val x = a.luminance() + 0.05f
         val y = b.luminance() + 0.05f

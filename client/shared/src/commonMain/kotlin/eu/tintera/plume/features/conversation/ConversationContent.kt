@@ -138,7 +138,7 @@ internal fun BoxScope.ConversationContent(
             icon = Res.drawable.block_24dp,
             title = stringResource(Res.string.conversation_chat_restricted),
             text = state.info?.restriction.orEmpty(),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(top = topPadding),
         )
 
         // Citlivý chat: napřed varování, obsah až po výslovném „přesto zobrazit".
@@ -146,7 +146,7 @@ internal fun BoxScope.ConversationContent(
             icon = Res.drawable.visibility_off_24dp,
             title = stringResource(Res.string.conversation_chat_sensitive_title),
             text = stringResource(Res.string.conversation_chat_sensitive_text),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(top = topPadding),
             action = {
                 FilledTonalButton(onClick = onShowSensitive, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.conversation_chat_sensitive_show))
@@ -155,7 +155,7 @@ internal fun BoxScope.ConversationContent(
         )
 
         state.messages.isEmpty() && state.loading ->
-            LoadingIndicator(Modifier.align(Alignment.Center))
+            LoadingIndicator(Modifier.align(Alignment.Center).padding(top = topPadding))
 
         showsBotIntro(state) -> {
             val shownConnection = rememberShownConnection(connection)
@@ -196,7 +196,7 @@ internal fun BoxScope.ConversationContent(
                 icon = if (error != null) Res.drawable.error_24dp else Res.drawable.chat_bubble_24dp,
                 title = stringResource(if (error != null) Res.string.empty_state_error_title else Res.string.conversation_empty),
                 text = error?.resolve() ?: stringResource(Res.string.conversation_empty_text),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().padding(top = topPadding),
                 // Prázdný chat s člověkem nabídne samolepku na pozdrav, jako oficiální klienti.
                 action = if (showsGreetingSticker(state)) {
                     { GreetingSticker(onSend = viewModel::sendSticker) }
@@ -235,7 +235,7 @@ internal fun BoxScope.ConversationContent(
                     enabled = state.selection != null,
                     targets = selectionTargets,
                     listState = listState,
-                    // Plocha začíná pod hlavičkou; zajíždí jen pod pruhy (připnuté…) a pole.
+                    // Seznam zajíždí pod pruhy (připnuté…), pole a hlavičku na skle.
                     topInset = topPadding,
                     bottomInset = bottomPadding,
                     onStart = viewModel::startDragSelection,
