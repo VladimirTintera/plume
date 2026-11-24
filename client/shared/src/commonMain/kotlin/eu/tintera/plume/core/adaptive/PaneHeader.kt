@@ -65,29 +65,36 @@ internal val LocalPaneHeaderOutside = compositionLocalOf { false }
  */
 internal val LocalPanePlaneScheme = compositionLocalOf<ColorScheme?> { null }
 
+/** Lišta v hlavičce nemá vlastní plochu: leží na ploše okna, nebo na skle ([PaneHeader]). */
 private val LocalInPaneHeader = staticCompositionLocalOf { false }
 
 /**
  * Obal hlavičky obrazovky s [Panes.headerOutside]. Vedle jiných panelů leží hlavička na ploše
  * okna: průhledná ([paneHeaderContainerColor]), v barvách aplikace, a karta pod ní začíná.
  *
+ * [glass] je plocha hlavičky, když leží v kartě (jeden panel, obrazovka je celá konverzace):
+ * obsah pod ní zajíždí a lišta je průhledná, aby ho sklo ukázalo. Nad kartou se nepoužije — tam
+ * pod hlavičkou nic nejezdí.
+ *
  * **Struktura je pokaždé táž** (téma a `Box`), jen hodnoty se mění: při změně šířky okna by jinak
  * hlavička přišla o stav (rozepsané hledání v chatu).
  */
 @Composable
-fun PaneHeader(content: @Composable () -> Unit) {
+fun PaneHeader(glass: Modifier? = null, content: @Composable () -> Unit) {
     val host = LocalPaneHeaderHost.current
     val outside = LocalPaneHeaderOutside.current
+    val shownGlass = glass?.takeIf { !outside }
     val scheme = LocalPanePlaneScheme.current.takeIf { outside } ?: MaterialTheme.colorScheme
     // Obrazovka odešla, karta zůstává (jiná položka v ní není, ale pro jistotu): celá karta.
     DisposableEffect(host) { onDispose { host?.height = 0 } }
     MaterialExpressiveTheme(colorScheme = scheme) {
         CompositionLocalProvider(
-            LocalInPaneHeader provides outside,
+            LocalInPaneHeader provides (outside || shownGlass != null),
             LocalContentColor provides scheme.onSurface,
         ) {
             Box(
                 Modifier
+                    .then(shownGlass ?: Modifier)
                     .onSizeChanged { host?.height = it.height }
                     .padding(bottom = if (outside) PANE_HEADER_GAP else 0.dp),
             ) { content() }
@@ -102,7 +109,7 @@ fun PaneHeader(content: @Composable () -> Unit) {
  */
 internal val PANE_HEADER_GAP: Dp = 8.dp
 
-/** Plocha hlavičky: nad kartou průhledná (je vidět plocha okna), jinak `surface`. */
+/** Plocha hlavičky: nad kartou a na skle průhledná (je vidět plocha okna, sklo), jinak `surface`. */
 @Composable
 @ReadOnlyComposable
 fun paneHeaderContainerColor(): Color =

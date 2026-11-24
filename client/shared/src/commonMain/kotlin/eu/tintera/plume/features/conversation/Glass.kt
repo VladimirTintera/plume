@@ -25,7 +25,8 @@ import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
  *
  * - **pilulka** ([pillGlass], [pillGlassStyle]; bílá ve světlém motivu): plovoucí plochy s textem — pruhy nad konverzací
  *   (připnuté, spam, videochat…), plovoucí datum, docky polohy a přehrávače, napovídání nad polem;
- * - **pás** ([bandGlassStyle]): pod vstupním polem a lištami místo něj; vlastní text nenese.
+ * - **pás** ([bandGlassStyle]): pod vstupním polem a lištami místo něj; vlastní text nenese;
+ * - **hlavička** ([headerGlass]): pás v barvě stránky, ale s únikem pilulky, protože nese text.
  *
  * Liší se jen barvou a tím, kolik jasu z pozadí propustí ([PILL_GLASS_LEAK], [BAND_GLASS_LEAK]);
  * rozostření, zesílení barev, zrnitost a krycí podklad mají společné. Pilulky navíc nesou
@@ -100,6 +101,27 @@ private fun ColorScheme.isDarkSurface(): Boolean = surface.luminance() < 0.5f
 @Composable
 internal fun pillGlass(source: HazeState): Modifier =
     Modifier.hazeBlur(input = HazeInput.Sources(source), style = pillGlassStyle())
+
+/**
+ * Styl skla hlavičky konverzace (viz [glassStyle]), jen když leží v kartě — na telefonu a na
+ * jednom panelu, kde je konverzace celá obrazovka a obsah pod hlavičku zajíždí jako pod pole.
+ *
+ * **Barva je plocha stránky (`surface`), ne bílá pilulka:** v klidu (nic pod hlavičkou) má
+ * vypadat jako dřív a lišta přes celou šířku je pás, ne plovoucí plocha. Únik je ale pilulkový
+ * ([PILL_GLASS_LEAK], [PILL_GLASS_LEAK_LIGHT]), ne pásový: hlavička nese jméno a podtitul.
+ * Kde rozostření není, kryje úplně — jako hlavička bez skla.
+ */
+@Composable
+internal fun headerGlassStyle(): HazeBlurStyle {
+    val scheme = MaterialTheme.colorScheme
+    val dark = scheme.isDarkSurface()
+    return glassStyle(scheme.surface, if (dark) PILL_GLASS_LEAK else PILL_GLASS_LEAK_LIGHT, fallbackAlpha = 1f)
+}
+
+/** Sklo hlavičky nad seznamem [source] — pro `PaneHeader(glass = …)`. */
+@Composable
+internal fun headerGlass(source: HazeState): Modifier =
+    Modifier.hazeBlur(input = HazeInput.Sources(source), style = headerGlassStyle())
 
 /** Styl pásu pod vstupním polem (viz [glassStyle]); plochu kreslí `surface` jako stránka. */
 @Composable

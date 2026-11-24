@@ -225,6 +225,13 @@ fun ConversationScreen(
     var barsHeight by remember { mutableStateOf(0.dp) }
 
     /**
+     * Výška hlavičky, pod kterou seznam zajíždí (sklo, `headerGlass`); nula, když hlavička leží
+     * nad kartou a seznam začíná až pod ní. Pruhy a všechno, co měří od horní hrany seznamu, ji
+     * přičítají k sobě.
+     */
+    var headerInset by remember { mutableStateOf(0.dp) }
+
+    /**
      * Rozbalený dock živé polohy: mapa s ovládáním nad konverzací. Závoj pod ní NENÍ — psát
      * a scrollovat jde dál, kouzlo je právě v tom, že mapa zůstane na očích při psaní.
      */
@@ -365,7 +372,7 @@ fun ConversationScreen(
             val info = listState.layoutInfo
             if (s.liveLocations.isEmpty() || info.visibleItemsInfo.isEmpty()) return@derivedStateOf emptyMap<Long, Float>()
             // 8 dp je horní odsazení seznamu nad pruhy (`contentPadding` níž).
-            val top = info.viewportEndOffset - with(dockDensity) { (8.dp + barsHeight).toPx() }
+            val top = info.viewportEndOffset - with(dockDensity) { (8.dp + headerInset + barsHeight).toPx() }
             s.liveLocations.associate { message ->
                 val key = s.keyOf(message)
                 val item = info.visibleItemsInfo.firstOrNull { it.key == key }
@@ -405,7 +412,7 @@ fun ConversationScreen(
         voicePlayback = voicePlayback,
         soundingVideoNote = soundingVideoNote,
         listState = listState,
-        barsHeight = { barsHeight },
+        barsHeight = { headerInset + barsHeight },
         spec = dockSpec,
     )
 
@@ -522,7 +529,8 @@ fun ConversationScreen(
             contentWindowInsets = ScaffoldDefaults.contentWindowInsets
                 .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
             topBar = {
-                PaneHeader {
+                // V kartě (jeden panel) sklo nad seznamem jako pás pod polem; nad kartou nic.
+                PaneHeader(glass = headerGlass(listHaze)) {
                     ConversationTopBar(
                         state = state,
                         viewModel = viewModel,
@@ -606,9 +614,17 @@ fun ConversationScreen(
             // Pruh připnutých a vstupní pole leží PŘES seznam — fotka letící pod ně se o ně ořízne.
             val clipDensity = LocalDensity.current
             val obscuredBottom = padding.calculateBottomPadding()
+            /*
+             * Hlavička v kartě je sklo a seznam pod ni zajíždí jako pod vstupní pole: Box začíná
+             * nahoře a výšku hlavičky dostane seznam do `contentPadding` (tak v klidu začíná pod
+             * ní) a pruhy s překryvy jako odsazení. Nad kartou pod hlavičkou nic nejezdí — Box
+             * začíná až pod ní a má plochu stránky.
+             */
+            val shownHeaderInset = if (headerOutside) 0.dp else padding.calculateTopPadding()
             SideEffect {
+                headerInset = shownHeaderInset
                 with(clipDensity) {
-                    listClip.obscuredTop = pinnedHeight.toPx()
+                    listClip.obscuredTop = (shownHeaderInset + pinnedHeight).toPx()
                     listClip.obscuredBottom = obscuredBottom.toPx()
                 }
             }
@@ -616,12 +632,11 @@ fun ConversationScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(
-                        top = padding.calculateTopPadding(),
+                        top = if (headerOutside) padding.calculateTopPadding() else 0.dp,
                         start = padding.calculateStartPadding(layoutDirection),
                         end = padding.calculateEndPadding(layoutDirection),
                     )
-                    .then(if (headerOutside) Modifier.background(pageColor) else Modifier)
-                    .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
+                    .then(if (headerOutside) Modifier.background(pageColor) else Modifier),
             ) {
                 // Efekty zpráv letí ze seznamu do vrstvy nad celou obrazovkou (viz `EffectLayer`).
                 CompositionLocalProvider(LocalEffectLayer provides effectLayer) {
@@ -638,50 +653,58 @@ fun ConversationScreen(
                         listClip = listClip,
                         sensitiveWarning = sensitiveWarning,
                         onShowSensitive = { sensitiveAccepted = true },
-                        topPadding = pinnedHeight,
+                        topPadding = shownHeaderInset + pinnedHeight,
                         bottomPadding = padding.calculateBottomPadding(),
                         floatingDay = floatingDay,
                         textZoom = textZoom,
                     )
                 }
 
-                ConversationBars(
-                    state = state,
-                    viewModel = viewModel,
-                    navigation = navigation,
-                    sheets = sheets,
-                    chatHidden = chatHidden,
-                    listHaze = listHaze,
-                    topVisibleKey = { topVisibleKey },
-                    liveLocations = shownDocked,
-                    dockReveal = { dockReveal.value },
-                    dockExpanded = dockExpanded,
-                    onDockExpandedChange = { dockExpanded = it },
-                    playerDock = playerDock,
-                    voicePlayback = voicePlayback,
-                    soundingVideoNote = soundingVideoNote,
-                    onPinnedHeight = { pinnedHeight = it },
-                    onBarsHeight = { barsHeight = it },
-                )
+                // Pruhy a překryvy pod hlavičkou; horní hrana tohohle Boxu je horní hrana obsahu.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(top = shownHeaderInset)
+                        .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
+                ) {
+                    ConversationBars(
+                        state = state,
+                        viewModel = viewModel,
+                        navigation = navigation,
+                        sheets = sheets,
+                        chatHidden = chatHidden,
+                        listHaze = listHaze,
+                        topVisibleKey = { topVisibleKey },
+                        liveLocations = shownDocked,
+                        dockReveal = { dockReveal.value },
+                        dockExpanded = dockExpanded,
+                        onDockExpandedChange = { dockExpanded = it },
+                        playerDock = playerDock,
+                        voicePlayback = voicePlayback,
+                        soundingVideoNote = soundingVideoNote,
+                        onPinnedHeight = { pinnedHeight = it },
+                        onBarsHeight = { barsHeight = it },
+                    )
 
-                // Akce u zprávy (ikonka u termínu, účtu, zásilky); stav si čte sám.
-                MessageContextHost(viewModel)
+                    // Akce u zprávy (ikonka u termínu, účtu, zásilky); stav si čte sám.
+                    MessageContextHost(viewModel)
 
-                // Nad seznamem, pod vstupním polem: odeslání i koš zůstávají ovladatelné.
-                VideoNoteRecordingOverlay(
-                    visible = recording.isVideoRecording,
-                    camera = recording.camera,
-                    recording = { recording.video() },
-                    modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
-                    preview = recording.videoNotePreview,
-                    playback = videoNotePlayback,
-                )
-                // Zámek nad tlačítkem je tady, ne v liště — sklo pod polem by ho ořízlo.
-                RecordLockHost(
-                    visible = recording.isRecording && recording.gesture.held && !recording.gesture.locked,
-                    gesture = recording.gesture,
-                    modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
-                )
+                    // Nad seznamem, pod vstupním polem: odeslání i koš zůstávají ovladatelné.
+                    VideoNoteRecordingOverlay(
+                        visible = recording.isVideoRecording,
+                        camera = recording.camera,
+                        recording = { recording.video() },
+                        modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
+                        preview = recording.videoNotePreview,
+                        playback = videoNotePlayback,
+                    )
+                    // Zámek nad tlačítkem je tady, ne v liště — sklo pod polem by ho ořízlo.
+                    RecordLockHost(
+                        visible = recording.isRecording && recording.gesture.held && !recording.gesture.locked,
+                        gesture = recording.gesture,
+                        modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
+                    )
+                }
             }
         }
 

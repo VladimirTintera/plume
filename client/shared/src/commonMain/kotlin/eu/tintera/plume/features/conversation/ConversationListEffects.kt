@@ -391,11 +391,11 @@ internal fun ConversationViewReporting(
 
         snapshotFlow {
             val info = listState.layoutInfo
+            // Bez odsazení seznamu: pod pruhy, polem ani hlavičkou na skle karta vidět není.
+            val start = info.viewportStartOffset + info.beforeContentPadding
+            val end = info.viewportEndOffset - info.afterContentPadding
             info.visibleItemsInfo
-                .filter { item ->
-                    item.offset >= info.viewportStartOffset &&
-                        item.offset + item.size <= info.viewportEndOffset
-                }
+                .filter { item -> item.offset >= start && item.offset + item.size <= end }
                 .mapNotNull { it.key as? String }
                 .filter { it.startsWith(SPONSORED_KEY_PREFIX) }
                 .toSet()

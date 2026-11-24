@@ -783,6 +783,26 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
     čipy přes sebe. `MessageInput` si dál nese jen pás pro letící fotku
     (`sharedElementOcclusionBand`): přes návrhy a klávesnici se letět nesmí (`openBand`).
     Plovoucí napovídání (příkazy, zmínky, emoji) místo v rozvržení nezabírá a má sklo pilulky.
+  - **Hlavička je sklo taky, ale jen v kartě** (`PaneHeader(glass = headerGlass(listHaze))`):
+    na telefonu a na jednom panelu, kde je konverzace celá obrazovka, zajíždí seznam pod hlavičku
+    stejně jako pod pole a konverzace je nahoře i dole souměrná. Vedle seznamu chatů leží hlavička
+    nad kartou na ploše okna, pod ní nic nejezdí a sklo by nemělo co ukázat — `PaneHeader` ho tam
+    vynechá sám. M3 sklo nemá; nejblíž je „scroll-under" horní lišty (pod lištou obsah, lišta
+    změní plochu), tady místo jiné barvy prosvítá obsah.
+    - **Barva je plocha stránky, únik pilulky** (`headerGlassStyle`): v klidu vypadá hlavička jako
+      dřív, ale nese jméno a podtitul, takže propouští jen 0,18 / 0,25 jako pilulka, ne 0,28 jako
+      pás. Kontrast `onSurface`, `onSurfaceVariant` (AA) i `primary` (≥ 3) hlídá `GlassTest`.
+      Bez rozostření (Android 11 a starší) kryje úplně. Hrana ani stín: lišta přes celou šířku je
+      pás, ne plovoucí plocha.
+    - **Lišta je průhledná přes `paneHeaderContainerColor()`**, tedy i hledání a výběr zpráv —
+      `PaneHeader` s předaným sklem hlásí totéž co hlavička nad kartou.
+    - **Výšku hlavičky přičítá všechno, co měří od horní hrany seznamu** (`headerInset`
+      v `ConversationScreen`): odsazení seznamu nahoře, pruhy a překryvy (vnitřní `Box` s odsazením,
+      jeho hrana je `contentTop` pro nabídku nad zprávou), ořez letící fotky (`obscuredTop`), dock
+      živé polohy a přehrávače (`barsHeight`), prázdné stavy a načítání. Co bere `contentPadding`
+      seznamu (`beforeContentPadding` / `afterContentPadding`), sedí samo; zhlédnutí sponzorované
+      karty se proto počítá z odsazení, ne z celého výřezu — pod hlavičkou ani pruhy karta vidět
+      není.
   - **Zdrojem je JEN seznam zpráv, ne celý Scaffold** (vlastní `HazeState`). Závoj nabídky
     rozostřuje Scaffold celý, protože je nad ním; tyhle plochy jsou ale jeho součástí, takže by
     se rozostřovaly samy sebou — pruh připnutých by nasál plovoucí datum a pás pod polem sám sebe.
