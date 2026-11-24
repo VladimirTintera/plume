@@ -379,6 +379,14 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
   v pořádku: kotvu posune o inset a výsledek vrátí. Ze 48 dp nabídka nedosáhne ani na semafory,
   které končí v půlce titulku. Bubliny (`TooltipBox`) mají výchozí vlastnosti a insety
   respektují dál; okraj od kraje nemají, takže je to neposouvá.
+- **Skupiny nabídky pod myší tvar nemění** (`menuGroupShape` v `core/ui/ExpressiveMenu.kt`).
+  M3 Expressive dává skupině, nad kterou myš byla a odjela, „neaktivní" tvar (všechny rohy
+  8 dp). Spodní skupina se tak při přejetí zaoblila a po odjetí zhranatěla, kdežto horní, kam
+  myš od kotvy často nevjede, zůstala kulatá. Na dotyku hover není, takže se to ukázalo jen
+  na desktopu.
+- **Stín skupin potřebuje místo uvnitř rolování** (`menuScroll()` přidává svislé odsazení):
+  `verticalScroll` ořezává ve směru rolování, takže stín horní skupiny nahoře a spodní dole
+  končil rovnou hranou, kdežto po stranách byl.
 - **Výška: Mac 64 dp, Windows 40 dp.** Na Macu je to výška hlavičky, semafory (JBR je centruje
   na výšku titulku) leží uprostřed řádku s hlavičkou konverzace. Na Windows jsou tlačítka okna
   vysoká jako titulek a 64 dp by z nich udělalo sloupy; 40 dp mají IDE od JetBrains.

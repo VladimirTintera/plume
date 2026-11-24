@@ -5,6 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenuPopup
@@ -14,9 +15,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorPosition
 import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.MenuGroupShapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -76,7 +79,7 @@ fun ExpressiveMenu(
         MenuColors {
             shown.forEachIndexed { groupIndex, group ->
                 if (groupIndex > 0) Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, shown.size)) {
+                DropdownMenuGroup(shapes = menuGroupShape(groupIndex, shown.size)) {
                     group.forEachIndexed { index, action ->
                         val colors = if (action.destructive) {
                             MenuDefaults.itemColors(
@@ -116,6 +119,31 @@ fun ExpressiveMenu(
  */
 @Composable
 fun Modifier.menuScroll(): Modifier = verticalScroll(rememberRestoringScrollState())
+    .padding(vertical = MenuShadowRoom)
+
+/**
+ * Místo pro stín skupin nahoře a dole UVNITŘ rolovaného obsahu. `verticalScroll` ořezává obsah ve
+ * směru rolování (do strany ne), takže stín horní skupiny nahoře a spodní skupiny dole byl
+ * useknutý rovnou hranou — po stranách stín byl, nahoře a dole ne. Nejvíc to bylo vidět na
+ * desktopu. Skupina má stín úrovně 2 (`MenuDefaults.ShadowElevation`, 3 dp) a ten pod ní sahá
+ * o pár bodů; nabídka je tím o tolik dál od kotvy, což nevadí.
+ */
+private val MenuShadowRoom = 6.dp
+
+/**
+ * Tvar skupiny nabídky: [MenuDefaults.groupShape] BEZ přechodu do „neaktivního" tvaru.
+ *
+ * M3 Expressive skupině, nad kterou myš byla a odjela, mění tvar na `inactiveShape` (všechny rohy
+ * malé, `SegmentedMenuTokens.InactiveContainerShape`); skupina, nad kterou myš nikdy nebyla,
+ * zůstává v tvaru podle pořadí (krajní rohy velké). Na desktopu se tak spodní skupina při každém
+ * přejetí myší zaoblila a po odjetí zhranatěla, zatímco horní (myš do ní z kotvy často
+ * nevjede) zůstávala kulatá — vypadalo to jako chyba. Na dotykovém displeji hover není a tvar se
+ * nemění nikdy; tady platí totéž i pro myš.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun menuGroupShape(index: Int, count: Int): MenuGroupShapes =
+    MenuDefaults.groupShape(index, count).let { it.copy(inactiveShape = it.shape) }
 
 /**
  * Barvy nabídky: plocha skupin i položek je `surfaceContainerHighest`, ne výchozí

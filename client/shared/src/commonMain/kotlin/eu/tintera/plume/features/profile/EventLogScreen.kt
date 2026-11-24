@@ -2,6 +2,7 @@ package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.adaptive.paneScaffoldColor
 import eu.tintera.plume.core.adaptive.PaneBody
+import eu.tintera.plume.core.ui.menuGroupShape
 import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.layout.Arrangement
@@ -282,7 +283,7 @@ private fun AuthorChip(
         )
         DropdownMenuPopup(modifier = Modifier.menuScroll(), expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
             MenuColors {
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
+                DropdownMenuGroup(shapes = menuGroupShape(0, 2)) {
                     CheckableDropdownMenuItem(
                         checked = chosen.isEmpty(),
                         onCheckedChange = {
@@ -295,7 +296,7 @@ private fun AuthorChip(
                     )
                 }
                 Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                DropdownMenuGroup(shapes = menuGroupShape(1, 2)) {
                     admins.forEachIndexed { index, admin ->
                         CheckableDropdownMenuItem(
                             checked = admin.id in chosen,

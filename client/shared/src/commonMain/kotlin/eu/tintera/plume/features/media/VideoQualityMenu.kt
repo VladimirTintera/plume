@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ui.menuGroupShape
 import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.layout.Box
@@ -79,7 +80,7 @@ internal fun VideoQualityChip(
                     onExpandedChange(false)
                     menu.onChoose(choice)
                 }
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
+                DropdownMenuGroup(shapes = menuGroupShape(0, 2)) {
                     CheckableDropdownMenuItem(
                         checked = menu.choice == VideoQualityChoice.Auto,
                         onCheckedChange = { choose(VideoQualityChoice.Auto) },
@@ -90,7 +91,7 @@ internal fun VideoQualityChip(
                     )
                 }
                 Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                DropdownMenuGroup(shapes = menuGroupShape(1, 2)) {
                     menu.options.forEachIndexed { index, option ->
                         val size = option.sizeBytes.takeIf { it > 0 }?.let { fileSizeText(it) }
                         val supporting = when {

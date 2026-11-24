@@ -1,4 +1,4 @@
 type: fix
 units: desktop
-cs: Nabídky z horní lišty okna se otevírají hned pod tlačítkem
-en: Menus from the window's top bar open right below their button
+cs: Nabídky se otevírají hned pod tlačítkem a pod myší nemění tvar
+en: Menus open right below their button and keep their shape under the mouse

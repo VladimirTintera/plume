@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.menuGroupShape
 import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -209,7 +210,7 @@ internal fun ChatSwitcherBackButton(
         ) {
             MenuColors {
                 val candidates = state.candidates
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                DropdownMenuGroup(shapes = menuGroupShape(0, 1)) {
                     candidates.forEachIndexed { index, chat ->
                         SwitcherItem(
                             chat = chat,

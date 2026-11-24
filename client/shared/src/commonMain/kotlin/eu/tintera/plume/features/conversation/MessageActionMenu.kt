@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberRestoringScrollState
+import eu.tintera.plume.core.ui.menuGroupShape
 import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import androidx.compose.animation.AnimatedContent
@@ -275,7 +276,7 @@ private fun Groups(
         MenuColors {
             groups.forEachIndexed { groupIndex, group ->
                 DropdownMenuGroup(
-                    shapes = MenuDefaults.groupShape(groupIndex, groups.size),
+                    shapes = menuGroupShape(groupIndex, groups.size),
                     contentPadding = PaddingValues(vertical = MENU_GROUP_PADDING),
                     interactionSource = interactionSource,
                     modifier = Modifier.width(MENU_WIDTH),

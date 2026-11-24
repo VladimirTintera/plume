@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.menuGroupShape
 import eu.tintera.plume.core.ui.menuScroll
 import eu.tintera.plume.core.ui.MenuColors
 import eu.tintera.plume.core.ui.horizontalScrollWithWheel
@@ -189,7 +190,7 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
              */
             DropdownMenuPopup(modifier = Modifier.menuScroll(), expanded = periodMenu, onDismissRequest = { periodMenu = false }, properties = MenuPopupProperties) {
                 MenuColors {
-                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
+                    DropdownMenuGroup(shapes = menuGroupShape(0, 2)) {
                         PERIODS.forEachIndexed { index, (period, label) ->
                             CheckableDropdownMenuItem(
                                 checked = filter.period == period,
@@ -204,7 +205,7 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
                         }
                     }
                     Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                    DropdownMenuGroup(shapes = menuGroupShape(1, 2)) {
                         val custom = filter.period as? SearchPeriod.Custom
                         CheckableDropdownMenuItem(
                             checked = custom != null,
@@ -296,7 +297,7 @@ private fun ContentFilterButton(filter: MessageSearchFilter, onChange: (MessageS
         )
         DropdownMenuPopup(modifier = Modifier.menuScroll(), expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
             MenuColors {
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                DropdownMenuGroup(shapes = menuGroupShape(0, 1)) {
                     SearchContent.entries.forEachIndexed { index, content ->
                         CheckableDropdownMenuItem(
                             checked = filter.content == content,
