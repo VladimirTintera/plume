@@ -528,6 +528,10 @@ obrazovkách (420 přihlášení, 560 bublina, 680 článek) jsou z ní.
 - **Seznam zpráv se do sloupce stahuje okrajem v `contentPadding`** (`ConversationColumn`,
   `columnInset`), ne zúžením seznamu: scroll kolečkem i tahem tak funguje kdekoli v panelu.
   Vstupní pole má `Modifier.centeredColumn` přímo na obsahu slotu `bottomBar`.
+- **Pruhy nad seznamem jsou ve sloupci taky** (`ConversationBars`: připnuté, spam, videochat,
+  žádosti o vstup, reklama u bota, dock polohy a přehrávače). Přes celý panel se pilulka
+  připnutých táhla od okraje k okraji daleko za bubliny i vstupní pole. Sloupec dostává celý
+  sloupec pruhů naráz, ne každý pruh zvlášť — nový pruh do něj spadne sám.
 - **Nastavení má strop 720 dp na úrovni panelu** (`Panes.contentWidth`, uplatní ho
   `PaneCard`), ne v obrazovkách — sekcí je přes deset a každá má vlastní seznam. Zúží se
   i velký nadpis, takže lícuje s obsahem; scroll je jen nad sloupcem.
