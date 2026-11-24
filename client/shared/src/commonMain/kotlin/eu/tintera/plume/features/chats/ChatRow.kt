@@ -577,7 +577,8 @@ internal fun ChatRow(
                     isSavedMessages = isSavedMessages(chat.id),
                     // Druh chatu tvarem: člověk kruh, skupina sušenka, kanál čtverec.
                     shape = avatarShape,
-                    modifier = Modifier.sharedNavElement(chatAvatarKey(chat.id)),
+                    // Ve sbaleném sloupci je avatar sám a přeletí tam (`listCollapseElement`).
+                    modifier = Modifier.listCollapseElement(collapseAvatarKey(chat.id)).sharedNavElement(chatAvatarKey(chat.id)),
                 )
 
                 // Tečka sedí NA avataru, ne vedle jména: v seznamu se očima jede po levém
