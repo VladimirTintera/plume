@@ -185,6 +185,8 @@ import eu.tintera.plume.features.downloads.rememberDownloadSources
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.features.chats.ChatSearchNavigation
 import eu.tintera.plume.features.chats.ChatSearchScreen
+import eu.tintera.plume.features.chats.LocalSearchMorph
+import eu.tintera.plume.features.chats.SearchMorph
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
 import eu.tintera.plume.core.navigation.ChatSearchRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
@@ -615,6 +617,8 @@ private fun ShellContent(
          * metadaty ([listWidthBesideProfile]).
          */
         val listExpansion = rememberListPaneExpansion(base.defaultPanePreferredWidth)
+        // Pilulka ↔ pole hledání (`SearchMorph`): kde stála pilulka, a návrat z hledání.
+        val searchMorph = remember { SearchMorph() }
         // Hledání je seznam chatů v jiné podobě (`docs/navrh-hledani.md`): táhlo i šířka platí
         // dál, jinak by panel při otevření hledání skočil na výchozí šířku.
         val shownListRoute = chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List }
@@ -716,6 +720,7 @@ private fun ShellContent(
                     LocalSavedMessagesChatId provides savedMessagesChatId,
                     // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
                     LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
+                    LocalSearchMorph provides searchMorph,
                     LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
                     LocalListPaneResize provides listResizeShown,
                     LocalPaneResizeOwners provides paneResizeOwners,
@@ -941,7 +946,7 @@ private fun shellEntryProvider(
     entry<ChatSearchRoute>(
         metadata = Panes.list(
             detailPlaceholder = { PaneCard(PaneRole.Detail, ownSurface = true, headerOutside = true) { ConversationPlaceholder() } },
-        ) + Panes.width(listPaneWidth) + Panes.instantBounds(instantPaneBounds),
+        ) + ChatSearchMetadata + Panes.width(listPaneWidth) + Panes.instantBounds(instantPaneBounds),
     ) { route ->
         val slot = route.slot
         val settings = koinInject<AppSettings>()

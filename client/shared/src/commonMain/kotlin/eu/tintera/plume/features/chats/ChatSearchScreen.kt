@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +72,7 @@ import eu.tintera.plume.resources.chats_search
 import eu.tintera.plume.resources.chats_search_clear
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.search_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -177,6 +187,31 @@ internal fun ChatSearchScreen(
     val aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable }
     val colors = SearchBarDefaults.appBarWithSearchColors().searchBarColors
 
+    /*
+     * Pole roste z pilulky (`SearchMorph`): začne v její poloze a šířce, roztáhne se na celou
+     * šířku a výsledky se prolnou. Zavření šipkou nebo Esc přehraje totéž pozpátku a seznam
+     * chatů se pak objeví. Bez pilulky (otevřeno jinak, než ze seznamu vidět) rovnou celé.
+     */
+    val morph = LocalSearchMorph.current
+    val start = remember { morph?.pill }
+    val progress = remember { Animatable(if (start != null) 0f else 1f) }
+    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val fastSpatial = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    LaunchedEffect(Unit) { progress.animateTo(1f, spatial) }
+    var closing by remember { mutableStateOf(false) }
+    val close: () -> Unit = {
+        if (!closing) {
+            closing = true
+            scope.launch {
+                if (start != null) progress.animateTo(0f, fastSpatial)
+                morph?.markReturning()
+                navigation.onClose()
+            }
+        }
+    }
+    // Kde pole stojí doma (souřadnice kořene); posun z pilulky se počítá proti tomu.
+    var home by remember { mutableStateOf<Rect?>(null) }
+
     Column(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         /*
          * Pole na místě pilulky ze seznamu chatů: stejný tvar, barva i výška, 4 dp od horního
@@ -190,10 +225,15 @@ internal fun ChatSearchScreen(
                 .padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
         ) {
             WindowControlsSpace()
+            Box(
+                Modifier
+                    .weight(1f)
+                    .onGloballyPositioned { coordinates -> home = Rect(coordinates.positionInRoot(), coordinates.size.toSize()) },
+            ) {
             Surface(
                 shape = SearchBarDefaults.inputFieldShape,
                 color = colors.containerColor,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.growFrom(start, { home }, { progress.value }),
             ) {
                 SearchBarDefaults.InputField(
                     state = textFieldState,
@@ -204,8 +244,20 @@ internal fun ChatSearchScreen(
                     placeholder = { Text(stringResource(Res.string.chats_search)) },
                     leadingIcon = {
                         TextFieldSlot {
-                            IconButton(onClick = navigation.onClose, shapes = IconButtonDefaults.shapes()) {
-                                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                            // Lupa z pilulky se během růstu prolne do šipky zpět (a při zavření zpátky).
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    painterResource(Res.drawable.search_24dp),
+                                    contentDescription = null,
+                                    modifier = Modifier.graphicsLayer { alpha = 1f - progress.value.coerceIn(0f, 1f) },
+                                )
+                                IconButton(
+                                    onClick = close,
+                                    shapes = IconButtonDefaults.shapes(),
+                                    modifier = Modifier.graphicsLayer { alpha = progress.value.coerceIn(0f, 1f) },
+                                ) {
+                                    Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                                }
                             }
                         }
                     },
@@ -257,7 +309,7 @@ internal fun ChatSearchScreen(
                         // Esc v poli zavře hledání, ne konverzaci vedle (zpět navigace jde shora).
                         .onPreviewKeyEvent { event ->
                             if (event.key == Key.Escape && event.type == KeyEventType.KeyDown) {
-                                navigation.onClose()
+                                close()
                                 true
                             } else {
                                 false
@@ -265,10 +317,21 @@ internal fun ChatSearchScreen(
                         },
                 )
             }
+            }
             WindowControlsEndSpace()
         }
 
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        Box(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                // Výsledky se objeví, až pole doroste (fade through), a mírně přijedou zdola.
+                .graphicsLayer {
+                    val p = progress.value.coerceAtMost(1f)
+                    alpha = ((p - CONTENT_FADE_START) / (1f - CONTENT_FADE_START)).coerceIn(0f, 1f)
+                    translationY = (1f - p) * CONTENT_SHIFT.toPx()
+                },
+        ) {
             SearchResults(
                 query = textFieldState.text.toString(),
                 search = search,
@@ -322,6 +385,37 @@ internal fun ChatSearchScreen(
         }
     }
 }
+
+/**
+ * Pole, které vyrůstá z [start] (pilulka) do své polohy [home] podle [progress] (0 = pilulka,
+ * 1 = doma; pružina smí přestřelit). Pole je rozložené rovnou na plnou šířku a odkrývá se
+ * ořezem ve tvaru pilulky, která roste — s měněnou šířkou rozložení se nápověda v úzkém poli
+ * zalamovala na dva řádky. Poloha jde posunem ve vrstvě. Bez pilulky, nebo dokud se pole
+ * nerozložilo, nedělá nic.
+ */
+private fun Modifier.growFrom(start: Rect?, home: () -> Rect?, progress: () -> Float): Modifier =
+    if (start == null) {
+        this
+    } else {
+        graphicsLayer {
+            val end = home() ?: return@graphicsLayer
+            val p = progress()
+            if (p == 1f) return@graphicsLayer
+            translationX = (start.left - end.left) * (1f - p)
+            translationY = (start.top - end.top) * (1f - p)
+            val width = (start.width + (size.width - start.width) * p).coerceIn(0f, size.width)
+            clip = true
+            shape = GenericShape { bounds, _ ->
+                addRoundRect(RoundRect(0f, 0f, width, bounds.height, CornerRadius(bounds.height / 2)))
+            }
+        }
+    }
+
+/** Od jakého průběhu růstu pole se začnou objevovat výsledky. */
+private const val CONTENT_FADE_START = 0.35f
+
+/** O kolik výsledky přijedou zdola. */
+private val CONTENT_SHIFT = 24.dp
 
 /** Klíč ViewModelu hledání účtu [slot] v úložišti položky hledání. */
 private fun searchViewModelKey(slot: AccountSlot): String = "chat-search-${slot.id}"

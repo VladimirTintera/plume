@@ -163,6 +163,23 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
     v `Surface` s `inputFieldShape`) a stojí 4 dp od horního kraje lišty jako ona; na desktopu
     nechává místo tlačítkům okna (`WindowControlsSpace`). Klávesnice vyjede hned (fokus při
     otevření).
+  - **Pole vyrůstá z pilulky** (`SearchMorph`, `growFrom` v `ChatSearchScreen`): začne v její
+    poloze a šířce, roztáhne se, lupa se prolne do šipky zpět a výsledky se objeví až od třetiny
+    růstu (fade through). Zavření šipkou nebo Esc přehraje totéž pozpátku a seznam chatů pak svůj
+    obsah prolne (`SearchMorph.consumeReturning`). Systémové zpět a gesto přechod nemají — položka
+    zmizí hned.
+    - **Ručně, ne sdíleným prvkem.** V panelu se položky střídají přes `AnimatedPane`
+      (`ThreePaneScaffoldScene`), který výměnu položky neanimuje a navigační
+      `AnimatedVisibilityScope` nedává; sdílený prvek nemá z čeho běžet. Na telefonu by šel, ale
+      pro tutéž věc by byly dva různé přechody. Navigační přechod mezi seznamem a hledáním je proto
+      vypnutý i na telefonu (`CHAT_SEARCH` v `NavTransitions`, jako container transform chatu).
+    - **Pole se rozkládá rovnou na plnou šířku a odkrývá ořezem** (vrstva s tvarem pilulky
+      rostoucí šířky). S měněnou šířkou rozložení se nápověda v úzkém poli zalomila na dva
+      řádky — zachyceno snímkem.
+    - **Pilulka si při zmizení polohu smaže** (`onDispose`). Hledání otevřené ze sbaleného sloupce
+      (pilulka tam není) by jinak rostlo z místa, kde pilulka stála naposledy. Mezi novou
+      obrazovkou a smazáním je pořadí jisté: obrazovka hledání si polohu přečte při složení
+      a `onDispose` staré položky běží až po něm.
 - **Spodní inset si berou seznamy výsledků** (`resultsPadding`): obsah jede pod navigační lištu
   a poslední položka se nad ni doroluje, jako v seznamu chatů a konverzaci.
 - **Prázdný výsledek je `IntroEmptyState`** („Nic nenalezeno", ikona `search_off`), stejný

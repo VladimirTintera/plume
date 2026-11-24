@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.lazy.LazyItemScope
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.accounts.LocalAccount
@@ -291,6 +293,14 @@ fun ChatListScreen(
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
+    /*
+     * Návrat z hledání (`SearchMorph`): pole už couvlo do pilulky, obsah seznamu se prolne
+     * (druhá polovina fade through). Jindy, třeba při startu, je seznam vidět rovnou.
+     */
+    val searchMorph = LocalSearchMorph.current
+    val returnAlpha = remember { Animatable(if (searchMorph?.consumeReturning() == true) 0f else 1f) }
+    val returnSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    LaunchedEffect(Unit) { returnAlpha.animateTo(1f, returnSpec) }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(storyNotice) {
         val message = storyNotice ?: return@LaunchedEffect
@@ -578,7 +588,7 @@ fun ChatListScreen(
                             FAB_CLEARANCE +
                             with(LocalDensity.current) { playerHeight.toDp() },
                     )
-                    Box(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().graphicsLayer { alpha = returnAlpha.value }) {
                         Box(Modifier.fillMaxSize().hazeSource(listHaze)) {
                             val emptyContent: @Composable BoxScope.() -> Unit = {
                                     /*

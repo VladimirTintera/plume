@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import org.koin.compose.koinInject
@@ -217,12 +222,17 @@ internal fun ChatSearchBar(
     }
 
     val searchLabel = stringResource(Res.string.chats_search)
+    val morph = LocalSearchMorph.current
+    // Pilulka zmizela (sbalený sloupec, jiná obrazovka): pole by jinak rostlo ze staré polohy.
+    DisposableEffect(morph) { onDispose { morph?.pill = null } }
     val pill = @Composable {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(SearchBarDefaults.InputFieldHeight)
+                // Odtud vyroste pole hledání (`SearchMorph`).
+                .onGloballyPositioned { coordinates -> morph?.pill = Rect(coordinates.positionInRoot(), coordinates.size.toSize()) }
                 .clip(SearchBarDefaults.inputFieldShape)
                 .clickable(onClickLabel = searchLabel, role = Role.Button, onClick = onOpenSearch),
         ) {
