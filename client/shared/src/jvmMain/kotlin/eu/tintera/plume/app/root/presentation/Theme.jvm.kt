@@ -12,6 +12,7 @@ import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
+import eu.tintera.plume.core.platform.DesktopTitleBar
 import eu.tintera.plume.core.platform.DesktopTray
 import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.platform.MacTitleBar
@@ -38,6 +39,8 @@ actual fun SystemBarsAppearance(isDark: Boolean) = Unit
  */
 @Composable
 actual fun WindowTitleBarAppearance(isDark: Boolean, background: Color, content: Color) {
+    // Vlastní titulek (JBR): tlačítka okna na Windows ve světlé, nebo tmavé variantě podle motivu.
+    SideEffect { DesktopTitleBar.dark.value = isDark }
     val window by DesktopWindow.window.collectAsState()
     val current = window ?: return
     if (mac) {

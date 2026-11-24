@@ -110,6 +110,18 @@ fun PaneCard(
         card -> PaneEdgeInsets.Pad
         else -> PaneEdgeInsets.None
     }
+    // Horní inset patří jen panelu, nad kterým leží tlačítka okna (desktop s vlastním titulkem,
+    // [LocalWindowControlsSide]); ostatní ho zkonzumují a hlavička jde až k hornímu kraji okna.
+    // Na telefonu jde stavová lišta přes celou šířku a patří všem.
+    val controlsAbove = windowControlsAbove(
+        atStart = !sideBySide || role == PaneRole.List || detail && !neighbours.listBeside,
+        atEnd = !sideBySide || extra || detail && !neighbours.extraBeside || role == PaneRole.List && !neighbours.listBeside,
+    )
+    val top = when {
+        !controlsAbove -> PaneEdgeInsets.Consume
+        card -> PaneEdgeInsets.Pad
+        else -> PaneEdgeInsets.None
+    }
     // Barvy plochy okna pro hlavičku nad kartou — tady jsou ještě barvy aplikace, ne chatu.
     val planeScheme = MaterialTheme.colorScheme
     val header = remember { PaneHeaderHost() }
@@ -135,7 +147,7 @@ fun PaneCard(
             Box(Modifier.fillMaxSize().edge(end, WindowInsetsSides.End)) {
                 // Shora a zdola zvlášť: karta s hlavičkou venku jde dolů až pod navigační lištu
                 // (jako v Google Zprávách) a inset si bere vstupní pole samo, jako na telefonu.
-                Box(Modifier.fillMaxSize().edge(if (card) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Top)) {
+                Box(Modifier.fillMaxSize().edge(top, WindowInsetsSides.Top)) {
                     Box(Modifier.fillMaxSize().edge(if (card && !outside) PaneEdgeInsets.Pad else PaneEdgeInsets.None, WindowInsetsSides.Bottom)) {
                         Box(
                             Modifier

@@ -312,9 +312,69 @@ a `USER_ATTENTION_WINDOW` (`FlashWindowEx`); `ICON_BADGE_TEXT` ani `ICON_BADGE_N
 - **Ověřeno na Windows 11** (ladicí běh, snímky hlavního panelu): odznak „1" naskočil po
   startu, zpráva od bota ho zvedla na „2" a tlačítko se rozblikalo.
 
+## Vlastní titulek okna (JBR)
+
+Většina aplikací pro Mac pruh titulku vůbec nemá: semafory leží přímo na obsahu, v řádku
+s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runtime** dělá taky —
+`DesktopTitleBar` v `jvmMain/core/platform`, zapojený ve vstupním bodu kolem `App()`.
+
+- **Runtime je JBR 25** (`runtimeLauncher` v `desktopApp/build.gradle.kts`, `vendor =
+  JETBRAINS`, foojay stáhne `jbrsdk_jcef`). Jlink z něj bere jen vyjmenované moduly, JCEF se do
+  balíčku nedostane; implementace API JBR je v `java.base` / `java.desktop`, žádný modul navíc.
+  Ověřeno nad `createDistributable`: zabalená aplikace hlásí „Vlastní titulek okna: true".
+  JBR jde i pro `run`, takže ladicí běh vypadá stejně jako vydání.
+- **API je `com.jetbrains.WindowDecorations.CustomTitleBar`** z `jbr-api` (táhne ho i
+  `foundation-desktop`, v katalogu je výslovně se stejnou verzí). Okno zůstává systémové — stín,
+  zaoblení, přichycení ke krajům, na Windows nabídka rozložení nad maximalizací. `undecorated`
+  okno by o tohle všechno přišlo a tlačítka by se musela kreslit ručně.
+- **Jen na macOS a Windows a jen na JBR** (`DesktopTitleBar.supported`). Jinde (Linux, jiné JDK
+  z IDE) zůstává systémový titulek přebarvený motivem, viz další oddíl — ten na Macu a Windows
+  s JBR dál běží, jen jeho titulek není vidět (vzhled okna na Macu se pořád hodí).
+
+### Titulek jako inset, ne jako pruh
+
+- **Výška titulku jde do UI jako horní inset** (`statusBars`, `captionBar`, `systemBars` přes
+  `LocalPlatformWindowInsets`, `@InternalComposeUiApi`), stejně jako stavová lišta na telefonu.
+  Obrazovky s ním počítají odjakživa, takže dialogy, prohlížeč i jeden panel na úzkém okně se mu
+  vyhnou bez jediné změny.
+- **Strana tlačítek je `LocalWindowControlsSide`** (`commonMain/core/adaptive/WindowControls.kt`):
+  vlevo na Macu, vpravo na Windows. `PaneCard` podle ní pozná, jestli tlačítka leží nad jeho
+  panelem, a když ne, horní inset ZKONZUMUJE — hlavička vyjede k hornímu kraji okna. Na Macu tak
+  má seznam semafory nad pilulkou hledání a konverzace (i placeholder a profil) hlavičku v jedné
+  řadě se semafory; na Windows je to zrcadlově. Jeden panel (úzké okno) má pruh přes celou šířku.
+- **Proč ne semafory v řádku s pilulkou**: vodorovný odstup by se musel řešit v každé hlavičce
+  zvlášť (seznam, archiv, Nastavení, ~30 `TopAppBar`, které mohou stát v rohu okna). Inset má
+  jen výšku a M3 ho rozdává sám; vodorovný inset by dostal i obsah Scaffoldu
+  (`contentWindowInsets`) a celý seznam by uhnul o šířku semaforů.
+- **Výška: Mac 64 dp, Windows 40 dp.** Na Macu je to výška hlavičky, semafory (JBR je centruje
+  na výšku titulku) leží uprostřed řádku s hlavičkou konverzace. Na Windows jsou tlačítka okna
+  vysoká jako titulek a 64 dp by z nich udělalo sloupy; 40 dp mají IDE od JetBrains.
+- **Na celé obrazovce je inset nula** (`DesktopWindow.fullscreen`): titulek tam není, na Macu
+  sjede jen s lištou nabídek přes obsah, jako u ostatních aplikací.
+
+### Tah oknem a klik v pruhu titulku
+
+- **JBR se ptá na KAŽDOU událost myši zvlášť** (`forceHitTest`), a bez odpovědi bere plátno
+  Compose jako obsah — má posluchače myši, takže by oknem nešlo táhnout vůbec.
+- **Odpověď dává kořen obsahu v průchodu `Main`** (`hitTest` v `DesktopTitleBar`): ten jde od
+  listů ke kořeni, takže už je vidět, jestli si stisk vzal prvek pod kurzorem (`clickable`,
+  tlačítka, pole). Spotřebovaný stisk = obsah až do puštění, nespotřebovaný v pruhu = titulek
+  (tah posune oknem, dvojklik podle nastavení systému). Funguje to jen proto, že Compose na
+  desktopu zpracuje událost synchronně uvnitř posluchače AWT, ze kterého se JBR ptá — stejně to
+  dělal Jewel, než přešel na ručně hlášené oblasti (`clientRegion`). Ruční oblasti by tu
+  znamenaly označit každé tlačítko v hlavičkách.
+- **Popup a dialog jsou jiná vrstva** a přes kořen nejdou: JBR pak nedostane odpověď a bere
+  místo jako obsah, což je správně (nabídka u horního kraje okna jde normálně kliknout).
+- Ověřeno na macOS 26.6 v ladicím běhu: tah za prázdnou část hlavičky konverzace posune oknem,
+  ⋮ v témže řádku otevře nabídku, zelený semafor přepne na celou obrazovku a zpět, zúžení
+  a rozšíření okna přes práh dvou panelů (`osascript`, dvě kola) bez chyby.
+  **Windows ověřené není** — tlačítka okna, jejich barvy podle motivu (`controls.dark`)
+  a klik do pilulky hledání, která tam leží v pruhu titulku.
+
 ## Titulek okna v barvách motivu
 
-Bílý systémový titulek nad tmavou aplikací byl nejrušivější prvek okna. `WindowTitleBarAppearance`
+Na Macu a Windows s JBR ho nahrazuje vlastní titulek (předchozí oddíl); tohle je cesta pro Linux
+a jiné JDK. Bílý systémový titulek nad tmavou aplikací byl nejrušivější prvek okna. `WindowTitleBarAppearance`
 (expect v `Theme.kt`, reálně jen `jvmMain`) volá `AppTheme` se ZVOLENÝM motivem, ne se systémovým.
 
 - **Tmavý režim titulku** (`DWMWA_USE_IMMERSIVE_DARK_MODE`) nastavuje knihovna platformtools
