@@ -349,11 +349,7 @@ internal fun BoxScope.ConversationContent(
             onClick = itemScope.datePicker()?.let { open -> { floatingDay?.let { open(it.dayStart) } } },
             glass = Modifier.hazeBlur(
                 input = HazeInput.Sources(listHaze),
-                style = glassStyle(
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    alpha = GLASS_TEXT_TINT_ALPHA,
-                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                ),
+                style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainer),
             ),
             modifier = Modifier.padding(top = 8.dp + topPadding),
         )

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.conversation.glassRim
 import eu.tintera.plume.resources.conversation_jump_to_date
 import eu.tintera.plume.resources.cake_24dp
 import eu.tintera.plume.resources.add_photo_alternate_24dp
@@ -466,7 +467,7 @@ internal fun FloatingDayBadge(
             if (onClick == null) Modifier else Modifier.clip(shape).clickable(onClickLabel = label, role = Role.Button, onClick = onClick),
         ),
     ) {
-        Box(Modifier.clip(shape).then(glass)) {
+        Box(Modifier.clip(shape).then(glass).glassRim(shape)) {
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelMedium,

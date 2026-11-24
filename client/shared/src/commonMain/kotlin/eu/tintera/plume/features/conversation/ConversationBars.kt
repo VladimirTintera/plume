@@ -169,11 +169,7 @@ internal fun BoxScope.ConversationBars(
                         onDismiss = viewModel::dismissChatBar,
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
+                            style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                         ),
                     )
                     SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
@@ -183,11 +179,7 @@ internal fun BoxScope.ConversationBars(
                         onDismiss = viewModel::dismissChatBar,
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
+                            style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                         ),
                     )
                     null -> Unit
@@ -210,11 +202,7 @@ internal fun BoxScope.ConversationBars(
                         onRemove = viewModel::removeBusinessBot,
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
+                            style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                         ),
                     )
                 }
@@ -244,11 +232,7 @@ internal fun BoxScope.ConversationBars(
                         onReport = { viewModel.reportSponsored(ad) },
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
+                            style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                         ),
                     )
                 }
@@ -269,11 +253,7 @@ internal fun BoxScope.ConversationBars(
                         onHide = { joinRequestsHiddenAt = requests.count },
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
+                            style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                         ),
                     )
                 }
@@ -292,11 +272,7 @@ internal fun BoxScope.ConversationBars(
                         onClick = { viewModel.videoChatToOpen(info)?.let(navigation.onOpenVideoChat) },
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
+                            style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                         ),
                     )
                 }
@@ -325,11 +301,7 @@ internal fun BoxScope.ConversationBars(
                     onShowAll = { sheets.allPinned = true },
                     glass = Modifier.hazeBlur(
                         input = HazeInput.Sources(listHaze),
-                        style = glassStyle(
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            alpha = GLASS_TEXT_TINT_ALPHA,
-                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                        ),
+                        style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                     ),
                 )
             }
@@ -359,11 +331,7 @@ internal fun BoxScope.ConversationBars(
                 onProximityAlert = { message -> viewModel.onAction(message.id, MessageAction.SetProximityAlert) },
                 glass = Modifier.hazeBlur(
                     input = HazeInput.Sources(listHaze),
-                    style = glassStyle(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        alpha = GLASS_TEXT_TINT_ALPHA,
-                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                    ),
+                    style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                 ),
             )
         }
@@ -378,11 +346,7 @@ internal fun BoxScope.ConversationBars(
             onOpenChat = navigation.onOpenChat,
             glass = Modifier.hazeBlur(
                 input = HazeInput.Sources(listHaze),
-                style = glassStyle(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    alpha = GLASS_TEXT_TINT_ALPHA,
-                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                ),
+                style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
             ),
         )
     }

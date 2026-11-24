@@ -783,10 +783,28 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
     obraz pod sebou; průhledná plocha s tintem dělá sklo. Tvar se proto ořezává zvlášť
     (`clip(shape)` uvnitř `Surface`), jinak by sklo přeteklo přes zaoblení.
   - **Krytí je dvojí.** Pás pod polem vlastní text nenese (karta pole má svoji plochu), takže kryje
-    0,72 a sklo je na něm znát. **Pruh připnutých a plovoucí datum text nesou a kryjí 0,88**: pod
-    nimi projede i tmavá fotka a písmo by se ve ztmavlém skle ztratilo — změřeno, při 0,72 mělo
-    „Včera" nad černým náhledem videa kontrast 2,85, tedy hluboko pod AA. Při 0,88 vyšel v tmavém
-    režimu nad světlou fotkou 5,89.
+    0,72 a sklo je na něm znát. **Pruhy, plovoucí datum a dock text nesou** a pod nimi projede
+    i tmavá fotka, ve které by se písmo ztratilo — změřeno, při krytí 0,72 mělo „Včera" nad černým
+    náhledem videa kontrast 2,85, tedy hluboko pod AA. Při krytí 0,88 vyšel v tmavém režimu nad
+    světlou fotkou 5,89.
+  - **Rozostřená vrstva musí být KRYCÍ** (`backgroundColor` ve stylu, `glassStyle`). Bez podkladu
+    byla u okrajů plochy průhledná — na šíři poloměru rozostření, a pilulka je vysoká 48 dp proti
+    20 dp poloměru — a pod sklem prosvítal OSTRÝ seznam, jen ztlumený tintem. Rozostření tak nebylo
+    poznat vůbec, i se sklem „zapnutým". Poznalo se to až pokusem s tintem 0 na desktopu: uprostřed
+    rozmazaná bublina, u horní a dolní hrany ostrý text. Podklad v barvě stránky přímo ve zdroji
+    (`hazeSource(listHaze).drawBehind { … }`) NEPOMOHL — chybí-li obraz u okraje, musí ho doplnit
+    sám efekt.
+  - **Sklo s textem hlídá kontrast maticí, ne krytím** (`textGlassStyle`). Rozostřený obraz se
+    napřed stáhne k barvě plochy na 0,3 a zesytí 2,4×, teprve pak přijde tint s krytím 0,6. Jas
+    pozadí propouští `(1 − 0,6) × 0,3 = 0,12`, tedy totéž co krytí 0,88, při kterém se kontrast
+    měřil (hlídá `GlassTest`); barva pod sklem je vidět víc než dvakrát. Šedý obsah vypadá přesně
+    jako dřív.
+  - **Rozpočet jasu 0,24 byl vidět líp, ale pod AA.** Bílá pod celým popiskem v tmavém motivu
+    nebo černá ve světlém srazí primární „Připnutá zpráva" na 3,3–3,5; při 0,12 drží 4,4–5,3.
+    Kdo rozpočet zvedá, musí kontrast znovu změřit.
+  - **Sklo poznat dávají i zrnitost (0,08) a světlá hrana** (`glassRim`, 1 dp, dolů mizí, za
+    `clip(tvar).then(glass)` uvnitř plochy). V tmavém motivu projíždí pod tmavou pilulkou tmavý
+    obsah a rozostření samo nemá co ukázat; hrana řekne „sklo" i tehdy.
   - **Poloměr 20 dp, víc než u závoje nabídky (12).** Tam jde o odsunutí celé konverzace do pozadí,
     takže silné rozostření z ní udělá kaši; tady prosvítá pruh vysoký pár desítek dp a při malém
     poloměru je pod ním text ještě čitelný — plocha pak vypadá jen zašpiněně.

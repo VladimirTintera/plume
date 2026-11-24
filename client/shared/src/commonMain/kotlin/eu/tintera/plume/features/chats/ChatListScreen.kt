@@ -130,10 +130,8 @@ import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import eu.tintera.plume.features.conversation.DockedPlayer
-import eu.tintera.plume.features.conversation.GLASS_FALLBACK_ALPHA
-import eu.tintera.plume.features.conversation.GLASS_TEXT_TINT_ALPHA
+import eu.tintera.plume.features.conversation.textGlassStyle
 import eu.tintera.plume.features.conversation.PlayerDockBar
-import eu.tintera.plume.features.conversation.glassStyle
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.ui.layout.onSizeChanged
 import eu.tintera.plume.core.update.rememberStartUpdate
@@ -792,11 +790,7 @@ fun ChatListScreen(
                                         },
                                         glass = Modifier.hazeBlur(
                                             input = HazeInput.Sources(listHaze),
-                                            style = glassStyle(
-                                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                                            ),
+                                            style = textGlassStyle(MaterialTheme.colorScheme.surfaceContainerHigh),
                                         ),
                                     )
                                 }

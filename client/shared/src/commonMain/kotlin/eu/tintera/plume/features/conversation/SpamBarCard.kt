@@ -176,7 +176,7 @@ internal fun ChatBarSurface(glass: Modifier, modifier: Modifier = Modifier, cont
         shadowElevation = 3.dp,
         modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
-        Box(Modifier.clip(ShapeDefaults.LargeIncreased).then(glass)) { content() }
+        Box(Modifier.clip(ShapeDefaults.LargeIncreased).then(glass).glassRim(ShapeDefaults.LargeIncreased)) { content() }
     }
 }
 
