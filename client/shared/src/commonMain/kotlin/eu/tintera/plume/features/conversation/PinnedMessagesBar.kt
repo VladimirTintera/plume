@@ -127,6 +127,7 @@ internal fun PinnedMessagesBar(
             Modifier
                 .clip(CircleShape)
                 .then(glass)
+                .glassRim(CircleShape)
                 .clickable { onOpen(current) }
                 .heightIn(min = PINNED_BAR_HEIGHT)
                 // Odznak stojí od kraje tak, aby jeho kruh byl soustředný se zaoblením pilulky.

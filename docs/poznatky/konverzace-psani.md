@@ -1108,7 +1108,7 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
 ## Plovoucí napovídání nad polem
 
 Emoji ke slovu, samolepky k emoji, příkazy bota, zmínky, hashtagy a výsledky inline bota PLAVOU nad vstupním polem
-(`FloatingSuggestion`, `floatAbove`) na skle v inverzní roli jako snackbar, a místo v rozvržení
+(`FloatingSuggestion`, `floatAbove`) na skle pilulky jako pruhy nahoře, a místo v rozvržení
 nezabírají.
 
 - **Pole je `bottomBar` a seznam zpráv se odsazuje o jeho výšku.** Dokud napovídání stála v jeho
@@ -1122,16 +1122,16 @@ nezabírají.
   Ověřeno na emulátoru na výšku i naležato (vedle seznamu).
 - **Vyrůstá zvětšením od pole, ne rozbalením do výšky** — to by u plovoucího prvku vypadalo,
   jako by se pod ním něco odsouvalo.
-- **Sklo je v INVERZNÍ roli, jako snackbar** (`inverseSurface`, popředí `inverseOnSurface`,
-  akcent `inversePrimary`; `FloatingSuggestionColors`): ve světlém motivu tmavé, v tmavém světlé.
-  Je to dočasný prvek nad obsahem a má od něj vystoupit v OBOU motivech — M3 na to inverzní role
-  má. Dvě slepé uličky: světlé sklo v barvě plochy (jako pruh připnutých) se ve světlém motivu
-  slévalo s bublinami, natvrdo tmavé (`scrim` s bílým textem) by se slilo s tmavou konverzací.
-  `ListItem` popředí nedědí, barvy se mu předávají (`FloatingSuggestionColors.listItem()`).
-- **Krytí 0,8, víc než u ostatních skel** (`FLOATING_SUGGESTION_TINT_ALPHA`): inverzní plocha nese
-  text opačné světlosti než obsah pod ní. `inverseSurface` je světlejší než černá, takže s 0,66
-  (hodnota z tmavého `scrim`) by bílé písmo nad bílou fotkou spadlo pod 4 : 1; s 0,8 vyjde v obou
-  motivech nejhůř kolem 6,5 : 1 (výpočet, ne měření).
+- **Sklo je tatáž pilulka jako pruhy nad konverzací** (`pillGlass`: v tmavém motivu
+  `surfaceContainerHigh`, ve světlém bílá, hrana, stín 3 dp; popředí `onSurface` / `onSurfaceVariant`, akcent `primary` ve
+  `FloatingSuggestionColors`). Dřív bylo v inverzní roli jako snackbar (ve světlém motivu tmavé,
+  v tmavém světlé, krytí 0,8) a nad polem tak visela jiná plocha než nahoře u připnutých —
+  sjednoceno na přání (11/2026). Inverzní sklo vzniklo, když se světlé sklo v barvě plochy
+  (`surface`, slabé krytí, bez hrany a krycího podkladu) ve světlém motivu slévalo s bublinami;
+  pilulku od nich teď odliší bílá plocha, hrana a stín (ve světlém motivu ověřeno na desktopu:
+  samolepky k emoji nad tmavě modrou odeslanou bublinou). Natvrdo tmavé (`scrim` s bílým
+  textem) by se slilo s tmavou konverzací. `ListItem` popředí nedědí, barvy se mu předávají
+  (`FloatingSuggestionColors.listItem()`).
 - **Tlačítko dolů a zmínky (FAB slot) na tu chvíli ustoupí** (`suggestionsFloating`): Scaffold
   je staví nad `bottomBar`, tedy přesně přes plovoucí vrstvu.
 - **V rozvržení zůstávají klávesnice bota a návrhy odpovědí.** Klávesnice bota je trvalá
@@ -1142,7 +1142,8 @@ nezabírají.
   u příkazů zůstával po „/n" → „/ne" celý seznam (tatáž past jako u emoji).
 - **Ověřeno na emulátoru** (Fold složený, chat s botem): příkazy z tlačítka i po „/s" (seznam se
   zúžil, konverzace se nepohnula), ťuknutí poslalo `/stav`, `@gif cat` a „heart" s dosazením
-  emoji; inverzní sklo ve světlém i tmavém motivu (`cmd uimode night yes`). Zmínky ověřené nejsou
+  emoji; tehdejší inverzní sklo ve světlém i tmavém motivu (`cmd uimode night yes`). Sklo pilulky
+  ověřené na desktopu ve světlém i tmavém motivu (samolepky k emoji). Zmínky ověřené nejsou
   (jen ve skupině), iOS jen přeložené.
 
 ## Napovídání zmínek

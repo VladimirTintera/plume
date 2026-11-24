@@ -125,15 +125,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chrisbanes.haze.HazeInput
-import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import eu.tintera.plume.features.conversation.DockedPlayer
-import eu.tintera.plume.features.conversation.GLASS_FALLBACK_ALPHA
-import eu.tintera.plume.features.conversation.GLASS_TEXT_TINT_ALPHA
+import eu.tintera.plume.features.conversation.pillGlass
 import eu.tintera.plume.features.conversation.PlayerDockBar
-import eu.tintera.plume.features.conversation.glassStyle
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.ui.layout.onSizeChanged
 import eu.tintera.plume.core.update.rememberStartUpdate
@@ -790,14 +786,7 @@ fun ChatListScreen(
                                             val slot = nowPlaying?.slot ?: screenAccount.slot
                                             navigation.onAccountMessageClick(slot, player.key.chatId, player.key.messageId, null)
                                         },
-                                        glass = Modifier.hazeBlur(
-                                            input = HazeInput.Sources(listHaze),
-                                            style = glassStyle(
-                                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                                            ),
-                                        ),
+                                        glass = pillGlass(listHaze),
                                     )
                                 }
                             }

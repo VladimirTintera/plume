@@ -762,9 +762,16 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**
   (`ComposerHeader`), stejně jako citace na kartě zprávy — ne subkartička v kartě. Pole uvnitř je proto průhledné — kontejner nese karta, ne ono, a dvě zaoblené
   plochy v sobě by vypadaly jako chyba.
-- **Pruh pod kartou, pruh připnutých a plovoucí datum jsou MLÉČNÉ SKLO** (`Glass.kt`, tentýž Haze
-  jako závoj nabídky nad zprávou). Všechny tři plochy leží nad projíždějícím obsahem a dřív ho jen
-  zakrývaly barvou; rozostření dělá totéž čitelněji — je vidět, že pod nimi obsah pokračuje.
+- **Pruh pod kartou, pruhy nad konverzací, plovoucí datum, docky a napovídání nad polem jsou
+  MLÉČNÉ SKLO** (`Glass.kt`, tentýž Haze jako závoj nabídky nad zprávou). Plochy leží nad
+  projíždějícím obsahem a dřív ho jen zakrývaly barvou; rozostření dělá totéž čitelněji — je
+  vidět, že pod nimi obsah pokračuje.
+  - **Je to JEDEN materiál ve dvou podobách**: pilulka s textem (`pillGlass`; v tmavém motivu
+    `surfaceContainerHigh`, ve světlém bílá `surfaceContainerLowest`; hrana `glassRim`, stín 3 dp) a pás pod polem (`bandGlassStyle`, `surface`). Rozostření, matici,
+    zesílení barev, zrnitost a krycí podklad mají společné, liší se barvou a únikem jasu. Dřív si
+    každá plocha skládala styl sama (deset kopií v `ConversationBars`, dvě u pole) a napovídání
+    mělo vlastní inverzní sklo — nad polem visela jiná plocha než nahoře. Nová plovoucí plocha nad
+    seznamem bere `pillGlass(listHaze)`, ne vlastní styl.
   - **Lišty MÍSTO pole mají tentýž pás** (`barGlass` v `bottomBar`: Přidat se, Start, Ztlumit,
     věta „nejde psát"). Seznam pod spodní lištu zajíždí, takže bez pásu prosvítaly bubliny
     i sponzorovaná karta zpod tlačítka — dlouho bez povšimnutí, protože pole samo pás má.
@@ -775,18 +782,47 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
     prosvítala pod čipy ostrá příchozí bublina a s čipem (plocha karty pole) vypadala jako dva
     čipy přes sebe. `MessageInput` si dál nese jen pás pro letící fotku
     (`sharedElementOcclusionBand`): přes návrhy a klávesnici se letět nesmí (`openBand`).
-    Plovoucí napovídání (příkazy, zmínky, emoji) místo v rozvržení nezabírá a má sklo vlastní.
+    Plovoucí napovídání (příkazy, zmínky, emoji) místo v rozvržení nezabírá a má sklo pilulky.
   - **Zdrojem je JEN seznam zpráv, ne celý Scaffold** (vlastní `HazeState`). Závoj nabídky
     rozostřuje Scaffold celý, protože je nad ním; tyhle plochy jsou ale jeho součástí, takže by
     se rozostřovaly samy sebou — pruh připnutých by nasál plovoucí datum a pás pod polem sám sebe.
   - **Barvu nese tint stylu, ne plocha.** Kdyby si ji plocha kreslila sama, překryla by rozostřený
     obraz pod sebou; průhledná plocha s tintem dělá sklo. Tvar se proto ořezává zvlášť
     (`clip(shape)` uvnitř `Surface`), jinak by sklo přeteklo přes zaoblení.
-  - **Krytí je dvojí.** Pás pod polem vlastní text nenese (karta pole má svoji plochu), takže kryje
-    0,72 a sklo je na něm znát. **Pruh připnutých a plovoucí datum text nesou a kryjí 0,88**: pod
-    nimi projede i tmavá fotka a písmo by se ve ztmavlém skle ztratilo — změřeno, při 0,72 mělo
-    „Včera" nad černým náhledem videa kontrast 2,85, tedy hluboko pod AA. Při 0,88 vyšel v tmavém
-    režimu nad světlou fotkou 5,89.
+  - **Únik jasu je dvojí.** Pás pod polem vlastní text nenese (karta pole má svoji plochu), takže
+    propouští 0,28 (dřív krytí 0,72) a sklo je na něm znát. **Pilulky text nesou** (0,18 v tmavém,
+    0,25 ve světlém motivu) a pod nimi projede
+    i tmavá fotka, ve které by se písmo ztratilo — změřeno, při krytí 0,72 mělo „Včera" nad černým
+    náhledem videa kontrast 2,85, tedy hluboko pod AA. Při krytí 0,88 vyšel v tmavém režimu nad
+    světlou fotkou 5,89.
+  - **Rozostřená vrstva musí být KRYCÍ** (`backgroundColor` ve stylu, `glassStyle`). Bez podkladu
+    byla u okrajů plochy průhledná — na šíři poloměru rozostření, a pilulka je vysoká 48 dp proti
+    20 dp poloměru — a pod sklem prosvítal OSTRÝ seznam, jen ztlumený tintem. Rozostření tak nebylo
+    poznat vůbec, i se sklem „zapnutým". Poznalo se to až pokusem s tintem 0 na desktopu: uprostřed
+    rozmazaná bublina, u horní a dolní hrany ostrý text. Podklad v barvě stránky přímo ve zdroji
+    (`hazeSource(listHaze).drawBehind { … }`) NEPOMOHL — chybí-li obraz u okraje, musí ho doplnit
+    sám efekt.
+  - **Kontrast hlídá matice, ne krytí** (`glassStyle`, `backdropMatrix`). Rozostřený obraz se
+    napřed stáhne k barvě plochy na 0,3 a zesytí 2,4×, teprve pak přijde tint s krytím 0,6. Jas
+    pozadí propouští únik `(1 − 0,6) × stažení`; šedý obsah tak vypadá přesně jako pod holým
+    tintem se stejným únikem, barva pod sklem je vidět víc než dvakrát (hlídá `GlassTest`).
+  - **Pilulka nesmí mít roli příchozí bubliny** (`surfaceContainerHigh`). V téže roli se přes ni
+    slévala — ve světlém motivu ji oddělil jen stín a hrana (ověřeno na desktopu). Ve světlém
+    motivu je proto bílá, matné bílé sklo vystoupí z šedých bublin i z namodralé stránky a tmavému
+    textu přidá kontrast. V tmavém zůstává
+    `surfaceContainerHigh`: světlejší `surfaceContainerHighest` by ubrala kontrast světlému textu,
+    který tam v nejhorším případě drží těsně; od tmavé bubliny ji tam odliší hrana.
+  - **Únik pilulky je 0,18 v tmavém a 0,25 ve světlém motivu — kontrast se POČÍTÁ, ne odhaduje.**
+    `GlassTest` bere skutečné palety (`dynamicColorScheme`, všech osm `ThemeColor`) a nejhorší
+    případ: pod celým textem úplně bílá plocha (tmavý motiv), úplně černá (světlý). `onSurface`
+    i `onSurfaceVariant` drží AA, primární popisek („Připnutá zpráva") vědomě klesne na 3,7 / 3,5
+    (test hlídá ≥ 3). Nad skutečným obsahem (rozostřená bublina, fotka) drží kolem 4,8. Přísné AA
+    i u popisku by dovolilo jen 0,18 / 0,15 — a při dřívějších 0,12 prosvítal obsah, zvlášť pod
+    bílou pilulkou, jen velmi decentně (srovnáno na desktopu, 11/2026). Ruční odhad z typických
+    tónů M3 se od palety lišil až o 1,4 (tmavý motiv 4,4 odhad, 5,7 skutečnost), proto test.
+  - **Sklo poznat dávají i zrnitost (0,08) a světlá hrana** (`glassRim`, 1 dp, dolů mizí, za
+    `clip(tvar).then(glass)` uvnitř plochy). V tmavém motivu projíždí pod tmavou pilulkou tmavý
+    obsah a rozostření samo nemá co ukázat; hrana řekne „sklo" i tehdy.
   - **Poloměr 20 dp, víc než u závoje nabídky (12).** Tam jde o odsunutí celé konverzace do pozadí,
     takže silné rozostření z ní udělá kaši; tady prosvítá pruh vysoký pár desítek dp a při malém
     poloměru je pod ním text ještě čitelný — plocha pak vypadá jen zašpiněně.

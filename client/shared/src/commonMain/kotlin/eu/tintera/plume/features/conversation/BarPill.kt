@@ -62,6 +62,7 @@ internal fun BarPill(
             Modifier
                 .clip(CircleShape)
                 .then(glass)
+                .then(if (floating) Modifier.glassRim(CircleShape) else Modifier)
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .heightIn(min = BAR_PILL_HEIGHT)
                 // Odznak soustředný se zaoblením pilulky, jako u připnutých.

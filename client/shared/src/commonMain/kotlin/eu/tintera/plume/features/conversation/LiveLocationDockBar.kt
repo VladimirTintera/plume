@@ -124,7 +124,7 @@ internal fun LiveLocationDockBar(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
-            Column(Modifier.clip(DOCK_SHAPE).then(glass)) {
+            Column(Modifier.clip(DOCK_SHAPE).then(glass).glassRim(DOCK_SHAPE)) {
                 Row(
                     Modifier
                         .fillMaxWidth()

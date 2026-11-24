@@ -46,7 +46,7 @@ fun chatColorScheme(isDark: Boolean, seed: Color): ColorScheme = rememberDynamic
  * nejvyšší, jakou odstín unese — výrazný vzhled zůstane, jen barva odpovídá tomu, co si
  * uživatel vybral.
  */
-private val BrandPaletteStyle = PaletteStyle.Vibrant
+internal val BrandPaletteStyle = PaletteStyle.Vibrant
 
 /**
  * Odstín, ze kterého se paleta dopočítá. Vzorky v Nastavení se kreslí z TÉHOŽ schématu jako

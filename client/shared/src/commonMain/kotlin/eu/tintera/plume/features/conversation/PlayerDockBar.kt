@@ -133,6 +133,7 @@ internal fun PlayerDockBar(
                 Modifier
                     .clip(DOCK_SHAPE)
                     .then(glass)
+                    .glassRim(DOCK_SHAPE)
                     .heightIn(min = DOCK_ROW_HEIGHT)
                     .padding(start = DOCK_BADGE_INSET, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,

@@ -26,9 +26,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
-import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.adaptive.centeredColumn
 import eu.tintera.plume.core.audio.VoicePlayback
@@ -167,28 +165,14 @@ internal fun BoxScope.ConversationBars(
                         onAddContact = viewModel::addSpamBarContact,
                         onUnarchive = viewModel::unarchiveFromSpamBar,
                         onDismiss = viewModel::dismissChatBar,
-                        glass = Modifier.hazeBlur(
-                            input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
-                        ),
+                        glass = pillGlass(listHaze),
                     )
                     SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
                         bar = bar,
                         onSharePhone = { confirmSharePhone = true },
                         onInviteMembers = navigation.onAddMembers,
                         onDismiss = viewModel::dismissChatBar,
-                        glass = Modifier.hazeBlur(
-                            input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
-                        ),
+                        glass = pillGlass(listHaze),
                     )
                     null -> Unit
                 }
@@ -208,14 +192,7 @@ internal fun BoxScope.ConversationBars(
                         onSetPaused = viewModel::setBusinessBotPaused,
                         onManage = { viewModel.openBusinessBotManage(bar.manageUrl) },
                         onRemove = viewModel::removeBusinessBot,
-                        glass = Modifier.hazeBlur(
-                            input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
-                        ),
+                        glass = pillGlass(listHaze),
                     )
                 }
             }
@@ -242,14 +219,7 @@ internal fun BoxScope.ConversationBars(
                         sponsored = ad,
                         onClick = { viewModel.onSponsoredClick(ad) },
                         onReport = { viewModel.reportSponsored(ad) },
-                        glass = Modifier.hazeBlur(
-                            input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
-                        ),
+                        glass = pillGlass(listHaze),
                     )
                 }
             }
@@ -267,14 +237,7 @@ internal fun BoxScope.ConversationBars(
                         requests = requests,
                         onClick = navigation.onOpenJoinRequests,
                         onHide = { joinRequestsHiddenAt = requests.count },
-                        glass = Modifier.hazeBlur(
-                            input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
-                        ),
+                        glass = pillGlass(listHaze),
                     )
                 }
             }
@@ -290,14 +253,7 @@ internal fun BoxScope.ConversationBars(
                     VideoChatBar(
                         info = info,
                         onClick = { viewModel.videoChatToOpen(info)?.let(navigation.onOpenVideoChat) },
-                        glass = Modifier.hazeBlur(
-                            input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
-                        ),
+                        glass = pillGlass(listHaze),
                     )
                 }
             }
@@ -323,14 +279,7 @@ internal fun BoxScope.ConversationBars(
                     onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
                     onUnpin = viewModel::unpin,
                     onShowAll = { sheets.allPinned = true },
-                    glass = Modifier.hazeBlur(
-                        input = HazeInput.Sources(listHaze),
-                        style = glassStyle(
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            alpha = GLASS_TEXT_TINT_ALPHA,
-                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                        ),
-                    ),
+                    glass = pillGlass(listHaze),
                 )
             }
         }
@@ -357,14 +306,7 @@ internal fun BoxScope.ConversationBars(
                 },
                 onStop = { message -> viewModel.onAction(message.id, MessageAction.StopLiveLocation) },
                 onProximityAlert = { message -> viewModel.onAction(message.id, MessageAction.SetProximityAlert) },
-                glass = Modifier.hazeBlur(
-                    input = HazeInput.Sources(listHaze),
-                    style = glassStyle(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        alpha = GLASS_TEXT_TINT_ALPHA,
-                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                    ),
-                ),
+                glass = pillGlass(listHaze),
             )
         }
 
@@ -376,14 +318,7 @@ internal fun BoxScope.ConversationBars(
             voicePlayback = voicePlayback,
             soundingVideoNote = soundingVideoNote,
             onOpenChat = navigation.onOpenChat,
-            glass = Modifier.hazeBlur(
-                input = HazeInput.Sources(listHaze),
-                style = glassStyle(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    alpha = GLASS_TEXT_TINT_ALPHA,
-                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                ),
-            ),
+            glass = pillGlass(listHaze),
         )
     }
 }
