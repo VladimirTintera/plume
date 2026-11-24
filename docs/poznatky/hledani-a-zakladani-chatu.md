@@ -7,6 +7,12 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 `ChatSearch` (`features/chats`) — sdílí ho hlavička seznamu chatů, přeposílání i sdílení.
 
+- **Hledání v seznamu chatů má vlastní ViewModel** (`ChatSearchViewModel`, kontejner účtu):
+  `ChatSearch(everywhere = true, sponsored = true)`, hlášení sponzorovaných chatů a hledání
+  přirozeným jazykem, záložky a popsané fotky pro hledání v zařízení. Dřív to bylo
+  v `ChatsViewModel`; obrazovka hledání má vlastní položku zásobníku a s ní vlastní úložiště
+  ViewModelů, takže stav nesmí patřit seznamu chatů. Testy `ChatSearchViewModelTest`.
+
 - **`searchChats`, ne filtr nad seznamem.** Filtr nad `chats()` nenašel archiv ani chaty mimo
   složky (kontakty bez konverzace, opuštěné skupiny, které TDLib zná). Nejdřív lokálně
   (`searchChats`, hned), pak server (`searchChatsOnServer`), serverové výsledky se připojí ZA
@@ -124,36 +130,58 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   tlačítko nechá a jen se ohlásí, strážní bot otevře svou mini aplikaci
   (`docs/poznatky/boti.md`, „Strážní bot u vstupu do chatu"). Dřív se výsledek zahazoval a
   obojí vypadalo jako přidání, po kterém se nic nestalo.
-- **Na široké ploše je hledání panel pod pilulkou, ne celá obrazovka** (`ExpandedDockedSearchBarWithGap`
-  podle `LocalTwoPane`). Material doporučuje docked od střední šířky; celoobrazovkové hledání by
-  na rozloženém Foldu přikrylo i otevřenou konverzaci vpravo. Panel je široký jako pilulka (tedy
-  levý panel), zbytek obrazovky pod závojem; výšku i místo nad klávesnicí (`imePadding`) si řeší
-  komponenta sama, takže výsledky v panelu spodní inset NEBEROU (`LocalDockedResults`) — jinak by
-  pod posledním výsledkem zůstala mezera o výšku klávesnice. Obsah (`SearchResults`) je pro obě
-  podoby jeden.
-- **Zpět v panelu napřed schová klávesnici, teprve další zpět zavře hledání** (`PopupBackAfterKeyboard`
-  v `core/ui/PopupBack.kt`), jako na telefonu. Panel je popup a dvě věci to rozbíjely:
-  - **Popup si na Androidu 13+ registruje zpět s `PRIORITY_OVERLAY`**, takže předběhne
-    klávesnici, a registruje ho JEN při připojení okna — změna `dismissOnBackPress` za běhu se už
-    nepromítne (přečteno ve zdroji `AndroidPopup.android.kt`). Proto `dismissOnBackPress = false`
-    (`popupDismissesOnBack`) a vlastní callback přímo v okně popupu (`PopupBackHandler`,
-    `view.findOnBackInvokedDispatcher()`). Vnitřní `BackHandler` komponenty i `NavigationBackHandler`
-    jdou přes dispatcher aktivity a zpět z okna popupu k nim nedojde — bez vlastního callbacku
-    druhé zpět nedělalo nic.
-  - **Callback je zapnutý pořád a rozhoduje až při vyvolání** (klávesnice vidět → schovat, jinak
-    zavřít). Nezáleží pak na tom, do kterého okna si klávesnice registruje vlastní zpět, ani kdy
-    během gesta zhasne `isImeVisible`. Klávesa zpět jde do klávesnice sama.
-  - **Ověřuje se gestem v horní půlce obrazovky.** `input swipe` od levého okraje ve výšce těsně
-    nad klávesnicí (y = 1100 na rozloženém Foldu) systém jako gesto zpět nevzal — v logu nebyl
-    `startBackNavigation` — a tah dopadl do závoje popupu jako ťuknutí, takže zavřel hledání
-    i s klávesnicí; vypadalo to, že oprava nefunguje. Proč zrovna tam, zjištěné není. Ve výšce
-    700 gesto prošlo. Jestli zpět opravdu proběhlo, říká `adb logcat | grep
-    startBackNavigation` (`CoreBackPreview`).
-- **Spodní inset si berou seznamy výsledků, ne `ExpandedFullScreenSearchBar`.** Jeho výchozí
-  `windowInsets` je `safeDrawing` a spodek dává obsahu jako padding, takže výsledky končily
-  useknuté nad navigační lištou na holé ploše. Hledání dostane jen `Top + Horizontal`, seznamy
-  spodek (lišta i klávesnice) v `contentPadding` (`resultsPadding`) — obsah jede pod lištu
-  a poslední položka se nad ni doroluje. Tentýž vzor jako u seznamu chatů a konverzace.
+- **Hledání je vlastní obrazovka v panelu seznamu** (`ChatSearchRoute`, `ChatSearchScreen`;
+  návrh a důvody v `docs/navrh-hledani.md`). Pilulka v hlavičce seznamu (`ChatSearchBar`) se
+  nerozbaluje, jen hledání otevře. Na široké ploše nahradí hledání seznam chatů na celou výšku
+  a konverzace vpravo zůstane; na telefonu je to obyčejná obrazovka. Dřív to byl popup: na
+  telefonu přes celou obrazovku (`ExpandedFullScreenSearchBar`), na široké ploše malý panel pod
+  pilulkou (`ExpandedDockedSearchBarWithGap`) se zbytkem okna pod závojem — výsledky v okénku
+  a kolem něj obcházky (zpět z okna popupu před klávesnicí, vlastní snackbar, výsledky bez
+  spodního insetu, na desktopu popup nad titulkem okna). Všechny zmizely s ním.
+  - **V zásobníku leží POD konverzací**: `[Chats, Search, Conversation]`. List-detail scéna bere
+    za seznam poslední položku v roli seznamu a za detail jen to, co leží nad ní; `openSearch`
+    proto hledání vloží pod otevřenou konverzaci a výsledek se otevře nad ním. Hledání vlevo tak
+    zůstane, i když se otevře další a další výsledek.
+  - **Šipka konverzace vedle panelů vrací k hledání, ne k seznamu** (`mainListBelow`
+    v `closeConversation`). Šipka v poli a Esc v poli odeberou jen hledání a konverzace zůstane;
+    systémové zpět jde po zásobníku shora. Na telefonu se z konverzace otevřené z hledání vrací
+    do výsledků.
+  - **Hledání počítá jako hlavní seznam pro táhlo** (`mainListShown` v shellu): bez toho by
+    táhlo zmizelo a panel při otevření hledání skočil na výchozí šířku. Panel jde při hledání
+    rozšířit. Ve sbaleném sloupci se panel při otevření hledání rozbalí sám (zkratka ⌘K, nabídka
+    Chaty → Hledat v chatech, hashtag z konverzace) — dřív zkratka ve sloupci nic neukázala.
+  - **Dotaz zvenku jde v routě** (`ChatSearchRoute.query`, hashtag z konverzace). Stav
+    `searchRequest` mezi navigací a seznamem chatů, který si seznam vyzvedával, až se složí,
+    odpadl.
+  - **Dojetí seznamu na vybraný chat drží navigace** (`AppNavigation.chatListScroll`): seznam je
+    pod hledáním a dojede, až se složí. Dřív si to nastavoval seznam sám.
+  - **Stav je ViewModelu položky** (`ChatSearchViewModel` s klíčem účtu): se zavřením hledání
+    zmizí dotaz i filtr, jako dřív se sbalením pilulky. Režim Všechny účty bere ViewModel
+    z kontejneru každého účtu ze stejného úložiště (klíč `chat-search-<slot>`), takže ViewModel
+    účtu hledání je tentýž.
+  - **Pole má tvar, barvu a výšku pilulky** (`SearchBarDefaults.InputField` bez `SearchBarState`
+    v `Surface` s `inputFieldShape`) a stojí 4 dp od horního kraje lišty jako ona; na desktopu
+    nechává místo tlačítkům okna (`WindowControlsSpace`). Klávesnice vyjede hned (fokus při
+    otevření).
+  - **Pole vyrůstá z pilulky** (`SearchMorph`, `growFrom` v `ChatSearchScreen`): začne v její
+    poloze a šířce, roztáhne se, lupa se prolne do šipky zpět a výsledky se objeví až od třetiny
+    růstu (fade through). Zavření šipkou nebo Esc přehraje totéž pozpátku a seznam chatů pak svůj
+    obsah prolne (`SearchMorph.consumeReturning`). Systémové zpět a gesto přechod nemají — položka
+    zmizí hned.
+    - **Ručně, ne sdíleným prvkem.** V panelu se položky střídají přes `AnimatedPane`
+      (`ThreePaneScaffoldScene`), který výměnu položky neanimuje a navigační
+      `AnimatedVisibilityScope` nedává; sdílený prvek nemá z čeho běžet. Na telefonu by šel, ale
+      pro tutéž věc by byly dva různé přechody. Navigační přechod mezi seznamem a hledáním je proto
+      vypnutý i na telefonu (`CHAT_SEARCH` v `NavTransitions`, jako container transform chatu).
+    - **Pole se rozkládá rovnou na plnou šířku a odkrývá ořezem** (vrstva s tvarem pilulky
+      rostoucí šířky). S měněnou šířkou rozložení se nápověda v úzkém poli zalomila na dva
+      řádky — zachyceno snímkem.
+    - **Pilulka si při zmizení polohu smaže** (`onDispose`). Hledání otevřené ze sbaleného sloupce
+      (pilulka tam není) by jinak rostlo z místa, kde pilulka stála naposledy. Mezi novou
+      obrazovkou a smazáním je pořadí jisté: obrazovka hledání si polohu přečte při složení
+      a `onDispose` staré položky běží až po něm.
+- **Spodní inset si berou seznamy výsledků** (`resultsPadding`): obsah jede pod navigační lištu
+  a poslední položka se nad ni doroluje, jako v seznamu chatů a konverzaci.
 - **Prázdný výsledek je `IntroEmptyState`** („Nic nenalezeno", ikona `search_off`), stejný
   jako placeholder detailu a prázdný archiv. Plochu nekreslí (`containerColor = Transparent`,
   hledání má vlastní barvu) a spodek má nad klávesnicí (`resultsPadding`), jinak by se
@@ -161,8 +189,6 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   kdyby ho mezitím vystřídal indikátor, pouštěla by se úvodní animace při každém znaku.
 - **Selhání hledání se nehlásí.** Prázdný výsledek je u hledání normální stav a lokální výsledky
   zůstanou, i když server neodpoví.
-- **Dotaz se maže při KAŽDÉM sbalení** (efekt nad `expanded`), ne v obsluze šipky. Gesto zpět
-  zavírá dialog hledání samo a obsluhu šipky obchází.
 - **Doporučené kanály** (`getRecommendedChats`, `ChatSearchState.recommended`) jsou třetí blok
   návrhů pod Lidmi a Nedávno hledanými, sbalený na čtyři řádky jako veřejné výsledky. Jen
   v hlavním hledání (`everywhere`), ne v archivu ani ve výběru chatu, a načítají se AŽ po
@@ -197,14 +223,13 @@ reklamy u botů a ve videu (ty Plume zatím nemá, viz roadmapa).
   (zprávy bývají dřív než chaty od serveru a reklama) a seznam drží pozici podle první viditelné
   položky, takže vložené sekce odjely nad horní hranu: pod „games" začínal seznam zprávami
   a reklama nebyla vidět vůbec. Stejně tak mohly odjet chaty od serveru a veřejné výsledky.
-- **Ťuknutí hlásí `openSponsoredChat` a otevře chat.** Hlášení běží ve `viewModelScope` seznamu
-  chatů, který pod otevřeným chatem zůstává v zásobníku.
+- **Ťuknutí hlásí `openSponsoredChat` a otevře chat.** Hlášení běží ve `viewModelScope` hledání
+  (`ChatSearchViewModel`), které pod otevřeným chatem zůstává v zásobníku.
 - **⋮ → Nahlásit reklamu** je týž `ReportFlow` a `ReportSheet` jako u reklamy v kanálu, s voláním
   `reportSponsoredChat`; překlad výsledku (`ReportSponsoredResult.toReportStep`) je pro obě reklamy
   společný. Nahlášená reklama z výsledků zmizí.
-- **Hláška po nahlášení musí jít do snackbaru UVNITŘ hledání.** Rozbalené hledání je vlastní okno
-  (celoobrazovkové i panel na široké ploše jsou popupy), takže snackbar seznamu chatů zůstal pod
-  ním a uživatel výsledek nahlášení neviděl. `ChatSearchBar` má proto vlastní `snackbarHostState`.
+- **Hláška po nahlášení jde do snackbaru obrazovky hledání** (`ChatSearchScreen`). Dokud bylo
+  hledání popup, musel mít vlastní snackbar, jinak hláška zůstala pod ním.
 - **Server reklamy dávkuje.** Tentýž dotaz („crypto") vrátil jednou reklamu a hned nato žádnou;
   „vpn" nevrátilo nic. Prázdný seznam je běžný stav, ne chyba.
 - **Ověřeno na emulátoru** (dočasným výpisem volání): reklama pod „crypto", „bitcoin", „trading",

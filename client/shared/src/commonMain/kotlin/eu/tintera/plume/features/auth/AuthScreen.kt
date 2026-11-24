@@ -227,7 +227,7 @@ fun AuthScreen(
     // **Zpět s klávesnicí vidět napřed schová klávesnici.** Handler se zapíná až s novým krokem,
     // tedy POZDĚJI, než si klávesnice zaregistrovala vlastní zpět, a callback zapnutý později
     // vyhrává — zpět z kódu tak klávesnici přeskočilo a rozepsané přihlášení zahodilo (ověřeno
-    // na emulátoru gestem i klávesou). Rozhoduje se až při zpět, jako u `PopupBackAfterKeyboard`:
+    // na emulátoru gestem i klávesou). Rozhoduje se až při zpět:
     // vypínat handler podle klávesnice by bylo horší, protože inset klávesnice po gestu zpět
     // občas zůstane viset (systém klávesnici hlásí skrytou, Compose ne) a zpět by pak prošlo
     // do aktivity a aplikaci zavřelo. Takhle jen jednou nic neudělá. Výška klávesnice, ne

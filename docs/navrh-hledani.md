@@ -1,7 +1,8 @@
 # Návrh: hledání jako destinace v panelu seznamu
 
-> **Stav:** návrh, nic z něj není v kódu. Vychází z `main` po VladimirTintera/plume#32
-> a z rozboru `ChatSearchBar`, `ChatSearch` a navigace z 24. 11. 2026.
+> **Stav:** hotové (VladimirTintera/plume#35), kroky 1–4. Přechod pilulka → pole je ruční, ne
+> container transform se sdíleným prvkem, jak počítal plán — proč, viz „Pole vyrůstá z pilulky"
+> v `docs/poznatky/hledani-a-zakladani-chatu.md`. Naživo neověřené: Android a režim Všechny účty.
 
 Hledání v seznamu chatů se dnes rozbaluje z pilulky v hlavičce. Na telefonu je to popup přes
 celou obrazovku (`ExpandedFullScreenSearchBar`), na široké ploše malý panel pod pilulkou

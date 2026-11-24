@@ -112,6 +112,7 @@ import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.features.direct.DirectTopicsViewModel
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
+import eu.tintera.plume.features.chats.ChatSearchViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.notices.AccountNoticesViewModel
 import eu.tintera.plume.features.chats.NowPlayingViewModel
@@ -409,18 +410,18 @@ fun appAccountModule() = module {
             commentDrafts = get(),
             snoozes = get(),
             chatColorStore = get(),
-            naturalSearch = get(),
             accountNotices = get(),
             session = get(),
             triage = get(),
             bookmarks = get(),
-            photoDescriptions = get(),
             stories = get(),
             pendingDeletes = get(),
             history = get(),
             shareTargets = get(),
         )
     }
+    // Hledání v seznamu chatů (docs/navrh-hledani.md); dřív součást ChatsViewModel.
+    viewModel { ChatSearchViewModel(repository = get(), naturalSearch = get(), bookmarks = get(), photoDescriptions = get()) }
     // Sheety jako destinace (`SheetSceneStrategy`) mají vlastní úložiště ViewModelů, ten seznamu nevidí.
     viewModel { DraftsViewModel(repository = get(), topicDrafts = get(), commentDrafts = get(), workScope = get(named(APP_SCOPE))) }
     // Bez parametru záložky všech chatů (menu účtu), s id chatu jen toho (profil).

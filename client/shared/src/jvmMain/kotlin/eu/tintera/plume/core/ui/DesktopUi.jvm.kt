@@ -10,24 +10,6 @@ import androidx.compose.ui.window.PopupProperties
 /** Okno nabídky klávesnici brát nesmí, stejně jako na ostatních platformách (viz [MenuPopupProperties]). */
 actual val MenuPopupProperties: PopupProperties = PopupProperties(focusable = true)
 
-/** Bez insetů okna: popup smí přes pruh titulku (`DesktopTitleBar`), viz společná deklarace. */
-actual fun PopupProperties.overTitleBar(): PopupProperties = PopupProperties(
-    focusable = focusable,
-    dismissOnBackPress = dismissOnBackPress,
-    dismissOnClickOutside = dismissOnClickOutside,
-    clippingEnabled = clippingEnabled,
-    usePlatformInsets = false,
-)
-
-/** Zpět je na desktopu Esc; popup ho zavírá sám, stejně jako na iOS. */
-actual val popupDismissesOnBack: Boolean = true
-
-@Composable
-actual fun PopupBackHandler(enabled: Boolean, onBack: () -> Unit) = Unit
-
-@Composable
-actual fun PopupBackAfterKeyboard(onBack: () -> Unit) = Unit
-
 /** Na desktopu jiná klávesnice než fyzická není. */
 actual val KeyEvent.isFromHardwareKeyboard: Boolean
     get() = true

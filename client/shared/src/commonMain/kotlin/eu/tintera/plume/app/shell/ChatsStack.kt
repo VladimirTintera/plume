@@ -40,6 +40,7 @@ import eu.tintera.plume.core.navigation.DirectTopicsRoute
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.features.chats.ArchiveChange
 import eu.tintera.plume.features.conversation.ChatTarget
+import eu.tintera.plume.core.navigation.ChatSearchRoute
 
 /*
  * Pravidla nad zásobníkem Chatů jako čisté funkce, ne lambdy v `AppShell`.
@@ -480,3 +481,12 @@ internal fun MutableList<NavKey>.replaceRoute(route: NavKey, replacement: NavKey
  * v režimu Vše v něm leží chaty víc účtů (`docs/navrh-vice-uctu.md`, „Společný seznam chatů").
  */
 internal fun NavKey.belongsTo(slot: AccountSlot): Boolean = (this as? AccountRoute)?.slot == slot
+
+/**
+ * Seznam, ke kterému se vrací konverzace [route] vedle panelů ([closeConversation]): hledání, leží-li
+ * pod ní (výsledky vlevo zůstanou), jinak hlavní seznam chatů.
+ */
+internal fun List<NavKey>.mainListBelow(route: NavKey): NavKey {
+    val index = lastIndexOf(route).takeIf { it >= 0 } ?: size
+    return subList(0, index).lastOrNull { it is ChatsRoute || it is ChatSearchRoute } ?: ChatsRoute
+}

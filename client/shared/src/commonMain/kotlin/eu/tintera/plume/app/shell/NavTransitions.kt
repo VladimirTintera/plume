@@ -57,11 +57,19 @@ internal class NavTransitions(
     private val chatContainer: Boolean,
 ) {
     fun <T : Any> forward(): AnimatedContentTransitionScope<Scene<T>>.() -> ContentTransform = {
-        if (opensChat(from = initialState, to = targetState)) containerTransform() else sharedAxis(this, SlideDirection.Start)
+        when {
+            opensChat(from = initialState, to = targetState) -> containerTransform()
+            searchSwap(initialState, targetState) -> searchMorph()
+            else -> sharedAxis(this, SlideDirection.Start)
+        }
     }
 
     fun <T : Any> pop(): AnimatedContentTransitionScope<Scene<T>>.() -> ContentTransform = {
-        if (opensChat(from = targetState, to = initialState)) containerTransform() else sharedAxis(this, SlideDirection.End)
+        when {
+            opensChat(from = targetState, to = initialState) -> containerTransform()
+            searchSwap(initialState, targetState) -> searchMorph()
+            else -> sharedAxis(this, SlideDirection.End)
+        }
     }
 
     /**
@@ -110,6 +118,19 @@ internal class NavTransitions(
     /** Mezi [from] a [to] se chat otevírá ze seznamu (viz `ChatContainer`)? */
     private fun opensChat(from: Scene<*>, to: Scene<*>): Boolean =
         chatContainer && from.metadata[CHAT_LIST] == true && to.metadata[CHAT_SCREEN] == true
+
+    /** Mezi seznamem chatů a hledáním (oběma směry), viz [searchMorph]. */
+    private fun searchSwap(from: Scene<*>, to: Scene<*>): Boolean =
+        from.metadata[CHAT_LIST] == true && to.metadata[CHAT_SEARCH] == true ||
+            from.metadata[CHAT_SEARCH] == true && to.metadata[CHAT_LIST] == true
+
+    /**
+     * Pilulka → pole hledání (`SearchMorph`): scény se neanimují, přechod si dělají obrazovky
+     * samy — pole roste z pilulky a výsledky se prolnou, zpátky pole couvne do pilulky. Stejně
+     * jako v panelu na široké ploše, kde se položky v panelu mění bez přechodu scény.
+     */
+    private fun searchMorph(): ContentTransform =
+        EnterTransition.None togetherWith ExitTransition.None
 
     /**
      * Container transform (`ChatContainer`): scény se samy neanimují. Seznam stojí pod rostoucí
@@ -212,6 +233,10 @@ internal const val CHAT_LIST = "plume.chatList"
 internal const val CHAT_SCREEN = "plume.chatScreen"
 internal val ChatListMetadata: Map<String, Any> = mapOf(CHAT_LIST to true)
 internal val ChatScreenMetadata: Map<String, Any> = mapOf(CHAT_SCREEN to true)
+
+/** Hledání v seznamu chatů: mezi ním a seznamem přechod obstarají obrazovky samy (`SearchMorph`). */
+internal const val CHAT_SEARCH = "plume.chatSearch"
+internal val ChatSearchMetadata: Map<String, Any> = mapOf(CHAT_SEARCH to true)
 
 /** Posun obrazovky při sdílené ose — Material motion uvádí 30 dp. */
 private val SHIFT = 30.dp
