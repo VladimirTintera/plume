@@ -101,7 +101,7 @@
     <string name="list_pane_collapse">Sbalit seznam chatů</string>
     <string name="list_pane_expand">Rozbalit seznam chatů</string>
     <string name="profile_pane_open">Otevřít panel s profilem</string>
-    <string name="profile_pane_close">Zavřít panel s profilem</string>
+    <string name="side_pane_close">Zavřít panel</string>
     <string name="chats_pending_freeze">Účet je zmrazený</string>
     <string name="chats_pending_login">Nové přihlášení k účtu</string>
     <string name="chats_pending_birthdays">Narozeniny</string>

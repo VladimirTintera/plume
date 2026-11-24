@@ -241,20 +241,25 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   historie a zpět se do profilu vrací.
   - **Napřed se zakrytý profil jen zavíral** (první verze). Přepnutí chatu tak zavřelo panel,
     který si uživatel otevřel, a u každého chatu se musel otevírat znovu.
-  - **Je to tedy boční panel a má tlačítka panelu, ne ✕** (zrcadlo přepínače seznamu vlevo):
-    v kořeni profilu vedle konverzace „Zavřít panel" (`right_panel_close`, `closeIcon`), v hlavičce
-    konverzace před ⋮ „Otevřít panel" (`ProfilePaneButton`, `right_panel_open`). To druhé jen se
-    ZAVŘENÝM třetím panelem (`PaneNeighbours.extraBeside`), jinak by vedle sebe stála dvě tlačítka
-    pro zavření, a jen u chatu s profilem (ne Uložené zprávy, ne vlákno komentářů). Ťuknutí na
-    název v hlavičce dělá totéž, jen to z ničeho nepoznáš. Obojí volá `toggleProfile`.
-  - **Zkratka Ctrl+Shift+I, na macOS ⌥⌘I** (inspektor ve Finderu) přepíná oběma směry; otevřený
-    kalendář v třetím panelu taky zavře. Ne Ctrl+Alt+I: na Windows je Ctrl+Alt totéž co AltGr
-    a AltGr+I v některých rozloženích píše znak. Poslouchá ji hlavička konverzace, ne shell — ví,
-    jestli chat profil má, a nemusí rozlišovat druhy konverzací ani archiv.
-  - Kalendář zpráv si ✕ nechává: je to jednorázový nástroj, ne panel, který zůstává otevřený.
-  - Ověřeno na desktopu (macOS, testovací chat): otevření tlačítkem, zavření tlačítkem v profilu,
-    ⌥⌘I tam i zpět; tlačítko v hlavičce s otevřeným panelem zmizí. Archiv, Windows a Fold
-    neověřené.
+  - **Je to tedy boční panel a ovládá ho JEDEN přepínač v hlavičce vedle, ne ✕ v panelu**
+    (`ProfilePaneButton`, zrcadlo přepínače seznamu vlevo): v hlavičce konverzace a seznamu témat
+    před ⋮ „Otevřít panel s profilem" (`right_panel_open`), s otevřeným panelem „Zavřít panel"
+    (`right_panel_close`). Stojí pořád na jednom místě a nepřeskakuje do panelu; první verze měla
+    „Zavřít" v profilu a „Otevřít" v hlavičce, takže tlačítko při každém přepnutí skočilo jinam.
+    Obojí volá `toggleProfile`, ťuknutí na název v hlavičce taky.
+  - **Kořen panelu proto nemá šipku zpět ani ✕** (`paneRoot` u profilu, `standsOnDetail`, testy
+    `StandsOnDetailTest`; kalendář zpráv taky). Profil nad jiným profilem (člen z profilu
+    skupiny) šipku zpět má — vrací v rámci panelu — a stejně tak profil nad čímkoli, co není
+    konverzace ani seznam témat, aby bez přepínače vedle nezůstal bez cesty ven.
+  - **Otevřít jde jen u chatu s profilem, zavřít vždycky**: kalendář stojí i vedle Uložených
+    zpráv a profil chatu se přepnutím přenese i vedle vlákna komentářů.
+  - **Zkratka Ctrl+Shift+I, na macOS ⌥⌘I** (inspektor ve Finderu) dělá totéž co přepínač. Ne
+    Ctrl+Alt+I: na Windows je Ctrl+Alt totéž co AltGr a AltGr+I v některých rozloženích píše znak.
+    Poslouchá ji hlavička, ne shell — ví, jestli chat profil má, a nemusí rozlišovat druhy
+    konverzací ani archiv.
+  - Ověřeno na desktopu (macOS, testovací chat) jen v první verzi (otevření z hlavičky, zavření
+    v profilu, ⌥⌘I tam i zpět). Verze s jedním přepínačem, kalendář bez ✕, seznam témat, archiv,
+    Windows a Fold neověřené.
 - **Scaffold se třemi oddíly rozbalí třetí panel i PRÁZDNÝ** (`tertiaryPane ?: {}`;
   `calculateThreePaneScaffoldValue` prochází po historii ještě všechny tři role podle priority).
   Bez profilu by tak vpravo zůstal prázdný sloupec — třetí oddíl se proto zapíná, jen když je

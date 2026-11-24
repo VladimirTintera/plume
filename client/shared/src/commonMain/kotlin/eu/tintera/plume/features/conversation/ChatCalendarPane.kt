@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Surface
-import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.keyboard_arrow_up_24dp
-import eu.tintera.plume.resources.common_close
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.runtime.MutableState
@@ -277,14 +275,17 @@ private fun ColumnScope.ChatCalendarContent(
         ) {
             // Desktop: místo pro tlačítka okna, když hlavička leží v řádku s nimi.
             WindowControlsSpace()
-            IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
-                if (closeIsBack) {
+            // Vedle konverzace je kalendář boční panel: zavírá ho přepínač v její hlavičce
+            // (`ProfilePaneButton`), vlastní ✕ nemá. Na telefonu je to obrazovka se šipkou zpět.
+            if (closeIsBack) {
+                IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
                     Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                } else {
-                    Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
                 }
             }
-            SheetTitle(stringResource(Res.string.chat_calendar_title), modifier = Modifier.weight(1f))
+            SheetTitle(
+                stringResource(Res.string.chat_calendar_title),
+                modifier = Modifier.weight(1f).then(if (closeIsBack) Modifier else Modifier.padding(start = 12.dp)),
+            )
             // Roky na jedné obrazovce: kdy se psalo víc a kdy míň, a skok do vzdáleného měsíce.
             IconToggleButton(checked = yearView, onCheckedChange = { yearView = it }, shapes = IconButtonDefaults.toggleableShapes()) {
                 Icon(painterResource(Res.drawable.apps_24dp), contentDescription = stringResource(Res.string.chat_calendar_year_view))

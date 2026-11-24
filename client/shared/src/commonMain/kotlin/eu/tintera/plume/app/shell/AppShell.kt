@@ -1404,7 +1404,7 @@ private fun shellEntryProvider(
                 },
                 onOpenMessage = { messageId -> chatsStack.openMessageFromProfile(jumpRequests, slot, route.chatId, messageId, archive = false) },
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot, route.chatId)) },
-                closeIcon = LocalPanesSideBySide.current,
+                paneRoot = LocalPanesSideBySide.current && chatsStack.standsOnDetail(route),
             )
         }
     }
@@ -1689,7 +1689,7 @@ private fun shellEntryProvider(
                 },
                 onOpenMessage = { messageId -> chatsStack.openMessageFromProfile(jumpRequests, slot, route.chatId, messageId, archive = true) },
                 onOpenBookmarks = { navigation.openSheet(ChatsRoute, BookmarksRoute(slot, route.chatId, archive = true)) },
-                closeIcon = LocalPanesSideBySide.current,
+                paneRoot = LocalPanesSideBySide.current && chatsStack.standsOnDetail(route),
             )
         }
     }

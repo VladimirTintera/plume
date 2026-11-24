@@ -15,22 +15,28 @@ import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.profile_pane_open
+import eu.tintera.plume.resources.right_panel_close_24dp
 import eu.tintera.plume.resources.right_panel_open_24dp
+import eu.tintera.plume.resources.side_pane_close
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /**
- * Otevře panel s profilem vedle konverzace — protějšek „Zavřít panel" v profilu a zrcadlo
- * přepínače seznamu chatů vlevo. Profil vedle konverzace je boční panel: přepnutí chatu ho
- * nezavře, jen ukáže profil nového chatu (`followProfile`). Ťuknutí na název v hlavičce dělá
- * totéž, jenže to z ničeho nepoznáš.
+ * Přepínač pravého panelu v hlavičce konverzace a seznamu témat: otevře profil vedle, a když
+ * je panel otevřený (profil, kalendář zpráv, co se z nich otevřelo), zavře ho. Zrcadlo přepínače
+ * seznamu chatů vlevo. Profil i kalendář vedle konverzace jsou boční panel: přepnutí chatu je
+ * nezavře, jen ukážou nový chat (`followProfile`). Ťuknutí na název v hlavičce dělá totéž.
  *
- * - **Jen s panely vedle sebe a jen se zavřeným panelem.** S otevřeným by vedle sebe stála dvě
- *   tlačítka pro zavření; na telefonu je profil celá obrazovka a vede do něj hlavička.
- * - **Zkratka Ctrl+Shift+I / ⌥⌘I panel přepíná oběma směry** ([onToggleProfile] je
- *   `toggleProfile`: otevřený třetí panel zavře, i kalendář). Poslouchá ji hlavička, protože
- *   ví, jestli chat profil má; shell by musel rozlišovat druhy konverzací a archiv.
+ * - **Tlačítko stojí pořád na jednom místě, v hlavičce vedle, ne v panelu.** Kořen profilu
+ *   a kalendář proto zavírací ikonu nemají; panel nad panelem (profil člena otevřený z profilu
+ *   skupiny) má šipku zpět, ta vrací v rámci panelu.
+ * - **Jen s panely vedle sebe.** Na telefonu je profil celá obrazovka a vede do něj hlavička.
+ * - **Otevřít jde jen u chatu s profilem** ([hasProfile]), zavřít vždycky: kalendář stojí
+ *   i vedle Uložených zpráv a profil chatu i vedle vlákna komentářů, kam ho přenese přepnutí.
+ * - **Zkratka Ctrl+Shift+I / ⌥⌘I dělá totéž** ([onToggleProfile] je `toggleProfile`: otevřený
+ *   třetí panel zavře, zavřený otevře profilem). Poslouchá ji hlavička, protože ví, jestli chat
+ *   profil má; shell by musel rozlišovat druhy konverzací a archiv.
  */
 @Composable
 internal fun ProfilePaneButton(
@@ -39,20 +45,25 @@ internal fun ProfilePaneButton(
     onToggleProfile: () -> Unit,
 ) {
     val sideBySide = LocalPanesSideBySide.current
+    val paneOpen = LocalPaneNeighbours.current.extraBeside
+    val usable = sideBySide && (paneOpen || hasProfile)
     val shortcuts = koinInject<KeyboardShortcuts>()
     val currentToggle by rememberUpdatedState(onToggleProfile)
-    val enabled by rememberUpdatedState(sideBySide && hasProfile)
+    val enabled by rememberUpdatedState(usable)
     LaunchedEffect(shortcuts) {
         shortcuts.shortcuts.collect { shortcut ->
             if (shortcut == KeyboardShortcut.ToggleProfilePane && enabled) currentToggle()
         }
     }
 
-    if (!sideBySide || !hasProfile || LocalPaneNeighbours.current.extraBeside) return
-    val label = stringResource(Res.string.profile_pane_open)
+    if (!usable) return
+    val label = stringResource(if (paneOpen) Res.string.side_pane_close else Res.string.profile_pane_open)
     WithTooltip(label = label, position = TooltipAnchorPosition.Below) {
         IconButton(onClick = onToggleProfile, shapes = IconButtonDefaults.shapes()) {
-            Icon(painterResource(Res.drawable.right_panel_open_24dp), contentDescription = label)
+            Icon(
+                painterResource(if (paneOpen) Res.drawable.right_panel_close_24dp else Res.drawable.right_panel_open_24dp),
+                contentDescription = label,
+            )
         }
     }
 }

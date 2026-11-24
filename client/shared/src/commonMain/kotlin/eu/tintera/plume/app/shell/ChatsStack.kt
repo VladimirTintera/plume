@@ -420,6 +420,16 @@ private fun NavKey.calendarChatId(): Long? = when (this) {
     else -> null
 }
 
+/**
+ * Stojí [route] přímo nad konverzací nebo seznamem témat, tedy jako kořen bočního panelu? Takový
+ * profil nemá šipku zpět ani ✕ — panel zavírá přepínač v hlavičce vedle (`ProfilePaneButton`).
+ * Profil nad jiným profilem (člen z profilu skupiny) šipku zpět má.
+ */
+internal fun List<NavKey>.standsOnDetail(route: NavKey): Boolean {
+    val index = lastIndexOf(route)
+    return index > 0 && this[index - 1].profileRoute() != null
+}
+
 /** Profil chatu, který stojí v detailu; `null` = obrazovka bez profilu. */
 private fun NavKey.profileRoute(): NavKey? = when (this) {
     is ConversationRoute -> ChatProfileRoute(slot, chatId)
