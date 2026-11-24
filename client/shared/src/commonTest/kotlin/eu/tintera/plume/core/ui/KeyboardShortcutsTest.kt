@@ -83,6 +83,18 @@ class KeyboardShortcutsTest {
         assertNull(macShortcut(Key.Tab, meta = true))
     }
 
+    /** Seznam chatů: Ctrl+Shift+S, na macOS ⌃⌘S (boční panel ve Finderu); Ctrl+S patří prohlížeči. */
+    @Test
+    fun prepnutiSeznamuChatu() {
+        assertEquals(KeyboardShortcut.ToggleChatList, shortcut(Key.S, ctrl = true, shift = true))
+        assertNull(shortcut(Key.S, ctrl = true))
+        assertNull(shortcut(Key.S, ctrl = true, shift = true, meta = true))
+        assertEquals(KeyboardShortcut.ToggleChatList, macShortcut(Key.S, ctrl = true, meta = true))
+        assertNull(macShortcut(Key.S, meta = true))
+        assertNull(macShortcut(Key.S, ctrl = true, shift = true))
+        assertEquals(MenuKeys(Key.S, meta = true, ctrl = true), SHORTCUT_BINDINGS.last().menuKeys(commandIsMeta = true))
+    }
+
     @Test
     fun sousedniChat() {
         val ids = listOf(1L, 2L, 3L)

@@ -20,6 +20,7 @@ import eu.tintera.plume.resources.sponsored_report
 import eu.tintera.plume.resources.sponsored_menu
 import eu.tintera.plume.resources.sponsored_sponsored
 import eu.tintera.plume.core.ui.WithTooltip
+import eu.tintera.plume.core.adaptive.LocalListPaneToggle
 import eu.tintera.plume.core.telegram.SponsoredSearchChat
 import eu.tintera.plume.core.telegram.SearchContent
 import org.jetbrains.compose.resources.DrawableResource
@@ -299,11 +300,13 @@ internal fun ChatSearchBar(
     ) {
         // Desktop: v řádku se semafory jim pilulka nechá místo (`LocalWindowControlsClearance`).
         val windowControls = LocalWindowControlsClearance.current.start > 0.dp
+        // Vedle konverzace přepínač sbalení seznamu před pilulkou, na Macu hned za semafory.
+        val listToggle = LocalListPaneToggle.current
         AppBarWithSearch(
             state = searchBarState,
             inputField = pill,
-            navigationIcon = if (windowControls) {
-                { WindowControlsSpace() }
+            navigationIcon = if (windowControls || listToggle != null) {
+                { WindowControlsSpace { listToggle?.let { ListPaneToggleButton(it, collapsed = false) } } }
             } else {
                 null
             },

@@ -146,6 +146,8 @@ import eu.tintera.plume.core.adaptive.LocalListPaneResize
 import eu.tintera.plume.core.adaptive.LocalPaneResizeOwners
 import eu.tintera.plume.core.adaptive.PaneHandleOverlay
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
+import eu.tintera.plume.core.adaptive.ListPaneToggle
+import eu.tintera.plume.core.adaptive.LocalListPaneToggle
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
 import eu.tintera.plume.core.adaptive.THREE_PANE_MIN_WIDTH
@@ -633,6 +635,19 @@ private fun ShellContent(
         val listResize = rememberListPaneResize(listExpansion, base.defaultPanePreferredWidth, maxWidth)
         val listPaneWidth = listResize.width.takeIf { threePane && mainListShown }
         val listResizeShown = listResize.resize.takeIf { threePane && mainListShown }
+        /*
+         * Tlačítko a zkratka sbalení: jen u hlavního seznamu vedle konverzace, ne v hledání (to
+         * seznam rozbaluje samo). Ve třech panelech dojede vlastní táhlo, ve dvou táhlo knihovny.
+         */
+        val listAnchor = if (threePane) listResize.anchor else listExpansion.anchor
+        val listToggle = if (twoPane && mainListShown && !searchShown) {
+            ListPaneToggle {
+                val target = if (listAnchor == ListPaneAnchor.Collapsed) listExpansion.expandedAnchor else ListPaneAnchor.Collapsed
+                if (threePane) listResize.settleTo(target) else listExpansion.animateTo(target)
+            }
+        } else {
+            null
+        }
 
         /*
          * Co stojí vedle karty (`PaneCard`): seznam vlevo, profil vpravo. Pod THREE_PANE_MIN_WIDTH
@@ -671,7 +686,7 @@ private fun ShellContent(
             chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List }?.takeIf { listResizeShown != null },
         ).mapTo(HashSet()) { entryProvider(it).contentKey }
 
-        ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
+        ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane, listToggle = listToggle)
         LaunchedEffect(navigation.section) { navigation.closeSheetsOutside(navigation.section) }
 
         // Široká plocha se hlásí dolů: obrazovky podle ní poznají, že se nevyměňují,
@@ -721,6 +736,7 @@ private fun ShellContent(
                     // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
                     LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
                     LocalSearchMorph provides searchMorph,
+                    LocalListPaneToggle provides listToggle,
                     LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
                     LocalListPaneResize provides listResizeShown,
                     LocalPaneResizeOwners provides paneResizeOwners,

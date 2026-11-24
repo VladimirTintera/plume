@@ -44,8 +44,14 @@ internal class ListPaneExpansion @OptIn(ExperimentalMaterial3AdaptiveApi::class)
     val state: PaneExpansionState,
     /** Kotva, kterou si uživatel zvolil; platí i ve třech panelech, kde se táhlo nekreslí. */
     val anchor: ListPaneAnchor,
-    val expand: () -> Unit,
-)
+    /** Poslední nesbalená kotva — na tu se sbalený seznam rozbalí, ne vždy na výchozí šířku. */
+    val expandedAnchor: ListPaneAnchor,
+    /** Dojet táhlem knihovny na [ListPaneAnchor] (dva panely; ve třech řídí šířku [ListPaneWidth]). */
+    val animateTo: (ListPaneAnchor) -> Unit,
+) {
+    /** Rozbalit sbalený seznam na [expandedAnchor] (hledání, karty nad seznamem). */
+    val expand: () -> Unit = { animateTo(expandedAnchor) }
+}
 
 /**
  * Stav táhla s kotvami [listPaneAnchors] a zapamatovanou kotvou z `AppSettings`.
@@ -83,12 +89,17 @@ internal fun rememberListPaneExpansion(defaultWidth: Dp): ListPaneExpansion {
         }
     }
 
+    // Jen v paměti: po spuštění se sbaleným seznamem se rozbalí na výchozí šířku.
+    var expandedAnchor by remember { mutableStateOf(ListPaneAnchor.Default) }
+    SideEffect { if (chosen != ListPaneAnchor.Collapsed) expandedAnchor = chosen }
+
     val scope = rememberCoroutineScope()
-    return remember(state, chosen, anchors) {
+    return remember(state, chosen, anchors, expandedAnchor) {
         ListPaneExpansion(
             state = state,
             anchor = chosen,
-            expand = { scope.launch { state.animateToIfAnchored(anchors[ListPaneAnchor.Default.ordinal]) } },
+            expandedAnchor = expandedAnchor,
+            animateTo = { target -> scope.launch { state.animateToIfAnchored(anchors[target.ordinal]) } },
         )
     }
 }
@@ -119,8 +130,18 @@ private suspend fun PaneExpansionState.animateToIfAnchored(anchor: PaneExpansion
     }
 }
 
-/** Šířka seznamu ve třech panelech a táhlo, které ji mění; [resizing] viz [DraggedWidth]. */
-internal class ListPaneWidth(val width: Dp, val resize: PaneResize, val resizing: Boolean)
+/**
+ * Šířka seznamu ve třech panelech a táhlo, které ji mění; [resizing] viz [DraggedWidth].
+ * [anchor] je kotva, na které seznam stojí nebo na kterou právě dojíždí, [settleTo] na ni dojede
+ * stejně jako po puštění táhla (přepínač sbalení).
+ */
+internal class ListPaneWidth(
+    val width: Dp,
+    val resize: PaneResize,
+    val resizing: Boolean,
+    val anchor: ListPaneAnchor,
+    val settleTo: (ListPaneAnchor) -> Unit,
+)
 
 /**
  * Táhlo seznamu ve třech panelech (seznam | konverzace | profil), kde to knihovní nekreslí
@@ -144,14 +165,16 @@ internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: 
     val currentDefault by rememberUpdatedState(defaultWidth)
     val currentAnchor by rememberUpdatedState(anchor)
     val label = stringResource(Res.string.list_pane_width)
-    val resize = remember(label, settings, dragged) {
-        val settle = { next: ListPaneAnchor ->
+    val settle = remember(settings, dragged) {
+        { next: ListPaneAnchor ->
             val target = listWidthBesideProfile(next, currentTotal, currentDefault, GAPS_BESIDE_PROFILE)
             dragged.settle(from = currentWidth, target = target) {
                 settled = next
                 settings.setListPaneAnchor(next)
             }
         }
+    }
+    val resize = remember(label, settle, dragged) {
         PaneResize(
             edge = PaneEdge.End,
             // Seznam je vlevo: tah doprava (kladný posun) ho rozšiřuje.
@@ -168,7 +191,7 @@ internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: 
             label = label,
         )
     }
-    return ListPaneWidth(width, resize, resizing = dragged.active)
+    return ListPaneWidth(width, resize, resizing = dragged.active, anchor = anchor, settleTo = settle)
 }
 
 /** Mezery ve třech panelech mimo seznam a obě karty: od seznamu ke konverzaci a okraje profilu. */

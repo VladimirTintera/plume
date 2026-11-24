@@ -2,6 +2,7 @@ package eu.tintera.plume.core.adaptive
 
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.PaneExpansionAnchor
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -82,3 +83,15 @@ fun nearestListAnchorBesideProfile(width: Dp, total: Dp, defaultWidth: Dp, gap: 
  * místo pro pilulku a výsledky. `null` tam, kde seznam vedle konverzace není.
  */
 val LocalExpandListPane = compositionLocalOf<(() -> Unit)?> { null }
+
+/**
+ * Tlačítko a zkratka, které seznam chatů vedle konverzace sbalí na sloupec s avatary a zase
+ * rozbalí (`ListPaneToggleButton`, Ctrl+Shift+S / ⌃⌘S). Táhlo samo se najít nedá a z klávesnice
+ * ani čtečkou s ním pohnout nejde. Směr určuje zvolená kotva, ne šířka: za tahu táhlem by se
+ * měnil pod rukou.
+ */
+@Stable
+class ListPaneToggle(val toggle: () -> Unit)
+
+/** Přepínač sbalení seznamu chatů; `null` tam, kde hlavní seznam chatů vedle konverzace není. */
+val LocalListPaneToggle = compositionLocalOf<ListPaneToggle?> { null }

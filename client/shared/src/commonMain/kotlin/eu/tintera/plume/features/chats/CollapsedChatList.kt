@@ -118,12 +118,13 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.adaptive.belowWindowControls
+import eu.tintera.plume.core.adaptive.LocalListPaneToggle
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.LaunchedEffect
 
 /**
  * Seznam chatů sbalený táhlem na úzký sloupec (`ListPaneAnchor.Collapsed`): jen avatary
- * s počtem nepřečtených, nahoře účet, „Vytvořit" a hledání. Jako sbalený seznam v Telegram
+ * s počtem nepřečtených, nahoře rozbalení ([ListPaneToggleButton]), účet, „Vytvořit" a hledání. Jako sbalený seznam v Telegram
  * Desktop — konverzace dostane skoro celou plochu a přepínat chaty jde dál jedním ťuknutím.
  *
  * - **Pořadí a skupiny jsou tytéž jako v plném seznamu** ([chatGroups]), jen bez předělů:
@@ -204,6 +205,7 @@ internal fun CollapsedChatList(
             if (current != null) {
                 SelectionHeader(count = current.count, onClose = viewModel::closeSelection)
             } else {
+                LocalListPaneToggle.current?.let { ListPaneToggleButton(it, collapsed = true, tooltipPosition = TooltipAnchorPosition.Right) }
                 account()
                 CreateButton(onNewChat = onNewChat, onNewGroup = onNewGroup, onNewChannel = onNewChannel, onNewStory = onNewStory)
                 IconButton(onClick = onSearch, shapes = IconButtonDefaults.shapes()) {
