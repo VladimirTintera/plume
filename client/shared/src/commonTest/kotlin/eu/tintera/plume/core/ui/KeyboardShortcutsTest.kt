@@ -92,7 +92,24 @@ class KeyboardShortcutsTest {
         assertEquals(KeyboardShortcut.ToggleChatList, macShortcut(Key.S, ctrl = true, meta = true))
         assertNull(macShortcut(Key.S, meta = true))
         assertNull(macShortcut(Key.S, ctrl = true, shift = true))
-        assertEquals(MenuKeys(Key.S, meta = true, ctrl = true), SHORTCUT_BINDINGS.last().menuKeys(commandIsMeta = true))
+        assertEquals(
+            MenuKeys(Key.S, meta = true, ctrl = true),
+            SHORTCUT_BINDINGS.first { it.shortcut == KeyboardShortcut.ToggleChatList }.menuKeys(commandIsMeta = true),
+        )
+    }
+
+    /** Panel s profilem: Ctrl+Shift+I (ne Ctrl+Alt, to je na Windows AltGr), na macOS ⌥⌘I. */
+    @Test
+    fun prepnutiPaneluSProfilem() {
+        assertEquals(KeyboardShortcut.ToggleProfilePane, shortcut(Key.I, ctrl = true, shift = true))
+        assertNull(shortcut(Key.I, ctrl = true))
+        assertNull(shortcut(Key.I, ctrl = true, alt = true))
+        assertEquals(KeyboardShortcut.ToggleProfilePane, macShortcut(Key.I, alt = true, meta = true))
+        assertNull(macShortcut(Key.I, meta = true))
+        assertEquals(
+            MenuKeys(Key.I, meta = true, alt = true),
+            SHORTCUT_BINDINGS.first { it.shortcut == KeyboardShortcut.ToggleProfilePane }.menuKeys(commandIsMeta = true),
+        )
     }
 
     @Test

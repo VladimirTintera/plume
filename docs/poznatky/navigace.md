@@ -241,6 +241,20 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   historie a zpět se do profilu vrací.
   - **Napřed se zakrytý profil jen zavíral** (první verze). Přepnutí chatu tak zavřelo panel,
     který si uživatel otevřel, a u každého chatu se musel otevírat znovu.
+  - **Je to tedy boční panel a má tlačítka panelu, ne ✕** (zrcadlo přepínače seznamu vlevo):
+    v kořeni profilu vedle konverzace „Zavřít panel" (`right_panel_close`, `closeIcon`), v hlavičce
+    konverzace před ⋮ „Otevřít panel" (`ProfilePaneButton`, `right_panel_open`). To druhé jen se
+    ZAVŘENÝM třetím panelem (`PaneNeighbours.extraBeside`), jinak by vedle sebe stála dvě tlačítka
+    pro zavření, a jen u chatu s profilem (ne Uložené zprávy, ne vlákno komentářů). Ťuknutí na
+    název v hlavičce dělá totéž, jen to z ničeho nepoznáš. Obojí volá `toggleProfile`.
+  - **Zkratka Ctrl+Shift+I, na macOS ⌥⌘I** (inspektor ve Finderu) přepíná oběma směry; otevřený
+    kalendář v třetím panelu taky zavře. Ne Ctrl+Alt+I: na Windows je Ctrl+Alt totéž co AltGr
+    a AltGr+I v některých rozloženích píše znak. Poslouchá ji hlavička konverzace, ne shell — ví,
+    jestli chat profil má, a nemusí rozlišovat druhy konverzací ani archiv.
+  - Kalendář zpráv si ✕ nechává: je to jednorázový nástroj, ne panel, který zůstává otevřený.
+  - Ověřeno na desktopu (macOS, testovací chat): otevření tlačítkem, zavření tlačítkem v profilu,
+    ⌥⌘I tam i zpět; tlačítko v hlavičce s otevřeným panelem zmizí. Archiv, Windows a Fold
+    neověřené.
 - **Scaffold se třemi oddíly rozbalí třetí panel i PRÁZDNÝ** (`tertiaryPane ?: {}`;
   `calculateThreePaneScaffoldValue` prochází po historii ještě všechny tři role podle priority).
   Bez profilu by tak vpravo zůstal prázdný sloupec — třetí oddíl se proto zapíná, jen když je
@@ -749,7 +763,7 @@ z položek pod ní spočítá list-detail strategie.
 Desktop, Fold, tablet nebo Chromebook s fyzickou klávesnicí: **Ctrl+K** hledání chatů, **Ctrl+F** hledání
 v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** další a předchozí chat,
 **Ctrl+Shift+S** (macOS ⌃⌘S) sbalí nebo rozbalí seznam chatů vedle konverzace (viz „Tlačítko
-sbalení seznamu"), **Esc** zpět (zavře hledání, konverzaci; rozepsanou úpravu nebo odpověď napřed zruší, viz
+sbalení seznamu"), **Ctrl+Shift+I** (macOS ⌥⌘I) otevře nebo zavře panel s profilem, **Esc** zpět (zavře hledání, konverzaci; rozepsanou úpravu nebo odpověď napřed zruší, viz
 `konverzace-psani.md`, „Esc, šipka nahoru a fokus pole"). Pravidla jsou čisté funkce (`keyboardShortcut`,
 `neighbourChat`, testy `KeyboardShortcutsTest`). Enter ve vstupním poli viz
 `konverzace-psani.md`, „Enter z fyzické klávesnice".

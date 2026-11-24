@@ -263,7 +263,8 @@ import eu.tintera.plume.resources.mail_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_close
-import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.right_panel_close_24dp
+import eu.tintera.plume.resources.profile_pane_close
 import eu.tintera.plume.resources.invite_members
 import eu.tintera.plume.resources.invite_subscribers
 import eu.tintera.plume.resources.notifications_24dp
@@ -338,7 +339,8 @@ fun ChatProfileScreen(
      */
     onOpenStories: (storyIds: List<Int>, startStoryId: Int) -> Unit = { _, _ -> },
     /**
-     * ✕ místo šipky zpět: profil stojí jako panel vedle konverzace, takže se zavírá, ne vrací.
+     * „Zavřít panel" místo šipky zpět: profil stojí jako panel vedle konverzace (přepnutí chatu ho
+     * nezavře, `followProfile`), takže se zavírá, ne vrací — zrcadlo přepínače seznamu vlevo.
      * Obrazovky otevřené z profilu (úprava, práva člena) šipku zpět mají — vedou zpátky do něj.
      */
     closeIcon: Boolean = false,
@@ -481,7 +483,7 @@ fun ChatProfileScreen(
                             WindowControlsSpace {
                                 IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                                     if (closeIcon) {
-                                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                                        Icon(painterResource(Res.drawable.right_panel_close_24dp), contentDescription = stringResource(Res.string.profile_pane_close))
                                     } else {
                                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                                     }

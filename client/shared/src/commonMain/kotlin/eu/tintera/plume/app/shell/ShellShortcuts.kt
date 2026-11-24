@@ -45,7 +45,8 @@ internal fun ShellShortcuts(navigation: AppNavigation, chatsStack: List<NavKey>,
                     currentStack.topConversation()?.let(searchRequests::request)
                 }
                 KeyboardShortcut.ToggleChatList -> currentListToggle?.toggle?.invoke()
-                KeyboardShortcut.NextChat, KeyboardShortcut.PreviousChat -> Unit
+                // Panel s profilem přepíná hlavička konverzace (zná chat a jestli profil má).
+                KeyboardShortcut.NextChat, KeyboardShortcut.PreviousChat, KeyboardShortcut.ToggleProfilePane -> Unit
             }
         }
     }

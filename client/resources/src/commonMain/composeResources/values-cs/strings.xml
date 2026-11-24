@@ -100,6 +100,8 @@
     <string name="list_pane_width">Šířka seznamu chatů</string>
     <string name="list_pane_collapse">Sbalit seznam chatů</string>
     <string name="list_pane_expand">Rozbalit seznam chatů</string>
+    <string name="profile_pane_open">Otevřít panel s profilem</string>
+    <string name="profile_pane_close">Zavřít panel s profilem</string>
     <string name="chats_pending_freeze">Účet je zmrazený</string>
     <string name="chats_pending_login">Nové přihlášení k účtu</string>
     <string name="chats_pending_birthdays">Narozeniny</string>
@@ -4101,6 +4103,7 @@
     <string name="shortcut_next_chat">Další chat</string>
     <string name="shortcut_previous_chat">Předchozí chat</string>
     <string name="shortcut_toggle_chat_list">Sbalit nebo rozbalit seznam chatů</string>
+    <string name="shortcut_toggle_profile_pane">Otevřít nebo zavřít panel s profilem</string>
     <string name="shortcut_back">Zpět</string>
     <string name="shortcut_send">Odeslat zprávu</string>
     <string name="shortcut_new_line">Nový řádek</string>
