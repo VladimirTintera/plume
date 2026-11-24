@@ -129,7 +129,7 @@ fun <T> ChoiceMenu(
             // Obě skupiny stejně široké: věta nad volbami užší než volby vypadala jako zbytek.
             Column(Modifier.width(IntrinsicSize.Max)) {
                 if (note != null) {
-                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, groups), modifier = Modifier.fillMaxWidth()) {
+                    DropdownMenuGroup(shapes = menuGroupShape(0, groups), modifier = Modifier.fillMaxWidth()) {
                         Text(
                             note,
                             style = MaterialTheme.typography.bodyMedium,
@@ -140,7 +140,7 @@ fun <T> ChoiceMenu(
                     }
                     Spacer(Modifier.height(MenuDefaults.GroupSpacing))
                 }
-                DropdownMenuGroup(shapes = MenuDefaults.groupShape(groups - 1, groups), modifier = Modifier.fillMaxWidth()) {
+                DropdownMenuGroup(shapes = menuGroupShape(groups - 1, groups), modifier = Modifier.fillMaxWidth()) {
                     options.forEachIndexed { index, option ->
                         CheckableDropdownMenuItem(
                             checked = option == selected,

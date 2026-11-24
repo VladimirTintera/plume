@@ -370,7 +370,23 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
 - **Popup přes pilulku potřebuje `overTitleBar()`** (`core/ui/MenuPopup.kt`): popup na desktopu
   respektuje insety okna (`usePlatformInsets`) a nesmí nad titulek, takže rozbalené hledání sjelo
   o 64 dp níž a pod pilulkou zůstalo druhé pole. Totéž `FullScreenDialog` (obsah si insety bere
-  sám). Nabídky a bubliny ho nepotřebují — otevírají se pod svou kotvou.
+  sám).
+- **Nabídky insety okna nerespektují** (`MenuPopupProperties` na JVM má `usePlatformInsets =
+  false`). S insety bral popup za horní kraj okna spodek titulku a M3 k tomu drží nabídku 48 dp
+  od kraje (`verticalMargin` v `DropdownMenuPositionProvider`). Nabídka od kotvy v řádku
+  titulku (menu účtu, ⋮ v hlavičce konverzace) proto začínala až 64 + 48 dp od horního kraje
+  okna, asi o 60 b pod kotvou. Výpočet polohy v Compose (`positionWithInsets`) je přitom
+  v pořádku: kotvu posune o inset a výsledek vrátí. Ze 48 dp nabídka nedosáhne ani na semafory,
+  které končí v půlce titulku. Bubliny (`TooltipBox`) mají výchozí vlastnosti a insety
+  respektují dál; okraj od kraje nemají, takže je to neposouvá.
+- **Skupiny nabídky pod myší tvar nemění** (`menuGroupShape` v `core/ui/ExpressiveMenu.kt`).
+  M3 Expressive dává skupině, nad kterou myš byla a odjela, „neaktivní" tvar (všechny rohy
+  8 dp). Spodní skupina se tak při přejetí zaoblila a po odjetí zhranatěla, kdežto horní, kam
+  myš od kotvy často nevjede, zůstala kulatá. Na dotyku hover není, takže se to ukázalo jen
+  na desktopu.
+- **Stín skupin potřebuje místo uvnitř rolování** (`menuScroll()` přidává svislé odsazení):
+  `verticalScroll` ořezává ve směru rolování, takže stín horní skupiny nahoře a spodní dole
+  končil rovnou hranou, kdežto po stranách byl.
 - **Výška: Mac 64 dp, Windows 40 dp.** Na Macu je to výška hlavičky, semafory (JBR je centruje
   na výšku titulku) leží uprostřed řádku s hlavičkou konverzace. Na Windows jsou tlačítka okna
   vysoká jako titulek a 64 dp by z nich udělalo sloupy; 40 dp mají IDE od JetBrains.
