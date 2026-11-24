@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.foundation.shape.GenericShape
@@ -177,8 +178,19 @@ internal fun ChatSearchScreen(
     ReportHost(viewModel.sponsoredChatReportFlow, snackbarHostState)
 
     val focusRequester = remember { FocusRequester() }
-    // Kdo otevřel hledání, chce psát (na telefonu vyjede klávesnice).
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    /*
+     * Kdo otevřel hledání, chce psát (na telefonu vyjede klávesnice) — ale jen při otevření.
+     * Na telefonu konverzace otevřená z výsledků hledání překryje a po návratu se obrazovka skládá
+     * znovu; bez příznaku vyjela klávesnice znovu přes výsledky, ke kterým se uživatel vracel.
+     * `rememberSaveable`, protože obyčejný `remember` návrat nepřežije.
+     */
+    var focusedOnOpen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!focusedOnOpen) {
+            focusedOnOpen = true
+            focusRequester.requestFocus()
+        }
+    }
 
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
