@@ -438,8 +438,8 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
     a uloží ji tentýž `snapshotFlow` jako po tahu), **ve třech vlastní** (`ListPaneWidth.settleTo`,
     stejný dojezd jako po puštění táhla).
   - Ověřeno na desktopu (macOS, ladicí běh): tlačítko za semafory, sbalení kliknutím, rozbalení
-    a sbalení ⌃⌘S i položkou nabídky „Chaty", po restartu se sbaleným seznamem. Let ikony,
-    tři panely,
+    a sbalení ⌃⌘S i položkou nabídky „Chaty", po restartu se sbaleným seznamem; let ikony
+    ověřil uživatel. Tři panely,
     Windows, Android (Fold, Ctrl+Shift+S) a čtečka obrazovky neověřené. Při prvním běhu jednou
     rozbalení nezabralo ani z nabídky a znovu se to vyvolat nepodařilo.
 - **„Vytvořit" a výběr víc chatů má i sbalený sloupec.** FAB je nahoře pod účtem jako FAB
