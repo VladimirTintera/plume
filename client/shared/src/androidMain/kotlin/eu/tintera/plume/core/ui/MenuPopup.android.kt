@@ -9,3 +9,5 @@ actual val MenuPopupProperties: PopupProperties = PopupProperties(
     flags = WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
         WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM,
 )
+
+actual fun PopupProperties.overTitleBar(): PopupProperties = this

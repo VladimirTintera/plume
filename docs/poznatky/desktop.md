@@ -337,15 +337,28 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
   `LocalPlatformWindowInsets`, `@InternalComposeUiApi`), stejně jako stavová lišta na telefonu.
   Obrazovky s ním počítají odjakživa, takže dialogy, prohlížeč i jeden panel na úzkém okně se mu
   vyhnou bez jediné změny.
-- **Strana tlačítek je `LocalWindowControlsSide`** (`commonMain/core/adaptive/WindowControls.kt`):
-  vlevo na Macu, vpravo na Windows. `PaneCard` podle ní pozná, jestli tlačítka leží nad jeho
-  panelem, a když ne, horní inset ZKONZUMUJE — hlavička vyjede k hornímu kraji okna. Na Macu tak
-  má seznam semafory nad pilulkou hledání a konverzace (i placeholder a profil) hlavičku v jedné
-  řadě se semafory; na Windows je to zrcadlově. Jeden panel (úzké okno) má pruh přes celou šířku.
-- **Proč ne semafory v řádku s pilulkou**: vodorovný odstup by se musel řešit v každé hlavičce
-  zvlášť (seznam, archiv, Nastavení, ~30 `TopAppBar`, které mohou stát v rohu okna). Inset má
-  jen výšku a M3 ho rozdává sám; vodorovný inset by dostal i obsah Scaffoldu
-  (`contentWindowInsets`) a celý seznam by uhnul o šířku semaforů.
+- **Strana a šířka tlačítek je `LocalWindowControls`** (`commonMain/core/adaptive/WindowControls.kt`):
+  vlevo na Macu, vpravo na Windows, šířka z `CustomTitleBar.leftInset` / `rightInset`.
+  `PaneCard` podle ní pozná, jestli tlačítka leží nad jeho panelem. Panel, nad kterým nejsou,
+  horní inset ZKONZUMUJE a hlavička vyjede k hornímu kraji okna.
+- **Panel seznamu ho zkonzumuje i pod semafory** a hlavičce dá místo vedle nich
+  (`LocalWindowControlsClearance`, jen role List vedle dalších panelů). Pilulka hledání, šipka
+  zpět v Archivu i v Nastavení tak leží v jednom řádku se semafory a hlavičkou konverzace a karta
+  vpravo zase začíná ve výšce prvního chatu. Úzké okno s jedním panelem má pruh přes celou šířku
+  (místo by musela dávat každá obrazovka).
+- **Místo dává slot `navigationIcon`, ne `windowInsets` lišty** (`WindowControlsSpace`, obalují ho
+  `AccountTopAppBar`, `SettingsTopBar`, `ReorderTopBar`, `ChatSelectionTopBar`, `ChatPicker`,
+  Archiv a `AppBarWithSearch` v `ChatSearchBar`). Inset by u `LargeFlexibleTopAppBar` odsunul
+  i velký nadpis pod řádkem se semafory a vodorovný inset okna by dostal i obsah Scaffoldu
+  (`contentWindowInsets`) — celý seznam by uhnul. **Nová lišta obrazovky v levém panelu** si
+  `WindowControlsSpace` do `navigationIcon` dá taky, jinak bude ikona pod semafory.
+- **Šířka na Macu je `leftInset` − 16 dp.** JBR v něm má i okraj ZA semafory (při výšce 64 vrací
+  104) a lišty mají vlastní odsazení začátku; mezera za zeleným semaforem vycházela 36 b. Teď 20,
+  jako ve Zprávách (změřeno ze snímku okna).
+- **Popup přes pilulku potřebuje `overTitleBar()`** (`core/ui/MenuPopup.kt`): popup na desktopu
+  respektuje insety okna (`usePlatformInsets`) a nesmí nad titulek, takže rozbalené hledání sjelo
+  o 64 dp níž a pod pilulkou zůstalo druhé pole. Totéž `FullScreenDialog` (obsah si insety bere
+  sám). Nabídky a bubliny ho nepotřebují — otevírají se pod svou kotvou.
 - **Výška: Mac 64 dp, Windows 40 dp.** Na Macu je to výška hlavičky, semafory (JBR je centruje
   na výšku titulku) leží uprostřed řádku s hlavičkou konverzace. Na Windows jsou tlačítka okna
   vysoká jako titulek a 64 dp by z nich udělalo sloupy; 40 dp mají IDE od JetBrains.
@@ -369,7 +382,9 @@ s hlavičkou (Zprávy, Mail, Finder). Plume to od přechodu na **JetBrains Runti
   ⋮ v témže řádku otevře nabídku, zelený semafor přepne na celou obrazovku a zpět, zúžení
   a rozšíření okna přes práh dvou panelů (`osascript`, dvě kola) bez chyby.
   **Windows ověřené není** — tlačítka okna, jejich barvy podle motivu (`controls.dark`)
-  a klik do pilulky hledání, která tam leží v pruhu titulku.
+  a klik do pilulky hledání, která tam leží v pruhu titulku. Na Windows zůstává pruh titulku
+  nad nejpravějším panelem: místo pro tlačítka vpravo by musely dávat hlavičky konverzace,
+  profilu a všech podstránek Nastavení.
 
 ## Titulek okna v barvách motivu
 

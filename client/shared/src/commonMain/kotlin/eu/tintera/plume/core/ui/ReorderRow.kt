@@ -34,6 +34,7 @@ import eu.tintera.plume.resources.reorder_move_down
 import eu.tintera.plume.resources.reorder_move_up
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
 
 /**
  * Hlavička režimu uspořádání (připnutá témata, připnuté chaty): ✕ zahodí změny, „Hotovo" je
@@ -45,8 +46,10 @@ fun ReorderTopBar(title: String, busy: Boolean, onCancel: () -> Unit, onDone: ()
     TopAppBar(
         title = { Text(title) },
         navigationIcon = {
-            IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
-                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_cancel))
+            WindowControlsSpace {
+                IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
+                    Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_cancel))
+                }
             }
         },
         actions = {

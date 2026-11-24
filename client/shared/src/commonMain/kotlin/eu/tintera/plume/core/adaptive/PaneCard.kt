@@ -111,14 +111,18 @@ fun PaneCard(
         else -> PaneEdgeInsets.None
     }
     // Horní inset patří jen panelu, nad kterým leží tlačítka okna (desktop s vlastním titulkem,
-    // [LocalWindowControlsSide]); ostatní ho zkonzumují a hlavička jde až k hornímu kraji okna.
+    // [LocalWindowControls]); ostatní ho zkonzumují a hlavička jde až k hornímu kraji okna.
     // Na telefonu jde stavová lišta přes celou šířku a patří všem.
     val controlsAbove = windowControlsAbove(
         atStart = !sideBySide || role == PaneRole.List || detail && !neighbours.listBeside,
         atEnd = !sideBySide || extra || detail && !neighbours.extraBeside || role == PaneRole.List && !neighbours.listBeside,
     )
+    // Panel seznamu vedle dalších panelů si titulek bere celý: hlavička jde do řádku se semafory
+    // a nechá jim místo na začátku ([WindowControlsSpace]). Úzké okno s jedním panelem má pruh.
+    val controls = LocalWindowControls.current
+    val clearance = if (controlsAbove && sideBySide && role == PaneRole.List) controls.width else 0.dp
     val top = when {
-        !controlsAbove -> PaneEdgeInsets.Consume
+        !controlsAbove || clearance > 0.dp -> PaneEdgeInsets.Consume
         card -> PaneEdgeInsets.Pad
         else -> PaneEdgeInsets.None
     }
@@ -160,6 +164,7 @@ fun PaneCard(
                                 LocalPaneHeaderHost provides header,
                                 LocalPaneHeaderOutside provides outside,
                                 LocalPanePlaneScheme provides planeScheme,
+                                LocalWindowControlsClearance provides clearance,
                             ) {
                                 content()
                             }

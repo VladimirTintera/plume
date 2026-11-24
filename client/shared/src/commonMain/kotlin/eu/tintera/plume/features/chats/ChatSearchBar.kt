@@ -172,6 +172,9 @@ import eu.tintera.plume.core.ui.ConnectionStatusIcon
 import eu.tintera.plume.core.ui.label
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import eu.tintera.plume.core.adaptive.WindowControlsSpace
+import eu.tintera.plume.core.adaptive.LocalWindowControlsClearance
+import eu.tintera.plume.core.ui.overTitleBar
 
 /**
  * Hlavička seznamu chatů: vyhledávací pilulka, na jejím konci [trailing] (hromádka příběhů)
@@ -418,9 +421,16 @@ internal fun ChatSearchBar(
             .background(MaterialTheme.colorScheme.surface)
             .then(scrollBehavior.searchBarScrollBehaviorModifier),
     ) {
+        // Desktop: v řádku se semafory jim pilulka nechá místo (`LocalWindowControlsClearance`).
+        val windowControls = LocalWindowControlsClearance.current > 0.dp
         AppBarWithSearch(
             state = searchBarState,
             inputField = inputField,
+            navigationIcon = if (windowControls) {
+                { WindowControlsSpace() }
+            } else {
+                null
+            },
             actions = actions,
             colors = colors,
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
@@ -488,7 +498,7 @@ internal fun ChatSearchBar(
                     focusable = true,
                     clippingEnabled = false,
                     dismissOnBackPress = popupDismissesOnBack,
-                ),
+                ).overTitleBar(),
                 content = results,
             )
         }

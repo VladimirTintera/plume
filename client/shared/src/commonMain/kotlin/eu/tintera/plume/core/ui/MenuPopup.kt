@@ -25,3 +25,13 @@ import androidx.compose.ui.window.PopupProperties
  * **iOS:** výchozí M3 (fokusovatelné); jen přeložené, chování klávesnice ověřené není.
  */
 expect val MenuPopupProperties: PopupProperties
+
+/**
+ * Popup, který smí ležet i přes pruh titulku okna: rozbalené hledání nad pilulkou seznamu chatů.
+ *
+ * Na desktopu s vlastním titulkem je titulek horní inset okna (`DesktopTitleBar`) a popup ho
+ * ve výchozím stavu respektuje (`usePlatformInsets`): nesmí nad něj, a hledání, které se má
+ * rozbalit přesně přes pilulku v řádku se semafory, se posunulo o výšku titulku níž — pod
+ * pilulkou zůstalo druhé pole. Telefon a iOS popup nemění.
+ */
+expect fun PopupProperties.overTitleBar(): PopupProperties

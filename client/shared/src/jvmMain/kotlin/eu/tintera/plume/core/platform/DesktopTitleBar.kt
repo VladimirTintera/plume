@@ -7,6 +7,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -23,7 +25,8 @@ import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
 import com.jetbrains.JBR
 import com.jetbrains.WindowDecorations
-import eu.tintera.plume.core.adaptive.LocalWindowControlsSide
+import eu.tintera.plume.core.adaptive.LocalWindowControls
+import eu.tintera.plume.core.adaptive.WindowControls
 import eu.tintera.plume.core.adaptive.WindowControlsSide
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -35,10 +38,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * `undecorated` okno by o tohle všechno přišlo.
  *
  * - **Výška titulku jde do UI jako horní inset** (`statusBars`, `captionBar`, `systemBars`),
- *   stejně jako stavová lišta na telefonu, a strana tlačítek jako [LocalWindowControlsSide].
- *   Panel, nad kterým tlačítka neleží, inset zkonzumuje (`PaneCard`) a jeho hlavička vyjede
- *   nahoru — na Macu má konverzace hlavičku v řadě se semafory a seznam vlevo pruh nad sebou,
- *   jako Zprávy.
+ *   stejně jako stavová lišta na telefonu, a strana a šířka tlačítek jako [LocalWindowControls].
+ *   Panely vedle sebe inset zkonzumují (`PaneCard`) a hlavičky vyjedou nahoru; panel pod
+ *   tlačítky (seznam na Macu) nechá v hlavičce místo vedle nich. Pilulka hledání i hlavička
+ *   konverzace tak leží v jednom řádku se semafory, jako ve Zprávách.
  * - **Tah oknem a klik** se rozlišují v každé události myši v pruhu titulku ([hitTest]): co si
  *   prvek Compose vzal (tlačítko, pole, avatar), je obsah, zbytek titulek — tah posune oknem,
  *   dvojklik ho maximalizuje, jak to má systém nastavené.
@@ -87,10 +90,17 @@ object DesktopTitleBar {
         val decorations = remember { JBR.getWindowDecorations() }
         val titleBar = remember(window) { decorations.createCustomTitleBar() }
         val isDark by dark.collectAsState()
+        // Šířka tlačítek okna od kraje (dp = logické body AWT); JBR ji zná až po nastavení titulku.
+        var controlsWidth by remember { mutableStateOf(0.dp) }
         LaunchedEffect(titleBar, isDark) {
             titleBar.height = height.value
             if (windows) titleBar.putProperty("controls.dark", isDark)
             decorations.setCustomTitleBar(window, titleBar)
+            // Na Macu je v `leftInset` i okraj ZA semafory (stejný jako před nimi) a hlavičky mají
+            // vlastní odsazení začátku; bez ubrání vycházela mezera ~36 b místo ~20 jako u aplikací
+            // pro Mac (Zprávy, Finder). Změřeno ze snímku okna, viz docs/poznatky/desktop.md.
+            controlsWidth = if (mac) (titleBar.leftInset - MAC_CONTROLS_TRIM).coerceAtLeast(0f).dp else titleBar.rightInset.dp
+            Logger.withTag(TAG).i { "Tlačítka okna: left ${titleBar.leftInset}, right ${titleBar.rightInset}" }
         }
         // Na celé obrazovce titulek není (na Macu sjede jen s lištou nabídek), inset tedy taky ne.
         val fullscreen by DesktopWindow.fullscreen.collectAsState()
@@ -99,7 +109,11 @@ object DesktopTitleBar {
         val insets = remember(base, heightPx) { TitleBarWindowInsets(base, heightPx) }
         CompositionLocalProvider(
             LocalPlatformWindowInsets provides insets,
-            LocalWindowControlsSide provides if (mac) WindowControlsSide.Left else WindowControlsSide.Right,
+            LocalWindowControls provides WindowControls(
+                side = if (mac) WindowControlsSide.Left else WindowControlsSide.Right,
+                // Na celé obrazovce tlačítka přes obsah nejsou.
+                width = if (fullscreen) 0.dp else controlsWidth,
+            ),
         ) {
             Box(Modifier.fillMaxSize().hitTest(titleBar, heightPx)) { content() }
         }
@@ -135,6 +149,9 @@ object DesktopTitleBar {
         }
 
     private const val TAG = "TitleBar"
+
+    /** Kolik z `leftInset` na Macu ubrat, viz `controlsWidth`. */
+    private const val MAC_CONTROLS_TRIM = 16f
 }
 
 /**
