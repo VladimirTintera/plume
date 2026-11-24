@@ -24,46 +24,26 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.toSize
 import eu.tintera.plume.core.accounts.LocalAccount
 import eu.tintera.plume.core.ui.LocalSharedTransitionScope
-import eu.tintera.plume.core.ui.sharedKey
 
 /**
  * Přechod mezi plným seznamem chatů a sbaleným sloupcem jen s avatary (táhlo seznamu přes práh
  * `COLLAPSED_LIST_MAX_WIDTH`). Obě podoby jsou v jednom `AnimatedContent` a prvky, které mají
  * obě, přeletí na své nové místo: avatar účtu z konce řádku s pilulkou nahoru do sloupce, lupa
- * z pilulky do tlačítka hledání, tlačítko Vytvořit z plovoucí lišty dole nahoru pod účet
- * ([listCollapseElement]) a avatary chatů z řádků do sloupce ([collapseAvatarFlight]). Ostatní
- * (pilulka, texty řádků, lišta se složkami) se prolne. Dřív prvky na starém místě zmizely a na
- * novém se objevily v jednom snímku.
+ * z pilulky do tlačítka hledání, tlačítko Vytvořit z plovoucí lišty dole nahoru pod účet a avatary
+ * chatů z řádků do sloupce ([collapseFlight]). Ostatní (pilulka, texty řádků, lišta se složkami)
+ * se prolne. Dřív prvky na starém místě zmizely a na novém se objevily v jednom snímku.
+ *
+ * **Let je ruční, ne `sharedElement`.** Sdílený prvek bere cíl z rozložení „napřed"
+ * (lookahead), a v něm má panel seznamu jinou šířku než skutečně — šířku po puštění táhla
+ * scaffold teprve dotahuje na kotvu. Prvky proto letěly na místo, kde sloupec nebude: avatar
+ * účtu a lupa stály po celý přechod vpravo od osy sloupce a na konci přeskočily, avatary chatů
+ * v líném seznamu stály úplně (zachyceno sériemi snímků). Ruční let bere polohy ze skutečného
+ * rozložení.
  *
  * Scope je [AnimatedVisibilityScope] toho `AnimatedContent`; mimo něj (archiv, telefon) je
  * `null` a modifikátory nedělají nic.
  */
 internal val LocalListCollapseScope = compositionLocalOf<AnimatedVisibilityScope?> { null }
-
-/**
- * Prvek hlavičky, který má plný seznam i sbalený sloupec a mezi nimi přeletí (`sharedElement`):
- * avatar účtu, lupa, Vytvořit. [key] musí být stejný na obou stranách.
- *
- * **Na avatary chatů sdílený prvek nejde**, ty létají ručně ([collapseAvatarFlight]): v líném
- * seznamu se dvojice sice spárovaly (`isMatchFound`), ale let neběžel — avatary stály po celý
- * přechod na výchozím místě a na konci skočily do sloupce (zachyceno sérií snímků, i bez
- * `animateItem` a bez sdílené hlavičky).
- */
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-internal fun Modifier.listCollapseElement(key: String): Modifier {
-    val shared = LocalSharedTransitionScope.current ?: return this
-    val scope = LocalListCollapseScope.current ?: return this
-    // Prostorový spec s jemným dojezdem, jako ostatní přesuny v aplikaci (`AppMotion`).
-    val spec = MaterialTheme.motionScheme.defaultSpatialSpec<Rect>()
-    return with(shared) {
-        this@listCollapseElement.sharedElement(
-            sharedContentState = rememberSharedContentState(sharedKey("list-collapse-$key")),
-            animatedVisibilityScope = scope,
-            boundsTransform = { _, _ -> spec },
-        )
-    }
-}
 
 /** Která podoba seznamu prvek kreslí — avatary se párují s druhou. */
 internal enum class CollapseSide { Full, Column }
@@ -71,7 +51,7 @@ internal enum class CollapseSide { Full, Column }
 internal val LocalCollapseSide = staticCompositionLocalOf { CollapseSide.Full }
 
 /**
- * Kde naposledy v klidu stály avatary chatů v obou podobách seznamu (souřadnice kořene). Odtud
+ * Kde naposledy v klidu stály létající prvky v obou podobách seznamu (souřadnice kořene). Odtud
  * avatar přicházející podoby vyletí. Zapisuje se jen mimo přechod: odcházející podoba se během
  * něj rozkládá znovu a poloha z té doby by nebyla ta, kterou uživatel viděl. Položka, která
  * odjede ze seznamu (odrolování, konec přechodu), se maže, ať se neletí ze zastaralého místa.
@@ -89,16 +69,16 @@ internal class CollapseFlights {
 internal val LocalCollapseFlights = staticCompositionLocalOf<CollapseFlights?> { null }
 
 /**
- * Let avataru chatu mezi plným seznamem a sloupcem, ručně: přicházející avatar se při prvním
- * umístění posune a zvětší na místo protějšku v odcházející podobě ([CollapseFlights])
- * a s přechodem dojede domů. Během letu se kreslí v překryvu nad celou aplikací
+ * Let prvku, který má plný seznam i sbalený sloupec (avatar účtu, lupa, Vytvořit, avatary
+ * chatů; [key] stejný na obou stranách): přicházející prvek se při prvním umístění posune
+ * a zvětší na místo protějšku v odcházející podobě ([CollapseFlights]) a s přechodem dojede domů. Během letu se kreslí v překryvu nad celou aplikací
  * (`renderInSharedTransitionScopeOverlay`), jinak by ho ořízl okraj seznamu, ze kterého vyjíždí —
- * do sloupce se letí shora zpod hlavičky. Avatar bez protějšku (nebyl vidět) se jen prolne
- * s ostatním obsahem.
+ * do sloupce se letí shora zpod hlavičky. Prvek bez protějšku (avatar chatu, který nebyl vidět)
+ * se jen prolne s ostatním obsahem.
  */
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun Modifier.collapseAvatarFlight(key: Any): Modifier {
+internal fun Modifier.collapseFlight(key: Any): Modifier {
     val flights = LocalCollapseFlights.current ?: return this
     val scope = LocalListCollapseScope.current ?: return this
     val side = LocalCollapseSide.current
@@ -155,7 +135,7 @@ internal fun Modifier.collapseAvatarFlight(key: Any): Modifier {
         }
 }
 
-/** Klíč avataru chatu pro [collapseAvatarFlight]: s účtem, ve společném seznamu víc účtů může mít totéž id chat ve dvou účtech. */
+/** Klíč avataru chatu pro [collapseFlight]: s účtem, ve společném seznamu víc účtů může mít totéž id chat ve dvou účtech. */
 @Composable
 internal fun collapseAvatarKey(chatId: Long): String = "avatar-${LocalAccount.current.slot}-$chatId"
 

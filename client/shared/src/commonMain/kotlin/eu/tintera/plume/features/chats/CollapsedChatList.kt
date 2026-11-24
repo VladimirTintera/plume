@@ -207,7 +207,7 @@ internal fun CollapsedChatList(
                 account()
                 CreateButton(onNewChat = onNewChat, onNewGroup = onNewGroup, onNewChannel = onNewChannel, onNewStory = onNewStory)
                 IconButton(onClick = onSearch, shapes = IconButtonDefaults.shapes()) {
-                    Icon(painterResource(Res.drawable.search_24dp), contentDescription = stringResource(Res.string.chats_search), modifier = Modifier.listCollapseElement("search"))
+                    Icon(painterResource(Res.drawable.search_24dp), contentDescription = stringResource(Res.string.chats_search), modifier = Modifier.collapseFlight("search"))
                 }
                 pendingCard?.let { PendingCardButton(it, onClick = onShowCards) }
             }
@@ -360,7 +360,7 @@ private fun CreateButton(onNewChat: () -> Unit, onNewGroup: () -> Unit, onNewCha
     val label = stringResource(Res.string.chats_create)
     Box(Modifier.padding(vertical = 4.dp)) {
         WithTooltip(label = label, position = TooltipAnchorPosition.Right) {
-            FloatingActionButton(onClick = { expanded = true }, modifier = Modifier.listCollapseElement("create")) {
+            FloatingActionButton(onClick = { expanded = true }, modifier = Modifier.collapseFlight("create")) {
                 Icon(painterResource(Res.drawable.edit_24dp), contentDescription = label)
             }
         }
@@ -497,7 +497,7 @@ private fun CollapsedChat(
                     size = COLLAPSED_AVATAR_SIZE,
                     isSavedMessages = isSavedMessages(chat.id),
                     shape = chat.kind.avatarShape(),
-                    modifier = Modifier.collapseAvatarFlight(collapseAvatarKey(chat.id)),
+                    modifier = Modifier.collapseFlight(collapseAvatarKey(chat.id)),
                 )
                 if (chat.unreadCount > 0) {
                     val muted = chat.isMuted

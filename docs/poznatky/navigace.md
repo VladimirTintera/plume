@@ -384,22 +384,23 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   a `requestScrollToItem(0)` ho pošle na vršek — `scrollToItem` by čekal na rozložení seznamu,
   který se v tu chvíli teprve skládá.
 - **Mezi plným seznamem a sbaleným sloupcem se přelétá** (`ListCollapseTransition.kt`). Obě
-  podoby jsou v jednom `AnimatedContent` podle šířky a prvky, které mají obě, jsou sdílené
-  (`listCollapseElement`, `sharedElement` se scope toho `AnimatedContent` z `LocalListCollapseScope`):
-  avatar účtu (konec řádku s pilulkou ↔ vršek sloupce), lupa (pilulka ↔ tlačítko hledání)
-  a Vytvořit (plovoucí lišta dole ↔ FAB pod účtem). Zbytek se prolne. Dřív prvky v jednom
-  snímku zmizely a jinde se objevily.
-  - **Avatary chatů létají ručně** (`collapseAvatarFlight`), ne sdíleným prvkem. V líném
-    seznamu se dvojice spárovaly (`isMatchFound` true), ale let neběžel: avatary stály po celý
-    přechod na jednom místě (částečně za levým krajem) a na konci skočily do sloupce — zachyceno
-    sérií snímků, beze změny i bez `animateItem` a bez sdílené hlavičky. Ručně: každý avatar si
-    v klidu zapisuje polohu v okně (`CollapseFlights`, zvlášť plný seznam a sloupec), přicházející
-    se při prvním umístění posune a zvětší na místo protějšku (`graphicsLayer`) a dojede domů.
+  podoby jsou v jednom `AnimatedContent` podle šířky a prvky, které mají obě, přeletí na nové
+  místo (`collapseFlight`): avatar účtu (konec řádku s pilulkou ↔ vršek sloupce), lupa (pilulka
+  ↔ tlačítko hledání), Vytvořit (plovoucí lišta dole ↔ FAB pod účtem) a avatary chatů. Zbytek se
+  prolne. Dřív prvky v jednom snímku zmizely a jinde se objevily.
+  - **Let je ruční, ne `sharedElement`.** Sdílený prvek bere cíl z rozložení „napřed"
+    (lookahead) a v něm má panel seznamu jinou šířku než ve skutečnosti: šířku po puštění táhla
+    scaffold teprve dotahuje na kotvu. Avatar účtu a lupa proto stály po celý přechod vpravo od
+    osy sloupce a na konci přeskočily, avatary chatů v líném seznamu stály úplně (`isMatchFound`
+    přitom true; beze změny i bez `animateItem`) — zachyceno sériemi snímků během tahu.
+  - **Ruční let:** každý prvek si v klidu zapisuje polohu v okně (`CollapseFlights`, zvlášť plný
+    seznam a sloupec, při odchodu ze seznamu se maže), přicházející se při prvním umístění posune
+    a zvětší na místo protějšku (`graphicsLayer`) a dojede domů.
   - **Průběh letu je průběh přechodu** (`transition.animateFloat`), ne vlastní `Animatable`:
-    s vlastní pružinou doletěly avatary dřív než prvky hlavičky. Během letu se avatar kreslí
-    v překryvu (`renderInSharedTransitionScopeOverlay`), jinak by ho ořízl seznam — do sloupce
-    se letí zpod hlavičky. **Pružina přestřelí přes 1**, transformace se proto vypíná až na
-    přesné 1; s `>= 1` avatar na konci poskočil.
+    s vlastní pružinou doletěly avatary dřív než ostatní. Během letu se prvek kreslí v překryvu
+    (`renderInSharedTransitionScopeOverlay`), jinak by ho ořízl seznam — do sloupce se letí zpod
+    hlavičky. **Pružina přestřelí přes 1**, transformace se proto vypíná až na přesné 1; s `>= 1`
+    prvek na konci poskočil.
   - **Každá podoba se rozkládá ve své šířce, ne v šířce panelu**: sloupec nejvýš na prahu
     (`widthIn(max = COLLAPSED_LIST_MAX_WIDTH)`) u levého kraje, plný seznam aspoň na prahu
     (`wrapContentWidth(Start, unbounded)` + `requiredWidth`, přesah ořízne panel). Odcházející

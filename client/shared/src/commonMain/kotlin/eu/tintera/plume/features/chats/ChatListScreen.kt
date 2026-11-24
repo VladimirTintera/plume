@@ -424,9 +424,9 @@ fun ChatListScreen(
     LaunchedEffect(accounts) {
         accounts.alreadySignedIn.collect { snackbarHostState.showSnackbar(getString(Res.string.accounts_already_signed_in)) }
     }
-    // Avatar účtu přeletí mezi plným seznamem a sbaleným sloupcem (`listCollapseElement`).
+    // Avatar účtu přeletí mezi plným seznamem a sbaleným sloupcem (`collapseFlight`).
     val accountMenu: @Composable () -> Unit = {
-        Box(Modifier.listCollapseElement("account")) {
+        Box(Modifier.collapseFlight("account")) {
         AccountMenu(
             account = account,
             archiveUnread = archiveUnread,
@@ -465,7 +465,7 @@ fun ChatListScreen(
         // Sloupec si drží pozici sám; při přepnutí dojede na chat, který byl nahoře v odcházející
         // podobě (spočítá se v okamžiku přepnutí, dokud je odcházející seznam ještě rozložený).
         val collapsedListState = rememberLazyListState()
-        // Kde stály avatary chatů v obou podobách — odtud při přepnutí vyletí (`collapseAvatarFlight`).
+        // Kde stály létající prvky v obou podobách — odtud při přepnutí vyletí (`collapseFlight`).
         val collapseFlights = remember { CollapseFlights() }
         val collapseAnchor = remember(collapsedNow) { firstVisibleChatKey(if (collapsedNow) listState else collapsedListState) }
         LaunchedEffect(collapsedNow) {
