@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TooltipAnchorPosition
+
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.unit.toSize
@@ -188,7 +193,8 @@ import eu.tintera.plume.core.adaptive.WindowControlsEndSpace
  * lištou kreslí seznam chatů.
  *
  * **Stav spojení je nápověda pilulky** ([connection]) a místo lupy jeho znak
- * ([ConnectionStatusIcon]), ne nadpis ani vlastní prvek. Skoro celou dobu je `null` a pak je
+ * ([ConnectionStatusIcon]), ne nadpis ani vlastní prvek. Výjimka je úzká hlavička bez pilulky
+ * ([CompactChatListHeader]), tam stojí stav i příběhy samostatně. Skoro celou dobu je `null` a pak je
  * vidět jen „Hledat v chatech"; nadpis „Chaty" by jen opakoval, co říká navigace. Fotka účtu
  * stav nenese — je to identita, ne kontrolka.
  */
@@ -197,8 +203,8 @@ internal fun ChatSearchBar(
     connection: ConnectionState?,
     scrollBehavior: SearchBarScrollBehavior,
     onOpenSearch: () -> Unit,
-    /** Konec pilulky (hromádka příběhů). */
-    trailing: @Composable () -> Unit,
+    /** Hromádka příběhů na konci pilulky, v úzké hlavičce samostatně; [Color] je plocha pod ní (lem). */
+    stories: @Composable (rim: Color) -> Unit,
     /** Vedle pilulky, na ploše stránky (menu účtu). */
     actions: @Composable RowScope.() -> Unit,
 ) {
@@ -287,38 +293,146 @@ internal fun ChatSearchBar(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Box(Modifier.padding(end = 4.dp)) { trailing() }
+            Box(Modifier.padding(end = 4.dp)) { stories(MaterialTheme.colorScheme.surfaceContainerHigh) }
         }
     }
 
     // Barva stránky výslovně. Bar ji má mít sám (`appBarContainerColor`), ale bez scroll
     // behavior ji v téhle alphě nenakreslil a chaty pod ním prosvítaly.
-    Column(
+    BoxWithConstraints(
         Modifier
             .background(MaterialTheme.colorScheme.surface)
             .then(scrollBehavior.searchBarScrollBehaviorModifier),
     ) {
         // Desktop: v řádku se semafory jim pilulka nechá místo (`LocalWindowControlsClearance`).
-        val windowControls = LocalWindowControlsClearance.current.start > 0.dp
+        val clearance = LocalWindowControlsClearance.current
+        val windowControls = clearance.start > 0.dp
         // Vedle konverzace přepínač sbalení seznamu před pilulkou, na Macu hned za semafory.
         val listToggle = LocalListPaneToggle.current
-        AppBarWithSearch(
-            state = searchBarState,
-            inputField = pill,
-            navigationIcon = if (windowControls || listToggle != null) {
-                { WindowControlsSpace { listToggle?.let { ListPaneToggleButton(it, collapsed = false) } } }
-            } else {
-                null
-            },
-            actions = {
-                actions()
-                WindowControlsEndSpace()
-            },
-            colors = colors,
-            modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-        )
+        /*
+         * Kolik by zbylo na pilulku: řádek bez tlačítek okna, přepínače, fotky účtu a okrajů baru.
+         * Pod prahem je z pilulky lupa a stav spojení i příběhy stojí samostatně
+         * ([CompactChatListHeader]). Na telefonu místo je, tam zůstává pilulka.
+         */
+        val pillRoom = maxWidth - clearance.start - clearance.end - HEADER_BUTTON * 2 -
+            (if (listToggle != null) HEADER_BUTTON else 0.dp) - HEADER_PADDING
+        val compact = pillRoom < PILL_MIN_WIDTH
+        val enter = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        val exit = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        AnimatedContent(
+            targetState = compact,
+            transitionSpec = { fadeIn(enter) togetherWith fadeOut(exit) },
+            label = "chat-list-header",
+        ) { iconOnly ->
+            if (iconOnly) {
+                CompactChatListHeader(
+                    connection = connection,
+                    onOpenSearch = onOpenSearch,
+                    stories = stories,
+                    actions = actions,
+                )
+                return@AnimatedContent
+            }
+            AppBarWithSearch(
+                state = searchBarState,
+                inputField = pill,
+                navigationIcon = if (windowControls || listToggle != null) {
+                    { WindowControlsSpace { listToggle?.let { ListPaneToggleButton(it, collapsed = false) } } }
+                } else {
+                    null
+                },
+                actions = {
+                    actions()
+                    WindowControlsEndSpace()
+                },
+                colors = colors,
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+            )
+        }
     }
 }
+
+/**
+ * Hlavička seznamu, na jehož pilulku nezbývá místo (desktop vedle konverzace: semafory, přepínač
+ * a fotka účtu z 360 dp sebraly přes polovinu). Lupa jako akce, ze které pole hledání vyroste
+ * stejně jako z pilulky ([SearchMorph]), a co pilulka nesla, stojí samostatně: stav spojení
+ * (znak a věta, jinak by výpadek nebylo vidět) a hromádka příběhů.
+ */
+@Composable
+private fun CompactChatListHeader(
+    connection: ConnectionState?,
+    onOpenSearch: () -> Unit,
+    stories: @Composable (rim: Color) -> Unit,
+    actions: @Composable RowScope.() -> Unit,
+) {
+    val morph = LocalSearchMorph.current
+    val listToggle = LocalListPaneToggle.current
+    val searchLabel = stringResource(Res.string.chats_search)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(TopAppBarDefaults.windowInsets)
+            .height(TopAppBarDefaults.TopAppBarExpandedHeight)
+            .padding(horizontal = 4.dp),
+    ) {
+        WindowControlsSpace { listToggle?.let { ListPaneToggleButton(it, collapsed = false) } }
+        Box(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+            val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+            val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+            AnimatedContent(
+                targetState = connection,
+                transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
+                contentKey = { it != null },
+                label = "compact-connection",
+            ) { shown ->
+                if (shown != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ConnectionStatusIcon(shown, size = 20.dp)
+                        shown.label()?.let { label ->
+                            Text(
+                                stringResource(label),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        stories(MaterialTheme.colorScheme.surface)
+        WithTooltip(label = searchLabel, position = TooltipAnchorPosition.Below) {
+            IconButton(
+                onClick = onOpenSearch,
+                shapes = IconButtonDefaults.shapes(),
+                // Odtud vyroste pole hledání, jako z pilulky.
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    morph?.pill = Rect(coordinates.positionInRoot(), coordinates.size.toSize())
+                },
+            ) {
+                Icon(
+                    painterResource(Res.drawable.search_24dp),
+                    contentDescription = searchLabel,
+                    modifier = Modifier.collapseFlight("search"),
+                )
+            }
+        }
+        actions()
+        WindowControlsEndSpace()
+    }
+}
+
+/** Nejužší pilulka, ve které se vejde lupa, „Hledat v chatech" a hromádka příběhů. */
+private val PILL_MIN_WIDTH = 220.dp
+
+/** Tlačítko v řádku hlavičky (přepínač seznamu, fotka účtu). */
+private val HEADER_BUTTON = 48.dp
+
+/** Okraje a mezery, které si `AppBarWithSearch` dává kolem pilulky. */
+private val HEADER_PADDING = 32.dp
 
 
 /**

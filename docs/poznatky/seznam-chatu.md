@@ -540,6 +540,22 @@ Archiv, Nastavení; dřív tu bylo ⋮ vedle pilulky). Po ťuknutí na pilulku s
   kreslí pod lištou závoj v barvě stránky (`windowInsetsTopHeight(statusBars)`), nad obsahem,
   ale pod `topBar`. **Závoj je přechod do průhledna, ne plná barva:** s plným pásem končily
   chaty o výšku lišty pod okrajem ostrou hranou, jako useknuté.
+- **Kde na pilulku nezbývá místo, je z ní lupa** (`CompactChatListHeader`, práh `PILL_MIN_WIDTH`
+  220 dp z šířky řádku bez tlačítek okna, přepínače seznamu, fotky účtu a okrajů baru). Na Macu
+  vedle konverzace sebraly semafory, přepínač a fotka účtu přes polovinu výchozí šířky a pilulce
+  zbylo kolem 150 dp: „Hledat v chatech" se vešlo tak tak a hláška o spojení se uřízla. Na
+  telefonu, tabletu a v širším seznamu (táhlem na polovinu) pilulka zůstává; mezi podobami se
+  prolíná (`AnimatedContent`), i za tahu táhlem.
+  - **Co pilulka nesla, stojí samostatně:** stav spojení jako znak a věta uprostřed řádku (jen
+    při výpadku, jinak je střed prázdný — nadpis „Chaty" by jen opakoval navigaci), hromádka
+    příběhů před lupou s lemem v barvě stránky, ne pilulky.
+  - **Pole hledání vyroste z lupy** stejně jako z pilulky (lupa zapisuje svou polohu do
+    `SearchMorph.pill`) a při zavření se do ní zase stáhne. Do sbaleného sloupce lupa přeletí
+    (`collapseFlight("search")`), pilulka ne — ta se do 48 dp nevejde.
+  - **Přepínač seznamu stojí v obou podobách na témže místě**, takže při přepnutí neposkočí.
+  - Ověřeno na desktopu (macOS): lupa při výchozí šířce, hledání z ní a zpět do ní, pilulka po
+    roztažení na polovinu. Stav spojení v úzké hlavičce a příběhy v ní neověřené (spojení bylo
+    v pořádku, příběhy žádné), Windows a Fold taky ne.
 - **Výpadek spojení bar přivolá zpátky** (`scrollOffset` animovaný na 0). Jinak by odjetý bar
   schoval jediné vysvětlení, proč nic nechodí.
 - **Sbalený stav barvu nemění** (`scrolledAppBarContainerColor = surface`). Tónovaný pruh přes
