@@ -526,7 +526,7 @@ Archiv, Nastavení; dřív tu bylo ⋮ vedle pilulky). Po ťuknutí na pilulku s
   bloky. Okraj navíc jen na straně, kde nic není: přepínač seznamu a tlačítka okna desktopu mají
   svůj a odsunul by je od kraje okna. Platí i pro úzkou hlavičku s lupou a počítá se do prahu, kdy
   se z pilulky stane lupa. Ověřeno na emulátoru Foldu: složený (pilulka) i rozložený (lupa vedle
-  prázdné konverzace), světlý motiv. iOS a desktop neověřené.
+  prázdné konverzace), světlý motiv. Desktop (macOS, tmavý motiv): fotka účtu končí na hraně karet (396 b), vlevo se semafory se nic nepřidává. iOS neověřené.
 - **Obroučky na fotce (tečka archivu, složené fotky Všech účtů) mají barvu `surface`**, ne
   pilulky (`surfaceContainerHigh`): fotka teď stojí na ploše stránky.
 - **Hromádka příběhů v pilulce zůstala** — je to vstup do obsahu, ne identita, a do terče fotky
